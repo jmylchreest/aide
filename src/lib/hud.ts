@@ -1,0 +1,394 @@
+/**
+ * Shared HUD formatting and writing logic
+ *
+ * Used by hud-updater.ts (PostToolUse) and subagent-tracker.ts (SubagentStart/Stop)
+ * to maintain a consistent status line display.
+ */
+
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { join } from 'path';
+import { execFileSync } from 'child_process';
+import { runAideMemory, findAide } from './hook-utils.js';
+
+export interface AgentState {
+  agentId: string;
+  mode: string | null;
+  startedAt: string | null;
+  currentTool: string | null;
+  tasksCompleted: number;
+  tasksTotal: number;
+  status: string | null;
+  type: string | null;
+  task: string | null;
+  skill: string | null;
+  session: string | null;
+}
+
+export interface HudConfig {
+  enabled: boolean;
+  elements: string[];
+  format: 'minimal' | 'full' | 'icons';
+}
+
+export interface SessionState {
+  activeMode: string | null;
+  agentCount: number;
+  taskCount: number;
+  startedAt: string | null;
+  toolCalls: number;
+  lastTool: string | null;
+}
+
+const DEFAULT_HUD_CONFIG: HudConfig = {
+  enabled: true,
+  elements: ['mode', 'duration', 'agents', 'tasks', 'usage'],
+  format: 'minimal',
+};
+
+const ICONS = {
+  mode: {
+    autopilot: '🚀',
+    ralph: '🔄',
+    eco: '💚',
+    swarm: '🐝',
+    plan: '📋',
+    working: '⚙️',
+    none: '⚪',
+  } as Record<string, string>,
+  agents: '👥',
+  tasks: '📝',
+  tools: '🔧',
+  time: '⏱️',
+};
+
+/**
+ * Get all agent states from aide-memory
+ */
+export function getAgentStates(cwd: string): AgentState[] {
+  const output = runAideMemory(cwd, ['state', 'list']);
+  if (!output) return [];
+
+  const agents: Map<string, AgentState> = new Map();
+
+  for (const line of output.split('\n')) {
+    const agentMatch = line.match(/^\[([^\]]+)\]\s+agent:[^:]+:(\w+)\s*=\s*(.+)$/);
+    if (agentMatch) {
+      const [, agentId, key, value] = agentMatch;
+      if (!agents.has(agentId)) {
+        agents.set(agentId, {
+          agentId,
+          mode: null,
+          startedAt: null,
+          currentTool: null,
+          tasksCompleted: 0,
+          tasksTotal: 0,
+          status: null,
+          type: null,
+          task: null,
+          skill: null,
+          session: null,
+        });
+      }
+      const agent = agents.get(agentId);
+      if (!agent) continue;
+      if (key === 'mode') agent.mode = value.trim();
+      if (key === 'startedAt') agent.startedAt = value.trim();
+      if (key === 'currentTool') agent.currentTool = value.trim();
+      if (key === 'tasksCompleted') agent.tasksCompleted = parseInt(value.trim(), 10) || 0;
+      if (key === 'tasksTotal') agent.tasksTotal = parseInt(value.trim(), 10) || 0;
+      if (key === 'status') agent.status = value.trim();
+      if (key === 'type') agent.type = value.trim();
+      if (key === 'task') agent.task = value.trim();
+      if (key === 'skill') agent.skill = value.trim();
+      if (key === 'session') agent.session = value.trim();
+    }
+  }
+
+  return Array.from(agents.values());
+}
+
+/**
+ * Load HUD configuration
+ */
+export function loadHudConfig(cwd: string): HudConfig {
+  const configPath = join(cwd, '.aide', 'config', 'hud.json');
+
+  if (existsSync(configPath)) {
+    try {
+      const content = readFileSync(configPath, 'utf-8');
+      return { ...DEFAULT_HUD_CONFIG, ...JSON.parse(content) };
+    } catch {
+      return DEFAULT_HUD_CONFIG;
+    }
+  }
+
+  return DEFAULT_HUD_CONFIG;
+}
+
+/**
+ * Get current session state from aide-memory
+ */
+export function getSessionState(cwd: string): SessionState {
+  const state: SessionState = {
+    activeMode: null,
+    agentCount: 0,
+    taskCount: 0,
+    startedAt: null,
+    toolCalls: 0,
+    lastTool: null,
+  };
+
+  const output = runAideMemory(cwd, ['state', 'list']);
+  if (!output) return state;
+
+  for (const line of output.split('\n')) {
+    const globalMatch = line.match(/^(\w+)\s*=\s*(.+)$/);
+    if (globalMatch && !line.startsWith('[')) {
+      const [, key, value] = globalMatch;
+      if (key === 'mode') state.activeMode = value.trim();
+      if (key === 'agentCount') state.agentCount = parseInt(value.trim(), 10) || 0;
+      if (key === 'taskCount') state.taskCount = parseInt(value.trim(), 10) || 0;
+      if (key === 'startedAt') state.startedAt = value.trim();
+      if (key === 'toolCalls') state.toolCalls = parseInt(value.trim(), 10) || 0;
+      if (key === 'lastTool') state.lastTool = value.trim();
+    }
+  }
+
+  return state;
+}
+
+/**
+ * Format duration as human-readable string
+ */
+export function formatDuration(startedAt: string | null): string {
+  if (!startedAt) return '0m';
+
+  const start = new Date(startedAt).getTime();
+  const now = Date.now();
+  const diffMs = now - start;
+
+  if (diffMs < 0) return '0m';
+
+  const seconds = Math.floor(diffMs / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+
+  if (hours > 0) {
+    return `${hours}h${minutes % 60}m`;
+  } else if (minutes > 0) {
+    return `${minutes}m`;
+  } else {
+    return `${seconds}s`;
+  }
+}
+
+/**
+ * Get usage summary from aide usage --json (cached for 5 minutes)
+ */
+let usageCache: { data: any; timestamp: number } | null = null;
+const USAGE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+export function getUsageSummary(cwd: string): { window5h: number; today: number; remain: string } | null {
+  const now = Date.now();
+  if (usageCache && (now - usageCache.timestamp) < USAGE_CACHE_TTL) {
+    return usageCache.data;
+  }
+
+  const binary = findAide(cwd);
+  if (!binary) return null;
+
+  try {
+    const output = execFileSync(binary, ['usage', '--json'], {
+      cwd,
+      encoding: 'utf-8',
+      timeout: 10000,
+    });
+    const parsed = JSON.parse(output);
+    const result = {
+      window5h: parsed.realtime?.window_5h?.total || 0,
+      today: parsed.realtime?.today?.total || 0,
+      remain: parsed.realtime?.window_remain || '',
+    };
+    usageCache = { data: result, timestamp: now };
+    return result;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Get task counts from aide CLI
+ */
+export function getTaskCounts(cwd: string): { pending: number; inProgress: number; done: number } {
+  const output = runAideMemory(cwd, ['task', 'list']);
+  if (!output) return { pending: 0, inProgress: 0, done: 0 };
+
+  let pending = 0, inProgress = 0, done = 0;
+  for (const line of output.split('\n')) {
+    if (line.includes('[pending]')) pending++;
+    else if (line.includes('[claimed]') || line.includes('[in_progress]')) inProgress++;
+    else if (line.includes('[done]') || line.includes('[complete]')) done++;
+  }
+  return { pending, inProgress, done };
+}
+
+/**
+ * Format HUD output based on config
+ */
+export function formatHud(config: HudConfig, state: SessionState, agents: AgentState[] = [], cwd: string = '.'): string {
+  if (!config.enabled) return '';
+
+  const parts: string[] = [];
+
+  const tasks = getTaskCounts(cwd);
+  const totalTasks = tasks.pending + tasks.inProgress + tasks.done;
+
+  for (const element of config.elements) {
+    switch (element) {
+      case 'mode':
+        const modeName = state.activeMode || 'idle';
+        const toolSuffix = state.lastTool ? `(${state.lastTool})` : '';
+        if (config.format === 'icons') {
+          const icon = ICONS.mode[state.activeMode || 'none'] || ICONS.mode.none;
+          parts.push(`${icon} ${modeName}${toolSuffix}`);
+        } else {
+          parts.push(`mode:${modeName}${toolSuffix}`);
+        }
+        break;
+
+      case 'agents':
+        const runningCount = agents.filter(a => a.status === 'running').length;
+        if (runningCount > 0) {
+          if (config.format === 'icons') {
+            parts.push(`${ICONS.agents} ${runningCount}`);
+          } else {
+            parts.push(`agents:${runningCount}`);
+          }
+        }
+        break;
+
+      case 'tasks':
+        if (totalTasks > 0) {
+          const taskStr = `✓(${tasks.done}) ●(${tasks.inProgress}) ○(${tasks.pending})`;
+          if (config.format === 'icons') {
+            parts.push(`${ICONS.tasks} ${taskStr}`);
+          } else {
+            parts.push(`tasks:${taskStr}`);
+          }
+        } else {
+          parts.push(`tasks:0`);
+        }
+        break;
+
+      case 'duration':
+        const duration = formatDuration(state.startedAt);
+        if (config.format === 'icons') {
+          parts.push(`${ICONS.time} ${duration}`);
+        } else {
+          parts.push(duration);
+        }
+        break;
+
+      case 'tools':
+        if (state.toolCalls > 0) {
+          if (config.format === 'icons') {
+            parts.push(`🔧 ${state.toolCalls}`);
+          } else {
+            parts.push(`tools:${state.toolCalls}`);
+          }
+        }
+        break;
+
+      case 'usage': {
+        const usage = getUsageSummary(cwd);
+        if (usage) {
+          const fmt = (n: number) => n >= 1000000 ? `${(n/1000000).toFixed(1)}M` : n >= 1000 ? `${(n/1000).toFixed(0)}K` : `${n}`;
+          const remainStr = usage.remain && usage.remain !== 'expired' ? ` ~${usage.remain}` : '';
+          if (config.format === 'icons') {
+            parts.push(`📊 5h:${fmt(usage.window5h)}${remainStr}`);
+          } else {
+            parts.push(`5h:${fmt(usage.window5h)}${remainStr}`);
+          }
+        }
+        break;
+      }
+    }
+  }
+
+  let mainLine: string;
+  if (config.format === 'minimal') {
+    mainLine = parts.join(' | ');
+  } else if (config.format === 'icons') {
+    mainLine = parts.join('  ');
+  } else {
+    mainLine = `[aide] ${parts.join(' | ')}`;
+  }
+
+  // Add per-agent lines for running agents
+  const lines: string[] = [mainLine];
+  const runningAgents = agents.filter(a => a.status === 'running');
+
+  for (const agent of runningAgents) {
+    const agentDuration = formatDuration(agent.startedAt);
+    const shortId = agent.agentId.length > 7 ? agent.agentId.slice(0, 7) : agent.agentId;
+
+    const agentParts: string[] = [`▶[${shortId}]`];
+
+    if (agent.type) {
+      agentParts.push(agent.type);
+    }
+
+    agentParts.push(agentDuration);
+
+    if (agent.currentTool) {
+      const toolDesc = agent.currentTool.length > 25 ? agent.currentTool.slice(0, 22) + '...' : agent.currentTool;
+      agentParts.push(`→ ${toolDesc}`);
+    } else if (agent.task) {
+      const taskDesc = agent.task.length > 35 ? agent.task.slice(0, 32) + '...' : agent.task;
+      agentParts.push(taskDesc);
+    }
+
+    lines.push(`└─ ${agentParts.join(' | ')}`);
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * Write HUD output to state file
+ */
+export function writeHudOutput(cwd: string, output: string): void {
+  const stateDir = join(cwd, '.aide', 'state');
+  if (!existsSync(stateDir)) {
+    try {
+      mkdirSync(stateDir, { recursive: true });
+    } catch {
+      return;
+    }
+  }
+
+  const hudPath = join(stateDir, 'hud.txt');
+  try {
+    writeFileSync(hudPath, output);
+  } catch {
+    // Ignore write errors
+  }
+}
+
+/**
+ * Refresh the HUD display - reads state, formats, and writes
+ * Can be called from any hook that needs to trigger a HUD update.
+ */
+export function refreshHud(cwd: string, sessionId?: string): void {
+  const config = loadHudConfig(cwd);
+  const state = getSessionState(cwd);
+  const allAgents = getAgentStates(cwd);
+
+  // Filter to only agents from the current session
+  const agents = sessionId
+    ? allAgents.filter(a => a.session === sessionId)
+    : [];
+
+  const hudOutput = formatHud(config, state, agents, cwd);
+  writeHudOutput(cwd, hudOutput);
+}

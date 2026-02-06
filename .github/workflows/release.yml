@@ -1,0 +1,293 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  # Prepare version information
+  prepare:
+    name: Prepare
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      version_tag: ${{ steps.version.outputs.version_tag }}
+      is_release: ${{ steps.version.outputs.is_release }}
+      should_skip: ${{ steps.version.outputs.should_skip }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Determine version
+        id: version
+        run: |
+          SHOULD_SKIP=false
+
+          # Check if this is a release (tag push)
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            IS_RELEASE=true
+            # Strip 'v' prefix from tag: v1.2.3 -> 1.2.3
+            VERSION="${GITHUB_REF_NAME#v}"
+            VERSION_TAG="${GITHUB_REF_NAME}"
+          else
+            IS_RELEASE=false
+
+            # For main branch builds, check if this commit already has a release tag
+            if [[ "${{ github.ref }}" == refs/heads/main ]]; then
+              EXISTING_TAG=$(git tag --points-at HEAD | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1 || true)
+              if [[ -n "$EXISTING_TAG" ]]; then
+                echo "Commit already has release tag $EXISTING_TAG, skipping build"
+                SHOULD_SKIP=true
+              fi
+            fi
+
+            # Snapshot version: {major}.{minor}.{next_patch}-dev.{commits}+{hash}
+            if git describe --tags --always --long 2>/dev/null | grep -q '^v'; then
+              DESCRIBE=$(git describe --tags --always --long 2>/dev/null)
+              if [[ $DESCRIBE =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)-([0-9]+)-g([a-f0-9]+)$ ]]; then
+                MAJOR=${BASH_REMATCH[1]}
+                MINOR=${BASH_REMATCH[2]}
+                PATCH=${BASH_REMATCH[3]}
+                COMMITS=${BASH_REMATCH[4]}
+                HASH=${BASH_REMATCH[5]}
+                NEXT_PATCH=$((PATCH + 1))
+                VERSION="${MAJOR}.${MINOR}.${NEXT_PATCH}-dev.${COMMITS}+${HASH}"
+                VERSION_TAG="v${MAJOR}.${MINOR}.${NEXT_PATCH}-dev.${COMMITS}"
+              else
+                # Fallback for unexpected format
+                VERSION="0.0.0-dev.0+${GITHUB_SHA:0:7}"
+                VERSION_TAG="v0.0.0-dev.0"
+              fi
+            else
+              VERSION="0.0.0-dev.0+${GITHUB_SHA:0:7}"
+              VERSION_TAG="v0.0.0-dev.0"
+            fi
+          fi
+
+          echo "should_skip=${SHOULD_SKIP}" >> $GITHUB_OUTPUT
+          echo "is_release=${IS_RELEASE}" >> $GITHUB_OUTPUT
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "version_tag=${VERSION_TAG}" >> $GITHUB_OUTPUT
+
+          echo "Version: ${VERSION}"
+          echo "Version Tag: ${VERSION_TAG}"
+          echo "Is Release: ${IS_RELEASE}"
+          echo "Should Skip: ${SHOULD_SKIP}"
+
+  # Run tests
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    needs: prepare
+    if: needs.prepare.outputs.should_skip != 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: aide/go.mod
+          cache: true
+          cache-dependency-path: aide/go.sum
+
+      - name: Run tests
+        run: |
+          cd aide
+          go test -v -race ./...
+
+  # Build binaries for all Claude Code supported platforms
+  build:
+    name: Build (${{ matrix.goos }}/${{ matrix.goarch }})
+    runs-on: ${{ matrix.runner }}
+    needs: [prepare, test]
+    if: needs.prepare.outputs.should_skip != 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux - cross-compile with zig
+          - goos: linux
+            goarch: amd64
+            runner: ubuntu-latest
+            zig_target: x86_64-linux-gnu
+            use_zig: true
+          - goos: linux
+            goarch: arm64
+            runner: ubuntu-latest
+            zig_target: aarch64-linux-gnu
+            use_zig: true
+          # macOS - native builds on macOS runners
+          - goos: darwin
+            goarch: amd64
+            runner: macos-13
+            use_zig: false
+          - goos: darwin
+            goarch: arm64
+            runner: macos-latest
+            use_zig: false
+          # Windows - cross-compile with zig
+          - goos: windows
+            goarch: amd64
+            runner: ubuntu-latest
+            zig_target: x86_64-windows-gnu
+            use_zig: true
+          - goos: windows
+            goarch: arm64
+            runner: ubuntu-latest
+            zig_target: aarch64-windows-gnu
+            use_zig: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: aide/go.mod
+          cache: true
+          cache-dependency-path: aide/go.sum
+
+      - name: Install Zig
+        if: matrix.use_zig
+        uses: mlugg/setup-zig@v2
+
+      - name: Build
+        env:
+          CGO_ENABLED: 1
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          cd aide
+
+          # Set cross-compiler if using zig
+          if [[ "${{ matrix.use_zig }}" == "true" ]]; then
+            export CC="zig cc -target ${{ matrix.zig_target }}"
+            export CXX="zig c++ -target ${{ matrix.zig_target }}"
+          fi
+
+          BINARY_NAME="aide-${{ matrix.goos }}-${{ matrix.goarch }}"
+          if [[ "${{ matrix.goos }}" == "windows" ]]; then
+            BINARY_NAME="${BINARY_NAME}.exe"
+          fi
+
+          go build -ldflags "-s -w \
+            -X github.com/jmylchreest/aide/aide/internal/version.Version=${{ needs.prepare.outputs.version }} \
+            -X github.com/jmylchreest/aide/aide/internal/version.Commit=${{ github.sha }} \
+            -X github.com/jmylchreest/aide/aide/internal/version.Date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            -o "../dist/${BINARY_NAME}" ./cmd/aide
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: aide-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/aide-*
+          if-no-files-found: error
+
+  # Create release (only on tag push)
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    needs: [prepare, build]
+    if: needs.prepare.outputs.is_release == 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v7
+        with:
+          path: artifacts
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release
+          for dir in artifacts/*/; do
+            cp "$dir"/* release/ 2>/dev/null || true
+          done
+          ls -la release/
+
+      - name: Generate checksums
+        working-directory: release
+        run: |
+          sha256sum aide-* > checksums.txt
+          cat checksums.txt
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: aide ${{ needs.prepare.outputs.version_tag }}
+          tag_name: ${{ needs.prepare.outputs.version_tag }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            release/aide-*
+            release/checksums.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Create snapshot release (on main branch, not tag)
+  snapshot:
+    name: Snapshot
+    runs-on: ubuntu-latest
+    needs: [prepare, build]
+    if: needs.prepare.outputs.is_release == 'false' && github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v7
+        with:
+          path: artifacts
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release
+          for dir in artifacts/*/; do
+            cp "$dir"/* release/ 2>/dev/null || true
+          done
+          ls -la release/
+
+      - name: Generate checksums
+        working-directory: release
+        run: |
+          sha256sum aide-* > checksums.txt
+          cat checksums.txt
+
+      - name: Delete existing snapshot release
+        run: |
+          gh release delete snapshot --yes 2>/dev/null || true
+          git push origin :refs/tags/snapshot 2>/dev/null || true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create snapshot release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Development Snapshot"
+          tag_name: snapshot
+          draft: false
+          prerelease: true
+          body: |
+            This is an automated development snapshot built from the main branch.
+
+            **Version:** ${{ needs.prepare.outputs.version }}
+            **Commit:** ${{ github.sha }}
+            **Built:** ${{ github.event.head_commit.timestamp }}
+
+            This release is automatically updated with each push to main.
+          files: |
+            release/aide-*
+            release/checksums.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

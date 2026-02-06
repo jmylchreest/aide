@@ -1,0 +1,331 @@
+#!/usr/bin/env node
+/**
+ * Subagent Tracker Hook (SubagentStart, SubagentStop)
+ *
+ * Tracks spawned subagents for HUD display and coordination.
+ * Registers agents in aide-memory with their type, model, and task.
+ * Also injects memory context for subagents (global preferences, decisions).
+ *
+ * SubagentStart data from Claude Code:
+ * - agent_id, agent_type, session_id, prompt
+ * - model, cwd, permission_mode
+ *
+ * SubagentStop data from Claude Code:
+ * - agent_id, agent_type, output, success
+ */
+
+import { existsSync } from 'fs';
+import { join } from 'path';
+import { homedir } from 'os';
+import { execSync } from 'child_process';
+import { Logger } from '../lib/logger.js';
+import { readStdin, setMemoryState, updateSessionHeartbeat } from '../lib/hook-utils.js';
+import { refreshHud } from '../lib/hud.js';
+
+// Global logger instance
+let log: Logger | null = null;
+
+// Claude Code hook input format (uses hook_event_name, not event)
+interface SubagentStartInput {
+  hook_event_name: 'SubagentStart';
+  agent_id: string;
+  agent_type: string;
+  session_id: string;
+  transcript_path?: string;
+  cwd: string;
+  permission_mode?: string;
+  // Note: prompt and model are NOT provided by Claude Code
+  // We'll need to get these from PreToolUse if needed
+}
+
+interface SubagentStopInput {
+  hook_event_name: 'SubagentStop';
+  agent_id: string;
+  agent_type: string;
+  session_id: string;
+  transcript_path?: string;
+  agent_transcript_path?: string;
+  stop_hook_active?: boolean;
+  cwd: string;
+  permission_mode?: string;
+}
+
+type HookInput = SubagentStartInput | SubagentStopInput;
+
+interface HookOutput {
+  continue: boolean;
+  hookSpecificOutput?: {
+    hookEventName: string;
+    additionalContext?: string;
+  };
+}
+
+/**
+ * Find the aide binary path
+ */
+function findAideBinary(cwd?: string): string | null {
+  const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT;
+  if (pluginRoot) {
+    const pluginBinary = join(pluginRoot, 'bin', 'aide');
+    if (existsSync(pluginBinary)) {
+      return pluginBinary;
+    }
+  }
+
+  if (cwd) {
+    const localBinary = join(cwd, 'bin', 'aide');
+    if (existsSync(localBinary)) {
+      return localBinary;
+    }
+  }
+
+  const homeBinary = join(homedir(), '.aide', 'bin', 'aide');
+  if (existsSync(homeBinary)) {
+    return homeBinary;
+  }
+
+  try {
+    execSync('aide --help', { stdio: 'ignore', timeout: 2000 });
+    return 'aide';
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fetch essential memories for subagent context injection
+ *
+ * Subagents get a lightweight subset:
+ * - Global preferences (scope:global)
+ * - Project decisions
+ *
+ * This avoids bloating subagent prompts while ensuring they respect
+ * user preferences and architectural decisions.
+ */
+function fetchSubagentMemories(cwd: string): { global: string[]; decisions: string[] } {
+  const result = { global: [] as string[], decisions: [] as string[] };
+
+  // Check for disable flag
+  if (process.env.AIDE_MEMORY_INJECT === '0') {
+    return result;
+  }
+
+  const binary = findAideBinary(cwd);
+  if (!binary) {
+    return result;
+  }
+
+  const dbPath = join(cwd, '.aide', 'memory', 'store.db');
+  const env = { ...process.env, AIDE_MEMORY_DB: dbPath };
+
+  // Fetch global memories (scope:global)
+  try {
+    const globalOutput = execSync(
+      `"${binary}" memory list --category=global --tags=scope:global --format=json`,
+      { env, stdio: ['pipe', 'pipe', 'pipe'], timeout: 3000 }
+    ).toString().trim();
+
+    if (globalOutput && globalOutput !== '[]') {
+      const memories = JSON.parse(globalOutput);
+      result.global = memories.map((m: { content: string }) => m.content);
+    }
+  } catch {
+    // Ignore errors - memory is optional
+  }
+
+  // Fetch project decisions
+  try {
+    const decisionsOutput = execSync(
+      `"${binary}" decision list --format=json`,
+      { env, stdio: ['pipe', 'pipe', 'pipe'], timeout: 3000 }
+    ).toString().trim();
+
+    if (decisionsOutput && decisionsOutput !== '[]') {
+      const decisions = JSON.parse(decisionsOutput);
+      result.decisions = decisions.map((d: { topic: string; value: string }) =>
+        `**${d.topic}**: ${d.value}`
+      );
+    }
+  } catch {
+    // Ignore errors
+  }
+
+  return result;
+}
+
+/**
+ * Build context for subagent injection
+ */
+function buildSubagentContext(memories: { global: string[]; decisions: string[] }): string | undefined {
+  const lines: string[] = [];
+
+  if (memories.global.length > 0) {
+    lines.push('<aide-subagent-context>');
+    lines.push('');
+    lines.push('## User Preferences');
+    lines.push('');
+    for (const mem of memories.global) {
+      lines.push(`- ${mem}`);
+    }
+  }
+
+  if (memories.decisions.length > 0) {
+    if (lines.length === 0) {
+      lines.push('<aide-subagent-context>');
+    }
+    lines.push('');
+    lines.push('## Project Decisions');
+    lines.push('');
+    for (const decision of memories.decisions) {
+      lines.push(`- ${decision}`);
+    }
+  }
+
+  if (lines.length > 0) {
+    lines.push('');
+    lines.push('</aide-subagent-context>');
+    return lines.join('\n');
+  }
+
+  return undefined;
+}
+
+/**
+ * Set state in aide-memory for an agent (wrapper with logging)
+ */
+function setAgentState(cwd: string, agentId: string, key: string, value: string): boolean {
+  const truncatedValue = value.replace(/\n/g, ' ').slice(0, 500);
+  log?.debug(`setAgentState: setting ${key}="${truncatedValue}" for agent ${agentId}`);
+  const result = setMemoryState(cwd, key, truncatedValue, agentId);
+  if (!result) {
+    log?.warn(`setAgentState: failed to set ${key} for agent ${agentId}`);
+  }
+  return result;
+}
+
+/**
+ * Handle SubagentStart event
+ * Returns context to inject into the subagent
+ */
+async function processSubagentStart(data: SubagentStartInput): Promise<string | undefined> {
+  const { agent_id, agent_type, session_id, cwd } = data;
+
+  log?.info(`SubagentStart: agent_id=${agent_id}, type=${agent_type}, session=${session_id}`);
+
+  // Claude Code doesn't provide prompt/model in SubagentStart
+  // Use agent_type directly as the type
+  const type = agent_type;
+
+  log?.debug(`SubagentStart: registering type=${type}`);
+
+  // Update session heartbeat (proves session is alive)
+  updateSessionHeartbeat(cwd, session_id);
+
+  // Register agent in aide-memory
+  // Note: modelTier is NOT stored - model instructions are injected into context instead
+  log?.start('registerAgent');
+  setAgentState(cwd, agent_id, 'status', 'running');
+  setAgentState(cwd, agent_id, 'type', type);
+  setAgentState(cwd, agent_id, 'startedAt', new Date().toISOString());
+  setAgentState(cwd, agent_id, 'session', session_id);  // Track which session owns this agent
+  log?.end('registerAgent');
+
+  // Refresh HUD to show the new running agent
+  log?.start('refreshHud');
+  refreshHud(cwd, session_id);
+  log?.end('refreshHud');
+
+  // Fetch memories for subagent context injection
+  log?.start('fetchMemories');
+  const memories = fetchSubagentMemories(cwd);
+  log?.end('fetchMemories', {
+    globalCount: memories.global.length,
+    decisionCount: memories.decisions.length,
+  });
+
+  // Build context if we have any memories
+  if (memories.global.length > 0 || memories.decisions.length > 0) {
+    const context = buildSubagentContext(memories);
+    log?.info(`Injecting context for subagent: ${memories.global.length} preferences, ${memories.decisions.length} decisions`);
+    return context;
+  }
+
+  return undefined;
+}
+
+/**
+ * Handle SubagentStop event
+ */
+async function processSubagentStop(data: SubagentStopInput): Promise<void> {
+  const { agent_id, session_id, cwd, stop_hook_active } = data;
+
+  log?.info(`SubagentStop: agent_id=${agent_id}, session=${session_id}, stop_hook_active=${stop_hook_active}`);
+
+  // Update session heartbeat (proves session is alive)
+  updateSessionHeartbeat(cwd, session_id);
+
+  // Mark as completed (Claude Code doesn't provide success/failure status)
+  log?.start('updateAgentStatus');
+  setAgentState(cwd, agent_id, 'status', 'completed');
+  setAgentState(cwd, agent_id, 'endedAt', new Date().toISOString());
+  log?.end('updateAgentStatus');
+
+  // Refresh HUD to remove the completed agent
+  log?.start('refreshHud');
+  refreshHud(cwd, session_id);
+  log?.end('refreshHud');
+
+  log?.debug(`SubagentStop: agent ${agent_id} marked as completed`);
+}
+
+async function main(): Promise<void> {
+  try {
+    const input = await readStdin();
+    if (!input.trim()) {
+      console.log(JSON.stringify({ continue: true }));
+      return;
+    }
+
+    const data: HookInput = JSON.parse(input);
+    const cwd = data.cwd || process.cwd();
+
+    // Initialize logger
+    log = new Logger('subagent-tracker', cwd);
+    log.start('total');
+    log.info(`Received event: ${data.hook_event_name}`);
+    log.debug(`Full input: ${JSON.stringify(data, null, 2)}`);
+
+    let additionalContext: string | undefined;
+
+    // Dispatch based on event type from input (Claude Code uses hook_event_name)
+    if (data.hook_event_name === 'SubagentStart') {
+      additionalContext = await processSubagentStart(data as SubagentStartInput);
+    } else if (data.hook_event_name === 'SubagentStop') {
+      await processSubagentStop(data as SubagentStopInput);
+    } else {
+      // TypeScript narrows to never here, but handle unexpected events gracefully
+      log.warn(`Unknown event type: ${(data as { hook_event_name?: string }).hook_event_name || 'undefined'}`);
+    }
+
+    log.end('total');
+    log.flush();
+
+    // Output with optional context injection for subagents
+    const output: HookOutput = { continue: true };
+    if (additionalContext) {
+      output.hookSpecificOutput = { hookEventName: 'SubagentStart', additionalContext };
+    }
+
+    console.log(JSON.stringify(output));
+  } catch (error) {
+    // Log error but don't block
+    if (log) {
+      log.error('Subagent tracker failed', error);
+      log.flush();
+    }
+    console.error('[aide:subagent-tracker] Error:', error);
+    console.log(JSON.stringify({ continue: true }));
+  }
+}
+
+main();

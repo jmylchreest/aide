@@ -1,0 +1,87 @@
+version: "2"
+
+linters:
+  default: standard
+  disable:
+    - errcheck
+    - errorlint
+    - gosec
+    - goconst
+    - noctx
+    - revive
+  enable:
+    - bodyclose
+    - copyloopvar
+    - errname
+    - exhaustive
+    - gocritic
+    - gocyclo
+    - govet
+    - ineffassign
+    - misspell
+    - nakedret
+    - prealloc
+    - predeclared
+    - staticcheck
+    - testifylint
+    - tparallel
+    - unconvert
+    - unparam
+    - unused
+    - usestdlibvars
+    - whitespace
+  settings:
+    errorlint:
+      errorf: true
+      asserts: true
+      comparison: false
+    exhaustive:
+      default-signifies-exhaustive: true
+    gocyclo:
+      min-complexity: 30
+    govet:
+      disable:
+        - fieldalignment
+        - shadow
+    staticcheck:
+      checks: ["all"]
+  exclusions:
+    paths:
+      - ffi
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+          - gosec
+          - gocyclo
+          - errorlint
+      - path: ffi/.*\.go
+        linters:
+          - errcheck
+          - gosec
+      - path: cmd/.*\.go
+        linters:
+          - errcheck
+          - errorlint
+      - path: pkg/store/.*\.go
+        text: "error is not nil.*but it returns nil"
+        linters:
+          - nilerr
+      - path: internal/version/.*\.go
+        linters:
+          - gochecknoinits
+          - goconst
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+output:
+  sort-order:
+    - linter
+    - file

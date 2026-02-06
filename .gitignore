@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+bin/
+dist/
+
+# IDE/Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# AIDE runtime data (state, memory, logs, config, code index)
+# These are all local/session-specific and should not be committed.
+# - .aide/state/: HUD status, agent state
+# - .aide/memory/: SQLite store (memories, decisions, messages)
+# - .aide/config/: local config overrides
+# - .aide/_logs/: debug/hook logs
+# - .aide/code/: code index and search databases
+**/.aide/
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.local

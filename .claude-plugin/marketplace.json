@@ -1,0 +1,19 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "aide-local",
+  "description": "AIDE - AI Development Environment for multi-agent orchestration",
+  "owner": {
+    "name": "John Mylchreest",
+    "email": "john@mylchreest.net"
+  },
+  "plugins": [
+    {
+      "name": "aide",
+      "description": "AI Development Environment - Multi-agent orchestration for Claude Code",
+      "version": "0.0.0",
+      "source": "./",
+      "category": "productivity",
+      "tags": ["multi-agent", "orchestration", "automation"]
+    }
+  ]
+}

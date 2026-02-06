@@ -1,0 +1,103 @@
+name: aide
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'aide/**'
+      - '.github/workflows/aide.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'aide/**'
+      - '.github/workflows/aide.yml'
+
+defaults:
+  run:
+    working-directory: aide
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: aide/go.mod
+          cache-dependency-path: aide/go.sum
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run tests
+        run: go test -v -race -coverprofile=coverage.out ./...
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v5
+        with:
+          files: aide/coverage.out
+          flags: aide
+        continue-on-error: true
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: aide/go.mod
+          cache-dependency-path: aide/go.sum
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: latest
+          working-directory: aide
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [test, lint]
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: aide/go.mod
+          cache-dependency-path: aide/go.sum
+
+      - name: Build
+        run: go build -ldflags "-s -w" -o aide-linux-amd64 ./cmd/aide
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: aide-linux-amd64
+          path: aide/aide-linux-amd64
+
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v7
+        with:
+          path: artifacts
+
+      - name: Create checksums
+        working-directory: .
+        run: |
+          ls -laR artifacts/
+          cd artifacts
+          find . -type f ! -name 'checksums.txt' -exec sha256sum {} \; | tee checksums.txt

@@ -1,0 +1,33 @@
+{
+  "name": "aide",
+  "version": "0.0.0",
+  "description": "AI Development Environment - Multi-agent orchestration for Claude Code",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "test": "vitest",
+    "lint": "eslint src/",
+    "format": "prettier --write src/"
+  },
+  "keywords": [
+    "ai",
+    "claude",
+    "agents",
+    "orchestration",
+    "development"
+  ],
+  "author": "John Mylchreest",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "eslint": "^9.0.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^2.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

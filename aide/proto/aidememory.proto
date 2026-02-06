@@ -1,0 +1,459 @@
+syntax = "proto3";
+
+package aidememory;
+
+option go_package = "github.com/jmylchreest/aide/aide/pkg/grpcapi";
+
+import "google/protobuf/timestamp.proto";
+
+// =============================================================================
+// Memory Service
+// =============================================================================
+
+service MemoryService {
+  rpc Add(MemoryAddRequest) returns (MemoryAddResponse);
+  rpc Get(MemoryGetRequest) returns (MemoryGetResponse);
+  rpc Search(MemorySearchRequest) returns (MemorySearchResponse);
+  rpc List(MemoryListRequest) returns (MemoryListResponse);
+  rpc Delete(MemoryDeleteRequest) returns (MemoryDeleteResponse);
+  rpc Clear(MemoryClearRequest) returns (MemoryClearResponse);
+}
+
+message Memory {
+  string id = 1;
+  string category = 2;
+  string content = 3;
+  repeated string tags = 4;
+  float priority = 5;
+  string plan = 6;
+  string agent = 7;
+  string namespace = 8;  // Swarm scope (empty = global)
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp updated_at = 10;
+}
+
+message MemoryAddRequest {
+  string content = 1;
+  string category = 2;
+  repeated string tags = 3;
+}
+
+message MemoryAddResponse {
+  Memory memory = 1;
+}
+
+message MemoryGetRequest {
+  string id = 1;
+}
+
+message MemoryGetResponse {
+  Memory memory = 1;
+}
+
+message MemorySearchRequest {
+  string query = 1;
+  int32 limit = 2;
+  string category = 3;
+}
+
+message MemorySearchResponse {
+  repeated Memory memories = 1;
+}
+
+message MemoryListRequest {
+  string category = 1;
+  int32 limit = 2;
+}
+
+message MemoryListResponse {
+  repeated Memory memories = 1;
+}
+
+message MemoryDeleteRequest {
+  string id = 1;
+}
+
+message MemoryDeleteResponse {
+  bool success = 1;
+}
+
+message MemoryClearRequest {}
+
+message MemoryClearResponse {
+  int32 count = 1;
+}
+
+// =============================================================================
+// State Service
+// =============================================================================
+
+service StateService {
+  rpc Get(StateGetRequest) returns (StateGetResponse);
+  rpc Set(StateSetRequest) returns (StateSetResponse);
+  rpc List(StateListRequest) returns (StateListResponse);
+  rpc Delete(StateDeleteRequest) returns (StateDeleteResponse);
+  rpc Clear(StateClearRequest) returns (StateClearResponse);
+  rpc Cleanup(StateCleanupRequest) returns (StateCleanupResponse);
+}
+
+message State {
+  string key = 1;
+  string value = 2;
+  string agent = 3;
+  google.protobuf.Timestamp updated_at = 4;
+}
+
+message StateGetRequest {
+  string key = 1;
+  string agent_id = 2;  // Optional: for per-agent state
+}
+
+message StateGetResponse {
+  State state = 1;
+  bool found = 2;
+}
+
+message StateSetRequest {
+  string key = 1;
+  string value = 2;
+  string agent_id = 3;  // Optional: for per-agent state
+}
+
+message StateSetResponse {
+  State state = 1;
+}
+
+message StateListRequest {
+  string agent_id = 1;  // Optional: filter by agent
+}
+
+message StateListResponse {
+  repeated State states = 1;
+}
+
+message StateDeleteRequest {
+  string key = 1;
+}
+
+message StateDeleteResponse {
+  bool success = 1;
+}
+
+message StateClearRequest {
+  string agent_id = 1;  // Optional: clear only agent's state
+}
+
+message StateClearResponse {
+  int32 count = 1;
+}
+
+message StateCleanupRequest {
+  string max_age = 1;  // Duration string (e.g., "1h", "24h")
+}
+
+message StateCleanupResponse {
+  int32 count = 1;
+}
+
+// =============================================================================
+// Decision Service
+// =============================================================================
+
+service DecisionService {
+  rpc Set(DecisionSetRequest) returns (DecisionSetResponse);
+  rpc Get(DecisionGetRequest) returns (DecisionGetResponse);
+  rpc List(DecisionListRequest) returns (DecisionListResponse);
+  rpc History(DecisionHistoryRequest) returns (DecisionHistoryResponse);
+  rpc Delete(DecisionDeleteRequest) returns (DecisionDeleteResponse);
+  rpc Clear(DecisionClearRequest) returns (DecisionClearResponse);
+}
+
+message Decision {
+  string topic = 1;
+  string decision = 2;
+  string rationale = 3;
+  string details = 4;              // Full content: schemas, code, specs
+  repeated string references = 5;  // External links, docs, related files
+  string decided_by = 6;
+  google.protobuf.Timestamp created_at = 7;
+}
+
+message DecisionSetRequest {
+  string topic = 1;
+  string decision = 2;
+  string rationale = 3;
+  string details = 4;              // Full content: schemas, code, specs
+  repeated string references = 5;  // External links, docs, related files
+  string decided_by = 6;
+}
+
+message DecisionSetResponse {
+  Decision decision = 1;
+}
+
+message DecisionGetRequest {
+  string topic = 1;
+}
+
+message DecisionGetResponse {
+  Decision decision = 1;
+  bool found = 2;
+}
+
+message DecisionListRequest {}
+
+message DecisionListResponse {
+  repeated Decision decisions = 1;
+}
+
+message DecisionHistoryRequest {
+  string topic = 1;
+}
+
+message DecisionHistoryResponse {
+  repeated Decision decisions = 1;
+}
+
+message DecisionDeleteRequest {
+  string topic = 1;
+}
+
+message DecisionDeleteResponse {
+  int32 count = 1;
+}
+
+message DecisionClearRequest {}
+
+message DecisionClearResponse {
+  int32 count = 1;
+}
+
+// =============================================================================
+// Message Service (inter-agent communication)
+// =============================================================================
+
+service MessageService {
+  rpc Send(MessageSendRequest) returns (MessageSendResponse);
+  rpc List(MessageListRequest) returns (MessageListResponse);
+  rpc Ack(MessageAckRequest) returns (MessageAckResponse);
+  rpc Prune(MessagePruneRequest) returns (MessagePruneResponse);
+}
+
+message Message {
+  uint64 id = 1;
+  string from = 2;
+  string to = 3;
+  string content = 4;
+  string type = 5;
+  repeated string read_by = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp expires_at = 8;
+}
+
+message MessageSendRequest {
+  string from = 1;
+  string to = 2;  // Empty for broadcast
+  string content = 3;
+  string type = 4;
+  int32 ttl_seconds = 5;  // Time-to-live, default 3600
+}
+
+message MessageSendResponse {
+  Message message = 1;
+}
+
+message MessageListRequest {
+  string agent_id = 1;
+  bool include_read = 2;
+}
+
+message MessageListResponse {
+  repeated Message messages = 1;
+}
+
+message MessageAckRequest {
+  uint64 message_id = 1;
+  string agent_id = 2;
+}
+
+message MessageAckResponse {
+  bool success = 1;
+}
+
+message MessagePruneRequest {}
+
+message MessagePruneResponse {
+  int32 count = 1;
+}
+
+// =============================================================================
+// Task Service (swarm orchestration)
+// =============================================================================
+
+service TaskService {
+  rpc Create(TaskCreateRequest) returns (TaskCreateResponse);
+  rpc Get(TaskGetRequest) returns (TaskGetResponse);
+  rpc List(TaskListRequest) returns (TaskListResponse);
+  rpc Claim(TaskClaimRequest) returns (TaskClaimResponse);
+  rpc Complete(TaskCompleteRequest) returns (TaskCompleteResponse);
+  rpc Update(TaskUpdateRequest) returns (TaskUpdateResponse);
+}
+
+message Task {
+  string id = 1;
+  string title = 2;
+  string description = 3;
+  string status = 4;  // pending, claimed, done, blocked
+  string claimed_by = 5;
+  string worktree = 6;
+  string result = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp claimed_at = 9;
+  google.protobuf.Timestamp completed_at = 10;
+}
+
+message TaskCreateRequest {
+  string title = 1;
+  string description = 2;
+}
+
+message TaskCreateResponse {
+  Task task = 1;
+}
+
+message TaskGetRequest {
+  string id = 1;
+}
+
+message TaskGetResponse {
+  Task task = 1;
+  bool found = 2;
+}
+
+message TaskListRequest {
+  string status = 1;  // Optional: filter by status
+}
+
+message TaskListResponse {
+  repeated Task tasks = 1;
+}
+
+message TaskClaimRequest {
+  string task_id = 1;
+  string agent_id = 2;
+  string worktree = 3;
+}
+
+message TaskClaimResponse {
+  Task task = 1;
+  bool success = 2;
+  string error = 3;
+}
+
+message TaskCompleteRequest {
+  string task_id = 1;
+  string result = 2;
+}
+
+message TaskCompleteResponse {
+  Task task = 1;
+  bool success = 2;
+}
+
+message TaskUpdateRequest {
+  string task_id = 1;
+  string status = 2;
+  string result = 3;
+}
+
+message TaskUpdateResponse {
+  Task task = 1;
+  bool success = 2;
+}
+
+// =============================================================================
+// Code Service (symbol indexing and search)
+// =============================================================================
+
+service CodeService {
+  rpc Search(CodeSearchRequest) returns (CodeSearchResponse);
+  rpc Symbols(CodeSymbolsRequest) returns (CodeSymbolsResponse);
+  rpc Stats(CodeStatsRequest) returns (CodeStatsResponse);
+  rpc Index(CodeIndexRequest) returns (CodeIndexResponse);
+  rpc Clear(CodeClearRequest) returns (CodeClearResponse);
+}
+
+message Symbol {
+  string id = 1;
+  string name = 2;
+  string kind = 3;          // function, method, class, interface, type
+  string signature = 4;
+  string doc_comment = 5;
+  string file_path = 6;
+  int32 start_line = 7;
+  int32 end_line = 8;
+  string language = 9;
+  google.protobuf.Timestamp created_at = 10;
+}
+
+message CodeSearchRequest {
+  string query = 1;
+  string kind = 2;          // Optional: filter by kind
+  string language = 3;      // Optional: filter by language
+  string file_path = 4;     // Optional: filter by file path pattern
+  int32 limit = 5;          // Max results (default 20)
+}
+
+message CodeSearchResponse {
+  repeated Symbol symbols = 1;
+}
+
+message CodeSymbolsRequest {
+  string file_path = 1;     // Path to the file
+}
+
+message CodeSymbolsResponse {
+  repeated Symbol symbols = 1;
+}
+
+message CodeStatsRequest {}
+
+message CodeStatsResponse {
+  int32 files = 1;
+  int32 symbols = 2;
+  int32 references = 3;
+}
+
+message CodeIndexRequest {
+  repeated string paths = 1;  // Paths to index (default: current directory)
+  bool force = 2;             // Re-index even if file hasn't changed
+}
+
+message CodeIndexResponse {
+  int32 files_indexed = 1;
+  int32 symbols_indexed = 2;
+  int32 files_skipped = 3;
+}
+
+message CodeClearRequest {}
+
+message CodeClearResponse {
+  int32 symbols_cleared = 1;
+  int32 files_cleared = 2;
+}
+
+// =============================================================================
+// Health Service
+// =============================================================================
+
+service HealthService {
+  rpc Check(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+message HealthCheckRequest {}
+
+message HealthCheckResponse {
+  bool healthy = 1;
+  string version = 2;
+  string db_path = 3;
+}

@@ -1,0 +1,94 @@
+{
+  "name": "aide",
+  "version": "0.0.0",
+  "description": "AI Development Environment - Multi-agent orchestration for Claude Code",
+  "author": {
+    "name": "John Mylchreest"
+  },
+  "homepage": "https://github.com/jmylchreest/aide",
+  "license": "MIT",
+  "mcpServers": {
+    "aide": {
+      "command": "${CLAUDE_PLUGIN_ROOT}/bin/aide",
+      "args": ["mcp"],
+      "env": {
+        "AIDE_CODE_WATCH": "1",
+        "AIDE_CODE_WATCH_DELAY": "30s"
+      }
+    }
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/session-start.js\" 2>/dev/null",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/skill-injector.js\" 2>/dev/null",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/hud-updater.js\" 2>/dev/null",
+            "timeout": 3
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/subagent-tracker.js\" 2>/dev/null",
+            "timeout": 3
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/subagent-tracker.js\" 2>/dev/null",
+            "timeout": 3
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/persistence.js\" 2>/dev/null",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}
