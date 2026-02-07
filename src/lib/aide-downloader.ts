@@ -13,7 +13,7 @@
 
 import { existsSync, mkdirSync, readFileSync, chmodSync, unlinkSync, realpathSync } from "fs";
 import { join, dirname } from "path";
-import { execSync, spawn } from "child_process";
+import { execFileSync, spawn } from "child_process";
 import { fileURLToPath } from "url";
 // Canonical binary finder — import for local use, re-export for backward compat
 import { findAideBinary } from "./hook-utils.js";
@@ -61,7 +61,7 @@ export function getPluginVersion(): string | null {
  */
 export function getBinaryVersion(binaryPath: string): string | null {
   try {
-    const output = execSync(`"${binaryPath}" version`, {
+    const output = execFileSync(binaryPath, ["version"], {
       stdio: "pipe",
       timeout: 5000,
     })
@@ -220,7 +220,7 @@ export async function downloadAideBinary(
   if (!force && existsSync(destPath)) {
     // Verify it works
     try {
-      execSync(`"${destPath}" version`, { stdio: "pipe", timeout: 5000 });
+      execFileSync(destPath, ["version"], { stdio: "pipe", timeout: 5000 });
       return {
         success: true,
         path: destPath,
@@ -280,7 +280,7 @@ export async function downloadAideBinary(
 
     // Verify it works
     try {
-      execSync(`"${destPath}" version`, { stdio: "pipe", timeout: 5000 });
+      execFileSync(destPath, ["version"], { stdio: "pipe", timeout: 5000 });
     } catch {
       // Version command might not exist, try --help
       execSync(`"${destPath}" --help`, { stdio: "pipe", timeout: 5000 });

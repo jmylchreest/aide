@@ -15,7 +15,7 @@
  */
 
 import { join } from "path";
-import { execSync } from "child_process";
+import { execFileSync } from "child_process";
 import { Logger } from "../lib/logger.js";
 import {
   readStdin,
@@ -74,7 +74,7 @@ interface HookOutput {
 function getProjectName(cwd: string): string {
   try {
     // Try git remote first
-    const remoteUrl = execSync("git config --get remote.origin.url", {
+    const remoteUrl = execFileSync("git", ["config", "--get", "remote.origin.url"], {
       cwd,
       stdio: ["pipe", "pipe", "pipe"],
       timeout: 2000,
@@ -131,8 +131,9 @@ function fetchSubagentMemories(cwd: string): {
 
   // Fetch global memories (scope:global)
   try {
-    const globalOutput = execSync(
-      `"${binary}" memory list --category=global --tags=scope:global --format=json`,
+    const globalOutput = execFileSync(
+      binary,
+      ["memory", "list", "--category=global", "--tags=scope:global", "--format=json"],
       { env, stdio: ["pipe", "pipe", "pipe"], timeout: 3000 },
     )
       .toString()
@@ -148,8 +149,9 @@ function fetchSubagentMemories(cwd: string): {
 
   // Fetch project memories (project:<name>)
   try {
-    const projectOutput = execSync(
-      `"${binary}" memory list --tags=project:${projectName} --format=json`,
+    const projectOutput = execFileSync(
+      binary,
+      ["memory", "list", `--tags=project:${projectName}`, "--format=json"],
       { env, stdio: ["pipe", "pipe", "pipe"], timeout: 3000 },
     )
       .toString()
@@ -165,8 +167,9 @@ function fetchSubagentMemories(cwd: string): {
 
   // Fetch project decisions
   try {
-    const decisionsOutput = execSync(
-      `"${binary}" decision list --format=json`,
+    const decisionsOutput = execFileSync(
+      binary,
+      ["decision", "list", "--format=json"],
       { env, stdio: ["pipe", "pipe", "pipe"], timeout: 3000 },
     )
       .toString()
@@ -468,9 +471,17 @@ async function main(): Promise<void> {
       log.error("Subagent tracker failed", error);
       log.flush();
     }
-    console.error("[aide:subagent-tracker] Error:", error);
     console.log(JSON.stringify({ continue: true }));
   }
 }
+
+process.on("uncaughtException", () => {
+  try { console.log(JSON.stringify({ continue: true })); } catch { console.log('{"continue":true}'); }
+  process.exit(0);
+});
+process.on("unhandledRejection", () => {
+  try { console.log(JSON.stringify({ continue: true })); } catch { console.log('{"continue":true}'); }
+  process.exit(0);
+});
 
 main();

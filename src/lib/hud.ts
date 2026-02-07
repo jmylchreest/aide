@@ -7,7 +7,7 @@
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
-import { execFileSync, execSync } from "child_process";
+import { execFileSync } from "child_process";
 import { runAide, findAideBinary } from "./hook-utils.js";
 
 // Cache the aide version for the session (won't change)
@@ -28,7 +28,7 @@ export function getAideVersion(cwd: string): string {
   }
 
   try {
-    const output = execSync(`"${binary}" version`, {
+    const output = execFileSync(binary, ["version"], {
       stdio: "pipe",
       timeout: 2000,
     })

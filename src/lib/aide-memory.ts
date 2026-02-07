@@ -23,7 +23,7 @@
  *   cd aide && go build -buildmode=c-shared -o libaide.so ./ffi
  */
 
-import { execFileSync, execSync } from "child_process";
+import { execFileSync } from "child_process";
 import { join } from "path";
 
 export interface Memory {
@@ -103,7 +103,7 @@ export class AideMemory {
 
     for (const loc of locations) {
       try {
-        execSync(`${loc} --help`, { stdio: "ignore" });
+        execFileSync(loc, ["--help"], { stdio: "ignore" });
         return loc;
       } catch {
         continue;
