@@ -146,11 +146,14 @@ This prevents conflicts - Claude reads via MCP, hooks update state in response t
 | Hook | Trigger | Purpose |
 |------|---------|---------|
 | `SessionStart` | New conversation | Initialize state, inject memories |
+| `SessionEnd` | Session closes cleanly | Cleanup session state, record metrics |
 | `UserPromptSubmit` | User sends message | Inject matching skills (fuzzy trigger matching) |
+| `PreToolUse` | Before tool execution | Track current tool, enforce read-only agent restrictions |
 | `PostToolUse` | After any tool | Update HUD, capture `<aide-memory>` and `<aide-decision>` tags |
-| `TaskCompleted` | Task marked complete | Validate SDLC stage completion (tests pass, lint clean) |
 | `SubagentStart/Stop` | Agent lifecycle | Track active agents, inject memories |
-| `Stop` | Conversation ends | Persist state, capture session summary |
+| `Stop` | Conversation ends | Persist state, capture session summary, agent cleanup |
+| `PreCompact` | Before context compaction | Preserve state snapshot before summarization |
+| `TaskCompleted` | Task marked complete | Validate SDLC stage completion (tests pass, lint clean) |
 
 ### MCP Tools
 
