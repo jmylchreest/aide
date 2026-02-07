@@ -171,7 +171,7 @@ This prevents conflicts - Claude reads via MCP, hooks update state in response t
 | `decision_list` | List all decisions |
 | `decision_history` | Full history for a topic |
 | `message_list` | Inter-agent messages |
-| `usage` | Show Claude Code usage statistics |
+| `usage` | Show Claude Code token usage statistics |
 
 ## Memory System
 
@@ -375,6 +375,7 @@ Skills are markdown files that inject context when triggered by keywords (with f
 | **debug** | `debug why login fails` | Systematic debugging with hypothesis testing |
 | **perf** | `optimize the API` | Performance profiling and optimization workflow |
 | **review** | `review this PR` | Security-focused code review |
+| **code-search** | `find all auth functions` | Search code symbols and find call sites |
 | **memorise** | `remember I prefer vitest` | Stores info for future sessions |
 | **recall** | `what testing framework?` | Searches memories and decisions |
 | **git** | `help with git rebase` | Expert git operations |
