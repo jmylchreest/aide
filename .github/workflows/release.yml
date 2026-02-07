@@ -127,11 +127,11 @@ jobs:
           - goos: darwin
             goarch: amd64
             runner: ubuntu-latest
-            zig_target: x86_64-macos-none
+            zig_target: x86_64-macos
           - goos: darwin
             goarch: arm64
             runner: ubuntu-latest
-            zig_target: aarch64-macos-none
+            zig_target: aarch64-macos
           # Windows
           - goos: windows
             goarch: amd64
