@@ -31,3 +31,4 @@ Thumbs.db
 # Environment
 .env
 .env.local
+.orphaned_at
