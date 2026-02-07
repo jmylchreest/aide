@@ -123,15 +123,13 @@ jobs:
             goarch: arm64
             runner: ubuntu-latest
             zig_target: aarch64-linux-gnu
-          # macOS
+          # macOS - native builds on macOS runner (arm64 clang supports both arches)
           - goos: darwin
             goarch: amd64
-            runner: ubuntu-latest
-            zig_target: x86_64-macos
+            runner: macos-latest
           - goos: darwin
             goarch: arm64
-            runner: ubuntu-latest
-            zig_target: aarch64-macos
+            runner: macos-latest
           # Windows
           - goos: windows
             goarch: amd64
@@ -153,6 +151,7 @@ jobs:
           cache-dependency-path: aide/go.sum
 
       - name: Install Zig
+        if: matrix.zig_target
         uses: mlugg/setup-zig@v2
 
       - name: Build
@@ -160,10 +159,14 @@ jobs:
           CGO_ENABLED: 1
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
-          CC: zig cc -target ${{ matrix.zig_target }}
-          CXX: zig c++ -target ${{ matrix.zig_target }}
         run: |
           cd aide
+
+          # Set zig cross-compiler for Linux/Windows builds
+          if [[ -n "${{ matrix.zig_target }}" ]]; then
+            export CC="zig cc -target ${{ matrix.zig_target }}"
+            export CXX="zig c++ -target ${{ matrix.zig_target }}"
+          fi
 
           BINARY_NAME="aide-${{ matrix.goos }}-${{ matrix.goarch }}"
           if [[ "${{ matrix.goos }}" == "windows" ]]; then
