@@ -53,16 +53,18 @@ aide/
 |-----------|-------|---------|
 | `session-start.ts` | SessionStart | Initialize state, inject memories |
 | `skill-injector.ts` | UserPromptSubmit | Fuzzy-match skills, inject content |
+| `tool-tracker.ts` | PreToolUse | Track current tool per agent for HUD display |
+| `pre-tool-enforcer.ts` | PreToolUse | Enforce tool access rules, inject mode reminders |
 | `hud-updater.ts` | PostToolUse | Update status line |
 | `memory-capture.ts` | PostToolUse, Stop | Capture `<aide-memory>` and `<aide-decision>` tags |
 | `subagent-tracker.ts` | SubagentStart, SubagentStop | Track active agents, inject context |
 | `persistence.ts` | Stop | Prevent stop with incomplete tasks |
-| `task-completed.ts` | TaskCompleted | SDLC stage validation on task completion |
+| `agent-cleanup.ts` | Stop | Clean up agent-specific state |
+| `session-end.ts` | SessionEnd | Session end cleanup and metrics |
+| `pre-compact.ts` | PreCompact | Preserve context before compaction |
 
-**Additional hooks (available but not registered):**
-- `pre-tool-enforcer.ts` - Block writes for read-only agents (opt-in)
-- `session-end.ts` - Session end handling
-- `agent-cleanup.ts` - Agent cleanup operations
+**Additional hooks (available but not registered in plugin.json):**
+- `task-completed.ts` - SDLC stage validation on task completion (opt-in)
 
 ### Skills (`skills/`)
 
