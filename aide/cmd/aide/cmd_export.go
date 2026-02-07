@@ -10,6 +10,11 @@ import (
 )
 
 func cmdExport(dbPath string, args []string) error {
+	if hasFlag(args, "--help") || hasFlag(args, "-h") {
+		printExportUsage()
+		return nil
+	}
+
 	format := "markdown"
 	output := ".aide/memory/exports"
 	toStdout := hasFlag(args, "--stdout")
@@ -144,4 +149,21 @@ func exportJSON(memories []*memory.Memory, output string) error {
 		return fmt.Errorf("failed to encode JSON: %w", err)
 	}
 	return nil
+}
+
+func printExportUsage() {
+	fmt.Println(`aide export - Export memories to files
+
+Usage:
+  aide export [options]
+
+Options:
+  --format=FORMAT    Output format: markdown, json (default: markdown)
+  --output=DIR       Output directory (default: .aide/memory/exports)
+  --stdout           Write to stdout instead of files
+
+Examples:
+  aide export
+  aide export --format=json --output=./exports
+  aide export --stdout --format=json`)
 }

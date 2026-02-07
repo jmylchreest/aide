@@ -6,7 +6,15 @@ import (
 
 func cmdTask(dbPath string, args []string) error {
 	if len(args) < 1 {
-		return fmt.Errorf("usage: aide task [create|claim|complete|list|clear|delete]")
+		printTaskUsage()
+		return nil
+	}
+
+	subcmd := args[0]
+
+	if subcmd == "help" || subcmd == "-h" || subcmd == "--help" {
+		printTaskUsage()
+		return nil
 	}
 
 	backend, err := NewBackend(dbPath)
@@ -15,7 +23,6 @@ func cmdTask(dbPath string, args []string) error {
 	}
 	defer backend.Close()
 
-	subcmd := args[0]
 	subargs := args[1:]
 
 	switch subcmd {
@@ -34,6 +41,45 @@ func cmdTask(dbPath string, args []string) error {
 	default:
 		return fmt.Errorf("unknown task subcommand: %s", subcmd)
 	}
+}
+
+func printTaskUsage() {
+	fmt.Println(`aide task - Manage swarm tasks
+
+Usage:
+  aide task <subcommand> [arguments]
+
+Subcommands:
+  create     Create a new task
+  claim      Claim a task for an agent
+  complete   Mark a task as complete
+  list       List tasks
+  clear      Clear completed or all tasks
+  delete     Delete a specific task
+
+Options:
+  create TITLE:
+    --description=DESC   Task description
+
+  claim TASK_ID:
+    --agent=AGENT_ID     Claiming agent (required)
+
+  complete TASK_ID:
+    --result=RESULT      Completion result/summary
+
+  list:
+    --status=STATUS      Filter by status (pending, claimed, done)
+
+  clear:
+    --status=STATUS      Clear tasks with status (default: done)
+    --all                Clear all tasks
+
+Examples:
+  aide task create "Implement user model" --description="Add User struct"
+  aide task claim task-abc123 --agent=executor-1
+  aide task complete task-abc123 --result="Done, added User model"
+  aide task list --status=pending
+  aide task clear --status=done`)
 }
 
 func taskCreate(b *Backend, args []string) error {

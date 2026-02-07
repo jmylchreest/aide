@@ -18,8 +18,8 @@
 
 import {
   readStdin,
-  findAideMemory,
-  runAideMemory,
+  findAideBinary,
+  runAide,
   shellEscape,
 } from "../lib/hook-utils.js";
 
@@ -80,10 +80,10 @@ const BLOCKED_COMMANDS = [
  * Log permission decision to aide-memory
  */
 function logPermission(cwd: string, command: string, decision: string): void {
-  if (!findAideMemory(cwd)) return;
+  if (!findAideBinary(cwd)) return;
 
   const safeCommand = shellEscape(command).slice(0, 200);
-  runAideMemory(cwd, [
+  runAide(cwd, [
     "message",
     "send",
     `${decision}: ${safeCommand}`,

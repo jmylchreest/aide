@@ -11,10 +11,13 @@
  * The binary is downloaded from the release matching the plugin version.
  */
 
-import { existsSync, mkdirSync, readFileSync, chmodSync, unlinkSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, chmodSync, unlinkSync, realpathSync } from "fs";
 import { join, dirname } from "path";
 import { execSync, spawn } from "child_process";
 import { fileURLToPath } from "url";
+// Canonical binary finder — import for local use, re-export for backward compat
+import { findAideBinary } from "./hook-utils.js";
+export { findAideBinary };
 
 export interface DownloadResult {
   success: boolean;
@@ -54,6 +57,7 @@ export function getPluginVersion(): string | null {
 
 /**
  * Get the version of an installed aide binary
+ * Returns full semver including prerelease (e.g., "0.0.5-dev.21+abc1234")
  */
 export function getBinaryVersion(binaryPath: string): string | null {
   try {
@@ -63,12 +67,30 @@ export function getBinaryVersion(binaryPath: string): string | null {
     })
       .toString()
       .trim();
-    // Expected format: "aide version 0.0.4" or just "0.0.4"
-    const match = output.match(/(\d+\.\d+\.\d+)/);
+    // Match full semver: 0.0.5-dev.21+abc1234 or plain 0.0.4
+    const match = output.match(
+      /(\d+\.\d+\.\d+(?:-[a-zA-Z0-9.]+)?(?:\+[a-zA-Z0-9.]+)?)/,
+    );
     return match ? match[1] : null;
   } catch {
     return null;
   }
+}
+
+/**
+ * Check if a version string is a dev/prerelease build
+ */
+export function isDevBuild(version: string): boolean {
+  return version.includes("-dev.");
+}
+
+/**
+ * Extract the base semver (major.minor.patch) from a full version string
+ * e.g., "0.0.5-dev.21+abc1234" → "0.0.5"
+ */
+export function getBaseVersion(version: string): string {
+  const dashIdx = version.indexOf("-");
+  return dashIdx === -1 ? version : version.substring(0, dashIdx);
 }
 
 /**
@@ -173,42 +195,8 @@ export function getPluginRoot(): string | null {
   return null;
 }
 
-/**
- * Find the aide binary in common locations
- *
- * Priority order:
- * 1. .aide/bin/aide (project-local)
- * 2. Plugin's bin/aide (auto-downloaded fallback)
- * 3. PATH (system-wide, last resort)
- */
-export function findAideBinary(cwd?: string): string | null {
-  // 1. Check project-local .aide/bin directory
-  if (cwd) {
-    const projectBinary = join(cwd, ".aide", "bin", "aide");
-    if (existsSync(projectBinary)) {
-      return projectBinary;
-    }
-  }
-
-  // 2. Check plugin's bin directory (auto-downloaded fallback)
-  const pluginRoot = getPluginRoot();
-  if (pluginRoot) {
-    const pluginBinary = join(pluginRoot, "bin", "aide");
-    if (existsSync(pluginBinary)) {
-      return pluginBinary;
-    }
-  }
-
-  // 3. Check if in PATH (last resort)
-  try {
-    execSync("which aide", { stdio: "pipe", timeout: 2000 });
-    return "aide";
-  } catch {
-    // Not in PATH
-  }
-
-  return null;
-}
+// findAideBinary is imported from hook-utils.ts and re-exported at the top.
+// See hook-utils.ts for the canonical implementation.
 
 /**
  * Download aide binary
@@ -346,9 +334,26 @@ export async function ensureAideBinary(cwd?: string): Promise<EnsureResult> {
   let binaryVersion = binaryPath ? getBinaryVersion(binaryPath) : null;
 
   // Step 2: Check version match
+  // Skip download if the binary is a dev build with base version >= plugin version
+  // (i.e., a locally-built binary that's ahead of the released plugin)
+  const isNewerDev =
+    binaryVersion &&
+    pluginVersion &&
+    isDevBuild(binaryVersion) &&
+    compareVersions(getBaseVersion(binaryVersion), pluginVersion) >= 0;
+
   const needsDownload =
     !binaryPath ||
-    (pluginVersion && binaryVersion && binaryVersion !== pluginVersion);
+    (!isNewerDev &&
+      pluginVersion &&
+      binaryVersion &&
+      binaryVersion !== pluginVersion);
+
+  if (isNewerDev) {
+    console.error(
+      `[aide] Dev build v${binaryVersion} (base ${getBaseVersion(binaryVersion!)} >= plugin v${pluginVersion}), skipping download`,
+    );
+  }
 
   if (needsDownload) {
     // Can't download without plugin root
@@ -513,7 +518,18 @@ Downloads the aide binary from GitHub releases.
 }
 
 // Run CLI if executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Use realpath to handle symlinks (e.g., src-office -> dtkr4-cnjjf)
+const isMain = (() => {
+  try {
+    const scriptPath = realpathSync(fileURLToPath(import.meta.url));
+    const argPath = realpathSync(process.argv[1]);
+    return scriptPath === argPath;
+  } catch {
+    return false;
+  }
+})();
+
+if (isMain) {
   main().catch((err) => {
     console.error("Error:", err);
     process.exit(1);

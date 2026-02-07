@@ -13,6 +13,11 @@ import (
 
 // cmdDaemon starts the gRPC daemon.
 func cmdDaemon(dbPath string, args []string) error {
+	if hasFlag(args, "--help") || hasFlag(args, "-h") {
+		printDaemonUsage()
+		return nil
+	}
+
 	// Parse socket path from args
 	socketPath := grpcapi.DefaultSocketPath()
 	for i, arg := range args {
@@ -72,4 +77,21 @@ func cmdDaemon(dbPath string, args []string) error {
 
 	// Start serving
 	return server.Start()
+}
+
+func printDaemonUsage() {
+	fmt.Println(`aide daemon - Start gRPC daemon for IPC
+
+Usage:
+  aide daemon [options]
+
+Options:
+  --socket PATH    Unix socket path (default: auto-detected)
+
+The daemon provides a persistent gRPC server that multiple CLI invocations
+can connect to, avoiding repeated database open/close overhead.
+
+Examples:
+  aide daemon
+  aide daemon --socket /tmp/aide.sock`)
 }

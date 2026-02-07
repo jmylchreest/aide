@@ -3,6 +3,7 @@ node_modules/
 
 # Build outputs
 bin/
+!.claude-plugin/bin/
 dist/
 
 # IDE/Editor

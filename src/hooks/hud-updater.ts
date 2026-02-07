@@ -13,7 +13,6 @@ import {
   readStdin,
   setMemoryState,
   getMemoryState,
-  updateSessionHeartbeat,
 } from "../lib/hook-utils.js";
 import {
   getAgentStates,
@@ -89,11 +88,6 @@ async function main(): Promise<void> {
     log.debug(
       `Processing PostToolUse for tool: ${toolName}, agent: ${agentId}, session: ${sessionId}`,
     );
-
-    // Update session heartbeat (proves this session is alive)
-    if (sessionId) {
-      updateSessionHeartbeat(cwd, sessionId);
-    }
 
     // Update session state (per-agent tracking)
     if (toolName) {

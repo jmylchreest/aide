@@ -53,6 +53,36 @@ func (s *MCPServer) setCodeStore(cs store.CodeIndexStore) {
 
 // cmdMCP starts the MCP server over stdio.
 func cmdMCP(dbPath string, args []string) error {
+	// Handle --help and unknown flags before starting the server
+	for _, arg := range args {
+		if arg == "--help" || arg == "-h" {
+			printMCPUsage()
+			return nil
+		}
+		// Check for unknown flags (must start with --)
+		if strings.HasPrefix(arg, "--") {
+			// Known flags
+			known := []string{
+				"--code-watch",
+				"--code-watch=",
+				"--code-watch-delay=",
+			}
+			isKnown := false
+			for _, k := range known {
+				if arg == k || strings.HasPrefix(arg, k) {
+					isKnown = true
+					break
+				}
+			}
+			if !isKnown {
+				return fmt.Errorf("unknown flag: %s\n\nRun 'aide mcp --help' for usage", arg)
+			}
+		} else if strings.HasPrefix(arg, "-") {
+			// Short flags (only -h is supported)
+			return fmt.Errorf("unknown flag: %s\n\nRun 'aide mcp --help' for usage", arg)
+		}
+	}
+
 	startTime := time.Now()
 
 	// Start pprof server if enabled (for profiling startup and runtime)
@@ -250,4 +280,31 @@ func (s *MCPServer) Run() error {
 
 	// Run over stdio
 	return srv.Run(context.Background(), &mcp.StdioTransport{})
+}
+
+// printMCPUsage prints help for the mcp command.
+func printMCPUsage() {
+	fmt.Printf(`aide mcp - Start MCP server for Claude Code plugin integration
+
+Usage:
+  aide mcp [flags]
+
+Flags:
+  --code-watch           Enable file watching for code index updates
+  --code-watch=<paths>   Comma-separated paths to watch
+  --code-watch-delay=<d> Debounce delay for watcher (e.g., 30s)
+  --help, -h             Show this help
+
+Environment Variables:
+  AIDE_CODE_WATCH=1         Enable file watching
+  AIDE_CODE_WATCH_PATHS     Comma-separated paths to watch
+  AIDE_CODE_WATCH_DELAY     Debounce delay (default: 30s)
+  AIDE_CODE_STORE_DISABLE=1 Disable code store (faster startup)
+  AIDE_CODE_STORE_LAZY=1    Lazy-load code store after MCP ready
+  AIDE_PPROF_ENABLE=1       Enable pprof profiling server
+  AIDE_PPROF_ADDR           pprof server address (default: localhost:6060)
+
+The MCP server communicates over stdio using JSON-RPC protocol.
+It is typically started by Claude Code via the plugin configuration.
+`)
 }

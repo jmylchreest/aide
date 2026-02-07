@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi"
@@ -20,11 +21,15 @@ type Backend struct {
 }
 
 // NewBackend creates a new backend, preferring gRPC if available.
+// If AIDE_MEMORY_DB is set, always use direct DB access (for testing isolation).
 func NewBackend(dbPath string) (*Backend, error) {
 	b := &Backend{dbPath: dbPath}
 
-	// Try gRPC first
-	if grpcapi.SocketExists() {
+	// Skip gRPC when AIDE_MEMORY_DB is set (testing isolation)
+	useDirectDB := os.Getenv("AIDE_MEMORY_DB") != ""
+
+	// Try gRPC first (unless testing with custom DB path)
+	if !useDirectDB && grpcapi.SocketExists() {
 		client, err := grpcapi.NewClient()
 		if err == nil {
 			// Verify connection works

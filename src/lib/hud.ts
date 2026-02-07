@@ -8,7 +8,7 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
 import { execFileSync, execSync } from "child_process";
-import { runAideMemory, findAide } from "./hook-utils.js";
+import { runAide, findAideBinary } from "./hook-utils.js";
 
 // Cache the aide version for the session (won't change)
 let aideVersionCache: string | null = null;
@@ -21,7 +21,7 @@ export function getAideVersion(cwd: string): string {
     return aideVersionCache;
   }
 
-  const binary = findAide(cwd);
+  const binary = findAideBinary(cwd);
   if (!binary) {
     aideVersionCache = "?";
     return aideVersionCache;
@@ -34,8 +34,10 @@ export function getAideVersion(cwd: string): string {
     })
       .toString()
       .trim();
-    // Expected format: "aide version 0.0.4" or just "0.0.4"
-    const match = output.match(/(\d+\.\d+\.\d+)/);
+    // Expected format: "aide version 0.0.5-dev.12+abc1234" or just "0.0.4"
+    const match = output.match(
+      /(\d+\.\d+\.\d+(?:-[a-zA-Z0-9.]+)?(?:\+[a-zA-Z0-9.]+)?)/,
+    );
     aideVersionCache = match ? match[1] : "?";
   } catch {
     aideVersionCache = "?";
@@ -97,7 +99,7 @@ const ICONS = {
  * Get all agent states from aide-memory
  */
 export function getAgentStates(cwd: string): AgentState[] {
-  const output = runAideMemory(cwd, ["state", "list"]);
+  const output = runAide(cwd, ["state", "list"]);
   if (!output) return [];
 
   const agents: Map<string, AgentState> = new Map();
@@ -173,7 +175,7 @@ export function getSessionState(cwd: string): SessionState {
     lastTool: null,
   };
 
-  const output = runAideMemory(cwd, ["state", "list"]);
+  const output = runAide(cwd, ["state", "list"]);
   if (!output) return state;
 
   for (const line of output.split("\n")) {
@@ -232,7 +234,7 @@ export function getUsageSummary(
     return usageCache.data;
   }
 
-  const binary = findAide(cwd);
+  const binary = findAideBinary(cwd);
   if (!binary) return null;
 
   try {

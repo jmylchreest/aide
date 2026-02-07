@@ -22,12 +22,11 @@ func main() {
 	cmd := os.Args[1]
 	args := os.Args[2:]
 
-	// Find the project root (git root or cwd).
-	projectRoot := findProjectRoot()
-
 	// Determine database path.
-	dbPath := getEnvOrDefault("AIDE_MEMORY_DB", "")
+	// When AIDE_MEMORY_DB is set (e.g., by hooks), skip the git subprocess.
+	dbPath := os.Getenv("AIDE_MEMORY_DB")
 	if dbPath == "" {
+		projectRoot := findProjectRoot()
 		dbPath = filepath.Join(projectRoot, defaultDBName)
 	}
 
@@ -54,6 +53,8 @@ func runCommand(cmd, dbPath string, args []string) error {
 		return cmdDecision(dbPath, args)
 	case "message":
 		return cmdMessage(dbPath, args)
+	case "session":
+		return cmdSession(dbPath, args)
 	case "state":
 		return cmdState(dbPath, args)
 	case "daemon":
@@ -92,6 +93,7 @@ Usage:
   aide <command> [arguments]
 
 Commands:
+  session    Session lifecycle (init - single-call startup)
   memory     Manage memories (add, delete, search, select, list, export, clear)
   code       Index and search code symbols (index, search, symbols, clear)
   task       Manage swarm tasks (create, claim, complete, list)

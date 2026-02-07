@@ -34,6 +34,11 @@ const (
 )
 
 func cmdUpgrade(args []string) error {
+	if hasFlag(args, "--help") || hasFlag(args, "-h") {
+		printUpgradeUsage()
+		return nil
+	}
+
 	checkOnly := hasFlag(args, "--check")
 	forceDownload := hasFlag(args, "--force")
 
@@ -257,6 +262,26 @@ func copyFile(src, dst string) error {
 
 	_, err = io.Copy(dest, source)
 	return err
+}
+
+func printUpgradeUsage() {
+	fmt.Println(`aide upgrade - Check for updates and upgrade to latest version
+
+Usage:
+  aide upgrade [VERSION] [options]
+
+Arguments:
+  VERSION            Target version to install (default: latest)
+
+Options:
+  --check            Check for updates without installing
+  --force            Force download even if already up to date
+
+Examples:
+  aide upgrade                  # Upgrade to latest
+  aide upgrade --check          # Check for updates only
+  aide upgrade v0.0.5           # Install specific version
+  aide upgrade --force          # Force re-download`)
 }
 
 // compareVersions compares two semver-like versions.

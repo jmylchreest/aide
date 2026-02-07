@@ -6,6 +6,7 @@
  */
 
 import { execSync, execFileSync } from "child_process";
+import { existsSync, realpathSync } from "fs";
 import { join } from "path";
 
 /**
@@ -20,30 +21,36 @@ export async function readStdin(): Promise<string> {
 }
 
 /**
- * Find the aide binary in common locations
+ * Find the aide binary — canonical implementation.
+ *
+ * Search order:
+ *   1. <CLAUDE_PLUGIN_ROOT>/bin/aide  (CLAUDE_PLUGIN_ROOT = project root)
+ *   2. PATH fallback                  (system-wide install)
+ *
+ * All hooks and utilities should use this single function.
  */
-export function findAide(cwd: string): string | null {
-  const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT;
-  const paths = [
-    pluginRoot ? join(pluginRoot, "bin", "aide") : null,
-    join(cwd, ".aide", "bin", "aide"),
-    join(cwd, "bin", "aide"),
-    join(process.env.HOME || "", ".aide", "bin", "aide"),
-    "aide",
-  ].filter((p): p is string => p !== null);
-
-  for (const p of paths) {
+export function findAideBinary(cwd?: string): string | null {
+  let pluginRoot = process.env.CLAUDE_PLUGIN_ROOT;
+  // Resolve symlinks (e.g., src-office -> dtkr4-cnjjf)
+  if (pluginRoot) {
     try {
-      execSync(`test -x "${p}"`, { stdio: "pipe" });
-      return p;
+      pluginRoot = realpathSync(pluginRoot);
     } catch {
-      // Not found at this location
+      // Keep original if realpath fails
+    }
+  }
+  if (pluginRoot) {
+    const pluginBinary = join(pluginRoot, "bin", "aide");
+    if (existsSync(pluginBinary)) {
+      return pluginBinary;
     }
   }
 
-  // Try finding in PATH
+  // PATH fallback
   try {
-    const result = execSync("which aide", { stdio: "pipe" }).toString().trim();
+    const result = execSync("which aide", { stdio: "pipe", timeout: 2000 })
+      .toString()
+      .trim();
     if (result) return result;
   } catch {
     // Not in PATH
@@ -52,10 +59,6 @@ export function findAide(cwd: string): string | null {
   return null;
 }
 
-/**
- * @deprecated Use findAide instead
- */
-export const findAideMemory = findAide;
 
 /**
  * Escape a string for safe shell usage
@@ -80,7 +83,7 @@ export function setMemoryState(
   value: string,
   agentId?: string,
 ): boolean {
-  const binary = findAide(cwd);
+  const binary = findAideBinary(cwd);
   if (!binary) return false;
 
   try {
@@ -101,7 +104,7 @@ export function getMemoryState(
   key: string,
   agentId?: string,
 ): string | null {
-  const binary = findAide(cwd);
+  const binary = findAideBinary(cwd);
   if (!binary) return null;
 
   try {
@@ -124,7 +127,7 @@ export function deleteMemoryState(
   key: string,
   agentId?: string,
 ): boolean {
-  const binary = findAide(cwd);
+  const binary = findAideBinary(cwd);
   if (!binary) return false;
 
   try {
@@ -141,7 +144,7 @@ export function deleteMemoryState(
  * Clear all state for an agent
  */
 export function clearAgentState(cwd: string, agentId: string): boolean {
-  const binary = findAide(cwd);
+  const binary = findAideBinary(cwd);
   if (!binary) return false;
 
   try {
@@ -159,7 +162,7 @@ export function clearAgentState(cwd: string, agentId: string): boolean {
  * Run an aide command with proper escaping
  */
 export function runAide(cwd: string, args: string[]): string | null {
-  const binary = findAide(cwd);
+  const binary = findAideBinary(cwd);
   if (!binary) return null;
 
   try {
@@ -169,81 +172,4 @@ export function runAide(cwd: string, args: string[]): string | null {
   }
 }
 
-/**
- * @deprecated Use runAide instead
- */
-export const runAideMemory = runAide;
 
-/**
- * Update session heartbeat (lastSeen timestamp)
- * Called by hooks to indicate the session is still alive
- */
-export function updateSessionHeartbeat(
-  cwd: string,
-  sessionId: string,
-): boolean {
-  return setMemoryState(
-    cwd,
-    `session:${sessionId}:lastSeen`,
-    Date.now().toString(),
-  );
-}
-
-/**
- * Get session heartbeat timestamp
- *
- * Note: Currently only used internally by isSessionAlive().
- * Exported for potential future use by cleanup utilities.
- */
-export function getSessionHeartbeat(
-  cwd: string,
-  sessionId: string,
-): number | null {
-  const value = getMemoryState(cwd, `session:${sessionId}:lastSeen`);
-  return value ? parseInt(value, 10) : null;
-}
-
-/**
- * Check if a session is considered alive (heartbeat within threshold)
- * Default threshold: 30 minutes
- *
- * Note: Currently not used by hooks. session-start.ts implements
- * similar logic inline. Exported for potential future cleanup utilities.
- */
-export function isSessionAlive(
-  cwd: string,
-  sessionId: string,
-  thresholdMs: number = 30 * 60 * 1000,
-): boolean {
-  const lastSeen = getSessionHeartbeat(cwd, sessionId);
-  if (!lastSeen) return false;
-  return Date.now() - lastSeen < thresholdMs;
-}
-
-/**
- * Get all sessions with their last heartbeat
- */
-export function getSessionHeartbeats(cwd: string): Map<string, number> {
-  const binary = findAide(cwd);
-  if (!binary) return new Map();
-
-  try {
-    const output = execFileSync(binary, ["state", "list"], {
-      cwd,
-      encoding: "utf-8",
-    });
-    const sessions = new Map<string, number>();
-
-    for (const line of output.split("\n")) {
-      // Match: session:<sessionId>:lastSeen = <timestamp>
-      const match = line.match(/^session:([^:]+):lastSeen\s*=\s*(\d+)/);
-      if (match) {
-        sessions.set(match[1], parseInt(match[2], 10));
-      }
-    }
-
-    return sessions;
-  } catch {
-    return new Map();
-  }
-}

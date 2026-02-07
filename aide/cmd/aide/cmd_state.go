@@ -9,7 +9,15 @@ import (
 
 func cmdState(dbPath string, args []string) error {
 	if len(args) < 1 {
-		return fmt.Errorf("usage: aide state [set|get|delete|list|clear|cleanup]")
+		printStateUsage()
+		return nil
+	}
+
+	subcmd := args[0]
+
+	if subcmd == "help" || subcmd == "-h" || subcmd == "--help" {
+		printStateUsage()
+		return nil
 	}
 
 	backend, err := NewBackend(dbPath)
@@ -18,7 +26,6 @@ func cmdState(dbPath string, args []string) error {
 	}
 	defer backend.Close()
 
-	subcmd := args[0]
 	subargs := args[1:]
 
 	switch subcmd {
@@ -37,6 +44,49 @@ func cmdState(dbPath string, args []string) error {
 	default:
 		return fmt.Errorf("unknown state subcommand: %s", subcmd)
 	}
+}
+
+func printStateUsage() {
+	fmt.Println(`aide state - Manage session and agent state
+
+Usage:
+  aide state <subcommand> [arguments]
+
+Subcommands:
+  set        Set a state key-value pair
+  get        Get a state value by key
+  delete     Delete a state key
+  list       List all state entries
+  clear      Clear state entries for an agent or all
+  cleanup    Remove stale agent state entries
+
+Options:
+  set KEY VALUE:
+    --agent=AGENT_ID   Set per-agent state (otherwise global)
+
+  get KEY:
+    --agent=AGENT_ID   Get per-agent state
+
+  delete KEY:
+    --agent=AGENT_ID   Delete per-agent state
+
+  list:
+    --agent=AGENT_ID   Filter by agent
+
+  clear:
+    --agent=AGENT_ID   Clear state for specific agent
+    --all              Clear all state entries
+
+  cleanup:
+    --older-than=DUR   Max age for stale entries (default: 1h)
+
+Examples:
+  aide state set mode ralph
+  aide state set mode eco --agent=worker-1
+  aide state get mode
+  aide state list
+  aide state clear --agent=worker-1
+  aide state cleanup --older-than=30m`)
 }
 
 func stateSet(b *Backend, args []string) error {

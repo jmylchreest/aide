@@ -14,15 +14,13 @@
  * - agent_id, agent_type, output, success
  */
 
-import { existsSync } from "fs";
 import { join } from "path";
-import { homedir } from "os";
 import { execSync } from "child_process";
 import { Logger } from "../lib/logger.js";
 import {
   readStdin,
+  findAideBinary,
   setMemoryState,
-  updateSessionHeartbeat,
 } from "../lib/hook-utils.js";
 import { refreshHud } from "../lib/hud.js";
 import {
@@ -68,38 +66,6 @@ interface HookOutput {
     hookEventName: string;
     additionalContext?: string;
   };
-}
-
-/**
- * Find the aide binary path
- */
-function findAideBinary(cwd?: string): string | null {
-  const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT;
-  if (pluginRoot) {
-    const pluginBinary = join(pluginRoot, "bin", "aide");
-    if (existsSync(pluginBinary)) {
-      return pluginBinary;
-    }
-  }
-
-  if (cwd) {
-    const localBinary = join(cwd, "bin", "aide");
-    if (existsSync(localBinary)) {
-      return localBinary;
-    }
-  }
-
-  const homeBinary = join(homedir(), ".aide", "bin", "aide");
-  if (existsSync(homeBinary)) {
-    return homeBinary;
-  }
-
-  try {
-    execSync("aide --help", { stdio: "ignore", timeout: 2000 });
-    return "aide";
-  } catch {
-    return null;
-  }
 }
 
 /**
@@ -335,9 +301,6 @@ async function processSubagentStart(
 
   log?.debug(`SubagentStart: registering type=${type}`);
 
-  // Update session heartbeat (proves session is alive)
-  updateSessionHeartbeat(cwd, session_id);
-
   // Register agent in aide-memory
   // Note: modelTier is NOT stored - model instructions are injected into context instead
   log?.start("registerAgent");
@@ -427,9 +390,6 @@ async function processSubagentStop(data: SubagentStopInput): Promise<void> {
   log?.info(
     `SubagentStop: agent_id=${agent_id}, session=${session_id}, stop_hook_active=${stop_hook_active}`,
   );
-
-  // Update session heartbeat (proves session is alive)
-  updateSessionHeartbeat(cwd, session_id);
 
   // Mark as completed (Claude Code doesn't provide success/failure status)
   log?.start("updateAgentStatus");

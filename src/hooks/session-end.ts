@@ -12,11 +12,11 @@
 
 import {
   readStdin,
-  findAideMemory,
+  findAideBinary,
   clearAgentState,
   deleteMemoryState,
   setMemoryState,
-  runAideMemory,
+  runAide,
 } from "../lib/hook-utils.js";
 
 interface SessionEndInput {
@@ -34,11 +34,11 @@ function cleanupSession(
   sessionId: string,
   duration?: number,
 ): void {
-  if (!findAideMemory(cwd)) return;
+  if (!findAideBinary(cwd)) return;
 
   // Record session end (best effort)
   const durationStr = duration ? ` (${Math.round(duration / 1000)}s)` : "";
-  runAideMemory(cwd, [
+  runAide(cwd, [
     "message",
     "send",
     `Session ${sessionId} ended${durationStr}`,

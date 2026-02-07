@@ -8,7 +8,15 @@ import (
 
 func cmdMessage(dbPath string, args []string) error {
 	if len(args) < 1 {
-		return fmt.Errorf("usage: aide message [send|list|ack|clear|prune]")
+		printMessageUsage()
+		return nil
+	}
+
+	subcmd := args[0]
+
+	if subcmd == "help" || subcmd == "-h" || subcmd == "--help" {
+		printMessageUsage()
+		return nil
 	}
 
 	backend, err := NewBackend(dbPath)
@@ -17,7 +25,6 @@ func cmdMessage(dbPath string, args []string) error {
 	}
 	defer backend.Close()
 
-	subcmd := args[0]
 	subargs := args[1:]
 
 	switch subcmd {
@@ -34,6 +41,44 @@ func cmdMessage(dbPath string, args []string) error {
 	default:
 		return fmt.Errorf("unknown message subcommand: %s", subcmd)
 	}
+}
+
+func printMessageUsage() {
+	fmt.Println(`aide message - Inter-agent messaging with TTL
+
+Usage:
+  aide message <subcommand> [arguments]
+
+Subcommands:
+  send       Send a message (broadcast or directed)
+  list       List messages for an agent
+  ack        Acknowledge a message
+  clear      Clear messages for an agent or all
+  prune      Remove expired messages
+
+Options:
+  send CONTENT:
+    --from=AGENT       Sender agent ID (required)
+    --to=AGENT         Recipient (omit for broadcast)
+    --type=TYPE        Message type
+    --ttl=SECONDS      Time-to-live (default: 3600)
+
+  list:
+    --agent=AGENT      Filter by recipient
+
+  ack MESSAGE_ID:
+    --agent=AGENT      Acknowledging agent (required)
+
+  clear:
+    --agent=AGENT      Clear messages for specific agent
+    --all              Clear all messages
+
+Examples:
+  aide message send "Task done" --from=worker-1 --to=coordinator
+  aide message send "Status update" --from=worker-1 --ttl=600
+  aide message list --agent=coordinator
+  aide message ack 1 --agent=coordinator
+  aide message prune`)
 }
 
 func messageSend(b *Backend, args []string) error {

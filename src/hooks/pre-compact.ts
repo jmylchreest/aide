@@ -12,8 +12,8 @@
 
 import {
   readStdin,
-  findAideMemory,
-  runAideMemory,
+  findAideBinary,
+  runAide,
   setMemoryState,
 } from "../lib/hook-utils.js";
 
@@ -28,10 +28,10 @@ interface PreCompactInput {
  * Save current state snapshot before compaction
  */
 function saveStateSnapshot(cwd: string, sessionId: string): void {
-  if (!findAideMemory(cwd)) return;
+  if (!findAideBinary(cwd)) return;
 
   // Record compaction event (best effort)
-  runAideMemory(cwd, [
+  runAide(cwd, [
     "message",
     "send",
     `Context compaction initiated for session ${sessionId}`,
@@ -40,7 +40,7 @@ function saveStateSnapshot(cwd: string, sessionId: string): void {
   ]);
 
   // Get current state and preserve it
-  const stateOutput = runAideMemory(cwd, ["state", "list"]);
+  const stateOutput = runAide(cwd, ["state", "list"]);
   if (stateOutput?.trim()) {
     // Store a snapshot of the current state
     const safeState = stateOutput.replace(/\n/g, " ").slice(0, 1000);

@@ -6,7 +6,7 @@
  * - Creates .aide directories if needed
  * - Loads config files
  * - Initializes HUD state
- * - Cleans up stale state from previous sessions
+ * - Runs `aide session init` (single binary call for state reset, cleanup, memory fetch)
  *
  * Debug logging: Set AIDE_DEBUG=1 to enable startup tracing
  * Logs written to: .aide/_logs/startup.log
@@ -26,18 +26,12 @@ import {
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { homedir } from "os";
-import { execSync } from "child_process";
+import { execFileSync, execSync } from "child_process";
 import { Logger, debug, setDebugCwd } from "../lib/logger.js";
-import {
-  readStdin,
-  updateSessionHeartbeat,
-  getSessionHeartbeats,
-  runAide,
-} from "../lib/hook-utils.js";
+import { readStdin } from "../lib/hook-utils.js";
 import {
   findAideBinary,
   ensureAideBinary,
-  findAideBinarySync,
 } from "../lib/aide-downloader.js";
 
 const SOURCE = "session-start";
@@ -59,14 +53,6 @@ interface HookOutput {
   };
 }
 
-interface MemoryConfig {
-  injection: {
-    static: { enabled: boolean; categories: string[] };
-    dynamic: { enabled: boolean; defaultCount: number; category: string };
-  };
-  modeOverrides: Record<string, { dynamicCount?: number }>;
-}
-
 interface AideConfig {
   tiers: Record<string, string>;
   aliases: Record<string, string>;
@@ -74,7 +60,6 @@ interface AideConfig {
     enabled: boolean;
     elements: string[];
   };
-  memory?: MemoryConfig;
 }
 
 interface SessionState {
@@ -103,24 +88,6 @@ const DEFAULT_CONFIG: AideConfig = {
   hud: {
     enabled: true,
     elements: ["mode", "model", "agents"],
-  },
-  memory: {
-    injection: {
-      static: {
-        enabled: true,
-        categories: ["global", "decision"],
-      },
-      dynamic: {
-        enabled: true,
-        defaultCount: 3,
-        category: "session",
-      },
-    },
-    modeOverrides: {
-      autopilot: { dynamicCount: 5 },
-      ralph: { dynamicCount: 5 },
-      eco: { dynamicCount: 1 },
-    },
   },
 };
 
@@ -162,58 +129,6 @@ async function checkAideBinary(
   log.end("checkAideBinary", { found: false });
 
   return result;
-}
-
-/**
- * Reset aide state for new session
- * Resets global session state - preserves per-agent state
- */
-function resetAideState(cwd: string, log: Logger): void {
-  log.start("resetAideState");
-
-  const binary = findAideBinary(cwd);
-  if (!binary) {
-    log.debug("aide binary not found, skipping state reset");
-    log.end("resetAideState", { skipped: true, reason: "no-binary" });
-    return;
-  }
-
-  const dbPath = join(cwd, ".aide", "memory", "store.db");
-  const env = { ...process.env, AIDE_MEMORY_DB: dbPath };
-
-  // Global state keys to reset at session start
-  // Per-agent state (prefixed with agent:) is preserved
-  const keysToReset = [
-    "mode",
-    "startedAt",
-    "lastToolUse",
-    "toolCalls",
-    "agentCount",
-    "lastTool",
-  ];
-
-  try {
-    for (const key of keysToReset) {
-      try {
-        execSync(`"${binary}" state delete ${key}`, {
-          env,
-          stdio: "pipe",
-          timeout: 5000,
-        });
-      } catch {
-        // Key might not exist, that's fine
-      }
-    }
-    log.debug(`Reset global state keys: ${keysToReset.join(", ")}`);
-
-    log.debug("State reset complete");
-
-    log.end("resetAideState", { success: true });
-  } catch (err) {
-    // Non-fatal - state reset is nice-to-have
-    log.warn("Failed to reset aide state", err);
-    log.end("resetAideState", { success: false, error: String(err) });
-  }
 }
 
 /**
@@ -418,14 +333,14 @@ function loadConfig(cwd: string, log: Logger): AideConfig {
 /**
  * Clean up stale state files older than 24 hours
  */
-function cleanupStaleState(cwd: string, log: Logger): void {
+function cleanupStaleStateFiles(cwd: string, log: Logger): void {
   const stateDir = join(cwd, ".aide", "state");
   if (!existsSync(stateDir)) {
-    log.debug("cleanupStaleState: state directory does not exist");
+    log.debug("cleanupStaleStateFiles: state directory does not exist");
     return;
   }
 
-  log.start("cleanupStaleState");
+  log.start("cleanupStaleStateFiles");
 
   const now = Date.now();
   const maxAge = 24 * 60 * 60 * 1000; // 24 hours
@@ -458,229 +373,7 @@ function cleanupStaleState(cwd: string, log: Logger): void {
     log.warn("Failed to read state directory", err);
   }
 
-  log.end("cleanupStaleState", { scanned, deleted });
-}
-
-/**
- * Clean up agent state from dead sessions
- *
- * A session is considered dead if:
- * - Its last heartbeat was more than 30 minutes ago
- * - It has agents in "running" status (orphaned agents)
- *
- * This prevents stale HUD entries when sessions crash without cleanup.
- */
-function cleanupDeadSessionAgents(
-  cwd: string,
-  currentSessionId: string,
-  log: Logger,
-): void {
-  log.start("cleanupDeadSessionAgents");
-
-  const binary = findAideBinary(cwd);
-  if (!binary) {
-    log.debug("aide binary not found, skipping dead session cleanup");
-    log.end("cleanupDeadSessionAgents", { skipped: true, reason: "no-binary" });
-    return;
-  }
-
-  const dbPath = join(cwd, ".aide", "memory", "store.db");
-  const env = { ...process.env, AIDE_MEMORY_DB: dbPath };
-
-  // Get all session heartbeats
-  const heartbeats = getSessionHeartbeats(cwd);
-  const now = Date.now();
-  const heartbeatThreshold = 30 * 60 * 1000; // 30 minutes
-
-  // Find dead sessions (no heartbeat or heartbeat too old)
-  const deadSessions = new Set<string>();
-  for (const [sessionId, lastSeen] of heartbeats) {
-    if (sessionId !== currentSessionId && now - lastSeen > heartbeatThreshold) {
-      deadSessions.add(sessionId);
-      log.debug(
-        `Session ${sessionId.slice(0, 8)} is dead (last seen ${Math.round((now - lastSeen) / 60000)}m ago)`,
-      );
-    }
-  }
-
-  if (deadSessions.size === 0) {
-    log.debug("No dead sessions found");
-    log.end("cleanupDeadSessionAgents", { deadSessions: 0, cleaned: 0 });
-    return;
-  }
-
-  // Get all agent state and find orphaned agents
-  const output = runAide(cwd, ["state", "list"]);
-  if (!output) {
-    log.end("cleanupDeadSessionAgents", {
-      skipped: true,
-      reason: "state-list-failed",
-    });
-    return;
-  }
-
-  // Parse agent sessions from state output
-  const agentSessions = new Map<string, string>(); // agentId -> sessionId
-  for (const line of output.split("\n")) {
-    // Match: [agentId] agent:<agentId>:session = <sessionId>
-    const match = line.match(/^\[([^\]]+)\]\s+agent:[^:]+:session\s*=\s*(.+)/);
-    if (match) {
-      agentSessions.set(match[1], match[2].trim());
-    }
-  }
-
-  // Clean up agents belonging to dead sessions
-  let cleaned = 0;
-  for (const [agentId, sessionId] of agentSessions) {
-    if (deadSessions.has(sessionId)) {
-      try {
-        execSync(`"${binary}" state clear --agent=${agentId}`, {
-          env,
-          stdio: "pipe",
-          timeout: 5000,
-        });
-        cleaned++;
-        log.debug(
-          `Cleaned up orphaned agent ${agentId.slice(0, 8)} from dead session ${sessionId.slice(0, 8)}`,
-        );
-      } catch (err) {
-        log.warn(`Failed to clean up agent ${agentId}`, err);
-      }
-    }
-  }
-
-  // Also clean up the dead session heartbeats
-  for (const sessionId of deadSessions) {
-    try {
-      execSync(`"${binary}" state delete session:${sessionId}:lastSeen`, {
-        env,
-        stdio: "pipe",
-        timeout: 5000,
-      });
-    } catch {
-      // Key might not exist
-    }
-  }
-
-  log.info(
-    `Cleaned up ${cleaned} orphaned agents from ${deadSessions.size} dead sessions`,
-  );
-  log.end("cleanupDeadSessionAgents", {
-    deadSessions: deadSessions.size,
-    cleaned,
-  });
-}
-
-/**
- * Clean up stale agent state based on TTL (3 hours)
- *
- * Removes agent state that hasn't been updated in 3 hours, regardless of session.
- * This prevents accumulation of old agent data in the database.
- */
-function cleanupStaleAgentsByTTL(
-  cwd: string,
-  currentSessionId: string,
-  log: Logger,
-): void {
-  log.start("cleanupStaleAgentsByTTL");
-
-  const binary = findAideBinary(cwd);
-  if (!binary) {
-    log.debug("aide binary not found, skipping TTL cleanup");
-    log.end("cleanupStaleAgentsByTTL", { skipped: true, reason: "no-binary" });
-    return;
-  }
-
-  const dbPath = join(cwd, ".aide", "memory", "store.db");
-  const env = { ...process.env, AIDE_MEMORY_DB: dbPath };
-
-  const output = runAide(cwd, ["state", "list"]);
-  if (!output) {
-    log.end("cleanupStaleAgentsByTTL", {
-      skipped: true,
-      reason: "state-list-failed",
-    });
-    return;
-  }
-
-  const now = Date.now();
-  const ttlMs = 3 * 60 * 60 * 1000; // 3 hours
-
-  // Parse agent timestamps from state output
-  // Track: agentId -> { startedAt, endedAt, session }
-  const agentData = new Map<
-    string,
-    { startedAt?: number; endedAt?: number; session?: string }
-  >();
-
-  for (const line of output.split("\n")) {
-    // Match: [agentId] agent:<agentId>:<key> = <value>
-    const match = line.match(/^\[([^\]]+)\]\s+agent:[^:]+:(\w+)\s*=\s*(.+)/);
-    if (match) {
-      const [, agentId, key, value] = match;
-      if (!agentData.has(agentId)) {
-        agentData.set(agentId, {});
-      }
-      const data = agentData.get(agentId)!;
-
-      if (key === "startedAt") {
-        data.startedAt = new Date(value.trim()).getTime();
-      } else if (key === "endedAt") {
-        data.endedAt = new Date(value.trim()).getTime();
-      } else if (key === "session") {
-        data.session = value.trim();
-      }
-    }
-  }
-
-  // Find and clean stale agents
-  let cleaned = 0;
-  for (const [agentId, data] of agentData) {
-    // Skip current session's agents
-    if (data.session === currentSessionId) {
-      continue;
-    }
-
-    // Use endedAt if available, otherwise startedAt
-    const lastUpdate = data.endedAt || data.startedAt;
-    if (!lastUpdate) {
-      // No timestamp - consider stale
-      try {
-        execSync(`"${binary}" state clear --agent=${agentId}`, {
-          env,
-          stdio: "pipe",
-          timeout: 5000,
-        });
-        cleaned++;
-        log.debug(`Cleaned up agent ${agentId.slice(0, 8)} (no timestamp)`);
-      } catch {
-        // Ignore errors
-      }
-      continue;
-    }
-
-    const age = now - lastUpdate;
-    if (age > ttlMs) {
-      try {
-        execSync(`"${binary}" state clear --agent=${agentId}`, {
-          env,
-          stdio: "pipe",
-          timeout: 5000,
-        });
-        cleaned++;
-        log.debug(
-          `Cleaned up stale agent ${agentId.slice(0, 8)} (age: ${Math.round(age / 3600000)}h)`,
-        );
-      } catch {
-        // Ignore errors
-      }
-    }
-  }
-
-  if (cleaned > 0) {
-    log.info(`Cleaned up ${cleaned} stale agents (TTL: 3h)`);
-  }
-  log.end("cleanupStaleAgentsByTTL", { scanned: agentData.size, cleaned });
+  log.end("cleanupStaleStateFiles", { scanned, deleted });
 }
 
 /**
@@ -738,6 +431,22 @@ function getProjectName(cwd: string): string {
   return cwd.split("/").pop() || "unknown";
 }
 
+/**
+ * Result from `aide session init --format=json`
+ */
+interface SessionInitResult {
+  state_keys_deleted: number;
+  stale_agents_cleaned: number;
+  global_memories: Array<{ id: string; content: string; category: string; tags: string[] }>;
+  project_memories: Array<{ id: string; content: string; category: string; tags: string[] }>;
+  decisions: Array<{ topic: string; value: string; rationale?: string }>;
+  recent_sessions: Array<{
+    session_id: string;
+    last_at: string;
+    memories: Array<{ content: string; category: string }>;
+  }>;
+}
+
 interface MemoryInjection {
   static: {
     global: string[]; // scope:global memories
@@ -750,164 +459,101 @@ interface MemoryInjection {
 }
 
 /**
- * Fetch memories for context injection with proper scoping
+ * Run `aide session init` — single binary invocation that:
+ * 1. Deletes global state keys (mode, startedAt, etc.)
+ * 2. Cleans up stale agent state (>30m)
+ * 3. Returns global memories, project memories, decisions, recent sessions
  *
- * Static (always inject):
- *   - category=global with scope:global tag (cross-project preferences)
- *   - category=decision with project:<name> tag (project decisions)
- *
- * Dynamic (recent N sessions):
- *   - All memories from the N most recent sessions for this project
- *
- * Disable with: AIDE_MEMORY_INJECT=0
+ * Replaces 7 separate binary spawns (~35-50s) with 1 (~5s).
  */
-function fetchMemories(
+function runSessionInit(
   cwd: string,
-  config: AideConfig,
+  projectName: string,
+  sessionLimit: number,
   log: Logger,
 ): MemoryInjection {
-  log.start("fetchMemories");
-
-  // Check for disable flag
-  if (process.env.AIDE_MEMORY_INJECT === "0") {
-    log.info("Memory injection disabled via AIDE_MEMORY_INJECT=0");
-    log.end("fetchMemories", { skipped: true, reason: "disabled" });
-    return {
-      static: { global: [], project: [], decisions: [] },
-      dynamic: { sessions: [] },
-    };
-  }
+  log.start("sessionInit");
 
   const result: MemoryInjection = {
     static: { global: [], project: [], decisions: [] },
     dynamic: { sessions: [] },
   };
 
+  // Check for disable flag
+  if (process.env.AIDE_MEMORY_INJECT === "0") {
+    log.info("Memory injection disabled via AIDE_MEMORY_INJECT=0");
+  }
+
   const binary = findAideBinary(cwd);
   if (!binary) {
-    log.debug("aide binary not found, skipping memory fetch");
-    log.end("fetchMemories", { skipped: true, reason: "no-binary" });
+    log.debug("aide binary not found, skipping session init");
+    log.end("sessionInit", { skipped: true, reason: "no-binary" });
     return result;
   }
 
   const dbPath = join(cwd, ".aide", "memory", "store.db");
-  const env = { ...process.env, AIDE_MEMORY_DB: dbPath };
-  const projectName = getProjectName(cwd);
-  const memConfig = config.memory || DEFAULT_CONFIG.memory!;
 
-  // 1. Fetch STATIC: Global memories (scope:global)
-  if (memConfig.injection.static.enabled) {
-    try {
-      const globalOutput = execSync(
-        `"${binary}" memory list --category=global --tags=scope:global --format=json`,
-        { env, stdio: ["pipe", "pipe", "pipe"], timeout: 5000 },
-      )
-        .toString()
-        .trim();
+  try {
+    const args = [
+      "session", "init",
+      `--project=${projectName}`,
+      `--session-limit=${sessionLimit}`,
+    ];
 
-      if (globalOutput && globalOutput !== "[]") {
-        const memories = JSON.parse(globalOutput);
-        result.static.global = memories.map(
-          (m: { content: string }) => m.content,
-        );
-        log.debug(`Loaded ${result.static.global.length} global memories`);
-      }
-    } catch (err) {
-      log.debug("No global memories or error fetching", err);
+    const output = execFileSync(binary, args, {
+      cwd,
+      encoding: "utf-8",
+      timeout: 15000,
+      env: { ...process.env, AIDE_MEMORY_DB: dbPath },
+    }).trim();
+
+    if (!output) {
+      log.debug("session init returned empty output");
+      log.end("sessionInit", { success: false, reason: "empty-output" });
+      return result;
     }
 
-    // 2. Fetch STATIC: Project memories (project:<name>)
-    try {
-      const projectOutput = execSync(
-        `"${binary}" memory list --tags=project:${projectName} --format=json`,
-        { env, stdio: ["pipe", "pipe", "pipe"], timeout: 5000 },
-      )
-        .toString()
-        .trim();
+    const data: SessionInitResult = JSON.parse(output);
 
-      if (projectOutput && projectOutput !== "[]") {
-        const memories = JSON.parse(projectOutput);
-        result.static.project = memories.map(
-          (m: { content: string }) => m.content,
-        );
-        log.debug(`Loaded ${result.static.project.length} project memories`);
-      }
-    } catch (err) {
-      log.debug("No project memories or error fetching", err);
+    log.debug(
+      `State: ${data.state_keys_deleted} keys deleted, ${data.stale_agents_cleaned} stale agents cleaned`,
+    );
+
+    // Skip memory population if injection disabled
+    if (process.env.AIDE_MEMORY_INJECT === "0") {
+      log.end("sessionInit", { success: true, memoriesDisabled: true });
+      return result;
     }
 
-    // 3. Fetch STATIC: Project decisions
-    try {
-      const decisionsOutput = execSync(
-        `"${binary}" decision list --format=json`,
-        { env, stdio: ["pipe", "pipe", "pipe"], timeout: 5000 },
-      )
-        .toString()
-        .trim();
+    // Populate memories from the single response
+    result.static.global = data.global_memories.map((m) => m.content);
+    result.static.project = data.project_memories.map((m) => m.content);
+    result.static.decisions = data.decisions.map(
+      (d) =>
+        `**${d.topic}**: ${d.value}${d.rationale ? ` (${d.rationale})` : ""}`,
+    );
 
-      if (decisionsOutput && decisionsOutput !== "[]") {
-        const decisions = JSON.parse(decisionsOutput);
-        result.static.decisions = decisions.map(
-          (d: { topic: string; value: string; rationale?: string }) =>
-            `**${d.topic}**: ${d.value}${d.rationale ? ` (${d.rationale})` : ""}`,
-        );
-        log.debug(`Loaded ${result.static.decisions.length} project decisions`);
-      }
-    } catch (err) {
-      log.debug("No decisions or error fetching", err);
+    // Format recent sessions
+    for (const sess of data.recent_sessions) {
+      const timeAgo = sess.last_at ? formatTimeAgo(sess.last_at) : "";
+      const header = `Session ${sess.session_id}${timeAgo ? ` (${timeAgo})` : ""}`;
+      const memories = sess.memories
+        .map((m) => `- [${m.category}] ${m.content}`)
+        .join("\n");
+      result.dynamic.sessions.push(`${header}:\n${memories}`);
     }
+
+    log.end("sessionInit", {
+      success: true,
+      globalCount: result.static.global.length,
+      projectCount: result.static.project.length,
+      decisionCount: result.static.decisions.length,
+      sessionCount: result.dynamic.sessions.length,
+    });
+  } catch (err) {
+    log.warn("session init failed", err);
+    log.end("sessionInit", { success: false, error: String(err) });
   }
-
-  // 3. Fetch DYNAMIC: Recent sessions (all memories from N most recent sessions)
-  if (memConfig.injection.dynamic.enabled) {
-    // Allow override via env var: AIDE_MEMORY_INJECT_SESSION_COUNT (default from config, usually 3)
-    let sessionCount = memConfig.injection.dynamic.defaultCount;
-    const envCount = process.env.AIDE_MEMORY_INJECT_SESSION_COUNT;
-    if (envCount) {
-      const parsed = parseInt(envCount, 10);
-      if (!isNaN(parsed) && parsed >= 0) {
-        sessionCount = parsed;
-        log.debug(`Session count overridden via env: ${sessionCount}`);
-      }
-    }
-
-    try {
-      const sessionsOutput = execSync(
-        `"${binary}" memory sessions --project=${projectName} --limit=${sessionCount} --format=json`,
-        { env, stdio: ["pipe", "pipe", "pipe"], timeout: 5000 },
-      )
-        .toString()
-        .trim();
-
-      if (sessionsOutput && sessionsOutput !== "[]") {
-        const sessions = JSON.parse(sessionsOutput);
-        // Format each session with all its memories
-        for (const sess of sessions) {
-          const timeAgo = sess.last_at ? formatTimeAgo(sess.last_at) : "";
-          const header = `Session ${sess.session_id}${timeAgo ? ` (${timeAgo})` : ""}`;
-          const memories = sess.memories
-            .map(
-              (m: { content: string; category: string }) =>
-                `- [${m.category}] ${m.content}`,
-            )
-            .join("\n");
-          result.dynamic.sessions.push(`${header}:\n${memories}`);
-        }
-        log.debug(
-          `Loaded ${sessions.length} recent sessions with all memories`,
-        );
-      }
-    } catch (err) {
-      log.debug("No session memories or error fetching", err);
-    }
-  }
-
-  log.end("fetchMemories", {
-    globalCount: result.static.global.length,
-    projectCount: result.static.project.length,
-    decisionCount: result.static.decisions.length,
-    sessionCount: result.dynamic.sessions.length,
-  });
 
   return result;
 }
@@ -945,7 +591,6 @@ interface StartupNotices {
  * Build welcome context with proper memory injection
  */
 function buildWelcomeContext(
-  config: AideConfig,
   state: SessionState,
   memories: MemoryInjection,
   notices: StartupNotices = {},
@@ -954,7 +599,7 @@ function buildWelcomeContext(
 
   // Show setup error prominently at the top
   if (notices.error) {
-    lines.push("## ⚠️ Setup Issue");
+    lines.push("## Setup Issue");
     lines.push("");
     lines.push(notices.error);
     lines.push("");
@@ -962,7 +607,7 @@ function buildWelcomeContext(
 
   // Show update warning (less prominent than errors)
   if (notices.warning) {
-    lines.push("## 📦 Update Available");
+    lines.push("## Update Available");
     lines.push("");
     lines.push(notices.warning);
     lines.push("");
@@ -1110,12 +755,12 @@ async function main(): Promise<void> {
 
     debugLog(`Logger initialized, enabled=${log.isEnabled()}`);
 
-    // Initialize directories
+    // Initialize directories (FS only, fast)
     debugLog("ensureDirectories starting...");
     ensureDirectories(cwd, log);
     debugLog(`ensureDirectories complete (${Date.now() - hookStart}ms)`);
 
-    // Install HUD wrapper script if not present
+    // Install HUD wrapper script if not present (FS only, fast)
     debugLog("installHudWrapper starting...");
     installHudWrapper(log);
     debugLog(`installHudWrapper complete (${Date.now() - hookStart}ms)`);
@@ -1123,7 +768,6 @@ async function main(): Promise<void> {
     // Check that aide binary is available (auto-downloads if missing/outdated)
     debugLog("checkAideBinary starting...");
     const {
-      binary: aideBinary,
       error: binaryError,
       warning: binaryWarning,
       downloaded: binaryDownloaded,
@@ -1133,50 +777,32 @@ async function main(): Promise<void> {
     }
     debugLog(`checkAideBinary complete (${Date.now() - hookStart}ms)`);
 
-    // Reset global state for new session (preserves per-agent state)
-    debugLog("resetAideState starting...");
-    resetAideState(cwd, log);
-    debugLog(`resetAideState complete (${Date.now() - hookStart}ms)`);
-
-    // Reset HUD state for clean session start
+    // Reset HUD state for clean session start (FS only, fast)
     debugLog("resetHudState starting...");
     resetHudState(cwd, log);
     debugLog(`resetHudState complete (${Date.now() - hookStart}ms)`);
 
-    // Load config
+    // Load config (FS only, fast)
     debugLog("loadConfig starting...");
-    const config = loadConfig(cwd, log);
+    loadConfig(cwd, log);
     debugLog(`loadConfig complete (${Date.now() - hookStart}ms)`);
 
-    // Cleanup stale state files
-    debugLog("cleanupStaleState starting...");
-    cleanupStaleState(cwd, log);
-    debugLog(`cleanupStaleState complete (${Date.now() - hookStart}ms)`);
+    // Cleanup stale state files on disk (FS only, fast)
+    debugLog("cleanupStaleStateFiles starting...");
+    cleanupStaleStateFiles(cwd, log);
+    debugLog(`cleanupStaleStateFiles complete (${Date.now() - hookStart}ms)`);
 
-    // Update session heartbeat (proves this session is alive)
-    debugLog("updateSessionHeartbeat starting...");
-    updateSessionHeartbeat(cwd, sessionId);
-    debugLog(`updateSessionHeartbeat complete (${Date.now() - hookStart}ms)`);
-
-    // Clean up orphaned agents from dead sessions
-    debugLog("cleanupDeadSessionAgents starting...");
-    cleanupDeadSessionAgents(cwd, sessionId, log);
-    debugLog(`cleanupDeadSessionAgents complete (${Date.now() - hookStart}ms)`);
-
-    // Clean up stale agents older than 3 hours (TTL-based)
-    debugLog("cleanupStaleAgentsByTTL starting...");
-    cleanupStaleAgentsByTTL(cwd, sessionId, log);
-    debugLog(`cleanupStaleAgentsByTTL complete (${Date.now() - hookStart}ms)`);
-
-    // Initialize session
+    // Initialize session state file (FS only, fast)
     debugLog("initializeSession starting...");
     const state = initializeSession(sessionId, cwd, log);
     debugLog(`initializeSession complete (${Date.now() - hookStart}ms)`);
 
-    // Fetch memories for context injection (static + dynamic)
-    debugLog("fetchMemories starting...");
-    const memories = fetchMemories(cwd, config, log);
-    debugLog(`fetchMemories complete (${Date.now() - hookStart}ms)`);
+    // Single aide binary call: reset state + cleanup agents + fetch all memories
+    // Replaces 7 separate binary spawns (~35-50s) with 1 (~5s)
+    const projectName = getProjectName(cwd);
+    debugLog("sessionInit starting...");
+    const memories = runSessionInit(cwd, projectName, 3, log);
+    debugLog(`sessionInit complete (${Date.now() - hookStart}ms)`);
 
     // Build startup notices
     const notices: StartupNotices = {
@@ -1190,19 +816,19 @@ async function main(): Promise<void> {
 
     // Output notices to stderr so user sees them in the console
     if (notices.error) {
-      console.error(`[aide] ⚠️  ${notices.error}`);
+      console.error(`[aide] ${notices.error}`);
     }
     if (notices.warning) {
-      console.error(`[aide] 📦 ${notices.warning}`);
+      console.error(`[aide] ${notices.warning}`);
     }
     for (const info of notices.info || []) {
-      console.error(`[aide] ✓ ${info}`);
+      console.error(`[aide] ${info}`);
     }
 
     // Build welcome context with injected memories
     debugLog("buildWelcomeContext starting...");
     log.start("buildWelcomeContext");
-    const context = buildWelcomeContext(config, state, memories, notices);
+    const context = buildWelcomeContext(state, memories, notices);
     log.end("buildWelcomeContext");
     debugLog(`buildWelcomeContext complete (${Date.now() - hookStart}ms)`);
 

@@ -11,7 +11,15 @@ import (
 
 func cmdDecision(dbPath string, args []string) error {
 	if len(args) < 1 {
-		return fmt.Errorf("usage: aide decision [set|get|list|history|delete|clear]")
+		printDecisionUsage()
+		return nil
+	}
+
+	subcmd := args[0]
+
+	if subcmd == "help" || subcmd == "-h" || subcmd == "--help" {
+		printDecisionUsage()
+		return nil
 	}
 
 	backend, err := NewBackend(dbPath)
@@ -20,7 +28,6 @@ func cmdDecision(dbPath string, args []string) error {
 	}
 	defer backend.Close()
 
-	subcmd := args[0]
 	subargs := args[1:]
 
 	switch subcmd {
@@ -39,6 +46,41 @@ func cmdDecision(dbPath string, args []string) error {
 	default:
 		return fmt.Errorf("unknown decision subcommand: %s", subcmd)
 	}
+}
+
+func printDecisionUsage() {
+	fmt.Println(`aide decision - Manage architectural decisions (append-only)
+
+Usage:
+  aide decision <subcommand> [arguments]
+
+Subcommands:
+  set        Record a decision (latest wins per topic)
+  get        Get the current decision for a topic
+  list       List all current decisions
+  history    Show decision history for a topic
+  delete     Delete all decisions for a topic
+  clear      Clear all decisions
+
+Options:
+  set TOPIC DECISION:
+    --rationale=TEXT   Reasoning behind the decision
+    --details=TEXT     Extended details or context
+    --ref=URL          Reference URL (can be repeated)
+    --by=AGENT         Who made the decision
+
+  list:
+    --format=json      Output as JSON
+
+  history TOPIC:
+    --full             Show details in history output
+
+Examples:
+  aide decision set auth-strategy "JWT" --rationale="Stateless"
+  aide decision set auth-strategy "Session" --rationale="Changed mind"
+  aide decision get auth-strategy
+  aide decision history auth-strategy --full
+  aide decision list --format=json`)
 }
 
 func decisionSet(b *Backend, args []string) error {

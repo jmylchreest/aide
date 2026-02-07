@@ -1,6 +1,6 @@
 # aide Makefile
 
-.PHONY: all build test clean lint fmt install
+.PHONY: all build test clean lint fmt install install-plugin
 
 # Binary name
 BINARY=aide
@@ -17,8 +17,31 @@ GOMOD=$(GOCMD) mod
 GOFMT=gofmt
 GOLINT=golangci-lint
 
-# Build flags
-LDFLAGS=-ldflags "-s -w"
+# Version injection for local dev builds.
+# Computes next-dev version from the latest git tag:
+#   v0.0.4 + 21 commits → 0.0.5-dev.21+abc1234
+VERSION_PKG=github.com/jmylchreest/aide/aide/internal/version
+GIT_COMMIT := $(shell git rev-parse HEAD 2>/dev/null || echo unknown)
+GIT_SHORT  := $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
+BUILD_DATE := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+
+LATEST_TAG := $(shell git describe --tags --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' 2>/dev/null)
+ifdef LATEST_TAG
+  _V_MAJOR   := $(shell echo $(LATEST_TAG) | sed 's/^v//' | cut -d. -f1)
+  _V_MINOR   := $(shell echo $(LATEST_TAG) | sed 's/^v//' | cut -d. -f2)
+  _V_PATCH   := $(shell echo $(LATEST_TAG) | sed 's/^v//' | cut -d. -f3)
+  _NEXT_PATCH := $(shell echo $$(($(_V_PATCH) + 1)))
+  _COMMITS   := $(shell git rev-list $(LATEST_TAG)..HEAD --count 2>/dev/null || echo 0)
+  DEV_VERSION := $(_V_MAJOR).$(_V_MINOR).$(_NEXT_PATCH)-dev.$(_COMMITS)+$(GIT_SHORT)
+else
+  DEV_VERSION := 0.0.1-dev.0+$(GIT_SHORT)
+endif
+
+# Build flags — inject version, commit, date
+LDFLAGS=-ldflags "-s -w \
+  -X $(VERSION_PKG).Version=$(DEV_VERSION) \
+  -X $(VERSION_PKG).Commit=$(GIT_COMMIT) \
+  -X $(VERSION_PKG).Date=$(BUILD_DATE)"
 
 all: fmt lint test build
 
@@ -84,6 +107,9 @@ install: build
 		cp $(BUILD_DIR)/$(BINARY) /usr/local/bin/$(BINARY) 2>/dev/null || \
 		echo "Could not install to GOPATH or /usr/local/bin. Binary available at $(BUILD_DIR)/$(BINARY)"
 
+install-plugin: build
+	@echo "Built $(BINARY) $(DEV_VERSION) → $(BUILD_DIR)/$(BINARY)"
+
 # Development helpers
 dev-deps:
 	@echo "Installing development dependencies..."
@@ -108,5 +134,8 @@ help:
 	@echo "  make fmt          Format code"
 	@echo "  make clean        Remove build artifacts"
 	@echo "  make deps         Download dependencies"
-	@echo "  make install      Install binary"
-	@echo "  make help         Show this help"
+	@echo "  make install        Install binary to GOPATH or /usr/local/bin"
+	@echo "  make install-plugin Install dev binary to .claude-plugin/bin/"
+	@echo "  make help           Show this help"
+	@echo ""
+	@echo "Dev version: $(DEV_VERSION)"

@@ -229,6 +229,11 @@ func scanJSONLFiles(home string) (RealtimeUsage, error) {
 
 // cmdUsage shows Claude Code usage statistics.
 func cmdUsage(args []string) error {
+	if hasFlag(args, "--help") || hasFlag(args, "-h") {
+		printUsageCommandUsage()
+		return nil
+	}
+
 	// Parse flags
 	showDaily := hasFlag(args, "--daily") || hasFlag(args, "-d")
 	showWeek := hasFlag(args, "--week") || hasFlag(args, "-w")
@@ -411,6 +416,31 @@ func formatLargeNumber(n int64) string {
 		return fmt.Sprintf("%.1fM", float64(n)/1000000)
 	}
 	return fmt.Sprintf("%.1fB", float64(n)/1000000000)
+}
+
+func printUsageCommandUsage() {
+	fmt.Println(`aide usage - Show Claude Code usage statistics
+
+Usage:
+  aide usage [options]
+
+Options:
+  --daily, -d        Show daily token breakdown
+  --week, -w         Show last 7 days breakdown
+  --all, -a          Show all-time daily breakdown
+  --json             Output as JSON (for programmatic use)
+
+Displays token usage across multiple time windows:
+  - Last 5 hours (rolling rate-limit window)
+  - Today
+  - Last 7 days
+  - All time
+
+Examples:
+  aide usage
+  aide usage --json
+  aide usage --daily
+  aide usage --all`)
 }
 
 // shortenModelName shortens the model name for display.

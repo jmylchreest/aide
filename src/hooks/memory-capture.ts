@@ -18,7 +18,7 @@ import { execFileSync } from "child_process";
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { debug, setDebugCwd } from "../lib/logger.js";
-import { readStdin, findAide } from "../lib/hook-utils.js";
+import { readStdin, findAideBinary } from "../lib/hook-utils.js";
 
 const SOURCE = "memory-capture";
 
@@ -164,7 +164,7 @@ function storeMemory(
   memory: MemoryMatch,
   sessionId: string,
 ): boolean {
-  const binary = findAide(cwd);
+  const binary = findAideBinary(cwd);
   if (!binary) {
     debug(SOURCE, "aide binary not found, cannot store memory");
     return false;
@@ -206,7 +206,7 @@ function storeMemory(
  * Store a decision using aide CLI
  */
 function storeDecision(cwd: string, decision: DecisionMatch): boolean {
-  const binary = findAide(cwd);
+  const binary = findAideBinary(cwd);
   if (!binary) {
     debug(SOURCE, "aide binary not found, cannot store decision");
     return false;
@@ -244,7 +244,7 @@ function captureSessionSummary(
   sessionId: string,
   transcriptPath: string,
 ): boolean {
-  const binary = findAide(cwd);
+  const binary = findAideBinary(cwd);
   if (!binary) {
     debug(SOURCE, "aide binary not found, cannot capture session summary");
     return false;
