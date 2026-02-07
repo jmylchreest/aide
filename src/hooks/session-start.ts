@@ -144,7 +144,45 @@ function findAideBinary(cwd?: string): string | null {
 }
 
 /**
- * Get the download URL for the current platform
+ * Read the plugin version from package.json.
+ * Tries CLAUDE_PLUGIN_ROOT first, then relative to this script.
+ */
+function getPluginVersion(): string | null {
+  const candidates: string[] = [];
+
+  const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT;
+  if (pluginRoot) {
+    candidates.push(join(pluginRoot, 'package.json'));
+  }
+
+  // Relative to compiled dist/hooks/session-start.js → ../../package.json
+  try {
+    const scriptDir = new URL('.', import.meta.url).pathname;
+    candidates.push(join(scriptDir, '..', '..', 'package.json'));
+  } catch {
+    // import.meta.url not available
+  }
+
+  for (const candidate of candidates) {
+    try {
+      if (existsSync(candidate)) {
+        const pkg = JSON.parse(readFileSync(candidate, 'utf-8'));
+        if (pkg.version && pkg.version !== '0.0.0') {
+          return pkg.version;
+        }
+      }
+    } catch {
+      // skip invalid files
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Get the download URL for the current platform.
+ * Pins to the version in package.json when available,
+ * falls back to latest release otherwise.
  */
 function getDownloadUrl(): string {
   const platform = process.platform; // 'darwin', 'linux', 'win32'
@@ -155,6 +193,13 @@ function getDownloadUrl(): string {
   const ext = platform === 'win32' ? '.exe' : '';
 
   const binaryName = `aide-${goos}-${goarch}${ext}`;
+
+  const version = getPluginVersion();
+  if (version) {
+    return `https://github.com/jmylchreest/aide/releases/download/v${version}/${binaryName}`;
+  }
+
+  // Fallback to latest if version can't be determined
   return `https://github.com/jmylchreest/aide/releases/latest/download/${binaryName}`;
 }
 

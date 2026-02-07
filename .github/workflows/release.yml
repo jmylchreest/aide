@@ -114,37 +114,33 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Linux - cross-compile with zig
+          # Linux
           - goos: linux
             goarch: amd64
             runner: ubuntu-latest
             zig_target: x86_64-linux-gnu
-            use_zig: true
           - goos: linux
             goarch: arm64
             runner: ubuntu-latest
             zig_target: aarch64-linux-gnu
-            use_zig: true
-          # macOS - native builds on macOS runners
+          # macOS
           - goos: darwin
             goarch: amd64
-            runner: macos-13
-            use_zig: false
+            runner: ubuntu-latest
+            zig_target: x86_64-macos-none
           - goos: darwin
             goarch: arm64
-            runner: macos-latest
-            use_zig: false
-          # Windows - cross-compile with zig
+            runner: ubuntu-latest
+            zig_target: aarch64-macos-none
+          # Windows
           - goos: windows
             goarch: amd64
             runner: ubuntu-latest
             zig_target: x86_64-windows-gnu
-            use_zig: true
           - goos: windows
             goarch: arm64
             runner: ubuntu-latest
             zig_target: aarch64-windows-gnu
-            use_zig: true
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -157,7 +153,6 @@ jobs:
           cache-dependency-path: aide/go.sum
 
       - name: Install Zig
-        if: matrix.use_zig
         uses: mlugg/setup-zig@v2
 
       - name: Build
@@ -165,14 +160,10 @@ jobs:
           CGO_ENABLED: 1
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
+          CC: zig cc -target ${{ matrix.zig_target }}
+          CXX: zig c++ -target ${{ matrix.zig_target }}
         run: |
           cd aide
-
-          # Set cross-compiler if using zig
-          if [[ "${{ matrix.use_zig }}" == "true" ]]; then
-            export CC="zig cc -target ${{ matrix.zig_target }}"
-            export CXX="zig c++ -target ${{ matrix.zig_target }}"
-          fi
 
           BINARY_NAME="aide-${{ matrix.goos }}-${{ matrix.goarch }}"
           if [[ "${{ matrix.goos }}" == "windows" ]]; then
