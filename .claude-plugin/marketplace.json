@@ -1,6 +1,6 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "aide-local",
+  "name": "aide",
   "description": "AIDE - AI Development Environment for multi-agent orchestration",
   "owner": {
     "name": "John Mylchreest",

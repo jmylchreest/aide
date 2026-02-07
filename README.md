@@ -14,23 +14,35 @@ A Claude Code plugin for multi-agent orchestration, persistent memory, and intel
 
 **Quick start:**
 ```bash
-claude plugins install github:jmylchreest/aide
+# Add the marketplace
+claude plugin marketplace add jmylchreest/aide
+
+# Install the plugin
+claude plugin install aide@aide
 ```
 
 ## Installation
 
-### From GitHub (Recommended)
+### From GitHub Marketplace (Recommended)
 
 ```bash
-# Install from GitHub
-claude plugins install github:jmylchreest/aide
+# Step 1: Add the marketplace source
+claude plugin marketplace add jmylchreest/aide
+
+# Step 2: Install the plugin
+claude plugin install aide@aide
 ```
 
-Or add to `~/.claude/settings.json`:
+Or register the marketplace in `~/.claude/settings.json` (or `.claude/settings.json` for project-level) so team members are prompted to install:
 ```json
 {
-  "plugins": {
-    "github:jmylchreest/aide": true
+  "extraKnownMarketplaces": {
+    "aide": {
+      "source": {
+        "source": "github",
+        "repo": "jmylchreest/aide"
+      }
+    }
   }
 }
 ```
