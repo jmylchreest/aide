@@ -80,7 +80,7 @@ func (s *Server) Start() error {
 	RegisterDecisionServiceServer(s.grpcServer, &decisionServiceImpl{store: s.store})
 	RegisterMessageServiceServer(s.grpcServer, &messageServiceImpl{store: s.store})
 	RegisterTaskServiceServer(s.grpcServer, &taskServiceImpl{store: s.store})
-	RegisterCodeServiceServer(s.grpcServer, &codeServiceImpl{store: s.codeStore})
+	RegisterCodeServiceServer(s.grpcServer, &codeServiceImpl{store: s.codeStore, parser: code.NewParser()})
 	RegisterHealthServiceServer(s.grpcServer, &healthServiceImpl{dbPath: s.dbPath})
 
 	// Start serving
@@ -634,7 +634,8 @@ func (s *taskServiceImpl) Update(ctx context.Context, req *TaskUpdateRequest) (*
 
 type codeServiceImpl struct {
 	UnimplementedCodeServiceServer
-	store store.CodeIndexStore
+	store  store.CodeIndexStore
+	parser *code.Parser
 }
 
 func (s *codeServiceImpl) Search(ctx context.Context, req *CodeSearchRequest) (*CodeSearchResponse, error) {
@@ -677,8 +678,7 @@ func (s *codeServiceImpl) Symbols(ctx context.Context, req *CodeSymbolsRequest) 
 	symbols, err := s.store.GetFileSymbols(req.FilePath)
 	if err != nil {
 		// If file not in index, try to parse it directly
-		parser := code.NewParser()
-		symbols, err = parser.ParseFile(req.FilePath)
+		symbols, err = s.parser.ParseFile(req.FilePath)
 		if err != nil {
 			return nil, err
 		}
@@ -716,7 +716,6 @@ func (s *codeServiceImpl) Index(ctx context.Context, req *CodeIndexRequest) (*Co
 		return nil, fmt.Errorf("code store not available")
 	}
 
-	parser := code.NewParser()
 	paths := req.Paths
 	if len(paths) == 0 {
 		paths = []string{"."}
@@ -765,7 +764,7 @@ func (s *codeServiceImpl) Index(ctx context.Context, req *CodeIndexRequest) (*Co
 			}
 
 			// Parse file
-			symbols, err := parser.ParseFile(path)
+			symbols, err := s.parser.ParseFile(path)
 			if err != nil {
 				return nil
 			}

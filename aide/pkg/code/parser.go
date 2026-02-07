@@ -354,6 +354,9 @@ func (p *Parser) extractWithQuery(query *sitter.Query, root *sitter.Node, conten
 	var symbols []*Symbol
 	seen := make(map[string]bool) // Dedupe by position
 
+	// Pre-split content into lines for efficient per-reference context extraction
+	contentLines := strings.Split(string(content), "\n")
+
 	cursor := sitter.NewQueryCursor()
 	defer cursor.Close()
 	cursor.Exec(query, root)
@@ -1068,6 +1071,9 @@ func (p *Parser) extractReferences(query *sitter.Query, root *sitter.Node, conte
 	var refs []*Reference
 	seen := make(map[string]bool) // Dedupe by position
 
+	// Pre-split content into lines for efficient per-reference context extraction
+	contentLines := strings.Split(string(content), "\n")
+
 	cursor := sitter.NewQueryCursor()
 	defer cursor.Close()
 	cursor.Exec(query, root)
@@ -1129,7 +1135,7 @@ func (p *Parser) extractReferences(query *sitter.Query, root *sitter.Node, conte
 		refKind := mapRefKind(kind)
 
 		// Extract context (the line of code)
-		context := p.extractLineContext(content, int(startPoint.Row))
+		context := p.extractLineContext(contentLines, int(startPoint.Row))
 
 		ref := &Reference{
 			ID:         ulid.Make().String(),
