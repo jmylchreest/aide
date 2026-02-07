@@ -65,15 +65,17 @@ function extractMemories(text: string): MemoryMatch[] {
     return memories;
   }
 
-  // Match <aide-memory category="..." tags="...">...</aide-memory>
-  const regex =
-    /<aide-memory\s+(?:category="([^"]*)")?\s*(?:tags="([^"]*)")?\s*>([\s\S]*?)<\/aide-memory>/gi;
+  // Match <aide-memory ...>...</aide-memory> with attributes in any order
+  const memoryRegex = /<aide-memory\s+([^>]*)>([\s\S]*?)<\/aide-memory>/gi;
 
   let match;
-  while ((match = regex.exec(text)) !== null) {
-    const category = match[1] || "learning";
-    const tagsStr = match[2] || "";
-    const content = match[3]?.trim() || "";
+  while ((match = memoryRegex.exec(text)) !== null) {
+    const attrs = match[1] || "";
+    const categoryMatch = attrs.match(/category="([^"]*)"/);
+    const tagsMatch = attrs.match(/tags="([^"]*)"/);
+    const category = categoryMatch ? categoryMatch[1] : "learning";
+    const tagsStr = tagsMatch ? tagsMatch[1] : "";
+    const content = match[2]?.trim() || "";
 
     if (content.length > MIN_MEMORY_LENGTH) {
       memories.push({
