@@ -12,104 +12,31 @@ Enhance `/aide:swarm` to use structured SDLC stages for code changes, leveraging
 
 ---
 
-## Implementation Tasks
+## Completed
 
-### 1. Skill Updates
+### 1. Skill Updates ✅
 
-#### 1.1 Update `plan` → `design` skill
-Transform from interview-focused to design output.
+- [x] 1.1 Update `plan` → `design` skill (output-focused, not interview)
+- [x] 1.2 Create `implement` skill (TDD implementation for DEV stage)
+- [x] 1.3 Create `verify` skill (QA validation for VERIFY stage)
+- [x] 1.4 Create `docs` skill (documentation updates for DOCS stage)
+- [x] 1.5 Delete `autopilot` skill (replaced by `swarm 1` with SDLC)
 
-**File**: `skills/plan/SKILL.md`
+### 2. Swarm Skill Enhancement ✅
 
-**Changes**:
-- Rename triggers to include "design", "architect", "spec"
-- Remove interview Q&A flow
-- Add required outputs:
-  - Interface/type definitions
-  - Component interaction / data flow
-  - Key decisions → `aide decision set`
-  - Acceptance criteria (feeds TEST stage)
-- Output format: structured design doc
+- [x] 2.1 Migrate to native tasks (TaskCreate/Update/List instead of aide task)
+- [x] 2.2 Add SDLC mode (story decomposition with stage dependencies)
+- [x] 2.3 Update agent instructions (SDLC pipeline management)
 
-#### 1.2 Create `implement` skill
-Focused TDD implementation for DEV stage.
+### 4.4 Enhanced Subagent Context Injection ✅
 
-**File**: `skills/implement/SKILL.md` (new)
-
-**Content**:
-- Read failing tests from TEST stage
-- Implement minimal code to pass tests
-- Run tests - MUST pass before complete
-- Commit atomically
-- Extract from `ralph` building phase
-
-#### 1.3 Create `verify` skill
-Active QA verification for VERIFY stage.
-
-**File**: `skills/verify/SKILL.md` (new)
-
-**Content**:
-- Run full test suite
-- Run linter (`npm run lint` / `go vet`)
-- Run type checker (`tsc --noEmit` / go build)
-- Check for debug artifacts (console.log, TODO, debugger)
-- Output: PASS/FAIL with specifics
-- Different from `review` (which is read-only analysis)
-
-#### 1.4 Create `docs` skill
-Documentation updates for DOCS stage.
-
-**File**: `skills/docs/SKILL.md` (new)
-
-**Content**:
-- Identify affected docs (README, API docs, inline)
-- Read current docs + new code
-- Update docs to match implementation
-- Verify docs build if applicable (e.g., typedoc)
-
-#### 1.5 Delete `autopilot` skill
-Replaced by `swarm 1` with SDLC stages.
-
-**File**: `skills/autopilot/SKILL.md` (delete)
+- [x] Project memories (`project:<name>`) now injected to both session-start and subagent-start
 
 ---
 
-### 2. Swarm Skill Enhancement
+## Pending Implementation
 
-#### 2.1 Migrate to native tasks
-Replace `aide task` CLI with Claude Code native tools.
-
-**File**: `skills/swarm/SKILL.md`
-
-**Changes**:
-- Use `TaskCreate` instead of `aide task create`
-- Use `TaskUpdate` for claiming (owner + status)
-- Use `TaskList` for visibility
-- Use `blockedBy` for SDLC stage dependencies
-- Document task naming: `[Story-N][STAGE] Description`
-
-#### 2.2 Add SDLC mode
-Default mode for code changes.
-
-**Changes**:
-- Decompose work into stories (not flat tasks)
-- Each story agent creates stage tasks with dependencies:
-  - `[Story][DESIGN]` → `[Story][TEST]` → `[Story][DEV]` → `[Story][VERIFY]` → `[Story][DOCS]`
-- Story agents can spawn subagents for specific stages
-- Keep worktree isolation per story
-
-#### 2.3 Update agent instructions
-Teach story agents to manage SDLC pipeline.
-
-**Changes**:
-- Create all stage tasks upfront with `blockedBy`
-- Execute stages sequentially
-- Use appropriate skill for each stage
-- Mark tasks complete as stages finish
-
----
-
-### 3. Quality Gate Hooks (Future)
+### 3. Quality Gate Hooks
 
 #### 3.1 TeammateIdle hook
 Fires when agent goes idle - validate work complete.
@@ -122,7 +49,9 @@ Fires when agent goes idle - validate work complete.
 - No uncommitted changes
 - No lint/type errors
 
-#### 3.2 TaskCompleted hook
+**Note**: Requires `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` enabled.
+
+#### 3.2 TaskCompleted hook ⭐ (Ready to implement)
 Fires when task marked complete - stage-specific validation.
 
 **File**: `src/hooks/task-completed.ts` (new)
@@ -134,7 +63,7 @@ Fires when task marked complete - stage-specific validation.
 - VERIFY: Full suite green, lint clean
 - DOCS: Docs updated
 
-**Note**: May require `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` enabled.
+**Note**: Works WITHOUT `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`! Fires on any TaskUpdate completion.
 
 ---
 
@@ -191,19 +120,14 @@ Formal decision-making interview for architectural choices.
 5. Confirm: User approval
 6. Record: Output `<aide-decision>` for capture
 
-#### 4.4 Enhanced Subagent Context Injection
-Give subagents more relevant context.
+#### 4.5 Session Memory Injection (Future)
+Add current session memories to subagent context.
 
-**File**: `src/hooks/subagent-tracker.ts` (enhance fetchSubagentMemories)
-
-**Current**:
-- Global memories (`scope:global`)
-- Project decisions
+**File**: `src/hooks/subagent-tracker.ts`
 
 **Add**:
 - Current session memories (`session:<current-id>`)
 - Task/story-specific memories (`task:<id>` or `story:<id>` tags)
-- Decision ordering: latest per topic wins (ensure superseding works)
 
 ---
 
