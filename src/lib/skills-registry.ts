@@ -1,8 +1,24 @@
 /**
  * Skills Registry (skills.sh integration)
  *
- * Manages installation and updates of skills from the skills.sh marketplace.
- * Skills are markdown files with YAML frontmatter that define triggers and behaviors.
+ * STATUS: UTILITY LIBRARY - Not yet integrated into hooks
+ *
+ * This library provides programmatic management of skills from the skills.sh
+ * marketplace. Skills are markdown files with YAML frontmatter that define
+ * triggers and behaviors for the skill-injector hook.
+ *
+ * Currently, skill discovery and loading is done directly in skill-injector.ts.
+ * This registry library is intended for future use cases:
+ *
+ * Future integration:
+ * - CLI commands for `aide skill install/uninstall/update`
+ * - Automatic skill updates on session start
+ * - Skill marketplace browsing and search
+ *
+ * The skill-injector hook currently handles skill discovery inline because:
+ * 1. It only needs to read local skill files, not manage them
+ * 2. It needs to be fast (runs on every user prompt)
+ * 3. Registry features (install, update) are not needed at runtime
  */
 
 import { execSync } from 'child_process';

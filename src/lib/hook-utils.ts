@@ -168,6 +168,9 @@ export function updateSessionHeartbeat(cwd: string, sessionId: string): boolean 
 
 /**
  * Get session heartbeat timestamp
+ *
+ * Note: Currently only used internally by isSessionAlive().
+ * Exported for potential future use by cleanup utilities.
  */
 export function getSessionHeartbeat(cwd: string, sessionId: string): number | null {
   const value = getMemoryState(cwd, `session:${sessionId}:lastSeen`);
@@ -177,6 +180,9 @@ export function getSessionHeartbeat(cwd: string, sessionId: string): number | nu
 /**
  * Check if a session is considered alive (heartbeat within threshold)
  * Default threshold: 30 minutes
+ *
+ * Note: Currently not used by hooks. session-start.ts implements
+ * similar logic inline. Exported for potential future cleanup utilities.
  */
 export function isSessionAlive(cwd: string, sessionId: string, thresholdMs: number = 30 * 60 * 1000): boolean {
   const lastSeen = getSessionHeartbeat(cwd, sessionId);

@@ -1,9 +1,23 @@
 /**
  * TypeScript bindings for aide
  *
+ * STATUS: UTILITY LIBRARY - Not yet integrated into hooks
+ *
+ * This is a high-level TypeScript client for the aide backend, intended
+ * for future use by tools or plugins that need programmatic access to
+ * aide memory, tasks, decisions, and messaging features.
+ *
+ * Currently, hooks use the lower-level functions in hook-utils.ts which
+ * directly call the aide CLI via execFileSync. This library provides a
+ * cleaner, class-based API that could replace those calls in the future.
+ *
  * Provides two modes:
  * 1. CLI mode (default) - spawns aide CLI commands
  * 2. HTTP mode - connects to running aide server
+ *
+ * Future integration:
+ * - Replace raw CLI calls in hooks with AideMemory class methods
+ * - Enable HTTP mode for faster IPC when aide server is running
  *
  * FFI mode (native bindings) requires building the shared library:
  *   cd aide && go build -buildmode=c-shared -o libaide.so ./ffi

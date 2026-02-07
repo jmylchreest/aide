@@ -1,8 +1,26 @@
 /**
  * Git Worktree Manager
  *
- * Manages git worktrees for parallel agent execution in swarm mode.
- * Each agent gets its own worktree to avoid file conflicts.
+ * STATUS: UTILITY LIBRARY - Not yet integrated into hooks
+ *
+ * This library manages git worktrees for parallel agent execution in swarm mode.
+ * Each agent gets its own worktree to avoid file conflicts when multiple agents
+ * work on different tasks simultaneously.
+ *
+ * Currently, worktree management is handled by the aide Go binary directly,
+ * called via the CLI from swarm mode orchestration. This TypeScript library
+ * provides an alternative implementation for hooks or plugins that need
+ * worktree management without the aide binary.
+ *
+ * Future integration:
+ * - swarm skill could use this for TypeScript-native worktree management
+ * - Automated cleanup of stale worktrees on session start
+ * - Integration with subagent-tracker for per-agent worktree assignment
+ *
+ * The Go implementation is currently preferred because:
+ * 1. It integrates with aide's task and memory systems
+ * 2. Git operations are faster from native code
+ * 3. Error handling and edge cases are better tested
  */
 
 import { execSync } from 'child_process';

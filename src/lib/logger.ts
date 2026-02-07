@@ -304,6 +304,9 @@ export class Logger {
 
 /**
  * Create a singleton logger instance for quick use
+ *
+ * Note: Currently not used by hooks. Hooks create Logger instances
+ * directly for more control. Exported for potential future use.
  */
 let defaultLogger: Logger | null = null;
 
