@@ -191,6 +191,9 @@ export function updateSessionHeartbeat(
 
 /**
  * Get session heartbeat timestamp
+ *
+ * Note: Currently only used internally by isSessionAlive().
+ * Exported for potential future use by cleanup utilities.
  */
 export function getSessionHeartbeat(
   cwd: string,
@@ -203,6 +206,9 @@ export function getSessionHeartbeat(
 /**
  * Check if a session is considered alive (heartbeat within threshold)
  * Default threshold: 30 minutes
+ *
+ * Note: Currently not used by hooks. session-start.ts implements
+ * similar logic inline. Exported for potential future cleanup utilities.
  */
 export function isSessionAlive(
   cwd: string,
