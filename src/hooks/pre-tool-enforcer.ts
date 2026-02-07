@@ -34,17 +34,6 @@ interface HookOutput {
 // Tools that modify state
 const WRITE_TOOLS = ["Edit", "Write", "Bash", "NotebookEdit", "MultiEdit"];
 
-// Read-only agents (should not use write tools)
-const READ_ONLY_AGENTS = [
-  "architect",
-  "explore",
-  "researcher",
-  "planner",
-  "reviewer",
-  "analyst",
-  "product-owner",
-];
-
 // Agents that should have access to specific tool categories
 const AGENT_TOOL_RESTRICTIONS: Record<
   string,
@@ -125,7 +114,7 @@ function getActiveMode(cwd: string): string | null {
 /**
  * Build contextual reminder based on active mode
  */
-function buildReminder(mode: string | null, toolName: string): string | null {
+function buildReminder(mode: string | null): string | null {
   if (!mode) return null;
 
   const reminders: Record<string, string> = {
@@ -167,7 +156,7 @@ async function main(): Promise<void> {
 
     // Get active mode and build reminder
     const activeMode = getActiveMode(cwd);
-    const reminder = buildReminder(activeMode, toolName);
+    const reminder = buildReminder(activeMode);
 
     if (reminder) {
       const output: HookOutput = {
@@ -185,5 +174,15 @@ async function main(): Promise<void> {
     console.log(JSON.stringify({ continue: true }));
   }
 }
+
+
+process.on("uncaughtException", () => {
+  try { console.log(JSON.stringify({ continue: true })); } catch { console.log('{"continue":true}'); }
+  process.exit(0);
+});
+process.on("unhandledRejection", () => {
+  try { console.log(JSON.stringify({ continue: true })); } catch { console.log('{"continue":true}'); }
+  process.exit(0);
+});
 
 main();

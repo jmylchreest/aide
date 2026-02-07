@@ -140,4 +140,14 @@ async function main(): Promise<void> {
   }
 }
 
+
+process.on("uncaughtException", () => {
+  try { console.log(JSON.stringify({ continue: true })); } catch { console.log('{"continue":true}'); }
+  process.exit(0);
+});
+process.on("unhandledRejection", () => {
+  try { console.log(JSON.stringify({ continue: true })); } catch { console.log('{"continue":true}'); }
+  process.exit(0);
+});
+
 main();

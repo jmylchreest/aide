@@ -47,15 +47,6 @@ interface Skill {
   content: string;
 }
 
-interface SkillCache {
-  skills: Skill[];
-  lastScan: number;
-}
-
-// Cache for discovered skills (in-memory, resets per process)
-const skillCache: Map<string, SkillCache> = new Map();
-const CACHE_TTL = 60000; // 1 minute
-
 /**
  * Calculate Levenshtein distance between two strings
  */
@@ -285,17 +276,8 @@ function loadSkill(path: string): Skill | null {
  * Discover all skills from configured locations
  */
 function discoverSkills(cwd: string): Skill[] {
-  // Check cache
-  const cached = skillCache.get(cwd);
-  if (cached && Date.now() - cached.lastScan < CACHE_TTL) {
-    log?.debug(
-      `discoverSkills: cache hit (${cached.skills.length} skills, age=${Math.round((Date.now() - cached.lastScan) / 1000)}s)`,
-    );
-    return cached.skills;
-  }
-
   log?.start("discoverSkills");
-  log?.debug("discoverSkills: cache miss, scanning...");
+  log?.debug("discoverSkills: scanning...");
 
   const skills: Skill[] = [];
   const seenPaths = new Set<string>();
@@ -340,9 +322,6 @@ function discoverSkills(cwd: string): Skill[] {
     locations: GLOBAL_SKILL_LOCATIONS.length,
     files: globalFiles,
   });
-
-  // Update cache
-  skillCache.set(cwd, { skills, lastScan: Date.now() });
 
   log?.end("discoverSkills", {
     totalSkills: skills.length,

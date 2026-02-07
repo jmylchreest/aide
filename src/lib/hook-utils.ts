@@ -89,7 +89,7 @@ export function setMemoryState(
   try {
     const args = ["state", "set", key, value];
     if (agentId) args.push(`--agent=${agentId}`);
-    execFileSync(binary, args, { cwd, stdio: "pipe" });
+    execFileSync(binary, args, { cwd, stdio: "pipe", timeout: 5000 });
     return true;
   } catch {
     return false;
@@ -110,7 +110,7 @@ export function getMemoryState(
   try {
     const args = ["state", "get", key];
     if (agentId) args.push(`--agent=${agentId}`);
-    const output = execFileSync(binary, args, { cwd, encoding: "utf-8" });
+    const output = execFileSync(binary, args, { cwd, encoding: "utf-8", timeout: 5000 });
     // Parse output format: "key = value" or "[agent] key = value"
     const match = output.match(/=\s*(.+)$/m);
     return match ? match[1].trim() : null;
