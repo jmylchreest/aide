@@ -49,14 +49,20 @@ aide/
 
 ### TypeScript Hooks (`src/hooks/`)
 
-| Hook | Event | Purpose |
-|------|-------|---------|
+| Hook File | Event | Purpose |
+|-----------|-------|---------|
 | `session-start.ts` | SessionStart | Initialize state, inject memories |
 | `skill-injector.ts` | UserPromptSubmit | Fuzzy-match skills, inject content |
-| `pre-tool-enforcer.ts` | PreToolUse | Block writes for read-only agents |
 | `hud-updater.ts` | PostToolUse | Update status line |
-| `memory-capture.ts` | PostToolUse | Capture `<aide-memory>` tags |
+| `memory-capture.ts` | PostToolUse, Stop | Capture `<aide-memory>` and `<aide-decision>` tags |
+| `subagent-tracker.ts` | SubagentStart, SubagentStop | Track active agents, inject context |
 | `persistence.ts` | Stop | Prevent stop with incomplete tasks |
+| `task-completed.ts` | TaskCompleted | SDLC stage validation on task completion |
+
+**Additional hooks (available but not registered):**
+- `pre-tool-enforcer.ts` - Block writes for read-only agents (opt-in)
+- `session-end.ts` - Session end handling
+- `agent-cleanup.ts` - Agent cleanup operations
 
 ### Skills (`skills/`)
 
@@ -64,16 +70,19 @@ Markdown files with YAML frontmatter defining triggers:
 
 ```yaml
 ---
-name: autopilot
+name: design
 triggers:
-  - autopilot
-  - build me
+  - design this
+  - design the
+  - architect this
 ---
-# Autopilot Mode
+# Design Mode
 ...workflow instructions...
 ```
 
-Fuzzy matching tolerates typos (e.g., "atopilot" matches "autopilot").
+Fuzzy matching tolerates typos (e.g., "desgin" matches "design").
+
+**Built-in skills:** `swarm`, `design`, `test`, `implement`, `verify`, `docs`, `decide`, `ralph`, `build-fix`, `debug`, `perf`, `review`, `code-search`, `memorise`, `recall`, `git`, `worktree-resolve`
 
 ## Data Flow
 
@@ -93,9 +102,15 @@ All tools are read-only from Claude's perspective (writes happen via hooks):
 | `memory_list` | List by category/tags |
 | `code_search` | Search code symbols |
 | `code_symbols` | List symbols in file |
+| `code_stats` | Index statistics |
+| `code_references` | Find call sites for a symbol |
 | `decision_get` | Get decision for topic |
+| `decision_list` | List all decisions |
+| `decision_history` | Full history for a topic |
 | `state_get` | Get session/agent state |
+| `state_list` | List all state values |
 | `message_list` | Inter-agent messages |
+| `usage` | Claude Code token usage statistics |
 
 ## Storage
 

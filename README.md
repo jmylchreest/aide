@@ -149,7 +149,8 @@ This prevents conflicts - Claude reads via MCP, hooks update state in response t
 | `UserPromptSubmit` | User sends message | Inject matching skills (fuzzy trigger matching) |
 | `PostToolUse` | After any tool | Update HUD, capture `<aide-memory>` tags |
 | `SubagentStart/Stop` | Agent lifecycle | Track active agents |
-| `Stop` | Conversation ends | Persistence check |
+| `Stop` | Conversation ends | Persistence check, session summary |
+| `TaskCompleted` | Task marked complete | SDLC stage validation |
 
 ### MCP Tools
 
@@ -160,12 +161,14 @@ This prevents conflicts - Claude reads via MCP, hooks update state in response t
 | `code_search` | Search code symbols |
 | `code_symbols` | List symbols in a file |
 | `code_stats` | Index statistics |
+| `code_references` | Find call sites for a symbol |
 | `state_get` | Get session/agent state |
 | `state_list` | List all state values |
 | `decision_get` | Get latest decision for topic |
 | `decision_list` | List all decisions |
 | `decision_history` | Full history for a topic |
 | `message_list` | Inter-agent messages |
+| `usage` | Claude Code token usage statistics |
 
 ## Memory System
 
@@ -363,11 +366,13 @@ Skills are markdown files that inject context when triggered by keywords (with f
 | **implement** | `implement the feature` | TDD implementation - make failing tests pass |
 | **verify** | `verify the implementation` | Full QA: tests, lint, types, debug artifact check |
 | **docs** | `update the documentation` | Updates docs to match implementation |
+| **decide** | `help me decide on auth` | Formal decision-making interview workflow |
 | **ralph** | `ralph fix all failing tests` | Won't stop until verified complete (Ralph Wiggum methodology) |
 | **build-fix** | `fix the build errors` | Iteratively fixes build/lint/type errors until clean |
 | **debug** | `debug why login fails` | Systematic debugging with hypothesis testing |
 | **perf** | `optimize the API` | Performance profiling and optimization workflow |
 | **review** | `review this PR` | Security-focused code review |
+| **code-search** | `find all auth functions` | Search code symbols and find call sites |
 | **memorise** | `remember I prefer vitest` | Stores info for future sessions |
 | **recall** | `what testing framework?` | Searches memories and decisions |
 | **git** | `help with git rebase` | Expert git operations |
