@@ -1,6 +1,6 @@
 ---
 name: swarm
-description: Parallel agents with shared memory
+description: Parallel agents with SDLC pipeline per story
 triggers:
   - swarm
   - parallel agents
@@ -10,246 +10,323 @@ triggers:
 
 # Swarm Mode
 
-Launch N parallel agents with shared memory coordination.
+Launch parallel agents, each working on a story through SDLC stages.
 
 ## Activation
 
 ```
-swarm 3                    → 3 agents
-swarm 5 executors          → 5 executor agents
-swarm mixed                → auto-select agent types
+swarm 3                              → 3 story agents (SDLC mode)
+swarm stories "Auth" "Payments"      → Named stories
+swarm 2 --flat                       → Flat task mode (legacy)
 ```
 
 ## Architecture
 
 ```
-         ┌─────────────────────────────┐
-         │      SHARED MEMORY          │
-         │  (aide database)            │
-         │  • Tasks • Decisions        │
-         │  • Discoveries • Messages   │
-         └─────────────┬───────────────┘
-                       │
-       ┌───────────────┼───────────────┐
-       │               │               │
-  ┌────┴────┐    ┌────┴────┐    ┌────┴────┐
-  │ Agent 1 │    │ Agent 2 │    │ Agent 3 │
-  │ wt-1    │    │ wt-2    │    │ wt-3    │
-  └─────────┘    └─────────┘    └─────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│  ORCHESTRATOR (you)                                                      │
+│  1. Decompose work into stories                                          │
+│  2. Create worktree per story                                           │
+│  3. Spawn story agent per worktree                                      │
+│  4. Monitor progress via TaskList                                       │
+└─────────────────────────────────────────────────────────────────────────┘
+                              │
+       ┌──────────────────────┼──────────────────────┐
+       ▼                      ▼                      ▼
+┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐
+│ Story A Agent   │   │ Story B Agent   │   │ Story C Agent   │
+│ (worktree-a)    │   │ (worktree-b)    │   │ (worktree-c)    │
+├─────────────────┤   ├─────────────────┤   ├─────────────────┤
+│ SDLC Pipeline:  │   │ SDLC Pipeline:  │   │ SDLC Pipeline:  │
+│ [DESIGN]        │   │ [DESIGN]        │   │ [DESIGN]        │
+│ [TEST]          │   │ [TEST]          │   │ [TEST]          │
+│ [DEV]           │   │ [DEV]           │   │ [DEV]           │
+│ [VERIFY]        │   │ [VERIFY]        │   │ [VERIFY]        │
+│ [DOCS]          │   │ [DOCS]          │   │ [DOCS]          │
+└─────────────────┘   └─────────────────┘   └─────────────────┘
+        │                     │                     │
+        └─────────────────────┼─────────────────────┘
+                              ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  SHARED NATIVE TASKS (Claude Code TaskList)                             │
+│  All agents can see, create, and update tasks                           │
+│  Dependencies via blockedBy auto-manage stage ordering                  │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Workflow
 
-### 1. Task Decomposition
-Break the work into parallelizable subtasks:
-```bash
-aide task create "Implement user model" --description="Create User struct with fields: id, email, password_hash"
-aide task create "Implement auth routes" --description="POST /login, POST /register, GET /me"
-aide task create "Write tests" --description="Unit tests for user model and auth routes"
+### 1. Story Decomposition
+
+Break the work into independent stories/features:
+
+```markdown
+## Stories
+
+1. **Auth Module** - User authentication with JWT
+2. **Payment Processing** - Stripe integration for subscriptions
+3. **User Dashboard** - Profile management UI
 ```
 
-Verify tasks created:
-```bash
-aide task list
-```
+Each story should be:
+- Independent (can be developed in parallel)
+- Complete (has clear boundaries)
+- Testable (has acceptance criteria)
 
 ### 2. Create Git Worktrees
-Each agent gets isolated workspace with a feature branch:
+
+Each story agent gets an isolated workspace:
+
 ```bash
-git worktree add .aide/worktrees/task1-agent1 -b feat/task1-agent1
-git worktree add .aide/worktrees/task2-agent2 -b feat/task2-agent2
-git worktree add .aide/worktrees/task3-agent3 -b feat/task3-agent3
+git worktree add .aide/worktrees/story-auth -b feat/story-auth
+git worktree add .aide/worktrees/story-payments -b feat/story-payments
+git worktree add .aide/worktrees/story-dashboard -b feat/story-dashboard
 ```
 
 **If worktree creation fails:**
-1. Check if branch already exists: `git branch -a | grep feat/task1`
-2. Remove stale worktree: `git worktree remove .aide/worktrees/task1-agent1 --force`
-3. Prune worktree refs: `git worktree prune`
+1. Check if branch exists: `git branch -a | grep feat/story-auth`
+2. Remove stale worktree: `git worktree remove .aide/worktrees/story-auth --force`
+3. Prune refs: `git worktree prune`
 4. Retry creation
 
-### 3. Spawn Agents
-Launch agents with Task tool, each assigned to a worktree.
+### 3. Spawn Story Agents
 
-Each agent MUST be given:
-- Their worktree path
-- Their agent ID
-- Their assigned task ID
-- Instructions to use aide CLI for coordination
+Launch agents using the Task tool. Each agent manages its own SDLC pipeline.
 
-### 4. Coordination via aide
+```typescript
+Task({
+  subagent_type: "general-purpose",
+  prompt: `You are a story agent working on: Auth Module
 
-**Claim tasks atomically:**
+Worktree: /path/to/.aide/worktrees/story-auth
+Story ID: story-auth
+Agent ID: agent-auth
+
+## Your Mission
+Implement the Auth Module through the full SDLC pipeline.
+
+## SDLC Pipeline
+You will create and execute these stages IN ORDER:
+
+### Stage 1: DESIGN
+Use the /aide:design skill (or follow its workflow).
+Output: Technical design with interfaces, decisions, acceptance criteria.
+
+### Stage 2: TEST
+Use the /aide:test skill.
+Write failing tests based on acceptance criteria from DESIGN.
+
+### Stage 3: DEV
+Use the /aide:implement skill.
+Make all tests pass with minimal implementation.
+
+### Stage 4: VERIFY
+Use the /aide:verify skill.
+Run full test suite, lint, type check. Must all pass.
+
+### Stage 5: DOCS
+Use the /aide:docs skill.
+Update documentation to match implementation.
+
+## Task Management
+Use native Claude Code task tools to track your progress:
+
+1. Create all stage tasks upfront:
+   TaskCreate: "[story-auth][DESIGN] Design auth module"
+   TaskCreate: "[story-auth][TEST] Write auth tests" (blockedBy: DESIGN task)
+   TaskCreate: "[story-auth][DEV] Implement auth" (blockedBy: TEST task)
+   TaskCreate: "[story-auth][VERIFY] Verify auth" (blockedBy: DEV task)
+   TaskCreate: "[story-auth][DOCS] Document auth" (blockedBy: VERIFY task)
+
+2. As you start each stage:
+   TaskUpdate: taskId=X, status=in_progress, owner=agent-auth
+
+3. As you complete each stage:
+   TaskUpdate: taskId=X, status=completed
+
+## Coordination
+- Share discoveries: aide memory add --category=discovery "..."
+- Record decisions: aide decision set "<topic>" "<decision>"
+- Check decisions: aide decision get "<topic>"
+
+## Completion
+When all 5 stages are complete:
+1. Verify all tasks show completed
+2. Ensure all changes are committed
+3. Report: "Story complete: Auth Module"
+`
+});
+```
+
+### 4. Monitor Progress
+
+Use TaskList to see all story progress:
+
 ```bash
-aide task claim <task-id> --agent=agent-1
+TaskList
 ```
 
-If claim fails (task already claimed), agent should:
-1. Check task list for unclaimed tasks: `aide task list`
-2. Claim a different available task
-3. If no tasks available, report idle and wait
-
-**Share discoveries:**
-```bash
-aide memory add --category=discovery "User model needs email field"
+Example output:
+```
+#10 [completed] [story-auth][DESIGN] Design auth module (agent-auth)
+#11 [completed] [story-auth][TEST] Write auth tests (agent-auth)
+#12 [in_progress] [story-auth][DEV] Implement auth (agent-auth)
+#13 [pending] [story-auth][VERIFY] Verify auth [blocked by #12]
+#14 [pending] [story-auth][DOCS] Document auth [blocked by #13]
+#20 [in_progress] [story-payments][DESIGN] Design payment module (agent-payments)
 ```
 
-**Make decisions:**
-```bash
-aide decision set password-hashing "bcrypt with cost 12"
-```
+### 5. Merge Results
 
-**Check existing decisions before making new ones:**
-```bash
-aide decision get password-hashing
-```
-
-**Send messages:**
-```bash
-aide message send "User model ready" --from=agent-1
-```
-
-### 5. Review & Merge Results
-When all tasks complete, merge each branch sequentially:
+When all stories complete, use `/aide:worktree-resolve`:
 
 ```bash
-# List all active worktrees
-git worktree list
+# Verify all tasks complete
+TaskList  # Should show all [completed]
 
-# Review what each branch changed
-git log main..feat/task1-agent1 --oneline
-git diff main...feat/task1-agent1 --stat
+# Check for blockers
+aide memory list --category=blocker
 
-# Merge each branch
-git checkout main
-git merge feat/task1-agent1 --no-edit
+# Merge worktrees
+/aide:worktree-resolve
 ```
 
-**If conflicts occur:** Act as an expert code reviewer:
-1. Read the conflicted files to understand the conflict markers
-2. Analyze what both code paths were trying to achieve
-3. Edit the file to combine both sets of logic correctly
-4. `git add <file>` and `git commit`
-5. Run tests to verify the resolution
+## SDLC Stage Reference
 
-**If resolution fails** (tests fail, logic contradictory):
-1. `git merge --abort` to restore clean state
-2. Record failure: `aide message send "CONFLICT: Cannot merge feat/<name> - <reason>" --to=orchestrator`
-3. Skip this branch and continue with others
-4. Report unmerged branches in final summary
+| Stage | Skill | Creates | Depends On |
+|-------|-------|---------|------------|
+| DESIGN | `/aide:design` | Interfaces, decisions, acceptance criteria | - |
+| TEST | `/aide:test` | Failing tests | DESIGN |
+| DEV | `/aide:implement` | Passing implementation | TEST |
+| VERIFY | `/aide:verify` | Quality validation | DEV |
+| DOCS | `/aide:docs` | Updated documentation | VERIFY |
 
-See `/aide:worktree-resolve` for detailed conflict resolution workflow.
+## Story Agent Instructions Template
 
+When spawning story agents, include:
+
+```markdown
+You are story agent [AGENT-ID] working in worktree [PATH].
+
+## Story
+[Story name and description]
+
+## SDLC Pipeline
+
+Execute these stages in order. For each stage:
+1. Create task with TaskCreate (set blockedBy for dependencies)
+2. Claim task with TaskUpdate (owner=your-id, status=in_progress)
+3. Execute stage using appropriate skill
+4. Mark complete with TaskUpdate (status=completed)
+
+### Stage Tasks to Create
+
+TaskCreate({
+  subject: "[STORY-ID][DESIGN] Design [feature]",
+  description: "Technical design with interfaces and acceptance criteria",
+  activeForm: "Designing [feature]"
+})
+
+TaskCreate({
+  subject: "[STORY-ID][TEST] Write tests for [feature]",
+  description: "Failing tests based on acceptance criteria",
+  activeForm: "Writing tests"
+})
+// ... set blockedBy to DESIGN task ID
+
+TaskCreate({
+  subject: "[STORY-ID][DEV] Implement [feature]",
+  description: "Make tests pass with minimal code",
+  activeForm: "Implementing [feature]"
+})
+// ... set blockedBy to TEST task ID
+
+TaskCreate({
+  subject: "[STORY-ID][VERIFY] Verify [feature]",
+  description: "Full test suite, lint, type check",
+  activeForm: "Verifying [feature]"
+})
+// ... set blockedBy to DEV task ID
+
+TaskCreate({
+  subject: "[STORY-ID][DOCS] Document [feature]",
+  description: "Update documentation",
+  activeForm: "Documenting [feature]"
+})
+// ... set blockedBy to VERIFY task ID
+
+## Coordination
+
+- Check existing decisions: aide decision get <topic>
+- Record new decisions: aide decision set <topic> "<decision>"
+- Share discoveries: aide memory add --category=discovery "<finding>"
+- Report blockers: aide memory add --category=blocker "<issue>"
+
+## Completion
+
+All stages must complete. When done:
+1. All 5 tasks show [completed]
+2. All changes committed to your worktree branch
+3. Report: "Story [STORY-ID] complete"
+```
+
+## Flat Mode (Legacy)
+
+For non-code tasks or simple work, use `--flat`:
+
+```
+swarm 3 --flat
+```
+
+This uses the original task-grabbing model without SDLC stages.
+
+## Coordination via aide
+
+**Decisions** (shared across agents):
 ```bash
-# After all branches merged, cleanup
-git worktree remove .aide/worktrees/task1-agent1
-git branch -d feat/task1-agent1
-git worktree prune
+aide decision set "auth-strategy" "JWT with refresh tokens"
+aide decision get "auth-strategy"
 ```
 
-## Agent Instructions
-
-When spawning swarm agents, include these instructions:
-
+**Memory** (shared discoveries):
+```bash
+aide memory add --category=discovery "User model needs email validation"
 ```
-You are swarm agent-N working in an isolated worktree.
 
-**Worktree:** <absolute-path-to-worktree>
-**Task ID:** <task-id>
-**Agent ID:** agent-N
-
-## Your Workflow
-
-1. Claim your task immediately:
-   ```bash
-   aide task claim <task-id> --agent=agent-N
-   ```
-   If claim fails, report to orchestrator and wait for reassignment.
-
-2. Check for existing decisions that affect your work:
-   ```bash
-   aide decision list
-   aide decision get <relevant-topic>
-   ```
-
-3. Update task status when you start:
-   ```bash
-   aide task update <task-id> --status=in_progress
-   ```
-
-4. Do your work in the worktree. Commit frequently with descriptive messages.
-
-5. Share discoveries that other agents might need:
-   ```bash
-   aide memory add --category=discovery "<what you found>"
-   ```
-
-6. When done, verify your work:
-   - Run build in your worktree
-   - Run relevant tests
-   - Commit all changes
-
-7. Mark task complete:
-   ```bash
-   aide task complete <task-id>
-   ```
-
-## Failure Handling
-
-If you encounter a blocker:
-1. Record it: `aide memory add --category=blocker "<description>"`
-2. Send message: `aide message send "BLOCKED: <reason>" --from=agent-N`
-3. Check if you can work on a different task
-4. Do NOT mark task complete if it's not fully working
+**Messages** (direct communication):
+```bash
+aide message send "Auth module ready for integration" --from=agent-auth
 ```
 
 ## Completion
 
 Swarm is complete when:
-- All tasks marked done: `aide task list` shows all complete
-- All worktrees have committed changes
-- No unresolved blockers: `aide memory list --category=blocker`
+1. All story tasks show [completed] in TaskList
+2. No unresolved blockers: `aide memory list --category=blocker`
+3. All worktrees have committed changes
 
-**IMPORTANT:** When all swarm agents have finished, **automatically invoke `/aide:worktree-resolve`** to merge the worktrees. Do not wait for user to request this - it is part of the swarm workflow.
+**IMPORTANT:** When complete, automatically invoke `/aide:worktree-resolve` to merge all story branches.
 
-## Verification Before Merge
+## Orchestrator Memory
 
-Before merging worktrees, the orchestrator must verify:
-1. Check all tasks complete: `aide task list`
-2. Check for blockers: `aide memory list --category=blocker`
-3. If blockers exist, resolve them before merging
-4. If tasks are incomplete, investigate why agents stopped
-
-### Main Agent Memorise
-
-The **main/orchestrating agent** should memorise the overall outcome:
+After swarm completes, record the session:
 
 ```xml
-<aide-memory category="session" tags="swarm,[relevant-tags]">
-## [Brief Title]
+<aide-memory category="session" tags="swarm,sdlc">
+## Swarm: [Brief Description]
 
-Swarm task with N agents.
+### Stories Completed
+- Story A: [outcome]
+- Story B: [outcome]
+- Story C: [outcome]
 
-### Agents & Work
-- Agent 1: [what they did]
-- Agent 2: [what they did]
-- Agent 3: [what they did]
-
-### Outcome
-[Overall result, any issues encountered]
+### Key Decisions Made
+- [decision]: [rationale]
 
 ### Files Changed
-- [file] - [change]
-</aide-memory>
-```
+- [summary of changes per story]
 
-### Subagent Memorise (Optional)
-
-Subagents should only memorise **significant learnings**:
-
-```xml
-<aide-memory category="learning" tags="swarm,agent:[id]">
-## [Specific Discovery/Learning]
-
-[What was learned that would help future work]
+### Merge Status
+- [branches merged successfully / any conflicts]
 </aide-memory>
 ```

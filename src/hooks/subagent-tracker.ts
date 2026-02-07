@@ -93,17 +93,41 @@ function findAideBinary(cwd?: string): string | null {
 }
 
 /**
+ * Get project name from git remote or directory name
+ */
+function getProjectName(cwd: string): string {
+  try {
+    // Try git remote first
+    const remoteUrl = execSync('git config --get remote.origin.url', {
+      cwd,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      timeout: 2000,
+    }).toString().trim();
+
+    // Extract repo name from URL
+    const match = remoteUrl.match(/[/:]([^/]+?)(?:\.git)?$/);
+    if (match) return match[1];
+  } catch {
+    // Not a git repo or no remote
+  }
+
+  // Fallback to directory name
+  return cwd.split('/').pop() || 'unknown';
+}
+
+/**
  * Fetch essential memories for subagent context injection
  *
- * Subagents get a lightweight subset:
+ * Subagents get:
  * - Global preferences (scope:global)
+ * - Project memories (project:<name>)
  * - Project decisions
  *
- * This avoids bloating subagent prompts while ensuring they respect
- * user preferences and architectural decisions.
+ * This ensures subagents respect user preferences, project context,
+ * and architectural decisions.
  */
-function fetchSubagentMemories(cwd: string): { global: string[]; decisions: string[] } {
-  const result = { global: [] as string[], decisions: [] as string[] };
+function fetchSubagentMemories(cwd: string): { global: string[]; project: string[]; decisions: string[] } {
+  const result = { global: [] as string[], project: [] as string[], decisions: [] as string[] };
 
   // Check for disable flag
   if (process.env.AIDE_MEMORY_INJECT === '0') {
@@ -117,6 +141,7 @@ function fetchSubagentMemories(cwd: string): { global: string[]; decisions: stri
 
   const dbPath = join(cwd, '.aide', 'memory', 'store.db');
   const env = { ...process.env, AIDE_MEMORY_DB: dbPath };
+  const projectName = getProjectName(cwd);
 
   // Fetch global memories (scope:global)
   try {
@@ -128,6 +153,21 @@ function fetchSubagentMemories(cwd: string): { global: string[]; decisions: stri
     if (globalOutput && globalOutput !== '[]') {
       const memories = JSON.parse(globalOutput);
       result.global = memories.map((m: { content: string }) => m.content);
+    }
+  } catch {
+    // Ignore errors - memory is optional
+  }
+
+  // Fetch project memories (project:<name>)
+  try {
+    const projectOutput = execSync(
+      `"${binary}" memory list --tags=project:${projectName} --format=json`,
+      { env, stdio: ['pipe', 'pipe', 'pipe'], timeout: 3000 }
+    ).toString().trim();
+
+    if (projectOutput && projectOutput !== '[]') {
+      const memories = JSON.parse(projectOutput);
+      result.project = memories.map((m: { content: string }) => m.content);
     }
   } catch {
     // Ignore errors - memory is optional
@@ -156,7 +196,7 @@ function fetchSubagentMemories(cwd: string): { global: string[]; decisions: stri
 /**
  * Build context for subagent injection
  */
-function buildSubagentContext(memories: { global: string[]; decisions: string[] }): string | undefined {
+function buildSubagentContext(memories: { global: string[]; project: string[]; decisions: string[] }): string | undefined {
   const lines: string[] = [];
 
   if (memories.global.length > 0) {
@@ -165,6 +205,18 @@ function buildSubagentContext(memories: { global: string[]; decisions: string[] 
     lines.push('## User Preferences');
     lines.push('');
     for (const mem of memories.global) {
+      lines.push(`- ${mem}`);
+    }
+  }
+
+  if (memories.project.length > 0) {
+    if (lines.length === 0) {
+      lines.push('<aide-subagent-context>');
+    }
+    lines.push('');
+    lines.push('## Project Context');
+    lines.push('');
+    for (const mem of memories.project) {
       lines.push(`- ${mem}`);
     }
   }
@@ -240,13 +292,14 @@ async function processSubagentStart(data: SubagentStartInput): Promise<string | 
   const memories = fetchSubagentMemories(cwd);
   log?.end('fetchMemories', {
     globalCount: memories.global.length,
+    projectCount: memories.project.length,
     decisionCount: memories.decisions.length,
   });
 
   // Build context if we have any memories
-  if (memories.global.length > 0 || memories.decisions.length > 0) {
+  if (memories.global.length > 0 || memories.project.length > 0 || memories.decisions.length > 0) {
     const context = buildSubagentContext(memories);
-    log?.info(`Injecting context for subagent: ${memories.global.length} preferences, ${memories.decisions.length} decisions`);
+    log?.info(`Injecting context for subagent: ${memories.global.length} preferences, ${memories.project.length} project, ${memories.decisions.length} decisions`);
     return context;
   }
 

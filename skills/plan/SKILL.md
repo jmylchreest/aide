@@ -1,129 +1,197 @@
 ---
-name: plan
-description: Planning interview workflow
+name: design
+description: Technical design and architecture for implementation
 triggers:
+  - design this
+  - design the
+  - architect this
+  - architect the
+  - spec this
+  - spec the
   - plan this
   - plan the
-  - planning mode
-  - interview me
-  - let's plan
 ---
 
-# Planning Mode
+# Design Mode
 
-You are now in **planning mode**. Interview the user to understand requirements before implementation.
+Output a technical design specification that downstream SDLC stages can consume.
 
-## Interview Process
+## Purpose
 
-### Phase 1: Understanding
-Ask clarifying questions directly to the user (they will respond in the conversation):
-- What is the core goal?
-- Who are the users/consumers?
-- What are the constraints (time, tech stack, etc.)?
+Create a structured design document that defines:
+1. **What** to build (interfaces, types, components)
+2. **How** it fits together (data flow, interactions)
+3. **Why** key decisions were made (rationale)
+4. **Success criteria** (acceptance criteria for TEST stage)
 
-**Ask one focused question at a time. Wait for the user's response before proceeding.**
+## Workflow
 
-### Phase 2: Scope Definition
-- What's in scope vs out of scope?
-- What's the MVP vs nice-to-have?
-- Are there existing patterns to follow?
+### Step 1: Understand the Request
 
-### Phase 3: Technical Discovery
-Use the Task tool to spawn an explorer agent:
+Read the request and identify:
+- Core functionality required
+- Constraints (tech stack, patterns, performance)
+- Integration points with existing code
+
+### Step 2: Explore the Codebase
+
+Use search tools to understand existing patterns:
+
+```bash
+# Find related implementations
+Grep for similar patterns, interfaces, types
+
+# Check existing architecture
+Glob for relevant files
+
+# Review related decisions
+aide decision list
+aide decision get <relevant-topic>
 ```
-Task: "Explore the codebase to understand: [specific question]"
-Agent type: explore
-Model: haiku (fast, cost-effective for exploration)
+
+### Step 3: Define Interfaces
+
+Define the public API/interfaces first:
+
+```typescript
+// Example TypeScript interface
+interface UserService {
+  createUser(data: CreateUserInput): Promise<User>;
+  getUser(id: string): Promise<User | null>;
+  updateUser(id: string, data: UpdateUserInput): Promise<User>;
+}
+
+interface CreateUserInput {
+  email: string;
+  name: string;
+}
 ```
 
-Discover:
-- Current codebase structure
-- Existing patterns and conventions
-- Related implementations
+```go
+// Example Go interface
+type UserService interface {
+    CreateUser(ctx context.Context, input CreateUserInput) (*User, error)
+    GetUser(ctx context.Context, id string) (*User, error)
+    UpdateUser(ctx context.Context, id string, input UpdateUserInput) (*User, error)
+}
+```
 
-If exploration fails or returns empty results:
-1. Try alternative search terms
-2. Check if the feature area exists at all
-3. Note "greenfield" if no existing patterns found
+### Step 4: Document Data Flow
 
-### Phase 4: Plan Creation
+Describe how components interact:
 
-Create a structured plan:
+```
+Request → Controller → Service → Repository → Database
+                ↓
+           Validator
+                ↓
+          Error Handler → Response
+```
+
+### Step 5: Record Key Decisions
+
+Store architectural decisions for future reference:
+
+```bash
+aide decision set "<feature>-storage" "PostgreSQL with JSONB for metadata" \
+  --rationale="Need flexible schema for user preferences"
+
+aide decision set "<feature>-auth" "JWT with refresh tokens" \
+  --rationale="Stateless auth, mobile client support"
+```
+
+### Step 6: Define Acceptance Criteria
+
+List specific, testable criteria for the TEST stage:
 
 ```markdown
-## Goal
-[One sentence summary]
+## Acceptance Criteria
 
-## Requirements
-- [ ] Requirement 1
-- [ ] Requirement 2
-
-## Technical Approach
-[High-level architecture]
-
-## Tasks
-1. [ ] Task 1 (estimated complexity: low/medium/high)
-2. [ ] Task 2
-3. [ ] Task 3
-
-## Risks & Mitigations
-- Risk: [description] → Mitigation: [approach]
-
-## Out of Scope
-- [Items explicitly excluded]
+- [ ] User can be created with email and name
+- [ ] Duplicate emails are rejected with 409 status
+- [ ] Created user has UUID identifier
+- [ ] User can be retrieved by ID
+- [ ] Non-existent user returns null (not error)
+- [ ] User email can be updated
+- [ ] User name can be updated
 ```
 
-### Phase 5: Approval
+## Required Output Format
 
-Present plan to user and ask:
-- "Does this plan capture your requirements?"
-- "Should I proceed with implementation?"
+```markdown
+# Design: [Feature Name]
 
-**Wait for explicit user approval before proceeding.**
+## Overview
+[1-2 sentence summary of what this feature does]
 
-## Guidelines
+## Interfaces
 
-- **Don't assume** - ask when unclear
-- **Be specific** - vague plans lead to vague results
-- **Consider edge cases** - what could go wrong?
-- **Size appropriately** - break large tasks into smaller ones
+### [Interface/Type Name]
+\`\`\`typescript
+// Interface definition with comments
+\`\`\`
+
+## Data Flow
+[Diagram or description of component interactions]
+
+## Key Decisions
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Storage | PostgreSQL | [why] |
+| Auth | JWT | [why] |
+
+## Acceptance Criteria
+- [ ] Criterion 1
+- [ ] Criterion 2
+- [ ] Criterion 3
+
+## Files to Create/Modify
+- `path/to/file.ts` - [purpose]
+- `path/to/test.ts` - [test scope]
+
+## Dependencies
+- [External packages needed]
+- [Internal modules to import]
+
+## Out of Scope
+- [Explicitly excluded items]
+```
 
 ## Failure Handling
 
-### User Provides Unclear Requirements
-1. Summarize your understanding
-2. List specific ambiguities
-3. Offer options: "Did you mean A or B?"
-4. Wait for clarification
+### Unclear Requirements
+1. List specific ambiguities
+2. State assumptions you're making
+3. Record assumptions: `aide memory add --category=decision "Assumed X because Y"`
+4. Proceed with reasonable defaults
 
-### Technical Discovery Finds Conflicts
-1. Document the conflicting patterns found
-2. Present options to user with trade-offs
-3. Record decision: `aide decision set "<topic>" "<choice> because <reason>"`
-
-### Plan Is Too Large
-1. If more than 10 tasks, suggest breaking into phases
-2. Identify a meaningful MVP subset
-3. Propose: "Phase 1: [MVP], Phase 2: [Enhancements]"
-
-## Exiting Plan Mode
-
-After user approves:
-1. Create tasks using aide CLI:
+### Conflicting Patterns Found
+1. Document the conflicting patterns
+2. Choose one and record the decision:
    ```bash
-   aide task create "Task 1" --description="Details from plan"
-   aide task create "Task 2" --description="Details from plan"
+   aide decision set "<topic>" "<choice>" --rationale="<why this over alternatives>"
    ```
-2. Store the plan as a decision for reference:
-   ```bash
-   aide decision set "<feature>-plan" "Approved plan with N tasks"
-   ```
-3. Switch to autopilot or normal execution
-4. Reference plan throughout implementation
 
-## Completion Criteria
+### Too Large / Too Vague
+1. Break into smaller, focused designs
+2. Design the core/MVP first
+3. Note future phases in "Out of Scope"
 
-Plan mode is complete when:
-- User has explicitly approved the plan
-- All tasks are created in aide
-- Ready statement given: "Plan approved. Ready to proceed with implementation."
+## Verification Checklist
+
+Before completing design:
+- [ ] Interfaces are defined with types
+- [ ] Data flow is documented
+- [ ] Key decisions are recorded in aide
+- [ ] Acceptance criteria are testable
+- [ ] Files to modify are listed
+- [ ] Dependencies are identified
+
+## Completion
+
+When design is complete:
+1. Output the full design document
+2. Confirm: "Design complete. Ready for TEST stage."
+
+The design document feeds directly into the TEST stage, where acceptance criteria become test cases.
