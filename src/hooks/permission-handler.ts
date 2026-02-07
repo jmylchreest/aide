@@ -16,10 +16,15 @@
  * - { continue: true } to show normal permission prompt
  */
 
-import { readStdin, findAideMemory, runAideMemory, shellEscape } from '../lib/hook-utils.js';
+import {
+  readStdin,
+  findAideMemory,
+  runAideMemory,
+  shellEscape,
+} from "../lib/hook-utils.js";
 
 interface PermissionRequestInput {
-  event: 'PermissionRequest';
+  event: "PermissionRequest";
   tool_name: string;
   tool_input: {
     command?: string;
@@ -61,14 +66,14 @@ const SAFE_COMMANDS = [
 
 // Commands that should be blocked without prompting
 const BLOCKED_COMMANDS = [
-  /rm\s+-rf\s+[\/~]/,           // rm -rf / or ~
-  /rm\s+-rf\s+\*/,              // rm -rf *
-  /dd\s+.*of=\/dev\//,          // dd to device
-  /mkfs\./,                     // format filesystem
-  /:\(\)\{:\|:&\};:/,          // fork bomb
-  />\s*\/dev\/sd[a-z]/,        // write to disk device
-  /curl.*\|\s*(ba)?sh/,        // curl pipe to shell
-  /wget.*\|\s*(ba)?sh/,        // wget pipe to shell
+  /rm\s+-rf\s+[/~]/, // rm -rf / or ~
+  /rm\s+-rf\s+\*/, // rm -rf *
+  /dd\s+.*of=\/dev\//, // dd to device
+  /mkfs\./, // format filesystem
+  /:\(\)\{:\|:&\};:/, // fork bomb
+  />\s*\/dev\/sd[a-z]/, // write to disk device
+  /curl.*\|\s*(ba)?sh/, // curl pipe to shell
+  /wget.*\|\s*(ba)?sh/, // wget pipe to shell
 ];
 
 /**
@@ -79,11 +84,11 @@ function logPermission(cwd: string, command: string, decision: string): void {
 
   const safeCommand = shellEscape(command).slice(0, 200);
   runAideMemory(cwd, [
-    'message',
-    'send',
+    "message",
+    "send",
     `${decision}: ${safeCommand}`,
-    '--from=system',
-    '--type=permission',
+    "--from=system",
+    "--type=permission",
   ]);
 }
 
@@ -105,7 +110,7 @@ async function main(): Promise<void> {
     const data: PermissionRequestInput = JSON.parse(input);
 
     // Only handle Bash permissions
-    if (data.tool_name !== 'Bash' || !data.tool_input?.command) {
+    if (data.tool_name !== "Bash" || !data.tool_input?.command) {
       console.log(JSON.stringify({ continue: true }));
       return;
     }
@@ -115,10 +120,11 @@ async function main(): Promise<void> {
 
     // Check for blocked commands first
     if (matchesPatterns(command, BLOCKED_COMMANDS)) {
-      logPermission(cwd, command, 'BLOCKED');
+      logPermission(cwd, command, "BLOCKED");
       const response: PermissionResponse = {
         allow: false,
-        reason: 'This command has been blocked for safety. It matches a dangerous pattern.',
+        reason:
+          "This command has been blocked for safety. It matches a dangerous pattern.",
       };
       console.log(JSON.stringify(response));
       return;
@@ -126,7 +132,7 @@ async function main(): Promise<void> {
 
     // Check for safe commands to auto-approve
     if (matchesPatterns(command, SAFE_COMMANDS)) {
-      logPermission(cwd, command, 'AUTO-APPROVED');
+      logPermission(cwd, command, "AUTO-APPROVED");
       const response: PermissionResponse = {
         allow: true,
       };

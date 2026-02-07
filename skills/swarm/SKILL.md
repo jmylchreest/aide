@@ -12,6 +12,13 @@ triggers:
 
 Launch parallel agents, each working on a story through SDLC stages.
 
+## NON-NEGOTIABLE REQUIREMENTS
+
+1. **SDLC Pipeline is MANDATORY** - Every story MUST go through all 5 stages: DESIGN → TEST → DEV → VERIFY → DOCS
+2. **Git Worktrees are MANDATORY** - Each story agent MUST work in an isolated worktree
+3. **VERIFY failures trigger BUILD-FIX loop** - If VERIFY fails, invoke `/aide:build-fix` and re-verify until passing
+4. **Swarm MUST conclude with `/aide:worktree-resolve`** - All story branches must be merged before completion
+
 ## Activation
 
 ```
@@ -27,8 +34,9 @@ swarm 2 --flat                       → Flat task mode (legacy)
 │  ORCHESTRATOR (you)                                                      │
 │  1. Decompose work into stories                                          │
 │  2. Create worktree per story                                           │
-│  3. Spawn story agent per worktree                                      │
-│  4. Monitor progress via TaskList                                       │
+│  3. Spawn story agent per worktree (subagent_type: general-purpose)     │
+│  4. Monitor progress via TaskList (DO NOT create tasks yourself!)       │
+│  5. Call /aide:worktree-resolve when all stories complete               │
 └─────────────────────────────────────────────────────────────────────────┘
                               │
        ┌──────────────────────┼──────────────────────┐
@@ -75,13 +83,24 @@ Each story should be:
 
 ### 2. Create Git Worktrees
 
-Each story agent gets an isolated workspace:
+Each story agent gets an isolated workspace. Create worktrees using git commands:
 
 ```bash
 git worktree add .aide/worktrees/story-auth -b feat/story-auth
 git worktree add .aide/worktrees/story-payments -b feat/story-payments
 git worktree add .aide/worktrees/story-dashboard -b feat/story-dashboard
 ```
+
+**Automatic Integration:**
+- Worktrees in `.aide/worktrees/` are **auto-discovered** by AIDE hooks
+- When agents spawn, their worktree path is **auto-injected** into context
+- When agents complete, worktrees are marked as **"agent-complete"** (ready for merge)
+- Worktree state is tracked in `.aide/state/worktrees.json`
+
+**Naming Convention:**
+- Use `story-<name>` as worktree directory name
+- Use matching `agent-<name>` as agent_id when spawning
+- Example: `story-auth` worktree → spawn with `agent_id` containing "auth"
 
 **If worktree creation fails:**
 1. Check if branch exists: `git branch -a | grep feat/story-auth`
@@ -91,7 +110,14 @@ git worktree add .aide/worktrees/story-dashboard -b feat/story-dashboard
 
 ### 3. Spawn Story Agents
 
-Launch agents using the Task tool. Each agent manages its own SDLC pipeline.
+Launch agents using the Task tool with `subagent_type: "general-purpose"` (required for Edit/Write access).
+
+**IMPORTANT: Task Ownership**
+- The ORCHESTRATOR does NOT create SDLC tasks
+- Each SUBAGENT creates and manages its OWN tasks
+- Orchestrator only monitors via `TaskList`
+
+Each agent manages its own SDLC pipeline.
 
 ```typescript
 Task({
@@ -124,6 +150,12 @@ Make all tests pass with minimal implementation.
 Use the /aide:verify skill.
 Run full test suite, lint, type check. Must all pass.
 
+**IF VERIFY FAILS:**
+1. Invoke /aide:build-fix to address failures
+2. Re-run /aide:verify
+3. Repeat until VERIFY passes
+4. Only then proceed to DOCS
+
 ### Stage 5: DOCS
 Use the /aide:docs skill.
 Update documentation to match implementation.
@@ -145,9 +177,9 @@ Use native Claude Code task tools to track your progress:
    TaskUpdate: taskId=X, status=completed
 
 ## Coordination
-- Share discoveries: aide memory add --category=discovery "..."
-- Record decisions: aide decision set "<topic>" "<decision>"
-- Check decisions: aide decision get "<topic>"
+- Share discoveries: `aide memory add --category=discovery "..."` (CLI write)
+- Record decisions: `aide decision set "<topic>" "<decision>"` (CLI write)
+- Check decisions: `mcp__plugin_aide_aide__decision_get` (MCP read)
 
 ## Completion
 When all 5 stages are complete:
@@ -184,8 +216,8 @@ When all stories complete, use `/aide:worktree-resolve`:
 # Verify all tasks complete
 TaskList  # Should show all [completed]
 
-# Check for blockers
-aide memory list --category=blocker
+# Check for blockers (use MCP tool)
+mcp__plugin_aide_aide__memory_list with category=blocker
 
 # Merge worktrees
 /aide:worktree-resolve
@@ -200,6 +232,31 @@ aide memory list --category=blocker
 | DEV | `/aide:implement` | Passing implementation | TEST |
 | VERIFY | `/aide:verify` | Quality validation | DEV |
 | DOCS | `/aide:docs` | Updated documentation | VERIFY |
+
+### VERIFY → BUILD-FIX Loop
+
+```
+                    ┌──────────────┐
+                    │    VERIFY    │
+                    └──────┬───────┘
+                           │
+              ┌────────────┴────────────┐
+              │                         │
+           PASS                       FAIL
+              │                         │
+              ▼                         ▼
+         ┌────────┐              ┌──────────────┐
+         │  DOCS  │              │  BUILD-FIX   │
+         └────────┘              └──────┬───────┘
+                                        │
+                                        └──────► back to VERIFY
+```
+
+If VERIFY fails:
+1. `/aide:build-fix` to fix issues
+2. Re-run `/aide:verify`
+3. Repeat until passing
+4. Then proceed to DOCS
 
 ## Story Agent Instructions Template
 
@@ -257,17 +314,27 @@ TaskCreate({
 
 ## Coordination
 
-- Check existing decisions: aide decision get <topic>
-- Record new decisions: aide decision set <topic> "<decision>"
-- Share discoveries: aide memory add --category=discovery "<finding>"
-- Report blockers: aide memory add --category=blocker "<issue>"
+- Check existing decisions: `mcp__plugin_aide_aide__decision_get` (MCP read)
+- Record new decisions: `aide decision set <topic> "<decision>"` (CLI write)
+- Share discoveries: `aide memory add --category=discovery "<finding>"` (CLI write)
+- Report blockers: `aide memory add --category=blocker "<issue>"` (CLI write)
+
+## VERIFY Failure Handling
+
+If VERIFY stage fails:
+1. DO NOT proceed to DOCS
+2. Invoke /aide:build-fix to address failures
+3. Re-run /aide:verify
+4. Repeat until VERIFY passes
+5. Only then proceed to DOCS
 
 ## Completion
 
 All stages must complete. When done:
 1. All 5 tasks show [completed]
-2. All changes committed to your worktree branch
-3. Report: "Story [STORY-ID] complete"
+2. VERIFY must have passed (not skipped)
+3. All changes committed to your worktree branch
+4. Report: "Story [STORY-ID] complete - ready for merge"
 ```
 
 ## Flat Mode (Legacy)
@@ -284,8 +351,10 @@ This uses the original task-grabbing model without SDLC stages.
 
 **Decisions** (shared across agents):
 ```bash
+# Write (CLI)
 aide decision set "auth-strategy" "JWT with refresh tokens"
-aide decision get "auth-strategy"
+
+# Read (MCP) - use mcp__plugin_aide_aide__decision_get with topic="auth-strategy"
 ```
 
 **Memory** (shared discoveries):
@@ -298,14 +367,41 @@ aide memory add --category=discovery "User model needs email validation"
 aide message send "Auth module ready for integration" --from=agent-auth
 ```
 
-## Completion
+## Completion (MANDATORY STEPS)
 
-Swarm is complete when:
-1. All story tasks show [completed] in TaskList
-2. No unresolved blockers: `aide memory list --category=blocker`
-3. All worktrees have committed changes
+Swarm completion checklist - ALL REQUIRED:
 
-**IMPORTANT:** When complete, automatically invoke `/aide:worktree-resolve` to merge all story branches.
+### Step 1: Verify All Stories Complete
+```
+TaskList  # All story tasks must show [completed]
+```
+- Every story must have completed all 5 SDLC stages
+- No tasks should be [pending] or [in_progress]
+
+### Step 2: Check for Blockers
+Use `mcp__plugin_aide_aide__memory_list` with category=blocker
+- If blockers exist, resolve them before proceeding
+- Use `/aide:build-fix` for any remaining build/test issues
+
+### Step 3: Final Verification
+Run verification on each worktree:
+```bash
+cd .aide/worktrees/story-X && npm test && npm run build
+```
+- If any fail, invoke `/aide:build-fix` and re-verify
+
+### Step 4: Merge Worktrees (MANDATORY)
+**YOU MUST invoke `/aide:worktree-resolve`** - this is not optional.
+```
+/aide:worktree-resolve
+```
+This skill will:
+- Merge each story branch into main
+- Handle any merge conflicts
+- Clean up worktrees
+
+### Step 5: Record Session
+Only after successful merge, record the swarm session (see Orchestrator Memory below).
 
 ## Orchestrator Memory
 

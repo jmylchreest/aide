@@ -8,9 +8,9 @@
  * - Tracks active state
  */
 
-import { existsSync, readFileSync } from 'fs';
-import { join } from 'path';
-import { readStdin } from '../lib/hook-utils.js';
+import { existsSync, readFileSync } from "fs";
+import { join } from "path";
+import { readStdin } from "../lib/hook-utils.js";
 
 interface HookInput {
   hook_event_name: string;
@@ -32,49 +32,46 @@ interface HookOutput {
 }
 
 // Tools that modify state
-const WRITE_TOOLS = [
-  'Edit',
-  'Write',
-  'Bash',
-  'NotebookEdit',
-  'MultiEdit',
-];
+const WRITE_TOOLS = ["Edit", "Write", "Bash", "NotebookEdit", "MultiEdit"];
 
 // Read-only agents (should not use write tools)
 const READ_ONLY_AGENTS = [
-  'architect',
-  'explore',
-  'researcher',
-  'planner',
-  'reviewer',
-  'analyst',
-  'product-owner',
+  "architect",
+  "explore",
+  "researcher",
+  "planner",
+  "reviewer",
+  "analyst",
+  "product-owner",
 ];
 
 // Agents that should have access to specific tool categories
-const AGENT_TOOL_RESTRICTIONS: Record<string, { allowed?: string[]; denied?: string[] }> = {
-  'architect': {
-    denied: ['Edit', 'Write', 'Bash', 'NotebookEdit'],
+const AGENT_TOOL_RESTRICTIONS: Record<
+  string,
+  { allowed?: string[]; denied?: string[] }
+> = {
+  architect: {
+    denied: ["Edit", "Write", "Bash", "NotebookEdit"],
   },
-  'explore': {
-    denied: ['Edit', 'Write', 'Bash', 'NotebookEdit'],
+  explore: {
+    denied: ["Edit", "Write", "Bash", "NotebookEdit"],
   },
-  'researcher': {
-    denied: ['Edit', 'Write', 'Bash', 'NotebookEdit'],
+  researcher: {
+    denied: ["Edit", "Write", "Bash", "NotebookEdit"],
   },
-  'planner': {
-    denied: ['Edit', 'Write', 'Bash', 'NotebookEdit'],
+  planner: {
+    denied: ["Edit", "Write", "Bash", "NotebookEdit"],
   },
-  'reviewer': {
-    denied: ['Edit', 'Write', 'NotebookEdit'], // Can use Bash for running tests
+  reviewer: {
+    denied: ["Edit", "Write", "NotebookEdit"], // Can use Bash for running tests
   },
-  'writer': {
+  writer: {
     // Can write documentation
   },
-  'executor': {
+  executor: {
     // Full access
   },
-  'designer': {
+  designer: {
     // Full access for UI work
   },
 };
@@ -106,13 +103,13 @@ function isToolDenied(agentName: string, toolName: string): boolean {
  * Read active mode state
  */
 function getActiveMode(cwd: string): string | null {
-  const modes = ['autopilot', 'ralph', 'eco', 'swarm', 'plan'];
+  const modes = ["autopilot", "ralph", "eco", "swarm", "plan"];
 
   for (const mode of modes) {
-    const statePath = join(cwd, '.aide', 'state', `${mode}-state.json`);
+    const statePath = join(cwd, ".aide", "state", `${mode}-state.json`);
     if (existsSync(statePath)) {
       try {
-        const state: ModeState = JSON.parse(readFileSync(statePath, 'utf-8'));
+        const state: ModeState = JSON.parse(readFileSync(statePath, "utf-8"));
         if (state.active) {
           return mode;
         }
@@ -132,15 +129,14 @@ function buildReminder(mode: string | null, toolName: string): string | null {
   if (!mode) return null;
 
   const reminders: Record<string, string> = {
-    'ralph': `[aide:ralph] Persistence active. Verify work is complete before stopping.`,
-    'autopilot': `[aide:autopilot] Autonomous mode. Continue until all tasks verified.`,
-    'eco': `[aide:eco] Token-efficient mode. Minimize context, use fast models.`,
-    'swarm': `[aide:swarm] Swarm active. Use aide-memory for coordination.`,
+    ralph: `[aide:ralph] Persistence active. Verify work is complete before stopping.`,
+    autopilot: `[aide:autopilot] Autonomous mode. Continue until all tasks verified.`,
+    eco: `[aide:eco] Token-efficient mode. Minimize context, use fast models.`,
+    swarm: `[aide:swarm] Swarm active. Use aide-memory for coordination.`,
   };
 
   return reminders[mode] || null;
 }
-
 
 async function main(): Promise<void> {
   try {
@@ -151,9 +147,9 @@ async function main(): Promise<void> {
     }
 
     const data: HookInput = JSON.parse(input);
-    const toolName = data.tool_name || '';
+    const toolName = data.tool_name || "";
     // agent_name may come from Claude Code for typed agents
-    const agentName = data.agent_name || '';
+    const agentName = data.agent_name || "";
     const cwd = data.cwd || process.cwd();
 
     // Debug: log what we received

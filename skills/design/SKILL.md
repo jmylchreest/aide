@@ -37,17 +37,10 @@ Read the request and identify:
 
 Use search tools to understand existing patterns:
 
-```bash
-# Find related implementations
-Grep for similar patterns, interfaces, types
-
-# Check existing architecture
-Glob for relevant files
-
-# Review related decisions
-aide decision list
-aide decision get <relevant-topic>
-```
+- Use `Grep` for similar patterns, interfaces, types
+- Use `Glob` for relevant files
+- Use `mcp__plugin_aide_aide__decision_list` to review all decisions
+- Use `mcp__plugin_aide_aide__decision_get` with the relevant topic to check specific decisions
 
 ### Step 3: Define Interfaces
 

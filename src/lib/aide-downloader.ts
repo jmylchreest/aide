@@ -11,10 +11,10 @@
  * The binary is downloaded from the release matching the plugin version.
  */
 
-import { existsSync, mkdirSync, readFileSync, chmodSync, unlinkSync } from 'fs';
-import { join, dirname } from 'path';
-import { execSync, spawn } from 'child_process';
-import { fileURLToPath } from 'url';
+import { existsSync, mkdirSync, readFileSync, chmodSync, unlinkSync } from "fs";
+import { join, dirname } from "path";
+import { execSync, spawn } from "child_process";
+import { fileURLToPath } from "url";
 
 export interface DownloadResult {
   success: boolean;
@@ -25,9 +25,9 @@ export interface DownloadResult {
 
 export interface EnsureResult {
   binary: string | null;
-  error: string | null;      // Critical error (can't use AIDE)
-  warning: string | null;    // Soft warning (update available, etc.)
-  downloaded: boolean;       // Whether we downloaded the binary this time
+  error: string | null; // Critical error (can't use AIDE)
+  warning: string | null; // Soft warning (update available, etc.)
+  downloaded: boolean; // Whether we downloaded the binary this time
 }
 
 /**
@@ -38,10 +38,10 @@ export function getPluginVersion(): string | null {
   if (!pluginRoot) return null;
 
   try {
-    const pkgPath = join(pluginRoot, 'package.json');
+    const pkgPath = join(pluginRoot, "package.json");
     if (existsSync(pkgPath)) {
-      const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
-      if (pkg.version && pkg.version !== '0.0.0') {
+      const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
+      if (pkg.version && pkg.version !== "0.0.0") {
         return pkg.version;
       }
     }
@@ -58,9 +58,11 @@ export function getPluginVersion(): string | null {
 export function getBinaryVersion(binaryPath: string): string | null {
   try {
     const output = execSync(`"${binaryPath}" version`, {
-      stdio: 'pipe',
+      stdio: "pipe",
       timeout: 5000,
-    }).toString().trim();
+    })
+      .toString()
+      .trim();
     // Expected format: "aide version 0.0.4" or just "0.0.4"
     const match = output.match(/(\d+\.\d+\.\d+)/);
     return match ? match[1] : null;
@@ -79,14 +81,14 @@ export async function getLatestGitHubVersion(): Promise<string | null> {
     const timeout = setTimeout(() => controller.abort(), 5000);
 
     const response = await fetch(
-      'https://api.github.com/repos/jmylchreest/aide/releases/latest',
+      "https://api.github.com/repos/jmylchreest/aide/releases/latest",
       {
         headers: {
-          'Accept': 'application/vnd.github.v3+json',
-          'User-Agent': 'aide-plugin',
+          Accept: "application/vnd.github.v3+json",
+          "User-Agent": "aide-plugin",
         },
         signal: controller.signal,
-      }
+      },
     );
 
     clearTimeout(timeout);
@@ -95,10 +97,10 @@ export async function getLatestGitHubVersion(): Promise<string | null> {
       return null;
     }
 
-    const data = await response.json() as { tag_name?: string };
+    const data = (await response.json()) as { tag_name?: string };
     // tag_name is typically "v0.0.4", strip the "v"
     const tagName = data.tag_name;
-    if (tagName && tagName.startsWith('v')) {
+    if (tagName && tagName.startsWith("v")) {
       return tagName.slice(1);
     }
     return tagName || null;
@@ -113,8 +115,8 @@ export async function getLatestGitHubVersion(): Promise<string | null> {
  * Returns: -1 if a < b, 0 if a == b, 1 if a > b
  */
 export function compareVersions(a: string, b: string): number {
-  const partsA = a.split('.').map(Number);
-  const partsB = b.split('.').map(Number);
+  const partsA = a.split(".").map(Number);
+  const partsB = b.split(".").map(Number);
 
   for (let i = 0; i < 3; i++) {
     const numA = partsA[i] || 0;
@@ -132,9 +134,9 @@ export function getDownloadUrl(): string {
   const platform = process.platform; // 'darwin', 'linux', 'win32'
   const arch = process.arch; // 'x64', 'arm64'
 
-  const goos = platform === 'win32' ? 'windows' : platform;
-  const goarch = arch === 'x64' ? 'amd64' : arch;
-  const ext = platform === 'win32' ? '.exe' : '';
+  const goos = platform === "win32" ? "windows" : platform;
+  const goarch = arch === "x64" ? "amd64" : arch;
+  const ext = platform === "win32" ? ".exe" : "";
 
   const binaryName = `aide-${goos}-${goarch}${ext}`;
 
@@ -153,15 +155,15 @@ export function getDownloadUrl(): string {
 export function getPluginRoot(): string | null {
   // Check CLAUDE_PLUGIN_ROOT env var first (set by Claude Code)
   const envRoot = process.env.CLAUDE_PLUGIN_ROOT;
-  if (envRoot && existsSync(join(envRoot, 'package.json'))) {
+  if (envRoot && existsSync(join(envRoot, "package.json"))) {
     return envRoot;
   }
 
   // Calculate from this script's location: dist/lib/aide-downloader.js -> ../../
   try {
     const scriptPath = fileURLToPath(import.meta.url);
-    const pluginRoot = join(dirname(scriptPath), '..', '..');
-    if (existsSync(join(pluginRoot, 'package.json'))) {
+    const pluginRoot = join(dirname(scriptPath), "..", "..");
+    if (existsSync(join(pluginRoot, "package.json"))) {
       return pluginRoot;
     }
   } catch {
@@ -182,7 +184,7 @@ export function getPluginRoot(): string | null {
 export function findAideBinary(cwd?: string): string | null {
   // 1. Check project-local .aide/bin directory
   if (cwd) {
-    const projectBinary = join(cwd, '.aide', 'bin', 'aide');
+    const projectBinary = join(cwd, ".aide", "bin", "aide");
     if (existsSync(projectBinary)) {
       return projectBinary;
     }
@@ -191,7 +193,7 @@ export function findAideBinary(cwd?: string): string | null {
   // 2. Check plugin's bin directory (auto-downloaded fallback)
   const pluginRoot = getPluginRoot();
   if (pluginRoot) {
-    const pluginBinary = join(pluginRoot, 'bin', 'aide');
+    const pluginBinary = join(pluginRoot, "bin", "aide");
     if (existsSync(pluginBinary)) {
       return pluginBinary;
     }
@@ -199,15 +201,14 @@ export function findAideBinary(cwd?: string): string | null {
 
   // 3. Check if in PATH (last resort)
   try {
-    execSync('which aide', { stdio: 'pipe', timeout: 2000 });
-    return 'aide';
+    execSync("which aide", { stdio: "pipe", timeout: 2000 });
+    return "aide";
   } catch {
     // Not in PATH
   }
 
   return null;
 }
-
 
 /**
  * Download aide binary
@@ -217,21 +218,21 @@ export function findAideBinary(cwd?: string): string | null {
  */
 export async function downloadAideBinary(
   destDir: string,
-  options: { force?: boolean; quiet?: boolean; useStderr?: boolean } = {}
+  options: { force?: boolean; quiet?: boolean; useStderr?: boolean } = {},
 ): Promise<DownloadResult> {
   const { force = false, quiet = false, useStderr = false } = options;
 
   // Use stderr for output when called from hooks (stdout reserved for JSON)
   const log = useStderr ? console.error : console.log;
 
-  const ext = process.platform === 'win32' ? '.exe' : '';
+  const ext = process.platform === "win32" ? ".exe" : "";
   const destPath = join(destDir, `aide${ext}`);
 
   // Check if already exists (unless force)
   if (!force && existsSync(destPath)) {
     // Verify it works
     try {
-      execSync(`"${destPath}" version`, { stdio: 'pipe', timeout: 5000 });
+      execSync(`"${destPath}" version`, { stdio: "pipe", timeout: 5000 });
       return {
         success: true,
         path: destPath,
@@ -240,7 +241,7 @@ export async function downloadAideBinary(
       };
     } catch {
       // Existing binary is broken, re-download
-      if (!quiet) log('[aide] Existing binary is invalid, re-downloading...');
+      if (!quiet) log("[aide] Existing binary is invalid, re-downloading...");
       try {
         unlinkSync(destPath);
       } catch {
@@ -266,14 +267,14 @@ export async function downloadAideBinary(
     // -S: show errors
     // -L: follow redirects
     // --progress-bar: show progress
-    const curlArgs = ['-fSL', '--progress-bar', '-o', destPath, url];
+    const curlArgs = ["-fSL", "--progress-bar", "-o", destPath, url];
 
     await new Promise<void>((resolve, reject) => {
-      const curl = spawn('curl', curlArgs, {
-        stdio: quiet ? 'pipe' : ['pipe', 'pipe', 'inherit'], // stderr shows progress
+      const curl = spawn("curl", curlArgs, {
+        stdio: quiet ? "pipe" : ["pipe", "pipe", "inherit"], // stderr shows progress
       });
 
-      curl.on('close', (code) => {
+      curl.on("close", (code) => {
         if (code === 0) {
           resolve();
         } else {
@@ -281,20 +282,20 @@ export async function downloadAideBinary(
         }
       });
 
-      curl.on('error', reject);
+      curl.on("error", reject);
     });
 
     // Make executable
-    if (process.platform !== 'win32') {
+    if (process.platform !== "win32") {
       chmodSync(destPath, 0o755);
     }
 
     // Verify it works
     try {
-      execSync(`"${destPath}" version`, { stdio: 'pipe', timeout: 5000 });
+      execSync(`"${destPath}" version`, { stdio: "pipe", timeout: 5000 });
     } catch {
       // Version command might not exist, try --help
-      execSync(`"${destPath}" --help`, { stdio: 'pipe', timeout: 5000 });
+      execSync(`"${destPath}" --help`, { stdio: "pipe", timeout: 5000 });
     }
 
     if (!quiet) {
@@ -333,9 +334,7 @@ export async function downloadAideBinary(
  * 4. Checks GitHub for newer releases (non-blocking)
  * 5. Returns warnings for plugin updates
  */
-export async function ensureAideBinary(
-  cwd?: string
-): Promise<EnsureResult> {
+export async function ensureAideBinary(cwd?: string): Promise<EnsureResult> {
   const pluginRoot = getPluginRoot();
   const pluginVersion = getPluginVersion();
 
@@ -347,27 +346,39 @@ export async function ensureAideBinary(
   let binaryVersion = binaryPath ? getBinaryVersion(binaryPath) : null;
 
   // Step 2: Check version match
-  const needsDownload = !binaryPath || (pluginVersion && binaryVersion && binaryVersion !== pluginVersion);
+  const needsDownload =
+    !binaryPath ||
+    (pluginVersion && binaryVersion && binaryVersion !== pluginVersion);
 
   if (needsDownload) {
     // Can't download without plugin root
     if (!pluginRoot) {
       return {
         binary: binaryPath,
-        error: binaryPath ? null : 'AIDE binary not found and plugin root could not be determined for download',
+        error: binaryPath
+          ? null
+          : "AIDE binary not found and plugin root could not be determined for download",
         warning: null,
         downloaded: false,
       };
     }
 
-    const destDir = join(pluginRoot, 'bin');
-    const reason = !binaryPath ? 'not found' : `outdated (v${binaryVersion} → v${pluginVersion})`;
+    const destDir = join(pluginRoot, "bin");
+    const reason = !binaryPath
+      ? "not found"
+      : `outdated (v${binaryVersion} → v${pluginVersion})`;
 
     // Print to stderr so user sees progress (stdout is reserved for JSON hook response)
-    console.error(`[aide] Binary ${reason}, downloading v${pluginVersion || 'latest'}...`);
+    console.error(
+      `[aide] Binary ${reason}, downloading v${pluginVersion || "latest"}...`,
+    );
 
     // Auto-download
-    const result = await downloadAideBinary(destDir, { force: true, quiet: false, useStderr: true });
+    const result = await downloadAideBinary(destDir, {
+      force: true,
+      quiet: false,
+      useStderr: true,
+    });
 
     if (result.success && result.path) {
       binaryPath = result.path;
@@ -375,25 +386,31 @@ export async function ensureAideBinary(
       downloaded = true;
     } else {
       // Download failed - return error with manual instructions
-      const platform = process.platform === 'win32' ? 'windows' : process.platform;
-      const arch = process.arch === 'x64' ? 'amd64' : process.arch;
-      const ext = process.platform === 'win32' ? '.exe' : '';
+      const platform =
+        process.platform === "win32" ? "windows" : process.platform;
+      const arch = process.arch === "x64" ? "amd64" : process.arch;
+      const ext = process.platform === "win32" ? ".exe" : "";
       const binaryName = `aide-${platform}-${arch}${ext}`;
 
-      const errorMsg = `**AIDE Binary ${!binaryPath ? 'Not Found' : 'Outdated'}**
+      const errorMsg = `**AIDE Binary ${!binaryPath ? "Not Found" : "Outdated"}**
 
 Auto-download failed: ${result.message}
 
 **Manual fix:**
 \`\`\`bash
 # Download the binary
-curl -fSL "https://github.com/jmylchreest/aide/releases/download/v${pluginVersion || 'latest'}/${binaryName}" -o "${destDir}/aide${ext}"
+curl -fSL "https://github.com/jmylchreest/aide/releases/download/v${pluginVersion || "latest"}/${binaryName}" -o "${destDir}/aide${ext}"
 chmod +x "${destDir}/aide${ext}"
 \`\`\`
 
 Or visit: https://github.com/jmylchreest/aide/releases`;
 
-      return { binary: null, error: errorMsg, warning: null, downloaded: false };
+      return {
+        binary: null,
+        error: errorMsg,
+        warning: null,
+        downloaded: false,
+      };
     }
   }
 
@@ -445,17 +462,17 @@ async function main() {
   let pluginMode = false;
 
   for (let i = 0; i < args.length; i++) {
-    if (args[i] === '--plugin') {
+    if (args[i] === "--plugin") {
       pluginMode = true;
-    } else if (args[i] === '--cwd' && args[i + 1]) {
-      destDir = join(args[i + 1], '.aide', 'bin');
+    } else if (args[i] === "--cwd" && args[i + 1]) {
+      destDir = join(args[i + 1], ".aide", "bin");
       i++;
-    } else if (args[i] === '--dest' && args[i + 1]) {
+    } else if (args[i] === "--dest" && args[i + 1]) {
       destDir = args[i + 1];
       i++;
-    } else if (args[i] === '--force') {
+    } else if (args[i] === "--force") {
       force = true;
-    } else if (args[i] === '--help' || args[i] === '-h') {
+    } else if (args[i] === "--help" || args[i] === "-h") {
       console.log(`AIDE Binary Downloader
 
 Usage: node aide-downloader.js [options]
@@ -477,13 +494,13 @@ Downloads the aide binary from GitHub releases.
   if (pluginMode) {
     const pluginRoot = getPluginRoot();
     if (!pluginRoot) {
-      console.error('Error: Could not determine plugin root directory');
+      console.error("Error: Could not determine plugin root directory");
       process.exit(1);
     }
-    destDir = join(pluginRoot, 'bin');
+    destDir = join(pluginRoot, "bin");
   } else if (!destDir) {
     // Default to current directory's .aide/bin
-    destDir = join(process.cwd(), '.aide', 'bin');
+    destDir = join(process.cwd(), ".aide", "bin");
   }
 
   const result = await downloadAideBinary(destDir, { force, quiet: false });
@@ -498,7 +515,7 @@ Downloads the aide binary from GitHub releases.
 // Run CLI if executed directly
 if (import.meta.url === `file://${process.argv[1]}`) {
   main().catch((err) => {
-    console.error('Error:', err);
+    console.error("Error:", err);
     process.exit(1);
   });
 }

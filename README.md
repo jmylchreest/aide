@@ -147,9 +147,10 @@ This prevents conflicts - Claude reads via MCP, hooks update state in response t
 |------|---------|---------|
 | `SessionStart` | New conversation | Initialize state, inject memories |
 | `UserPromptSubmit` | User sends message | Inject matching skills (fuzzy trigger matching) |
-| `PostToolUse` | After any tool | Update HUD, capture `<aide-memory>` tags |
-| `SubagentStart/Stop` | Agent lifecycle | Track active agents |
-| `Stop` | Conversation ends | Persistence check |
+| `PostToolUse` | After any tool | Update HUD, capture `<aide-memory>` and `<aide-decision>` tags |
+| `TaskCompleted` | Task marked complete | Validate SDLC stage completion (tests pass, lint clean) |
+| `SubagentStart/Stop` | Agent lifecycle | Track active agents, inject memories |
+| `Stop` | Conversation ends | Persist state, capture session summary |
 
 ### MCP Tools
 
@@ -159,6 +160,7 @@ This prevents conflicts - Claude reads via MCP, hooks update state in response t
 | `memory_list` | List memories by category/tags |
 | `code_search` | Search code symbols |
 | `code_symbols` | List symbols in a file |
+| `code_references` | Find call sites for a symbol |
 | `code_stats` | Index statistics |
 | `state_get` | Get session/agent state |
 | `state_list` | List all state values |
@@ -166,10 +168,11 @@ This prevents conflicts - Claude reads via MCP, hooks update state in response t
 | `decision_list` | List all decisions |
 | `decision_history` | Full history for a topic |
 | `message_list` | Inter-agent messages |
+| `usage` | Show Claude Code usage statistics |
 
 ## Memory System
 
-Memories are organized by **category** (`learning`, `decision`, `session`, `pattern`, `gotcha`) and **tags**.
+Memories are organized by **category** (`learning`, `decision`, `session`, `pattern`, `gotcha`, `discovery`, `blocker`, `issue`) and **tags**.
 
 **Key tags:**
 - `scope:global` - Inject in every session, across all projects
@@ -358,6 +361,7 @@ Skills are markdown files that inject context when triggered by keywords (with f
 | Skill | Example Prompt | What Happens |
 |-------|----------------|--------------|
 | **swarm** | `swarm 3 implement dashboard` | Spawns N parallel agents with SDLC pipeline per story |
+| **decide** | `help me decide on auth strategy` | Formal decision-making interview, records architectural choices |
 | **design** | `design the auth system` | Technical spec with interfaces, decisions, acceptance criteria |
 | **test** | `write tests for auth` | Creates test suite with coverage verification |
 | **implement** | `implement the feature` | TDD implementation - make failing tests pass |

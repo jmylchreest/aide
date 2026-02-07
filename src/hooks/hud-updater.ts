@@ -3,25 +3,25 @@
  * HUD Updater Hook (PostToolUse)
  *
  * Updates the terminal status line with current aide state.
- * Shows: mode, model tier, active agents, task count, context usage
+ * Shows: mode, model tier, active agents, context usage
  *
  * Output is written to .aide/state/hud.txt for the terminal to display.
  */
 
-import { Logger } from '../lib/logger.js';
+import { Logger } from "../lib/logger.js";
 import {
   readStdin,
   setMemoryState,
   getMemoryState,
   updateSessionHeartbeat,
-} from '../lib/hook-utils.js';
+} from "../lib/hook-utils.js";
 import {
   getAgentStates,
   loadHudConfig,
   getSessionState,
   formatHud,
   writeHudOutput,
-} from '../lib/hud.js';
+} from "../lib/hud.js";
 
 interface HookInput {
   hook_event_name: string;
@@ -40,34 +40,30 @@ interface HookInput {
 /**
  * Update session state with tool usage (using aide-memory only)
  */
-function updateSessionState(cwd: string, toolName: string, agentId?: string): void {
+function updateSessionState(
+  cwd: string,
+  toolName: string,
+  agentId?: string,
+): void {
   // Initialize startedAt if not set
-  const existingStartedAt = getMemoryState(cwd, 'startedAt');
+  const existingStartedAt = getMemoryState(cwd, "startedAt");
   if (!existingStartedAt) {
-    setMemoryState(cwd, 'startedAt', new Date().toISOString());
-  }
-
-  // Track task operations
-  if (toolName === 'TodoWrite' || toolName === 'TaskCreate') {
-    const currentCount = parseInt(getMemoryState(cwd, 'taskCount') || '0', 10);
-    const newCount = currentCount + 1;
-    setMemoryState(cwd, 'taskCount', String(newCount));
-
-    if (agentId) {
-      setMemoryState(cwd, 'tasksTotal', String(newCount), agentId);
-    }
+    setMemoryState(cwd, "startedAt", new Date().toISOString());
   }
 
   // Track tool calls
-  const currentToolCalls = parseInt(getMemoryState(cwd, 'toolCalls') || '0', 10);
-  setMemoryState(cwd, 'toolCalls', String(currentToolCalls + 1));
-  setMemoryState(cwd, 'lastToolUse', new Date().toISOString());
-  setMemoryState(cwd, 'lastTool', toolName);
+  const currentToolCalls = parseInt(
+    getMemoryState(cwd, "toolCalls") || "0",
+    10,
+  );
+  setMemoryState(cwd, "toolCalls", String(currentToolCalls + 1));
+  setMemoryState(cwd, "lastToolUse", new Date().toISOString());
+  setMemoryState(cwd, "lastTool", toolName);
 
   // Clear currentTool since PostToolUse means the tool completed
   if (agentId) {
-    setMemoryState(cwd, 'currentTool', '', agentId);
-    setMemoryState(cwd, 'lastTool', toolName, agentId);
+    setMemoryState(cwd, "currentTool", "", agentId);
+    setMemoryState(cwd, "lastTool", toolName, agentId);
   }
 }
 
@@ -83,14 +79,16 @@ async function main(): Promise<void> {
 
     const data: HookInput = JSON.parse(input);
     const cwd = data.cwd || process.cwd();
-    const toolName = data.tool_name || '';
+    const toolName = data.tool_name || "";
     const agentId = data.agent_id || data.session_id;
     const sessionId = data.session_id;
 
     // Initialize logger
-    log = new Logger('hud-updater', cwd);
-    log.start('total');
-    log.debug(`Processing PostToolUse for tool: ${toolName}, agent: ${agentId}, session: ${sessionId}`);
+    log = new Logger("hud-updater", cwd);
+    log.start("total");
+    log.debug(
+      `Processing PostToolUse for tool: ${toolName}, agent: ${agentId}, session: ${sessionId}`,
+    );
 
     // Update session heartbeat (proves this session is alive)
     if (sessionId) {
@@ -99,46 +97,49 @@ async function main(): Promise<void> {
 
     // Update session state (per-agent tracking)
     if (toolName) {
-      log.start('updateSessionState');
+      log.start("updateSessionState");
       updateSessionState(cwd, toolName, agentId);
-      log.end('updateSessionState');
+      log.end("updateSessionState");
     }
 
     // Load config and get state
-    log.start('loadHudConfig');
+    log.start("loadHudConfig");
     const config = loadHudConfig(cwd);
-    log.end('loadHudConfig');
+    log.end("loadHudConfig");
 
-    log.start('getSessionState');
+    log.start("getSessionState");
     const state = getSessionState(cwd);
-    log.end('getSessionState', state);
+    log.end("getSessionState", state);
 
-    log.start('getAgentStates');
+    log.start("getAgentStates");
     const allAgents = getAgentStates(cwd);
     // Filter to ONLY show agents from the current session
     const agents = sessionId
-      ? allAgents.filter(a => a.session === sessionId)
+      ? allAgents.filter((a) => a.session === sessionId)
       : [];
-    log.end('getAgentStates', { total: allAgents.length, filtered: agents.length });
+    log.end("getAgentStates", {
+      total: allAgents.length,
+      filtered: agents.length,
+    });
 
     // Format and write HUD (includes per-agent lines)
-    log.start('formatHud');
+    log.start("formatHud");
     const hudOutput = formatHud(config, state, agents, cwd);
-    log.end('formatHud');
+    log.end("formatHud");
     log.debug(`HUD output: ${hudOutput}`);
 
-    log.start('writeHudOutput');
+    log.start("writeHudOutput");
     writeHudOutput(cwd, hudOutput);
-    log.end('writeHudOutput');
+    log.end("writeHudOutput");
 
-    log.end('total');
+    log.end("total");
     log.flush();
 
     // Always continue
     console.log(JSON.stringify({ continue: true }));
   } catch (error) {
     if (log) {
-      log.error('HUD update failed', error);
+      log.error("HUD update failed", error);
       log.flush();
     }
     console.log(JSON.stringify({ continue: true }));

@@ -77,14 +77,9 @@ Read CHANGELOG.md  # if exists
 
 Understand what was built:
 
-```bash
-# Read the new code
-Read path/to/new/code.ts
-
-# Check the design decisions
-aide decision get <feature>
-aide decision list
-```
+- Read the new code files
+- Use `mcp__plugin_aide_aide__decision_get` with the feature topic to check design decisions
+- Use `mcp__plugin_aide_aide__decision_list` to see all decisions
 
 ### Step 4: Update Documentation
 

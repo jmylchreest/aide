@@ -36,7 +36,6 @@ if [[ -f "$SESSION_FILE" ]]; then
     MODE=$(grep -o '"activeMode"[[:space:]]*:[[:space:]]*"[^"]*"' "$SESSION_FILE" 2>/dev/null | cut -d'"' -f4)
     MODEL=$(grep -o '"modelTier"[[:space:]]*:[[:space:]]*"[^"]*"' "$SESSION_FILE" 2>/dev/null | cut -d'"' -f4)
     AGENTS=$(grep -o '"agentCount"[[:space:]]*:[[:space:]]*[0-9]*' "$SESSION_FILE" 2>/dev/null | grep -o '[0-9]*$')
-    TASKS=$(grep -o '"taskCount"[[:space:]]*:[[:space:]]*[0-9]*' "$SESSION_FILE" 2>/dev/null | grep -o '[0-9]*$')
     TOOLS=$(grep -o '"toolCalls"[[:space:]]*:[[:space:]]*[0-9]*' "$SESSION_FILE" 2>/dev/null | grep -o '[0-9]*$')
     STARTED_AT=$(grep -o '"startedAt"[[:space:]]*:[[:space:]]*"[^"]*"' "$SESSION_FILE" 2>/dev/null | cut -d'"' -f4)
 
@@ -74,7 +73,6 @@ if [[ -f "$SESSION_FILE" ]]; then
     # Show tool calls
     [[ -n "$TOOLS" && "$TOOLS" != "0" ]] && STATUS="$STATUS | tools:$TOOLS"
     [[ -n "$AGENTS" && "$AGENTS" != "0" ]] && STATUS="$STATUS | agents:$AGENTS"
-    [[ -n "$TASKS" && "$TASKS" != "0" ]] && STATUS="$STATUS | tasks:$TASKS"
 
     echo "$STATUS"
     exit 0

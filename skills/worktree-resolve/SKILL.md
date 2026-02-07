@@ -20,9 +20,35 @@ Merge all swarm worktrees back into the main branch after testing.
 git worktree list
 ```
 
-Also check the state file for metadata:
+Check the AIDE worktree state file for metadata and status:
 ```bash
 cat .aide/state/worktrees.json
+```
+
+**Worktree Status Values:**
+- `active` - Agent is still working on this worktree
+- `agent-complete` - Agent finished, ready for merge review
+- `merged` - Successfully merged to main
+
+**Only merge worktrees with status `agent-complete`.**
+
+Example state file:
+```json
+{
+  "active": [
+    {
+      "name": "story-auth",
+      "path": ".aide/worktrees/story-auth",
+      "branch": "feat/story-auth",
+      "taskId": "story-auth",
+      "agentId": "agent-auth",
+      "status": "agent-complete",
+      "createdAt": "2026-02-07T...",
+      "completedAt": "2026-02-07T..."
+    }
+  ],
+  "baseBranch": "main"
+}
 ```
 
 ### 2. For Each Worktree Branch

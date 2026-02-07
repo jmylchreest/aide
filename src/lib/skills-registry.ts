@@ -5,10 +5,17 @@
  * Skills are markdown files with YAML frontmatter that define triggers and behaviors.
  */
 
-import { execSync } from 'child_process';
-import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync, copyFileSync } from 'fs';
-import { join, basename } from 'path';
-import { homedir } from 'os';
+import { execFileSync } from "child_process";
+import {
+  existsSync,
+  readFileSync,
+  writeFileSync,
+  mkdirSync,
+  readdirSync,
+  copyFileSync,
+} from "fs";
+import { join, basename } from "path";
+import { homedir } from "os";
 
 export interface SkillMetadata {
   name: string;
@@ -25,9 +32,47 @@ export interface SkillsRegistry {
   lastSync?: string;
 }
 
-const REGISTRY_FILE = '.aide/skills/registry.json';
-const SKILLS_DIR = '.aide/skills';
-const GLOBAL_SKILLS_DIR = join(homedir(), '.aide', 'skills');
+const REGISTRY_FILE = ".aide/skills/registry.json";
+const SKILLS_DIR = ".aide/skills";
+const GLOBAL_SKILLS_DIR = join(homedir(), ".aide", "skills");
+
+/**
+ * Validate and sanitize a URL for safe fetching
+ * Prevents command injection by ensuring only valid http/https URLs
+ */
+function validateUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      return null;
+    }
+    // Return the properly parsed URL (sanitized)
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Safely fetch content from a URL using curl
+ * Uses execFileSync with argument array to prevent command injection
+ */
+function safeFetch(url: string): string | null {
+  const validUrl = validateUrl(url);
+  if (!validUrl) {
+    console.error(`Invalid URL: ${url}`);
+    return null;
+  }
+  try {
+    return execFileSync("curl", ["-sL", validUrl], {
+      encoding: "utf-8",
+      timeout: 30000,
+    });
+  } catch (error) {
+    console.error(`Failed to fetch ${validUrl}: ${error}`);
+    return null;
+  }
+}
 
 /**
  * Load skills registry
@@ -36,7 +81,7 @@ export function loadRegistry(cwd: string): SkillsRegistry {
   const registryPath = join(cwd, REGISTRY_FILE);
   if (existsSync(registryPath)) {
     try {
-      return JSON.parse(readFileSync(registryPath, 'utf-8'));
+      return JSON.parse(readFileSync(registryPath, "utf-8"));
     } catch {
       // Return default
     }
@@ -44,7 +89,7 @@ export function loadRegistry(cwd: string): SkillsRegistry {
   return {
     installed: [],
     autoUpdate: true,
-    syncInterval: '24h',
+    syncInterval: "24h",
   };
 }
 
@@ -70,7 +115,7 @@ export function saveRegistry(cwd: string, registry: SkillsRegistry): void {
 export async function installSkill(
   cwd: string,
   source: string,
-  options: { global?: boolean } = {}
+  options: { global?: boolean } = {},
 ): Promise<SkillMetadata | null> {
   const targetDir = options.global ? GLOBAL_SKILLS_DIR : join(cwd, SKILLS_DIR);
 
@@ -81,48 +126,52 @@ export async function installSkill(
 
   let content: string;
   let name: string;
-  let version = '1.0.0';
+  let version = "1.0.0";
 
   // Handle different source formats
-  if (source.startsWith('skills.sh/') || source.startsWith('https://skills.sh/')) {
+  if (
+    source.startsWith("skills.sh/") ||
+    source.startsWith("https://skills.sh/")
+  ) {
     // skills.sh marketplace format: skills.sh/author/skill
-    const skillPath = source.replace('skills.sh/', '').replace('https://skills.sh/', '');
+    const skillPath = source
+      .replace("skills.sh/", "")
+      .replace("https://skills.sh/", "");
     const url = `https://skills.sh/api/skills/${skillPath}/raw`;
 
-    try {
-      // Use curl to fetch (more reliable than node-fetch in CLI)
-      content = execSync(`curl -sL "${url}"`, { encoding: 'utf-8' });
-      name = skillPath.split('/').pop() || 'unknown';
-    } catch (error) {
-      console.error(`Failed to fetch skill from skills.sh: ${error}`);
+    const fetched = safeFetch(url);
+    if (!fetched) {
+      console.error(`Failed to fetch skill from skills.sh`);
       return null;
     }
-  } else if (source.startsWith('https://github.com/')) {
+    content = fetched;
+    name = skillPath.split("/").pop() || "unknown";
+  } else if (source.startsWith("https://github.com/")) {
     // GitHub raw file
     const rawUrl = source
-      .replace('github.com', 'raw.githubusercontent.com')
-      .replace('/blob/', '/');
+      .replace("github.com", "raw.githubusercontent.com")
+      .replace("/blob/", "/");
 
-    try {
-      content = execSync(`curl -sL "${rawUrl}"`, { encoding: 'utf-8' });
-      name = basename(source, '.md');
-    } catch (error) {
-      console.error(`Failed to fetch skill from GitHub: ${error}`);
+    const fetched = safeFetch(rawUrl);
+    if (!fetched) {
+      console.error(`Failed to fetch skill from GitHub`);
       return null;
     }
-  } else if (source.startsWith('https://')) {
+    content = fetched;
+    name = basename(source, ".md");
+  } else if (source.startsWith("https://") || source.startsWith("http://")) {
     // Direct URL
-    try {
-      content = execSync(`curl -sL "${source}"`, { encoding: 'utf-8' });
-      name = basename(source, '.md');
-    } catch (error) {
-      console.error(`Failed to fetch skill: ${error}`);
+    const fetched = safeFetch(source);
+    if (!fetched) {
+      console.error(`Failed to fetch skill`);
       return null;
     }
+    content = fetched;
+    name = basename(source, ".md");
   } else if (existsSync(source)) {
     // Local file
-    content = readFileSync(source, 'utf-8');
-    name = basename(source, '.md');
+    content = readFileSync(source, "utf-8");
+    name = basename(source, ".md");
   } else {
     console.error(`Invalid skill source: ${source}`);
     return null;
@@ -141,7 +190,7 @@ export async function installSkill(
 
   // Update registry
   const registry = loadRegistry(cwd);
-  const existing = registry.installed.findIndex(s => s.name === name);
+  const existing = registry.installed.findIndex((s) => s.name === name);
 
   const metadata: SkillMetadata = {
     name,
@@ -169,7 +218,7 @@ export async function installSkill(
  */
 export function uninstallSkill(cwd: string, name: string): boolean {
   const registry = loadRegistry(cwd);
-  const index = registry.installed.findIndex(s => s.name === name);
+  const index = registry.installed.findIndex((s) => s.name === name);
 
   if (index < 0) {
     console.error(`Skill not installed: ${name}`);
@@ -180,7 +229,7 @@ export function uninstallSkill(cwd: string, name: string): boolean {
   const skillPath = join(cwd, SKILLS_DIR, `${name}.md`);
   if (existsSync(skillPath)) {
     try {
-      require('fs').unlinkSync(skillPath);
+      require("fs").unlinkSync(skillPath);
     } catch {
       // Ignore
     }
@@ -209,14 +258,17 @@ export async function updateSkills(cwd: string): Promise<void> {
   const registry = loadRegistry(cwd);
 
   if (!registry.autoUpdate) {
-    console.log('Auto-update is disabled');
+    console.log("Auto-update is disabled");
     return;
   }
 
-  console.log('Updating skills...');
+  console.log("Updating skills...");
 
   for (const skill of registry.installed) {
-    if (skill.source.startsWith('skills.sh/') || skill.source.startsWith('https://')) {
+    if (
+      skill.source.startsWith("skills.sh/") ||
+      skill.source.startsWith("https://")
+    ) {
       await installSkill(cwd, skill.source);
     }
   }
@@ -224,16 +276,18 @@ export async function updateSkills(cwd: string): Promise<void> {
   registry.lastSync = new Date().toISOString();
   saveRegistry(cwd, registry);
 
-  console.log('Skills updated');
+  console.log("Skills updated");
 }
 
 /**
  * Search for skills (placeholder - would query skills.sh API)
  */
-export async function searchSkills(query: string): Promise<Array<{ name: string; description: string; author: string }>> {
+export async function searchSkills(
+  query: string,
+): Promise<Array<{ name: string; description: string; author: string }>> {
   // In a real implementation, this would query the skills.sh API
   console.log(`Searching for skills matching: ${query}`);
-  console.log('Note: skills.sh integration requires API access');
+  console.log("Note: skills.sh integration requires API access");
 
   return [];
 }
@@ -241,7 +295,9 @@ export async function searchSkills(query: string): Promise<Array<{ name: string;
 /**
  * Parse YAML frontmatter from skill content
  */
-function parseSkillFrontmatter(content: string): { name?: string; version?: string; description?: string } | null {
+function parseSkillFrontmatter(
+  content: string,
+): { name?: string; version?: string; description?: string } | null {
   const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
   if (!match) return null;
 

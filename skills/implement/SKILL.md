@@ -53,11 +53,8 @@ Read path/to/feature.test.ts
 
 ### Step 3: Check Design Decisions
 
-```bash
-# Review decisions from DESIGN stage
-aide decision get <feature-name>
-aide decision list
-```
+Use `mcp__plugin_aide_aide__decision_get` with the feature topic to review decisions from DESIGN stage.
+Use `mcp__plugin_aide_aide__decision_list` to see all project decisions.
 
 ### Step 4: Implement Incrementally
 

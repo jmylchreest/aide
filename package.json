@@ -3,17 +3,13 @@
   "version": "0.0.4",
   "description": "AI Development Environment - Multi-agent orchestration for Claude Code",
   "type": "module",
-  "main": "dist/index.js",
-  "bin": {
-    "aide-download": "./dist/lib/aide-downloader.js"
-  },
   "scripts": {
     "build": "tsc",
     "watch": "tsc --watch",
     "test": "vitest",
     "lint": "eslint src/",
     "format": "prettier --write src/",
-    "postinstall": "node dist/lib/aide-downloader.js --plugin"
+    "typecheck": "tsc --noEmit"
   },
   "keywords": [
     "ai",
@@ -25,7 +21,10 @@
   "author": "John Mylchreest",
   "license": "MIT",
   "devDependencies": {
+    "@eslint/js": "^9.39.2",
     "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.54.0",
+    "@typescript-eslint/parser": "^8.54.0",
     "eslint": "^9.0.0",
     "prettier": "^3.0.0",
     "typescript": "^5.4.0",

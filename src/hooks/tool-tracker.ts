@@ -6,7 +6,7 @@
  * Sets currentTool in aide-memory before tool execution.
  */
 
-import { readStdin, setMemoryState } from '../lib/hook-utils.js';
+import { readStdin, setMemoryState } from "../lib/hook-utils.js";
 
 interface HookInput {
   hook_event_name: string;
@@ -30,43 +30,54 @@ interface HookInput {
 /**
  * Format tool description for HUD display
  */
-function formatToolDescription(toolName: string, tool_input?: HookInput['tool_input']): string {
+function formatToolDescription(
+  toolName: string,
+  tool_input?: HookInput["tool_input"],
+): string {
   if (!tool_input) return toolName;
 
   // Show relevant details based on tool type
   switch (toolName) {
-    case 'Bash':
+    case "Bash":
       if (tool_input.command) {
         // Truncate long commands
-        const cmd = tool_input.command.length > 40 ? tool_input.command.slice(0, 37) + '...' : tool_input.command;
+        const cmd =
+          tool_input.command.length > 40
+            ? tool_input.command.slice(0, 37) + "..."
+            : tool_input.command;
         return `Bash(${cmd})`;
       }
       return toolName;
 
-    case 'Read':
+    case "Read":
       if (tool_input.file_path) {
-        const filename = tool_input.file_path.split('/').pop() || tool_input.file_path;
+        const filename =
+          tool_input.file_path.split("/").pop() || tool_input.file_path;
         return `Read(${filename})`;
       }
       return toolName;
 
-    case 'Edit':
-    case 'Write':
+    case "Edit":
+    case "Write":
       if (tool_input.file_path) {
-        const filename = tool_input.file_path.split('/').pop() || tool_input.file_path;
+        const filename =
+          tool_input.file_path.split("/").pop() || tool_input.file_path;
         return `${toolName}(${filename})`;
       }
       return toolName;
 
-    case 'Task':
+    case "Task":
       if (tool_input.description) {
-        const desc = tool_input.description.length > 30 ? tool_input.description.slice(0, 27) + '...' : tool_input.description;
+        const desc =
+          tool_input.description.length > 30
+            ? tool_input.description.slice(0, 27) + "..."
+            : tool_input.description;
         return `Task(${desc})`;
       }
       return toolName;
 
-    case 'Grep':
-    case 'Glob':
+    case "Grep":
+    case "Glob":
       return toolName;
 
     default:
@@ -85,11 +96,11 @@ async function main(): Promise<void> {
     const data: HookInput = JSON.parse(input);
     const cwd = data.cwd || process.cwd();
     const agentId = data.agent_id || data.session_id;
-    const toolName = data.tool_name || '';
+    const toolName = data.tool_name || "";
 
     if (agentId && toolName) {
       const toolDesc = formatToolDescription(toolName, data.tool_input);
-      setMemoryState(cwd, 'currentTool', toolDesc, agentId);
+      setMemoryState(cwd, "currentTool", toolDesc, agentId);
     }
 
     // Always continue

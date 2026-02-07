@@ -28,24 +28,28 @@ You are now in **Ralph Wiggum mode** - an iterative development methodology that
 
 ---
 
-## State Management (aide CLI)
+## State Management
 
-All state is managed through aide, NOT files:
+All state is managed through aide. Use MCP tools for reads, CLI for writes:
 
+### Reads (MCP Tools)
+| Tool | Purpose |
+|------|---------|
+| `mcp__plugin_aide_aide__state_get` | Get phase, objective |
+| `mcp__plugin_aide_aide__state_list` | List all state |
+| `mcp__plugin_aide_aide__decision_get` | Get decisions |
+| `mcp__plugin_aide_aide__decision_list` | List all decisions |
+| `mcp__plugin_aide_aide__memory_search` | Search discoveries |
+
+### Writes (CLI via Bash)
 ```bash
 # Phase tracking
 aide state set ralph:phase planning   # or "building"
-aide state get ralph:phase
 
-# Task management
-aide task create "Task description" --tags=ralph
-aide task list
-aide task claim <id> --agent=ralph
-aide task complete <id>
+# Task management (use Claude's native TaskCreate/TaskUpdate/TaskList)
 
 # Decisions
 aide decision set <topic> "<decision>" --rationale="<why>"
-aide decision get <topic>
 
 # Gap analysis / discoveries
 aide memory add --category=discovery --tags=ralph "Gap found: <description>"

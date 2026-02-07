@@ -16,10 +16,10 @@
  *   AIDE_DEBUG=1 claude
  */
 
-import { existsSync, mkdirSync, appendFileSync, writeFileSync } from 'fs';
-import { join } from 'path';
+import { existsSync, mkdirSync, appendFileSync, writeFileSync } from "fs";
+import { join } from "path";
 
-export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+export type LogLevel = "debug" | "info" | "warn" | "error";
 
 interface LogEntry {
   timestamp: string;
@@ -46,12 +46,12 @@ export class Logger {
   private sessionStart: number;
 
   constructor(source: string, cwd?: string) {
-    const debugEnv = process.env.AIDE_DEBUG || '';
-    this.enabled = debugEnv === '1' || debugEnv === 'true';
+    const debugEnv = process.env.AIDE_DEBUG || "";
+    this.enabled = debugEnv === "1" || debugEnv === "true";
     this.source = source;
     this.cwd = cwd || process.cwd();
-    this.logDir = join(this.cwd, '.aide', '_logs');
-    this.logFile = join(this.logDir, 'startup.log');
+    this.logDir = join(this.cwd, ".aide", "_logs");
+    this.logFile = join(this.logDir, "startup.log");
     this.sessionStart = Date.now();
 
     if (this.enabled) {
@@ -91,7 +91,7 @@ export class Logger {
    * Format duration in human-readable form
    */
   private formatDuration(ms: number): string {
-    if (ms < 1) return '<1ms';
+    if (ms < 1) return "<1ms";
     if (ms < 1000) return `${Math.round(ms)}ms`;
     return `${(ms / 1000).toFixed(2)}s`;
   }
@@ -99,7 +99,12 @@ export class Logger {
   /**
    * Add a log entry
    */
-  private addEntry(level: LogLevel, message: string, duration?: number, data?: unknown): void {
+  private addEntry(
+    level: LogLevel,
+    message: string,
+    duration?: number,
+    data?: unknown,
+  ): void {
     if (!this.enabled) return;
 
     this.entries.push({
@@ -116,28 +121,28 @@ export class Logger {
    * Log a debug message
    */
   debug(message: string, data?: unknown): void {
-    this.addEntry('debug', message, undefined, data);
+    this.addEntry("debug", message, undefined, data);
   }
 
   /**
    * Log an info message
    */
   info(message: string, data?: unknown): void {
-    this.addEntry('info', message, undefined, data);
+    this.addEntry("info", message, undefined, data);
   }
 
   /**
    * Log a warning
    */
   warn(message: string, data?: unknown): void {
-    this.addEntry('warn', message, undefined, data);
+    this.addEntry("warn", message, undefined, data);
   }
 
   /**
    * Log an error
    */
   error(message: string, data?: unknown): void {
-    this.addEntry('error', message, undefined, data);
+    this.addEntry("error", message, undefined, data);
   }
 
   /**
@@ -150,7 +155,7 @@ export class Logger {
       start: performance.now(),
       label,
     });
-    this.addEntry('debug', `→ ${label}`);
+    this.addEntry("debug", `→ ${label}`);
   }
 
   /**
@@ -167,7 +172,7 @@ export class Logger {
 
     const duration = performance.now() - timing.start;
     this.timings.delete(label);
-    this.addEntry('info', `← ${label}`, duration, data);
+    this.addEntry("info", `← ${label}`, duration, data);
     return duration;
   }
 
@@ -208,30 +213,37 @@ export class Logger {
     const lines: string[] = [];
     const sessionDuration = Date.now() - this.sessionStart;
 
-    lines.push('');
-    lines.push(`${'='.repeat(60)}`);
-    lines.push(`[${this.source}] Session started at ${new Date(this.sessionStart).toISOString()}`);
-    lines.push(`${'='.repeat(60)}`);
+    lines.push("");
+    lines.push(`${"=".repeat(60)}`);
+    lines.push(
+      `[${this.source}] Session started at ${new Date(this.sessionStart).toISOString()}`,
+    );
+    lines.push(`${"=".repeat(60)}`);
 
     for (const entry of this.entries) {
       const levelTag = entry.level.toUpperCase().padEnd(5);
-      const durationStr = entry.duration !== undefined ? ` (${this.formatDuration(entry.duration)})` : '';
-      lines.push(`${entry.timestamp} ${levelTag} ${entry.message}${durationStr}`);
+      const durationStr =
+        entry.duration !== undefined
+          ? ` (${this.formatDuration(entry.duration)})`
+          : "";
+      lines.push(
+        `${entry.timestamp} ${levelTag} ${entry.message}${durationStr}`,
+      );
 
       if (entry.data) {
         const dataStr = JSON.stringify(entry.data, null, 2)
-          .split('\n')
-          .map(l => `    ${l}`)
-          .join('\n');
+          .split("\n")
+          .map((l) => `    ${l}`)
+          .join("\n");
         lines.push(dataStr);
       }
     }
 
-    lines.push(`${'─'.repeat(60)}`);
+    lines.push(`${"─".repeat(60)}`);
     lines.push(`Total: ${this.formatDuration(sessionDuration)}`);
-    lines.push('');
+    lines.push("");
 
-    return lines.join('\n');
+    return lines.join("\n");
   }
 
   /**
@@ -308,7 +320,7 @@ export class Logger {
 let defaultLogger: Logger | null = null;
 
 export function getLogger(source: string, cwd?: string): Logger {
-  if (!defaultLogger || defaultLogger['source'] !== source) {
+  if (!defaultLogger || defaultLogger["source"] !== source) {
     defaultLogger = new Logger(source, cwd);
   }
   return defaultLogger;
@@ -318,8 +330,8 @@ export function getLogger(source: string, cwd?: string): Logger {
  * Quick check if debug logging is enabled
  */
 export function isDebugEnabled(): boolean {
-  const debugEnv = process.env.AIDE_DEBUG || '';
-  return debugEnv === '1' || debugEnv === 'true';
+  const debugEnv = process.env.AIDE_DEBUG || "";
+  return debugEnv === "1" || debugEnv === "true";
 }
 
 // Debug log state - tracks cwd for file-based logging
@@ -349,14 +361,16 @@ export function setDebugCwd(cwd: string): void {
 export function debug(source: string, msg: string): void {
   if (!isDebugEnabled()) return;
 
-  const logDir = join(debugLogCwd, '.aide', '_logs');
+  const logDir = join(debugLogCwd, ".aide", "_logs");
   try {
     if (!existsSync(logDir)) {
       mkdirSync(logDir, { recursive: true });
     }
-    const logFile = join(logDir, 'debug.log');
+    const logFile = join(logDir, "debug.log");
     const paddedSource = source.padEnd(16);
     const line = `[${new Date().toISOString()}] [${paddedSource}] ${msg}\n`;
     appendFileSync(logFile, line);
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }

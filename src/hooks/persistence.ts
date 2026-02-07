@@ -6,7 +6,11 @@
  * Checks for active modes (ralph, autopilot) via aide-memory state.
  */
 
-import { readStdin, getMemoryState, setMemoryState } from '../lib/hook-utils.js';
+import {
+  readStdin,
+  getMemoryState,
+  setMemoryState,
+} from "../lib/hook-utils.js";
 
 interface HookInput {
   hook_event_name: string;
@@ -18,15 +22,15 @@ interface HookInput {
 }
 
 interface HookOutput {
-  decision?: 'block';
+  decision?: "block";
   reason?: string;
 }
 
-const PERSISTENCE_MODES = ['ralph', 'autopilot'];
+const PERSISTENCE_MODES = ["ralph", "autopilot"];
 const MAX_ITERATIONS = 20;
 
 function getActiveMode(cwd: string): string | null {
-  const mode = getMemoryState(cwd, 'mode');
+  const mode = getMemoryState(cwd, "mode");
   if (mode && PERSISTENCE_MODES.includes(mode)) {
     return mode;
   }
@@ -80,21 +84,21 @@ async function main(): Promise<void> {
     }
 
     // Get and increment iteration counter
-    const iterStr = getMemoryState(cwd, `${mode}_iterations`) || '0';
+    const iterStr = getMemoryState(cwd, `${mode}_iterations`) || "0";
     const iteration = parseInt(iterStr, 10) + 1;
     setMemoryState(cwd, `${mode}_iterations`, String(iteration));
 
     if (iteration > MAX_ITERATIONS) {
       // Clear the mode after max iterations, allow stop
-      setMemoryState(cwd, 'mode', '');
-      setMemoryState(cwd, `${mode}_iterations`, '0');
+      setMemoryState(cwd, "mode", "");
+      setMemoryState(cwd, `${mode}_iterations`, "0");
       console.log(JSON.stringify({}));
       return;
     }
 
     // Block stop and provide reason
     const output: HookOutput = {
-      decision: 'block',
+      decision: "block",
       reason: buildReinforcement(mode, iteration),
     };
 

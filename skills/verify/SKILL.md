@@ -203,7 +203,7 @@ Create a verification report.
 - Found:
   - `src/user.ts:34` - console.log("debug user:", user)
 
-### Verdict: NEEDS FIX STAGE
+### Verdict: NEEDS BUILD-FIX
 
 Issues to resolve:
 1. Fix 2 failing tests
@@ -216,9 +216,9 @@ Issues to resolve:
 ### Tests Fail
 
 1. Document which tests fail and why
-2. Do NOT fix them yourself (that's FIX stage)
+2. Do NOT fix them yourself (that's BUILD-FIX stage (via `/aide:build-fix`))
 3. Report failures clearly
-4. Verdict: FAIL, needs FIX stage
+4. Verdict: FAIL, needs BUILD-FIX stage (via `/aide:build-fix`)
 
 ### Lint Errors
 
@@ -243,13 +243,13 @@ Issues to resolve:
 
 ```
 All tests pass?
-├── No → FAIL (needs FIX)
+├── No → FAIL (needs BUILD-FIX)
 └── Yes → Type check pass?
-          ├── No → FAIL (needs FIX)
+          ├── No → FAIL (needs BUILD-FIX)
           └── Yes → Lint pass?
-                    ├── No (new errors) → FAIL (needs FIX)
+                    ├── No (new errors) → FAIL (needs BUILD-FIX)
                     └── Yes/Warnings only → Build pass?
-                                           ├── No → FAIL (needs FIX)
+                                           ├── No → FAIL (needs BUILD-FIX)
                                            └── Yes → Debug artifacts?
                                                      ├── Found → FAIL (needs cleanup)
                                                      └── Clean → PASS
@@ -268,13 +268,13 @@ Ready for DOCS stage.
 
 ```
 Verification complete: CHECKS FAILED
-Returning to FIX stage.
+Returning to BUILD-FIX stage (via `/aide:build-fix`).
 
 Issues:
 1. [list of issues]
 ```
 
-When FAIL, the FIX stage addresses issues, then VERIFY runs again.
+When FAIL, the BUILD-FIX stage (via `/aide:build-fix`) addresses issues, then VERIFY runs again.
 
 ## Integration with SDLC Pipeline
 
@@ -288,10 +288,10 @@ When FAIL, the FIX stage addresses issues, then VERIFY runs again.
                   PASS                  FAIL
                     │                     │
                     ▼                     ▼
-                 [DOCS]               [FIX] → [VERIFY]
+                 [DOCS]               [BUILD-FIX] → [VERIFY]
 ```
 
 - **Input**: Completed implementation from DEV stage
 - **Output**: Pass/Fail report with specifics
 - **On Pass**: Proceed to DOCS stage
-- **On Fail**: Return to FIX stage, then re-verify
+- **On Fail**: Return to BUILD-FIX stage (via `/aide:build-fix`), then re-verify

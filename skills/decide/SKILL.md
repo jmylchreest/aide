@@ -206,10 +206,10 @@ Decision recorded. Future sessions will follow this architectural choice.
 ## Integration
 
 Decisions captured via `<aide-decision>` are:
-1. Stored via `aide decision set`
+1. Stored automatically by the PostToolUse hook
 2. Injected into future session contexts
 3. Visible to swarm agents (they won't contradict decisions)
-4. Queryable via `aide decision get <topic>` or `aide decision list`
+4. Queryable via `mcp__plugin_aide_aide__decision_get` or `mcp__plugin_aide_aide__decision_list`
 
 ## When to Use This Skill
 
@@ -233,4 +233,4 @@ Decisions captured via `<aide-decision>` are:
 Decisions can be superseded:
 1. Run `/aide:decide` again for the same topic
 2. New decision replaces old (history preserved)
-3. Use `aide decision history <topic>` to see evolution
+3. Use `mcp__plugin_aide_aide__decision_history` to see evolution

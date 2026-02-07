@@ -15,13 +15,13 @@
  * Logs written to: .aide/_logs/startup.log
  */
 
-import { existsSync, readFileSync, readdirSync, mkdirSync } from 'fs';
-import { join, basename, extname } from 'path';
-import { homedir } from 'os';
-import { Logger, debug, setDebugCwd } from '../lib/logger.js';
-import { readStdin } from '../lib/hook-utils.js';
+import { existsSync, readFileSync, readdirSync, mkdirSync } from "fs";
+import { join, basename, extname } from "path";
+import { homedir } from "os";
+import { Logger, debug, setDebugCwd } from "../lib/logger.js";
+import { readStdin } from "../lib/hook-utils.js";
 
-const SOURCE = 'skill-injector';
+const SOURCE = "skill-injector";
 
 interface HookInput {
   hook_event_name: string;
@@ -81,8 +81,8 @@ function levenshtein(a: string, b: string): number {
       } else {
         matrix[i][j] = Math.min(
           matrix[i - 1][j - 1] + 1, // substitution
-          matrix[i][j - 1] + 1,     // insertion
-          matrix[i - 1][j] + 1      // deletion
+          matrix[i][j - 1] + 1, // insertion
+          matrix[i - 1][j] + 1, // deletion
         );
       }
     }
@@ -95,7 +95,11 @@ function levenshtein(a: string, b: string): number {
  * Check if a trigger fuzzy-matches any word sequence in the prompt
  * Returns true if the trigger matches within allowed edit distance
  */
-function fuzzyMatchTrigger(promptLower: string, trigger: string, maxDistance: number = 2): boolean {
+function fuzzyMatchTrigger(
+  promptLower: string,
+  trigger: string,
+  maxDistance: number = 2,
+): boolean {
   const triggerWords = trigger.split(/\s+/);
   const promptWords = promptLower.split(/\s+/);
 
@@ -114,7 +118,7 @@ function fuzzyMatchTrigger(promptLower: string, trigger: string, maxDistance: nu
 
   // For multi-word triggers, check sliding windows
   for (let i = 0; i <= promptWords.length - triggerWords.length; i++) {
-    const window = promptWords.slice(i, i + triggerWords.length).join(' ');
+    const window = promptWords.slice(i, i + triggerWords.length).join(" ");
     const dist = levenshtein(window, trigger);
     // Allow ~1 error per 5 characters for phrases
     const allowedDist = Math.min(maxDistance, Math.ceil(trigger.length / 5));
@@ -131,12 +135,12 @@ let log: Logger | null = null;
 
 // Skill search locations (relative to cwd)
 const SKILL_LOCATIONS = [
-  '.aide/skills',           // Project-local
-  'skills',                 // Plugin skills (when running from aide repo/plugin)
+  ".aide/skills", // Project-local
+  "skills", // Plugin skills (when running from aide repo/plugin)
 ];
 
 const GLOBAL_SKILL_LOCATIONS = [
-  join(homedir(), '.aide', 'skills'),  // User global
+  join(homedir(), ".aide", "skills"), // User global
 ];
 
 /**
@@ -144,11 +148,11 @@ const GLOBAL_SKILL_LOCATIONS = [
  */
 function ensureDirectories(cwd: string): void {
   const dirs = [
-    join(cwd, '.aide'),
-    join(cwd, '.aide', 'skills'),
-    join(cwd, '.aide', 'config'),
-    join(cwd, '.aide', 'state'),
-    join(cwd, '.aide', 'memory'),
+    join(cwd, ".aide"),
+    join(cwd, ".aide", "skills"),
+    join(cwd, ".aide", "config"),
+    join(cwd, ".aide", "state"),
+    join(cwd, ".aide", "memory"),
   ];
 
   for (const dir of dirs) {
@@ -165,7 +169,9 @@ function ensureDirectories(cwd: string): void {
 /**
  * Parse YAML frontmatter from skill file
  */
-function parseSkillFrontmatter(content: string): { meta: Record<string, unknown>; body: string } | null {
+function parseSkillFrontmatter(
+  content: string,
+): { meta: Record<string, unknown>; body: string } | null {
   const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
   if (!match) return null;
 
@@ -180,14 +186,16 @@ function parseSkillFrontmatter(content: string): { meta: Record<string, unknown>
   if (nameMatch) meta.name = nameMatch[1].trim();
 
   // Parse description
-  const descMatch = yamlContent.match(/^description:\s*["']?([^"'\n]+)["']?\s*$/m);
+  const descMatch = yamlContent.match(
+    /^description:\s*["']?([^"'\n]+)["']?\s*$/m,
+  );
   if (descMatch) meta.description = descMatch[1].trim();
 
   // Parse triggers array
   const triggers: string[] = [];
   const triggerMatch = yamlContent.match(/triggers:\s*\n((?:\s+-\s*.+\n?)*)/);
   if (triggerMatch) {
-    const lines = triggerMatch[1].split('\n');
+    const lines = triggerMatch[1].split("\n");
     for (const line of lines) {
       const itemMatch = line.match(/^\s+-\s*["']?([^"'\n]+)["']?\s*$/);
       if (itemMatch) triggers.push(itemMatch[1].trim().toLowerCase());
@@ -201,7 +209,11 @@ function parseSkillFrontmatter(content: string): { meta: Record<string, unknown>
 /**
  * Recursively find all skill files in a directory
  */
-function findSkillFiles(dir: string, files: string[] = [], depth: number = 0): string[] {
+function findSkillFiles(
+  dir: string,
+  files: string[] = [],
+  depth: number = 0,
+): string[] {
   if (!existsSync(dir)) {
     log?.debug(`findSkillFiles: directory does not exist: ${dir}`);
     return files;
@@ -209,7 +221,9 @@ function findSkillFiles(dir: string, files: string[] = [], depth: number = 0): s
 
   try {
     const entries = readdirSync(dir, { withFileTypes: true });
-    log?.debug(`findSkillFiles: scanning ${dir} (${entries.length} entries, depth=${depth})`);
+    log?.debug(
+      `findSkillFiles: scanning ${dir} (${entries.length} entries, depth=${depth})`,
+    );
 
     for (const entry of entries) {
       const fullPath = join(dir, entry.name);
@@ -217,7 +231,7 @@ function findSkillFiles(dir: string, files: string[] = [], depth: number = 0): s
       if (entry.isDirectory()) {
         // Recurse into subdirectories
         findSkillFiles(fullPath, files, depth + 1);
-      } else if (entry.isFile() && extname(entry.name) === '.md') {
+      } else if (entry.isFile() && extname(entry.name) === ".md") {
         files.push(fullPath);
       }
     }
@@ -234,7 +248,7 @@ function findSkillFiles(dir: string, files: string[] = [], depth: number = 0): s
 function loadSkill(path: string): Skill | null {
   try {
     log?.debug(`loadSkill: reading ${path}`);
-    const content = readFileSync(path, 'utf-8');
+    const content = readFileSync(path, "utf-8");
     const parsed = parseSkillFrontmatter(content);
 
     if (!parsed) {
@@ -251,9 +265,11 @@ function loadSkill(path: string): Skill | null {
       return null;
     }
 
-    log?.debug(`loadSkill: loaded ${basename(path)} with ${triggers.length} triggers`);
+    log?.debug(
+      `loadSkill: loaded ${basename(path)} with ${triggers.length} triggers`,
+    );
     return {
-      name: (meta.name as string) || basename(path, '.md'),
+      name: (meta.name as string) || basename(path, ".md"),
       path,
       triggers,
       description: meta.description as string | undefined,
@@ -272,19 +288,21 @@ function discoverSkills(cwd: string): Skill[] {
   // Check cache
   const cached = skillCache.get(cwd);
   if (cached && Date.now() - cached.lastScan < CACHE_TTL) {
-    log?.debug(`discoverSkills: cache hit (${cached.skills.length} skills, age=${Math.round((Date.now() - cached.lastScan) / 1000)}s)`);
+    log?.debug(
+      `discoverSkills: cache hit (${cached.skills.length} skills, age=${Math.round((Date.now() - cached.lastScan) / 1000)}s)`,
+    );
     return cached.skills;
   }
 
-  log?.start('discoverSkills');
-  log?.debug('discoverSkills: cache miss, scanning...');
+  log?.start("discoverSkills");
+  log?.debug("discoverSkills: cache miss, scanning...");
 
   const skills: Skill[] = [];
   const seenPaths = new Set<string>();
   let filesScanned = 0;
 
   // Project-local skills (higher priority)
-  log?.start('discoverSkills:local');
+  log?.start("discoverSkills:local");
   for (const location of SKILL_LOCATIONS) {
     const dir = join(cwd, location);
     const files = findSkillFiles(dir);
@@ -298,10 +316,13 @@ function discoverSkills(cwd: string): Skill[] {
       if (skill) skills.push(skill);
     }
   }
-  log?.end('discoverSkills:local', { locations: SKILL_LOCATIONS.length, files: filesScanned });
+  log?.end("discoverSkills:local", {
+    locations: SKILL_LOCATIONS.length,
+    files: filesScanned,
+  });
 
   // Global skills (lower priority)
-  log?.start('discoverSkills:global');
+  log?.start("discoverSkills:global");
   let globalFiles = 0;
   for (const dir of GLOBAL_SKILL_LOCATIONS) {
     const files = findSkillFiles(dir);
@@ -315,12 +336,18 @@ function discoverSkills(cwd: string): Skill[] {
       if (skill) skills.push(skill);
     }
   }
-  log?.end('discoverSkills:global', { locations: GLOBAL_SKILL_LOCATIONS.length, files: globalFiles });
+  log?.end("discoverSkills:global", {
+    locations: GLOBAL_SKILL_LOCATIONS.length,
+    files: globalFiles,
+  });
 
   // Update cache
   skillCache.set(cwd, { skills, lastScan: Date.now() });
 
-  log?.end('discoverSkills', { totalSkills: skills.length, totalFiles: filesScanned + globalFiles });
+  log?.end("discoverSkills", {
+    totalSkills: skills.length,
+    totalFiles: filesScanned + globalFiles,
+  });
   return skills;
 }
 
@@ -328,7 +355,7 @@ function discoverSkills(cwd: string): Skill[] {
  * Find skills matching the prompt (supports typos via Levenshtein distance)
  */
 function matchSkills(prompt: string, skills: Skill[], maxResults = 3): Skill[] {
-  log?.start('matchSkills');
+  log?.start("matchSkills");
 
   const promptLower = prompt.toLowerCase();
   const matches: { skill: Skill; score: number }[] = [];
@@ -362,9 +389,13 @@ function matchSkills(prompt: string, skills: Skill[], maxResults = 3): Skill[] {
   const result = matches
     .sort((a, b) => b.score - a.score)
     .slice(0, maxResults)
-    .map(m => m.skill);
+    .map((m) => m.skill);
 
-  log?.end('matchSkills', { checked: skills.length, matched: matches.length, returned: result.length });
+  log?.end("matchSkills", {
+    checked: skills.length,
+    matched: matches.length,
+    returned: result.length,
+  });
   return result;
 }
 
@@ -372,27 +403,22 @@ function matchSkills(prompt: string, skills: Skill[], maxResults = 3): Skill[] {
  * Format skills for injection into context
  */
 function formatSkillsContext(skills: Skill[]): string {
-  const lines = [
-    '<aide-skills>',
-    '',
-    '## Matching Skills',
-    '',
-  ];
+  const lines = ["<aide-skills>", "", "## Matching Skills", ""];
 
   for (const skill of skills) {
     lines.push(`### ${skill.name}`);
     if (skill.description) {
       lines.push(`*${skill.description}*`);
     }
-    lines.push('');
+    lines.push("");
     lines.push(skill.content);
-    lines.push('');
-    lines.push('---');
-    lines.push('');
+    lines.push("");
+    lines.push("---");
+    lines.push("");
   }
 
-  lines.push('</aide-skills>');
-  return lines.join('\n');
+  lines.push("</aide-skills>");
+  return lines.join("\n");
 }
 
 // Debug helper - writes to debug.log (not stderr)
@@ -411,13 +437,13 @@ function outputContinue(): void {
 }
 
 // Global error handlers to prevent hook crashes without JSON output
-process.on('uncaughtException', (err) => {
+process.on("uncaughtException", (err) => {
   debugLog(`UNCAUGHT EXCEPTION: ${err}`);
   outputContinue();
   process.exit(0);
 });
 
-process.on('unhandledRejection', (reason) => {
+process.on("unhandledRejection", (reason) => {
   debugLog(`UNHANDLED REJECTION: ${reason}`);
   outputContinue();
   process.exit(0);
@@ -428,18 +454,18 @@ async function main(): Promise<void> {
   debugLog(`Hook started at ${new Date().toISOString()}`);
 
   try {
-    debugLog('Reading stdin...');
+    debugLog("Reading stdin...");
     const input = await readStdin();
     debugLog(`Stdin read complete (${Date.now() - hookStart}ms)`);
 
     if (!input.trim()) {
-      debugLog('Empty input, exiting');
+      debugLog("Empty input, exiting");
       console.log(JSON.stringify({ continue: true }));
       return;
     }
 
     const data: HookInput = JSON.parse(input);
-    const prompt = data.prompt || '';
+    const prompt = data.prompt || "";
     const cwd = data.cwd || process.cwd();
 
     // Switch debug logging to project-local logs
@@ -448,40 +474,46 @@ async function main(): Promise<void> {
     debugLog(`Parsed input: cwd=${cwd}, prompt=${prompt.length} chars`);
 
     // Initialize logger
-    log = new Logger('skill-injector', cwd);
-    log.start('total');
+    log = new Logger("skill-injector", cwd);
+    log.start("total");
     log.debug(`Prompt length: ${prompt.length} chars`);
     debugLog(`Logger initialized, enabled=${log.isEnabled()}`);
 
     // Ensure .aide directories exist
-    debugLog('ensureDirectories starting...');
-    log.start('ensureDirectories');
+    debugLog("ensureDirectories starting...");
+    log.start("ensureDirectories");
     ensureDirectories(cwd);
-    log.end('ensureDirectories');
+    log.end("ensureDirectories");
     debugLog(`ensureDirectories complete (${Date.now() - hookStart}ms)`);
 
     if (!prompt) {
-      debugLog('No prompt provided, exiting');
-      log.info('No prompt provided');
-      log.end('total');
+      debugLog("No prompt provided, exiting");
+      log.info("No prompt provided");
+      log.end("total");
       log.flush();
       console.log(JSON.stringify({ continue: true }));
       return;
     }
 
     // Discover and match skills
-    debugLog('discoverSkills starting...');
+    debugLog("discoverSkills starting...");
     const skills = discoverSkills(cwd);
-    debugLog(`discoverSkills complete: ${skills.length} skills (${Date.now() - hookStart}ms)`);
+    debugLog(
+      `discoverSkills complete: ${skills.length} skills (${Date.now() - hookStart}ms)`,
+    );
 
-    debugLog('matchSkills starting...');
+    debugLog("matchSkills starting...");
     const matched = matchSkills(prompt, skills);
-    debugLog(`matchSkills complete: ${matched.length} matches (${Date.now() - hookStart}ms)`);
+    debugLog(
+      `matchSkills complete: ${matched.length} matches (${Date.now() - hookStart}ms)`,
+    );
 
-    log.end('total');
+    log.end("total");
 
     if (matched.length > 0) {
-      log.info(`Injecting ${matched.length} skills: ${matched.map(s => s.name).join(', ')}`);
+      log.info(
+        `Injecting ${matched.length} skills: ${matched.map((s) => s.name).join(", ")}`,
+      );
       debugLog(`Flushing logs...`);
       log.flush();
       debugLog(`Hook complete (${Date.now() - hookStart}ms total)`);
@@ -494,7 +526,7 @@ async function main(): Promise<void> {
       };
       console.log(JSON.stringify(output));
     } else {
-      log.info('No matching skills');
+      log.info("No matching skills");
       debugLog(`Flushing logs...`);
       log.flush();
       debugLog(`Hook complete (${Date.now() - hookStart}ms total)`);
@@ -504,7 +536,7 @@ async function main(): Promise<void> {
     debugLog(`ERROR: ${error}`);
     // Log error if logger is available
     if (log) {
-      log.error('Skill injection failed', error);
+      log.error("Skill injection failed", error);
       log.flush();
     }
     // On error, allow continuation

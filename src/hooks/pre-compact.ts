@@ -10,10 +10,15 @@
  * - summary_prompt (the prompt used for summarization)
  */
 
-import { readStdin, findAideMemory, runAideMemory, setMemoryState } from '../lib/hook-utils.js';
+import {
+  readStdin,
+  findAideMemory,
+  runAideMemory,
+  setMemoryState,
+} from "../lib/hook-utils.js";
 
 interface PreCompactInput {
-  event: 'PreCompact';
+  event: "PreCompact";
   session_id: string;
   cwd: string;
   summary_prompt?: string;
@@ -27,23 +32,23 @@ function saveStateSnapshot(cwd: string, sessionId: string): void {
 
   // Record compaction event (best effort)
   runAideMemory(cwd, [
-    'message',
-    'send',
+    "message",
+    "send",
     `Context compaction initiated for session ${sessionId}`,
-    '--from=system',
-    '--type=system',
+    "--from=system",
+    "--type=system",
   ]);
 
   // Get current state and preserve it
-  const stateOutput = runAideMemory(cwd, ['state', 'list']);
+  const stateOutput = runAideMemory(cwd, ["state", "list"]);
   if (stateOutput?.trim()) {
     // Store a snapshot of the current state
-    const safeState = stateOutput.replace(/\n/g, ' ').slice(0, 1000);
-    setMemoryState(cwd, 'precompact_snapshot', safeState);
+    const safeState = stateOutput.replace(/\n/g, " ").slice(0, 1000);
+    setMemoryState(cwd, "precompact_snapshot", safeState);
   }
 
   // Record the compaction timestamp
-  setMemoryState(cwd, 'last_compaction', new Date().toISOString());
+  setMemoryState(cwd, "last_compaction", new Date().toISOString());
 }
 
 async function main(): Promise<void> {
@@ -56,7 +61,7 @@ async function main(): Promise<void> {
 
     const data: PreCompactInput = JSON.parse(input);
     const cwd = data.cwd || process.cwd();
-    const sessionId = data.session_id || 'unknown';
+    const sessionId = data.session_id || "unknown";
 
     // Save state snapshot before compaction
     saveStateSnapshot(cwd, sessionId);

@@ -24,11 +24,13 @@ You verify that code works correctly through systematic testing.
 ## Testing Approach
 
 ### 1. Understand What to Test
+
 - What was changed?
 - What are the expected behaviors?
 - What are the edge cases?
 
 ### 2. Run Existing Tests
+
 ```bash
 # JavaScript/TypeScript
 npm test
@@ -46,12 +48,15 @@ cargo test
 ```
 
 ### 3. Manual Verification
+
 For features that need runtime testing:
+
 - Start the service
 - Execute test scenarios
 - Verify outputs
 
 ### 4. Edge Case Testing
+
 - Empty inputs
 - Invalid inputs
 - Boundary values
@@ -61,23 +66,27 @@ For features that need runtime testing:
 ## Test Types
 
 ### Unit Tests
+
 Test individual functions in isolation.
+
 ```typescript
-describe('calculateTotal', () => {
-  it('should sum items correctly', () => {
+describe("calculateTotal", () => {
+  it("should sum items correctly", () => {
     expect(calculateTotal([10, 20, 30])).toBe(60);
   });
 
-  it('should return 0 for empty array', () => {
+  it("should return 0 for empty array", () => {
     expect(calculateTotal([])).toBe(0);
   });
 });
 ```
 
 ### Integration Tests
+
 Test components working together.
 
 ### E2E Tests
+
 Test full user workflows.
 
 ## Output Format
@@ -87,34 +96,36 @@ Test full user workflows.
 
 ### Test Execution
 
-| Suite | Pass | Fail | Skip |
-|-------|------|------|------|
-| Unit | 42 | 0 | 2 |
-| Integration | 15 | 1 | 0 |
-| E2E | 8 | 0 | 0 |
+| Suite       | Pass | Fail | Skip |
+| ----------- | ---- | ---- | ---- |
+| Unit        | 42   | 0    | 2    |
+| Integration | 15   | 1    | 0    |
+| E2E         | 8    | 0    | 0    |
 
 ### Failed Tests
 
 #### `test/auth.test.ts` - "should reject invalid token"
+
 - **Expected:** 401 status
 - **Actual:** 200 status
 - **Cause:** Token validation bypassed when empty
 
 ### Manual Test Results
 
-| Scenario | Status | Notes |
-|----------|--------|-------|
-| Login with valid credentials | ✅ Pass | |
-| Login with invalid password | ✅ Pass | Shows error message |
-| Login with empty fields | ❌ Fail | No validation |
+| Scenario                     | Status  | Notes               |
+| ---------------------------- | ------- | ------------------- |
+| Login with valid credentials | ✅ Pass |                     |
+| Login with invalid password  | ✅ Pass | Shows error message |
+| Login with empty fields      | ❌ Fail | No validation       |
 
 ### Coverage
-
 ```
+
 Statements: 85%
 Branches: 72%
 Functions: 90%
 Lines: 84%
+
 ```
 
 ### Verdict

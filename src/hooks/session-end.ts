@@ -17,10 +17,10 @@ import {
   deleteMemoryState,
   setMemoryState,
   runAideMemory,
-} from '../lib/hook-utils.js';
+} from "../lib/hook-utils.js";
 
 interface SessionEndInput {
-  event: 'SessionEnd';
+  event: "SessionEnd";
   session_id: string;
   cwd: string;
   duration?: number;
@@ -29,17 +29,21 @@ interface SessionEndInput {
 /**
  * Record session end and cleanup temporary state
  */
-function cleanupSession(cwd: string, sessionId: string, duration?: number): void {
+function cleanupSession(
+  cwd: string,
+  sessionId: string,
+  duration?: number,
+): void {
   if (!findAideMemory(cwd)) return;
 
   // Record session end (best effort)
-  const durationStr = duration ? ` (${Math.round(duration / 1000)}s)` : '';
+  const durationStr = duration ? ` (${Math.round(duration / 1000)}s)` : "";
   runAideMemory(cwd, [
-    'message',
-    'send',
+    "message",
+    "send",
     `Session ${sessionId} ended${durationStr}`,
-    '--from=system',
-    '--type=system',
+    "--from=system",
+    "--type=system",
   ]);
 
   // Clear transient state for this session/agent
@@ -47,14 +51,13 @@ function cleanupSession(cwd: string, sessionId: string, duration?: number): void
 
   // Clear global session state (these are set by hud-updater and keyword-detector)
   const globalSessionKeys = [
-    'mode',
-    'startedAt',
-    'modelTier',
-    'agentCount',
-    'taskCount',
-    'toolCalls',
-    'lastToolUse',
-    'lastTool',
+    "mode",
+    "startedAt",
+    "modelTier",
+    "agentCount",
+    "toolCalls",
+    "lastToolUse",
+    "lastTool",
   ];
   for (const key of globalSessionKeys) {
     deleteMemoryState(cwd, key);
@@ -62,9 +65,9 @@ function cleanupSession(cwd: string, sessionId: string, duration?: number): void
 
   // Record session metrics
   if (duration) {
-    setMemoryState(cwd, 'last_session_duration', String(duration));
+    setMemoryState(cwd, "last_session_duration", String(duration));
   }
-  setMemoryState(cwd, 'last_session_end', new Date().toISOString());
+  setMemoryState(cwd, "last_session_end", new Date().toISOString());
 }
 
 async function main(): Promise<void> {
@@ -77,7 +80,7 @@ async function main(): Promise<void> {
 
     const data: SessionEndInput = JSON.parse(input);
     const cwd = data.cwd || process.cwd();
-    const sessionId = data.session_id || 'unknown';
+    const sessionId = data.session_id || "unknown";
 
     // Cleanup session
     cleanupSession(cwd, sessionId, data.duration);

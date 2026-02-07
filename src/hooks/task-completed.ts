@@ -17,16 +17,19 @@
  * - 2: Block completion (stderr fed back as feedback)
  */
 
-import { execSync } from 'child_process';
-import { existsSync } from 'fs';
-import { join } from 'path';
-import { debug, setDebugCwd } from '../lib/logger.js';
-import { readStdin } from '../lib/hook-utils.js';
+import { execSync } from "child_process";
+import { existsSync, readFileSync } from "fs";
+import { join } from "path";
+import { debug, setDebugCwd } from "../lib/logger.js";
+import { readStdin } from "../lib/hook-utils.js";
 
-const SOURCE = 'task-completed';
+const SOURCE = "task-completed";
+
+// Safety limit for regex parsing
+const MAX_SUBJECT_LENGTH = 1000;
 
 interface HookInput {
-  hook_event_name: 'TaskCompleted';
+  hook_event_name: "TaskCompleted";
   session_id: string;
   cwd: string;
   task_id: string;
@@ -46,6 +49,12 @@ interface StageInfo {
  * Expected: [story-id][STAGE] Description
  */
 function parseStageFromSubject(subject: string): StageInfo | null {
+  // Safety check for regex
+  if (subject.length > MAX_SUBJECT_LENGTH) {
+    debug(SOURCE, `Subject too long for parsing (${subject.length} chars)`);
+    return null;
+  }
+
   // Match patterns like:
   // [story-auth][DESIGN] Design auth module
   // [Story-1][DEV] Implement feature
@@ -54,7 +63,7 @@ function parseStageFromSubject(subject: string): StageInfo | null {
 
   return {
     storyId: match[1],
-    stage: match[2].toUpperCase()
+    stage: match[2].toUpperCase(),
   };
 }
 
@@ -63,7 +72,7 @@ function parseStageFromSubject(subject: string): StageInfo | null {
  */
 function commandSucceeds(cmd: string, cwd: string): boolean {
   try {
-    execSync(cmd, { cwd, stdio: 'pipe', timeout: 60000 });
+    execSync(cmd, { cwd, stdio: "pipe", timeout: 60000 });
     return true;
   } catch {
     return false;
@@ -75,7 +84,9 @@ function commandSucceeds(cmd: string, cwd: string): boolean {
  */
 function getCommandOutput(cmd: string, cwd: string): string | null {
   try {
-    return execSync(cmd, { cwd, stdio: 'pipe', timeout: 30000 }).toString().trim();
+    return execSync(cmd, { cwd, stdio: "pipe", timeout: 30000 })
+      .toString()
+      .trim();
   } catch {
     return null;
   }
@@ -84,17 +95,26 @@ function getCommandOutput(cmd: string, cwd: string): string | null {
 /**
  * Detect project type (typescript, go, python)
  */
-function detectProjectType(cwd: string): 'typescript' | 'go' | 'python' | 'unknown' {
-  if (existsSync(join(cwd, 'package.json'))) return 'typescript';
-  if (existsSync(join(cwd, 'go.mod'))) return 'go';
-  if (existsSync(join(cwd, 'pyproject.toml')) || existsSync(join(cwd, 'setup.py'))) return 'python';
-  return 'unknown';
+function detectProjectType(
+  cwd: string,
+): "typescript" | "go" | "python" | "unknown" {
+  if (existsSync(join(cwd, "package.json"))) return "typescript";
+  if (existsSync(join(cwd, "go.mod"))) return "go";
+  if (
+    existsSync(join(cwd, "pyproject.toml")) ||
+    existsSync(join(cwd, "setup.py"))
+  )
+    return "python";
+  return "unknown";
 }
 
 /**
  * Validate DESIGN stage completion
  */
-function validateDesign(cwd: string, storyId: string): { ok: boolean; reason?: string } {
+function validateDesign(
+  cwd: string,
+  storyId: string,
+): { ok: boolean; reason?: string } {
   // Check if any decisions were recorded for this story
   // This is a soft check - design output is hard to validate programmatically
   debug(SOURCE, `Validating DESIGN for ${storyId}`);
@@ -107,17 +127,25 @@ function validateDesign(cwd: string, storyId: string): { ok: boolean; reason?: s
 /**
  * Validate TEST stage completion
  */
-function validateTest(cwd: string, storyId: string): { ok: boolean; reason?: string } {
+function validateTest(
+  cwd: string,
+  storyId: string,
+): { ok: boolean; reason?: string } {
   debug(SOURCE, `Validating TEST for ${storyId}`);
 
   const projectType = detectProjectType(cwd);
 
   // Check if test files exist (recently modified)
   const testPatterns: Record<string, string[]> = {
-    typescript: ['**/*.test.ts', '**/*.spec.ts', '**/*.test.tsx', '**/*.spec.tsx'],
-    go: ['**/*_test.go'],
-    python: ['**/test_*.py', '**/*_test.py'],
-    unknown: []
+    typescript: [
+      "**/*.test.ts",
+      "**/*.spec.ts",
+      "**/*.test.tsx",
+      "**/*.spec.tsx",
+    ],
+    go: ["**/*_test.go"],
+    python: ["**/test_*.py", "**/*_test.py"],
+    unknown: [],
   };
 
   // For now, just pass - test file existence is hard to validate without grep
@@ -128,34 +156,40 @@ function validateTest(cwd: string, storyId: string): { ok: boolean; reason?: str
 /**
  * Validate DEV stage completion
  */
-function validateDev(cwd: string, storyId: string): { ok: boolean; reason?: string } {
+function validateDev(
+  cwd: string,
+  storyId: string,
+): { ok: boolean; reason?: string } {
   debug(SOURCE, `Validating DEV for ${storyId}`);
 
   const projectType = detectProjectType(cwd);
 
   // Run tests based on project type
   const testCommands: Record<string, string> = {
-    typescript: 'npm test',
-    go: 'go test ./...',
-    python: 'pytest',
-    unknown: ''
+    typescript: "npm test",
+    go: "go test ./...",
+    python: "pytest",
+    unknown: "",
   };
 
   const testCmd = testCommands[projectType];
   if (!testCmd) {
-    debug(SOURCE, 'Unknown project type, skipping test validation');
+    debug(SOURCE, "Unknown project type, skipping test validation");
     return { ok: true };
   }
 
   // Check if test command exists in package.json scripts
-  if (projectType === 'typescript') {
+  if (projectType === "typescript") {
     try {
-      const pkgJson = require(join(cwd, 'package.json'));
-      if (!pkgJson.scripts?.test) {
-        debug(SOURCE, 'No test script defined, skipping');
+      const pkgPath = join(cwd, "package.json");
+      if (!existsSync(pkgPath)) return { ok: true };
+      const pkgJson = JSON.parse(readFileSync(pkgPath, "utf-8"));
+      if (!pkgJson?.scripts?.test) {
+        debug(SOURCE, "No test script defined, skipping");
         return { ok: true };
       }
-    } catch {
+    } catch (err) {
+      debug(SOURCE, `Failed to read package.json: ${err}`);
       return { ok: true };
     }
   }
@@ -163,7 +197,7 @@ function validateDev(cwd: string, storyId: string): { ok: boolean; reason?: stri
   if (!commandSucceeds(testCmd, cwd)) {
     return {
       ok: false,
-      reason: `Tests are failing. Run \`${testCmd}\` and fix failures before completing DEV stage.`
+      reason: `Tests are failing. Run \`${testCmd}\` and fix failures before completing DEV stage.`,
     };
   }
 
@@ -173,7 +207,10 @@ function validateDev(cwd: string, storyId: string): { ok: boolean; reason?: stri
 /**
  * Validate VERIFY stage completion
  */
-function validateVerify(cwd: string, storyId: string): { ok: boolean; reason?: string } {
+function validateVerify(
+  cwd: string,
+  storyId: string,
+): { ok: boolean; reason?: string } {
   debug(SOURCE, `Validating VERIFY for ${storyId}`);
 
   const projectType = detectProjectType(cwd);
@@ -181,10 +218,10 @@ function validateVerify(cwd: string, storyId: string): { ok: boolean; reason?: s
 
   // Test validation
   const testCommands: Record<string, string> = {
-    typescript: 'npm test',
-    go: 'go test ./...',
-    python: 'pytest',
-    unknown: ''
+    typescript: "npm test",
+    go: "go test ./...",
+    python: "pytest",
+    unknown: "",
   };
 
   const testCmd = testCommands[projectType];
@@ -194,51 +231,61 @@ function validateVerify(cwd: string, storyId: string): { ok: boolean; reason?: s
 
   // Lint validation
   const lintCommands: Record<string, string> = {
-    typescript: 'npm run lint',
-    go: 'go vet ./...',
-    python: 'ruff check .',
-    unknown: ''
+    typescript: "npm run lint",
+    go: "go vet ./...",
+    python: "ruff check .",
+    unknown: "",
   };
 
   const lintCmd = lintCommands[projectType];
   if (lintCmd) {
     // Check if lint script exists for typescript
-    if (projectType === 'typescript') {
+    if (projectType === "typescript") {
       try {
-        const pkgJson = require(join(cwd, 'package.json'));
-        if (pkgJson.scripts?.lint && !commandSucceeds(lintCmd, cwd)) {
-          failures.push(`Lint errors: run \`${lintCmd}\``);
+        const pkgPath = join(cwd, "package.json");
+        if (existsSync(pkgPath)) {
+          const pkgJson = JSON.parse(readFileSync(pkgPath, "utf-8"));
+          if (pkgJson.scripts?.lint && !commandSucceeds(lintCmd, cwd)) {
+            failures.push(`Lint errors: run \`${lintCmd}\``);
+          }
         }
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     } else if (!commandSucceeds(lintCmd, cwd)) {
       failures.push(`Lint errors: run \`${lintCmd}\``);
     }
   }
 
   // Type check validation (TypeScript only)
-  if (projectType === 'typescript') {
-    if (!commandSucceeds('npx tsc --noEmit', cwd)) {
-      failures.push('Type errors: run `npx tsc --noEmit`');
+  if (projectType === "typescript") {
+    if (!commandSucceeds("npx tsc --noEmit", cwd)) {
+      failures.push("Type errors: run `npx tsc --noEmit`");
     }
   }
 
   // Build validation
   const buildCommands: Record<string, string> = {
-    typescript: 'npm run build',
-    go: 'go build ./...',
-    python: '',
-    unknown: ''
+    typescript: "npm run build",
+    go: "go build ./...",
+    python: "",
+    unknown: "",
   };
 
   const buildCmd = buildCommands[projectType];
   if (buildCmd) {
-    if (projectType === 'typescript') {
+    if (projectType === "typescript") {
       try {
-        const pkgJson = require(join(cwd, 'package.json'));
-        if (pkgJson.scripts?.build && !commandSucceeds(buildCmd, cwd)) {
-          failures.push(`Build failing: run \`${buildCmd}\``);
+        const pkgPath = join(cwd, "package.json");
+        if (existsSync(pkgPath)) {
+          const pkgJson = JSON.parse(readFileSync(pkgPath, "utf-8"));
+          if (pkgJson.scripts?.build && !commandSucceeds(buildCmd, cwd)) {
+            failures.push(`Build failing: run \`${buildCmd}\``);
+          }
         }
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     } else if (!commandSucceeds(buildCmd, cwd)) {
       failures.push(`Build failing: run \`${buildCmd}\``);
     }
@@ -247,7 +294,7 @@ function validateVerify(cwd: string, storyId: string): { ok: boolean; reason?: s
   if (failures.length > 0) {
     return {
       ok: false,
-      reason: `VERIFY stage incomplete:\n${failures.map(f => `- ${f}`).join('\n')}`
+      reason: `VERIFY stage incomplete:\n${failures.map((f) => `- ${f}`).join("\n")}`,
     };
   }
 
@@ -257,7 +304,10 @@ function validateVerify(cwd: string, storyId: string): { ok: boolean; reason?: s
 /**
  * Validate DOCS stage completion
  */
-function validateDocs(cwd: string, storyId: string): { ok: boolean; reason?: string } {
+function validateDocs(
+  cwd: string,
+  storyId: string,
+): { ok: boolean; reason?: string } {
   debug(SOURCE, `Validating DOCS for ${storyId}`);
 
   // Documentation validation is subjective
@@ -269,19 +319,23 @@ function validateDocs(cwd: string, storyId: string): { ok: boolean; reason?: str
 /**
  * Main validation dispatcher
  */
-function validateStage(cwd: string, stage: string, storyId: string): { ok: boolean; reason?: string } {
+function validateStage(
+  cwd: string,
+  stage: string,
+  storyId: string,
+): { ok: boolean; reason?: string } {
   switch (stage) {
-    case 'DESIGN':
+    case "DESIGN":
       return validateDesign(cwd, storyId);
-    case 'TEST':
+    case "TEST":
       return validateTest(cwd, storyId);
-    case 'DEV':
+    case "DEV":
       return validateDev(cwd, storyId);
-    case 'VERIFY':
+    case "VERIFY":
       return validateVerify(cwd, storyId);
-    case 'DOCS':
+    case "DOCS":
       return validateDocs(cwd, storyId);
-    case 'FIX':
+    case "FIX":
       // FIX stage just needs to pass - it's a remediation stage
       return { ok: true };
     default:
@@ -308,11 +362,14 @@ async function main(): Promise<void> {
 
     if (!stageInfo) {
       // Not an SDLC task, allow completion
-      debug(SOURCE, 'Not an SDLC task, allowing completion');
+      debug(SOURCE, "Not an SDLC task, allowing completion");
       process.exit(0);
     }
 
-    debug(SOURCE, `SDLC task: story=${stageInfo.storyId}, stage=${stageInfo.stage}`);
+    debug(
+      SOURCE,
+      `SDLC task: story=${stageInfo.storyId}, stage=${stageInfo.stage}`,
+    );
 
     // Validate the stage
     const result = validateStage(cwd, stageInfo.stage, stageInfo.storyId);

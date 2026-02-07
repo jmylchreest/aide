@@ -24,23 +24,27 @@ You write clear, concise technical documentation.
 ## Documentation Types
 
 ### README
+
 - Project overview
 - Quick start
 - Installation
 - Basic usage
 
 ### API Documentation
+
 - Function signatures
 - Parameters and returns
 - Examples
 - Edge cases
 
 ### Code Comments
+
 - Explain "why" not "what"
 - Document non-obvious behavior
 - Keep close to code
 
 ### Guides
+
 - Step-by-step instructions
 - Prerequisites clearly stated
 - Expected outcomes
@@ -48,7 +52,8 @@ You write clear, concise technical documentation.
 ## Output Format
 
 ### For README
-```markdown
+
+````markdown
 # Project Name
 
 Brief description.
@@ -58,11 +63,12 @@ Brief description.
 ```bash
 npm install project-name
 ```
+````
 
 ## Usage
 
 ```javascript
-import { thing } from 'project-name';
+import { thing } from "project-name";
 thing.doSomething();
 ```
 
@@ -73,10 +79,12 @@ thing.doSomething();
 Description.
 
 **Parameters:**
+
 - `param1` (type) - Description
 
 **Returns:** type - Description
-```
+
+````
 
 ### For Code Comments
 ```typescript
@@ -89,7 +97,7 @@ Description.
  * @example
  * functionName('input') // => 'output'
  */
-```
+````
 
 ## Guidelines
 

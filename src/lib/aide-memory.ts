@@ -9,8 +9,8 @@
  *   cd aide && go build -buildmode=c-shared -o libaide.so ./ffi
  */
 
-import { execFileSync, execSync } from 'child_process';
-import { join } from 'path';
+import { execFileSync, execSync } from "child_process";
+import { join } from "path";
 
 export interface Memory {
   id: string;
@@ -28,7 +28,7 @@ export interface Task {
   id: string;
   title: string;
   description: string;
-  status: 'pending' | 'claimed' | 'done' | 'blocked';
+  status: "pending" | "claimed" | "done" | "blocked";
   claimedBy: string;
   claimedAt: string;
   completedAt: string;
@@ -52,86 +52,105 @@ export interface Message {
   createdAt: string;
 }
 
-export type Category = 'learning' | 'decision' | 'issue' | 'discovery' | 'blocker';
+export type Category =
+  | "learning"
+  | "decision"
+  | "issue"
+  | "discovery"
+  | "blocker";
 
 /**
  * AideMemory client - interfaces with aide via CLI or HTTP
  */
 export class AideMemory {
-  private mode: 'cli' | 'http';
+  private mode: "cli" | "http";
   private serverUrl?: string;
   private cliPath: string;
 
-  constructor(options: { mode?: 'cli' | 'http'; serverUrl?: string; cliPath?: string } = {}) {
-    this.mode = options.mode || 'cli';
-    this.serverUrl = options.serverUrl || 'http://localhost:9876';
+  constructor(
+    options: {
+      mode?: "cli" | "http";
+      serverUrl?: string;
+      cliPath?: string;
+    } = {},
+  ) {
+    this.mode = options.mode || "cli";
+    this.serverUrl = options.serverUrl || "http://localhost:9876";
     this.cliPath = options.cliPath || this.findCli();
   }
 
   private findCli(): string {
     // Look in common locations
     const locations = [
-      join(process.cwd(), 'bin', 'aide'),
-      join(process.cwd(), 'aide', 'aide'),
-      'aide', // PATH
+      join(process.cwd(), "bin", "aide"),
+      join(process.cwd(), "aide", "aide"),
+      "aide", // PATH
     ];
 
     for (const loc of locations) {
       try {
-        execSync(`${loc} --help`, { stdio: 'ignore' });
+        execSync(`${loc} --help`, { stdio: "ignore" });
         return loc;
       } catch {
         continue;
       }
     }
 
-    return 'aide';
+    return "aide";
   }
 
   // --- Memory Operations ---
 
   async addMemory(
     content: string,
-    options: { category?: Category; tags?: string[]; plan?: string } = {}
+    options: { category?: Category; tags?: string[]; plan?: string } = {},
   ): Promise<Memory> {
-    if (this.mode === 'http') {
-      return this.httpPost('/api/memories', {
+    if (this.mode === "http") {
+      return this.httpPost("/api/memories", {
         content,
-        category: options.category || 'learning',
+        category: options.category || "learning",
         tags: options.tags || [],
-        plan: options.plan || '',
+        plan: options.plan || "",
       });
     }
 
-    const args = ['memory', 'add'];
+    const args = ["memory", "add"];
     if (options.category) args.push(`--category=${options.category}`);
-    if (options.tags?.length) args.push(`--tags=${options.tags.join(',')}`);
+    if (options.tags?.length) args.push(`--tags=${options.tags.join(",")}`);
     if (options.plan) args.push(`--plan=${options.plan}`);
     args.push(content);
 
     const output = this.runCli(args);
     const match = output.match(/Added memory: (\S+)/);
-    return { id: match?.[1] || '', content, category: options.category || 'learning' } as Memory;
+    return {
+      id: match?.[1] || "",
+      content,
+      category: options.category || "learning",
+    } as Memory;
   }
 
   async searchMemories(query: string, limit = 20): Promise<Memory[]> {
-    if (this.mode === 'http') {
-      return this.httpGet(`/api/memories/search?q=${encodeURIComponent(query)}&limit=${limit}`);
+    if (this.mode === "http") {
+      return this.httpGet(
+        `/api/memories/search?q=${encodeURIComponent(query)}&limit=${limit}`,
+      );
     }
 
     // CLI mode - parse output
-    const output = this.runCli(['memory', 'search', query]);
+    const output = this.runCli(["memory", "search", query]);
     return this.parseMemoryList(output);
   }
 
-  async listMemories(options: { category?: Category; plan?: string; limit?: number } = {}): Promise<Memory[]> {
-    if (this.mode === 'http') {
+  async listMemories(
+    options: { category?: Category; plan?: string; limit?: number } = {},
+  ): Promise<Memory[]> {
+    if (this.mode === "http") {
       const params = new URLSearchParams();
-      if (options.category) params.set('category', options.category);
+      if (options.category) params.set("category", options.category);
       return this.httpGet(`/api/memories?${params}`);
     }
 
-    const args = ['memory', 'list'];
+    const args = ["memory", "list"];
     if (options.category) args.push(`--category=${options.category}`);
     if (options.plan) args.push(`--plan=${options.plan}`);
 
@@ -141,46 +160,55 @@ export class AideMemory {
 
   // --- Task Operations ---
 
-  async createTask(title: string, description = ''): Promise<Task> {
-    if (this.mode === 'http') {
-      return this.httpPost('/api/tasks', { title, description, status: 'pending' });
+  async createTask(title: string, description = ""): Promise<Task> {
+    if (this.mode === "http") {
+      return this.httpPost("/api/tasks", {
+        title,
+        description,
+        status: "pending",
+      });
     }
 
-    const args = ['task', 'create', title];
+    const args = ["task", "create", title];
     if (description) args.push(`--description=${description}`);
 
     const output = this.runCli(args);
     const match = output.match(/Created task: (\S+)/);
-    return { id: match?.[1] || '', title, description, status: 'pending' } as Task;
+    return {
+      id: match?.[1] || "",
+      title,
+      description,
+      status: "pending",
+    } as Task;
   }
 
   async claimTask(taskId: string, agentId: string): Promise<Task> {
-    if (this.mode === 'http') {
-      return this.httpPost('/api/tasks/claim', { taskId, agentId });
+    if (this.mode === "http") {
+      return this.httpPost("/api/tasks/claim", { taskId, agentId });
     }
 
-    this.runCli(['task', 'claim', taskId, `--agent=${agentId}`]);
-    return { id: taskId, claimedBy: agentId, status: 'claimed' } as Task;
+    this.runCli(["task", "claim", taskId, `--agent=${agentId}`]);
+    return { id: taskId, claimedBy: agentId, status: "claimed" } as Task;
   }
 
-  async completeTask(taskId: string, result = ''): Promise<void> {
-    if (this.mode === 'http') {
-      await this.httpPatch(`/api/tasks/${taskId}`, { status: 'done', result });
+  async completeTask(taskId: string, result = ""): Promise<void> {
+    if (this.mode === "http") {
+      await this.httpPatch(`/api/tasks/${taskId}`, { status: "done", result });
       return;
     }
 
-    const args = ['task', 'complete', taskId];
+    const args = ["task", "complete", taskId];
     if (result) args.push(`--result=${result}`);
     this.runCli(args);
   }
 
   async listTasks(status?: string): Promise<Task[]> {
-    if (this.mode === 'http') {
-      const params = status ? `?status=${status}` : '';
+    if (this.mode === "http") {
+      const params = status ? `?status=${status}` : "";
       return this.httpGet(`/api/tasks${params}`);
     }
 
-    const args = ['task', 'list'];
+    const args = ["task", "list"];
     if (status) args.push(`--status=${status}`);
 
     const output = this.runCli(args);
@@ -189,12 +217,16 @@ export class AideMemory {
 
   // --- Decision Operations ---
 
-  async setDecision(topic: string, decision: string, rationale = ''): Promise<Decision> {
-    if (this.mode === 'http') {
-      return this.httpPost('/api/decisions', { topic, decision, rationale });
+  async setDecision(
+    topic: string,
+    decision: string,
+    rationale = "",
+  ): Promise<Decision> {
+    if (this.mode === "http") {
+      return this.httpPost("/api/decisions", { topic, decision, rationale });
     }
 
-    const args = ['decision', 'set', topic, decision];
+    const args = ["decision", "set", topic, decision];
     if (rationale) args.push(`--rationale=${rationale}`);
     this.runCli(args);
 
@@ -202,16 +234,18 @@ export class AideMemory {
   }
 
   async getDecision(topic: string): Promise<Decision | null> {
-    if (this.mode === 'http') {
+    if (this.mode === "http") {
       try {
-        return await this.httpGet(`/api/decisions/${encodeURIComponent(topic)}`);
+        return await this.httpGet(
+          `/api/decisions/${encodeURIComponent(topic)}`,
+        );
       } catch {
         return null;
       }
     }
 
     try {
-      const output = this.runCli(['decision', 'get', topic]);
+      const output = this.runCli(["decision", "get", topic]);
       const match = output.match(/^(.+): (.+)$/m);
       if (match) {
         return { topic: match[1], decision: match[2] } as Decision;
@@ -224,25 +258,29 @@ export class AideMemory {
 
   // --- Message Operations ---
 
-  async sendMessage(content: string, from: string, to?: string): Promise<Message> {
-    if (this.mode === 'http') {
-      return this.httpPost('/api/messages', { content, from, to: to || '' });
+  async sendMessage(
+    content: string,
+    from: string,
+    to?: string,
+  ): Promise<Message> {
+    if (this.mode === "http") {
+      return this.httpPost("/api/messages", { content, from, to: to || "" });
     }
 
-    const args = ['message', 'send', content, `--from=${from}`];
+    const args = ["message", "send", content, `--from=${from}`];
     if (to) args.push(`--to=${to}`);
     this.runCli(args);
 
-    return { content, from, to: to || '' } as Message;
+    return { content, from, to: to || "" } as Message;
   }
 
   async getMessages(agentId?: string): Promise<Message[]> {
-    if (this.mode === 'http') {
-      const params = agentId ? `?agent=${agentId}` : '';
+    if (this.mode === "http") {
+      const params = agentId ? `?agent=${agentId}` : "";
       return this.httpGet(`/api/messages${params}`);
     }
 
-    const args = ['message', 'list'];
+    const args = ["message", "list"];
     if (agentId) args.push(`--agent=${agentId}`);
 
     const output = this.runCli(args);
@@ -256,7 +294,7 @@ export class AideMemory {
       // Use execFileSync to avoid shell interpretation of arguments
       // This prevents command injection from user-provided content
       return execFileSync(this.cliPath, args, {
-        encoding: 'utf-8',
+        encoding: "utf-8",
         timeout: 10000,
       });
     } catch (error: any) {
@@ -274,8 +312,8 @@ export class AideMemory {
 
   private async httpPost<T>(path: string, body: object): Promise<T> {
     const response = await fetch(`${this.serverUrl}${path}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
     if (!response.ok) {
@@ -286,8 +324,8 @@ export class AideMemory {
 
   private async httpPatch<T>(path: string, body: object): Promise<T> {
     const response = await fetch(`${this.serverUrl}${path}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
     if (!response.ok) {
@@ -298,7 +336,7 @@ export class AideMemory {
 
   private parseMemoryList(output: string): Memory[] {
     const memories: Memory[] = [];
-    const lines = output.trim().split('\n');
+    const lines = output.trim().split("\n");
     for (const line of lines) {
       const match = line.match(/\[(\w+)\] (\S+): (.+)/);
       if (match) {
@@ -314,12 +352,12 @@ export class AideMemory {
 
   private parseTaskList(output: string): Task[] {
     const tasks: Task[] = [];
-    const lines = output.trim().split('\n');
+    const lines = output.trim().split("\n");
     for (const line of lines) {
       const match = line.match(/\[(\w+)\] (\S+): (.+)/);
       if (match) {
         tasks.push({
-          status: match[1] as Task['status'],
+          status: match[1] as Task["status"],
           id: match[2],
           title: match[3],
         } as Task);
@@ -330,7 +368,7 @@ export class AideMemory {
 
   private parseMessageList(output: string): Message[] {
     const messages: Message[] = [];
-    const lines = output.trim().split('\n');
+    const lines = output.trim().split("\n");
     for (const line of lines) {
       const match = line.match(/\[(.+?)\] (.+)/);
       if (match) {

@@ -14,20 +14,30 @@
  * - agent_id, agent_type, output, success
  */
 
-import { existsSync } from 'fs';
-import { join } from 'path';
-import { homedir } from 'os';
-import { execSync } from 'child_process';
-import { Logger } from '../lib/logger.js';
-import { readStdin, setMemoryState, updateSessionHeartbeat } from '../lib/hook-utils.js';
-import { refreshHud } from '../lib/hud.js';
+import { existsSync } from "fs";
+import { join } from "path";
+import { homedir } from "os";
+import { execSync } from "child_process";
+import { Logger } from "../lib/logger.js";
+import {
+  readStdin,
+  setMemoryState,
+  updateSessionHeartbeat,
+} from "../lib/hook-utils.js";
+import { refreshHud } from "../lib/hud.js";
+import {
+  getWorktreeForAgent,
+  markWorktreeComplete,
+  discoverWorktrees,
+  Worktree,
+} from "../lib/worktree.js";
 
 // Global logger instance
 let log: Logger | null = null;
 
 // Claude Code hook input format (uses hook_event_name, not event)
 interface SubagentStartInput {
-  hook_event_name: 'SubagentStart';
+  hook_event_name: "SubagentStart";
   agent_id: string;
   agent_type: string;
   session_id: string;
@@ -39,7 +49,7 @@ interface SubagentStartInput {
 }
 
 interface SubagentStopInput {
-  hook_event_name: 'SubagentStop';
+  hook_event_name: "SubagentStop";
   agent_id: string;
   agent_type: string;
   session_id: string;
@@ -66,27 +76,27 @@ interface HookOutput {
 function findAideBinary(cwd?: string): string | null {
   const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT;
   if (pluginRoot) {
-    const pluginBinary = join(pluginRoot, 'bin', 'aide');
+    const pluginBinary = join(pluginRoot, "bin", "aide");
     if (existsSync(pluginBinary)) {
       return pluginBinary;
     }
   }
 
   if (cwd) {
-    const localBinary = join(cwd, 'bin', 'aide');
+    const localBinary = join(cwd, "bin", "aide");
     if (existsSync(localBinary)) {
       return localBinary;
     }
   }
 
-  const homeBinary = join(homedir(), '.aide', 'bin', 'aide');
+  const homeBinary = join(homedir(), ".aide", "bin", "aide");
   if (existsSync(homeBinary)) {
     return homeBinary;
   }
 
   try {
-    execSync('aide --help', { stdio: 'ignore', timeout: 2000 });
-    return 'aide';
+    execSync("aide --help", { stdio: "ignore", timeout: 2000 });
+    return "aide";
   } catch {
     return null;
   }
@@ -98,11 +108,13 @@ function findAideBinary(cwd?: string): string | null {
 function getProjectName(cwd: string): string {
   try {
     // Try git remote first
-    const remoteUrl = execSync('git config --get remote.origin.url', {
+    const remoteUrl = execSync("git config --get remote.origin.url", {
       cwd,
-      stdio: ['pipe', 'pipe', 'pipe'],
+      stdio: ["pipe", "pipe", "pipe"],
       timeout: 2000,
-    }).toString().trim();
+    })
+      .toString()
+      .trim();
 
     // Extract repo name from URL
     const match = remoteUrl.match(/[/:]([^/]+?)(?:\.git)?$/);
@@ -112,7 +124,7 @@ function getProjectName(cwd: string): string {
   }
 
   // Fallback to directory name
-  return cwd.split('/').pop() || 'unknown';
+  return cwd.split("/").pop() || "unknown";
 }
 
 /**
@@ -126,11 +138,19 @@ function getProjectName(cwd: string): string {
  * This ensures subagents respect user preferences, project context,
  * and architectural decisions.
  */
-function fetchSubagentMemories(cwd: string): { global: string[]; project: string[]; decisions: string[] } {
-  const result = { global: [] as string[], project: [] as string[], decisions: [] as string[] };
+function fetchSubagentMemories(cwd: string): {
+  global: string[];
+  project: string[];
+  decisions: string[];
+} {
+  const result = {
+    global: [] as string[],
+    project: [] as string[],
+    decisions: [] as string[],
+  };
 
   // Check for disable flag
-  if (process.env.AIDE_MEMORY_INJECT === '0') {
+  if (process.env.AIDE_MEMORY_INJECT === "0") {
     return result;
   }
 
@@ -139,7 +159,7 @@ function fetchSubagentMemories(cwd: string): { global: string[]; project: string
     return result;
   }
 
-  const dbPath = join(cwd, '.aide', 'memory', 'store.db');
+  const dbPath = join(cwd, ".aide", "memory", "store.db");
   const env = { ...process.env, AIDE_MEMORY_DB: dbPath };
   const projectName = getProjectName(cwd);
 
@@ -147,10 +167,12 @@ function fetchSubagentMemories(cwd: string): { global: string[]; project: string
   try {
     const globalOutput = execSync(
       `"${binary}" memory list --category=global --tags=scope:global --format=json`,
-      { env, stdio: ['pipe', 'pipe', 'pipe'], timeout: 3000 }
-    ).toString().trim();
+      { env, stdio: ["pipe", "pipe", "pipe"], timeout: 3000 },
+    )
+      .toString()
+      .trim();
 
-    if (globalOutput && globalOutput !== '[]') {
+    if (globalOutput && globalOutput !== "[]") {
       const memories = JSON.parse(globalOutput);
       result.global = memories.map((m: { content: string }) => m.content);
     }
@@ -162,10 +184,12 @@ function fetchSubagentMemories(cwd: string): { global: string[]; project: string
   try {
     const projectOutput = execSync(
       `"${binary}" memory list --tags=project:${projectName} --format=json`,
-      { env, stdio: ['pipe', 'pipe', 'pipe'], timeout: 3000 }
-    ).toString().trim();
+      { env, stdio: ["pipe", "pipe", "pipe"], timeout: 3000 },
+    )
+      .toString()
+      .trim();
 
-    if (projectOutput && projectOutput !== '[]') {
+    if (projectOutput && projectOutput !== "[]") {
       const memories = JSON.parse(projectOutput);
       result.project = memories.map((m: { content: string }) => m.content);
     }
@@ -177,13 +201,15 @@ function fetchSubagentMemories(cwd: string): { global: string[]; project: string
   try {
     const decisionsOutput = execSync(
       `"${binary}" decision list --format=json`,
-      { env, stdio: ['pipe', 'pipe', 'pipe'], timeout: 3000 }
-    ).toString().trim();
+      { env, stdio: ["pipe", "pipe", "pipe"], timeout: 3000 },
+    )
+      .toString()
+      .trim();
 
-    if (decisionsOutput && decisionsOutput !== '[]') {
+    if (decisionsOutput && decisionsOutput !== "[]") {
       const decisions = JSON.parse(decisionsOutput);
-      result.decisions = decisions.map((d: { topic: string; value: string }) =>
-        `**${d.topic}**: ${d.value}`
+      result.decisions = decisions.map(
+        (d: { topic: string; value: string }) => `**${d.topic}**: ${d.value}`,
       );
     }
   } catch {
@@ -196,14 +222,42 @@ function fetchSubagentMemories(cwd: string): { global: string[]; project: string
 /**
  * Build context for subagent injection
  */
-function buildSubagentContext(memories: { global: string[]; project: string[]; decisions: string[] }): string | undefined {
+function buildSubagentContext(
+  memories: {
+    global: string[];
+    project: string[];
+    decisions: string[];
+  },
+  worktree?: Worktree,
+): string | undefined {
   const lines: string[] = [];
 
+  // Inject worktree information if this is a swarm agent
+  if (worktree) {
+    lines.push("<aide-subagent-context>");
+    lines.push("");
+    lines.push("## Swarm Worktree");
+    lines.push("");
+    lines.push(`You are working in an isolated git worktree for swarm mode.`);
+    lines.push(`- **Worktree Path**: ${worktree.path}`);
+    lines.push(`- **Branch**: ${worktree.branch}`);
+    lines.push(`- **Story ID**: ${worktree.taskId || "unknown"}`);
+    lines.push("");
+    lines.push(
+      `**IMPORTANT**: All file operations should be performed in: ${worktree.path}`,
+    );
+    lines.push(
+      `Commit your changes to the ${worktree.branch} branch when complete.`,
+    );
+  }
+
   if (memories.global.length > 0) {
-    lines.push('<aide-subagent-context>');
-    lines.push('');
-    lines.push('## User Preferences');
-    lines.push('');
+    if (lines.length === 0) {
+      lines.push("<aide-subagent-context>");
+    }
+    lines.push("");
+    lines.push("## User Preferences");
+    lines.push("");
     for (const mem of memories.global) {
       lines.push(`- ${mem}`);
     }
@@ -211,11 +265,11 @@ function buildSubagentContext(memories: { global: string[]; project: string[]; d
 
   if (memories.project.length > 0) {
     if (lines.length === 0) {
-      lines.push('<aide-subagent-context>');
+      lines.push("<aide-subagent-context>");
     }
-    lines.push('');
-    lines.push('## Project Context');
-    lines.push('');
+    lines.push("");
+    lines.push("## Project Context");
+    lines.push("");
     for (const mem of memories.project) {
       lines.push(`- ${mem}`);
     }
@@ -223,20 +277,20 @@ function buildSubagentContext(memories: { global: string[]; project: string[]; d
 
   if (memories.decisions.length > 0) {
     if (lines.length === 0) {
-      lines.push('<aide-subagent-context>');
+      lines.push("<aide-subagent-context>");
     }
-    lines.push('');
-    lines.push('## Project Decisions');
-    lines.push('');
+    lines.push("");
+    lines.push("## Project Decisions");
+    lines.push("");
     for (const decision of memories.decisions) {
       lines.push(`- ${decision}`);
     }
   }
 
   if (lines.length > 0) {
-    lines.push('');
-    lines.push('</aide-subagent-context>');
-    return lines.join('\n');
+    lines.push("");
+    lines.push("</aide-subagent-context>");
+    return lines.join("\n");
   }
 
   return undefined;
@@ -245,9 +299,16 @@ function buildSubagentContext(memories: { global: string[]; project: string[]; d
 /**
  * Set state in aide-memory for an agent (wrapper with logging)
  */
-function setAgentState(cwd: string, agentId: string, key: string, value: string): boolean {
-  const truncatedValue = value.replace(/\n/g, ' ').slice(0, 500);
-  log?.debug(`setAgentState: setting ${key}="${truncatedValue}" for agent ${agentId}`);
+function setAgentState(
+  cwd: string,
+  agentId: string,
+  key: string,
+  value: string,
+): boolean {
+  const truncatedValue = value.replace(/\n/g, " ").slice(0, 500);
+  log?.debug(
+    `setAgentState: setting ${key}="${truncatedValue}" for agent ${agentId}`,
+  );
   const result = setMemoryState(cwd, key, truncatedValue, agentId);
   if (!result) {
     log?.warn(`setAgentState: failed to set ${key} for agent ${agentId}`);
@@ -259,10 +320,14 @@ function setAgentState(cwd: string, agentId: string, key: string, value: string)
  * Handle SubagentStart event
  * Returns context to inject into the subagent
  */
-async function processSubagentStart(data: SubagentStartInput): Promise<string | undefined> {
+async function processSubagentStart(
+  data: SubagentStartInput,
+): Promise<string | undefined> {
   const { agent_id, agent_type, session_id, cwd } = data;
 
-  log?.info(`SubagentStart: agent_id=${agent_id}, type=${agent_type}, session=${session_id}`);
+  log?.info(
+    `SubagentStart: agent_id=${agent_id}, type=${agent_type}, session=${session_id}`,
+  );
 
   // Claude Code doesn't provide prompt/model in SubagentStart
   // Use agent_type directly as the type
@@ -275,31 +340,78 @@ async function processSubagentStart(data: SubagentStartInput): Promise<string | 
 
   // Register agent in aide-memory
   // Note: modelTier is NOT stored - model instructions are injected into context instead
-  log?.start('registerAgent');
-  setAgentState(cwd, agent_id, 'status', 'running');
-  setAgentState(cwd, agent_id, 'type', type);
-  setAgentState(cwd, agent_id, 'startedAt', new Date().toISOString());
-  setAgentState(cwd, agent_id, 'session', session_id);  // Track which session owns this agent
-  log?.end('registerAgent');
+  log?.start("registerAgent");
+  setAgentState(cwd, agent_id, "status", "running");
+  setAgentState(cwd, agent_id, "type", type);
+  setAgentState(cwd, agent_id, "startedAt", new Date().toISOString());
+  setAgentState(cwd, agent_id, "session", session_id); // Track which session owns this agent
+  log?.end("registerAgent");
 
   // Refresh HUD to show the new running agent
-  log?.start('refreshHud');
+  log?.start("refreshHud");
   refreshHud(cwd, session_id);
-  log?.end('refreshHud');
+  log?.end("refreshHud");
+
+  // Auto-discover any worktrees created by the orchestrator via git commands
+  // This ensures we track worktrees even if they weren't created via our library
+  log?.start("discoverWorktrees");
+  const discovered = discoverWorktrees(cwd);
+  if (discovered.length > 0) {
+    log?.info(`Auto-discovered ${discovered.length} worktrees`);
+  }
+  log?.end("discoverWorktrees", { discovered: discovered.length });
+
+  // Check if this agent has an associated worktree (swarm mode)
+  // Match by agent_id or by pattern in worktree name
+  log?.start("checkWorktree");
+  let worktree = getWorktreeForAgent(cwd, agent_id);
+
+  // If no direct match, try to match by agent_id pattern in worktree name
+  // This handles cases where worktree was created before agent_id was known
+  if (!worktree) {
+    const { loadWorktreeState } = await import("../lib/worktree.js");
+    const state = loadWorktreeState(cwd);
+    // Look for worktree with matching name pattern (e.g., "story-auth" matches "agent-auth")
+    const agentPattern = agent_id.replace(/^agent-/, "");
+    worktree = state.active.find(
+      (w) => w.name.includes(agentPattern) && !w.agentId,
+    );
+    if (worktree) {
+      // Assign this agent to the worktree
+      worktree.agentId = agent_id;
+      const { saveWorktreeState } = await import("../lib/worktree.js");
+      saveWorktreeState(cwd, state);
+      log?.info(`Assigned worktree ${worktree.name} to agent ${agent_id}`);
+    }
+  }
+
+  if (worktree) {
+    log?.info(
+      `Found worktree for agent ${agent_id}: ${worktree.path} (branch: ${worktree.branch})`,
+    );
+  }
+  log?.end("checkWorktree", { hasWorktree: !!worktree });
 
   // Fetch memories for subagent context injection
-  log?.start('fetchMemories');
+  log?.start("fetchMemories");
   const memories = fetchSubagentMemories(cwd);
-  log?.end('fetchMemories', {
+  log?.end("fetchMemories", {
     globalCount: memories.global.length,
     projectCount: memories.project.length,
     decisionCount: memories.decisions.length,
   });
 
-  // Build context if we have any memories
-  if (memories.global.length > 0 || memories.project.length > 0 || memories.decisions.length > 0) {
-    const context = buildSubagentContext(memories);
-    log?.info(`Injecting context for subagent: ${memories.global.length} preferences, ${memories.project.length} project, ${memories.decisions.length} decisions`);
+  // Build context if we have memories or a worktree
+  if (
+    worktree ||
+    memories.global.length > 0 ||
+    memories.project.length > 0 ||
+    memories.decisions.length > 0
+  ) {
+    const context = buildSubagentContext(memories, worktree);
+    log?.info(
+      `Injecting context for subagent: ${memories.global.length} preferences, ${memories.project.length} project, ${memories.decisions.length} decisions, worktree=${!!worktree}`,
+    );
     return context;
   }
 
@@ -312,21 +424,34 @@ async function processSubagentStart(data: SubagentStartInput): Promise<string | 
 async function processSubagentStop(data: SubagentStopInput): Promise<void> {
   const { agent_id, session_id, cwd, stop_hook_active } = data;
 
-  log?.info(`SubagentStop: agent_id=${agent_id}, session=${session_id}, stop_hook_active=${stop_hook_active}`);
+  log?.info(
+    `SubagentStop: agent_id=${agent_id}, session=${session_id}, stop_hook_active=${stop_hook_active}`,
+  );
 
   // Update session heartbeat (proves session is alive)
   updateSessionHeartbeat(cwd, session_id);
 
   // Mark as completed (Claude Code doesn't provide success/failure status)
-  log?.start('updateAgentStatus');
-  setAgentState(cwd, agent_id, 'status', 'completed');
-  setAgentState(cwd, agent_id, 'endedAt', new Date().toISOString());
-  log?.end('updateAgentStatus');
+  log?.start("updateAgentStatus");
+  setAgentState(cwd, agent_id, "status", "completed");
+  setAgentState(cwd, agent_id, "endedAt", new Date().toISOString());
+  log?.end("updateAgentStatus");
+
+  // Mark worktree as agent-complete if this agent had one (swarm mode)
+  // The worktree stays for merge review - cleanup happens after worktree-resolve
+  log?.start("checkWorktreeComplete");
+  const worktreeMarked = markWorktreeComplete(cwd, agent_id);
+  if (worktreeMarked) {
+    log?.info(
+      `Marked worktree as agent-complete for ${agent_id} - ready for merge review`,
+    );
+  }
+  log?.end("checkWorktreeComplete", { worktreeMarked });
 
   // Refresh HUD to remove the completed agent
-  log?.start('refreshHud');
+  log?.start("refreshHud");
   refreshHud(cwd, session_id);
-  log?.end('refreshHud');
+  log?.end("refreshHud");
 
   log?.debug(`SubagentStop: agent ${agent_id} marked as completed`);
 }
@@ -343,40 +468,47 @@ async function main(): Promise<void> {
     const cwd = data.cwd || process.cwd();
 
     // Initialize logger
-    log = new Logger('subagent-tracker', cwd);
-    log.start('total');
+    log = new Logger("subagent-tracker", cwd);
+    log.start("total");
     log.info(`Received event: ${data.hook_event_name}`);
     log.debug(`Full input: ${JSON.stringify(data, null, 2)}`);
 
     let additionalContext: string | undefined;
 
     // Dispatch based on event type from input (Claude Code uses hook_event_name)
-    if (data.hook_event_name === 'SubagentStart') {
-      additionalContext = await processSubagentStart(data as SubagentStartInput);
-    } else if (data.hook_event_name === 'SubagentStop') {
+    if (data.hook_event_name === "SubagentStart") {
+      additionalContext = await processSubagentStart(
+        data as SubagentStartInput,
+      );
+    } else if (data.hook_event_name === "SubagentStop") {
       await processSubagentStop(data as SubagentStopInput);
     } else {
       // TypeScript narrows to never here, but handle unexpected events gracefully
-      log.warn(`Unknown event type: ${(data as { hook_event_name?: string }).hook_event_name || 'undefined'}`);
+      log.warn(
+        `Unknown event type: ${(data as { hook_event_name?: string }).hook_event_name || "undefined"}`,
+      );
     }
 
-    log.end('total');
+    log.end("total");
     log.flush();
 
     // Output with optional context injection for subagents
     const output: HookOutput = { continue: true };
     if (additionalContext) {
-      output.hookSpecificOutput = { hookEventName: 'SubagentStart', additionalContext };
+      output.hookSpecificOutput = {
+        hookEventName: "SubagentStart",
+        additionalContext,
+      };
     }
 
     console.log(JSON.stringify(output));
   } catch (error) {
     // Log error but don't block
     if (log) {
-      log.error('Subagent tracker failed', error);
+      log.error("Subagent tracker failed", error);
       log.flush();
     }
-    console.error('[aide:subagent-tracker] Error:', error);
+    console.error("[aide:subagent-tracker] Error:", error);
     console.log(JSON.stringify({ continue: true }));
   }
 }

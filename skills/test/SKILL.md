@@ -22,10 +22,7 @@ Before starting:
 
 ### Step 1: Check Project Testing Decisions
 
-```
-# Check for testing framework decisions
-mcp__plugin_aide_aide__decision_get topic="testing"
-```
+Use the `mcp__plugin_aide_aide__decision_get` tool with topic `testing` to check for testing framework decisions.
 
 Common frameworks by language:
 - **TypeScript/JavaScript:** Vitest, Jest, Mocha
@@ -34,19 +31,12 @@ Common frameworks by language:
 
 ### Step 2: Discover Existing Test Patterns
 
-```bash
-# Find test files
-find . -name "*.test.ts" -o -name "*.spec.ts" | head -20
+Use `Glob` to find test files:
+- Pattern: `**/*.test.ts`, `**/*.spec.ts` (TypeScript)
+- Pattern: `**/*_test.go` (Go)
+- Pattern: `**/test_*.py`, `**/*_test.py` (Python)
 
-# Or use Glob
-Glob for **/*.test.ts, **/*.spec.ts
-```
-
-```
-# Search for test patterns in codebase
-mcp__plugin_aide_aide__code_search query="describe" kind="function"
-mcp__plugin_aide_aide__code_search query="it" kind="function"
-```
+Use `mcp__plugin_aide_aide__code_search` with query `describe` and `it` to find test patterns.
 
 Read an existing test file to understand:
 - Import patterns
@@ -56,13 +46,8 @@ Read an existing test file to understand:
 
 ### Step 3: Analyze Target Code
 
-```
-# Get function signature and structure
-mcp__plugin_aide_aide__code_symbols file="path/to/file.ts"
-
-# Find related types
-mcp__plugin_aide_aide__code_search query="TypeName" kind="interface"
-```
+Use `mcp__plugin_aide_aide__code_symbols` with the target file path to get function signatures.
+Use `mcp__plugin_aide_aide__code_search` to find related types.
 
 Identify:
 - Input parameters and types

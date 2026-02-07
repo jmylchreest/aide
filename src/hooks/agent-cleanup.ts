@@ -8,9 +8,9 @@
  * Runs after persistence hook to clean up when agent is allowed to stop.
  */
 
-import { existsSync } from 'fs';
-import { join } from 'path';
-import { readStdin, clearAgentState } from '../lib/hook-utils.js';
+import { existsSync } from "fs";
+import { join } from "path";
+import { readStdin, clearAgentState } from "../lib/hook-utils.js";
 
 interface HookInput {
   hook_event_name: string;
@@ -38,12 +38,15 @@ async function main(): Promise<void> {
       const cleared = clearAgentState(cwd, agentId);
       if (cleared) {
         // Log to aide logs directory
-        const logDir = join(cwd, '.aide', '_logs');
+        const logDir = join(cwd, ".aide", "_logs");
         if (existsSync(logDir)) {
-          const fs = await import('fs');
-          const logPath = join(logDir, 'agent-cleanup.log');
+          const fs = await import("fs");
+          const logPath = join(logDir, "agent-cleanup.log");
           const timestamp = new Date().toISOString();
-          fs.appendFileSync(logPath, `${timestamp} Cleaned up state for agent: ${agentId}\n`);
+          fs.appendFileSync(
+            logPath,
+            `${timestamp} Cleaned up state for agent: ${agentId}\n`,
+          );
         }
       }
     }

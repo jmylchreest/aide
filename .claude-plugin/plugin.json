@@ -96,6 +96,28 @@
             "type": "command",
             "command": "npx tsx \"${CLAUDE_PLUGIN_ROOT}/src/hooks/memory-capture.ts\" 2>/dev/null",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "npx tsx \"${CLAUDE_PLUGIN_ROOT}/src/hooks/agent-cleanup.ts\" 2>/dev/null",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx tsx \"${CLAUDE_PLUGIN_ROOT}/src/hooks/tool-tracker.ts\" 2>/dev/null",
+            "timeout": 2
+          },
+          {
+            "type": "command",
+            "command": "npx tsx \"${CLAUDE_PLUGIN_ROOT}/src/hooks/pre-tool-enforcer.ts\" 2>/dev/null",
+            "timeout": 3
           }
         ]
       }
