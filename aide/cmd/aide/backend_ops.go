@@ -553,3 +553,21 @@ func (b *Backend) CompleteTask(taskID, result string) error {
 
 	return b.store.CompleteTask(taskID, result)
 }
+
+func (b *Backend) DeleteTask(taskID string) error {
+	// gRPC not implemented for delete - local only
+	if b.useGRPC {
+		return fmt.Errorf("task delete not supported in gRPC mode")
+	}
+
+	return b.store.DeleteTask(taskID)
+}
+
+func (b *Backend) ClearTasks(status string) (int, error) {
+	// gRPC not implemented for clear - local only
+	if b.useGRPC {
+		return 0, fmt.Errorf("task clear not supported in gRPC mode")
+	}
+
+	return b.store.ClearTasks(memory.TaskStatus(status))
+}

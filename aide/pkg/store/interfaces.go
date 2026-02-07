@@ -55,6 +55,8 @@ type TaskStore interface {
 	ClaimTask(taskID, agentID string) (*memory.Task, error)
 	CompleteTask(taskID, result string) error
 	UpdateTask(t *memory.Task) error
+	DeleteTask(id string) error
+	ClearTasks(status memory.TaskStatus) (int, error)
 }
 
 // Store combines all domain-specific store interfaces.

@@ -6,7 +6,7 @@ import (
 
 func cmdTask(dbPath string, args []string) error {
 	if len(args) < 1 {
-		return fmt.Errorf("usage: aide task [create|claim|complete|list]")
+		return fmt.Errorf("usage: aide task [create|claim|complete|list|clear|delete]")
 	}
 
 	backend, err := NewBackend(dbPath)
@@ -27,6 +27,10 @@ func cmdTask(dbPath string, args []string) error {
 		return taskComplete(backend, subargs)
 	case "list":
 		return taskList(backend, subargs)
+	case "clear":
+		return taskClear(backend, subargs)
+	case "delete":
+		return taskDelete(backend, subargs)
 	default:
 		return fmt.Errorf("unknown task subcommand: %s", subcmd)
 	}
@@ -101,5 +105,51 @@ func taskList(b *Backend, args []string) error {
 		}
 		fmt.Printf("[%s] %s: %s\n", t.Status, idDisplay, t.Title)
 	}
+	return nil
+}
+
+func taskClear(b *Backend, args []string) error {
+	// Parse --status flag (default to "done" for safety)
+	status := parseFlag(args, "--status=")
+
+	// Check for --all flag
+	all := false
+	for _, a := range args {
+		if a == "--all" {
+			all = true
+			break
+		}
+	}
+
+	if all {
+		status = "" // Empty status means all tasks
+	} else if status == "" {
+		status = "done" // Default to clearing completed tasks only
+	}
+
+	count, err := b.ClearTasks(status)
+	if err != nil {
+		return fmt.Errorf("failed to clear tasks: %w", err)
+	}
+
+	if status == "" {
+		fmt.Printf("Cleared %d tasks\n", count)
+	} else {
+		fmt.Printf("Cleared %d %s tasks\n", count, status)
+	}
+	return nil
+}
+
+func taskDelete(b *Backend, args []string) error {
+	if len(args) < 1 {
+		return fmt.Errorf("usage: aide task delete TASK_ID")
+	}
+
+	taskID := args[0]
+	if err := b.DeleteTask(taskID); err != nil {
+		return fmt.Errorf("failed to delete task: %w", err)
+	}
+
+	fmt.Printf("Deleted task: %s\n", taskID)
 	return nil
 }

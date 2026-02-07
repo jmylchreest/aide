@@ -142,3 +142,53 @@ func (s *BoltStore) ListTasks(status memory.TaskStatus) ([]*memory.Task, error) 
 
 	return tasks, err
 }
+
+// DeleteTask removes a task by ID.
+func (s *BoltStore) DeleteTask(id string) error {
+	return s.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket(BucketTasks)
+		return b.Delete([]byte(id))
+	})
+}
+
+// ClearTasks removes tasks matching the given status.
+// If status is empty, removes all tasks.
+func (s *BoltStore) ClearTasks(status memory.TaskStatus) (int, error) {
+	var deleted int
+
+	err := s.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket(BucketTasks)
+
+		// Collect keys to delete (can't delete while iterating)
+		var keysToDelete [][]byte
+		err := b.ForEach(func(k, v []byte) error {
+			if status == "" {
+				keysToDelete = append(keysToDelete, k)
+				return nil
+			}
+
+			var t memory.Task
+			if err := json.Unmarshal(v, &t); err != nil {
+				return nil // skip malformed
+			}
+			if t.Status == status {
+				keysToDelete = append(keysToDelete, k)
+			}
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+
+		// Delete collected keys
+		for _, k := range keysToDelete {
+			if err := b.Delete(k); err != nil {
+				return err
+			}
+			deleted++
+		}
+		return nil
+	})
+
+	return deleted, err
+}

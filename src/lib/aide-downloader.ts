@@ -15,13 +15,19 @@ import { existsSync, mkdirSync, readFileSync, chmodSync, unlinkSync } from 'fs';
 import { join, dirname } from 'path';
 import { execSync, spawn } from 'child_process';
 import { fileURLToPath } from 'url';
-import { homedir } from 'os';
 
 export interface DownloadResult {
   success: boolean;
   path: string | null;
   message: string;
   cached: boolean;
+}
+
+export interface EnsureResult {
+  binary: string | null;
+  error: string | null;      // Critical error (can't use AIDE)
+  warning: string | null;    // Soft warning (update available, etc.)
+  downloaded: boolean;       // Whether we downloaded the binary this time
 }
 
 /**
@@ -44,6 +50,79 @@ export function getPluginVersion(): string | null {
   }
 
   return null;
+}
+
+/**
+ * Get the version of an installed aide binary
+ */
+export function getBinaryVersion(binaryPath: string): string | null {
+  try {
+    const output = execSync(`"${binaryPath}" version`, {
+      stdio: 'pipe',
+      timeout: 5000,
+    }).toString().trim();
+    // Expected format: "aide version 0.0.4" or just "0.0.4"
+    const match = output.match(/(\d+\.\d+\.\d+)/);
+    return match ? match[1] : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Check the latest release version from GitHub API
+ * Returns null if check fails (network error, rate limit, etc.)
+ */
+export async function getLatestGitHubVersion(): Promise<string | null> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+
+    const response = await fetch(
+      'https://api.github.com/repos/jmylchreest/aide/releases/latest',
+      {
+        headers: {
+          'Accept': 'application/vnd.github.v3+json',
+          'User-Agent': 'aide-plugin',
+        },
+        signal: controller.signal,
+      }
+    );
+
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = await response.json() as { tag_name?: string };
+    // tag_name is typically "v0.0.4", strip the "v"
+    const tagName = data.tag_name;
+    if (tagName && tagName.startsWith('v')) {
+      return tagName.slice(1);
+    }
+    return tagName || null;
+  } catch {
+    // Network error, timeout, etc. - don't block on this
+    return null;
+  }
+}
+
+/**
+ * Compare semantic versions
+ * Returns: -1 if a < b, 0 if a == b, 1 if a > b
+ */
+export function compareVersions(a: string, b: string): number {
+  const partsA = a.split('.').map(Number);
+  const partsB = b.split('.').map(Number);
+
+  for (let i = 0; i < 3; i++) {
+    const numA = partsA[i] || 0;
+    const numB = partsB[i] || 0;
+    if (numA < numB) return -1;
+    if (numA > numB) return 1;
+  }
+  return 0;
 }
 
 /**
@@ -96,13 +175,20 @@ export function getPluginRoot(): string | null {
  * Find the aide binary in common locations
  *
  * Priority order:
- * 1. Plugin's bin/aide (installed with plugin via postinstall)
- * 2. Project's .aide/bin/aide (legacy/override)
- * 3. ~/.aide/bin/aide (global install)
- * 4. PATH
+ * 1. .aide/bin/aide (project-local)
+ * 2. Plugin's bin/aide (auto-downloaded fallback)
+ * 3. PATH (system-wide, last resort)
  */
 export function findAideBinary(cwd?: string): string | null {
-  // 1. Check plugin's bin directory (primary location - installed via postinstall)
+  // 1. Check project-local .aide/bin directory
+  if (cwd) {
+    const projectBinary = join(cwd, '.aide', 'bin', 'aide');
+    if (existsSync(projectBinary)) {
+      return projectBinary;
+    }
+  }
+
+  // 2. Check plugin's bin directory (auto-downloaded fallback)
   const pluginRoot = getPluginRoot();
   if (pluginRoot) {
     const pluginBinary = join(pluginRoot, 'bin', 'aide');
@@ -111,24 +197,10 @@ export function findAideBinary(cwd?: string): string | null {
     }
   }
 
-  // 2. Check project-local .aide/bin directory (legacy/override)
-  if (cwd) {
-    const projectBinary = join(cwd, '.aide', 'bin', 'aide');
-    if (existsSync(projectBinary)) {
-      return projectBinary;
-    }
-  }
-
-  // 3. Check home directory
-  const homeBinary = join(homedir(), '.aide', 'bin', 'aide');
-  if (existsSync(homeBinary)) {
-    return homeBinary;
-  }
-
-  // 4. Check if in PATH
+  // 3. Check if in PATH (last resort)
   try {
     execSync('which aide', { stdio: 'pipe', timeout: 2000 });
-    return 'aide'; // Use from PATH
+    return 'aide';
   } catch {
     // Not in PATH
   }
@@ -145,9 +217,12 @@ export function findAideBinary(cwd?: string): string | null {
  */
 export async function downloadAideBinary(
   destDir: string,
-  options: { force?: boolean; quiet?: boolean } = {}
+  options: { force?: boolean; quiet?: boolean; useStderr?: boolean } = {}
 ): Promise<DownloadResult> {
-  const { force = false, quiet = false } = options;
+  const { force = false, quiet = false, useStderr = false } = options;
+
+  // Use stderr for output when called from hooks (stdout reserved for JSON)
+  const log = useStderr ? console.error : console.log;
 
   const ext = process.platform === 'win32' ? '.exe' : '';
   const destPath = join(destDir, `aide${ext}`);
@@ -165,7 +240,7 @@ export async function downloadAideBinary(
       };
     } catch {
       // Existing binary is broken, re-download
-      if (!quiet) console.log('Existing binary is invalid, re-downloading...');
+      if (!quiet) log('[aide] Existing binary is invalid, re-downloading...');
       try {
         unlinkSync(destPath);
       } catch {
@@ -177,10 +252,7 @@ export async function downloadAideBinary(
   const url = getDownloadUrl();
 
   if (!quiet) {
-    console.log(`Downloading aide binary...`);
-    console.log(`  Version: ${getPluginVersion() || 'latest'}`);
-    console.log(`  URL: ${url}`);
-    console.log(`  Dest: ${destPath}`);
+    log(`[aide] Downloading from: ${url}`);
   }
 
   try {
@@ -226,7 +298,7 @@ export async function downloadAideBinary(
     }
 
     if (!quiet) {
-      console.log(`\n✓ Downloaded aide to ${destPath}`);
+      log(`[aide] ✓ Binary installed successfully`);
     }
 
     return {
@@ -239,7 +311,7 @@ export async function downloadAideBinary(
     const errorMsg = err instanceof Error ? err.message : String(err);
 
     if (!quiet) {
-      console.error(`\n✗ Download failed: ${errorMsg}`);
+      log(`[aide] ✗ Download failed: ${errorMsg}`);
     }
 
     return {
@@ -252,40 +324,114 @@ export async function downloadAideBinary(
 }
 
 /**
- * Ensure aide binary is present (check only, no download)
+ * Ensure aide binary is present with version checking and auto-download
  *
- * The binary should be installed via postinstall. This just checks it exists.
+ * This function:
+ * 1. Checks if binary exists
+ * 2. Verifies binary version matches plugin version
+ * 3. Auto-downloads if missing or version mismatch
+ * 4. Checks GitHub for newer releases (non-blocking)
+ * 5. Returns warnings for plugin updates
  */
-export function ensureAideBinary(
+export async function ensureAideBinary(
   cwd?: string
-): { binary: string | null; error: string | null } {
-  const existing = findAideBinary(cwd);
-  if (existing) {
-    return { binary: existing, error: null };
+): Promise<EnsureResult> {
+  const pluginRoot = getPluginRoot();
+  const pluginVersion = getPluginVersion();
+
+  let downloaded = false;
+  let warning: string | null = null;
+
+  // Step 1: Check for existing binary
+  let binaryPath = findAideBinary(cwd);
+  let binaryVersion = binaryPath ? getBinaryVersion(binaryPath) : null;
+
+  // Step 2: Check version match
+  const needsDownload = !binaryPath || (pluginVersion && binaryVersion && binaryVersion !== pluginVersion);
+
+  if (needsDownload) {
+    // Can't download without plugin root
+    if (!pluginRoot) {
+      return {
+        binary: binaryPath,
+        error: binaryPath ? null : 'AIDE binary not found and plugin root could not be determined for download',
+        warning: null,
+        downloaded: false,
+      };
+    }
+
+    const destDir = join(pluginRoot, 'bin');
+    const reason = !binaryPath ? 'not found' : `outdated (v${binaryVersion} → v${pluginVersion})`;
+
+    // Print to stderr so user sees progress (stdout is reserved for JSON hook response)
+    console.error(`[aide] Binary ${reason}, downloading v${pluginVersion || 'latest'}...`);
+
+    // Auto-download
+    const result = await downloadAideBinary(destDir, { force: true, quiet: false, useStderr: true });
+
+    if (result.success && result.path) {
+      binaryPath = result.path;
+      binaryVersion = getBinaryVersion(result.path);
+      downloaded = true;
+    } else {
+      // Download failed - return error with manual instructions
+      const platform = process.platform === 'win32' ? 'windows' : process.platform;
+      const arch = process.arch === 'x64' ? 'amd64' : process.arch;
+      const ext = process.platform === 'win32' ? '.exe' : '';
+      const binaryName = `aide-${platform}-${arch}${ext}`;
+
+      const errorMsg = `**AIDE Binary ${!binaryPath ? 'Not Found' : 'Outdated'}**
+
+Auto-download failed: ${result.message}
+
+**Manual fix:**
+\`\`\`bash
+# Download the binary
+curl -fSL "https://github.com/jmylchreest/aide/releases/download/v${pluginVersion || 'latest'}/${binaryName}" -o "${destDir}/aide${ext}"
+chmod +x "${destDir}/aide${ext}"
+\`\`\`
+
+Or visit: https://github.com/jmylchreest/aide/releases`;
+
+      return { binary: null, error: errorMsg, warning: null, downloaded: false };
+    }
   }
 
-  // Build error message
-  const pluginRoot = getPluginRoot();
-  const expectedPath = pluginRoot ? join(pluginRoot, 'bin', 'aide') : 'plugin/bin/aide';
+  // Step 3: Check for newer GitHub release (non-blocking)
+  if (pluginVersion) {
+    try {
+      console.error(`[aide] Checking for updates...`);
+      const latestVersion = await getLatestGitHubVersion();
+      if (latestVersion && compareVersions(pluginVersion, latestVersion) < 0) {
+        warning = `**AIDE Update Available**
 
-  const errorMsg = `**AIDE Binary Not Found**
+A newer version of AIDE is available: **v${latestVersion}** (you have v${pluginVersion})
 
-The aide binary was not installed with the plugin.
+\`\`\`bash
+claude plugin update aide
+\`\`\`
 
-**To fix this:**
+Then restart Claude Code to use the new version.`;
+      }
+    } catch {
+      // Ignore - version check is best-effort
+    }
+  }
 
-1. **Reinstall the plugin:**
-   \`\`\`bash
-   claude plugin uninstall aide
-   claude plugin install aide
-   \`\`\`
+  return {
+    binary: binaryPath,
+    error: null,
+    warning,
+    downloaded,
+  };
+}
 
-2. **Or download manually** from GitHub releases:
-   https://github.com/jmylchreest/aide/releases
-
-   Place the binary at: \`${expectedPath}\``;
-
-  return { binary: null, error: errorMsg };
+/**
+ * Synchronous version for simple existence check (no download, no version check)
+ * Use ensureAideBinary() for full functionality
+ */
+export function findAideBinarySync(cwd?: string): string | null {
+  return findAideBinary(cwd);
 }
 
 // --- CLI Mode ---

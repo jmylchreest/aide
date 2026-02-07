@@ -7,8 +7,40 @@
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
-import { execFileSync } from 'child_process';
+import { execFileSync, execSync } from 'child_process';
 import { runAideMemory, findAide } from './hook-utils.js';
+
+// Cache the aide version for the session (won't change)
+let aideVersionCache: string | null = null;
+
+/**
+ * Get the aide binary version (cached)
+ */
+export function getAideVersion(cwd: string): string {
+  if (aideVersionCache !== null) {
+    return aideVersionCache;
+  }
+
+  const binary = findAide(cwd);
+  if (!binary) {
+    aideVersionCache = '?';
+    return aideVersionCache;
+  }
+
+  try {
+    const output = execSync(`"${binary}" version`, {
+      stdio: 'pipe',
+      timeout: 2000,
+    }).toString().trim();
+    // Expected format: "aide version 0.0.4" or just "0.0.4"
+    const match = output.match(/(\d+\.\d+\.\d+)/);
+    aideVersionCache = match ? match[1] : '?';
+  } catch {
+    aideVersionCache = '?';
+  }
+
+  return aideVersionCache;
+}
 
 export interface AgentState {
   agentId: string;
@@ -315,13 +347,17 @@ export function formatHud(config: HudConfig, state: SessionState, agents: AgentS
     }
   }
 
+  // Get aide version for display
+  const aideVersion = getAideVersion(cwd);
+  const versionTag = `[aide(${aideVersion})]`;
+
   let mainLine: string;
   if (config.format === 'minimal') {
-    mainLine = parts.join(' | ');
+    mainLine = `${versionTag} ${parts.join(' | ')}`;
   } else if (config.format === 'icons') {
-    mainLine = parts.join('  ');
+    mainLine = `${versionTag} ${parts.join('  ')}`;
   } else {
-    mainLine = `[aide] ${parts.join(' | ')}`;
+    mainLine = `${versionTag} ${parts.join(' | ')}`;
   }
 
   // Add per-agent lines for running agents

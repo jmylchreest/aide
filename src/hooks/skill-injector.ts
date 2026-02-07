@@ -400,6 +400,29 @@ function debugLog(msg: string): void {
   debug(SOURCE, msg);
 }
 
+// Ensure we always output valid JSON, even on catastrophic errors
+function outputContinue(): void {
+  try {
+    console.log(JSON.stringify({ continue: true }));
+  } catch {
+    // Last resort - raw JSON string
+    console.log('{"continue":true}');
+  }
+}
+
+// Global error handlers to prevent hook crashes without JSON output
+process.on('uncaughtException', (err) => {
+  debugLog(`UNCAUGHT EXCEPTION: ${err}`);
+  outputContinue();
+  process.exit(0);
+});
+
+process.on('unhandledRejection', (reason) => {
+  debugLog(`UNHANDLED REJECTION: ${reason}`);
+  outputContinue();
+  process.exit(0);
+});
+
 async function main(): Promise<void> {
   const hookStart = Date.now();
   debugLog(`Hook started at ${new Date().toISOString()}`);
