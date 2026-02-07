@@ -47,7 +47,7 @@ Or register the marketplace in `~/.claude/settings.json` (or `.claude/settings.j
 }
 ```
 
-The `aide` binary downloads automatically from GitHub releases on first run.
+**Binary included:** The `aide` binary is automatically downloaded when the plugin is installed (or upgraded) and bundled in the plugin's `bin/` directory. No separate binary installation needed.
 
 ### From Local Clone (Development)
 
@@ -321,19 +321,30 @@ Key environment variables:
 
 ## Storage
 
-All data stored in `.aide/`:
+All data stored in `.aide/` (per-project):
 - `memory/store.db` - Memories, tasks, decisions (BBolt)
 - `memory/search.bleve/` - Full-text search index
 - `code/` - Code symbol index
 - `skills/` - Custom skills
 - `_logs/` - Debug logs (gitignored)
 
+The `aide` binary is bundled with the plugin in `<plugin>/bin/aide`.
+
 ## Troubleshooting
 
 ```bash
-aide version           # Check binary works
-aide memory list       # Check memories exist
-AIDE_DEBUG=1 claude    # Enable debug logging
+# Check if binary exists and works
+aide version
+
+# Reinstall plugin to re-download binary
+claude plugin uninstall aide
+claude plugin install aide@aide
+
+# Enable debug logging
+AIDE_DEBUG=1 claude
+
+# Check memories
+aide memory list
 ```
 
 ## License

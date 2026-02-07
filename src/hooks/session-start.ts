@@ -18,6 +18,7 @@ import { homedir } from 'os';
 import { execSync } from 'child_process';
 import { Logger, debug, setDebugCwd } from '../lib/logger.js';
 import { readStdin, updateSessionHeartbeat, getSessionHeartbeats, runAide } from '../lib/hook-utils.js';
+import { findAideBinary, ensureAideBinary } from '../lib/aide-downloader.js';
 
 const SOURCE = 'session-start';
 debug(SOURCE, `Hook started (AIDE_DEBUG=${process.env.AIDE_DEBUG || 'unset'})`);
@@ -105,193 +106,22 @@ const DEFAULT_CONFIG: AideConfig = {
 };
 
 /**
- * Find the aide binary path
- * @param cwd - Optional project directory to check for local binary
+ * Check for aide binary with logging
  */
-function findAideBinary(cwd?: string): string | null {
-  // Check CLAUDE_PLUGIN_ROOT first (set by Claude Code when running plugin)
-  const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT;
-  if (pluginRoot) {
-    const pluginBinary = join(pluginRoot, 'bin', 'aide');
-    if (existsSync(pluginBinary)) {
-      return pluginBinary;
-    }
+function checkAideBinary(cwd: string, log: Logger): { binary: string | null; error: string | null } {
+  log.start('checkAideBinary');
+
+  const result = ensureAideBinary(cwd);
+
+  if (result.binary) {
+    log.end('checkAideBinary', { found: true, path: result.binary });
+    return { binary: result.binary, error: null };
   }
 
-  // Check project-local bin directory (for development)
-  if (cwd) {
-    const localBinary = join(cwd, 'bin', 'aide');
-    if (existsSync(localBinary)) {
-      return localBinary;
-    }
-  }
+  log.warn('aide binary not found - should have been installed with plugin');
+  log.end('checkAideBinary', { found: false });
 
-  // Check home directory
-  const homeBinary = join(homedir(), '.aide', 'bin', 'aide');
-  if (existsSync(homeBinary)) {
-    return homeBinary;
-  }
-
-  // Check if in PATH
-  try {
-    execSync('aide --help', { stdio: 'ignore', timeout: 2000 });
-    return 'aide';
-  } catch {
-    // Not in PATH
-  }
-
-  return null;
-}
-
-/**
- * Read the plugin version from package.json.
- * Tries CLAUDE_PLUGIN_ROOT first, then relative to this script.
- */
-function getPluginVersion(): string | null {
-  const candidates: string[] = [];
-
-  const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT;
-  if (pluginRoot) {
-    candidates.push(join(pluginRoot, 'package.json'));
-  }
-
-  // Relative to compiled dist/hooks/session-start.js → ../../package.json
-  try {
-    const scriptDir = new URL('.', import.meta.url).pathname;
-    candidates.push(join(scriptDir, '..', '..', 'package.json'));
-  } catch {
-    // import.meta.url not available
-  }
-
-  for (const candidate of candidates) {
-    try {
-      if (existsSync(candidate)) {
-        const pkg = JSON.parse(readFileSync(candidate, 'utf-8'));
-        if (pkg.version && pkg.version !== '0.0.0') {
-          return pkg.version;
-        }
-      }
-    } catch {
-      // skip invalid files
-    }
-  }
-
-  return null;
-}
-
-/**
- * Get the download URL for the current platform.
- * Pins to the version in package.json when available,
- * falls back to latest release otherwise.
- */
-function getDownloadUrl(): string {
-  const platform = process.platform; // 'darwin', 'linux', 'win32'
-  const arch = process.arch; // 'x64', 'arm64'
-
-  const goos = platform === 'win32' ? 'windows' : platform;
-  const goarch = arch === 'x64' ? 'amd64' : arch;
-  const ext = platform === 'win32' ? '.exe' : '';
-
-  const binaryName = `aide-${goos}-${goarch}${ext}`;
-
-  const version = getPluginVersion();
-  if (version) {
-    return `https://github.com/jmylchreest/aide/releases/download/v${version}/${binaryName}`;
-  }
-
-  // Fallback to latest if version can't be determined
-  return `https://github.com/jmylchreest/aide/releases/latest/download/${binaryName}`;
-}
-
-/**
- * Download aide binary from GitHub releases
- */
-async function downloadAideBinary(destDir: string, log: Logger): Promise<string | null> {
-  const url = getDownloadUrl();
-  const ext = process.platform === 'win32' ? '.exe' : '';
-  const destPath = join(destDir, `aide${ext}`);
-
-  log.info(`Downloading aide from ${url}...`);
-
-  try {
-    // Create bin directory
-    if (!existsSync(destDir)) {
-      mkdirSync(destDir, { recursive: true });
-    }
-
-    // Use curl to download (available on all platforms)
-    execSync(`curl -fsSL "${url}" -o "${destPath}"`, {
-      stdio: 'pipe',
-      timeout: 60000, // 60 second timeout
-    });
-
-    // Make executable
-    if (process.platform !== 'win32') {
-      execSync(`chmod +x "${destPath}"`, { stdio: 'pipe' });
-    }
-
-    log.info(`Downloaded aide to ${destPath}`);
-    return destPath;
-  } catch (err) {
-    log.warn(`Failed to download aide: ${err}`);
-    return null;
-  }
-}
-
-/**
- * Ensure aide binary is present, download if missing
- * @param cwd - Project directory to check for local binary
- * @returns Object with binary path (if found) and any error message to show user
- */
-async function ensureAideBinary(cwd: string, log: Logger): Promise<{ binary: string | null; error: string | null }> {
-  log.start('ensureAideBinary');
-
-  // Check if already exists (including project-local bin directory)
-  let binary = findAideBinary(cwd);
-  if (binary) {
-    log.end('ensureAideBinary', { found: true, path: binary });
-    return { binary, error: null };
-  }
-
-  // Try to download
-  log.info('aide binary not found, attempting download...');
-
-  // Determine install location
-  const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT;
-  const installDir = pluginRoot
-    ? join(pluginRoot, 'bin')
-    : join(homedir(), '.aide', 'bin');
-
-  binary = await downloadAideBinary(installDir, log);
-
-  if (binary) {
-    log.end('ensureAideBinary', { found: true, path: binary, downloaded: true });
-    return { binary, error: null };
-  }
-
-  log.warn('aide binary not found and download failed - some features may be unavailable');
-  log.end('ensureAideBinary', { found: false });
-
-  // Return error message for user
-  const errorMsg = `**AIDE Setup Required**
-
-The aide binary could not be found or downloaded automatically.
-
-**To fix this, choose one option:**
-
-1. **Build from source** (if you cloned the repo):
-   \`\`\`bash
-   cd ${pluginRoot || '~/aide'}/aide && go build -o ../bin/aide ./cmd/aide
-   \`\`\`
-
-2. **Download manually** from GitHub releases:
-   https://github.com/jmylchreest/aide/releases
-
-   Place the binary at: \`${installDir}/aide\`
-
-Some AIDE features (memory, code search, decisions) will be unavailable until resolved.`;
-
-  return { binary: null, error: errorMsg };
+  return { binary: null, error: result.error };
 }
 
 /**
@@ -395,18 +225,31 @@ function ensureDirectories(cwd: string, log: Logger): void {
 
   // Ensure .gitignore exists in .aide directory
   const gitignorePath = join(cwd, '.aide', '.gitignore');
-  if (!existsSync(gitignorePath)) {
-    try {
-      const gitignoreContent = `# AIDE runtime files - do not commit
+  const requiredGitignoreContent = `# AIDE runtime files - do not commit
 _logs/
 state/
+bin/
 *.db
 *.bleve/
 `;
-      writeFileSync(gitignorePath, gitignoreContent);
+  if (!existsSync(gitignorePath)) {
+    try {
+      writeFileSync(gitignorePath, requiredGitignoreContent);
       log.debug(`Created .gitignore: ${gitignorePath}`);
     } catch (err) {
       log.warn(`Failed to create .gitignore: ${gitignorePath}`, err);
+    }
+  } else {
+    // Check if bin/ is missing and add it
+    try {
+      const existingContent = readFileSync(gitignorePath, 'utf-8');
+      if (!existingContent.includes('bin/')) {
+        const updatedContent = existingContent.trimEnd() + '\nbin/\n';
+        writeFileSync(gitignorePath, updatedContent);
+        log.debug(`Updated .gitignore to include bin/`);
+      }
+    } catch (err) {
+      log.warn(`Failed to update .gitignore: ${gitignorePath}`, err);
     }
   }
 
@@ -993,10 +836,10 @@ async function main(): Promise<void> {
     ensureDirectories(cwd, log);
     debugLog(`ensureDirectories complete (${Date.now() - hookStart}ms)`);
 
-    // Ensure aide binary is available (check local bin first, then download if needed)
-    debugLog('ensureAideBinary starting...');
-    const { binary: aideBinary, error: binaryError } = await ensureAideBinary(cwd, log);
-    debugLog(`ensureAideBinary complete (${Date.now() - hookStart}ms)`);
+    // Check that aide binary is available (installed via postinstall)
+    debugLog('checkAideBinary starting...');
+    const { binary: aideBinary, error: binaryError } = checkAideBinary(cwd, log);
+    debugLog(`checkAideBinary complete (${Date.now() - hookStart}ms)`);
 
     // Reset global state for new session (preserves per-agent state)
     debugLog('resetAideState starting...');
