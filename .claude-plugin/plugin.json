@@ -24,8 +24,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/session-start.js\" 2>/dev/null",
-            "timeout": 5
+            "command": "npx tsx \"${CLAUDE_PLUGIN_ROOT}/src/hooks/session-start.ts\"",
+            "timeout": 60
           }
         ]
       }
@@ -36,7 +36,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/skill-injector.js\" 2>/dev/null",
+            "command": "npx tsx \"${CLAUDE_PLUGIN_ROOT}/src/hooks/skill-injector.ts\" 2>/dev/null",
             "timeout": 5
           }
         ]
@@ -48,8 +48,13 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/hud-updater.js\" 2>/dev/null",
+            "command": "npx tsx \"${CLAUDE_PLUGIN_ROOT}/src/hooks/hud-updater.ts\" 2>/dev/null",
             "timeout": 3
+          },
+          {
+            "type": "command",
+            "command": "npx tsx \"${CLAUDE_PLUGIN_ROOT}/src/hooks/memory-capture.ts\" 2>/dev/null",
+            "timeout": 5
           }
         ]
       }
@@ -60,7 +65,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/subagent-tracker.js\" 2>/dev/null",
+            "command": "npx tsx \"${CLAUDE_PLUGIN_ROOT}/src/hooks/subagent-tracker.ts\" 2>/dev/null",
             "timeout": 3
           }
         ]
@@ -72,7 +77,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/subagent-tracker.js\" 2>/dev/null",
+            "command": "npx tsx \"${CLAUDE_PLUGIN_ROOT}/src/hooks/subagent-tracker.ts\" 2>/dev/null",
             "timeout": 3
           }
         ]
@@ -84,8 +89,24 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/persistence.js\" 2>/dev/null",
+            "command": "npx tsx \"${CLAUDE_PLUGIN_ROOT}/src/hooks/persistence.ts\" 2>/dev/null",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "npx tsx \"${CLAUDE_PLUGIN_ROOT}/src/hooks/memory-capture.ts\" 2>/dev/null",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "TaskCompleted": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx tsx \"${CLAUDE_PLUGIN_ROOT}/src/hooks/task-completed.ts\"",
+            "timeout": 120
           }
         ]
       }

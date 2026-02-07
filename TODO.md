@@ -32,13 +32,37 @@ Enhance `/aide:swarm` to use structured SDLC stages for code changes, leveraging
 
 - [x] Project memories (`project:<name>`) now injected to both session-start and subagent-start
 
+### 3.2 TaskCompleted Hook ✅
+
+- [x] SDLC stage validation on task completion
+- [x] Parses `[story-id][STAGE]` pattern from task subject
+- [x] Stage-specific validation (DEV: tests pass, VERIFY: full QA)
+- [x] Works WITHOUT `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`
+
+### 4.1 Auto Session Summary ✅
+
+- [x] Captures session summary on Stop hook
+- [x] Extracts: files modified, tools used, user tasks
+- [x] Stores with `category=session`, `tags=session-summary,session:<id>`
+
+### 4.2 Decision Capture ✅
+
+- [x] `<aide-decision topic="...">` tag parsing in PostToolUse
+- [x] Extracts topic, decision, rationale
+- [x] Stores via `aide decision set`
+
+### 4.3 `/aide:decide` Skill ✅
+
+- [x] Formal decision-making interview workflow
+- [x] Triggers: "decide", "help me decide", "help me choose", "how should we", etc.
+- [x] 6-phase flow: IDENTIFY → EXPLORE → ANALYZE → RECOMMEND → CONFIRM → RECORD
+
 ---
 
 ## Pending Implementation
 
-### 3. Quality Gate Hooks
+### 3.1 TeammateIdle Hook (Future)
 
-#### 3.1 TeammateIdle hook
 Fires when agent goes idle - validate work complete.
 
 **File**: `src/hooks/teammate-idle.ts` (new)
@@ -51,76 +75,8 @@ Fires when agent goes idle - validate work complete.
 
 **Note**: Requires `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` enabled.
 
-#### 3.2 TaskCompleted hook ⭐ (Ready to implement)
-Fires when task marked complete - stage-specific validation.
+### 4.5 Session Memory Injection (Future)
 
-**File**: `src/hooks/task-completed.ts` (new)
-
-**Stage-specific checks**:
-- DESIGN: Has design output
-- TEST: Test files exist
-- DEV: Tests pass
-- VERIFY: Full suite green, lint clean
-- DOCS: Docs updated
-
-**Note**: Works WITHOUT `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`! Fires on any TaskUpdate completion.
-
----
-
-### 4. Memory/Decision System Enhancements
-
-#### 4.1 Auto Session Summary
-Generate session summary automatically on session end.
-
-**File**: `src/hooks/memory-capture.ts` (enhance Stop hook)
-
-**Implementation**:
-- On `Stop` hook, read transcript if available
-- Extract: files modified, key actions, decisions made
-- Store as memory with:
-  - `category=session`
-  - `tags=session-summary,session:<id>`
-- Summary should be structured but concise
-
-#### 4.2 Decision Capture with `<aide-decision>` Tag
-Auto-capture decisions when Claude outputs structured decision.
-
-**File**: `src/hooks/memory-capture.ts` (add decision parsing)
-
-**Format**:
-```xml
-<aide-decision topic="auth-strategy">
-## Decision
-Use JWT with refresh tokens
-
-## Rationale
-Stateless auth, mobile client support
-
-## Alternatives Considered
-- Session cookies - too stateful
-</aide-decision>
-```
-
-**Implementation**:
-- Parse `<aide-decision topic="...">` in PostToolUse
-- Extract topic, decision text, rationale
-- Store via `aide decision set <topic> "<decision>" --rationale="<rationale>"`
-- Newer decisions for same topic supersede older (append-only history)
-
-#### 4.3 Create `/aide:decide` Skill
-Formal decision-making interview for architectural choices.
-
-**File**: `skills/decide/SKILL.md` (new)
-
-**Flow**:
-1. Interview: What decision needs to be made?
-2. Explore: What are the options?
-3. Analyze: Pros/cons of each
-4. Recommend: Claude's recommendation
-5. Confirm: User approval
-6. Record: Output `<aide-decision>` for capture
-
-#### 4.5 Session Memory Injection (Future)
 Add current session memories to subagent context.
 
 **File**: `src/hooks/subagent-tracker.ts`
