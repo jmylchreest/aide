@@ -208,11 +208,6 @@ func getBinaryName() string {
 	goos := runtime.GOOS
 	goarch := runtime.GOARCH
 
-	// Normalize arch names to match release artifacts
-	if goarch == "amd64" {
-		goarch = "amd64"
-	}
-
 	ext := ""
 	if goos == "windows" {
 		ext = ".exe"

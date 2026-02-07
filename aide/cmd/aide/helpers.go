@@ -12,16 +12,11 @@ func fatal(format string, args ...any) {
 	os.Exit(1)
 }
 
-// getEnvOrDefault returns the environment variable value or the default.
-func getEnvOrDefault(key, def string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	return def
-}
-
 // truncate shortens a string to n characters with ellipsis.
 func truncate(s string, n int) string {
+	if n < 4 {
+		return s
+	}
 	if len(s) <= n {
 		return s
 	}

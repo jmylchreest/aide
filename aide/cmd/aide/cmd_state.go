@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -120,7 +121,7 @@ func stateGet(b *Backend, args []string) error {
 
 	st, err := b.GetState(key, agentID)
 	if err != nil {
-		if err == store.ErrNotFound {
+		if errors.Is(err, store.ErrNotFound) {
 			fmt.Println("No state found for key:", key)
 			return nil
 		}

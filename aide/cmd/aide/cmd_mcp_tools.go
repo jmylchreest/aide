@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -50,8 +51,6 @@ type MessageListInput struct {
 }
 
 type emptyInput struct{}
-
-type UsageToolInput struct{}
 
 // ============================================================================
 // Memory Tools (read-only)
@@ -167,7 +166,7 @@ func (s *MCPServer) handleStateGet(_ context.Context, _ *mcp.CallToolRequest, in
 
 	st, err := s.store.GetState(stateKey)
 	if err != nil {
-		if err == store.ErrNotFound {
+		if errors.Is(err, store.ErrNotFound) {
 			mcpLog.Printf("  not set")
 			return textResult("(not set)"), nil, nil
 		}
@@ -238,7 +237,7 @@ func (s *MCPServer) handleDecisionGet(_ context.Context, _ *mcp.CallToolRequest,
 
 	dec, err := s.store.GetDecision(input.Topic)
 	if err != nil {
-		if err == store.ErrNotFound {
+		if errors.Is(err, store.ErrNotFound) {
 			mcpLog.Printf("  not found")
 			return textResult(fmt.Sprintf("No decision found for topic: %s", input.Topic)), nil, nil
 		}
@@ -332,7 +331,7 @@ Use this to monitor token consumption and rate limit proximity.`,
 	}, s.handleUsage)
 }
 
-func (s *MCPServer) handleUsage(_ context.Context, _ *mcp.CallToolRequest, _ UsageToolInput) (*mcp.CallToolResult, any, error) {
+func (s *MCPServer) handleUsage(_ context.Context, _ *mcp.CallToolRequest, _ emptyInput) (*mcp.CallToolResult, any, error) {
 	mcpLog.Printf("tool: usage")
 
 	home, err := os.UserHomeDir()

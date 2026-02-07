@@ -91,6 +91,9 @@ func cmdMCP(dbPath string, args []string) error {
 		if pprofAddr == "" {
 			pprofAddr = "localhost:6060"
 		}
+		if pprofAddr != "" && !strings.HasPrefix(pprofAddr, "127.0.0.1:") && !strings.HasPrefix(pprofAddr, "localhost:") {
+			log.Printf("WARNING: pprof binding to %s - this exposes debug endpoints", pprofAddr)
+		}
 		go func() {
 			mcpLog.Printf("pprof server starting on http://%s/debug/pprof/", pprofAddr)
 			if err := http.ListenAndServe(pprofAddr, nil); err != nil {

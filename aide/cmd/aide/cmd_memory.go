@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/jmylchreest/aide/aide/pkg/memory"
@@ -436,14 +437,10 @@ func cmdSessions(dbPath string, args []string) error {
 		sessions = append(sessions, group)
 	}
 
-	// Sort by LastAt descending (simple bubble sort)
-	for i := 0; i < len(sessions); i++ {
-		for j := i + 1; j < len(sessions); j++ {
-			if sessions[i].LastAt < sessions[j].LastAt {
-				sessions[i], sessions[j] = sessions[j], sessions[i]
-			}
-		}
-	}
+	// Sort by LastAt descending
+	sort.Slice(sessions, func(i, j int) bool {
+		return sessions[i].LastAt > sessions[j].LastAt
+	})
 
 	// Limit to requested number of sessions
 	if len(sessions) > limit {
@@ -521,14 +518,7 @@ func keepLatestPerTagGroup(memories []*memory.Memory) []*memory.Memory {
 			// Sort tags for consistent grouping
 			sortedTags := make([]string, len(m.Tags))
 			copy(sortedTags, m.Tags)
-			// Simple bubble sort for small slices
-			for i := 0; i < len(sortedTags); i++ {
-				for j := i + 1; j < len(sortedTags); j++ {
-					if sortedTags[i] > sortedTags[j] {
-						sortedTags[i], sortedTags[j] = sortedTags[j], sortedTags[i]
-					}
-				}
-			}
+			sort.Strings(sortedTags)
 			key = strings.Join(sortedTags, ",")
 		} else {
 			key = "category:" + string(m.Category)

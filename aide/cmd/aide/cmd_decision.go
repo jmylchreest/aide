@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -120,7 +121,7 @@ func decisionGet(b *Backend, args []string) error {
 
 	d, err := b.GetDecision(topic)
 	if err != nil {
-		if err == store.ErrNotFound {
+		if errors.Is(err, store.ErrNotFound) {
 			fmt.Println("No decision found for topic:", topic)
 			return nil
 		}
