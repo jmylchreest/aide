@@ -283,7 +283,7 @@ export async function downloadAideBinary(
       execFileSync(destPath, ["version"], { stdio: "pipe", timeout: 5000 });
     } catch {
       // Version command might not exist, try --help
-      execSync(`"${destPath}" --help`, { stdio: "pipe", timeout: 5000 });
+      execFileSync(destPath, ["--help"], { stdio: "pipe", timeout: 5000 });
     }
 
     if (!quiet) {

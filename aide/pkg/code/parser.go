@@ -354,9 +354,6 @@ func (p *Parser) extractWithQuery(query *sitter.Query, root *sitter.Node, conten
 	var symbols []*Symbol
 	seen := make(map[string]bool) // Dedupe by position
 
-	// Pre-split content into lines for efficient per-reference context extraction
-	contentLines := strings.Split(string(content), "\n")
-
 	cursor := sitter.NewQueryCursor()
 	defer cursor.Close()
 	cursor.Exec(query, root)
@@ -1169,8 +1166,7 @@ func mapRefKind(queryKind string) string {
 }
 
 // extractLineContext extracts the line of code at the given row.
-func (p *Parser) extractLineContext(content []byte, row int) string {
-	lines := strings.Split(string(content), "\n")
+func (p *Parser) extractLineContext(lines []string, row int) string {
 	if row >= 0 && row < len(lines) {
 		line := strings.TrimSpace(lines[row])
 		// Truncate if too long
