@@ -105,7 +105,7 @@ All data in `.aide/` (per-project, git-root aware):
 |------|--------|----------|
 | `memory/store.db` | BBolt | Memories, decisions, state, tasks, messages |
 | `memory/search.bleve/` | Bleve | Full-text search index |
-| `code/` | SQLite + Bleve | Symbol index with search |
+| `code/` | BBolt + Bleve | Symbol index with search |
 
 ## Swarm Coordination
 

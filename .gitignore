@@ -19,7 +19,7 @@ Thumbs.db
 # AIDE runtime data (state, memory, logs, config, code index)
 # These are all local/session-specific and should not be committed.
 # - .aide/state/: HUD status, agent state
-# - .aide/memory/: SQLite store (memories, decisions, messages)
+# - .aide/memory/: BBolt store (memories, decisions, messages)
 # - .aide/config/: local config overrides
 # - .aide/_logs/: debug/hook logs
 # - .aide/code/: code index and search databases
