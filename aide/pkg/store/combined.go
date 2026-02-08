@@ -3,6 +3,8 @@
 package store
 
 import (
+	"log"
+
 	"github.com/jmylchreest/aide/aide/pkg/memory"
 )
 
@@ -27,10 +29,43 @@ func NewCombinedStore(dbPath string) (*CombinedStore, error) {
 		return nil, err
 	}
 
-	return &CombinedStore{
+	cs := &CombinedStore{
 		bolt:   bolt,
 		search: search,
-	}, nil
+	}
+
+	if err := cs.ensureSearchMapping(); err != nil {
+		search.Close()
+		bolt.Close()
+		return nil, err
+	}
+
+	return cs, nil
+}
+
+// ensureSearchMapping checks if the search index mapping has changed and rebuilds if needed.
+func (c *CombinedStore) ensureSearchMapping() error {
+	m, err := buildIndexMapping()
+	if err != nil {
+		return err
+	}
+	hash := MappingHash(m)
+	stored, err := c.bolt.GetMeta("search_mapping_hash")
+	if err == nil && hash == stored {
+		return nil
+	}
+
+	// First time or mapping changed — rebuild.
+	if err == nil {
+		log.Printf("store: search mapping changed, rebuilding index")
+	}
+	if err := c.search.Clear(); err != nil {
+		return err
+	}
+	if err := c.SyncSearchIndex(); err != nil {
+		return err
+	}
+	return c.bolt.SetMeta("search_mapping_hash", hash)
 }
 
 // Close closes both stores.

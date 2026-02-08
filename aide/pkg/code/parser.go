@@ -82,9 +82,9 @@ var langProviders = map[string]languageProvider{
 // Languages and queries are loaded lazily on first use per language.
 type Parser struct {
 	mu         sync.Mutex
-	languages  map[string]*sitter.Language  // Loaded grammars (cache)
-	queries    map[string]*sitter.Query     // Compiled tag queries (cache)
-	refQueries map[string]*sitter.Query     // Compiled reference queries (cache)
+	languages  map[string]*sitter.Language // Loaded grammars (cache)
+	queries    map[string]*sitter.Query    // Compiled tag queries (cache)
+	refQueries map[string]*sitter.Query    // Compiled reference queries (cache)
 }
 
 // NewParser creates a new code parser. Grammars and queries are loaded

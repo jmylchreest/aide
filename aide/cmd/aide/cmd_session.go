@@ -13,7 +13,7 @@ import (
 // SessionInitResult is the JSON output of `aide session init`.
 type SessionInitResult struct {
 	// State cleanup results
-	StateKeysDeleted  int `json:"state_keys_deleted"`
+	StateKeysDeleted   int `json:"state_keys_deleted"`
 	StaleAgentsCleaned int `json:"stale_agents_cleaned"`
 
 	// Memory injection data
@@ -25,11 +25,11 @@ type SessionInitResult struct {
 
 // SessionMemory is a memory entry for JSON output.
 type SessionMemory struct {
-	ID        string `json:"id"`
-	Category  string `json:"category"`
-	Content   string `json:"content"`
+	ID        string   `json:"id"`
+	Category  string   `json:"category"`
+	Content   string   `json:"content"`
 	Tags      []string `json:"tags"`
-	CreatedAt string `json:"created_at"`
+	CreatedAt string   `json:"created_at"`
 }
 
 // SessionDecision is a decision entry for JSON output.

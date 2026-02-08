@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jmylchreest/aide/aide/pkg/code"
+	bolt "go.etcd.io/bbolt"
 )
 
 func setupTestCodeStore(t *testing.T) (*CodeStore, func()) {
@@ -713,6 +714,115 @@ func TestUsableAfterClear(t *testing.T) {
 	}
 	if len(results) == 0 {
 		t.Error("expected search to find 'after' symbol")
+	}
+}
+
+// =============================================================================
+// Code Search Mapping Rebuild
+// =============================================================================
+
+func TestCodeSearchMappingHashStored(t *testing.T) {
+	cs, cleanup := setupTestCodeStore(t)
+	defer cleanup()
+
+	// After NewCodeStore, the mapping hash should be stored in the meta bucket.
+	var stored string
+	cs.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket(BucketCodeMeta)
+		data := b.Get([]byte("search_mapping_hash"))
+		if data != nil {
+			stored = string(data)
+		}
+		return nil
+	})
+
+	if stored == "" {
+		t.Fatal("expected search_mapping_hash to be stored")
+	}
+
+	// Should match current mapping.
+	m, err := buildCodeIndexMapping()
+	if err != nil {
+		t.Fatalf("buildCodeIndexMapping: %v", err)
+	}
+	expected := MappingHash(m)
+	if stored != expected {
+		t.Errorf("hash mismatch: got %q, want %q", stored, expected)
+	}
+}
+
+func TestCodeSearchMappingRebuild(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "aide-code-rebuild-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	dbPath := filepath.Join(tmpDir, "index.db")
+	searchPath := filepath.Join(tmpDir, "search.bleve")
+
+	// Create store and add a symbol.
+	cs, err := NewCodeStore(dbPath, searchPath)
+	if err != nil {
+		t.Fatalf("NewCodeStore: %v", err)
+	}
+
+	sym := &code.Symbol{
+		Name:     "rebuildTest",
+		Kind:     code.KindFunction,
+		FilePath: "rebuild.go",
+		Language: code.LangGo,
+	}
+	if err := cs.AddSymbol(sym); err != nil {
+		cs.Close()
+		t.Fatalf("AddSymbol: %v", err)
+	}
+
+	// Corrupt the stored hash to force a rebuild.
+	cs.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket(BucketCodeMeta)
+		return b.Put([]byte("search_mapping_hash"), []byte("stale"))
+	})
+	cs.Close()
+
+	// Reopen — ensureCodeSearchMapping should detect mismatch and rebuild.
+	cs2, err := NewCodeStore(dbPath, searchPath)
+	if err != nil {
+		t.Fatalf("NewCodeStore reopen: %v", err)
+	}
+	defer cs2.Close()
+
+	// Symbol should still be in BBolt.
+	got, err := cs2.GetSymbol(sym.ID)
+	if err != nil {
+		t.Fatalf("GetSymbol after rebuild: %v", err)
+	}
+	if got.Name != "rebuildTest" {
+		t.Errorf("name = %q, want %q", got.Name, "rebuildTest")
+	}
+
+	// Search should work after rebuild (re-indexed from bolt).
+	time.Sleep(50 * time.Millisecond)
+	results, err := cs2.SearchSymbols("rebuildTest", code.SearchOptions{})
+	if err != nil {
+		t.Fatalf("SearchSymbols after rebuild: %v", err)
+	}
+	if len(results) == 0 {
+		t.Error("expected search results after rebuild")
+	}
+
+	// Hash should be updated.
+	var newHash string
+	cs2.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket(BucketCodeMeta)
+		data := b.Get([]byte("search_mapping_hash"))
+		if data != nil {
+			newHash = string(data)
+		}
+		return nil
+	})
+	if newHash == "stale" {
+		t.Error("expected hash to be updated after rebuild")
 	}
 }
 

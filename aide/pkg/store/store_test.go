@@ -811,6 +811,67 @@ func TestMessageOperations(t *testing.T) {
 }
 
 // =============================================================================
+// Meta Operations
+// =============================================================================
+
+func TestMetaSetAndGet(t *testing.T) {
+	store, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	if err := store.SetMeta("test_key", "test_value"); err != nil {
+		t.Fatalf("SetMeta failed: %v", err)
+	}
+
+	got, err := store.GetMeta("test_key")
+	if err != nil {
+		t.Fatalf("GetMeta failed: %v", err)
+	}
+	if got != "test_value" {
+		t.Errorf("expected 'test_value', got %q", got)
+	}
+}
+
+func TestMetaGetNonexistent(t *testing.T) {
+	store, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	_, err := store.GetMeta("nonexistent_key")
+	if err != ErrNotFound {
+		t.Errorf("expected ErrNotFound, got %v", err)
+	}
+}
+
+func TestMetaOverwrite(t *testing.T) {
+	store, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	store.SetMeta("key", "value1")
+	store.SetMeta("key", "value2")
+
+	got, err := store.GetMeta("key")
+	if err != nil {
+		t.Fatalf("GetMeta failed: %v", err)
+	}
+	if got != "value2" {
+		t.Errorf("expected 'value2', got %q", got)
+	}
+}
+
+func TestNewBoltStoreRunsMigrations(t *testing.T) {
+	// NewBoltStore should stamp the schema version on a fresh DB.
+	store, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	v, err := GetSchemaVersion(store.db)
+	if err != nil {
+		t.Fatalf("GetSchemaVersion: %v", err)
+	}
+	if v != SchemaVersion {
+		t.Errorf("expected schema version %d after NewBoltStore, got %d", SchemaVersion, v)
+	}
+}
+
+// =============================================================================
 // Concurrent Access
 // =============================================================================
 

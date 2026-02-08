@@ -171,17 +171,17 @@ var LangExtensions = map[string]string{
 
 // LangFilenames maps known filenames (without extension) to languages.
 var LangFilenames = map[string]string{
-	"Makefile":     LangBash,
-	"GNUmakefile":  LangBash,
-	"Jenkinsfile":  LangGroovy,
-	"Vagrantfile":  LangRuby,
-	"Rakefile":     LangRuby,
-	"Gemfile":      LangRuby,
-	"BUILD":        LangPython, // Bazel
-	"BUILD.bazel":  LangPython,
-	"WORKSPACE":    LangPython, // Bazel
-	"SConstruct":   LangPython,
-	"SConscript":   LangPython,
+	"Makefile":       LangBash,
+	"GNUmakefile":    LangBash,
+	"Jenkinsfile":    LangGroovy,
+	"Vagrantfile":    LangRuby,
+	"Rakefile":       LangRuby,
+	"Gemfile":        LangRuby,
+	"BUILD":          LangPython, // Bazel
+	"BUILD.bazel":    LangPython,
+	"WORKSPACE":      LangPython, // Bazel
+	"SConstruct":     LangPython,
+	"SConscript":     LangPython,
 	"CMakeLists.txt": LangBash, // Close enough for symbol extraction
 }
 

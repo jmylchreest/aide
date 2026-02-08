@@ -5,6 +5,7 @@ package store
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -28,6 +29,7 @@ var (
 	BucketReferences = []byte("references")
 	BucketFileIndex  = []byte("fileindex")
 	BucketRefIndex   = []byte("refindex") // symbol name -> reference IDs
+	BucketCodeMeta   = []byte("meta")
 )
 
 // CodeStore provides symbol storage and search.
@@ -63,7 +65,7 @@ func NewCodeStore(dbPath, searchPath string) (*CodeStore, error) {
 
 	// Initialize buckets
 	err = db.Update(func(tx *bolt.Tx) error {
-		buckets := [][]byte{BucketSymbols, BucketReferences, BucketFileIndex, BucketRefIndex}
+		buckets := [][]byte{BucketSymbols, BucketReferences, BucketFileIndex, BucketRefIndex, BucketCodeMeta}
 		for _, bucket := range buckets {
 			if _, err := tx.CreateBucketIfNotExists(bucket); err != nil {
 				return err
@@ -97,11 +99,19 @@ func NewCodeStore(dbPath, searchPath string) (*CodeStore, error) {
 		}
 	}
 
-	return &CodeStore{
+	cs := &CodeStore{
 		db:     db,
 		search: index,
 		dbPath: dbPath,
-	}, nil
+	}
+
+	if err := cs.ensureCodeSearchMapping(searchPath); err != nil {
+		index.Close()
+		db.Close()
+		return nil, fmt.Errorf("code search mapping check failed: %w", err)
+	}
+
+	return cs, nil
 }
 
 // buildCodeIndexMapping creates a mapping for symbol search.
@@ -186,6 +196,88 @@ func buildCodeIndexMapping() (mapping.IndexMapping, error) {
 	indexMapping.DefaultMapping = symbolMapping
 
 	return indexMapping, nil
+}
+
+// ensureCodeSearchMapping checks if the code search index mapping has changed and rebuilds if needed.
+func (s *CodeStore) ensureCodeSearchMapping(searchPath string) error {
+	m, err := buildCodeIndexMapping()
+	if err != nil {
+		return err
+	}
+	hash := MappingHash(m)
+
+	// Read stored hash from code meta bucket.
+	var stored string
+	s.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket(BucketCodeMeta)
+		if b == nil {
+			return nil
+		}
+		data := b.Get([]byte("search_mapping_hash"))
+		if data != nil {
+			stored = string(data)
+		}
+		return nil
+	})
+
+	if hash == stored {
+		return nil
+	}
+
+	if stored != "" {
+		log.Printf("store: code search mapping changed, rebuilding index")
+	}
+
+	// Close current index, remove, recreate.
+	s.search.Close()
+	os.RemoveAll(searchPath)
+
+	indexMapping, err := buildCodeIndexMapping()
+	if err != nil {
+		return err
+	}
+	index, err := bleve.New(searchPath, indexMapping)
+	if err != nil {
+		return err
+	}
+	s.search = index
+
+	// Re-index all symbols from BBolt.
+	err = s.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket(BucketSymbols)
+		c := b.Cursor()
+		for k, v := c.First(); k != nil; k, v = c.Next() {
+			var sym code.Symbol
+			if err := json.Unmarshal(v, &sym); err != nil {
+				continue
+			}
+			doc := map[string]interface{}{
+				"name":      sym.Name,
+				"name_edge": sym.Name,
+				"signature": sym.Signature,
+				"doc":       sym.DocComment,
+				"kind":      sym.Kind,
+				"lang":      sym.Language,
+				"file":      sym.FilePath,
+			}
+			if err := s.search.Index(sym.ID, doc); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	// Write new hash.
+	return s.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket(BucketCodeMeta)
+		if b == nil {
+			return fmt.Errorf("code meta bucket not found")
+		}
+		return b.Put([]byte("search_mapping_hash"), []byte(hash))
+	})
 }
 
 // Close closes the code store.

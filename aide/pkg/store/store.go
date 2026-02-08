@@ -3,6 +3,7 @@ package store
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	bolt "go.etcd.io/bbolt"
@@ -59,6 +60,11 @@ func NewBoltStore(path string) (*BoltStore, error) {
 		return nil, err
 	}
 
+	if err := RunMigrations(db); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("schema migration failed: %w", err)
+	}
+
 	return &BoltStore{db: db}, nil
 }
 
@@ -74,6 +80,35 @@ func itob(v uint64) []byte {
 		b[7-i] = byte(v >> (i * 8))
 	}
 	return b
+}
+
+// GetMeta reads a string value from the meta bucket.
+func (s *BoltStore) GetMeta(key string) (string, error) {
+	var val string
+	err := s.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket(BucketMeta)
+		if b == nil {
+			return ErrNotFound
+		}
+		data := b.Get([]byte(key))
+		if data == nil {
+			return ErrNotFound
+		}
+		val = string(data)
+		return nil
+	})
+	return val, err
+}
+
+// SetMeta writes a string value to the meta bucket.
+func (s *BoltStore) SetMeta(key, value string) error {
+	return s.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket(BucketMeta)
+		if b == nil {
+			return fmt.Errorf("meta bucket not found")
+		}
+		return b.Put([]byte(key), []byte(value))
+	})
 }
 
 // hasAnyTag checks if any of the filter tags exist in the memory tags.

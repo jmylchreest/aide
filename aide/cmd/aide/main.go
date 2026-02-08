@@ -27,9 +27,7 @@ func main() {
 		printUsage()
 		return
 	case "version", "-v", "--version":
-		if err := cmdVersion(args); err != nil {
-			fatal("%v", err)
-		}
+		cmdVersion(args)
 		return
 	case "upgrade":
 		if err := cmdUpgrade(args); err != nil {
@@ -84,15 +82,14 @@ func runCommand(cmd, dbPath string, args []string) error {
 	}
 }
 
-func cmdVersion(args []string) error {
+func cmdVersion(args []string) {
 	for _, arg := range args {
 		if arg == "--json" {
 			fmt.Println(version.JSON())
-			return nil
+			return
 		}
 	}
 	fmt.Println(version.String())
-	return nil
 }
 
 func printUsage() {
