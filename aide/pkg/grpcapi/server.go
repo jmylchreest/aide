@@ -23,10 +23,13 @@ func generateID() string {
 	return ulid.Make().String()
 }
 
-// DefaultSocketPath returns the default Unix socket path.
-func DefaultSocketPath() string {
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".aide", "aide.sock")
+// SocketPathFromDB returns the Unix socket path derived from the database path.
+// The socket is placed in the project's .aide directory (sibling to the memory dir).
+func SocketPathFromDB(dbPath string) string {
+	// dbPath is typically <project>/.aide/memory/store.db
+	// We want <project>/.aide/aide.sock
+	aideDir := filepath.Dir(filepath.Dir(dbPath))
+	return filepath.Join(aideDir, "aide.sock")
 }
 
 // Server manages the gRPC server and all service implementations.

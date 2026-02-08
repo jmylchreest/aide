@@ -125,7 +125,7 @@ func cmdMCP(dbPath string, args []string) error {
 	mcpServer := &MCPServer{store: st}
 
 	// Create gRPC server for CLI access
-	socketPath := grpcapi.DefaultSocketPath()
+	socketPath := grpcapi.SocketPathFromDB(dbPath)
 	grpcServer := grpcapi.NewServer(st, dbPath, socketPath)
 	mcpServer.grpcServer = grpcServer
 	mcpLog.Printf("gRPC socket: %s", socketPath)

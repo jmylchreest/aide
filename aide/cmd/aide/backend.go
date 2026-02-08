@@ -29,8 +29,8 @@ func NewBackend(dbPath string) (*Backend, error) {
 	useDirectDB := os.Getenv("AIDE_MEMORY_DB") != ""
 
 	// Try gRPC first (unless testing with custom DB path)
-	if !useDirectDB && grpcapi.SocketExists() {
-		client, err := grpcapi.NewClient()
+	if !useDirectDB && grpcapi.SocketExistsForDB(dbPath) {
+		client, err := grpcapi.NewClientForDB(dbPath)
 		if err == nil {
 			// Verify connection works
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second)

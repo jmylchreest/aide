@@ -24,16 +24,16 @@ type Client struct {
 	Health   HealthServiceClient
 }
 
-// SocketExists checks if the gRPC socket is available.
-func SocketExists() bool {
-	socketPath := DefaultSocketPath()
+// SocketExistsForDB checks if the gRPC socket is available for the given database path.
+func SocketExistsForDB(dbPath string) bool {
+	socketPath := SocketPathFromDB(dbPath)
 	_, err := os.Stat(socketPath)
 	return err == nil
 }
 
-// NewClient creates a new gRPC client connected to the Unix socket.
-func NewClient() (*Client, error) {
-	return NewClientWithSocket(DefaultSocketPath())
+// NewClientForDB creates a new gRPC client connected to the Unix socket derived from the database path.
+func NewClientForDB(dbPath string) (*Client, error) {
+	return NewClientWithSocket(SocketPathFromDB(dbPath))
 }
 
 // NewClientWithSocket creates a new gRPC client connected to a specific socket.

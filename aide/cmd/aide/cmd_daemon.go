@@ -19,7 +19,7 @@ func cmdDaemon(dbPath string, args []string) error {
 	}
 
 	// Parse socket path from args
-	socketPath := grpcapi.DefaultSocketPath()
+	socketPath := grpcapi.SocketPathFromDB(dbPath)
 	for i, arg := range args {
 		if arg == "--socket" && i+1 < len(args) {
 			socketPath = args[i+1]
@@ -27,8 +27,8 @@ func cmdDaemon(dbPath string, args []string) error {
 	}
 
 	// Check if daemon is already running
-	if grpcapi.SocketExists() {
-		client, err := grpcapi.NewClient()
+	if grpcapi.SocketExistsForDB(dbPath) {
+		client, err := grpcapi.NewClientForDB(dbPath)
 		if err == nil {
 			client.Close()
 			return fmt.Errorf("daemon already running at %s", socketPath)
