@@ -56,7 +56,7 @@ aide/
 | `tool-tracker.ts` | PreToolUse | Track current tool per agent for HUD display |
 | `pre-tool-enforcer.ts` | PreToolUse | Enforce tool access rules, inject mode reminders |
 | `hud-updater.ts` | PostToolUse | Update status line |
-| `memory-capture.ts` | PostToolUse, Stop | Capture `<aide-memory>` and `<aide-decision>` tags |
+| `session-summary.ts` | Stop | Capture session summary (files, tools, commits) |
 | `subagent-tracker.ts` | SubagentStart, SubagentStop | Track active agents, inject context |
 | `persistence.ts` | Stop | Prevent stop with incomplete tasks |
 | `agent-cleanup.ts` | Stop | Clean up agent-specific state |

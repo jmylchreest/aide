@@ -149,7 +149,7 @@ This prevents conflicts - Claude reads via MCP, hooks update state in response t
 | `SessionEnd` | Session closes cleanly | Cleanup session state, record metrics |
 | `UserPromptSubmit` | User sends message | Inject matching skills (fuzzy trigger matching) |
 | `PreToolUse` | Before tool execution | Track current tool, enforce read-only agent restrictions |
-| `PostToolUse` | After any tool | Update HUD, capture `<aide-memory>` and `<aide-decision>` tags |
+| `PostToolUse` | After any tool | Update HUD |
 | `SubagentStart/Stop` | Agent lifecycle | Track active agents, inject memories |
 | `Stop` | Conversation ends | Persist state, capture session summary, agent cleanup |
 | `PreCompact` | Before context compaction | Preserve state snapshot before summarization |
@@ -210,24 +210,15 @@ Memories are automatically injected into context at specific lifecycle events:
 
 ### Automatic Capture
 
-Memories can be captured automatically via hooks:
+Session summaries are automatically captured by the Stop hook when a session ends with meaningful activity (files modified, tools used, or git commits made).
 
-| Trigger | Hook | How to Capture |
-|---------|------|----------------|
-| Tool output contains tag | `PostToolUse` | Include `<aide-memory>` tag in output |
+### Storing Memories
 
-**Using `<aide-memory>` tags:**
+Use the `/aide:memorise` skill or the CLI directly:
 
-When Claude outputs an `<aide-memory>` tag, the `PostToolUse` hook captures it:
-
-```xml
-<aide-memory category="learning" tags="testing,vitest">
-User prefers vitest over jest for testing.
-Uses describe/it syntax with explicit assertions.
-</aide-memory>
+```bash
+aide memory add --category=learning --tags=testing,vitest "User prefers vitest over jest for testing"
 ```
-
-The hook automatically adds `session:<current-session-id>` tag for traceability.
 
 **Valid categories:** `learning`, `decision`, `session`, `pattern`, `gotcha`
 

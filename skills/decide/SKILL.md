@@ -10,6 +10,7 @@ triggers:
   - which option
   - trade-offs
   - pros and cons
+allowed-tools: Bash(aide decision set *)
 ---
 
 # Decision Mode
@@ -113,26 +114,21 @@ Wait for explicit user approval before recording:
 
 ### Phase 6: RECORD
 
-Output the decision in the structured format for automatic capture:
+Store the decision using the `aide decision set` CLI command via Bash:
 
-```xml
-<aide-decision topic="[topic-slug]">
-## Decision
-[Clear statement of what was decided]
-
-## Rationale
-[Why this option was chosen - tie back to requirements]
-
-## Alternatives Considered
-- [Option A]: [why rejected]
-- [Option B]: [why rejected]
-</aide-decision>
+```bash
+aide decision set "<topic-slug>" "<decision summary>" --rationale="<why this was chosen>"
 ```
 
 **Topic naming:**
 - Use kebab-case: `auth-strategy`, `database-choice`, `api-design`
 - Be specific: `user-auth-method` not just `auth`
 - Include scope if relevant: `payments-queue-strategy`
+
+**Verify** the decision was stored:
+```bash
+aide decision get "<topic-slug>"
+```
 
 ## Example Session
 
@@ -186,32 +182,23 @@ Do you want to proceed with this decision?
 
 User: yes, let's go with BullMQ
 
-Claude: <aide-decision topic="background-jobs-queue">
-## Decision
-Use BullMQ with Redis for background job processing (emails, webhooks)
+Claude: [RECORD]
+[Calls aide decision set via Bash]
 
-## Rationale
-- Native TypeScript support aligns with stack
-- Built-in retry logic, delays, and rate limiting ideal for email/webhook use cases
-- Bull Board provides job visibility out of the box
-- 10K jobs/day well within capacity, proven at scale
-
-## Alternatives Considered
-- AWS SQS + Lambda: Good option but adds AWS lock-in and cold start latency
-- Database-backed queue: Too limited for growth beyond MVP
-- RabbitMQ: Over-engineered for current requirements
-</aide-decision>
+```bash
+aide decision set "background-jobs-queue" "Use BullMQ with Redis for background job processing (emails, webhooks)" --rationale="Native TypeScript support, built-in retries/delays/rate-limiting, Bull Board for visibility, 10K/day well within capacity. Rejected: SQS+Lambda (AWS lock-in, cold starts), DB queue (limited scale), RabbitMQ (over-engineered)"
+```
 
 Decision recorded. Future sessions will follow this architectural choice.
 ```
 
 ## Integration
 
-Decisions captured via `<aide-decision>` are:
-1. Stored automatically by the PostToolUse hook
-2. Injected into future session contexts
+Decisions stored via `aide decision set` are:
+1. Persisted in the aide memory database
+2. Injected into future session contexts at startup
 3. Visible to swarm agents (they won't contradict decisions)
-4. Queryable via `mcp__plugin_aide_aide__decision_get` or `mcp__plugin_aide_aide__decision_list`
+4. Queryable via `aide decision get`, `aide decision list`, or the MCP tools `decision_get`/`decision_list`
 
 ## When to Use This Skill
 

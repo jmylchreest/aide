@@ -50,11 +50,6 @@
             "type": "command",
             "command": "npx tsx \"${CLAUDE_PLUGIN_ROOT}/src/hooks/hud-updater.ts\" 2>/dev/null",
             "timeout": 3
-          },
-          {
-            "type": "command",
-            "command": "npx tsx \"${CLAUDE_PLUGIN_ROOT}/src/hooks/memory-capture.ts\" 2>/dev/null",
-            "timeout": 5
           }
         ]
       }
@@ -94,7 +89,7 @@
           },
           {
             "type": "command",
-            "command": "npx tsx \"${CLAUDE_PLUGIN_ROOT}/src/hooks/memory-capture.ts\" 2>/dev/null",
+            "command": "npx tsx \"${CLAUDE_PLUGIN_ROOT}/src/hooks/session-summary.ts\" 2>/dev/null",
             "timeout": 10
           },
           {

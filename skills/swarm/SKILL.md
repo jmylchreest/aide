@@ -407,11 +407,10 @@ Only after successful merge, record the swarm session (see Orchestrator Memory b
 
 ## Orchestrator Memory
 
-After swarm completes, record the session:
+After swarm completes, record the session using the CLI:
 
-```xml
-<aide-memory category="session" tags="swarm,sdlc">
-## Swarm: [Brief Description]
+```bash
+aide memory add --category=session --tags=swarm,sdlc,session:${CLAUDE_SESSION_ID:0:8} "## Swarm: [Brief Description]
 
 ### Stories Completed
 - Story A: [outcome]
@@ -425,6 +424,5 @@ After swarm completes, record the session:
 - [summary of changes per story]
 
 ### Merge Status
-- [branches merged successfully / any conflicts]
-</aide-memory>
+- [branches merged successfully / any conflicts]"
 ```
