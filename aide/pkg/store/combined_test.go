@@ -233,6 +233,18 @@ func TestCombinedStoreMemoryOperations(t *testing.T) {
 		}
 	})
 
+	t.Run("SearchMultiWordOR", func(t *testing.T) {
+		// Multi-word queries should use OR: "combined nonexistent" should still
+		// match memories containing "combined" even though "nonexistent" is absent.
+		results, err := cs.SearchMemories("combined nonexistentword", 10)
+		if err != nil {
+			t.Fatalf("SearchMemories multi-word: %v", err)
+		}
+		if len(results) < 1 {
+			t.Error("expected at least 1 result for OR multi-word query, got 0")
+		}
+	})
+
 	t.Run("SearchCount", func(t *testing.T) {
 		count, err := cs.SearchCount()
 		if err != nil {

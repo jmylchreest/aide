@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/analysis/analyzer/custom"
@@ -14,6 +15,7 @@ import (
 	"github.com/blevesearch/bleve/v2/analysis/token/ngram"
 	"github.com/blevesearch/bleve/v2/analysis/tokenizer/unicode"
 	"github.com/blevesearch/bleve/v2/mapping"
+	"github.com/blevesearch/bleve/v2/search/query"
 	"github.com/jmylchreest/aide/aide/pkg/memory"
 )
 
@@ -215,26 +217,41 @@ func (s *SearchStore) Search(queryStr string, limit int) ([]SearchResult, error)
 		limit = 10
 	}
 
-	// Build individual queries for each search type
-	// Standard match on content
-	standardQuery := bleve.NewMatchQuery(queryStr)
-	standardQuery.SetField("content")
+	// Split query into words and build per-word queries joined with OR.
+	// This ensures "colour color" matches memories containing either word,
+	// rather than requiring both (which is MatchQuery's default AND behavior).
+	// Cap at 10 words to keep the query size bounded.
+	words := strings.Fields(queryStr)
+	if len(words) > 10 {
+		words = words[:10]
+	}
 
-	// Fuzzy match (handles typos)
-	fuzzyQuery := bleve.NewFuzzyQuery(queryStr)
-	fuzzyQuery.SetField("content")
-	fuzzyQuery.SetFuzziness(1)
+	allQueries := make([]query.Query, 0, len(words)*4)
+	for _, word := range words {
+		// Standard match on content
+		sq := bleve.NewMatchQuery(word)
+		sq.SetField("content")
+		allQueries = append(allQueries, sq)
 
-	// Match on edge ngram field (prefix matching)
-	edgeQuery := bleve.NewMatchQuery(queryStr)
-	edgeQuery.SetField("content_edge")
+		// Fuzzy match (handles typos)
+		fq := bleve.NewFuzzyQuery(word)
+		fq.SetField("content")
+		fq.SetFuzziness(1)
+		allQueries = append(allQueries, fq)
 
-	// Match on ngram field (substring matching)
-	ngramQuery := bleve.NewMatchQuery(queryStr)
-	ngramQuery.SetField("content_ngram")
+		// Match on edge ngram field (prefix matching)
+		eq := bleve.NewMatchQuery(word)
+		eq.SetField("content_edge")
+		allQueries = append(allQueries, eq)
 
-	// Combine with disjunction (OR) - any match counts
-	disjunction := bleve.NewDisjunctionQuery(standardQuery, fuzzyQuery, edgeQuery, ngramQuery)
+		// Match on ngram field (substring matching)
+		nq := bleve.NewMatchQuery(word)
+		nq.SetField("content_ngram")
+		allQueries = append(allQueries, nq)
+	}
+
+	// Combine with disjunction (OR) - any word via any analyzer counts
+	disjunction := bleve.NewDisjunctionQuery(allQueries...)
 
 	searchRequest := bleve.NewSearchRequest(disjunction)
 	searchRequest.Size = limit

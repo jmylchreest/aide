@@ -16,7 +16,7 @@ import (
 // ============================================================================
 
 type MemorySearchInput struct {
-	Query    string `json:"query" jsonschema:"Search query - uses bleve full-text search with: (1) standard word matching, (2) fuzzy matching for typos (fuzziness=1), (3) edge n-grams for prefix matching (2-15 chars), (4) n-grams for substring matching (3-8 chars). Use simple keywords like 'colour' or 'favourite food'. For comprehensive recall, perform MULTIPLE searches with different terms (e.g., search 'colour' AND 'color', 'favourite' AND 'favorite')."`
+	Query    string `json:"query" jsonschema:"Search query - uses bleve full-text search with: (1) standard word matching, (2) fuzzy matching for typos (fuzziness=1), (3) edge n-grams for prefix matching (2-15 chars), (4) n-grams for substring matching (3-8 chars). Multi-word queries use OR (any word matches). Use up to 10 distinct keywords like 'colour food preferences'. Fuzzy matching handles spelling variants automatically ('color' matches 'colour'), so synonyms are unnecessary."`
 	Limit    int    `json:"limit,omitempty" jsonschema:"Maximum results to return (default 10). Increase for broader recall."`
 	Category string `json:"category,omitempty" jsonschema:"Filter by category: learning, decision, issue, discovery, blocker"`
 }
@@ -36,11 +36,11 @@ type StateListInput struct {
 }
 
 type DecisionGetInput struct {
-	Topic string `json:"topic" jsonschema:"Decision topic key, e.g., 'auth-strategy', 'testing-framework', 'db-schema'"`
+	Topic string `json:"topic" jsonschema:"Decision topic key (kebab-case), e.g., 'auth-strategy', 'testing-framework', 'db-schema'. Use decision_list first to discover available topics."`
 }
 
 type DecisionHistoryInput struct {
-	Topic string `json:"topic" jsonschema:"Decision topic to get full history for (all versions in chronological order)"`
+	Topic string `json:"topic" jsonschema:"Decision topic to get full history for (all versions in chronological order). Use decision_list first to discover available topics."`
 }
 
 type MessageListInput struct {
@@ -61,13 +61,14 @@ func (s *MCPServer) registerMemoryTools() {
 
 **Search capabilities:**
 - Standard word matching (case-insensitive)
-- Fuzzy matching for typos (1 edit distance)
+- Fuzzy matching for typos (1 edit distance) - "color" matches "colour"
 - Prefix matching via edge n-grams (2-15 chars)
 - Substring matching via n-grams (3-8 chars)
+- Multi-word queries use OR - any word matching is sufficient
 
 **Best practices:**
-- Use simple keywords: "colour", "testing framework", "auth"
-- Perform MULTIPLE searches with synonyms: search "colour" AND "color"
+- Use up to 10 distinct keywords: "colour testing auth"
+- Fuzzy matching handles spelling variants automatically - no need to search both "colour" and "color"
 - Search tags directly: "preferences", "food"
 - Results include timestamps - prefer most recent when values conflict
 
@@ -76,8 +77,14 @@ Returns memories grouped by category with [date] prefix and tags.`,
 	}, s.handleMemorySearch)
 
 	mcp.AddTool(s.server, &mcp.Tool{
-		Name:        "memory_list",
-		Description: "List all stored memories, optionally filtered by category. Returns memories with timestamps - prefer most recent when answering questions about preferences or decisions.",
+		Name: "memory_list",
+		Description: `List all stored memories, optionally filtered by category.
+
+Returns all memories (not just matching ones) with timestamps.
+Prefer most recent when answering questions about preferences or decisions.
+
+**When to use:** Use this for broad review or when you need to see everything.
+Use memory_search instead when looking for specific topics or keywords.`,
 	}, s.handleMemoryList)
 }
 
@@ -208,7 +215,9 @@ They have: topic (key), decision summary, rationale, details (schemas/code), ref
 - "testing-framework" - Which test runner to use
 - "db-schema" - Database design choices
 
-Decisions are append-only (latest wins). Use decision_history to see evolution.`,
+**Usage:** Call decision_list first to discover available topics, then use this tool with a specific topic.
+Decisions are append-only - the value returned here is the current authoritative decision, superseding all previous versions.
+Use decision_history to see how a decision evolved over time.`,
 	}, s.handleDecisionGet)
 
 	mcp.AddTool(s.server, &mcp.Tool{
@@ -217,16 +226,18 @@ Decisions are append-only (latest wins). Use decision_history to see evolution.`
 
 Returns ALL versions of a decision in chronological order.
 Useful when you need to understand why a decision changed or evolved.
-Each entry includes: decision, rationale, details, references, and timestamp.`,
+Each entry includes: decision, rationale, details, references, and timestamp.
+
+**Important:** The most recent entry is the current decision - it supersedes all earlier versions.`,
 	}, s.handleDecisionHistory)
 
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name: "decision_list",
 		Description: `List all recorded decisions (latest for each topic).
 
+**Start here** - call this first to discover what decision topics exist.
 Returns a summary of all decision topics with their current (most recent) values.
-Use this to discover what decisions exist before querying specific topics.
-For detailed info on a specific decision, use decision_get with the topic.`,
+Then use decision_get for full details on a specific topic, or decision_history to see how it evolved.`,
 	}, s.handleDecisionList)
 }
 
