@@ -39,9 +39,9 @@ func main() {
 	}
 
 	// Determine database path.
+	projectRoot := findProjectRoot()
 	dbPath := os.Getenv("AIDE_MEMORY_DB")
 	if dbPath == "" {
-		projectRoot := findProjectRoot()
 		dbPath = filepath.Join(projectRoot, defaultDBName)
 	}
 
@@ -50,6 +50,9 @@ func main() {
 	if err := os.MkdirAll(memoryDir, 0o755); err != nil {
 		fatal("failed to create memory directory: %v", err)
 	}
+
+	// Ensure .aide/bin/aide symlink points to this binary (best-effort).
+	ensureBinSymlink(projectRoot)
 
 	if err := runCommand(cmd, dbPath, args); err != nil {
 		fatal("%v", err)
@@ -222,4 +225,46 @@ func resolveWorktreeRoot(gitFilePath string) string {
 		candidate = parent
 	}
 	return ""
+}
+
+// ensureBinSymlink creates or updates .aide/bin/aide as a symlink to the
+// currently running binary. This gives users a convenient, stable path to
+// invoke aide from within the project. On platforms that don't support
+// symlinks (or if anything fails), it silently does nothing.
+func ensureBinSymlink(projectRoot string) {
+	self, err := os.Executable()
+	if err != nil {
+		return
+	}
+	self, err = filepath.EvalSymlinks(self)
+	if err != nil {
+		return
+	}
+
+	binDir := filepath.Join(projectRoot, ".aide", "bin")
+	link := filepath.Join(binDir, "aide")
+
+	// Check if symlink already points to the right target.
+	if _, err := os.Readlink(link); err == nil {
+		resolved, err := filepath.EvalSymlinks(link)
+		if err == nil && resolved == self {
+			return // already correct
+		}
+		// Symlink exists but points elsewhere — remove it.
+		os.Remove(link)
+	}
+
+	// Ensure .aide/bin/ directory exists.
+	if err := os.MkdirAll(binDir, 0o755); err != nil {
+		return
+	}
+
+	// Remove any non-symlink file that might be in the way.
+	if info, err := os.Lstat(link); err == nil && info.Mode()&os.ModeSymlink == 0 {
+		os.Remove(link)
+	}
+
+	// Create the symlink. Silently ignore errors (e.g. Windows without
+	// developer mode, or read-only filesystems).
+	_ = os.Symlink(self, link)
 }
