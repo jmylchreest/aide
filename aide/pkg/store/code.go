@@ -29,7 +29,7 @@ var (
 	BucketReferences = []byte("references")
 	BucketFileIndex  = []byte("fileindex")
 	BucketRefIndex   = []byte("refindex") // symbol name -> reference IDs
-	BucketCodeMeta   = []byte("meta")
+	BucketCodeMeta   = []byte("code_meta")
 )
 
 // CodeStore provides symbol storage and search.
@@ -76,6 +76,11 @@ func NewCodeStore(dbPath, searchPath string) (*CodeStore, error) {
 	if err != nil {
 		db.Close()
 		return nil, fmt.Errorf("failed to initialize buckets: %w", err)
+	}
+
+	if err := RunCodeMigrations(db); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("code schema migration failed: %w", err)
 	}
 
 	// Open or create Bleve search index

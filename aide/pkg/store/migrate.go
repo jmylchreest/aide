@@ -13,8 +13,13 @@ import (
 	bolt "go.etcd.io/bbolt"
 )
 
-// SchemaVersion is the current schema version. Increment this when adding new migrations.
+// SchemaVersion is the current schema version for the main store.
+// Increment this when adding new migrations to the migrations slice.
 var SchemaVersion uint64 = 1
+
+// CodeSchemaVersion is the current schema version for the code store.
+// Increment this when adding new migrations to the codeMigrations slice.
+var CodeSchemaVersion uint64 = 1
 
 // migration represents a single schema migration step.
 type migration struct {
@@ -23,32 +28,82 @@ type migration struct {
 	migrate     func(tx *bolt.Tx) error
 }
 
-// migrations is the ordered list of all schema migrations.
-// Each migration is applied exactly once, in order, when the DB version is below SchemaVersion.
+// migrations is the ordered list of all main store schema migrations.
 var migrations = []migration{
 	{version: 1, description: "baseline schema stamp", migrate: func(tx *bolt.Tx) error { return nil }},
 }
 
-// RunMigrations applies any pending schema migrations to the database.
-// It reads the current version from the meta bucket, applies migrations with version > current,
-// and writes the new version. Returns an error if the DB version is ahead of SchemaVersion (downgrade).
+// codeMigrations is the ordered list of all code store schema migrations.
+var codeMigrations = []migration{
+	{version: 1, description: "baseline code schema stamp", migrate: func(tx *bolt.Tx) error { return nil }},
+}
+
+// migrationConfig holds the parameters for a migration run.
+type migrationConfig struct {
+	metaBucket []byte
+	versionKey string
+	target     uint64
+	migrations []migration
+}
+
+// mainMigrationConfig returns the config for the main store.
+func mainMigrationConfig() migrationConfig {
+	return migrationConfig{
+		metaBucket: BucketMeta,
+		versionKey: "schema_version",
+		target:     SchemaVersion,
+		migrations: migrations,
+	}
+}
+
+// codeMigrationConfig returns the config for the code store.
+func codeMigrationConfig() migrationConfig {
+	return migrationConfig{
+		metaBucket: BucketCodeMeta,
+		versionKey: "schema_version",
+		target:     CodeSchemaVersion,
+		migrations: codeMigrations,
+	}
+}
+
+// RunMigrations applies pending schema migrations to the main store database.
 func RunMigrations(db *bolt.DB) error {
-	current, err := GetSchemaVersion(db)
+	return runMigrations(db, mainMigrationConfig())
+}
+
+// RunCodeMigrations applies pending schema migrations to the code store database.
+func RunCodeMigrations(db *bolt.DB) error {
+	return runMigrations(db, codeMigrationConfig())
+}
+
+// GetSchemaVersion reads the current schema version from the main store meta bucket.
+func GetSchemaVersion(db *bolt.DB) (uint64, error) {
+	return getSchemaVersion(db, BucketMeta, "schema_version")
+}
+
+// GetCodeSchemaVersion reads the current schema version from the code store meta bucket.
+func GetCodeSchemaVersion(db *bolt.DB) (uint64, error) {
+	return getSchemaVersion(db, BucketCodeMeta, "schema_version")
+}
+
+// runMigrations is the parameterized migration engine.
+func runMigrations(db *bolt.DB, cfg migrationConfig) error {
+	current, err := getSchemaVersion(db, cfg.metaBucket, cfg.versionKey)
 	if err != nil {
 		return fmt.Errorf("reading schema version: %w", err)
 	}
 
-	if current > SchemaVersion {
-		return fmt.Errorf("database schema version %d is ahead of binary version %d (downgrade not supported)", current, SchemaVersion)
+	if current > cfg.target {
+		return fmt.Errorf("database schema version %d is ahead of binary version %d (downgrade not supported)", current, cfg.target)
 	}
 
-	if current == SchemaVersion {
+	if current == cfg.target {
 		return nil
 	}
 
 	// Collect pending migrations.
 	var pending []migration
-	for _, m := range migrations {
+	for _, m := range cfg.migrations {
 		if m.version > current {
 			pending = append(pending, m)
 		}
@@ -56,7 +111,7 @@ func RunMigrations(db *bolt.DB) error {
 
 	if len(pending) == 0 {
 		// No migrations to run but version differs — just stamp.
-		return setSchemaVersion(db, SchemaVersion)
+		return setSchemaVersion(db, cfg.metaBucket, cfg.versionKey, cfg.target)
 	}
 
 	// Apply all pending migrations in a single transaction.
@@ -69,13 +124,13 @@ func RunMigrations(db *bolt.DB) error {
 		}
 
 		// Write the new version inside the same transaction.
-		meta := tx.Bucket(BucketMeta)
+		meta := tx.Bucket(cfg.metaBucket)
 		if meta == nil {
-			return fmt.Errorf("meta bucket not found")
+			return fmt.Errorf("meta bucket %q not found", string(cfg.metaBucket))
 		}
 		buf := make([]byte, 8)
-		binary.BigEndian.PutUint64(buf, SchemaVersion)
-		return meta.Put([]byte("schema_version"), buf)
+		binary.BigEndian.PutUint64(buf, cfg.target)
+		return meta.Put([]byte(cfg.versionKey), buf)
 	})
 	if err != nil {
 		return fmt.Errorf("migration failed: %w", err)
@@ -84,16 +139,15 @@ func RunMigrations(db *bolt.DB) error {
 	return nil
 }
 
-// GetSchemaVersion reads the current schema version from the meta bucket.
-// Returns 0 if no version has been set (fresh database).
-func GetSchemaVersion(db *bolt.DB) (uint64, error) {
+// getSchemaVersion reads a schema version from the specified bucket and key.
+func getSchemaVersion(db *bolt.DB, metaBucket []byte, versionKey string) (uint64, error) {
 	var version uint64
 	err := db.View(func(tx *bolt.Tx) error {
-		meta := tx.Bucket(BucketMeta)
+		meta := tx.Bucket(metaBucket)
 		if meta == nil {
 			return nil // Fresh DB, no meta bucket yet
 		}
-		data := meta.Get([]byte("schema_version"))
+		data := meta.Get([]byte(versionKey))
 		if data == nil {
 			return nil // No version set
 		}
@@ -106,16 +160,16 @@ func GetSchemaVersion(db *bolt.DB) (uint64, error) {
 	return version, err
 }
 
-// setSchemaVersion writes the schema version to the meta bucket.
-func setSchemaVersion(db *bolt.DB, version uint64) error {
+// setSchemaVersion writes a schema version to the specified bucket and key.
+func setSchemaVersion(db *bolt.DB, metaBucket []byte, versionKey string, version uint64) error {
 	return db.Update(func(tx *bolt.Tx) error {
-		meta := tx.Bucket(BucketMeta)
+		meta := tx.Bucket(metaBucket)
 		if meta == nil {
-			return fmt.Errorf("meta bucket not found")
+			return fmt.Errorf("meta bucket %q not found", string(metaBucket))
 		}
 		buf := make([]byte, 8)
 		binary.BigEndian.PutUint64(buf, version)
-		return meta.Put([]byte("schema_version"), buf)
+		return meta.Put([]byte(versionKey), buf)
 	})
 }
 
