@@ -176,3 +176,104 @@ func TestCombinedStoreSearchNoRebuildWhenCurrent(t *testing.T) {
 		t.Errorf("hash mismatch: got %q, want %q", hash, expected)
 	}
 }
+
+func TestCombinedStoreMemoryOperations(t *testing.T) {
+	cs, _, cleanup := setupTestCombinedStore(t)
+	defer cleanup()
+
+	m := &memory.Memory{
+		ID:        "combined-1",
+		Category:  memory.CategoryLearning,
+		Content:   "Combined store test memory",
+		Tags:      []string{"test"},
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	t.Run("AddAndGet", func(t *testing.T) {
+		if err := cs.AddMemory(m); err != nil {
+			t.Fatalf("AddMemory: %v", err)
+		}
+		got, err := cs.GetMemory("combined-1")
+		if err != nil {
+			t.Fatalf("GetMemory: %v", err)
+		}
+		if got.Content != "Combined store test memory" {
+			t.Errorf("content = %q", got.Content)
+		}
+	})
+
+	t.Run("ListMemories", func(t *testing.T) {
+		memories, err := cs.ListMemories(memory.SearchOptions{})
+		if err != nil {
+			t.Fatalf("ListMemories: %v", err)
+		}
+		if len(memories) < 1 {
+			t.Error("expected at least 1 memory")
+		}
+	})
+
+	t.Run("SelectMemories", func(t *testing.T) {
+		memories, err := cs.SelectMemories("Combined", 10)
+		if err != nil {
+			t.Fatalf("SelectMemories: %v", err)
+		}
+		if len(memories) < 1 {
+			t.Error("expected at least 1 result for 'Combined'")
+		}
+	})
+
+	t.Run("SearchMemories", func(t *testing.T) {
+		results, err := cs.SearchMemories("combined store", 10)
+		if err != nil {
+			t.Fatalf("SearchMemories: %v", err)
+		}
+		if len(results) < 1 {
+			t.Error("expected at least 1 search result")
+		}
+	})
+
+	t.Run("SearchCount", func(t *testing.T) {
+		count, err := cs.SearchCount()
+		if err != nil {
+			t.Fatalf("SearchCount: %v", err)
+		}
+		if count < 1 {
+			t.Errorf("expected count >= 1, got %d", count)
+		}
+	})
+
+	t.Run("Bolt", func(t *testing.T) {
+		b := cs.Bolt()
+		if b == nil {
+			t.Fatal("Bolt() returned nil")
+		}
+	})
+
+	t.Run("DeleteMemory", func(t *testing.T) {
+		if err := cs.DeleteMemory("combined-1"); err != nil {
+			t.Fatalf("DeleteMemory: %v", err)
+		}
+		_, err := cs.GetMemory("combined-1")
+		if err != ErrNotFound {
+			t.Errorf("expected ErrNotFound after delete, got %v", err)
+		}
+	})
+
+	t.Run("ClearMemories", func(t *testing.T) {
+		cs.AddMemory(&memory.Memory{
+			ID:        "clear-1",
+			Category:  memory.CategoryLearning,
+			Content:   "To clear",
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		})
+		count, err := cs.ClearMemories()
+		if err != nil {
+			t.Fatalf("ClearMemories: %v", err)
+		}
+		if count < 1 {
+			t.Errorf("expected at least 1 cleared, got %d", count)
+		}
+	})
+}

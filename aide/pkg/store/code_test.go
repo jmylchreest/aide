@@ -373,6 +373,41 @@ func TestReferenceOperations(t *testing.T) {
 		}
 	})
 
+	t.Run("GetReference", func(t *testing.T) {
+		ref := &code.Reference{
+			SymbolName: "getReference",
+			Kind:       code.RefKindCall,
+			FilePath:   "ref.go",
+			Line:       42,
+			Column:     10,
+			Context:    "x := getReference()",
+		}
+		if err := cs.AddReference(ref); err != nil {
+			t.Fatalf("AddReference: %v", err)
+		}
+
+		got, err := cs.GetReference(ref.ID)
+		if err != nil {
+			t.Fatalf("GetReference: %v", err)
+		}
+		if got.SymbolName != "getReference" {
+			t.Errorf("symbol name = %q, want %q", got.SymbolName, "getReference")
+		}
+		if got.Line != 42 {
+			t.Errorf("line = %d, want 42", got.Line)
+		}
+		if got.Context != "x := getReference()" {
+			t.Errorf("context = %q", got.Context)
+		}
+	})
+
+	t.Run("GetReferenceNonexistent", func(t *testing.T) {
+		_, err := cs.GetReference("nonexistent")
+		if err != ErrNotFound {
+			t.Errorf("expected ErrNotFound, got %v", err)
+		}
+	})
+
 	t.Run("ReferenceAutoGeneratesFields", func(t *testing.T) {
 		ref := &code.Reference{
 			SymbolName: "testFunc",

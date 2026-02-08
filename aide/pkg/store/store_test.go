@@ -928,3 +928,116 @@ func TestConcurrentAccess(t *testing.T) {
 		t.Errorf("expected 10 claims, got %d", claimCount)
 	}
 }
+
+// =============================================================================
+// Task Delete & Clear
+// =============================================================================
+
+func TestDeleteTask(t *testing.T) {
+	store, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	task := &memory.Task{
+		ID:        "task-del",
+		Title:     "Delete me",
+		Status:    memory.TaskStatusPending,
+		CreatedAt: time.Now(),
+	}
+	if err := store.CreateTask(task); err != nil {
+		t.Fatalf("CreateTask: %v", err)
+	}
+
+	if err := store.DeleteTask("task-del"); err != nil {
+		t.Fatalf("DeleteTask: %v", err)
+	}
+
+	_, err := store.GetTask("task-del")
+	if err != ErrNotFound {
+		t.Errorf("expected ErrNotFound after delete, got %v", err)
+	}
+}
+
+func TestClearTasks(t *testing.T) {
+	store, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	for i := 0; i < 3; i++ {
+		store.CreateTask(&memory.Task{
+			ID:        fmt.Sprintf("task-c-%d", i),
+			Title:     fmt.Sprintf("Task %d", i),
+			Status:    memory.TaskStatusPending,
+			CreatedAt: time.Now(),
+		})
+	}
+	// Add one done task.
+	store.CreateTask(&memory.Task{
+		ID:        "task-done",
+		Title:     "Done task",
+		Status:    memory.TaskStatusDone,
+		CreatedAt: time.Now(),
+	})
+
+	// Clear only pending.
+	count, err := store.ClearTasks(memory.TaskStatusPending)
+	if err != nil {
+		t.Fatalf("ClearTasks(pending): %v", err)
+	}
+	if count != 3 {
+		t.Errorf("expected 3 cleared, got %d", count)
+	}
+
+	// Done task should survive.
+	got, err := store.GetTask("task-done")
+	if err != nil {
+		t.Fatalf("done task should survive: %v", err)
+	}
+	if got.Status != memory.TaskStatusDone {
+		t.Errorf("expected done status, got %s", got.Status)
+	}
+
+	// Clear all.
+	count, err = store.ClearTasks("")
+	if err != nil {
+		t.Fatalf("ClearTasks(''): %v", err)
+	}
+	if count != 1 {
+		t.Errorf("expected 1 cleared, got %d", count)
+	}
+}
+
+// =============================================================================
+// Message Clear
+// =============================================================================
+
+func TestClearMessages(t *testing.T) {
+	store, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	store.AddMessage(&memory.Message{From: "a", To: "b", Content: "hello"})
+	store.AddMessage(&memory.Message{From: "b", To: "a", Content: "hi"})
+	store.AddMessage(&memory.Message{From: "c", Content: "broadcast"})
+
+	// Clear by agent.
+	count, err := store.ClearMessages("a")
+	if err != nil {
+		t.Fatalf("ClearMessages(a): %v", err)
+	}
+	if count != 2 {
+		t.Errorf("expected 2 cleared for agent a (from+to), got %d", count)
+	}
+
+	// Broadcast from c should survive.
+	msgs, _ := store.GetMessages("c")
+	if len(msgs) != 1 {
+		t.Errorf("expected 1 message for c, got %d", len(msgs))
+	}
+
+	// Clear all.
+	count, err = store.ClearMessages("")
+	if err != nil {
+		t.Fatalf("ClearMessages(''): %v", err)
+	}
+	if count != 1 {
+		t.Errorf("expected 1 cleared, got %d", count)
+	}
+}
