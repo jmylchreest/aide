@@ -64,6 +64,7 @@ export interface HudConfig {
   enabled: boolean;
   elements: string[];
   format: "minimal" | "full" | "icons";
+  usageCacheTTL?: number; // Cache TTL in seconds for usage data (default: 30)
 }
 
 export interface SessionState {
@@ -221,38 +222,72 @@ export function formatDuration(startedAt: string | null): string {
 }
 
 /**
- * Get usage summary from aide usage --json (cached for 5 minutes)
+ * Get usage for HUD display (cached internally by usage module).
+ * Uses OAuth API for accurate percentages, falls back to token counts.
  */
-let usageCache: { data: any; timestamp: number } | null = null;
-const USAGE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+let hudUsageCache: {
+  data: {
+    fiveHourPercent: number | null;
+    fiveHourRemain: string | null;
+    weeklyPercent: number | null;
+    weeklyRemain: string | null;
+    window5hTokens: number;
+    todayTokens: number;
+  } | null;
+  timestamp: number;
+} | null = null;
+const DEFAULT_USAGE_CACHE_TTL = 30_000; // 30 seconds
 
 export function getUsageSummary(
-  cwd: string,
-): { window5h: number; today: number; remain: string } | null {
+  _cwd: string,
+  cacheTTL?: number,
+): {
+  fiveHourPercent: number | null;
+  fiveHourRemain: string | null;
+  weeklyPercent: number | null;
+  weeklyRemain: string | null;
+  window5hTokens: number;
+  todayTokens: number;
+} | null {
   const now = Date.now();
-  if (usageCache && now - usageCache.timestamp < USAGE_CACHE_TTL) {
-    return usageCache.data;
+  const ttl = cacheTTL ?? DEFAULT_USAGE_CACHE_TTL;
+
+  // Return cached data synchronously if fresh
+  if (hudUsageCache && now - hudUsageCache.timestamp < ttl) {
+    return hudUsageCache.data;
   }
 
-  const binary = findAideBinary(cwd);
-  if (!binary) return null;
+  // Trigger async refresh in background, return stale data or null
+  refreshUsageCache();
+
+  return hudUsageCache?.data ?? null;
+}
+
+/**
+ * Refresh usage cache asynchronously.
+ * Uses promise-based dedup to prevent concurrent refreshes.
+ * Dynamic import avoids circular dependencies and keeps the
+ * synchronous HUD path fast.
+ */
+let refreshPromise: Promise<void> | null = null;
+
+async function refreshUsageCache(): Promise<void> {
+  if (refreshPromise) return;
+
+  refreshPromise = (async () => {
+    try {
+      const { getUsageForHud } = await import("./usage.js");
+      const result = await getUsageForHud();
+      hudUsageCache = { data: result, timestamp: Date.now() };
+    } catch {
+      // Keep stale cache on error
+    }
+  })();
 
   try {
-    const output = execFileSync(binary, ["usage", "--json"], {
-      cwd,
-      encoding: "utf-8",
-      timeout: 10000,
-    });
-    const parsed = JSON.parse(output);
-    const result = {
-      window5h: parsed.realtime?.window_5h?.total || 0,
-      today: parsed.realtime?.today?.total || 0,
-      remain: parsed.realtime?.window_remain || "",
-    };
-    usageCache = { data: result, timestamp: now };
-    return result;
-  } catch {
-    return null;
+    await refreshPromise;
+  } finally {
+    refreshPromise = null;
   }
 }
 
@@ -319,7 +354,10 @@ export function formatHud(
         break;
 
       case "usage": {
-        const usage = getUsageSummary(cwd);
+        const cacheTTL = config.usageCacheTTL
+          ? config.usageCacheTTL * 1000
+          : undefined;
+        const usage = getUsageSummary(cwd, cacheTTL);
         if (usage) {
           const fmt = (n: number) =>
             n >= 1000000
@@ -327,14 +365,28 @@ export function formatHud(
               : n >= 1000
                 ? `${(n / 1000).toFixed(0)}K`
                 : `${n}`;
-          const remainStr =
-            usage.remain && usage.remain !== "expired"
-              ? ` ~${usage.remain}`
-              : "";
-          if (config.format === "icons") {
-            parts.push(`📊 5h:${fmt(usage.window5h)}${remainStr}`);
+
+          let usageStr: string;
+          if (usage.fiveHourPercent !== null) {
+            // API-sourced percentages (accurate)
+            const remainStr =
+              usage.fiveHourRemain && usage.fiveHourRemain !== "expired"
+                ? ` ~${usage.fiveHourRemain}`
+                : "";
+            const weekStr =
+              usage.weeklyPercent !== null
+                ? ` wk:${Math.round(usage.weeklyPercent)}%`
+                : "";
+            usageStr = `5h:${Math.round(usage.fiveHourPercent)}%${remainStr}${weekStr}`;
           } else {
-            parts.push(`5h:${fmt(usage.window5h)}${remainStr}`);
+            // Fallback to weighted token counts
+            usageStr = `5h:${fmt(usage.window5hTokens)}`;
+          }
+
+          if (config.format === "icons") {
+            parts.push(`📊 ${usageStr}`);
+          } else {
+            parts.push(usageStr);
           }
         }
         break;

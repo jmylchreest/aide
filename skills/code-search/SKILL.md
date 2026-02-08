@@ -18,6 +18,8 @@ triggers:
 
 # Code Search
 
+**Recommended model tier:** balanced (sonnet) - this skill performs straightforward operations
+
 Search for code symbols (functions, classes, methods, types) and find their call sites.
 
 ## Available Tools

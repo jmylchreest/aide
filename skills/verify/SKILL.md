@@ -12,6 +12,8 @@ triggers:
 
 # Verify Mode
 
+**Recommended model tier:** smart (opus) - this skill requires complex reasoning
+
 Active QA verification: run all quality checks and report pass/fail status.
 
 ## Purpose

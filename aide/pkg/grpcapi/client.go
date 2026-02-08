@@ -44,7 +44,7 @@ func NewClientWithSocket(socketPath string) (*Client, error) {
 	}
 
 	// Connect to Unix socket
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
 	conn, err := grpc.DialContext(ctx, "unix://"+socketPath, //nolint:staticcheck // TODO: migrate to grpc.NewClient

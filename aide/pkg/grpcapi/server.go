@@ -740,9 +740,8 @@ func (s *codeServiceImpl) Index(ctx context.Context, req *CodeIndexRequest) (*Co
 				return nil
 			}
 
-			// Check if file extension is supported
-			ext := filepath.Ext(path)
-			if !code.SupportedExtension(ext) {
+			// Check if file is supported (extension or known filename)
+			if !code.SupportedFile(path) {
 				return nil
 			}
 

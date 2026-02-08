@@ -17,6 +17,8 @@ allowed-tools: Bash(aide memory add *)
 
 # Memorise
 
+**Recommended model tier:** balanced (sonnet) - this skill performs straightforward operations
+
 Capture important information for future sessions by storing it in the aide memory database.
 
 ## How to Store

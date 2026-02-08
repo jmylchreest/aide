@@ -15,6 +15,8 @@ triggers:
 
 # Ralph Mode (Ralph Wiggum Methodology)
 
+**Recommended model tier:** smart (opus) - this skill requires complex reasoning
+
 You are now in **Ralph Wiggum mode** - an iterative development methodology that uses test-driven backpressure and aide-based state persistence.
 
 ## Core Principles

@@ -10,6 +10,8 @@ triggers:
 
 # Test Mode
 
+**Recommended model tier:** balanced (sonnet) - this skill performs straightforward operations
+
 Write comprehensive tests and run test suites.
 
 ## Prerequisites

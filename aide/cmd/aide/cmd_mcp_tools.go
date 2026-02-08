@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
-	"time"
 
 	"github.com/jmylchreest/aide/aide/pkg/memory"
 	"github.com/jmylchreest/aide/aide/pkg/store"
@@ -316,67 +314,3 @@ func (s *MCPServer) handleMessageList(_ context.Context, _ *mcp.CallToolRequest,
 // ============================================================================
 // Usage Tools (Claude Code token usage statistics)
 // ============================================================================
-
-func (s *MCPServer) registerUsageTools() {
-	mcp.AddTool(s.server, &mcp.Tool{
-		Name: "usage",
-		Description: `Get Claude Code usage statistics.
-
-Returns real-time token usage from JSONL session files:
-- **5-hour rolling window**: Input/output tokens, messages, window reset time
-- **Today**: Full daily usage summary
-- **Historical**: Weekly and all-time totals from stats cache
-
-Use this to monitor token consumption and rate limit proximity.`,
-	}, s.handleUsage)
-}
-
-func (s *MCPServer) handleUsage(_ context.Context, _ *mcp.CallToolRequest, _ emptyInput) (*mcp.CallToolResult, any, error) {
-	mcpLog.Printf("tool: usage")
-
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return errorResult(fmt.Sprintf("failed to get home directory: %v", err)), nil, nil
-	}
-
-	// Scan JSONL files for real-time data
-	realtime, err := scanJSONLFiles(home)
-	if err != nil {
-		return errorResult(fmt.Sprintf("scan failed: %v", err)), nil, nil
-	}
-
-	// Read stats cache for historical data
-	var stats StatsCache
-	cachePath := fmt.Sprintf("%s/.claude/stats-cache.json", home)
-	if data, readErr := os.ReadFile(cachePath); readErr == nil {
-		json.Unmarshal(data, &stats) // Best effort
-	}
-
-	weekAgo := time.Now().AddDate(0, 0, -7).Format("2006-01-02")
-	var weekTokens, totalTokens int64
-	for _, day := range stats.DailyModelTokens {
-		for _, tokens := range day.TokensByModel {
-			totalTokens += int64(tokens)
-			if day.Date >= weekAgo {
-				weekTokens += int64(tokens)
-			}
-		}
-	}
-	weekTokens += realtime.Today.Total
-
-	summary := UsageSummary{
-		Realtime: realtime,
-		Historical: HistUsage{
-			Week:     weekTokens,
-			AllTime:  totalTokens + realtime.Today.Total,
-			Messages: stats.TotalMessages + realtime.MessagesToday,
-			Sessions: stats.TotalSessions,
-			Since:    stats.FirstSessionDate,
-		},
-		Timestamp: time.Now().Format(time.RFC3339),
-	}
-
-	output, _ := json.MarshalIndent(summary, "", "  ")
-	mcpLog.Printf("  5h=%d today=%d", realtime.Window5h.Total, realtime.Today.Total)
-	return textResult(string(output)), nil, nil
-}

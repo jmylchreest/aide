@@ -10,6 +10,8 @@ triggers:
 
 # Git Mode
 
+**Recommended model tier:** balanced (sonnet) - this skill performs straightforward operations
+
 Expert git operations including worktree management for parallel work.
 
 ## Commit Guidelines

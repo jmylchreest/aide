@@ -188,8 +188,7 @@ func (b *Backend) IndexCodeWithProgress(paths []string, force bool, progress fun
 				return nil
 			}
 
-			ext := filepath.Ext(path)
-			if !code.SupportedExtension(ext) {
+			if !code.SupportedFile(path) {
 				return nil
 			}
 

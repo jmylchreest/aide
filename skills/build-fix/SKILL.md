@@ -12,6 +12,8 @@ triggers:
 
 # Build Fix Mode
 
+**Recommended model tier:** balanced (sonnet) - this skill performs straightforward operations
+
 Rapidly fix all build, type, and lint errors with minimal changes.
 
 ## Prerequisites

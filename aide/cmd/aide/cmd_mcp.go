@@ -5,8 +5,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net/http"
-	_ "net/http/pprof" // Import for side effects when pprof is enabled
 	"os"
 	"strings"
 	"sync"
@@ -85,21 +83,9 @@ func cmdMCP(dbPath string, args []string) error {
 
 	startTime := time.Now()
 
-	// Start pprof server if enabled (for profiling startup and runtime)
+	// Start pprof server if enabled (requires build with -tags pprof)
 	if os.Getenv("AIDE_PPROF_ENABLE") == "1" {
-		pprofAddr := os.Getenv("AIDE_PPROF_ADDR")
-		if pprofAddr == "" {
-			pprofAddr = "localhost:6060"
-		}
-		if pprofAddr != "" && !strings.HasPrefix(pprofAddr, "127.0.0.1:") && !strings.HasPrefix(pprofAddr, "localhost:") {
-			log.Printf("WARNING: pprof binding to %s - this exposes debug endpoints", pprofAddr)
-		}
-		go func() {
-			mcpLog.Printf("pprof server starting on http://%s/debug/pprof/", pprofAddr)
-			if err := http.ListenAndServe(pprofAddr, nil); err != nil {
-				mcpLog.Printf("pprof server error: %v", err)
-			}
-		}()
+		initPprof()
 	}
 
 	// Parse flags (CLI flags override environment variables)
@@ -113,10 +99,13 @@ func cmdMCP(dbPath string, args []string) error {
 		codeWatchDelayStr = os.Getenv("AIDE_CODE_WATCH_DELAY")
 	}
 
-	// Check if code store should be disabled (faster startup)
+	// Check if code store should be disabled entirely
 	codeStoreDisabled := os.Getenv("AIDE_CODE_STORE_DISABLE") == "1"
-	// Lazy init defers code store opening until after MCP server is ready
-	codeStoreLazy := os.Getenv("AIDE_CODE_STORE_LAZY") == "1"
+	// Code store is lazy by default for faster MCP startup.
+	// Set AIDE_CODE_STORE_SYNC=1 to force synchronous initialization.
+	// Legacy AIDE_CODE_STORE_LAZY=1 is now the default behavior.
+	codeStoreSync := os.Getenv("AIDE_CODE_STORE_SYNC") == "1"
+	codeStoreLazy := !codeStoreSync
 
 	// Print startup banner to stderr
 	mcpLog.Printf("aide MCP server starting")
@@ -186,7 +175,7 @@ func cmdMCP(dbPath string, args []string) error {
 				}
 			}
 		} else {
-			// Synchronous initialization (default)
+			// Synchronous initialization (requires AIDE_CODE_STORE_SYNC=1)
 			codeStore, err := initCodeStore()
 			if err != nil {
 				mcpLog.Printf("WARNING: failed to open code store: %v (code tools disabled)", err)
@@ -278,8 +267,7 @@ func (s *MCPServer) Run() error {
 	s.registerStateReadTools() // Read-only state access
 	s.registerDecisionTools()
 	s.registerMessageTools()
-	s.registerCodeTools()  // Code indexing and search
-	s.registerUsageTools() // Claude Code usage statistics
+	s.registerCodeTools() // Code indexing and search
 
 	// Run over stdio
 	return srv.Run(context.Background(), &mcp.StdioTransport{})
@@ -302,9 +290,9 @@ Environment Variables:
   AIDE_CODE_WATCH=1         Enable file watching
   AIDE_CODE_WATCH_PATHS     Comma-separated paths to watch
   AIDE_CODE_WATCH_DELAY     Debounce delay (default: 30s)
-  AIDE_CODE_STORE_DISABLE=1 Disable code store (faster startup)
-  AIDE_CODE_STORE_LAZY=1    Lazy-load code store after MCP ready
-  AIDE_PPROF_ENABLE=1       Enable pprof profiling server
+  AIDE_CODE_STORE_DISABLE=1 Disable code store entirely
+  AIDE_CODE_STORE_SYNC=1    Force synchronous code store init (default: lazy)
+  AIDE_PPROF_ENABLE=1       Enable pprof profiling (requires -tags pprof build)
   AIDE_PPROF_ADDR           pprof server address (default: localhost:6060)
 
 The MCP server communicates over stdio using JSON-RPC protocol.

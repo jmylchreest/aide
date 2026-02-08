@@ -11,6 +11,8 @@ triggers:
 
 # Code Review Mode
 
+**Recommended model tier:** smart (opus) - this skill requires complex reasoning
+
 Comprehensive code review covering quality, security, and maintainability.
 
 ## Review Checklist

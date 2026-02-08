@@ -50,6 +50,11 @@ build:
 	@mkdir -p $(BUILD_DIR)
 	$(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY) ./cmd/aide
 
+build-pprof:
+	@echo "Building $(BINARY) with pprof support..."
+	@mkdir -p $(BUILD_DIR)
+	$(GOBUILD) -tags pprof $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY) ./cmd/aide
+
 build-all: build-linux build-darwin build-windows
 
 build-linux:
@@ -127,6 +132,7 @@ help:
 	@echo ""
 	@echo "Usage:"
 	@echo "  make build        Build binary for current platform"
+	@echo "  make build-pprof  Build with pprof profiling support"
 	@echo "  make build-all    Build for all platforms"
 	@echo "  make test         Run tests"
 	@echo "  make test-coverage Run tests with coverage report"

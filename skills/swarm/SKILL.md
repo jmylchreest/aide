@@ -10,6 +10,8 @@ triggers:
 
 # Swarm Mode
 
+**Recommended model tier:** smart (opus) - this skill requires complex reasoning
+
 Launch parallel agents, each working on a story through SDLC stages.
 
 ## NON-NEGOTIABLE REQUIREMENTS

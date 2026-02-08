@@ -14,6 +14,8 @@ triggers:
 
 # Decision Mode
 
+**Recommended model tier:** smart (opus) - this skill requires complex reasoning
+
 Formal decision-making workflow for architectural and technical choices.
 
 ## Purpose

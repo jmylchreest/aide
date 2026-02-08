@@ -11,6 +11,8 @@ triggers:
 
 # Documentation Mode
 
+**Recommended model tier:** balanced (sonnet) - this skill performs straightforward operations
+
 Update documentation to accurately reflect the implemented code.
 
 ## Purpose

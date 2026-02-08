@@ -14,6 +14,8 @@ triggers:
 
 # Design Mode
 
+**Recommended model tier:** smart (opus) - this skill requires complex reasoning
+
 Output a technical design specification that downstream SDLC stages can consume.
 
 ## Purpose

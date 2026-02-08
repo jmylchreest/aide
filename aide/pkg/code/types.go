@@ -169,6 +169,44 @@ var LangExtensions = map[string]string{
 	".gradle": LangGroovy,
 }
 
+// LangFilenames maps known filenames (without extension) to languages.
+var LangFilenames = map[string]string{
+	"Makefile":     LangBash,
+	"GNUmakefile":  LangBash,
+	"Jenkinsfile":  LangGroovy,
+	"Vagrantfile":  LangRuby,
+	"Rakefile":     LangRuby,
+	"Gemfile":      LangRuby,
+	"BUILD":        LangPython, // Bazel
+	"BUILD.bazel":  LangPython,
+	"WORKSPACE":    LangPython, // Bazel
+	"SConstruct":   LangPython,
+	"SConscript":   LangPython,
+	"CMakeLists.txt": LangBash, // Close enough for symbol extraction
+}
+
+// ShebangLangs maps shebang interpreter names to languages.
+var ShebangLangs = map[string]string{
+	"python":  LangPython,
+	"python2": LangPython,
+	"python3": LangPython,
+	"ruby":    LangRuby,
+	"bash":    LangBash,
+	"sh":      LangBash,
+	"zsh":     LangBash,
+	"node":    LangJavaScript,
+	"deno":    LangTypeScript,
+	"bun":     LangTypeScript,
+	"lua":     LangLua,
+	"perl":    LangBash, // Best-effort
+	"php":     LangPHP,
+	"elixir":  LangElixir,
+	"groovy":  LangGroovy,
+	"swift":   LangSwift,
+	"kotlin":  LangKotlin,
+	"scala":   LangScala,
+}
+
 // SearchOptions for filtering symbol searches
 type SearchOptions struct {
 	Kind     string // Filter by symbol kind

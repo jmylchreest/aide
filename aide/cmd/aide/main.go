@@ -4,7 +4,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -22,8 +21,24 @@ func main() {
 	cmd := os.Args[1]
 	args := os.Args[2:]
 
+	// Fast path: commands that don't need a database.
+	switch cmd {
+	case "help", "-h", "--help":
+		printUsage()
+		return
+	case "version", "-v", "--version":
+		if err := cmdVersion(args); err != nil {
+			fatal("%v", err)
+		}
+		return
+	case "upgrade":
+		if err := cmdUpgrade(args); err != nil {
+			fatal("%v", err)
+		}
+		return
+	}
+
 	// Determine database path.
-	// When AIDE_MEMORY_DB is set (e.g., by hooks), skip the git subprocess.
 	dbPath := os.Getenv("AIDE_MEMORY_DB")
 	if dbPath == "" {
 		projectRoot := findProjectRoot()
@@ -61,15 +76,6 @@ func runCommand(cmd, dbPath string, args []string) error {
 		return cmdDaemon(dbPath, args)
 	case "mcp":
 		return cmdMCP(dbPath, args)
-	case "upgrade":
-		return cmdUpgrade(args)
-	case "usage":
-		return cmdUsage(args)
-	case "help", "-h", "--help":
-		printUsage()
-		return nil
-	case "version", "-v", "--version":
-		return cmdVersion(args)
 	default:
 		return fmt.Errorf("unknown command: %s", cmd)
 	}
@@ -100,7 +106,6 @@ Commands:
   decision   Manage decisions (set, get, list, history) - append-only
   message    Inter-agent messaging (send, list, ack, clear, prune)
   state      Manage session/agent state (set, get, delete, list, clear)
-  usage      Show Claude Code usage statistics (tokens, messages, sessions)
   daemon     Start gRPC daemon (Unix socket for IPC)
   mcp        Start MCP server (for Claude Code plugin integration)
   upgrade    Check for updates and upgrade to latest version
@@ -111,8 +116,8 @@ Environment:
   AIDE_CODE_WATCH=1       Enable file watching for code index updates
   AIDE_CODE_WATCH_PATHS   Comma-separated paths to watch (default: cwd)
   AIDE_CODE_WATCH_DELAY   Debounce delay for watcher (default: 30s)
-  AIDE_CODE_STORE_DISABLE=1  Disable code store (faster startup)
-  AIDE_CODE_STORE_LAZY=1  Lazy-load code store after MCP ready (faster startup)
+  AIDE_CODE_STORE_DISABLE=1  Disable code store entirely
+  AIDE_CODE_STORE_SYNC=1  Force synchronous code store init (default: lazy)
   AIDE_PPROF_ENABLE=1     Enable pprof profiling server
   AIDE_PPROF_ADDR         pprof server address (default: localhost:6060)
 
@@ -146,14 +151,11 @@ Examples:
 `, version.Short())
 }
 
-// findProjectRoot finds the git root directory, or falls back to cwd.
+// findProjectRoot walks up directories looking for .aide or .git markers.
+// This avoids spawning a git subprocess on every invocation.
+// For git worktrees, .git is a file pointing to the main repo; we follow it
+// to find the actual repository root so all worktrees share the same store.
 func findProjectRoot() string {
-	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
-	output, err := cmd.Output()
-	if err == nil {
-		return strings.TrimSpace(string(output))
-	}
-
 	cwd, err := os.Getwd()
 	if err != nil {
 		return "."
@@ -164,7 +166,19 @@ func findProjectRoot() string {
 		if _, err := os.Stat(filepath.Join(dir, ".aide")); err == nil {
 			return dir
 		}
-		if _, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
+
+		gitPath := filepath.Join(dir, ".git")
+		info, err := os.Stat(gitPath)
+		if err == nil {
+			if info.IsDir() {
+				// Normal git repo
+				return dir
+			}
+			// Worktree: .git is a file containing "gitdir: <path>"
+			// Follow it to the main repo root.
+			if root := resolveWorktreeRoot(gitPath); root != "" {
+				return root
+			}
 			return dir
 		}
 
@@ -174,4 +188,38 @@ func findProjectRoot() string {
 		}
 		dir = parent
 	}
+}
+
+// resolveWorktreeRoot reads a .git file (worktree marker) and resolves the
+// main repository root. The file contains "gitdir: /path/to/repo/.git/worktrees/<name>".
+func resolveWorktreeRoot(gitFilePath string) string {
+	data, err := os.ReadFile(gitFilePath)
+	if err != nil {
+		return ""
+	}
+	line := strings.TrimSpace(string(data))
+	if !strings.HasPrefix(line, "gitdir:") {
+		return ""
+	}
+	gitdir := strings.TrimSpace(strings.TrimPrefix(line, "gitdir:"))
+
+	// Make absolute if relative
+	if !filepath.IsAbs(gitdir) {
+		gitdir = filepath.Join(filepath.Dir(gitFilePath), gitdir)
+	}
+
+	// Walk up from .git/worktrees/<name> to find the .git directory
+	// then return its parent as the repo root
+	candidate := gitdir
+	for {
+		parent := filepath.Dir(candidate)
+		if parent == candidate {
+			break
+		}
+		if filepath.Base(candidate) == ".git" {
+			return parent
+		}
+		candidate = parent
+	}
+	return ""
 }

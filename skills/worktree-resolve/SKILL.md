@@ -10,6 +10,8 @@ triggers:
 
 # Worktree Resolution
 
+**Recommended model tier:** balanced (sonnet) - this skill performs straightforward operations
+
 Merge all swarm worktrees back into the main branch after testing.
 
 ## Workflow

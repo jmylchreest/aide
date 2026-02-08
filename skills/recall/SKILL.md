@@ -14,6 +14,8 @@ triggers:
 
 # Recall
 
+**Recommended model tier:** balanced (sonnet) - this skill performs straightforward operations
+
 Search stored memories and decisions to answer questions about past learnings, architectural choices, patterns, and project context.
 
 ## MCP Tools

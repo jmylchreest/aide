@@ -11,6 +11,8 @@ triggers:
 
 # Implement Mode
 
+**Recommended model tier:** smart (opus) - this skill requires complex reasoning
+
 Focused TDD implementation: make failing tests pass with minimal code.
 
 ## Purpose

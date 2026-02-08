@@ -12,6 +12,8 @@ triggers:
 
 # Performance Mode
 
+**Recommended model tier:** smart (opus) - this skill requires complex reasoning
+
 Systematic approach to identifying and fixing performance issues.
 
 ## Prerequisites

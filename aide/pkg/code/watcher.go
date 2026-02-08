@@ -126,8 +126,7 @@ func (w *Watcher) processEvents() {
 			}
 
 			// Only process supported file types
-			ext := filepath.Ext(event.Name)
-			if !SupportedExtension(ext) {
+			if !SupportedFile(event.Name) {
 				continue
 			}
 

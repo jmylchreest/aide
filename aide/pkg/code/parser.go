@@ -2,11 +2,14 @@
 package code
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/oklog/ulid/v2"
@@ -40,80 +43,214 @@ import (
 	"github.com/smacker/go-tree-sitter/yaml"
 )
 
-// Parser extracts symbols from source code using tree-sitter queries.
-type Parser struct {
-	languages  map[string]*sitter.Language
-	queries    map[string]*sitter.Query // Compiled tag queries per language
-	refQueries map[string]*sitter.Query // Compiled reference queries per language
+// languageProvider is a function that returns a tree-sitter language grammar.
+// Grammars are loaded lazily on first use to avoid loading all 27 at startup.
+type languageProvider func() *sitter.Language
+
+// langProviders maps language names to their grammar provider functions.
+var langProviders = map[string]languageProvider{
+	LangTypeScript: typescript.GetLanguage,
+	LangJavaScript: javascript.GetLanguage,
+	LangGo:         golang.GetLanguage,
+	LangPython:     python.GetLanguage,
+	LangRust:       rust.GetLanguage,
+	LangC:          c.GetLanguage,
+	LangCPP:        cpp.GetLanguage,
+	LangCSharp:     csharp.GetLanguage,
+	LangJava:       java.GetLanguage,
+	LangKotlin:     kotlin.GetLanguage,
+	LangScala:      scala.GetLanguage,
+	LangGroovy:     groovy.GetLanguage,
+	LangRuby:       ruby.GetLanguage,
+	LangPHP:        php.GetLanguage,
+	LangLua:        lua.GetLanguage,
+	LangElixir:     elixir.GetLanguage,
+	LangBash:       bash.GetLanguage,
+	LangSwift:      swift.GetLanguage,
+	LangOCaml:      ocaml.GetLanguage,
+	LangElm:        elm.GetLanguage,
+	LangSQL:        sql.GetLanguage,
+	LangYAML:       yaml.GetLanguage,
+	LangTOML:       toml.GetLanguage,
+	LangHCL:        hcl.GetLanguage,
+	LangProtobuf:   protobuf.GetLanguage,
+	LangHTML:       html.GetLanguage,
+	LangCSS:        css.GetLanguage,
 }
 
-// NewParser creates a new code parser with supported languages.
+// Parser extracts symbols from source code using tree-sitter queries.
+// Languages and queries are loaded lazily on first use per language.
+type Parser struct {
+	mu         sync.Mutex
+	languages  map[string]*sitter.Language  // Loaded grammars (cache)
+	queries    map[string]*sitter.Query     // Compiled tag queries (cache)
+	refQueries map[string]*sitter.Query     // Compiled reference queries (cache)
+}
+
+// NewParser creates a new code parser. Grammars and queries are loaded
+// lazily on first use rather than loading all 27 languages upfront.
 func NewParser() *Parser {
-	langs := map[string]*sitter.Language{
-		// Primary languages
-		LangTypeScript: typescript.GetLanguage(),
-		LangJavaScript: javascript.GetLanguage(),
-		LangGo:         golang.GetLanguage(),
-		LangPython:     python.GetLanguage(),
-		// Systems languages
-		LangRust:   rust.GetLanguage(),
-		LangC:      c.GetLanguage(),
-		LangCPP:    cpp.GetLanguage(),
-		LangCSharp: csharp.GetLanguage(),
-		// JVM languages
-		LangJava:   java.GetLanguage(),
-		LangKotlin: kotlin.GetLanguage(),
-		LangScala:  scala.GetLanguage(),
-		LangGroovy: groovy.GetLanguage(),
-		// Scripting languages
-		LangRuby:   ruby.GetLanguage(),
-		LangPHP:    php.GetLanguage(),
-		LangLua:    lua.GetLanguage(),
-		LangElixir: elixir.GetLanguage(),
-		LangBash:   bash.GetLanguage(),
-		// Apple/Mobile
-		LangSwift: swift.GetLanguage(),
-		// Functional
-		LangOCaml: ocaml.GetLanguage(),
-		LangElm:   elm.GetLanguage(),
-		// Data/Config
-		LangSQL:      sql.GetLanguage(),
-		LangYAML:     yaml.GetLanguage(),
-		LangTOML:     toml.GetLanguage(),
-		LangHCL:      hcl.GetLanguage(),
-		LangProtobuf: protobuf.GetLanguage(),
-		// Web
-		LangHTML: html.GetLanguage(),
-		LangCSS:  css.GetLanguage(),
-	}
-
-	// Compile queries for each language
-	queries := make(map[string]*sitter.Query)
-	for lang, sitterLang := range langs {
-		if pattern, ok := TagQueries[lang]; ok {
-			q, err := sitter.NewQuery([]byte(pattern), sitterLang)
-			if err == nil {
-				queries[lang] = q
-			}
-		}
-	}
-
-	// Compile reference queries for each language
-	refQueries := make(map[string]*sitter.Query)
-	for lang, sitterLang := range langs {
-		if pattern, ok := RefQueries[lang]; ok {
-			q, err := sitter.NewQuery([]byte(pattern), sitterLang)
-			if err == nil {
-				refQueries[lang] = q
-			}
-		}
-	}
-
 	return &Parser{
-		languages:  langs,
-		queries:    queries,
-		refQueries: refQueries,
+		languages:  make(map[string]*sitter.Language),
+		queries:    make(map[string]*sitter.Query),
+		refQueries: make(map[string]*sitter.Query),
 	}
+}
+
+// getLanguage returns the tree-sitter language for a given language name,
+// loading and caching it on first access.
+func (p *Parser) getLanguage(lang string) *sitter.Language {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if l, ok := p.languages[lang]; ok {
+		return l
+	}
+
+	provider, ok := langProviders[lang]
+	if !ok {
+		return nil
+	}
+
+	l := provider()
+	p.languages[lang] = l
+	return l
+}
+
+// getTagQuery returns the compiled tag query for a language,
+// compiling and caching it on first access. Also loads the grammar if needed.
+func (p *Parser) getTagQuery(lang string) *sitter.Query {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if q, ok := p.queries[lang]; ok {
+		return q
+	}
+
+	pattern, ok := TagQueries[lang]
+	if !ok {
+		return nil
+	}
+
+	// Ensure language grammar is loaded
+	sitterLang, ok := p.languages[lang]
+	if !ok {
+		provider, exists := langProviders[lang]
+		if !exists {
+			return nil
+		}
+		sitterLang = provider()
+		p.languages[lang] = sitterLang
+	}
+
+	q, err := sitter.NewQuery([]byte(pattern), sitterLang)
+	if err != nil {
+		return nil
+	}
+
+	p.queries[lang] = q
+	return q
+}
+
+// getRefQuery returns the compiled reference query for a language,
+// compiling and caching it on first access. Also loads the grammar if needed.
+func (p *Parser) getRefQuery(lang string) *sitter.Query {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if q, ok := p.refQueries[lang]; ok {
+		return q
+	}
+
+	pattern, ok := RefQueries[lang]
+	if !ok {
+		return nil
+	}
+
+	// Ensure language grammar is loaded
+	sitterLang, ok := p.languages[lang]
+	if !ok {
+		provider, exists := langProviders[lang]
+		if !exists {
+			return nil
+		}
+		sitterLang = provider()
+		p.languages[lang] = sitterLang
+	}
+
+	q, err := sitter.NewQuery([]byte(pattern), sitterLang)
+	if err != nil {
+		return nil
+	}
+
+	p.refQueries[lang] = q
+	return q
+}
+
+// DetectLanguage determines the language for a file using multiple heuristics:
+// 1. File extension (fastest, covers ~95% of cases)
+// 2. Known filenames (Makefile, Jenkinsfile, etc.)
+// 3. Shebang line (for extensionless scripts, requires content)
+func DetectLanguage(filePath string, content []byte) string {
+	// 1. Try file extension
+	ext := strings.ToLower(filepath.Ext(filePath))
+	if lang, ok := LangExtensions[ext]; ok {
+		return lang
+	}
+
+	// 2. Try known filenames
+	base := filepath.Base(filePath)
+	if lang, ok := LangFilenames[base]; ok {
+		return lang
+	}
+
+	// 3. Try shebang (if content provided)
+	if len(content) > 0 {
+		return detectShebang(content)
+	}
+
+	return ""
+}
+
+// detectShebang parses the first line of content for a shebang interpreter.
+func detectShebang(content []byte) string {
+	scanner := bufio.NewScanner(bytes.NewReader(content))
+	if !scanner.Scan() {
+		return ""
+	}
+	line := scanner.Text()
+
+	if !strings.HasPrefix(line, "#!") {
+		return ""
+	}
+
+	// Parse "#!/usr/bin/env python3" or "#!/usr/bin/python3"
+	shebang := strings.TrimPrefix(line, "#!")
+	shebang = strings.TrimSpace(shebang)
+
+	// Split on whitespace to get the command
+	parts := strings.Fields(shebang)
+	if len(parts) == 0 {
+		return ""
+	}
+
+	// If using /usr/bin/env, the interpreter is the next argument
+	interpreter := filepath.Base(parts[0])
+	if interpreter == "env" && len(parts) > 1 {
+		interpreter = filepath.Base(parts[1])
+	}
+
+	// Strip version suffixes (python3.11 -> python3 -> python)
+	if lang, ok := ShebangLangs[interpreter]; ok {
+		return lang
+	}
+	// Try stripping trailing digits (python3 -> python)
+	stripped := strings.TrimRight(interpreter, "0123456789.")
+	if lang, ok := ShebangLangs[stripped]; ok {
+		return lang
+	}
+
+	return ""
 }
 
 // TagQueries contains tree-sitter query patterns for extracting symbols.
@@ -294,12 +431,8 @@ var RefQueries = map[string]string{
 
 // ParseFile parses a file and extracts symbols.
 func (p *Parser) ParseFile(filePath string) ([]*Symbol, error) {
-	// Detect language from extension
-	ext := strings.ToLower(filepath.Ext(filePath))
-	lang, ok := LangExtensions[ext]
-	if !ok {
-		return nil, nil // Unsupported language, skip silently
-	}
+	// Try extension and filename detection first (no file read needed)
+	lang := DetectLanguage(filePath, nil)
 
 	// Read file content
 	content, err := os.ReadFile(filePath)
@@ -307,13 +440,22 @@ func (p *Parser) ParseFile(filePath string) ([]*Symbol, error) {
 		return nil, err
 	}
 
+	// If no language detected yet, try shebang
+	if lang == "" {
+		lang = detectShebang(content)
+	}
+
+	if lang == "" {
+		return nil, nil // Unsupported language, skip silently
+	}
+
 	return p.ParseContent(content, lang, filePath)
 }
 
 // ParseContent parses source code and extracts symbols.
 func (p *Parser) ParseContent(content []byte, lang, filePath string) ([]*Symbol, error) {
-	language, ok := p.languages[lang]
-	if !ok {
+	language := p.getLanguage(lang)
+	if language == nil {
 		return nil, nil // Unsupported language
 	}
 
@@ -330,7 +472,7 @@ func (p *Parser) ParseContent(content []byte, lang, filePath string) ([]*Symbol,
 	defer tree.Close()
 
 	// Try query-based extraction first (preferred)
-	if query, ok := p.queries[lang]; ok {
+	if query := p.getTagQuery(lang); query != nil {
 		return p.extractWithQuery(query, tree.RootNode(), content, filePath, lang), nil
 	}
 
@@ -1002,7 +1144,7 @@ func (p *Parser) isInsideClass(node *sitter.Node) bool {
 
 // SupportedLanguage returns true if the language is supported.
 func (p *Parser) SupportedLanguage(lang string) bool {
-	_, ok := p.languages[lang]
+	_, ok := langProviders[lang]
 	return ok
 }
 
@@ -1012,20 +1154,26 @@ func SupportedExtension(ext string) bool {
 	return ok
 }
 
+// SupportedFile returns true if the file is supported (by extension or filename).
+func SupportedFile(filePath string) bool {
+	ext := strings.ToLower(filepath.Ext(filePath))
+	if _, ok := LangExtensions[ext]; ok {
+		return true
+	}
+	base := filepath.Base(filePath)
+	_, ok := LangFilenames[base]
+	return ok
+}
+
 // GetLanguageForFile returns the language for a file path, or empty string if unsupported.
 func GetLanguageForFile(filePath string) string {
-	ext := strings.ToLower(filepath.Ext(filePath))
-	return LangExtensions[ext]
+	return DetectLanguage(filePath, nil)
 }
 
 // ParseFileReferences parses a file and extracts references (call sites).
 func (p *Parser) ParseFileReferences(filePath string) ([]*Reference, error) {
-	// Detect language from extension
-	ext := strings.ToLower(filepath.Ext(filePath))
-	lang, ok := LangExtensions[ext]
-	if !ok {
-		return nil, nil // Unsupported language, skip silently
-	}
+	// Try extension and filename detection first
+	lang := DetectLanguage(filePath, nil)
 
 	// Read file content
 	content, err := os.ReadFile(filePath)
@@ -1033,18 +1181,27 @@ func (p *Parser) ParseFileReferences(filePath string) ([]*Reference, error) {
 		return nil, err
 	}
 
+	// If no language detected yet, try shebang
+	if lang == "" {
+		lang = detectShebang(content)
+	}
+
+	if lang == "" {
+		return nil, nil // Unsupported language, skip silently
+	}
+
 	return p.ParseContentReferences(content, lang, filePath)
 }
 
 // ParseContentReferences parses source code and extracts references.
 func (p *Parser) ParseContentReferences(content []byte, lang, filePath string) ([]*Reference, error) {
-	language, ok := p.languages[lang]
-	if !ok {
+	language := p.getLanguage(lang)
+	if language == nil {
 		return nil, nil // Unsupported language
 	}
 
-	query, ok := p.refQueries[lang]
-	if !ok {
+	query := p.getRefQuery(lang)
+	if query == nil {
 		return nil, nil // No reference query for this language
 	}
 
