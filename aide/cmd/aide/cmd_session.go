@@ -132,7 +132,23 @@ func sessionInit(dbPath string, args []string) error {
 		result.StaleAgentsCleaned = cleaned
 	}
 
-	// 3. Fetch global memories (scope:global tag)
+	// 3-6. Gather context
+	sessionFetchContext(backend, project, sessionLimit, &result)
+
+	// Ensure nil slices become empty arrays in JSON
+	sessionInitDefaults(&result)
+
+	out, err := json.Marshal(result)
+	if err != nil {
+		return fmt.Errorf("failed to marshal result: %w", err)
+	}
+	fmt.Println(string(out))
+	return nil
+}
+
+// sessionFetchContext gathers memories, decisions, and recent sessions.
+func sessionFetchContext(backend *Backend, project string, sessionLimit int, result *SessionInitResult) {
+	// Global memories (scope:global tag)
 	globalMems, err := backend.ListMemories("global", 100)
 	if err == nil {
 		for _, m := range globalMems {
@@ -142,7 +158,7 @@ func sessionInit(dbPath string, args []string) error {
 		}
 	}
 
-	// 4. Fetch project memories
+	// Project memories
 	if project != "" {
 		projectMems, err := backend.ListMemories("", 1000)
 		if err == nil {
@@ -155,7 +171,7 @@ func sessionInit(dbPath string, args []string) error {
 		}
 	}
 
-	// 5. Fetch decisions (latest per topic)
+	// Decisions (latest per topic)
 	decisions, err := backend.ListDecisions()
 	if err == nil {
 		latest := make(map[string]*memory.Decision)
@@ -174,63 +190,71 @@ func sessionInit(dbPath string, args []string) error {
 		}
 	}
 
-	// 6. Fetch recent sessions (grouped by session tag)
+	// Recent sessions (grouped by session tag)
 	if project != "" && sessionLimit > 0 {
-		allMems, err := backend.ListMemories("", 1000)
-		if err == nil {
-			projectTag := "project:" + project
-			sessionMap := make(map[string]*SessionGroup)
+		result.RecentSessions = fetchRecentSessions(backend, project, sessionLimit)
+	}
+}
 
-			for _, m := range allMems {
-				hasProject := false
-				var sessionID string
+// fetchRecentSessions returns the most recent session groups for a project.
+func fetchRecentSessions(backend *Backend, project string, limit int) []*SessionGroup {
+	allMems, err := backend.ListMemories("", 1000)
+	if err != nil {
+		return nil
+	}
 
-				for _, tag := range m.Tags {
-					if tag == projectTag {
-						hasProject = true
-					}
-					if strings.HasPrefix(tag, "session:") {
-						sessionID = strings.TrimPrefix(tag, "session:")
-					}
-				}
+	projectTag := "project:" + project
+	sessionMap := make(map[string]*SessionGroup)
 
-				if !hasProject || sessionID == "" {
-					continue
-				}
+	for _, m := range allMems {
+		hasProject := false
+		var sessionID string
 
-				group, ok := sessionMap[sessionID]
-				if !ok {
-					group = &SessionGroup{
-						SessionID: sessionID,
-						Memories:  make([]*memory.Memory, 0),
-					}
-					sessionMap[sessionID] = group
-				}
-				group.Memories = append(group.Memories, m)
-
-				ts := m.CreatedAt.Format(time.RFC3339)
-				if group.LastAt == "" || ts > group.LastAt {
-					group.LastAt = ts
-				}
+		for _, tag := range m.Tags {
+			if tag == projectTag {
+				hasProject = true
 			}
-
-			sessions := make([]*SessionGroup, 0, len(sessionMap))
-			for _, group := range sessionMap {
-				sessions = append(sessions, group)
+			if strings.HasPrefix(tag, "session:") {
+				sessionID = strings.TrimPrefix(tag, "session:")
 			}
-			sort.Slice(sessions, func(i, j int) bool {
-				return sessions[i].LastAt > sessions[j].LastAt
-			})
+		}
 
-			if len(sessions) > sessionLimit {
-				sessions = sessions[:sessionLimit]
+		if !hasProject || sessionID == "" {
+			continue
+		}
+
+		group, ok := sessionMap[sessionID]
+		if !ok {
+			group = &SessionGroup{
+				SessionID: sessionID,
+				Memories:  make([]*memory.Memory, 0),
 			}
+			sessionMap[sessionID] = group
+		}
+		group.Memories = append(group.Memories, m)
 
-			result.RecentSessions = sessions
+		ts := m.CreatedAt.Format(time.RFC3339)
+		if group.LastAt == "" || ts > group.LastAt {
+			group.LastAt = ts
 		}
 	}
 
-	// Ensure nil slices become empty arrays in JSON
+	sessions := make([]*SessionGroup, 0, len(sessionMap))
+	for _, group := range sessionMap {
+		sessions = append(sessions, group)
+	}
+	sort.Slice(sessions, func(i, j int) bool {
+		return sessions[i].LastAt > sessions[j].LastAt
+	})
+
+	if len(sessions) > limit {
+		sessions = sessions[:limit]
+	}
+	return sessions
+}
+
+// sessionInitDefaults ensures nil slices become empty arrays in JSON output.
+func sessionInitDefaults(result *SessionInitResult) {
 	if result.GlobalMemories == nil {
 		result.GlobalMemories = []SessionMemory{}
 	}
@@ -243,13 +267,6 @@ func sessionInit(dbPath string, args []string) error {
 	if result.RecentSessions == nil {
 		result.RecentSessions = []*SessionGroup{}
 	}
-
-	out, err := json.Marshal(result)
-	if err != nil {
-		return fmt.Errorf("failed to marshal result: %w", err)
-	}
-	fmt.Println(string(out))
-	return nil
 }
 
 func memoryToSession(m *memory.Memory) SessionMemory {
