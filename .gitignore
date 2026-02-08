@@ -2,7 +2,8 @@
 node_modules/
 
 # Build outputs
-bin/
+bin/*
+!bin/aide-wrapper.sh
 !.claude-plugin/bin/
 dist/
 
@@ -28,6 +29,11 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Claude Code local settings (machine-specific, contains paths and permissions)
+.claude/settings.local.json
+.claude/statsig/
+.claude/todos/
 
 # Environment
 .env
