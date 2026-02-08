@@ -35,6 +35,7 @@ interface HookInput {
 interface HookOutput {
   continue: boolean;
   hookSpecificOutput?: {
+    hookEventName: string;
     additionalContext?: string;
   };
 }
@@ -500,6 +501,7 @@ async function main(): Promise<void> {
       const output: HookOutput = {
         continue: true,
         hookSpecificOutput: {
+          hookEventName: "UserPromptSubmit",
           additionalContext: formatSkillsContext(matched),
         },
       };

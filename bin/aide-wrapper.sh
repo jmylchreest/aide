@@ -9,7 +9,7 @@
 #
 # Logs written to: .aide/_logs/wrapper.log
 
-set -e
+set -eo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
@@ -36,7 +36,10 @@ log() {
   echo "$msg" >> "$LOG_FILE" 2>/dev/null || true
 }
 
-log "Starting wrapper (pid=$$, args=$*)"
+PARENT_PID=$PPID
+PARENT_CMD=$(ps -o comm= -p "$PPID" 2>/dev/null || echo "unknown")
+PARENT_ARGS=$(ps -o args= -p "$PPID" 2>/dev/null || echo "unknown")
+log "Starting wrapper (pid=$$, ppid=$PARENT_PID, parent=$PARENT_CMD, parent_args=$PARENT_ARGS, args=$*)"
 log "PLUGIN_ROOT=$PLUGIN_ROOT"
 log "BINARY=$BINARY"
 
@@ -80,21 +83,34 @@ else
 fi
 
 if [[ "$NEEDS_DOWNLOAD" == "true" ]]; then
-  log "Downloading binary..."
-
+  LOCKFILE="$BIN_DIR/.aide-download.lock"
   DOWNLOADER="$PLUGIN_ROOT/src/lib/aide-downloader.ts"
-  log "Using downloader: $DOWNLOADER"
 
-  if ! npx --yes tsx "$DOWNLOADER" --dest "$BIN_DIR" 2>&1 | tee -a "$LOG_FILE" >&2; then
-    log "ERROR: Downloader failed"
-    exit 1
-  fi
+  # Use flock to ensure only one process downloads at a time.
+  # If another process holds the lock, we wait for it to finish.
+  (
+    flock -w 60 9 || { log "ERROR: Timed out waiting for download lock"; exit 1; }
 
-  if [[ ! -x "$BINARY" ]]; then
-    log "ERROR: Binary not found after download"
-    exit 1
-  fi
+    # Re-check after acquiring lock — another process may have finished the download
+    if [[ -x "$BINARY" ]]; then
+      log "Binary appeared while waiting for lock (downloaded by another process)"
+    else
+      log "Downloading binary..."
+      log "Using downloader: $DOWNLOADER"
 
+      if ! npx --yes tsx "$DOWNLOADER" --dest "$BIN_DIR" 2>&1 | tee -a "$LOG_FILE" >&2; then
+        log "ERROR: Downloader failed"
+        exit 1
+      fi
+
+      if [[ ! -x "$BINARY" ]]; then
+        log "ERROR: Binary not found after download"
+        exit 1
+      fi
+    fi
+  ) 9>"$LOCKFILE"
+
+  rm -f "$LOCKFILE"
   log "Binary ready at $BINARY"
 fi
 

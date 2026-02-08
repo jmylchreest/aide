@@ -11,10 +11,12 @@
  * The binary is downloaded from the release matching the plugin version.
  */
 
-import { existsSync, mkdirSync, readFileSync, chmodSync, unlinkSync, realpathSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, chmodSync, unlinkSync, renameSync, realpathSync, createWriteStream } from "fs";
 import { join, dirname } from "path";
-import { execFileSync, spawn } from "child_process";
+import { execFileSync } from "child_process";
 import { fileURLToPath } from "url";
+import { Readable, Transform } from "stream";
+import { pipeline } from "stream/promises";
 // Canonical binary finder — import for local use, re-export for backward compat
 import { findAideBinary } from "./hook-utils.js";
 export { findAideBinary };
@@ -250,41 +252,47 @@ export async function downloadAideBinary(
       mkdirSync(destDir, { recursive: true });
     }
 
-    // Use curl with progress
-    // -f: fail silently on HTTP errors
-    // -S: show errors
-    // -L: follow redirects
-    // --progress-bar: show progress
-    const curlArgs = ["-fSL", "--progress-bar", "-o", destPath, url];
-
-    await new Promise<void>((resolve, reject) => {
-      const curl = spawn("curl", curlArgs, {
-        stdio: quiet ? "pipe" : ["pipe", "pipe", "inherit"], // stderr shows progress
-      });
-
-      curl.on("close", (code) => {
-        if (code === 0) {
-          resolve();
-        } else {
-          reject(new Error(`curl exited with code ${code}`));
-        }
-      });
-
-      curl.on("error", reject);
+    // Download using native fetch (follows redirects by default)
+    const response = await fetch(url, {
+      headers: { "User-Agent": "aide-plugin" },
     });
 
-    // Make executable
-    if (process.platform !== "win32") {
-      chmodSync(destPath, 0o755);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
-    // Verify it works
-    try {
-      execFileSync(destPath, ["version"], { stdio: "pipe", timeout: 5000 });
-    } catch {
-      // Version command might not exist, try --help
-      execFileSync(destPath, ["--help"], { stdio: "pipe", timeout: 5000 });
+    if (!response.body) {
+      throw new Error("Response body is null");
     }
+
+    const totalBytes = Number(response.headers.get("content-length") || 0);
+    let downloadedBytes = 0;
+    let lastPercent = -1;
+
+    // Stream to a temp file, then atomic rename into place.
+    // destPath is never opened for writing, so exec() cannot hit ETXTBSY.
+    const tmpPath = destPath + `.tmp.${process.pid}`;
+    const nodeStream = Readable.fromWeb(response.body as import("stream/web").ReadableStream);
+    const fileStream = createWriteStream(tmpPath, { mode: 0o755 });
+
+    const progress = new Transform({
+      transform(chunk: Buffer, _encoding, callback) {
+        downloadedBytes += chunk.length;
+        if (!quiet && totalBytes > 0) {
+          const percent = Math.floor((downloadedBytes / totalBytes) * 100);
+          if (percent !== lastPercent) {
+            lastPercent = percent;
+            const mb = (downloadedBytes / 1024 / 1024).toFixed(1);
+            const totalMb = (totalBytes / 1024 / 1024).toFixed(1);
+            log(`[aide] Downloading... ${mb}/${totalMb} MB (${percent}%)`);
+          }
+        }
+        callback(null, chunk);
+      },
+    });
+
+    await pipeline(nodeStream, progress, fileStream);
+    renameSync(tmpPath, destPath);
 
     if (!quiet) {
       log(`[aide] ✓ Binary installed successfully`);

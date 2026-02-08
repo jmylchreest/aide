@@ -27,6 +27,7 @@ interface HookOutput {
   continue: boolean;
   message?: string;
   hookSpecificOutput?: {
+    hookEventName: string;
     additionalContext?: string;
   };
 }
@@ -162,6 +163,7 @@ async function main(): Promise<void> {
       const output: HookOutput = {
         continue: true,
         hookSpecificOutput: {
+          hookEventName: "PreToolUse",
           additionalContext: reminder,
         },
       };
