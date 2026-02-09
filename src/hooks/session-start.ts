@@ -17,22 +17,36 @@ import {
   readFileSync,
   writeFileSync,
   mkdirSync,
-  readdirSync,
-  unlinkSync,
-  statSync,
   copyFileSync,
   chmodSync,
 } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { homedir } from "os";
-import { execFileSync, execSync } from "child_process";
 import { Logger, debug, setDebugCwd } from "../lib/logger.js";
 import { readStdin } from "../lib/hook-utils.js";
 import {
   findAideBinary,
   ensureAideBinary,
 } from "../lib/aide-downloader.js";
+import {
+  ensureDirectories as coreEnsureDirectories,
+  loadConfig as coreLoadConfig,
+  initializeSession as coreInitializeSession,
+  cleanupStaleStateFiles as coreCleanupStaleStateFiles,
+  resetHudState as coreResetHudState,
+  getProjectName,
+  runSessionInit as coreRunSessionInit,
+  buildWelcomeContext as coreBuildWelcomeContext,
+  formatTimeAgo,
+} from "../core/session-init.js";
+import type {
+  AideConfig,
+  SessionState,
+  SessionInitResult,
+  MemoryInjection,
+  StartupNotices,
+} from "../core/types.js";
 
 const SOURCE = "session-start";
 debug(SOURCE, `Hook started (AIDE_DEBUG=${process.env.AIDE_DEBUG || "unset"})`);
@@ -52,44 +66,6 @@ interface HookOutput {
     additionalContext?: string;
   };
 }
-
-interface AideConfig {
-  tiers: Record<string, string>;
-  aliases: Record<string, string>;
-  hud: {
-    enabled: boolean;
-    elements: string[];
-  };
-}
-
-interface SessionState {
-  sessionId: string;
-  startedAt: string;
-  cwd: string;
-  activeMode: string | null;
-  agentCount: number;
-}
-
-const DEFAULT_CONFIG: AideConfig = {
-  tiers: {
-    fast: "Cheapest/fastest model",
-    balanced: "Good cost/capability balance",
-    smart: "Most capable model",
-  },
-  aliases: {
-    opus: "smart",
-    sonnet: "balanced",
-    haiku: "fast",
-    cheap: "fast",
-    quick: "fast",
-    thorough: "smart",
-    best: "smart",
-  },
-  hud: {
-    enabled: true,
-    elements: ["mode", "model", "agents"],
-  },
-};
 
 interface BinaryCheckResult {
   binary: string | null;
@@ -132,23 +108,14 @@ async function checkAideBinary(
 }
 
 /**
- * Reset HUD state file for clean session start
- * Clears the HUD display so it starts fresh
+ * Reset HUD state file for clean session start — delegates to core
  */
 function resetHudState(cwd: string, log: Logger): void {
   log.start("resetHudState");
-
-  const hudPath = join(cwd, ".aide", "state", "hud.txt");
-
   try {
-    if (existsSync(hudPath)) {
-      // Write empty/idle HUD state
-      writeFileSync(hudPath, "mode:idle");
-      log.debug("HUD state reset to idle");
-    }
+    coreResetHudState(cwd);
     log.end("resetHudState", { success: true });
   } catch (err) {
-    // Non-fatal
     log.warn("Failed to reset HUD state", err);
     log.end("resetHudState", { success: false, error: String(err) });
   }
@@ -231,153 +198,35 @@ function installHudWrapper(log: Logger): void {
 }
 
 /**
- * Ensure all .aide directories exist
+ * Ensure all .aide directories exist — delegates to core
  */
 function ensureDirectories(cwd: string, log: Logger): void {
-  const dirs = [
-    join(cwd, ".aide"),
-    join(cwd, ".aide", "skills"),
-    join(cwd, ".aide", "config"),
-    join(cwd, ".aide", "state"),
-    join(cwd, ".aide", "memory"),
-    join(cwd, ".aide", "worktrees"),
-    join(cwd, ".aide", "_logs"), // Log directory
-    join(homedir(), ".aide"),
-    join(homedir(), ".aide", "skills"),
-    join(homedir(), ".aide", "config"),
-  ];
-
   log.start("ensureDirectories");
-  let created = 0;
-  let existed = 0;
-
-  for (const dir of dirs) {
-    if (!existsSync(dir)) {
-      try {
-        mkdirSync(dir, { recursive: true });
-        created++;
-        log.debug(`Created directory: ${dir}`);
-      } catch (err) {
-        log.warn(`Failed to create directory: ${dir}`, err);
-      }
-    } else {
-      existed++;
-    }
-  }
-
-  // Ensure .gitignore exists in .aide directory
-  const gitignorePath = join(cwd, ".aide", ".gitignore");
-  const requiredGitignoreContent = `# AIDE runtime files - do not commit
-_logs/
-state/
-bin/
-*.db
-*.bleve/
-`;
-  if (!existsSync(gitignorePath)) {
-    try {
-      writeFileSync(gitignorePath, requiredGitignoreContent);
-      log.debug(`Created .gitignore: ${gitignorePath}`);
-    } catch (err) {
-      log.warn(`Failed to create .gitignore: ${gitignorePath}`, err);
-    }
-  } else {
-    // Check if bin/ is missing and add it
-    try {
-      const existingContent = readFileSync(gitignorePath, "utf-8");
-      if (!existingContent.includes("bin/")) {
-        const updatedContent = existingContent.trimEnd() + "\nbin/\n";
-        writeFileSync(gitignorePath, updatedContent);
-        log.debug(`Updated .gitignore to include bin/`);
-      }
-    } catch (err) {
-      log.warn(`Failed to update .gitignore: ${gitignorePath}`, err);
-    }
-  }
-
-  log.end("ensureDirectories", { total: dirs.length, created, existed });
+  const { created, existed } = coreEnsureDirectories(cwd);
+  log.end("ensureDirectories", { created, existed });
 }
 
 /**
- * Load or create config file
+ * Load or create config file — delegates to core
  */
 function loadConfig(cwd: string, log: Logger): AideConfig {
-  const configPath = join(cwd, ".aide", "config", "aide.json");
-
   log.start("loadConfig");
-
-  if (existsSync(configPath)) {
-    try {
-      const content = readFileSync(configPath, "utf-8");
-      log.end("loadConfig", { source: "existing", path: configPath });
-      return { ...DEFAULT_CONFIG, ...JSON.parse(content) };
-    } catch (err) {
-      log.warn(`Failed to parse config: ${configPath}`, err);
-      log.end("loadConfig", { source: "default", reason: "parse-error" });
-      return DEFAULT_CONFIG;
-    }
-  }
-
-  // Create default config
-  try {
-    writeFileSync(configPath, JSON.stringify(DEFAULT_CONFIG, null, 2));
-    log.debug(`Created default config: ${configPath}`);
-  } catch (err) {
-    log.warn(`Failed to write default config: ${configPath}`, err);
-  }
-
-  log.end("loadConfig", { source: "default", reason: "not-found" });
-  return DEFAULT_CONFIG;
+  const config = coreLoadConfig(cwd);
+  log.end("loadConfig");
+  return config;
 }
 
 /**
- * Clean up stale state files older than 24 hours
+ * Clean up stale state files — delegates to core
  */
 function cleanupStaleStateFiles(cwd: string, log: Logger): void {
-  const stateDir = join(cwd, ".aide", "state");
-  if (!existsSync(stateDir)) {
-    log.debug("cleanupStaleStateFiles: state directory does not exist");
-    return;
-  }
-
   log.start("cleanupStaleStateFiles");
-
-  const now = Date.now();
-  const maxAge = 24 * 60 * 60 * 1000; // 24 hours
-  let scanned = 0;
-  let deleted = 0;
-
-  try {
-    const files = readdirSync(stateDir);
-    for (const file of files) {
-      // Don't clean up session or config files
-      if (file.endsWith("-state.json") || file === "session.json") {
-        scanned++;
-        const filePath = join(stateDir, file);
-        const stats = statSync(filePath);
-        const age = now - stats.mtimeMs;
-        if (age > maxAge) {
-          try {
-            unlinkSync(filePath);
-            deleted++;
-            log.debug(
-              `Deleted stale file: ${file} (age: ${Math.round(age / 3600000)}h)`,
-            );
-          } catch (err) {
-            log.warn(`Failed to delete stale file: ${file}`, err);
-          }
-        }
-      }
-    }
-  } catch (err) {
-    log.warn("Failed to read state directory", err);
-  }
-
+  const { scanned, deleted } = coreCleanupStaleStateFiles(cwd);
   log.end("cleanupStaleStateFiles", { scanned, deleted });
 }
 
 /**
- * Initialize session state
+ * Initialize session state — delegates to core
  */
 function initializeSession(
   sessionId: string,
@@ -385,86 +234,17 @@ function initializeSession(
   log: Logger,
 ): SessionState {
   log.start("initializeSession");
-
-  const state: SessionState = {
-    sessionId,
-    startedAt: new Date().toISOString(),
-    cwd,
-    activeMode: null,
-    agentCount: 0,
-  };
-
-  const statePath = join(cwd, ".aide", "state", "session.json");
-  try {
-    writeFileSync(statePath, JSON.stringify(state, null, 2));
-    log.debug(`Session state written: ${statePath}`);
-  } catch (err) {
-    log.warn(`Failed to write session state: ${statePath}`, err);
-  }
-
+  const state = coreInitializeSession(sessionId, cwd);
   log.end("initializeSession", { sessionId: sessionId.slice(0, 8) });
   return state;
 }
 
-/**
- * Get project name from git remote or directory name
- */
-function getProjectName(cwd: string): string {
-  try {
-    // Try git remote first
-    const remoteUrl = execSync("git config --get remote.origin.url", {
-      cwd,
-      stdio: ["pipe", "pipe", "pipe"],
-      timeout: 2000,
-    })
-      .toString()
-      .trim();
-
-    // Extract repo name from URL
-    const match = remoteUrl.match(/[/:]([^/]+?)(?:\.git)?$/);
-    if (match) return match[1];
-  } catch {
-    // Not a git repo or no remote
-  }
-
-  // Fallback to directory name
-  return cwd.split("/").pop() || "unknown";
-}
+// getProjectName, runSessionInit, formatTimeAgo, buildWelcomeContext
+// are now imported from ../core/session-init.js above.
+// The runSessionInit wrapper below adds logging around the core function.
 
 /**
- * Result from `aide session init --format=json`
- */
-interface SessionInitResult {
-  state_keys_deleted: number;
-  stale_agents_cleaned: number;
-  global_memories: Array<{ id: string; content: string; category: string; tags: string[] }>;
-  project_memories: Array<{ id: string; content: string; category: string; tags: string[] }>;
-  decisions: Array<{ topic: string; value: string; rationale?: string }>;
-  recent_sessions: Array<{
-    session_id: string;
-    last_at: string;
-    memories: Array<{ content: string; category: string }>;
-  }>;
-}
-
-interface MemoryInjection {
-  static: {
-    global: string[]; // scope:global memories
-    project: string[]; // project:<name> memories
-    decisions: string[]; // project decisions
-  };
-  dynamic: {
-    sessions: string[]; // recent session summaries
-  };
-}
-
-/**
- * Run `aide session init` — single binary invocation that:
- * 1. Deletes global state keys (mode, startedAt, etc.)
- * 2. Cleans up stale agent state (>30m)
- * 3. Returns global memories, project memories, decisions, recent sessions
- *
- * Replaces 7 separate binary spawns (~35-50s) with 1 (~5s).
+ * Run session init with logging — wraps core function
  */
 function runSessionInit(
   cwd: string,
@@ -474,224 +254,37 @@ function runSessionInit(
 ): MemoryInjection {
   log.start("sessionInit");
 
-  const result: MemoryInjection = {
-    static: { global: [], project: [], decisions: [] },
-    dynamic: { sessions: [] },
-  };
-
-  // Check for disable flag
-  if (process.env.AIDE_MEMORY_INJECT === "0") {
-    log.info("Memory injection disabled via AIDE_MEMORY_INJECT=0");
-  }
-
   const binary = findAideBinary(cwd);
   if (!binary) {
     log.debug("aide binary not found, skipping session init");
     log.end("sessionInit", { skipped: true, reason: "no-binary" });
-    return result;
+    return {
+      static: { global: [], project: [], decisions: [] },
+      dynamic: { sessions: [] },
+    };
   }
 
-  const dbPath = join(cwd, ".aide", "memory", "store.db");
+  const result = coreRunSessionInit(binary, cwd, projectName, sessionLimit);
 
-  try {
-    const args = [
-      "session", "init",
-      `--project=${projectName}`,
-      `--session-limit=${sessionLimit}`,
-    ];
-
-    const output = execFileSync(binary, args, {
-      cwd,
-      encoding: "utf-8",
-      timeout: 15000,
-      env: { ...process.env, AIDE_MEMORY_DB: dbPath },
-    }).trim();
-
-    if (!output) {
-      log.debug("session init returned empty output");
-      log.end("sessionInit", { success: false, reason: "empty-output" });
-      return result;
-    }
-
-    const data: SessionInitResult = JSON.parse(output);
-
-    log.debug(
-      `State: ${data.state_keys_deleted} keys deleted, ${data.stale_agents_cleaned} stale agents cleaned`,
-    );
-
-    // Skip memory population if injection disabled
-    if (process.env.AIDE_MEMORY_INJECT === "0") {
-      log.end("sessionInit", { success: true, memoriesDisabled: true });
-      return result;
-    }
-
-    // Populate memories from the single response
-    result.static.global = data.global_memories.map((m) => m.content);
-    result.static.project = data.project_memories.map((m) => m.content);
-    result.static.decisions = data.decisions.map(
-      (d) =>
-        `**${d.topic}**: ${d.value}${d.rationale ? ` (${d.rationale})` : ""}`,
-    );
-
-    // Format recent sessions
-    for (const sess of data.recent_sessions) {
-      const timeAgo = sess.last_at ? formatTimeAgo(sess.last_at) : "";
-      const header = `Session ${sess.session_id}${timeAgo ? ` (${timeAgo})` : ""}`;
-      const memories = sess.memories
-        .map((m) => `- [${m.category}] ${m.content}`)
-        .join("\n");
-      result.dynamic.sessions.push(`${header}:\n${memories}`);
-    }
-
-    log.end("sessionInit", {
-      success: true,
-      globalCount: result.static.global.length,
-      projectCount: result.static.project.length,
-      decisionCount: result.static.decisions.length,
-      sessionCount: result.dynamic.sessions.length,
-    });
-  } catch (err) {
-    log.warn("session init failed", err);
-    log.end("sessionInit", { success: false, error: String(err) });
-  }
+  log.end("sessionInit", {
+    globalCount: result.static.global.length,
+    projectCount: result.static.project.length,
+    decisionCount: result.static.decisions.length,
+    sessionCount: result.dynamic.sessions.length,
+  });
 
   return result;
 }
 
 /**
- * Format a timestamp as relative time
- */
-function formatTimeAgo(isoTimestamp: string): string {
-  try {
-    const dt = new Date(isoTimestamp);
-    const now = new Date();
-    const seconds = (now.getTime() - dt.getTime()) / 1000;
-    const minutes = seconds / 60;
-    const hours = seconds / 3600;
-    const days = seconds / 86400;
-
-    if (minutes < 60) return `${Math.floor(minutes)}m ago`;
-    if (hours < 24) return `${Math.floor(hours)}h ago`;
-    if (days < 7) return `${Math.floor(days)}d ago`;
-
-    const month = dt.toLocaleString("en", { month: "short" });
-    return `${dt.getDate()} ${month}`;
-  } catch {
-    return "";
-  }
-}
-
-interface StartupNotices {
-  error?: string | null; // Critical error (blocks aide)
-  warning?: string | null; // Soft warning (update available, etc.)
-  info?: string[]; // Informational notices (binary downloaded, tasks cleared, etc.)
-}
-
-/**
- * Build welcome context with proper memory injection
+ * Build welcome context — wraps core function
  */
 function buildWelcomeContext(
   state: SessionState,
   memories: MemoryInjection,
   notices: StartupNotices = {},
 ): string {
-  const lines = ["<aide-context>", ""];
-
-  // Show setup error prominently at the top
-  if (notices.error) {
-    lines.push("## Setup Issue");
-    lines.push("");
-    lines.push(notices.error);
-    lines.push("");
-  }
-
-  // Show update warning (less prominent than errors)
-  if (notices.warning) {
-    lines.push("## Update Available");
-    lines.push("");
-    lines.push(notices.warning);
-    lines.push("");
-  }
-
-  // Show informational notices
-  if (notices.info && notices.info.length > 0) {
-    lines.push("## Startup");
-    lines.push("");
-    for (const info of notices.info) {
-      lines.push(`- ${info}`);
-    }
-    lines.push("");
-  }
-
-  lines.push("## Session");
-  lines.push("");
-  lines.push(`ID: ${state.sessionId.slice(0, 8)}`);
-  lines.push(`Project: ${getProjectName(state.cwd)}`);
-  lines.push("");
-
-  // STATIC: Global preferences (scope:global)
-  if (memories.static.global.length > 0) {
-    lines.push("## Preferences (Global)");
-    lines.push("");
-    lines.push("User preferences that apply across all projects:");
-    lines.push("");
-    for (const mem of memories.static.global) {
-      lines.push(`- ${mem}`);
-    }
-    lines.push("");
-  }
-
-  // STATIC: Project memories (project:<name>)
-  if (memories.static.project.length > 0) {
-    lines.push("## Project Context");
-    lines.push("");
-    lines.push("Memories specific to this project:");
-    lines.push("");
-    for (const mem of memories.static.project) {
-      lines.push(`- ${mem}`);
-    }
-    lines.push("");
-  }
-
-  // STATIC: Project decisions
-  if (memories.static.decisions.length > 0) {
-    lines.push("## Project Decisions");
-    lines.push("");
-    lines.push("Architectural decisions for this project. Follow these:");
-    lines.push("");
-    for (const decision of memories.static.decisions) {
-      lines.push(`- ${decision}`);
-    }
-    lines.push("");
-  }
-
-  // DYNAMIC: Recent sessions
-  if (memories.dynamic.sessions.length > 0) {
-    lines.push("## Recent Sessions");
-    lines.push("");
-    for (const session of memories.dynamic.sessions) {
-      // Sessions may contain multi-line content, indent properly
-      const sessionLines = session.split("\n");
-      lines.push(`### ${sessionLines[0]}`);
-      if (sessionLines.length > 1) {
-        lines.push("");
-        lines.push(...sessionLines.slice(1));
-      }
-      lines.push("");
-    }
-  }
-
-  lines.push("## Available Modes");
-  lines.push("");
-  lines.push("- **autopilot**: Full autonomous execution");
-  lines.push("- **eco**: Token-efficient mode");
-  lines.push("- **ralph**: Persistence until verified complete");
-  lines.push("- **swarm**: Parallel agents with shared memory");
-  lines.push("- **plan**: Planning interview workflow");
-  lines.push("");
-  lines.push("</aide-context>");
-
-  return lines.join("\n");
+  return coreBuildWelcomeContext(state, memories, notices);
 }
 
 // Debug helper - writes to debug.log (not stderr)

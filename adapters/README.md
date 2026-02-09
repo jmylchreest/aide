@@ -1,10 +1,19 @@
-# Adapters (Examples)
+# Integrations & Adapters
 
-This directory contains **example adapters** that demonstrate how aide's portable content (agents, skills) can be translated to other AI coding tools.
+aide supports multiple AI coding tools at different integration levels.
 
-## Status: Examples Only
+## Full Integrations
 
-These adapters are provided as **starting points**, not production-ready integrations:
+These provide first-class aide support with hooks, memory, skills, and persistence:
+
+| Platform | Package | Features |
+|----------|---------|----------|
+| **Claude Code** | Built-in (plugin) | All features: hooks, skills, memory, HUD, persistence, swarm |
+| **OpenCode** | `@aide/opencode-plugin` | Hooks, skills, memory, MCP tools. See [opencode/](opencode/) |
+
+## Example Adapters
+
+These are **starting points** that translate aide's portable content to other tools:
 
 | Adapter | Status | Completeness |
 |---------|--------|--------------|
@@ -12,22 +21,26 @@ These adapters are provided as **starting points**, not production-ready integra
 | `cursor/` | Example | Generates .cursorrules with condensed prompts |
 | `aider/` | Example | Generates CONVENTIONS.md |
 
-## What Works
+### What Works (Adapters)
 
 - Reading aide agent/skill markdown files
 - Generating basic tool-specific config formats
 - Providing a template for community contributions
 
-## What's Missing (vs Claude Code)
+### What's Missing (Adapters vs Full Integrations)
 
-| Feature | Claude Code | Adapters |
-|---------|:-----------:|:--------:|
-| Dynamic skill injection | ✅ Hooks | ❌ Static |
-| Keyword detection | ✅ Hooks | ❌ Manual |
-| Model tier routing | ✅ Automatic | ❌ Manual |
-| Read-only enforcement | ✅ PreToolUse | ❌ None |
-| Persistence (ralph) | ✅ Stop hook | ❌ None |
-| aide-memory integration | ✅ Direct | ⚠️ CLI only |
+| Feature | Claude Code | OpenCode | Adapters |
+|---------|:-----------:|:--------:|:--------:|
+| Dynamic skill injection | ✅ Hooks | ✅ Plugin | ❌ Static |
+| Memory injection | ✅ SessionStart | ✅ system.transform | ❌ None |
+| Tool tracking | ✅ PreToolUse | ✅ tool.execute.* | ❌ None |
+| Session summaries | ✅ Stop hook | ⚠️ State-based | ❌ None |
+| Read-only enforcement | ✅ PreToolUse | ⚠️ permission.ask | ❌ None |
+| Persistence (ralph) | ✅ Stop hook (block) | ❌ No stop blocking | ❌ None |
+| Subagent orchestration | ✅ SubagentStart/Stop | ⚠️ Multi-instance | ❌ None |
+| HUD status line | ✅ Terminal HUD | ❌ File-based only | ❌ None |
+| Usage tracking | ✅ OAuth API | ❌ Not available | ❌ None |
+| aide-memory MCP | ✅ Direct | ✅ MCP config | ⚠️ CLI only |
 
 ## Contributing
 
@@ -42,9 +55,9 @@ Community contributions to improve these adapters are welcome. Each tool has dif
 5. Transform to tool's native format
 6. Add README with integration instructions
 
-## Full Integration (Claude Code)
+## Full Integration Setup
 
-For the complete aide experience with all features, use Claude Code:
+### Claude Code
 
 ```bash
 # Install from GitHub
@@ -53,3 +66,7 @@ claude plugins install github:jmylchreest/aide
 # Or for development
 claude --plugin-dir /path/to/aide
 ```
+
+### OpenCode
+
+See [opencode/README.md](opencode/README.md) for setup instructions.

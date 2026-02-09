@@ -6,7 +6,12 @@
  * Sets currentTool in aide-memory before tool execution.
  */
 
-import { readStdin, setMemoryState } from "../lib/hook-utils.js";
+import { readStdin, setMemoryState, findAideBinary } from "../lib/hook-utils.js";
+import {
+  trackToolUse,
+  formatToolDescription,
+} from "../core/tool-tracking.js";
+import { findAideBinary as coreFindBinary } from "../core/aide-client.js";
 
 interface HookInput {
   hook_event_name: string;
@@ -19,70 +24,11 @@ interface HookInput {
     description?: string;
     prompt?: string;
     file_path?: string;
-    // Task tool specific
     model?: string;
     subagent_type?: string;
   };
   transcript_path?: string;
   permission_mode?: string;
-}
-
-/**
- * Format tool description for HUD display
- */
-function formatToolDescription(
-  toolName: string,
-  tool_input?: HookInput["tool_input"],
-): string {
-  if (!tool_input) return toolName;
-
-  // Show relevant details based on tool type
-  switch (toolName) {
-    case "Bash":
-      if (tool_input.command) {
-        // Truncate long commands
-        const cmd =
-          tool_input.command.length > 40
-            ? tool_input.command.slice(0, 37) + "..."
-            : tool_input.command;
-        return `Bash(${cmd})`;
-      }
-      return toolName;
-
-    case "Read":
-      if (tool_input.file_path) {
-        const filename =
-          tool_input.file_path.split("/").pop() || tool_input.file_path;
-        return `Read(${filename})`;
-      }
-      return toolName;
-
-    case "Edit":
-    case "Write":
-      if (tool_input.file_path) {
-        const filename =
-          tool_input.file_path.split("/").pop() || tool_input.file_path;
-        return `${toolName}(${filename})`;
-      }
-      return toolName;
-
-    case "Task":
-      if (tool_input.description) {
-        const desc =
-          tool_input.description.length > 30
-            ? tool_input.description.slice(0, 27) + "..."
-            : tool_input.description;
-        return `Task(${desc})`;
-      }
-      return toolName;
-
-    case "Grep":
-    case "Glob":
-      return toolName;
-
-    default:
-      return toolName;
-  }
 }
 
 async function main(): Promise<void> {
@@ -99,11 +45,25 @@ async function main(): Promise<void> {
     const toolName = data.tool_name || "";
 
     if (agentId && toolName) {
-      const toolDesc = formatToolDescription(toolName, data.tool_input);
-      setMemoryState(cwd, "currentTool", toolDesc, agentId);
+      // Try core binary discovery first, fall back to hook-utils
+      const binary = coreFindBinary({
+        cwd,
+        pluginRoot: process.env.CLAUDE_PLUGIN_ROOT,
+      }) || findAideBinary(cwd);
+
+      if (binary) {
+        trackToolUse(binary, cwd, {
+          toolName,
+          agentId,
+          toolInput: data.tool_input,
+        });
+      } else {
+        // Fall back to hook-utils setMemoryState (uses its own binary discovery)
+        const toolDesc = formatToolDescription(toolName, data.tool_input);
+        setMemoryState(cwd, "currentTool", toolDesc, agentId);
+      }
     }
 
-    // Always continue
     console.log(JSON.stringify({ continue: true }));
   } catch (error) {
     console.log(JSON.stringify({ continue: true }));

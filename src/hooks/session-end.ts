@@ -10,64 +10,15 @@
  * - duration (optional)
  */
 
-import {
-  readStdin,
-  findAideBinary,
-  clearAgentState,
-  deleteMemoryState,
-  setMemoryState,
-  runAide,
-} from "../lib/hook-utils.js";
+import { readStdin } from "../lib/hook-utils.js";
+import { findAideBinary } from "../core/aide-client.js";
+import { cleanupSession as coreCleanupSession } from "../core/cleanup.js";
 
 interface SessionEndInput {
   event: "SessionEnd";
   session_id: string;
   cwd: string;
   duration?: number;
-}
-
-/**
- * Record session end and cleanup temporary state
- */
-function cleanupSession(
-  cwd: string,
-  sessionId: string,
-  duration?: number,
-): void {
-  if (!findAideBinary(cwd)) return;
-
-  // Record session end (best effort)
-  const durationStr = duration ? ` (${Math.round(duration / 1000)}s)` : "";
-  runAide(cwd, [
-    "message",
-    "send",
-    `Session ${sessionId} ended${durationStr}`,
-    "--from=system",
-    "--type=system",
-  ]);
-
-  // Clear transient state for this session/agent
-  clearAgentState(cwd, sessionId);
-
-  // Clear global session state (these are set by hud-updater and keyword-detector)
-  const globalSessionKeys = [
-    "mode",
-    "startedAt",
-    "modelTier",
-    "agentCount",
-    "toolCalls",
-    "lastToolUse",
-    "lastTool",
-  ];
-  for (const key of globalSessionKeys) {
-    deleteMemoryState(cwd, key);
-  }
-
-  // Record session metrics
-  if (duration) {
-    setMemoryState(cwd, "last_session_duration", String(duration));
-  }
-  setMemoryState(cwd, "last_session_end", new Date().toISOString());
 }
 
 async function main(): Promise<void> {
@@ -82,8 +33,14 @@ async function main(): Promise<void> {
     const cwd = data.cwd || process.cwd();
     const sessionId = data.session_id || "unknown";
 
-    // Cleanup session
-    cleanupSession(cwd, sessionId, data.duration);
+    // Cleanup session — delegates to core
+    const binary = findAideBinary({
+      cwd,
+      pluginRoot: process.env.CLAUDE_PLUGIN_ROOT,
+    });
+    if (binary) {
+      coreCleanupSession(binary, cwd, sessionId, data.duration);
+    }
 
     // Always continue
     console.log(JSON.stringify({ continue: true }));

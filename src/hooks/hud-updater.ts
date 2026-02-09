@@ -9,11 +9,9 @@
  */
 
 import { Logger } from "../lib/logger.js";
-import {
-  readStdin,
-  setMemoryState,
-  getMemoryState,
-} from "../lib/hook-utils.js";
+import { readStdin } from "../lib/hook-utils.js";
+import { findAideBinary } from "../core/aide-client.js";
+import { updateToolStats } from "../core/tool-tracking.js";
 import {
   getAgentStates,
   loadHudConfig,
@@ -34,36 +32,6 @@ interface HookInput {
   };
   transcript_path?: string;
   permission_mode?: string;
-}
-
-/**
- * Update session state with tool usage (using aide-memory only)
- */
-function updateSessionState(
-  cwd: string,
-  toolName: string,
-  agentId?: string,
-): void {
-  // Initialize startedAt if not set
-  const existingStartedAt = getMemoryState(cwd, "startedAt");
-  if (!existingStartedAt) {
-    setMemoryState(cwd, "startedAt", new Date().toISOString());
-  }
-
-  // Track tool calls
-  const currentToolCalls = parseInt(
-    getMemoryState(cwd, "toolCalls") || "0",
-    10,
-  );
-  setMemoryState(cwd, "toolCalls", String(currentToolCalls + 1));
-  setMemoryState(cwd, "lastToolUse", new Date().toISOString());
-  setMemoryState(cwd, "lastTool", toolName);
-
-  // Clear currentTool since PostToolUse means the tool completed
-  if (agentId) {
-    setMemoryState(cwd, "currentTool", "", agentId);
-    setMemoryState(cwd, "lastTool", toolName, agentId);
-  }
 }
 
 async function main(): Promise<void> {
@@ -89,10 +57,16 @@ async function main(): Promise<void> {
       `Processing PostToolUse for tool: ${toolName}, agent: ${agentId}, session: ${sessionId}`,
     );
 
-    // Update session state (per-agent tracking)
+    // Update session state (per-agent tracking) — delegates to core
     if (toolName) {
       log.start("updateSessionState");
-      updateSessionState(cwd, toolName, agentId);
+      const binary = findAideBinary({
+        cwd,
+        pluginRoot: process.env.CLAUDE_PLUGIN_ROOT,
+      });
+      if (binary) {
+        updateToolStats(binary, cwd, toolName, agentId);
+      }
       log.end("updateSessionState");
     }
 

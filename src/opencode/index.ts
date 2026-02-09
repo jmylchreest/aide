@@ -1,0 +1,38 @@
+/**
+ * aide OpenCode plugin entry point.
+ *
+ * Provides first-class integration with OpenCode (opencode.ai),
+ * reusing the same core logic as the Claude Code hooks.
+ *
+ * Usage:
+ *   - As a local plugin: copy/symlink to .opencode/plugins/
+ *   - As an npm package: add "@aide/opencode-plugin" to opencode.json
+ *
+ * @example opencode.json
+ * ```json
+ * {
+ *   "$schema": "https://opencode.ai/config.json",
+ *   "plugin": ["@aide/opencode-plugin"],
+ *   "mcp": {
+ *     "aide": {
+ *       "command": "aide",
+ *       "args": ["mcp"],
+ *       "env": { "AIDE_CODE_WATCH": "1" }
+ *     }
+ *   }
+ * }
+ * ```
+ */
+
+import { createHooks } from "./hooks.js";
+import type { Plugin, PluginInput, Hooks } from "./types.js";
+
+export const AidePlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => {
+  const cwd = ctx.worktree || ctx.directory;
+  return createHooks(cwd, ctx.worktree, ctx.client);
+};
+
+export default AidePlugin;
+
+// Re-export types for consumers
+export type { Plugin, PluginInput, Hooks } from "./types.js";

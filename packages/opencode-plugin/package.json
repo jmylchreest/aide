@@ -1,0 +1,45 @@
+{
+  "name": "@aide/opencode-plugin",
+  "version": "0.0.16",
+  "description": "aide plugin for OpenCode — multi-agent orchestration, memory, skills, and persistence",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "aide",
+    "opencode",
+    "ai",
+    "agents",
+    "orchestration",
+    "plugin",
+    "memory",
+    "skills"
+  ],
+  "author": "John Mylchreest",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jmylchreest/aide",
+    "directory": "packages/opencode-plugin"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}

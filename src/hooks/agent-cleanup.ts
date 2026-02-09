@@ -8,9 +8,11 @@
  * Runs after persistence hook to clean up when agent is allowed to stop.
  */
 
-import { existsSync } from "fs";
+import { existsSync, appendFileSync } from "fs";
 import { join } from "path";
-import { readStdin, clearAgentState } from "../lib/hook-utils.js";
+import { readStdin } from "../lib/hook-utils.js";
+import { findAideBinary } from "../core/aide-client.js";
+import { cleanupAgent } from "../core/cleanup.js";
 
 interface HookInput {
   hook_event_name: string;
@@ -33,20 +35,24 @@ async function main(): Promise<void> {
     const cwd = data.cwd || process.cwd();
     const agentId = data.agent_id || data.session_id;
 
-    // Clean up agent-specific state
+    // Clean up agent-specific state — delegates to core
     if (agentId) {
-      const cleared = clearAgentState(cwd, agentId);
-      if (cleared) {
-        // Log to aide logs directory
-        const logDir = join(cwd, ".aide", "_logs");
-        if (existsSync(logDir)) {
-          const fs = await import("fs");
-          const logPath = join(logDir, "agent-cleanup.log");
-          const timestamp = new Date().toISOString();
-          fs.appendFileSync(
-            logPath,
-            `${timestamp} Cleaned up state for agent: ${agentId}\n`,
-          );
+      const binary = findAideBinary({
+        cwd,
+        pluginRoot: process.env.CLAUDE_PLUGIN_ROOT,
+      });
+      if (binary) {
+        const cleared = cleanupAgent(binary, cwd, agentId);
+        if (cleared) {
+          const logDir = join(cwd, ".aide", "_logs");
+          if (existsSync(logDir)) {
+            const logPath = join(logDir, "agent-cleanup.log");
+            const timestamp = new Date().toISOString();
+            appendFileSync(
+              logPath,
+              `${timestamp} Cleaned up state for agent: ${agentId}\n`,
+            );
+          }
         }
       }
     }

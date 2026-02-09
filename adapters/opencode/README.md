@@ -1,0 +1,223 @@
+# aide + OpenCode Integration
+
+First-class aide integration for [OpenCode](https://opencode.ai) — provides memory injection, skill matching, tool tracking, session management, and MCP tools.
+
+## Quick Start
+
+### 1. Install aide binary
+
+```bash
+# Download from GitHub releases (auto-detected by the plugin)
+curl -fsSL https://github.com/jmylchreest/aide/releases/latest/download/aide-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m) -o ~/.local/bin/aide
+chmod +x ~/.local/bin/aide
+```
+
+### 2. Configure OpenCode
+
+Create or update your `opencode.json`:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": ["@aide/opencode-plugin"],
+  "mcp": {
+    "aide": {
+      "type": "local",
+      "command": ["aide", "mcp"],
+      "environment": {
+        "AIDE_CODE_WATCH": "1"
+      },
+      "enabled": true
+    }
+  }
+}
+```
+
+### 3. Alternative: Local Plugin
+
+Instead of the npm package, copy the plugin directly:
+
+```bash
+# From the aide repo
+mkdir -p .opencode/plugins
+cp -r /path/to/aide/dist/opencode/ .opencode/plugins/aide/
+```
+
+Or symlink for development:
+
+```bash
+ln -s /path/to/aide/dist/opencode .opencode/plugins/aide
+```
+
+## What Works
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Memory injection | ✅ | Global + project memories injected via system prompt transform |
+| Skill matching | ✅ | Fuzzy matching on user messages, injected via system transform |
+| Tool tracking | ✅ | PreToolUse/PostToolUse tracking via `tool.execute.*` hooks |
+| Session summaries | ✅ | Git-based summaries on session idle (no transcript access) |
+| Context compaction | ✅ | State snapshot + context injection via `experimental.session.compacting` |
+| Session cleanup | ✅ | State cleanup on session delete |
+| MCP tools | ✅ | `memory_search`, `code_search`, `decision_get`, etc. via aide MCP |
+| Decisions | ✅ | Injected in welcome context from `aide session init` |
+
+## Known Limitations
+
+### 1. No Stop Blocking (Persistence / Ralph Mode)
+
+**Impact**: High — ralph mode and autopilot cannot prevent the agent from stopping.
+
+Claude Code's Stop hook can return `{ decision: "block" }` to prevent the agent from stopping and force it to continue working. OpenCode has no equivalent mechanism. The `session.idle` event fires *after* the agent has already stopped responding.
+
+**Workaround**: None currently. The plugin detects when session goes idle and logs a message, but cannot force continuation. A future OpenCode API addition (`session.prompt()` to send follow-up messages) could enable a polling-based persistence pattern.
+
+### 2. No Subagent Hooks
+
+**Impact**: Medium — swarm mode (parallel agents) is not available.
+
+Claude Code provides `SubagentStart` and `SubagentStop` hooks that aide uses for worktree management and parallel agent coordination. OpenCode does not have subagent lifecycle hooks.
+
+**Workarounds**:
+
+- **Multi-instance orchestration**: Spawn multiple OpenCode instances (each on a different port) and coordinate via aide's messaging system. See "Multi-Instance Orchestration" below.
+- **tmux-based orchestration**: Tools like [Oh My OpenCode](https://github.com/code-yeongyu/oh-my-opencode) spawn subagent instances in tmux panes connected via `opencode attach`.
+- **SDK-based orchestration**: Use `@opencode-ai/sdk` to programmatically create and manage multiple sessions.
+
+### 3. No Transcript Access
+
+**Impact**: Low — session summaries are less detailed.
+
+Claude Code provides `transcript_path` in Stop hook data, allowing aide to parse the full conversation JSONL for detailed summaries. OpenCode does not expose transcripts to plugins.
+
+**Workaround**: The plugin uses `buildSessionSummaryFromState()` which creates summaries from git history and tracked state instead of transcript parsing. Summaries include commits and modified files but miss user prompts and tool details.
+
+### 4. No HUD Display
+
+**Impact**: Low — cosmetic only.
+
+Claude Code's terminal supports a custom status line (HUD) showing mode, agents, and tool activity. OpenCode's TUI does not support external status line injection.
+
+**Workaround**: The plugin still writes `.aide/state/hud.txt` which can be monitored by external tools (e.g., `watch cat .aide/state/hud.txt`).
+
+### 5. No Usage Tracking
+
+**Impact**: Low — informational only.
+
+Claude Code exposes OAuth-based API usage statistics (5-hour and weekly limits). OpenCode does not provide equivalent usage data to plugins.
+
+**Workaround**: None. Usage tracking is omitted from the OpenCode integration.
+
+### 6. Skill Injection Timing
+
+**Impact**: Low — potential for duplicate processing.
+
+OpenCode's `message.part.updated` event may fire multiple times for the same message as parts are streamed. The plugin deduplicates by tracking processed part IDs, but edge cases may exist.
+
+**Workaround**: Built-in dedup with a capped set (auto-clears after 1000 entries).
+
+## Multi-Instance Orchestration
+
+For workloads that benefit from parallel agents (what aide's swarm mode does in Claude Code), you can orchestrate multiple OpenCode instances:
+
+### Approach A: SDK-Based (Recommended)
+
+```typescript
+import { createOpencode } from "@opencode-ai/sdk";
+
+// Spawn worker instances on different ports
+const workers = await Promise.all([
+  createOpencode({ port: 4100 }),
+  createOpencode({ port: 4101 }),
+  createOpencode({ port: 4102 }),
+]);
+
+// Assign tasks
+const tasks = [
+  { instance: workers[0], prompt: "Implement the auth module" },
+  { instance: workers[1], prompt: "Write unit tests for auth" },
+  { instance: workers[2], prompt: "Update documentation for auth" },
+];
+
+for (const task of tasks) {
+  const session = await task.instance.client.session.create({
+    body: { title: task.prompt },
+  });
+  await task.instance.client.session.prompt({
+    path: { id: session.id },
+    body: {
+      parts: [{ type: "text", text: task.prompt }],
+      model: { providerID: "anthropic", modelID: "claude-sonnet-4-5-20250929" },
+    },
+  });
+}
+
+// Monitor via SSE events
+for (const worker of workers) {
+  const events = await worker.client.event.subscribe();
+  // Handle session.idle to know when each worker finishes
+}
+```
+
+### Approach B: tmux + CLI
+
+```bash
+# Start main OpenCode server
+opencode serve --port 4096 &
+
+# Spawn workers in tmux panes
+tmux split-window "opencode run --attach http://localhost:4096 'Implement auth module'"
+tmux split-window "opencode run --attach http://localhost:4096 'Write auth tests'"
+```
+
+### Approach C: Oh My OpenCode
+
+[Oh My OpenCode](https://github.com/code-yeongyu/oh-my-opencode) provides a ready-made orchestration layer:
+
+```json
+{
+  "tmux": { "enabled": true, "layout": "tiled" },
+  "agents": {
+    "lead": { "mode": "primary" },
+    "worker-1": { "mode": "subagent" },
+    "worker-2": { "mode": "subagent" }
+  }
+}
+```
+
+All approaches share aide's memory and state through the aide binary and MCP server, enabling cross-instance coordination.
+
+## Architecture
+
+```
+┌─────────────────────────────────────────┐
+│              OpenCode TUI               │
+├─────────────────────────────────────────┤
+│         @aide/opencode-plugin           │
+│  ┌──────────┐ ┌──────────┐ ┌─────────┐ │
+│  │  event    │ │  tool.*  │ │ system  │ │
+│  │ handler   │ │ handlers │ │transform│ │
+│  └────┬─────┘ └────┬─────┘ └────┬────┘ │
+├───────┼────────────┼────────────┼───────┤
+│       │    src/core/ (shared)   │       │
+│  ┌────┴─────────────────────────┴────┐  │
+│  │ session-init │ skill-matcher      │  │
+│  │ tool-tracking│ persistence-logic  │  │
+│  │ cleanup      │ session-summary    │  │
+│  │ pre-compact  │ aide-client        │  │
+│  └───────────────┬───────────────────┘  │
+├──────────────────┼──────────────────────┤
+│            aide binary (CLI)            │
+│  ┌───────────────┼───────────────────┐  │
+│  │ state │ memory │ session │ mcp    │  │
+│  └───────────────────────────────────┘  │
+└─────────────────────────────────────────┘
+```
+
+## Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `AIDE_DEBUG` | unset | Set to `1` for debug logging to `.aide/_logs/` |
+| `AIDE_MEMORY_INJECT` | `1` | Set to `0` to skip memory injection |
+| `AIDE_MEMORY_DB` | `.aide/memory/store.db` | Path to memory database |

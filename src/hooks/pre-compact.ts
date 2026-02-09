@@ -10,45 +10,15 @@
  * - summary_prompt (the prompt used for summarization)
  */
 
-import {
-  readStdin,
-  findAideBinary,
-  runAide,
-  setMemoryState,
-} from "../lib/hook-utils.js";
+import { readStdin } from "../lib/hook-utils.js";
+import { findAideBinary } from "../core/aide-client.js";
+import { saveStateSnapshot as coreSaveStateSnapshot } from "../core/pre-compact-logic.js";
 
 interface PreCompactInput {
   event: "PreCompact";
   session_id: string;
   cwd: string;
   summary_prompt?: string;
-}
-
-/**
- * Save current state snapshot before compaction
- */
-function saveStateSnapshot(cwd: string, sessionId: string): void {
-  if (!findAideBinary(cwd)) return;
-
-  // Record compaction event (best effort)
-  runAide(cwd, [
-    "message",
-    "send",
-    `Context compaction initiated for session ${sessionId}`,
-    "--from=system",
-    "--type=system",
-  ]);
-
-  // Get current state and preserve it
-  const stateOutput = runAide(cwd, ["state", "list"]);
-  if (stateOutput?.trim()) {
-    // Store a snapshot of the current state
-    const safeState = stateOutput.replace(/\n/g, " ").slice(0, 1000);
-    setMemoryState(cwd, "precompact_snapshot", safeState);
-  }
-
-  // Record the compaction timestamp
-  setMemoryState(cwd, "last_compaction", new Date().toISOString());
 }
 
 async function main(): Promise<void> {
@@ -63,8 +33,14 @@ async function main(): Promise<void> {
     const cwd = data.cwd || process.cwd();
     const sessionId = data.session_id || "unknown";
 
-    // Save state snapshot before compaction
-    saveStateSnapshot(cwd, sessionId);
+    // Save state snapshot before compaction — delegates to core
+    const binary = findAideBinary({
+      cwd,
+      pluginRoot: process.env.CLAUDE_PLUGIN_ROOT,
+    });
+    if (binary) {
+      coreSaveStateSnapshot(binary, cwd, sessionId);
+    }
 
     // Always allow compaction to continue
     console.log(JSON.stringify({ continue: true }));

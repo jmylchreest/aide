@@ -1,8 +1,11 @@
 {
   "name": "aide",
   "version": "0.0.16",
-  "description": "AI Development Environment - Multi-agent orchestration for Claude Code",
+  "description": "AI Development Environment - Multi-agent orchestration for Claude Code and OpenCode",
   "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "build": "tsc",
     "watch": "tsc --watch",
