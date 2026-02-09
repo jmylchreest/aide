@@ -104,11 +104,10 @@ function findWrapperCommand(): string[] {
     }
   }
 
-  // npm-installed package: use npx to resolve the wrapper portably.
-  // npx will find aide-wrapper from the installed @jmylchreest/aide-plugin package.
+  // npm-installed package: use npx to resolve the plugin portably.
   // The -y flag auto-installs if not already present.
   if (useNpm) {
-    return ["npx", "-y", "aide-wrapper", "mcp"];
+    return ["npx", "-y", "@jmylchreest/aide-plugin", "mcp"];
   }
 
   // No plugin path, not npm: assume aide is in PATH
