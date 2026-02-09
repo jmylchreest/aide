@@ -1,6 +1,6 @@
 {
   "name": "@jmylchreest/aide-plugin",
-  "version": "0.0.16",
+  "version": "0.0.17",
   "description": "aide plugin for OpenCode — multi-agent orchestration, memory, skills, and persistence",
   "type": "module",
   "main": "./dist/opencode/index.js",

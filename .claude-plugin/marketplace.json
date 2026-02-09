@@ -10,7 +10,7 @@
     {
       "name": "aide",
       "description": "AI Development Environment - Multi-agent orchestration for Claude Code",
-      "version": "0.0.16",
+      "version": "0.0.17",
       "source": "./",
       "category": "productivity",
       "tags": ["multi-agent", "orchestration", "automation"]
