@@ -14,6 +14,7 @@
   "files": [
     "dist/opencode",
     "dist/core",
+    "dist/cli",
     "dist/lib/aide-downloader.js",
     "dist/lib/aide-downloader.js.map",
     "dist/lib/aide-downloader.d.ts",
@@ -24,6 +25,7 @@
     "README.md"
   ],
   "bin": {
+    "aide-plugin": "./dist/cli/index.js",
     "aide-wrapper": "./bin/aide-wrapper.sh"
   },
   "scripts": {
@@ -51,5 +53,6 @@
   },
   "engines": {
     "node": ">=20.0.0"
-  }
+  },
+  "dependencies": {}
 }

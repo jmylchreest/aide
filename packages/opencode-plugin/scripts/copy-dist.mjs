@@ -23,7 +23,7 @@ if (!existsSync(rootDist)) {
 }
 
 // Directories to copy wholesale
-const dirs = ["opencode", "core"];
+const dirs = ["opencode", "core", "cli"];
 for (const dir of dirs) {
   const src = join(rootDist, dir);
   const dest = join(pkgRoot, "dist", dir);

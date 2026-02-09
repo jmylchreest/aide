@@ -4,17 +4,31 @@ First-class aide integration for [OpenCode](https://opencode.ai) — provides me
 
 ## Quick Start
 
-### 1. Install aide binary
-
 ```bash
-# Download from GitHub releases (auto-detected by the plugin)
-curl -fsSL https://github.com/jmylchreest/aide/releases/latest/download/aide-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m) -o ~/.local/bin/aide
-chmod +x ~/.local/bin/aide
+bunx @jmylchreest/aide-plugin install
 ```
 
-### 2. Configure OpenCode
+That's it. This registers the aide plugin and MCP server in your global OpenCode config (`~/.config/opencode/opencode.json`), so it applies to all projects. The aide binary is automatically downloaded on first use.
 
-Create or update your `opencode.json`:
+### Other Commands
+
+```bash
+bunx @jmylchreest/aide-plugin status      # Check installation status
+bunx @jmylchreest/aide-plugin uninstall    # Remove from OpenCode config
+```
+
+### Options
+
+| Flag        | Description                                              |
+| ----------- | -------------------------------------------------------- |
+| `--project` | Apply to project-level `opencode.json` instead of global |
+| `--no-mcp`  | Register the plugin only, skip MCP server setup          |
+
+## Alternative Installation Methods
+
+### Manual Config
+
+If you prefer to configure manually, add to your `opencode.json` (either `~/.config/opencode/opencode.json` for global or `./opencode.json` for project-level):
 
 ```json
 {
@@ -23,9 +37,10 @@ Create or update your `opencode.json`:
   "mcp": {
     "aide": {
       "type": "local",
-      "command": ["aide", "mcp"],
+      "command": ["npx", "-y", "aide-wrapper", "mcp"],
       "environment": {
-        "AIDE_CODE_WATCH": "1"
+        "AIDE_CODE_WATCH": "1",
+        "AIDE_CODE_WATCH_DELAY": "30s"
       },
       "enabled": true
     }
@@ -33,20 +48,26 @@ Create or update your `opencode.json`:
 }
 ```
 
-### 3. Alternative: Local Plugin
+### Local Plugin (Development)
 
-Instead of the npm package, copy the plugin directly:
+For developing on aide itself, clone the repo and use the plugin directly:
 
 ```bash
-# From the aide repo
-mkdir -p .opencode/plugins
-cp -r /path/to/aide/dist/opencode/ .opencode/plugins/aide/
+git clone https://github.com/jmylchreest/aide
+cd aide && cd aide && go build -o ../bin/aide ./cmd/aide && cd ..
+npm install && npm run build
 ```
 
-Or symlink for development:
+Then either symlink:
 
 ```bash
 ln -s /path/to/aide/dist/opencode .opencode/plugins/aide
+```
+
+Or use the generator script, which creates an `opencode.json` and `.opencode/plugins/aide.ts` wired to your local clone:
+
+```bash
+npx tsx adapters/opencode/generate.ts --plugin-path /path/to/aide
 ```
 
 ## What Works

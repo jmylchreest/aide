@@ -10,8 +10,8 @@
  *   npx tsx adapters/opencode/generate.ts --npm
  */
 
-import { existsSync, mkdirSync, writeFileSync } from "fs";
-import { join, resolve } from "path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { join, parse, resolve } from "path";
 import { execSync } from "child_process";
 
 const args = process.argv.slice(2);
@@ -23,6 +23,55 @@ const pluginPath =
     : null;
 
 const cwd = process.cwd();
+
+/**
+ * Detect if we're running inside the aide repo itself (or a workspace that
+ * contains @jmylchreest/aide-plugin as a workspace package). In that case,
+ * `npm install @jmylchreest/aide-plugin` would resolve locally via workspaces
+ * instead of fetching from the npm registry, causing subtle breakage.
+ */
+function isInsideAideRepo(): boolean {
+  // Walk up from cwd looking for a package.json with workspaces that would
+  // resolve @jmylchreest/aide-plugin locally instead of from npm.
+  let dir = cwd;
+  const { root } = parse(dir);
+  while (dir !== root) {
+    const pkgPath = join(dir, "package.json");
+    if (existsSync(pkgPath)) {
+      try {
+        const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
+        if (
+          pkg.workspaces &&
+          Array.isArray(pkg.workspaces) &&
+          pkg.workspaces.some(
+            (ws: string) =>
+              ws === "packages/*" || ws === "packages/opencode-plugin",
+          )
+        ) {
+          // Check if the workspace package actually exists
+          const pluginPkg = join(
+            dir,
+            "packages",
+            "opencode-plugin",
+            "package.json",
+          );
+          if (existsSync(pluginPkg)) {
+            try {
+              const sub = JSON.parse(readFileSync(pluginPkg, "utf-8"));
+              if (sub.name === "@jmylchreest/aide-plugin") {
+                return true;
+              }
+            } catch {}
+          }
+        }
+      } catch {}
+    }
+    const parent = resolve(dir, "..");
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return false;
+}
 
 interface OpenCodeConfig {
   $schema: string;
@@ -105,6 +154,19 @@ function generateConfig(): OpenCodeConfig {
 
 function main(): void {
   console.log("aide OpenCode adapter generator\n");
+
+  // Guard: detect running inside the aide repo with --npm
+  if (useNpm && isInsideAideRepo()) {
+    console.error(
+      "Error: You appear to be inside the aide repository (or a workspace\n" +
+        "containing @jmylchreest/aide-plugin). Using --npm here would cause\n" +
+        "npm to resolve the package from the local workspace instead of the\n" +
+        "npm registry.\n\n" +
+        "For local development, use --plugin-path instead:\n" +
+        `  npx tsx adapters/opencode/generate.ts --plugin-path ${process.cwd()}\n`,
+    );
+    process.exit(1);
+  }
 
   // Generate opencode.json
   const config = generateConfig();
