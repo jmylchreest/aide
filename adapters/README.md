@@ -6,20 +6,20 @@ aide supports multiple AI coding tools at different integration levels.
 
 These provide first-class aide support with hooks, memory, skills, and persistence:
 
-| Platform | Package | Features |
-|----------|---------|----------|
-| **Claude Code** | Built-in (plugin) | All features: hooks, skills, memory, HUD, persistence, swarm |
-| **OpenCode** | `@aide/opencode-plugin` | Hooks, skills, memory, MCP tools. See [opencode/](opencode/) |
+| Platform        | Package                    | Features                                                     |
+| --------------- | -------------------------- | ------------------------------------------------------------ |
+| **Claude Code** | Built-in (plugin)          | All features: hooks, skills, memory, HUD, persistence, swarm |
+| **OpenCode**    | `@jmylchreest/aide-plugin` | Hooks, skills, memory, MCP tools. See [opencode/](opencode/) |
 
 ## Example Adapters
 
 These are **starting points** that translate aide's portable content to other tools:
 
-| Adapter | Status | Completeness |
-|---------|--------|--------------|
-| `continue/` | Example | Generates slash commands from agents/skills |
-| `cursor/` | Example | Generates .cursorrules with condensed prompts |
-| `aider/` | Example | Generates CONVENTIONS.md |
+| Adapter     | Status  | Completeness                                  |
+| ----------- | ------- | --------------------------------------------- |
+| `continue/` | Example | Generates slash commands from agents/skills   |
+| `cursor/`   | Example | Generates .cursorrules with condensed prompts |
+| `aider/`    | Example | Generates CONVENTIONS.md                      |
 
 ### What Works (Adapters)
 
@@ -29,18 +29,18 @@ These are **starting points** that translate aide's portable content to other to
 
 ### What's Missing (Adapters vs Full Integrations)
 
-| Feature | Claude Code | OpenCode | Adapters |
-|---------|:-----------:|:--------:|:--------:|
-| Dynamic skill injection | ✅ Hooks | ✅ Plugin | ❌ Static |
-| Memory injection | ✅ SessionStart | ✅ system.transform | ❌ None |
-| Tool tracking | ✅ PreToolUse | ✅ tool.execute.* | ❌ None |
-| Session summaries | ✅ Stop hook | ⚠️ State-based | ❌ None |
-| Read-only enforcement | ✅ PreToolUse | ⚠️ permission.ask | ❌ None |
-| Persistence (ralph) | ✅ Stop hook (block) | ❌ No stop blocking | ❌ None |
-| Subagent orchestration | ✅ SubagentStart/Stop | ⚠️ Multi-instance | ❌ None |
-| HUD status line | ✅ Terminal HUD | ❌ File-based only | ❌ None |
-| Usage tracking | ✅ OAuth API | ❌ Not available | ❌ None |
-| aide-memory MCP | ✅ Direct | ✅ MCP config | ⚠️ CLI only |
+| Feature                 |      Claude Code      |      OpenCode       |  Adapters   |
+| ----------------------- | :-------------------: | :-----------------: | :---------: |
+| Dynamic skill injection |       ✅ Hooks        |      ✅ Plugin      |  ❌ Static  |
+| Memory injection        |    ✅ SessionStart    | ✅ system.transform |   ❌ None   |
+| Tool tracking           |     ✅ PreToolUse     | ✅ tool.execute.\*  |   ❌ None   |
+| Session summaries       |     ✅ Stop hook      |   ⚠️ State-based    |   ❌ None   |
+| Read-only enforcement   |     ✅ PreToolUse     |  ⚠️ permission.ask  |   ❌ None   |
+| Persistence (ralph)     | ✅ Stop hook (block)  | ❌ No stop blocking |   ❌ None   |
+| Subagent orchestration  | ✅ SubagentStart/Stop |  ⚠️ Multi-instance  |   ❌ None   |
+| HUD status line         |    ✅ Terminal HUD    | ❌ File-based only  |   ❌ None   |
+| Usage tracking          |     ✅ OAuth API      |  ❌ Not available   |   ❌ None   |
+| aide-memory MCP         |       ✅ Direct       |    ✅ MCP config    | ⚠️ CLI only |
 
 ## Contributing
 

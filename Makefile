@@ -8,7 +8,7 @@
 
 .PHONY: release release-push build test lint
 
-VERSION_FILES = package.json .claude-plugin/plugin.json .claude-plugin/marketplace.json
+VERSION_FILES = package.json .claude-plugin/plugin.json .claude-plugin/marketplace.json packages/opencode-plugin/package.json
 
 # Auto-detect next version from latest git tag (same logic as release.yml)
 # If VERSION is passed, use that; otherwise bump patch from latest tag.

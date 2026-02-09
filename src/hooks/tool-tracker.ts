@@ -6,12 +6,12 @@
  * Sets currentTool in aide-memory before tool execution.
  */
 
-import { readStdin, setMemoryState, findAideBinary } from "../lib/hook-utils.js";
-import {
-  trackToolUse,
-  formatToolDescription,
-} from "../core/tool-tracking.js";
-import { findAideBinary as coreFindBinary } from "../core/aide-client.js";
+import { readStdin } from "../lib/hook-utils.js";
+import { trackToolUse, formatToolDescription } from "../core/tool-tracking.js";
+import { findAideBinary } from "../core/aide-client.js";
+import { debug } from "../lib/logger.js";
+
+const SOURCE = "tool-tracker";
 
 interface HookInput {
   hook_event_name: string;
@@ -45,11 +45,11 @@ async function main(): Promise<void> {
     const toolName = data.tool_name || "";
 
     if (agentId && toolName) {
-      // Try core binary discovery first, fall back to hook-utils
-      const binary = coreFindBinary({
+      const binary = findAideBinary({
         cwd,
-        pluginRoot: process.env.CLAUDE_PLUGIN_ROOT,
-      }) || findAideBinary(cwd);
+        pluginRoot:
+          process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT,
+      });
 
       if (binary) {
         trackToolUse(binary, cwd, {
@@ -57,26 +57,32 @@ async function main(): Promise<void> {
           agentId,
           toolInput: data.tool_input,
         });
-      } else {
-        // Fall back to hook-utils setMemoryState (uses its own binary discovery)
-        const toolDesc = formatToolDescription(toolName, data.tool_input);
-        setMemoryState(cwd, "currentTool", toolDesc, agentId);
       }
     }
 
     console.log(JSON.stringify({ continue: true }));
   } catch (error) {
+    debug(SOURCE, `Hook error: ${error}`);
     console.log(JSON.stringify({ continue: true }));
   }
 }
 
-
-process.on("uncaughtException", () => {
-  try { console.log(JSON.stringify({ continue: true })); } catch { console.log('{"continue":true}'); }
+process.on("uncaughtException", (err) => {
+  debug(SOURCE, `UNCAUGHT EXCEPTION: ${err}`);
+  try {
+    console.log(JSON.stringify({ continue: true }));
+  } catch {
+    console.log('{"continue":true}');
+  }
   process.exit(0);
 });
-process.on("unhandledRejection", () => {
-  try { console.log(JSON.stringify({ continue: true })); } catch { console.log('{"continue":true}'); }
+process.on("unhandledRejection", (reason) => {
+  debug(SOURCE, `UNHANDLED REJECTION: ${reason}`);
+  try {
+    console.log(JSON.stringify({ continue: true }));
+  } catch {
+    console.log('{"continue":true}');
+  }
   process.exit(0);
 });
 

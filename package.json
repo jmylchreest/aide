@@ -35,5 +35,8 @@
   },
   "engines": {
     "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@jmylchreest/aide-plugin": "^0.0.16"
   }
 }

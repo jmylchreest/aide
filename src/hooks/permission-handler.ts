@@ -2,6 +2,10 @@
 /**
  * Permission Handler Hook (PermissionRequest)
  *
+ * OPT-IN: This hook is NOT registered in plugin.json by default.
+ * To enable, add a PermissionRequest entry to .claude-plugin/plugin.json.
+ * Not available in OpenCode (no equivalent event).
+ *
  * Validates Bash commands before permission prompts are shown.
  * Can auto-approve safe commands or block dangerous ones.
  *
@@ -22,6 +26,9 @@ import {
   runAide,
   shellEscape,
 } from "../lib/hook-utils.js";
+import { debug } from "../lib/logger.js";
+
+const SOURCE = "permission-handler";
 
 interface PermissionRequestInput {
   event: "PermissionRequest";
@@ -143,9 +150,28 @@ async function main(): Promise<void> {
     // Default: show normal permission prompt
     console.log(JSON.stringify({ continue: true }));
   } catch (error) {
-    // On error, show normal permission prompt
+    debug(SOURCE, `Hook error: ${error}`);
     console.log(JSON.stringify({ continue: true }));
   }
 }
+
+process.on("uncaughtException", (err) => {
+  debug(SOURCE, `UNCAUGHT EXCEPTION: ${err}`);
+  try {
+    console.log(JSON.stringify({ continue: true }));
+  } catch {
+    console.log('{"continue":true}');
+  }
+  process.exit(0);
+});
+process.on("unhandledRejection", (reason) => {
+  debug(SOURCE, `UNHANDLED REJECTION: ${reason}`);
+  try {
+    console.log(JSON.stringify({ continue: true }));
+  } catch {
+    console.log('{"continue":true}');
+  }
+  process.exit(0);
+});
 
 main();

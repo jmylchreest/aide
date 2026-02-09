@@ -6,13 +6,13 @@
  *
  * Usage:
  *   - As a local plugin: copy/symlink to .opencode/plugins/
- *   - As an npm package: add "@aide/opencode-plugin" to opencode.json
+ *   - As an npm package: add "@jmylchreest/aide-plugin" to opencode.json
  *
  * @example opencode.json
  * ```json
  * {
  *   "$schema": "https://opencode.ai/config.json",
- *   "plugin": ["@aide/opencode-plugin"],
+ *   "plugin": ["@jmylchreest/aide-plugin"],
  *   "mcp": {
  *     "aide": {
  *       "command": "aide",

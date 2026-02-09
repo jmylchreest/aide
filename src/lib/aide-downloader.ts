@@ -11,7 +11,16 @@
  * The binary is downloaded from the release matching the plugin version.
  */
 
-import { existsSync, mkdirSync, readFileSync, chmodSync, unlinkSync, renameSync, realpathSync, createWriteStream } from "fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  chmodSync,
+  unlinkSync,
+  renameSync,
+  realpathSync,
+  createWriteStream,
+} from "fs";
 import { join, dirname } from "path";
 import { execFileSync } from "child_process";
 import { fileURLToPath } from "url";
@@ -177,8 +186,9 @@ export function getDownloadUrl(): string {
  * Get the plugin root directory (where package.json lives)
  */
 export function getPluginRoot(): string | null {
-  // Check CLAUDE_PLUGIN_ROOT env var first (set by Claude Code)
-  const envRoot = process.env.CLAUDE_PLUGIN_ROOT;
+  // Check AIDE_PLUGIN_ROOT or CLAUDE_PLUGIN_ROOT env var
+  const envRoot =
+    process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT;
   if (envRoot && existsSync(join(envRoot, "package.json"))) {
     return envRoot;
   }
@@ -272,7 +282,9 @@ export async function downloadAideBinary(
     // Stream to a temp file, then atomic rename into place.
     // destPath is never opened for writing, so exec() cannot hit ETXTBSY.
     const tmpPath = destPath + `.tmp.${process.pid}`;
-    const nodeStream = Readable.fromWeb(response.body as import("stream/web").ReadableStream);
+    const nodeStream = Readable.fromWeb(
+      response.body as import("stream/web").ReadableStream,
+    );
     const fileStream = createWriteStream(tmpPath, { mode: 0o755 });
 
     const progress = new Transform({

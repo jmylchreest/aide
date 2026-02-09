@@ -12,6 +12,7 @@
 
 import { existsSync, mkdirSync, writeFileSync } from "fs";
 import { join, resolve } from "path";
+import { execSync } from "child_process";
 
 const args = process.argv.slice(2);
 const useNpm = args.includes("--npm");
@@ -37,6 +38,34 @@ interface OpenCodeConfig {
   >;
 }
 
+/**
+ * Find the aide-wrapper.sh path.
+ *
+ * Resolution order:
+ *   1. Local plugin path (--plugin-path)
+ *   2. npm-installed @jmylchreest/aide-plugin package
+ *   3. Fall back to "aide" in PATH
+ */
+function findWrapperCommand(): string[] {
+  // Local development: use the wrapper from the plugin path
+  if (pluginPath) {
+    const wrapper = join(pluginPath, "bin", "aide-wrapper.sh");
+    if (existsSync(wrapper)) {
+      return [wrapper, "mcp"];
+    }
+  }
+
+  // npm-installed package: use npx to resolve the wrapper portably.
+  // npx will find aide-wrapper from the installed @jmylchreest/aide-plugin package.
+  // The -y flag auto-installs if not already present.
+  if (useNpm) {
+    return ["npx", "-y", "aide-wrapper", "mcp"];
+  }
+
+  // No plugin path, not npm: assume aide is in PATH
+  return ["aide", "mcp"];
+}
+
 function generateConfig(): OpenCodeConfig {
   const config: OpenCodeConfig = {
     $schema: "https://opencode.ai/config.json",
@@ -44,18 +73,29 @@ function generateConfig(): OpenCodeConfig {
 
   // Plugin configuration
   if (useNpm) {
-    config.plugin = ["@aide/opencode-plugin"];
+    config.plugin = ["@jmylchreest/aide-plugin"];
   }
   // If using local path, user should symlink to .opencode/plugins/
 
   // MCP configuration for aide tools
+  const command = findWrapperCommand();
+  const environment: Record<string, string> = {
+    AIDE_CODE_WATCH: "1",
+    AIDE_CODE_WATCH_DELAY: "30s",
+  };
+
+  // Set AIDE_PLUGIN_ROOT so the wrapper knows where to find/download the binary
+  if (pluginPath) {
+    environment.AIDE_PLUGIN_ROOT = pluginPath;
+  }
+  // For --npm, AIDE_PLUGIN_ROOT is NOT set in the config — the wrapper resolves
+  // its own package root at runtime by following its symlink (see aide-wrapper.sh).
+
   config.mcp = {
     aide: {
       type: "local",
-      command: ["aide", "mcp"],
-      environment: {
-        AIDE_CODE_WATCH: "1",
-      },
+      command,
+      environment,
       enabled: true,
     },
   };
@@ -88,7 +128,7 @@ function main(): void {
     const symlinkTarget = join(pluginDir, "aide.ts");
     const content = `// aide OpenCode plugin (local development)
 // This file re-exports from the aide source tree.
-// For production, use: "plugin": ["@aide/opencode-plugin"] in opencode.json
+// For production, use: "plugin": ["@jmylchreest/aide-plugin"] in opencode.json
 export { AidePlugin as default } from "${pluginPath}/dist/opencode/index.js";
 `;
 
@@ -101,11 +141,13 @@ export { AidePlugin as default } from "${pluginPath}/dist/opencode/index.js";
 
   if (useNpm) {
     console.log("\nInstall the plugin package:");
-    console.log("  npm install @aide/opencode-plugin");
+    console.log("  npm install @jmylchreest/aide-plugin");
+  } else if (!pluginPath) {
+    console.log("\nMake sure the aide binary is in your PATH:");
+    console.log(
+      "  which aide || echo 'aide not found - install from GitHub releases'",
+    );
   }
-
-  console.log("\nMake sure the aide binary is in your PATH:");
-  console.log("  which aide || echo 'aide not found - install from GitHub releases'");
 }
 
 main();

@@ -6,11 +6,16 @@
  * - Read-only agents cannot use write tools
  * - Injects contextual reminders
  * - Tracks active state
+ *
+ * Core logic is in src/core/tool-enforcement.ts for cross-platform reuse.
  */
 
-import { existsSync, readFileSync } from "fs";
-import { join } from "path";
 import { readStdin } from "../lib/hook-utils.js";
+import { debug } from "../lib/logger.js";
+import { evaluateToolUse } from "../core/tool-enforcement.js";
+import { findAideBinary, getState } from "../core/aide-client.js";
+
+const SOURCE = "pre-tool-enforcer";
 
 interface HookInput {
   hook_event_name: string;
@@ -32,102 +37,6 @@ interface HookOutput {
   };
 }
 
-// Tools that modify state
-const WRITE_TOOLS = ["Edit", "Write", "Bash", "NotebookEdit", "MultiEdit"];
-
-// Agents that should have access to specific tool categories
-const AGENT_TOOL_RESTRICTIONS: Record<
-  string,
-  { allowed?: string[]; denied?: string[] }
-> = {
-  architect: {
-    denied: ["Edit", "Write", "Bash", "NotebookEdit"],
-  },
-  explore: {
-    denied: ["Edit", "Write", "Bash", "NotebookEdit"],
-  },
-  researcher: {
-    denied: ["Edit", "Write", "Bash", "NotebookEdit"],
-  },
-  planner: {
-    denied: ["Edit", "Write", "Bash", "NotebookEdit"],
-  },
-  reviewer: {
-    denied: ["Edit", "Write", "NotebookEdit"], // Can use Bash for running tests
-  },
-  writer: {
-    // Can write documentation
-  },
-  executor: {
-    // Full access
-  },
-  designer: {
-    // Full access for UI work
-  },
-};
-
-interface ModeState {
-  active: boolean;
-  mode: string;
-}
-
-/**
- * Check if an agent is restricted from using a tool
- */
-function isToolDenied(agentName: string, toolName: string): boolean {
-  const restrictions = AGENT_TOOL_RESTRICTIONS[agentName];
-  if (!restrictions) return false;
-
-  if (restrictions.denied && restrictions.denied.includes(toolName)) {
-    return true;
-  }
-
-  if (restrictions.allowed && !restrictions.allowed.includes(toolName)) {
-    return true;
-  }
-
-  return false;
-}
-
-/**
- * Read active mode state
- */
-function getActiveMode(cwd: string): string | null {
-  const modes = ["autopilot", "ralph", "eco", "swarm", "plan"];
-
-  for (const mode of modes) {
-    const statePath = join(cwd, ".aide", "state", `${mode}-state.json`);
-    if (existsSync(statePath)) {
-      try {
-        const state: ModeState = JSON.parse(readFileSync(statePath, "utf-8"));
-        if (state.active) {
-          return mode;
-        }
-      } catch {
-        // Ignore parse errors
-      }
-    }
-  }
-
-  return null;
-}
-
-/**
- * Build contextual reminder based on active mode
- */
-function buildReminder(mode: string | null): string | null {
-  if (!mode) return null;
-
-  const reminders: Record<string, string> = {
-    ralph: `[aide:ralph] Persistence active. Verify work is complete before stopping.`,
-    autopilot: `[aide:autopilot] Autonomous mode. Continue until all tasks verified.`,
-    eco: `[aide:eco] Token-efficient mode. Minimize context, use fast models.`,
-    swarm: `[aide:swarm] Swarm active. Use aide-memory for coordination.`,
-  };
-
-  return reminders[mode] || null;
-}
-
 async function main(): Promise<void> {
   try {
     const input = await readStdin();
@@ -138,33 +47,45 @@ async function main(): Promise<void> {
 
     const data: HookInput = JSON.parse(input);
     const toolName = data.tool_name || "";
-    // agent_name may come from Claude Code for typed agents
     const agentName = data.agent_name || "";
     const cwd = data.cwd || process.cwd();
 
-    // Debug: log what we received
-    // console.error(`[pre-tool-enforcer] tool=${toolName}, agent=${agentName}`);
+    // Resolve active mode from aide binary (source of truth: BBolt store)
+    let activeMode: string | null = null;
+    try {
+      const binary = findAideBinary({
+        cwd,
+        pluginRoot:
+          process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT,
+      });
+      if (binary) {
+        activeMode = getState(binary, cwd, "mode");
+      }
+    } catch (err) {
+      debug(SOURCE, `Failed to resolve active mode (non-fatal): ${err}`);
+    }
 
-    // Check tool restrictions for agents
-    if (agentName && toolName && isToolDenied(agentName, toolName)) {
+    const result = evaluateToolUse(
+      toolName,
+      agentName || undefined,
+      activeMode,
+    );
+
+    if (!result.allowed) {
       const output: HookOutput = {
         continue: false,
-        message: `Agent "${agentName}" is read-only and cannot use "${toolName}". Delegate to executor for modifications.`,
+        message: result.denyMessage,
       };
       console.log(JSON.stringify(output));
       return;
     }
 
-    // Get active mode and build reminder
-    const activeMode = getActiveMode(cwd);
-    const reminder = buildReminder(activeMode);
-
-    if (reminder) {
+    if (result.reminder) {
       const output: HookOutput = {
         continue: true,
         hookSpecificOutput: {
           hookEventName: "PreToolUse",
-          additionalContext: reminder,
+          additionalContext: result.reminder,
         },
       };
       console.log(JSON.stringify(output));
@@ -172,18 +93,27 @@ async function main(): Promise<void> {
       console.log(JSON.stringify({ continue: true }));
     }
   } catch (error) {
-    // On error, allow continuation
+    debug(SOURCE, `Hook error: ${error}`);
     console.log(JSON.stringify({ continue: true }));
   }
 }
 
-
-process.on("uncaughtException", () => {
-  try { console.log(JSON.stringify({ continue: true })); } catch { console.log('{"continue":true}'); }
+process.on("uncaughtException", (err) => {
+  debug(SOURCE, `UNCAUGHT EXCEPTION: ${err}`);
+  try {
+    console.log(JSON.stringify({ continue: true }));
+  } catch {
+    console.log('{"continue":true}');
+  }
   process.exit(0);
 });
-process.on("unhandledRejection", () => {
-  try { console.log(JSON.stringify({ continue: true })); } catch { console.log('{"continue":true}'); }
+process.on("unhandledRejection", (reason) => {
+  debug(SOURCE, `UNHANDLED REJECTION: ${reason}`);
+  try {
+    console.log(JSON.stringify({ continue: true }));
+  } catch {
+    console.log('{"continue":true}');
+  }
   process.exit(0);
 });
 

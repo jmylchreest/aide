@@ -13,6 +13,9 @@ import { join } from "path";
 import { readStdin } from "../lib/hook-utils.js";
 import { findAideBinary } from "../core/aide-client.js";
 import { cleanupAgent } from "../core/cleanup.js";
+import { debug } from "../lib/logger.js";
+
+const SOURCE = "agent-cleanup";
 
 interface HookInput {
   hook_event_name: string;
@@ -39,7 +42,8 @@ async function main(): Promise<void> {
     if (agentId) {
       const binary = findAideBinary({
         cwd,
-        pluginRoot: process.env.CLAUDE_PLUGIN_ROOT,
+        pluginRoot:
+          process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT,
       });
       if (binary) {
         const cleared = cleanupAgent(binary, cwd, agentId);
@@ -60,18 +64,27 @@ async function main(): Promise<void> {
     // Always continue - cleanup is best-effort
     console.log(JSON.stringify({ continue: true }));
   } catch (error) {
-    // On error, still allow continuation
+    debug(SOURCE, `Hook error: ${error}`);
     console.log(JSON.stringify({ continue: true }));
   }
 }
 
-
-process.on("uncaughtException", () => {
-  try { console.log(JSON.stringify({ continue: true })); } catch { console.log('{"continue":true}'); }
+process.on("uncaughtException", (err) => {
+  debug(SOURCE, `UNCAUGHT EXCEPTION: ${err}`);
+  try {
+    console.log(JSON.stringify({ continue: true }));
+  } catch {
+    console.log('{"continue":true}');
+  }
   process.exit(0);
 });
-process.on("unhandledRejection", () => {
-  try { console.log(JSON.stringify({ continue: true })); } catch { console.log('{"continue":true}'); }
+process.on("unhandledRejection", (reason) => {
+  debug(SOURCE, `UNHANDLED REJECTION: ${reason}`);
+  try {
+    console.log(JSON.stringify({ continue: true }));
+  } catch {
+    console.log('{"continue":true}');
+  }
   process.exit(0);
 });
 

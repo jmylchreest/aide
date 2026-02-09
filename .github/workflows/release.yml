@@ -3,12 +3,13 @@ name: Build and Release
 on:
   push:
     branches: [main]
-    tags: ['v*']
+    tags: ["v*"]
   pull_request:
     branches: [main]
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   # Prepare version information
@@ -186,11 +187,50 @@ jobs:
           path: dist/aide-*
           if-no-files-found: error
 
+  # Build the OpenCode plugin npm package
+  build-npm:
+    name: Build npm package
+    runs-on: ubuntu-latest
+    needs: [prepare, test]
+    if: needs.prepare.outputs.should_skip != 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build TypeScript
+        run: npm run build
+
+      - name: Prepare OpenCode plugin package
+        run: node packages/opencode-plugin/scripts/copy-dist.mjs
+
+      - name: Set package version
+        working-directory: packages/opencode-plugin
+        run: npm version "${{ needs.prepare.outputs.version }}" --no-git-tag-version --allow-same-version
+
+      - name: Pack tarball
+        working-directory: packages/opencode-plugin
+        run: npm pack
+
+      - name: Upload npm tarball artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: npm-package
+          path: packages/opencode-plugin/jmylchreest-aide-plugin-*.tgz
+          if-no-files-found: error
+
   # Create release (only on tag push)
   release:
     name: Release
     runs-on: ubuntu-latest
-    needs: [prepare, build]
+    needs: [prepare, build, build-npm]
     if: needs.prepare.outputs.is_release == 'true'
     steps:
       - name: Checkout
@@ -204,15 +244,18 @@ jobs:
       - name: Prepare release assets
         run: |
           mkdir -p release
-          for dir in artifacts/*/; do
+          # Copy Go binaries
+          for dir in artifacts/aide-*/; do
             cp "$dir"/* release/ 2>/dev/null || true
           done
+          # Copy npm tarball
+          cp artifacts/npm-package/*.tgz release/ 2>/dev/null || true
           ls -la release/
 
       - name: Generate checksums
         working-directory: release
         run: |
-          sha256sum aide-* > checksums.txt
+          sha256sum * > checksums.txt
           cat checksums.txt
 
       - name: Create release
@@ -225,15 +268,46 @@ jobs:
           generate_release_notes: true
           files: |
             release/aide-*
+            release/jmylchreest-aide-plugin-*.tgz
             release/checksums.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Publish to npm (only on tag push, after release)
+  publish-npm:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    needs: [prepare, build-npm, release]
+    if: needs.prepare.outputs.is_release == 'true'
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+
+      - name: Download npm tarball
+        uses: actions/download-artifact@v7
+        with:
+          name: npm-package
+          path: artifacts
+
+      - name: Publish to npm with provenance
+        run: npm publish artifacts/jmylchreest-aide-plugin-*.tgz --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   # Create snapshot release (on main branch, not tag)
   snapshot:
     name: Snapshot
     runs-on: ubuntu-latest
-    needs: [prepare, build]
+    needs: [prepare, build, build-npm]
     if: needs.prepare.outputs.is_release == 'false' && github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
       - name: Checkout
@@ -247,15 +321,16 @@ jobs:
       - name: Prepare release assets
         run: |
           mkdir -p release
-          for dir in artifacts/*/; do
+          for dir in artifacts/aide-*/; do
             cp "$dir"/* release/ 2>/dev/null || true
           done
+          cp artifacts/npm-package/*.tgz release/ 2>/dev/null || true
           ls -la release/
 
       - name: Generate checksums
         working-directory: release
         run: |
-          sha256sum aide-* > checksums.txt
+          sha256sum * > checksums.txt
           cat checksums.txt
 
       - name: Delete existing snapshot release
@@ -282,6 +357,7 @@ jobs:
             This release is automatically updated with each push to main.
           files: |
             release/aide-*
+            release/jmylchreest-aide-plugin-*.tgz
             release/checksums.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

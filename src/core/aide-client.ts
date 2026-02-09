@@ -12,6 +12,9 @@ import { execSync, execFileSync } from "child_process";
 import { existsSync, realpathSync } from "fs";
 import { join } from "path";
 import type { FindBinaryOptions } from "./types.js";
+import { debug } from "../lib/logger.js";
+
+const SOURCE = "aide-client";
 
 /**
  * Find the aide binary — platform-agnostic implementation.
@@ -30,8 +33,8 @@ export function findAideBinary(opts: FindBinaryOptions = {}): string | null {
   if (pluginRoot) {
     try {
       pluginRoot = realpathSync(pluginRoot);
-    } catch {
-      // Keep original if realpath fails
+    } catch (err) {
+      debug(SOURCE, `realpath failed for pluginRoot ${pluginRoot}: ${err}`);
     }
   }
 
@@ -65,8 +68,8 @@ export function findAideBinary(opts: FindBinaryOptions = {}): string | null {
       .toString()
       .trim();
     if (result) return result;
-  } catch {
-    // Not in PATH
+  } catch (err) {
+    debug(SOURCE, `aide not found in PATH: ${err}`);
   }
 
   return null;
@@ -82,16 +85,15 @@ export function runAide(
   options?: { timeout?: number; env?: Record<string, string | undefined> },
 ): string | null {
   try {
-    const env = options?.env
-      ? { ...process.env, ...options.env }
-      : process.env;
+    const env = options?.env ? { ...process.env, ...options.env } : process.env;
     return execFileSync(binary, args, {
       cwd,
       encoding: "utf-8",
       timeout: options?.timeout ?? 10000,
       env,
     });
-  } catch {
+  } catch (err) {
+    debug(SOURCE, `runAide failed: ${args.join(" ")}: ${err}`);
     return null;
   }
 }
@@ -111,7 +113,8 @@ export function setState(
     if (agentId) args.push(`--agent=${agentId}`);
     execFileSync(binary, args, { cwd, stdio: "pipe", timeout: 5000 });
     return true;
-  } catch {
+  } catch (err) {
+    debug(SOURCE, `setState failed for key=${key}: ${err}`);
     return false;
   }
 }
@@ -135,7 +138,8 @@ export function getState(
     });
     const match = output.match(/=\s*(.+)$/m);
     return match ? match[1].trim() : null;
-  } catch {
+  } catch (err) {
+    debug(SOURCE, `getState failed for key=${key}: ${err}`);
     return null;
   }
 }
@@ -156,7 +160,8 @@ export function deleteState(
       stdio: "pipe",
     });
     return true;
-  } catch {
+  } catch (err) {
+    debug(SOURCE, `deleteState failed for key=${key}: ${err}`);
     return false;
   }
 }
@@ -175,7 +180,8 @@ export function clearAgentState(
       stdio: "pipe",
     });
     return true;
-  } catch {
+  } catch (err) {
+    debug(SOURCE, `clearAgentState failed for agent=${agentId}: ${err}`);
     return false;
   }
 }

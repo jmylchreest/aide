@@ -8,6 +8,9 @@
 import { execSync, execFileSync } from "child_process";
 import { existsSync, realpathSync } from "fs";
 import { join } from "path";
+import { debug } from "./logger.js";
+
+const SOURCE = "hook-utils";
 
 /**
  * Read JSON input from stdin (used by all hooks)
@@ -30,13 +33,14 @@ export async function readStdin(): Promise<string> {
  * All hooks and utilities should use this single function.
  */
 export function findAideBinary(cwd?: string): string | null {
-  let pluginRoot = process.env.CLAUDE_PLUGIN_ROOT;
+  let pluginRoot =
+    process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT;
   // Resolve symlinks (e.g., src-office -> dtkr4-cnjjf)
   if (pluginRoot) {
     try {
       pluginRoot = realpathSync(pluginRoot);
-    } catch {
-      // Keep original if realpath fails
+    } catch (err) {
+      debug(SOURCE, `realpath failed for pluginRoot ${pluginRoot}: ${err}`);
     }
   }
   if (pluginRoot) {
@@ -52,13 +56,12 @@ export function findAideBinary(cwd?: string): string | null {
       .toString()
       .trim();
     if (result) return result;
-  } catch {
-    // Not in PATH
+  } catch (err) {
+    debug(SOURCE, `aide not found in PATH: ${err}`);
   }
 
   return null;
 }
-
 
 /**
  * Escape a string for safe shell usage
@@ -91,7 +94,8 @@ export function setMemoryState(
     if (agentId) args.push(`--agent=${agentId}`);
     execFileSync(binary, args, { cwd, stdio: "pipe", timeout: 5000 });
     return true;
-  } catch {
+  } catch (err) {
+    debug(SOURCE, `setMemoryState failed for key=${key}: ${err}`);
     return false;
   }
 }
@@ -110,11 +114,16 @@ export function getMemoryState(
   try {
     const args = ["state", "get", key];
     if (agentId) args.push(`--agent=${agentId}`);
-    const output = execFileSync(binary, args, { cwd, encoding: "utf-8", timeout: 5000 });
+    const output = execFileSync(binary, args, {
+      cwd,
+      encoding: "utf-8",
+      timeout: 5000,
+    });
     // Parse output format: "key = value" or "[agent] key = value"
     const match = output.match(/=\s*(.+)$/m);
     return match ? match[1].trim() : null;
-  } catch {
+  } catch (err) {
+    debug(SOURCE, `getMemoryState failed for key=${key}: ${err}`);
     return null;
   }
 }
@@ -135,7 +144,8 @@ export function deleteMemoryState(
     const fullKey = agentId ? `agent:${agentId}:${key}` : key;
     execFileSync(binary, ["state", "delete", fullKey], { cwd, stdio: "pipe" });
     return true;
-  } catch {
+  } catch (err) {
+    debug(SOURCE, `deleteMemoryState failed for key=${key}: ${err}`);
     return false;
   }
 }
@@ -153,7 +163,8 @@ export function clearAgentState(cwd: string, agentId: string): boolean {
       stdio: "pipe",
     });
     return true;
-  } catch {
+  } catch (err) {
+    debug(SOURCE, `clearAgentState failed for agent=${agentId}: ${err}`);
     return false;
   }
 }
@@ -167,9 +178,8 @@ export function runAide(cwd: string, args: string[]): string | null {
 
   try {
     return execFileSync(binary, args, { cwd, encoding: "utf-8" });
-  } catch {
+  } catch (err) {
+    debug(SOURCE, `runAide failed: ${args.join(" ")}: ${err}`);
     return null;
   }
 }
-
-

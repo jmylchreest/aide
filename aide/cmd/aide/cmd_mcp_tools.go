@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jmylchreest/aide/aide/pkg/memory"
 	"github.com/jmylchreest/aide/aide/pkg/store"
@@ -46,6 +47,19 @@ type DecisionHistoryInput struct {
 type MessageListInput struct {
 	AgentID     string `json:"agent_id" jsonschema:"Your agent ID to receive messages for (required)"`
 	IncludeRead bool   `json:"include_read,omitempty" jsonschema:"Include already-acknowledged messages (default false)"`
+}
+
+type MessageSendInput struct {
+	From       string `json:"from" jsonschema:"Your agent ID (required)"`
+	To         string `json:"to,omitempty" jsonschema:"Recipient agent ID. Omit to broadcast to all agents."`
+	Content    string `json:"content" jsonschema:"Message content (max 2000 chars)"`
+	Type       string `json:"type,omitempty" jsonschema:"Message type: status, request, response, blocker, completion, handoff"`
+	TTLSeconds int    `json:"ttl_seconds,omitempty" jsonschema:"Time-to-live in seconds (default 3600)"`
+}
+
+type MessageAckInput struct {
+	MessageID uint64 `json:"message_id" jsonschema:"The numeric ID of the message to acknowledge"`
+	AgentID   string `json:"agent_id" jsonschema:"Your agent ID"`
 }
 
 type emptyInput struct{}
@@ -285,7 +299,7 @@ func (s *MCPServer) handleDecisionList(_ context.Context, _ *mcp.CallToolRequest
 }
 
 // ============================================================================
-// Message Tools (read-only - mutations handled by orchestration)
+// Message Tools
 // ============================================================================
 
 func (s *MCPServer) registerMessageTools() {
@@ -303,9 +317,40 @@ Inter-agent communication in swarm mode. Messages can be:
 - agent_id (required): Your agent ID to receive messages for
 - include_read: Set true to see already-acknowledged messages
 
-Messages are sent/acknowledged by orchestration hooks, not directly via tools.
 Expired messages (past TTL) are automatically pruned.`,
 	}, s.handleMessageList)
+
+	mcp.AddTool(s.server, &mcp.Tool{
+		Name: "message_send",
+		Description: `Send a message to another agent or broadcast to all.
+
+**Message types:**
+- "status" — Progress update (e.g., stage transitions)
+- "request" — Ask another agent for information or action
+- "response" — Reply to a request
+- "blocker" — Report something blocking your progress
+- "completion" — Signal that your work is done
+- "handoff" — Transfer responsibility for a task
+
+**Addressing:**
+- Set "to" to a specific agent_id for direct messages
+- Omit "to" to broadcast to all agents
+
+**Protocol conventions:**
+- Send "status" at each SDLC stage transition
+- Send "blocker" when stuck and need help
+- Send "completion" when your story/task is done
+- Check messages at the start of each stage`,
+	}, s.handleMessageSend)
+
+	mcp.AddTool(s.server, &mcp.Tool{
+		Name: "message_ack",
+		Description: `Acknowledge a message you've read.
+
+Acknowledging marks the message as read for your agent_id so it won't
+appear in future message_list calls (unless include_read is true).
+Acknowledge messages after you've processed them to keep your inbox clean.`,
+	}, s.handleMessageAck)
 }
 
 func (s *MCPServer) handleMessageList(_ context.Context, _ *mcp.CallToolRequest, input MessageListInput) (*mcp.CallToolResult, any, error) {
@@ -320,6 +365,70 @@ func (s *MCPServer) handleMessageList(_ context.Context, _ *mcp.CallToolRequest,
 	mcpLog.Printf("  found: %d messages", len(messages))
 	result, _ := json.MarshalIndent(messages, "", "  ")
 	return textResult(string(result)), nil, nil
+}
+
+func (s *MCPServer) handleMessageSend(_ context.Context, _ *mcp.CallToolRequest, input MessageSendInput) (*mcp.CallToolResult, any, error) {
+	mcpLog.Printf("tool: message_send from=%s to=%s type=%s", input.From, input.To, input.Type)
+
+	if input.From == "" {
+		return errorResult("'from' is required"), nil, nil
+	}
+	if input.Content == "" {
+		return errorResult("'content' is required"), nil, nil
+	}
+
+	// Cap content length
+	content := input.Content
+	if len(content) > 2000 {
+		content = content[:2000]
+	}
+
+	msg := &memory.Message{
+		From:    input.From,
+		To:      input.To,
+		Content: content,
+		Type:    input.Type,
+	}
+
+	// Apply custom TTL if specified
+	if input.TTLSeconds > 0 {
+		msg.CreatedAt = time.Now()
+		msg.ExpiresAt = msg.CreatedAt.Add(time.Duration(input.TTLSeconds) * time.Second)
+	}
+
+	if err := s.store.AddMessage(msg); err != nil {
+		mcpLog.Printf("  error: %v", err)
+		return errorResult(fmt.Sprintf("send message failed: %v", err)), nil, nil
+	}
+
+	mcpLog.Printf("  sent: id=%d", msg.ID)
+	result, _ := json.Marshal(map[string]any{
+		"id":      msg.ID,
+		"status":  "sent",
+		"to":      input.To,
+		"type":    input.Type,
+		"expires": msg.ExpiresAt.Format(time.RFC3339),
+	})
+	return textResult(string(result)), nil, nil
+}
+
+func (s *MCPServer) handleMessageAck(_ context.Context, _ *mcp.CallToolRequest, input MessageAckInput) (*mcp.CallToolResult, any, error) {
+	mcpLog.Printf("tool: message_ack id=%d agent=%s", input.MessageID, input.AgentID)
+
+	if input.AgentID == "" {
+		return errorResult("'agent_id' is required"), nil, nil
+	}
+
+	if err := s.store.AckMessage(input.MessageID, input.AgentID); err != nil {
+		if errors.Is(err, store.ErrNotFound) {
+			return errorResult(fmt.Sprintf("message %d not found", input.MessageID)), nil, nil
+		}
+		mcpLog.Printf("  error: %v", err)
+		return errorResult(fmt.Sprintf("ack message failed: %v", err)), nil, nil
+	}
+
+	mcpLog.Printf("  acked")
+	return textResult(fmt.Sprintf("Message %d acknowledged by %s", input.MessageID, input.AgentID)), nil, nil
 }
 
 // ============================================================================

@@ -34,6 +34,14 @@ Thumbs.db
 .claude/statsig/
 .claude/todos/
 
+# OpenCode local config and runtime (machine-specific paths)
+.opencode/
+opencode.json
+.mcp.json
+
+# Lock files from aide binary downloads
+packages/opencode-plugin/bin/.aide-download.lock
+
 # Environment
 .env
 .env.local

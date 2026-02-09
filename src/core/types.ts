@@ -157,7 +157,7 @@ export type AidePlatform = "claude-code" | "opencode" | "unknown";
 export interface FindBinaryOptions {
   /** Current working directory */
   cwd?: string;
-  /** Plugin root directory (Claude Code sets CLAUDE_PLUGIN_ROOT) */
+  /** Plugin root directory (AIDE_PLUGIN_ROOT or CLAUDE_PLUGIN_ROOT) */
   pluginRoot?: string;
   /** Additional paths to search before PATH fallback */
   additionalPaths?: string[];

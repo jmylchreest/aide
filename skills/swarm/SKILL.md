@@ -68,7 +68,15 @@ swarm 2 --flat                       → Flat task mode (legacy)
 
 ### 1. Story Decomposition
 
-Break the work into independent stories/features:
+**First, check for an existing plan** from `/aide:plan-swarm`:
+
+```
+mcp__plugin_aide_aide__decision_get with topic="swarm-plan"
+```
+
+If a plan exists, use its stories directly — skip ad-hoc decomposition. The plan has already been validated for independence and acceptance criteria.
+
+If no plan exists, break the work into independent stories/features:
 
 ```markdown
 ## Stories
@@ -179,16 +187,30 @@ Use native Claude Code task tools to track your progress:
    TaskUpdate: taskId=X, status=completed
 
 ## Coordination
-- Share discoveries: `aide memory add --category=discovery "..."` (CLI write)
-- Record decisions: `aide decision set "<topic>" "<decision>"` (CLI write)
-- Check decisions: `mcp__plugin_aide_aide__decision_get` (MCP read)
+
+**Messaging (MCP tools):**
+- Send status: \`message_send\` with from=agent-auth, type="status", content="[DESIGN] complete"
+- Send blocker: \`message_send\` with from=agent-auth, type="blocker", content="Need API schema"
+- Check inbox: \`message_list\` with agent_id=agent-auth
+- Acknowledge: \`message_ack\` with message_id=N, agent_id=agent-auth
+
+**At each stage transition:**
+1. Check messages via \`message_list\`
+2. Acknowledge and act on any requests
+3. Send \`status\` message with new stage
+
+**Shared state (MCP + CLI):**
+- Check decisions: \`mcp__plugin_aide_aide__decision_get\` (MCP read)
+- Record decisions: \`aide decision set <topic> "<decision>"\` (CLI write)
+- Share discoveries: \`aide memory add --category=discovery "<finding>"\` (CLI write)
 
 ## Completion
 When all 5 stages are complete:
 1. Verify all tasks show completed
 2. Ensure all changes are committed
-3. Report: "Story complete: Auth Module"
-`
+3. Send completion message: \`message_send\` with from=agent-auth, type="completion"
+4. Report: "Story complete: Auth Module"
+\`
 });
 ```
 
@@ -316,10 +338,21 @@ TaskCreate({
 
 ## Coordination
 
+**Messaging (MCP tools):**
+- Send status: `message_send` with from=[AGENT-ID], type="status", content="[STAGE] complete"
+- Send blocker: `message_send` with from=[AGENT-ID], type="blocker", content="description"
+- Check inbox: `message_list` with agent_id=[AGENT-ID]
+- Acknowledge: `message_ack` with message_id=N, agent_id=[AGENT-ID]
+
+**At each stage transition:**
+1. Check messages via `message_list`
+2. Acknowledge and act on any requests
+3. Send `status` message with new stage name
+
+**Shared state:**
 - Check existing decisions: `mcp__plugin_aide_aide__decision_get` (MCP read)
 - Record new decisions: `aide decision set <topic> "<decision>"` (CLI write)
 - Share discoveries: `aide memory add --category=discovery "<finding>"` (CLI write)
-- Report blockers: `aide memory add --category=blocker "<issue>"` (CLI write)
 
 ## VERIFY Failure Handling
 
@@ -336,7 +369,8 @@ All stages must complete. When done:
 1. All 5 tasks show [completed]
 2. VERIFY must have passed (not skipped)
 3. All changes committed to your worktree branch
-4. Report: "Story [STORY-ID] complete - ready for merge"
+4. Send completion: `message_send` with from=[AGENT-ID], type="completion", content="Story [STORY-ID] complete"
+5. Report: "Story [STORY-ID] complete - ready for merge"
 ```
 
 ## Flat Mode (Legacy)
@@ -351,6 +385,21 @@ This uses the original task-grabbing model without SDLC stages.
 
 ## Coordination via aide
 
+**Messages** (MCP tools — primary coordination mechanism):
+```
+# Send status update (broadcast)
+message_send: from="agent-auth", type="status", content="[DESIGN] complete, starting TEST"
+
+# Send direct message
+message_send: from="agent-auth", to="agent-payments", type="request", content="Need payment API schema"
+
+# Check inbox
+message_list: agent_id="agent-auth"
+
+# Acknowledge after reading
+message_ack: message_id=42, agent_id="agent-auth"
+```
+
 **Decisions** (shared across agents):
 ```bash
 # Write (CLI)
@@ -364,10 +413,34 @@ aide decision set "auth-strategy" "JWT with refresh tokens"
 aide memory add --category=discovery "User model needs email validation"
 ```
 
-**Messages** (direct communication):
-```bash
-aide message send "Auth module ready for integration" --from=agent-auth
-```
+## OpenCode Mode
+
+OpenCode does not have native subagent support. For multi-agent swarms with OpenCode:
+
+**Setup:**
+1. Create worktrees as normal (one per story)
+2. Launch separate OpenCode terminal sessions, one per story
+3. Each session works in its assigned worktree directory
+
+**Coordination:**
+- **No TaskList** — OpenCode sessions don't share a task system
+- **Use aide messages** as the primary coordination mechanism:
+  - Each session uses `message_send` to report status, blockers, and completion
+  - Check `message_list` at each stage transition
+  - The orchestrator monitors all agents via `message_list` with their own agent_id
+- **Use aide state** for progress tracking:
+  ```bash
+  aide state set "agent-auth:stage" "TEST"
+  aide state set "agent-auth:status" "running"
+  ```
+- Monitor all agents: `mcp__plugin_aide_aide__state_list`
+
+**Orchestrator role (human or primary session):**
+1. Decompose stories (use `/aide:plan-swarm` first)
+2. Create worktrees
+3. Launch terminal sessions with instructions
+4. Monitor via `message_list` and `state_list`
+5. When all sessions report `completion`, run `/aide:worktree-resolve`
 
 ## Completion (MANDATORY STEPS)
 

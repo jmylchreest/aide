@@ -209,6 +209,9 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 }
 
 // cmdMCP starts the MCP server over stdio.
+// It first attempts to connect to an existing gRPC socket (client mode),
+// allowing multiple MCP instances to share a single BoltDB. If no socket
+// exists, it opens BoltDB directly and becomes the primary (server mode).
 func cmdMCP(dbPath string, args []string) error {
 	cfg, err := parseMCPArgs(args)
 	if err != nil {
@@ -228,6 +231,34 @@ func cmdMCP(dbPath string, args []string) error {
 	mcpLog.Printf("version: %s", version.String())
 	mcpLog.Printf("database: %s", dbPath)
 
+	socketPath := grpcapi.SocketPathFromDB(dbPath)
+
+	// Try client mode first: connect to existing primary via gRPC socket
+	if grpcapi.SocketExistsForDB(dbPath) {
+		client, err := grpcapi.NewClientForDB(dbPath)
+		if err == nil {
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			pingErr := client.Ping(ctx)
+			cancel()
+			if pingErr == nil {
+				mcpLog.Printf("client mode: connected to existing primary via %s", socketPath)
+				adapter := newGRPCStoreAdapter(client)
+				mcpServer := &MCPServer{store: adapter}
+				mcpLog.Printf("MCP server ready in %v (client mode), listening on stdio", time.Since(startTime))
+				return mcpServer.Run()
+			}
+			client.Close()
+			mcpLog.Printf("existing socket unhealthy, becoming primary")
+			// Remove stale socket so we can become primary
+			os.Remove(socketPath)
+		} else {
+			mcpLog.Printf("socket exists but connection failed: %v, becoming primary", err)
+			os.Remove(socketPath)
+		}
+	}
+
+	// Primary mode: open BoltDB directly and serve gRPC for other instances
+	mcpLog.Printf("primary mode: opening database directly")
 	storeStart := time.Now()
 	st, err := store.NewBoltStore(dbPath)
 	if err != nil {
@@ -238,7 +269,6 @@ func cmdMCP(dbPath string, args []string) error {
 
 	mcpServer := &MCPServer{store: st}
 
-	socketPath := grpcapi.SocketPathFromDB(dbPath)
 	grpcServer := grpcapi.NewServer(st, dbPath, socketPath)
 	mcpServer.grpcServer = grpcServer
 	mcpLog.Printf("gRPC socket: %s", socketPath)
@@ -256,7 +286,7 @@ func cmdMCP(dbPath string, args []string) error {
 
 	mcpServer.startCodeWatcher(dbPath, cfg)
 
-	mcpLog.Printf("MCP server ready in %v, listening on stdio", time.Since(startTime))
+	mcpLog.Printf("MCP server ready in %v (primary mode), listening on stdio", time.Since(startTime))
 	return mcpServer.Run()
 }
 

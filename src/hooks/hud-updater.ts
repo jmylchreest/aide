@@ -8,8 +8,10 @@
  * Output is written to .aide/state/hud.txt for the terminal to display.
  */
 
-import { Logger } from "../lib/logger.js";
+import { Logger, debug } from "../lib/logger.js";
 import { readStdin } from "../lib/hook-utils.js";
+
+const SOURCE = "hud-updater";
 import { findAideBinary } from "../core/aide-client.js";
 import { updateToolStats } from "../core/tool-tracking.js";
 import {
@@ -62,7 +64,8 @@ async function main(): Promise<void> {
       log.start("updateSessionState");
       const binary = findAideBinary({
         cwd,
-        pluginRoot: process.env.CLAUDE_PLUGIN_ROOT,
+        pluginRoot:
+          process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT,
       });
       if (binary) {
         updateToolStats(binary, cwd, toolName, agentId);
@@ -114,13 +117,22 @@ async function main(): Promise<void> {
   }
 }
 
-
-process.on("uncaughtException", () => {
-  try { console.log(JSON.stringify({ continue: true })); } catch { console.log('{"continue":true}'); }
+process.on("uncaughtException", (err) => {
+  debug(SOURCE, `UNCAUGHT EXCEPTION: ${err}`);
+  try {
+    console.log(JSON.stringify({ continue: true }));
+  } catch {
+    console.log('{"continue":true}');
+  }
   process.exit(0);
 });
-process.on("unhandledRejection", () => {
-  try { console.log(JSON.stringify({ continue: true })); } catch { console.log('{"continue":true}'); }
+process.on("unhandledRejection", (reason) => {
+  debug(SOURCE, `UNHANDLED REJECTION: ${reason}`);
+  try {
+    console.log(JSON.stringify({ continue: true }));
+  } catch {
+    console.log('{"continue":true}');
+  }
   process.exit(0);
 });
 

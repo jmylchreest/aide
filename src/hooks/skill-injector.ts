@@ -67,8 +67,8 @@ function ensureDirectories(cwd: string): void {
     if (!existsSync(dir)) {
       try {
         mkdirSync(dir, { recursive: true });
-      } catch {
-        // Ignore
+      } catch (err) {
+        debugLog(`Failed to create directory ${dir}: ${err}`);
       }
     }
   }

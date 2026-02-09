@@ -19,7 +19,7 @@ Create or update your `opencode.json`:
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["@aide/opencode-plugin"],
+  "plugin": ["@jmylchreest/aide-plugin"],
   "mcp": {
     "aide": {
       "type": "local",
@@ -51,16 +51,16 @@ ln -s /path/to/aide/dist/opencode .opencode/plugins/aide
 
 ## What Works
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Memory injection | ✅ | Global + project memories injected via system prompt transform |
-| Skill matching | ✅ | Fuzzy matching on user messages, injected via system transform |
-| Tool tracking | ✅ | PreToolUse/PostToolUse tracking via `tool.execute.*` hooks |
-| Session summaries | ✅ | Git-based summaries on session idle (no transcript access) |
-| Context compaction | ✅ | State snapshot + context injection via `experimental.session.compacting` |
-| Session cleanup | ✅ | State cleanup on session delete |
-| MCP tools | ✅ | `memory_search`, `code_search`, `decision_get`, etc. via aide MCP |
-| Decisions | ✅ | Injected in welcome context from `aide session init` |
+| Feature            | Status | Notes                                                                    |
+| ------------------ | ------ | ------------------------------------------------------------------------ |
+| Memory injection   | ✅     | Global + project memories injected via system prompt transform           |
+| Skill matching     | ✅     | Fuzzy matching on user messages, injected via system transform           |
+| Tool tracking      | ✅     | PreToolUse/PostToolUse tracking via `tool.execute.*` hooks               |
+| Session summaries  | ✅     | Git-based summaries on session idle (no transcript access)               |
+| Context compaction | ✅     | State snapshot + context injection via `experimental.session.compacting` |
+| Session cleanup    | ✅     | State cleanup on session delete                                          |
+| MCP tools          | ✅     | `memory_search`, `code_search`, `decision_get`, etc. via aide MCP        |
+| Decisions          | ✅     | Injected in welcome context from `aide session init`                     |
 
 ## Known Limitations
 
@@ -68,7 +68,7 @@ ln -s /path/to/aide/dist/opencode .opencode/plugins/aide
 
 **Impact**: High — ralph mode and autopilot cannot prevent the agent from stopping.
 
-Claude Code's Stop hook can return `{ decision: "block" }` to prevent the agent from stopping and force it to continue working. OpenCode has no equivalent mechanism. The `session.idle` event fires *after* the agent has already stopped responding.
+Claude Code's Stop hook can return `{ decision: "block" }` to prevent the agent from stopping and force it to continue working. OpenCode has no equivalent mechanism. The `session.idle` event fires _after_ the agent has already stopped responding.
 
 **Workaround**: None currently. The plugin detects when session goes idle and logs a message, but cannot force continuation. A future OpenCode API addition (`session.prompt()` to send follow-up messages) could enable a polling-based persistence pattern.
 
@@ -193,7 +193,7 @@ All approaches share aide's memory and state through the aide binary and MCP ser
 ┌─────────────────────────────────────────┐
 │              OpenCode TUI               │
 ├─────────────────────────────────────────┤
-│         @aide/opencode-plugin           │
+│         @jmylchreest/aide-plugin           │
 │  ┌──────────┐ ┌──────────┐ ┌─────────┐ │
 │  │  event    │ │  tool.*  │ │ system  │ │
 │  │ handler   │ │ handlers │ │transform│ │
@@ -216,8 +216,8 @@ All approaches share aide's memory and state through the aide binary and MCP ser
 
 ## Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `AIDE_DEBUG` | unset | Set to `1` for debug logging to `.aide/_logs/` |
-| `AIDE_MEMORY_INJECT` | `1` | Set to `0` to skip memory injection |
-| `AIDE_MEMORY_DB` | `.aide/memory/store.db` | Path to memory database |
+| Variable             | Default                 | Description                                    |
+| -------------------- | ----------------------- | ---------------------------------------------- |
+| `AIDE_DEBUG`         | unset                   | Set to `1` for debug logging to `.aide/_logs/` |
+| `AIDE_MEMORY_INJECT` | `1`                     | Set to `0` to skip memory injection            |
+| `AIDE_MEMORY_DB`     | `.aide/memory/store.db` | Path to memory database                        |

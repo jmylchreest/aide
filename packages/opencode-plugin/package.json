@@ -1,23 +1,36 @@
 {
-  "name": "@aide/opencode-plugin",
+  "name": "@jmylchreest/aide-plugin",
   "version": "0.0.16",
   "description": "aide plugin for OpenCode — multi-agent orchestration, memory, skills, and persistence",
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/opencode/index.js",
+  "types": "./dist/opencode/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "import": "./dist/opencode/index.js",
+      "types": "./dist/opencode/index.d.ts"
     }
   },
   "files": [
-    "dist",
+    "dist/opencode",
+    "dist/core",
+    "dist/lib/aide-downloader.js",
+    "dist/lib/aide-downloader.js.map",
+    "dist/lib/aide-downloader.d.ts",
+    "dist/lib/hook-utils.js",
+    "dist/lib/hook-utils.js.map",
+    "dist/lib/hook-utils.d.ts",
+    "bin",
     "README.md"
   ],
+  "bin": {
+    "aide-wrapper": "./bin/aide-wrapper.sh"
+  },
   "scripts": {
-    "build": "tsc",
-    "prepublishOnly": "npm run build"
+    "prebuild": "npm run copy-dist",
+    "build": "echo 'Build uses root project dist/ output'",
+    "copy-dist": "node scripts/copy-dist.mjs",
+    "prepublishOnly": "npm run copy-dist"
   },
   "keywords": [
     "aide",
@@ -38,8 +51,5 @@
   },
   "engines": {
     "node": ">=20.0.0"
-  },
-  "devDependencies": {
-    "typescript": "^5.4.0"
   }
 }

@@ -2,6 +2,10 @@
 /**
  * Task Completed Hook (TaskCompleted)
  *
+ * OPT-IN: This hook is NOT registered in plugin.json by default.
+ * To enable, add a TaskCompleted entry to .claude-plugin/plugin.json.
+ * Not available in OpenCode (no equivalent event).
+ *
  * Validates SDLC stage completion before allowing tasks to be marked complete.
  * Parses task subject for [story-id][STAGE] pattern and runs stage-specific checks.
  *
@@ -74,7 +78,8 @@ function commandSucceeds(cmd: string, cwd: string): boolean {
   try {
     execSync(cmd, { cwd, stdio: "pipe", timeout: 60000 });
     return true;
-  } catch {
+  } catch (err) {
+    debug(SOURCE, `Command failed: ${cmd}: ${err}`);
     return false;
   }
 }
@@ -87,7 +92,8 @@ function getCommandOutput(cmd: string, cwd: string): string | null {
     return execSync(cmd, { cwd, stdio: "pipe", timeout: 30000 })
       .toString()
       .trim();
-  } catch {
+  } catch (err) {
+    debug(SOURCE, `getCommandOutput failed for: ${cmd}: ${err}`);
     return null;
   }
 }
@@ -249,8 +255,8 @@ function validateVerify(
             failures.push(`Lint errors: run \`${lintCmd}\``);
           }
         }
-      } catch {
-        /* ignore */
+      } catch (err) {
+        debug(SOURCE, `Failed to check lint script in package.json: ${err}`);
       }
     } else if (!commandSucceeds(lintCmd, cwd)) {
       failures.push(`Lint errors: run \`${lintCmd}\``);
@@ -283,8 +289,8 @@ function validateVerify(
             failures.push(`Build failing: run \`${buildCmd}\``);
           }
         }
-      } catch {
-        /* ignore */
+      } catch (err) {
+        debug(SOURCE, `Failed to check build script in package.json: ${err}`);
       }
     } else if (!commandSucceeds(buildCmd, cwd)) {
       failures.push(`Build failing: run \`${buildCmd}\``);
@@ -390,11 +396,12 @@ async function main(): Promise<void> {
   }
 }
 
-
-process.on("uncaughtException", () => {
+process.on("uncaughtException", (err) => {
+  debug(SOURCE, `UNCAUGHT EXCEPTION: ${err}`);
   process.exit(0);
 });
-process.on("unhandledRejection", () => {
+process.on("unhandledRejection", (reason) => {
+  debug(SOURCE, `UNHANDLED REJECTION: ${reason}`);
   process.exit(0);
 });
 

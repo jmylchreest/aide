@@ -25,10 +25,7 @@ import { fileURLToPath } from "url";
 import { homedir } from "os";
 import { Logger, debug, setDebugCwd } from "../lib/logger.js";
 import { readStdin } from "../lib/hook-utils.js";
-import {
-  findAideBinary,
-  ensureAideBinary,
-} from "../lib/aide-downloader.js";
+import { findAideBinary, ensureAideBinary } from "../lib/aide-downloader.js";
 import {
   ensureDirectories as coreEnsureDirectories,
   loadConfig as coreLoadConfig,
@@ -40,6 +37,7 @@ import {
   buildWelcomeContext as coreBuildWelcomeContext,
   formatTimeAgo,
 } from "../core/session-init.js";
+import { syncMcpServers } from "../core/mcp-sync.js";
 import type {
   AideConfig,
   SessionState,
@@ -125,8 +123,9 @@ function resetHudState(cwd: string, log: Logger): void {
  * Get the plugin root directory
  */
 function getPluginRoot(): string | null {
-  // Check CLAUDE_PLUGIN_ROOT env var first (set by Claude Code)
-  const envRoot = process.env.CLAUDE_PLUGIN_ROOT;
+  // Check AIDE_PLUGIN_ROOT or CLAUDE_PLUGIN_ROOT env var
+  const envRoot =
+    process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT;
   if (envRoot && existsSync(join(envRoot, "package.json"))) {
     return envRoot;
   }
@@ -358,6 +357,33 @@ async function main(): Promise<void> {
     installHudWrapper(log);
     debugLog(`installHudWrapper complete (${Date.now() - hookStart}ms)`);
 
+    // Sync MCP server configs across assistants (FS only, fast)
+    debugLog("mcpSync starting...");
+    log.start("mcpSync");
+    try {
+      const mcpResult = syncMcpServers("claude-code", cwd);
+      const totalImported =
+        mcpResult.user.imported + mcpResult.project.imported;
+      const totalWritten =
+        mcpResult.user.serversWritten + mcpResult.project.serversWritten;
+      const totalSkipped = mcpResult.user.skipped + mcpResult.project.skipped;
+      log.end("mcpSync", {
+        userServers: mcpResult.user.serversWritten,
+        projectServers: mcpResult.project.serversWritten,
+        imported: totalImported,
+        skipped: totalSkipped,
+      });
+      if (totalImported > 0) {
+        debugLog(
+          `mcp-sync: imported ${totalImported} server(s), ${totalWritten} total`,
+        );
+      }
+    } catch (err) {
+      log.warn("MCP sync failed (non-fatal)", err);
+      log.end("mcpSync", { success: false, error: String(err) });
+    }
+    debugLog(`mcpSync complete (${Date.now() - hookStart}ms)`);
+
     // Check that aide binary is available (auto-downloads if missing/outdated)
     debugLog("checkAideBinary starting...");
     const {
@@ -407,15 +433,15 @@ async function main(): Promise<void> {
       notices.info!.push("aide binary downloaded");
     }
 
-    // Output notices to stderr so user sees them in the console
+    // Log notices via debug (avoids stderr which Claude Code interprets as error)
     if (notices.error) {
-      console.error(`[aide] ${notices.error}`);
+      debugLog(`NOTICE ERROR: ${notices.error}`);
     }
     if (notices.warning) {
-      console.error(`[aide] ${notices.warning}`);
+      debugLog(`NOTICE WARNING: ${notices.warning}`);
     }
     for (const info of notices.info || []) {
-      console.error(`[aide] ${info}`);
+      debugLog(`NOTICE INFO: ${info}`);
     }
 
     // Build welcome context with injected memories

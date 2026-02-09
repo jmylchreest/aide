@@ -17,11 +17,8 @@
 import { join } from "path";
 import { execFileSync } from "child_process";
 import { Logger } from "../lib/logger.js";
-import {
-  readStdin,
-  findAideBinary,
-  setMemoryState,
-} from "../lib/hook-utils.js";
+import { readStdin, setMemoryState } from "../lib/hook-utils.js";
+import { findAideBinary } from "../core/aide-client.js";
 import { refreshHud } from "../lib/hud.js";
 import {
   getWorktreeForAgent,
@@ -74,19 +71,25 @@ interface HookOutput {
 function getProjectName(cwd: string): string {
   try {
     // Try git remote first
-    const remoteUrl = execFileSync("git", ["config", "--get", "remote.origin.url"], {
-      cwd,
-      stdio: ["pipe", "pipe", "pipe"],
-      timeout: 2000,
-    })
+    const remoteUrl = execFileSync(
+      "git",
+      ["config", "--get", "remote.origin.url"],
+      {
+        cwd,
+        stdio: ["pipe", "pipe", "pipe"],
+        timeout: 2000,
+      },
+    )
       .toString()
       .trim();
 
     // Extract repo name from URL
     const match = remoteUrl.match(/[/:]([^/]+?)(?:\.git)?$/);
     if (match) return match[1];
-  } catch {
-    // Not a git repo or no remote
+  } catch (err) {
+    log?.debug(
+      `getProjectName: git remote failed (not a git repo or no remote): ${err}`,
+    );
   }
 
   // Fallback to directory name
@@ -120,7 +123,10 @@ function fetchSubagentMemories(cwd: string): {
     return result;
   }
 
-  const binary = findAideBinary(cwd);
+  const binary = findAideBinary({
+    cwd,
+    pluginRoot: process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT,
+  });
   if (!binary) {
     return result;
   }
@@ -133,7 +139,13 @@ function fetchSubagentMemories(cwd: string): {
   try {
     const globalOutput = execFileSync(
       binary,
-      ["memory", "list", "--category=global", "--tags=scope:global", "--format=json"],
+      [
+        "memory",
+        "list",
+        "--category=global",
+        "--tags=scope:global",
+        "--format=json",
+      ],
       { env, stdio: ["pipe", "pipe", "pipe"], timeout: 3000 },
     )
       .toString()
@@ -143,8 +155,10 @@ function fetchSubagentMemories(cwd: string): {
       const memories = JSON.parse(globalOutput);
       result.global = memories.map((m: { content: string }) => m.content);
     }
-  } catch {
-    // Ignore errors - memory is optional
+  } catch (err) {
+    log?.debug(
+      `fetchSubagentMemories: global memory fetch failed (optional): ${err}`,
+    );
   }
 
   // Fetch project memories (project:<name>)
@@ -161,8 +175,10 @@ function fetchSubagentMemories(cwd: string): {
       const memories = JSON.parse(projectOutput);
       result.project = memories.map((m: { content: string }) => m.content);
     }
-  } catch {
-    // Ignore errors - memory is optional
+  } catch (err) {
+    log?.debug(
+      `fetchSubagentMemories: project memory fetch failed (optional): ${err}`,
+    );
   }
 
   // Fetch project decisions
@@ -181,8 +197,10 @@ function fetchSubagentMemories(cwd: string): {
         (d: { topic: string; value: string }) => `**${d.topic}**: ${d.value}`,
       );
     }
-  } catch {
-    // Ignore errors
+  } catch (err) {
+    log?.debug(
+      `fetchSubagentMemories: decision fetch failed (optional): ${err}`,
+    );
   }
 
   return result;
@@ -198,12 +216,13 @@ function buildSubagentContext(
     decisions: string[];
   },
   worktree?: Worktree,
-): string | undefined {
+): string {
   const lines: string[] = [];
+
+  lines.push("<aide-subagent-context>");
 
   // Inject worktree information if this is a swarm agent
   if (worktree) {
-    lines.push("<aide-subagent-context>");
     lines.push("");
     lines.push("## Swarm Worktree");
     lines.push("");
@@ -221,9 +240,6 @@ function buildSubagentContext(
   }
 
   if (memories.global.length > 0) {
-    if (lines.length === 0) {
-      lines.push("<aide-subagent-context>");
-    }
     lines.push("");
     lines.push("## User Preferences");
     lines.push("");
@@ -233,9 +249,6 @@ function buildSubagentContext(
   }
 
   if (memories.project.length > 0) {
-    if (lines.length === 0) {
-      lines.push("<aide-subagent-context>");
-    }
     lines.push("");
     lines.push("## Project Context");
     lines.push("");
@@ -245,9 +258,6 @@ function buildSubagentContext(
   }
 
   if (memories.decisions.length > 0) {
-    if (lines.length === 0) {
-      lines.push("<aide-subagent-context>");
-    }
     lines.push("");
     lines.push("## Project Decisions");
     lines.push("");
@@ -256,13 +266,36 @@ function buildSubagentContext(
     }
   }
 
-  if (lines.length > 0) {
-    lines.push("");
-    lines.push("</aide-subagent-context>");
-    return lines.join("\n");
-  }
+  // Always inject messaging protocol for agent coordination
+  lines.push("");
+  lines.push("## Agent Communication");
+  lines.push("");
+  lines.push("Use aide MCP messaging tools to coordinate with other agents:");
+  lines.push("");
+  lines.push("**Send messages** via `mcp__plugin_aide_aide__message_send`:");
+  lines.push("- `from`: Your agent ID (required)");
+  lines.push("- `to`: Target agent ID (omit to broadcast)");
+  lines.push("- `content`: Message text");
+  lines.push(
+    "- `type`: One of `status`, `request`, `response`, `blocker`, `completion`, `handoff`",
+  );
+  lines.push("");
+  lines.push("**Check messages** via `mcp__plugin_aide_aide__message_list`:");
+  lines.push("- `agent_id`: Your agent ID");
+  lines.push("");
+  lines.push("**Acknowledge** via `mcp__plugin_aide_aide__message_ack`:");
+  lines.push("- `message_id`: ID from message_list");
+  lines.push("- `agent_id`: Your agent ID");
+  lines.push("");
+  lines.push("**Protocol:**");
+  lines.push("- Send `status` message at each SDLC stage transition");
+  lines.push("- Send `blocker` when stuck and need help from another agent");
+  lines.push("- Send `completion` when your story/task is done");
+  lines.push("- Check messages at the start of each SDLC stage");
 
-  return undefined;
+  lines.push("");
+  lines.push("</aide-subagent-context>");
+  return lines.join("\n");
 }
 
 /**
@@ -367,21 +400,12 @@ async function processSubagentStart(
     decisionCount: memories.decisions.length,
   });
 
-  // Build context if we have memories or a worktree
-  if (
-    worktree ||
-    memories.global.length > 0 ||
-    memories.project.length > 0 ||
-    memories.decisions.length > 0
-  ) {
-    const context = buildSubagentContext(memories, worktree);
-    log?.info(
-      `Injecting context for subagent: ${memories.global.length} preferences, ${memories.project.length} project, ${memories.decisions.length} decisions, worktree=${!!worktree}`,
-    );
-    return context;
-  }
-
-  return undefined;
+  // Always build and inject context (messaging section is unconditional)
+  const context = buildSubagentContext(memories, worktree);
+  log?.info(
+    `Injecting context for subagent: ${memories.global.length} preferences, ${memories.project.length} project, ${memories.decisions.length} decisions, worktree=${!!worktree}`,
+  );
+  return context;
 }
 
 /**
@@ -475,12 +499,36 @@ async function main(): Promise<void> {
   }
 }
 
-process.on("uncaughtException", () => {
-  try { console.log(JSON.stringify({ continue: true })); } catch { console.log('{"continue":true}'); }
+process.on("uncaughtException", (err) => {
+  if (log) {
+    log.error(`UNCAUGHT EXCEPTION: ${err}`);
+    log.flush();
+  }
+  try {
+    console.log(JSON.stringify({ continue: true }));
+  } catch {
+    console.log('{"continue":true}');
+  }
+  process.exit(0);
+});
+process.on("unhandledRejection", (reason) => {
+  if (log) {
+    log.error(`UNHANDLED REJECTION: ${reason}`);
+    log.flush();
+  }
+  try {
+    console.log(JSON.stringify({ continue: true }));
+  } catch {
+    console.log('{"continue":true}');
+  }
   process.exit(0);
 });
 process.on("unhandledRejection", () => {
-  try { console.log(JSON.stringify({ continue: true })); } catch { console.log('{"continue":true}'); }
+  try {
+    console.log(JSON.stringify({ continue: true }));
+  } catch {
+    console.log('{"continue":true}');
+  }
   process.exit(0);
 });
 
