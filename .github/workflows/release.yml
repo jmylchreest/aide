@@ -299,7 +299,7 @@ jobs:
           path: artifacts
 
       - name: Publish to npm with provenance
-        run: npm publish artifacts/jmylchreest-aide-plugin-*.tgz --provenance --access public
+        run: npm publish ./artifacts/jmylchreest-aide-plugin-*.tgz --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
