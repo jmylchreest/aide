@@ -1,6 +1,6 @@
 {
   "name": "aide",
-  "version": "0.0.20",
+  "version": "0.0.21",
   "description": "AI Development Environment - Multi-agent orchestration for Claude Code",
   "author": {
     "name": "John Mylchreest"
@@ -49,6 +49,11 @@
           {
             "type": "command",
             "command": "npx tsx \"${CLAUDE_PLUGIN_ROOT}/src/hooks/hud-updater.ts\" 2>/dev/null",
+            "timeout": 3
+          },
+          {
+            "type": "command",
+            "command": "npx tsx \"${CLAUDE_PLUGIN_ROOT}/src/hooks/comment-checker.ts\" 2>/dev/null",
             "timeout": 3
           }
         ]
@@ -108,6 +113,11 @@
             "type": "command",
             "command": "npx tsx \"${CLAUDE_PLUGIN_ROOT}/src/hooks/tool-tracker.ts\" 2>/dev/null",
             "timeout": 2
+          },
+          {
+            "type": "command",
+            "command": "npx tsx \"${CLAUDE_PLUGIN_ROOT}/src/hooks/write-guard.ts\" 2>/dev/null",
+            "timeout": 3
           },
           {
             "type": "command",
