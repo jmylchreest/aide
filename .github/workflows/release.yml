@@ -209,7 +209,7 @@ jobs:
         run: npm run build
 
       - name: Prepare OpenCode plugin package
-        run: node packages/opencode-plugin/scripts/copy-dist.mjs
+        run: node packages/opencode-plugin/scripts/copy-src.mjs
 
       - name: Set package version
         working-directory: packages/opencode-plugin
