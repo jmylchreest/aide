@@ -94,11 +94,3 @@ type SearchOptions struct {
 	Limit     int
 	Semantic  bool // Use vector search
 }
-
-// ExportFormat specifies the output format for exports.
-type ExportFormat string
-
-const (
-	ExportFormatMarkdown ExportFormat = "markdown"
-	ExportFormatJSON     ExportFormat = "json"
-)

@@ -51,28 +51,6 @@ func NewCombinedStore(dbPath string) (*CombinedStore, error) {
 	return cs, nil
 }
 
-// NewCombinedStoreFromBolt creates a CombinedStore reusing an already-open BoltStore.
-// This avoids the double-open problem when BoltStore is already held by the caller.
-func NewCombinedStoreFromBolt(bolt *BoltStore, dbPath string) (*CombinedStore, error) {
-	searchPath := GetSearchPath(dbPath)
-	search, err := NewSearchStore(SearchConfig{Path: searchPath})
-	if err != nil {
-		return nil, err
-	}
-
-	cs := &CombinedStore{
-		bolt:   bolt,
-		search: search,
-	}
-
-	if err := cs.ensureSearchMapping(); err != nil {
-		search.Close()
-		return nil, err
-	}
-
-	return cs, nil
-}
-
 // ensureSearchMapping checks if the search index mapping has changed and rebuilds if needed.
 func (c *CombinedStore) ensureSearchMapping() error {
 	m, err := buildIndexMapping()
@@ -102,11 +80,6 @@ func (c *CombinedStore) ensureSearchMapping() error {
 func (c *CombinedStore) Close() error {
 	c.search.Close()
 	return c.bolt.Close()
-}
-
-// Bolt returns the underlying BoltStore for non-memory operations.
-func (c *CombinedStore) Bolt() *BoltStore {
-	return c.bolt
 }
 
 // --- Memory Operations (dual-write to bolt + bleve) ---
@@ -157,11 +130,6 @@ func (c *CombinedStore) SearchMemories(query string, limit int) ([]*memory.Memor
 		}
 	}
 	return memories, nil
-}
-
-// SelectMemories performs substring search on bbolt (exact matching).
-func (c *CombinedStore) SelectMemories(query string, limit int) ([]*memory.Memory, error) {
-	return c.bolt.SearchMemories(query, limit)
 }
 
 // SearchMemoriesWithScore performs full-text search returning results with relevance scores.

@@ -213,16 +213,6 @@ func TestCombinedStoreMemoryOperations(t *testing.T) {
 		}
 	})
 
-	t.Run("SelectMemories", func(t *testing.T) {
-		memories, err := cs.SelectMemories("Combined", 10)
-		if err != nil {
-			t.Fatalf("SelectMemories: %v", err)
-		}
-		if len(memories) < 1 {
-			t.Error("expected at least 1 result for 'Combined'")
-		}
-	})
-
 	t.Run("SearchMemories", func(t *testing.T) {
 		memories, err := cs.SearchMemories("combined store", 10)
 		if err != nil {
@@ -268,13 +258,6 @@ func TestCombinedStoreMemoryOperations(t *testing.T) {
 		}
 		if count < 1 {
 			t.Errorf("expected count >= 1, got %d", count)
-		}
-	})
-
-	t.Run("Bolt", func(t *testing.T) {
-		b := cs.Bolt()
-		if b == nil {
-			t.Fatal("Bolt() returned nil")
 		}
 	})
 
