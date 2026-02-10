@@ -11,40 +11,22 @@ These provide first-class aide support with hooks, memory, skills, and persisten
 | **Claude Code** | Built-in (plugin)          | All features: hooks, skills, memory, HUD, persistence, swarm |
 | **OpenCode**    | `@jmylchreest/aide-plugin` | Hooks, skills, memory, MCP tools. See [opencode/](opencode/) |
 
-## Example Adapters
+## Feature Comparison
 
-These are **starting points** that translate aide's portable content to other tools:
-
-| Adapter     | Status  | Completeness                                  |
-| ----------- | ------- | --------------------------------------------- |
-| `continue/` | Example | Generates slash commands from agents/skills   |
-| `cursor/`   | Example | Generates .cursorrules with condensed prompts |
-| `aider/`    | Example | Generates CONVENTIONS.md                      |
-
-### What Works (Adapters)
-
-- Reading aide agent/skill markdown files
-- Generating basic tool-specific config formats
-- Providing a template for community contributions
-
-### What's Missing (Adapters vs Full Integrations)
-
-| Feature                 |      Claude Code      |      OpenCode       |  Adapters   |
-| ----------------------- | :-------------------: | :-----------------: | :---------: |
-| Dynamic skill injection |       ✅ Hooks        |      ✅ Plugin      |  ❌ Static  |
-| Memory injection        |    ✅ SessionStart    | ✅ system.transform |   ❌ None   |
-| Tool tracking           |     ✅ PreToolUse     | ✅ tool.execute.\*  |   ❌ None   |
-| Session summaries       |     ✅ Stop hook      |   ⚠️ State-based    |   ❌ None   |
-| Read-only enforcement   |     ✅ PreToolUse     |  ⚠️ permission.ask  |   ❌ None   |
-| Persistence (ralph)     | ✅ Stop hook (block)  | ❌ No stop blocking |   ❌ None   |
-| Subagent orchestration  | ✅ SubagentStart/Stop |  ⚠️ Multi-instance  |   ❌ None   |
-| HUD status line         |    ✅ Terminal HUD    | ❌ File-based only  |   ❌ None   |
-| Usage tracking          |     ✅ OAuth API      |  ❌ Not available   |   ❌ None   |
-| aide-memory MCP         |       ✅ Direct       |    ✅ MCP config    | ⚠️ CLI only |
-
-## Contributing
-
-Community contributions to improve these adapters are welcome. Each tool has different capabilities, so adapters will vary in completeness.
+| Feature                 |    Claude Code     |      OpenCode       |
+| ----------------------- | :----------------: | :-----------------: |
+| Dynamic skill injection |       Hooks        |       Plugin        |
+| Memory injection        |    SessionStart    |  system.transform   |
+| Tool tracking           |     PreToolUse     |   tool.execute.\*   |
+| Session summaries       |     Stop hook      |     State-based     |
+| Read-only enforcement   |     PreToolUse     |   permission.ask    |
+| Persistence (ralph)     | Stop hook (block)  |    session.idle     |
+| Comment checker         |    PostToolUse     | tool.execute.after  |
+| Write guard             |     PreToolUse     | tool.execute.before |
+| Todo continuation       |     Stop hook      |    session.idle     |
+| Subagent orchestration  | SubagentStart/Stop |   Multi-instance    |
+| HUD status line         |    Terminal HUD    |   File-based only   |
+| aide-memory MCP         |       Direct       |     MCP config      |
 
 ## Writing a New Adapter
 
