@@ -6,11 +6,13 @@
  *   bunx @jmylchreest/aide-plugin install   # Install globally for OpenCode
  *   bunx @jmylchreest/aide-plugin uninstall  # Remove from OpenCode config
  *   bunx @jmylchreest/aide-plugin status     # Show current installation status
+ *   bunx @jmylchreest/aide-plugin mcp        # Start MCP server (used by OpenCode)
  */
 
 import { install } from "./install.js";
 import { uninstall } from "./uninstall.js";
 import { status } from "./status.js";
+import { mcp } from "./mcp.js";
 
 const args = process.argv.slice(2);
 const command = args[0];
@@ -22,6 +24,7 @@ Usage:
   aide-plugin install     Install aide plugin globally for OpenCode
   aide-plugin uninstall   Remove aide plugin from OpenCode config
   aide-plugin status      Show current installation status
+  aide-plugin mcp         Start MCP server (delegates to aide-wrapper)
   aide-plugin --help      Show this help message
 
 Options:
@@ -30,7 +33,6 @@ Options:
 
 Examples:
   bunx @jmylchreest/aide-plugin install
-  npx @jmylchreest/aide-plugin install
   aide-plugin install --project`);
 }
 
@@ -49,6 +51,9 @@ async function main(): Promise<void> {
       break;
     case "status":
       await status();
+      break;
+    case "mcp":
+      await mcp(args.slice(1));
       break;
     case "--help":
     case "-h":

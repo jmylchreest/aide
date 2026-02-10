@@ -104,17 +104,10 @@ function findWrapperCommand(): string[] {
     }
   }
 
-  // npm-installed package: use npx to resolve the plugin portably.
+  // npm-installed package: use the plugin's built-in mcp subcommand.
   // The -y flag auto-installs if not already present.
   if (useNpm) {
-    return [
-      "npx",
-      "-y",
-      "-p",
-      "@jmylchreest/aide-plugin",
-      "aide-wrapper",
-      "mcp",
-    ];
+    return ["npx", "-y", "@jmylchreest/aide-plugin", "mcp"];
   }
 
   // No plugin path, not npm: assume aide is in PATH

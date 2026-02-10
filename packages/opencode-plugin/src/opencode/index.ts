@@ -16,7 +16,7 @@
  *   "mcp": {
  *     "aide": {
  *       "type": "local",
- *       "command": ["npx", "-y", "-p", "@jmylchreest/aide-plugin", "aide-wrapper", "mcp"],
+ *       "command": ["npx", "-y", "@jmylchreest/aide-plugin", "mcp"],
  *       "environment": { "AIDE_CODE_WATCH": "1", "AIDE_CODE_WATCH_DELAY": "30s" },
  *       "enabled": true
  *     }
