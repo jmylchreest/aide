@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/jmylchreest/aide/aide/pkg/memory"
+	"github.com/jmylchreest/aide/aide/pkg/store"
 )
 
 // cmdMemoryDispatcher routes memory subcommands.
@@ -35,6 +36,8 @@ func cmdMemoryDispatcher(dbPath string, args []string) error {
 		return cmdExport(dbPath, subargs)
 	case "clear":
 		return cmdClearMemories(dbPath)
+	case "reindex":
+		return cmdReindex(dbPath)
 	case "help", "-h", "--help":
 		printMemoryUsage()
 		return nil
@@ -58,6 +61,7 @@ Subcommands:
   sessions   List memories grouped by session (for context injection)
   export     Export memories to markdown/json
   clear      Clear all memories
+  reindex    Rebuild the bleve search index from bolt data
 
 Options:
   list/select/search:
@@ -170,12 +174,43 @@ func cmdClearMemories(dbPath string) error {
 	return nil
 }
 
+func cmdReindex(dbPath string) error {
+	cs, err := store.NewCombinedStore(dbPath)
+	if err != nil {
+		return fmt.Errorf("failed to open store: %w", err)
+	}
+	defer cs.Close()
+
+	if err := cs.SyncSearchIndex(); err != nil {
+		return fmt.Errorf("reindex failed: %w", err)
+	}
+
+	count, err := cs.SearchCount()
+	if err != nil {
+		return fmt.Errorf("failed to get search count: %w", err)
+	}
+
+	fmt.Printf("Search index rebuilt: %d memories indexed\n", count)
+	return nil
+}
+
 func cmdSearch(dbPath string, args []string) error {
 	if len(args) < 1 {
 		return fmt.Errorf("usage: aide memory search QUERY [--limit=N] [--min-score=X] [--full] [--latest]")
 	}
 
-	query := args[0]
+	// Collect all non-flag arguments as the query (supports multi-word without quotes)
+	var queryParts []string
+	for _, arg := range args {
+		if !strings.HasPrefix(arg, "--") {
+			queryParts = append(queryParts, arg)
+		}
+	}
+	query := strings.Join(queryParts, " ")
+	if query == "" {
+		return fmt.Errorf("usage: aide memory search QUERY [--limit=N] [--min-score=X] [--full] [--latest]")
+	}
+
 	limit := 10
 	minScore := 0.0
 	showFull := hasFlag(args[1:], "--full")
@@ -238,7 +273,18 @@ func cmdSelect(dbPath string, args []string) error {
 		return fmt.Errorf("usage: aide memory select QUERY [--limit=N] [--latest]")
 	}
 
-	query := args[0]
+	// Collect all non-flag arguments as the query (supports multi-word without quotes)
+	var queryParts []string
+	for _, arg := range args {
+		if !strings.HasPrefix(arg, "--") {
+			queryParts = append(queryParts, arg)
+		}
+	}
+	query := strings.Join(queryParts, " ")
+	if query == "" {
+		return fmt.Errorf("usage: aide memory select QUERY [--limit=N] [--latest]")
+	}
+
 	limit := 100
 	latestOnly := hasFlag(args[1:], "--latest")
 	showFull := hasFlag(args[1:], "--full")

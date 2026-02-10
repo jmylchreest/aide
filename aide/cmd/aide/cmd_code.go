@@ -427,7 +427,8 @@ type Indexer struct {
 	parser *code.Parser
 }
 
-// NewIndexer creates a new indexer.
+// NewIndexer creates a new indexer by opening a new code store.
+// Prefer NewIndexerFromStore when a code store is already open.
 func NewIndexer(dbPath string) (*Indexer, error) {
 	indexPath, searchPath := getCodeStorePaths(dbPath)
 	codeStore, err := store.NewCodeStore(indexPath, searchPath)
@@ -439,6 +440,15 @@ func NewIndexer(dbPath string) (*Indexer, error) {
 		store:  codeStore,
 		parser: code.NewParser(),
 	}, nil
+}
+
+// NewIndexerFromStore creates an indexer reusing an existing code store.
+// The caller retains ownership of the store — Close() is a no-op.
+func NewIndexerFromStore(cs store.CodeIndexStore) *Indexer {
+	return &Indexer{
+		store:  cs,
+		parser: code.NewParser(),
+	}
 }
 
 // Close closes the indexer.

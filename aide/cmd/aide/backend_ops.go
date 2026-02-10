@@ -67,6 +67,8 @@ type SearchResult struct {
 }
 
 // SearchMemoriesWithScore returns search results with relevance scores.
+// When using gRPC, scores are unavailable (returned as 0).
+// When using direct DB, it uses CombinedStore's bleve-backed scored search.
 func (b *Backend) SearchMemoriesWithScore(query string, limit int, minScore float64) ([]SearchResult, error) {
 	ctx := context.Background()
 
@@ -85,13 +87,21 @@ func (b *Backend) SearchMemoriesWithScore(query string, limit int, minScore floa
 		return results, nil
 	}
 
-	combined, err := store.NewCombinedStore(b.dbPath)
-	if err != nil {
-		return nil, err
+	// Use the backend's combined store directly (no double-open)
+	if b.combined == nil {
+		// Fallback: bolt-only store, no scores available
+		memories, err := b.store.SearchMemories(query, limit)
+		if err != nil {
+			return nil, err
+		}
+		results := make([]SearchResult, len(memories))
+		for i, m := range memories {
+			results[i] = SearchResult{Memory: m, Score: 0}
+		}
+		return results, nil
 	}
-	defer combined.Close()
 
-	storeResults, err := combined.SearchMemories(query, limit)
+	storeResults, err := b.combined.SearchMemoriesWithScore(query, limit)
 	if err != nil {
 		return nil, err
 	}

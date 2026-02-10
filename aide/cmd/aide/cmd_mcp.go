@@ -152,6 +152,7 @@ func (s *MCPServer) initMCPCodeStore(dbPath string, cfg *mcpConfig, grpcServer *
 }
 
 // startCodeWatcher launches the file watcher in the background.
+// It reuses the MCPServer's existing code store to avoid double-opening bolt/bleve.
 func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 	if !cfg.codeWatch && cfg.codeWatchPath == "" {
 		return
@@ -167,10 +168,17 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 			}
 		}
 
-		indexer, err := NewIndexer(dbPath)
-		if err != nil {
-			mcpLog.Printf("WARNING: failed to create code indexer: %v", err)
-			return
+		// Reuse the existing code store if available, otherwise open a new one
+		var indexer *Indexer
+		if cs := s.getCodeStore(); cs != nil {
+			indexer = NewIndexerFromStore(cs)
+		} else {
+			var err error
+			indexer, err = NewIndexer(dbPath)
+			if err != nil {
+				mcpLog.Printf("WARNING: failed to create code indexer: %v", err)
+				return
+			}
 		}
 
 		debounceDelay := code.DefaultDebounceDelay
@@ -257,15 +265,15 @@ func cmdMCP(dbPath string, args []string) error {
 		}
 	}
 
-	// Primary mode: open BoltDB directly and serve gRPC for other instances
+	// Primary mode: open CombinedStore (bolt + bleve) directly and serve gRPC for other instances
 	mcpLog.Printf("primary mode: opening database directly")
 	storeStart := time.Now()
-	st, err := store.NewBoltStore(dbPath)
+	st, err := store.NewCombinedStore(dbPath)
 	if err != nil {
 		return fmt.Errorf("failed to open store: %w", err)
 	}
 	defer st.Close()
-	mcpLog.Printf("database opened in %v", time.Since(storeStart))
+	mcpLog.Printf("database opened in %v (bolt + bleve search)", time.Since(storeStart))
 
 	mcpServer := &MCPServer{store: st}
 

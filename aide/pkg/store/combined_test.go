@@ -72,12 +72,12 @@ func TestCombinedStoreSearchRebuild(t *testing.T) {
 	}
 
 	// Verify it's searchable.
-	results, err := cs.SearchMemories("survive", 10)
+	memories, err := cs.SearchMemories("survive", 10)
 	if err != nil {
 		cleanup()
 		t.Fatalf("SearchMemories: %v", err)
 	}
-	if len(results) == 0 {
+	if len(memories) == 0 {
 		cleanup()
 		t.Fatal("expected search results before rebuild")
 	}
@@ -129,11 +129,11 @@ func TestCombinedStoreSearchRebuild(t *testing.T) {
 	}
 
 	// Search should work after rebuild (index was re-synced from bolt).
-	results, err = cs2.SearchMemories("survive", 10)
+	memories, err = cs2.SearchMemories("survive", 10)
 	if err != nil {
 		t.Fatalf("SearchMemories after rebuild: %v", err)
 	}
-	if len(results) == 0 {
+	if len(memories) == 0 {
 		t.Error("expected search results after rebuild")
 	}
 }
@@ -224,11 +224,11 @@ func TestCombinedStoreMemoryOperations(t *testing.T) {
 	})
 
 	t.Run("SearchMemories", func(t *testing.T) {
-		results, err := cs.SearchMemories("combined store", 10)
+		memories, err := cs.SearchMemories("combined store", 10)
 		if err != nil {
 			t.Fatalf("SearchMemories: %v", err)
 		}
-		if len(results) < 1 {
+		if len(memories) < 1 {
 			t.Error("expected at least 1 search result")
 		}
 	})
@@ -236,12 +236,28 @@ func TestCombinedStoreMemoryOperations(t *testing.T) {
 	t.Run("SearchMultiWordOR", func(t *testing.T) {
 		// Multi-word queries should use OR: "combined nonexistent" should still
 		// match memories containing "combined" even though "nonexistent" is absent.
-		results, err := cs.SearchMemories("combined nonexistentword", 10)
+		memories, err := cs.SearchMemories("combined nonexistentword", 10)
 		if err != nil {
 			t.Fatalf("SearchMemories multi-word: %v", err)
 		}
-		if len(results) < 1 {
+		if len(memories) < 1 {
 			t.Error("expected at least 1 result for OR multi-word query, got 0")
+		}
+	})
+
+	t.Run("SearchMemoriesWithScore", func(t *testing.T) {
+		results, err := cs.SearchMemoriesWithScore("combined store", 10)
+		if err != nil {
+			t.Fatalf("SearchMemoriesWithScore: %v", err)
+		}
+		if len(results) < 1 {
+			t.Error("expected at least 1 scored result")
+		}
+		if results[0].Score <= 0 {
+			t.Error("expected positive score from bleve search")
+		}
+		if results[0].Memory == nil {
+			t.Error("expected Memory to be enriched")
 		}
 	})
 

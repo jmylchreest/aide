@@ -16,12 +16,15 @@ import (
 type Backend struct {
 	grpcClient *grpcapi.Client
 	store      store.Store
+	combined   *store.CombinedStore // non-nil when using direct DB (for scored search)
 	dbPath     string
 	useGRPC    bool
 }
 
 // NewBackend creates a new backend, preferring gRPC if available.
 // If AIDE_MEMORY_DB is set, always use direct DB access (for testing isolation).
+// When using direct DB, it opens a CombinedStore (bolt + bleve) so that
+// memory search uses full-text search instead of substring matching.
 func NewBackend(dbPath string) (*Backend, error) {
 	b := &Backend{dbPath: dbPath}
 
@@ -44,12 +47,13 @@ func NewBackend(dbPath string) (*Backend, error) {
 		}
 	}
 
-	// Fall back to direct DB
-	st, err := store.NewBoltStore(dbPath)
+	// Fall back to direct DB with CombinedStore (bolt + bleve search)
+	cs, err := store.NewCombinedStore(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
-	b.store = st
+	b.store = cs    // CombinedStore implements Store
+	b.combined = cs // Keep typed reference for scored search
 	b.useGRPC = false
 	return b, nil
 }
