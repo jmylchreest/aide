@@ -37,7 +37,14 @@ If you prefer to configure manually, add to your `opencode.json` (either `~/.con
   "mcp": {
     "aide": {
       "type": "local",
-      "command": ["npx", "-y", "aide-wrapper", "mcp"],
+      "command": [
+        "npx",
+        "-y",
+        "-p",
+        "@jmylchreest/aide-plugin",
+        "aide-wrapper",
+        "mcp"
+      ],
       "environment": {
         "AIDE_CODE_WATCH": "1",
         "AIDE_CODE_WATCH_DELAY": "30s"

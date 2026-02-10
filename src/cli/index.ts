@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * aide CLI — install/uninstall the aide plugin for OpenCode.
  *
@@ -30,7 +30,6 @@ Options:
 
 Examples:
   bunx @jmylchreest/aide-plugin install
-  npx @jmylchreest/aide-plugin install
   aide-plugin install --project`);
 }
 

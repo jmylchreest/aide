@@ -3,36 +3,29 @@
   "version": "0.0.20",
   "description": "aide plugin for OpenCode — multi-agent orchestration, memory, skills, and persistence",
   "type": "module",
-  "main": "./dist/opencode/index.js",
-  "types": "./dist/opencode/index.d.ts",
+  "main": "./src/opencode/index.ts",
   "exports": {
     ".": {
-      "import": "./dist/opencode/index.js",
-      "types": "./dist/opencode/index.d.ts"
+      "import": "./src/opencode/index.ts"
     }
   },
   "files": [
-    "dist/opencode",
-    "dist/core",
-    "dist/cli",
-    "dist/lib/aide-downloader.js",
-    "dist/lib/aide-downloader.js.map",
-    "dist/lib/aide-downloader.d.ts",
-    "dist/lib/hook-utils.js",
-    "dist/lib/hook-utils.js.map",
-    "dist/lib/hook-utils.d.ts",
+    "src/opencode",
+    "src/core",
+    "src/cli",
+    "src/lib",
     "bin",
     "README.md"
   ],
   "bin": {
-    "aide-plugin": "./dist/cli/index.js",
+    "aide-plugin": "./src/cli/index.ts",
     "aide-wrapper": "./bin/aide-wrapper.sh"
   },
   "scripts": {
-    "prebuild": "npm run copy-dist",
-    "build": "echo 'Build uses root project dist/ output'",
-    "copy-dist": "node scripts/copy-dist.mjs",
-    "prepublishOnly": "npm run copy-dist"
+    "prebuild": "npm run copy-src",
+    "build": "echo 'Ships TypeScript source — no compilation needed'",
+    "copy-src": "node scripts/copy-src.mjs",
+    "prepublishOnly": "npm run copy-src"
   },
   "keywords": [
     "aide",
@@ -52,7 +45,7 @@
     "directory": "packages/opencode-plugin"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "bun": ">=1.0.0"
   },
   "dependencies": {}
 }
