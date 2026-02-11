@@ -25,12 +25,21 @@
  * ```
  */
 
+import { dirname, join } from "path";
+import { fileURLToPath } from "url";
 import { createHooks } from "./hooks.js";
 import type { Plugin, PluginInput, Hooks } from "./types.js";
 
+// Resolve the plugin package root so we can find bundled skills.
+// Works whether running from source (repo) or installed via npm.
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+// index.ts lives in src/opencode/, so the package root is two levels up.
+const pluginRoot = join(__dirname, "..", "..");
+
 export const AidePlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => {
   const cwd = ctx.worktree || ctx.directory;
-  return createHooks(cwd, ctx.worktree, ctx.client);
+  return createHooks(cwd, ctx.worktree, ctx.client, pluginRoot);
 };
 
 export default AidePlugin;

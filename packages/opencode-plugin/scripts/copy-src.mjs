@@ -37,6 +37,17 @@ for (const dir of dirs) {
   console.log(`  copied src/${dir}/`);
 }
 
+// Copy skills/ directory (built-in skill definitions)
+const skillsSrc = join(repoRoot, "skills");
+const skillsDest = join(pkgRoot, "skills");
+if (existsSync(skillsSrc)) {
+  mkdirSync(skillsDest, { recursive: true });
+  cpSync(skillsSrc, skillsDest, { recursive: true });
+  console.log("  copied skills/");
+} else {
+  console.error("WARNING: skills/ directory not found at repo root");
+}
+
 // Copy bin/aide-wrapper.sh
 const binDest = join(pkgRoot, "bin");
 mkdirSync(binDest, { recursive: true });

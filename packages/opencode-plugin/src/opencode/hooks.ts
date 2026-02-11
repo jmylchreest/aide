@@ -81,6 +81,8 @@ interface AideState {
   binary: string | null;
   cwd: string;
   worktree: string;
+  /** Root of the aide plugin package (for finding bundled skills) */
+  pluginRoot: string | null;
   sessionState: SessionState | null;
   memories: MemoryInjection | null;
   welcomeContext: string | null;
@@ -90,6 +92,8 @@ interface AideState {
   processedMessageParts: Set<string>;
   /** Matched skills pending injection via system transform */
   pendingSkillsContext: string | null;
+  /** Last user prompt text, used for skill matching in system transform */
+  lastUserPrompt: string | null;
   /** Per-session metadata for agent-like tracking */
   sessionInfoMap: Map<string, SessionInfo>;
   client: OpenCodeClient;
@@ -102,18 +106,21 @@ export async function createHooks(
   cwd: string,
   worktree: string,
   client: OpenCodeClient,
+  pluginRoot?: string,
 ): Promise<Hooks> {
   const state: AideState = {
     initialized: false,
     binary: null,
     cwd,
     worktree,
+    pluginRoot: pluginRoot || null,
     sessionState: null,
     memories: null,
     welcomeContext: null,
     initializedSessions: new Set(),
     processedMessageParts: new Set(),
     pendingSkillsContext: null,
+    lastUserPrompt: null,
     sessionInfoMap: new Map(),
     client,
   };
@@ -364,7 +371,12 @@ async function handleMessagePartUpdated(
   }
 
   const prompt = part.text;
-  const skills = discoverSkills(state.cwd);
+
+  // Store latest user prompt so system transform can match skills even if
+  // this event fires after the transform (defensive against ordering).
+  state.lastUserPrompt = prompt;
+
+  const skills = discoverSkills(state.cwd, state.pluginRoot ?? undefined);
   const matched = matchSkills(prompt, skills, 3);
 
   if (matched.length > 0) {
@@ -377,8 +389,6 @@ async function handleMessagePartUpdated(
           message: `Matched ${matched.length} skills: ${matched.map((s) => s.name).join(", ")}`,
         },
       });
-      // Note: OpenCode doesn't have a direct skill injection hook like Claude Code's
-      // UserPromptSubmit. Skills are logged here; injection happens via system transform.
       // Store matched skills for injection in system transform
       state.pendingSkillsContext = context;
     } catch (err) {
@@ -629,10 +639,26 @@ function createSystemTransformHandler(
       }
     }
 
-    // Inject any pending matched skills
+    // Inject matched skills. If message.part.updated already matched skills,
+    // use the pre-computed context. Otherwise, match inline from the last user
+    // prompt as a fallback (guards against event ordering issues).
     if (state.pendingSkillsContext) {
       output.system.push(state.pendingSkillsContext);
       state.pendingSkillsContext = null;
+    } else if (state.lastUserPrompt) {
+      try {
+        const skills = discoverSkills(state.cwd, state.pluginRoot ?? undefined);
+        const matched = matchSkills(state.lastUserPrompt, skills, 3);
+        if (matched.length > 0) {
+          output.system.push(formatSkillsContext(matched));
+          debug(
+            SOURCE,
+            `System transform fallback matched ${matched.length} skills`,
+          );
+        }
+      } catch (err) {
+        debug(SOURCE, `Fallback skill matching failed (non-critical): ${err}`);
+      }
     }
 
     // Inject messaging protocol for multi-instance coordination
