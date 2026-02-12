@@ -13,6 +13,7 @@ export * from "./tool-tracking.js";
 export * from "./persistence-logic.js";
 export * from "./session-summary-logic.js";
 export * from "./pre-compact-logic.js";
+export * from "./partial-memory.js";
 export * from "./cleanup.js";
 export * from "./mcp-sync.js";
 export * from "./tool-enforcement.js";

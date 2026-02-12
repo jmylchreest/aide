@@ -69,7 +69,8 @@ type SearchResult struct {
 // SearchMemoriesWithScore returns search results with relevance scores.
 // When using gRPC, scores are unavailable (returned as 0).
 // When using direct DB, it uses CombinedStore's bleve-backed scored search.
-func (b *Backend) SearchMemoriesWithScore(query string, limit int, minScore float64) ([]SearchResult, error) {
+// excludeTags filters out memories with any of the given tags (nil = DefaultExcludeTags).
+func (b *Backend) SearchMemoriesWithScore(query string, limit int, minScore float64, excludeTags []string) ([]SearchResult, error) {
 	ctx := context.Background()
 
 	if b.useGRPC {
@@ -80,9 +81,14 @@ func (b *Backend) SearchMemoriesWithScore(query string, limit int, minScore floa
 		if err != nil {
 			return nil, err
 		}
-		results := make([]SearchResult, len(resp.Memories))
+		memories := make([]*memory.Memory, len(resp.Memories))
 		for i, m := range resp.Memories {
-			results[i] = SearchResult{Memory: protoToMemory(m), Score: 0}
+			memories[i] = protoToMemory(m)
+		}
+		memories = memory.FilterMemories(memories, excludeTags)
+		results := make([]SearchResult, len(memories))
+		for i, m := range memories {
+			results[i] = SearchResult{Memory: m, Score: 0}
 		}
 		return results, nil
 	}
@@ -94,6 +100,9 @@ func (b *Backend) SearchMemoriesWithScore(query string, limit int, minScore floa
 		if err != nil {
 			return nil, err
 		}
+		if excludeTags != nil {
+			memories = memory.FilterMemories(memories, excludeTags)
+		}
 		results := make([]SearchResult, len(memories))
 		for i, m := range memories {
 			results[i] = SearchResult{Memory: m, Score: 0}
@@ -101,7 +110,7 @@ func (b *Backend) SearchMemoriesWithScore(query string, limit int, minScore floa
 		return results, nil
 	}
 
-	storeResults, err := b.combined.SearchMemoriesWithScore(query, limit)
+	storeResults, err := b.combined.SearchMemoriesWithScore(query, limit, excludeTags)
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +127,9 @@ func (b *Backend) SearchMemoriesWithScore(query string, limit int, minScore floa
 	return results, nil
 }
 
-func (b *Backend) ListMemories(category string, limit int) ([]*memory.Memory, error) {
+// ListMemories returns memories matching the given category.
+// opts allows optional overrides (ExcludeTags, IncludeAll, etc.). If nil, defaults apply.
+func (b *Backend) ListMemories(category string, limit int, opts *memory.SearchOptions) ([]*memory.Memory, error) {
 	ctx := context.Background()
 
 	if b.useGRPC {
@@ -129,14 +140,62 @@ func (b *Backend) ListMemories(category string, limit int) ([]*memory.Memory, er
 		if err != nil {
 			return nil, err
 		}
-		return protoToMemories(resp.Memories), nil
+		memories := protoToMemories(resp.Memories)
+		// Apply exclude-tag filtering for gRPC results
+		if opts != nil && opts.IncludeAll {
+			return memories, nil
+		}
+		excludeTags := memory.DefaultExcludeTags
+		if opts != nil && opts.ExcludeTags != nil {
+			excludeTags = opts.ExcludeTags
+		}
+		return memory.FilterMemories(memories, excludeTags), nil
 	}
 
-	opts := memory.SearchOptions{
+	searchOpts := memory.SearchOptions{
 		Category: memory.Category(category),
 		Limit:    limit,
 	}
-	return b.store.ListMemories(opts)
+	if opts != nil {
+		searchOpts.ExcludeTags = opts.ExcludeTags
+		searchOpts.IncludeAll = opts.IncludeAll
+	}
+	return b.store.ListMemories(searchOpts)
+}
+
+// UpdateMemoryTags adds and/or removes tags from a memory.
+// Returns the updated memory.
+func (b *Backend) UpdateMemoryTags(id string, addTags, removeTags []string) (*memory.Memory, error) {
+	// Get existing memory
+	m, err := b.store.GetMemory(id)
+	if err != nil {
+		return nil, fmt.Errorf("memory not found: %w", err)
+	}
+
+	// Build new tag set
+	tagSet := make(map[string]bool)
+	for _, t := range m.Tags {
+		tagSet[t] = true
+	}
+	for _, t := range removeTags {
+		delete(tagSet, t)
+	}
+	for _, t := range addTags {
+		tagSet[t] = true
+	}
+
+	// Convert back to slice
+	newTags := make([]string, 0, len(tagSet))
+	for t := range tagSet {
+		newTags = append(newTags, t)
+	}
+	m.Tags = newTags
+	m.UpdatedAt = time.Now()
+
+	if err := b.store.UpdateMemory(m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 func (b *Backend) DeleteMemory(id string) error {

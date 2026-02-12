@@ -14,6 +14,7 @@ import { readStdin } from "../lib/hook-utils.js";
 const SOURCE = "hud-updater";
 import { findAideBinary } from "../core/aide-client.js";
 import { updateToolStats } from "../core/tool-tracking.js";
+import { storePartialMemory } from "../core/partial-memory.js";
 import {
   getAgentStates,
   loadHudConfig,
@@ -28,6 +29,12 @@ interface HookInput {
   cwd: string;
   tool_name?: string;
   agent_id?: string;
+  tool_input?: {
+    file_path?: string;
+    command?: string;
+    description?: string;
+    [key: string]: unknown;
+  };
   tool_result?: {
     success: boolean;
     duration?: number;
@@ -69,6 +76,16 @@ async function main(): Promise<void> {
       });
       if (binary) {
         updateToolStats(binary, cwd, toolName, agentId);
+
+        // Write a partial memory for significant tool uses
+        storePartialMemory(binary, cwd, {
+          toolName,
+          sessionId,
+          filePath: data.tool_input?.file_path,
+          command: data.tool_input?.command,
+          description: data.tool_input?.description,
+          success: data.tool_result?.success,
+        });
       }
       log.end("updateSessionState");
     }

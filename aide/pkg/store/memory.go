@@ -38,6 +38,22 @@ func (s *BoltStore) GetMemory(id string) (*memory.Memory, error) {
 	return &m, nil
 }
 
+// UpdateMemory updates an existing memory entry (replaces content in place).
+func (s *BoltStore) UpdateMemory(m *memory.Memory) error {
+	return s.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket(BucketMemories)
+		// Verify it exists first.
+		if b.Get([]byte(m.ID)) == nil {
+			return ErrNotFound
+		}
+		data, err := json.Marshal(m)
+		if err != nil {
+			return err
+		}
+		return b.Put([]byte(m.ID), data)
+	})
+}
+
 // DeleteMemory removes a memory by ID.
 func (s *BoltStore) DeleteMemory(id string) error {
 	return s.db.Update(func(tx *bolt.Tx) error {
@@ -48,6 +64,14 @@ func (s *BoltStore) DeleteMemory(id string) error {
 
 // ListMemories returns memories matching the given options.
 func (s *BoltStore) ListMemories(opts memory.SearchOptions) ([]*memory.Memory, error) {
+	opts.ApplyDefaults()
+
+	// Build exclude set for O(1) lookup.
+	excludeSet := make(map[string]bool, len(opts.ExcludeTags))
+	for _, t := range opts.ExcludeTags {
+		excludeSet[t] = true
+	}
+
 	var memories []*memory.Memory
 
 	err := s.db.View(func(tx *bolt.Tx) error {
@@ -69,6 +93,14 @@ func (s *BoltStore) ListMemories(opts memory.SearchOptions) ([]*memory.Memory, e
 			if len(opts.Tags) > 0 && !hasAnyTag(m.Tags, opts.Tags) {
 				return nil
 			}
+			// Exclude memories with any excluded tag.
+			if len(excludeSet) > 0 {
+				for _, tag := range m.Tags {
+					if excludeSet[tag] {
+						return nil
+					}
+				}
+			}
 
 			memories = append(memories, &m)
 			return nil
@@ -84,7 +116,17 @@ func (s *BoltStore) ListMemories(opts memory.SearchOptions) ([]*memory.Memory, e
 }
 
 // SearchMemories performs a simple text search across memories.
+// Results are post-filtered by DefaultExcludeTags. Use SearchMemoriesAll to bypass.
 func (s *BoltStore) SearchMemories(query string, limit int) ([]*memory.Memory, error) {
+	memories, err := s.SearchMemoriesAll(query, limit)
+	if err != nil {
+		return nil, err
+	}
+	return memory.FilterMemories(memories, memory.DefaultExcludeTags), nil
+}
+
+// SearchMemoriesAll performs a simple text search without exclude-tag filtering.
+func (s *BoltStore) SearchMemoriesAll(query string, limit int) ([]*memory.Memory, error) {
 	var memories []*memory.Memory
 	queryLower := strings.ToLower(query)
 

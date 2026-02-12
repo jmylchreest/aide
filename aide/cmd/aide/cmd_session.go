@@ -148,8 +148,8 @@ func sessionInit(dbPath string, args []string) error {
 
 // sessionFetchContext gathers memories, decisions, and recent sessions.
 func sessionFetchContext(backend *Backend, project string, sessionLimit int, result *SessionInitResult) {
-	// Global memories (scope:global tag)
-	globalMems, err := backend.ListMemories("global", 100)
+	// Global memories (scope:global tag) — exclude forgotten
+	globalMems, err := backend.ListMemories("global", 100, nil)
 	if err == nil {
 		for _, m := range globalMems {
 			if hasAllTags(m.Tags, []string{"scope:global"}) {
@@ -160,7 +160,7 @@ func sessionFetchContext(backend *Backend, project string, sessionLimit int, res
 
 	// Project memories
 	if project != "" {
-		projectMems, err := backend.ListMemories("", 1000)
+		projectMems, err := backend.ListMemories("", 1000, nil)
 		if err == nil {
 			projectTag := "project:" + project
 			for _, m := range projectMems {
@@ -198,7 +198,7 @@ func sessionFetchContext(backend *Backend, project string, sessionLimit int, res
 
 // fetchRecentSessions returns the most recent session groups for a project.
 func fetchRecentSessions(backend *Backend, project string, limit int) []*SessionGroup {
-	allMems, err := backend.ListMemories("", 1000)
+	allMems, err := backend.ListMemories("", 1000, nil)
 	if err != nil {
 		return nil
 	}

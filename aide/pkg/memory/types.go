@@ -85,12 +85,55 @@ type State struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
+// DefaultExcludeTags are tags excluded from all memory queries by default.
+// Use --all (CLI) or IncludeAll (programmatic) to bypass this filter.
+var DefaultExcludeTags = []string{"forget"}
+
 // SearchOptions configures memory search behavior.
 type SearchOptions struct {
-	Category  Category
-	Plan      string
-	Tags      []string
-	Namespace string // Filter by namespace (swarm scope)
-	Limit     int
-	Semantic  bool // Use vector search
+	Category    Category
+	Plan        string
+	Tags        []string
+	ExcludeTags []string // Exclude memories with any of these tags (default: DefaultExcludeTags)
+	Namespace   string   // Filter by namespace (swarm scope)
+	Limit       int
+	Semantic    bool // Use vector search
+	IncludeAll  bool // Bypass ExcludeTags filtering (show everything)
+}
+
+// ApplyDefaults sets default ExcludeTags if none are specified and IncludeAll is false.
+func (o *SearchOptions) ApplyDefaults() {
+	if !o.IncludeAll && o.ExcludeTags == nil {
+		o.ExcludeTags = DefaultExcludeTags
+	}
+	if o.IncludeAll {
+		o.ExcludeTags = nil
+	}
+}
+
+// FilterMemories applies ExcludeTags filtering to a slice of memories.
+// This is useful for post-search filtering where the store method doesn't
+// natively support ExcludeTags (e.g., SearchMemories).
+func FilterMemories(memories []*Memory, excludeTags []string) []*Memory {
+	if len(excludeTags) == 0 {
+		return memories
+	}
+	excludeSet := make(map[string]bool, len(excludeTags))
+	for _, t := range excludeTags {
+		excludeSet[t] = true
+	}
+	filtered := make([]*Memory, 0, len(memories))
+	for _, m := range memories {
+		excluded := false
+		for _, tag := range m.Tags {
+			if excludeSet[tag] {
+				excluded = true
+				break
+			}
+		}
+		if !excluded {
+			filtered = append(filtered, m)
+		}
+	}
+	return filtered
 }

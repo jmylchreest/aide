@@ -32,7 +32,7 @@ func cmdExport(dbPath string, args []string) error {
 	}
 	defer backend.Close()
 
-	memories, err := backend.ListMemories("", 0) // empty category = all, 0 = no limit
+	memories, err := backend.ListMemories("", 0, nil) // empty category = all, 0 = no limit, nil = default excludes
 	if err != nil {
 		return fmt.Errorf("failed to list memories: %w", err)
 	}

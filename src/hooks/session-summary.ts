@@ -14,8 +14,14 @@ import { readStdin } from "../lib/hook-utils.js";
 import { findAideBinary } from "../core/aide-client.js";
 import {
   buildSessionSummary,
+  getSessionCommits,
   storeSessionSummary,
 } from "../core/session-summary-logic.js";
+import {
+  gatherPartials,
+  buildSummaryFromPartials,
+  cleanupPartials,
+} from "../core/partial-memory.js";
 
 const SOURCE = "session-summary";
 
@@ -28,7 +34,11 @@ interface HookInput {
 }
 
 /**
- * Generate and store a session summary from transcript — delegates to core
+ * Generate and store a final session summary.
+ *
+ * Uses partials (if available) to enrich the transcript-based summary.
+ * After storing the final summary, cleans up all partials for this session
+ * by tagging them as "forget".
  */
 function captureSessionSummary(
   cwd: string,
@@ -44,15 +54,40 @@ function captureSessionSummary(
     return false;
   }
 
-  const summary = buildSessionSummary(transcriptPath, cwd);
+  // Try to build the richest possible summary:
+  // 1. Gather partials from this session
+  // 2. Build from transcript (Claude Code has this)
+  // 3. Merge partials data with transcript summary
+  const partials = gatherPartials(binary, cwd, sessionId);
+  let summary: string | null = null;
+
+  if (partials.length > 0) {
+    // Build from partials + git data
+    const commits = getSessionCommits(cwd);
+    summary = buildSummaryFromPartials(partials, commits, []);
+    debug(SOURCE, `Built summary from ${partials.length} partials`);
+  }
+
+  // Fall back to transcript-based summary if partials didn't produce enough
+  if (!summary) {
+    summary = buildSessionSummary(transcriptPath, cwd);
+  }
+
   if (!summary) {
     debug(SOURCE, "No summary generated (insufficient activity or transcript)");
+    // Still clean up partials even if no summary was generated
+    if (partials.length > 0) {
+      cleanupPartials(binary, cwd, sessionId);
+    }
     return false;
   }
 
   const stored = storeSessionSummary(binary, cwd, sessionId, summary);
   if (stored) {
-    debug(SOURCE, `Stored session summary for ${sessionId.slice(0, 8)}`);
+    debug(SOURCE, `Stored final session summary for ${sessionId.slice(0, 8)}`);
+    // Clean up partials now that the final summary is stored
+    const cleaned = cleanupPartials(binary, cwd, sessionId);
+    debug(SOURCE, `Cleaned up ${cleaned} partials after final summary`);
   } else {
     debug(SOURCE, "Failed to store session summary");
   }

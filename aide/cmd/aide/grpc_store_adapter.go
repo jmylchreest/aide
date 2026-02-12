@@ -62,6 +62,20 @@ func (g *grpcStoreAdapter) GetMemory(id string) (*memory.Memory, error) {
 	return protoToMemory(resp.Memory), nil
 }
 
+func (g *grpcStoreAdapter) UpdateMemory(m *memory.Memory) error {
+	// gRPC has no native update — delete and re-add.
+	ctx := context.Background()
+	if _, err := g.client.Memory.Delete(ctx, &grpcapi.MemoryDeleteRequest{Id: m.ID}); err != nil {
+		return err
+	}
+	_, err := g.client.Memory.Add(ctx, &grpcapi.MemoryAddRequest{
+		Content:  m.Content,
+		Category: string(m.Category),
+		Tags:     m.Tags,
+	})
+	return err
+}
+
 func (g *grpcStoreAdapter) DeleteMemory(id string) error {
 	ctx := context.Background()
 	_, err := g.client.Memory.Delete(ctx, &grpcapi.MemoryDeleteRequest{Id: id})

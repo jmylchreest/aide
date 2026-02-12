@@ -42,6 +42,10 @@ opencode.json
 # Lock files from aide binary downloads
 packages/opencode-plugin/bin/.aide-download.lock
 
+# Dev toggle state (aide-dev-toggle.sh)
+.claude-prod-path
+*.bak
+
 # Environment
 .env
 .env.local

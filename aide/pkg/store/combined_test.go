@@ -236,7 +236,7 @@ func TestCombinedStoreMemoryOperations(t *testing.T) {
 	})
 
 	t.Run("SearchMemoriesWithScore", func(t *testing.T) {
-		results, err := cs.SearchMemoriesWithScore("combined store", 10)
+		results, err := cs.SearchMemoriesWithScore("combined store", 10, nil)
 		if err != nil {
 			t.Fatalf("SearchMemoriesWithScore: %v", err)
 		}

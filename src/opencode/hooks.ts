@@ -25,6 +25,8 @@
  *   Stop (blocking)            → session.idle re-prompts via session.prompt() for persistence
  */
 
+import { execFileSync } from "child_process";
+import { join } from "path";
 import { findAideBinary } from "../core/aide-client.js";
 import {
   ensureDirectories,
@@ -56,10 +58,24 @@ import { saveStateSnapshot } from "../core/pre-compact-logic.js";
 import { cleanupSession } from "../core/cleanup.js";
 import {
   buildSessionSummaryFromState,
+  getSessionCommits,
   storeSessionSummary,
 } from "../core/session-summary-logic.js";
+import {
+  storePartialMemory,
+  gatherPartials,
+  buildSummaryFromPartials,
+  cleanupPartials,
+} from "../core/partial-memory.js";
 import type { MemoryInjection, SessionState } from "../core/types.js";
-import type { Hooks, OpenCodeClient, OpenCodeEvent } from "./types.js";
+import type {
+  Hooks,
+  OpenCodeClient,
+  OpenCodeConfig,
+  OpenCodeEvent,
+  OpenCodeSession,
+  OpenCodePart,
+} from "./types.js";
 import { debug } from "../lib/logger.js";
 
 const SOURCE = "opencode-hooks";
@@ -130,12 +146,102 @@ export async function createHooks(
 
   return {
     event: createEventHandler(state),
+    config: createConfigHandler(state),
+    "command.execute.before": createCommandHandler(state),
     "tool.execute.before": createToolBeforeHandler(state),
     "tool.execute.after": createToolAfterHandler(state),
     "experimental.session.compacting": createCompactionHandler(state),
     "experimental.chat.system.transform": createSystemTransformHandler(state),
     "permission.ask": createPermissionHandler(state),
     "shell.env": createShellEnvHandler(state),
+  };
+}
+
+// =============================================================================
+// Config handler (register aide commands as OpenCode slash commands)
+// =============================================================================
+
+function createConfigHandler(
+  state: AideState,
+): (input: OpenCodeConfig) => Promise<void> {
+  return async (input) => {
+    try {
+      // Discover all skills and register them as OpenCode commands
+      const skills = discoverSkills(state.cwd, state.pluginRoot ?? undefined);
+
+      if (!input.command) {
+        input.command = {};
+      }
+
+      for (const skill of skills) {
+        const commandName = `aide:${skill.name}`;
+        // Only register if not already defined (user config takes priority)
+        if (!input.command[commandName]) {
+          input.command[commandName] = {
+            template: `Activate the aide "${skill.name}" skill. {{arguments}}`,
+            description: skill.description || `aide ${skill.name} skill`,
+          };
+        }
+      }
+
+      debug(
+        SOURCE,
+        `Registered ${skills.length} aide commands via config hook`,
+      );
+    } catch (err) {
+      debug(SOURCE, `Config hook failed (non-fatal): ${err}`);
+    }
+  };
+}
+
+// =============================================================================
+// Command handler (intercept aide slash command execution)
+// =============================================================================
+
+function createCommandHandler(state: AideState): (
+  input: { command: string; sessionID: string; arguments: string },
+  output: {
+    parts: Array<{ type: string; text: string; [key: string]: unknown }>;
+  },
+) => Promise<void> {
+  return async (input, output) => {
+    // Only handle aide: prefixed commands
+    if (!input.command.startsWith("aide:")) return;
+
+    const skillName = input.command.slice("aide:".length);
+    const args = input.arguments || "";
+
+    try {
+      const skills = discoverSkills(state.cwd, state.pluginRoot ?? undefined);
+      const skill = skills.find((s) => s.name === skillName);
+
+      if (skill) {
+        // Format the skill content for injection
+        const context = formatSkillsContext([skill]);
+
+        // Store for system transform injection
+        state.pendingSkillsContext = context;
+
+        // Also store the arguments as the user prompt for the transform
+        if (args) {
+          state.lastUserPrompt = args;
+        }
+
+        debug(SOURCE, `Command handler activated skill: ${skillName}`);
+
+        await state.client.app.log({
+          body: {
+            service: "aide",
+            level: "info",
+            message: `Activated skill: ${skillName}${args ? ` with args: ${args.slice(0, 50)}` : ""}`,
+          },
+        });
+      } else {
+        debug(SOURCE, `Command handler: unknown skill "${skillName}"`);
+      }
+    } catch (err) {
+      debug(SOURCE, `Command handler failed (non-fatal): ${err}`);
+    }
   };
 }
 
@@ -202,11 +308,33 @@ function createEventHandler(
   };
 }
 
+/**
+ * Extract session ID from an event. OpenCode uses different shapes:
+ * - session.created/deleted/updated: { properties: { info: { id: string } } }
+ * - session.idle/compacted:          { properties: { sessionID: string } }
+ * - message.part.updated:            { properties: { part: { sessionID: string } } }
+ */
+function extractSessionId(event: OpenCodeEvent): string {
+  // session.created / session.deleted / session.updated — nested under info
+  const info = event.properties.info as OpenCodeSession | undefined;
+  if (info?.id) return info.id;
+
+  // session.idle, session.compacted, tool hooks — direct sessionID
+  const sessionID = event.properties.sessionID as string | undefined;
+  if (sessionID) return sessionID;
+
+  // message.part.updated — sessionID on the part object
+  const part = event.properties.part as OpenCodePart | undefined;
+  if (part && "sessionID" in part && part.sessionID) return part.sessionID;
+
+  return "unknown";
+}
+
 async function handleSessionCreated(
   state: AideState,
   event: OpenCodeEvent,
 ): Promise<void> {
-  const sessionId = (event.properties.sessionID as string) || "unknown";
+  const sessionId = extractSessionId(event);
 
   if (state.initializedSessions.has(sessionId)) return;
   state.initializedSessions.add(sessionId);
@@ -261,7 +389,7 @@ async function handleSessionIdle(
   state: AideState,
   event: OpenCodeEvent,
 ): Promise<void> {
-  const sessionId = (event.properties.sessionID as string) || "unknown";
+  const sessionId = extractSessionId(event);
 
   // Check persistence: if ralph/autopilot mode is active, re-prompt the session
   if (state.binary) {
@@ -313,10 +441,32 @@ async function handleSessionIdle(
   }
 
   // Capture session summary (best effort, no transcript available)
+  // Uses partials if available for a richer summary.
   if (state.binary) {
-    const summary = buildSessionSummaryFromState(state.cwd);
+    const partials = gatherPartials(state.binary, state.cwd, sessionId);
+    let summary: string | null = null;
+
+    if (partials.length > 0) {
+      const commits = getSessionCommits(state.cwd);
+      summary = buildSummaryFromPartials(partials, commits, []);
+      debug(SOURCE, `Built summary from ${partials.length} partials`);
+    }
+
+    // Fall back to state-only summary if no partials
+    if (!summary) {
+      summary = buildSessionSummaryFromState(state.cwd);
+    }
+
     if (summary) {
       storeSessionSummary(state.binary, state.cwd, sessionId, summary);
+      // Clean up partials now that the final summary is stored
+      const cleaned = cleanupPartials(state.binary, state.cwd, sessionId);
+      if (cleaned > 0) {
+        debug(SOURCE, `Cleaned up ${cleaned} partials after final summary`);
+      }
+    } else if (partials.length > 0) {
+      // Clean up partials even if no summary was generated
+      cleanupPartials(state.binary, state.cwd, sessionId);
     }
   }
 }
@@ -325,7 +475,7 @@ async function handleSessionDeleted(
   state: AideState,
   event: OpenCodeEvent,
 ): Promise<void> {
-  const sessionId = (event.properties.sessionID as string) || "unknown";
+  const sessionId = extractSessionId(event);
 
   if (state.binary) {
     cleanupSession(state.binary, state.cwd, sessionId);
@@ -340,19 +490,17 @@ async function handleMessagePartUpdated(
   state: AideState,
   event: OpenCodeEvent,
 ): Promise<void> {
-  // Skill injection: only process user messages
-  const part = event.properties.part as
-    | { type?: string; text?: string; role?: string }
-    | undefined;
+  // Skill injection: only process user text parts
+  const part = event.properties.part as OpenCodePart | undefined;
   if (!part) return;
 
-  // Only match skills for user text parts
-  const role = (event.properties.role as string) || part.role;
-  if (role !== "user") return;
-  if (part.type !== "text" || !part.text) return;
+  // Only match skills for text parts (user messages)
+  if (part.type !== "text") return;
+  const textContent = (part as { text?: string }).text;
+  if (!textContent) return;
 
   // Dedup: don't re-process the same part
-  const partId = (event.properties.partID as string) || "";
+  const partId = part.id || "";
   if (partId && state.processedMessageParts.has(partId)) return;
   if (partId) state.processedMessageParts.add(partId);
 
@@ -370,7 +518,7 @@ async function handleMessagePartUpdated(
     );
   }
 
-  const prompt = part.text;
+  const prompt = textContent;
 
   // Store latest user prompt so system transform can match skills even if
   // this event fires after the transform (defensive against ordering).
@@ -480,6 +628,23 @@ function createToolAfterHandler(
 
     updateToolStats(state.binary, state.cwd, input.tool, input.sessionID);
 
+    // Write a partial memory for significant tool uses
+    try {
+      const toolArgs = (_output.metadata?.args || {}) as Record<
+        string,
+        unknown
+      >;
+      storePartialMemory(state.binary, state.cwd, {
+        toolName: input.tool,
+        sessionId: input.sessionID,
+        filePath: toolArgs.file_path as string | undefined,
+        command: toolArgs.command as string | undefined,
+        description: toolArgs.description as string | undefined,
+      });
+    } catch (err) {
+      debug(SOURCE, `Partial memory write failed (non-fatal): ${err}`);
+    }
+
     // Comment checker: detect excessive comments in Write/Edit output
     try {
       const toolArgs = (_output.metadata?.args || {}) as Record<
@@ -524,18 +689,42 @@ function createCompactionHandler(
 
       // Persist a session summary as a memory before context is compacted.
       // This ensures the work-so-far is recoverable after compaction.
+      // Uses partials (if available) for a richer summary, falling back to git-only.
       try {
-        const summary = buildSessionSummaryFromState(state.cwd);
+        const partials = gatherPartials(
+          state.binary,
+          state.cwd,
+          input.sessionID,
+        );
+        let summary: string | null = null;
+
+        if (partials.length > 0) {
+          const commits = getSessionCommits(state.cwd);
+          summary = buildSummaryFromPartials(partials, commits, []);
+          debug(
+            SOURCE,
+            `Built pre-compact summary from ${partials.length} partials`,
+          );
+        }
+
+        // Fall back to state-only summary if no partials
+        if (!summary) {
+          summary = buildSessionSummaryFromState(state.cwd);
+        }
+
         if (summary) {
-          storeSessionSummary(
+          // Tag as partial so the session-end summary supersedes it
+          const dbPath = join(state.cwd, ".aide", "memory", "store.db");
+          const env = { ...process.env, AIDE_MEMORY_DB: dbPath };
+          const tags = `partial,session-summary,session:${input.sessionID.slice(0, 8)}`;
+          execFileSync(
             state.binary,
-            state.cwd,
-            input.sessionID,
-            summary,
+            ["memory", "add", "--category=session", `--tags=${tags}`, summary],
+            { env, stdio: "pipe", timeout: 5000 },
           );
           debug(
             SOURCE,
-            `Saved pre-compaction session summary for ${input.sessionID.slice(0, 8)}`,
+            `Saved pre-compaction partial session summary for ${input.sessionID.slice(0, 8)}`,
           );
         }
       } catch (err) {

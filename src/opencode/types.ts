@@ -31,7 +31,9 @@ export interface PluginInput {
 /** Minimal SDK client interface — only the parts we use */
 export interface OpenCodeClient {
   app: {
-    log(opts: { body: { service: string; level: string; message: string } }): Promise<void>;
+    log(opts: {
+      body: { service: string; level: string; message: string };
+    }): Promise<void>;
   };
   session: {
     create(opts: { body: { title?: string } }): Promise<{ id: string }>;
@@ -54,9 +56,84 @@ export interface OpenCodeClient {
 // Events
 // =============================================================================
 
+/** Session object as returned in session.created/updated/deleted events */
+export interface OpenCodeSession {
+  id: string;
+  projectID: string;
+  directory: string;
+  parentID?: string;
+  title: string;
+  version: string;
+  time: {
+    created: number;
+    updated: number;
+    compacting?: number;
+  };
+}
+
+/** Text part with session context */
+export interface OpenCodeTextPart {
+  id: string;
+  sessionID: string;
+  messageID: string;
+  type: "text";
+  text: string;
+  synthetic?: boolean;
+  ignored?: boolean;
+}
+
+/** Generic part — may be text, tool, step, etc. */
+export type OpenCodePart =
+  | OpenCodeTextPart
+  | {
+      id: string;
+      sessionID: string;
+      messageID: string;
+      type: string;
+      [key: string]: unknown;
+    };
+
 export interface OpenCodeEvent {
   type: string;
   properties: Record<string, unknown>;
+}
+
+/** Typed event shapes matching the OpenCode SDK */
+export interface EventSessionCreated {
+  type: "session.created";
+  properties: { info: OpenCodeSession };
+}
+
+export interface EventSessionDeleted {
+  type: "session.deleted";
+  properties: { info: OpenCodeSession };
+}
+
+export interface EventSessionIdle {
+  type: "session.idle";
+  properties: { sessionID: string };
+}
+
+export interface EventMessagePartUpdated {
+  type: "message.part.updated";
+  properties: { part: OpenCodePart; delta?: string };
+}
+
+// =============================================================================
+// OpenCode Config (command registration)
+// =============================================================================
+
+export interface OpenCodeConfig {
+  command?: {
+    [key: string]: {
+      template: string;
+      description?: string;
+      agent?: string;
+      model?: string;
+      subtask?: boolean;
+    };
+  };
+  [key: string]: unknown;
 }
 
 // =============================================================================
@@ -67,6 +144,17 @@ export interface Hooks {
   /** Generic event listener for all OpenCode events */
   event?: (input: { event: OpenCodeEvent }) => Promise<void>;
 
+  /** Modify OpenCode config (register commands, etc.) */
+  config?: (input: OpenCodeConfig) => Promise<void>;
+
+  /** Intercept command execution (slash commands) */
+  "command.execute.before"?: (
+    input: { command: string; sessionID: string; arguments: string },
+    output: {
+      parts: Array<{ type: string; text: string; [key: string]: unknown }>;
+    },
+  ) => Promise<void>;
+
   /** Modify tool arguments before execution */
   "tool.execute.before"?: (
     input: { tool: string; sessionID: string; callID: string },
@@ -76,12 +164,19 @@ export interface Hooks {
   /** React after tool completes */
   "tool.execute.after"?: (
     input: { tool: string; sessionID: string; callID: string },
-    output: { title: string; output: string; metadata: Record<string, unknown> },
+    output: {
+      title: string;
+      output: string;
+      metadata: Record<string, unknown>;
+    },
   ) => Promise<void>;
 
   /** Modify system prompt */
   "experimental.chat.system.transform"?: (
-    input: { sessionID?: string; model: { providerID: string; modelID: string } },
+    input: {
+      sessionID?: string;
+      model: { providerID: string; modelID: string };
+    },
     output: { system: string[] },
   ) => Promise<void>;
 

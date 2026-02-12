@@ -94,6 +94,17 @@ func (c *CombinedStore) AddMemory(m *memory.Memory) error {
 	return nil
 }
 
+// UpdateMemory updates a memory in both bbolt and search index.
+func (c *CombinedStore) UpdateMemory(m *memory.Memory) error {
+	if err := c.bolt.UpdateMemory(m); err != nil {
+		return err
+	}
+	// Re-index in search (delete + re-add)
+	_ = c.search.DeleteMemory(m.ID)
+	_ = c.search.IndexMemory(m)
+	return nil
+}
+
 // DeleteMemory removes a memory from both stores.
 func (c *CombinedStore) DeleteMemory(id string) error {
 	if err := c.bolt.DeleteMemory(id); err != nil {
@@ -115,11 +126,21 @@ func (c *CombinedStore) ListMemories(opts memory.SearchOptions) ([]*memory.Memor
 
 // SearchMemories performs full-text search using bleve, returning []*memory.Memory
 // to satisfy the Store interface. Falls back to bolt substring search on error.
+// Results are post-filtered by DefaultExcludeTags.
 func (c *CombinedStore) SearchMemories(query string, limit int) ([]*memory.Memory, error) {
+	memories, err := c.SearchMemoriesUnfiltered(query, limit)
+	if err != nil {
+		return nil, err
+	}
+	return memory.FilterMemories(memories, memory.DefaultExcludeTags), nil
+}
+
+// SearchMemoriesUnfiltered performs full-text search without exclude-tag filtering.
+func (c *CombinedStore) SearchMemoriesUnfiltered(query string, limit int) ([]*memory.Memory, error) {
 	results, err := c.search.Search(query, limit)
 	if err != nil {
-		// Fall back to substring search
-		return c.bolt.SearchMemories(query, limit)
+		// Fall back to substring search (unfiltered)
+		return c.bolt.SearchMemoriesAll(query, limit)
 	}
 
 	// Enrich results with full memory data from bolt (source of truth)
@@ -134,11 +155,16 @@ func (c *CombinedStore) SearchMemories(query string, limit int) ([]*memory.Memor
 
 // SearchMemoriesWithScore performs full-text search returning results with relevance scores.
 // This is the scored variant for callers that need score-based filtering (e.g. CLI --min-score).
-func (c *CombinedStore) SearchMemoriesWithScore(query string, limit int) ([]SearchResult, error) {
+// Results are post-filtered by the provided excludeTags (pass nil for DefaultExcludeTags).
+func (c *CombinedStore) SearchMemoriesWithScore(query string, limit int, excludeTags []string) ([]SearchResult, error) {
+	if excludeTags == nil {
+		excludeTags = memory.DefaultExcludeTags
+	}
+
 	results, err := c.search.Search(query, limit)
 	if err != nil {
-		// Fall back to substring search
-		memories, subErr := c.bolt.SearchMemories(query, limit)
+		// Fall back to substring search (unfiltered, we filter below)
+		memories, subErr := c.bolt.SearchMemoriesAll(query, limit)
 		if subErr != nil {
 			return nil, err // Return original search error
 		}
@@ -153,14 +179,39 @@ func (c *CombinedStore) SearchMemoriesWithScore(query string, limit int) ([]Sear
 				Memory:   m,
 			}
 		}
-		return fallback, nil
+		results = fallback
+	} else {
+		// Enrich results with full memory data
+		for i := range results {
+			if m, err := c.bolt.GetMemory(results[i].ID); err == nil {
+				results[i].Memory = m
+			}
+		}
 	}
 
-	// Enrich results with full memory data
-	for i := range results {
-		if m, err := c.bolt.GetMemory(results[i].ID); err == nil {
-			results[i].Memory = m
+	// Apply exclude-tag filtering
+	if len(excludeTags) > 0 {
+		excludeSet := make(map[string]bool, len(excludeTags))
+		for _, t := range excludeTags {
+			excludeSet[t] = true
 		}
+		filtered := make([]SearchResult, 0, len(results))
+		for _, r := range results {
+			if r.Memory == nil {
+				continue
+			}
+			excluded := false
+			for _, tag := range r.Memory.Tags {
+				if excludeSet[tag] {
+					excluded = true
+					break
+				}
+			}
+			if !excluded {
+				filtered = append(filtered, r)
+			}
+		}
+		results = filtered
 	}
 
 	return results, nil

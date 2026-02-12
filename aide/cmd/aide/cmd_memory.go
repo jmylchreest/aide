@@ -24,6 +24,8 @@ func cmdMemoryDispatcher(dbPath string, args []string) error {
 		return cmdAdd(dbPath, subargs)
 	case "delete":
 		return cmdDelete(dbPath, subargs)
+	case "tag":
+		return cmdTag(dbPath, subargs)
 	case "search":
 		return cmdSearch(dbPath, subargs)
 	case "select":
@@ -55,6 +57,7 @@ Usage:
 Subcommands:
   add        Add a memory (writes to bbolt + search index)
   delete     Delete a memory by ID (or "all" to clear)
+  tag        Edit tags on a memory (--add=X,Y --remove=A,B)
   search     Full-text search (fuzzy, prefix, substring matching)
   select     Exact substring search (for precise matching)
   list       List all memories
@@ -64,33 +67,39 @@ Subcommands:
   reindex    Rebuild the bleve search index from bolt data
 
 Options:
-  list/select/search:
-    --limit=N       Maximum results (default 10 for search, 50 for list)
-    --latest        Return only the most recent memory per tag group
-    --full          Show full content instead of truncated
+  list/select/search/sessions:
+    --limit=N              Maximum results (default 10 for search, 50 for list)
+    --latest               Return only the most recent memory per tag group
+    --full                 Show full content instead of truncated
+    --exclude-tags=a,b     Exclude memories with these tags (default: forget)
+    --all                  Show all memories including forgotten/excluded
 
   search:
-    --min-score=X   Filter by minimum relevance score
+    --min-score=X          Filter by minimum relevance score
 
   sessions:
-    --project=NAME  Filter to project (required)
-    --limit=N       Number of recent sessions to return (default 3)
-    --format=TYPE   Output format: text (default) or json
+    --project=NAME         Filter to project (required)
+    --format=TYPE          Output format: text (default) or json
 
   export:
-    --stdout        Output to stdout (for context injection)
-    --format=TYPE   Format: markdown (default) or json
-    --output=DIR    Output directory (default: .aide/memory/exports)
+    --stdout               Output to stdout (for context injection)
+    --format=TYPE          Format: markdown (default) or json
+    --output=DIR           Output directory (default: .aide/memory/exports)
 
 Examples:
   aide memory add --category=learning "Found auth middleware at src/auth.ts"
   aide memory search "auth" --full
   aide memory search "auth" --min-score=0.5 --limit=20
   aide memory list --tags=preferences --latest   # Most recent per tag
+  aide memory list --all                         # Include forgotten memories
+  aide memory list --exclude-tags=forget,partial  # Custom exclusions
   aide memory sessions --project=aide --limit=3  # Last 3 sessions for project
   aide memory export --stdout              # Inject into context
   aide memory list --category=learning
-  aide memory delete 1234567890`)
+  aide memory delete 1234567890
+  aide memory tag 1234567890 --add=forget          # Soft-delete (forget) a memory
+  aide memory tag 1234567890 --remove=forget        # Unforget a memory
+  aide memory tag 1234567890 --add=personal,private  # Add multiple tags`)
 }
 
 func cmdAdd(dbPath string, args []string) error {
@@ -158,6 +167,46 @@ func cmdDelete(dbPath string, args []string) error {
 	return nil
 }
 
+func cmdTag(dbPath string, args []string) error {
+	if len(args) < 1 {
+		return fmt.Errorf("usage: aide memory tag <MEMORY_ID> --add=tag1,tag2 --remove=tag3,tag4")
+	}
+
+	id := args[0]
+	addStr := parseFlag(args[1:], "--add=")
+	removeStr := parseFlag(args[1:], "--remove=")
+
+	if addStr == "" && removeStr == "" {
+		return fmt.Errorf("at least one of --add or --remove is required")
+	}
+
+	var addTags, removeTags []string
+	if addStr != "" {
+		addTags = strings.Split(addStr, ",")
+	}
+	if removeStr != "" {
+		removeTags = strings.Split(removeStr, ",")
+	}
+
+	backend, err := NewBackend(dbPath)
+	if err != nil {
+		return err
+	}
+	defer backend.Close()
+
+	m, err := backend.UpdateMemoryTags(id, addTags, removeTags)
+	if err != nil {
+		return fmt.Errorf("failed to update tags: %w", err)
+	}
+
+	tagsDisplay := "(none)"
+	if len(m.Tags) > 0 {
+		tagsDisplay = strings.Join(m.Tags, ", ")
+	}
+	fmt.Printf("Updated memory %s tags: %s\n", m.ID, tagsDisplay)
+	return nil
+}
+
 func cmdClearMemories(dbPath string) error {
 	backend, err := NewBackend(dbPath)
 	if err != nil {
@@ -215,6 +264,7 @@ func cmdSearch(dbPath string, args []string) error {
 	minScore := 0.0
 	showFull := hasFlag(args[1:], "--full")
 	latestOnly := hasFlag(args[1:], "--latest")
+	excludeOpts := parseExcludeOpts(args[1:])
 
 	if l := parseFlag(args[1:], "--limit="); l != "" {
 		fmt.Sscanf(l, "%d", &limit)
@@ -229,7 +279,7 @@ func cmdSearch(dbPath string, args []string) error {
 	}
 	defer backend.Close()
 
-	results, err := backend.SearchMemoriesWithScore(query, limit, minScore)
+	results, err := backend.SearchMemoriesWithScore(query, limit, minScore, excludeTagsFromOpts(excludeOpts))
 	if err != nil {
 		return fmt.Errorf("failed to search: %w", err)
 	}
@@ -288,6 +338,7 @@ func cmdSelect(dbPath string, args []string) error {
 	limit := 100
 	latestOnly := hasFlag(args[1:], "--latest")
 	showFull := hasFlag(args[1:], "--full")
+	excludeOpts := parseExcludeOpts(args[1:])
 
 	if l := parseFlag(args[1:], "--limit="); l != "" {
 		fmt.Sscanf(l, "%d", &limit)
@@ -300,6 +351,11 @@ func cmdSelect(dbPath string, args []string) error {
 	defer backend.Close()
 
 	memories, err := backend.SearchMemories(query, limit)
+	if err == nil && excludeOpts != nil {
+		memories = memory.FilterMemories(memories, excludeTagsFromOpts(excludeOpts))
+	} else if err == nil {
+		memories = memory.FilterMemories(memories, memory.DefaultExcludeTags)
+	}
 	if err != nil {
 		return fmt.Errorf("failed to select: %w", err)
 	}
@@ -336,6 +392,7 @@ func cmdList(dbPath string, args []string) error {
 	limit := 50
 	formatJSON := false
 	latestOnly := hasFlag(args, "--latest")
+	excludeOpts := parseExcludeOpts(args)
 
 	if c := parseFlag(args, "--category="); c != "" {
 		category = c
@@ -356,7 +413,7 @@ func cmdList(dbPath string, args []string) error {
 	}
 	defer backend.Close()
 
-	memories, err := backend.ListMemories(category, limit)
+	memories, err := backend.ListMemories(category, limit, excludeOpts)
 	if err != nil {
 		return fmt.Errorf("failed to list: %w", err)
 	}
@@ -431,8 +488,10 @@ func cmdSessions(dbPath string, args []string) error {
 	}
 	defer backend.Close()
 
+	excludeOpts := parseExcludeOpts(args)
+
 	// Get all memories for this project (high limit to get all)
-	memories, err := backend.ListMemories("", 1000)
+	memories, err := backend.ListMemories("", 1000, excludeOpts)
 	if err != nil {
 		return fmt.Errorf("failed to list: %w", err)
 	}
@@ -536,6 +595,40 @@ func cmdSessions(dbPath string, args []string) error {
 	}
 
 	return nil
+}
+
+// parseExcludeOpts parses --exclude-tags and --all flags into SearchOptions.
+// Returns nil if defaults should apply (exclude "forget").
+// Returns opts with IncludeAll=true if --all is set.
+// Returns opts with custom ExcludeTags if --exclude-tags is set.
+func parseExcludeOpts(args []string) *memory.SearchOptions {
+	includeAll := hasFlag(args, "--all")
+	excludeTagsStr := parseFlag(args, "--exclude-tags=")
+
+	if !includeAll && excludeTagsStr == "" {
+		return nil // Use defaults
+	}
+
+	opts := &memory.SearchOptions{}
+	if includeAll {
+		opts.IncludeAll = true
+	} else if excludeTagsStr != "" {
+		opts.ExcludeTags = strings.Split(excludeTagsStr, ",")
+	}
+	return opts
+}
+
+// excludeTagsFromOpts extracts the effective exclude tags from parsed options.
+// Returns nil (meaning use DefaultExcludeTags) when opts is nil.
+// Returns empty slice when --all is set (no exclusions).
+func excludeTagsFromOpts(opts *memory.SearchOptions) []string {
+	if opts == nil {
+		return nil // Signals "use defaults" to callers
+	}
+	if opts.IncludeAll {
+		return []string{} // Explicitly empty = no exclusions
+	}
+	return opts.ExcludeTags
 }
 
 // hasAllTags checks if memory has all required tags

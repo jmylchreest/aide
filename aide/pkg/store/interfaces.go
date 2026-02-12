@@ -13,6 +13,7 @@ import (
 type MemoryStore interface {
 	AddMemory(m *memory.Memory) error
 	GetMemory(id string) (*memory.Memory, error)
+	UpdateMemory(m *memory.Memory) error
 	DeleteMemory(id string) error
 	ListMemories(opts memory.SearchOptions) ([]*memory.Memory, error)
 	SearchMemories(query string, limit int) ([]*memory.Memory, error)

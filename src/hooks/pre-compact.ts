@@ -15,8 +15,13 @@ import { findAideBinary } from "../core/aide-client.js";
 import { saveStateSnapshot as coreSaveStateSnapshot } from "../core/pre-compact-logic.js";
 import {
   buildSessionSummaryFromState,
+  getSessionCommits,
   storeSessionSummary,
 } from "../core/session-summary-logic.js";
+import {
+  gatherPartials,
+  buildSummaryFromPartials,
+} from "../core/partial-memory.js";
 import { debug } from "../lib/logger.js";
 
 const SOURCE = "pre-compact";
@@ -51,13 +56,44 @@ async function main(): Promise<void> {
 
       // Persist a session summary as a memory before context is compacted.
       // This ensures the work-so-far is recoverable after compaction.
+      // Uses partials (if available) for a richer summary, falling back to git-only.
       try {
-        const summary = buildSessionSummaryFromState(cwd);
-        if (summary) {
-          storeSessionSummary(binary, cwd, sessionId, summary);
+        const partials = gatherPartials(binary, cwd, sessionId);
+        let summary: string | null = null;
+
+        if (partials.length > 0) {
+          // Build from partials + git data
+          const commits = getSessionCommits(cwd);
+          summary = buildSummaryFromPartials(partials, commits, []);
           debug(
             SOURCE,
-            `Saved pre-compaction session summary for ${sessionId.slice(0, 8)}`,
+            `Built pre-compact summary from ${partials.length} partials`,
+          );
+        }
+
+        // Fall back to state-only summary if no partials
+        if (!summary) {
+          summary = buildSessionSummaryFromState(cwd);
+        }
+
+        if (summary) {
+          // Tag as partial so the session-end summary supersedes it
+          const dbPath = (await import("path")).join(
+            cwd,
+            ".aide",
+            "memory",
+            "store.db",
+          );
+          const env = { ...process.env, AIDE_MEMORY_DB: dbPath };
+          const tags = `partial,session-summary,session:${sessionId.slice(0, 8)}`;
+          (await import("child_process")).execFileSync(
+            binary,
+            ["memory", "add", "--category=session", `--tags=${tags}`, summary],
+            { env, stdio: "pipe", timeout: 5000 },
+          );
+          debug(
+            SOURCE,
+            `Saved pre-compaction partial session summary for ${sessionId.slice(0, 8)}`,
           );
         }
       } catch (err) {
