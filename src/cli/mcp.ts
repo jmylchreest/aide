@@ -2,7 +2,7 @@
  * MCP subcommand — delegates to aide-wrapper.sh to start the MCP server.
  *
  * This is the entry point used by OpenCode's MCP config:
- *   "command": ["npx", "-y", "@jmylchreest/aide-plugin", "mcp"]
+ *   "command": ["bunx", "-y", "@jmylchreest/aide-plugin", "mcp"]
  *
  * The wrapper handles binary discovery/download, then exec's `aide mcp`.
  */

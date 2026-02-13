@@ -106,8 +106,9 @@ function findWrapperCommand(): string[] {
 
   // npm-installed package: use the plugin's built-in mcp subcommand.
   // The -y flag auto-installs if not already present.
+  // Uses bunx since the package ships TypeScript with #!/usr/bin/env bun
   if (useNpm) {
-    return ["npx", "-y", "@jmylchreest/aide-plugin", "mcp"];
+    return ["bunx", "-y", "@jmylchreest/aide-plugin", "mcp"];
   }
 
   // No plugin path, not npm: assume aide is in PATH

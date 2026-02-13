@@ -22,7 +22,7 @@
 # Prod mode:
 #   OpenCode:
 #     - Points opencode.json plugin at @jmylchreest/aide-plugin
-#     - Points opencode.json MCP at npx @jmylchreest/aide-plugin mcp
+#     - Points opencode.json MCP at bunx @jmylchreest/aide-plugin mcp
 #   Claude Code:
 #     - Restores installed_plugins.json installPath to cached marketplace version
 #     - Removes local .aide/bin/aide symlink (wrapper will re-download)

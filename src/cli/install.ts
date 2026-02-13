@@ -33,10 +33,10 @@ function isMcpCommandCurrent(config: ReturnType<typeof readConfig>): boolean {
 
   const cmd = mcpConfig.command;
 
-  // Current format: ["npx", "-y", "@jmylchreest/aide-plugin", "mcp"]
+  // Current format: ["bunx", "-y", "@jmylchreest/aide-plugin", "mcp"]
   if (
     cmd.length === 4 &&
-    cmd[0] === "npx" &&
+    cmd[0] === "bunx" &&
     cmd[1] === "-y" &&
     cmd[2] === PLUGIN_NAME &&
     cmd[3] === "mcp"
