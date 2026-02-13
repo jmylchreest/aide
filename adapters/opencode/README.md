@@ -8,7 +8,9 @@ First-class aide integration for [OpenCode](https://opencode.ai) — provides me
 bunx @jmylchreest/aide-plugin install
 ```
 
-That's it. This registers the aide plugin and MCP server in your global OpenCode config (`~/.config/opencode/opencode.json`), so it applies to all projects. The aide binary is automatically downloaded on first use.
+That's it. This registers the aide plugin and MCP server in your global OpenCode config (`~/.config/opencode/opencode.json`), so it applies to all projects.
+
+**Note:** On first use (or after updates), the aide binary (62 MB) downloads automatically in the background. This takes 20-30 seconds, then tools become available. Fully automatic - no manual steps needed.
 
 ### Other Commands
 
@@ -234,6 +236,36 @@ All approaches share aide's memory and state through the aide binary and MCP ser
 │  └───────────────────────────────────┘  │
 └─────────────────────────────────────────┘
 ```
+
+## Troubleshooting
+
+### MCP Tools Not Available Immediately
+
+**This is normal!** On first use (or after plugin updates), the aide binary (62 MB) downloads automatically in the background. This takes 20-30 seconds, after which tools become available.
+
+**Why this is good:**
+
+- ✅ Automatic updates - `@latest` in your config means you always get the newest version
+- ✅ No manual binary installation - completely hands-off
+- ✅ Cached after first download - subsequent startups are instant
+
+**Verify download progress:** Check OpenCode logs at `~/.local/share/opencode/log/` for:
+
+```
+[aide] Downloading... X/62.1 MB
+[aide] ✓ Binary installed successfully
+aide MCP server starting
+```
+
+### If Tools Never Appear
+
+Check if Bun is installed:
+
+```bash
+bun --version  # Should show v1.x.x
+```
+
+The published package requires Bun (uses `#!/usr/bin/env bun` shebang). Install from https://bun.sh if needed.`
 
 ## Environment Variables
 
