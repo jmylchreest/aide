@@ -241,8 +241,6 @@ export function runSessionInit(
     return result;
   }
 
-  const dbPath = join(cwd, ".aide", "memory", "store.db");
-
   try {
     const args = [
       "session",
@@ -255,7 +253,6 @@ export function runSessionInit(
       cwd,
       encoding: "utf-8",
       timeout: 15000,
-      env: { ...process.env, AIDE_MEMORY_DB: dbPath },
     }).trim();
 
     if (!output) return result;

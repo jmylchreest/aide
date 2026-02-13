@@ -78,18 +78,11 @@ async function main(): Promise<void> {
 
         if (summary) {
           // Tag as partial so the session-end summary supersedes it
-          const dbPath = (await import("path")).join(
-            cwd,
-            ".aide",
-            "memory",
-            "store.db",
-          );
-          const env = { ...process.env, AIDE_MEMORY_DB: dbPath };
           const tags = `partial,session-summary,session:${sessionId.slice(0, 8)}`;
           (await import("child_process")).execFileSync(
             binary,
             ["memory", "add", "--category=session", `--tags=${tags}`, summary],
-            { env, stdio: "pipe", timeout: 5000 },
+            { cwd, stdio: "pipe", timeout: 5000 },
           );
           debug(
             SOURCE,

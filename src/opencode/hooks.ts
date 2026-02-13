@@ -26,7 +26,6 @@
  */
 
 import { execFileSync } from "child_process";
-import { join } from "path";
 import { findAideBinary } from "../core/aide-client.js";
 import {
   ensureDirectories,
@@ -714,13 +713,11 @@ function createCompactionHandler(
 
         if (summary) {
           // Tag as partial so the session-end summary supersedes it
-          const dbPath = join(state.cwd, ".aide", "memory", "store.db");
-          const env = { ...process.env, AIDE_MEMORY_DB: dbPath };
           const tags = `partial,session-summary,session:${input.sessionID.slice(0, 8)}`;
           execFileSync(
             state.binary,
             ["memory", "add", "--category=session", `--tags=${tags}`, summary],
-            { env, stdio: "pipe", timeout: 5000 },
+            { cwd: state.cwd, stdio: "pipe", timeout: 5000 },
           );
           debug(
             SOURCE,

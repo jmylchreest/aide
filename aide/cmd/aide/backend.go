@@ -4,7 +4,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi"
@@ -22,17 +21,14 @@ type Backend struct {
 }
 
 // NewBackend creates a new backend, preferring gRPC if available.
-// If AIDE_MEMORY_DB is set, always use direct DB access (for testing isolation).
 // When using direct DB, it opens a CombinedStore (bolt + bleve) so that
 // memory search uses full-text search instead of substring matching.
 func NewBackend(dbPath string) (*Backend, error) {
 	b := &Backend{dbPath: dbPath}
 
-	// Skip gRPC when AIDE_MEMORY_DB is set (testing isolation)
-	useDirectDB := os.Getenv("AIDE_MEMORY_DB") != ""
-
-	// Try gRPC first (unless testing with custom DB path)
-	if !useDirectDB && grpcapi.SocketExistsForDB(dbPath) {
+	// Try gRPC first — if the MCP server is running, route through it
+	// to avoid BoltDB file-lock contention.
+	if grpcapi.SocketExistsForDB(dbPath) {
 		client, err := grpcapi.NewClientForDB(dbPath)
 		if err == nil {
 			// Verify connection works

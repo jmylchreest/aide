@@ -14,7 +14,6 @@
  * - agent_id, agent_type, output, success
  */
 
-import { join } from "path";
 import { execFileSync } from "child_process";
 import { Logger } from "../lib/logger.js";
 import { readStdin, setMemoryState } from "../lib/hook-utils.js";
@@ -131,8 +130,6 @@ function fetchSubagentMemories(cwd: string): {
     return result;
   }
 
-  const dbPath = join(cwd, ".aide", "memory", "store.db");
-  const env = { ...process.env, AIDE_MEMORY_DB: dbPath };
   const projectName = getProjectName(cwd);
 
   // Fetch global memories (scope:global)
@@ -146,7 +143,7 @@ function fetchSubagentMemories(cwd: string): {
         "--tags=scope:global",
         "--format=json",
       ],
-      { env, stdio: ["pipe", "pipe", "pipe"], timeout: 3000 },
+      { cwd, stdio: ["pipe", "pipe", "pipe"], timeout: 3000 },
     )
       .toString()
       .trim();
@@ -166,7 +163,7 @@ function fetchSubagentMemories(cwd: string): {
     const projectOutput = execFileSync(
       binary,
       ["memory", "list", `--tags=project:${projectName}`, "--format=json"],
-      { env, stdio: ["pipe", "pipe", "pipe"], timeout: 3000 },
+      { cwd, stdio: ["pipe", "pipe", "pipe"], timeout: 3000 },
     )
       .toString()
       .trim();
@@ -186,7 +183,7 @@ function fetchSubagentMemories(cwd: string): {
     const decisionsOutput = execFileSync(
       binary,
       ["decision", "list", "--format=json"],
-      { env, stdio: ["pipe", "pipe", "pipe"], timeout: 3000 },
+      { cwd, stdio: ["pipe", "pipe", "pipe"], timeout: 3000 },
     )
       .toString()
       .trim();

@@ -136,9 +136,12 @@ Data is stored in `.aide/memory/store.db` using [bbolt](https://github.com/etcd-
 
 ## Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `AIDE_MEMORY_DB` | `.aide/memory/store.db` | Database file path |
+The database path is automatically derived from the project root (`.aide/memory/store.db`).
+
+| Variable                  | Default | Description                                |
+| ------------------------- | ------- | ------------------------------------------ |
+| `AIDE_CODE_STORE_DISABLE` | unset   | Set to `1` to disable code store           |
+| `AIDE_CODE_STORE_SYNC`    | unset   | Set to `1` for synchronous code store init |
 
 ## Development
 

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* global console, process */
 /**
  * Copies TypeScript source files from the root project into the
  * opencode-plugin package for standalone distribution.

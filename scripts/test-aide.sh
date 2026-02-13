@@ -257,7 +257,7 @@ test_memory_system() {
         return
     fi
 
-    export AIDE_MEMORY_DB="$TEST_DIR/.aide/memory/store.db"
+    # Binary derives DB path from cwd (TEST_DIR has .aide/ structure)
 
     # Test adding a memory
     timer_start "memory-add"

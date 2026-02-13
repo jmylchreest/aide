@@ -36,12 +36,9 @@ func main() {
 		return
 	}
 
-	// Determine database path.
+	// Determine database path from project root (walks up to .aide or .git).
 	projectRoot := findProjectRoot()
-	dbPath := os.Getenv("AIDE_MEMORY_DB")
-	if dbPath == "" {
-		dbPath = filepath.Join(projectRoot, defaultDBName)
-	}
+	dbPath := filepath.Join(projectRoot, defaultDBName)
 
 	// Ensure memory directory exists.
 	memoryDir := filepath.Dir(dbPath)
@@ -112,7 +109,6 @@ Commands:
   version    Show version information
 
 Environment:
-  AIDE_MEMORY_DB          Database path (default: .aide/memory/store.db)
   AIDE_CODE_WATCH=1       Enable file watching for code index updates
   AIDE_CODE_WATCH_PATHS   Comma-separated paths to watch (default: cwd)
   AIDE_CODE_WATCH_DELAY   Debounce delay for watcher (default: 30s)

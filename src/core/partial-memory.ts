@@ -15,7 +15,6 @@
  */
 
 import { execFileSync } from "child_process";
-import { join } from "path";
 import { debug } from "../lib/logger.js";
 
 const SOURCE = "partial-memory";
@@ -132,8 +131,6 @@ export function storePartialMemory(
   try {
     const content = buildPartialContent(info);
     const tags = buildPartialTags(info.sessionId, info);
-    const dbPath = join(cwd, ".aide", "memory", "store.db");
-    const env = { ...process.env, AIDE_MEMORY_DB: dbPath };
 
     execFileSync(
       binary,
@@ -144,7 +141,7 @@ export function storePartialMemory(
         `--tags=${tags.join(",")}`,
         content,
       ],
-      { env, stdio: "pipe", timeout: 3000 },
+      { cwd, stdio: "pipe", timeout: 3000 },
     );
 
     debug(SOURCE, `Stored partial: ${content} [${tags.join(", ")}]`);
@@ -167,8 +164,6 @@ export function gatherPartials(
   sessionId: string,
 ): string[] {
   try {
-    const dbPath = join(cwd, ".aide", "memory", "store.db");
-    const env = { ...process.env, AIDE_MEMORY_DB: dbPath };
     const sessionTag = `session:${sessionId.slice(0, 8)}`;
 
     const output = execFileSync(
@@ -182,7 +177,7 @@ export function gatherPartials(
         "--limit=500",
       ],
       {
-        env,
+        cwd,
         encoding: "utf-8",
         stdio: ["pipe", "pipe", "pipe"],
         timeout: 5000,
@@ -217,8 +212,6 @@ export function gatherPartialIds(
   sessionId: string,
 ): string[] {
   try {
-    const dbPath = join(cwd, ".aide", "memory", "store.db");
-    const env = { ...process.env, AIDE_MEMORY_DB: dbPath };
     const sessionTag = `session:${sessionId.slice(0, 8)}`;
 
     const output = execFileSync(
@@ -232,7 +225,7 @@ export function gatherPartialIds(
         "--limit=500",
       ],
       {
-        env,
+        cwd,
         encoding: "utf-8",
         stdio: ["pipe", "pipe", "pipe"],
         timeout: 5000,
@@ -270,13 +263,10 @@ export function cleanupPartials(
   const ids = gatherPartialIds(binary, cwd, sessionId);
   let cleaned = 0;
 
-  const dbPath = join(cwd, ".aide", "memory", "store.db");
-  const env = { ...process.env, AIDE_MEMORY_DB: dbPath };
-
   for (const id of ids) {
     try {
       execFileSync(binary, ["memory", "tag", id, "--add=forget"], {
-        env,
+        cwd,
         stdio: "pipe",
         timeout: 3000,
       });

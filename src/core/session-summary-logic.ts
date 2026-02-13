@@ -169,9 +169,7 @@ export function buildSessionSummaryFromState(cwd: string): string | null {
   const summaryParts: string[] = [];
 
   if (commits.length > 0) {
-    summaryParts.push(
-      `## Commits\n${commits.map((c) => `- ${c}`).join("\n")}`,
-    );
+    summaryParts.push(`## Commits\n${commits.map((c) => `- ${c}`).join("\n")}`);
   }
 
   // Check for modified files via git
@@ -216,14 +214,12 @@ export function storeSessionSummary(
   summary: string,
 ): boolean {
   try {
-    const dbPath = join(cwd, ".aide", "memory", "store.db");
-    const env = { ...process.env, AIDE_MEMORY_DB: dbPath };
     const tags = `session-summary,session:${sessionId.slice(0, 8)}`;
 
     execFileSync(
       binary,
       ["memory", "add", "--category=session", `--tags=${tags}`, summary],
-      { env, stdio: "pipe", timeout: 5000 },
+      { cwd, stdio: "pipe", timeout: 5000 },
     );
 
     return true;

@@ -237,8 +237,7 @@ All approaches share aide's memory and state through the aide binary and MCP ser
 
 ## Environment Variables
 
-| Variable             | Default                 | Description                                    |
-| -------------------- | ----------------------- | ---------------------------------------------- |
-| `AIDE_DEBUG`         | unset                   | Set to `1` for debug logging to `.aide/_logs/` |
-| `AIDE_MEMORY_INJECT` | `1`                     | Set to `0` to skip memory injection            |
-| `AIDE_MEMORY_DB`     | `.aide/memory/store.db` | Path to memory database                        |
+| Variable             | Default | Description                                    |
+| -------------------- | ------- | ---------------------------------------------- |
+| `AIDE_DEBUG`         | unset   | Set to `1` for debug logging to `.aide/_logs/` |
+| `AIDE_MEMORY_INJECT` | `1`     | Set to `0` to skip memory injection            |
