@@ -40,16 +40,19 @@ Do NOT ask questions yet. Build understanding first.
 Conduct 2-3 rounds of focused questions. Each round has 2-4 questions. Max 3 rounds total.
 
 **Round 1: Scope & Boundaries**
+
 - What is in scope vs out of scope?
 - What are the success criteria?
 - Are there any constraints (time, tech, compatibility)?
 
 **Round 2: Dependencies & Risks**
+
 - What shared state or files will multiple stories touch?
 - What could go wrong? What are the risky parts?
 - Are there external dependencies (APIs, services, data)?
 
 **Round 3: Acceptance Criteria** (if needed)
+
 - How will we know each story is done?
 - What tests should exist?
 - What does "good enough" look like?
@@ -72,6 +75,7 @@ Output a structured story list. Each story must be:
 ## Stories
 
 ### 1. [Story Name]
+
 - **Description**: What this story implements
 - **Files**: List of files this story will create or modify
 - **Acceptance Criteria**:
@@ -81,10 +85,12 @@ Output a structured story list. Each story must be:
 - **Notes**: Any special considerations
 
 ### 2. [Story Name]
+
 ...
 ```
 
 **Independence check**: Verify that no two stories modify the same file. If they do, either:
+
 1. Merge the stories
 2. Restructure so each story owns its files
 3. Sequence them (one blocks the other)
@@ -94,14 +100,17 @@ Output a structured story list. Each story must be:
 1. **Present the plan** to the user for review
 2. **Store as decision** once approved:
    ```bash
-   aide decision set "swarm-plan" "<N> stories: <story-1>, <story-2>, ..." \
+   ./.aide/bin/aide decision set "swarm-plan" "<N> stories: <story-1>, <story-2>, ..." \
      --details='<JSON object>' \
      --rationale="<brief description of scope and approach>"
    ```
 3. **Record shared decisions** discovered during planning:
    ```bash
-   aide decision set "<topic>" "<decision>"
+   ./.aide/bin/aide decision set "<topic>" "<decision>"
    ```
+
+**Binary location:** The aide binary is at `.aide/bin/aide`. If it's on your `$PATH`, you can use `aide` directly.
+
 4. **Instruct the user**: Run `/aide:swarm` to execute the plan
 
 ## Output Format

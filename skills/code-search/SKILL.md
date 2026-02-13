@@ -29,6 +29,7 @@ Search for code symbols (functions, classes, methods, types) and find their call
 Find functions, classes, methods, interfaces, and types by name or signature.
 
 **Example usage:**
+
 ```
 Search for: "getUserById"
 → Uses code_search tool
@@ -40,6 +41,7 @@ Search for: "getUserById"
 Find all places where a symbol is called/used.
 
 **Example usage:**
+
 ```
 Who calls "getUserById"?
 → Uses code_references tool
@@ -51,6 +53,7 @@ Who calls "getUserById"?
 List all symbols defined in a specific file.
 
 **Example usage:**
+
 ```
 What functions are in src/auth.ts?
 → Uses code_symbols tool
@@ -62,6 +65,7 @@ What functions are in src/auth.ts?
 Check if the codebase has been indexed.
 
 **Example usage:**
+
 ```
 Is the code indexed?
 → Uses code_stats tool
@@ -72,7 +76,9 @@ Is the code indexed?
 
 1. **First, check if codebase is indexed:**
    - Use `code_stats` to verify indexing
-   - If not indexed, tell user to run: `aide code index`
+   - If not indexed, tell user to run: `./.aide/bin/aide code index`
+
+**Binary location:** The aide binary is at `.aide/bin/aide`. If it's on your `$PATH`, you can use `aide` directly.
 
 2. **Search for symbols:**
    - Use `code_search` with the symbol name or pattern
@@ -91,18 +97,20 @@ Is the code indexed?
 **User:** "Where is the authentication function?"
 
 **Assistant action:**
+
 1. Use `code_search` with query "auth" or "authenticate"
 2. Show matching functions with file locations
 
 **User:** "Who calls authenticateUser?"
 
 **Assistant action:**
+
 1. Use `code_references` with symbol "authenticateUser"
 2. Show all call sites grouped by file
 
 ## Notes
 
-- Code must be indexed first: `aide code index`
+- Code must be indexed first: `./.aide/bin/aide code index`
 - Indexing is incremental - only changed files are re-parsed
 - Supports: TypeScript, JavaScript, Go, Python, Rust, and more
 - For file watching: `AIDE_CODE_WATCH=1 claude`

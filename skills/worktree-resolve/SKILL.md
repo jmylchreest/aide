@@ -23,11 +23,13 @@ git worktree list
 ```
 
 Check the AIDE worktree state file for metadata and status:
+
 ```bash
 cat .aide/state/worktrees.json
 ```
 
 **Worktree Status Values:**
+
 - `active` - Agent is still working on this worktree
 - `agent-complete` - Agent finished, ready for merge review
 - `merged` - Successfully merged to main
@@ -35,6 +37,7 @@ cat .aide/state/worktrees.json
 **Only merge worktrees with status `agent-complete`.**
 
 Example state file:
+
 ```json
 {
   "active": [
@@ -106,18 +109,21 @@ When merge conflicts occur, **do not use `-X theirs` or `-X ours`** - these blin
 Instead, resolve conflicts intelligently:
 
 #### Step 1: Attempt merge and identify conflicts
+
 ```bash
 git merge feat/<name> --no-edit
 # If conflicts occur, git will list the conflicted files
 ```
 
 #### Step 2: For each conflicted file, read and analyze
+
 ```bash
 # Read the file with conflict markers
 cat <conflicted-file>
 ```
 
 The conflict markers show:
+
 ```
 <<<<<<< HEAD
 [changes from main branch]
@@ -136,12 +142,14 @@ Act as an expert code reviewer. For each conflict:
 4. **Edit the file** to remove conflict markers and combine both sets of functionality correctly
 
 The resolution must:
+
 - Remove all conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`)
 - Preserve the functional intent of BOTH changes
 - Be syntactically and semantically correct
 - Maintain code style consistency
 
 #### Step 4: Verify and complete
+
 ```bash
 # Stage the resolved files
 git add <resolved-file>
@@ -158,20 +166,24 @@ git commit --no-edit
 If you **cannot resolve** the conflict (logic is contradictory, tests fail after resolution, or changes are too complex):
 
 1. **Abort the merge** to restore clean state:
+
    ```bash
    git merge --abort
    ```
 
 2. **Record the failure** using aide messaging:
    ```bash
-   aide message send --from=resolver --to=orchestrator "CONFLICT: Cannot merge feat/<name> - <brief reason>"
+   ./.aide/bin/aide message send --from=resolver --to=orchestrator "CONFLICT: Cannot merge feat/<name> - <brief reason>"
    ```
+
+**Binary location:** The aide binary is at `.aide/bin/aide`. If it's on your `$PATH`, you can use `aide` directly.
 
 3. **Skip this branch** and continue with remaining branches
 
 4. **Report at completion** - list unmerged branches in the final summary for manual review
 
 **Do NOT:**
+
 - Force through a broken resolution
 - Use `-X theirs` or `-X ours` to blindly pick one side
 - Get stuck - always abort and report if resolution fails
@@ -179,6 +191,7 @@ If you **cannot resolve** the conflict (logic is contradictory, tests fail after
 #### Example Resolution
 
 **Conflict:**
+
 ```typescript
 <<<<<<< HEAD
 function getUser(id: string): User {
@@ -193,17 +206,20 @@ function getUser(id: string): User | null {
 ```
 
 **Analysis:**
+
 - HEAD: Basic lookup returning User
 - Feature: Added null-safety with explicit null return
 
 **Resolution:**
+
 ```typescript
 function getUser(id: string): User | null {
-  const user = db.users.find(u => u.id === id);
+  const user = db.users.find((u) => u.id === id);
   return user ?? null;
 }
 ```
-*Feature branch improved null safety - this is additive, keep it.*
+
+_Feature branch improved null safety - this is additive, keep it._
 
 ### 5. Cleanup
 
@@ -281,7 +297,7 @@ git branch --list 'feat/*' | xargs git branch -d
 1. **Abort immediately**: `git merge --abort`
 2. **Record the failure**:
    ```bash
-   aide message send --from=resolver --to=orchestrator "Merge failed: feat/<name> - <reason>"
+   ./.aide/bin/aide message send --from=resolver --to=orchestrator "Merge failed: feat/<name> - <reason>"
    ```
 3. **Continue with remaining branches** - do not block on one failure
 4. **Include in final report** - list all failed branches with reasons

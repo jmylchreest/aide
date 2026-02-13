@@ -347,6 +347,17 @@ export function buildWelcomeContext(
   lines.push(`Project: ${getProjectName(state.cwd)}`);
   lines.push("");
 
+  lines.push("## Binary Path");
+  lines.push("");
+  lines.push(
+    "The aide CLI is at `.aide/bin/aide`. When running aide commands in Bash:",
+  );
+  lines.push("- Use full path: `./.aide/bin/aide <command>`");
+  lines.push(
+    '- Or add to PATH: `export PATH="$PWD/.aide/bin:$PATH" && aide <command>`',
+  );
+  lines.push("");
+
   if (memories.static.global.length > 0) {
     lines.push("## Preferences (Global)");
     lines.push("");

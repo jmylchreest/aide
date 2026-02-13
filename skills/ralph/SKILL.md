@@ -35,39 +35,43 @@ You are now in **Ralph Wiggum mode** - an iterative development methodology that
 All state is managed through aide. Use MCP tools for reads, CLI for writes:
 
 ### Reads (MCP Tools)
-| Tool | Purpose |
-|------|---------|
-| `mcp__plugin_aide_aide__state_get` | Get phase, objective |
-| `mcp__plugin_aide_aide__state_list` | List all state |
-| `mcp__plugin_aide_aide__decision_get` | Get decisions |
-| `mcp__plugin_aide_aide__decision_list` | List all decisions |
-| `mcp__plugin_aide_aide__memory_search` | Search discoveries |
+
+| Tool                                   | Purpose              |
+| -------------------------------------- | -------------------- |
+| `mcp__plugin_aide_aide__state_get`     | Get phase, objective |
+| `mcp__plugin_aide_aide__state_list`    | List all state       |
+| `mcp__plugin_aide_aide__decision_get`  | Get decisions        |
+| `mcp__plugin_aide_aide__decision_list` | List all decisions   |
+| `mcp__plugin_aide_aide__memory_search` | Search discoveries   |
 
 ### Writes (CLI via Bash)
+
 ```bash
 # Phase tracking
-aide state set ralph:phase planning   # or "building"
+./.aide/bin/aide state set ralph:phase planning   # or "building"
 
 # Task management (use Claude's native TaskCreate/TaskUpdate/TaskList)
 
 # Decisions
-aide decision set <topic> "<decision>" --rationale="<why>"
+./.aide/bin/aide decision set <topic> "<decision>" --rationale="<why>"
 
 # Gap analysis / discoveries
-aide memory add --category=discovery --tags=ralph "Gap found: <description>"
+./.aide/bin/aide memory add --category=discovery --tags=ralph "Gap found: <description>"
 ```
+
+**Binary location:** The aide binary is at `.aide/bin/aide`. If it's on your `$PATH`, you can use `aide` directly.
 
 ---
 
 ## Phase 1: Planning Mode
 
-When starting a new task or when `aide state get ralph:phase` is empty/planning:
+When starting a new task or when `./.aide/bin/aide state get ralph:phase` is empty/planning:
 
 ### Step 1: Set Phase
 
 ```bash
-aide state set ralph:phase planning
-aide state set ralph:objective "<what we're building>"
+./.aide/bin/aide state set ralph:phase planning
+./.aide/bin/aide state set ralph:objective "<what we're building>"
 ```
 
 ### Step 2: Gap Analysis (Don't Assume!)
@@ -83,8 +87,9 @@ rg "describe.*feature\|it.*should" --type ts
 ```
 
 Record findings:
+
 ```bash
-aide memory add --category=discovery --tags=ralph,gap-analysis "Searched for X: <results>"
+./.aide/bin/aide memory add --category=discovery --tags=ralph,gap-analysis "Searched for X: <results>"
 ```
 
 Only after confirming gaps exist, proceed to task creation.
@@ -94,12 +99,13 @@ Only after confirming gaps exist, proceed to task creation.
 Create atomic, testable tasks:
 
 ```bash
-aide task create "Implement user model" --tags=ralph,task-1
-aide task create "Add validation to user model" --tags=ralph,task-2
-aide task create "Write user model tests" --tags=ralph,task-3
+./.aide/bin/aide task create "Implement user model" --tags=ralph,task-1
+./.aide/bin/aide task create "Add validation to user model" --tags=ralph,task-2
+./.aide/bin/aide task create "Write user model tests" --tags=ralph,task-3
 ```
 
 Each task should be:
+
 - Small enough to complete in one iteration
 - Independently testable
 - Clearly defined acceptance criteria
@@ -107,19 +113,20 @@ Each task should be:
 ### Step 4: Record Key Decisions
 
 ```bash
-aide decision set ralph:test-framework "vitest" --rationale="Already configured in project"
-aide decision set ralph:approach "<approach>" --rationale="<why>"
+./.aide/bin/aide decision set ralph:test-framework "vitest" --rationale="Already configured in project"
+./.aide/bin/aide decision set ralph:approach "<approach>" --rationale="<why>"
 ```
 
 ### Step 5: Exit Planning
 
 ```bash
-aide state set ralph:phase building
+./.aide/bin/aide state set ralph:phase building
 ```
 
 Report the plan:
-- List tasks: `aide task list`
-- List decisions: `aide decision list`
+
+- List tasks: `./.aide/bin/aide task list`
+- List decisions: `./.aide/bin/aide decision list`
 
 **DO NOT implement during planning phase.**
 
@@ -127,7 +134,7 @@ Report the plan:
 
 ## Phase 2: Building Mode
 
-When `aide state get ralph:phase` returns "building":
+When `./.aide/bin/aide state get ralph:phase` returns "building":
 
 ### Iteration Loop
 
@@ -137,26 +144,34 @@ Each iteration follows this exact sequence:
 
 ```bash
 # Check current phase and objective
-aide state get ralph:phase
-aide state get ralph:objective
+./.aide/bin/aide state get ralph:phase
+./.aide/bin/aide state get ralph:objective
 
 # List tasks to find next one
-aide task list
+./.aide/bin/aide task list
 
 # Check existing decisions
-aide decision list
+./.aide/bin/aide decision list
 ```
 
 #### 2. Select Next Task
 
 Find the first pending task:
+
 ```bash
-aide task list  # Look for [pending] status
+./.aide/bin/aide task list  # Look for [pending] status
 ```
 
 Claim it:
+
 ```bash
-aide task claim <task-id> --agent=ralph
+./.aide/bin/aide task claim <task-id> --agent=ralph
+```
+
+Claim it:
+
+```bash
+./.aide/bin/aide task claim <task-id> --agent=ralph
 ```
 
 #### 3. Verify Gap Still Exists (Don't Assume!)
@@ -169,8 +184,9 @@ rg "featureName" --type ts
 ```
 
 If gap no longer exists:
+
 ```bash
-aide task complete <task-id>
+./.aide/bin/aide task complete <task-id>
 # Proceed to next task
 ```
 
@@ -198,6 +214,7 @@ npm test -- path/to/test.test.ts
 ```
 
 **BLOCKING RULE**: If tests fail, you MUST:
+
 1. Analyze the failure
 2. Fix the issue
 3. Re-run tests
@@ -208,7 +225,7 @@ npm test -- path/to/test.test.ts
 #### 7. Complete Task
 
 ```bash
-aide task complete <task-id>
+./.aide/bin/aide task complete <task-id>
 ```
 
 #### 8. Atomic Commit
@@ -221,7 +238,7 @@ git commit -m "feat: <task description> - tests passing"
 #### 9. Check Completion
 
 ```bash
-aide task list
+./.aide/bin/aide task list
 ```
 
 If more pending tasks: continue to next iteration (step 2)
@@ -241,16 +258,19 @@ When tests fail during backpressure checkpoint:
 4. **DO** fix and re-run until passing
 
 Record blockers:
+
 ```bash
-aide memory add --category=blocker --tags=ralph "Test failure: <description>"
+./.aide/bin/aide memory add --category=blocker --tags=ralph "Test failure: <description>"
 ```
 
 ### Stuck Conditions
 
 If blocked for more than 3 attempts:
+
 ```bash
-aide memory add --category=blocker --tags=ralph,needs-help "Stuck on: <description>"
+./.aide/bin/aide memory add --category=blocker --tags=ralph,needs-help "Stuck on: <description>"
 ```
+
 Then ask user for guidance. **DO NOT** proceed without resolution.
 
 ---
@@ -261,7 +281,7 @@ Before claiming completion, ALL must pass:
 
 ```bash
 # 1. All tasks complete
-aide task list  # Should show all [done]
+./.aide/bin/aide task list  # Should show all [done]
 
 # 2. All tests
 npm test
@@ -284,14 +304,14 @@ When all tasks complete and verification passes:
 ### Update State
 
 ```bash
-aide state set ralph:phase complete
-aide state set ralph:result "success"
+./.aide/bin/aide state set ralph:phase complete
+./.aide/bin/aide state set ralph:result "success"
 ```
 
 ### Record Session
 
 ```bash
-aide memory add --category=session --tags=ralph,implementation "
+./.aide/bin/aide memory add --category=session --tags=ralph,implementation "
 ## <Feature Name> Complete
 
 Implemented using Ralph Wiggum methodology.
@@ -338,21 +358,21 @@ Implemented using Ralph Wiggum methodology.
 
 ```
 PLANNING PHASE:
-1. aide state set ralph:phase planning
+1. ./.aide/bin/aide state set ralph:phase planning
 2. Search code (don't assume!)
-3. aide memory add findings
-4. aide task create (atomic tasks)
-5. aide decision set (key decisions)
-6. aide state set ralph:phase building
+3. ./.aide/bin/aide memory add findings
+4. ./.aide/bin/aide task create (atomic tasks)
+5. ./.aide/bin/aide decision set (key decisions)
+6. ./.aide/bin/aide state set ralph:phase building
 
 BUILDING PHASE (per task):
-1. aide task list (find next)
-2. aide task claim <id>
+1. ./.aide/bin/aide task list (find next)
+2. ./.aide/bin/aide task claim <id>
 3. Re-verify gap exists
 4. Write failing tests
 5. Implement
 6. BACKPRESSURE: Tests MUST pass
-7. aide task complete <id>
+7. ./.aide/bin/aide task complete <id>
 8. Atomic commit
 9. Repeat or verify completion
 ```
@@ -362,10 +382,11 @@ BUILDING PHASE (per task):
 ## Swarm Compatibility
 
 This skill is **swarm-compatible**. Multiple ralph agents can:
+
 - Work on different tasks in parallel
-- Share discoveries via `aide memory`
-- Check decisions via `aide decision get`
-- Claim tasks atomically via `aide task claim`
+- Share discoveries via `./.aide/bin/aide memory`
+- Check decisions via `./.aide/bin/aide decision get`
+- Claim tasks atomically via `./.aide/bin/aide task claim`
 
 No file conflicts because all state is in aide's database.
 
@@ -390,8 +411,9 @@ Instead, independently verify the implementation against the original objective.
 The QA agent must:
 
 #### a) Load the Objective (not the task list)
+
 ```bash
-aide state get ralph:objective
+./.aide/bin/aide state get ralph:objective
 ```
 
 #### b) Independent Verification
@@ -411,39 +433,42 @@ aide state get ralph:objective
 #### c) Find & Fix Gaps
 
 If gaps are found:
+
 ```bash
 # Record the gap
-aide memory add --category=discovery --tags=ralph,qa "QA found gap: <description>"
+./.aide/bin/aide memory add --category=discovery --tags=ralph,qa "QA found gap: <description>"
 
 # Create fix task
-aide task create "QA fix: <description>" --tags=ralph,qa-fix
+./.aide/bin/aide task create "QA fix: <description>" --tags=ralph,qa-fix
 
 # Implement the fix (follow standard backpressure rules)
 # ...
 
 # Mark complete
-aide task complete <id>
+./.aide/bin/aide task complete <id>
 ```
 
 #### d) Final Sign-off
 
 Only when QA agent confirms:
+
 - All tests passing
 - Build clean
 - Lint clean
 - Objective fully met (not just tasks)
 
 ```bash
-aide state set ralph:qa "passed"
-aide state set ralph:phase complete
+./.aide/bin/aide state set ralph:qa "passed"
+./.aide/bin/aide state set ralph:phase complete
 ```
 
 ### Step 3: QA Failure Handling
 
 If QA finds unfixable issues:
+
 ```bash
-aide state set ralph:qa "failed"
-aide memory add --category=blocker --tags=ralph,qa "QA failed: <reason>"
+./.aide/bin/aide state set ralph:qa "failed"
+./.aide/bin/aide memory add --category=blocker --tags=ralph,qa "QA failed: <reason>"
 ```
 
 Report to user with specific failures. **DO NOT** mark complete.

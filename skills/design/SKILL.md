@@ -21,6 +21,7 @@ Output a technical design specification that downstream SDLC stages can consume.
 ## Purpose
 
 Create a structured design document that defines:
+
 1. **What** to build (interfaces, types, components)
 2. **How** it fits together (data flow, interactions)
 3. **Why** key decisions were made (rationale)
@@ -31,6 +32,7 @@ Create a structured design document that defines:
 ### Step 1: Understand the Request
 
 Read the request and identify:
+
 - Core functionality required
 - Constraints (tech stack, patterns, performance)
 - Integration points with existing code
@@ -88,12 +90,14 @@ Request → Controller → Service → Repository → Database
 Store architectural decisions for future reference:
 
 ```bash
-aide decision set "<feature>-storage" "PostgreSQL with JSONB for metadata" \
+./.aide/bin/aide decision set "<feature>-storage" "PostgreSQL with JSONB for metadata" \
   --rationale="Need flexible schema for user preferences"
 
-aide decision set "<feature>-auth" "JWT with refresh tokens" \
+./.aide/bin/aide decision set "<feature>-auth" "JWT with refresh tokens" \
   --rationale="Stateless auth, mobile client support"
 ```
+
+**Binary location:** The aide binary is at `.aide/bin/aide`. If it's on your `$PATH`, you can use `aide` directly.
 
 ### Step 6: Define Acceptance Criteria
 
@@ -117,58 +121,68 @@ List specific, testable criteria for the TEST stage:
 # Design: [Feature Name]
 
 ## Overview
+
 [1-2 sentence summary of what this feature does]
 
 ## Interfaces
 
 ### [Interface/Type Name]
+
 \`\`\`typescript
 // Interface definition with comments
 \`\`\`
 
 ## Data Flow
+
 [Diagram or description of component interactions]
 
 ## Key Decisions
 
-| Decision | Choice | Rationale |
-|----------|--------|-----------|
-| Storage | PostgreSQL | [why] |
-| Auth | JWT | [why] |
+| Decision | Choice     | Rationale |
+| -------- | ---------- | --------- |
+| Storage  | PostgreSQL | [why]     |
+| Auth     | JWT        | [why]     |
 
 ## Acceptance Criteria
+
 - [ ] Criterion 1
 - [ ] Criterion 2
 - [ ] Criterion 3
 
 ## Files to Create/Modify
+
 - `path/to/file.ts` - [purpose]
 - `path/to/test.ts` - [test scope]
 
 ## Dependencies
+
 - [External packages needed]
 - [Internal modules to import]
 
 ## Out of Scope
+
 - [Explicitly excluded items]
 ```
 
 ## Failure Handling
 
 ### Unclear Requirements
+
 1. List specific ambiguities
 2. State assumptions you're making
-3. Record assumptions: `aide memory add --category=decision "Assumed X because Y"`
+3. Record assumptions: `./.aide/bin/aide memory add --category=decision "Assumed X because Y"`
 4. Proceed with reasonable defaults
 
 ### Conflicting Patterns Found
+
 1. Document the conflicting patterns
 2. Choose one and record the decision:
    ```bash
-   aide decision set "<topic>" "<choice>" --rationale="<why this over alternatives>"
+   ./.aide/bin/aide decision set "<topic>" "<choice>" --rationale="<why this over alternatives>"
    ```
 
 ### Too Large / Too Vague
+
 1. Break into smaller, focused designs
 2. Design the core/MVP first
 3. Note future phases in "Out of Scope"
@@ -176,6 +190,7 @@ List specific, testable criteria for the TEST stage:
 ## Verification Checklist
 
 Before completing design:
+
 - [ ] Interfaces are defined with types
 - [ ] Data flow is documented
 - [ ] Key decisions are recorded in aide
@@ -186,6 +201,7 @@ Before completing design:
 ## Completion
 
 When design is complete:
+
 1. Output the full design document
 2. Confirm: "Design complete. Ready for TEST stage."
 

@@ -10,7 +10,7 @@ triggers:
   - which option
   - trade-offs
   - pros and cons
-allowed-tools: Bash(aide decision set *)
+allowed-tools: Bash(./.aide/bin/aide decision set *)
 ---
 
 # Decision Mode
@@ -28,12 +28,14 @@ When facing a significant technical decision, this workflow guides you through s
 ### Phase 1: IDENTIFY
 
 Ask the user to clarify:
+
 - What decision needs to be made?
 - What is the context? (new system, migration, constraint?)
 - What are the requirements? (scale, team, timeline?)
 - Are there any hard constraints?
 
 **Example questions:**
+
 - "What technical decision do you need to make?"
 - "What problem are you trying to solve?"
 - "Are there any constraints I should know about?"
@@ -41,11 +43,13 @@ Ask the user to clarify:
 ### Phase 2: EXPLORE
 
 Research and propose options:
+
 - List 3-5 viable alternatives
 - Include the obvious choices AND less common ones
 - For each option, note what it's best suited for
 
 **Output format:**
+
 ```markdown
 ## Options
 
@@ -62,22 +66,25 @@ Research and propose options:
 ### Phase 3: ANALYZE
 
 For each option, evaluate:
+
 - **Pros**: What are the benefits?
 - **Cons**: What are the drawbacks?
 - **Fit**: How well does it match the requirements?
 
 **Output format:**
+
 ```markdown
 ## Analysis
 
-| Option | Pros | Cons | Fit |
-|--------|------|------|-----|
-| Option A | Fast, simple | Limited scale | Good for MVP |
-| Option B | Scalable | Complex setup | Good for growth |
-| Option C | Flexible | Learning curve | Good if team knows it |
+| Option   | Pros         | Cons           | Fit                   |
+| -------- | ------------ | -------------- | --------------------- |
+| Option A | Fast, simple | Limited scale  | Good for MVP          |
+| Option B | Scalable     | Complex setup  | Good for growth       |
+| Option C | Flexible     | Learning curve | Good if team knows it |
 ```
 
 Consider:
+
 - Complexity (implementation, maintenance)
 - Team familiarity
 - Scalability
@@ -93,6 +100,7 @@ Provide a clear recommendation with rationale:
 ## Recommendation
 
 I recommend **[Option]** because:
+
 1. [Primary reason tied to requirements]
 2. [Secondary benefit]
 3. [Risk mitigation]
@@ -101,6 +109,7 @@ This choice [addresses constraint X] while [enabling future Y].
 ```
 
 Ask for confirmation:
+
 - "Does this recommendation align with your goals?"
 - "Would you like to proceed with this decision?"
 - "Any concerns before we record this?"
@@ -108,31 +117,36 @@ Ask for confirmation:
 ### Phase 5: CONFIRM
 
 Wait for explicit user approval before recording:
+
 - User says "yes", "go ahead", "let's do it" → proceed to record
 - User has concerns → address them, refine recommendation
 - User wants different option → adjust and confirm
 
 ### Phase 6: RECORD
 
-Store the decision using the `aide decision set` CLI command via Bash:
+Store the decision using the `./.aide/bin/aide decision set` CLI command via Bash:
 
 ```bash
-aide decision set "<topic-slug>" "<decision summary>" --rationale="<why this was chosen>"
+./.aide/bin/aide decision set "<topic-slug>" "<decision summary>" --rationale="<why this was chosen>"
 ```
 
+**Binary location:** The aide binary is at `.aide/bin/aide`. If it's on your `$PATH`, you can use `aide` directly.
+
 **Topic naming:**
+
 - Use kebab-case: `auth-strategy`, `database-choice`, `api-design`
 - Be specific: `user-auth-method` not just `auth`
 - Include scope if relevant: `payments-queue-strategy`
 
 **Verify** the decision was stored:
+
 ```bash
-aide decision get "<topic-slug>"
+./.aide/bin/aide decision get "<topic-slug>"
 ```
 
 ## Example Session
 
-```
+````
 User: help me decide how to handle background jobs
 
 Claude: [IDENTIFY]
@@ -183,22 +197,23 @@ Do you want to proceed with this decision?
 User: yes, let's go with BullMQ
 
 Claude: [RECORD]
-[Calls aide decision set via Bash]
+[Calls ./.aide/bin/aide decision set via Bash]
 
 ```bash
-aide decision set "background-jobs-queue" "Use BullMQ with Redis for background job processing (emails, webhooks)" --rationale="Native TypeScript support, built-in retries/delays/rate-limiting, Bull Board for visibility, 10K/day well within capacity. Rejected: SQS+Lambda (AWS lock-in, cold starts), DB queue (limited scale), RabbitMQ (over-engineered)"
-```
+./.aide/bin/aide decision set "background-jobs-queue" "Use BullMQ with Redis for background job processing (emails, webhooks)" --rationale="Native TypeScript support, built-in retries/delays/rate-limiting, Bull Board for visibility, 10K/day well within capacity. Rejected: SQS+Lambda (AWS lock-in, cold starts), DB queue (limited scale), RabbitMQ (over-engineered)"
+````
 
 Decision recorded. Future sessions will follow this architectural choice.
+
 ```
 
 ## Integration
 
-Decisions stored via `aide decision set` are:
+Decisions stored via `./.aide/bin/aide decision set` are:
 1. Persisted in the aide memory database
 2. Injected into future session contexts at startup
 3. Visible to swarm agents (they won't contradict decisions)
-4. Queryable via `aide decision get`, `aide decision list`, or the MCP tools `decision_get`/`decision_list`
+4. Queryable via `./.aide/bin/aide decision get`, `./.aide/bin/aide decision list`, or the MCP tools `decision_get`/`decision_list`
 
 ## When to Use This Skill
 
@@ -223,3 +238,4 @@ Decisions can be superseded:
 1. Run `/aide:decide` again for the same topic
 2. New decision replaces old (history preserved)
 3. Use `mcp__plugin_aide_aide__decision_history` to see evolution
+```

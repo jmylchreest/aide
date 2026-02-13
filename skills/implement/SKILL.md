@@ -22,6 +22,7 @@ This is the DEV stage of the SDLC pipeline. Tests already exist from the TEST st
 ## Prerequisites
 
 Before starting:
+
 - Tests exist and are failing (from TEST stage)
 - Design/spec is available (from DESIGN stage)
 - You know which files to create/modify
@@ -44,6 +45,7 @@ go test ./pkg/feature/...
 ### Step 2: Read the Tests
 
 Understand what the tests expect:
+
 - What functions/methods need to exist?
 - What are the expected inputs and outputs?
 - What edge cases are covered?
@@ -87,6 +89,7 @@ go test -v ./pkg/feature/...
 ```
 
 **BLOCKING RULE**: If any test fails:
+
 1. Analyze the failure
 2. Fix the issue
 3. Re-run tests
@@ -125,11 +128,14 @@ git commit -m "feat: implement <feature> - tests passing"
 
 ```typescript
 // Read test expectations
-describe('UserService', () => {
-  it('should create user with email and name', async () => {
-    const user = await service.createUser({ email: 'test@example.com', name: 'Test' });
+describe("UserService", () => {
+  it("should create user with email and name", async () => {
+    const user = await service.createUser({
+      email: "test@example.com",
+      name: "Test",
+    });
     expect(user.id).toBeDefined();
-    expect(user.email).toBe('test@example.com');
+    expect(user.email).toBe("test@example.com");
   });
 });
 
@@ -181,7 +187,7 @@ func (s *UserService) CreateUser(ctx context.Context, input CreateUserInput) (*U
 3. Check design decisions - is implementation matching spec?
 4. Record blocker:
    ```bash
-   aide memory add --category=blocker "Cannot pass test X: <reason>"
+   ./.aide/bin/aide memory add --category=blocker "Cannot pass test X: <reason>"
    ```
 5. If stuck after 3 attempts, ask for help
 
@@ -199,13 +205,16 @@ func (s *UserService) CreateUser(ctx context.Context, input CreateUserInput) (*U
 2. Don't refactor during implement stage
 3. Note concerns for future:
    ```bash
-   aide memory add --category=issue "Implementation of X could be improved: <how>"
+   ./.aide/bin/aide memory add --category=issue "Implementation of X could be improved: <how>"
    ```
 4. Proceed - refactoring is a separate concern
+
+**Binary location:** The aide binary is at `.aide/bin/aide`. If it's on your `$PATH`, you can use `aide` directly.
 
 ## Verification Checklist
 
 Before completing:
+
 - [ ] All tests pass (not just some)
 - [ ] Build succeeds
 - [ ] Changes are committed

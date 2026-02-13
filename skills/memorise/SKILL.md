@@ -12,7 +12,7 @@ triggers:
   - store this
   - for future
   - keep in mind
-allowed-tools: Bash(aide memory add *)
+allowed-tools: Bash(./.aide/bin/aide memory add *)
 ---
 
 # Memorise
@@ -23,11 +23,13 @@ Capture important information for future sessions by storing it in the aide memo
 
 ## How to Store
 
-Use the `aide memory add` CLI command via Bash:
+Use the `./.aide/bin/aide memory add` CLI command via Bash:
 
 ```bash
-aide memory add --category=<category> --tags=<comma,separated,tags> "<content>"
+./.aide/bin/aide memory add --category=<category> --tags=<comma,separated,tags> "<content>"
 ```
+
+**Binary location:** The aide binary is at `.aide/bin/aide`. If it's on your `$PATH`, you can use `aide` directly.
 
 ## Categories
 
@@ -48,23 +50,27 @@ aide memory add --category=<category> --tags=<comma,separated,tags> "<content>"
 ## Examples
 
 ### Simple preference (global - injected at session start)
+
 ```bash
-aide memory add --category=learning --tags=preferences,colour,scope:global "User's favourite colour is blue"
+./.aide/bin/aide memory add --category=learning --tags=preferences,colour,scope:global "User's favourite colour is blue"
 ```
 
 ### Technical learning (project-specific)
+
 ```bash
-aide memory add --category=learning --tags=testing,vitest,project:myapp,session:abc12345 "Vitest requires .js extensions for ESM imports even for .ts files. Configure moduleResolution: NodeNext in tsconfig."
+./.aide/bin/aide memory add --category=learning --tags=testing,vitest,project:myapp,session:abc12345 "Vitest requires .js extensions for ESM imports even for .ts files. Configure moduleResolution: NodeNext in tsconfig."
 ```
 
 ### Session summary
+
 ```bash
-aide memory add --category=session --tags=auth,api,project:myapp,session:abc12345 "Implemented JWT auth with 15min access tokens, 7day refresh tokens in httpOnly cookies. Files: src/auth/jwt.ts, src/middleware/auth.ts, src/routes/auth.ts"
+./.aide/bin/aide memory add --category=session --tags=auth,api,project:myapp,session:abc12345 "Implemented JWT auth with 15min access tokens, 7day refresh tokens in httpOnly cookies. Files: src/auth/jwt.ts, src/middleware/auth.ts, src/routes/auth.ts"
 ```
 
 ### Gotcha (global - applies everywhere)
+
 ```bash
-aide memory add --category=gotcha --tags=hooks,claude-code,scope:global "Hooks must not write to stderr - Claude Code interprets any stderr as error. Debug logging must go to files only."
+./.aide/bin/aide memory add --category=gotcha --tags=hooks,claude-code,scope:global "Hooks must not write to stderr - Claude Code interprets any stderr as error. Debug logging must go to files only."
 ```
 
 ## Instructions
@@ -78,7 +84,7 @@ When the user invokes `/aide:memorise <something>`:
    - **Session summary** → add `project:<project-name>,session:${CLAUDE_SESSION_ID:0:8}`
 3. Choose appropriate category and descriptive tags
 4. Format the content concisely but completely
-5. Call `aide memory add` via Bash to store it
+5. Call `./.aide/bin/aide memory add` via Bash to store it
 6. **Verify success** - check exit code is 0 and output contains the memory ID
 7. Confirm what was stored
 
@@ -86,7 +92,7 @@ Keep content concise - aim for 1-3 sentences unless it's a complex session summa
 
 ## Failure Handling
 
-If `aide memory add` fails:
+If `./.aide/bin/aide memory add` fails:
 
 1. **Check error message** - common issues:
    - Database not accessible: ensure aide MCP server is running
@@ -104,24 +110,26 @@ If `aide memory add` fails:
 ## Verification
 
 A successful memory add returns:
+
 ```
 Added memory: <ULID>
 ```
 
 You can verify by searching for the memory:
+
 ```bash
-aide memory search "<key term from content>" --limit=1
+./.aide/bin/aide memory search "<key term from content>" --limit=1
 ```
 
 ## Scope Tags
 
 Use scope tags to control when memories are injected:
 
-| Tag | When to Use | Injection |
-|-----|-------------|-----------|
-| `scope:global` | User preferences, universal learnings | Every session |
-| `project:<name>` | Project-specific learnings | Sessions in that project |
-| `session:<id>` | Context for this work session | Recent session injection |
+| Tag              | When to Use                           | Injection                |
+| ---------------- | ------------------------------------- | ------------------------ |
+| `scope:global`   | User preferences, universal learnings | Every session            |
+| `project:<name>` | Project-specific learnings            | Sessions in that project |
+| `session:<id>`   | Context for this work session         | Recent session injection |
 
 ### Tagging Rules
 
@@ -134,6 +142,7 @@ Get the project name from the git remote or directory name. Session ID is availa
 ## For Swarm/Multi-Agent
 
 Add agent context to tags:
+
 ```bash
-aide memory add --category=session --tags=swarm,agent:main "Overall task outcome..."
+./.aide/bin/aide memory add --category=session --tags=swarm,agent:main "Overall task outcome..."
 ```

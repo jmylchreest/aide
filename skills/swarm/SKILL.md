@@ -87,6 +87,7 @@ If no plan exists, break the work into independent stories/features:
 ```
 
 Each story should be:
+
 - Independent (can be developed in parallel)
 - Complete (has clear boundaries)
 - Testable (has acceptance criteria)
@@ -102,17 +103,20 @@ git worktree add .aide/worktrees/story-dashboard -b feat/story-dashboard
 ```
 
 **Automatic Integration:**
+
 - Worktrees in `.aide/worktrees/` are **auto-discovered** by AIDE hooks
 - When agents spawn, their worktree path is **auto-injected** into context
 - When agents complete, worktrees are marked as **"agent-complete"** (ready for merge)
 - Worktree state is tracked in `.aide/state/worktrees.json`
 
 **Naming Convention:**
+
 - Use `story-<name>` as worktree directory name
 - Use matching `agent-<name>` as agent_id when spawning
 - Example: `story-auth` worktree → spawn with `agent_id` containing "auth"
 
 **If worktree creation fails:**
+
 1. Check if branch exists: `git branch -a | grep feat/story-auth`
 2. Remove stale worktree: `git worktree remove .aide/worktrees/story-auth --force`
 3. Prune refs: `git worktree prune`
@@ -123,6 +127,7 @@ git worktree add .aide/worktrees/story-dashboard -b feat/story-dashboard
 Launch agents using the Task tool with `subagent_type: "general-purpose"` (required for Edit/Write access).
 
 **IMPORTANT: Task Ownership**
+
 - The ORCHESTRATOR does NOT create SDLC tasks
 - Each SUBAGENT creates and manages its OWN tasks
 - Orchestrator only monitors via `TaskList`
@@ -201,8 +206,10 @@ Use native Claude Code task tools to track your progress:
 
 **Shared state (MCP + CLI):**
 - Check decisions: \`mcp__plugin_aide_aide__decision_get\` (MCP read)
-- Record decisions: \`aide decision set <topic> "<decision>"\` (CLI write)
-- Share discoveries: \`aide memory add --category=discovery "<finding>"\` (CLI write)
+- Record decisions: \`./.aide/bin/aide decision set <topic> "<decision>"\` (CLI write)
+- Share discoveries: \`./.aide/bin/aide memory add --category=discovery "<finding>"\` (CLI write)
+
+**Binary location:** The aide binary is at \`.aide/bin/aide\`. If it's on your \`$PATH\`, you can use \`aide\` directly.
 
 ## Completion
 When all 5 stages are complete:
@@ -223,6 +230,7 @@ TaskList
 ```
 
 Example output:
+
 ```
 #10 [completed] [story-auth][DESIGN] Design auth module (agent-auth)
 #11 [completed] [story-auth][TEST] Write auth tests (agent-auth)
@@ -249,13 +257,13 @@ mcp__plugin_aide_aide__memory_list with category=blocker
 
 ## SDLC Stage Reference
 
-| Stage | Skill | Creates | Depends On |
-|-------|-------|---------|------------|
-| DESIGN | `/aide:design` | Interfaces, decisions, acceptance criteria | - |
-| TEST | `/aide:test` | Failing tests | DESIGN |
-| DEV | `/aide:implement` | Passing implementation | TEST |
-| VERIFY | `/aide:verify` | Quality validation | DEV |
-| DOCS | `/aide:docs` | Updated documentation | VERIFY |
+| Stage  | Skill             | Creates                                    | Depends On |
+| ------ | ----------------- | ------------------------------------------ | ---------- |
+| DESIGN | `/aide:design`    | Interfaces, decisions, acceptance criteria | -          |
+| TEST   | `/aide:test`      | Failing tests                              | DESIGN     |
+| DEV    | `/aide:implement` | Passing implementation                     | TEST       |
+| VERIFY | `/aide:verify`    | Quality validation                         | DEV        |
+| DOCS   | `/aide:docs`      | Updated documentation                      | VERIFY     |
 
 ### VERIFY → BUILD-FIX Loop
 
@@ -277,6 +285,7 @@ mcp__plugin_aide_aide__memory_list with category=blocker
 ```
 
 If VERIFY fails:
+
 1. `/aide:build-fix` to fix issues
 2. Re-run `/aide:verify`
 3. Repeat until passing
@@ -290,11 +299,13 @@ When spawning story agents, include:
 You are story agent [AGENT-ID] working in worktree [PATH].
 
 ## Story
+
 [Story name and description]
 
 ## SDLC Pipeline
 
 Execute these stages in order. For each stage:
+
 1. Create task with TaskCreate (set blockedBy for dependencies)
 2. Claim task with TaskUpdate (owner=your-id, status=in_progress)
 3. Execute stage using appropriate skill
@@ -303,60 +314,64 @@ Execute these stages in order. For each stage:
 ### Stage Tasks to Create
 
 TaskCreate({
-  subject: "[STORY-ID][DESIGN] Design [feature]",
-  description: "Technical design with interfaces and acceptance criteria",
-  activeForm: "Designing [feature]"
+subject: "[STORY-ID][DESIGN] Design [feature]",
+description: "Technical design with interfaces and acceptance criteria",
+activeForm: "Designing [feature]"
 })
 
 TaskCreate({
-  subject: "[STORY-ID][TEST] Write tests for [feature]",
-  description: "Failing tests based on acceptance criteria",
-  activeForm: "Writing tests"
+subject: "[STORY-ID][TEST] Write tests for [feature]",
+description: "Failing tests based on acceptance criteria",
+activeForm: "Writing tests"
 })
 // ... set blockedBy to DESIGN task ID
 
 TaskCreate({
-  subject: "[STORY-ID][DEV] Implement [feature]",
-  description: "Make tests pass with minimal code",
-  activeForm: "Implementing [feature]"
+subject: "[STORY-ID][DEV] Implement [feature]",
+description: "Make tests pass with minimal code",
+activeForm: "Implementing [feature]"
 })
 // ... set blockedBy to TEST task ID
 
 TaskCreate({
-  subject: "[STORY-ID][VERIFY] Verify [feature]",
-  description: "Full test suite, lint, type check",
-  activeForm: "Verifying [feature]"
+subject: "[STORY-ID][VERIFY] Verify [feature]",
+description: "Full test suite, lint, type check",
+activeForm: "Verifying [feature]"
 })
 // ... set blockedBy to DEV task ID
 
 TaskCreate({
-  subject: "[STORY-ID][DOCS] Document [feature]",
-  description: "Update documentation",
-  activeForm: "Documenting [feature]"
+subject: "[STORY-ID][DOCS] Document [feature]",
+description: "Update documentation",
+activeForm: "Documenting [feature]"
 })
 // ... set blockedBy to VERIFY task ID
 
 ## Coordination
 
 **Messaging (MCP tools):**
+
 - Send status: `message_send` with from=[AGENT-ID], type="status", content="[STAGE] complete"
 - Send blocker: `message_send` with from=[AGENT-ID], type="blocker", content="description"
 - Check inbox: `message_list` with agent_id=[AGENT-ID]
 - Acknowledge: `message_ack` with message_id=N, agent_id=[AGENT-ID]
 
 **At each stage transition:**
+
 1. Check messages via `message_list`
 2. Acknowledge and act on any requests
 3. Send `status` message with new stage name
 
 **Shared state:**
+
 - Check existing decisions: `mcp__plugin_aide_aide__decision_get` (MCP read)
-- Record new decisions: `aide decision set <topic> "<decision>"` (CLI write)
-- Share discoveries: `aide memory add --category=discovery "<finding>"` (CLI write)
+- Record new decisions: `./.aide/bin/aide decision set <topic> "<decision>"` (CLI write)
+- Share discoveries: `./.aide/bin/aide memory add --category=discovery "<finding>"` (CLI write)
 
 ## VERIFY Failure Handling
 
 If VERIFY stage fails:
+
 1. DO NOT proceed to DOCS
 2. Invoke /aide:build-fix to address failures
 3. Re-run /aide:verify
@@ -366,6 +381,7 @@ If VERIFY stage fails:
 ## Completion
 
 All stages must complete. When done:
+
 1. All 5 tasks show [completed]
 2. VERIFY must have passed (not skipped)
 3. All changes committed to your worktree branch
@@ -386,6 +402,7 @@ This uses the original task-grabbing model without SDLC stages.
 ## Coordination via aide
 
 **Messages** (MCP tools — primary coordination mechanism):
+
 ```
 # Send status update (broadcast)
 message_send: from="agent-auth", type="status", content="[DESIGN] complete, starting TEST"
@@ -401,16 +418,24 @@ message_ack: message_id=42, agent_id="agent-auth"
 ```
 
 **Decisions** (shared across agents):
+
 ```bash
 # Write (CLI)
-aide decision set "auth-strategy" "JWT with refresh tokens"
+./.aide/bin/aide decision set "auth-strategy" "JWT with refresh tokens"
 
 # Read (MCP) - use mcp__plugin_aide_aide__decision_get with topic="auth-strategy"
 ```
 
 **Memory** (shared discoveries):
+
 ```bash
-aide memory add --category=discovery "User model needs email validation"
+./.aide/bin/aide memory add --category=discovery "User model needs email validation"
+```
+
+**Memory** (shared discoveries):
+
+```bash
+./.aide/bin/aide memory add --category=discovery "User model needs email validation"
 ```
 
 ## OpenCode Mode
@@ -418,11 +443,13 @@ aide memory add --category=discovery "User model needs email validation"
 OpenCode does not have native subagent support. For multi-agent swarms with OpenCode:
 
 **Setup:**
+
 1. Create worktrees as normal (one per story)
 2. Launch separate OpenCode terminal sessions, one per story
 3. Each session works in its assigned worktree directory
 
 **Coordination:**
+
 - **No TaskList** — OpenCode sessions don't share a task system
 - **Use aide messages** as the primary coordination mechanism:
   - Each session uses `message_send` to report status, blockers, and completion
@@ -430,12 +457,13 @@ OpenCode does not have native subagent support. For multi-agent swarms with Open
   - The orchestrator monitors all agents via `message_list` with their own agent_id
 - **Use aide state** for progress tracking:
   ```bash
-  aide state set "agent-auth:stage" "TEST"
-  aide state set "agent-auth:status" "running"
+  ./.aide/bin/aide state set "agent-auth:stage" "TEST"
+  ./.aide/bin/aide state set "agent-auth:status" "running"
   ```
 - Monitor all agents: `mcp__plugin_aide_aide__state_list`
 
 **Orchestrator role (human or primary session):**
+
 1. Decompose stories (use `/aide:plan-swarm` first)
 2. Create worktrees
 3. Launch terminal sessions with instructions
@@ -447,35 +475,47 @@ OpenCode does not have native subagent support. For multi-agent swarms with Open
 Swarm completion checklist - ALL REQUIRED:
 
 ### Step 1: Verify All Stories Complete
+
 ```
 TaskList  # All story tasks must show [completed]
 ```
+
 - Every story must have completed all 5 SDLC stages
 - No tasks should be [pending] or [in_progress]
 
 ### Step 2: Check for Blockers
+
 Use `mcp__plugin_aide_aide__memory_list` with category=blocker
+
 - If blockers exist, resolve them before proceeding
 - Use `/aide:build-fix` for any remaining build/test issues
 
 ### Step 3: Final Verification
+
 Run verification on each worktree:
+
 ```bash
 cd .aide/worktrees/story-X && npm test && npm run build
 ```
+
 - If any fail, invoke `/aide:build-fix` and re-verify
 
 ### Step 4: Merge Worktrees (MANDATORY)
+
 **YOU MUST invoke `/aide:worktree-resolve`** - this is not optional.
+
 ```
 /aide:worktree-resolve
 ```
+
 This skill will:
+
 - Merge each story branch into main
 - Handle any merge conflicts
 - Clean up worktrees
 
 ### Step 5: Record Session
+
 Only after successful merge, record the swarm session (see Orchestrator Memory below).
 
 ## Orchestrator Memory
@@ -483,7 +523,7 @@ Only after successful merge, record the swarm session (see Orchestrator Memory b
 After swarm completes, record the session using the CLI:
 
 ```bash
-aide memory add --category=session --tags=swarm,sdlc,session:${CLAUDE_SESSION_ID:0:8} "## Swarm: [Brief Description]
+./.aide/bin/aide memory add --category=session --tags=swarm,sdlc,session:${CLAUDE_SESSION_ID:0:8} "## Swarm: [Brief Description]
 
 ### Stories Completed
 - Story A: [outcome]
