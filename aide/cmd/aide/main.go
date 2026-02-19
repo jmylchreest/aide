@@ -74,6 +74,8 @@ func runCommand(cmd, dbPath string, args []string) error {
 		return cmdDaemon(dbPath, args)
 	case "mcp":
 		return cmdMCP(dbPath, args)
+	case "share":
+		return cmdShare(dbPath, args)
 	default:
 		return fmt.Errorf("unknown command: %s", cmd)
 	}
@@ -103,6 +105,7 @@ Commands:
   decision   Manage decisions (set, get, list, history) - append-only
   message    Inter-agent messaging (send, list, ack, clear, prune)
   state      Manage session/agent state (set, get, delete, list, clear)
+  share      Export/import decisions & memories as git-friendly markdown
   daemon     Start gRPC daemon (Unix socket for IPC)
   mcp        Start MCP server (for Claude Code plugin integration)
   upgrade    Check for updates and upgrade to latest version

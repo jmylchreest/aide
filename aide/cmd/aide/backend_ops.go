@@ -198,6 +198,14 @@ func (b *Backend) UpdateMemoryTags(id string, addTags, removeTags []string) (*me
 	return m, nil
 }
 
+func (b *Backend) GetMemory(id string) (*memory.Memory, error) {
+	// gRPC doesn't have a GetMemory RPC, use direct store access
+	if b.useGRPC {
+		return nil, fmt.Errorf("get memory by ID not supported in gRPC mode")
+	}
+	return b.store.GetMemory(id)
+}
+
 func (b *Backend) DeleteMemory(id string) error {
 	ctx := context.Background()
 
