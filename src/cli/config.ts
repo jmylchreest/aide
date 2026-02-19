@@ -95,7 +95,7 @@ export function addAideToConfig(
     if (!mcp[MCP_SERVER_NAME]) {
       mcp[MCP_SERVER_NAME] = {
         type: "local",
-        command: ["npx", "-y", PLUGIN_NAME, "mcp"],
+        command: ["bunx", "-y", PLUGIN_NAME, "mcp"],
         environment: {
           AIDE_CODE_WATCH: "1",
           AIDE_CODE_WATCH_DELAY: "30s",
