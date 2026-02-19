@@ -250,6 +250,7 @@ function runSessionInit(
   projectName: string,
   sessionLimit: number,
   log: Logger,
+  config?: AideConfig,
 ): MemoryInjection {
   log.start("sessionInit");
 
@@ -263,7 +264,13 @@ function runSessionInit(
     };
   }
 
-  const result = coreRunSessionInit(binary, cwd, projectName, sessionLimit);
+  const result = coreRunSessionInit(
+    binary,
+    cwd,
+    projectName,
+    sessionLimit,
+    config,
+  );
 
   log.end("sessionInit", {
     globalCount: result.static.global.length,
@@ -403,7 +410,7 @@ async function main(): Promise<void> {
 
     // Load config (FS only, fast)
     debugLog("loadConfig starting...");
-    loadConfig(cwd, log);
+    const config = loadConfig(cwd, log);
     debugLog(`loadConfig complete (${Date.now() - hookStart}ms)`);
 
     // Cleanup stale state files on disk (FS only, fast)
@@ -420,7 +427,7 @@ async function main(): Promise<void> {
     // Replaces 7 separate binary spawns (~35-50s) with 1 (~5s)
     const projectName = getProjectName(cwd);
     debugLog("sessionInit starting...");
-    const memories = runSessionInit(cwd, projectName, 3, log);
+    const memories = runSessionInit(cwd, projectName, 3, log, config);
     debugLog(`sessionInit complete (${Date.now() - hookStart}ms)`);
 
     // Build startup notices

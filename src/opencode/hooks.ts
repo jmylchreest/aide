@@ -259,7 +259,7 @@ function initializeAide(state: AideState): void {
       debug(SOURCE, `MCP sync failed (non-fatal): ${err}`);
     }
 
-    loadConfig(state.cwd);
+    const config = loadConfig(state.cwd);
     cleanupStaleStateFiles(state.cwd);
     resetHudState(state.cwd);
 
@@ -267,7 +267,13 @@ function initializeAide(state: AideState): void {
 
     if (state.binary) {
       const projectName = getProjectName(state.cwd);
-      state.memories = runSessionInit(state.binary, state.cwd, projectName, 3);
+      state.memories = runSessionInit(
+        state.binary,
+        state.cwd,
+        projectName,
+        3,
+        config,
+      );
     }
 
     state.initialized = true;

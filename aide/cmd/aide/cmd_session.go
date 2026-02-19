@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -15,6 +17,9 @@ type SessionInitResult struct {
 	// State cleanup results
 	StateKeysDeleted   int `json:"state_keys_deleted"`
 	StaleAgentsCleaned int `json:"stale_agents_cleaned"`
+
+	// Share auto-import results
+	SharedImported int `json:"shared_imported,omitempty"`
 
 	// Memory injection data
 	GlobalMemories  []SessionMemory   `json:"global_memories"`
@@ -75,10 +80,15 @@ Options:
     --project=NAME       Project name for memory filtering
     --cleanup-age=DUR    Max age for stale agent entries (default: 30m)
     --session-limit=N    Number of recent sessions to include (default: 3)
+    --share-import       Import shared data from .aide/shared/ on session start
     --format=json        Output as JSON (default)
+
+Environment:
+  AIDE_SHARE_AUTO_IMPORT=1   Enable auto-import of shared data on session init
 
 Examples:
   aide session init --project=myapp
+  aide session init --project=myapp --share-import
   aide session init --project=myapp --cleanup-age=1h --session-limit=5`)
 }
 
@@ -132,7 +142,19 @@ func sessionInit(dbPath string, args []string) error {
 		result.StaleAgentsCleaned = cleaned
 	}
 
-	// 3-6. Gather context
+	// 3. Auto-import shared data if enabled
+	shareImport := hasFlag(args, "--share-import") || os.Getenv("AIDE_SHARE_AUTO_IMPORT") == "1"
+	if shareImport {
+		projectRoot := projectRootFromDB(dbPath)
+		sharedDir := filepath.Join(projectRoot, ".aide", "shared")
+		if _, statErr := os.Stat(sharedDir); statErr == nil {
+			imported, _, _ := shareImportDecisions(backend, sharedDir, false)
+			memImported, _, _ := shareImportMemories(backend, sharedDir, false)
+			result.SharedImported = imported + memImported
+		}
+	}
+
+	// 4-7. Gather context
 	sessionFetchContext(backend, project, sessionLimit, &result)
 
 	// Ensure nil slices become empty arrays in JSON

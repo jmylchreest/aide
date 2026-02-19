@@ -63,14 +63,25 @@ export function ensureDirectories(cwd: string): {
     }
   }
 
-  // Ensure .gitignore exists in .aide directory
+  // Ensure .gitignore exists in .aide directory.
+  // Structure: exclude all local-only runtime data, allow shared/ and config/.
+  // shared/ contains git-friendly markdown exports (decisions, memories).
   const gitignorePath = join(cwd, ".aide", ".gitignore");
-  const requiredGitignoreContent = `# AIDE runtime files - do not commit
+  const requiredGitignoreContent = `# AIDE local runtime files - do not commit
+# These are machine-specific and/or binary (non-mergeable)
 _logs/
 state/
 bin/
-*.db
-*.bleve/
+worktrees/
+memory/
+code/
+
+# Legacy top-level database
+aide-memory.db
+
+# Shared data IS committed (git-friendly markdown with frontmatter)
+# See: aide share export / aide share import
+!shared/
 `;
   if (!existsSync(gitignorePath)) {
     try {
@@ -79,10 +90,16 @@ bin/
       // Ignore
     }
   } else {
+    // Migrate old gitignore format: ensure shared/ is allowed
     try {
       const existingContent = readFileSync(gitignorePath, "utf-8");
-      if (!existingContent.includes("bin/")) {
-        const updatedContent = existingContent.trimEnd() + "\nbin/\n";
+      if (!existingContent.includes("!shared/")) {
+        const updatedContent =
+          existingContent.trimEnd() +
+          `\n
+# Shared data IS committed (git-friendly markdown with frontmatter)
+!shared/
+`;
         writeFileSync(gitignorePath, updatedContent);
       }
     } catch {
@@ -116,7 +133,9 @@ export function getProjectName(cwd: string): string {
 }
 
 /**
- * Load or create config file
+ * Load config from .aide/config/aide.json (if it exists).
+ * Returns DEFAULT_CONFIG if no config file exists or it can't be parsed.
+ * Does NOT create a default config file — only user-set values are persisted.
  */
 export function loadConfig(cwd: string): AideConfig {
   const configPath = join(cwd, ".aide", "config", "aide.json");
@@ -128,12 +147,6 @@ export function loadConfig(cwd: string): AideConfig {
     } catch {
       return DEFAULT_CONFIG;
     }
-  }
-
-  try {
-    writeFileSync(configPath, JSON.stringify(DEFAULT_CONFIG, null, 2));
-  } catch {
-    // Ignore
   }
 
   return DEFAULT_CONFIG;
@@ -231,6 +244,7 @@ export function runSessionInit(
   cwd: string,
   projectName: string,
   sessionLimit: number,
+  config?: AideConfig,
 ): MemoryInjection {
   const result: MemoryInjection = {
     static: { global: [], project: [], decisions: [] },
@@ -248,6 +262,14 @@ export function runSessionInit(
       `--project=${projectName}`,
       `--session-limit=${sessionLimit}`,
     ];
+
+    // Add --share-import if configured or env var set
+    if (
+      config?.share?.autoImport ||
+      process.env.AIDE_SHARE_AUTO_IMPORT === "1"
+    ) {
+      args.push("--share-import");
+    }
 
     const output = execFileSync(binary, args, {
       cwd,

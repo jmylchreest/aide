@@ -9,34 +9,15 @@
 // =============================================================================
 
 export interface AideConfig {
-  tiers: Record<string, string>;
-  aliases: Record<string, string>;
-  hud: {
-    enabled: boolean;
-    elements: string[];
+  share?: {
+    /** Auto-import shared data from .aide/shared/ on session start (default: false) */
+    autoImport?: boolean;
+    /** Auto-export on session end (default: false) */
+    autoExport?: boolean;
   };
 }
 
-export const DEFAULT_CONFIG: AideConfig = {
-  tiers: {
-    fast: "Cheapest/fastest model",
-    balanced: "Good cost/capability balance",
-    smart: "Most capable model",
-  },
-  aliases: {
-    opus: "smart",
-    sonnet: "balanced",
-    haiku: "fast",
-    cheap: "fast",
-    quick: "fast",
-    thorough: "smart",
-    best: "smart",
-  },
-  hud: {
-    enabled: true,
-    elements: ["mode", "model", "agents"],
-  },
-};
+export const DEFAULT_CONFIG: AideConfig = {};
 
 // =============================================================================
 // Session
