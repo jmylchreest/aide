@@ -123,21 +123,24 @@ func cmdUpgrade(args []string) error {
 		return fmt.Errorf("failed to resolve executable path: %w", err)
 	}
 
-	// Replace current binary
+	// Replace current binary.
+	// On Linux, writing to a running binary fails with ETXTBSY ("text file busy").
+	// The fix: remove the old file first (the running process keeps its fd),
+	// then write the new file to the same path. This works on all Unix systems.
 	fmt.Printf("Installing to %s...\n", execPath)
 
-	// On Windows, we need to rename first
-	if runtime.GOOS == "windows" {
-		oldPath := execPath + ".old"
-		os.Remove(oldPath)
-		if err := os.Rename(execPath, oldPath); err != nil {
-			return fmt.Errorf("failed to backup old binary: %w", err)
-		}
-		defer os.Remove(oldPath)
+	// Remove old binary first (unlinks from directory but running process keeps its handle)
+	oldPath := execPath + ".old"
+	os.Remove(oldPath) // clean up any previous .old file
+	if err := os.Rename(execPath, oldPath); err != nil {
+		return fmt.Errorf("failed to move old binary: %w", err)
 	}
+	defer os.Remove(oldPath) // clean up .old after install
 
-	// Copy new binary
+	// Copy new binary to the now-vacant path
 	if err := copyFile(tmpFile, execPath); err != nil {
+		// Attempt to restore old binary on failure
+		_ = os.Rename(oldPath, execPath)
 		return fmt.Errorf("failed to install new binary: %w", err)
 	}
 
