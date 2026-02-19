@@ -15,7 +15,9 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -24,6 +26,9 @@ import (
 
 	"github.com/jmylchreest/aide/aide/pkg/memory"
 )
+
+// sanitizeFilenameRe is compiled once for sanitizeFilename.
+var sanitizeFilenameRe = regexp.MustCompile(`[^a-zA-Z0-9_-]+`)
 
 // cmdShare dispatches share subcommands.
 func cmdShare(dbPath string, args []string) error {
@@ -357,10 +362,13 @@ func writeMemoriesMarkdown(filename string, cat memory.Category, memories []*mem
 // Memories with scope:global, project:*, or certain categories are shareable.
 // Session-specific memories (session:*) without project scope are excluded.
 func isShareableMemory(m *memory.Memory) bool {
-	// Always share gotchas, patterns, and decisions
+	// Always share gotchas, patterns, and decisions.
+	// Other categories (learning, issue, discovery, blocker) require explicit tags.
 	switch m.Category {
 	case "gotcha", "pattern", "decision":
 		return true
+	case memory.CategoryLearning, memory.CategoryIssue, memory.CategoryDiscovery, memory.CategoryBlocker:
+		// Fall through to tag-based checks below
 	}
 
 	// Check tags for sharing signals
@@ -440,7 +448,7 @@ func shareImportDecisions(b *Backend, inputDir string, dryRun bool) (imported, s
 	dir := filepath.Join(inputDir, "decisions")
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, fs.ErrNotExist) {
 			return 0, 0, nil
 		}
 		return 0, 0, err
@@ -569,18 +577,20 @@ func parseDecisionMarkdown(filename string) (*memory.Decision, error) {
 
 // parseFrontmatterLine parses a single YAML frontmatter line into a Decision.
 func parseFrontmatterLine(line string, d *memory.Decision) {
-	if strings.HasPrefix(line, "topic:") {
+	switch {
+	case strings.HasPrefix(line, "topic:"):
 		d.Topic = strings.TrimSpace(strings.TrimPrefix(line, "topic:"))
-	} else if strings.HasPrefix(line, "decision:") {
+	case strings.HasPrefix(line, "decision:"):
 		d.Decision = yamlUnescape(strings.TrimSpace(strings.TrimPrefix(line, "decision:")))
-	} else if strings.HasPrefix(line, "decided_by:") {
+	case strings.HasPrefix(line, "decided_by:"):
 		d.DecidedBy = strings.TrimSpace(strings.TrimPrefix(line, "decided_by:"))
-	} else if strings.HasPrefix(line, "date:") {
-		dateStr := strings.TrimSpace(strings.TrimPrefix(line, "date:"))
-		if t, err := time.Parse("2006-01-02", dateStr); err == nil {
-			d.CreatedAt = t
+	case strings.HasPrefix(line, "date:"):
+		if dateStr, ok := strings.CutPrefix(line, "date:"); ok {
+			if t, err := time.Parse("2006-01-02", strings.TrimSpace(dateStr)); err == nil {
+				d.CreatedAt = t
+			}
 		}
-	} else if strings.HasPrefix(line, "  - ") {
+	case strings.HasPrefix(line, "  - "):
 		// Reference list item
 		d.References = append(d.References, strings.TrimPrefix(line, "  - "))
 	}
@@ -592,7 +602,7 @@ func shareImportMemories(b *Backend, inputDir string, dryRun bool) (imported, sk
 	dir := filepath.Join(inputDir, "memories")
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, fs.ErrNotExist) {
 			return 0, 0, nil
 		}
 		return 0, 0, err
@@ -741,7 +751,7 @@ func parseMemoriesMarkdown(filename string) ([]*memory.Memory, error) {
 func removeStaleFiles(dir string, expectedFiles map[string]bool) error {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, fs.ErrNotExist) {
 			return nil
 		}
 		return err
@@ -762,9 +772,7 @@ func removeStaleFiles(dir string, expectedFiles map[string]bool) error {
 
 // sanitizeFilename converts a topic string to a safe filename.
 func sanitizeFilename(s string) string {
-	// Replace non-alphanumeric chars (except hyphen/underscore) with hyphens
-	re := regexp.MustCompile(`[^a-zA-Z0-9_-]+`)
-	safe := re.ReplaceAllString(s, "-")
+	safe := sanitizeFilenameRe.ReplaceAllString(s, "-")
 	safe = strings.Trim(safe, "-")
 	if safe == "" {
 		safe = "unnamed"
