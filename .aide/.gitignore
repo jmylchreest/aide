@@ -1,0 +1,15 @@
+# AIDE local runtime files - do not commit
+# These are machine-specific and/or binary (non-mergeable)
+_logs/
+state/
+bin/
+worktrees/
+memory/
+code/
+
+# Legacy top-level database
+aide-memory.db
+
+# Shared data IS committed (git-friendly markdown with frontmatter)
+# See: aide share export / aide share import
+!shared/

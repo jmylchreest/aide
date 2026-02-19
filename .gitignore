@@ -17,14 +17,9 @@ dist/
 .DS_Store
 Thumbs.db
 
-# AIDE runtime data (state, memory, logs, config, code index)
-# These are all local/session-specific and should not be committed.
-# - .aide/state/: HUD status, agent state
-# - .aide/memory/: BBolt store (memories, decisions, messages)
-# - .aide/config/: local config overrides
-# - .aide/_logs/: debug/hook logs
-# - .aide/code/: code index and search databases
-**/.aide/
+# AIDE: inner .aide/.gitignore controls what's tracked vs local-only.
+# Config and shared/ (git-friendly markdown) are committed.
+# Runtime data (memory/*.db, state/, _logs/, bin/) is excluded by .aide/.gitignore.
 
 # Logs
 *.log
