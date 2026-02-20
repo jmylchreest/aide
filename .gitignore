@@ -20,11 +20,7 @@ Thumbs.db
 # AIDE: inner .aide/.gitignore controls what's tracked vs local-only.
 # Config and shared/ (git-friendly markdown) are committed.
 # Runtime data (memory/*.db, state/, _logs/, bin/) is excluded by .aide/.gitignore.
-# Ignore stray .aide/ directories created in subdirectories (not root .aide/)
-aide/.aide/
-aide/**/.aide/
-skills/**/.aide/
-packages/**/.aide/
+
 
 
 # Logs
