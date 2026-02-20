@@ -223,11 +223,11 @@ func formatCodeSearchResults(results []*store.CodeSearchResult) string {
 
 	for _, r := range results {
 		sym := r.Symbol
-		sb.WriteString(fmt.Sprintf("## `%s` [%s]\n", sym.Name, sym.Kind))
-		sb.WriteString(fmt.Sprintf("**File:** `%s:%d`\n", sym.FilePath, sym.StartLine))
-		sb.WriteString(fmt.Sprintf("**Signature:** `%s`\n", sym.Signature))
+		fmt.Fprintf(&sb, "## `%s` [%s]\n", sym.Name, sym.Kind)
+		fmt.Fprintf(&sb, "**File:** `%s:%d`\n", sym.FilePath, sym.StartLine)
+		fmt.Fprintf(&sb, "**Signature:** `%s`\n", sym.Signature)
 		if sym.DocComment != "" {
-			sb.WriteString(fmt.Sprintf("**Doc:** %s\n", sym.DocComment))
+			fmt.Fprintf(&sb, "**Doc:** %s\n", sym.DocComment)
 		}
 		sb.WriteString("\n")
 	}
@@ -252,8 +252,8 @@ func formatCodeSymbols(filePath string, symbols []*code.Symbol) string {
 	}
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("# Symbols in `%s`\n\n", filePath))
-	sb.WriteString(fmt.Sprintf("_Total: %d symbols_\n\n", len(symbols)))
+	fmt.Fprintf(&sb, "# Symbols in `%s`\n\n", filePath)
+	fmt.Fprintf(&sb, "_Total: %d symbols_\n\n", len(symbols))
 
 	grouped := make(map[string][]*code.Symbol)
 	for _, sym := range symbols {
@@ -267,9 +267,9 @@ func formatCodeSymbols(filePath string, symbols []*code.Symbol) string {
 			continue
 		}
 
-		sb.WriteString(fmt.Sprintf("## %ss\n\n", titleCase(kind)))
+		fmt.Fprintf(&sb, "## %ss\n\n", titleCase(kind))
 		for _, sym := range syms {
-			sb.WriteString(fmt.Sprintf("- **%s** (line %d): `%s`\n", sym.Name, sym.StartLine, sym.Signature))
+			fmt.Fprintf(&sb, "- **%s** (line %d): `%s`\n", sym.Name, sym.StartLine, sym.Signature)
 		}
 		sb.WriteString("\n")
 	}
@@ -283,8 +283,8 @@ func formatCodeReferences(symbolName string, refs []*code.Reference) string {
 	}
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("# References to `%s`\n\n", symbolName))
-	sb.WriteString(fmt.Sprintf("_Found %d references_\n\n", len(refs)))
+	fmt.Fprintf(&sb, "# References to `%s`\n\n", symbolName)
+	fmt.Fprintf(&sb, "_Found %d references_\n\n", len(refs))
 
 	grouped := make(map[string][]*code.Reference)
 	for _, ref := range refs {
@@ -292,7 +292,7 @@ func formatCodeReferences(symbolName string, refs []*code.Reference) string {
 	}
 
 	for filePath, fileRefs := range grouped {
-		sb.WriteString(fmt.Sprintf("## `%s`\n\n", filePath))
+		fmt.Fprintf(&sb, "## `%s`\n\n", filePath)
 		for _, ref := range fileRefs {
 			kindTag := ""
 			switch ref.Kind {
@@ -301,7 +301,7 @@ func formatCodeReferences(symbolName string, refs []*code.Reference) string {
 			case code.RefKindTypeRef:
 				kindTag = "[type]"
 			}
-			sb.WriteString(fmt.Sprintf("- **Line %d** %s: `%s`\n", ref.Line, kindTag, ref.Context))
+			fmt.Fprintf(&sb, "- **Line %d** %s: `%s`\n", ref.Line, kindTag, ref.Context)
 		}
 		sb.WriteString("\n")
 	}

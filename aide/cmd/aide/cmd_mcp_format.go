@@ -48,11 +48,11 @@ func formatMemoriesMarkdown(memories []*memory.Memory) string {
 	}
 
 	for cat, mems := range categories {
-		sb.WriteString(fmt.Sprintf("## %s\n\n", titleCase(string(cat))))
+		fmt.Fprintf(&sb, "## %s\n\n", titleCase(string(cat)))
 		for _, m := range mems {
-			sb.WriteString(fmt.Sprintf("- **[%s]** %s", m.CreatedAt.Format("2006-01-02 15:04:05"), m.Content))
+			fmt.Fprintf(&sb, "- **[%s]** %s", m.CreatedAt.Format("2006-01-02 15:04:05"), m.Content)
 			if len(m.Tags) > 0 {
-				sb.WriteString(fmt.Sprintf(" _(tags: %s)_", strings.Join(m.Tags, ", ")))
+				fmt.Fprintf(&sb, " _(tags: %s)_", strings.Join(m.Tags, ", "))
 			}
 			sb.WriteString("\n")
 		}
@@ -68,11 +68,11 @@ func formatMemoriesMarkdown(memories []*memory.Memory) string {
 
 func formatDecisionMarkdown(d *memory.Decision) string {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("# Decision: %s\n\n", d.Topic))
-	sb.WriteString(fmt.Sprintf("**Decision:** %s\n\n", d.Decision))
+	fmt.Fprintf(&sb, "# Decision: %s\n\n", d.Topic)
+	fmt.Fprintf(&sb, "**Decision:** %s\n\n", d.Decision)
 
 	if d.Rationale != "" {
-		sb.WriteString(fmt.Sprintf("**Rationale:** %s\n\n", d.Rationale))
+		fmt.Fprintf(&sb, "**Rationale:** %s\n\n", d.Rationale)
 	}
 
 	if d.Details != "" {
@@ -84,15 +84,15 @@ func formatDecisionMarkdown(d *memory.Decision) string {
 	if len(d.References) > 0 {
 		sb.WriteString("## References\n\n")
 		for _, ref := range d.References {
-			sb.WriteString(fmt.Sprintf("- %s\n", ref))
+			fmt.Fprintf(&sb, "- %s\n", ref)
 		}
 		sb.WriteString("\n")
 	}
 
 	if d.DecidedBy != "" {
-		sb.WriteString(fmt.Sprintf("_Decided by: %s_\n", d.DecidedBy))
+		fmt.Fprintf(&sb, "_Decided by: %s_\n", d.DecidedBy)
 	}
-	sb.WriteString(fmt.Sprintf("_Date: %s_\n", d.CreatedAt.Format("2006-01-02 15:04:05")))
+	fmt.Fprintf(&sb, "_Date: %s_\n", d.CreatedAt.Format("2006-01-02 15:04:05"))
 
 	return sb.String()
 }
@@ -103,14 +103,14 @@ func formatDecisionHistoryMarkdown(topic string, decisions []*memory.Decision) s
 	}
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("# Decision History: %s\n\n", topic))
+	fmt.Fprintf(&sb, "# Decision History: %s\n\n", topic)
 
 	for i, d := range decisions {
-		sb.WriteString(fmt.Sprintf("## %d. %s\n\n", i+1, d.CreatedAt.Format("2006-01-02 15:04:05")))
-		sb.WriteString(fmt.Sprintf("**Decision:** %s\n\n", d.Decision))
+		fmt.Fprintf(&sb, "## %d. %s\n\n", i+1, d.CreatedAt.Format("2006-01-02 15:04:05"))
+		fmt.Fprintf(&sb, "**Decision:** %s\n\n", d.Decision)
 
 		if d.Rationale != "" {
-			sb.WriteString(fmt.Sprintf("**Rationale:** %s\n\n", d.Rationale))
+			fmt.Fprintf(&sb, "**Rationale:** %s\n\n", d.Rationale)
 		}
 
 		if d.Details != "" {
@@ -122,13 +122,13 @@ func formatDecisionHistoryMarkdown(topic string, decisions []*memory.Decision) s
 		if len(d.References) > 0 {
 			sb.WriteString("### References\n\n")
 			for _, ref := range d.References {
-				sb.WriteString(fmt.Sprintf("- %s\n", ref))
+				fmt.Fprintf(&sb, "- %s\n", ref)
 			}
 			sb.WriteString("\n")
 		}
 
 		if d.DecidedBy != "" {
-			sb.WriteString(fmt.Sprintf("_Decided by: %s_\n\n", d.DecidedBy))
+			fmt.Fprintf(&sb, "_Decided by: %s_\n\n", d.DecidedBy)
 		}
 		sb.WriteString("---\n\n")
 	}
@@ -152,11 +152,11 @@ func formatDecisionsMarkdown(decisions []*memory.Decision) string {
 	sb.WriteString("# Decisions\n\n")
 
 	for topic, d := range latest {
-		sb.WriteString(fmt.Sprintf("## %s\n\n", topic))
-		sb.WriteString(fmt.Sprintf("**Decision:** %s\n\n", d.Decision))
+		fmt.Fprintf(&sb, "## %s\n\n", topic)
+		fmt.Fprintf(&sb, "**Decision:** %s\n\n", d.Decision)
 
 		if d.Rationale != "" {
-			sb.WriteString(fmt.Sprintf("**Rationale:** %s\n\n", d.Rationale))
+			fmt.Fprintf(&sb, "**Rationale:** %s\n\n", d.Rationale)
 		}
 
 		if d.Details != "" {
@@ -168,12 +168,12 @@ func formatDecisionsMarkdown(decisions []*memory.Decision) string {
 		if len(d.References) > 0 {
 			sb.WriteString("### References\n\n")
 			for _, ref := range d.References {
-				sb.WriteString(fmt.Sprintf("- %s\n", ref))
+				fmt.Fprintf(&sb, "- %s\n", ref)
 			}
 			sb.WriteString("\n")
 		}
 
-		sb.WriteString(fmt.Sprintf("_Date: %s_\n\n", d.CreatedAt.Format("2006-01-02 15:04:05")))
+		fmt.Fprintf(&sb, "_Date: %s_\n\n", d.CreatedAt.Format("2006-01-02 15:04:05"))
 		sb.WriteString("---\n\n")
 	}
 
