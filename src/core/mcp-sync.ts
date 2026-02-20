@@ -624,7 +624,7 @@ function syncScope(
       Object.fromEntries(Object.entries(finalServers).map(([k, v]) => [k, v])),
     );
 
-  if (aideChanged && Object.keys(finalServers).length > 0) {
+  if (aideChanged) {
     writeAideConfig(aidePath, finalServers);
     result.modified = true;
   }
@@ -637,7 +637,7 @@ function syncScope(
     const assistantChanged =
       JSON.stringify(existingAssistant) !== JSON.stringify(finalServers);
 
-    if (assistantChanged && Object.keys(finalServers).length > 0) {
+    if (assistantChanged) {
       writeAssistantConfig(platform, p, finalServers);
       result.modified = true;
     }

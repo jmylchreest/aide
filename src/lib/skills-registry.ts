@@ -29,6 +29,7 @@ import {
   mkdirSync,
   readdirSync,
   copyFileSync,
+  unlinkSync,
 } from "fs";
 import { join, basename } from "path";
 import { homedir } from "os";
@@ -245,7 +246,7 @@ export function uninstallSkill(cwd: string, name: string): boolean {
   const skillPath = join(cwd, SKILLS_DIR, `${name}.md`);
   if (existsSync(skillPath)) {
     try {
-      require("fs").unlinkSync(skillPath);
+      unlinkSync(skillPath);
     } catch {
       // Ignore
     }
