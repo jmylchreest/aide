@@ -36,10 +36,12 @@ release: check-version
 		sed -i 's/"version": *"[^"]*"/"version": "$(VERSION)"/' $$f; \
 	done
 	@echo "Updated: $(VERSION_FILES)"
+	@echo "Syncing bun.lock..."
+	@bun install
 	@echo ""
 	@git diff --stat
 	@echo ""
-	@git add $(VERSION_FILES)
+	@git add $(VERSION_FILES) bun.lock
 	@git commit -m "release: v$(VERSION)"
 	@git tag -a "v$(VERSION)" -m "v$(VERSION)"
 	@echo ""

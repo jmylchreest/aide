@@ -197,27 +197,27 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
 
       - name: Install dependencies
-        run: npm ci
+        run: bun install
 
       - name: Build TypeScript
-        run: npm run build
+        run: bun run build
 
       - name: Prepare OpenCode plugin package
-        run: node packages/opencode-plugin/scripts/copy-src.mjs
+        run: bun packages/opencode-plugin/scripts/copy-src.mjs
 
       - name: Set package version
         working-directory: packages/opencode-plugin
-        run: npm version "${{ needs.prepare.outputs.version }}" --no-git-tag-version --allow-same-version
+        run: |
+          jq '.version = "${{ needs.prepare.outputs.version }}"' package.json > package.json.tmp
+          mv package.json.tmp package.json
 
       - name: Pack tarball
         working-directory: packages/opencode-plugin
-        run: npm pack
+        run: bun pm pack
 
       - name: Upload npm tarball artifact
         uses: actions/upload-artifact@v6

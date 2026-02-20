@@ -37,6 +37,13 @@ opencode.json
 # Lock files from aide binary downloads
 packages/opencode-plugin/bin/.aide-download.lock
 
+# npm lockfile (replaced by bun.lock)
+package-lock.json
+
+# Syncthing temporary files
+.syncthing.*.tmp
+**/.syncthing.*.tmp
+
 # Dev toggle state (aide-dev-toggle.sh)
 .claude-prod-path
 *.bak

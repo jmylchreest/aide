@@ -13,27 +13,24 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: '22'
-          cache: 'npm'
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
 
       - name: Install dependencies
-        run: npm ci
+        run: bun install
 
       - name: Type check
-        run: npx tsc --noEmit
+        run: bunx tsc --noEmit
 
       - name: Build TypeScript
-        run: npm run build
+        run: bun run build
 
       - name: Run tests
-        run: npx vitest run --reporter=verbose --exclude='tests/memory-capture.test.ts'
+        run: bunx vitest run --reporter=verbose --exclude='tests/memory-capture.test.ts'
 
       - name: Lint
-        run: npm run lint
-        continue-on-error: true  # Don't fail on lint initially
+        run: bun run lint
+        continue-on-error: true # Don't fail on lint initially
 
   go:
     name: Go Tests
@@ -88,11 +85,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: '22'
-          cache: 'npm'
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
 
       - name: Setup Go
         uses: actions/setup-go@v6
@@ -100,12 +94,12 @@ jobs:
           go-version-file: aide/go.mod
           cache-dependency-path: aide/go.sum
 
-      - name: Install Node dependencies
-        run: npm ci
+      - name: Install Bun dependencies
+        run: bun install
 
       - name: Build TypeScript
-        run: npm run build
-        continue-on-error: true  # May not have full build setup yet
+        run: bun run build
+        continue-on-error: true # May not have full build setup yet
 
       - name: Build aide
         run: |
@@ -128,11 +122,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: '22'
-          cache: 'npm'
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
 
       - name: Setup Go
         uses: actions/setup-go@v6
@@ -141,10 +132,10 @@ jobs:
           cache-dependency-path: aide/go.sum
 
       - name: Install dependencies
-        run: npm ci
+        run: bun install
 
       - name: Build TypeScript
-        run: npm run build
+        run: bun run build
 
       - name: Build aide
         run: |
@@ -158,12 +149,12 @@ jobs:
 
           # Test skill injector (handles skill triggers with fuzzy matching)
           echo '{"hook_event_name":"UserPromptSubmit","prompt":"test","cwd":"'$(pwd)'"}' | \
-            node dist/hooks/skill-injector.js | \
+            bun dist/hooks/skill-injector.js | \
             jq -e '.continue == true'
 
           # Test pre-tool enforcer
           echo '{"hook_event_name":"PreToolUse","tool_name":"Read","agent_name":"architect","cwd":"'$(pwd)'"}' | \
-            node dist/hooks/pre-tool-enforcer.js | \
+            bun dist/hooks/pre-tool-enforcer.js | \
             jq -e '.continue == true'
 
           # Test aide CLI
