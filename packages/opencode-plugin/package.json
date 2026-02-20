@@ -23,10 +23,10 @@
     "aide-wrapper": "./bin/aide-wrapper.sh"
   },
   "scripts": {
-    "prebuild": "npm run copy-src",
+    "prebuild": "bun run copy-src",
     "build": "echo 'Ships TypeScript source — no compilation needed'",
-    "copy-src": "node scripts/copy-src.mjs",
-    "prepublishOnly": "npm run copy-src"
+    "copy-src": "bun scripts/copy-src.mjs",
+    "prepublishOnly": "bun run copy-src"
   },
   "keywords": [
     "aide",
