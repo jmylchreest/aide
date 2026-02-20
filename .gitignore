@@ -25,8 +25,7 @@ aide/.aide/
 aide/**/.aide/
 skills/**/.aide/
 packages/**/.aide/
-# Syncthing conflict files in .aide/
-.aide/**/*.sync-conflict-*
+
 
 # Logs
 *.log
