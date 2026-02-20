@@ -367,7 +367,9 @@ func isShareableMemory(m *memory.Memory) bool {
 	switch m.Category {
 	case "gotcha", "pattern":
 		return true
-	case memory.CategoryDecision, memory.CategoryLearning, memory.CategoryIssue, memory.CategoryDiscovery, memory.CategoryBlocker:
+	case memory.CategoryDecision:
+		return true
+	case memory.CategoryLearning, memory.CategoryIssue, memory.CategoryDiscovery, memory.CategoryBlocker:
 		// Fall through to tag-based checks below
 	}
 
