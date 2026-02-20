@@ -76,6 +76,10 @@ worktrees/
 memory/
 code/
 
+# MCP sync state - machine-specific
+config/mcp.json
+config/mcp-sync.journal.json
+
 # Legacy top-level database
 aide-memory.db
 
@@ -90,17 +94,36 @@ aide-memory.db
       // Ignore
     }
   } else {
-    // Migrate old gitignore format: ensure shared/ is allowed
+    // Migrate old gitignore format
     try {
-      const existingContent = readFileSync(gitignorePath, "utf-8");
+      let existingContent = readFileSync(gitignorePath, "utf-8");
+      let updated = false;
+
+      // Ensure shared/ is allowed
       if (!existingContent.includes("!shared/")) {
-        const updatedContent =
+        existingContent =
           existingContent.trimEnd() +
           `\n
 # Shared data IS committed (git-friendly markdown with frontmatter)
 !shared/
 `;
-        writeFileSync(gitignorePath, updatedContent);
+        updated = true;
+      }
+
+      // Ensure MCP sync files are ignored
+      if (!existingContent.includes("config/mcp.json")) {
+        existingContent =
+          existingContent.trimEnd() +
+          `\n
+# MCP sync state - machine-specific
+config/mcp.json
+config/mcp-sync.journal.json
+`;
+        updated = true;
+      }
+
+      if (updated) {
+        writeFileSync(gitignorePath, existingContent);
       }
     } catch {
       // Ignore

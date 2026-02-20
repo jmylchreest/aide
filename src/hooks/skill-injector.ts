@@ -79,7 +79,9 @@ function ensureDirectories(cwd: string): void {
  */
 function discoverSkills(cwd: string): Skill[] {
   log?.start("discoverSkills");
-  const skills = coreDiscoverSkills(cwd);
+  const pluginRoot =
+    process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT;
+  const skills = coreDiscoverSkills(cwd, pluginRoot || undefined);
   log?.end("discoverSkills", { totalSkills: skills.length });
   return skills;
 }

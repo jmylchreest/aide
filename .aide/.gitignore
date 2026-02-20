@@ -7,6 +7,10 @@ worktrees/
 memory/
 code/
 
+# MCP sync state - machine-specific
+config/mcp.json
+config/mcp-sync.journal.json
+
 # Legacy top-level database
 aide-memory.db
 
