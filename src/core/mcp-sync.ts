@@ -6,7 +6,7 @@
  * back to the current assistant's config files.
  *
  * Supports:
- *   - Claude Code: ~/.mcp.json (user), .mcp.json (project)
+ *   - Claude Code: ~/.claude.json (user), .mcp.json (project) (reads legacy ~/.mcp.json)
  *   - OpenCode:    ~/.config/opencode/opencode.json (user), ./opencode.json (project)
  *   - Aide canonical: ~/.aide/config/mcp.json (user), .aide/config/mcp.json (project)
  *
@@ -43,6 +43,8 @@ export interface CanonicalMcpServer {
   name: string;
   /** "local" (stdio) or "remote" (http/sse) */
   type: "local" | "remote";
+  /** Remote transport (http/sse) */
+  transport?: "http" | "sse";
   /** Command to run (for local servers) */
   command?: string;
   /** Arguments (for local servers) */
@@ -108,14 +110,32 @@ function userJournalPath(): string {
 }
 
 /** Get all config file paths for a given assistant and scope. */
-function getAssistantPaths(
+function getAssistantReadPaths(
   platform: McpPlatform,
   scope: McpScope,
   cwd: string,
 ): string[] {
   if (platform === "claude-code") {
     return scope === "user"
-      ? [join(homedir(), ".mcp.json")]
+      ? [join(homedir(), ".claude.json"), join(homedir(), ".mcp.json")]
+      : [join(cwd, ".mcp.json")];
+  }
+  if (platform === "opencode") {
+    return scope === "user"
+      ? [join(homedir(), ".config", "opencode", "opencode.json")]
+      : [join(cwd, "opencode.json")];
+  }
+  return [];
+}
+
+function getAssistantWritePaths(
+  platform: McpPlatform,
+  scope: McpScope,
+  cwd: string,
+): string[] {
+  if (platform === "claude-code") {
+    return scope === "user"
+      ? [join(homedir(), ".claude.json")]
       : [join(cwd, ".mcp.json")];
   }
   if (platform === "opencode") {
@@ -177,12 +197,20 @@ function readClaudeConfig(path: string): Record<string, CanonicalMcpServer> {
     for (const [name, def] of Object.entries(
       (raw.mcpServers || {}) as Record<string, Record<string, unknown>>,
     )) {
-      const claudeType = (def.type as string) || "stdio";
-      const isRemote = claudeType === "sse" || !!def.url;
+      const claudeType =
+        (def.type as string) ||
+        ((def.url as string | undefined) ? "http" : "stdio");
+      const isRemote =
+        claudeType === "sse" || claudeType === "http" || !!def.url;
 
       servers[name] = {
         name,
         type: isRemote ? "remote" : "local",
+        transport: isRemote
+          ? claudeType === "sse"
+            ? "sse"
+            : "http"
+          : undefined,
         command: def.command as string | undefined,
         args: def.args as string[] | undefined,
         url: def.url as string | undefined,
@@ -236,6 +264,7 @@ function readOpenCodeConfig(path: string): Record<string, CanonicalMcpServer> {
       servers[name] = {
         name,
         type: isRemote ? "remote" : "local",
+        transport: isRemote ? "http" : undefined,
         command,
         args: args?.length ? args : undefined,
         url: def.url as string | undefined,
@@ -315,7 +344,7 @@ function writeClaudeConfig(
     const entry: Record<string, unknown> = {};
 
     if (server.type === "remote") {
-      entry.type = "sse";
+      entry.type = server.transport === "sse" ? "sse" : "http";
       if (server.url) entry.url = server.url;
       if (server.headers) entry.headers = server.headers;
     } else {
@@ -536,7 +565,7 @@ function collectServers(
 
   // Assistant configs
   for (const platform of platforms) {
-    const paths = getAssistantPaths(platform, scope, cwd);
+    const paths = getAssistantReadPaths(platform, scope, cwd);
     for (const p of paths) {
       const servers = readAssistantConfig(platform, p);
       if (Object.keys(servers).length > 0) {
@@ -630,7 +659,7 @@ function syncScope(
   }
 
   // Step 7: Write to current assistant's config
-  const assistantPaths = getAssistantPaths(platform, scope, cwd);
+  const assistantPaths = getAssistantWritePaths(platform, scope, cwd);
   for (const p of assistantPaths) {
     // Read existing assistant config to check if it needs updating
     const existingAssistant = readAssistantConfig(platform, p);

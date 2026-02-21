@@ -11,6 +11,7 @@ import {
   writeFileSync,
   readFileSync,
   mkdirSync,
+  existsSync,
 } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
@@ -90,5 +91,155 @@ describe("syncMcpServers", () => {
 
     const updatedClaude = readJson(join(projectDir, ".mcp.json"));
     expect(updatedClaude.mcpServers).toEqual({});
+  });
+
+  it("writes user scope to ~/.claude.json only", async () => {
+    const { syncMcpServers } = await import("../core/mcp-sync.js");
+
+    writeFileSync(
+      join(tempHome, ".claude.json"),
+      JSON.stringify(
+        {
+          mcpServers: {
+            remoteSearch: {
+              type: "http",
+              url: "https://example.com/mcp",
+              headers: { "X-API-Key": "test-api-key" },
+            },
+          },
+        },
+        null,
+        2,
+      ) + "\n",
+    );
+
+    syncMcpServers("claude-code", projectDir);
+
+    const updatedUser = readJson(join(tempHome, ".claude.json"));
+    expect(updatedUser.mcpServers).toEqual({
+      remoteSearch: {
+        type: "http",
+        url: "https://example.com/mcp",
+        headers: { "X-API-Key": "test-api-key" },
+      },
+    });
+    expect(existsSync(join(tempHome, ".mcp.json"))).toBe(false);
+    expect(existsSync(join(projectDir, ".mcp.json"))).toBe(false);
+  });
+
+  it("keeps user and project scopes isolated", async () => {
+    const { syncMcpServers } = await import("../core/mcp-sync.js");
+
+    writeFileSync(
+      join(tempHome, ".claude.json"),
+      JSON.stringify(
+        {
+          mcpServers: {
+            remoteSearch: {
+              type: "http",
+              url: "https://example.com/mcp",
+              headers: { "X-API-Key": "test-api-key" },
+            },
+          },
+        },
+        null,
+        2,
+      ) + "\n",
+    );
+
+    writeFileSync(
+      join(projectDir, ".mcp.json"),
+      JSON.stringify(
+        {
+          mcpServers: {
+            projectOnly: { type: "stdio", command: "npx", args: ["proj"] },
+          },
+        },
+        null,
+        2,
+      ) + "\n",
+    );
+
+    syncMcpServers("claude-code", projectDir);
+
+    const updatedUser = readJson(join(tempHome, ".claude.json"));
+    const updatedProject = readJson(join(projectDir, ".mcp.json"));
+
+    expect(Object.keys(updatedUser.mcpServers).sort()).toEqual([
+      "remoteSearch",
+    ]);
+    expect(Object.keys(updatedProject.mcpServers).sort()).toEqual([
+      "projectOnly",
+    ]);
+  });
+
+  it("maps OpenCode local/remote to Claude stdio/http", async () => {
+    const { syncMcpServers } = await import("../core/mcp-sync.js");
+
+    writeFileSync(
+      join(projectDir, "opencode.json"),
+      JSON.stringify(
+        {
+          mcp: {
+            localTool: {
+              type: "local",
+              command: ["bunx", "-y", "local-tool"],
+              environment: { LOCAL_ENV: "1" },
+              enabled: true,
+            },
+            remoteSearch: {
+              type: "remote",
+              url: "https://example.com/mcp",
+              headers: { "X-API-Key": "test-api-key" },
+              enabled: true,
+            },
+          },
+        },
+        null,
+        2,
+      ) + "\n",
+    );
+
+    syncMcpServers("claude-code", projectDir);
+
+    const updatedClaude = readJson(join(projectDir, ".mcp.json"));
+    expect(updatedClaude.mcpServers).toEqual({
+      localTool: {
+        type: "stdio",
+        command: "bunx",
+        args: ["-y", "local-tool"],
+        env: { LOCAL_ENV: "1" },
+      },
+      remoteSearch: {
+        type: "http",
+        url: "https://example.com/mcp",
+        headers: { "X-API-Key": "test-api-key" },
+      },
+    });
+  });
+
+  it("preserves sse transport in canonical config", async () => {
+    const { syncMcpServers } = await import("../core/mcp-sync.js");
+
+    writeFileSync(
+      join(projectDir, ".mcp.json"),
+      JSON.stringify(
+        {
+          mcpServers: {
+            sseTool: {
+              type: "sse",
+              url: "https://sse.example.com/mcp",
+            },
+          },
+        },
+        null,
+        2,
+      ) + "\n",
+    );
+
+    syncMcpServers("opencode", projectDir);
+
+    const canonical = readJson(join(projectDir, ".aide", "config", "mcp.json"));
+    expect(canonical.mcpServers.sseTool.transport).toBe("sse");
   });
 });
