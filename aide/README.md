@@ -138,10 +138,11 @@ Data is stored in `.aide/memory/store.db` using [bbolt](https://github.com/etcd-
 
 The database path is automatically derived from the project root (`.aide/memory/store.db`).
 
-| Variable                  | Default | Description                                |
-| ------------------------- | ------- | ------------------------------------------ |
-| `AIDE_CODE_STORE_DISABLE` | unset   | Set to `1` to disable code store           |
-| `AIDE_CODE_STORE_SYNC`    | unset   | Set to `1` for synchronous code store init |
+| Variable                  | Default | Description                                     |
+| ------------------------- | ------- | ----------------------------------------------- |
+| `AIDE_FORCE_INIT`         | unset   | Set to `1` to initialize in non-git directories |
+| `AIDE_CODE_STORE_DISABLE` | unset   | Set to `1` to disable code store                |
+| `AIDE_CODE_STORE_SYNC`    | unset   | Set to `1` for synchronous code store init      |
 
 ## Development
 

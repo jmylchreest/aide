@@ -98,6 +98,8 @@ interface AideState {
   worktree: string;
   /** Root of the aide plugin package (for finding bundled skills) */
   pluginRoot: string | null;
+  /** Skip initializing aide for non-project directories */
+  skipInit: boolean;
   sessionState: SessionState | null;
   memories: MemoryInjection | null;
   welcomeContext: string | null;
@@ -122,6 +124,7 @@ export async function createHooks(
   worktree: string,
   client: OpenCodeClient,
   pluginRoot?: string,
+  options?: { skipInit?: boolean },
 ): Promise<Hooks> {
   const state: AideState = {
     initialized: false,
@@ -129,6 +132,7 @@ export async function createHooks(
     cwd,
     worktree,
     pluginRoot: pluginRoot || null,
+    skipInit: options?.skipInit ?? false,
     sessionState: null,
     memories: null,
     welcomeContext: null,
@@ -142,6 +146,18 @@ export async function createHooks(
 
   // Run one-time initialization (directories, binary, config)
   initializeAide(state);
+
+  try {
+    await client.app.log({
+      body: {
+        service: "aide",
+        level: "info",
+        message: `aide hooks init: cwd=${state.cwd} worktree=${state.worktree} pluginRoot=${state.pluginRoot ?? "unknown"} binary=${state.binary ?? "not-found"} skipInit=${state.skipInit}`,
+      },
+    });
+  } catch (err) {
+    debug(SOURCE, `Init log failed (non-fatal): ${err}`);
+  }
 
   return {
     event: createEventHandler(state),
@@ -250,6 +266,15 @@ function createCommandHandler(state: AideState): (
 
 function initializeAide(state: AideState): void {
   try {
+    if (state.skipInit) {
+      debug(
+        SOURCE,
+        `Initialization skipped (no git root detected): ${state.cwd}`,
+      );
+      state.initialized = true;
+      return;
+    }
+
     ensureDirectories(state.cwd);
 
     // Sync MCP server configs across assistants (FS only, fast)
@@ -263,7 +288,10 @@ function initializeAide(state: AideState): void {
     cleanupStaleStateFiles(state.cwd);
     resetHudState(state.cwd);
 
-    state.binary = findAideBinary({ cwd: state.cwd });
+    state.binary = findAideBinary({
+      cwd: state.cwd,
+      pluginRoot: state.pluginRoot || undefined,
+    });
 
     if (state.binary) {
       const projectName = getProjectName(state.cwd);

@@ -42,7 +42,8 @@ If you prefer to configure manually, add to your `opencode.json` (either `~/.con
       "command": ["bunx", "-y", "@jmylchreest/aide-plugin", "mcp"],
       "environment": {
         "AIDE_CODE_WATCH": "1",
-        "AIDE_CODE_WATCH_DELAY": "30s"
+        "AIDE_CODE_WATCH_DELAY": "30s",
+        "AIDE_FORCE_INIT": "1"
       },
       "enabled": true
     }
@@ -269,7 +270,8 @@ The published package requires Bun (uses `#!/usr/bin/env bun` shebang). Install 
 
 ## Environment Variables
 
-| Variable             | Default | Description                                    |
-| -------------------- | ------- | ---------------------------------------------- |
-| `AIDE_DEBUG`         | unset   | Set to `1` for debug logging to `.aide/_logs/` |
-| `AIDE_MEMORY_INJECT` | `1`     | Set to `0` to skip memory injection            |
+| Variable             | Default | Description                                     |
+| -------------------- | ------- | ----------------------------------------------- |
+| `AIDE_DEBUG`         | unset   | Set to `1` for debug logging to `.aide/_logs/`  |
+| `AIDE_FORCE_INIT`    | unset   | Set to `1` to initialize in non-git directories |
+| `AIDE_MEMORY_INJECT` | `1`     | Set to `0` to skip memory injection             |

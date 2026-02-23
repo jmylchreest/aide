@@ -37,7 +37,16 @@ func main() {
 	}
 
 	// Determine database path from project root (walks up to .aide or .git).
-	projectRoot := findProjectRoot()
+	projectRoot, hasMarker := findProjectRoot()
+	forceInit := os.Getenv("AIDE_FORCE_INIT") != ""
+
+	if !hasMarker && !forceInit {
+		// No .aide/ or .git/ marker found and AIDE_FORCE_INIT is not set.
+		// Skip creating .aide/ directories to avoid polluting arbitrary dirs.
+		fmt.Fprintf(os.Stderr, "aide: no .aide/ or .git/ directory found (set AIDE_FORCE_INIT=1 to override)\n")
+		os.Exit(1)
+	}
+
 	dbPath := filepath.Join(projectRoot, defaultDBName)
 
 	// Ensure memory directory exists.
@@ -112,6 +121,7 @@ Commands:
   version    Show version information
 
 Environment:
+  AIDE_FORCE_INIT=1       Force initialization even without .git/ or .aide/
   AIDE_CODE_WATCH=1       Enable file watching for code index updates
   AIDE_CODE_WATCH_PATHS   Comma-separated paths to watch (default: cwd)
   AIDE_CODE_WATCH_DELAY   Debounce delay for watcher (default: 30s)
@@ -154,16 +164,20 @@ Examples:
 // This avoids spawning a git subprocess on every invocation.
 // For git worktrees, .git is a file pointing to the main repo; we follow it
 // to find the actual repository root so all worktrees share the same store.
-func findProjectRoot() string {
+//
+// Returns the resolved project root and a boolean indicating whether a
+// .aide/ or .git/ marker was actually found. When no marker is found,
+// the current working directory is returned.
+func findProjectRoot() (string, bool) {
 	cwd, err := os.Getwd()
 	if err != nil {
-		return "."
+		return ".", false
 	}
 
 	dir := cwd
 	for {
 		if _, err := os.Stat(filepath.Join(dir, ".aide")); err == nil {
-			return dir
+			return dir, true
 		}
 
 		gitPath := filepath.Join(dir, ".git")
@@ -171,19 +185,19 @@ func findProjectRoot() string {
 		if err == nil {
 			if info.IsDir() {
 				// Normal git repo
-				return dir
+				return dir, true
 			}
 			// Worktree: .git is a file containing "gitdir: <path>"
 			// Follow it to the main repo root.
 			if root := resolveWorktreeRoot(gitPath); root != "" {
-				return root
+				return root, true
 			}
-			return dir
+			return dir, true
 		}
 
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			return cwd
+			return cwd, false
 		}
 		dir = parent
 	}

@@ -528,12 +528,14 @@ aide upgrade                         # Self-upgrade binary
 
 Key environment variables:
 
-| Variable                    | Description                                   |
-| --------------------------- | --------------------------------------------- |
-| `AIDE_DEBUG=1`              | Enable debug logging (logs to `.aide/_logs/`) |
-| `AIDE_CODE_WATCH=1`         | Enable file watching for auto-reindex         |
-| `AIDE_CODE_WATCH_DELAY=30s` | Delay before re-indexing after file changes   |
-| `AIDE_MEMORY_INJECT=0`      | Disable memory injection                      |
+| Variable                    | Description                                    |
+| --------------------------- | ---------------------------------------------- |
+| `AIDE_DEBUG=1`              | Enable debug logging (logs to `.aide/_logs/`)  |
+| `AIDE_FORCE_INIT=1`         | Force initialization in non-git directories    |
+| `AIDE_CODE_WATCH=1`         | Enable file watching for auto-reindex          |
+| `AIDE_CODE_WATCH_DELAY=30s` | Delay before re-indexing after file changes    |
+| `AIDE_MEMORY_INJECT=0`      | Disable memory injection                       |
+| `AIDE_SHARE_AUTO_IMPORT=1`  | Auto-import shared decisions/memories on start |
 
 ## Status Line (Claude Code)
 

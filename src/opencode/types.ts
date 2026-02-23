@@ -13,14 +13,58 @@
 // Plugin Input (provided by OpenCode on plugin init)
 // =============================================================================
 
+/**
+ * Project info as provided by OpenCode.
+ *
+ * Mirrors the Project.Info shape from sst/opencode:
+ *   packages/opencode/src/project/project.ts
+ *
+ * Key fields:
+ *   - id:        root commit hash (or "global" for non-git)
+ *   - worktree:  dirname(git rev-parse --git-common-dir) — main repo root
+ *   - vcs:       "git" | undefined
+ *   - sandboxes: list of active sandboxes / worktrees
+ */
+export interface OpenCodeProject {
+  id: string;
+  /** Main repository root (git common dir parent). NOT the sandbox/worktree. */
+  worktree: string;
+  /** Version control system type */
+  vcs?: string;
+  /** Optional display name */
+  name?: string;
+  /** Optional icon */
+  icon?: string;
+  /** Active sandboxes (worktree paths) */
+  sandboxes?: string[];
+  /** Timestamps */
+  time?: { created: number; updated: number };
+  /** Allow additional fields from future OpenCode versions */
+  [key: string]: unknown;
+}
+
 export interface PluginInput {
   /** OpenCode SDK client for API interactions */
   client: OpenCodeClient;
-  /** Current project information */
-  project: { name?: string; directory?: string };
-  /** Current working directory */
+  /**
+   * Current project information.
+   *
+   * NOTE: This is a full Project.Info from OpenCode, NOT a minimal
+   * { name, directory } object. The key field for project root is
+   * `project.worktree` (the git common dir parent), not
+   * `project.directory` (which does not exist in OpenCode's type).
+   */
+  project: OpenCodeProject;
+  /**
+   * The directory OpenCode was invoked from.
+   * Typically process.cwd() or the --dir argument.
+   */
   directory: string;
-  /** Git worktree root */
+  /**
+   * Git sandbox / working tree root.
+   * Result of `git rev-parse --show-toplevel` from the cwd.
+   * For non-git projects this is "/".
+   */
   worktree: string;
   /** URL of the running OpenCode server */
   serverUrl: URL;
