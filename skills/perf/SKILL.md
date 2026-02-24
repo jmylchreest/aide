@@ -19,6 +19,7 @@ Systematic approach to identifying and fixing performance issues.
 ## Prerequisites
 
 Before starting:
+
 - Identify the specific operation or endpoint that is slow
 - Understand what "fast enough" means (target latency, throughput)
 - Ensure you can measure performance reproducibly
@@ -45,6 +46,7 @@ curl -w "@curl-format.txt" -o /dev/null -s "http://localhost:3000/api/endpoint"
 ```
 
 **Record baseline metrics:**
+
 - Execution time (p50, p95, p99 if available)
 - Memory usage
 - Number of operations per second
@@ -65,30 +67,42 @@ go tool pprof -http=:8080 cpu.prof
 ```
 
 ```
-# Search for common expensive patterns
-mcp__plugin_aide_aide__code_search query="forEach" kind="function"
-mcp__plugin_aide_aide__code_search query="map" kind="function"
+# Get structural overview of suspect files (signatures + line ranges, not full content)
+mcp__plugin_aide_aide__code_outline file="path/to/hotspot.ts"
 
-# Find database queries
-Grep for "SELECT", "find(", "query("
+# Find functions/classes in suspect area by name
+mcp__plugin_aide_aide__code_search query="processData" kind="function"
 
-# Find network calls
-Grep for "fetch", "axios", "http.Get"
+# Find all callers of a hot function
+mcp__plugin_aide_aide__code_references symbol="processData"
+
+# Search for expensive patterns in code bodies (Grep is better here)
+Grep for ".forEach(", ".map(", ".filter("    # Loop/iteration patterns
+Grep for "SELECT", "find(", "query("         # Database queries
+Grep for "fetch(", "axios", "http.Get"       # Network calls
+Grep for "setTimeout", "setInterval"         # Timers
+Grep for "JSON.parse", "JSON.stringify"      # Serialization
 ```
+
+Note: `code_search` finds function/class/type _definitions_ by name.
+For patterns inside function bodies (loops, queries, call chains), use Grep.
+
+After identifying hotspot functions via profiling and search, use `Read` with offset/limit to read
+specific functions (use line numbers from `code_outline`).
 
 ### Step 3: Analyze Performance Patterns
 
 Look for these common issues:
 
-| Issue | Pattern | Solution |
-|-------|---------|----------|
-| N+1 queries | Loop containing DB call | Batch/eager load |
-| Repeated computation | Same calculation in loop | Memoize/cache |
-| Large allocations | Creating objects in loop | Reuse/pool objects |
-| Blocking I/O | Sync file/network ops | Make async/concurrent |
-| Missing indexes | Slow DB queries | Add database indexes |
-| Unnecessary work | Processing unused data | Filter/skip early |
-| Serial execution | Sequential independent ops | Parallelize |
+| Issue                | Pattern                    | Solution              |
+| -------------------- | -------------------------- | --------------------- |
+| N+1 queries          | Loop containing DB call    | Batch/eager load      |
+| Repeated computation | Same calculation in loop   | Memoize/cache         |
+| Large allocations    | Creating objects in loop   | Reuse/pool objects    |
+| Blocking I/O         | Sync file/network ops      | Make async/concurrent |
+| Missing indexes      | Slow DB queries            | Add database indexes  |
+| Unnecessary work     | Processing unused data     | Filter/skip early     |
+| Serial execution     | Sequential independent ops | Parallelize           |
 
 ### Step 4: Apply Optimizations
 
@@ -111,6 +125,7 @@ go test -bench=. -benchmem ./...
 ```
 
 Compare:
+
 - Did the metric improve?
 - By how much (percentage)?
 - Any negative side effects?
@@ -130,13 +145,13 @@ go test ./...
 
 ## Failure Handling
 
-| Situation | Action |
-|-----------|--------|
-| Cannot measure reliably | Increase sample size, reduce variance sources |
-| Optimization made it slower | Revert, analyze why, profile more carefully |
-| Optimization broke tests | Fix tests or revert if behavior changed |
-| Bottleneck is external | Document, consider caching, async processing |
-| Memory improved but CPU worse | Evaluate trade-off for use case |
+| Situation                     | Action                                        |
+| ----------------------------- | --------------------------------------------- |
+| Cannot measure reliably       | Increase sample size, reduce variance sources |
+| Optimization made it slower   | Revert, analyze why, profile more carefully   |
+| Optimization broke tests      | Fix tests or revert if behavior changed       |
+| Bottleneck is external        | Document, consider caching, async processing  |
+| Memory improved but CPU worse | Evaluate trade-off for use case               |
 
 ## Common Optimizations
 
@@ -149,12 +164,12 @@ for (const user of users) {
 }
 
 // GOOD: Batch query
-const userIds = users.map(u => u.id);
+const userIds = users.map((u) => u.id);
 const posts = await db.getPostsForUsers(userIds);
 
 // BAD: Repeated work
-const typeA = items.filter(x => x.type === 'a').map(x => x.value);
-const typeB = items.filter(x => x.type === 'b').map(x => x.value);
+const typeA = items.filter((x) => x.type === "a").map((x) => x.value);
+const typeB = items.filter((x) => x.type === "b").map((x) => x.value);
 
 // GOOD: Single pass
 const grouped = { a: [], b: [] };
@@ -167,10 +182,7 @@ const result1 = await fetch(url1);
 const result2 = await fetch(url2);
 
 // GOOD: Parallel async
-const [result1, result2] = await Promise.all([
-  fetch(url1),
-  fetch(url2)
-]);
+const [result1, result2] = await Promise.all([fetch(url1), fetch(url2)]);
 ```
 
 ### Go
@@ -225,13 +237,17 @@ SELECT * FROM posts WHERE user_id IN (?, ?, ?);
 
 ## MCP Tools
 
-- `mcp__plugin_aide_aide__code_search` - Find loops, queries, expensive operations
-- `mcp__plugin_aide_aide__code_symbols` - Understand function structure
+- `mcp__plugin_aide_aide__code_outline` - **Start here.** Get collapsed file skeleton to identify functions before reading
+- `mcp__plugin_aide_aide__code_search` - Find function/class/type definitions by name
+- `mcp__plugin_aide_aide__code_symbols` - List all symbol definitions in a file
+- `mcp__plugin_aide_aide__code_references` - Find all callers of a hot function (exact name match)
 - `mcp__plugin_aide_aide__memory_search` - Check past performance decisions
+- **Grep** - Find code patterns in bodies: loops, queries, call chains, string literals
 
 ## Profiling Commands Reference
 
 ### Node.js
+
 ```bash
 # CPU profiling
 node --cpu-prof app.js
@@ -247,6 +263,7 @@ npx clinic flame -- node app.js
 ```
 
 ### Go
+
 ```bash
 # CPU profiling
 go test -cpuprofile=cpu.prof -bench=.
@@ -262,6 +279,7 @@ go tool trace trace.out
 ```
 
 ### Browser
+
 - DevTools -> Performance -> Record
 - DevTools -> Memory -> Heap snapshot
 - Lighthouse for overall page performance
@@ -269,6 +287,7 @@ go tool trace trace.out
 ## Verification Criteria
 
 Before completing:
+
 - [ ] Baseline measurement recorded
 - [ ] Improvement quantified (percentage)
 - [ ] All tests still pass
@@ -281,25 +300,30 @@ Before completing:
 ## Performance Analysis: [Operation/Endpoint Name]
 
 ### Baseline
+
 - Execution time: 450ms (p50), 680ms (p95)
 - Memory: 125MB peak
 - Database queries: 150
 
 ### Hotspots Identified
+
 1. `db.getUsers()` - 300ms (67% of total)
 2. `processData()` - 100ms (22% of total)
 3. `formatOutput()` - 50ms (11% of total)
 
 ### Optimizations Applied
+
 1. Batched user queries - 300ms -> 50ms
 2. Memoized processData for repeated calls - 100ms -> 5ms
 
 ### Results
+
 - Execution time: 450ms -> 105ms (77% faster)
 - Memory: 125MB -> 80MB (36% reduction)
 - Database queries: 150 -> 3 (98% reduction)
 
 ### Verification
+
 - All tests: PASS
 - Output correctness: VERIFIED
 ```

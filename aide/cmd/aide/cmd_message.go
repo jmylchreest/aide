@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-
-	"github.com/jmylchreest/aide/aide/pkg/store"
 )
 
 func cmdMessage(dbPath string, args []string) error {
@@ -177,13 +175,17 @@ func messageClear(b *Backend, dbPath string, args []string) error {
 		return fmt.Errorf("message clear not available when daemon is running - use direct CLI access")
 	}
 
-	s, err := store.NewBoltStore(dbPath)
-	if err != nil {
-		return fmt.Errorf("failed to open database: %w", err)
+	// Use the Backend's existing store via type assertion to access ClearMessages
+	// (which is on BoltStore/CombinedStore but not on the Store interface).
+	type messageClearer interface {
+		ClearMessages(agentID string) (int, error)
 	}
-	defer s.Close()
+	clearer, ok := b.store.(messageClearer)
+	if !ok {
+		return fmt.Errorf("store does not support message clear")
+	}
 
-	count, err := s.ClearMessages(agentID)
+	count, err := clearer.ClearMessages(agentID)
 	if err != nil {
 		return fmt.Errorf("failed to clear messages: %w", err)
 	}

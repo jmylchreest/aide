@@ -156,8 +156,8 @@ export const AidePlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => {
     // Plugin may be called before the client is fully ready
   }
 
-  // Also log to stderr for direct observability
-  console.error(rawLog);
+  // Also log to stderr when debugging
+  if (process.env.AIDE_DEBUG === "1") console.error(rawLog);
 
   const resolved = resolveProjectRoot(ctx);
 
@@ -170,7 +170,7 @@ export const AidePlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => {
   } catch {
     // non-fatal
   }
-  console.error(resolvedLog);
+  if (process.env.AIDE_DEBUG === "1") console.error(resolvedLog);
 
   return createHooks(resolved.root, ctx.worktree, ctx.client, pluginRoot, {
     skipInit: !resolved.hasProjectRoot,

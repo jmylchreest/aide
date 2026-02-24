@@ -17,6 +17,7 @@ Write comprehensive tests and run test suites.
 ## Prerequisites
 
 Before starting:
+
 - Identify the code to be tested (function, module, feature)
 - Understand the testing framework used in the project
 
@@ -27,6 +28,7 @@ Before starting:
 Use the `mcp__plugin_aide_aide__decision_get` tool with topic `testing` to check for testing framework decisions.
 
 Common frameworks by language:
+
 - **TypeScript/JavaScript:** Vitest, Jest, Mocha
 - **Go:** built-in `go test`
 - **Python:** pytest, unittest
@@ -34,13 +36,18 @@ Common frameworks by language:
 ### Step 2: Discover Existing Test Patterns
 
 Use `Glob` to find test files:
+
 - Pattern: `**/*.test.ts`, `**/*.spec.ts` (TypeScript)
 - Pattern: `**/*_test.go` (Go)
 - Pattern: `**/test_*.py`, `**/*_test.py` (Python)
 
-Use `mcp__plugin_aide_aide__code_search` with query `describe` and `it` to find test patterns.
+Use **Grep** to find test patterns in existing test files:
+
+- `Grep pattern="describe\(" include="*.test.*"` — find test suites
+- `Grep pattern="it\(|test\(" include="*.test.*"` — find test cases
 
 Read an existing test file to understand:
+
 - Import patterns
 - Setup/teardown patterns
 - Mocking approach
@@ -52,6 +59,7 @@ Use `mcp__plugin_aide_aide__code_symbols` with the target file path to get funct
 Use `mcp__plugin_aide_aide__code_search` to find related types.
 
 Identify:
+
 - Input parameters and types
 - Return type
 - Side effects
@@ -63,12 +71,14 @@ Identify:
 Follow the project's testing conventions. Cover these scenarios:
 
 **Test Categories:**
+
 1. **Happy path** - Normal, expected inputs
 2. **Edge cases** - Empty, null, boundary values
 3. **Error cases** - Invalid inputs, expected failures
 4. **Async behavior** - If applicable
 
 **Naming convention:**
+
 - Descriptive names that explain what is being tested
 - Format: "should [expected behavior] when [condition]"
 
@@ -103,51 +113,52 @@ go tool cover -html=coverage.out
 ```
 
 **Coverage targets:**
+
 - New code: aim for >80%
 - Critical paths: aim for >90%
 - Focus on meaningful tests, not just coverage numbers
 
 ## Failure Handling
 
-| Failure | Action |
-|---------|--------|
-| Test imports fail | Check path aliases, ensure test config matches main |
-| Mock not working | Verify mock setup, check dependency injection |
-| Async test timeout | Add proper await, increase timeout if needed |
-| Flaky test | Check for shared state, timing issues, or external deps |
-| Coverage too low | Add edge case tests, error path tests |
+| Failure            | Action                                                  |
+| ------------------ | ------------------------------------------------------- |
+| Test imports fail  | Check path aliases, ensure test config matches main     |
+| Mock not working   | Verify mock setup, check dependency injection           |
+| Async test timeout | Add proper await, increase timeout if needed            |
+| Flaky test         | Check for shared state, timing issues, or external deps |
+| Coverage too low   | Add edge case tests, error path tests                   |
 
 ## Test Structure Templates
 
 ### TypeScript/JavaScript (Vitest/Jest)
 
 ```typescript
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { functionToTest } from './module';
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { functionToTest } from "./module";
 
-describe('functionToTest', () => {
+describe("functionToTest", () => {
   beforeEach(() => {
     // Reset state before each test
     vi.clearAllMocks();
   });
 
-  it('should return expected result for valid input', () => {
-    const result = functionToTest('valid input');
-    expect(result).toBe('expected output');
+  it("should return expected result for valid input", () => {
+    const result = functionToTest("valid input");
+    expect(result).toBe("expected output");
   });
 
-  it('should handle empty input', () => {
-    const result = functionToTest('');
-    expect(result).toBe('');
+  it("should handle empty input", () => {
+    const result = functionToTest("");
+    expect(result).toBe("");
   });
 
-  it('should throw error for null input', () => {
-    expect(() => functionToTest(null)).toThrow('Input required');
+  it("should throw error for null input", () => {
+    expect(() => functionToTest(null)).toThrow("Input required");
   });
 
-  it('should handle async operation', async () => {
-    const result = await functionToTest('async input');
-    expect(result).resolves.toBe('async output');
+  it("should handle async operation", async () => {
+    const result = await functionToTest("async input");
+    expect(result).resolves.toBe("async output");
   });
 });
 ```
@@ -213,6 +224,7 @@ class TestFunctionToTest:
 ## Verification Criteria
 
 Before completing:
+
 - [ ] All new tests pass
 - [ ] Existing tests still pass
 - [ ] Coverage meets project standards
@@ -225,9 +237,11 @@ Before completing:
 ## Tests Added
 
 ### Files
+
 - `path/to/file.test.ts` - 5 tests for UserService
 
 ### Test Cases
+
 1. should create user with valid data
 2. should reject duplicate email
 3. should hash password before saving
@@ -235,10 +249,12 @@ Before completing:
 5. should validate email format
 
 ### Coverage
+
 - New code: 92%
 - Total project: 84%
 
 ### Verification
+
 - All tests: PASS
 - No flaky tests observed
 ```

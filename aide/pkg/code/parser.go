@@ -559,6 +559,14 @@ func (p *Parser) extractWithQuery(query *sitter.Query, root *sitter.Node, conten
 			Language:  lang,
 			CreatedAt: time.Now(),
 		}
+
+		// Extract body range if present
+		bodyNode := defNode.ChildByFieldName("body")
+		if bodyNode != nil {
+			sym.BodyStartLine = int(bodyNode.StartPoint().Row) + 1
+			sym.BodyEndLine = int(bodyNode.EndPoint().Row) + 1
+		}
+
 		symbols = append(symbols, sym)
 	}
 
@@ -701,7 +709,7 @@ func (p *Parser) extractTSFunction(node *sitter.Node, content []byte, filePath, 
 		return nil
 	}
 
-	return &Symbol{
+	sym := &Symbol{
 		ID:         ulid.Make().String(),
 		Name:       p.nodeText(nameNode, content),
 		Kind:       KindFunction,
@@ -713,6 +721,8 @@ func (p *Parser) extractTSFunction(node *sitter.Node, content []byte, filePath, 
 		Language:   lang,
 		CreatedAt:  time.Now(),
 	}
+	setBodyRange(sym, node)
+	return sym
 }
 
 func (p *Parser) extractTSMethod(node *sitter.Node, content []byte, filePath, lang string) *Symbol {
@@ -721,7 +731,7 @@ func (p *Parser) extractTSMethod(node *sitter.Node, content []byte, filePath, la
 		return nil
 	}
 
-	return &Symbol{
+	sym := &Symbol{
 		ID:         ulid.Make().String(),
 		Name:       p.nodeText(nameNode, content),
 		Kind:       KindMethod,
@@ -733,6 +743,8 @@ func (p *Parser) extractTSMethod(node *sitter.Node, content []byte, filePath, la
 		Language:   lang,
 		CreatedAt:  time.Now(),
 	}
+	setBodyRange(sym, node)
+	return sym
 }
 
 func (p *Parser) extractTSClass(node *sitter.Node, content []byte, filePath, lang string) *Symbol {
@@ -744,7 +756,7 @@ func (p *Parser) extractTSClass(node *sitter.Node, content []byte, filePath, lan
 	// Extract class signature (class name extends X implements Y)
 	sig := p.extractClassSignature(node, content)
 
-	return &Symbol{
+	sym := &Symbol{
 		ID:         ulid.Make().String(),
 		Name:       p.nodeText(nameNode, content),
 		Kind:       KindClass,
@@ -756,6 +768,8 @@ func (p *Parser) extractTSClass(node *sitter.Node, content []byte, filePath, lan
 		Language:   lang,
 		CreatedAt:  time.Now(),
 	}
+	setBodyRange(sym, node)
+	return sym
 }
 
 func (p *Parser) extractTSInterface(node *sitter.Node, content []byte, filePath, lang string) *Symbol {
@@ -764,7 +778,7 @@ func (p *Parser) extractTSInterface(node *sitter.Node, content []byte, filePath,
 		return nil
 	}
 
-	return &Symbol{
+	sym := &Symbol{
 		ID:         ulid.Make().String(),
 		Name:       p.nodeText(nameNode, content),
 		Kind:       KindInterface,
@@ -776,6 +790,8 @@ func (p *Parser) extractTSInterface(node *sitter.Node, content []byte, filePath,
 		Language:   lang,
 		CreatedAt:  time.Now(),
 	}
+	setBodyRange(sym, node)
+	return sym
 }
 
 func (p *Parser) extractTSTypeAlias(node *sitter.Node, content []byte, filePath, lang string) *Symbol {
@@ -784,7 +800,7 @@ func (p *Parser) extractTSTypeAlias(node *sitter.Node, content []byte, filePath,
 		return nil
 	}
 
-	return &Symbol{
+	sym := &Symbol{
 		ID:         ulid.Make().String(),
 		Name:       p.nodeText(nameNode, content),
 		Kind:       KindType,
@@ -796,6 +812,8 @@ func (p *Parser) extractTSTypeAlias(node *sitter.Node, content []byte, filePath,
 		Language:   lang,
 		CreatedAt:  time.Now(),
 	}
+	setBodyRange(sym, node)
+	return sym
 }
 
 func (p *Parser) extractTSVariableDeclaration(node *sitter.Node, content []byte, filePath, lang string) []*Symbol {
@@ -811,7 +829,7 @@ func (p *Parser) extractTSVariableDeclaration(node *sitter.Node, content []byte,
 			if nameNode != nil && valueNode != nil {
 				valType := valueNode.Type()
 				if valType == "arrow_function" || valType == "function_expression" {
-					symbols = append(symbols, &Symbol{
+					sym := &Symbol{
 						ID:         ulid.Make().String(),
 						Name:       p.nodeText(nameNode, content),
 						Kind:       KindFunction,
@@ -822,7 +840,9 @@ func (p *Parser) extractTSVariableDeclaration(node *sitter.Node, content []byte,
 						EndLine:    int(node.EndPoint().Row) + 1,
 						Language:   lang,
 						CreatedAt:  time.Now(),
-					})
+					}
+					setBodyRange(sym, valueNode)
+					symbols = append(symbols, sym)
 				}
 			}
 		}
@@ -839,7 +859,7 @@ func (p *Parser) extractGoFunction(node *sitter.Node, content []byte, filePath s
 		return nil
 	}
 
-	return &Symbol{
+	sym := &Symbol{
 		ID:         ulid.Make().String(),
 		Name:       p.nodeText(nameNode, content),
 		Kind:       KindFunction,
@@ -851,6 +871,8 @@ func (p *Parser) extractGoFunction(node *sitter.Node, content []byte, filePath s
 		Language:   LangGo,
 		CreatedAt:  time.Now(),
 	}
+	setBodyRange(sym, node)
+	return sym
 }
 
 func (p *Parser) extractGoMethod(node *sitter.Node, content []byte, filePath string) *Symbol {
@@ -859,7 +881,7 @@ func (p *Parser) extractGoMethod(node *sitter.Node, content []byte, filePath str
 		return nil
 	}
 
-	return &Symbol{
+	sym := &Symbol{
 		ID:         ulid.Make().String(),
 		Name:       p.nodeText(nameNode, content),
 		Kind:       KindMethod,
@@ -871,6 +893,8 @@ func (p *Parser) extractGoMethod(node *sitter.Node, content []byte, filePath str
 		Language:   LangGo,
 		CreatedAt:  time.Now(),
 	}
+	setBodyRange(sym, node)
+	return sym
 }
 
 func (p *Parser) extractGoTypeDecl(node *sitter.Node, content []byte, filePath string) []*Symbol {
@@ -892,7 +916,7 @@ func (p *Parser) extractGoTypeDecl(node *sitter.Node, content []byte, filePath s
 					}
 				}
 
-				symbols = append(symbols, &Symbol{
+				sym := &Symbol{
 					ID:         ulid.Make().String(),
 					Name:       p.nodeText(nameNode, content),
 					Kind:       kind,
@@ -903,7 +927,9 @@ func (p *Parser) extractGoTypeDecl(node *sitter.Node, content []byte, filePath s
 					EndLine:    int(child.EndPoint().Row) + 1,
 					Language:   LangGo,
 					CreatedAt:  time.Now(),
-				})
+				}
+				setBodyRange(sym, child)
+				symbols = append(symbols, sym)
 			}
 		}
 	}
@@ -925,7 +951,7 @@ func (p *Parser) extractPythonFunction(node *sitter.Node, content []byte, filePa
 		kind = KindMethod
 	}
 
-	return &Symbol{
+	sym := &Symbol{
 		ID:         ulid.Make().String(),
 		Name:       p.nodeText(nameNode, content),
 		Kind:       kind,
@@ -937,6 +963,8 @@ func (p *Parser) extractPythonFunction(node *sitter.Node, content []byte, filePa
 		Language:   LangPython,
 		CreatedAt:  time.Now(),
 	}
+	setBodyRange(sym, node)
+	return sym
 }
 
 func (p *Parser) extractPythonClass(node *sitter.Node, content []byte, filePath string) *Symbol {
@@ -945,7 +973,7 @@ func (p *Parser) extractPythonClass(node *sitter.Node, content []byte, filePath 
 		return nil
 	}
 
-	return &Symbol{
+	sym := &Symbol{
 		ID:         ulid.Make().String(),
 		Name:       p.nodeText(nameNode, content),
 		Kind:       KindClass,
@@ -956,6 +984,31 @@ func (p *Parser) extractPythonClass(node *sitter.Node, content []byte, filePath 
 		EndLine:    int(node.EndPoint().Row) + 1,
 		Language:   LangPython,
 		CreatedAt:  time.Now(),
+	}
+	setBodyRange(sym, node)
+	return sym
+}
+
+// setBodyRange extracts the body node range from a tree-sitter node and sets it on the symbol.
+// This is used by legacy extractors. The query-based extractor (extractWithQuery) handles this inline.
+func setBodyRange(sym *Symbol, node *sitter.Node) {
+	if sym == nil || node == nil {
+		return
+	}
+	bodyNode := node.ChildByFieldName("body")
+	if bodyNode != nil {
+		sym.BodyStartLine = int(bodyNode.StartPoint().Row) + 1
+		sym.BodyEndLine = int(bodyNode.EndPoint().Row) + 1
+		return
+	}
+	// Go type_spec uses "type" field for the inner type node (struct_type, interface_type)
+	typeNode := node.ChildByFieldName("type")
+	if typeNode != nil {
+		nodeType := typeNode.Type()
+		if nodeType == "struct_type" || nodeType == "interface_type" {
+			sym.BodyStartLine = int(typeNode.StartPoint().Row) + 1
+			sym.BodyEndLine = int(typeNode.EndPoint().Row) + 1
+		}
 	}
 }
 

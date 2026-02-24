@@ -25,10 +25,13 @@ var mcpLog = log.New(os.Stderr, "[aide-mcp] ", log.Ltime)
 type MCPServer struct {
 	store          store.Store
 	codeStore      store.CodeIndexStore
-	codeStoreMu    sync.RWMutex // Protects codeStore during lazy init
-	codeStoreReady atomic.Bool  // Fast check if codeStore is ready
+	codeStoreMu    sync.RWMutex   // Protects codeStore during lazy init
+	codeStoreReady atomic.Bool    // Fast check if codeStore is ready
+	codeInitWg     sync.WaitGroup // Tracks lazy code store init goroutine
 	server         *mcp.Server
 	grpcServer     *grpcapi.Server
+	codeWatcher    *code.Watcher // File watcher for code index updates
+	codeWatcherMu  sync.Mutex    // Protects codeWatcher
 }
 
 // getCodeStore safely returns the code store (may be nil during lazy init).
@@ -123,7 +126,9 @@ func (s *MCPServer) initMCPCodeStore(dbPath string, cfg *mcpConfig, grpcServer *
 
 	if cfg.codeStoreLazy {
 		mcpLog.Printf("code store: lazy init enabled")
+		s.codeInitWg.Add(1)
 		go func() {
+			defer s.codeInitWg.Done()
 			time.Sleep(100 * time.Millisecond)
 			cs, err := openCodeStore()
 			if err != nil {
@@ -134,6 +139,7 @@ func (s *MCPServer) initMCPCodeStore(dbPath string, cfg *mcpConfig, grpcServer *
 			grpcServer.SetCodeStore(cs)
 		}()
 		return func() {
+			s.codeInitWg.Wait() // Ensure lazy init completes before closing
 			if cs := s.getCodeStore(); cs != nil {
 				cs.Close()
 			}
@@ -208,12 +214,29 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 			mcpLog.Printf("WARNING: failed to start code watcher: %v", err)
 			return
 		}
+		// Store reference so it can be stopped on shutdown
+		s.codeWatcherMu.Lock()
+		s.codeWatcher = codeWatcher
+		s.codeWatcherMu.Unlock()
 		if len(watchPaths) > 0 {
 			mcpLog.Printf("code watcher enabled for: %s (debounce: %v)", strings.Join(watchPaths, ", "), debounceDelay)
 		} else {
 			mcpLog.Printf("code watcher enabled for current directory (debounce: %v)", debounceDelay)
 		}
 	}()
+}
+
+// stopCodeWatcher gracefully stops the file watcher if running.
+func (s *MCPServer) stopCodeWatcher() {
+	s.codeWatcherMu.Lock()
+	w := s.codeWatcher
+	s.codeWatcher = nil
+	s.codeWatcherMu.Unlock()
+	if w != nil {
+		if err := w.Stop(); err != nil {
+			mcpLog.Printf("WARNING: code watcher stop error: %v", err)
+		}
+	}
 }
 
 // cmdMCP starts the MCP server over stdio.
@@ -233,6 +256,7 @@ func cmdMCP(dbPath string, args []string) error {
 
 	if os.Getenv("AIDE_PPROF_ENABLE") == "1" {
 		initPprof()
+		defer stopPprof()
 	}
 
 	mcpLog.Printf("aide MCP server starting")
@@ -293,6 +317,7 @@ func cmdMCP(dbPath string, args []string) error {
 	}
 
 	mcpServer.startCodeWatcher(dbPath, cfg)
+	defer mcpServer.stopCodeWatcher()
 
 	mcpLog.Printf("MCP server ready in %v (primary mode), listening on stdio", time.Since(startTime))
 	return mcpServer.Run()

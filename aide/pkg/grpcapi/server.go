@@ -834,6 +834,9 @@ func (s *codeServiceImpl) Clear(ctx context.Context, req *CodeClearRequest) (*Co
 // =============================================================================
 
 func symbolToProto(s *code.Symbol) *Symbol {
+	if s == nil {
+		return nil
+	}
 	return &Symbol{
 		Id:         s.ID,
 		Name:       s.Name,
@@ -849,6 +852,9 @@ func symbolToProto(s *code.Symbol) *Symbol {
 }
 
 func memoryToProto(m *memory.Memory) *Memory {
+	if m == nil {
+		return nil
+	}
 	return &Memory{
 		Id:        m.ID,
 		Category:  string(m.Category),
@@ -864,6 +870,9 @@ func memoryToProto(m *memory.Memory) *Memory {
 }
 
 func stateToProto(s *memory.State) *State {
+	if s == nil {
+		return nil
+	}
 	return &State{
 		Key:       s.Key,
 		Value:     s.Value,
@@ -873,6 +882,9 @@ func stateToProto(s *memory.State) *State {
 }
 
 func decisionToProto(d *memory.Decision) *Decision {
+	if d == nil {
+		return nil
+	}
 	return &Decision{
 		Topic:      d.Topic,
 		Decision:   d.Decision,
@@ -885,6 +897,9 @@ func decisionToProto(d *memory.Decision) *Decision {
 }
 
 func messageToProto(m *memory.Message) *Message {
+	if m == nil {
+		return nil
+	}
 	return &Message{
 		Id:        m.ID,
 		From:      m.From,
@@ -898,6 +913,9 @@ func messageToProto(m *memory.Message) *Message {
 }
 
 func taskToProto(t *memory.Task) *Task {
+	if t == nil {
+		return nil
+	}
 	return &Task{
 		Id:          t.ID,
 		Title:       t.Title,

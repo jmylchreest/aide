@@ -18,6 +18,7 @@ Systematic approach to identifying and fixing bugs.
 ## Prerequisites
 
 Before starting:
+
 - Get the exact error message or unexpected behavior description
 - Identify the entry point or trigger for the bug
 - Note any relevant environment details (Node version, OS, etc.)
@@ -36,12 +37,14 @@ node path/to/script.js
 ```
 
 Document:
+
 - Exact error message
 - Steps to trigger
 - Expected vs actual behavior
 - Is it consistent or intermittent?
 
 **If cannot reproduce:**
+
 - Check environment differences
 - Look for race conditions
 - Check for cached state
@@ -54,6 +57,9 @@ Use tools to find code related to the error:
 # Search for function mentioned in stack trace
 mcp__plugin_aide_aide__code_search query="functionName" kind="function"
 
+# Get a structural overview of the suspect file (signatures + line ranges)
+mcp__plugin_aide_aide__code_outline file="path/to/file.ts"
+
 # Get symbols in suspect file
 mcp__plugin_aide_aide__code_symbols file="path/to/file.ts"
 
@@ -65,23 +71,26 @@ Grep for "error message text"
 
 Follow the code flow from entry to error:
 
-1. Start at the entry point (route handler, event listener, etc.)
-2. Trace through each function call
-3. Use `mcp__plugin_aide_aide__code_references` to find callers
-4. Check type definitions with `mcp__plugin_aide_aide__code_search kind="interface"`
+1. Use `code_outline` on each file in the call chain to understand its structure
+2. Use `code_references` to find callers of the failing function
+3. Use `Read` with offset/limit to read specific functions in the execution path
+   (use line numbers from the outline)
+4. Check type definitions with `code_search kind="interface"`
+
+Outlines help you identify which functions matter, so you can read just those sections.
 
 ### Step 4: Form Hypotheses
 
 Based on the error type, consider these causes:
 
-| Symptom | Likely Causes |
-|---------|---------------|
-| "undefined is not a function" | Variable is null/undefined, wrong import |
-| "Cannot read property of undefined" | Missing null check, async timing issue |
-| "Type error" | Type mismatch, wrong function signature |
-| "Maximum call stack" | Infinite recursion, circular reference |
-| "Network error" | Bad URL, CORS, timeout, server down |
-| "State not updating" | Mutation instead of new object, missing dependency |
+| Symptom                             | Likely Causes                                      |
+| ----------------------------------- | -------------------------------------------------- |
+| "undefined is not a function"       | Variable is null/undefined, wrong import           |
+| "Cannot read property of undefined" | Missing null check, async timing issue             |
+| "Type error"                        | Type mismatch, wrong function signature            |
+| "Maximum call stack"                | Infinite recursion, circular reference             |
+| "Network error"                     | Bad URL, CORS, timeout, server down                |
+| "State not updating"                | Mutation instead of new object, missing dependency |
 
 ### Step 5: Validate Hypotheses
 
@@ -99,6 +108,7 @@ npm test -- --grep "test name"
 ```
 
 **Validation checklist:**
+
 - Check variable values at key points
 - Verify assumptions about input data
 - Test edge cases (null, empty, boundary values)
@@ -107,11 +117,13 @@ npm test -- --grep "test name"
 ### Step 6: Apply the Fix
 
 **Rules:**
+
 - Change only what's necessary to fix the bug
 - Don't refactor unrelated code
 - Match existing code patterns
 
 **Common fixes:**
+
 - Add null/undefined check
 - Fix type annotation
 - Correct async/await usage
@@ -132,24 +144,26 @@ npm test
 ```
 
 **Verification criteria:**
+
 - Original issue no longer occurs
 - Related tests still pass
 - No new errors introduced
 
 ## Failure Handling
 
-| Situation | Action |
-|-----------|--------|
-| Cannot reproduce | Check environment, add logging to narrow down |
-| Multiple bugs intertwined | Fix one at a time, verify after each |
-| Fix causes new failures | Revert, analyze dependencies, try different approach |
-| Root cause is in dependency | Check for updates, file issue, implement workaround |
-| Bug is in async code | Add proper await, check Promise chains |
+| Situation                   | Action                                               |
+| --------------------------- | ---------------------------------------------------- |
+| Cannot reproduce            | Check environment, add logging to narrow down        |
+| Multiple bugs intertwined   | Fix one at a time, verify after each                 |
+| Fix causes new failures     | Revert, analyze dependencies, try different approach |
+| Root cause is in dependency | Check for updates, file issue, implement workaround  |
+| Bug is in async code        | Add proper await, check Promise chains               |
 
 ## MCP Tools
 
+- `mcp__plugin_aide_aide__code_outline` - **Start here.** Get collapsed file skeleton to understand structure before reading
 - `mcp__plugin_aide_aide__code_search` - Find functions, classes, types involved in the bug
-- `mcp__plugin_aide_aide__code_symbols` - Understand file structure
+- `mcp__plugin_aide_aide__code_symbols` - List all symbols in a file
 - `mcp__plugin_aide_aide__code_references` - Find all callers of a function
 - `mcp__plugin_aide_aide__memory_search` - Check for related past issues
 
@@ -159,24 +173,30 @@ npm test
 ## Debug Report: [Issue Title]
 
 ### Problem
+
 [What was happening vs what should happen]
 
 ### Reproduction
+
 [Steps to reproduce the issue]
 
 ### Root Cause
+
 [Identified cause with file:line reference]
 [Why the bug occurred]
 
 ### Fix Applied
+
 [What was changed and why]
 
 ### Verification
+
 - Original issue: FIXED
 - Related tests: PASS
 - Full suite: PASS
 
 ### Prevention
+
 [Optional: How to prevent similar bugs]
 ```
 

@@ -687,18 +687,28 @@ func (s *CodeStore) Clear() error {
 		return err
 	}
 
-	// Recreate search index
+	// Recreate search index.
+	// If recreation fails, attempt to reopen the existing index to avoid
+	// leaving s.search in a closed/nil state that would panic on next use.
 	searchPath := strings.TrimSuffix(s.dbPath, "index.db") + "search.bleve"
-	s.search.Close()
-	os.RemoveAll(searchPath)
+	if err := s.search.Close(); err != nil {
+		return fmt.Errorf("failed to close search index: %w", err)
+	}
+	if err := os.RemoveAll(searchPath); err != nil {
+		// Try to reopen old index before returning error
+		if idx, reopenErr := bleve.Open(searchPath); reopenErr == nil {
+			s.search = idx
+		}
+		return fmt.Errorf("failed to remove search index: %w", err)
+	}
 
 	indexMapping, err := buildCodeIndexMapping()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to build code index mapping after clear: %w", err)
 	}
 	index, err := bleve.New(searchPath, indexMapping)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to recreate code search index after clear: %w", err)
 	}
 	s.search = index
 

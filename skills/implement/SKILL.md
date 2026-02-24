@@ -51,9 +51,18 @@ Understand what the tests expect:
 - What edge cases are covered?
 
 ```bash
-# Read the test file
+# For large test files, get the structure first
+mcp__plugin_aide_aide__code_outline file="path/to/feature.test.ts"
+
+# Then read specific test sections with offset/limit
+Read path/to/feature.test.ts offset=<start> limit=<count>
+
+# For small test files (<100 lines), reading the full file is fine
 Read path/to/feature.test.ts
 ```
+
+When implementing, use `code_outline` on adjacent/related source files to understand
+their structure before reading them fully. This preserves context for the implementation work.
 
 ### Step 3: Check Design Decisions
 

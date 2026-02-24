@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -116,6 +117,11 @@ func (b *Backend) GetCodeStats() (*code.IndexStats, error) {
 
 // SearchReferences finds all references/call sites for a symbol.
 func (b *Backend) SearchReferences(symbolName, kind, filePath string, limit int) ([]*code.Reference, error) {
+	if b.useGRPC {
+		// No gRPC RPC for SearchReferences — not supported in client mode
+		return nil, fmt.Errorf("code references search not supported in gRPC mode")
+	}
+
 	codeStore, err := b.openCodeStore()
 	if err != nil {
 		return nil, err

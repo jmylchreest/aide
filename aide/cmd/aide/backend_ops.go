@@ -166,10 +166,25 @@ func (b *Backend) ListMemories(category string, limit int, opts *memory.SearchOp
 // UpdateMemoryTags adds and/or removes tags from a memory.
 // Returns the updated memory.
 func (b *Backend) UpdateMemoryTags(id string, addTags, removeTags []string) (*memory.Memory, error) {
+	ctx := context.Background()
+
 	// Get existing memory
-	m, err := b.store.GetMemory(id)
-	if err != nil {
-		return nil, fmt.Errorf("memory not found: %w", err)
+	var m *memory.Memory
+	if b.useGRPC {
+		resp, err := b.grpcClient.Memory.Get(ctx, &grpcapi.MemoryGetRequest{Id: id})
+		if err != nil {
+			return nil, fmt.Errorf("memory not found: %w", err)
+		}
+		m = protoToMemory(resp.Memory)
+		if m == nil {
+			return nil, fmt.Errorf("memory not found: server returned nil for id %s", id)
+		}
+	} else {
+		var err error
+		m, err = b.store.GetMemory(id)
+		if err != nil {
+			return nil, fmt.Errorf("memory not found: %w", err)
+		}
 	}
 
 	// Build new tag set
@@ -192,6 +207,23 @@ func (b *Backend) UpdateMemoryTags(id string, addTags, removeTags []string) (*me
 	m.Tags = newTags
 	m.UpdatedAt = time.Now()
 
+	// Update via appropriate backend
+	if b.useGRPC {
+		// gRPC has no native update — delete and re-add (preserves content/category)
+		if _, err := b.grpcClient.Memory.Delete(ctx, &grpcapi.MemoryDeleteRequest{Id: m.ID}); err != nil {
+			return nil, fmt.Errorf("failed to delete old memory for tag update: %w", err)
+		}
+		resp, err := b.grpcClient.Memory.Add(ctx, &grpcapi.MemoryAddRequest{
+			Content:  m.Content,
+			Category: string(m.Category),
+			Tags:     m.Tags,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to re-add memory with updated tags: %w", err)
+		}
+		return protoToMemory(resp.Memory), nil
+	}
+
 	if err := b.store.UpdateMemory(m); err != nil {
 		return nil, err
 	}
@@ -199,9 +231,13 @@ func (b *Backend) UpdateMemoryTags(id string, addTags, removeTags []string) (*me
 }
 
 func (b *Backend) GetMemory(id string) (*memory.Memory, error) {
-	// gRPC doesn't have a GetMemory RPC, use direct store access
 	if b.useGRPC {
-		return nil, fmt.Errorf("get memory by ID not supported in gRPC mode")
+		ctx := context.Background()
+		resp, err := b.grpcClient.Memory.Get(ctx, &grpcapi.MemoryGetRequest{Id: id})
+		if err != nil {
+			return nil, err
+		}
+		return protoToMemory(resp.Memory), nil
 	}
 	return b.store.GetMemory(id)
 }

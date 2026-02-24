@@ -235,8 +235,15 @@ func (s *Server) handleTask(w http.ResponseWriter, r *http.Request) {
 				errorResponse(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
+		} else if update.Status != "" {
+			errorResponse(w, "unsupported status: use 'done' or 'completed'", http.StatusBadRequest)
+			return
 		}
-		task, _ := s.store.GetTask(id)
+		task, err := s.store.GetTask(id)
+		if err != nil {
+			errorResponse(w, "failed to retrieve task after update", http.StatusInternalServerError)
+			return
+		}
 		jsonResponse(w, task, http.StatusOK)
 
 	default:

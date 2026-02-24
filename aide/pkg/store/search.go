@@ -343,18 +343,28 @@ func (s *SearchStore) Clear() error {
 		return err
 	}
 
-	// Remove and recreate the index
+	// Remove and recreate the index.
+	// If recreation fails, attempt to reopen the existing index to avoid
+	// leaving s.index in a closed/nil state that would panic on next use.
 	if err := os.RemoveAll(s.path); err != nil {
+		// Try to reopen old index before returning error
+		if idx, reopenErr := bleve.Open(s.path); reopenErr == nil {
+			s.index = idx
+		}
 		return err
 	}
 
 	indexMapping, err := buildIndexMapping()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to build index mapping after clear: %w", err)
 	}
 
-	s.index, err = bleve.New(s.path, indexMapping)
-	return err
+	newIndex, err := bleve.New(s.path, indexMapping)
+	if err != nil {
+		return fmt.Errorf("failed to recreate search index after clear: %w", err)
+	}
+	s.index = newIndex
+	return nil
 }
 
 // GetSearchPath returns the default search index path given a db path.

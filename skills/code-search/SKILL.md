@@ -60,7 +60,21 @@ What functions are in src/auth.ts?
 → Returns: all functions, classes, types in that file
 ```
 
-### 4. Check Index Status (`mcp__plugin_aide_aide__code_stats`)
+### 4. File Outline (`mcp__plugin_aide_aide__code_outline`)
+
+Get a collapsed structural outline of a file — signatures preserved, bodies replaced with `{ ... }`.
+Uses ~5-15% of the tokens of the full file. **Use this before reading a file** to understand its
+structure, then use `Read` with offset/limit for specific sections.
+
+**Example usage:**
+
+```
+Outline src/auth.ts
+→ Uses code_outline tool
+→ Returns: collapsed view with signatures, line ranges, bodies collapsed
+```
+
+### 5. Check Index Status (`mcp__plugin_aide_aide__code_stats`)
 
 Check if the codebase has been indexed.
 
@@ -107,6 +121,20 @@ Is the code indexed?
 
 1. Use `code_references` with symbol "authenticateUser"
 2. Show all call sites grouped by file
+
+## What These Tools Cover
+
+`code_search` and `code_references` work from the tree-sitter symbol index. They find:
+
+- Function, method, class, interface, type definitions by name
+- Symbol signatures (parameter types, return types)
+- Doc comments attached to definitions
+- Call sites for a specific symbol name (via `code_references`)
+
+For anything else — patterns inside function bodies, method call chains, string literals,
+SQL queries, imports, variable declarations — use **Grep**, which searches code content directly.
+
+In short: `code_search` finds _where things are defined_; Grep finds _patterns in code content_.
 
 ## Notes
 

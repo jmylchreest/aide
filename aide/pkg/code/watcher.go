@@ -18,6 +18,7 @@ type Watcher struct {
 	config   WatcherConfig
 	onChange func(path string, op fsnotify.Op) // Callback for file changes
 	stop     chan struct{}
+	stopOnce sync.Once
 	wg       sync.WaitGroup
 
 	// Debouncing
@@ -88,9 +89,9 @@ func (w *Watcher) Start() error {
 	return nil
 }
 
-// Stop stops the watcher.
+// Stop stops the watcher. Safe to call multiple times.
 func (w *Watcher) Stop() error {
-	close(w.stop)
+	w.stopOnce.Do(func() { close(w.stop) })
 	w.wg.Wait()
 	return w.watcher.Close()
 }
@@ -157,15 +158,22 @@ func (w *Watcher) processEvents() {
 func (w *Watcher) queueChange(path string, op fsnotify.Op) {
 	w.mu.Lock()
 	w.pending[path] = op
-	w.mu.Unlock()
-
-	// Start debounce timer (only once until flush)
+	// Start debounce timer (only once until flush).
+	// The Do() call must be under mu to avoid a data race with
+	// flushPending resetting debounceOnce.
 	w.debounceOnce.Do(func() {
+		w.wg.Add(1)
 		go func() {
-			time.Sleep(w.config.DebounceDelay)
-			w.flushPending()
+			defer w.wg.Done()
+			select {
+			case <-time.After(w.config.DebounceDelay):
+				w.flushPending()
+			case <-w.stop:
+				return
+			}
 		}()
 	})
+	w.mu.Unlock()
 }
 
 // flushPending processes all pending changes.
