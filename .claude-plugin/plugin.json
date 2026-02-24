@@ -1,6 +1,6 @@
 {
   "name": "aide",
-  "version": "0.0.37",
+  "version": "0.0.38",
   "description": "AI Development Environment - Multi-agent orchestration for Claude Code",
   "author": {
     "name": "John Mylchreest"
@@ -123,6 +123,11 @@
             "type": "command",
             "command": "npx tsx \"${CLAUDE_PLUGIN_ROOT}/src/hooks/pre-tool-enforcer.ts\" 2>/dev/null",
             "timeout": 3
+          },
+          {
+            "type": "command",
+            "command": "npx tsx \"${CLAUDE_PLUGIN_ROOT}/src/hooks/context-guard.ts\" 2>/dev/null",
+            "timeout": 2
           }
         ]
       }
