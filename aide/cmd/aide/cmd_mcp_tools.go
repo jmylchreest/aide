@@ -71,23 +71,20 @@ type emptyInput struct{}
 func (s *MCPServer) registerMemoryTools() {
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name: "memory_search",
-		Description: `Search stored memories using bleve full-text search.
+		Description: `Search project memories — learned facts, discoveries, issues, and blockers accumulated across sessions.
+
+Memories include: user preferences, coding patterns discovered, issues encountered,
+architectural decisions (use decision_get for formal decisions), and blockers.
+
+**When to use:** When you need to recall prior context — e.g., "did we decide on
+a testing framework?", "what issues did we hit with auth?", "what are the user's preferences?"
 
 **Search capabilities:**
-- Standard word matching (case-insensitive)
-- Fuzzy matching for typos (1 edit distance) - "color" matches "colour"
-- Prefix matching via edge n-grams (2-15 chars)
-- Substring matching via n-grams (3-8 chars)
-- Multi-word queries use OR - any word matching is sufficient
+- Fuzzy matching handles typos automatically (1 edit distance)
+- Multi-word queries use OR — any word matching is sufficient
+- Prefix and substring matching built-in
 
-**Best practices:**
-- Use up to 10 distinct keywords: "colour testing auth"
-- Fuzzy matching handles spelling variants automatically - no need to search both "colour" and "color"
-- Search tags directly: "preferences", "food"
-- Results include timestamps - prefer most recent when values conflict
-
-**Output format:**
-Returns memories grouped by category with [date] prefix and tags.`,
+Results include timestamps — prefer most recent when values conflict.`,
 	}, s.handleMemorySearch)
 
 	mcp.AddTool(s.server, &mcp.Tool{
@@ -305,7 +302,7 @@ func (s *MCPServer) handleDecisionList(_ context.Context, _ *mcp.CallToolRequest
 func (s *MCPServer) registerMessageTools() {
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name: "message_list",
-		Description: `List messages for an agent (auto-prunes expired).
+		Description: `For multi-agent (swarm mode) coordination. List messages for an agent (auto-prunes expired).
 
 **What are messages?**
 Inter-agent communication in swarm mode. Messages can be:
@@ -322,7 +319,7 @@ Expired messages (past TTL) are automatically pruned.`,
 
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name: "message_send",
-		Description: `Send a message to another agent or broadcast to all.
+		Description: `For multi-agent (swarm mode) coordination. Send a message to another agent or broadcast to all.
 
 **Message types:**
 - "status" — Progress update (e.g., stage transitions)
@@ -345,7 +342,7 @@ Expired messages (past TTL) are automatically pruned.`,
 
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name: "message_ack",
-		Description: `Acknowledge a message you've read.
+		Description: `For multi-agent (swarm mode) coordination. Acknowledge a message you've read.
 
 Acknowledging marks the message as read for your agent_id so it won't
 appear in future message_list calls (unless include_read is true).

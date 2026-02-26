@@ -81,9 +81,12 @@ Symbols are extracted from source files using tree-sitter parsing:
 
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name: "code_symbols",
-		Description: `List all symbols in a specific file.
+		Description: `List all symbols defined in a specific file.
 
-Returns all indexed symbols (functions, methods, classes, etc.) from the given file.
+Returns all indexed symbols (functions, methods, classes, interfaces, types)
+with their signatures, line numbers, and doc comments.
+
+Use this to understand a file's API surface without reading the entire file.
 If the file isn't indexed yet, it will be parsed on-demand.`,
 	}, s.handleCodeSymbols)
 
@@ -92,7 +95,9 @@ If the file isn't indexed yet, it will be parsed on-demand.`,
 		Description: `Get code index statistics.
 
 Returns the number of indexed files, symbols, and references.
-Use this to check if the codebase has been indexed.`,
+Use this to check if the codebase has been indexed.
+
+If counts are zero, the codebase needs indexing: run 'aide code index'.`,
 	}, s.handleCodeStats)
 
 	mcp.AddTool(s.server, &mcp.Tool{
