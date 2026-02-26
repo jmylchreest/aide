@@ -20,9 +20,10 @@ aide/
 ├── src/hooks/            # TypeScript event handlers
 ├── skills/               # Built-in workflow skills
 └── .aide/                # Project-local storage
-    ├── memory/store.db   # Memories, decisions, state (BBolt)
+    ├── memory/memory.db  # Memories, decisions, state (BBolt)
     ├── memory/search.bleve/  # Full-text search index
-    └── code/             # Code symbol index
+    ├── memory/code/      # Code symbol index
+    └── memory/findings/  # Static analysis findings
 ```
 
 ## Component Responsibilities
@@ -30,6 +31,7 @@ aide/
 ### Go Binary (`aide/`)
 
 **Storage** (`pkg/store/`):
+
 - Memory CRUD with categories and tags
 - Task claiming with atomic locks
 - Decisions with append-only history
@@ -37,33 +39,36 @@ aide/
 - Inter-agent messaging
 
 **Code Index** (`pkg/code/`):
+
 - Tree-sitter parsing (TS, JS, Go, Python, Rust, etc.)
 - Symbol extraction (functions, classes, types)
 - File watching for auto-reindex
 - Bleve full-text search
 
 **CLI & MCP** (`cmd/aide/`):
+
 - `aide memory|decision|state|task|message|code` commands
 - `aide mcp` - Starts MCP server (tools for Claude)
 - `aide daemon` - Background HTTP server
 
 ### TypeScript Hooks (`src/hooks/`)
 
-| Hook File | Event | Purpose |
-|-----------|-------|---------|
-| `session-start.ts` | SessionStart | Initialize state, inject memories |
-| `skill-injector.ts` | UserPromptSubmit | Fuzzy-match skills, inject content |
-| `tool-tracker.ts` | PreToolUse | Track current tool per agent for HUD display |
-| `pre-tool-enforcer.ts` | PreToolUse | Enforce tool access rules, inject mode reminders |
-| `hud-updater.ts` | PostToolUse | Update status line |
-| `session-summary.ts` | Stop | Capture session summary (files, tools, commits) |
-| `subagent-tracker.ts` | SubagentStart, SubagentStop | Track active agents, inject context |
-| `persistence.ts` | Stop | Prevent stop with incomplete tasks |
-| `agent-cleanup.ts` | Stop | Clean up agent-specific state |
-| `session-end.ts` | SessionEnd | Session end cleanup and metrics |
-| `pre-compact.ts` | PreCompact | Preserve context before compaction |
+| Hook File              | Event                       | Purpose                                          |
+| ---------------------- | --------------------------- | ------------------------------------------------ |
+| `session-start.ts`     | SessionStart                | Initialize state, inject memories                |
+| `skill-injector.ts`    | UserPromptSubmit            | Fuzzy-match skills, inject content               |
+| `tool-tracker.ts`      | PreToolUse                  | Track current tool per agent for HUD display     |
+| `pre-tool-enforcer.ts` | PreToolUse                  | Enforce tool access rules, inject mode reminders |
+| `hud-updater.ts`       | PostToolUse                 | Update status line                               |
+| `session-summary.ts`   | Stop                        | Capture session summary (files, tools, commits)  |
+| `subagent-tracker.ts`  | SubagentStart, SubagentStop | Track active agents, inject context              |
+| `persistence.ts`       | Stop                        | Prevent stop with incomplete tasks               |
+| `agent-cleanup.ts`     | Stop                        | Clean up agent-specific state                    |
+| `session-end.ts`       | SessionEnd                  | Session end cleanup and metrics                  |
+| `pre-compact.ts`       | PreCompact                  | Preserve context before compaction               |
 
 **Additional hooks (available but not registered in plugin.json):**
+
 - `task-completed.ts` - SDLC stage validation on task completion (opt-in)
 
 ### Skills (`skills/`)
@@ -98,35 +103,37 @@ User prompt → Hooks detect keywords → Inject skill context
 
 All tools are read-only from Claude's perspective (writes happen via hooks):
 
-| Tool | Purpose |
-|------|---------|
-| `memory_search` | Full-text search with fuzzy matching |
-| `memory_list` | List by category/tags |
-| `code_search` | Search code symbols |
-| `code_symbols` | List symbols in file |
-| `code_stats` | Index statistics |
-| `code_references` | Find call sites for a symbol |
-| `decision_get` | Get decision for topic |
-| `decision_list` | List all decisions |
-| `decision_history` | Full history for a topic |
-| `state_get` | Get session/agent state |
-| `state_list` | List all state values |
-| `message_list` | Inter-agent messages |
-| `usage` | Claude Code token usage statistics |
+| Tool               | Purpose                              |
+| ------------------ | ------------------------------------ |
+| `memory_search`    | Full-text search with fuzzy matching |
+| `memory_list`      | List by category/tags                |
+| `code_search`      | Search code symbols                  |
+| `code_symbols`     | List symbols in file                 |
+| `code_stats`       | Index statistics                     |
+| `code_references`  | Find call sites for a symbol         |
+| `decision_get`     | Get decision for topic               |
+| `decision_list`    | List all decisions                   |
+| `decision_history` | Full history for a topic             |
+| `state_get`        | Get session/agent state              |
+| `state_list`       | List all state values                |
+| `message_list`     | Inter-agent messages                 |
+| `usage`            | Claude Code token usage statistics   |
 
 ## Storage
 
 All data in `.aide/` (per-project, git-root aware):
 
-| Path | Format | Contents |
-|------|--------|----------|
-| `memory/store.db` | BBolt | Memories, decisions, state, tasks, messages |
-| `memory/search.bleve/` | Bleve | Full-text search index |
-| `code/` | BBolt + Bleve | Symbol index with search |
+| Path                   | Format        | Contents                                    |
+| ---------------------- | ------------- | ------------------------------------------- |
+| `memory/memory.db`     | BBolt         | Memories, decisions, state, tasks, messages |
+| `memory/search.bleve/` | Bleve         | Full-text search index                      |
+| `memory/code/`         | BBolt + Bleve | Symbol index with search                    |
+| `memory/findings/`     | BBolt + Bleve | Static analysis findings with search        |
 
 ## Swarm Coordination
 
 For parallel agents, each gets:
+
 - Isolated git worktree (`.aide/worktrees/<task>/`)
 - Own branch (`feat/<task>-<agent>`)
 - Shared memory for task claiming, decisions, messages

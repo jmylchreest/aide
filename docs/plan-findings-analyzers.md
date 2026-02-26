@@ -29,8 +29,8 @@ MCP tools expose read-only access to LLM agents.
 │  FindingsServiceServer — full CRUD          │
 ├─────────────────────────────────────────────┤
 │         FindingsStore (store/findings.go)   │
-│  BoltDB: findings.db + Bleve: findings.idx  │
-│  Location: .aide/findings/                  │
+│  BoltDB: findings.db + Bleve: search.bleve  │
+│  Location: .aide/memory/findings/           │
 └──────────────┬──────────────────────────────┘
                │ write path (CLI only)
 ┌──────────────▼──────────────────────────────┐
@@ -69,30 +69,35 @@ Severity constants: `SevCritical`, `SevWarning`, `SevInfo`.
 ### 2. Findings Store (`aide/pkg/store/findings.go`)
 
 Follows CodeStore pattern:
-- BoltDB at `.aide/findings/findings.db`
-- Bleve index at `.aide/findings/findings.idx`
+
+- BoltDB at `.aide/memory/findings/findings.db`
+- Bleve index at `.aide/memory/findings/search.bleve`
 - Buckets: `findings`, `findings_meta`
 - Interface: `FindingsStore` added to `interfaces.go`
 
 ### 3. Analyzers
 
 #### Cyclomatic Complexity
+
 - Added directly to `parser.go` during symbol extraction
 - `Complexity int` field added to `Symbol` struct
 - Per-language decision-node maps (if, for, while, case, &&, ||, etc.)
 - Findings generated for functions exceeding threshold (default: 10)
 
 #### Coupling Analysis
+
 - Import extraction via tree-sitter queries in `parser.go`
 - Graph construction + DFS cycle detection in `aide/pkg/findings/coupling.go`
 - Findings: circular dependencies (critical), high fan-in/fan-out (warning)
 
 #### Secret Detection
+
 - Uses `github.com/praetorian-inc/titus` (Apache-2.0)
 - Scans file content for 459 secret patterns
 - Findings: each match = critical finding
 
 #### Clone Detection
+
 - Tree-sitter leaf-node tokenization with identifier normalization
 - Rabin-Karp rolling hash (k=40 tokens)
 - Hash collision → verify → extend → merge adjacent
@@ -101,11 +106,11 @@ Follows CodeStore pattern:
 
 ### 4. MCP Tools (read-only)
 
-| Tool | Description |
-|------|-------------|
-| `findings_search` | Full-text search findings by query |
-| `findings_list` | List findings filtered by analyzer, severity, file |
-| `findings_stats` | Aggregate counts by analyzer and severity |
+| Tool              | Description                                        |
+| ----------------- | -------------------------------------------------- |
+| `findings_search` | Full-text search findings by query                 |
+| `findings_list`   | List findings filtered by analyzer, severity, file |
+| `findings_stats`  | Aggregate counts by analyzer and severity          |
 
 ### 5. CLI Commands (write path)
 
@@ -135,6 +140,7 @@ symbol creation.
 ### 8. Skill Linter
 
 Build-time TypeScript/Bun script at `scripts/validate-skills.ts`:
+
 - Validates YAML frontmatter (required fields: name, description, triggers)
 - Checks markdown structure (headings, MCP tool references)
 - Validates MCP tool name format

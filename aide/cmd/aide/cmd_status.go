@@ -359,7 +359,7 @@ func printStatusTable(status StatusOutput) error {
 
 	// Stores — deterministic order
 	fmt.Println("STORES")
-	storeOrder := []string{"aide.db", "memory.bleve", "code.db", "code.bleve", "findings.db"}
+	storeOrder := []string{"memory.db", "memory.bleve", "code.db", "code.bleve", "findings.db", "findings.bleve"}
 	printed := make(map[string]bool)
 	for _, name := range storeOrder {
 		path, ok := status.Stores.Paths[name]
@@ -439,13 +439,13 @@ func getStoreStatus(dbPath string) StoreStatus {
 		Sizes: make(map[string]int64),
 	}
 
-	// dbPath is .aide/memory/store.db
+	// dbPath is .aide/memory/memory.db (or legacy .aide/memory/store.db)
 	memoryDir := filepath.Dir(dbPath)
 
-	// aide.db — main memory store
+	// memory.db — main memory store
 	if info, err := os.Stat(dbPath); err == nil {
-		status.Paths["aide.db"] = dbPath
-		status.Sizes["aide.db"] = info.Size()
+		status.Paths["memory.db"] = dbPath
+		status.Sizes["memory.db"] = info.Size()
 	}
 
 	// memory search.bleve — memory full-text index
@@ -474,6 +474,19 @@ func getStoreStatus(dbPath string) StoreStatus {
 	if info, err := os.Stat(findingsPath); err == nil {
 		status.Paths["findings.db"] = findingsPath
 		status.Sizes["findings.db"] = info.Size()
+	}
+
+	// findings search index — check both search.bleve (new) and findings.idx (legacy)
+	findingsSearchPath := filepath.Join(memoryDir, "findings", "search.bleve")
+	if _, err := os.Stat(findingsSearchPath); os.IsNotExist(err) {
+		legacyFindingsSearch := filepath.Join(memoryDir, "findings", "findings.idx")
+		if _, err := os.Stat(legacyFindingsSearch); err == nil {
+			findingsSearchPath = legacyFindingsSearch
+		}
+	}
+	if size, err := dirSize(findingsSearchPath); err == nil {
+		status.Paths["findings.bleve"] = findingsSearchPath
+		status.Sizes["findings.bleve"] = size
 	}
 
 	return status

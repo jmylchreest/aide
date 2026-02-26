@@ -30,7 +30,7 @@ func generateID() string {
 // SocketPathFromDB returns the Unix socket path derived from the database path.
 // The socket is placed in the project's .aide directory (sibling to the memory dir).
 func SocketPathFromDB(dbPath string) string {
-	// dbPath is typically <project>/.aide/memory/store.db
+	// dbPath is typically <project>/.aide/memory/memory.db
 	// We want <project>/.aide/aide.sock
 	aideDir := filepath.Dir(filepath.Dir(dbPath))
 	return filepath.Join(aideDir, "aide.sock")
@@ -45,6 +45,10 @@ type Server struct {
 	grpcServer    *grpc.Server
 	socketPath    string
 	startTime     time.Time
+
+	// storeMu protects codeStore and findingsStore which may be set after
+	// the gRPC server starts (e.g. lazy code store init).
+	storeMu sync.RWMutex
 
 	// Status-related fields (set by the MCP server process)
 	mu             sync.RWMutex
@@ -66,12 +70,30 @@ func NewServer(st store.Store, dbPath, socketPath string) *Server {
 
 // SetCodeStore sets the code store for code indexing services.
 func (s *Server) SetCodeStore(cs store.CodeIndexStore) {
+	s.storeMu.Lock()
+	defer s.storeMu.Unlock()
 	s.codeStore = cs
 }
 
 // SetFindingsStore sets the findings store for findings services.
 func (s *Server) SetFindingsStore(fs store.FindingsStore) {
+	s.storeMu.Lock()
+	defer s.storeMu.Unlock()
 	s.findingsStore = fs
+}
+
+// GetCodeStore returns the current code store (thread-safe).
+func (s *Server) GetCodeStore() store.CodeIndexStore {
+	s.storeMu.RLock()
+	defer s.storeMu.RUnlock()
+	return s.codeStore
+}
+
+// GetFindingsStore returns the current findings store (thread-safe).
+func (s *Server) GetFindingsStore() store.FindingsStore {
+	s.storeMu.RLock()
+	defer s.storeMu.RUnlock()
+	return s.findingsStore
 }
 
 // SetWatcher sets the watcher for status reporting.
@@ -130,8 +152,8 @@ func (s *Server) Start() error {
 	RegisterDecisionServiceServer(s.grpcServer, &decisionServiceImpl{store: s.store})
 	RegisterMessageServiceServer(s.grpcServer, &messageServiceImpl{store: s.store})
 	RegisterTaskServiceServer(s.grpcServer, &taskServiceImpl{store: s.store})
-	RegisterCodeServiceServer(s.grpcServer, &codeServiceImpl{store: s.codeStore, parser: code.NewParser()})
-	RegisterFindingsServiceServer(s.grpcServer, &findingsServiceImpl{store: s.findingsStore})
+	RegisterCodeServiceServer(s.grpcServer, &codeServiceImpl{server: s, parser: code.NewParser()})
+	RegisterFindingsServiceServer(s.grpcServer, &findingsServiceImpl{server: s})
 	RegisterHealthServiceServer(s.grpcServer, &healthServiceImpl{dbPath: s.dbPath})
 	RegisterStatusServiceServer(s.grpcServer, &statusServiceImpl{server: s})
 
@@ -686,12 +708,13 @@ func (s *taskServiceImpl) Update(ctx context.Context, req *TaskUpdateRequest) (*
 
 type codeServiceImpl struct {
 	UnimplementedCodeServiceServer
-	store  store.CodeIndexStore
+	server *Server
 	parser *code.Parser
 }
 
 func (s *codeServiceImpl) Search(ctx context.Context, req *CodeSearchRequest) (*CodeSearchResponse, error) {
-	if s.store == nil {
+	cs := s.server.GetCodeStore()
+	if cs == nil {
 		return nil, fmt.Errorf("code store not available")
 	}
 
@@ -707,7 +730,7 @@ func (s *codeServiceImpl) Search(ctx context.Context, req *CodeSearchRequest) (*
 		Limit:    limit,
 	}
 
-	results, err := s.store.SearchSymbols(req.Query, opts)
+	results, err := cs.SearchSymbols(req.Query, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -723,11 +746,12 @@ func (s *codeServiceImpl) Search(ctx context.Context, req *CodeSearchRequest) (*
 }
 
 func (s *codeServiceImpl) Symbols(ctx context.Context, req *CodeSymbolsRequest) (*CodeSymbolsResponse, error) {
-	if s.store == nil {
+	cs := s.server.GetCodeStore()
+	if cs == nil {
 		return nil, fmt.Errorf("code store not available")
 	}
 
-	symbols, err := s.store.GetFileSymbols(req.FilePath)
+	symbols, err := cs.GetFileSymbols(req.FilePath)
 	if err != nil {
 		// If file not in index, try to parse it directly
 		symbols, err = s.parser.ParseFile(req.FilePath)
@@ -747,11 +771,12 @@ func (s *codeServiceImpl) Symbols(ctx context.Context, req *CodeSymbolsRequest) 
 }
 
 func (s *codeServiceImpl) Stats(ctx context.Context, req *CodeStatsRequest) (*CodeStatsResponse, error) {
-	if s.store == nil {
+	cs := s.server.GetCodeStore()
+	if cs == nil {
 		return nil, fmt.Errorf("code store not available")
 	}
 
-	stats, err := s.store.Stats()
+	stats, err := cs.Stats()
 	if err != nil {
 		return nil, err
 	}
@@ -764,7 +789,8 @@ func (s *codeServiceImpl) Stats(ctx context.Context, req *CodeStatsRequest) (*Co
 }
 
 func (s *codeServiceImpl) Index(ctx context.Context, req *CodeIndexRequest) (*CodeIndexResponse, error) {
-	if s.store == nil {
+	cs := s.server.GetCodeStore()
+	if cs == nil {
 		return nil, fmt.Errorf("code store not available")
 	}
 
@@ -807,7 +833,7 @@ func (s *codeServiceImpl) Index(ctx context.Context, req *CodeIndexRequest) (*Co
 
 			// Check if file needs reindexing
 			if !req.Force {
-				fileInfo, err := s.store.GetFileInfo(relPath)
+				fileInfo, err := cs.GetFileInfo(relPath)
 				if err == nil && fileInfo.ModTime.Equal(info.ModTime()) {
 					filesSkipped++
 					return nil
@@ -821,13 +847,13 @@ func (s *codeServiceImpl) Index(ctx context.Context, req *CodeIndexRequest) (*Co
 			}
 
 			// Clear existing symbols
-			s.store.ClearFile(relPath)
+			cs.ClearFile(relPath)
 
 			// Store symbols
 			var symbolIDs []string
 			for _, sym := range symbols {
 				sym.FilePath = relPath
-				if err := s.store.AddSymbol(sym); err != nil {
+				if err := cs.AddSymbol(sym); err != nil {
 					continue
 				}
 				symbolIDs = append(symbolIDs, sym.ID)
@@ -835,7 +861,7 @@ func (s *codeServiceImpl) Index(ctx context.Context, req *CodeIndexRequest) (*Co
 			}
 
 			// Update file info
-			s.store.SetFileInfo(&code.FileInfo{
+			cs.SetFileInfo(&code.FileInfo{
 				Path:      relPath,
 				ModTime:   info.ModTime(),
 				SymbolIDs: symbolIDs,
@@ -857,12 +883,13 @@ func (s *codeServiceImpl) Index(ctx context.Context, req *CodeIndexRequest) (*Co
 }
 
 func (s *codeServiceImpl) Clear(ctx context.Context, req *CodeClearRequest) (*CodeClearResponse, error) {
-	if s.store == nil {
+	cs := s.server.GetCodeStore()
+	if cs == nil {
 		return nil, fmt.Errorf("code store not available")
 	}
 
-	stats, _ := s.store.Stats()
-	if err := s.store.Clear(); err != nil {
+	stats, _ := cs.Stats()
+	if err := cs.Clear(); err != nil {
 		return nil, err
 	}
 
@@ -884,11 +911,12 @@ func (s *codeServiceImpl) Clear(ctx context.Context, req *CodeClearRequest) (*Co
 
 type findingsServiceImpl struct {
 	UnimplementedFindingsServiceServer
-	store store.FindingsStore
+	server *Server
 }
 
 func (s *findingsServiceImpl) Add(ctx context.Context, req *FindingAddRequest) (*FindingAddResponse, error) {
-	if s.store == nil {
+	fs := s.server.GetFindingsStore()
+	if fs == nil {
 		return nil, fmt.Errorf("findings store not available")
 	}
 
@@ -904,7 +932,7 @@ func (s *findingsServiceImpl) Add(ctx context.Context, req *FindingAddRequest) (
 		Metadata: req.Metadata,
 	}
 
-	if err := s.store.AddFinding(f); err != nil {
+	if err := fs.AddFinding(f); err != nil {
 		return nil, err
 	}
 
@@ -914,11 +942,12 @@ func (s *findingsServiceImpl) Add(ctx context.Context, req *FindingAddRequest) (
 }
 
 func (s *findingsServiceImpl) Get(ctx context.Context, req *FindingGetRequest) (*FindingGetResponse, error) {
-	if s.store == nil {
+	fs := s.server.GetFindingsStore()
+	if fs == nil {
 		return nil, fmt.Errorf("findings store not available")
 	}
 
-	f, err := s.store.GetFinding(req.Id)
+	f, err := fs.GetFinding(req.Id)
 	if err != nil {
 		if err == store.ErrNotFound {
 			return &FindingGetResponse{Found: false}, nil
@@ -933,11 +962,12 @@ func (s *findingsServiceImpl) Get(ctx context.Context, req *FindingGetRequest) (
 }
 
 func (s *findingsServiceImpl) Delete(ctx context.Context, req *FindingDeleteRequest) (*FindingDeleteResponse, error) {
-	if s.store == nil {
+	fs := s.server.GetFindingsStore()
+	if fs == nil {
 		return nil, fmt.Errorf("findings store not available")
 	}
 
-	if err := s.store.DeleteFinding(req.Id); err != nil {
+	if err := fs.DeleteFinding(req.Id); err != nil {
 		return nil, err
 	}
 
@@ -945,7 +975,8 @@ func (s *findingsServiceImpl) Delete(ctx context.Context, req *FindingDeleteRequ
 }
 
 func (s *findingsServiceImpl) Search(ctx context.Context, req *FindingSearchRequest) (*FindingSearchResponse, error) {
-	if s.store == nil {
+	fs := s.server.GetFindingsStore()
+	if fs == nil {
 		return nil, fmt.Errorf("findings store not available")
 	}
 
@@ -957,7 +988,7 @@ func (s *findingsServiceImpl) Search(ctx context.Context, req *FindingSearchRequ
 		Limit:    int(req.Limit),
 	}
 
-	results, err := s.store.SearchFindings(req.Query, opts)
+	results, err := fs.SearchFindings(req.Query, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -971,7 +1002,8 @@ func (s *findingsServiceImpl) Search(ctx context.Context, req *FindingSearchRequ
 }
 
 func (s *findingsServiceImpl) List(ctx context.Context, req *FindingListRequest) (*FindingSearchResponse, error) {
-	if s.store == nil {
+	fs := s.server.GetFindingsStore()
+	if fs == nil {
 		return nil, fmt.Errorf("findings store not available")
 	}
 
@@ -983,7 +1015,7 @@ func (s *findingsServiceImpl) List(ctx context.Context, req *FindingListRequest)
 		Limit:    int(req.Limit),
 	}
 
-	results, err := s.store.ListFindings(opts)
+	results, err := fs.ListFindings(opts)
 	if err != nil {
 		return nil, err
 	}
@@ -997,11 +1029,12 @@ func (s *findingsServiceImpl) List(ctx context.Context, req *FindingListRequest)
 }
 
 func (s *findingsServiceImpl) GetFileFindings(ctx context.Context, req *FindingFileRequest) (*FindingSearchResponse, error) {
-	if s.store == nil {
+	fs := s.server.GetFindingsStore()
+	if fs == nil {
 		return nil, fmt.Errorf("findings store not available")
 	}
 
-	results, err := s.store.GetFileFindings(req.FilePath)
+	results, err := fs.GetFileFindings(req.FilePath)
 	if err != nil {
 		return nil, err
 	}
@@ -1015,11 +1048,12 @@ func (s *findingsServiceImpl) GetFileFindings(ctx context.Context, req *FindingF
 }
 
 func (s *findingsServiceImpl) ClearAnalyzer(ctx context.Context, req *FindingClearAnalyzerRequest) (*FindingClearAnalyzerResponse, error) {
-	if s.store == nil {
+	fs := s.server.GetFindingsStore()
+	if fs == nil {
 		return nil, fmt.Errorf("findings store not available")
 	}
 
-	count, err := s.store.ClearAnalyzer(req.Analyzer)
+	count, err := fs.ClearAnalyzer(req.Analyzer)
 	if err != nil {
 		return nil, err
 	}
@@ -1028,11 +1062,12 @@ func (s *findingsServiceImpl) ClearAnalyzer(ctx context.Context, req *FindingCle
 }
 
 func (s *findingsServiceImpl) Stats(ctx context.Context, req *FindingStatsRequest) (*FindingStatsResponse, error) {
-	if s.store == nil {
+	fs := s.server.GetFindingsStore()
+	if fs == nil {
 		return nil, fmt.Errorf("findings store not available")
 	}
 
-	stats, err := s.store.Stats()
+	stats, err := fs.Stats()
 	if err != nil {
 		return nil, err
 	}
@@ -1054,11 +1089,12 @@ func (s *findingsServiceImpl) Stats(ctx context.Context, req *FindingStatsReques
 }
 
 func (s *findingsServiceImpl) Clear(ctx context.Context, req *FindingClearRequest) (*FindingClearResponse, error) {
-	if s.store == nil {
+	fs := s.server.GetFindingsStore()
+	if fs == nil {
 		return nil, fmt.Errorf("findings store not available")
 	}
 
-	if err := s.store.Clear(); err != nil {
+	if err := fs.Clear(); err != nil {
 		return nil, err
 	}
 
@@ -1103,6 +1139,10 @@ func (s *statusServiceImpl) GetStatus(ctx context.Context, req *StatusRequest) (
 		McpTools:      tools,
 	}
 
+	// Get stores via thread-safe getters
+	cs := srv.GetCodeStore()
+	fss := srv.GetFindingsStore()
+
 	// Watcher status
 	if w != nil {
 		stats := w.Stats()
@@ -1113,7 +1153,7 @@ func (s *statusServiceImpl) GetStatus(ctx context.Context, req *StatusRequest) (
 			Debounce:     stats.Debounce.String(),
 			PendingFiles: int32(stats.PendingFiles),
 		}
-		if srv.codeStore != nil {
+		if cs != nil {
 			watcherStatus.Subscribers = append(watcherStatus.Subscribers, "code-indexer")
 		}
 		if fr != nil {
@@ -1123,8 +1163,8 @@ func (s *statusServiceImpl) GetStatus(ctx context.Context, req *StatusRequest) (
 	}
 
 	// Code indexer status
-	if srv.codeStore != nil {
-		stats, err := srv.codeStore.Stats()
+	if cs != nil {
+		stats, err := cs.Stats()
 		if err == nil && stats != nil {
 			resp.CodeIndexer = &StatusCodeIndexer{
 				Available:  true,
@@ -1142,8 +1182,8 @@ func (s *statusServiceImpl) GetStatus(ctx context.Context, req *StatusRequest) (
 	}
 
 	// Findings status
-	if srv.findingsStore != nil {
-		stats, err := srv.findingsStore.Stats()
+	if fss != nil {
+		stats, err := fss.Stats()
 		if err == nil && stats != nil {
 			findingsStatus := &StatusFindings{
 				Available: true,

@@ -20,7 +20,7 @@ import (
 // concurrently and they all fall back to direct DB access, competing for the file lock.
 func TestCLIAccessWhileMCPServerRunning(t *testing.T) {
 	tmpDir := t.TempDir()
-	dbPath := filepath.Join(tmpDir, "store.db")
+	dbPath := filepath.Join(tmpDir, "memory.db")
 
 	// Step 1: Open database like the MCP server does (keep it open)
 	mcpDB, err := bolt.Open(dbPath, 0600, &bolt.Options{Timeout: 3 * time.Second})

@@ -45,21 +45,21 @@ func cmdFindingsDispatcher(dbPath string, args []string) error {
 }
 
 func printFindingsUsage() {
-	fmt.Println(`aide findings - Run analyzers and manage static analysis findings
+	fmt.Println(`aide findings - Run analysers and manage static analysis findings
 
 Usage:
   aide findings <subcommand> [arguments]
 
 Subcommands:
-  run        Run one or more static analyzers
+  run        Run one or more static analysers
   search     Search findings by keyword
   list       List findings with optional filters
   stats      Show finding statistics
-  clear      Clear findings (all or by analyzer)
+  clear      Clear findings (all or by analyser)
 
 Options:
-  run <analyzer> [paths...]:
-    Analyzers: complexity, coupling, secrets, clones, all
+  run <analyser> [paths...]:
+    Analysers: complexity, coupling, secrets, clones, all
     --threshold=N    Complexity threshold (default 10)
     --fan-out=N      Coupling fan-out threshold (default 15)
     --fan-in=N       Coupling fan-in threshold (default 20)
@@ -68,39 +68,41 @@ Options:
     --no-validate    Secrets: skip live validation (default)
 
   search <query>:
-    --analyzer=NAME  Filter by analyzer (complexity, coupling, secrets, clones)
+    --analyser=NAME  Filter by analyser (complexity, coupling, secrets, clones)
     --severity=LEVEL Filter by severity (critical, warning, info)
     --file=PATH      Filter by file path pattern (substring)
     --category=CAT   Filter by category
-    --limit=N        Max results (default 20)
+    --limit=N        Max results (default 20, 0 for no limit)
     --json           Output as JSON
 
   list:
-    --analyzer=NAME  Filter by analyzer
+    --analyser=NAME  Filter by analyser
     --severity=LEVEL Filter by severity
     --file=PATH      Filter by file path pattern
     --category=CAT   Filter by category
-    --limit=N        Max results (default 100)
+    --limit=N        Max results (default 100, 0 for no limit)
     --json           Output as JSON
 
-  clear [--analyzer=NAME]:
-    Clears all findings, or only findings for the specified analyzer.
+  clear [--analyser=NAME]:
+    Clears all findings, or only findings for the specified analyser.
+
+Note: --analyzer is accepted as an alias for --analyser.
 
 Examples:
   aide findings run complexity .
   aide findings run all src/
   aide findings run secrets --no-validate .
   aide findings stats
-  aide findings list --analyzer=complexity --severity=critical
+  aide findings list --analyser=complexity --severity=critical
   aide findings search "cyclomatic"
   aide findings list --file=src/auth
-  aide findings clear --analyzer=secrets`)
+  aide findings clear --analyser=secrets`)
 }
 
 // cmdFindingsRun runs one or more static analyzers and stores findings.
 func cmdFindingsRun(dbPath string, args []string) error {
 	if len(args) < 1 {
-		return fmt.Errorf("usage: aide findings run <analyzer|all> [paths...] [options]")
+		return fmt.Errorf("usage: aide findings run <analyser|all> [paths...] [options]")
 	}
 
 	analyzerName := args[0]
@@ -118,23 +120,43 @@ func cmdFindingsRun(dbPath string, args []string) error {
 	}
 
 	// Parse common options.
+	// Defaults come from .aide/config/aide.json, falling back to hardcoded values.
+	// CLI flags override everything.
+	projectRoot := projectRootFromDB(dbPath)
+	cfg := loadFindingsConfig(projectRoot)
+
 	threshold := 10
+	if cfg.Complexity.Threshold > 0 {
+		threshold = cfg.Complexity.Threshold
+	}
 	if t := parseFlag(subargs, "--threshold="); t != "" {
 		fmt.Sscanf(t, "%d", &threshold)
 	}
 	fanOut := 15
+	if cfg.Coupling.FanOut > 0 {
+		fanOut = cfg.Coupling.FanOut
+	}
 	if f := parseFlag(subargs, "--fan-out="); f != "" {
 		fmt.Sscanf(f, "%d", &fanOut)
 	}
 	fanIn := 20
+	if cfg.Coupling.FanIn > 0 {
+		fanIn = cfg.Coupling.FanIn
+	}
 	if f := parseFlag(subargs, "--fan-in="); f != "" {
 		fmt.Sscanf(f, "%d", &fanIn)
 	}
 	windowSize := 50
+	if cfg.Clones.WindowSize > 0 {
+		windowSize = cfg.Clones.WindowSize
+	}
 	if w := parseFlag(subargs, "--window="); w != "" {
 		fmt.Sscanf(w, "%d", &windowSize)
 	}
 	minCloneLines := 6
+	if cfg.Clones.MinLines > 0 {
+		minCloneLines = cfg.Clones.MinLines
+	}
 	if m := parseFlag(subargs, "--min-lines="); m != "" {
 		fmt.Sscanf(m, "%d", &minCloneLines)
 	}
@@ -158,7 +180,6 @@ func cmdFindingsRun(dbPath string, args []string) error {
 	defer backend.Close()
 
 	// Load .aideignore from project root.
-	projectRoot := projectRootFromDB(dbPath)
 	ignore, err := aideignore.New(projectRoot)
 	if err != nil {
 		return fmt.Errorf("failed to load .aideignore: %w", err)
@@ -171,33 +192,33 @@ func cmdFindingsRun(dbPath string, args []string) error {
 		case findings.AnalyzerComplexity:
 			n, err := runComplexityAnalyzer(backend, paths, threshold, ignore)
 			if err != nil {
-				return fmt.Errorf("complexity analyzer failed: %w", err)
+				return fmt.Errorf("complexity analyser failed: %w", err)
 			}
 			totalFindings += n
 
 		case findings.AnalyzerCoupling:
 			n, err := runCouplingAnalyzer(backend, paths, fanOut, fanIn, ignore)
 			if err != nil {
-				return fmt.Errorf("coupling analyzer failed: %w", err)
+				return fmt.Errorf("coupling analyser failed: %w", err)
 			}
 			totalFindings += n
 
 		case findings.AnalyzerSecrets:
 			n, err := runSecretsAnalyzer(backend, paths, ignore)
 			if err != nil {
-				return fmt.Errorf("secrets analyzer failed: %w", err)
+				return fmt.Errorf("secrets analyser failed: %w", err)
 			}
 			totalFindings += n
 
 		case findings.AnalyzerClones:
 			n, err := runClonesAnalyzer(backend, paths, windowSize, minCloneLines, ignore)
 			if err != nil {
-				return fmt.Errorf("clones analyzer failed: %w", err)
+				return fmt.Errorf("clones analyser failed: %w", err)
 			}
 			totalFindings += n
 
 		default:
-			return fmt.Errorf("unknown analyzer: %s (valid: complexity, coupling, secrets, clones, all)", name)
+			return fmt.Errorf("unknown analyser: %s (valid: complexity, coupling, secrets, clones, all)", name)
 		}
 	}
 
@@ -206,7 +227,7 @@ func cmdFindingsRun(dbPath string, args []string) error {
 }
 
 func runComplexityAnalyzer(backend *Backend, paths []string, threshold int, ignore *aideignore.Matcher) (int, error) {
-	fmt.Printf("Running complexity analyzer (threshold=%d)...\n", threshold)
+	fmt.Printf("Running complexity analyser (threshold=%d)...\n", threshold)
 
 	cfg := findings.ComplexityConfig{
 		Threshold: threshold,
@@ -224,7 +245,7 @@ func runComplexityAnalyzer(backend *Backend, paths []string, threshold int, igno
 		return 0, err
 	}
 
-	fmt.Printf("  Analyzed %d files, skipped %d, found %d issues (%s)\n",
+	fmt.Printf("  Analysed %d files, skipped %d, found %d issues (%s)\n",
 		result.FilesAnalyzed, result.FilesSkipped, result.FindingsCount, result.Duration.Round(1_000_000))
 
 	if err := backend.ReplaceFindingsForAnalyzer(findings.AnalyzerComplexity, ff); err != nil {
@@ -235,7 +256,7 @@ func runComplexityAnalyzer(backend *Backend, paths []string, threshold int, igno
 }
 
 func runCouplingAnalyzer(backend *Backend, paths []string, fanOut, fanIn int, ignore *aideignore.Matcher) (int, error) {
-	fmt.Printf("Running coupling analyzer (fan-out=%d, fan-in=%d)...\n", fanOut, fanIn)
+	fmt.Printf("Running coupling analyser (fan-out=%d, fan-in=%d)...\n", fanOut, fanIn)
 
 	cfg := findings.CouplingConfig{
 		FanOutThreshold: fanOut,
@@ -249,7 +270,7 @@ func runCouplingAnalyzer(backend *Backend, paths []string, fanOut, fanIn int, ig
 		return 0, err
 	}
 
-	fmt.Printf("  Analyzed %d files, found %d issues, %d cycles (%s)\n",
+	fmt.Printf("  Analysed %d files, found %d issues, %d cycles (%s)\n",
 		result.FilesAnalyzed, result.FindingsCount, result.CyclesFound, result.Duration.Round(1_000_000))
 
 	if err := backend.ReplaceFindingsForAnalyzer(findings.AnalyzerCoupling, ff); err != nil {
@@ -260,7 +281,7 @@ func runCouplingAnalyzer(backend *Backend, paths []string, fanOut, fanIn int, ig
 }
 
 func runSecretsAnalyzer(backend *Backend, paths []string, ignore *aideignore.Matcher) (int, error) {
-	fmt.Printf("Running secrets analyzer...\n")
+	fmt.Printf("Running secrets analyser...\n")
 
 	cfg := findings.SecretsConfig{
 		Paths:          paths,
@@ -310,7 +331,7 @@ func runClonesAnalyzer(backend *Backend, paths []string, windowSize, minLines in
 
 func cmdFindingsSearch(dbPath string, args []string) error {
 	if len(args) < 1 {
-		return fmt.Errorf("usage: aide findings search <query> [--analyzer=NAME] [--severity=LEVEL] [--limit=N]")
+		return fmt.Errorf("usage: aide findings search <query> [--analyser=NAME] [--severity=LEVEL] [--limit=N]")
 	}
 
 	// Parse query (first non-flag argument)
@@ -342,12 +363,20 @@ func cmdFindingsSearch(dbPath string, args []string) error {
 	}
 	defer backend.Close()
 
+	// limit=0 means no limit; negative values from the store mean unlimited.
+	storeLimit := limit
+	if limit <= 0 {
+		storeLimit = -1
+	} else {
+		storeLimit = limit + 1 // Fetch one extra to detect truncation.
+	}
+
 	opts := findings.SearchOptions{
 		Analyzer: analyzer,
 		Severity: severity,
 		FilePath: filePath,
 		Category: category,
-		Limit:    limit,
+		Limit:    storeLimit,
 	}
 
 	results, err := backend.SearchFindings(query, opts)
@@ -358,6 +387,11 @@ func cmdFindingsSearch(dbPath string, args []string) error {
 	if len(results) == 0 {
 		fmt.Println("No findings found")
 		return nil
+	}
+
+	truncated := limit > 0 && len(results) > limit
+	if truncated {
+		results = results[:limit]
 	}
 
 	if jsonOutput {
@@ -371,7 +405,11 @@ func cmdFindingsSearch(dbPath string, args []string) error {
 		}
 		fmt.Println("]")
 	} else {
-		fmt.Printf("Found %d findings:\n\n", len(results))
+		if truncated {
+			fmt.Printf("Found more than %d findings. Showing the first %d (use --limit=N to see more):\n\n", limit, limit)
+		} else {
+			fmt.Printf("Found %d findings:\n\n", len(results))
+		}
 		for _, r := range results {
 			printFindingLine(r.Finding)
 		}
@@ -397,12 +435,20 @@ func cmdFindingsList(dbPath string, args []string) error {
 	}
 	defer backend.Close()
 
+	// limit=0 means no limit; negative values from the store mean unlimited.
+	storeLimit := limit
+	if limit <= 0 {
+		storeLimit = -1
+	} else {
+		storeLimit = limit + 1 // Fetch one extra to detect truncation.
+	}
+
 	opts := findings.SearchOptions{
 		Analyzer: analyzer,
 		Severity: severity,
 		FilePath: filePath,
 		Category: category,
-		Limit:    limit,
+		Limit:    storeLimit,
 	}
 
 	results, err := backend.ListFindings(opts)
@@ -415,6 +461,11 @@ func cmdFindingsList(dbPath string, args []string) error {
 		return nil
 	}
 
+	truncated := limit > 0 && len(results) > limit
+	if truncated {
+		results = results[:limit]
+	}
+
 	if jsonOutput {
 		fmt.Print("[")
 		for i, f := range results {
@@ -425,7 +476,11 @@ func cmdFindingsList(dbPath string, args []string) error {
 		}
 		fmt.Println("]")
 	} else {
-		fmt.Printf("Found %d findings:\n\n", len(results))
+		if truncated {
+			fmt.Printf("Found more than %d findings. Showing the first %d (use --limit=N to see more):\n\n", limit, limit)
+		} else {
+			fmt.Printf("Found %d findings:\n\n", len(results))
+		}
 		for _, f := range results {
 			printFindingLine(f)
 		}
@@ -450,7 +505,7 @@ func cmdFindingsStats(dbPath string) error {
 	fmt.Printf("  Total: %d\n\n", stats.Total)
 
 	if len(stats.ByAnalyzer) > 0 {
-		fmt.Printf("  By analyzer:\n")
+		fmt.Printf("  By analyser:\n")
 		for name, count := range stats.ByAnalyzer {
 			fmt.Printf("    %-12s %d\n", name, count)
 		}
@@ -479,9 +534,9 @@ func cmdFindingsClear(dbPath string, args []string) error {
 	if analyzer != "" {
 		count, err := backend.ClearFindingsAnalyzer(analyzer)
 		if err != nil {
-			return fmt.Errorf("failed to clear analyzer findings: %w", err)
+			return fmt.Errorf("failed to clear analyser findings: %w", err)
 		}
-		fmt.Printf("Cleared %d findings for analyzer '%s'\n", count, analyzer)
+		fmt.Printf("Cleared %d findings for analyser '%s'\n", count, analyzer)
 	} else {
 		if err := backend.ClearFindings(); err != nil {
 			return fmt.Errorf("failed to clear findings: %w", err)

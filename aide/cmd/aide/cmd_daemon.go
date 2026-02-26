@@ -53,12 +53,26 @@ func cmdDaemon(dbPath string, args []string) error {
 		defer codeStore.Close()
 	}
 
+	// Open findings store for static analysis
+	findingsDir := getFindingsStorePath(dbPath)
+	findingsStore, err := store.NewFindingsStore(findingsDir)
+	if err != nil {
+		fmt.Printf("WARNING: failed to open findings store: %v (findings tools disabled)\n", err)
+	} else {
+		defer findingsStore.Close()
+	}
+
 	// Create gRPC server
 	server := grpcapi.NewServer(st, dbPath, socketPath)
 
 	// Set code store if available
 	if codeStore != nil {
 		server.SetCodeStore(codeStore)
+	}
+
+	// Set findings store if available
+	if findingsStore != nil {
+		server.SetFindingsStore(findingsStore)
 	}
 
 	// Handle shutdown signals

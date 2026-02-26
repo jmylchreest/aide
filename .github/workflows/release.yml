@@ -180,6 +180,15 @@ jobs:
             -X github.com/jmylchreest/aide/aide/internal/version.Date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             -o "../dist/${BINARY_NAME}" ./cmd/aide
 
+      - name: Compress binary with UPX
+        if: matrix.goos != 'darwin'
+        uses: svenstaro/upx-action@v2
+        with:
+          files: |
+            dist/aide-*
+          args: --best --lzma
+          strip: false # Already stripped via -s -w ldflags
+
       - name: Upload artifact
         uses: actions/upload-artifact@v6
         with:

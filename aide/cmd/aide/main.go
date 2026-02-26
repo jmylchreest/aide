@@ -10,7 +10,10 @@ import (
 	"github.com/jmylchreest/aide/aide/internal/version"
 )
 
-const defaultDBName = ".aide/memory/store.db"
+const (
+	defaultDBName = ".aide/memory/memory.db"
+	legacyDBName  = ".aide/memory/store.db"
+)
 
 func main() {
 	if len(os.Args) < 2 {
@@ -47,7 +50,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Use legacy store.db if it exists, otherwise use the new memory.db name.
 	dbPath := filepath.Join(projectRoot, defaultDBName)
+	legacyPath := filepath.Join(projectRoot, legacyDBName)
+	if _, err := os.Stat(legacyPath); err == nil {
+		dbPath = legacyPath
+	}
 
 	// Ensure memory directory exists.
 	memoryDir := filepath.Dir(dbPath)
@@ -122,7 +130,7 @@ Commands:
   share      Export/import decisions & memories as git-friendly markdown
   daemon     Start gRPC daemon (Unix socket for IPC)
   mcp        Start MCP server (for Claude Code plugin integration)
-  status     Show aide internal status (watcher, stores, analyzers)
+  status     Show aide internal status (watcher, stores, analysers)
   upgrade    Check for updates and upgrade to latest version
   version    Show version information
 

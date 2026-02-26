@@ -90,11 +90,11 @@ npx tsx adapters/opencode/generate.ts --plugin-path /path/to/aide
 
 ### 1. No Stop Blocking (Persistence / Ralph Mode)
 
-**Impact**: High — ralph mode and autopilot cannot prevent the agent from stopping.
+**Impact**: Medium — ralph mode and autopilot work but with a different mechanism than Claude Code.
 
-Claude Code's Stop hook can return `{ decision: "block" }` to prevent the agent from stopping and force it to continue working. OpenCode has no equivalent mechanism. The `session.idle` event fires _after_ the agent has already stopped responding.
+Claude Code's Stop hook can return `{ decision: "block" }` to prevent the agent from stopping (preventive). OpenCode has no equivalent mechanism — the `session.idle` event fires _after_ the agent has already stopped responding.
 
-**Workaround**: None currently. The plugin detects when session goes idle and logs a message, but cannot force continuation. A future OpenCode API addition (`session.prompt()` to send follow-up messages) could enable a polling-based persistence pattern.
+**Implementation**: The plugin uses `session.prompt()` to re-prompt the session when idle with a persistence mode active (ralph, autopilot). This is reactive (post-stop re-prompting) rather than preventive (block stop), using the same `checkPersistence()` core logic as Claude Code. The agent may briefly appear idle before being re-prompted to continue.
 
 ### 2. No Subagent Hooks
 
@@ -122,7 +122,7 @@ Claude Code provides `transcript_path` in Stop hook data, allowing aide to parse
 
 Claude Code's terminal supports a custom status line (HUD) showing mode, agents, and tool activity. OpenCode's TUI does not support external status line injection.
 
-**Workaround**: The plugin still writes `.aide/state/hud.txt` which can be monitored by external tools (e.g., `watch cat .aide/state/hud.txt`).
+**Workaround**: The plugin resets `.aide/state/hud.txt` on init, but does not update it during the session. The HUD updater is a Claude Code PostToolUse hook that is not triggered in OpenCode. External tools could monitor `.aide/state/` for other state files if needed.
 
 ### 5. No Usage Tracking
 

@@ -28,9 +28,10 @@ var (
 
 // FindingsStoreImpl implements FindingsStore using BoltDB + Bleve.
 type FindingsStoreImpl struct {
-	db     *bolt.DB
-	search bleve.Index
-	dbPath string
+	db         *bolt.DB
+	search     bleve.Index
+	dbPath     string
+	searchPath string
 }
 
 // NewFindingsStore opens or creates a findings store at the given directory.
@@ -40,7 +41,13 @@ func NewFindingsStore(dir string) (*FindingsStoreImpl, error) {
 	}
 
 	dbPath := filepath.Join(dir, "findings.db")
-	searchPath := filepath.Join(dir, "findings.idx")
+
+	// Use legacy findings.idx if it exists, otherwise use search.bleve (consistent with other stores).
+	searchPath := filepath.Join(dir, "search.bleve")
+	legacySearchPath := filepath.Join(dir, "findings.idx")
+	if _, statErr := os.Stat(legacySearchPath); statErr == nil {
+		searchPath = legacySearchPath
+	}
 
 	// Open BBolt database
 	db, err := bolt.Open(dbPath, 0o600, &bolt.Options{Timeout: 1 * time.Second})
@@ -76,9 +83,10 @@ func NewFindingsStore(dir string) (*FindingsStoreImpl, error) {
 	}
 
 	fs := &FindingsStoreImpl{
-		db:     db,
-		search: index,
-		dbPath: dbPath,
+		db:         db,
+		search:     index,
+		dbPath:     dbPath,
+		searchPath: searchPath,
 	}
 
 	if err := fs.ensureFindingsSearchMapping(searchPath); err != nil {
@@ -317,6 +325,8 @@ func (s *FindingsStoreImpl) SearchFindings(queryStr string, opts findings.Search
 	limit := opts.Limit
 	if limit == 0 {
 		limit = 20
+	} else if limit < 0 {
+		limit = 100_000 // Effectively unlimited for bleve.
 	}
 
 	// Build compound query
@@ -404,7 +414,7 @@ func (s *FindingsStoreImpl) ListFindings(opts findings.SearchOptions) ([]*findin
 				continue
 			}
 			result = append(result, &f)
-			if len(result) >= limit {
+			if limit > 0 && len(result) >= limit {
 				break
 			}
 		}
@@ -583,7 +593,7 @@ func (s *FindingsStoreImpl) Clear() error {
 		return err
 	}
 
-	searchPath := strings.TrimSuffix(s.dbPath, "index.db") + "findings.idx"
+	searchPath := s.searchPath
 	if err := s.search.Close(); err != nil {
 		return fmt.Errorf("failed to close findings search index: %w", err)
 	}

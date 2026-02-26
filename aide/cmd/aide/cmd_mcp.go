@@ -272,10 +272,18 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 				ignore = aideignore.NewFromDefaults()
 			}
 
+			// Load analyser thresholds from .aide/config/aide.json.
+			fcfg := loadFindingsConfig(projectRoot)
+
 			runnerConfig := findings.AnalyzerConfig{
-				Paths:       watchPaths,
-				Ignore:      ignore,
-				ProjectRoot: projectRoot,
+				Paths:               watchPaths,
+				Ignore:              ignore,
+				ProjectRoot:         projectRoot,
+				ComplexityThreshold: fcfg.Complexity.Threshold,
+				FanOutThreshold:     fcfg.Coupling.FanOut,
+				FanInThreshold:      fcfg.Coupling.FanIn,
+				CloneWindowSize:     fcfg.Clones.WindowSize,
+				CloneMinLines:       fcfg.Clones.MinLines,
 			}
 			findingsRunner = findings.NewRunner(s.findingsStore, runnerConfig)
 			findingsRunner.SetClonesRunner(func(ctx context.Context, paths []string, windowSize, minLines int) ([]*findings.Finding, error) {
@@ -436,13 +444,9 @@ func cmdMCP(dbPath string, args []string) error {
 	mcpServer.grpcServer = grpcServer
 	mcpLog.Printf("gRPC socket: %s", socketPath)
 
-	go func() {
-		if err := grpcServer.Start(); err != nil {
-			mcpLog.Printf("gRPC server error: %v", err)
-		}
-	}()
-	defer grpcServer.Stop()
-
+	// Initialize stores BEFORE starting gRPC server.
+	// grpcServer.Start() registers service implementations that capture store
+	// references at registration time, so stores must be set first.
 	if cleanup := mcpServer.initMCPCodeStore(dbPath, cfg, grpcServer); cleanup != nil {
 		defer cleanup()
 	}
@@ -450,6 +454,13 @@ func cmdMCP(dbPath string, args []string) error {
 	if cleanup := mcpServer.initMCPFindingsStore(dbPath, grpcServer); cleanup != nil {
 		defer cleanup()
 	}
+
+	go func() {
+		if err := grpcServer.Start(); err != nil {
+			mcpLog.Printf("gRPC server error: %v", err)
+		}
+	}()
+	defer grpcServer.Stop()
 
 	mcpServer.startCodeWatcher(dbPath, cfg)
 	defer mcpServer.stopCodeWatcher()

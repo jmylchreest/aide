@@ -15,6 +15,27 @@ export interface AideConfig {
     /** Auto-export on session end (default: false) */
     autoExport?: boolean;
   };
+  findings?: {
+    /** Complexity analyser settings */
+    complexity?: {
+      /** Cyclomatic complexity threshold (default: 10) */
+      threshold?: number;
+    };
+    /** Import coupling analyser settings */
+    coupling?: {
+      /** Fan-out threshold — max outgoing imports (default: 15) */
+      fanOut?: number;
+      /** Fan-in threshold — max incoming imports (default: 20) */
+      fanIn?: number;
+    };
+    /** Code clone detection settings */
+    clones?: {
+      /** Sliding window size in tokens (default: 50) */
+      windowSize?: number;
+      /** Minimum clone size in lines (default: 6) */
+      minLines?: number;
+    };
+  };
 }
 
 export const DEFAULT_CONFIG: AideConfig = {};

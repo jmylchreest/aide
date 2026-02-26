@@ -89,9 +89,9 @@ Examples:
 // --- Export ---
 
 // projectRootFromDB derives the project root from the database path.
-// dbPath is always <projectRoot>/.aide/memory/store.db
+// dbPath is always <projectRoot>/.aide/memory/<name>.db
 func projectRootFromDB(dbPath string) string {
-	// .aide/memory/store.db -> .aide/memory -> .aide -> <projectRoot>
+	// .aide/memory/<name>.db -> .aide/memory -> .aide -> <projectRoot>
 	return filepath.Dir(filepath.Dir(filepath.Dir(dbPath)))
 }
 

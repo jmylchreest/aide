@@ -23,14 +23,14 @@ func setupShareTest(t *testing.T) (b *Backend, tmpDir string, cleanup func()) {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
 
-	// Mimic the real layout: <root>/.aide/memory/store.db
+	// Mimic the real layout: <root>/.aide/memory/memory.db
 	memDir := filepath.Join(tmpDir, ".aide", "memory")
 	if err := os.MkdirAll(memDir, 0o755); err != nil {
 		os.RemoveAll(tmpDir)
 		t.Fatalf("failed to create memory dir: %v", err)
 	}
 
-	dbPath := filepath.Join(memDir, "store.db")
+	dbPath := filepath.Join(memDir, "memory.db")
 	b, err = NewBackend(dbPath)
 	if err != nil {
 		os.RemoveAll(tmpDir)
@@ -579,7 +579,7 @@ func TestFirstLine(t *testing.T) {
 }
 
 func TestProjectRootFromDB(t *testing.T) {
-	got := projectRootFromDB("/home/user/myproject/.aide/memory/store.db")
+	got := projectRootFromDB("/home/user/myproject/.aide/memory/memory.db")
 	if got != "/home/user/myproject" {
 		t.Errorf("projectRootFromDB: got %q, want /home/user/myproject", got)
 	}
