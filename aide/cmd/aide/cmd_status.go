@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -10,21 +11,22 @@ import (
 	"time"
 
 	"github.com/jmylchreest/aide/aide/internal/version"
-	"github.com/jmylchreest/aide/aide/pkg/code"
-	"github.com/jmylchreest/aide/aide/pkg/findings"
-	"github.com/jmylchreest/aide/aide/pkg/watcher"
+	"github.com/jmylchreest/aide/aide/pkg/grpcapi"
 )
 
 type StatusOutput struct {
-	Version   string            `json:"version"`
-	Mode      string            `json:"mode,omitempty"`
-	Project   string            `json:"project"`
-	Timestamp time.Time         `json:"timestamp"`
-	Watcher   *WatcherStatus    `json:"watcher,omitempty"`
-	Code      *CodeStatus       `json:"codeIndexer,omitempty"`
-	Findings  *FindingsStatus   `json:"findings,omitempty"`
-	Stores    StoreStatus       `json:"stores"`
-	Env       map[string]string `json:"environment,omitempty"`
+	Version       string            `json:"version"`
+	Mode          string            `json:"mode,omitempty"`
+	Project       string            `json:"project"`
+	Timestamp     time.Time         `json:"timestamp"`
+	ServerRunning bool              `json:"serverRunning"`
+	Uptime        string            `json:"uptime,omitempty"`
+	Watcher       *WatcherStatus    `json:"watcher,omitempty"`
+	Code          *CodeStatus       `json:"codeIndexer,omitempty"`
+	Findings      *FindingsStatus   `json:"findings,omitempty"`
+	MCPTools      []MCPToolStatus   `json:"mcpTools,omitempty"`
+	Stores        StoreStatus       `json:"stores"`
+	Env           map[string]string `json:"environment,omitempty"`
 }
 
 type WatcherStatus struct {
@@ -58,6 +60,12 @@ type AnalyzerStatus struct {
 	LastDuration string `json:"lastDuration,omitempty"`
 }
 
+type MCPToolStatus struct {
+	Name           string `json:"name"`
+	Category       string `json:"category"`
+	ExecutionCount int64  `json:"executionCount"`
+}
+
 type StoreStatus struct {
 	Paths map[string]string `json:"paths"`
 	Sizes map[string]int64  `json:"sizes"`
@@ -73,9 +81,11 @@ Flags:
   --help, -h    Show this help
 
 Shows:
+  - Server status (connected via gRPC or standalone)
   - File watcher status
   - Code indexer statistics
-  - Findings analyzer status
+  - Findings analyser status
+  - MCP tools with execution counts
   - Store paths and sizes
   - Environment variables
 `
@@ -107,57 +117,17 @@ func cmdStatus(dbPath string, args []string) error {
 		Stores:    getStoreStatus(dbPath),
 	}
 
-	if globalWatcher != nil {
-		stats := globalWatcher.Stats()
-		status.Watcher = &WatcherStatus{
-			Enabled:      stats.Enabled,
-			Paths:        stats.Paths,
-			DirsWatched:  stats.DirsWatched,
-			Debounce:     stats.Debounce.String(),
-			PendingFiles: stats.PendingFiles,
-		}
-		if globalCodeStore != nil {
-			status.Watcher.Subscribers = append(status.Watcher.Subscribers, "code-indexer")
-		}
-		if globalFindingsRunner != nil {
-			status.Watcher.Subscribers = append(status.Watcher.Subscribers, "findings")
-		}
-	}
-
-	if globalCodeStore != nil {
-		stats, err := globalCodeStore.Stats()
+	// Try gRPC first — query the running MCP server for live status
+	if grpcapi.SocketExistsForDB(dbPath) {
+		client, err := grpcapi.NewClientForDB(dbPath)
 		if err == nil {
-			status.Code = &CodeStatus{
-				Status:     "idle",
-				Symbols:    stats.Symbols,
-				References: stats.References,
-				Files:      stats.Files,
-			}
-		}
-	}
+			defer client.Close()
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
 
-	if globalFindingsStore != nil {
-		stats, err := globalFindingsStore.Stats()
-		if err == nil {
-			status.Findings = &FindingsStatus{
-				Total:      stats.Total,
-				ByAnalyzer: stats.ByAnalyzer,
-				BySeverity: stats.BySeverity,
-			}
-		}
-		if globalFindingsRunner != nil {
-			runnerStatus := globalFindingsRunner.GetStatus()
-			if status.Findings != nil {
-				status.Findings.Analyzers = make(map[string]AnalyzerStatus)
-				for name, s := range runnerStatus {
-					status.Findings.Analyzers[name] = AnalyzerStatus{
-						Status:       s.Status,
-						Scope:        s.Scope,
-						LastRun:      formatTimeAgo(s.LastRun),
-						Findings:     s.Findings,
-						LastDuration: s.LastDuration.String(),
-					}
-				}
+			resp, err := client.Status.GetStatus(ctx, &grpcapi.StatusRequest{})
+			if err == nil {
+				populateFromGRPC(&status, resp)
 			}
 		}
 	}
@@ -171,55 +141,154 @@ func cmdStatus(dbPath string, args []string) error {
 	return printStatusTable(status)
 }
 
+// populateFromGRPC fills the StatusOutput from a gRPC StatusResponse.
+func populateFromGRPC(status *StatusOutput, resp *grpcapi.StatusResponse) {
+	status.ServerRunning = resp.ServerRunning
+	status.Uptime = resp.Uptime
+
+	// Override version with server version if available
+	if resp.Version != "" {
+		status.Version = resp.Version
+	}
+
+	// Watcher
+	if w := resp.Watcher; w != nil {
+		status.Watcher = &WatcherStatus{
+			Enabled:      w.Enabled,
+			Paths:        w.Paths,
+			DirsWatched:  int(w.DirsWatched),
+			Debounce:     w.Debounce,
+			PendingFiles: int(w.PendingFiles),
+			Subscribers:  w.Subscribers,
+		}
+	}
+
+	// Code indexer
+	if ci := resp.CodeIndexer; ci != nil && ci.Available {
+		status.Code = &CodeStatus{
+			Status:     ci.Status,
+			Symbols:    int(ci.Symbols),
+			References: int(ci.References),
+			Files:      int(ci.Files),
+		}
+	}
+
+	// Findings
+	if f := resp.Findings; f != nil && f.Available {
+		byAnalyzer := make(map[string]int, len(f.ByAnalyzer))
+		for k, v := range f.ByAnalyzer {
+			byAnalyzer[k] = int(v)
+		}
+		bySeverity := make(map[string]int, len(f.BySeverity))
+		for k, v := range f.BySeverity {
+			bySeverity[k] = int(v)
+		}
+		status.Findings = &FindingsStatus{
+			Total:      int(f.Total),
+			ByAnalyzer: byAnalyzer,
+			BySeverity: bySeverity,
+		}
+		if len(f.Analyzers) > 0 {
+			analyzers := make(map[string]AnalyzerStatus, len(f.Analyzers))
+			for name, a := range f.Analyzers {
+				analyzers[name] = AnalyzerStatus{
+					Status:       a.Status,
+					Scope:        a.Scope,
+					LastRun:      a.LastRun,
+					Findings:     int(a.Findings),
+					LastDuration: a.LastDuration,
+				}
+			}
+			status.Findings.Analyzers = analyzers
+		}
+	}
+
+	// MCP tools
+	if len(resp.McpTools) > 0 {
+		tools := make([]MCPToolStatus, len(resp.McpTools))
+		for i, t := range resp.McpTools {
+			tools[i] = MCPToolStatus{
+				Name:           t.Name,
+				Category:       t.Category,
+				ExecutionCount: t.ExecutionCount,
+			}
+		}
+		status.MCPTools = tools
+	}
+}
+
 func printStatusTable(status StatusOutput) error {
 	fmt.Println("AIDE Status")
 	fmt.Println("──────────────────────────────────────────────────────────────")
 	fmt.Println()
 
-	fmt.Printf("Version: %-20s Project: %s\n", status.Version, status.Project)
+	// Header: version and project on separate lines since version string can be long
+	fmt.Printf("  Version:  %s\n", status.Version)
+	fmt.Printf("  Project:  %s\n", status.Project)
 	if status.Mode != "" {
-		fmt.Printf("Mode: %-22s", status.Mode)
+		fmt.Printf("  Mode:     %s\n", status.Mode)
 	}
-	fmt.Printf("Time: %s\n\n", status.Timestamp.Format("2006-01-02 15:04:05"))
+	fmt.Printf("  Time:     %s\n", status.Timestamp.Format("2006-01-02 15:04:05"))
+	if status.ServerRunning {
+		fmt.Printf("  Server:   running (uptime: %s)\n", status.Uptime)
+	} else {
+		fmt.Printf("  Server:   not running\n")
+	}
+	fmt.Println()
 
+	// File Watcher
 	fmt.Println("FILE WATCHER")
 	if status.Watcher != nil && status.Watcher.Enabled {
-		fmt.Printf("  Status: enabled              Dirs: %d\n", status.Watcher.DirsWatched)
 		paths := strings.Join(status.Watcher.Paths, ", ")
 		if paths == "" {
 			paths = "."
 		}
-		fmt.Printf("  Paths: %-20s Debounce: %s\n", paths, status.Watcher.Debounce)
-		fmt.Printf("  Pending: %-4d              Subscribers: %s\n\n", status.Watcher.PendingFiles, strings.Join(status.Watcher.Subscribers, ", "))
+		fmt.Printf("  Status:       enabled\n")
+		fmt.Printf("  Paths:        %s\n", paths)
+		fmt.Printf("  Dirs:         %-20d Debounce:    %s\n", status.Watcher.DirsWatched, status.Watcher.Debounce)
+		fmt.Printf("  Pending:      %-20d Subscribers: %s\n", status.Watcher.PendingFiles, strings.Join(status.Watcher.Subscribers, ", "))
 	} else {
-		fmt.Println("  Status: disabled")
-		fmt.Println()
+		fmt.Println("  Status:       disabled")
 	}
+	fmt.Println()
 
+	// Code Indexer
 	fmt.Println("CODE INDEXER")
 	if status.Code != nil {
-		fmt.Printf("  Status: %-18s Symbols: %d\n", status.Code.Status, status.Code.Symbols)
-		fmt.Printf("  References: %-14d Files: %d\n\n", status.Code.References, status.Code.Files)
+		fmt.Printf("  Status:       %-20s Symbols:     %d\n", status.Code.Status, status.Code.Symbols)
+		fmt.Printf("  Files:        %-20d References:  %d\n", status.Code.Files, status.Code.References)
 	} else {
-		fmt.Println("  Status: not available")
-		fmt.Println()
+		fmt.Println("  Status:       not available")
 	}
+	fmt.Println()
 
-	fmt.Println("FINDINGS ANALYZERS")
+	// Findings Analysers
+	fmt.Println("FINDINGS ANALYSERS")
 	if status.Findings != nil {
-		fmt.Printf("  Total: %-20d By Analyzer:\n", status.Findings.Total)
-		for a, c := range status.Findings.ByAnalyzer {
-			fmt.Printf("    %-20s %d\n", a, c)
-		}
-		if len(status.Findings.Analyzers) > 0 {
-			fmt.Println("\n  Analyzer     Scope            Status    Findings  Last Run")
-			fmt.Println("  ───────────  ───────────────  ────────  ────────  ─────────")
+		fmt.Printf("  Total: %d", status.Findings.Total)
+		if len(status.Findings.ByAnalyzer) > 0 {
+			var parts []string
 			var names []string
-			for name := range status.Findings.Analyzers {
+			for name := range status.Findings.ByAnalyzer {
 				names = append(names, name)
 			}
 			sort.Strings(names)
 			for _, name := range names {
+				parts = append(parts, fmt.Sprintf("%s: %d", name, status.Findings.ByAnalyzer[name]))
+			}
+			fmt.Printf("  (%s)", strings.Join(parts, ", "))
+		}
+		fmt.Println()
+		if len(status.Findings.Analyzers) > 0 {
+			fmt.Println()
+			fmt.Println("  Analyser     Scope            Status    Findings  Last Run")
+			fmt.Println("  ───────────  ───────────────  ────────  ────────  ─────────")
+			var anames []string
+			for name := range status.Findings.Analyzers {
+				anames = append(anames, name)
+			}
+			sort.Strings(anames)
+			for _, name := range anames {
 				s := status.Findings.Analyzers[name]
 				scope := s.Scope
 				if scope == "" {
@@ -231,19 +300,91 @@ func printStatusTable(status StatusOutput) error {
 				fmt.Printf("  %-12s %-16s %-9s %-8d %s\n", name, scope, s.Status, s.Findings, s.LastRun)
 			}
 		}
-		fmt.Println()
 	} else {
-		fmt.Println("  Status: not available")
-		fmt.Println()
-	}
-
-	fmt.Println("STORES")
-	for name, path := range status.Stores.Paths {
-		size := status.Stores.Sizes[name]
-		fmt.Printf("  %-12s %s (%s)\n", name+":", path, formatBytes(size))
+		fmt.Println("  Status:       not available")
 	}
 	fmt.Println()
 
+	// MCP Tools
+	fmt.Println("MCP TOOLS")
+	if len(status.MCPTools) > 0 {
+		// Group tools by category, track counts
+		type toolInfo struct {
+			name  string
+			count int64
+		}
+		categories := make(map[string][]toolInfo)
+		var totalCalls int64
+		for _, t := range status.MCPTools {
+			categories[t.Category] = append(categories[t.Category], toolInfo{t.Name, t.ExecutionCount})
+			totalCalls += t.ExecutionCount
+		}
+		var cats []string
+		for c := range categories {
+			cats = append(cats, c)
+		}
+		sort.Strings(cats)
+		for _, cat := range cats {
+			tools := categories[cat]
+			sort.Slice(tools, func(i, j int) bool { return tools[i].name < tools[j].name })
+			var toolStrs []string
+			for _, t := range tools {
+				if t.count > 0 {
+					toolStrs = append(toolStrs, fmt.Sprintf("%s(%d)", t.name, t.count))
+				} else {
+					toolStrs = append(toolStrs, t.name)
+				}
+			}
+			fmt.Printf("  %-12s %s\n", cat+":", strings.Join(toolStrs, ", "))
+		}
+		fmt.Printf("  Total: %d tools, %d calls", len(status.MCPTools), totalCalls)
+		if totalCalls > 0 {
+			// List every tool with calls > 0
+			var calledTools []string
+			for _, cat := range cats {
+				tools := categories[cat]
+				for _, t := range tools {
+					if t.count > 0 {
+						calledTools = append(calledTools, fmt.Sprintf("%s: %d", t.name, t.count))
+					}
+				}
+			}
+			fmt.Printf(" (%s)", strings.Join(calledTools, ", "))
+		}
+		fmt.Println()
+	} else {
+		fmt.Println("  Not available (server not running)")
+	}
+	fmt.Println()
+
+	// Stores — deterministic order
+	fmt.Println("STORES")
+	storeOrder := []string{"aide.db", "memory.bleve", "code.db", "code.bleve", "findings.db"}
+	printed := make(map[string]bool)
+	for _, name := range storeOrder {
+		path, ok := status.Stores.Paths[name]
+		if !ok {
+			continue
+		}
+		size := status.Stores.Sizes[name]
+		fmt.Printf("  %-16s %s (%s)\n", name+":", path, formatBytes(size))
+		printed[name] = true
+	}
+	// Any stores not in the predefined order
+	var extra []string
+	for name := range status.Stores.Paths {
+		if !printed[name] {
+			extra = append(extra, name)
+		}
+	}
+	sort.Strings(extra)
+	for _, name := range extra {
+		size := status.Stores.Sizes[name]
+		fmt.Printf("  %-16s %s (%s)\n", name+":", status.Stores.Paths[name], formatBytes(size))
+	}
+	fmt.Println()
+
+	// Environment
 	if len(status.Env) > 0 {
 		fmt.Println("ENVIRONMENT")
 		var keys []string
@@ -298,27 +439,66 @@ func getStoreStatus(dbPath string) StoreStatus {
 		Sizes: make(map[string]int64),
 	}
 
-	aideDir := filepath.Dir(filepath.Dir(dbPath))
+	// dbPath is .aide/memory/store.db
+	memoryDir := filepath.Dir(dbPath)
 
-	mainPath := dbPath
-	if info, err := os.Stat(mainPath); err == nil {
-		status.Paths["aide.db"] = mainPath
+	// aide.db — main memory store
+	if info, err := os.Stat(dbPath); err == nil {
+		status.Paths["aide.db"] = dbPath
 		status.Sizes["aide.db"] = info.Size()
 	}
 
-	codePath := filepath.Join(aideDir, "code", "index.db")
+	// memory search.bleve — memory full-text index
+	memorySearchPath := filepath.Join(memoryDir, "search.bleve")
+	if size, err := dirSize(memorySearchPath); err == nil {
+		status.Paths["memory.bleve"] = memorySearchPath
+		status.Sizes["memory.bleve"] = size
+	}
+
+	// code.db — code symbol index
+	codePath := filepath.Join(memoryDir, "code", "index.db")
 	if info, err := os.Stat(codePath); err == nil {
 		status.Paths["code.db"] = codePath
 		status.Sizes["code.db"] = info.Size()
 	}
 
-	findingsPath := filepath.Join(aideDir, "findings", "findings.db")
+	// code search.bleve — code full-text index
+	codeSearchPath := filepath.Join(memoryDir, "code", "search.bleve")
+	if size, err := dirSize(codeSearchPath); err == nil {
+		status.Paths["code.bleve"] = codeSearchPath
+		status.Sizes["code.bleve"] = size
+	}
+
+	// findings.db — findings store
+	findingsPath := filepath.Join(memoryDir, "findings", "findings.db")
 	if info, err := os.Stat(findingsPath); err == nil {
 		status.Paths["findings.db"] = findingsPath
 		status.Sizes["findings.db"] = info.Size()
 	}
 
 	return status
+}
+
+// dirSize returns the total size of all files in a directory tree.
+func dirSize(path string) (int64, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return 0, err
+	}
+	if !info.IsDir() {
+		return info.Size(), nil
+	}
+	var total int64
+	_ = filepath.Walk(path, func(_ string, fi os.FileInfo, err error) error {
+		if err != nil {
+			return nil // skip errors
+		}
+		if !fi.IsDir() {
+			total += fi.Size()
+		}
+		return nil
+	})
+	return total, nil
 }
 
 func getAideEnvVars() map[string]string {
@@ -341,14 +521,3 @@ func getProjectRoot() string {
 	}
 	return cwd
 }
-
-var (
-	globalWatcher   *watcher.Watcher
-	globalCodeStore interface {
-		Stats() (*code.IndexStats, error)
-	}
-	globalFindingsStore interface {
-		Stats() (*findings.Stats, error)
-	}
-	globalFindingsRunner *findings.Runner
-)

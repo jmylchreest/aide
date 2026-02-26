@@ -178,7 +178,7 @@ func (s *MCPServer) handleFindingsStats(_ context.Context, _ *mcp.CallToolReques
 	sb.WriteString(fmt.Sprintf("Total findings: %d\n\n", stats.Total))
 
 	if len(stats.ByAnalyzer) > 0 {
-		sb.WriteString("By analyzer:\n")
+		sb.WriteString("By analyser:\n")
 		for name, count := range stats.ByAnalyzer {
 			sb.WriteString(fmt.Sprintf("  %-12s %d\n", name, count))
 		}

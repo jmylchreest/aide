@@ -41,6 +41,8 @@ type MCPServer struct {
 	unifiedWatcher   *watcher.Watcher
 	findingsRunner   *findings.Runner
 	unifiedWatcherMu sync.Mutex
+
+	toolCounts sync.Map // map[string]*atomic.Int64
 }
 
 // getCodeStore safely returns the code store (may be nil during lazy init).
@@ -59,6 +61,36 @@ func (s *MCPServer) setCodeStore(cs store.CodeIndexStore) {
 	s.codeStore = cs
 	s.codeStoreMu.Unlock()
 	s.codeStoreReady.Store(true)
+}
+
+// incrementToolCount atomically increments the execution count for a tool.
+func (s *MCPServer) incrementToolCount(name string) {
+	v, _ := s.toolCounts.LoadOrStore(name, &atomic.Int64{})
+	v.(*atomic.Int64).Add(1)
+}
+
+// getToolCounts returns a snapshot of tool execution counts.
+func (s *MCPServer) getToolCounts() map[string]int64 {
+	counts := make(map[string]int64)
+	s.toolCounts.Range(func(key, value any) bool {
+		counts[key.(string)] = value.(*atomic.Int64).Load()
+		return true
+	})
+	return counts
+}
+
+// toolCountMiddleware returns MCP middleware that counts tool invocations.
+func (s *MCPServer) toolCountMiddleware() mcp.Middleware {
+	return func(next mcp.MethodHandler) mcp.MethodHandler {
+		return func(ctx context.Context, method string, req mcp.Request) (mcp.Result, error) {
+			if method == "tools/call" {
+				if params, ok := req.GetParams().(*mcp.CallToolParamsRaw); ok {
+					s.incrementToolCount(params.Name)
+				}
+			}
+			return next(ctx, method, req)
+		}
+	}
 }
 
 // mcpConfig holds parsed configuration for the MCP server.
@@ -269,10 +301,11 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 		s.findingsRunner = findingsRunner
 		s.unifiedWatcherMu.Unlock()
 
-		globalWatcher = w
-		globalCodeStore = s.getCodeStore()
-		globalFindingsStore = s.findingsStore
-		globalFindingsRunner = findingsRunner
+		// Expose watcher/runner to gRPC StatusService
+		if s.grpcServer != nil {
+			s.grpcServer.SetWatcher(w)
+			s.grpcServer.SetFindingsRunner(findingsRunner)
+		}
 
 		if len(watchPaths) > 0 {
 			mcpLog.Printf("unified watcher enabled for: %s (debounce: %v)", strings.Join(watchPaths, ", "), debounceDelay)
@@ -424,6 +457,9 @@ func (s *MCPServer) Run() error {
 	)
 	s.server = srv
 
+	// Track tool execution counts
+	srv.AddReceivingMiddleware(s.toolCountMiddleware())
+
 	// Register tools - only data layer, not orchestration
 	// Task management and state mutations are handled by hooks/skills
 	s.registerMemoryTools()
@@ -433,8 +469,38 @@ func (s *MCPServer) Run() error {
 	s.registerCodeTools()     // Code indexing and search
 	s.registerFindingsTools() // Findings search and stats
 
+	// Expose registered MCP tools and count getter to gRPC StatusService
+	if s.grpcServer != nil {
+		s.grpcServer.SetMCPTools(mcpToolList())
+		s.grpcServer.SetToolCountFunc(s.getToolCounts)
+	}
+
 	// Run over stdio
 	return srv.Run(context.Background(), &mcp.StdioTransport{})
+}
+
+// mcpToolList returns the static list of MCP tools registered by the server.
+func mcpToolList() []*grpcapi.StatusMCPTool {
+	return []*grpcapi.StatusMCPTool{
+		{Name: "memory_search", Category: "memory"},
+		{Name: "memory_list", Category: "memory"},
+		{Name: "state_get", Category: "state"},
+		{Name: "state_list", Category: "state"},
+		{Name: "decision_get", Category: "decision"},
+		{Name: "decision_history", Category: "decision"},
+		{Name: "decision_list", Category: "decision"},
+		{Name: "message_list", Category: "message"},
+		{Name: "message_send", Category: "message"},
+		{Name: "message_ack", Category: "message"},
+		{Name: "code_search", Category: "code"},
+		{Name: "code_symbols", Category: "code"},
+		{Name: "code_stats", Category: "code"},
+		{Name: "code_references", Category: "code"},
+		{Name: "code_outline", Category: "code"},
+		{Name: "findings_search", Category: "findings"},
+		{Name: "findings_list", Category: "findings"},
+		{Name: "findings_stats", Category: "findings"},
+	}
 }
 
 // printMCPUsage prints help for the mcp command.

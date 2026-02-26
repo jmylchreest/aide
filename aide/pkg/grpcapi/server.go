@@ -7,6 +7,8 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/jmylchreest/aide/aide/internal/version"
@@ -14,6 +16,7 @@ import (
 	"github.com/jmylchreest/aide/aide/pkg/findings"
 	"github.com/jmylchreest/aide/aide/pkg/memory"
 	"github.com/jmylchreest/aide/aide/pkg/store"
+	"github.com/jmylchreest/aide/aide/pkg/watcher"
 	"github.com/oklog/ulid/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -41,6 +44,14 @@ type Server struct {
 	dbPath        string
 	grpcServer    *grpc.Server
 	socketPath    string
+	startTime     time.Time
+
+	// Status-related fields (set by the MCP server process)
+	mu             sync.RWMutex
+	watcher        *watcher.Watcher
+	findingsRunner *findings.Runner
+	mcpTools       []*StatusMCPTool
+	toolCountFunc  func() map[string]int64
 }
 
 // NewServer creates a new gRPC server.
@@ -49,6 +60,7 @@ func NewServer(st store.Store, dbPath, socketPath string) *Server {
 		store:      st,
 		dbPath:     dbPath,
 		socketPath: socketPath,
+		startTime:  time.Now(),
 	}
 }
 
@@ -60,6 +72,34 @@ func (s *Server) SetCodeStore(cs store.CodeIndexStore) {
 // SetFindingsStore sets the findings store for findings services.
 func (s *Server) SetFindingsStore(fs store.FindingsStore) {
 	s.findingsStore = fs
+}
+
+// SetWatcher sets the watcher for status reporting.
+func (s *Server) SetWatcher(w *watcher.Watcher) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.watcher = w
+}
+
+// SetFindingsRunner sets the findings runner for status reporting.
+func (s *Server) SetFindingsRunner(r *findings.Runner) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.findingsRunner = r
+}
+
+// SetMCPTools sets the list of registered MCP tools.
+func (s *Server) SetMCPTools(tools []*StatusMCPTool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.mcpTools = tools
+}
+
+// SetToolCountFunc sets the function used to retrieve tool execution counts.
+func (s *Server) SetToolCountFunc(f func() map[string]int64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.toolCountFunc = f
 }
 
 // Start starts the gRPC server on a Unix socket.
@@ -93,6 +133,7 @@ func (s *Server) Start() error {
 	RegisterCodeServiceServer(s.grpcServer, &codeServiceImpl{store: s.codeStore, parser: code.NewParser()})
 	RegisterFindingsServiceServer(s.grpcServer, &findingsServiceImpl{store: s.findingsStore})
 	RegisterHealthServiceServer(s.grpcServer, &healthServiceImpl{dbPath: s.dbPath})
+	RegisterStatusServiceServer(s.grpcServer, &statusServiceImpl{server: s})
 
 	// Start serving
 	return s.grpcServer.Serve(listener)
@@ -1022,6 +1063,159 @@ func (s *findingsServiceImpl) Clear(ctx context.Context, req *FindingClearReques
 	}
 
 	return &FindingClearResponse{Success: true}, nil
+}
+
+// =============================================================================
+// Status Service Implementation
+// =============================================================================
+
+type statusServiceImpl struct {
+	UnimplementedStatusServiceServer
+	server *Server
+}
+
+func (s *statusServiceImpl) GetStatus(ctx context.Context, req *StatusRequest) (*StatusResponse, error) {
+	srv := s.server
+	srv.mu.RLock()
+	w := srv.watcher
+	fr := srv.findingsRunner
+	tools := srv.mcpTools
+	countFunc := srv.toolCountFunc
+	srv.mu.RUnlock()
+
+	// Get tool execution counts
+	var toolCounts map[string]int64
+	if countFunc != nil {
+		toolCounts = countFunc()
+	}
+
+	// Populate execution counts on tools
+	if toolCounts != nil && len(tools) > 0 {
+		for _, t := range tools {
+			t.ExecutionCount = toolCounts[t.Name]
+		}
+	}
+
+	resp := &StatusResponse{
+		Version:       version.String(),
+		Uptime:        formatHumanDuration(time.Since(srv.startTime)),
+		ServerRunning: true,
+		McpTools:      tools,
+	}
+
+	// Watcher status
+	if w != nil {
+		stats := w.Stats()
+		watcherStatus := &StatusWatcher{
+			Enabled:      stats.Enabled,
+			Paths:        stats.Paths,
+			DirsWatched:  int32(stats.DirsWatched),
+			Debounce:     stats.Debounce.String(),
+			PendingFiles: int32(stats.PendingFiles),
+		}
+		if srv.codeStore != nil {
+			watcherStatus.Subscribers = append(watcherStatus.Subscribers, "code-indexer")
+		}
+		if fr != nil {
+			watcherStatus.Subscribers = append(watcherStatus.Subscribers, "findings")
+		}
+		resp.Watcher = watcherStatus
+	}
+
+	// Code indexer status
+	if srv.codeStore != nil {
+		stats, err := srv.codeStore.Stats()
+		if err == nil && stats != nil {
+			resp.CodeIndexer = &StatusCodeIndexer{
+				Available:  true,
+				Status:     "idle",
+				Symbols:    int32(stats.Symbols),
+				References: int32(stats.References),
+				Files:      int32(stats.Files),
+			}
+		} else {
+			resp.CodeIndexer = &StatusCodeIndexer{
+				Available: true,
+				Status:    "error",
+			}
+		}
+	}
+
+	// Findings status
+	if srv.findingsStore != nil {
+		stats, err := srv.findingsStore.Stats()
+		if err == nil && stats != nil {
+			findingsStatus := &StatusFindings{
+				Available: true,
+				Total:     int32(stats.Total),
+			}
+			byAnalyzer := make(map[string]int32, len(stats.ByAnalyzer))
+			for k, v := range stats.ByAnalyzer {
+				byAnalyzer[k] = int32(v)
+			}
+			findingsStatus.ByAnalyzer = byAnalyzer
+
+			bySeverity := make(map[string]int32, len(stats.BySeverity))
+			for k, v := range stats.BySeverity {
+				bySeverity[k] = int32(v)
+			}
+			findingsStatus.BySeverity = bySeverity
+
+			if fr != nil {
+				runnerStatus := fr.GetStatus()
+				analyzers := make(map[string]*StatusAnalyzer, len(runnerStatus))
+				for name, as := range runnerStatus {
+					lastRun := "never"
+					if !as.LastRun.IsZero() {
+						lastRun = as.LastRun.Format(time.RFC3339)
+					}
+					analyzers[name] = &StatusAnalyzer{
+						Status:       as.Status,
+						Scope:        as.Scope,
+						LastRun:      lastRun,
+						Findings:     int32(as.Findings),
+						LastDuration: as.LastDuration.String(),
+					}
+				}
+				findingsStatus.Analyzers = analyzers
+			}
+
+			resp.Findings = findingsStatus
+		}
+	}
+
+	return resp, nil
+}
+
+// formatHumanDuration returns a human-readable duration string like "3m 21s" or "1h 5m".
+func formatHumanDuration(d time.Duration) string {
+	d = d.Round(time.Second)
+	if d < time.Second {
+		return "< 1s"
+	}
+
+	days := int(d.Hours()) / 24
+	hours := int(d.Hours()) % 24
+	minutes := int(d.Minutes()) % 60
+	seconds := int(d.Seconds()) % 60
+
+	var parts []string
+	if days > 0 {
+		parts = append(parts, fmt.Sprintf("%dd", days))
+	}
+	if hours > 0 {
+		parts = append(parts, fmt.Sprintf("%dh", hours))
+	}
+	if minutes > 0 {
+		parts = append(parts, fmt.Sprintf("%dm", minutes))
+	}
+	if seconds > 0 && days == 0 { // skip seconds for long durations
+		parts = append(parts, fmt.Sprintf("%ds", seconds))
+	}
+	if len(parts) == 0 {
+		return "0s"
+	}
+	return strings.Join(parts, " ")
 }
 
 // =============================================================================

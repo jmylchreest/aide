@@ -567,3 +567,71 @@ message HealthCheckResponse {
   string version = 2;
   string db_path = 3;
 }
+
+// =============================================================================
+// Status Service (live server status for CLI)
+// =============================================================================
+
+service StatusService {
+  rpc GetStatus(StatusRequest) returns (StatusResponse);
+}
+
+message StatusRequest {}
+
+message StatusResponse {
+  // Server info
+  string version = 1;
+  string uptime = 2;
+  bool server_running = 3;
+
+  // Watcher status
+  StatusWatcher watcher = 4;
+
+  // Code indexer status
+  StatusCodeIndexer code_indexer = 5;
+
+  // Findings status
+  StatusFindings findings = 6;
+
+  // MCP tools
+  repeated StatusMCPTool mcp_tools = 7;
+}
+
+message StatusWatcher {
+  bool enabled = 1;
+  repeated string paths = 2;
+  int32 dirs_watched = 3;
+  string debounce = 4;
+  int32 pending_files = 5;
+  repeated string subscribers = 6;
+}
+
+message StatusCodeIndexer {
+  bool available = 1;
+  string status = 2;
+  int32 symbols = 3;
+  int32 references = 4;
+  int32 files = 5;
+}
+
+message StatusFindings {
+  bool available = 1;
+  int32 total = 2;
+  map<string, int32> by_analyzer = 3;
+  map<string, int32> by_severity = 4;
+  map<string, StatusAnalyzer> analyzers = 5;
+}
+
+message StatusAnalyzer {
+  string status = 1;
+  string scope = 2;
+  string last_run = 3;
+  int32 findings = 4;
+  string last_duration = 5;
+}
+
+message StatusMCPTool {
+  string name = 1;
+  string category = 2;
+  int64 execution_count = 3;
+}

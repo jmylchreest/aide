@@ -23,6 +23,7 @@ type Client struct {
 	Code     CodeServiceClient
 	Findings FindingsServiceClient
 	Health   HealthServiceClient
+	Status   StatusServiceClient
 }
 
 // SocketExistsForDB checks if the gRPC socket is available for the given database path.
@@ -69,6 +70,7 @@ func NewClientWithSocket(socketPath string) (*Client, error) {
 		Code:     NewCodeServiceClient(conn),
 		Findings: NewFindingsServiceClient(conn),
 		Health:   NewHealthServiceClient(conn),
+		Status:   NewStatusServiceClient(conn),
 	}, nil
 }
 
