@@ -12,94 +12,36 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jmylchreest/aide/aide/pkg/grammar"
 	"github.com/oklog/ulid/v2"
-	sitter "github.com/smacker/go-tree-sitter"
-	"github.com/smacker/go-tree-sitter/bash"
-	"github.com/smacker/go-tree-sitter/c"
-	"github.com/smacker/go-tree-sitter/cpp"
-	"github.com/smacker/go-tree-sitter/csharp"
-	"github.com/smacker/go-tree-sitter/css"
-	"github.com/smacker/go-tree-sitter/elixir"
-	"github.com/smacker/go-tree-sitter/elm"
-	"github.com/smacker/go-tree-sitter/golang"
-	"github.com/smacker/go-tree-sitter/groovy"
-	"github.com/smacker/go-tree-sitter/hcl"
-	"github.com/smacker/go-tree-sitter/html"
-	"github.com/smacker/go-tree-sitter/java"
-	"github.com/smacker/go-tree-sitter/javascript"
-	"github.com/smacker/go-tree-sitter/kotlin"
-	"github.com/smacker/go-tree-sitter/lua"
-	"github.com/smacker/go-tree-sitter/ocaml"
-	"github.com/smacker/go-tree-sitter/php"
-	"github.com/smacker/go-tree-sitter/protobuf"
-	"github.com/smacker/go-tree-sitter/python"
-	"github.com/smacker/go-tree-sitter/ruby"
-	"github.com/smacker/go-tree-sitter/rust"
-	"github.com/smacker/go-tree-sitter/scala"
-	"github.com/smacker/go-tree-sitter/sql"
-	"github.com/smacker/go-tree-sitter/swift"
-	"github.com/smacker/go-tree-sitter/toml"
-	"github.com/smacker/go-tree-sitter/typescript/typescript"
-	"github.com/smacker/go-tree-sitter/yaml"
+	tree_sitter "github.com/tree-sitter/go-tree-sitter"
 )
 
-// languageProvider is a function that returns a tree-sitter language grammar.
-// Grammars are loaded lazily on first use to avoid loading all 27 at startup.
-type languageProvider func() *sitter.Language
-
-// langProviders maps language names to their grammar provider functions.
-var langProviders = map[string]languageProvider{
-	LangTypeScript: typescript.GetLanguage,
-	LangJavaScript: javascript.GetLanguage,
-	LangGo:         golang.GetLanguage,
-	LangPython:     python.GetLanguage,
-	LangRust:       rust.GetLanguage,
-	LangC:          c.GetLanguage,
-	LangCPP:        cpp.GetLanguage,
-	LangCSharp:     csharp.GetLanguage,
-	LangJava:       java.GetLanguage,
-	LangKotlin:     kotlin.GetLanguage,
-	LangScala:      scala.GetLanguage,
-	LangGroovy:     groovy.GetLanguage,
-	LangRuby:       ruby.GetLanguage,
-	LangPHP:        php.GetLanguage,
-	LangLua:        lua.GetLanguage,
-	LangElixir:     elixir.GetLanguage,
-	LangBash:       bash.GetLanguage,
-	LangSwift:      swift.GetLanguage,
-	LangOCaml:      ocaml.GetLanguage,
-	LangElm:        elm.GetLanguage,
-	LangSQL:        sql.GetLanguage,
-	LangYAML:       yaml.GetLanguage,
-	LangTOML:       toml.GetLanguage,
-	LangHCL:        hcl.GetLanguage,
-	LangProtobuf:   protobuf.GetLanguage,
-	LangHTML:       html.GetLanguage,
-	LangCSS:        css.GetLanguage,
-}
-
 // Parser extracts symbols from source code using tree-sitter queries.
-// Languages and queries are loaded lazily on first use per language.
+// Languages are loaded via the grammar.Loader (built-in or dynamic).
+// Queries are compiled and cached lazily per language.
 type Parser struct {
 	mu         sync.Mutex
-	languages  map[string]*sitter.Language // Loaded grammars (cache)
-	queries    map[string]*sitter.Query    // Compiled tag queries (cache)
-	refQueries map[string]*sitter.Query    // Compiled reference queries (cache)
+	loader     grammar.Loader
+	languages  map[string]*tree_sitter.Language // Loaded grammars (cache)
+	queries    map[string]*tree_sitter.Query    // Compiled tag queries (cache)
+	refQueries map[string]*tree_sitter.Query    // Compiled reference queries (cache)
 }
 
-// NewParser creates a new code parser. Grammars and queries are loaded
-// lazily on first use rather than loading all 27 languages upfront.
-func NewParser() *Parser {
+// NewParser creates a new code parser backed by the given grammar loader.
+// Grammars and queries are loaded lazily on first use.
+func NewParser(loader grammar.Loader) *Parser {
 	return &Parser{
-		languages:  make(map[string]*sitter.Language),
-		queries:    make(map[string]*sitter.Query),
-		refQueries: make(map[string]*sitter.Query),
+		loader:     loader,
+		languages:  make(map[string]*tree_sitter.Language),
+		queries:    make(map[string]*tree_sitter.Query),
+		refQueries: make(map[string]*tree_sitter.Query),
 	}
 }
 
 // getLanguage returns the tree-sitter language for a given language name,
 // loading and caching it on first access.
-func (p *Parser) getLanguage(lang string) *sitter.Language {
+func (p *Parser) getLanguage(lang string) *tree_sitter.Language {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -107,19 +49,18 @@ func (p *Parser) getLanguage(lang string) *sitter.Language {
 		return l
 	}
 
-	provider, ok := langProviders[lang]
-	if !ok {
+	l, err := p.loader.Load(context.Background(), lang)
+	if err != nil {
 		return nil
 	}
 
-	l := provider()
 	p.languages[lang] = l
 	return l
 }
 
 // getTagQuery returns the compiled tag query for a language,
 // compiling and caching it on first access. Also loads the grammar if needed.
-func (p *Parser) getTagQuery(lang string) *sitter.Query {
+func (p *Parser) getTagQuery(lang string) *tree_sitter.Query {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -135,16 +76,16 @@ func (p *Parser) getTagQuery(lang string) *sitter.Query {
 	// Ensure language grammar is loaded
 	sitterLang, ok := p.languages[lang]
 	if !ok {
-		provider, exists := langProviders[lang]
-		if !exists {
+		l, err := p.loader.Load(context.Background(), lang)
+		if err != nil {
 			return nil
 		}
-		sitterLang = provider()
+		sitterLang = l
 		p.languages[lang] = sitterLang
 	}
 
-	q, err := sitter.NewQuery([]byte(pattern), sitterLang)
-	if err != nil {
+	q, qErr := tree_sitter.NewQuery(sitterLang, pattern)
+	if qErr != nil {
 		return nil
 	}
 
@@ -154,7 +95,7 @@ func (p *Parser) getTagQuery(lang string) *sitter.Query {
 
 // getRefQuery returns the compiled reference query for a language,
 // compiling and caching it on first access. Also loads the grammar if needed.
-func (p *Parser) getRefQuery(lang string) *sitter.Query {
+func (p *Parser) getRefQuery(lang string) *tree_sitter.Query {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -170,16 +111,16 @@ func (p *Parser) getRefQuery(lang string) *sitter.Query {
 	// Ensure language grammar is loaded
 	sitterLang, ok := p.languages[lang]
 	if !ok {
-		provider, exists := langProviders[lang]
-		if !exists {
+		l, err := p.loader.Load(context.Background(), lang)
+		if err != nil {
 			return nil
 		}
-		sitterLang = provider()
+		sitterLang = l
 		p.languages[lang] = sitterLang
 	}
 
-	q, err := sitter.NewQuery([]byte(pattern), sitterLang)
-	if err != nil {
+	q, qErr := tree_sitter.NewQuery(sitterLang, pattern)
+	if qErr != nil {
 		return nil
 	}
 
@@ -460,13 +401,15 @@ func (p *Parser) ParseContent(content []byte, lang, filePath string) ([]*Symbol,
 	}
 
 	// Create parser
-	parser := sitter.NewParser()
+	parser := tree_sitter.NewParser()
 	defer parser.Close()
-	parser.SetLanguage(language)
+	if err := parser.SetLanguage(language); err != nil {
+		return nil, nil
+	}
 
 	// Parse content
-	tree, err := parser.ParseCtx(context.Background(), nil, content)
-	if err != nil || tree == nil {
+	tree := parser.Parse(content, nil)
+	if tree == nil {
 		return nil, nil
 	}
 	defer tree.Close()
@@ -492,44 +435,40 @@ func (p *Parser) ParseContent(content []byte, lang, filePath string) ([]*Symbol,
 
 // extractWithQuery extracts symbols using a tree-sitter query.
 // This is the preferred method as it uses standard tags.scm patterns.
-func (p *Parser) extractWithQuery(query *sitter.Query, root *sitter.Node, content []byte, filePath, lang string) []*Symbol {
+func (p *Parser) extractWithQuery(query *tree_sitter.Query, root *tree_sitter.Node, content []byte, filePath, lang string) []*Symbol {
 	var symbols []*Symbol
 	seen := make(map[string]bool) // Dedupe by position
 
-	cursor := sitter.NewQueryCursor()
+	cursor := tree_sitter.NewQueryCursor()
 	defer cursor.Close()
-	cursor.Exec(query, root)
 
 	// Build capture name index
+	captureNames := query.CaptureNames()
 	nameIndex := -1
 	defIndexes := make(map[uint32]string) // capture index -> kind (function, class, etc.)
 
-	for i := uint32(0); i < query.CaptureCount(); i++ {
-		captureName := query.CaptureNameForId(i)
+	for i, captureName := range captureNames {
 		if captureName == "name" {
-			nameIndex = int(i)
+			nameIndex = i
 		} else if strings.HasPrefix(captureName, "definition.") {
 			kind := strings.TrimPrefix(captureName, "definition.")
-			defIndexes[i] = kind
+			defIndexes[uint32(i)] = kind
 		}
 	}
 
-	for {
-		match, ok := cursor.NextMatch()
-		if !ok {
-			break
-		}
-
+	matches := cursor.Matches(query, root, content)
+	for match := matches.Next(); match != nil; match = matches.Next() {
 		var name string
-		var defNode *sitter.Node
+		var defNode *tree_sitter.Node
 		var kind string
 
 		for _, capture := range match.Captures {
 			if int(capture.Index) == nameIndex {
-				name = capture.Node.Content(content)
+				name = capture.Node.Utf8Text(content)
 			}
 			if k, ok := defIndexes[capture.Index]; ok {
-				defNode = capture.Node
+				node := capture.Node
+				defNode = &node
 				kind = k
 			}
 		}
@@ -555,8 +494,8 @@ func (p *Parser) extractWithQuery(query *sitter.Query, root *sitter.Node, conten
 			Signature:  p.extractSignature(defNode, content),
 			DocComment: p.extractPrecedingComment(defNode, content),
 			FilePath:   filePath,
-			StartLine:  int(defNode.StartPoint().Row) + 1,
-			EndLine:    int(defNode.EndPoint().Row) + 1,
+			StartLine:  int(defNode.StartPosition().Row) + 1,
+			EndLine:    int(defNode.EndPosition().Row) + 1,
 			Language:   lang,
 			CreatedAt:  time.Now(),
 		}
@@ -564,8 +503,8 @@ func (p *Parser) extractWithQuery(query *sitter.Query, root *sitter.Node, conten
 		// Extract body range if present
 		bodyNode := defNode.ChildByFieldName("body")
 		if bodyNode != nil {
-			sym.BodyStartLine = int(bodyNode.StartPoint().Row) + 1
-			sym.BodyEndLine = int(bodyNode.EndPoint().Row) + 1
+			sym.BodyStartLine = int(bodyNode.StartPosition().Row) + 1
+			sym.BodyEndLine = int(bodyNode.EndPosition().Row) + 1
 		}
 
 		symbols = append(symbols, sym)
@@ -599,12 +538,12 @@ func mapQueryKindToSymbolKind(queryKind string) string {
 }
 
 // extractTypeScript extracts symbols from TypeScript/JavaScript AST.
-func (p *Parser) extractTypeScript(root *sitter.Node, content []byte, filePath, lang string) []*Symbol {
+func (p *Parser) extractTypeScript(root *tree_sitter.Node, content []byte, filePath, lang string) []*Symbol {
 	var symbols []*Symbol
 
 	// Walk the tree looking for relevant nodes
-	p.walkNode(root, func(node *sitter.Node) bool {
-		nodeType := node.Type()
+	p.walkNode(root, func(node *tree_sitter.Node) bool {
+		nodeType := node.Kind()
 		var sym *Symbol
 
 		switch nodeType {
@@ -635,11 +574,11 @@ func (p *Parser) extractTypeScript(root *sitter.Node, content []byte, filePath, 
 }
 
 // extractGo extracts symbols from Go AST.
-func (p *Parser) extractGo(root *sitter.Node, content []byte, filePath string) []*Symbol {
+func (p *Parser) extractGo(root *tree_sitter.Node, content []byte, filePath string) []*Symbol {
 	var symbols []*Symbol
 
-	p.walkNode(root, func(node *sitter.Node) bool {
-		nodeType := node.Type()
+	p.walkNode(root, func(node *tree_sitter.Node) bool {
+		nodeType := node.Kind()
 		var sym *Symbol
 
 		switch nodeType {
@@ -663,11 +602,11 @@ func (p *Parser) extractGo(root *sitter.Node, content []byte, filePath string) [
 }
 
 // extractPython extracts symbols from Python AST.
-func (p *Parser) extractPython(root *sitter.Node, content []byte, filePath string) []*Symbol {
+func (p *Parser) extractPython(root *tree_sitter.Node, content []byte, filePath string) []*Symbol {
 	var symbols []*Symbol
 
-	p.walkNode(root, func(node *sitter.Node) bool {
-		nodeType := node.Type()
+	p.walkNode(root, func(node *tree_sitter.Node) bool {
+		nodeType := node.Kind()
 		var sym *Symbol
 
 		switch nodeType {
@@ -687,7 +626,7 @@ func (p *Parser) extractPython(root *sitter.Node, content []byte, filePath strin
 }
 
 // walkNode walks the AST calling fn for each node.
-func (p *Parser) walkNode(node *sitter.Node, fn func(*sitter.Node) bool) {
+func (p *Parser) walkNode(node *tree_sitter.Node, fn func(*tree_sitter.Node) bool) {
 	if node == nil {
 		return
 	}
@@ -696,15 +635,17 @@ func (p *Parser) walkNode(node *sitter.Node, fn func(*sitter.Node) bool) {
 		return
 	}
 
-	for i := 0; i < int(node.ChildCount()); i++ {
+	for i := uint(0); i < node.ChildCount(); i++ {
 		child := node.Child(i)
-		p.walkNode(child, fn)
+		if child != nil {
+			p.walkNode(child, fn)
+		}
 	}
 }
 
 // Helper functions for TypeScript/JavaScript extraction
 
-func (p *Parser) extractTSFunction(node *sitter.Node, content []byte, filePath, lang string) *Symbol {
+func (p *Parser) extractTSFunction(node *tree_sitter.Node, content []byte, filePath, lang string) *Symbol {
 	nameNode := node.ChildByFieldName("name")
 	if nameNode == nil {
 		return nil
@@ -717,8 +658,8 @@ func (p *Parser) extractTSFunction(node *sitter.Node, content []byte, filePath, 
 		Signature:  p.extractSignature(node, content),
 		DocComment: p.extractPrecedingComment(node, content),
 		FilePath:   filePath,
-		StartLine:  int(node.StartPoint().Row) + 1,
-		EndLine:    int(node.EndPoint().Row) + 1,
+		StartLine:  int(node.StartPosition().Row) + 1,
+		EndLine:    int(node.EndPosition().Row) + 1,
 		Language:   lang,
 		CreatedAt:  time.Now(),
 	}
@@ -726,7 +667,7 @@ func (p *Parser) extractTSFunction(node *sitter.Node, content []byte, filePath, 
 	return sym
 }
 
-func (p *Parser) extractTSMethod(node *sitter.Node, content []byte, filePath, lang string) *Symbol {
+func (p *Parser) extractTSMethod(node *tree_sitter.Node, content []byte, filePath, lang string) *Symbol {
 	nameNode := node.ChildByFieldName("name")
 	if nameNode == nil {
 		return nil
@@ -739,8 +680,8 @@ func (p *Parser) extractTSMethod(node *sitter.Node, content []byte, filePath, la
 		Signature:  p.extractSignature(node, content),
 		DocComment: p.extractPrecedingComment(node, content),
 		FilePath:   filePath,
-		StartLine:  int(node.StartPoint().Row) + 1,
-		EndLine:    int(node.EndPoint().Row) + 1,
+		StartLine:  int(node.StartPosition().Row) + 1,
+		EndLine:    int(node.EndPosition().Row) + 1,
 		Language:   lang,
 		CreatedAt:  time.Now(),
 	}
@@ -748,7 +689,7 @@ func (p *Parser) extractTSMethod(node *sitter.Node, content []byte, filePath, la
 	return sym
 }
 
-func (p *Parser) extractTSClass(node *sitter.Node, content []byte, filePath, lang string) *Symbol {
+func (p *Parser) extractTSClass(node *tree_sitter.Node, content []byte, filePath, lang string) *Symbol {
 	nameNode := node.ChildByFieldName("name")
 	if nameNode == nil {
 		return nil
@@ -764,8 +705,8 @@ func (p *Parser) extractTSClass(node *sitter.Node, content []byte, filePath, lan
 		Signature:  sig,
 		DocComment: p.extractPrecedingComment(node, content),
 		FilePath:   filePath,
-		StartLine:  int(node.StartPoint().Row) + 1,
-		EndLine:    int(node.EndPoint().Row) + 1,
+		StartLine:  int(node.StartPosition().Row) + 1,
+		EndLine:    int(node.EndPosition().Row) + 1,
 		Language:   lang,
 		CreatedAt:  time.Now(),
 	}
@@ -773,7 +714,7 @@ func (p *Parser) extractTSClass(node *sitter.Node, content []byte, filePath, lan
 	return sym
 }
 
-func (p *Parser) extractTSInterface(node *sitter.Node, content []byte, filePath, lang string) *Symbol {
+func (p *Parser) extractTSInterface(node *tree_sitter.Node, content []byte, filePath, lang string) *Symbol {
 	nameNode := node.ChildByFieldName("name")
 	if nameNode == nil {
 		return nil
@@ -786,8 +727,8 @@ func (p *Parser) extractTSInterface(node *sitter.Node, content []byte, filePath,
 		Signature:  p.extractInterfaceSignature(node, content),
 		DocComment: p.extractPrecedingComment(node, content),
 		FilePath:   filePath,
-		StartLine:  int(node.StartPoint().Row) + 1,
-		EndLine:    int(node.EndPoint().Row) + 1,
+		StartLine:  int(node.StartPosition().Row) + 1,
+		EndLine:    int(node.EndPosition().Row) + 1,
 		Language:   lang,
 		CreatedAt:  time.Now(),
 	}
@@ -795,7 +736,7 @@ func (p *Parser) extractTSInterface(node *sitter.Node, content []byte, filePath,
 	return sym
 }
 
-func (p *Parser) extractTSTypeAlias(node *sitter.Node, content []byte, filePath, lang string) *Symbol {
+func (p *Parser) extractTSTypeAlias(node *tree_sitter.Node, content []byte, filePath, lang string) *Symbol {
 	nameNode := node.ChildByFieldName("name")
 	if nameNode == nil {
 		return nil
@@ -808,8 +749,8 @@ func (p *Parser) extractTSTypeAlias(node *sitter.Node, content []byte, filePath,
 		Signature:  p.extractTypeSignature(node, content),
 		DocComment: p.extractPrecedingComment(node, content),
 		FilePath:   filePath,
-		StartLine:  int(node.StartPoint().Row) + 1,
-		EndLine:    int(node.EndPoint().Row) + 1,
+		StartLine:  int(node.StartPosition().Row) + 1,
+		EndLine:    int(node.EndPosition().Row) + 1,
 		Language:   lang,
 		CreatedAt:  time.Now(),
 	}
@@ -817,18 +758,18 @@ func (p *Parser) extractTSTypeAlias(node *sitter.Node, content []byte, filePath,
 	return sym
 }
 
-func (p *Parser) extractTSVariableDeclaration(node *sitter.Node, content []byte, filePath, lang string) []*Symbol {
+func (p *Parser) extractTSVariableDeclaration(node *tree_sitter.Node, content []byte, filePath, lang string) []*Symbol {
 	var symbols []*Symbol
 
 	// Look for arrow functions or function expressions assigned to variables
-	for i := 0; i < int(node.ChildCount()); i++ {
+	for i := uint(0); i < node.ChildCount(); i++ {
 		child := node.Child(i)
-		if child.Type() == "variable_declarator" {
+		if child != nil && child.Kind() == "variable_declarator" {
 			nameNode := child.ChildByFieldName("name")
 			valueNode := child.ChildByFieldName("value")
 
 			if nameNode != nil && valueNode != nil {
-				valType := valueNode.Type()
+				valType := valueNode.Kind()
 				if valType == "arrow_function" || valType == "function_expression" {
 					sym := &Symbol{
 						ID:         ulid.Make().String(),
@@ -837,8 +778,8 @@ func (p *Parser) extractTSVariableDeclaration(node *sitter.Node, content []byte,
 						Signature:  p.extractArrowSignature(child, content),
 						DocComment: p.extractPrecedingComment(node, content),
 						FilePath:   filePath,
-						StartLine:  int(node.StartPoint().Row) + 1,
-						EndLine:    int(node.EndPoint().Row) + 1,
+						StartLine:  int(node.StartPosition().Row) + 1,
+						EndLine:    int(node.EndPosition().Row) + 1,
 						Language:   lang,
 						CreatedAt:  time.Now(),
 					}
@@ -854,7 +795,7 @@ func (p *Parser) extractTSVariableDeclaration(node *sitter.Node, content []byte,
 
 // Helper functions for Go extraction
 
-func (p *Parser) extractGoFunction(node *sitter.Node, content []byte, filePath string) *Symbol {
+func (p *Parser) extractGoFunction(node *tree_sitter.Node, content []byte, filePath string) *Symbol {
 	nameNode := node.ChildByFieldName("name")
 	if nameNode == nil {
 		return nil
@@ -867,8 +808,8 @@ func (p *Parser) extractGoFunction(node *sitter.Node, content []byte, filePath s
 		Signature:  p.extractGoFuncSignature(node, content),
 		DocComment: p.extractPrecedingComment(node, content),
 		FilePath:   filePath,
-		StartLine:  int(node.StartPoint().Row) + 1,
-		EndLine:    int(node.EndPoint().Row) + 1,
+		StartLine:  int(node.StartPosition().Row) + 1,
+		EndLine:    int(node.EndPosition().Row) + 1,
 		Language:   LangGo,
 		CreatedAt:  time.Now(),
 	}
@@ -876,7 +817,7 @@ func (p *Parser) extractGoFunction(node *sitter.Node, content []byte, filePath s
 	return sym
 }
 
-func (p *Parser) extractGoMethod(node *sitter.Node, content []byte, filePath string) *Symbol {
+func (p *Parser) extractGoMethod(node *tree_sitter.Node, content []byte, filePath string) *Symbol {
 	nameNode := node.ChildByFieldName("name")
 	if nameNode == nil {
 		return nil
@@ -889,8 +830,8 @@ func (p *Parser) extractGoMethod(node *sitter.Node, content []byte, filePath str
 		Signature:  p.extractGoFuncSignature(node, content),
 		DocComment: p.extractPrecedingComment(node, content),
 		FilePath:   filePath,
-		StartLine:  int(node.StartPoint().Row) + 1,
-		EndLine:    int(node.EndPoint().Row) + 1,
+		StartLine:  int(node.StartPosition().Row) + 1,
+		EndLine:    int(node.EndPosition().Row) + 1,
 		Language:   LangGo,
 		CreatedAt:  time.Now(),
 	}
@@ -898,18 +839,18 @@ func (p *Parser) extractGoMethod(node *sitter.Node, content []byte, filePath str
 	return sym
 }
 
-func (p *Parser) extractGoTypeDecl(node *sitter.Node, content []byte, filePath string) []*Symbol {
+func (p *Parser) extractGoTypeDecl(node *tree_sitter.Node, content []byte, filePath string) []*Symbol {
 	var symbols []*Symbol
 
-	for i := 0; i < int(node.ChildCount()); i++ {
+	for i := uint(0); i < node.ChildCount(); i++ {
 		child := node.Child(i)
-		if child.Type() == "type_spec" {
+		if child != nil && child.Kind() == "type_spec" {
 			nameNode := child.ChildByFieldName("name")
 			typeNode := child.ChildByFieldName("type")
 			if nameNode != nil {
 				kind := KindType
 				if typeNode != nil {
-					switch typeNode.Type() {
+					switch typeNode.Kind() {
 					case "struct_type":
 						kind = KindClass // Use class for structs
 					case "interface_type":
@@ -924,8 +865,8 @@ func (p *Parser) extractGoTypeDecl(node *sitter.Node, content []byte, filePath s
 					Signature:  p.extractGoTypeSignature(child, content),
 					DocComment: p.extractPrecedingComment(node, content),
 					FilePath:   filePath,
-					StartLine:  int(child.StartPoint().Row) + 1,
-					EndLine:    int(child.EndPoint().Row) + 1,
+					StartLine:  int(child.StartPosition().Row) + 1,
+					EndLine:    int(child.EndPosition().Row) + 1,
 					Language:   LangGo,
 					CreatedAt:  time.Now(),
 				}
@@ -940,7 +881,7 @@ func (p *Parser) extractGoTypeDecl(node *sitter.Node, content []byte, filePath s
 
 // Helper functions for Python extraction
 
-func (p *Parser) extractPythonFunction(node *sitter.Node, content []byte, filePath string) *Symbol {
+func (p *Parser) extractPythonFunction(node *tree_sitter.Node, content []byte, filePath string) *Symbol {
 	nameNode := node.ChildByFieldName("name")
 	if nameNode == nil {
 		return nil
@@ -959,8 +900,8 @@ func (p *Parser) extractPythonFunction(node *sitter.Node, content []byte, filePa
 		Signature:  p.extractPythonFuncSignature(node, content),
 		DocComment: p.extractPythonDocstring(node, content),
 		FilePath:   filePath,
-		StartLine:  int(node.StartPoint().Row) + 1,
-		EndLine:    int(node.EndPoint().Row) + 1,
+		StartLine:  int(node.StartPosition().Row) + 1,
+		EndLine:    int(node.EndPosition().Row) + 1,
 		Language:   LangPython,
 		CreatedAt:  time.Now(),
 	}
@@ -968,7 +909,7 @@ func (p *Parser) extractPythonFunction(node *sitter.Node, content []byte, filePa
 	return sym
 }
 
-func (p *Parser) extractPythonClass(node *sitter.Node, content []byte, filePath string) *Symbol {
+func (p *Parser) extractPythonClass(node *tree_sitter.Node, content []byte, filePath string) *Symbol {
 	nameNode := node.ChildByFieldName("name")
 	if nameNode == nil {
 		return nil
@@ -981,8 +922,8 @@ func (p *Parser) extractPythonClass(node *sitter.Node, content []byte, filePath 
 		Signature:  p.extractPythonClassSignature(node, content),
 		DocComment: p.extractPythonDocstring(node, content),
 		FilePath:   filePath,
-		StartLine:  int(node.StartPoint().Row) + 1,
-		EndLine:    int(node.EndPoint().Row) + 1,
+		StartLine:  int(node.StartPosition().Row) + 1,
+		EndLine:    int(node.EndPosition().Row) + 1,
 		Language:   LangPython,
 		CreatedAt:  time.Now(),
 	}
@@ -992,42 +933,42 @@ func (p *Parser) extractPythonClass(node *sitter.Node, content []byte, filePath 
 
 // setBodyRange extracts the body node range from a tree-sitter node and sets it on the symbol.
 // This is used by legacy extractors. The query-based extractor (extractWithQuery) handles this inline.
-func setBodyRange(sym *Symbol, node *sitter.Node) {
+func setBodyRange(sym *Symbol, node *tree_sitter.Node) {
 	if sym == nil || node == nil {
 		return
 	}
 	bodyNode := node.ChildByFieldName("body")
 	if bodyNode != nil {
-		sym.BodyStartLine = int(bodyNode.StartPoint().Row) + 1
-		sym.BodyEndLine = int(bodyNode.EndPoint().Row) + 1
+		sym.BodyStartLine = int(bodyNode.StartPosition().Row) + 1
+		sym.BodyEndLine = int(bodyNode.EndPosition().Row) + 1
 		return
 	}
 	// Go type_spec uses "type" field for the inner type node (struct_type, interface_type)
 	typeNode := node.ChildByFieldName("type")
 	if typeNode != nil {
-		nodeType := typeNode.Type()
+		nodeType := typeNode.Kind()
 		if nodeType == "struct_type" || nodeType == "interface_type" {
-			sym.BodyStartLine = int(typeNode.StartPoint().Row) + 1
-			sym.BodyEndLine = int(typeNode.EndPoint().Row) + 1
+			sym.BodyStartLine = int(typeNode.StartPosition().Row) + 1
+			sym.BodyEndLine = int(typeNode.EndPosition().Row) + 1
 		}
 	}
 }
 
 // Utility functions
 
-func (p *Parser) nodeText(node *sitter.Node, content []byte) string {
+func (p *Parser) nodeText(node *tree_sitter.Node, content []byte) string {
 	if node == nil {
 		return ""
 	}
 	start := node.StartByte()
 	end := node.EndByte()
-	if int(end) > len(content) {
-		end = uint32(len(content))
+	if end > uint(len(content)) {
+		end = uint(len(content))
 	}
 	return string(content[start:end])
 }
 
-func (p *Parser) extractSignature(node *sitter.Node, content []byte) string {
+func (p *Parser) extractSignature(node *tree_sitter.Node, content []byte) string {
 	// Extract from start of node to start of body (or end if no body)
 	bodyNode := node.ChildByFieldName("body")
 	if bodyNode != nil {
@@ -1041,7 +982,7 @@ func (p *Parser) extractSignature(node *sitter.Node, content []byte) string {
 	return p.nodeText(node, content)
 }
 
-func (p *Parser) extractClassSignature(node *sitter.Node, content []byte) string {
+func (p *Parser) extractClassSignature(node *tree_sitter.Node, content []byte) string {
 	// Extract "class Name extends X implements Y"
 	bodyNode := node.ChildByFieldName("body")
 	if bodyNode != nil {
@@ -1054,7 +995,7 @@ func (p *Parser) extractClassSignature(node *sitter.Node, content []byte) string
 	return p.nodeText(node, content)
 }
 
-func (p *Parser) extractInterfaceSignature(node *sitter.Node, content []byte) string {
+func (p *Parser) extractInterfaceSignature(node *tree_sitter.Node, content []byte) string {
 	bodyNode := node.ChildByFieldName("body")
 	if bodyNode != nil {
 		start := node.StartByte()
@@ -1066,7 +1007,7 @@ func (p *Parser) extractInterfaceSignature(node *sitter.Node, content []byte) st
 	return p.nodeText(node, content)
 }
 
-func (p *Parser) extractTypeSignature(node *sitter.Node, content []byte) string {
+func (p *Parser) extractTypeSignature(node *tree_sitter.Node, content []byte) string {
 	// For type aliases, extract the full declaration
 	text := p.nodeText(node, content)
 	// Truncate if too long
@@ -1076,7 +1017,7 @@ func (p *Parser) extractTypeSignature(node *sitter.Node, content []byte) string 
 	return text
 }
 
-func (p *Parser) extractArrowSignature(node *sitter.Node, content []byte) string {
+func (p *Parser) extractArrowSignature(node *tree_sitter.Node, content []byte) string {
 	// For arrow functions assigned to variables
 	text := p.nodeText(node, content)
 	// Find the arrow and truncate after parameters
@@ -1089,7 +1030,7 @@ func (p *Parser) extractArrowSignature(node *sitter.Node, content []byte) string
 	return text
 }
 
-func (p *Parser) extractGoFuncSignature(node *sitter.Node, content []byte) string {
+func (p *Parser) extractGoFuncSignature(node *tree_sitter.Node, content []byte) string {
 	bodyNode := node.ChildByFieldName("body")
 	if bodyNode != nil {
 		start := node.StartByte()
@@ -1101,7 +1042,7 @@ func (p *Parser) extractGoFuncSignature(node *sitter.Node, content []byte) strin
 	return p.nodeText(node, content)
 }
 
-func (p *Parser) extractGoTypeSignature(node *sitter.Node, content []byte) string {
+func (p *Parser) extractGoTypeSignature(node *tree_sitter.Node, content []byte) string {
 	text := p.nodeText(node, content)
 	// Find { and truncate
 	if idx := strings.Index(text, "{"); idx > 0 {
@@ -1113,7 +1054,7 @@ func (p *Parser) extractGoTypeSignature(node *sitter.Node, content []byte) strin
 	return text
 }
 
-func (p *Parser) extractPythonFuncSignature(node *sitter.Node, content []byte) string {
+func (p *Parser) extractPythonFuncSignature(node *tree_sitter.Node, content []byte) string {
 	// Extract "def name(params) -> return_type:"
 	bodyNode := node.ChildByFieldName("body")
 	if bodyNode != nil {
@@ -1126,7 +1067,7 @@ func (p *Parser) extractPythonFuncSignature(node *sitter.Node, content []byte) s
 	return p.nodeText(node, content)
 }
 
-func (p *Parser) extractPythonClassSignature(node *sitter.Node, content []byte) string {
+func (p *Parser) extractPythonClassSignature(node *tree_sitter.Node, content []byte) string {
 	bodyNode := node.ChildByFieldName("body")
 	if bodyNode != nil {
 		start := node.StartByte()
@@ -1138,14 +1079,14 @@ func (p *Parser) extractPythonClassSignature(node *sitter.Node, content []byte) 
 	return p.nodeText(node, content)
 }
 
-func (p *Parser) extractPrecedingComment(node *sitter.Node, content []byte) string {
+func (p *Parser) extractPrecedingComment(node *tree_sitter.Node, content []byte) string {
 	// Look for comment nodes before this node
 	prev := node.PrevSibling()
 	if prev == nil {
 		return ""
 	}
 
-	nodeType := prev.Type()
+	nodeType := prev.Kind()
 	if nodeType == "comment" || nodeType == "line_comment" || nodeType == "block_comment" {
 		text := p.nodeText(prev, content)
 		// Clean up comment markers
@@ -1159,7 +1100,7 @@ func (p *Parser) extractPrecedingComment(node *sitter.Node, content []byte) stri
 	return ""
 }
 
-func (p *Parser) extractPythonDocstring(node *sitter.Node, content []byte) string {
+func (p *Parser) extractPythonDocstring(node *tree_sitter.Node, content []byte) string {
 	// Python docstrings are the first expression in the body
 	bodyNode := node.ChildByFieldName("body")
 	if bodyNode == nil {
@@ -1169,10 +1110,10 @@ func (p *Parser) extractPythonDocstring(node *sitter.Node, content []byte) strin
 	// Check the first statement for a docstring
 	if bodyNode.ChildCount() > 0 {
 		child := bodyNode.Child(0)
-		if child.Type() == "expression_statement" {
-			for j := 0; j < int(child.ChildCount()); j++ {
+		if child != nil && child.Kind() == "expression_statement" {
+			for j := uint(0); j < child.ChildCount(); j++ {
 				expr := child.Child(j)
-				if expr.Type() == "string" {
+				if expr != nil && expr.Kind() == "string" {
 					text := p.nodeText(expr, content)
 					// Clean up docstring markers
 					text = strings.Trim(text, `"'`)
@@ -1185,10 +1126,10 @@ func (p *Parser) extractPythonDocstring(node *sitter.Node, content []byte) strin
 	return ""
 }
 
-func (p *Parser) isInsideClass(node *sitter.Node) bool {
+func (p *Parser) isInsideClass(node *tree_sitter.Node) bool {
 	parent := node.Parent()
 	for parent != nil {
-		if parent.Type() == "class_definition" || parent.Type() == "class_declaration" {
+		if parent.Kind() == "class_definition" || parent.Kind() == "class_declaration" {
 			return true
 		}
 		parent = parent.Parent()
@@ -1198,8 +1139,13 @@ func (p *Parser) isInsideClass(node *sitter.Node) bool {
 
 // SupportedLanguage returns true if the language is supported.
 func (p *Parser) SupportedLanguage(lang string) bool {
-	_, ok := langProviders[lang]
-	return ok
+	available := p.loader.Available()
+	for _, name := range available {
+		if name == lang {
+			return true
+		}
+	}
+	return false
 }
 
 // SupportedExtension returns true if the file extension is supported.
@@ -1260,13 +1206,15 @@ func (p *Parser) ParseContentReferences(content []byte, lang, filePath string) (
 	}
 
 	// Create parser
-	parser := sitter.NewParser()
+	parser := tree_sitter.NewParser()
 	defer parser.Close()
-	parser.SetLanguage(language)
+	if err := parser.SetLanguage(language); err != nil {
+		return nil, nil
+	}
 
 	// Parse content
-	tree, err := parser.ParseCtx(context.Background(), nil, content)
-	if err != nil || tree == nil {
+	tree := parser.Parse(content, nil)
+	if tree == nil {
 		return nil, nil
 	}
 	defer tree.Close()
@@ -1275,50 +1223,47 @@ func (p *Parser) ParseContentReferences(content []byte, lang, filePath string) (
 }
 
 // extractReferences extracts references using a tree-sitter query.
-func (p *Parser) extractReferences(query *sitter.Query, root *sitter.Node, content []byte, filePath, lang string) []*Reference {
+func (p *Parser) extractReferences(query *tree_sitter.Query, root *tree_sitter.Node, content []byte, filePath, lang string) []*Reference {
 	var refs []*Reference
 	seen := make(map[string]bool) // Dedupe by position
 
 	// Pre-split content into lines for efficient per-reference context extraction
 	contentLines := strings.Split(string(content), "\n")
 
-	cursor := sitter.NewQueryCursor()
+	cursor := tree_sitter.NewQueryCursor()
 	defer cursor.Close()
-	cursor.Exec(query, root)
 
 	// Build capture name index
+	captureNames := query.CaptureNames()
 	nameIndex := -1
 	refIndexes := make(map[uint32]string) // capture index -> kind (call, type)
 
-	for i := uint32(0); i < query.CaptureCount(); i++ {
-		captureName := query.CaptureNameForId(i)
+	for i, captureName := range captureNames {
 		if captureName == "name" {
-			nameIndex = int(i)
+			nameIndex = i
 		} else if strings.HasPrefix(captureName, "reference.") {
 			kind := strings.TrimPrefix(captureName, "reference.")
-			refIndexes[i] = kind
+			refIndexes[uint32(i)] = kind
 		}
 	}
 
-	for {
-		match, ok := cursor.NextMatch()
-		if !ok {
-			break
-		}
-
+	matches := cursor.Matches(query, root, content)
+	for match := matches.Next(); match != nil; match = matches.Next() {
 		var name string
-		var refNode *sitter.Node
+		var refNode *tree_sitter.Node
 		var kind string
 
 		for _, capture := range match.Captures {
 			if int(capture.Index) == nameIndex {
-				name = capture.Node.Content(content)
+				name = capture.Node.Utf8Text(content)
 				if refNode == nil {
-					refNode = capture.Node
+					node := capture.Node
+					refNode = &node
 				}
 			}
 			if k, ok := refIndexes[capture.Index]; ok {
-				refNode = capture.Node
+				node := capture.Node
+				refNode = &node
 				kind = k
 			}
 		}
@@ -1328,7 +1273,7 @@ func (p *Parser) extractReferences(query *sitter.Query, root *sitter.Node, conte
 		}
 
 		// Get position
-		startPoint := refNode.StartPoint()
+		startPoint := refNode.StartPosition()
 		line := int(startPoint.Row) + 1
 		col := int(startPoint.Column)
 
@@ -1343,7 +1288,7 @@ func (p *Parser) extractReferences(query *sitter.Query, root *sitter.Node, conte
 		refKind := mapRefKind(kind)
 
 		// Extract context (the line of code)
-		context := p.extractLineContext(contentLines, int(startPoint.Row))
+		lineContext := p.extractLineContext(contentLines, int(startPoint.Row))
 
 		ref := &Reference{
 			ID:         ulid.Make().String(),
@@ -1352,7 +1297,7 @@ func (p *Parser) extractReferences(query *sitter.Query, root *sitter.Node, conte
 			FilePath:   filePath,
 			Line:       line,
 			Column:     col,
-			Context:    context,
+			Context:    lineContext,
 			Language:   lang,
 			CreatedAt:  time.Now(),
 		}

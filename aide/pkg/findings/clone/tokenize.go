@@ -10,16 +10,12 @@ package clone
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/jmylchreest/aide/aide/pkg/code"
-	sitter "github.com/smacker/go-tree-sitter"
-	"github.com/smacker/go-tree-sitter/golang"
-	"github.com/smacker/go-tree-sitter/java"
-	"github.com/smacker/go-tree-sitter/javascript"
-	"github.com/smacker/go-tree-sitter/python"
-	"github.com/smacker/go-tree-sitter/rust"
-	"github.com/smacker/go-tree-sitter/typescript/typescript"
+	"github.com/jmylchreest/aide/aide/pkg/grammar"
+	tree_sitter "github.com/tree-sitter/go-tree-sitter"
 )
 
 // Token represents a single normalized token from source code.
@@ -35,13 +31,13 @@ type TokenSequence struct {
 }
 
 // langProvider returns the tree-sitter language for a given language identifier.
-var langProviders = map[string]func() *sitter.Language{
-	code.LangGo:         golang.GetLanguage,
-	code.LangTypeScript: typescript.GetLanguage,
-	code.LangJavaScript: javascript.GetLanguage,
-	code.LangPython:     python.GetLanguage,
-	code.LangRust:       rust.GetLanguage,
-	code.LangJava:       java.GetLanguage,
+var supportedTokenizeLanguages = map[string]bool{
+	code.LangGo:         true,
+	code.LangTypeScript: true,
+	code.LangJavaScript: true,
+	code.LangPython:     true,
+	code.LangRust:       true,
+	code.LangJava:       true,
 }
 
 // identifierTypes are tree-sitter node types that represent identifiers.
@@ -106,19 +102,25 @@ var keywordTypes = map[string]bool{
 // Tokenize parses source content using tree-sitter and produces a normalized
 // token sequence. Identifiers are normalized to "id", literals to "lit",
 // keywords and operators are preserved for structural matching.
-func Tokenize(filePath string, content []byte, lang string) (*TokenSequence, error) {
-	provider, ok := langProviders[lang]
-	if !ok {
+func Tokenize(loader grammar.Loader, filePath string, content []byte, lang string) (*TokenSequence, error) {
+	if !supportedTokenizeLanguages[lang] {
 		return nil, nil // unsupported language — skip
 	}
 
-	parser := sitter.NewParser()
-	defer parser.Close()
-	parser.SetLanguage(provider())
-
-	tree, err := parser.ParseCtx(context.Background(), nil, content)
+	sitterLang, err := loader.Load(context.Background(), lang)
 	if err != nil {
+		return nil, nil // grammar not available — skip
+	}
+
+	parser := tree_sitter.NewParser()
+	defer parser.Close()
+	if err := parser.SetLanguage(sitterLang); err != nil {
 		return nil, err
+	}
+
+	tree := parser.Parse(content, nil)
+	if tree == nil {
+		return nil, fmt.Errorf("failed to parse %s", filePath)
 	}
 	defer tree.Close()
 
@@ -132,11 +134,11 @@ func Tokenize(filePath string, content []byte, lang string) (*TokenSequence, err
 }
 
 // walkLeaves performs a DFS over the tree and collects leaf nodes as tokens.
-func walkLeaves(node *sitter.Node, content []byte, tokens *[]Token) {
+func walkLeaves(node *tree_sitter.Node, content []byte, tokens *[]Token) {
 	if node.ChildCount() == 0 {
 		// Leaf node — normalize and collect.
-		nodeType := node.Type()
-		line := int(node.StartPoint().Row) + 1 // tree-sitter is 0-indexed
+		nodeType := node.Kind()
+		line := int(node.StartPosition().Row) + 1 // tree-sitter is 0-indexed
 
 		kind := normalizeToken(nodeType, node, content)
 		if kind != "" {
@@ -145,7 +147,7 @@ func walkLeaves(node *sitter.Node, content []byte, tokens *[]Token) {
 		return
 	}
 
-	for i := 0; i < int(node.ChildCount()); i++ {
+	for i := uint(0); i < node.ChildCount(); i++ {
 		child := node.Child(i)
 		if child != nil {
 			walkLeaves(child, content, tokens)
@@ -154,7 +156,7 @@ func walkLeaves(node *sitter.Node, content []byte, tokens *[]Token) {
 }
 
 // normalizeToken maps a tree-sitter leaf node to a normalized token kind.
-func normalizeToken(nodeType string, node *sitter.Node, content []byte) string {
+func normalizeToken(nodeType string, node *tree_sitter.Node, content []byte) string {
 	// Skip comments and whitespace.
 	if strings.HasSuffix(nodeType, "comment") || nodeType == "comment" {
 		return ""

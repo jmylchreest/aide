@@ -10,6 +10,7 @@ import (
 	"github.com/jmylchreest/aide/aide/pkg/aideignore"
 	"github.com/jmylchreest/aide/aide/pkg/code"
 	"github.com/jmylchreest/aide/aide/pkg/findings"
+	"github.com/jmylchreest/aide/aide/pkg/grammar"
 )
 
 // Config configures the clone detection analyzer.
@@ -25,6 +26,9 @@ type Config struct {
 	// Ignore is the aideignore matcher for filtering files/directories.
 	// If nil, built-in defaults are used.
 	Ignore *aideignore.Matcher
+	// Loader is the grammar loader for tree-sitter languages.
+	// If nil, a default CompositeLoader is created.
+	Loader grammar.Loader
 }
 
 // Result holds the output of a clone detection run.
@@ -61,6 +65,9 @@ func DetectClones(cfg Config) ([]*findings.Finding, *Result, error) {
 	paths := cfg.Paths
 	if len(paths) == 0 {
 		paths = []string{"."}
+	}
+	if cfg.Loader == nil {
+		cfg.Loader = grammar.NewCompositeLoader()
 	}
 
 	result := &Result{}
@@ -118,7 +125,7 @@ func DetectClones(cfg Config) ([]*findings.Finding, *Result, error) {
 				relPath = path
 			}
 
-			seq, err := Tokenize(relPath, content, lang)
+			seq, err := Tokenize(cfg.Loader, relPath, content, lang)
 			if err != nil || seq == nil || len(seq.Tokens) < windowSize {
 				result.FilesSkipped++
 				return nil

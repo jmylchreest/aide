@@ -17,6 +17,7 @@ import (
 	"github.com/jmylchreest/aide/aide/pkg/code"
 	"github.com/jmylchreest/aide/aide/pkg/findings"
 	"github.com/jmylchreest/aide/aide/pkg/findings/clone"
+	"github.com/jmylchreest/aide/aide/pkg/grammar"
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi"
 	"github.com/jmylchreest/aide/aide/pkg/store"
 	"github.com/jmylchreest/aide/aide/pkg/watcher"
@@ -38,6 +39,7 @@ type MCPServer struct {
 	grpcServer     *grpcapi.Server
 	codeWatcher    *code.Watcher
 	codeWatcherMu  sync.Mutex
+	grammarLoader  *grammar.CompositeLoader
 
 	unifiedWatcher   *watcher.Watcher
 	findingsRunner   *findings.Runner
@@ -235,7 +237,7 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 
 		var indexer *Indexer
 		if cs := s.getCodeStore(); cs != nil {
-			indexer = NewIndexerFromStore(cs)
+			indexer = NewIndexerFromStore(cs, s.grammarLoader)
 		} else {
 			var err error
 			indexer, err = NewIndexer(dbPath)
@@ -401,6 +403,7 @@ func cmdMCP(dbPath string, args []string) error {
 	mcpLog.Printf("version: %s", version.String())
 	mcpLog.Printf("database: %s", dbPath)
 
+	grammarLoader := newGrammarLoader(dbPath)
 	socketPath := grpcapi.SocketPathFromDB(dbPath)
 
 	// Try client mode first: connect to existing primary via gRPC socket
@@ -414,7 +417,7 @@ func cmdMCP(dbPath string, args []string) error {
 				mcpLog.Printf("client mode: connected to existing primary via %s", socketPath)
 				adapter := newGRPCStoreAdapter(client)
 				findingsAdapter := newGRPCFindingsAdapter(client)
-				mcpServer := &MCPServer{store: adapter, findingsStore: findingsAdapter}
+				mcpServer := &MCPServer{store: adapter, findingsStore: findingsAdapter, grammarLoader: grammarLoader}
 				mcpLog.Printf("MCP server ready in %v (client mode), listening on stdio", time.Since(startTime))
 				return mcpServer.Run()
 			}
@@ -438,9 +441,9 @@ func cmdMCP(dbPath string, args []string) error {
 	defer st.Close()
 	mcpLog.Printf("database opened in %v (bolt + bleve search)", time.Since(storeStart))
 
-	mcpServer := &MCPServer{store: st}
+	mcpServer := &MCPServer{store: st, grammarLoader: grammarLoader}
 
-	grpcServer := grpcapi.NewServer(st, dbPath, socketPath)
+	grpcServer := grpcapi.NewServer(st, dbPath, socketPath, grammarLoader)
 	mcpServer.grpcServer = grpcServer
 	mcpLog.Printf("gRPC socket: %s", socketPath)
 

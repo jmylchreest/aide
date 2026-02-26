@@ -1,0 +1,292 @@
+name: Build Grammar Libraries
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Grammar release version tag (e.g., grammars-v1)"
+        required: true
+        default: "grammars-v1"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/grammar-build.yml"
+      - "aide/pkg/grammar/dynamic.go"
+
+permissions:
+  contents: write
+
+# Grammar source repos and their C symbol names.
+# Each grammar produces a shared library exporting tree_sitter_<lang>().
+#
+# The build compiles src/parser.c (+ optional src/scanner.c) from each
+# grammar repo into a position-independent shared library.
+#
+# Asset naming: aide-grammar-{lang}-{version}-{os}-{arch}{.so|.dylib|.dll}
+
+jobs:
+  build-grammars:
+    name: Build (${{ matrix.os_name }}/${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os_name: linux
+            arch: amd64
+            runner: ubuntu-latest
+            ext: .so
+            zig_target: x86_64-linux-gnu
+          - os_name: linux
+            arch: arm64
+            runner: ubuntu-latest
+            ext: .so
+            zig_target: aarch64-linux-gnu
+          - os_name: darwin
+            arch: amd64
+            runner: macos-latest
+            ext: .dylib
+          - os_name: darwin
+            arch: arm64
+            runner: macos-latest
+            ext: .dylib
+          - os_name: windows
+            arch: amd64
+            runner: ubuntu-latest
+            ext: .dll
+            zig_target: x86_64-windows-gnu
+          - os_name: windows
+            arch: arm64
+            runner: ubuntu-latest
+            ext: .dll
+            zig_target: aarch64-windows-gnu
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Zig
+        if: matrix.zig_target
+        uses: mlugg/setup-zig@v2
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "tag=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=grammars-latest" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build all grammars
+        env:
+          VERSION: ${{ steps.version.outputs.tag }}
+          OS_NAME: ${{ matrix.os_name }}
+          ARCH: ${{ matrix.arch }}
+          EXT: ${{ matrix.ext }}
+          ZIG_TARGET: ${{ matrix.zig_target }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+
+          # Set compiler based on platform
+          if [[ -n "${ZIG_TARGET:-}" ]]; then
+            CC="zig cc -target ${ZIG_TARGET}"
+            # For shared libraries on Windows with zig
+            if [[ "${OS_NAME}" == "windows" ]]; then
+              SHARED_FLAG="-shared"
+            else
+              SHARED_FLAG="-shared"
+            fi
+          else
+            CC="clang"
+            if [[ "${OS_NAME}" == "darwin" ]]; then
+              # macOS: build for the target arch
+              if [[ "${ARCH}" == "arm64" ]]; then
+                CC="clang -arch arm64"
+              else
+                CC="clang -arch x86_64"
+              fi
+              SHARED_FLAG="-dynamiclib"
+            else
+              SHARED_FLAG="-shared"
+            fi
+          fi
+
+          # Grammar definitions: name|repo|c_symbol|tag|extra_src_dir
+          # extra_src_dir is optional, for grammars with non-standard layout
+          GRAMMARS=(
+            "go|tree-sitter/tree-sitter-go|tree_sitter_go|v0.23.4|"
+            "python|tree-sitter/tree-sitter-python|tree_sitter_python|v0.23.6|"
+            "javascript|tree-sitter/tree-sitter-javascript|tree_sitter_javascript|v0.23.1|"
+            "typescript|tree-sitter/tree-sitter-typescript|tree_sitter_typescript|v0.23.2|typescript/src"
+            "rust|tree-sitter/tree-sitter-rust|tree_sitter_rust|v0.23.2|"
+            "java|tree-sitter/tree-sitter-java|tree_sitter_java|v0.23.5|"
+            "c|tree-sitter/tree-sitter-c|tree_sitter_c|v0.23.5|"
+            "cpp|tree-sitter/tree-sitter-cpp|tree_sitter_cpp|v0.23.4|"
+            "zig|tree-sitter-grammars/tree-sitter-zig|tree_sitter_zig|v1.1.2|"
+            "csharp|tree-sitter/tree-sitter-c-sharp|tree_sitter_c_sharp|v0.23.1|"
+            "kotlin|tree-sitter-grammars/tree-sitter-kotlin|tree_sitter_kotlin|v0.3.9|"
+            "scala|tree-sitter/tree-sitter-scala|tree_sitter_scala|v0.23.4|"
+            "groovy|amaanq/tree-sitter-groovy|tree_sitter_groovy|v1.0.0|"
+            "ruby|tree-sitter/tree-sitter-ruby|tree_sitter_ruby|v0.23.1|"
+            "php|tree-sitter/tree-sitter-php|tree_sitter_php|v0.23.11|php/src"
+            "lua|tree-sitter-grammars/tree-sitter-lua|tree_sitter_lua|v0.3.0|"
+            "elixir|tree-sitter/tree-sitter-elixir|tree_sitter_elixir|v0.3.4|"
+            "bash|tree-sitter/tree-sitter-bash|tree_sitter_bash|v0.23.3|"
+            "swift|alex-pinkus/tree-sitter-swift|tree_sitter_swift|v0.7.1|"
+            "ocaml|tree-sitter/tree-sitter-ocaml|tree_sitter_ocaml|v0.23.3|grammars/ocaml/src"
+            "elm|elm-tooling/tree-sitter-elm|tree_sitter_elm|v6.0.0|"
+            "sql|DerekStride/tree-sitter-sql|tree_sitter_sql|v0.3.3|"
+            "yaml|tree-sitter-grammars/tree-sitter-yaml|tree_sitter_yaml|v0.7.0|"
+            "toml|tree-sitter-grammars/tree-sitter-toml|tree_sitter_toml|v0.7.0|"
+            "hcl|tree-sitter-grammars/tree-sitter-hcl|tree_sitter_hcl|v1.1.0|"
+            "protobuf|coder3101/tree-sitter-proto|tree_sitter_proto|v1.0.0|"
+            "html|tree-sitter/tree-sitter-html|tree_sitter_html|v0.23.2|"
+            "css|tree-sitter/tree-sitter-css|tree_sitter_css|v0.23.2|"
+          )
+
+          for entry in "${GRAMMARS[@]}"; do
+            IFS='|' read -r name repo c_symbol tag extra_src <<< "$entry"
+            echo "=== Building ${name} from ${repo}@${tag} ==="
+
+            # Clone the grammar repo at the specified tag
+            git clone --depth 1 --branch "${tag}" "https://github.com/${repo}.git" "grammar-src/${name}" 2>&1 || {
+              echo "WARNING: Failed to clone ${repo}@${tag}, skipping ${name}"
+              continue
+            }
+
+            # Determine source directory
+            if [[ -n "${extra_src}" ]]; then
+              SRC_DIR="grammar-src/${name}/${extra_src}"
+            else
+              SRC_DIR="grammar-src/${name}/src"
+            fi
+
+            if [[ ! -f "${SRC_DIR}/parser.c" ]]; then
+              echo "WARNING: No parser.c found in ${SRC_DIR}, skipping ${name}"
+              rm -rf "grammar-src/${name}"
+              continue
+            fi
+
+            # Collect source files
+            SOURCES="${SRC_DIR}/parser.c"
+            if [[ -f "${SRC_DIR}/scanner.c" ]]; then
+              SOURCES="${SOURCES} ${SRC_DIR}/scanner.c"
+            fi
+
+            # Output filename
+            OUTPUT="dist/aide-grammar-${name}-${VERSION}-${OS_NAME}-${ARCH}${EXT}"
+
+            # Compile
+            # -fPIC: position-independent code (required for shared libraries)
+            # -I: include the source directory for tree_sitter/parser.h
+            eval ${CC} ${SHARED_FLAG} -fPIC -O2 \
+              -I "${SRC_DIR}" \
+              -I "grammar-src/${name}/src" \
+              ${SOURCES} \
+              -o "${OUTPUT}" 2>&1 || {
+              echo "WARNING: Failed to compile ${name}, skipping"
+              rm -rf "grammar-src/${name}"
+              continue
+            }
+
+            echo "Built: ${OUTPUT} ($(stat -c%s "${OUTPUT}" 2>/dev/null || stat -f%z "${OUTPUT}") bytes)"
+
+            # Clean up source to save disk space
+            rm -rf "grammar-src/${name}"
+          done
+
+          echo ""
+          echo "=== Build summary ==="
+          ls -la dist/
+
+      - name: Generate checksums
+        working-directory: dist
+        run: |
+          if command -v sha256sum &>/dev/null; then
+            sha256sum aide-grammar-* > checksums-${{ matrix.os_name }}-${{ matrix.arch }}.txt
+          else
+            shasum -a 256 aide-grammar-* > checksums-${{ matrix.os_name }}-${{ matrix.arch }}.txt
+          fi
+          cat checksums-${{ matrix.os_name }}-${{ matrix.arch }}.txt
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: grammars-${{ matrix.os_name }}-${{ matrix.arch }}
+          path: |
+            dist/aide-grammar-*
+            dist/checksums-*.txt
+          if-no-files-found: warn
+
+  # Combine and release
+  release-grammars:
+    name: Release Grammar Libraries
+    runs-on: ubuntu-latest
+    needs: build-grammars
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v7
+        with:
+          path: artifacts
+          pattern: grammars-*
+
+      - name: Prepare release
+        run: |
+          mkdir -p release
+          for dir in artifacts/grammars-*/; do
+            cp "${dir}"aide-grammar-* release/ 2>/dev/null || true
+          done
+
+          # Combine checksums
+          cd release
+          cat ../artifacts/grammars-*/checksums-*.txt > checksums.txt
+          echo "=== All grammar assets ==="
+          ls -la
+          echo ""
+          echo "=== Checksums ==="
+          cat checksums.txt
+
+      - name: Determine version tag
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "tag=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=grammars-latest" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Delete existing release (for grammars-latest)
+        if: steps.version.outputs.tag == 'grammars-latest'
+        run: |
+          gh release delete grammars-latest --yes 2>/dev/null || true
+          git push origin :refs/tags/grammars-latest 2>/dev/null || true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create grammar release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Grammar Libraries (${{ steps.version.outputs.tag }})"
+          tag_name: ${{ steps.version.outputs.tag }}
+          draft: false
+          prerelease: ${{ steps.version.outputs.tag == 'grammars-latest' }}
+          body: |
+            Pre-compiled tree-sitter grammar shared libraries for aide.
+
+            **Platforms:** linux/amd64, linux/arm64, darwin/amd64, darwin/arm64, windows/amd64, windows/arm64
+
+            **Usage:**
+            ```bash
+            aide grammar install ruby kotlin
+            aide grammar install --all
+            ```
+
+            These assets are downloaded automatically by `aide grammar install`.
+          files: |
+            release/aide-grammar-*
+            release/checksums.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

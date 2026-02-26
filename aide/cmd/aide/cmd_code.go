@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jmylchreest/aide/aide/pkg/code"
+	"github.com/jmylchreest/aide/aide/pkg/grammar"
 	"github.com/jmylchreest/aide/aide/pkg/store"
 )
 
@@ -438,16 +439,16 @@ func NewIndexer(dbPath string) (*Indexer, error) {
 
 	return &Indexer{
 		store:  codeStore,
-		parser: code.NewParser(),
+		parser: code.NewParser(newGrammarLoader(dbPath)),
 	}, nil
 }
 
 // NewIndexerFromStore creates an indexer reusing an existing code store.
 // The caller retains ownership of the store — Close() is a no-op.
-func NewIndexerFromStore(cs store.CodeIndexStore) *Indexer {
+func NewIndexerFromStore(cs store.CodeIndexStore, loader grammar.Loader) *Indexer {
 	return &Indexer{
 		store:  cs,
-		parser: code.NewParser(),
+		parser: code.NewParser(loader),
 	}
 }
 

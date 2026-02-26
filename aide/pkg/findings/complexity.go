@@ -11,13 +11,8 @@ import (
 
 	"github.com/jmylchreest/aide/aide/pkg/aideignore"
 	"github.com/jmylchreest/aide/aide/pkg/code"
-	sitter "github.com/smacker/go-tree-sitter"
-	"github.com/smacker/go-tree-sitter/golang"
-	"github.com/smacker/go-tree-sitter/java"
-	"github.com/smacker/go-tree-sitter/javascript"
-	"github.com/smacker/go-tree-sitter/python"
-	"github.com/smacker/go-tree-sitter/rust"
-	"github.com/smacker/go-tree-sitter/typescript/typescript"
+	"github.com/jmylchreest/aide/aide/pkg/grammar"
+	tree_sitter "github.com/tree-sitter/go-tree-sitter"
 )
 
 // ComplexityConfig configures the complexity analyzer.
@@ -31,6 +26,9 @@ type ComplexityConfig struct {
 	// Ignore is the aideignore matcher for filtering files/directories.
 	// If nil, built-in defaults are used.
 	Ignore *aideignore.Matcher
+	// Loader is the grammar loader for tree-sitter languages.
+	// If nil, a default CompositeLoader is created.
+	Loader grammar.Loader
 }
 
 // ComplexityResult holds the output of a complexity analysis run.
@@ -43,7 +41,6 @@ type ComplexityResult struct {
 
 // complexityLang holds per-language tree-sitter config for complexity analysis.
 type complexityLang struct {
-	provider      func() *sitter.Language
 	funcNodeTypes []string // Node types that represent functions/methods
 	branchTypes   []string // Node types that add a decision point (+1 complexity)
 	nameField     string   // Field name for function name (default: "name")
@@ -52,7 +49,6 @@ type complexityLang struct {
 // complexityLanguages defines supported languages for complexity analysis.
 var complexityLanguages = map[string]*complexityLang{
 	code.LangGo: {
-		provider: golang.GetLanguage,
 		funcNodeTypes: []string{
 			"function_declaration",
 			"method_declaration",
@@ -72,7 +68,6 @@ var complexityLanguages = map[string]*complexityLang{
 		nameField: "name",
 	},
 	code.LangTypeScript: {
-		provider: typescript.GetLanguage,
 		funcNodeTypes: []string{
 			"function_declaration",
 			"method_definition",
@@ -94,7 +89,6 @@ var complexityLanguages = map[string]*complexityLang{
 		nameField: "name",
 	},
 	code.LangJavaScript: {
-		provider: javascript.GetLanguage,
 		funcNodeTypes: []string{
 			"function_declaration",
 			"method_definition",
@@ -115,7 +109,6 @@ var complexityLanguages = map[string]*complexityLang{
 		nameField: "name",
 	},
 	code.LangPython: {
-		provider: python.GetLanguage,
 		funcNodeTypes: []string{
 			"function_definition",
 		},
@@ -137,7 +130,6 @@ var complexityLanguages = map[string]*complexityLang{
 		nameField: "name",
 	},
 	code.LangRust: {
-		provider: rust.GetLanguage,
 		funcNodeTypes: []string{
 			"function_item",
 		},
@@ -152,7 +144,6 @@ var complexityLanguages = map[string]*complexityLang{
 		nameField: "name",
 	},
 	code.LangJava: {
-		provider: java.GetLanguage,
 		funcNodeTypes: []string{
 			"method_declaration",
 			"constructor_declaration",
@@ -180,6 +171,9 @@ func AnalyzeComplexity(cfg ComplexityConfig) ([]*Finding, *ComplexityResult, err
 	}
 	if len(cfg.Paths) == 0 {
 		cfg.Paths = []string{"."}
+	}
+	if cfg.Loader == nil {
+		cfg.Loader = grammar.NewCompositeLoader()
 	}
 
 	ignore := cfg.Ignore
@@ -232,7 +226,7 @@ func AnalyzeComplexity(cfg ComplexityConfig) ([]*Finding, *ComplexityResult, err
 				}
 			}
 
-			findings := analyzeFileComplexity(content, relPath, lang, langCfg, cfg.Threshold)
+			findings := analyzeFileComplexity(cfg.Loader, content, relPath, lang, langCfg, cfg.Threshold)
 			allFindings = append(allFindings, findings...)
 			result.FilesAnalyzed++
 
@@ -253,14 +247,20 @@ func AnalyzeComplexity(cfg ComplexityConfig) ([]*Finding, *ComplexityResult, err
 }
 
 // analyzeFileComplexity parses a single file and computes complexity for each function.
-func analyzeFileComplexity(content []byte, filePath, lang string, langCfg *complexityLang, threshold int) []*Finding {
-	sitterLang := langCfg.provider()
-	parser := sitter.NewParser()
-	defer parser.Close()
-	parser.SetLanguage(sitterLang)
+func analyzeFileComplexity(loader grammar.Loader, content []byte, filePath, lang string, langCfg *complexityLang, threshold int) []*Finding {
+	sitterLang, err := loader.Load(context.Background(), lang)
+	if err != nil {
+		return nil
+	}
 
-	tree, err := parser.ParseCtx(context.Background(), nil, content)
-	if err != nil || tree == nil {
+	parser := tree_sitter.NewParser()
+	defer parser.Close()
+	if err := parser.SetLanguage(sitterLang); err != nil {
+		return nil
+	}
+
+	tree := parser.Parse(content, nil)
+	if tree == nil {
 		return nil
 	}
 	defer tree.Close()
@@ -280,9 +280,9 @@ func analyzeFileComplexity(content []byte, filePath, lang string, langCfg *compl
 	var findings []*Finding
 
 	// Walk AST to find function nodes
-	var walk func(node *sitter.Node)
-	walk = func(node *sitter.Node) {
-		if funcTypes[node.Type()] {
+	var walk func(node *tree_sitter.Node)
+	walk = func(node *tree_sitter.Node) {
+		if funcTypes[node.Kind()] {
 			complexity := countComplexity(node, branchTypes, content)
 			if complexity >= threshold {
 				name := extractFuncName(node, content, langCfg.nameField)
@@ -293,8 +293,8 @@ func analyzeFileComplexity(content []byte, filePath, lang string, langCfg *compl
 					severity = SevWarning
 				}
 
-				startLine := int(node.StartPoint().Row) + 1
-				endLine := int(node.EndPoint().Row) + 1
+				startLine := int(node.StartPosition().Row) + 1
+				endLine := int(node.EndPosition().Row) + 1
 
 				finding := &Finding{
 					Analyzer: AnalyzerComplexity,
@@ -320,12 +320,12 @@ func analyzeFileComplexity(content []byte, filePath, lang string, langCfg *compl
 		// Don't recurse into nested functions from the outer walk — they'll be
 		// found at the top-level walk. However, we DO recurse into all children
 		// to find function nodes at any depth (e.g., methods inside classes).
-		for i := 0; i < int(node.ChildCount()); i++ {
+		for i := uint(0); i < node.ChildCount(); i++ {
 			walk(node.Child(i))
 		}
 	}
 
-	for i := 0; i < int(root.ChildCount()); i++ {
+	for i := uint(0); i < root.ChildCount(); i++ {
 		walk(root.Child(i))
 	}
 
@@ -334,12 +334,12 @@ func analyzeFileComplexity(content []byte, filePath, lang string, langCfg *compl
 
 // countComplexity counts the cyclomatic complexity of a function node.
 // Cyclomatic complexity = 1 (base) + number of decision points.
-func countComplexity(funcNode *sitter.Node, branchTypes map[string]bool, content []byte) int {
+func countComplexity(funcNode *tree_sitter.Node, branchTypes map[string]bool, content []byte) int {
 	complexity := 1 // Base complexity
 
-	var count func(node *sitter.Node)
-	count = func(node *sitter.Node) {
-		nodeType := node.Type()
+	var count func(node *tree_sitter.Node)
+	count = func(node *tree_sitter.Node) {
+		nodeType := node.Kind()
 
 		if branchTypes[nodeType] {
 			// Special handling for binary expressions: only count && and ||
@@ -353,7 +353,7 @@ func countComplexity(funcNode *sitter.Node, branchTypes map[string]bool, content
 			}
 		}
 
-		for i := 0; i < int(node.ChildCount()); i++ {
+		for i := uint(0); i < node.ChildCount(); i++ {
 			child := node.Child(i)
 			// Don't recurse into nested function definitions
 			if isNestedFunction(child) {
@@ -364,7 +364,7 @@ func countComplexity(funcNode *sitter.Node, branchTypes map[string]bool, content
 	}
 
 	// Start counting from the function body
-	for i := 0; i < int(funcNode.ChildCount()); i++ {
+	for i := uint(0); i < funcNode.ChildCount(); i++ {
 		count(funcNode.Child(i))
 	}
 
@@ -372,11 +372,11 @@ func countComplexity(funcNode *sitter.Node, branchTypes map[string]bool, content
 }
 
 // getOperator extracts the operator from a binary expression node.
-func getOperator(node *sitter.Node, content []byte) string {
+func getOperator(node *tree_sitter.Node, content []byte) string {
 	// The operator is typically a named or anonymous child
-	for i := 0; i < int(node.ChildCount()); i++ {
+	for i := uint(0); i < node.ChildCount(); i++ {
 		child := node.Child(i)
-		text := child.Content(content)
+		text := child.Utf8Text(content)
 		if text == "&&" || text == "||" || text == "and" || text == "or" {
 			return text
 		}
@@ -385,8 +385,8 @@ func getOperator(node *sitter.Node, content []byte) string {
 }
 
 // isNestedFunction checks if a node is a nested function definition.
-func isNestedFunction(node *sitter.Node) bool {
-	nodeType := node.Type()
+func isNestedFunction(node *tree_sitter.Node) bool {
+	nodeType := node.Kind()
 	switch nodeType {
 	case "function_declaration", "function_definition", "method_declaration",
 		"method_definition", "function_item", "func_literal",
@@ -397,18 +397,18 @@ func isNestedFunction(node *sitter.Node) bool {
 }
 
 // extractFuncName gets the function name from a function node.
-func extractFuncName(node *sitter.Node, content []byte, nameField string) string {
+func extractFuncName(node *tree_sitter.Node, content []byte, nameField string) string {
 	// Try the configured name field
 	if nameField != "" {
 		if nameNode := node.ChildByFieldName(nameField); nameNode != nil {
-			return nameNode.Content(content)
+			return nameNode.Utf8Text(content)
 		}
 	}
 
 	// Fallback: try common field names
 	for _, field := range []string{"name", "declarator"} {
 		if nameNode := node.ChildByFieldName(field); nameNode != nil {
-			text := nameNode.Content(content)
+			text := nameNode.Utf8Text(content)
 			// For Go methods, the name might be a field_identifier
 			if len(text) > 0 {
 				return text
@@ -417,5 +417,5 @@ func extractFuncName(node *sitter.Node, content []byte, nameField string) string
 	}
 
 	// Fallback: anonymous function at line
-	return fmt.Sprintf("<anonymous:%d>", node.StartPoint().Row+1)
+	return fmt.Sprintf("<anonymous:%d>", node.StartPosition().Row+1)
 }

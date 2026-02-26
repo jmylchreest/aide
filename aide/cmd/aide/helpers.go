@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/jmylchreest/aide/aide/pkg/grammar"
 )
 
 // fatal prints an error message and exits with code 1.
@@ -95,19 +97,108 @@ type findingsConfig struct {
 // aideJSON is the top-level structure of .aide/config/aide.json.
 type aideJSON struct {
 	Findings findingsConfig `json:"findings"`
+	Grammars grammarsConfig `json:"grammars"`
+}
+
+// grammarsConfig holds grammar-related settings from .aide/config/aide.json.
+type grammarsConfig struct {
+	// URL is the URL template for downloading grammar shared libraries.
+	// Supported placeholders: {version}, {asset}, {name}, {os}, {arch}.
+	// Defaults to DefaultGrammarURL if empty.
+	URL string `json:"url"`
+	// AutoDownload controls whether grammars are fetched automatically when
+	// a language is encountered that has no local grammar. Default is true.
+	// Set to false to require explicit `aide grammar install`.
+	AutoDownload *bool `json:"autoDownload,omitempty"`
 }
 
 // loadFindingsConfig reads analyser thresholds from .aide/config/aide.json.
 // Returns zero-valued config if the file does not exist or cannot be parsed.
 func loadFindingsConfig(projectRoot string) findingsConfig {
+	cfg := loadAideConfig(projectRoot)
+	return cfg.Findings
+}
+
+// loadGrammarsConfig reads grammar settings from .aide/config/aide.json.
+// Environment variables take precedence over the config file:
+//   - AIDE_GRAMMAR_URL overrides the URL template.
+//   - AIDE_GRAMMAR_AUTO_DOWNLOAD overrides auto-download ("0"/"false" to disable).
+func loadGrammarsConfig(projectRoot string) grammarsConfig {
+	cfg := loadAideConfig(projectRoot)
+	// Environment variable overrides config file.
+	if envURL := os.Getenv("AIDE_GRAMMAR_URL"); envURL != "" {
+		cfg.Grammars.URL = envURL
+	}
+	if envAuto := os.Getenv("AIDE_GRAMMAR_AUTO_DOWNLOAD"); envAuto != "" {
+		disabled := envAuto == "0" || strings.EqualFold(envAuto, "false")
+		val := !disabled
+		cfg.Grammars.AutoDownload = &val
+	}
+	return cfg.Grammars
+}
+
+// loadAideConfig reads .aide/config/aide.json.
+// Returns zero-valued config if the file does not exist or cannot be parsed.
+func loadAideConfig(projectRoot string) aideJSON {
 	configPath := filepath.Join(projectRoot, ".aide", "config", "aide.json")
 	data, err := os.ReadFile(configPath)
 	if err != nil {
-		return findingsConfig{}
+		return aideJSON{}
 	}
 	var cfg aideJSON
 	if err := json.Unmarshal(data, &cfg); err != nil {
-		return findingsConfig{}
+		return aideJSON{}
 	}
-	return cfg.Findings
+	return cfg
+}
+
+// projectRoot derives the project root from the database path.
+// dbPath is <root>/.aide/memory/memory.db — three Dir() calls to reach <root>.
+func projectRoot(dbPath string) string {
+	return filepath.Dir(filepath.Dir(filepath.Dir(dbPath)))
+}
+
+// grammarDir returns the grammar storage directory for the project.
+func grammarDir(dbPath string) string {
+	return filepath.Join(projectRoot(dbPath), ".aide", "grammars")
+}
+
+// newGrammarLoader creates a CompositeLoader configured from aide.json and env
+// vars. Auto-download is enabled by default and can be disabled via config
+// ("grammars.autoDownload": false) or environment variable
+// (AIDE_GRAMMAR_AUTO_DOWNLOAD=0).
+//
+// This is the standard factory for all parsing / indexing call sites. The
+// grammar CLI subcommands override auto-download explicitly since they manage
+// grammars interactively.
+func newGrammarLoader(dbPath string) *grammar.CompositeLoader {
+	root := projectRoot(dbPath)
+	cfg := loadGrammarsConfig(root)
+	opts := []grammar.CompositeLoaderOption{
+		grammar.WithGrammarDir(grammarDir(dbPath)),
+	}
+	if cfg.URL != "" {
+		opts = append(opts, grammar.WithBaseURL(cfg.URL))
+	}
+	// Respect config / env for auto-download. The NewCompositeLoader default
+	// is true, so we only need to override when the config explicitly disables.
+	if cfg.AutoDownload != nil {
+		opts = append(opts, grammar.WithAutoDownload(*cfg.AutoDownload))
+	}
+	return grammar.NewCompositeLoader(opts...)
+}
+
+// newGrammarLoaderNoAuto creates a CompositeLoader with auto-download disabled.
+// Used by grammar CLI subcommands that manage grammars explicitly.
+func newGrammarLoaderNoAuto(dbPath string) *grammar.CompositeLoader {
+	root := projectRoot(dbPath)
+	cfg := loadGrammarsConfig(root)
+	opts := []grammar.CompositeLoaderOption{
+		grammar.WithGrammarDir(grammarDir(dbPath)),
+		grammar.WithAutoDownload(false),
+	}
+	if cfg.URL != "" {
+		opts = append(opts, grammar.WithBaseURL(cfg.URL))
+	}
+	return grammar.NewCompositeLoader(opts...)
 }

@@ -229,7 +229,7 @@ func (s *MCPServer) getFileSymbolsFresh(filePath string) ([]*code.Symbol, error)
 
 	// Index is stale, missing, or unavailable — parse on demand
 	mcpLog.Printf("  freshness: parsing %s on demand", relPath)
-	parser := code.NewParser()
+	parser := code.NewParser(s.grammarLoader)
 	return parser.ParseFile(absPath)
 }
 

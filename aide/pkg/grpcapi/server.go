@@ -14,6 +14,7 @@ import (
 	"github.com/jmylchreest/aide/aide/internal/version"
 	"github.com/jmylchreest/aide/aide/pkg/code"
 	"github.com/jmylchreest/aide/aide/pkg/findings"
+	"github.com/jmylchreest/aide/aide/pkg/grammar"
 	"github.com/jmylchreest/aide/aide/pkg/memory"
 	"github.com/jmylchreest/aide/aide/pkg/store"
 	"github.com/jmylchreest/aide/aide/pkg/watcher"
@@ -45,6 +46,7 @@ type Server struct {
 	grpcServer    *grpc.Server
 	socketPath    string
 	startTime     time.Time
+	grammarLoader grammar.Loader
 
 	// storeMu protects codeStore and findingsStore which may be set after
 	// the gRPC server starts (e.g. lazy code store init).
@@ -59,12 +61,13 @@ type Server struct {
 }
 
 // NewServer creates a new gRPC server.
-func NewServer(st store.Store, dbPath, socketPath string) *Server {
+func NewServer(st store.Store, dbPath, socketPath string, loader grammar.Loader) *Server {
 	return &Server{
-		store:      st,
-		dbPath:     dbPath,
-		socketPath: socketPath,
-		startTime:  time.Now(),
+		store:         st,
+		dbPath:        dbPath,
+		socketPath:    socketPath,
+		startTime:     time.Now(),
+		grammarLoader: loader,
 	}
 }
 
@@ -152,7 +155,7 @@ func (s *Server) Start() error {
 	RegisterDecisionServiceServer(s.grpcServer, &decisionServiceImpl{store: s.store})
 	RegisterMessageServiceServer(s.grpcServer, &messageServiceImpl{store: s.store})
 	RegisterTaskServiceServer(s.grpcServer, &taskServiceImpl{store: s.store})
-	RegisterCodeServiceServer(s.grpcServer, &codeServiceImpl{server: s, parser: code.NewParser()})
+	RegisterCodeServiceServer(s.grpcServer, &codeServiceImpl{server: s, parser: code.NewParser(s.grammarLoader)})
 	RegisterFindingsServiceServer(s.grpcServer, &findingsServiceImpl{server: s})
 	RegisterHealthServiceServer(s.grpcServer, &healthServiceImpl{dbPath: s.dbPath})
 	RegisterStatusServiceServer(s.grpcServer, &statusServiceImpl{server: s})

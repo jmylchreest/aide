@@ -12,6 +12,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/jmylchreest/aide/aide/pkg/aideignore"
 	"github.com/jmylchreest/aide/aide/pkg/code"
+	"github.com/jmylchreest/aide/aide/pkg/grammar"
 )
 
 var runnerLog = log.New(os.Stderr, "[aide:findings] ", log.Ltime)
@@ -60,6 +61,7 @@ type Runner struct {
 	store        ReplaceFindingsStore
 	config       AnalyzerConfig
 	clonesRunner ClonesRunner
+	loader       grammar.Loader
 
 	mu       sync.Mutex
 	runs     map[RunKey]*activeRun
@@ -83,6 +85,7 @@ func NewRunner(store ReplaceFindingsStore, config AnalyzerConfig) *Runner {
 	return &Runner{
 		store:  store,
 		config: config,
+		loader: grammar.NewCompositeLoader(),
 		runs:   make(map[RunKey]*activeRun),
 		status: make(map[string]*AnalyzerStatus),
 		ctx:    ctx,
@@ -309,7 +312,7 @@ func (r *Runner) analyzeFileComplexity(ctx context.Context, filePath string, con
 		threshold = 10
 	}
 
-	return analyzeFileComplexity(content, filePath, lang, langCfg, threshold), nil
+	return analyzeFileComplexity(r.loader, content, filePath, lang, langCfg, threshold), nil
 }
 
 func (r *Runner) analyzeFileSecrets(ctx context.Context, filePath string, content []byte) ([]*Finding, error) {

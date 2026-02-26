@@ -97,6 +97,8 @@ func runCommand(cmd, dbPath string, args []string) error {
 		return cmdShare(dbPath, args)
 	case "status":
 		return cmdStatus(dbPath, args)
+	case "grammar":
+		return cmdGrammarDispatcher(dbPath, args)
 	default:
 		return fmt.Errorf("unknown command: %s", cmd)
 	}
@@ -130,12 +132,15 @@ Commands:
   share      Export/import decisions & memories as git-friendly markdown
   daemon     Start gRPC daemon (Unix socket for IPC)
   mcp        Start MCP server (for Claude Code plugin integration)
+  grammar    Manage tree-sitter language grammars (list, install, remove, scan)
   status     Show aide internal status (watcher, stores, analysers)
   upgrade    Check for updates and upgrade to latest version
   version    Show version information
 
 Environment:
-  AIDE_FORCE_INIT=1       Force initialization even without .git/ or .aide/
+  AIDE_FORCE_INIT=1       Force initialisation even without .git/ or .aide/
+  AIDE_GRAMMAR_URL        URL template for grammar downloads (placeholders: {version}, {asset}, {name}, {os}, {arch})
+  AIDE_GRAMMAR_AUTO_DOWNLOAD  Set to 0 or false to disable automatic grammar downloads
   AIDE_CODE_WATCH=1       Enable file watching for code index updates
   AIDE_CODE_WATCH_PATHS   Comma-separated paths to watch (default: cwd)
   AIDE_CODE_WATCH_DELAY   Debounce delay for watcher (default: 30s)
