@@ -181,7 +181,7 @@ jobs:
             -o "../dist/${BINARY_NAME}" ./cmd/aide
 
       - name: Compress binary with UPX
-        if: matrix.goos != 'darwin'
+        if: matrix.goos != 'darwin' && !(matrix.goos == 'windows' && matrix.goarch == 'arm64')
         uses: svenstaro/upx-action@v2
         with:
           files: |
