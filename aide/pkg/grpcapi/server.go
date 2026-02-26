@@ -11,6 +11,7 @@ import (
 
 	"github.com/jmylchreest/aide/aide/internal/version"
 	"github.com/jmylchreest/aide/aide/pkg/code"
+	"github.com/jmylchreest/aide/aide/pkg/findings"
 	"github.com/jmylchreest/aide/aide/pkg/memory"
 	"github.com/jmylchreest/aide/aide/pkg/store"
 	"github.com/oklog/ulid/v2"
@@ -34,11 +35,12 @@ func SocketPathFromDB(dbPath string) string {
 
 // Server manages the gRPC server and all service implementations.
 type Server struct {
-	store      store.Store
-	codeStore  store.CodeIndexStore
-	dbPath     string
-	grpcServer *grpc.Server
-	socketPath string
+	store         store.Store
+	codeStore     store.CodeIndexStore
+	findingsStore store.FindingsStore
+	dbPath        string
+	grpcServer    *grpc.Server
+	socketPath    string
 }
 
 // NewServer creates a new gRPC server.
@@ -53,6 +55,11 @@ func NewServer(st store.Store, dbPath, socketPath string) *Server {
 // SetCodeStore sets the code store for code indexing services.
 func (s *Server) SetCodeStore(cs store.CodeIndexStore) {
 	s.codeStore = cs
+}
+
+// SetFindingsStore sets the findings store for findings services.
+func (s *Server) SetFindingsStore(fs store.FindingsStore) {
+	s.findingsStore = fs
 }
 
 // Start starts the gRPC server on a Unix socket.
@@ -84,6 +91,7 @@ func (s *Server) Start() error {
 	RegisterMessageServiceServer(s.grpcServer, &messageServiceImpl{store: s.store})
 	RegisterTaskServiceServer(s.grpcServer, &taskServiceImpl{store: s.store})
 	RegisterCodeServiceServer(s.grpcServer, &codeServiceImpl{store: s.codeStore, parser: code.NewParser()})
+	RegisterFindingsServiceServer(s.grpcServer, &findingsServiceImpl{store: s.findingsStore})
 	RegisterHealthServiceServer(s.grpcServer, &healthServiceImpl{dbPath: s.dbPath})
 
 	// Start serving
@@ -830,8 +838,214 @@ func (s *codeServiceImpl) Clear(ctx context.Context, req *CodeClearRequest) (*Co
 }
 
 // =============================================================================
+// Findings Service Implementation
+// =============================================================================
+
+type findingsServiceImpl struct {
+	UnimplementedFindingsServiceServer
+	store store.FindingsStore
+}
+
+func (s *findingsServiceImpl) Add(ctx context.Context, req *FindingAddRequest) (*FindingAddResponse, error) {
+	if s.store == nil {
+		return nil, fmt.Errorf("findings store not available")
+	}
+
+	f := &findings.Finding{
+		Analyzer: req.Analyzer,
+		Severity: req.Severity,
+		Category: req.Category,
+		FilePath: req.FilePath,
+		Line:     int(req.Line),
+		EndLine:  int(req.EndLine),
+		Title:    req.Title,
+		Detail:   req.Detail,
+		Metadata: req.Metadata,
+	}
+
+	if err := s.store.AddFinding(f); err != nil {
+		return nil, err
+	}
+
+	return &FindingAddResponse{
+		Finding: findingToProto(f),
+	}, nil
+}
+
+func (s *findingsServiceImpl) Get(ctx context.Context, req *FindingGetRequest) (*FindingGetResponse, error) {
+	if s.store == nil {
+		return nil, fmt.Errorf("findings store not available")
+	}
+
+	f, err := s.store.GetFinding(req.Id)
+	if err != nil {
+		if err == store.ErrNotFound {
+			return &FindingGetResponse{Found: false}, nil
+		}
+		return nil, err
+	}
+
+	return &FindingGetResponse{
+		Finding: findingToProto(f),
+		Found:   true,
+	}, nil
+}
+
+func (s *findingsServiceImpl) Delete(ctx context.Context, req *FindingDeleteRequest) (*FindingDeleteResponse, error) {
+	if s.store == nil {
+		return nil, fmt.Errorf("findings store not available")
+	}
+
+	if err := s.store.DeleteFinding(req.Id); err != nil {
+		return nil, err
+	}
+
+	return &FindingDeleteResponse{Success: true}, nil
+}
+
+func (s *findingsServiceImpl) Search(ctx context.Context, req *FindingSearchRequest) (*FindingSearchResponse, error) {
+	if s.store == nil {
+		return nil, fmt.Errorf("findings store not available")
+	}
+
+	opts := findings.SearchOptions{
+		Analyzer: req.Analyzer,
+		Severity: req.Severity,
+		FilePath: req.FilePath,
+		Category: req.Category,
+		Limit:    int(req.Limit),
+	}
+
+	results, err := s.store.SearchFindings(req.Query, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	protoFindings := make([]*Finding, len(results))
+	for i, r := range results {
+		protoFindings[i] = findingToProto(r.Finding)
+	}
+
+	return &FindingSearchResponse{Findings: protoFindings}, nil
+}
+
+func (s *findingsServiceImpl) List(ctx context.Context, req *FindingListRequest) (*FindingSearchResponse, error) {
+	if s.store == nil {
+		return nil, fmt.Errorf("findings store not available")
+	}
+
+	opts := findings.SearchOptions{
+		Analyzer: req.Analyzer,
+		Severity: req.Severity,
+		FilePath: req.FilePath,
+		Category: req.Category,
+		Limit:    int(req.Limit),
+	}
+
+	results, err := s.store.ListFindings(opts)
+	if err != nil {
+		return nil, err
+	}
+
+	protoFindings := make([]*Finding, len(results))
+	for i, f := range results {
+		protoFindings[i] = findingToProto(f)
+	}
+
+	return &FindingSearchResponse{Findings: protoFindings}, nil
+}
+
+func (s *findingsServiceImpl) GetFileFindings(ctx context.Context, req *FindingFileRequest) (*FindingSearchResponse, error) {
+	if s.store == nil {
+		return nil, fmt.Errorf("findings store not available")
+	}
+
+	results, err := s.store.GetFileFindings(req.FilePath)
+	if err != nil {
+		return nil, err
+	}
+
+	protoFindings := make([]*Finding, len(results))
+	for i, f := range results {
+		protoFindings[i] = findingToProto(f)
+	}
+
+	return &FindingSearchResponse{Findings: protoFindings}, nil
+}
+
+func (s *findingsServiceImpl) ClearAnalyzer(ctx context.Context, req *FindingClearAnalyzerRequest) (*FindingClearAnalyzerResponse, error) {
+	if s.store == nil {
+		return nil, fmt.Errorf("findings store not available")
+	}
+
+	count, err := s.store.ClearAnalyzer(req.Analyzer)
+	if err != nil {
+		return nil, err
+	}
+
+	return &FindingClearAnalyzerResponse{Count: int32(count)}, nil
+}
+
+func (s *findingsServiceImpl) Stats(ctx context.Context, req *FindingStatsRequest) (*FindingStatsResponse, error) {
+	if s.store == nil {
+		return nil, fmt.Errorf("findings store not available")
+	}
+
+	stats, err := s.store.Stats()
+	if err != nil {
+		return nil, err
+	}
+
+	byAnalyzer := make(map[string]int32, len(stats.ByAnalyzer))
+	for k, v := range stats.ByAnalyzer {
+		byAnalyzer[k] = int32(v)
+	}
+	bySeverity := make(map[string]int32, len(stats.BySeverity))
+	for k, v := range stats.BySeverity {
+		bySeverity[k] = int32(v)
+	}
+
+	return &FindingStatsResponse{
+		Total:      int32(stats.Total),
+		ByAnalyzer: byAnalyzer,
+		BySeverity: bySeverity,
+	}, nil
+}
+
+func (s *findingsServiceImpl) Clear(ctx context.Context, req *FindingClearRequest) (*FindingClearResponse, error) {
+	if s.store == nil {
+		return nil, fmt.Errorf("findings store not available")
+	}
+
+	if err := s.store.Clear(); err != nil {
+		return nil, err
+	}
+
+	return &FindingClearResponse{Success: true}, nil
+}
+
+// =============================================================================
 // Conversion helpers
 // =============================================================================
+
+func findingToProto(f *findings.Finding) *Finding {
+	if f == nil {
+		return nil
+	}
+	return &Finding{
+		Id:        f.ID,
+		Analyzer:  f.Analyzer,
+		Severity:  f.Severity,
+		Category:  f.Category,
+		FilePath:  f.FilePath,
+		Line:      int32(f.Line),
+		EndLine:   int32(f.EndLine),
+		Title:     f.Title,
+		Detail:    f.Detail,
+		Metadata:  f.Metadata,
+		CreatedAt: timestamppb.New(f.CreatedAt),
+	}
+}
 
 func symbolToProto(s *code.Symbol) *Symbol {
 	if s == nil {

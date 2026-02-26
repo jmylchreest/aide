@@ -88,6 +88,9 @@ Use these tools during review:
 - `mcp__plugin_aide_aide__code_symbols` - List all symbols in a file being reviewed
 - `mcp__plugin_aide_aide__code_references` - Find all callers/usages of a modified symbol
 - `mcp__plugin_aide_aide__memory_search` - Check for related past decisions or issues
+- `mcp__plugin_aide_aide__findings_search` - Search static analysis findings (complexity, secrets, clones) related to changed code
+- `mcp__plugin_aide_aide__findings_list` - List findings filtered by file, severity, or analyzer
+- `mcp__plugin_aide_aide__findings_stats` - Overview of finding counts by analyzer and severity
 
 ## Output Format
 

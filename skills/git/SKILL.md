@@ -156,6 +156,16 @@ git worktree list | grep <worktree-path>
 git branch -a | grep <branch-name>
 ```
 
+## Change Context with Findings
+
+When reviewing diffs or preparing commits, use findings tools to understand the quality context of changed code:
+
+- `mcp__plugin_aide_aide__findings_search` — Search for known issues (complexity, secrets, clones) in changed files
+- `mcp__plugin_aide_aide__findings_list` — List all findings for a specific file to understand its health
+- `mcp__plugin_aide_aide__findings_stats` — Quick overview of finding counts across the project
+
+This helps surface pre-existing issues in files you're touching, and can inform whether a commit should also address nearby problems.
+
 ## Parallel Work Pattern
 
 For swarm mode or parallel features:

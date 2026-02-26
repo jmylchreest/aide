@@ -443,6 +443,116 @@ message CodeClearResponse {
 }
 
 // =============================================================================
+// Findings Service
+// =============================================================================
+
+service FindingsService {
+  rpc Add(FindingAddRequest) returns (FindingAddResponse);
+  rpc Get(FindingGetRequest) returns (FindingGetResponse);
+  rpc Delete(FindingDeleteRequest) returns (FindingDeleteResponse);
+  rpc Search(FindingSearchRequest) returns (FindingSearchResponse);
+  rpc List(FindingListRequest) returns (FindingSearchResponse);
+  rpc GetFileFindings(FindingFileRequest) returns (FindingSearchResponse);
+  rpc ClearAnalyzer(FindingClearAnalyzerRequest) returns (FindingClearAnalyzerResponse);
+  rpc Stats(FindingStatsRequest) returns (FindingStatsResponse);
+  rpc Clear(FindingClearRequest) returns (FindingClearResponse);
+}
+
+message Finding {
+  string id = 1;
+  string analyzer = 2;
+  string severity = 3;
+  string category = 4;
+  string file_path = 5;
+  int32 line = 6;
+  int32 end_line = 7;
+  string title = 8;
+  string detail = 9;
+  map<string, string> metadata = 10;
+  google.protobuf.Timestamp created_at = 11;
+}
+
+message FindingAddRequest {
+  string analyzer = 1;
+  string severity = 2;
+  string category = 3;
+  string file_path = 4;
+  int32 line = 5;
+  int32 end_line = 6;
+  string title = 7;
+  string detail = 8;
+  map<string, string> metadata = 9;
+}
+
+message FindingAddResponse {
+  Finding finding = 1;
+}
+
+message FindingGetRequest {
+  string id = 1;
+}
+
+message FindingGetResponse {
+  Finding finding = 1;
+  bool found = 2;
+}
+
+message FindingDeleteRequest {
+  string id = 1;
+}
+
+message FindingDeleteResponse {
+  bool success = 1;
+}
+
+message FindingSearchRequest {
+  string query = 1;
+  string analyzer = 2;     // Optional: filter by analyzer
+  string severity = 3;     // Optional: filter by severity
+  string file_path = 4;    // Optional: filter by file path pattern
+  string category = 5;     // Optional: filter by category
+  int32 limit = 6;         // Max results (default 20)
+}
+
+message FindingSearchResponse {
+  repeated Finding findings = 1;
+}
+
+message FindingListRequest {
+  string analyzer = 1;     // Optional: filter by analyzer
+  string severity = 2;     // Optional: filter by severity
+  string file_path = 3;    // Optional: filter by file path pattern
+  string category = 4;     // Optional: filter by category
+  int32 limit = 5;         // Max results (default 100)
+}
+
+message FindingFileRequest {
+  string file_path = 1;
+}
+
+message FindingClearAnalyzerRequest {
+  string analyzer = 1;
+}
+
+message FindingClearAnalyzerResponse {
+  int32 count = 1;
+}
+
+message FindingStatsRequest {}
+
+message FindingStatsResponse {
+  int32 total = 1;
+  map<string, int32> by_analyzer = 2;
+  map<string, int32> by_severity = 3;
+}
+
+message FindingClearRequest {}
+
+message FindingClearResponse {
+  bool success = 1;
+}
+
+// =============================================================================
 // Health Service
 // =============================================================================
 

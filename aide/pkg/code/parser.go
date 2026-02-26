@@ -549,15 +549,16 @@ func (p *Parser) extractWithQuery(query *sitter.Query, root *sitter.Node, conten
 		symbolKind := mapQueryKindToSymbolKind(kind)
 
 		sym := &Symbol{
-			ID:        ulid.Make().String(),
-			Name:      name,
-			Kind:      symbolKind,
-			Signature: p.extractSignature(defNode, content),
-			FilePath:  filePath,
-			StartLine: int(defNode.StartPoint().Row) + 1,
-			EndLine:   int(defNode.EndPoint().Row) + 1,
-			Language:  lang,
-			CreatedAt: time.Now(),
+			ID:         ulid.Make().String(),
+			Name:       name,
+			Kind:       symbolKind,
+			Signature:  p.extractSignature(defNode, content),
+			DocComment: p.extractPrecedingComment(defNode, content),
+			FilePath:   filePath,
+			StartLine:  int(defNode.StartPoint().Row) + 1,
+			EndLine:    int(defNode.EndPoint().Row) + 1,
+			Language:   lang,
+			CreatedAt:  time.Now(),
 		}
 
 		// Extract body range if present

@@ -1,0 +1,435 @@
+package findings
+
+import (
+	"bufio"
+	"fmt"
+	"os"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/jmylchreest/aide/aide/pkg/code"
+)
+
+// CouplingConfig configures the coupling analyzer.
+type CouplingConfig struct {
+	// FanOutThreshold is the max imports before a file is flagged (default 15).
+	FanOutThreshold int
+	// FanInThreshold is the max reverse-dependencies before a file is flagged (default 20).
+	FanInThreshold int
+	// Paths to analyze (default: current directory).
+	Paths []string
+	// ProgressFn is called after each file is analyzed.
+	ProgressFn func(path string, imports int)
+}
+
+// CouplingResult holds the output of a coupling analysis run.
+type CouplingResult struct {
+	FilesAnalyzed int
+	FindingsCount int
+	CyclesFound   int
+	Duration      time.Duration
+}
+
+// importGraph represents the file-level import graph.
+type importGraph struct {
+	// edges maps file -> set of files it imports
+	edges map[string]map[string]bool
+	// reverse maps file -> set of files that import it
+	reverse map[string]map[string]bool
+}
+
+func newImportGraph() *importGraph {
+	return &importGraph{
+		edges:   make(map[string]map[string]bool),
+		reverse: make(map[string]map[string]bool),
+	}
+}
+
+func (g *importGraph) addEdge(from, to string) {
+	if g.edges[from] == nil {
+		g.edges[from] = make(map[string]bool)
+	}
+	g.edges[from][to] = true
+
+	if g.reverse[to] == nil {
+		g.reverse[to] = make(map[string]bool)
+	}
+	g.reverse[to][from] = true
+}
+
+// AnalyzeCoupling analyzes import coupling between files.
+// It reports files with high fan-out (too many imports), high fan-in
+// (too many dependents), and import cycles.
+func AnalyzeCoupling(cfg CouplingConfig) ([]*Finding, *CouplingResult, error) {
+	if cfg.FanOutThreshold <= 0 {
+		cfg.FanOutThreshold = 15
+	}
+	if cfg.FanInThreshold <= 0 {
+		cfg.FanInThreshold = 20
+	}
+	if len(cfg.Paths) == 0 {
+		cfg.Paths = []string{"."}
+	}
+
+	start := time.Now()
+	result := &CouplingResult{}
+	graph := newImportGraph()
+
+	// Phase 1: Build the import graph
+	for _, root := range cfg.Paths {
+		err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return nil
+			}
+			if info.IsDir() {
+				if skipDirs(info.Name()) {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if !code.SupportedFile(path) {
+				return nil
+			}
+
+			lang := code.DetectLanguage(path, nil)
+			if lang == "" {
+				return nil
+			}
+
+			relPath := path
+			if cwd, err := os.Getwd(); err == nil {
+				if rel, err := filepath.Rel(cwd, path); err == nil {
+					relPath = rel
+				}
+			}
+
+			imports := extractImports(path, lang)
+			for _, imp := range imports {
+				graph.addEdge(relPath, imp)
+			}
+
+			result.FilesAnalyzed++
+
+			if cfg.ProgressFn != nil {
+				cfg.ProgressFn(relPath, len(imports))
+			}
+
+			return nil
+		})
+		if err != nil {
+			return nil, nil, fmt.Errorf("walk %s: %w", root, err)
+		}
+	}
+
+	var allFindings []*Finding
+
+	// Phase 2: Detect high fan-out
+	for file, imports := range graph.edges {
+		fanOut := len(imports)
+		if fanOut >= cfg.FanOutThreshold {
+			severity := SevWarning
+			if fanOut >= cfg.FanOutThreshold*2 {
+				severity = SevCritical
+			}
+
+			importList := make([]string, 0, len(imports))
+			for imp := range imports {
+				importList = append(importList, imp)
+			}
+			sort.Strings(importList)
+			detail := fmt.Sprintf("File imports %d modules (threshold: %d). High fan-out suggests this file has too many responsibilities. Consider splitting it.\n\nImports:\n", fanOut, cfg.FanOutThreshold)
+			for _, imp := range importList {
+				detail += fmt.Sprintf("  - %s\n", imp)
+			}
+
+			allFindings = append(allFindings, &Finding{
+				Analyzer: AnalyzerCoupling,
+				Severity: severity,
+				Category: "fan-out",
+				FilePath: file,
+				Line:     1,
+				Title:    fmt.Sprintf("High fan-out: %d imports", fanOut),
+				Detail:   detail,
+				Metadata: map[string]string{
+					"fan_out":   strconv.Itoa(fanOut),
+					"threshold": strconv.Itoa(cfg.FanOutThreshold),
+				},
+				CreatedAt: time.Now(),
+			})
+		}
+	}
+
+	// Phase 3: Detect high fan-in
+	for file, dependents := range graph.reverse {
+		fanIn := len(dependents)
+		if fanIn >= cfg.FanInThreshold {
+			severity := SevInfo
+			if fanIn >= cfg.FanInThreshold*2 {
+				severity = SevWarning
+			}
+
+			depList := make([]string, 0, len(dependents))
+			for dep := range dependents {
+				depList = append(depList, dep)
+			}
+			sort.Strings(depList)
+			detail := fmt.Sprintf("File is imported by %d other files (threshold: %d). High fan-in means changes to this file have wide impact.\n\nDepended on by:\n", fanIn, cfg.FanInThreshold)
+			for _, dep := range depList {
+				detail += fmt.Sprintf("  - %s\n", dep)
+			}
+
+			allFindings = append(allFindings, &Finding{
+				Analyzer: AnalyzerCoupling,
+				Severity: severity,
+				Category: "fan-in",
+				FilePath: file,
+				Line:     1,
+				Title:    fmt.Sprintf("High fan-in: %d dependents", fanIn),
+				Detail:   detail,
+				Metadata: map[string]string{
+					"fan_in":    strconv.Itoa(fanIn),
+					"threshold": strconv.Itoa(cfg.FanInThreshold),
+				},
+				CreatedAt: time.Now(),
+			})
+		}
+	}
+
+	// Phase 4: Detect cycles using Tarjan's algorithm
+	cycles := findCycles(graph)
+	result.CyclesFound = len(cycles)
+
+	for i, cycle := range cycles {
+		if i >= 50 { // Cap at 50 cycle findings
+			break
+		}
+		cycleStr := strings.Join(cycle, " -> ") + " -> " + cycle[0]
+
+		allFindings = append(allFindings, &Finding{
+			Analyzer: AnalyzerCoupling,
+			Severity: SevWarning,
+			Category: "cycle",
+			FilePath: cycle[0],
+			Line:     1,
+			Title:    fmt.Sprintf("Import cycle (%d files)", len(cycle)),
+			Detail:   fmt.Sprintf("Circular dependency detected:\n  %s\n\nCycles make code harder to understand, test, and refactor.", cycleStr),
+			Metadata: map[string]string{
+				"cycle_length": strconv.Itoa(len(cycle)),
+				"cycle_files":  strings.Join(cycle, ","),
+			},
+			CreatedAt: time.Now(),
+		})
+	}
+
+	result.FindingsCount = len(allFindings)
+	result.Duration = time.Since(start)
+	return allFindings, result, nil
+}
+
+// findCycles finds all strongly connected components with size > 1 using Tarjan's algorithm.
+func findCycles(graph *importGraph) [][]string {
+	var (
+		index    int
+		stack    []string
+		onStack  = make(map[string]bool)
+		indices  = make(map[string]int)
+		lowlinks = make(map[string]int)
+		sccs     [][]string
+	)
+
+	var strongConnect func(v string)
+	strongConnect = func(v string) {
+		indices[v] = index
+		lowlinks[v] = index
+		index++
+		stack = append(stack, v)
+		onStack[v] = true
+
+		for w := range graph.edges[v] {
+			if _, visited := indices[w]; !visited {
+				strongConnect(w)
+				if lowlinks[w] < lowlinks[v] {
+					lowlinks[v] = lowlinks[w]
+				}
+			} else if onStack[w] {
+				if indices[w] < lowlinks[v] {
+					lowlinks[v] = indices[w]
+				}
+			}
+		}
+
+		// If v is a root node, pop the SCC
+		if lowlinks[v] == indices[v] {
+			var scc []string
+			for {
+				w := stack[len(stack)-1]
+				stack = stack[:len(stack)-1]
+				onStack[w] = false
+				scc = append(scc, w)
+				if w == v {
+					break
+				}
+			}
+			if len(scc) > 1 { // Only report actual cycles
+				sort.Strings(scc)
+				sccs = append(sccs, scc)
+			}
+		}
+	}
+
+	// Collect all nodes
+	nodes := make(map[string]bool)
+	for k := range graph.edges {
+		nodes[k] = true
+	}
+	for k := range graph.reverse {
+		nodes[k] = true
+	}
+
+	for node := range nodes {
+		if _, visited := indices[node]; !visited {
+			strongConnect(node)
+		}
+	}
+
+	return sccs
+}
+
+// =============================================================================
+// Import extraction per language
+// =============================================================================
+
+// Import regex patterns by language
+var (
+	goImportSingle = regexp.MustCompile(`^\s*import\s+"([^"]+)"`)
+	goImportBlock  = regexp.MustCompile(`^\s*"([^"]+)"`)
+
+	pyImport     = regexp.MustCompile(`^\s*import\s+(\S+)`)
+	pyFromImport = regexp.MustCompile(`^\s*from\s+(\S+)\s+import`)
+
+	tsImportFrom = regexp.MustCompile(`(?:import|export)\s+.*from\s+['"]([^'"]+)['"]`)
+	tsRequire    = regexp.MustCompile(`require\s*\(\s*['"]([^'"]+)['"]`)
+
+	javaImport = regexp.MustCompile(`^\s*import\s+(?:static\s+)?([a-zA-Z0-9_.]+)`)
+
+	rustUse = regexp.MustCompile(`^\s*use\s+(?:crate::)?([a-zA-Z0-9_:]+)`)
+)
+
+// extractImports returns a list of import paths from a file.
+// Import paths are normalized to just the module/package name, not full paths.
+func extractImports(filePath, lang string) []string {
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil
+	}
+
+	switch lang {
+	case code.LangGo:
+		return extractGoImports(content)
+	case code.LangPython:
+		return extractPythonImports(content)
+	case code.LangTypeScript, code.LangJavaScript:
+		return extractTSImports(content)
+	case code.LangJava:
+		return extractJavaImports(content)
+	case code.LangRust:
+		return extractRustImports(content)
+	default:
+		return nil
+	}
+}
+
+func extractGoImports(content []byte) []string {
+	var imports []string
+	scanner := bufio.NewScanner(strings.NewReader(string(content)))
+	inBlock := false
+
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		if strings.Contains(line, "import (") {
+			inBlock = true
+			continue
+		}
+		if inBlock && strings.TrimSpace(line) == ")" {
+			inBlock = false
+			continue
+		}
+
+		if inBlock {
+			if m := goImportBlock.FindStringSubmatch(line); m != nil {
+				imports = append(imports, m[1])
+			}
+		} else {
+			if m := goImportSingle.FindStringSubmatch(line); m != nil {
+				imports = append(imports, m[1])
+			}
+		}
+	}
+	return imports
+}
+
+func extractPythonImports(content []byte) []string {
+	var imports []string
+	scanner := bufio.NewScanner(strings.NewReader(string(content)))
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		if m := pyFromImport.FindStringSubmatch(line); m != nil {
+			imports = append(imports, m[1])
+		} else if m := pyImport.FindStringSubmatch(line); m != nil {
+			// Handle "import a, b, c"
+			parts := strings.Split(m[1], ",")
+			for _, p := range parts {
+				p = strings.TrimSpace(p)
+				if p != "" {
+					imports = append(imports, p)
+				}
+			}
+		}
+	}
+	return imports
+}
+
+func extractTSImports(content []byte) []string {
+	var imports []string
+	text := string(content)
+
+	for _, m := range tsImportFrom.FindAllStringSubmatch(text, -1) {
+		imports = append(imports, m[1])
+	}
+	for _, m := range tsRequire.FindAllStringSubmatch(text, -1) {
+		imports = append(imports, m[1])
+	}
+	return imports
+}
+
+func extractJavaImports(content []byte) []string {
+	var imports []string
+	scanner := bufio.NewScanner(strings.NewReader(string(content)))
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		if m := javaImport.FindStringSubmatch(line); m != nil {
+			imports = append(imports, m[1])
+		}
+	}
+	return imports
+}
+
+func extractRustImports(content []byte) []string {
+	var imports []string
+	scanner := bufio.NewScanner(strings.NewReader(string(content)))
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		if m := rustUse.FindStringSubmatch(line); m != nil {
+			imports = append(imports, m[1])
+		}
+	}
+	return imports
+}

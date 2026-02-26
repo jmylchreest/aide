@@ -69,6 +69,8 @@ func runCommand(cmd, dbPath string, args []string) error {
 		return cmdMemoryDispatcher(dbPath, args)
 	case "code":
 		return cmdCodeDispatcher(dbPath, args)
+	case "findings":
+		return cmdFindingsDispatcher(dbPath, args)
 	case "task":
 		return cmdTask(dbPath, args)
 	case "decision":
@@ -85,6 +87,8 @@ func runCommand(cmd, dbPath string, args []string) error {
 		return cmdMCP(dbPath, args)
 	case "share":
 		return cmdShare(dbPath, args)
+	case "status":
+		return cmdStatus(dbPath, args)
 	default:
 		return fmt.Errorf("unknown command: %s", cmd)
 	}
@@ -110,6 +114,7 @@ Commands:
   session    Session lifecycle (init - single-call startup)
   memory     Manage memories (add, delete, search, select, list, export, clear)
   code       Index and search code symbols (index, search, symbols, clear)
+  findings   Query and manage static analysis findings (search, list, stats, clear)
   task       Manage swarm tasks (create, claim, complete, list)
   decision   Manage decisions (set, get, list, history) - append-only
   message    Inter-agent messaging (send, list, ack, clear, prune)
@@ -117,6 +122,7 @@ Commands:
   share      Export/import decisions & memories as git-friendly markdown
   daemon     Start gRPC daemon (Unix socket for IPC)
   mcp        Start MCP server (for Claude Code plugin integration)
+  status     Show aide internal status (watcher, stores, analyzers)
   upgrade    Check for updates and upgrade to latest version
   version    Show version information
 

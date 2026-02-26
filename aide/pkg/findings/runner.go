@@ -1,0 +1,395 @@
+package findings
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"os"
+	"path/filepath"
+	"sync"
+	"time"
+
+	"github.com/fsnotify/fsnotify"
+	"github.com/jmylchreest/aide/aide/pkg/code"
+)
+
+var runnerLog = log.New(os.Stderr, "[aide:findings] ", log.Ltime)
+
+const ScopeProject = "<project>"
+
+type AnalyzerConfig struct {
+	ComplexityThreshold int
+	FanOutThreshold     int
+	FanInThreshold      int
+	CloneWindowSize     int
+	CloneMinLines       int
+	Paths               []string
+}
+
+type RunKey struct {
+	Analyzer string
+	Scope    string
+}
+
+type activeRun struct {
+	cancel  context.CancelFunc
+	done    chan struct{}
+	started time.Time
+	id      int64
+}
+
+type AnalyzerStatus struct {
+	Status       string
+	Scope        string
+	LastRun      time.Time
+	LastDuration time.Duration
+	Findings     int
+	Error        string
+}
+
+type ClonesRunner func(ctx context.Context, paths []string, windowSize, minLines int) ([]*Finding, error)
+
+type Runner struct {
+	store        ReplaceFindingsStore
+	config       AnalyzerConfig
+	clonesRunner ClonesRunner
+
+	mu       sync.Mutex
+	runs     map[RunKey]*activeRun
+	status   map[string]*AnalyzerStatus
+	runIDGen int64
+
+	ctx    context.Context
+	cancel context.CancelFunc
+	wg     sync.WaitGroup
+}
+
+type ReplaceFindingsStore interface {
+	ReplaceFindingsForAnalyzer(analyzer string, findings []*Finding) error
+	ReplaceFindingsForAnalyzerAndFile(analyzer, filePath string, findings []*Finding) error
+	Stats() (*Stats, error)
+}
+
+func NewRunner(store ReplaceFindingsStore, config AnalyzerConfig) *Runner {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	return &Runner{
+		store:  store,
+		config: config,
+		runs:   make(map[RunKey]*activeRun),
+		status: make(map[string]*AnalyzerStatus),
+		ctx:    ctx,
+		cancel: cancel,
+	}
+}
+
+func (r *Runner) SetClonesRunner(fn ClonesRunner) {
+	r.clonesRunner = fn
+}
+
+func (r *Runner) OnChanges(files map[string]fsnotify.Op) {
+	perFileAnalyzers := []string{AnalyzerComplexity, AnalyzerSecrets}
+	projectAnalyzers := []string{AnalyzerCoupling, AnalyzerClones}
+
+	for file := range files {
+		if !code.SupportedFile(file) {
+			continue
+		}
+
+		for _, analyzer := range perFileAnalyzers {
+			key := RunKey{Analyzer: analyzer, Scope: file}
+			r.runAnalyzer(key, func(ctx context.Context) ([]*Finding, error) {
+				return r.runPerFileAnalyzer(ctx, analyzer, file)
+			})
+		}
+	}
+
+	for _, analyzer := range projectAnalyzers {
+		key := RunKey{Analyzer: analyzer, Scope: ScopeProject}
+		r.runAnalyzer(key, func(ctx context.Context) ([]*Finding, error) {
+			return r.runProjectAnalyzer(ctx, analyzer)
+		})
+	}
+}
+
+func (r *Runner) runAnalyzer(key RunKey, run func(ctx context.Context) ([]*Finding, error)) {
+	r.mu.Lock()
+
+	if existing, ok := r.runs[key]; ok {
+		existing.cancel()
+		runnerLog.Printf("%s on %s: cancelled existing run", key.Analyzer, key.Scope)
+	}
+
+	ctx, cancel := context.WithCancel(r.ctx)
+	done := make(chan struct{})
+	r.runIDGen++
+	runID := r.runIDGen
+	r.runs[key] = &activeRun{
+		cancel:  cancel,
+		done:    done,
+		started: time.Now(),
+		id:      runID,
+	}
+
+	r.updateStatusLocked(key.Analyzer, key.Scope, "running", 0, 0, "")
+
+	r.mu.Unlock()
+
+	r.wg.Add(1)
+	go func() {
+		defer close(done)
+		defer r.wg.Done()
+		defer func() {
+			r.mu.Lock()
+			if current, ok := r.runs[key]; ok && current.id == runID {
+				delete(r.runs, key)
+			}
+			r.mu.Unlock()
+		}()
+
+		start := time.Now()
+		findings, err := run(ctx)
+		duration := time.Since(start)
+
+		if ctx.Err() != nil {
+			runnerLog.Printf("%s on %s: cancelled", key.Analyzer, key.Scope)
+			return
+		}
+
+		if err != nil {
+			errStr := err.Error()
+			runnerLog.Printf("%s on %s: failed: %v (keeping old findings)", key.Analyzer, key.Scope, err)
+			r.updateStatus(key.Analyzer, key.Scope, "error", 0, duration, errStr)
+			return
+		}
+
+		if key.Scope == ScopeProject {
+			if err := r.store.ReplaceFindingsForAnalyzer(key.Analyzer, findings); err != nil {
+				runnerLog.Printf("%s: store failed: %v (keeping old findings)", key.Analyzer, err)
+				r.updateStatus(key.Analyzer, key.Scope, "error", 0, duration, err.Error())
+				return
+			}
+		} else {
+			if err := r.store.ReplaceFindingsForAnalyzerAndFile(key.Analyzer, key.Scope, findings); err != nil {
+				runnerLog.Printf("%s on %s: store failed: %v", key.Analyzer, key.Scope, err)
+				r.updateStatus(key.Analyzer, key.Scope, "error", 0, duration, err.Error())
+				return
+			}
+		}
+
+		runnerLog.Printf("%s on %s: %d findings in %v", key.Analyzer, key.Scope, len(findings), duration)
+		r.updateStatus(key.Analyzer, key.Scope, "idle", len(findings), duration, "")
+	}()
+}
+
+func (r *Runner) runPerFileAnalyzer(ctx context.Context, analyzer string, file string) ([]*Finding, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+
+	content, err := os.ReadFile(file)
+	if err != nil {
+		return nil, fmt.Errorf("read file: %w", err)
+	}
+
+	relPath := file
+	if cwd, err := os.Getwd(); err == nil {
+		if rel, err := filepath.Rel(cwd, file); err == nil {
+			relPath = rel
+		}
+	}
+
+	switch analyzer {
+	case AnalyzerComplexity:
+		return r.analyzeFileComplexity(ctx, relPath, content)
+	case AnalyzerSecrets:
+		return r.analyzeFileSecrets(ctx, relPath, content)
+	default:
+		return nil, fmt.Errorf("unknown analyzer: %s", analyzer)
+	}
+}
+
+func (r *Runner) runProjectAnalyzer(ctx context.Context, analyzer string) ([]*Finding, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+
+	paths := r.config.Paths
+	if len(paths) == 0 {
+		paths = []string{"."}
+	}
+
+	switch analyzer {
+	case AnalyzerCoupling:
+		cfg := CouplingConfig{
+			Paths:           paths,
+			FanOutThreshold: r.config.FanOutThreshold,
+			FanInThreshold:  r.config.FanInThreshold,
+		}
+		if cfg.FanOutThreshold <= 0 {
+			cfg.FanOutThreshold = 15
+		}
+		if cfg.FanInThreshold <= 0 {
+			cfg.FanInThreshold = 20
+		}
+		findings, _, err := AnalyzeCoupling(cfg)
+		return findings, err
+
+	case AnalyzerClones:
+		if r.clonesRunner == nil {
+			return nil, fmt.Errorf("clones runner not configured")
+		}
+		windowSize := r.config.CloneWindowSize
+		if windowSize <= 0 {
+			windowSize = 50
+		}
+		minLines := r.config.CloneMinLines
+		if minLines <= 0 {
+			minLines = 6
+		}
+		return r.clonesRunner(ctx, paths, windowSize, minLines)
+
+	default:
+		return nil, fmt.Errorf("unknown analyzer: %s", analyzer)
+	}
+}
+
+func (r *Runner) analyzeFileComplexity(ctx context.Context, filePath string, content []byte) ([]*Finding, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+
+	lang := code.DetectLanguage(filePath, content)
+	if lang == "" {
+		return nil, nil
+	}
+
+	langCfg, ok := complexityLanguages[lang]
+	if !ok {
+		return nil, nil
+	}
+
+	threshold := r.config.ComplexityThreshold
+	if threshold <= 0 {
+		threshold = 10
+	}
+
+	return analyzeFileComplexity(content, filePath, lang, langCfg, threshold), nil
+}
+
+func (r *Runner) analyzeFileSecrets(ctx context.Context, filePath string, content []byte) ([]*Finding, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+
+	cfg := SecretsConfig{
+		Paths:          []string{filePath},
+		SkipValidation: true,
+		MaxFileSize:    10 << 20,
+	}
+
+	findings, _, err := AnalyzeSecrets(cfg)
+	return findings, err
+}
+
+func (r *Runner) updateStatus(analyzer, scope, status string, findings int, duration time.Duration, err string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.updateStatusLocked(analyzer, scope, status, findings, duration, err)
+}
+
+func (r *Runner) updateStatusLocked(analyzer, scope, status string, findings int, duration time.Duration, err string) {
+	s := r.status[analyzer]
+	if s == nil {
+		s = &AnalyzerStatus{}
+		r.status[analyzer] = s
+	}
+
+	s.Status = status
+	s.Scope = scope
+	s.LastRun = time.Now()
+	s.LastDuration = duration
+	s.Findings = findings
+	s.Error = err
+}
+
+func (r *Runner) GetStatus() map[string]AnalyzerStatus {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	result := make(map[string]AnalyzerStatus)
+	for k, v := range r.status {
+		result[k] = *v
+	}
+	return result
+}
+
+func (r *Runner) Stop() {
+	r.cancel()
+	done := make(chan struct{})
+	go func() {
+		r.wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(30 * time.Second):
+		runnerLog.Printf("timeout waiting for analyzers to stop")
+	}
+}
+
+func (r *Runner) RunAll(ctx context.Context) error {
+	paths := r.config.Paths
+	if len(paths) == 0 {
+		paths = []string{"."}
+	}
+
+	for _, root := range paths {
+		err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return nil
+			}
+			if info.IsDir() {
+				name := info.Name()
+				if name == "node_modules" || name == ".git" || name == "vendor" ||
+					name == "__pycache__" || name == ".venv" || name == "dist" ||
+					name == "build" || name == ".aide" {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if !code.SupportedFile(path) {
+				return nil
+			}
+
+			for _, analyzer := range []string{AnalyzerComplexity, AnalyzerSecrets} {
+				key := RunKey{Analyzer: analyzer, Scope: path}
+				r.runAnalyzer(key, func(ctx context.Context) ([]*Finding, error) {
+					return r.runPerFileAnalyzer(ctx, analyzer, path)
+				})
+			}
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	for _, analyzer := range []string{AnalyzerCoupling, AnalyzerClones} {
+		key := RunKey{Analyzer: analyzer, Scope: ScopeProject}
+		r.runAnalyzer(key, func(ctx context.Context) ([]*Finding, error) {
+			return r.runProjectAnalyzer(ctx, analyzer)
+		})
+	}
+
+	return nil
+}

@@ -21,6 +21,10 @@ var SchemaVersion uint64 = 1
 // Increment this when adding new migrations to the codeMigrations slice.
 var CodeSchemaVersion uint64 = 1
 
+// FindingsSchemaVersion is the current schema version for the findings store.
+// Increment this when adding new migrations to the findingsMigrations slice.
+var FindingsSchemaVersion uint64 = 1
+
 // migration represents a single schema migration step.
 type migration struct {
 	version     uint64
@@ -36,6 +40,11 @@ var migrations = []migration{
 // codeMigrations is the ordered list of all code store schema migrations.
 var codeMigrations = []migration{
 	{version: 1, description: "baseline code schema stamp", migrate: func(tx *bolt.Tx) error { return nil }},
+}
+
+// findingsMigrations is the ordered list of all findings store schema migrations.
+var findingsMigrations = []migration{
+	{version: 1, description: "baseline findings schema stamp", migrate: func(tx *bolt.Tx) error { return nil }},
 }
 
 // migrationConfig holds the parameters for a migration run.
@@ -66,6 +75,16 @@ func codeMigrationConfig() migrationConfig {
 	}
 }
 
+// findingsMigrationConfig returns the config for the findings store.
+func findingsMigrationConfig() migrationConfig {
+	return migrationConfig{
+		metaBucket: BucketFindingsMeta,
+		versionKey: "schema_version",
+		target:     FindingsSchemaVersion,
+		migrations: findingsMigrations,
+	}
+}
+
 // RunMigrations applies pending schema migrations to the main store database.
 func RunMigrations(db *bolt.DB) error {
 	return runMigrations(db, mainMigrationConfig())
@@ -76,6 +95,11 @@ func RunCodeMigrations(db *bolt.DB) error {
 	return runMigrations(db, codeMigrationConfig())
 }
 
+// RunFindingsMigrations applies pending schema migrations to the findings store database.
+func RunFindingsMigrations(db *bolt.DB) error {
+	return runMigrations(db, findingsMigrationConfig())
+}
+
 // GetSchemaVersion reads the current schema version from the main store meta bucket.
 func GetSchemaVersion(db *bolt.DB) (uint64, error) {
 	return getSchemaVersion(db, BucketMeta, "schema_version")
@@ -84,6 +108,11 @@ func GetSchemaVersion(db *bolt.DB) (uint64, error) {
 // GetCodeSchemaVersion reads the current schema version from the code store meta bucket.
 func GetCodeSchemaVersion(db *bolt.DB) (uint64, error) {
 	return getSchemaVersion(db, BucketCodeMeta, "schema_version")
+}
+
+// GetFindingsSchemaVersion reads the current schema version from the findings store meta bucket.
+func GetFindingsSchemaVersion(db *bolt.DB) (uint64, error) {
+	return getSchemaVersion(db, BucketFindingsMeta, "schema_version")
 }
 
 // runMigrations is the parameterized migration engine.

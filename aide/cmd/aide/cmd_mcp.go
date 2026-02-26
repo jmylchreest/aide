@@ -11,10 +11,14 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/jmylchreest/aide/aide/internal/version"
 	"github.com/jmylchreest/aide/aide/pkg/code"
+	"github.com/jmylchreest/aide/aide/pkg/findings"
+	"github.com/jmylchreest/aide/aide/pkg/findings/clone"
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi"
 	"github.com/jmylchreest/aide/aide/pkg/store"
+	"github.com/jmylchreest/aide/aide/pkg/watcher"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -25,13 +29,18 @@ var mcpLog = log.New(os.Stderr, "[aide-mcp] ", log.Ltime)
 type MCPServer struct {
 	store          store.Store
 	codeStore      store.CodeIndexStore
-	codeStoreMu    sync.RWMutex   // Protects codeStore during lazy init
-	codeStoreReady atomic.Bool    // Fast check if codeStore is ready
-	codeInitWg     sync.WaitGroup // Tracks lazy code store init goroutine
+	findingsStore  store.FindingsStore
+	codeStoreMu    sync.RWMutex
+	codeStoreReady atomic.Bool
+	codeInitWg     sync.WaitGroup
 	server         *mcp.Server
 	grpcServer     *grpcapi.Server
-	codeWatcher    *code.Watcher // File watcher for code index updates
-	codeWatcherMu  sync.Mutex    // Protects codeWatcher
+	codeWatcher    *code.Watcher
+	codeWatcherMu  sync.Mutex
+
+	unifiedWatcher   *watcher.Watcher
+	findingsRunner   *findings.Runner
+	unifiedWatcherMu sync.Mutex
 }
 
 // getCodeStore safely returns the code store (may be nil during lazy init).
@@ -157,6 +166,23 @@ func (s *MCPServer) initMCPCodeStore(dbPath string, cfg *mcpConfig, grpcServer *
 	return func() { cs.Close() }
 }
 
+// initMCPFindingsStore opens the findings store and registers it with gRPC.
+func (s *MCPServer) initMCPFindingsStore(dbPath string, grpcServer *grpcapi.Server) func() {
+	findingsDir := getFindingsStorePath(dbPath)
+
+	findingsStart := time.Now()
+	fs, err := store.NewFindingsStore(findingsDir)
+	if err != nil {
+		mcpLog.Printf("WARNING: failed to open findings store: %v (findings tools disabled)", err)
+		return nil
+	}
+	mcpLog.Printf("findings store opened in %v: %s", time.Since(findingsStart), findingsDir)
+
+	s.findingsStore = fs
+	grpcServer.SetFindingsStore(fs)
+	return func() { fs.Close() }
+}
+
 // startCodeWatcher launches the file watcher in the background.
 // It reuses the MCPServer's existing code store to avoid double-opening bolt/bleve.
 func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
@@ -174,7 +200,6 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 			}
 		}
 
-		// Reuse the existing code store if available, otherwise open a new one
 		var indexer *Indexer
 		if cs := s.getCodeStore(); cs != nil {
 			indexer = NewIndexerFromStore(cs)
@@ -187,7 +212,7 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 			}
 		}
 
-		debounceDelay := code.DefaultDebounceDelay
+		debounceDelay := watcher.DefaultDebounceDelay
 		if cfg.codeWatchDelayStr != "" {
 			if d, err := time.ParseDuration(cfg.codeWatchDelayStr); err == nil {
 				debounceDelay = d
@@ -199,42 +224,93 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 			watchPaths = strings.Split(cfg.codeWatchPath, ",")
 		}
 
-		config := code.WatcherConfig{
-			Enabled:       true,
+		codeHandler := &codeIndexHandler{indexer: indexer}
+
+		runnerConfig := findings.AnalyzerConfig{
+			Paths: watchPaths,
+		}
+		findingsRunner := findings.NewRunner(s.findingsStore, runnerConfig)
+		findingsRunner.SetClonesRunner(func(ctx context.Context, paths []string, windowSize, minLines int) ([]*findings.Finding, error) {
+			cloneCfg := clone.Config{
+				Paths:         paths,
+				WindowSize:    windowSize,
+				MinCloneLines: minLines,
+			}
+			f, _, err := clone.DetectClones(cloneCfg)
+			return f, err
+		})
+
+		w, err := watcher.New(watcher.Config{
 			Paths:         watchPaths,
 			DebounceDelay: debounceDelay,
+			FileFilter:    code.SupportedFile,
+		}, codeHandler, findingsRunner)
+		if err != nil {
+			mcpLog.Printf("WARNING: failed to create unified watcher: %v", err)
+			return
 		}
 
-		codeWatcher, err := code.WatchAndIndex(config, indexer.IndexFile, indexer.RemoveFile)
-		if err != nil {
-			mcpLog.Printf("WARNING: failed to create code watcher: %v", err)
+		if err := w.Start(); err != nil {
+			mcpLog.Printf("WARNING: failed to start unified watcher: %v", err)
 			return
 		}
-		if err := codeWatcher.Start(); err != nil {
-			mcpLog.Printf("WARNING: failed to start code watcher: %v", err)
-			return
-		}
-		// Store reference so it can be stopped on shutdown
-		s.codeWatcherMu.Lock()
-		s.codeWatcher = codeWatcher
-		s.codeWatcherMu.Unlock()
+
+		s.unifiedWatcherMu.Lock()
+		s.unifiedWatcher = w
+		s.findingsRunner = findingsRunner
+		s.unifiedWatcherMu.Unlock()
+
+		globalWatcher = w
+		globalCodeStore = s.getCodeStore()
+		globalFindingsStore = s.findingsStore
+		globalFindingsRunner = findingsRunner
+
 		if len(watchPaths) > 0 {
-			mcpLog.Printf("code watcher enabled for: %s (debounce: %v)", strings.Join(watchPaths, ", "), debounceDelay)
+			mcpLog.Printf("unified watcher enabled for: %s (debounce: %v)", strings.Join(watchPaths, ", "), debounceDelay)
 		} else {
-			mcpLog.Printf("code watcher enabled for current directory (debounce: %v)", debounceDelay)
+			mcpLog.Printf("unified watcher enabled for current directory (debounce: %v)", debounceDelay)
 		}
 	}()
 }
 
+type codeIndexHandler struct {
+	indexer *Indexer
+}
+
+func (h *codeIndexHandler) OnChanges(files map[string]fsnotify.Op) {
+	for path, op := range files {
+		if watcher.IsRemove(op) {
+			if err := h.indexer.RemoveFile(path); err != nil {
+				mcpLog.Printf("failed to remove %s: %v", path, err)
+			} else {
+				mcpLog.Printf("removed %s from index", path)
+			}
+		} else {
+			count, err := h.indexer.IndexFile(path)
+			if err != nil {
+				mcpLog.Printf("failed to index %s: %v", path, err)
+			} else {
+				mcpLog.Printf("indexed %s: %d symbols", path, count)
+			}
+		}
+	}
+}
+
 // stopCodeWatcher gracefully stops the file watcher if running.
 func (s *MCPServer) stopCodeWatcher() {
-	s.codeWatcherMu.Lock()
-	w := s.codeWatcher
-	s.codeWatcher = nil
-	s.codeWatcherMu.Unlock()
+	s.unifiedWatcherMu.Lock()
+	w := s.unifiedWatcher
+	runner := s.findingsRunner
+	s.unifiedWatcher = nil
+	s.findingsRunner = nil
+	s.unifiedWatcherMu.Unlock()
+
+	if runner != nil {
+		runner.Stop()
+	}
 	if w != nil {
 		if err := w.Stop(); err != nil {
-			mcpLog.Printf("WARNING: code watcher stop error: %v", err)
+			mcpLog.Printf("WARNING: watcher stop error: %v", err)
 		}
 	}
 }
@@ -275,7 +351,8 @@ func cmdMCP(dbPath string, args []string) error {
 			if pingErr == nil {
 				mcpLog.Printf("client mode: connected to existing primary via %s", socketPath)
 				adapter := newGRPCStoreAdapter(client)
-				mcpServer := &MCPServer{store: adapter}
+				findingsAdapter := newGRPCFindingsAdapter(client)
+				mcpServer := &MCPServer{store: adapter, findingsStore: findingsAdapter}
 				mcpLog.Printf("MCP server ready in %v (client mode), listening on stdio", time.Since(startTime))
 				return mcpServer.Run()
 			}
@@ -316,6 +393,10 @@ func cmdMCP(dbPath string, args []string) error {
 		defer cleanup()
 	}
 
+	if cleanup := mcpServer.initMCPFindingsStore(dbPath, grpcServer); cleanup != nil {
+		defer cleanup()
+	}
+
 	mcpServer.startCodeWatcher(dbPath, cfg)
 	defer mcpServer.stopCodeWatcher()
 
@@ -340,7 +421,8 @@ func (s *MCPServer) Run() error {
 	s.registerStateReadTools() // Read-only state access
 	s.registerDecisionTools()
 	s.registerMessageTools()
-	s.registerCodeTools() // Code indexing and search
+	s.registerCodeTools()     // Code indexing and search
+	s.registerFindingsTools() // Findings search and stats
 
 	// Run over stdio
 	return srv.Run(context.Background(), &mcp.StdioTransport{})

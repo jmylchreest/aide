@@ -5,17 +5,18 @@ import "time"
 
 // Symbol represents a code symbol (function, method, class, etc.)
 type Symbol struct {
-	ID            string    `json:"id"`                  // ULID
-	Name          string    `json:"name"`                // Symbol name (e.g., "getUser")
-	Kind          string    `json:"kind"`                // function, method, class, interface, type
-	Signature     string    `json:"signature"`           // Full signature (e.g., "async getUser(id: string): Promise<User>")
-	DocComment    string    `json:"doc,omitempty"`       // Leading doc comment
-	FilePath      string    `json:"file"`                // Relative file path
-	StartLine     int       `json:"start"`               // Line number (1-indexed)
-	EndLine       int       `json:"end"`                 // End line number
-	BodyStartLine int       `json:"bodyStart,omitempty"` // Body start line (1-indexed, 0 if no body)
-	BodyEndLine   int       `json:"bodyEnd,omitempty"`   // Body end line (1-indexed, 0 if no body)
-	Language      string    `json:"lang"`                // typescript, javascript, go, python
+	ID            string    `json:"id"`                   // ULID
+	Name          string    `json:"name"`                 // Symbol name (e.g., "getUser")
+	Kind          string    `json:"kind"`                 // function, method, class, interface, type
+	Signature     string    `json:"signature"`            // Full signature (e.g., "async getUser(id: string): Promise<User>")
+	DocComment    string    `json:"doc,omitempty"`        // Leading doc comment
+	FilePath      string    `json:"file"`                 // Relative file path
+	StartLine     int       `json:"start"`                // Line number (1-indexed)
+	EndLine       int       `json:"end"`                  // End line number
+	BodyStartLine int       `json:"bodyStart,omitempty"`  // Body start line (1-indexed, 0 if no body)
+	BodyEndLine   int       `json:"bodyEnd,omitempty"`    // Body end line (1-indexed, 0 if no body)
+	Complexity    int       `json:"complexity,omitempty"` // Cyclomatic complexity (0 = not computed)
+	Language      string    `json:"lang"`                 // typescript, javascript, go, python
 	CreatedAt     time.Time `json:"createdAt"`
 }
 

@@ -86,6 +86,18 @@ Is the code indexed?
 → Returns: file count, symbol count, reference count
 ```
 
+### 6. Search Findings (`mcp__plugin_aide_aide__findings_search`)
+
+Search static analysis findings (complexity hotspots, secrets, code clones, coupling issues).
+
+**Example usage:**
+
+```
+Any complexity issues in src/auth?
+→ Uses findings_search tool with query "auth" or file filter
+→ Returns: findings with file, line, severity, description
+```
+
 ## Workflow
 
 1. **First, check if codebase is indexed:**

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/jmylchreest/aide/aide/pkg/code"
+	"github.com/jmylchreest/aide/aide/pkg/findings"
 	"github.com/jmylchreest/aide/aide/pkg/memory"
 )
 
@@ -94,3 +95,21 @@ var _ Store = (*BoltStore)(nil)
 
 // Verify CodeStore implements CodeIndexStore at compile time.
 var _ CodeIndexStore = (*CodeStore)(nil)
+
+// FindingsStore manages static analysis findings in a separate database.
+type FindingsStore interface {
+	AddFinding(f *findings.Finding) error
+	GetFinding(id string) (*findings.Finding, error)
+	DeleteFinding(id string) error
+	SearchFindings(query string, opts findings.SearchOptions) ([]*findings.SearchResult, error)
+	ListFindings(opts findings.SearchOptions) ([]*findings.Finding, error)
+	GetFileFindings(filePath string) ([]*findings.Finding, error)
+	ClearAnalyzer(analyzer string) (int, error)
+	ReplaceFindingsForAnalyzer(analyzer string, newFindings []*findings.Finding) error
+	ReplaceFindingsForAnalyzerAndFile(analyzer, filePath string, newFindings []*findings.Finding) error
+	Stats() (*findings.Stats, error)
+	Clear() error
+	Close() error
+}
+
+var _ FindingsStore = (*FindingsStoreImpl)(nil)
