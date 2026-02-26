@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jmylchreest/aide/aide/pkg/aideignore"
 	"github.com/praetorian-inc/titus"
 )
 
@@ -22,6 +23,9 @@ type SecretsConfig struct {
 	MaxFileSize int64
 	// ProgressFn is called after each file is scanned. May be nil.
 	ProgressFn func(path string, secrets int)
+	// Ignore is the aideignore matcher for filtering files/directories.
+	// If nil, built-in defaults are used.
+	Ignore *aideignore.Matcher
 }
 
 // SecretsResult holds the output of a secrets analysis run.
@@ -47,22 +51,6 @@ func defaultMaxFileSize(size int64) int64 {
 		return size
 	}
 	return 1 << 20 // 1MB
-}
-
-// secretsSkipDirs contains directory names to always skip during scanning.
-var secretsSkipDirs = map[string]bool{
-	".git":         true,
-	".svn":         true,
-	".hg":          true,
-	"node_modules": true,
-	"vendor":       true,
-	"__pycache__":  true,
-	".tox":         true,
-	".venv":        true,
-	"venv":         true,
-	".aide":        true,
-	"dist":         true,
-	"build":        true,
 }
 
 // secretsSkipExtensions contains file extensions to skip (binary/large files).
@@ -106,20 +94,31 @@ func AnalyzeSecrets(cfg SecretsConfig) ([]*Finding, *SecretsResult, error) {
 
 	result.RulesLoaded = scanner.RuleCount()
 
+	ignore := cfg.Ignore
+	if ignore == nil {
+		ignore = aideignore.NewFromDefaults()
+	}
+
 	var allFindings []*Finding
 
 	for _, root := range paths {
+		absRoot, _ := filepath.Abs(root)
+		shouldSkip := ignore.WalkFunc(absRoot)
+
 		err := filepath.Walk(root, func(path string, info os.FileInfo, walkErr error) error {
 			if walkErr != nil {
 				return nil // skip inaccessible files
 			}
 
-			// Skip hidden directories and known non-source dirs.
-			if info.IsDir() {
-				base := filepath.Base(path)
-				if secretsSkipDirs[base] || (len(base) > 1 && base[0] == '.') {
+			// Skip ignored directories and files.
+			if skip, skipDir := shouldSkip(path, info); skip {
+				if skipDir {
 					return filepath.SkipDir
 				}
+				result.FilesSkipped++
+				return nil
+			}
+			if info.IsDir() {
 				return nil
 			}
 

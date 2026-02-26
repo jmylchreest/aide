@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/jmylchreest/aide/aide/pkg/aideignore"
 	"github.com/jmylchreest/aide/aide/pkg/findings"
 	"github.com/jmylchreest/aide/aide/pkg/findings/clone"
 )
@@ -156,33 +157,40 @@ func cmdFindingsRun(dbPath string, args []string) error {
 	}
 	defer backend.Close()
 
+	// Load .aideignore from project root.
+	projectRoot := projectRootFromDB(dbPath)
+	ignore, err := aideignore.New(projectRoot)
+	if err != nil {
+		return fmt.Errorf("failed to load .aideignore: %w", err)
+	}
+
 	totalFindings := 0
 
 	for _, name := range analyzers {
 		switch name {
 		case findings.AnalyzerComplexity:
-			n, err := runComplexityAnalyzer(backend, paths, threshold)
+			n, err := runComplexityAnalyzer(backend, paths, threshold, ignore)
 			if err != nil {
 				return fmt.Errorf("complexity analyzer failed: %w", err)
 			}
 			totalFindings += n
 
 		case findings.AnalyzerCoupling:
-			n, err := runCouplingAnalyzer(backend, paths, fanOut, fanIn)
+			n, err := runCouplingAnalyzer(backend, paths, fanOut, fanIn, ignore)
 			if err != nil {
 				return fmt.Errorf("coupling analyzer failed: %w", err)
 			}
 			totalFindings += n
 
 		case findings.AnalyzerSecrets:
-			n, err := runSecretsAnalyzer(backend, paths)
+			n, err := runSecretsAnalyzer(backend, paths, ignore)
 			if err != nil {
 				return fmt.Errorf("secrets analyzer failed: %w", err)
 			}
 			totalFindings += n
 
 		case findings.AnalyzerClones:
-			n, err := runClonesAnalyzer(backend, paths, windowSize, minCloneLines)
+			n, err := runClonesAnalyzer(backend, paths, windowSize, minCloneLines, ignore)
 			if err != nil {
 				return fmt.Errorf("clones analyzer failed: %w", err)
 			}
@@ -197,12 +205,13 @@ func cmdFindingsRun(dbPath string, args []string) error {
 	return nil
 }
 
-func runComplexityAnalyzer(backend *Backend, paths []string, threshold int) (int, error) {
+func runComplexityAnalyzer(backend *Backend, paths []string, threshold int, ignore *aideignore.Matcher) (int, error) {
 	fmt.Printf("Running complexity analyzer (threshold=%d)...\n", threshold)
 
 	cfg := findings.ComplexityConfig{
 		Threshold: threshold,
 		Paths:     paths,
+		Ignore:    ignore,
 		ProgressFn: func(path string, count int) {
 			if count > 0 {
 				fmt.Printf("  %s: %d findings\n", path, count)
@@ -225,13 +234,14 @@ func runComplexityAnalyzer(backend *Backend, paths []string, threshold int) (int
 	return len(ff), nil
 }
 
-func runCouplingAnalyzer(backend *Backend, paths []string, fanOut, fanIn int) (int, error) {
+func runCouplingAnalyzer(backend *Backend, paths []string, fanOut, fanIn int, ignore *aideignore.Matcher) (int, error) {
 	fmt.Printf("Running coupling analyzer (fan-out=%d, fan-in=%d)...\n", fanOut, fanIn)
 
 	cfg := findings.CouplingConfig{
 		FanOutThreshold: fanOut,
 		FanInThreshold:  fanIn,
 		Paths:           paths,
+		Ignore:          ignore,
 	}
 
 	ff, result, err := findings.AnalyzeCoupling(cfg)
@@ -249,12 +259,13 @@ func runCouplingAnalyzer(backend *Backend, paths []string, fanOut, fanIn int) (i
 	return len(ff), nil
 }
 
-func runSecretsAnalyzer(backend *Backend, paths []string) (int, error) {
+func runSecretsAnalyzer(backend *Backend, paths []string, ignore *aideignore.Matcher) (int, error) {
 	fmt.Printf("Running secrets analyzer...\n")
 
 	cfg := findings.SecretsConfig{
 		Paths:          paths,
 		SkipValidation: true,
+		Ignore:         ignore,
 	}
 
 	ff, result, err := findings.AnalyzeSecrets(cfg)
@@ -272,13 +283,14 @@ func runSecretsAnalyzer(backend *Backend, paths []string) (int, error) {
 	return len(ff), nil
 }
 
-func runClonesAnalyzer(backend *Backend, paths []string, windowSize, minLines int) (int, error) {
+func runClonesAnalyzer(backend *Backend, paths []string, windowSize, minLines int, ignore *aideignore.Matcher) (int, error) {
 	fmt.Printf("Running clone detection (window=%d, min-lines=%d)...\n", windowSize, minLines)
 
 	cfg := clone.Config{
 		WindowSize:    windowSize,
 		MinCloneLines: minLines,
 		Paths:         paths,
+		Ignore:        ignore,
 	}
 
 	ff, result, err := clone.DetectClones(cfg)

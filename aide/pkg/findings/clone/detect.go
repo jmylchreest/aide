@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jmylchreest/aide/aide/pkg/aideignore"
 	"github.com/jmylchreest/aide/aide/pkg/code"
 	"github.com/jmylchreest/aide/aide/pkg/findings"
 )
@@ -21,6 +22,9 @@ type Config struct {
 	Paths []string
 	// ProgressFn is called after each file is tokenized. May be nil.
 	ProgressFn func(path string, tokens int)
+	// Ignore is the aideignore matcher for filtering files/directories.
+	// If nil, built-in defaults are used.
+	Ignore *aideignore.Matcher
 }
 
 // Result holds the output of a clone detection run.
@@ -30,22 +34,6 @@ type Result struct {
 	CloneGroups   int
 	FindingsCount int
 	Duration      time.Duration
-}
-
-// skipDirs contains directory names to always skip.
-var skipDirs = map[string]bool{
-	".git":         true,
-	".svn":         true,
-	".hg":          true,
-	"node_modules": true,
-	"vendor":       true,
-	"__pycache__":  true,
-	".tox":         true,
-	".venv":        true,
-	"venv":         true,
-	".aide":        true,
-	"dist":         true,
-	"build":        true,
 }
 
 // defaultWindowSize returns the configured or default window size.
@@ -79,18 +67,29 @@ func DetectClones(cfg Config) ([]*findings.Finding, *Result, error) {
 	index := NewCloneIndex()
 	hasher := NewRollingHash(windowSize)
 
+	ignore := cfg.Ignore
+	if ignore == nil {
+		ignore = aideignore.NewFromDefaults()
+	}
+
 	// Phase 1: Tokenize all files and build the hash index.
 	for _, root := range paths {
+		absRoot, _ := filepath.Abs(root)
+		shouldSkip := ignore.WalkFunc(absRoot)
+
 		err := filepath.Walk(root, func(path string, info os.FileInfo, walkErr error) error {
 			if walkErr != nil {
 				return nil
 			}
 
-			if info.IsDir() {
-				base := filepath.Base(path)
-				if skipDirs[base] || (len(base) > 1 && base[0] == '.') {
+			if skip, skipDir := shouldSkip(path, info); skip {
+				if skipDir {
 					return filepath.SkipDir
 				}
+				result.FilesSkipped++
+				return nil
+			}
+			if info.IsDir() {
 				return nil
 			}
 

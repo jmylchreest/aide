@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jmylchreest/aide/aide/pkg/aideignore"
 	"github.com/jmylchreest/aide/aide/pkg/code"
 )
 
@@ -24,6 +25,9 @@ type CouplingConfig struct {
 	Paths []string
 	// ProgressFn is called after each file is analyzed.
 	ProgressFn func(path string, imports int)
+	// Ignore is the aideignore matcher for filtering files/directories.
+	// If nil, built-in defaults are used.
+	Ignore *aideignore.Matcher
 }
 
 // CouplingResult holds the output of a coupling analysis run.
@@ -79,16 +83,27 @@ func AnalyzeCoupling(cfg CouplingConfig) ([]*Finding, *CouplingResult, error) {
 	result := &CouplingResult{}
 	graph := newImportGraph()
 
+	ignore := cfg.Ignore
+	if ignore == nil {
+		ignore = aideignore.NewFromDefaults()
+	}
+
 	// Phase 1: Build the import graph
 	for _, root := range cfg.Paths {
+		absRoot, _ := filepath.Abs(root)
+		shouldSkip := ignore.WalkFunc(absRoot)
+
 		err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return nil
 			}
-			if info.IsDir() {
-				if skipDirs(info.Name()) {
+			if skip, skipDir := shouldSkip(path, info); skip {
+				if skipDir {
 					return filepath.SkipDir
 				}
+				return nil
+			}
+			if info.IsDir() {
 				return nil
 			}
 			if !code.SupportedFile(path) {

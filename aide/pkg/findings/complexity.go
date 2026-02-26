@@ -7,9 +7,9 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
 
+	"github.com/jmylchreest/aide/aide/pkg/aideignore"
 	"github.com/jmylchreest/aide/aide/pkg/code"
 	sitter "github.com/smacker/go-tree-sitter"
 	"github.com/smacker/go-tree-sitter/golang"
@@ -28,6 +28,9 @@ type ComplexityConfig struct {
 	Paths []string
 	// ProgressFn is called after each file is analyzed. May be nil.
 	ProgressFn func(path string, findings int)
+	// Ignore is the aideignore matcher for filtering files/directories.
+	// If nil, built-in defaults are used.
+	Ignore *aideignore.Matcher
 }
 
 // ComplexityResult holds the output of a complexity analysis run.
@@ -179,22 +182,30 @@ func AnalyzeComplexity(cfg ComplexityConfig) ([]*Finding, *ComplexityResult, err
 		cfg.Paths = []string{"."}
 	}
 
+	ignore := cfg.Ignore
+	if ignore == nil {
+		ignore = aideignore.NewFromDefaults()
+	}
+
 	start := time.Now()
 	result := &ComplexityResult{}
 	var allFindings []*Finding
 
 	for _, root := range cfg.Paths {
+		absRoot, _ := filepath.Abs(root)
+		shouldSkip := ignore.WalkFunc(absRoot)
+
 		err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return nil
 			}
-			if info.IsDir() {
-				name := info.Name()
-				if name == "node_modules" || name == ".git" || name == "vendor" ||
-					name == "__pycache__" || name == ".venv" || name == "dist" ||
-					name == "build" || name == ".aide" {
+			if skip, skipDir := shouldSkip(path, info); skip {
+				if skipDir {
 					return filepath.SkipDir
 				}
+				return nil
+			}
+			if info.IsDir() {
 				return nil
 			}
 
@@ -407,14 +418,4 @@ func extractFuncName(node *sitter.Node, content []byte, nameField string) string
 
 	// Fallback: anonymous function at line
 	return fmt.Sprintf("<anonymous:%d>", node.StartPoint().Row+1)
-}
-
-// skipDirs returns true for directories that should be skipped during analysis.
-func skipDirs(name string) bool {
-	switch name {
-	case "node_modules", ".git", "vendor", "__pycache__", ".venv",
-		"dist", "build", ".aide", ".next", "coverage", ".cache":
-		return true
-	}
-	return strings.HasPrefix(name, ".")
 }

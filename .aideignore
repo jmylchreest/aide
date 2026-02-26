@@ -1,0 +1,18 @@
+# .aideignore — project-specific patterns for aide findings analysers
+#
+# Patterns follow gitignore syntax. Built-in defaults already cover common
+# directories (node_modules, .git, vendor, etc.) and generated file patterns
+# (*.pb.go, *_generated.go, etc.), so this file only needs project-specific
+# additions or overrides.
+#
+# Use ! to negate (un-ignore) a previously matched pattern.
+
+# ── Test files (reduce clone noise from repeated setup/assertion patterns) ──
+*_test.go
+
+# ── Protobuf generated code (already covered by *.pb.go default, but
+#    being explicit about the grpcapi output directory) ──
+aide/pkg/grpcapi/*.pb.go
+
+# ── Mirrored TypeScript packages (same code in two locations) ──
+packages/opencode-plugin/src/

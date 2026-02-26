@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/jmylchreest/aide/aide/pkg/aideignore"
 	"github.com/jmylchreest/aide/aide/pkg/code"
 )
 
@@ -24,6 +25,12 @@ type AnalyzerConfig struct {
 	CloneWindowSize     int
 	CloneMinLines       int
 	Paths               []string
+	// ProjectRoot is the absolute path to the project root, used for converting
+	// absolute file paths from the watcher to relative paths for aideignore matching.
+	ProjectRoot string
+	// Ignore is the aideignore matcher used to filter files and directories.
+	// If nil, built-in defaults are used.
+	Ignore *aideignore.Matcher
 }
 
 type RunKey struct {
@@ -87,12 +94,33 @@ func (r *Runner) SetClonesRunner(fn ClonesRunner) {
 	r.clonesRunner = fn
 }
 
+// ignore returns the configured aideignore matcher, falling back to built-in defaults.
+func (r *Runner) ignore() *aideignore.Matcher {
+	if r.config.Ignore != nil {
+		return r.config.Ignore
+	}
+	return aideignore.NewFromDefaults()
+}
+
 func (r *Runner) OnChanges(files map[string]fsnotify.Op) {
 	perFileAnalyzers := []string{AnalyzerComplexity, AnalyzerSecrets}
 	projectAnalyzers := []string{AnalyzerCoupling, AnalyzerClones}
 
+	ignore := r.ignore()
+
 	for file := range files {
 		if !code.SupportedFile(file) {
+			continue
+		}
+
+		// Convert to relative path for aideignore matching (watcher sends absolute paths).
+		relFile := file
+		if r.config.ProjectRoot != "" {
+			if rel, err := filepath.Rel(r.config.ProjectRoot, file); err == nil {
+				relFile = rel
+			}
+		}
+		if ignore.ShouldIgnoreFile(relFile) {
 			continue
 		}
 
@@ -229,6 +257,7 @@ func (r *Runner) runProjectAnalyzer(ctx context.Context, analyzer string) ([]*Fi
 			Paths:           paths,
 			FanOutThreshold: r.config.FanOutThreshold,
 			FanInThreshold:  r.config.FanInThreshold,
+			Ignore:          r.ignore(),
 		}
 		if cfg.FanOutThreshold <= 0 {
 			cfg.FanOutThreshold = 15
@@ -353,18 +382,23 @@ func (r *Runner) RunAll(ctx context.Context) error {
 		paths = []string{"."}
 	}
 
+	ignore := r.ignore()
+
 	for _, root := range paths {
+		absRoot, _ := filepath.Abs(root)
+		shouldSkip := ignore.WalkFunc(absRoot)
+
 		err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return nil
 			}
-			if info.IsDir() {
-				name := info.Name()
-				if name == "node_modules" || name == ".git" || name == "vendor" ||
-					name == "__pycache__" || name == ".venv" || name == "dist" ||
-					name == "build" || name == ".aide" {
+			if skip, skipDir := shouldSkip(path, info); skip {
+				if skipDir {
 					return filepath.SkipDir
 				}
+				return nil
+			}
+			if info.IsDir() {
 				return nil
 			}
 			if !code.SupportedFile(path) {

@@ -13,6 +13,7 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/jmylchreest/aide/aide/internal/version"
+	"github.com/jmylchreest/aide/aide/pkg/aideignore"
 	"github.com/jmylchreest/aide/aide/pkg/code"
 	"github.com/jmylchreest/aide/aide/pkg/findings"
 	"github.com/jmylchreest/aide/aide/pkg/findings/clone"
@@ -263,8 +264,18 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 
 		var findingsRunner *findings.Runner
 		if s.findingsStore != nil {
+			// Load .aideignore from project root for findings filtering.
+			projectRoot := projectRootFromDB(dbPath)
+			ignore, err := aideignore.New(projectRoot)
+			if err != nil {
+				mcpLog.Printf("WARNING: failed to load .aideignore: %v (using defaults)", err)
+				ignore = aideignore.NewFromDefaults()
+			}
+
 			runnerConfig := findings.AnalyzerConfig{
-				Paths: watchPaths,
+				Paths:       watchPaths,
+				Ignore:      ignore,
+				ProjectRoot: projectRoot,
 			}
 			findingsRunner = findings.NewRunner(s.findingsStore, runnerConfig)
 			findingsRunner.SetClonesRunner(func(ctx context.Context, paths []string, windowSize, minLines int) ([]*findings.Finding, error) {
@@ -272,6 +283,7 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 					Paths:         paths,
 					WindowSize:    windowSize,
 					MinCloneLines: minLines,
+					Ignore:        ignore,
 				}
 				f, _, err := clone.DetectClones(cloneCfg)
 				return f, err
