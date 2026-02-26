@@ -1,1 +1,7 @@
-{}
+{
+  "findings": {
+    "complexity": {
+      "threshold": 15
+    }
+  }
+}
