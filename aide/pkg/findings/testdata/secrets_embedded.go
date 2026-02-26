@@ -3,6 +3,9 @@
 // Package fixture contains intentionally embedded secrets for testing.
 // This file is NOT compiled — it is used as test data for the secrets analyzer.
 // DO NOT use any of these values; they are dummy/test strings.
+//
+// These patterns are whitelisted in GitHub push protection settings.
+// If you modify this file, run: go test ./pkg/findings/ -run TestSecrets -v
 package fixture
 
 const (
@@ -27,7 +30,7 @@ const (
 	// Generic API key in assignment pattern
 	apiKey = "api_key_1234567890abcdef1234567890abcdef"
 
-	// JWT token
+	// JWT token (the well-known jwt.io example — not a real secret)
 	jwtToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
 )
 

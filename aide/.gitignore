@@ -21,3 +21,6 @@ Thumbs.db
 
 # Build
 /bin/
+
+# Local aide runtime (nested .aide inside the Go module)
+.aide/
