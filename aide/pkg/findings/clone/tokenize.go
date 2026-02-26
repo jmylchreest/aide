@@ -9,6 +9,7 @@
 package clone
 
 import (
+	"context"
 	"strings"
 
 	"github.com/jmylchreest/aide/aide/pkg/code"
@@ -115,7 +116,7 @@ func Tokenize(filePath string, content []byte, lang string) (*TokenSequence, err
 	defer parser.Close()
 	parser.SetLanguage(provider())
 
-	tree, err := parser.ParseCtx(nil, nil, content)
+	tree, err := parser.ParseCtx(context.Background(), nil, content)
 	if err != nil {
 		return nil, err
 	}

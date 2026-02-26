@@ -226,25 +226,34 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 
 		codeHandler := &codeIndexHandler{indexer: indexer}
 
-		runnerConfig := findings.AnalyzerConfig{
-			Paths: watchPaths,
-		}
-		findingsRunner := findings.NewRunner(s.findingsStore, runnerConfig)
-		findingsRunner.SetClonesRunner(func(ctx context.Context, paths []string, windowSize, minLines int) ([]*findings.Finding, error) {
-			cloneCfg := clone.Config{
-				Paths:         paths,
-				WindowSize:    windowSize,
-				MinCloneLines: minLines,
+		// Build handler list — always include code indexer, add findings runner if store is available
+		handlers := []watcher.FileChangeHandler{codeHandler}
+
+		var findingsRunner *findings.Runner
+		if s.findingsStore != nil {
+			runnerConfig := findings.AnalyzerConfig{
+				Paths: watchPaths,
 			}
-			f, _, err := clone.DetectClones(cloneCfg)
-			return f, err
-		})
+			findingsRunner = findings.NewRunner(s.findingsStore, runnerConfig)
+			findingsRunner.SetClonesRunner(func(ctx context.Context, paths []string, windowSize, minLines int) ([]*findings.Finding, error) {
+				cloneCfg := clone.Config{
+					Paths:         paths,
+					WindowSize:    windowSize,
+					MinCloneLines: minLines,
+				}
+				f, _, err := clone.DetectClones(cloneCfg)
+				return f, err
+			})
+			handlers = append(handlers, findingsRunner)
+		} else {
+			mcpLog.Printf("WARNING: findings store not available, findings analysis disabled in watcher")
+		}
 
 		w, err := watcher.New(watcher.Config{
 			Paths:         watchPaths,
 			DebounceDelay: debounceDelay,
 			FileFilter:    code.SupportedFile,
-		}, codeHandler, findingsRunner)
+		}, handlers...)
 		if err != nil {
 			mcpLog.Printf("WARNING: failed to create unified watcher: %v", err)
 			return
