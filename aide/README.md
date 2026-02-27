@@ -164,7 +164,7 @@ Add a `findings` section to `.aide/config/aide.json`:
   "findings": {
     "complexity": { "threshold": 15 },
     "coupling": { "fanOut": 20, "fanIn": 25 },
-    "clones": { "windowSize": 50, "minLines": 20 }
+    "clones": { "windowSize": 50, "minLines": 20, "minSeverity": "warning" }
   }
 }
 ```

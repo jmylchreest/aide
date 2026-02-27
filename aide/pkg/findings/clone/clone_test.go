@@ -372,4 +372,72 @@ func TestDetectClones_DefaultConstants(t *testing.T) {
 		t.Errorf("DefaultSevCriticalLines (%d) must exceed DefaultSevWarningLines (%d)",
 			DefaultSevCriticalLines, DefaultSevWarningLines)
 	}
+	// DefaultMinSeverity must be a valid severity level.
+	switch DefaultMinSeverity {
+	case "info", "warning", "critical":
+		// OK.
+	default:
+		t.Errorf("DefaultMinSeverity must be info/warning/critical, got %q", DefaultMinSeverity)
+	}
+}
+
+func TestDetectClones_MinSeverity(t *testing.T) {
+	dir := testdataDir(t)
+
+	// With MinSeverity="info", all findings are emitted (no filtering).
+	infoFindings, _, err := DetectClones(Config{
+		Paths:         []string{dir},
+		MinCloneLines: 6, // Low threshold to generate info-level findings.
+		MinSeverity:   "info",
+	})
+	if err != nil {
+		t.Fatalf("DetectClones (min-severity=info) error: %v", err)
+	}
+
+	// With MinSeverity="warning" (default), info-level findings are dropped.
+	warningFindings, _, err := DetectClones(Config{
+		Paths:         []string{dir},
+		MinCloneLines: 6,
+		MinSeverity:   "warning",
+	})
+	if err != nil {
+		t.Fatalf("DetectClones (min-severity=warning) error: %v", err)
+	}
+
+	// With MinSeverity="critical", only critical findings are emitted.
+	criticalFindings, _, err := DetectClones(Config{
+		Paths:         []string{dir},
+		MinCloneLines: 6,
+		MinSeverity:   "critical",
+	})
+	if err != nil {
+		t.Fatalf("DetectClones (min-severity=critical) error: %v", err)
+	}
+
+	t.Logf("MinSeverity=info: %d findings, warning: %d findings, critical: %d findings",
+		len(infoFindings), len(warningFindings), len(criticalFindings))
+
+	// info >= warning >= critical (monotonically decreasing).
+	if len(infoFindings) < len(warningFindings) {
+		t.Errorf("info findings (%d) should be >= warning findings (%d)",
+			len(infoFindings), len(warningFindings))
+	}
+	if len(warningFindings) < len(criticalFindings) {
+		t.Errorf("warning findings (%d) should be >= critical findings (%d)",
+			len(warningFindings), len(criticalFindings))
+	}
+
+	// Verify that all warning-level findings have severity >= warning.
+	for _, f := range warningFindings {
+		if f.Severity == "info" {
+			t.Errorf("MinSeverity=warning emitted info-level finding at %s:%d", f.FilePath, f.Line)
+		}
+	}
+
+	// Verify that all critical-level findings have severity == critical.
+	for _, f := range criticalFindings {
+		if f.Severity != "critical" {
+			t.Errorf("MinSeverity=critical emitted %s-level finding at %s:%d", f.Severity, f.FilePath, f.Line)
+		}
+	}
 }

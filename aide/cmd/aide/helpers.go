@@ -97,6 +97,7 @@ type findingsConfig struct {
 		MinMatchCount int     `json:"minMatchCount"`
 		MaxBucketSize int     `json:"maxBucketSize"`
 		MinSimilarity float64 `json:"minSimilarity"`
+		MinSeverity   string  `json:"minSeverity"`
 	} `json:"clones"`
 }
 

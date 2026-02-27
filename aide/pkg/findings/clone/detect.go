@@ -45,6 +45,10 @@ type Config struct {
 	// SevCriticalLines is the line-span threshold for critical severity
 	// (default DefaultSevCriticalLines).
 	SevCriticalLines int
+	// MinSeverity is the minimum severity level for findings to be emitted.
+	// Findings below this threshold are silently dropped. Valid values:
+	// "info", "warning", "critical". Empty string uses DefaultMinSeverity.
+	MinSeverity string
 	// Paths to analyze (default: current directory).
 	Paths []string
 	// ProgressFn is called after each file is tokenized. May be nil.
@@ -71,7 +75,7 @@ type Result struct {
 }
 
 // defaults returns the effective value for each configurable parameter.
-func (cfg *Config) defaults() (windowSize, minLines, minMatchCount, maxBucket, sevWarn, sevCrit int, minSim float64, langIso bool) {
+func (cfg *Config) defaults() (windowSize, minLines, minMatchCount, maxBucket, sevWarn, sevCrit int, minSim float64, langIso bool, minSev string) {
 	windowSize = DefaultWindowSize
 	if cfg.WindowSize > 0 {
 		windowSize = cfg.WindowSize
@@ -104,6 +108,10 @@ func (cfg *Config) defaults() (windowSize, minLines, minMatchCount, maxBucket, s
 	if cfg.LanguageIsolation != nil {
 		langIso = *cfg.LanguageIsolation
 	}
+	minSev = DefaultMinSeverity
+	if cfg.MinSeverity != "" {
+		minSev = cfg.MinSeverity
+	}
 	return
 }
 
@@ -119,7 +127,7 @@ type tokenizedFile struct {
 // It returns findings for each clone group and a result summary.
 func DetectClones(cfg Config) ([]*findings.Finding, *Result, error) {
 	start := time.Now()
-	windowSize, minLines, minMatchCount, maxBucket, sevWarn, sevCrit, minSim, langIso := cfg.defaults()
+	windowSize, minLines, minMatchCount, maxBucket, sevWarn, sevCrit, minSim, langIso, minSev := cfg.defaults()
 
 	paths := cfg.Paths
 	if len(paths) == 0 {
@@ -389,6 +397,11 @@ func DetectClones(cfg Config) ([]*findings.Finding, *Result, error) {
 		}
 		if lineSpan >= sevCrit {
 			severity = findings.SevCritical
+		}
+
+		// Drop findings below the minimum severity threshold.
+		if findings.SeverityRank(severity) < findings.SeverityRank(minSev) {
+			continue
 		}
 
 		// Build human-readable detail listing all clone locations.

@@ -287,6 +287,7 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 				CloneMinMatchCount:  fcfg.Clones.MinMatchCount,
 				CloneMaxBucketSize:  fcfg.Clones.MaxBucketSize,
 				CloneMinSimilarity:  fcfg.Clones.MinSimilarity,
+				CloneMinSeverity:    fcfg.Clones.MinSeverity,
 			}
 			findingsRunner = findings.NewRunner(s.findingsStore, runnerConfig, s.grammarLoader)
 			findingsRunner.SetClonesRunner(func(ctx context.Context, paths []string, cfg findings.ClonesRunnerConfig) ([]*findings.Finding, error) {
@@ -297,6 +298,7 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 					MinMatchCount: cfg.MinMatchCount,
 					MaxBucketSize: cfg.MaxBucketSize,
 					MinSimilarity: cfg.MinSimilarity,
+					MinSeverity:   cfg.MinSeverity,
 					Ignore:        ignore,
 					Loader:        s.grammarLoader,
 				}

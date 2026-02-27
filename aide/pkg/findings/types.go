@@ -10,6 +10,21 @@ const (
 	SevInfo     = "info"
 )
 
+// SeverityRank returns a numeric rank for the given severity level:
+// info=0, warning=1, critical=2. Unknown values return -1.
+func SeverityRank(sev string) int {
+	switch sev {
+	case SevInfo:
+		return 0
+	case SevWarning:
+		return 1
+	case SevCritical:
+		return 2
+	default:
+		return -1
+	}
+}
+
 // Analyzer names.
 const (
 	AnalyzerComplexity = "complexity"

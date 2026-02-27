@@ -487,3 +487,30 @@ use crate::config;
 		t.Errorf("rust imports: got %v, want %v", got, want)
 	}
 }
+
+func TestSeverityRank(t *testing.T) {
+	tests := []struct {
+		sev  string
+		want int
+	}{
+		{SevInfo, 0},
+		{SevWarning, 1},
+		{SevCritical, 2},
+		{"", -1},
+		{"unknown", -1},
+	}
+	for _, tt := range tests {
+		got := SeverityRank(tt.sev)
+		if got != tt.want {
+			t.Errorf("SeverityRank(%q) = %d, want %d", tt.sev, got, tt.want)
+		}
+	}
+
+	// Verify ordering: info < warning < critical.
+	if SeverityRank(SevInfo) >= SeverityRank(SevWarning) {
+		t.Error("info should rank below warning")
+	}
+	if SeverityRank(SevWarning) >= SeverityRank(SevCritical) {
+		t.Error("warning should rank below critical")
+	}
+}

@@ -70,6 +70,8 @@ Options:
     --min-match-count=N Clone minimum matching windows per region (default %d)
     --max-bucket=N      Clone max locations per hash bucket (default %d, 0=unlimited)
     --min-similarity=F  Clone minimum similarity ratio 0.0-1.0 (default %.1f)
+    --min-severity=SEV  Clone minimum severity to emit: info, warning, critical
+                        (default %s — info-level clones are dropped)
     --no-validate       Secrets: skip live validation (default)
 
   search <query>:
@@ -103,7 +105,7 @@ Examples:
   aide findings list --file=src/auth
   aide findings clear --analyser=secrets
 `, clone.DefaultWindowSize, clone.DefaultMinCloneLines, clone.DefaultMinMatchCount,
-		clone.DefaultMaxBucketSize, clone.DefaultMinSimilarity)
+		clone.DefaultMaxBucketSize, clone.DefaultMinSimilarity, clone.DefaultMinSeverity)
 }
 
 // cmdFindingsRun runs one or more static analyzers and stores findings.
@@ -220,6 +222,18 @@ func cmdFindingsRun(dbPath string, args []string) error {
 		}
 		minSimilarity = v
 	}
+	minSeverity := clone.DefaultMinSeverity
+	if cfg.Clones.MinSeverity != "" {
+		minSeverity = cfg.Clones.MinSeverity
+	}
+	if m := parseFlag(subargs, "--min-severity="); m != "" {
+		switch m {
+		case "info", "warning", "critical":
+			minSeverity = m
+		default:
+			return fmt.Errorf("invalid --min-severity value %q: must be info, warning, or critical", m)
+		}
+	}
 
 	// Determine which analyzers to run.
 	analyzers := []string{analyzerName}
@@ -274,7 +288,7 @@ func cmdFindingsRun(dbPath string, args []string) error {
 			totalFindings += n
 
 		case findings.AnalyzerClones:
-			n, err := runClonesAnalyzer(backend, paths, windowSize, minCloneLines, minMatchCount, maxBucket, minSimilarity, ignore, loader)
+			n, err := runClonesAnalyzer(backend, paths, windowSize, minCloneLines, minMatchCount, maxBucket, minSimilarity, minSeverity, ignore, loader)
 			if err != nil {
 				return fmt.Errorf("clones analyser failed: %w", err)
 			}
@@ -368,7 +382,7 @@ func runSecretsAnalyzer(backend *Backend, paths []string, ignore *aideignore.Mat
 	return len(ff), nil
 }
 
-func runClonesAnalyzer(backend *Backend, paths []string, windowSize, minLines, minMatchCount, maxBucket int, minSimilarity float64, ignore *aideignore.Matcher, loader grammar.Loader) (int, error) {
+func runClonesAnalyzer(backend *Backend, paths []string, windowSize, minLines, minMatchCount, maxBucket int, minSimilarity float64, minSeverity string, ignore *aideignore.Matcher, loader grammar.Loader) (int, error) {
 	// Show effective values (clone.Config.defaults() resolves zero → default).
 	effWindow, effMinLines := windowSize, minLines
 	if effWindow <= 0 {
@@ -385,8 +399,12 @@ func runClonesAnalyzer(backend *Backend, paths []string, windowSize, minLines, m
 	if effMaxBucket <= 0 {
 		effMaxBucket = clone.DefaultMaxBucketSize
 	}
-	fmt.Printf("Running clone detection (window=%d, min-lines=%d, min-match-count=%d, max-bucket=%d, min-similarity=%.2f)...\n",
-		effWindow, effMinLines, effMinMatch, effMaxBucket, minSimilarity)
+	effMinSev := minSeverity
+	if effMinSev == "" {
+		effMinSev = clone.DefaultMinSeverity
+	}
+	fmt.Printf("Running clone detection (window=%d, min-lines=%d, min-match-count=%d, max-bucket=%d, min-similarity=%.2f, min-severity=%s)...\n",
+		effWindow, effMinLines, effMinMatch, effMaxBucket, minSimilarity, effMinSev)
 
 	cfg := clone.Config{
 		WindowSize:    windowSize,
@@ -394,6 +412,7 @@ func runClonesAnalyzer(backend *Backend, paths []string, windowSize, minLines, m
 		MinMatchCount: minMatchCount,
 		MaxBucketSize: maxBucket,
 		MinSimilarity: minSimilarity,
+		MinSeverity:   minSeverity,
 		Paths:         paths,
 		Ignore:        ignore,
 		Loader:        loader,

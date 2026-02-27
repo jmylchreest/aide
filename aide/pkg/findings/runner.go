@@ -28,6 +28,7 @@ type AnalyzerConfig struct {
 	CloneMinMatchCount  int
 	CloneMaxBucketSize  int
 	CloneMinSimilarity  float64
+	CloneMinSeverity    string
 	Paths               []string
 	// ProjectRoot is the absolute path to the project root, used for converting
 	// absolute file paths from the watcher to relative paths for aideignore matching.
@@ -65,6 +66,7 @@ type ClonesRunnerConfig struct {
 	MinMatchCount int
 	MaxBucketSize int
 	MinSimilarity float64
+	MinSeverity   string
 }
 
 type ClonesRunner func(ctx context.Context, paths []string, cfg ClonesRunnerConfig) ([]*Finding, error)
@@ -336,6 +338,7 @@ func (r *Runner) runProjectAnalyzer(ctx context.Context, analyzer string) ([]*Fi
 			MinMatchCount: r.config.CloneMinMatchCount,
 			MaxBucketSize: r.config.CloneMaxBucketSize,
 			MinSimilarity: r.config.CloneMinSimilarity,
+			MinSeverity:   r.config.CloneMinSeverity,
 		})
 
 	default:

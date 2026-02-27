@@ -34,6 +34,12 @@ const (
 	// finding is promoted from warning to critical severity.
 	DefaultSevCriticalLines = 100
 
+	// DefaultMinSeverity is the minimum severity level for clone findings
+	// to be emitted. Findings below this threshold are silently dropped.
+	// Set to "warning" so that info-level clones (mostly boilerplate/noise)
+	// are not stored by default.
+	DefaultMinSeverity = "warning"
+
 	// DefaultLanguageIsolation restricts clone detection to same-language
 	// file pairs.
 	DefaultLanguageIsolation = true
