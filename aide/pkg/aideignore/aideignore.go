@@ -119,6 +119,13 @@ var BuiltinDefaults = []string{
 	"*.pb.ts",
 	"*.pb.js",
 
+	// ── Test fixtures (embedded secrets, high-complexity samples) ────
+	"**/testdata/",
+	"**/fixtures/",
+
+	// ── Test files (reduce clone noise from repeated patterns) ───────
+	"*_test.go",
+
 	// ── Lock / binary / archive (not useful for analysis) ────────────
 	"*.lock",
 }

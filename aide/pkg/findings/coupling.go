@@ -197,7 +197,13 @@ func AnalyzeCoupling(cfg CouplingConfig) ([]*Finding, *CouplingResult, error) {
 	}
 
 	// Phase 3: Detect high fan-in
+	// Only report fan-in for imports that resolve to files within the
+	// scanned project.  External / stdlib packages (fmt, os, path, fs, …)
+	// are never actionable fan-in findings — every Go project imports fmt.
 	for file, dependents := range graph.reverse {
+		if _, isProjectFile := graph.edges[file]; !isProjectFile {
+			continue // external dependency — skip
+		}
 		fanIn := len(dependents)
 		if fanIn >= cfg.FanInThreshold {
 			severity := SevInfo

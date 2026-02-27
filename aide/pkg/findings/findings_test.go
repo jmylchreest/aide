@@ -488,6 +488,29 @@ use crate::config;
 	}
 }
 
+func TestCouplingAnalyzer_NoFanInForExternalImports(t *testing.T) {
+	dir := testdataDir(t)
+
+	// With a fan-in threshold of 1, every import that appears in ≥1 file
+	// would trigger a fan-in finding — but only for project-internal files.
+	// The testdata only has Go stdlib imports (fmt, os, etc.) and no
+	// cross-file project imports, so fan-in findings should be zero.
+	findings, _, err := AnalyzeCoupling(CouplingConfig{
+		FanOutThreshold: 100, // high → suppress fan-out findings
+		FanInThreshold:  1,   // very low → would trigger on everything
+		Paths:           []string{dir},
+	})
+	if err != nil {
+		t.Fatalf("AnalyzeCoupling error: %v", err)
+	}
+
+	for _, f := range findings {
+		if f.Category == "fan-in" {
+			t.Errorf("unexpected fan-in finding for external import %q (should be excluded)", f.FilePath)
+		}
+	}
+}
+
 func TestSeverityRank(t *testing.T) {
 	tests := []struct {
 		sev  string
