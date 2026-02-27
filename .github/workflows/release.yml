@@ -196,6 +196,178 @@ jobs:
           path: dist/aide-*
           if-no-files-found: error
 
+  # Build tree-sitter grammar shared libraries for dynamic loading
+  build-grammars:
+    name: Grammars (${{ matrix.os_name }}/${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    needs: [prepare]
+    if: needs.prepare.outputs.should_skip != 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os_name: linux
+            arch: amd64
+            runner: ubuntu-latest
+            ext: .so
+            zig_target: x86_64-linux-gnu
+          - os_name: linux
+            arch: arm64
+            runner: ubuntu-latest
+            ext: .so
+            zig_target: aarch64-linux-gnu
+          - os_name: darwin
+            arch: amd64
+            runner: macos-latest
+            ext: .dylib
+          - os_name: darwin
+            arch: arm64
+            runner: macos-latest
+            ext: .dylib
+          - os_name: windows
+            arch: amd64
+            runner: ubuntu-latest
+            ext: .dll
+            zig_target: x86_64-windows-gnu
+          - os_name: windows
+            arch: arm64
+            runner: ubuntu-latest
+            ext: .dll
+            zig_target: aarch64-windows-gnu
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Zig
+        if: matrix.zig_target
+        uses: mlugg/setup-zig@v2
+
+      - name: Determine grammar version
+        id: gversion
+        run: |
+          if [[ "${{ needs.prepare.outputs.is_release }}" == "true" ]]; then
+            echo "tag=${{ needs.prepare.outputs.version_tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=snapshot" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build all grammars
+        env:
+          VERSION: ${{ steps.gversion.outputs.tag }}
+          OS_NAME: ${{ matrix.os_name }}
+          ARCH: ${{ matrix.arch }}
+          EXT: ${{ matrix.ext }}
+          ZIG_TARGET: ${{ matrix.zig_target }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+
+          # Set compiler based on platform
+          if [[ -n "${ZIG_TARGET:-}" ]]; then
+            CC="zig cc -target ${ZIG_TARGET}"
+            SHARED_FLAG="-shared"
+          else
+            CC="clang"
+            if [[ "${OS_NAME}" == "darwin" ]]; then
+              if [[ "${ARCH}" == "arm64" ]]; then
+                CC="clang -arch arm64"
+              else
+                CC="clang -arch x86_64"
+              fi
+              SHARED_FLAG="-dynamiclib"
+            else
+              SHARED_FLAG="-shared"
+            fi
+          fi
+
+          # Grammar definitions: name|repo|c_symbol|tag|extra_src_dir
+          GRAMMARS=(
+            "csharp|tree-sitter/tree-sitter-c-sharp|tree_sitter_c_sharp|v0.23.1|"
+            "kotlin|tree-sitter-grammars/tree-sitter-kotlin|tree_sitter_kotlin|v0.3.9|"
+            "scala|tree-sitter/tree-sitter-scala|tree_sitter_scala|v0.23.4|"
+            "groovy|amaanq/tree-sitter-groovy|tree_sitter_groovy|v1.0.0|"
+            "ruby|tree-sitter/tree-sitter-ruby|tree_sitter_ruby|v0.23.1|"
+            "php|tree-sitter/tree-sitter-php|tree_sitter_php|v0.23.11|php/src"
+            "lua|tree-sitter-grammars/tree-sitter-lua|tree_sitter_lua|v0.3.0|"
+            "elixir|tree-sitter/tree-sitter-elixir|tree_sitter_elixir|v0.3.4|"
+            "bash|tree-sitter/tree-sitter-bash|tree_sitter_bash|v0.23.3|"
+            "swift|alex-pinkus/tree-sitter-swift|tree_sitter_swift|v0.7.1|"
+            "ocaml|tree-sitter/tree-sitter-ocaml|tree_sitter_ocaml|v0.23.3|grammars/ocaml/src"
+            "elm|elm-tooling/tree-sitter-elm|tree_sitter_elm|v6.0.0|"
+            "sql|DerekStride/tree-sitter-sql|tree_sitter_sql|v0.3.3|"
+            "yaml|tree-sitter-grammars/tree-sitter-yaml|tree_sitter_yaml|v0.7.0|"
+            "toml|tree-sitter-grammars/tree-sitter-toml|tree_sitter_toml|v0.7.0|"
+            "hcl|tree-sitter-grammars/tree-sitter-hcl|tree_sitter_hcl|v1.1.0|"
+            "protobuf|coder3101/tree-sitter-proto|tree_sitter_proto|v1.0.0|"
+            "html|tree-sitter/tree-sitter-html|tree_sitter_html|v0.23.2|"
+            "css|tree-sitter/tree-sitter-css|tree_sitter_css|v0.23.2|"
+          )
+
+          for entry in "${GRAMMARS[@]}"; do
+            IFS='|' read -r name repo c_symbol tag extra_src <<< "$entry"
+            echo "=== Building ${name} from ${repo}@${tag} ==="
+
+            git clone --depth 1 --branch "${tag}" "https://github.com/${repo}.git" "grammar-src/${name}" 2>&1 || {
+              echo "WARNING: Failed to clone ${repo}@${tag}, skipping ${name}"
+              continue
+            }
+
+            if [[ -n "${extra_src}" ]]; then
+              SRC_DIR="grammar-src/${name}/${extra_src}"
+            else
+              SRC_DIR="grammar-src/${name}/src"
+            fi
+
+            if [[ ! -f "${SRC_DIR}/parser.c" ]]; then
+              echo "WARNING: No parser.c found in ${SRC_DIR}, skipping ${name}"
+              rm -rf "grammar-src/${name}"
+              continue
+            fi
+
+            SOURCES="${SRC_DIR}/parser.c"
+            if [[ -f "${SRC_DIR}/scanner.c" ]]; then
+              SOURCES="${SOURCES} ${SRC_DIR}/scanner.c"
+            fi
+
+            OUTPUT="dist/aide-grammar-${name}-${VERSION}-${OS_NAME}-${ARCH}${EXT}"
+
+            eval ${CC} ${SHARED_FLAG} -fPIC -O2 \
+              -I "${SRC_DIR}" \
+              -I "grammar-src/${name}/src" \
+              ${SOURCES} \
+              -o "${OUTPUT}" 2>&1 || {
+              echo "WARNING: Failed to compile ${name}, skipping"
+              rm -rf "grammar-src/${name}"
+              continue
+            }
+
+            echo "Built: ${OUTPUT} ($(stat -c%s "${OUTPUT}" 2>/dev/null || stat -f%z "${OUTPUT}") bytes)"
+            rm -rf "grammar-src/${name}"
+          done
+
+          echo ""
+          echo "=== Grammar build summary ==="
+          ls -la dist/
+
+      - name: Generate grammar checksums
+        working-directory: dist
+        run: |
+          if command -v sha256sum &>/dev/null; then
+            sha256sum aide-grammar-* > grammar-checksums-${{ matrix.os_name }}-${{ matrix.arch }}.txt
+          else
+            shasum -a 256 aide-grammar-* > grammar-checksums-${{ matrix.os_name }}-${{ matrix.arch }}.txt
+          fi
+
+      - name: Upload grammar artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: grammars-${{ matrix.os_name }}-${{ matrix.arch }}
+          path: |
+            dist/aide-grammar-*
+            dist/grammar-checksums-*.txt
+          if-no-files-found: warn
+
   # Build the OpenCode plugin npm package
   build-npm:
     name: Build npm package
@@ -239,7 +411,7 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
-    needs: [prepare, build, build-npm]
+    needs: [prepare, build, build-grammars, build-npm]
     if: needs.prepare.outputs.is_release == 'true'
     steps:
       - name: Checkout
@@ -256,6 +428,10 @@ jobs:
           # Copy Go binaries
           for dir in artifacts/aide-*/; do
             cp "$dir"/* release/ 2>/dev/null || true
+          done
+          # Copy grammar libraries
+          for dir in artifacts/grammars-*/; do
+            cp "$dir"/aide-grammar-* release/ 2>/dev/null || true
           done
           # Copy npm tarball
           cp artifacts/npm-package/*.tgz release/ 2>/dev/null || true
@@ -316,7 +492,7 @@ jobs:
   snapshot:
     name: Snapshot
     runs-on: ubuntu-latest
-    needs: [prepare, build, build-npm]
+    needs: [prepare, build, build-grammars, build-npm]
     if: needs.prepare.outputs.is_release == 'false' && github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
       - name: Checkout
@@ -332,6 +508,10 @@ jobs:
           mkdir -p release
           for dir in artifacts/aide-*/; do
             cp "$dir"/* release/ 2>/dev/null || true
+          done
+          # Copy grammar libraries
+          for dir in artifacts/grammars-*/; do
+            cp "$dir"/aide-grammar-* release/ 2>/dev/null || true
           done
           cp artifacts/npm-package/*.tgz release/ 2>/dev/null || true
           ls -la release/

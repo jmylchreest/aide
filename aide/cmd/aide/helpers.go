@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/jmylchreest/aide/aide/internal/version"
 	"github.com/jmylchreest/aide/aide/pkg/grammar"
 )
 
@@ -163,6 +164,16 @@ func grammarDir(dbPath string) string {
 	return filepath.Join(projectRoot(dbPath), ".aide", "grammars")
 }
 
+// grammarVersion returns the version tag to use when downloading grammar assets.
+// For release builds (e.g. Version="0.0.39") it returns the release tag "v0.0.39".
+// For snapshot/dev builds it returns "snapshot".
+func grammarVersion() string {
+	if version.IsRelease() {
+		return "v" + version.Version
+	}
+	return "snapshot"
+}
+
 // newGrammarLoader creates a CompositeLoader configured from aide.json and env
 // vars. Auto-download is enabled by default and can be disabled via config
 // ("grammars.autoDownload": false) or environment variable
@@ -176,6 +187,7 @@ func newGrammarLoader(dbPath string) *grammar.CompositeLoader {
 	cfg := loadGrammarsConfig(root)
 	opts := []grammar.CompositeLoaderOption{
 		grammar.WithGrammarDir(grammarDir(dbPath)),
+		grammar.WithVersion(grammarVersion()),
 	}
 	if cfg.URL != "" {
 		opts = append(opts, grammar.WithBaseURL(cfg.URL))
@@ -196,6 +208,7 @@ func newGrammarLoaderNoAuto(dbPath string) *grammar.CompositeLoader {
 	opts := []grammar.CompositeLoaderOption{
 		grammar.WithGrammarDir(grammarDir(dbPath)),
 		grammar.WithAutoDownload(false),
+		grammar.WithVersion(grammarVersion()),
 	}
 	if cfg.URL != "" {
 		opts = append(opts, grammar.WithBaseURL(cfg.URL))

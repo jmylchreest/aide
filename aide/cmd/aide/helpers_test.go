@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/jmylchreest/aide/aide/internal/version"
 )
 
 // =============================================================================
@@ -275,6 +277,43 @@ func TestNewGrammarLoaderNoAuto(t *testing.T) {
 	loader := newGrammarLoaderNoAuto(dbPath)
 	if loader == nil {
 		t.Fatal("newGrammarLoaderNoAuto returned nil")
+	}
+}
+
+// =============================================================================
+// grammarVersion
+// =============================================================================
+
+func TestGrammarVersionRelease(t *testing.T) {
+	orig := version.Version
+	defer func() { version.Version = orig }()
+
+	version.Version = "0.0.39"
+	got := grammarVersion()
+	if got != "v0.0.39" {
+		t.Errorf("grammarVersion() = %q; want %q", got, "v0.0.39")
+	}
+}
+
+func TestGrammarVersionSnapshot(t *testing.T) {
+	orig := version.Version
+	defer func() { version.Version = orig }()
+
+	version.Version = "0.0.40-dev.10+bf0bfe2"
+	got := grammarVersion()
+	if got != "snapshot" {
+		t.Errorf("grammarVersion() = %q; want %q", got, "snapshot")
+	}
+}
+
+func TestGrammarVersionDev(t *testing.T) {
+	orig := version.Version
+	defer func() { version.Version = orig }()
+
+	version.Version = "0.0.0"
+	got := grammarVersion()
+	if got != "snapshot" {
+		t.Errorf("grammarVersion() = %q; want %q", got, "snapshot")
 	}
 }
 

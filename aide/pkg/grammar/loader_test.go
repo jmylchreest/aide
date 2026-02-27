@@ -60,6 +60,28 @@ func TestWithBaseURLEmpty(t *testing.T) {
 	}
 }
 
+func TestWithVersion(t *testing.T) {
+	cl := NewCompositeLoader(WithVersion("v0.0.39"))
+	if cl.dynamic.version != "v0.0.39" {
+		t.Errorf("dynamic.version = %q; want %q", cl.dynamic.version, "v0.0.39")
+	}
+}
+
+func TestWithVersionSnapshot(t *testing.T) {
+	cl := NewCompositeLoader(WithVersion("snapshot"))
+	if cl.dynamic.version != "snapshot" {
+		t.Errorf("dynamic.version = %q; want %q", cl.dynamic.version, "snapshot")
+	}
+}
+
+func TestWithVersionEmpty(t *testing.T) {
+	// Empty string should be allowed — Download() falls back to "snapshot".
+	cl := NewCompositeLoader(WithVersion(""))
+	if cl.dynamic.version != "" {
+		t.Errorf("dynamic.version = %q; want empty", cl.dynamic.version)
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Load — builtin grammars
 // ---------------------------------------------------------------------------
@@ -98,8 +120,8 @@ func TestCompositeLoaderLoadNotFound(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for unknown grammar with autoLoad disabled")
 	}
-	if _, ok := err.(*ErrGrammarNotFound); !ok {
-		t.Errorf("error type = %T; want *ErrGrammarNotFound", err)
+	if _, ok := err.(*GrammarNotFoundError); !ok {
+		t.Errorf("error type = %T; want *GrammarNotFoundError", err)
 	}
 }
 
@@ -185,8 +207,8 @@ func TestCompositeLoaderInstallUnknown(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error installing unknown grammar")
 	}
-	if _, ok := err.(*ErrGrammarNotFound); !ok {
-		t.Errorf("error type = %T; want *ErrGrammarNotFound", err)
+	if _, ok := err.(*GrammarNotFoundError); !ok {
+		t.Errorf("error type = %T; want *GrammarNotFoundError", err)
 	}
 }
 
@@ -253,17 +275,17 @@ func TestCompositeLoaderInstallFromLockSkipsInstalled(t *testing.T) {
 // Error types
 // ---------------------------------------------------------------------------
 
-func TestErrGrammarNotFoundMessage(t *testing.T) {
-	err := &ErrGrammarNotFound{Name: "ruby"}
+func TestGrammarNotFoundErrorMessage(t *testing.T) {
+	err := &GrammarNotFoundError{Name: "ruby"}
 	got := err.Error()
 	if got != `grammar "ruby" not found` {
 		t.Errorf("Error() = %q", got)
 	}
 }
 
-func TestErrDownloadFailedMessage(t *testing.T) {
-	inner := &ErrGrammarNotFound{Name: "inner"}
-	err := &ErrDownloadFailed{Name: "ruby", Err: inner}
+func TestDownloadFailedErrorMessage(t *testing.T) {
+	inner := &GrammarNotFoundError{Name: "inner"}
+	err := &DownloadFailedError{Name: "ruby", Err: inner}
 	got := err.Error()
 	if got == "" {
 		t.Error("Error() should not be empty")
@@ -273,8 +295,8 @@ func TestErrDownloadFailedMessage(t *testing.T) {
 	}
 }
 
-func TestErrIncompatibleABIMessage(t *testing.T) {
-	err := &ErrIncompatibleABI{Name: "ruby", AbiVersion: 10, MinVersion: 13, MaxVersion: 14}
+func TestIncompatibleABIErrorMessage(t *testing.T) {
+	err := &IncompatibleABIError{Name: "ruby", AbiVersion: 10, MinVersion: 13, MaxVersion: 14}
 	got := err.Error()
 	if got == "" {
 		t.Error("Error() should not be empty")

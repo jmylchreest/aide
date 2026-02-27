@@ -2,7 +2,6 @@ package grammar
 
 import (
 	"sync"
-	"unsafe"
 
 	tree_sitter "github.com/tree-sitter/go-tree-sitter"
 
@@ -70,13 +69,13 @@ func (r *BuiltinRegistry) Load(name string) (*tree_sitter.Language, error) {
 
 	g, ok := r.grammars[name]
 	if !ok {
-		return nil, &ErrGrammarNotFound{Name: name}
+		return nil, &GrammarNotFoundError{Name: name}
 	}
 
 	ptr := g.provider()
 	lang := tree_sitter.NewLanguage(ptr)
 	if lang == nil {
-		return nil, &ErrGrammarNotFound{Name: name}
+		return nil, &GrammarNotFoundError{Name: name}
 	}
 	r.loaded[name] = lang
 	return lang, nil
@@ -105,10 +104,7 @@ func (r *BuiltinRegistry) Names() []string {
 // Each grammar Go binding exposes a function returning unsafe.Pointer.
 func registerBuiltins(r *BuiltinRegistry) {
 	r.Register("go", tree_sitter_go.Language)
-	// TypeScript uses LanguageTypescript() not Language(), so wrap it.
-	r.Register("typescript", func() unsafe.Pointer {
-		return tree_sitter_typescript.LanguageTypescript()
-	})
+	r.Register("typescript", tree_sitter_typescript.LanguageTypescript)
 	r.Register("javascript", tree_sitter_javascript.Language)
 	r.Register("python", tree_sitter_python.Language)
 	r.Register("rust", tree_sitter_rust.Language)

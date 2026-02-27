@@ -88,8 +88,8 @@ func TestBuiltinRegistryLoadNotFound(t *testing.T) {
 		t.Fatal("expected error loading non-builtin grammar")
 	}
 
-	if _, ok := err.(*ErrGrammarNotFound); !ok {
-		t.Errorf("error type = %T; want *ErrGrammarNotFound", err)
+	if _, ok := err.(*GrammarNotFoundError); !ok {
+		t.Errorf("error type = %T; want *GrammarNotFoundError", err)
 	}
 }
 

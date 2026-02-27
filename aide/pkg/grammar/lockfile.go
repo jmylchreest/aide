@@ -85,7 +85,7 @@ func LockFileFromManifest(ms *manifestStore) *LockFile {
 	return lf
 }
 
-// LockFileNames returns sorted grammar names from the lock file.
+// Names returns sorted grammar names from the lock file.
 func (lf *LockFile) Names() []string {
 	names := make([]string, 0, len(lf.Grammars))
 	for name := range lf.Grammars {

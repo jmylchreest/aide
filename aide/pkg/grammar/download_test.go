@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -144,9 +143,7 @@ func TestDownloadGrammarAsset404(t *testing.T) {
 func TestDownloadGrammarAssetCancelled(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Intentionally slow — but context should cancel before we respond.
-		select {
-		case <-r.Context().Done():
-		}
+		<-r.Context().Done()
 	}))
 	defer srv.Close()
 
@@ -202,5 +199,5 @@ func TestDefaultGrammarURL(t *testing.T) {
 // sha256Hex returns the lowercase hex sha256 digest of data.
 func sha256Hex(data []byte) string {
 	h := sha256.Sum256(data)
-	return fmt.Sprintf("%s", hex.EncodeToString(h[:]))
+	return hex.EncodeToString(h[:])
 }

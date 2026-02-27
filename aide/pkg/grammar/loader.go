@@ -51,39 +51,39 @@ type GrammarInfo struct {
 // This is the signature exposed by tree-sitter grammar Go bindings.
 type BuiltinProvider func() unsafe.Pointer
 
-// ErrGrammarNotFound is returned when a grammar is not available.
-type ErrGrammarNotFound struct {
+// GrammarNotFoundError is returned when a grammar is not available.
+type GrammarNotFoundError struct {
 	Name string
 }
 
-func (e *ErrGrammarNotFound) Error() string {
+func (e *GrammarNotFoundError) Error() string {
 	return fmt.Sprintf("grammar %q not found", e.Name)
 }
 
-// ErrDownloadFailed is returned when a grammar download fails.
-type ErrDownloadFailed struct {
+// DownloadFailedError is returned when a grammar download fails.
+type DownloadFailedError struct {
 	Name string
 	Err  error
 }
 
-func (e *ErrDownloadFailed) Error() string {
+func (e *DownloadFailedError) Error() string {
 	return fmt.Sprintf("failed to download grammar %q: %v", e.Name, e.Err)
 }
 
-func (e *ErrDownloadFailed) Unwrap() error {
+func (e *DownloadFailedError) Unwrap() error {
 	return e.Err
 }
 
-// ErrIncompatibleABI is returned when a grammar's ABI version is outside
+// IncompatibleABIError is returned when a grammar's ABI version is outside
 // the compatible range for the current tree-sitter runtime.
-type ErrIncompatibleABI struct {
+type IncompatibleABIError struct {
 	Name       string
 	AbiVersion uint32
 	MinVersion uint32
 	MaxVersion uint32
 }
 
-func (e *ErrIncompatibleABI) Error() string {
+func (e *IncompatibleABIError) Error() string {
 	return fmt.Sprintf(
 		"grammar %q has ABI version %d, but runtime supports %d–%d",
 		e.Name, e.AbiVersion, e.MinVersion, e.MaxVersion,
@@ -129,6 +129,16 @@ func WithBaseURL(urlTemplate string) CompositeLoaderOption {
 		if urlTemplate != "" {
 			cl.dynamic.baseURL = urlTemplate
 		}
+	}
+}
+
+// WithVersion sets the version tag used when downloading grammar assets.
+// For release builds this should be the release tag (e.g. "v0.0.39").
+// For snapshot/dev builds use "snapshot". An empty string falls back to
+// the grammar definition's LatestVersion or "snapshot".
+func WithVersion(v string) CompositeLoaderOption {
+	return func(cl *CompositeLoader) {
+		cl.dynamic.version = v
 	}
 }
 
@@ -188,7 +198,7 @@ func (cl *CompositeLoader) Load(ctx context.Context, name string) (*tree_sitter.
 		}
 	}
 
-	return nil, &ErrGrammarNotFound{Name: name}
+	return nil, &GrammarNotFoundError{Name: name}
 }
 
 // Available returns all grammar names that can be loaded.
@@ -215,10 +225,12 @@ func (cl *CompositeLoader) Available() []string {
 
 // Installed returns grammars currently available locally.
 func (cl *CompositeLoader) Installed() []GrammarInfo {
-	var infos []GrammarInfo
+	builtinNames := cl.builtin.Names()
+	dynamicInfos := cl.dynamic.Installed()
+	infos := make([]GrammarInfo, 0, len(builtinNames)+len(dynamicInfos))
 
 	// Built-in grammars
-	for _, name := range cl.builtin.Names() {
+	for _, name := range builtinNames {
 		infos = append(infos, GrammarInfo{
 			Name:    name,
 			BuiltIn: true,
@@ -226,9 +238,7 @@ func (cl *CompositeLoader) Installed() []GrammarInfo {
 	}
 
 	// Dynamic grammars from manifest
-	for _, info := range cl.dynamic.Installed() {
-		infos = append(infos, info)
-	}
+	infos = append(infos, dynamicInfos...)
 
 	return infos
 }
@@ -242,7 +252,7 @@ func (cl *CompositeLoader) Install(ctx context.Context, name string) error {
 
 	grammarDef, ok := DynamicGrammars[name]
 	if !ok {
-		return &ErrGrammarNotFound{Name: name}
+		return &GrammarNotFoundError{Name: name}
 	}
 
 	return cl.dynamic.Download(ctx, name, grammarDef)

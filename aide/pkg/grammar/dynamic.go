@@ -112,6 +112,7 @@ type DynamicLoader struct {
 	mu       sync.RWMutex
 	dir      string // Directory containing .so/.dylib/.dll files
 	baseURL  string // URL template for downloads
+	version  string // Version tag for downloads (e.g. "v0.0.39", "snapshot")
 	manifest *manifestStore
 	loaded   map[string]*tree_sitter.Language // Cache of loaded languages
 	handles  map[string]uintptr               // Open library handles
@@ -158,7 +159,7 @@ func (dl *DynamicLoader) Load(name string) (*tree_sitter.Language, error) {
 	// Check manifest for the grammar
 	entry := dl.manifest.get(name)
 	if entry == nil {
-		return nil, &ErrGrammarNotFound{Name: name}
+		return nil, &GrammarNotFoundError{Name: name}
 	}
 
 	// Load the shared library
@@ -194,10 +195,14 @@ func (dl *DynamicLoader) Download(ctx context.Context, name string, def *Dynamic
 	dl.mu.Lock()
 	defer dl.mu.Unlock()
 
-	// Determine version
-	version := def.LatestVersion
+	// Determine version — prefer loader-level version (from aide release),
+	// then grammar-specific version, then "snapshot" as a safe fallback.
+	version := dl.version
 	if version == "" {
-		version = "latest"
+		version = def.LatestVersion
+	}
+	if version == "" {
+		version = "snapshot"
 	}
 
 	filename := LibraryFilename(name, version)
@@ -206,7 +211,7 @@ func (dl *DynamicLoader) Download(ctx context.Context, name string, def *Dynamic
 	destPath := filepath.Join(dl.dir, filename)
 	sha256sum, err := downloadGrammarAsset(ctx, dl.baseURL, name, version, destPath)
 	if err != nil {
-		return &ErrDownloadFailed{Name: name, Err: err}
+		return &DownloadFailedError{Name: name, Err: err}
 	}
 
 	// Update manifest
@@ -223,8 +228,9 @@ func (dl *DynamicLoader) Download(ctx context.Context, name string, def *Dynamic
 
 // Installed returns info about all locally installed dynamic grammars.
 func (dl *DynamicLoader) Installed() []GrammarInfo {
-	var infos []GrammarInfo
-	for name, entry := range dl.manifest.entries() {
+	entries := dl.manifest.entries()
+	infos := make([]GrammarInfo, 0, len(entries))
+	for name, entry := range entries {
 		infos = append(infos, GrammarInfo{
 			Name:        name,
 			Version:     entry.Version,
