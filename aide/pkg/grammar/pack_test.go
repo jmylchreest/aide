@@ -15,6 +15,8 @@ var allExpectedLanguages = []string{
 	"bash", "csharp", "css", "elixir", "elm", "groovy", "hcl", "html",
 	"kotlin", "lua", "ocaml", "php", "protobuf", "ruby", "scala", "sql",
 	"swift", "toml", "yaml",
+	// 2 meta-only (no grammar, just file detection)
+	"dockerfile", "json",
 }
 
 func TestNewPackRegistry_LoadsAllPacks(t *testing.T) {
@@ -67,8 +69,9 @@ func TestNewPackRegistry_AllPacksHaveExtensions(t *testing.T) {
 			t.Errorf("pack %q not found", name)
 			continue
 		}
-		if len(p.Meta.Extensions) == 0 {
-			t.Errorf("pack %q has no extensions", name)
+		// Meta-only packs may use filenames instead of extensions.
+		if len(p.Meta.Extensions) == 0 && len(p.Meta.Filenames) == 0 {
+			t.Errorf("pack %q has no extensions or filenames", name)
 		}
 	}
 }
@@ -78,10 +81,15 @@ func TestNewPackRegistry_AllPacksHaveCSymbol(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewPackRegistry() error: %v", err)
 	}
+	// Meta-only packs that have no grammar binary (e.g., json, dockerfile).
+	metaOnly := map[string]bool{"json": true, "dockerfile": true}
 	for _, name := range allExpectedLanguages {
 		p := reg.Get(name)
 		if p == nil {
 			t.Errorf("pack %q not found", name)
+			continue
+		}
+		if metaOnly[name] {
 			continue
 		}
 		if p.CSymbol == "" {

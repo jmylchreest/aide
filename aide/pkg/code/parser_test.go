@@ -662,49 +662,6 @@ func TestParseFileNotExist(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// TagQueries and RefQueries — verify query compilation for all 9 builtins
-// ---------------------------------------------------------------------------
-
-func TestTagQueriesCompile(t *testing.T) {
-	p := newTestParser()
-
-	for lang, query := range TagQueries {
-		t.Run(lang, func(t *testing.T) {
-			// Load the grammar first.
-			tsLang := p.getLanguage(lang)
-			if tsLang == nil {
-				t.Skipf("grammar %q not available (dynamic grammar)", lang)
-				return
-			}
-
-			// The query should compile (getTagQuery caches it).
-			q := p.getTagQuery(lang)
-			if q == nil {
-				t.Errorf("getTagQuery(%q) returned nil; query text:\n%s", lang, query)
-			}
-		})
-	}
-}
-
-func TestRefQueriesCompile(t *testing.T) {
-	p := newTestParser()
-
-	for lang, query := range RefQueries {
-		t.Run(lang, func(t *testing.T) {
-			tsLang := p.getLanguage(lang)
-			if tsLang == nil {
-				t.Skipf("grammar %q not available (dynamic grammar)", lang)
-				return
-			}
-
-			q := p.getRefQuery(lang)
-			if q == nil {
-				t.Errorf("getRefQuery(%q) returned nil; query text:\n%s", lang, query)
-			}
-		})
-	}
-}
-
 // TestPackRegistryQueriesCompile verifies that tag/ref queries from the
 // PackRegistry compile against the corresponding grammar for all builtin
 // languages.

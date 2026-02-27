@@ -46,32 +46,16 @@ type complexityLang struct {
 	nameField     string   // Field name for function name (default: "name")
 }
 
-// complexityLanguages defines supported languages for complexity analysis.
-// Per-language configs register themselves via init() in complexity_*.go files.
-var complexityLanguages = map[string]*complexityLang{}
-
-// registerComplexityLang registers a per-language complexity config.
-// Called from init() functions in complexity_*.go files.
-func registerComplexityLang(lang string, cfg *complexityLang) {
-	complexityLanguages[lang] = cfg
-}
-
 // getComplexityLang returns the complexity config for a language. It checks:
 // 1. PackRegistry (pack.json complexity data)
-// 2. Hardcoded complexityLanguages map (init()-registered per-language files)
-// 3. genericComplexityLang fallback
+// 2. genericComplexityLang fallback
 func getComplexityLang(lang string) *complexityLang {
-	// Prefer pack registry data.
 	if pack := grammar.DefaultPackRegistry().Get(lang); pack != nil && pack.Complexity != nil {
 		return &complexityLang{
 			funcNodeTypes: pack.Complexity.FuncNodeTypes,
 			branchTypes:   pack.Complexity.BranchTypes,
 			nameField:     pack.Complexity.NameField,
 		}
-	}
-	// Fall back to hardcoded map.
-	if cfg, ok := complexityLanguages[lang]; ok {
-		return cfg
 	}
 	return genericComplexityLang
 }

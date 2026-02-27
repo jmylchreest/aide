@@ -72,7 +72,7 @@ func (p *Parser) getLanguage(lang string) *tree_sitter.Language {
 
 // getTagQuery returns the compiled tag query for a language,
 // compiling and caching it on first access. Also loads the grammar if needed.
-// Prefers pack registry queries; falls back to the hardcoded TagQueries map.
+// Uses pack registry queries for all languages.
 func (p *Parser) getTagQuery(lang string) *tree_sitter.Query {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -81,12 +81,10 @@ func (p *Parser) getTagQuery(lang string) *tree_sitter.Query {
 		return q
 	}
 
-	// Prefer pack registry, fall back to hardcoded map.
+	// Look up query from pack registry.
 	var pattern string
 	if pack := p.registry.Get(lang); pack != nil && pack.Queries.Tags != "" {
 		pattern = pack.Queries.Tags
-	} else if p, ok := TagQueries[lang]; ok {
-		pattern = p
 	} else {
 		return nil
 	}
@@ -113,7 +111,7 @@ func (p *Parser) getTagQuery(lang string) *tree_sitter.Query {
 
 // getRefQuery returns the compiled reference query for a language,
 // compiling and caching it on first access. Also loads the grammar if needed.
-// Prefers pack registry queries; falls back to the hardcoded RefQueries map.
+// Uses pack registry queries for all languages.
 func (p *Parser) getRefQuery(lang string) *tree_sitter.Query {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -122,12 +120,10 @@ func (p *Parser) getRefQuery(lang string) *tree_sitter.Query {
 		return q
 	}
 
-	// Prefer pack registry, fall back to hardcoded map.
+	// Look up query from pack registry.
 	var pattern string
 	if pack := p.registry.Get(lang); pack != nil && pack.Queries.Refs != "" {
 		pattern = pack.Queries.Refs
-	} else if p, ok := RefQueries[lang]; ok {
-		pattern = p
 	} else {
 		return nil
 	}
@@ -166,17 +162,10 @@ func DetectLanguage(filePath string, content []byte) string {
 	if lang, ok := reg.LangForExtension(ext); ok {
 		return lang
 	}
-	// Fallback to hardcoded map (covers languages not yet in packs, e.g., json, dockerfile)
-	if lang, ok := LangExtensions[ext]; ok {
-		return lang
-	}
 
 	// 2. Try known filenames
 	base := filepath.Base(filePath)
 	if lang, ok := reg.LangForFilename(base); ok {
-		return lang
-	}
-	if lang, ok := LangFilenames[base]; ok {
 		return lang
 	}
 
@@ -189,7 +178,7 @@ func DetectLanguage(filePath string, content []byte) string {
 }
 
 // detectShebang parses the first line of content for a shebang interpreter.
-// Uses the default PackRegistry for lookups, with fallback to hardcoded map.
+// Uses the default PackRegistry for lookups.
 func detectShebang(content []byte) string {
 	scanner := bufio.NewScanner(bytes.NewReader(content))
 	if !scanner.Scan() {
@@ -219,12 +208,8 @@ func detectShebang(content []byte) string {
 
 	reg := grammar.DefaultPackRegistry()
 
-	// Try exact match via pack registry first.
+	// Try exact match via pack registry.
 	if lang, ok := reg.LangForShebang(interpreter); ok {
-		return lang
-	}
-	// Fallback to hardcoded map.
-	if lang, ok := ShebangLangs[interpreter]; ok {
 		return lang
 	}
 
@@ -233,187 +218,8 @@ func detectShebang(content []byte) string {
 	if lang, ok := reg.LangForShebang(stripped); ok {
 		return lang
 	}
-	if lang, ok := ShebangLangs[stripped]; ok {
-		return lang
-	}
 
 	return ""
-}
-
-// TagQueries contains tree-sitter query patterns for extracting symbols.
-// Based on standard tags.scm patterns from tree-sitter grammar repositories.
-var TagQueries = map[string]string{
-	LangGo: `
-		(function_declaration name: (identifier) @name) @definition.function
-		(method_declaration name: (field_identifier) @name) @definition.method
-		(type_declaration (type_spec name: (type_identifier) @name type: (struct_type))) @definition.class
-		(type_declaration (type_spec name: (type_identifier) @name type: (interface_type))) @definition.interface
-		(type_declaration (type_spec name: (type_identifier) @name)) @definition.type
-	`,
-	LangPython: `
-		(function_definition name: (identifier) @name) @definition.function
-		(class_definition name: (identifier) @name) @definition.class
-	`,
-	LangTypeScript: `
-		(function_declaration name: (identifier) @name) @definition.function
-		(method_definition name: (property_identifier) @name) @definition.method
-		(class_declaration name: (type_identifier) @name) @definition.class
-		(interface_declaration name: (type_identifier) @name) @definition.interface
-		(type_alias_declaration name: (type_identifier) @name) @definition.type
-		(enum_declaration name: (identifier) @name) @definition.class
-	`,
-	LangJavaScript: `
-		(function_declaration name: (identifier) @name) @definition.function
-		(method_definition name: (property_identifier) @name) @definition.method
-		(class_declaration name: (identifier) @name) @definition.class
-	`,
-	LangRust: `
-		(function_item name: (identifier) @name) @definition.function
-		(impl_item type: (type_identifier) @name) @definition.class
-		(struct_item name: (type_identifier) @name) @definition.class
-		(enum_item name: (type_identifier) @name) @definition.class
-		(trait_item name: (type_identifier) @name) @definition.interface
-		(type_item name: (type_identifier) @name) @definition.type
-		(mod_item name: (identifier) @name) @definition.module
-	`,
-	LangJava: `
-		(method_declaration name: (identifier) @name) @definition.method
-		(constructor_declaration name: (identifier) @name) @definition.method
-		(class_declaration name: (identifier) @name) @definition.class
-		(interface_declaration name: (identifier) @name) @definition.interface
-		(enum_declaration name: (identifier) @name) @definition.class
-	`,
-	LangC: `
-		(function_definition declarator: (function_declarator declarator: (identifier) @name)) @definition.function
-		(struct_specifier name: (type_identifier) @name) @definition.class
-		(enum_specifier name: (type_identifier) @name) @definition.class
-		(type_definition declarator: (type_identifier) @name) @definition.type
-	`,
-	LangCPP: `
-		(function_definition declarator: (function_declarator declarator: (identifier) @name)) @definition.function
-		(function_definition declarator: (function_declarator declarator: (qualified_identifier name: (identifier) @name))) @definition.method
-		(class_specifier name: (type_identifier) @name) @definition.class
-		(struct_specifier name: (type_identifier) @name) @definition.class
-		(enum_specifier name: (type_identifier) @name) @definition.class
-	`,
-	LangCSharp: `
-		(method_declaration name: (identifier) @name) @definition.method
-		(constructor_declaration name: (identifier) @name) @definition.method
-		(class_declaration name: (identifier) @name) @definition.class
-		(interface_declaration name: (identifier) @name) @definition.interface
-		(struct_declaration name: (identifier) @name) @definition.class
-		(enum_declaration name: (identifier) @name) @definition.class
-	`,
-	LangRuby: `
-		(method name: (identifier) @name) @definition.method
-		(singleton_method name: (identifier) @name) @definition.method
-		(class name: (constant) @name) @definition.class
-		(module name: (constant) @name) @definition.module
-	`,
-	LangPHP: `
-		(function_definition name: (name) @name) @definition.function
-		(method_declaration name: (name) @name) @definition.method
-		(class_declaration name: (name) @name) @definition.class
-		(interface_declaration name: (name) @name) @definition.interface
-		(trait_declaration name: (name) @name) @definition.interface
-	`,
-	LangSwift: `
-		(function_declaration name: (simple_identifier) @name) @definition.function
-		(class_declaration name: (type_identifier) @name) @definition.class
-		(struct_declaration name: (type_identifier) @name) @definition.class
-		(protocol_declaration name: (type_identifier) @name) @definition.interface
-		(enum_declaration name: (type_identifier) @name) @definition.class
-	`,
-	LangKotlin: `
-		(function_declaration (simple_identifier) @name) @definition.function
-		(class_declaration (type_identifier) @name) @definition.class
-		(object_declaration (type_identifier) @name) @definition.class
-	`,
-	LangScala: `
-		(function_definition name: (identifier) @name) @definition.function
-		(class_definition name: (identifier) @name) @definition.class
-		(object_definition name: (identifier) @name) @definition.class
-		(trait_definition name: (identifier) @name) @definition.interface
-	`,
-	LangElixir: `
-		(call target: (identifier) @_def arguments: (arguments (identifier) @name)) @definition.function
-		(call target: (identifier) @_defmodule arguments: (arguments (alias) @name)) @definition.module
-	`,
-	LangLua: `
-		(function_declaration name: (identifier) @name) @definition.function
-		(function_declaration name: (dot_index_expression field: (identifier) @name)) @definition.method
-		(assignment_statement (variable_list name: (identifier) @name) (expression_list value: (function_definition))) @definition.function
-	`,
-	LangSQL: `
-		(create_function_statement name: (identifier) @name) @definition.function
-		(create_table_statement name: (identifier) @name) @definition.class
-	`,
-	LangProtobuf: `
-		(message name: (message_name) @name) @definition.class
-		(enum name: (enum_name) @name) @definition.class
-		(service name: (service_name) @name) @definition.interface
-		(rpc name: (rpc_name) @name) @definition.method
-	`,
-	LangHCL: `
-		(block (identifier) @type (string_lit) @name) @definition.type
-	`,
-	LangBash: `
-		(function_definition name: (word) @name) @definition.function
-	`,
-}
-
-// RefQueries contains tree-sitter query patterns for extracting references (call sites).
-// These capture function/method calls and type references.
-var RefQueries = map[string]string{
-	LangGo: `
-		(call_expression function: (identifier) @name) @reference.call
-		(call_expression function: (selector_expression field: (field_identifier) @name)) @reference.call
-		(type_identifier) @name @reference.type
-	`,
-	LangPython: `
-		(call function: (identifier) @name) @reference.call
-		(call function: (attribute attribute: (identifier) @name)) @reference.call
-		(type (identifier) @name) @reference.type
-	`,
-	LangTypeScript: `
-		(call_expression function: (identifier) @name) @reference.call
-		(call_expression function: (member_expression property: (property_identifier) @name)) @reference.call
-		(new_expression constructor: (identifier) @name) @reference.call
-		(type_identifier) @name @reference.type
-	`,
-	LangJavaScript: `
-		(call_expression function: (identifier) @name) @reference.call
-		(call_expression function: (member_expression property: (property_identifier) @name)) @reference.call
-		(new_expression constructor: (identifier) @name) @reference.call
-	`,
-	LangRust: `
-		(call_expression function: (identifier) @name) @reference.call
-		(call_expression function: (field_expression field: (field_identifier) @name)) @reference.call
-		(type_identifier) @name @reference.type
-	`,
-	LangJava: `
-		(method_invocation name: (identifier) @name) @reference.call
-		(object_creation_expression type: (type_identifier) @name) @reference.call
-		(type_identifier) @name @reference.type
-	`,
-	LangC: `
-		(call_expression function: (identifier) @name) @reference.call
-		(type_identifier) @name @reference.type
-	`,
-	LangCPP: `
-		(call_expression function: (identifier) @name) @reference.call
-		(call_expression function: (field_expression field: (field_identifier) @name)) @reference.call
-		(type_identifier) @name @reference.type
-	`,
-	LangRuby: `
-		(call method: (identifier) @name) @reference.call
-		(constant) @name @reference.type
-	`,
-	LangPHP: `
-		(function_call_expression function: (name) @name) @reference.call
-		(member_call_expression name: (name) @name) @reference.call
-		(named_type (name) @name) @reference.type
-	`,
 }
 
 // ParseFile parses a file and extracts symbols.
@@ -1197,10 +1003,7 @@ func (p *Parser) SupportedLanguage(lang string) bool {
 // SupportedExtension returns true if the file extension is supported.
 func SupportedExtension(ext string) bool {
 	ext = strings.ToLower(ext)
-	if _, ok := grammar.DefaultPackRegistry().LangForExtension(ext); ok {
-		return true
-	}
-	_, ok := LangExtensions[ext]
+	_, ok := grammar.DefaultPackRegistry().LangForExtension(ext)
 	return ok
 }
 
@@ -1211,14 +1014,8 @@ func SupportedFile(filePath string) bool {
 	if _, ok := reg.LangForExtension(ext); ok {
 		return true
 	}
-	if _, ok := LangExtensions[ext]; ok {
-		return true
-	}
 	base := filepath.Base(filePath)
-	if _, ok := reg.LangForFilename(base); ok {
-		return true
-	}
-	_, ok := LangFilenames[base]
+	_, ok := reg.LangForFilename(base)
 	return ok
 }
 

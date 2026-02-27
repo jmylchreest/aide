@@ -319,51 +319,20 @@ func findCycles(graph *importGraph) [][]string {
 // Import extraction per language
 // =============================================================================
 
-// Import regex patterns by language
-var (
-	goImportSingle = regexp.MustCompile(`^\s*import\s+"([^"]+)"`)
-	goImportBlock  = regexp.MustCompile(`^\s*"([^"]+)"`)
-
-	pyImport     = regexp.MustCompile(`^\s*import\s+(\S+)`)
-	pyFromImport = regexp.MustCompile(`^\s*from\s+(\S+)\s+import`)
-
-	tsImportFrom = regexp.MustCompile(`(?:import|export)\s+.*from\s+['"]([^'"]+)['"]`)
-	tsRequire    = regexp.MustCompile(`require\s*\(\s*['"]([^'"]+)['"]`)
-
-	javaImport = regexp.MustCompile(`^\s*import\s+(?:static\s+)?([a-zA-Z0-9_.]+)`)
-
-	rustUse = regexp.MustCompile(`^\s*use\s+(?:crate::)?([a-zA-Z0-9_:]+)`)
-)
-
 // extractImports returns a list of import paths from a file.
-// Import paths are normalized to just the module/package name, not full paths.
-// Prefers pack registry patterns; falls back to hardcoded per-language extractors.
+// Import paths are normalised to just the module/package name, not full paths.
+// Uses pack registry import patterns for extraction.
 func extractImports(filePath, lang string) []string {
 	content, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil
 	}
 
-	// Try pack registry first — generic regex-driven extraction.
 	if pack := grammar.DefaultPackRegistry().Get(lang); pack != nil && pack.Imports != nil && len(pack.Imports.Patterns) > 0 {
 		return extractImportsFromPack(content, pack.Imports)
 	}
 
-	// Fall back to hardcoded per-language extractors.
-	switch lang {
-	case code.LangGo:
-		return extractGoImports(content)
-	case code.LangPython:
-		return extractPythonImports(content)
-	case code.LangTypeScript, code.LangJavaScript:
-		return extractTSImports(content)
-	case code.LangJava:
-		return extractJavaImports(content)
-	case code.LangRust:
-		return extractRustImports(content)
-	default:
-		return nil
-	}
+	return nil
 }
 
 // extractImportsFromPack uses pack.json import patterns to extract imports
@@ -425,97 +394,4 @@ func extractImportsFromPack(content []byte, imports *grammar.PackImports) []stri
 		}
 	}
 	return result
-}
-
-func extractGoImports(content []byte) []string {
-	var imports []string
-	scanner := bufio.NewScanner(strings.NewReader(string(content)))
-	inBlock := false
-
-	for scanner.Scan() {
-		line := scanner.Text()
-
-		if strings.Contains(line, "import (") {
-			inBlock = true
-			continue
-		}
-		if inBlock && strings.TrimSpace(line) == ")" {
-			inBlock = false
-			continue
-		}
-
-		if inBlock {
-			if m := goImportBlock.FindStringSubmatch(line); m != nil {
-				imports = append(imports, m[1])
-			}
-		} else {
-			if m := goImportSingle.FindStringSubmatch(line); m != nil {
-				imports = append(imports, m[1])
-			}
-		}
-	}
-	return imports
-}
-
-func extractPythonImports(content []byte) []string {
-	var imports []string
-	scanner := bufio.NewScanner(strings.NewReader(string(content)))
-
-	for scanner.Scan() {
-		line := scanner.Text()
-		if m := pyFromImport.FindStringSubmatch(line); m != nil {
-			imports = append(imports, m[1])
-		} else if m := pyImport.FindStringSubmatch(line); m != nil {
-			// Handle "import a, b, c"
-			parts := strings.Split(m[1], ",")
-			for _, p := range parts {
-				p = strings.TrimSpace(p)
-				if p != "" {
-					imports = append(imports, p)
-				}
-			}
-		}
-	}
-	return imports
-}
-
-func extractTSImports(content []byte) []string {
-	text := string(content)
-	fromMatches := tsImportFrom.FindAllStringSubmatch(text, -1)
-	reqMatches := tsRequire.FindAllStringSubmatch(text, -1)
-
-	imports := make([]string, 0, len(fromMatches)+len(reqMatches))
-	for _, m := range fromMatches {
-		imports = append(imports, m[1])
-	}
-	for _, m := range reqMatches {
-		imports = append(imports, m[1])
-	}
-	return imports
-}
-
-func extractJavaImports(content []byte) []string {
-	var imports []string
-	scanner := bufio.NewScanner(strings.NewReader(string(content)))
-
-	for scanner.Scan() {
-		line := scanner.Text()
-		if m := javaImport.FindStringSubmatch(line); m != nil {
-			imports = append(imports, m[1])
-		}
-	}
-	return imports
-}
-
-func extractRustImports(content []byte) []string {
-	var imports []string
-	scanner := bufio.NewScanner(strings.NewReader(string(content)))
-
-	for scanner.Scan() {
-		line := scanner.Text()
-		if m := rustUse.FindStringSubmatch(line); m != nil {
-			imports = append(imports, m[1])
-		}
-	}
-	return imports
 }

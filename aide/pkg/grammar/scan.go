@@ -214,32 +214,9 @@ func dynamicAvailable() ([]string, map[string]bool) {
 
 // NormaliseLang converts common aliases to canonical language names
 // (e.g., "ts" -> "typescript", "py" -> "python", "c++" -> "cpp").
+// Delegates to the PackRegistry's alias lookup after normalising case
+// and trimming whitespace.
 func NormaliseLang(s string) string {
 	s = strings.ToLower(strings.TrimSpace(s))
-	aliases := map[string]string{
-		"ts":        "typescript",
-		"tsx":       "typescript",
-		"js":        "javascript",
-		"jsx":       "javascript",
-		"py":        "python",
-		"rs":        "rust",
-		"c++":       "cpp",
-		"c#":        "csharp",
-		"cs":        "csharp",
-		"rb":        "ruby",
-		"sh":        "bash",
-		"shell":     "bash",
-		"kt":        "kotlin",
-		"ex":        "elixir",
-		"exs":       "elixir",
-		"ml":        "ocaml",
-		"tf":        "hcl",
-		"terraform": "hcl",
-		"proto":     "protobuf",
-		"yml":       "yaml",
-	}
-	if canonical, ok := aliases[s]; ok {
-		return canonical
-	}
-	return s
+	return DefaultPackRegistry().NormaliseLang(s)
 }
