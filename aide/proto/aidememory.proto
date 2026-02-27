@@ -308,6 +308,8 @@ service TaskService {
   rpc Claim(TaskClaimRequest) returns (TaskClaimResponse);
   rpc Complete(TaskCompleteRequest) returns (TaskCompleteResponse);
   rpc Update(TaskUpdateRequest) returns (TaskUpdateResponse);
+  rpc Delete(TaskDeleteRequest) returns (TaskDeleteResponse);
+  rpc Clear(TaskClearRequest) returns (TaskClearResponse);
 }
 
 message Task {
@@ -380,6 +382,22 @@ message TaskUpdateRequest {
 message TaskUpdateResponse {
   Task task = 1;
   bool success = 2;
+}
+
+message TaskDeleteRequest {
+  string id = 1;
+}
+
+message TaskDeleteResponse {
+  bool success = 1;
+}
+
+message TaskClearRequest {
+  string status = 1;  // Optional: filter by status (empty = all)
+}
+
+message TaskClearResponse {
+  int32 count = 1;
 }
 
 // =============================================================================

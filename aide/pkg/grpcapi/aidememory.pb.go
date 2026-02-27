@@ -3306,6 +3306,182 @@ func (x *TaskUpdateResponse) GetSuccess() bool {
 	return false
 }
 
+type TaskDeleteRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TaskDeleteRequest) Reset() {
+	*x = TaskDeleteRequest{}
+	mi := &file_aidememory_proto_msgTypes[63]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TaskDeleteRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TaskDeleteRequest) ProtoMessage() {}
+
+func (x *TaskDeleteRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_aidememory_proto_msgTypes[63]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TaskDeleteRequest.ProtoReflect.Descriptor instead.
+func (*TaskDeleteRequest) Descriptor() ([]byte, []int) {
+	return file_aidememory_proto_rawDescGZIP(), []int{63}
+}
+
+func (x *TaskDeleteRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type TaskDeleteResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TaskDeleteResponse) Reset() {
+	*x = TaskDeleteResponse{}
+	mi := &file_aidememory_proto_msgTypes[64]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TaskDeleteResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TaskDeleteResponse) ProtoMessage() {}
+
+func (x *TaskDeleteResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_aidememory_proto_msgTypes[64]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TaskDeleteResponse.ProtoReflect.Descriptor instead.
+func (*TaskDeleteResponse) Descriptor() ([]byte, []int) {
+	return file_aidememory_proto_rawDescGZIP(), []int{64}
+}
+
+func (x *TaskDeleteResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+type TaskClearRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Status        string                 `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"` // Optional: filter by status (empty = all)
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TaskClearRequest) Reset() {
+	*x = TaskClearRequest{}
+	mi := &file_aidememory_proto_msgTypes[65]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TaskClearRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TaskClearRequest) ProtoMessage() {}
+
+func (x *TaskClearRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_aidememory_proto_msgTypes[65]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TaskClearRequest.ProtoReflect.Descriptor instead.
+func (*TaskClearRequest) Descriptor() ([]byte, []int) {
+	return file_aidememory_proto_rawDescGZIP(), []int{65}
+}
+
+func (x *TaskClearRequest) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+type TaskClearResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Count         int32                  `protobuf:"varint,1,opt,name=count,proto3" json:"count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TaskClearResponse) Reset() {
+	*x = TaskClearResponse{}
+	mi := &file_aidememory_proto_msgTypes[66]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TaskClearResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TaskClearResponse) ProtoMessage() {}
+
+func (x *TaskClearResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_aidememory_proto_msgTypes[66]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TaskClearResponse.ProtoReflect.Descriptor instead.
+func (*TaskClearResponse) Descriptor() ([]byte, []int) {
+	return file_aidememory_proto_rawDescGZIP(), []int{66}
+}
+
+func (x *TaskClearResponse) GetCount() int32 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
 type Symbol struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -3324,7 +3500,7 @@ type Symbol struct {
 
 func (x *Symbol) Reset() {
 	*x = Symbol{}
-	mi := &file_aidememory_proto_msgTypes[63]
+	mi := &file_aidememory_proto_msgTypes[67]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3336,7 +3512,7 @@ func (x *Symbol) String() string {
 func (*Symbol) ProtoMessage() {}
 
 func (x *Symbol) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[63]
+	mi := &file_aidememory_proto_msgTypes[67]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3349,7 +3525,7 @@ func (x *Symbol) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Symbol.ProtoReflect.Descriptor instead.
 func (*Symbol) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{63}
+	return file_aidememory_proto_rawDescGZIP(), []int{67}
 }
 
 func (x *Symbol) GetId() string {
@@ -3435,7 +3611,7 @@ type CodeSearchRequest struct {
 
 func (x *CodeSearchRequest) Reset() {
 	*x = CodeSearchRequest{}
-	mi := &file_aidememory_proto_msgTypes[64]
+	mi := &file_aidememory_proto_msgTypes[68]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3447,7 +3623,7 @@ func (x *CodeSearchRequest) String() string {
 func (*CodeSearchRequest) ProtoMessage() {}
 
 func (x *CodeSearchRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[64]
+	mi := &file_aidememory_proto_msgTypes[68]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3460,7 +3636,7 @@ func (x *CodeSearchRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CodeSearchRequest.ProtoReflect.Descriptor instead.
 func (*CodeSearchRequest) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{64}
+	return file_aidememory_proto_rawDescGZIP(), []int{68}
 }
 
 func (x *CodeSearchRequest) GetQuery() string {
@@ -3507,7 +3683,7 @@ type CodeSearchResponse struct {
 
 func (x *CodeSearchResponse) Reset() {
 	*x = CodeSearchResponse{}
-	mi := &file_aidememory_proto_msgTypes[65]
+	mi := &file_aidememory_proto_msgTypes[69]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3519,7 +3695,7 @@ func (x *CodeSearchResponse) String() string {
 func (*CodeSearchResponse) ProtoMessage() {}
 
 func (x *CodeSearchResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[65]
+	mi := &file_aidememory_proto_msgTypes[69]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3532,7 +3708,7 @@ func (x *CodeSearchResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CodeSearchResponse.ProtoReflect.Descriptor instead.
 func (*CodeSearchResponse) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{65}
+	return file_aidememory_proto_rawDescGZIP(), []int{69}
 }
 
 func (x *CodeSearchResponse) GetSymbols() []*Symbol {
@@ -3551,7 +3727,7 @@ type CodeSymbolsRequest struct {
 
 func (x *CodeSymbolsRequest) Reset() {
 	*x = CodeSymbolsRequest{}
-	mi := &file_aidememory_proto_msgTypes[66]
+	mi := &file_aidememory_proto_msgTypes[70]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3563,7 +3739,7 @@ func (x *CodeSymbolsRequest) String() string {
 func (*CodeSymbolsRequest) ProtoMessage() {}
 
 func (x *CodeSymbolsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[66]
+	mi := &file_aidememory_proto_msgTypes[70]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3576,7 +3752,7 @@ func (x *CodeSymbolsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CodeSymbolsRequest.ProtoReflect.Descriptor instead.
 func (*CodeSymbolsRequest) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{66}
+	return file_aidememory_proto_rawDescGZIP(), []int{70}
 }
 
 func (x *CodeSymbolsRequest) GetFilePath() string {
@@ -3595,7 +3771,7 @@ type CodeSymbolsResponse struct {
 
 func (x *CodeSymbolsResponse) Reset() {
 	*x = CodeSymbolsResponse{}
-	mi := &file_aidememory_proto_msgTypes[67]
+	mi := &file_aidememory_proto_msgTypes[71]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3607,7 +3783,7 @@ func (x *CodeSymbolsResponse) String() string {
 func (*CodeSymbolsResponse) ProtoMessage() {}
 
 func (x *CodeSymbolsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[67]
+	mi := &file_aidememory_proto_msgTypes[71]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3620,7 +3796,7 @@ func (x *CodeSymbolsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CodeSymbolsResponse.ProtoReflect.Descriptor instead.
 func (*CodeSymbolsResponse) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{67}
+	return file_aidememory_proto_rawDescGZIP(), []int{71}
 }
 
 func (x *CodeSymbolsResponse) GetSymbols() []*Symbol {
@@ -3638,7 +3814,7 @@ type CodeStatsRequest struct {
 
 func (x *CodeStatsRequest) Reset() {
 	*x = CodeStatsRequest{}
-	mi := &file_aidememory_proto_msgTypes[68]
+	mi := &file_aidememory_proto_msgTypes[72]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3650,7 +3826,7 @@ func (x *CodeStatsRequest) String() string {
 func (*CodeStatsRequest) ProtoMessage() {}
 
 func (x *CodeStatsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[68]
+	mi := &file_aidememory_proto_msgTypes[72]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3663,7 +3839,7 @@ func (x *CodeStatsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CodeStatsRequest.ProtoReflect.Descriptor instead.
 func (*CodeStatsRequest) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{68}
+	return file_aidememory_proto_rawDescGZIP(), []int{72}
 }
 
 type CodeStatsResponse struct {
@@ -3677,7 +3853,7 @@ type CodeStatsResponse struct {
 
 func (x *CodeStatsResponse) Reset() {
 	*x = CodeStatsResponse{}
-	mi := &file_aidememory_proto_msgTypes[69]
+	mi := &file_aidememory_proto_msgTypes[73]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3689,7 +3865,7 @@ func (x *CodeStatsResponse) String() string {
 func (*CodeStatsResponse) ProtoMessage() {}
 
 func (x *CodeStatsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[69]
+	mi := &file_aidememory_proto_msgTypes[73]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3702,7 +3878,7 @@ func (x *CodeStatsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CodeStatsResponse.ProtoReflect.Descriptor instead.
 func (*CodeStatsResponse) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{69}
+	return file_aidememory_proto_rawDescGZIP(), []int{73}
 }
 
 func (x *CodeStatsResponse) GetFiles() int32 {
@@ -3736,7 +3912,7 @@ type CodeIndexRequest struct {
 
 func (x *CodeIndexRequest) Reset() {
 	*x = CodeIndexRequest{}
-	mi := &file_aidememory_proto_msgTypes[70]
+	mi := &file_aidememory_proto_msgTypes[74]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3748,7 +3924,7 @@ func (x *CodeIndexRequest) String() string {
 func (*CodeIndexRequest) ProtoMessage() {}
 
 func (x *CodeIndexRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[70]
+	mi := &file_aidememory_proto_msgTypes[74]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3761,7 +3937,7 @@ func (x *CodeIndexRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CodeIndexRequest.ProtoReflect.Descriptor instead.
 func (*CodeIndexRequest) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{70}
+	return file_aidememory_proto_rawDescGZIP(), []int{74}
 }
 
 func (x *CodeIndexRequest) GetPaths() []string {
@@ -3789,7 +3965,7 @@ type CodeIndexResponse struct {
 
 func (x *CodeIndexResponse) Reset() {
 	*x = CodeIndexResponse{}
-	mi := &file_aidememory_proto_msgTypes[71]
+	mi := &file_aidememory_proto_msgTypes[75]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3801,7 +3977,7 @@ func (x *CodeIndexResponse) String() string {
 func (*CodeIndexResponse) ProtoMessage() {}
 
 func (x *CodeIndexResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[71]
+	mi := &file_aidememory_proto_msgTypes[75]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3814,7 +3990,7 @@ func (x *CodeIndexResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CodeIndexResponse.ProtoReflect.Descriptor instead.
 func (*CodeIndexResponse) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{71}
+	return file_aidememory_proto_rawDescGZIP(), []int{75}
 }
 
 func (x *CodeIndexResponse) GetFilesIndexed() int32 {
@@ -3846,7 +4022,7 @@ type CodeClearRequest struct {
 
 func (x *CodeClearRequest) Reset() {
 	*x = CodeClearRequest{}
-	mi := &file_aidememory_proto_msgTypes[72]
+	mi := &file_aidememory_proto_msgTypes[76]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3858,7 +4034,7 @@ func (x *CodeClearRequest) String() string {
 func (*CodeClearRequest) ProtoMessage() {}
 
 func (x *CodeClearRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[72]
+	mi := &file_aidememory_proto_msgTypes[76]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3871,7 +4047,7 @@ func (x *CodeClearRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CodeClearRequest.ProtoReflect.Descriptor instead.
 func (*CodeClearRequest) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{72}
+	return file_aidememory_proto_rawDescGZIP(), []int{76}
 }
 
 type CodeClearResponse struct {
@@ -3884,7 +4060,7 @@ type CodeClearResponse struct {
 
 func (x *CodeClearResponse) Reset() {
 	*x = CodeClearResponse{}
-	mi := &file_aidememory_proto_msgTypes[73]
+	mi := &file_aidememory_proto_msgTypes[77]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3896,7 +4072,7 @@ func (x *CodeClearResponse) String() string {
 func (*CodeClearResponse) ProtoMessage() {}
 
 func (x *CodeClearResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[73]
+	mi := &file_aidememory_proto_msgTypes[77]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3909,7 +4085,7 @@ func (x *CodeClearResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CodeClearResponse.ProtoReflect.Descriptor instead.
 func (*CodeClearResponse) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{73}
+	return file_aidememory_proto_rawDescGZIP(), []int{77}
 }
 
 func (x *CodeClearResponse) GetSymbolsCleared() int32 {
@@ -3945,7 +4121,7 @@ type Finding struct {
 
 func (x *Finding) Reset() {
 	*x = Finding{}
-	mi := &file_aidememory_proto_msgTypes[74]
+	mi := &file_aidememory_proto_msgTypes[78]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3957,7 +4133,7 @@ func (x *Finding) String() string {
 func (*Finding) ProtoMessage() {}
 
 func (x *Finding) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[74]
+	mi := &file_aidememory_proto_msgTypes[78]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3970,7 +4146,7 @@ func (x *Finding) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Finding.ProtoReflect.Descriptor instead.
 func (*Finding) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{74}
+	return file_aidememory_proto_rawDescGZIP(), []int{78}
 }
 
 func (x *Finding) GetId() string {
@@ -4067,7 +4243,7 @@ type FindingAddRequest struct {
 
 func (x *FindingAddRequest) Reset() {
 	*x = FindingAddRequest{}
-	mi := &file_aidememory_proto_msgTypes[75]
+	mi := &file_aidememory_proto_msgTypes[79]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4079,7 +4255,7 @@ func (x *FindingAddRequest) String() string {
 func (*FindingAddRequest) ProtoMessage() {}
 
 func (x *FindingAddRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[75]
+	mi := &file_aidememory_proto_msgTypes[79]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4092,7 +4268,7 @@ func (x *FindingAddRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FindingAddRequest.ProtoReflect.Descriptor instead.
 func (*FindingAddRequest) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{75}
+	return file_aidememory_proto_rawDescGZIP(), []int{79}
 }
 
 func (x *FindingAddRequest) GetAnalyzer() string {
@@ -4167,7 +4343,7 @@ type FindingAddResponse struct {
 
 func (x *FindingAddResponse) Reset() {
 	*x = FindingAddResponse{}
-	mi := &file_aidememory_proto_msgTypes[76]
+	mi := &file_aidememory_proto_msgTypes[80]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4179,7 +4355,7 @@ func (x *FindingAddResponse) String() string {
 func (*FindingAddResponse) ProtoMessage() {}
 
 func (x *FindingAddResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[76]
+	mi := &file_aidememory_proto_msgTypes[80]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4192,7 +4368,7 @@ func (x *FindingAddResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FindingAddResponse.ProtoReflect.Descriptor instead.
 func (*FindingAddResponse) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{76}
+	return file_aidememory_proto_rawDescGZIP(), []int{80}
 }
 
 func (x *FindingAddResponse) GetFinding() *Finding {
@@ -4211,7 +4387,7 @@ type FindingGetRequest struct {
 
 func (x *FindingGetRequest) Reset() {
 	*x = FindingGetRequest{}
-	mi := &file_aidememory_proto_msgTypes[77]
+	mi := &file_aidememory_proto_msgTypes[81]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4223,7 +4399,7 @@ func (x *FindingGetRequest) String() string {
 func (*FindingGetRequest) ProtoMessage() {}
 
 func (x *FindingGetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[77]
+	mi := &file_aidememory_proto_msgTypes[81]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4236,7 +4412,7 @@ func (x *FindingGetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FindingGetRequest.ProtoReflect.Descriptor instead.
 func (*FindingGetRequest) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{77}
+	return file_aidememory_proto_rawDescGZIP(), []int{81}
 }
 
 func (x *FindingGetRequest) GetId() string {
@@ -4256,7 +4432,7 @@ type FindingGetResponse struct {
 
 func (x *FindingGetResponse) Reset() {
 	*x = FindingGetResponse{}
-	mi := &file_aidememory_proto_msgTypes[78]
+	mi := &file_aidememory_proto_msgTypes[82]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4268,7 +4444,7 @@ func (x *FindingGetResponse) String() string {
 func (*FindingGetResponse) ProtoMessage() {}
 
 func (x *FindingGetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[78]
+	mi := &file_aidememory_proto_msgTypes[82]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4281,7 +4457,7 @@ func (x *FindingGetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FindingGetResponse.ProtoReflect.Descriptor instead.
 func (*FindingGetResponse) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{78}
+	return file_aidememory_proto_rawDescGZIP(), []int{82}
 }
 
 func (x *FindingGetResponse) GetFinding() *Finding {
@@ -4307,7 +4483,7 @@ type FindingDeleteRequest struct {
 
 func (x *FindingDeleteRequest) Reset() {
 	*x = FindingDeleteRequest{}
-	mi := &file_aidememory_proto_msgTypes[79]
+	mi := &file_aidememory_proto_msgTypes[83]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4319,7 +4495,7 @@ func (x *FindingDeleteRequest) String() string {
 func (*FindingDeleteRequest) ProtoMessage() {}
 
 func (x *FindingDeleteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[79]
+	mi := &file_aidememory_proto_msgTypes[83]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4332,7 +4508,7 @@ func (x *FindingDeleteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FindingDeleteRequest.ProtoReflect.Descriptor instead.
 func (*FindingDeleteRequest) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{79}
+	return file_aidememory_proto_rawDescGZIP(), []int{83}
 }
 
 func (x *FindingDeleteRequest) GetId() string {
@@ -4351,7 +4527,7 @@ type FindingDeleteResponse struct {
 
 func (x *FindingDeleteResponse) Reset() {
 	*x = FindingDeleteResponse{}
-	mi := &file_aidememory_proto_msgTypes[80]
+	mi := &file_aidememory_proto_msgTypes[84]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4363,7 +4539,7 @@ func (x *FindingDeleteResponse) String() string {
 func (*FindingDeleteResponse) ProtoMessage() {}
 
 func (x *FindingDeleteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[80]
+	mi := &file_aidememory_proto_msgTypes[84]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4376,7 +4552,7 @@ func (x *FindingDeleteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FindingDeleteResponse.ProtoReflect.Descriptor instead.
 func (*FindingDeleteResponse) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{80}
+	return file_aidememory_proto_rawDescGZIP(), []int{84}
 }
 
 func (x *FindingDeleteResponse) GetSuccess() bool {
@@ -4400,7 +4576,7 @@ type FindingSearchRequest struct {
 
 func (x *FindingSearchRequest) Reset() {
 	*x = FindingSearchRequest{}
-	mi := &file_aidememory_proto_msgTypes[81]
+	mi := &file_aidememory_proto_msgTypes[85]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4412,7 +4588,7 @@ func (x *FindingSearchRequest) String() string {
 func (*FindingSearchRequest) ProtoMessage() {}
 
 func (x *FindingSearchRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[81]
+	mi := &file_aidememory_proto_msgTypes[85]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4425,7 +4601,7 @@ func (x *FindingSearchRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FindingSearchRequest.ProtoReflect.Descriptor instead.
 func (*FindingSearchRequest) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{81}
+	return file_aidememory_proto_rawDescGZIP(), []int{85}
 }
 
 func (x *FindingSearchRequest) GetQuery() string {
@@ -4479,7 +4655,7 @@ type FindingSearchResponse struct {
 
 func (x *FindingSearchResponse) Reset() {
 	*x = FindingSearchResponse{}
-	mi := &file_aidememory_proto_msgTypes[82]
+	mi := &file_aidememory_proto_msgTypes[86]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4491,7 +4667,7 @@ func (x *FindingSearchResponse) String() string {
 func (*FindingSearchResponse) ProtoMessage() {}
 
 func (x *FindingSearchResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[82]
+	mi := &file_aidememory_proto_msgTypes[86]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4504,7 +4680,7 @@ func (x *FindingSearchResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FindingSearchResponse.ProtoReflect.Descriptor instead.
 func (*FindingSearchResponse) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{82}
+	return file_aidememory_proto_rawDescGZIP(), []int{86}
 }
 
 func (x *FindingSearchResponse) GetFindings() []*Finding {
@@ -4527,7 +4703,7 @@ type FindingListRequest struct {
 
 func (x *FindingListRequest) Reset() {
 	*x = FindingListRequest{}
-	mi := &file_aidememory_proto_msgTypes[83]
+	mi := &file_aidememory_proto_msgTypes[87]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4539,7 +4715,7 @@ func (x *FindingListRequest) String() string {
 func (*FindingListRequest) ProtoMessage() {}
 
 func (x *FindingListRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[83]
+	mi := &file_aidememory_proto_msgTypes[87]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4552,7 +4728,7 @@ func (x *FindingListRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FindingListRequest.ProtoReflect.Descriptor instead.
 func (*FindingListRequest) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{83}
+	return file_aidememory_proto_rawDescGZIP(), []int{87}
 }
 
 func (x *FindingListRequest) GetAnalyzer() string {
@@ -4599,7 +4775,7 @@ type FindingFileRequest struct {
 
 func (x *FindingFileRequest) Reset() {
 	*x = FindingFileRequest{}
-	mi := &file_aidememory_proto_msgTypes[84]
+	mi := &file_aidememory_proto_msgTypes[88]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4611,7 +4787,7 @@ func (x *FindingFileRequest) String() string {
 func (*FindingFileRequest) ProtoMessage() {}
 
 func (x *FindingFileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[84]
+	mi := &file_aidememory_proto_msgTypes[88]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4624,7 +4800,7 @@ func (x *FindingFileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FindingFileRequest.ProtoReflect.Descriptor instead.
 func (*FindingFileRequest) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{84}
+	return file_aidememory_proto_rawDescGZIP(), []int{88}
 }
 
 func (x *FindingFileRequest) GetFilePath() string {
@@ -4643,7 +4819,7 @@ type FindingClearAnalyzerRequest struct {
 
 func (x *FindingClearAnalyzerRequest) Reset() {
 	*x = FindingClearAnalyzerRequest{}
-	mi := &file_aidememory_proto_msgTypes[85]
+	mi := &file_aidememory_proto_msgTypes[89]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4655,7 +4831,7 @@ func (x *FindingClearAnalyzerRequest) String() string {
 func (*FindingClearAnalyzerRequest) ProtoMessage() {}
 
 func (x *FindingClearAnalyzerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[85]
+	mi := &file_aidememory_proto_msgTypes[89]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4668,7 +4844,7 @@ func (x *FindingClearAnalyzerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FindingClearAnalyzerRequest.ProtoReflect.Descriptor instead.
 func (*FindingClearAnalyzerRequest) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{85}
+	return file_aidememory_proto_rawDescGZIP(), []int{89}
 }
 
 func (x *FindingClearAnalyzerRequest) GetAnalyzer() string {
@@ -4687,7 +4863,7 @@ type FindingClearAnalyzerResponse struct {
 
 func (x *FindingClearAnalyzerResponse) Reset() {
 	*x = FindingClearAnalyzerResponse{}
-	mi := &file_aidememory_proto_msgTypes[86]
+	mi := &file_aidememory_proto_msgTypes[90]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4699,7 +4875,7 @@ func (x *FindingClearAnalyzerResponse) String() string {
 func (*FindingClearAnalyzerResponse) ProtoMessage() {}
 
 func (x *FindingClearAnalyzerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[86]
+	mi := &file_aidememory_proto_msgTypes[90]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4712,7 +4888,7 @@ func (x *FindingClearAnalyzerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FindingClearAnalyzerResponse.ProtoReflect.Descriptor instead.
 func (*FindingClearAnalyzerResponse) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{86}
+	return file_aidememory_proto_rawDescGZIP(), []int{90}
 }
 
 func (x *FindingClearAnalyzerResponse) GetCount() int32 {
@@ -4730,7 +4906,7 @@ type FindingStatsRequest struct {
 
 func (x *FindingStatsRequest) Reset() {
 	*x = FindingStatsRequest{}
-	mi := &file_aidememory_proto_msgTypes[87]
+	mi := &file_aidememory_proto_msgTypes[91]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4742,7 +4918,7 @@ func (x *FindingStatsRequest) String() string {
 func (*FindingStatsRequest) ProtoMessage() {}
 
 func (x *FindingStatsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[87]
+	mi := &file_aidememory_proto_msgTypes[91]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4755,7 +4931,7 @@ func (x *FindingStatsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FindingStatsRequest.ProtoReflect.Descriptor instead.
 func (*FindingStatsRequest) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{87}
+	return file_aidememory_proto_rawDescGZIP(), []int{91}
 }
 
 type FindingStatsResponse struct {
@@ -4769,7 +4945,7 @@ type FindingStatsResponse struct {
 
 func (x *FindingStatsResponse) Reset() {
 	*x = FindingStatsResponse{}
-	mi := &file_aidememory_proto_msgTypes[88]
+	mi := &file_aidememory_proto_msgTypes[92]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4781,7 +4957,7 @@ func (x *FindingStatsResponse) String() string {
 func (*FindingStatsResponse) ProtoMessage() {}
 
 func (x *FindingStatsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[88]
+	mi := &file_aidememory_proto_msgTypes[92]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4794,7 +4970,7 @@ func (x *FindingStatsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FindingStatsResponse.ProtoReflect.Descriptor instead.
 func (*FindingStatsResponse) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{88}
+	return file_aidememory_proto_rawDescGZIP(), []int{92}
 }
 
 func (x *FindingStatsResponse) GetTotal() int32 {
@@ -4826,7 +5002,7 @@ type FindingClearRequest struct {
 
 func (x *FindingClearRequest) Reset() {
 	*x = FindingClearRequest{}
-	mi := &file_aidememory_proto_msgTypes[89]
+	mi := &file_aidememory_proto_msgTypes[93]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4838,7 +5014,7 @@ func (x *FindingClearRequest) String() string {
 func (*FindingClearRequest) ProtoMessage() {}
 
 func (x *FindingClearRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[89]
+	mi := &file_aidememory_proto_msgTypes[93]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4851,7 +5027,7 @@ func (x *FindingClearRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FindingClearRequest.ProtoReflect.Descriptor instead.
 func (*FindingClearRequest) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{89}
+	return file_aidememory_proto_rawDescGZIP(), []int{93}
 }
 
 type FindingClearResponse struct {
@@ -4863,7 +5039,7 @@ type FindingClearResponse struct {
 
 func (x *FindingClearResponse) Reset() {
 	*x = FindingClearResponse{}
-	mi := &file_aidememory_proto_msgTypes[90]
+	mi := &file_aidememory_proto_msgTypes[94]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4875,7 +5051,7 @@ func (x *FindingClearResponse) String() string {
 func (*FindingClearResponse) ProtoMessage() {}
 
 func (x *FindingClearResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[90]
+	mi := &file_aidememory_proto_msgTypes[94]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4888,7 +5064,7 @@ func (x *FindingClearResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FindingClearResponse.ProtoReflect.Descriptor instead.
 func (*FindingClearResponse) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{90}
+	return file_aidememory_proto_rawDescGZIP(), []int{94}
 }
 
 func (x *FindingClearResponse) GetSuccess() bool {
@@ -4906,7 +5082,7 @@ type HealthCheckRequest struct {
 
 func (x *HealthCheckRequest) Reset() {
 	*x = HealthCheckRequest{}
-	mi := &file_aidememory_proto_msgTypes[91]
+	mi := &file_aidememory_proto_msgTypes[95]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4918,7 +5094,7 @@ func (x *HealthCheckRequest) String() string {
 func (*HealthCheckRequest) ProtoMessage() {}
 
 func (x *HealthCheckRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[91]
+	mi := &file_aidememory_proto_msgTypes[95]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4931,7 +5107,7 @@ func (x *HealthCheckRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthCheckRequest.ProtoReflect.Descriptor instead.
 func (*HealthCheckRequest) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{91}
+	return file_aidememory_proto_rawDescGZIP(), []int{95}
 }
 
 type HealthCheckResponse struct {
@@ -4945,7 +5121,7 @@ type HealthCheckResponse struct {
 
 func (x *HealthCheckResponse) Reset() {
 	*x = HealthCheckResponse{}
-	mi := &file_aidememory_proto_msgTypes[92]
+	mi := &file_aidememory_proto_msgTypes[96]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4957,7 +5133,7 @@ func (x *HealthCheckResponse) String() string {
 func (*HealthCheckResponse) ProtoMessage() {}
 
 func (x *HealthCheckResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[92]
+	mi := &file_aidememory_proto_msgTypes[96]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4970,7 +5146,7 @@ func (x *HealthCheckResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthCheckResponse.ProtoReflect.Descriptor instead.
 func (*HealthCheckResponse) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{92}
+	return file_aidememory_proto_rawDescGZIP(), []int{96}
 }
 
 func (x *HealthCheckResponse) GetHealthy() bool {
@@ -5002,7 +5178,7 @@ type StatusRequest struct {
 
 func (x *StatusRequest) Reset() {
 	*x = StatusRequest{}
-	mi := &file_aidememory_proto_msgTypes[93]
+	mi := &file_aidememory_proto_msgTypes[97]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5014,7 +5190,7 @@ func (x *StatusRequest) String() string {
 func (*StatusRequest) ProtoMessage() {}
 
 func (x *StatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[93]
+	mi := &file_aidememory_proto_msgTypes[97]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5027,7 +5203,7 @@ func (x *StatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatusRequest.ProtoReflect.Descriptor instead.
 func (*StatusRequest) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{93}
+	return file_aidememory_proto_rawDescGZIP(), []int{97}
 }
 
 type StatusResponse struct {
@@ -5050,7 +5226,7 @@ type StatusResponse struct {
 
 func (x *StatusResponse) Reset() {
 	*x = StatusResponse{}
-	mi := &file_aidememory_proto_msgTypes[94]
+	mi := &file_aidememory_proto_msgTypes[98]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5062,7 +5238,7 @@ func (x *StatusResponse) String() string {
 func (*StatusResponse) ProtoMessage() {}
 
 func (x *StatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[94]
+	mi := &file_aidememory_proto_msgTypes[98]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5075,7 +5251,7 @@ func (x *StatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatusResponse.ProtoReflect.Descriptor instead.
 func (*StatusResponse) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{94}
+	return file_aidememory_proto_rawDescGZIP(), []int{98}
 }
 
 func (x *StatusResponse) GetVersion() string {
@@ -5141,7 +5317,7 @@ type StatusWatcher struct {
 
 func (x *StatusWatcher) Reset() {
 	*x = StatusWatcher{}
-	mi := &file_aidememory_proto_msgTypes[95]
+	mi := &file_aidememory_proto_msgTypes[99]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5153,7 +5329,7 @@ func (x *StatusWatcher) String() string {
 func (*StatusWatcher) ProtoMessage() {}
 
 func (x *StatusWatcher) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[95]
+	mi := &file_aidememory_proto_msgTypes[99]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5166,7 +5342,7 @@ func (x *StatusWatcher) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatusWatcher.ProtoReflect.Descriptor instead.
 func (*StatusWatcher) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{95}
+	return file_aidememory_proto_rawDescGZIP(), []int{99}
 }
 
 func (x *StatusWatcher) GetEnabled() bool {
@@ -5224,7 +5400,7 @@ type StatusCodeIndexer struct {
 
 func (x *StatusCodeIndexer) Reset() {
 	*x = StatusCodeIndexer{}
-	mi := &file_aidememory_proto_msgTypes[96]
+	mi := &file_aidememory_proto_msgTypes[100]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5236,7 +5412,7 @@ func (x *StatusCodeIndexer) String() string {
 func (*StatusCodeIndexer) ProtoMessage() {}
 
 func (x *StatusCodeIndexer) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[96]
+	mi := &file_aidememory_proto_msgTypes[100]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5249,7 +5425,7 @@ func (x *StatusCodeIndexer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatusCodeIndexer.ProtoReflect.Descriptor instead.
 func (*StatusCodeIndexer) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{96}
+	return file_aidememory_proto_rawDescGZIP(), []int{100}
 }
 
 func (x *StatusCodeIndexer) GetAvailable() bool {
@@ -5300,7 +5476,7 @@ type StatusFindings struct {
 
 func (x *StatusFindings) Reset() {
 	*x = StatusFindings{}
-	mi := &file_aidememory_proto_msgTypes[97]
+	mi := &file_aidememory_proto_msgTypes[101]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5312,7 +5488,7 @@ func (x *StatusFindings) String() string {
 func (*StatusFindings) ProtoMessage() {}
 
 func (x *StatusFindings) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[97]
+	mi := &file_aidememory_proto_msgTypes[101]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5325,7 +5501,7 @@ func (x *StatusFindings) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatusFindings.ProtoReflect.Descriptor instead.
 func (*StatusFindings) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{97}
+	return file_aidememory_proto_rawDescGZIP(), []int{101}
 }
 
 func (x *StatusFindings) GetAvailable() bool {
@@ -5376,7 +5552,7 @@ type StatusAnalyzer struct {
 
 func (x *StatusAnalyzer) Reset() {
 	*x = StatusAnalyzer{}
-	mi := &file_aidememory_proto_msgTypes[98]
+	mi := &file_aidememory_proto_msgTypes[102]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5388,7 +5564,7 @@ func (x *StatusAnalyzer) String() string {
 func (*StatusAnalyzer) ProtoMessage() {}
 
 func (x *StatusAnalyzer) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[98]
+	mi := &file_aidememory_proto_msgTypes[102]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5401,7 +5577,7 @@ func (x *StatusAnalyzer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatusAnalyzer.ProtoReflect.Descriptor instead.
 func (*StatusAnalyzer) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{98}
+	return file_aidememory_proto_rawDescGZIP(), []int{102}
 }
 
 func (x *StatusAnalyzer) GetStatus() string {
@@ -5450,7 +5626,7 @@ type StatusMCPTool struct {
 
 func (x *StatusMCPTool) Reset() {
 	*x = StatusMCPTool{}
-	mi := &file_aidememory_proto_msgTypes[99]
+	mi := &file_aidememory_proto_msgTypes[103]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5462,7 +5638,7 @@ func (x *StatusMCPTool) String() string {
 func (*StatusMCPTool) ProtoMessage() {}
 
 func (x *StatusMCPTool) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[99]
+	mi := &file_aidememory_proto_msgTypes[103]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5475,7 +5651,7 @@ func (x *StatusMCPTool) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatusMCPTool.ProtoReflect.Descriptor instead.
 func (*StatusMCPTool) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{99}
+	return file_aidememory_proto_rawDescGZIP(), []int{103}
 }
 
 func (x *StatusMCPTool) GetName() string {
@@ -5713,7 +5889,15 @@ const file_aidememory_proto_rawDesc = "" +
 	"\x06result\x18\x03 \x01(\tR\x06result\"T\n" +
 	"\x12TaskUpdateResponse\x12$\n" +
 	"\x04task\x18\x01 \x01(\v2\x10.aidememory.TaskR\x04task\x12\x18\n" +
-	"\asuccess\x18\x02 \x01(\bR\asuccess\"\xad\x02\n" +
+	"\asuccess\x18\x02 \x01(\bR\asuccess\"#\n" +
+	"\x11TaskDeleteRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\".\n" +
+	"\x12TaskDeleteResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\"*\n" +
+	"\x10TaskClearRequest\x12\x16\n" +
+	"\x06status\x18\x01 \x01(\tR\x06status\")\n" +
+	"\x11TaskClearResponse\x12\x14\n" +
+	"\x05count\x18\x01 \x01(\x05R\x05count\"\xad\x02\n" +
 	"\x06Symbol\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
@@ -5919,14 +6103,16 @@ const file_aidememory_proto_rawDesc = "" +
 	"\x04Send\x12\x1e.aidememory.MessageSendRequest\x1a\x1f.aidememory.MessageSendResponse\x12G\n" +
 	"\x04List\x12\x1e.aidememory.MessageListRequest\x1a\x1f.aidememory.MessageListResponse\x12D\n" +
 	"\x03Ack\x12\x1d.aidememory.MessageAckRequest\x1a\x1e.aidememory.MessageAckResponse\x12J\n" +
-	"\x05Prune\x12\x1f.aidememory.MessagePruneRequest\x1a .aidememory.MessagePruneResponse2\xb7\x03\n" +
+	"\x05Prune\x12\x1f.aidememory.MessagePruneRequest\x1a .aidememory.MessagePruneResponse2\xc6\x04\n" +
 	"\vTaskService\x12G\n" +
 	"\x06Create\x12\x1d.aidememory.TaskCreateRequest\x1a\x1e.aidememory.TaskCreateResponse\x12>\n" +
 	"\x03Get\x12\x1a.aidememory.TaskGetRequest\x1a\x1b.aidememory.TaskGetResponse\x12A\n" +
 	"\x04List\x12\x1b.aidememory.TaskListRequest\x1a\x1c.aidememory.TaskListResponse\x12D\n" +
 	"\x05Claim\x12\x1c.aidememory.TaskClaimRequest\x1a\x1d.aidememory.TaskClaimResponse\x12M\n" +
 	"\bComplete\x12\x1f.aidememory.TaskCompleteRequest\x1a .aidememory.TaskCompleteResponse\x12G\n" +
-	"\x06Update\x12\x1d.aidememory.TaskUpdateRequest\x1a\x1e.aidememory.TaskUpdateResponse2\xf4\x02\n" +
+	"\x06Update\x12\x1d.aidememory.TaskUpdateRequest\x1a\x1e.aidememory.TaskUpdateResponse\x12G\n" +
+	"\x06Delete\x12\x1d.aidememory.TaskDeleteRequest\x1a\x1e.aidememory.TaskDeleteResponse\x12D\n" +
+	"\x05Clear\x12\x1c.aidememory.TaskClearRequest\x1a\x1d.aidememory.TaskClearResponse2\xf4\x02\n" +
 	"\vCodeService\x12G\n" +
 	"\x06Search\x12\x1d.aidememory.CodeSearchRequest\x1a\x1e.aidememory.CodeSearchResponse\x12J\n" +
 	"\aSymbols\x12\x1e.aidememory.CodeSymbolsRequest\x1a\x1f.aidememory.CodeSymbolsResponse\x12D\n" +
@@ -5960,7 +6146,7 @@ func file_aidememory_proto_rawDescGZIP() []byte {
 	return file_aidememory_proto_rawDescData
 }
 
-var file_aidememory_proto_msgTypes = make([]protoimpl.MessageInfo, 107)
+var file_aidememory_proto_msgTypes = make([]protoimpl.MessageInfo, 111)
 var file_aidememory_proto_goTypes = []any{
 	(*Memory)(nil),                       // 0: aidememory.Memory
 	(*MemoryAddRequest)(nil),             // 1: aidememory.MemoryAddRequest
@@ -6025,101 +6211,105 @@ var file_aidememory_proto_goTypes = []any{
 	(*TaskCompleteResponse)(nil),         // 60: aidememory.TaskCompleteResponse
 	(*TaskUpdateRequest)(nil),            // 61: aidememory.TaskUpdateRequest
 	(*TaskUpdateResponse)(nil),           // 62: aidememory.TaskUpdateResponse
-	(*Symbol)(nil),                       // 63: aidememory.Symbol
-	(*CodeSearchRequest)(nil),            // 64: aidememory.CodeSearchRequest
-	(*CodeSearchResponse)(nil),           // 65: aidememory.CodeSearchResponse
-	(*CodeSymbolsRequest)(nil),           // 66: aidememory.CodeSymbolsRequest
-	(*CodeSymbolsResponse)(nil),          // 67: aidememory.CodeSymbolsResponse
-	(*CodeStatsRequest)(nil),             // 68: aidememory.CodeStatsRequest
-	(*CodeStatsResponse)(nil),            // 69: aidememory.CodeStatsResponse
-	(*CodeIndexRequest)(nil),             // 70: aidememory.CodeIndexRequest
-	(*CodeIndexResponse)(nil),            // 71: aidememory.CodeIndexResponse
-	(*CodeClearRequest)(nil),             // 72: aidememory.CodeClearRequest
-	(*CodeClearResponse)(nil),            // 73: aidememory.CodeClearResponse
-	(*Finding)(nil),                      // 74: aidememory.Finding
-	(*FindingAddRequest)(nil),            // 75: aidememory.FindingAddRequest
-	(*FindingAddResponse)(nil),           // 76: aidememory.FindingAddResponse
-	(*FindingGetRequest)(nil),            // 77: aidememory.FindingGetRequest
-	(*FindingGetResponse)(nil),           // 78: aidememory.FindingGetResponse
-	(*FindingDeleteRequest)(nil),         // 79: aidememory.FindingDeleteRequest
-	(*FindingDeleteResponse)(nil),        // 80: aidememory.FindingDeleteResponse
-	(*FindingSearchRequest)(nil),         // 81: aidememory.FindingSearchRequest
-	(*FindingSearchResponse)(nil),        // 82: aidememory.FindingSearchResponse
-	(*FindingListRequest)(nil),           // 83: aidememory.FindingListRequest
-	(*FindingFileRequest)(nil),           // 84: aidememory.FindingFileRequest
-	(*FindingClearAnalyzerRequest)(nil),  // 85: aidememory.FindingClearAnalyzerRequest
-	(*FindingClearAnalyzerResponse)(nil), // 86: aidememory.FindingClearAnalyzerResponse
-	(*FindingStatsRequest)(nil),          // 87: aidememory.FindingStatsRequest
-	(*FindingStatsResponse)(nil),         // 88: aidememory.FindingStatsResponse
-	(*FindingClearRequest)(nil),          // 89: aidememory.FindingClearRequest
-	(*FindingClearResponse)(nil),         // 90: aidememory.FindingClearResponse
-	(*HealthCheckRequest)(nil),           // 91: aidememory.HealthCheckRequest
-	(*HealthCheckResponse)(nil),          // 92: aidememory.HealthCheckResponse
-	(*StatusRequest)(nil),                // 93: aidememory.StatusRequest
-	(*StatusResponse)(nil),               // 94: aidememory.StatusResponse
-	(*StatusWatcher)(nil),                // 95: aidememory.StatusWatcher
-	(*StatusCodeIndexer)(nil),            // 96: aidememory.StatusCodeIndexer
-	(*StatusFindings)(nil),               // 97: aidememory.StatusFindings
-	(*StatusAnalyzer)(nil),               // 98: aidememory.StatusAnalyzer
-	(*StatusMCPTool)(nil),                // 99: aidememory.StatusMCPTool
-	nil,                                  // 100: aidememory.Finding.MetadataEntry
-	nil,                                  // 101: aidememory.FindingAddRequest.MetadataEntry
-	nil,                                  // 102: aidememory.FindingStatsResponse.ByAnalyzerEntry
-	nil,                                  // 103: aidememory.FindingStatsResponse.BySeverityEntry
-	nil,                                  // 104: aidememory.StatusFindings.ByAnalyzerEntry
-	nil,                                  // 105: aidememory.StatusFindings.BySeverityEntry
-	nil,                                  // 106: aidememory.StatusFindings.AnalyzersEntry
-	(*timestamppb.Timestamp)(nil),        // 107: google.protobuf.Timestamp
+	(*TaskDeleteRequest)(nil),            // 63: aidememory.TaskDeleteRequest
+	(*TaskDeleteResponse)(nil),           // 64: aidememory.TaskDeleteResponse
+	(*TaskClearRequest)(nil),             // 65: aidememory.TaskClearRequest
+	(*TaskClearResponse)(nil),            // 66: aidememory.TaskClearResponse
+	(*Symbol)(nil),                       // 67: aidememory.Symbol
+	(*CodeSearchRequest)(nil),            // 68: aidememory.CodeSearchRequest
+	(*CodeSearchResponse)(nil),           // 69: aidememory.CodeSearchResponse
+	(*CodeSymbolsRequest)(nil),           // 70: aidememory.CodeSymbolsRequest
+	(*CodeSymbolsResponse)(nil),          // 71: aidememory.CodeSymbolsResponse
+	(*CodeStatsRequest)(nil),             // 72: aidememory.CodeStatsRequest
+	(*CodeStatsResponse)(nil),            // 73: aidememory.CodeStatsResponse
+	(*CodeIndexRequest)(nil),             // 74: aidememory.CodeIndexRequest
+	(*CodeIndexResponse)(nil),            // 75: aidememory.CodeIndexResponse
+	(*CodeClearRequest)(nil),             // 76: aidememory.CodeClearRequest
+	(*CodeClearResponse)(nil),            // 77: aidememory.CodeClearResponse
+	(*Finding)(nil),                      // 78: aidememory.Finding
+	(*FindingAddRequest)(nil),            // 79: aidememory.FindingAddRequest
+	(*FindingAddResponse)(nil),           // 80: aidememory.FindingAddResponse
+	(*FindingGetRequest)(nil),            // 81: aidememory.FindingGetRequest
+	(*FindingGetResponse)(nil),           // 82: aidememory.FindingGetResponse
+	(*FindingDeleteRequest)(nil),         // 83: aidememory.FindingDeleteRequest
+	(*FindingDeleteResponse)(nil),        // 84: aidememory.FindingDeleteResponse
+	(*FindingSearchRequest)(nil),         // 85: aidememory.FindingSearchRequest
+	(*FindingSearchResponse)(nil),        // 86: aidememory.FindingSearchResponse
+	(*FindingListRequest)(nil),           // 87: aidememory.FindingListRequest
+	(*FindingFileRequest)(nil),           // 88: aidememory.FindingFileRequest
+	(*FindingClearAnalyzerRequest)(nil),  // 89: aidememory.FindingClearAnalyzerRequest
+	(*FindingClearAnalyzerResponse)(nil), // 90: aidememory.FindingClearAnalyzerResponse
+	(*FindingStatsRequest)(nil),          // 91: aidememory.FindingStatsRequest
+	(*FindingStatsResponse)(nil),         // 92: aidememory.FindingStatsResponse
+	(*FindingClearRequest)(nil),          // 93: aidememory.FindingClearRequest
+	(*FindingClearResponse)(nil),         // 94: aidememory.FindingClearResponse
+	(*HealthCheckRequest)(nil),           // 95: aidememory.HealthCheckRequest
+	(*HealthCheckResponse)(nil),          // 96: aidememory.HealthCheckResponse
+	(*StatusRequest)(nil),                // 97: aidememory.StatusRequest
+	(*StatusResponse)(nil),               // 98: aidememory.StatusResponse
+	(*StatusWatcher)(nil),                // 99: aidememory.StatusWatcher
+	(*StatusCodeIndexer)(nil),            // 100: aidememory.StatusCodeIndexer
+	(*StatusFindings)(nil),               // 101: aidememory.StatusFindings
+	(*StatusAnalyzer)(nil),               // 102: aidememory.StatusAnalyzer
+	(*StatusMCPTool)(nil),                // 103: aidememory.StatusMCPTool
+	nil,                                  // 104: aidememory.Finding.MetadataEntry
+	nil,                                  // 105: aidememory.FindingAddRequest.MetadataEntry
+	nil,                                  // 106: aidememory.FindingStatsResponse.ByAnalyzerEntry
+	nil,                                  // 107: aidememory.FindingStatsResponse.BySeverityEntry
+	nil,                                  // 108: aidememory.StatusFindings.ByAnalyzerEntry
+	nil,                                  // 109: aidememory.StatusFindings.BySeverityEntry
+	nil,                                  // 110: aidememory.StatusFindings.AnalyzersEntry
+	(*timestamppb.Timestamp)(nil),        // 111: google.protobuf.Timestamp
 }
 var file_aidememory_proto_depIdxs = []int32{
-	107, // 0: aidememory.Memory.created_at:type_name -> google.protobuf.Timestamp
-	107, // 1: aidememory.Memory.updated_at:type_name -> google.protobuf.Timestamp
-	107, // 2: aidememory.Memory.last_accessed:type_name -> google.protobuf.Timestamp
+	111, // 0: aidememory.Memory.created_at:type_name -> google.protobuf.Timestamp
+	111, // 1: aidememory.Memory.updated_at:type_name -> google.protobuf.Timestamp
+	111, // 2: aidememory.Memory.last_accessed:type_name -> google.protobuf.Timestamp
 	0,   // 3: aidememory.MemoryAddResponse.memory:type_name -> aidememory.Memory
 	0,   // 4: aidememory.MemoryGetResponse.memory:type_name -> aidememory.Memory
 	0,   // 5: aidememory.MemorySearchResponse.memories:type_name -> aidememory.Memory
 	0,   // 6: aidememory.MemoryListResponse.memories:type_name -> aidememory.Memory
-	107, // 7: aidememory.State.updated_at:type_name -> google.protobuf.Timestamp
+	111, // 7: aidememory.State.updated_at:type_name -> google.protobuf.Timestamp
 	15,  // 8: aidememory.StateGetResponse.state:type_name -> aidememory.State
 	15,  // 9: aidememory.StateSetResponse.state:type_name -> aidememory.State
 	15,  // 10: aidememory.StateListResponse.states:type_name -> aidememory.State
-	107, // 11: aidememory.Decision.created_at:type_name -> google.protobuf.Timestamp
+	111, // 11: aidememory.Decision.created_at:type_name -> google.protobuf.Timestamp
 	28,  // 12: aidememory.DecisionSetResponse.decision:type_name -> aidememory.Decision
 	28,  // 13: aidememory.DecisionGetResponse.decision:type_name -> aidememory.Decision
 	28,  // 14: aidememory.DecisionListResponse.decisions:type_name -> aidememory.Decision
 	28,  // 15: aidememory.DecisionHistoryResponse.decisions:type_name -> aidememory.Decision
-	107, // 16: aidememory.Message.created_at:type_name -> google.protobuf.Timestamp
-	107, // 17: aidememory.Message.expires_at:type_name -> google.protobuf.Timestamp
+	111, // 16: aidememory.Message.created_at:type_name -> google.protobuf.Timestamp
+	111, // 17: aidememory.Message.expires_at:type_name -> google.protobuf.Timestamp
 	41,  // 18: aidememory.MessageSendResponse.message:type_name -> aidememory.Message
 	41,  // 19: aidememory.MessageListResponse.messages:type_name -> aidememory.Message
-	107, // 20: aidememory.Task.created_at:type_name -> google.protobuf.Timestamp
-	107, // 21: aidememory.Task.claimed_at:type_name -> google.protobuf.Timestamp
-	107, // 22: aidememory.Task.completed_at:type_name -> google.protobuf.Timestamp
+	111, // 20: aidememory.Task.created_at:type_name -> google.protobuf.Timestamp
+	111, // 21: aidememory.Task.claimed_at:type_name -> google.protobuf.Timestamp
+	111, // 22: aidememory.Task.completed_at:type_name -> google.protobuf.Timestamp
 	50,  // 23: aidememory.TaskCreateResponse.task:type_name -> aidememory.Task
 	50,  // 24: aidememory.TaskGetResponse.task:type_name -> aidememory.Task
 	50,  // 25: aidememory.TaskListResponse.tasks:type_name -> aidememory.Task
 	50,  // 26: aidememory.TaskClaimResponse.task:type_name -> aidememory.Task
 	50,  // 27: aidememory.TaskCompleteResponse.task:type_name -> aidememory.Task
 	50,  // 28: aidememory.TaskUpdateResponse.task:type_name -> aidememory.Task
-	107, // 29: aidememory.Symbol.created_at:type_name -> google.protobuf.Timestamp
-	63,  // 30: aidememory.CodeSearchResponse.symbols:type_name -> aidememory.Symbol
-	63,  // 31: aidememory.CodeSymbolsResponse.symbols:type_name -> aidememory.Symbol
-	100, // 32: aidememory.Finding.metadata:type_name -> aidememory.Finding.MetadataEntry
-	107, // 33: aidememory.Finding.created_at:type_name -> google.protobuf.Timestamp
-	101, // 34: aidememory.FindingAddRequest.metadata:type_name -> aidememory.FindingAddRequest.MetadataEntry
-	74,  // 35: aidememory.FindingAddResponse.finding:type_name -> aidememory.Finding
-	74,  // 36: aidememory.FindingGetResponse.finding:type_name -> aidememory.Finding
-	74,  // 37: aidememory.FindingSearchResponse.findings:type_name -> aidememory.Finding
-	102, // 38: aidememory.FindingStatsResponse.by_analyzer:type_name -> aidememory.FindingStatsResponse.ByAnalyzerEntry
-	103, // 39: aidememory.FindingStatsResponse.by_severity:type_name -> aidememory.FindingStatsResponse.BySeverityEntry
-	95,  // 40: aidememory.StatusResponse.watcher:type_name -> aidememory.StatusWatcher
-	96,  // 41: aidememory.StatusResponse.code_indexer:type_name -> aidememory.StatusCodeIndexer
-	97,  // 42: aidememory.StatusResponse.findings:type_name -> aidememory.StatusFindings
-	99,  // 43: aidememory.StatusResponse.mcp_tools:type_name -> aidememory.StatusMCPTool
-	104, // 44: aidememory.StatusFindings.by_analyzer:type_name -> aidememory.StatusFindings.ByAnalyzerEntry
-	105, // 45: aidememory.StatusFindings.by_severity:type_name -> aidememory.StatusFindings.BySeverityEntry
-	106, // 46: aidememory.StatusFindings.analyzers:type_name -> aidememory.StatusFindings.AnalyzersEntry
-	98,  // 47: aidememory.StatusFindings.AnalyzersEntry.value:type_name -> aidememory.StatusAnalyzer
+	111, // 29: aidememory.Symbol.created_at:type_name -> google.protobuf.Timestamp
+	67,  // 30: aidememory.CodeSearchResponse.symbols:type_name -> aidememory.Symbol
+	67,  // 31: aidememory.CodeSymbolsResponse.symbols:type_name -> aidememory.Symbol
+	104, // 32: aidememory.Finding.metadata:type_name -> aidememory.Finding.MetadataEntry
+	111, // 33: aidememory.Finding.created_at:type_name -> google.protobuf.Timestamp
+	105, // 34: aidememory.FindingAddRequest.metadata:type_name -> aidememory.FindingAddRequest.MetadataEntry
+	78,  // 35: aidememory.FindingAddResponse.finding:type_name -> aidememory.Finding
+	78,  // 36: aidememory.FindingGetResponse.finding:type_name -> aidememory.Finding
+	78,  // 37: aidememory.FindingSearchResponse.findings:type_name -> aidememory.Finding
+	106, // 38: aidememory.FindingStatsResponse.by_analyzer:type_name -> aidememory.FindingStatsResponse.ByAnalyzerEntry
+	107, // 39: aidememory.FindingStatsResponse.by_severity:type_name -> aidememory.FindingStatsResponse.BySeverityEntry
+	99,  // 40: aidememory.StatusResponse.watcher:type_name -> aidememory.StatusWatcher
+	100, // 41: aidememory.StatusResponse.code_indexer:type_name -> aidememory.StatusCodeIndexer
+	101, // 42: aidememory.StatusResponse.findings:type_name -> aidememory.StatusFindings
+	103, // 43: aidememory.StatusResponse.mcp_tools:type_name -> aidememory.StatusMCPTool
+	108, // 44: aidememory.StatusFindings.by_analyzer:type_name -> aidememory.StatusFindings.ByAnalyzerEntry
+	109, // 45: aidememory.StatusFindings.by_severity:type_name -> aidememory.StatusFindings.BySeverityEntry
+	110, // 46: aidememory.StatusFindings.analyzers:type_name -> aidememory.StatusFindings.AnalyzersEntry
+	102, // 47: aidememory.StatusFindings.AnalyzersEntry.value:type_name -> aidememory.StatusAnalyzer
 	1,   // 48: aidememory.MemoryService.Add:input_type -> aidememory.MemoryAddRequest
 	3,   // 49: aidememory.MemoryService.Get:input_type -> aidememory.MemoryGetRequest
 	5,   // 50: aidememory.MemoryService.Search:input_type -> aidememory.MemorySearchRequest
@@ -6149,69 +6339,73 @@ var file_aidememory_proto_depIdxs = []int32{
 	57,  // 74: aidememory.TaskService.Claim:input_type -> aidememory.TaskClaimRequest
 	59,  // 75: aidememory.TaskService.Complete:input_type -> aidememory.TaskCompleteRequest
 	61,  // 76: aidememory.TaskService.Update:input_type -> aidememory.TaskUpdateRequest
-	64,  // 77: aidememory.CodeService.Search:input_type -> aidememory.CodeSearchRequest
-	66,  // 78: aidememory.CodeService.Symbols:input_type -> aidememory.CodeSymbolsRequest
-	68,  // 79: aidememory.CodeService.Stats:input_type -> aidememory.CodeStatsRequest
-	70,  // 80: aidememory.CodeService.Index:input_type -> aidememory.CodeIndexRequest
-	72,  // 81: aidememory.CodeService.Clear:input_type -> aidememory.CodeClearRequest
-	75,  // 82: aidememory.FindingsService.Add:input_type -> aidememory.FindingAddRequest
-	77,  // 83: aidememory.FindingsService.Get:input_type -> aidememory.FindingGetRequest
-	79,  // 84: aidememory.FindingsService.Delete:input_type -> aidememory.FindingDeleteRequest
-	81,  // 85: aidememory.FindingsService.Search:input_type -> aidememory.FindingSearchRequest
-	83,  // 86: aidememory.FindingsService.List:input_type -> aidememory.FindingListRequest
-	84,  // 87: aidememory.FindingsService.GetFileFindings:input_type -> aidememory.FindingFileRequest
-	85,  // 88: aidememory.FindingsService.ClearAnalyzer:input_type -> aidememory.FindingClearAnalyzerRequest
-	87,  // 89: aidememory.FindingsService.Stats:input_type -> aidememory.FindingStatsRequest
-	89,  // 90: aidememory.FindingsService.Clear:input_type -> aidememory.FindingClearRequest
-	91,  // 91: aidememory.HealthService.Check:input_type -> aidememory.HealthCheckRequest
-	93,  // 92: aidememory.StatusService.GetStatus:input_type -> aidememory.StatusRequest
-	2,   // 93: aidememory.MemoryService.Add:output_type -> aidememory.MemoryAddResponse
-	4,   // 94: aidememory.MemoryService.Get:output_type -> aidememory.MemoryGetResponse
-	6,   // 95: aidememory.MemoryService.Search:output_type -> aidememory.MemorySearchResponse
-	8,   // 96: aidememory.MemoryService.List:output_type -> aidememory.MemoryListResponse
-	10,  // 97: aidememory.MemoryService.Delete:output_type -> aidememory.MemoryDeleteResponse
-	12,  // 98: aidememory.MemoryService.Clear:output_type -> aidememory.MemoryClearResponse
-	14,  // 99: aidememory.MemoryService.Touch:output_type -> aidememory.MemoryTouchResponse
-	17,  // 100: aidememory.StateService.Get:output_type -> aidememory.StateGetResponse
-	19,  // 101: aidememory.StateService.Set:output_type -> aidememory.StateSetResponse
-	21,  // 102: aidememory.StateService.List:output_type -> aidememory.StateListResponse
-	23,  // 103: aidememory.StateService.Delete:output_type -> aidememory.StateDeleteResponse
-	25,  // 104: aidememory.StateService.Clear:output_type -> aidememory.StateClearResponse
-	27,  // 105: aidememory.StateService.Cleanup:output_type -> aidememory.StateCleanupResponse
-	30,  // 106: aidememory.DecisionService.Set:output_type -> aidememory.DecisionSetResponse
-	32,  // 107: aidememory.DecisionService.Get:output_type -> aidememory.DecisionGetResponse
-	34,  // 108: aidememory.DecisionService.List:output_type -> aidememory.DecisionListResponse
-	36,  // 109: aidememory.DecisionService.History:output_type -> aidememory.DecisionHistoryResponse
-	38,  // 110: aidememory.DecisionService.Delete:output_type -> aidememory.DecisionDeleteResponse
-	40,  // 111: aidememory.DecisionService.Clear:output_type -> aidememory.DecisionClearResponse
-	43,  // 112: aidememory.MessageService.Send:output_type -> aidememory.MessageSendResponse
-	45,  // 113: aidememory.MessageService.List:output_type -> aidememory.MessageListResponse
-	47,  // 114: aidememory.MessageService.Ack:output_type -> aidememory.MessageAckResponse
-	49,  // 115: aidememory.MessageService.Prune:output_type -> aidememory.MessagePruneResponse
-	52,  // 116: aidememory.TaskService.Create:output_type -> aidememory.TaskCreateResponse
-	54,  // 117: aidememory.TaskService.Get:output_type -> aidememory.TaskGetResponse
-	56,  // 118: aidememory.TaskService.List:output_type -> aidememory.TaskListResponse
-	58,  // 119: aidememory.TaskService.Claim:output_type -> aidememory.TaskClaimResponse
-	60,  // 120: aidememory.TaskService.Complete:output_type -> aidememory.TaskCompleteResponse
-	62,  // 121: aidememory.TaskService.Update:output_type -> aidememory.TaskUpdateResponse
-	65,  // 122: aidememory.CodeService.Search:output_type -> aidememory.CodeSearchResponse
-	67,  // 123: aidememory.CodeService.Symbols:output_type -> aidememory.CodeSymbolsResponse
-	69,  // 124: aidememory.CodeService.Stats:output_type -> aidememory.CodeStatsResponse
-	71,  // 125: aidememory.CodeService.Index:output_type -> aidememory.CodeIndexResponse
-	73,  // 126: aidememory.CodeService.Clear:output_type -> aidememory.CodeClearResponse
-	76,  // 127: aidememory.FindingsService.Add:output_type -> aidememory.FindingAddResponse
-	78,  // 128: aidememory.FindingsService.Get:output_type -> aidememory.FindingGetResponse
-	80,  // 129: aidememory.FindingsService.Delete:output_type -> aidememory.FindingDeleteResponse
-	82,  // 130: aidememory.FindingsService.Search:output_type -> aidememory.FindingSearchResponse
-	82,  // 131: aidememory.FindingsService.List:output_type -> aidememory.FindingSearchResponse
-	82,  // 132: aidememory.FindingsService.GetFileFindings:output_type -> aidememory.FindingSearchResponse
-	86,  // 133: aidememory.FindingsService.ClearAnalyzer:output_type -> aidememory.FindingClearAnalyzerResponse
-	88,  // 134: aidememory.FindingsService.Stats:output_type -> aidememory.FindingStatsResponse
-	90,  // 135: aidememory.FindingsService.Clear:output_type -> aidememory.FindingClearResponse
-	92,  // 136: aidememory.HealthService.Check:output_type -> aidememory.HealthCheckResponse
-	94,  // 137: aidememory.StatusService.GetStatus:output_type -> aidememory.StatusResponse
-	93,  // [93:138] is the sub-list for method output_type
-	48,  // [48:93] is the sub-list for method input_type
+	63,  // 77: aidememory.TaskService.Delete:input_type -> aidememory.TaskDeleteRequest
+	65,  // 78: aidememory.TaskService.Clear:input_type -> aidememory.TaskClearRequest
+	68,  // 79: aidememory.CodeService.Search:input_type -> aidememory.CodeSearchRequest
+	70,  // 80: aidememory.CodeService.Symbols:input_type -> aidememory.CodeSymbolsRequest
+	72,  // 81: aidememory.CodeService.Stats:input_type -> aidememory.CodeStatsRequest
+	74,  // 82: aidememory.CodeService.Index:input_type -> aidememory.CodeIndexRequest
+	76,  // 83: aidememory.CodeService.Clear:input_type -> aidememory.CodeClearRequest
+	79,  // 84: aidememory.FindingsService.Add:input_type -> aidememory.FindingAddRequest
+	81,  // 85: aidememory.FindingsService.Get:input_type -> aidememory.FindingGetRequest
+	83,  // 86: aidememory.FindingsService.Delete:input_type -> aidememory.FindingDeleteRequest
+	85,  // 87: aidememory.FindingsService.Search:input_type -> aidememory.FindingSearchRequest
+	87,  // 88: aidememory.FindingsService.List:input_type -> aidememory.FindingListRequest
+	88,  // 89: aidememory.FindingsService.GetFileFindings:input_type -> aidememory.FindingFileRequest
+	89,  // 90: aidememory.FindingsService.ClearAnalyzer:input_type -> aidememory.FindingClearAnalyzerRequest
+	91,  // 91: aidememory.FindingsService.Stats:input_type -> aidememory.FindingStatsRequest
+	93,  // 92: aidememory.FindingsService.Clear:input_type -> aidememory.FindingClearRequest
+	95,  // 93: aidememory.HealthService.Check:input_type -> aidememory.HealthCheckRequest
+	97,  // 94: aidememory.StatusService.GetStatus:input_type -> aidememory.StatusRequest
+	2,   // 95: aidememory.MemoryService.Add:output_type -> aidememory.MemoryAddResponse
+	4,   // 96: aidememory.MemoryService.Get:output_type -> aidememory.MemoryGetResponse
+	6,   // 97: aidememory.MemoryService.Search:output_type -> aidememory.MemorySearchResponse
+	8,   // 98: aidememory.MemoryService.List:output_type -> aidememory.MemoryListResponse
+	10,  // 99: aidememory.MemoryService.Delete:output_type -> aidememory.MemoryDeleteResponse
+	12,  // 100: aidememory.MemoryService.Clear:output_type -> aidememory.MemoryClearResponse
+	14,  // 101: aidememory.MemoryService.Touch:output_type -> aidememory.MemoryTouchResponse
+	17,  // 102: aidememory.StateService.Get:output_type -> aidememory.StateGetResponse
+	19,  // 103: aidememory.StateService.Set:output_type -> aidememory.StateSetResponse
+	21,  // 104: aidememory.StateService.List:output_type -> aidememory.StateListResponse
+	23,  // 105: aidememory.StateService.Delete:output_type -> aidememory.StateDeleteResponse
+	25,  // 106: aidememory.StateService.Clear:output_type -> aidememory.StateClearResponse
+	27,  // 107: aidememory.StateService.Cleanup:output_type -> aidememory.StateCleanupResponse
+	30,  // 108: aidememory.DecisionService.Set:output_type -> aidememory.DecisionSetResponse
+	32,  // 109: aidememory.DecisionService.Get:output_type -> aidememory.DecisionGetResponse
+	34,  // 110: aidememory.DecisionService.List:output_type -> aidememory.DecisionListResponse
+	36,  // 111: aidememory.DecisionService.History:output_type -> aidememory.DecisionHistoryResponse
+	38,  // 112: aidememory.DecisionService.Delete:output_type -> aidememory.DecisionDeleteResponse
+	40,  // 113: aidememory.DecisionService.Clear:output_type -> aidememory.DecisionClearResponse
+	43,  // 114: aidememory.MessageService.Send:output_type -> aidememory.MessageSendResponse
+	45,  // 115: aidememory.MessageService.List:output_type -> aidememory.MessageListResponse
+	47,  // 116: aidememory.MessageService.Ack:output_type -> aidememory.MessageAckResponse
+	49,  // 117: aidememory.MessageService.Prune:output_type -> aidememory.MessagePruneResponse
+	52,  // 118: aidememory.TaskService.Create:output_type -> aidememory.TaskCreateResponse
+	54,  // 119: aidememory.TaskService.Get:output_type -> aidememory.TaskGetResponse
+	56,  // 120: aidememory.TaskService.List:output_type -> aidememory.TaskListResponse
+	58,  // 121: aidememory.TaskService.Claim:output_type -> aidememory.TaskClaimResponse
+	60,  // 122: aidememory.TaskService.Complete:output_type -> aidememory.TaskCompleteResponse
+	62,  // 123: aidememory.TaskService.Update:output_type -> aidememory.TaskUpdateResponse
+	64,  // 124: aidememory.TaskService.Delete:output_type -> aidememory.TaskDeleteResponse
+	66,  // 125: aidememory.TaskService.Clear:output_type -> aidememory.TaskClearResponse
+	69,  // 126: aidememory.CodeService.Search:output_type -> aidememory.CodeSearchResponse
+	71,  // 127: aidememory.CodeService.Symbols:output_type -> aidememory.CodeSymbolsResponse
+	73,  // 128: aidememory.CodeService.Stats:output_type -> aidememory.CodeStatsResponse
+	75,  // 129: aidememory.CodeService.Index:output_type -> aidememory.CodeIndexResponse
+	77,  // 130: aidememory.CodeService.Clear:output_type -> aidememory.CodeClearResponse
+	80,  // 131: aidememory.FindingsService.Add:output_type -> aidememory.FindingAddResponse
+	82,  // 132: aidememory.FindingsService.Get:output_type -> aidememory.FindingGetResponse
+	84,  // 133: aidememory.FindingsService.Delete:output_type -> aidememory.FindingDeleteResponse
+	86,  // 134: aidememory.FindingsService.Search:output_type -> aidememory.FindingSearchResponse
+	86,  // 135: aidememory.FindingsService.List:output_type -> aidememory.FindingSearchResponse
+	86,  // 136: aidememory.FindingsService.GetFileFindings:output_type -> aidememory.FindingSearchResponse
+	90,  // 137: aidememory.FindingsService.ClearAnalyzer:output_type -> aidememory.FindingClearAnalyzerResponse
+	92,  // 138: aidememory.FindingsService.Stats:output_type -> aidememory.FindingStatsResponse
+	94,  // 139: aidememory.FindingsService.Clear:output_type -> aidememory.FindingClearResponse
+	96,  // 140: aidememory.HealthService.Check:output_type -> aidememory.HealthCheckResponse
+	98,  // 141: aidememory.StatusService.GetStatus:output_type -> aidememory.StatusResponse
+	95,  // [95:142] is the sub-list for method output_type
+	48,  // [48:95] is the sub-list for method input_type
 	48,  // [48:48] is the sub-list for extension type_name
 	48,  // [48:48] is the sub-list for extension extendee
 	0,   // [0:48] is the sub-list for field type_name
@@ -6228,7 +6422,7 @@ func file_aidememory_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_aidememory_proto_rawDesc), len(file_aidememory_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   107,
+			NumMessages:   111,
 			NumExtensions: 0,
 			NumServices:   9,
 		},

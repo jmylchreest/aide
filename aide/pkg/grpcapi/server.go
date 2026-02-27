@@ -716,6 +716,21 @@ func (s *taskServiceImpl) Update(ctx context.Context, req *TaskUpdateRequest) (*
 	}, nil
 }
 
+func (s *taskServiceImpl) Delete(ctx context.Context, req *TaskDeleteRequest) (*TaskDeleteResponse, error) {
+	if err := s.store.DeleteTask(req.Id); err != nil {
+		return &TaskDeleteResponse{Success: false}, nil
+	}
+	return &TaskDeleteResponse{Success: true}, nil
+}
+
+func (s *taskServiceImpl) Clear(ctx context.Context, req *TaskClearRequest) (*TaskClearResponse, error) {
+	count, err := s.store.ClearTasks(memory.TaskStatus(req.Status))
+	if err != nil {
+		return nil, err
+	}
+	return &TaskClearResponse{Count: int32(count)}, nil
+}
+
 // =============================================================================
 // Code Service Implementation
 // =============================================================================

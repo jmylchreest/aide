@@ -446,9 +446,24 @@ func (g *grpcStoreAdapter) UpdateTask(t *memory.Task) error {
 }
 
 func (g *grpcStoreAdapter) DeleteTask(id string) error {
-	return fmt.Errorf("task delete not supported in gRPC mode")
+	ctx, cancel := g.rpcCtx()
+	defer cancel()
+	resp, err := g.client.Task.Delete(ctx, &grpcapi.TaskDeleteRequest{Id: id})
+	if err != nil {
+		return err
+	}
+	if !resp.Success {
+		return fmt.Errorf("failed to delete task")
+	}
+	return nil
 }
 
 func (g *grpcStoreAdapter) ClearTasks(status memory.TaskStatus) (int, error) {
-	return 0, fmt.Errorf("task clear not supported in gRPC mode")
+	ctx, cancel := g.rpcCtx()
+	defer cancel()
+	resp, err := g.client.Task.Clear(ctx, &grpcapi.TaskClearRequest{Status: string(status)})
+	if err != nil {
+		return 0, err
+	}
+	return int(resp.Count), nil
 }

@@ -499,6 +499,7 @@ func (s *MCPServer) Run() error {
 	s.registerStateReadTools() // Read-only state access
 	s.registerDecisionTools()
 	s.registerMessageTools()
+	s.registerTaskTools()     // Swarm task management
 	s.registerCodeTools()     // Code indexing and search
 	s.registerFindingsTools() // Findings search and stats
 
@@ -525,6 +526,12 @@ func mcpToolList() []*grpcapi.StatusMCPTool {
 		{Name: "message_list", Category: "message"},
 		{Name: "message_send", Category: "message"},
 		{Name: "message_ack", Category: "message"},
+		{Name: "task_create", Category: "task"},
+		{Name: "task_get", Category: "task"},
+		{Name: "task_list", Category: "task"},
+		{Name: "task_claim", Category: "task"},
+		{Name: "task_complete", Category: "task"},
+		{Name: "task_delete", Category: "task"},
 		{Name: "code_search", Category: "code"},
 		{Name: "code_symbols", Category: "code"},
 		{Name: "code_stats", Category: "code"},
