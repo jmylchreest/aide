@@ -121,6 +121,10 @@ func (dl *DynamicLoader) Download(ctx context.Context, name string, pack *Pack) 
 	}
 
 	// Evict from in-memory cache so the new library gets loaded fresh.
+	// Close the existing handle first to avoid leaking it.
+	if handle, ok := dl.handles[name]; ok {
+		_ = closeLibrary(handle)
+	}
 	delete(dl.loaded, name)
 	delete(dl.handles, name)
 
@@ -134,7 +138,9 @@ func (dl *DynamicLoader) Download(ctx context.Context, name string, pack *Pack) 
 	if hasPack {
 		packDir := filepath.Join(dl.dir, name)
 		if loadErr := DefaultPackRegistry().LoadFromDir(packDir); loadErr != nil {
-			// Non-fatal: pack metadata is supplementary. Log but continue.
+			// Non-fatal: pack metadata is supplementary. The grammar binary
+			// was extracted successfully so we continue with the install.
+			// Callers can detect this via the manifest's HasPack field.
 			_ = loadErr
 		}
 	}
@@ -155,6 +161,10 @@ func (dl *DynamicLoader) Download(ctx context.Context, name string, pack *Pack) 
 
 // Installed returns info about all locally installed dynamic grammars.
 func (dl *DynamicLoader) Installed() []GrammarInfo {
+	dl.mu.RLock()
+	dir := dl.dir
+	dl.mu.RUnlock()
+
 	entries := dl.manifest.entries()
 	infos := make([]GrammarInfo, 0, len(entries))
 	for name, entry := range entries {
@@ -162,11 +172,28 @@ func (dl *DynamicLoader) Installed() []GrammarInfo {
 			Name:        name,
 			Version:     entry.Version,
 			BuiltIn:     false,
-			Path:        filepath.Join(dl.dir, entry.File),
+			Path:        filepath.Join(dir, entry.File),
 			InstalledAt: entry.InstalledAt,
 		})
 	}
 	return infos
+}
+
+// Close releases all open library handles. It should be called when the
+// DynamicLoader is no longer needed (e.g. at application shutdown).
+func (dl *DynamicLoader) Close() error {
+	dl.mu.Lock()
+	defer dl.mu.Unlock()
+
+	var firstErr error
+	for name, handle := range dl.handles {
+		if err := closeLibrary(handle); err != nil && firstErr == nil {
+			firstErr = fmt.Errorf("closing grammar %q: %w", name, err)
+		}
+	}
+	dl.loaded = make(map[string]*tree_sitter.Language)
+	dl.handles = make(map[string]uintptr)
+	return firstErr
 }
 
 // Remove deletes a grammar's shared library, pack data, and manifest entry.
@@ -174,7 +201,10 @@ func (dl *DynamicLoader) Remove(name string) error {
 	dl.mu.Lock()
 	defer dl.mu.Unlock()
 
-	// Close the library handle if loaded
+	// Close the library handle if loaded.
+	if handle, ok := dl.handles[name]; ok {
+		_ = closeLibrary(handle) // Best-effort: we're removing anyway.
+	}
 	delete(dl.loaded, name)
 	delete(dl.handles, name)
 

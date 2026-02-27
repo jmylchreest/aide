@@ -184,7 +184,7 @@ func (s *FindingsStoreImpl) ensureFindingsSearchMapping(searchPath string) error
 	hash := MappingHash(m)
 
 	var stored string
-	s.db.View(func(tx *bolt.Tx) error {
+	if err := s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(BucketFindingsMeta)
 		if b == nil {
 			return nil
@@ -194,7 +194,9 @@ func (s *FindingsStoreImpl) ensureFindingsSearchMapping(searchPath string) error
 			stored = string(data)
 		}
 		return nil
-	})
+	}); err != nil {
+		return err
+	}
 
 	if hash == stored {
 		return nil
@@ -486,26 +488,34 @@ func (s *FindingsStoreImpl) Stats() (*findings.Stats, error) {
 // On success, old findings are gone and new ones are stored.
 // On error, old findings remain untouched.
 func (s *FindingsStoreImpl) ReplaceFindingsForAnalyzer(analyzer string, newFindings []*findings.Finding) error {
-	return s.db.Update(func(tx *bolt.Tx) error {
+	// Collect keys to delete and new data inside the BBolt tx, then apply
+	// Bleve mutations outside so a tx rollback doesn't leave Bleve inconsistent.
+	type pendingPut struct {
+		id  string
+		doc map[string]interface{}
+	}
+	var deleteIDs []string
+	var puts []pendingPut
+
+	err := s.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(BucketFindings)
 		c := b.Cursor()
 
-		var toDelete [][]byte
 		for k, v := c.First(); k != nil; k, v = c.Next() {
 			var f findings.Finding
 			if err := json.Unmarshal(v, &f); err != nil {
 				continue
 			}
 			if f.Analyzer == analyzer {
-				toDelete = append(toDelete, k)
+				// Copy key — cursor keys are only valid for the current position.
+				deleteIDs = append(deleteIDs, string(append([]byte(nil), k...)))
 			}
 		}
 
-		for _, k := range toDelete {
-			if err := b.Delete(k); err != nil {
+		for _, id := range deleteIDs {
+			if err := b.Delete([]byte(id)); err != nil {
 				return err
 			}
-			s.search.Delete(string(k))
 		}
 
 		for _, f := range newFindings {
@@ -523,38 +533,56 @@ func (s *FindingsStoreImpl) ReplaceFindingsForAnalyzer(analyzer string, newFindi
 			if err := b.Put([]byte(f.ID), data); err != nil {
 				return err
 			}
-			if err := s.search.Index(f.ID, findingToSearchDoc(f)); err != nil {
-				return err
-			}
+			puts = append(puts, pendingPut{id: f.ID, doc: findingToSearchDoc(f)})
 		}
 
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+
+	// Apply Bleve mutations outside the BBolt tx for atomicity.
+	for _, id := range deleteIDs {
+		s.search.Delete(id)
+	}
+	for _, p := range puts {
+		if err := s.search.Index(p.id, p.doc); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // ReplaceFindingsForAnalyzerAndFile atomically replaces findings for an analyzer within a specific file.
 // Used for per-file incremental updates (complexity, secrets).
 func (s *FindingsStoreImpl) ReplaceFindingsForAnalyzerAndFile(analyzer, filePath string, newFindings []*findings.Finding) error {
-	return s.db.Update(func(tx *bolt.Tx) error {
+	type pendingPut struct {
+		id  string
+		doc map[string]interface{}
+	}
+	var deleteIDs []string
+	var puts []pendingPut
+
+	err := s.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(BucketFindings)
 		c := b.Cursor()
 
-		var toDelete [][]byte
 		for k, v := c.First(); k != nil; k, v = c.Next() {
 			var f findings.Finding
 			if err := json.Unmarshal(v, &f); err != nil {
 				continue
 			}
 			if f.Analyzer == analyzer && f.FilePath == filePath {
-				toDelete = append(toDelete, k)
+				// Copy key — cursor keys are only valid for the current position.
+				deleteIDs = append(deleteIDs, string(append([]byte(nil), k...)))
 			}
 		}
 
-		for _, k := range toDelete {
-			if err := b.Delete(k); err != nil {
+		for _, id := range deleteIDs {
+			if err := b.Delete([]byte(id)); err != nil {
 				return err
 			}
-			s.search.Delete(string(k))
 		}
 
 		for _, f := range newFindings {
@@ -572,13 +600,25 @@ func (s *FindingsStoreImpl) ReplaceFindingsForAnalyzerAndFile(analyzer, filePath
 			if err := b.Put([]byte(f.ID), data); err != nil {
 				return err
 			}
-			if err := s.search.Index(f.ID, findingToSearchDoc(f)); err != nil {
-				return err
-			}
+			puts = append(puts, pendingPut{id: f.ID, doc: findingToSearchDoc(f)})
 		}
 
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+
+	// Apply Bleve mutations outside the BBolt tx for atomicity.
+	for _, id := range deleteIDs {
+		s.search.Delete(id)
+	}
+	for _, p := range puts {
+		if err := s.search.Index(p.id, p.doc); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Clear removes all findings.
@@ -599,18 +639,23 @@ func (s *FindingsStoreImpl) Clear() error {
 		return fmt.Errorf("failed to close findings search index: %w", err)
 	}
 	if err := os.RemoveAll(searchPath); err != nil {
+		// Reopen the old index so the store remains usable.
 		if idx, reopenErr := bleve.Open(searchPath); reopenErr == nil {
 			s.search = idx
+		} else {
+			s.search = nil
 		}
 		return fmt.Errorf("failed to remove findings search index: %w", err)
 	}
 
 	indexMapping, err := buildFindingsIndexMapping()
 	if err != nil {
+		s.search = nil
 		return fmt.Errorf("failed to build findings index mapping after clear: %w", err)
 	}
 	index, err := bleve.New(searchPath, indexMapping)
 	if err != nil {
+		s.search = nil
 		return fmt.Errorf("failed to recreate findings search index after clear: %w", err)
 	}
 	s.search = index

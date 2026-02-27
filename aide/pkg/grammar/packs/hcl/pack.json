@@ -6,14 +6,8 @@
   "source_repo": "tree-sitter-grammars/tree-sitter-hcl",
   "source_tag": "v1.1.0",
   "meta": {
-    "extensions": [
-      ".hcl",
-      ".tf"
-    ],
-    "aliases": [
-      "tf",
-      "terraform"
-    ]
+    "extensions": [".hcl", ".tf", ".tfvars"],
+    "aliases": ["tf", "terraform"]
   },
   "queries": {
     "tags": "(block (identifier) @type (string_lit) @name) @definition.type"

@@ -579,8 +579,8 @@ func TestFirstLine(t *testing.T) {
 }
 
 func TestProjectRootFromDB(t *testing.T) {
-	got := projectRootFromDB("/home/user/myproject/.aide/memory/memory.db")
+	got := projectRoot("/home/user/myproject/.aide/memory/memory.db")
 	if got != "/home/user/myproject" {
-		t.Errorf("projectRootFromDB: got %q, want /home/user/myproject", got)
+		t.Errorf("projectRoot: got %q, want /home/user/myproject", got)
 	}
 }

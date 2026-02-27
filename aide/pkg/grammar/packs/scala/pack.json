@@ -6,21 +6,14 @@
   "source_repo": "tree-sitter/tree-sitter-scala",
   "source_tag": "v0.23.4",
   "meta": {
-    "extensions": [
-      ".scala",
-      ".sc"
-    ],
-    "shebangs": [
-      "scala"
-    ]
+    "extensions": [".scala", ".sc"],
+    "shebangs": ["scala"]
   },
   "queries": {
     "tags": "(function_definition name: (identifier) @name) @definition.function\n(class_definition name: (identifier) @name) @definition.class\n(object_definition name: (identifier) @name) @definition.class\n(trait_definition name: (identifier) @name) @definition.interface"
   },
   "complexity": {
-    "func_node_types": [
-      "function_definition"
-    ],
+    "func_node_types": ["function_definition"],
     "branch_types": [
       "if_expression",
       "for_expression",
@@ -40,16 +33,44 @@
     ]
   },
   "tokenisation": {
-    "identifier_types": [
-      "identifier"
-    ],
-    "literal_types": [
-      "boolean_literal"
-    ],
+    "identifier_types": ["identifier"],
+    "literal_types": ["boolean_literal"],
     "keyword_types": [
       "match",
       "val",
-      "trait"
+      "trait",
+      "def",
+      "class",
+      "object",
+      "extends",
+      "with",
+      "import",
+      "package",
+      "if",
+      "else",
+      "for",
+      "while",
+      "do",
+      "return",
+      "try",
+      "catch",
+      "finally",
+      "throw",
+      "new",
+      "case",
+      "yield",
+      "type",
+      "abstract",
+      "override",
+      "final",
+      "lazy",
+      "sealed",
+      "implicit",
+      "null",
+      "true",
+      "false",
+      "this",
+      "super"
     ]
   }
 }

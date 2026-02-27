@@ -6,25 +6,15 @@
   "source_repo": "tree-sitter/tree-sitter-elixir",
   "source_tag": "v0.3.4",
   "meta": {
-    "extensions": [
-      ".ex",
-      ".exs"
-    ],
-    "shebangs": [
-      "elixir"
-    ],
-    "aliases": [
-      "ex",
-      "exs"
-    ]
+    "extensions": [".ex", ".exs"],
+    "shebangs": ["elixir"],
+    "aliases": ["ex", "exs"]
   },
   "queries": {
     "tags": "(call target: (identifier) @_def arguments: (arguments (identifier) @name)) @definition.function\n(call target: (identifier) @_defmodule arguments: (arguments (alias) @name)) @definition.module"
   },
   "complexity": {
-    "func_node_types": [
-      "call"
-    ],
+    "func_node_types": ["call"],
     "branch_types": [
       "if",
       "unless",
@@ -58,10 +48,14 @@
     ]
   },
   "tokenisation": {
-    "identifier_types": [
-      "identifier",
-      "alias",
-      "atom"
+    "identifier_types": ["identifier", "alias", "atom"],
+    "literal_types": [
+      "string",
+      "charlist",
+      "integer",
+      "float",
+      "boolean",
+      "nil"
     ],
     "keyword_types": [
       "def",

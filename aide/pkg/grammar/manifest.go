@@ -73,7 +73,7 @@ func (ms *manifestStore) load() error {
 	return nil
 }
 
-// save writes the manifest to disk.
+// save writes the manifest to disk atomically (write-tmp-then-rename).
 func (ms *manifestStore) save() error {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
@@ -87,7 +87,12 @@ func (ms *manifestStore) save() error {
 		return err
 	}
 
-	return os.WriteFile(ms.manifestPath(), data, 0o644)
+	// Write to a temporary file first, then rename for atomicity.
+	tmpPath := ms.manifestPath() + ".tmp"
+	if err := os.WriteFile(tmpPath, data, 0o644); err != nil {
+		return err
+	}
+	return os.Rename(tmpPath, ms.manifestPath())
 }
 
 // get returns the manifest entry for a grammar, or nil if not installed.
@@ -120,14 +125,15 @@ func (ms *manifestStore) remove(name string) {
 	delete(ms.data.Grammars, name)
 }
 
-// entries returns all manifest entries.
+// entries returns all manifest entries. Returns a copy of the map with
+// copied entry values to prevent callers from mutating internal state.
 func (ms *manifestStore) entries() map[string]*ManifestEntry {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
-	// Return a copy
 	result := make(map[string]*ManifestEntry, len(ms.data.Grammars))
 	for k, v := range ms.data.Grammars {
-		result[k] = v
+		entry := *v // shallow copy of ManifestEntry (all fields are value types)
+		result[k] = &entry
 	}
 	return result
 }

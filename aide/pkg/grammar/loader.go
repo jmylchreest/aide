@@ -136,7 +136,12 @@ func WithAutoDownload(enabled bool) CompositeLoaderOption {
 // Defaults to ".aide/grammars/" relative to the project root.
 func WithGrammarDir(dir string) CompositeLoaderOption {
 	return func(cl *CompositeLoader) {
+		// Preserve any baseURL or version already set on the previous loader.
+		prevURL := cl.dynamic.baseURL
+		prevVer := cl.dynamic.version
 		cl.dynamic = NewDynamicLoader(dir)
+		cl.dynamic.baseURL = prevURL
+		cl.dynamic.version = prevVer
 	}
 }
 

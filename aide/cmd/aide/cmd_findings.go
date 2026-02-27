@@ -123,7 +123,7 @@ func cmdFindingsRun(dbPath string, args []string) error {
 	// Parse common options.
 	// Defaults come from .aide/config/aide.json, falling back to hardcoded values.
 	// CLI flags override everything.
-	projectRoot := projectRootFromDB(dbPath)
+	projectRoot := projectRoot(dbPath)
 	cfg := loadFindingsConfig(projectRoot)
 
 	threshold := 10
@@ -569,8 +569,8 @@ func printFindingLine(f *findings.Finding) {
 func printFindingJSON(f *findings.Finding) {
 	fmt.Printf(`{"id":"%s","analyzer":"%s","severity":"%s","file":"%s","line":%d,"title":"%s"}`,
 		escapeJSON(f.ID),
-		f.Analyzer,
-		f.Severity,
+		escapeJSON(f.Analyzer),
+		escapeJSON(f.Severity),
 		escapeJSON(f.FilePath),
 		f.Line,
 		escapeJSON(f.Title))

@@ -110,10 +110,13 @@ func AnalyzeComplexity(cfg ComplexityConfig) ([]*Finding, *ComplexityResult, err
 	var allFindings []*Finding
 
 	for _, root := range cfg.Paths {
-		absRoot, _ := filepath.Abs(root)
+		absRoot, err := filepath.Abs(root)
+		if err != nil {
+			return nil, nil, fmt.Errorf("abs path %s: %w", root, err)
+		}
 		shouldSkip := ignore.WalkFunc(absRoot)
 
-		err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		err = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return nil
 			}

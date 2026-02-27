@@ -265,7 +265,7 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 		var findingsRunner *findings.Runner
 		if s.findingsStore != nil {
 			// Load .aideignore from project root for findings filtering.
-			projectRoot := projectRootFromDB(dbPath)
+			projectRoot := projectRoot(dbPath)
 			ignore, err := aideignore.New(projectRoot)
 			if err != nil {
 				mcpLog.Printf("WARNING: failed to load .aideignore: %v (using defaults)", err)

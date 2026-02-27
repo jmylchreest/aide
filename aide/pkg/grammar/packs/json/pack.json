@@ -3,6 +3,6 @@
   "name": "json",
   "version": "",
   "meta": {
-    "extensions": [".json"]
+    "extensions": [".json", ".jsonc"]
   }
 }

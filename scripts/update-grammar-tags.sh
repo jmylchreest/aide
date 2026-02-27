@@ -173,10 +173,10 @@ fi
 mapfile -t ENTRIES < <(parse_grammars)
 
 if [[ ${#ENTRIES[@]} -eq 0 ]]; then
-  die "no grammar definitions found in ${RELEASE_YML}"
+  die "no grammar definitions found in pack.json files under ${PACKS_DIR}"
 fi
 
-info "found ${#ENTRIES[@]} grammar definitions in release.yml"
+info "found ${#ENTRIES[@]} grammar definitions in pack.json files"
 
 # Track results.
 declare -a RESULTS=()
@@ -279,15 +279,17 @@ if [[ "${MODE}" == "update" ]]; then
     if [[ -n "${new_tag}" && "${current_tag}" != "${new_tag}" ]]; then
       pack_file="${PACKS_DIR}/${name}/pack.json"
       if [[ -f "${pack_file}" ]]; then
-        python3 -c "
+        python3 - "$pack_file" "$new_tag" <<'PYEOF'
 import json, sys
-with open('${pack_file}') as f:
+pack_file = sys.argv[1]
+new_tag = sys.argv[2]
+with open(pack_file) as f:
     data = json.load(f)
-data['source_tag'] = '${new_tag}'
-with open('${pack_file}', 'w') as f:
+data['source_tag'] = new_tag
+with open(pack_file, 'w') as f:
     json.dump(data, f, indent=2)
     f.write('\n')
-"
+PYEOF
         info "  ${name}: ${current_tag} → ${new_tag}"
       else
         warn "  ${name}: pack.json not found at ${pack_file}"

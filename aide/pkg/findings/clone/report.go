@@ -24,20 +24,3 @@ func Report(result *Result) string {
 
 	return sb.String()
 }
-
-// DuplicationRatio estimates the fraction of analyzed code that is duplicated.
-// It returns a value between 0.0 (no duplication) and 1.0 (all duplicated).
-// This is a rough estimate based on finding count vs files analyzed.
-func DuplicationRatio(result *Result) float64 {
-	if result.FilesAnalyzed == 0 {
-		return 0
-	}
-	// Each finding pair represents 2 findings (one per side).
-	// A finding of N lines in a file of M files means N/M fraction.
-	// We approximate: ratio = unique_clone_files / total_files.
-	ratio := float64(result.FindingsCount) / float64(result.FilesAnalyzed*2)
-	if ratio > 1.0 {
-		ratio = 1.0
-	}
-	return ratio
-}

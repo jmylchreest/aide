@@ -29,6 +29,22 @@ type Parser struct {
 	refQueries map[string]*tree_sitter.Query    // Compiled reference queries (cache)
 }
 
+// Close releases all cached tree-sitter queries. The Parser must not be used
+// after Close is called. Languages are owned by the loader and are not freed.
+func (p *Parser) Close() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	for lang, q := range p.queries {
+		q.Close()
+		delete(p.queries, lang)
+	}
+	for lang, q := range p.refQueries {
+		q.Close()
+		delete(p.refQueries, lang)
+	}
+}
+
 // NewParser creates a new code parser backed by the given grammar loader.
 // Uses the default PackRegistry for query/metadata lookups.
 // Grammars and queries are loaded lazily on first use.
@@ -256,7 +272,7 @@ func (p *Parser) ParseContent(content []byte, lang, filePath string) ([]*Symbol,
 	parser := tree_sitter.NewParser()
 	defer parser.Close()
 	if err := parser.SetLanguage(language); err != nil {
-		return nil, nil
+		return nil, fmt.Errorf("set language %q: %w", lang, err)
 	}
 
 	// Parse content
@@ -502,7 +518,7 @@ func (p *Parser) ParseContentReferences(content []byte, lang, filePath string) (
 	parser := tree_sitter.NewParser()
 	defer parser.Close()
 	if err := parser.SetLanguage(language); err != nil {
-		return nil, nil
+		return nil, fmt.Errorf("set language %q: %w", lang, err)
 	}
 
 	// Parse content

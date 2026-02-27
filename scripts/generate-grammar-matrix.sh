@@ -22,18 +22,18 @@ fi
 entries=()
 
 for pack_json in "${PACKS_DIR}"/*/pack.json; do
-  # Only dynamic grammars have both source_repo and c_symbol
-  name=$(python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('name',''))" < "$pack_json")
-  c_symbol=$(python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('c_symbol',''))" < "$pack_json")
-  source_repo=$(python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('source_repo',''))" < "$pack_json")
-  source_tag=$(python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('source_tag',''))" < "$pack_json")
+  # Extract all fields in a single python3 call
+  fields=$(python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+print('|'.join(d.get(k,'') for k in ('name','c_symbol','source_repo','source_tag','source_src_dir')))
+" < "$pack_json")
+  IFS='|' read -r name c_symbol source_repo source_tag source_src_dir <<< "$fields"
 
   # Skip packs without a grammar binary (meta-only or compiled-in)
   if [[ -z "$c_symbol" || -z "$source_repo" || -z "$source_tag" ]]; then
     continue
   fi
-
-  source_src_dir=$(python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('source_src_dir',''))" < "$pack_json")
 
   entries+=("${name}|${source_repo}|${c_symbol}|${source_tag}|${source_src_dir}")
 done

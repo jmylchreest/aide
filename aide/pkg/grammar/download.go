@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 const (
@@ -27,9 +28,17 @@ const (
 	// maxArchiveSize is a safety limit for grammar pack archives (50 MiB).
 	maxArchiveSize = 50 << 20
 
+	// maxFileSize is a safety limit for individual files extracted from a
+	// grammar pack archive (10 MiB). This is lower than maxArchiveSize to
+	// prevent a single entry from consuming the entire budget.
+	maxFileSize = 10 << 20
+
 	// maxArchiveEntries limits the number of entries extracted from a tar to
 	// prevent zip-bomb style attacks.
 	maxArchiveEntries = 20
+
+	// httpTimeout is the maximum time for a grammar download HTTP request.
+	httpTimeout = 2 * time.Minute
 )
 
 // resolveDownloadURL expands a URL template with the given values.
@@ -93,7 +102,7 @@ func downloadToFile(ctx context.Context, url, destPath string) (string, error) {
 		return "", fmt.Errorf("creating request: %w", err)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := (&http.Client{Timeout: httpTimeout}).Do(req)
 	if err != nil {
 		return "", fmt.Errorf("downloading %s: %w", url, err)
 	}
@@ -205,7 +214,7 @@ func extractTarGz(archivePath, destDir, name string) (bool, error) {
 		}
 
 		// Limit extraction size per file.
-		limited := io.LimitReader(tr, maxArchiveSize)
+		limited := io.LimitReader(tr, maxFileSize)
 		if _, copyErr := io.Copy(outFile, limited); copyErr != nil {
 			outFile.Close()
 			return false, fmt.Errorf("extracting %s: %w", relPath, copyErr)

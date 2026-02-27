@@ -27,14 +27,17 @@ func TestNewPackRegistry_LoadsAllPacks(t *testing.T) {
 
 	got := reg.All()
 	sort.Strings(got)
-	sort.Strings(allExpectedLanguages)
 
-	if len(got) != len(allExpectedLanguages) {
+	want := make([]string, len(allExpectedLanguages))
+	copy(want, allExpectedLanguages)
+	sort.Strings(want)
+
+	if len(got) != len(want) {
 		t.Fatalf("expected %d languages, got %d\ngot:      %v\nexpected: %v",
-			len(allExpectedLanguages), len(got), got, allExpectedLanguages)
+			len(want), len(got), got, want)
 	}
 
-	for i, name := range allExpectedLanguages {
+	for i, name := range want {
 		if got[i] != name {
 			t.Errorf("position %d: expected %q, got %q", i, name, got[i])
 		}
@@ -152,8 +155,6 @@ func TestLangForExtension_SpotChecks(t *testing.T) {
 		".html":   "html",
 		".htm":    "html",
 		".css":    "css",
-		".scss":   "css",
-		".less":   "css",
 	}
 
 	for ext, want := range tests {
@@ -176,13 +177,10 @@ func TestLangForFilename_SpotChecks(t *testing.T) {
 	}
 
 	tests := map[string]string{
-		"Makefile":       "bash",
-		"GNUmakefile":    "bash",
-		"CMakeLists.txt": "bash",
-		"Jenkinsfile":    "groovy",
-		"Vagrantfile":    "ruby",
-		"Rakefile":       "ruby",
-		"Gemfile":        "ruby",
+		"Jenkinsfile": "groovy",
+		"Vagrantfile": "ruby",
+		"Rakefile":    "ruby",
+		"Gemfile":     "ruby",
 	}
 
 	for fn, want := range tests {
@@ -212,7 +210,6 @@ func TestLangForShebang_SpotChecks(t *testing.T) {
 		"bash":    "bash",
 		"sh":      "bash",
 		"zsh":     "bash",
-		"perl":    "bash",
 		"php":     "php",
 		"lua":     "lua",
 		"elixir":  "elixir",

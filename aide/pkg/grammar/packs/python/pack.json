@@ -46,17 +46,7 @@
   },
   "tokenisation": {
     "identifier_types": ["identifier"],
-    "literal_types": [
-      "string",
-      "integer",
-      "float",
-      "true",
-      "false",
-      "none",
-      "None",
-      "True",
-      "False"
-    ],
+    "literal_types": ["string", "integer", "float", "true", "false", "none"],
     "keyword_types": [
       "if",
       "else",

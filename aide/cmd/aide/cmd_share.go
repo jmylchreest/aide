@@ -88,15 +88,8 @@ Examples:
 
 // --- Export ---
 
-// projectRootFromDB derives the project root from the database path.
-// dbPath is always <projectRoot>/.aide/memory/<name>.db
-func projectRootFromDB(dbPath string) string {
-	// .aide/memory/<name>.db -> .aide/memory -> .aide -> <projectRoot>
-	return filepath.Dir(filepath.Dir(filepath.Dir(dbPath)))
-}
-
 func cmdShareExport(dbPath string, args []string) error {
-	projectRoot := projectRootFromDB(dbPath)
+	projectRoot := projectRoot(dbPath)
 	outputDir := filepath.Join(projectRoot, ".aide", "shared")
 
 	if o := parseFlag(args, "--output="); o != "" {
@@ -389,7 +382,7 @@ func isShareableMemory(m *memory.Memory) bool {
 // --- Import ---
 
 func cmdShareImport(dbPath string, args []string) error {
-	projectRoot := projectRootFromDB(dbPath)
+	projectRoot := projectRoot(dbPath)
 	inputDir := filepath.Join(projectRoot, ".aide", "shared")
 
 	if i := parseFlag(args, "--input="); i != "" {

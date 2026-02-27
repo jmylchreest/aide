@@ -6,13 +6,8 @@
   "source_repo": "tree-sitter/tree-sitter-c-sharp",
   "source_tag": "v0.23.1",
   "meta": {
-    "extensions": [
-      ".cs"
-    ],
-    "aliases": [
-      "c#",
-      "cs"
-    ]
+    "extensions": [".cs"],
+    "aliases": ["c#", "cs"]
   },
   "queries": {
     "tags": "(method_declaration name: (identifier) @name) @definition.method\n(constructor_declaration name: (identifier) @name) @definition.method\n(class_declaration name: (identifier) @name) @definition.class\n(interface_declaration name: (identifier) @name) @definition.interface\n(struct_declaration name: (identifier) @name) @definition.class\n(enum_declaration name: (identifier) @name) @definition.class"
@@ -42,6 +37,46 @@
         "regex": "^\\s*using\\s+(?:static\\s+)?([a-zA-Z0-9_.]+)",
         "group": 1
       }
+    ]
+  },
+  "tokenisation": {
+    "identifier_types": ["identifier"],
+    "literal_types": [
+      "integer_literal",
+      "real_literal",
+      "string_literal",
+      "verbatim_string_literal",
+      "character_literal",
+      "boolean_literal",
+      "null_literal"
+    ],
+    "keyword_types": [
+      "if",
+      "else",
+      "for",
+      "foreach",
+      "while",
+      "do",
+      "switch",
+      "case",
+      "break",
+      "continue",
+      "return",
+      "class",
+      "struct",
+      "interface",
+      "enum",
+      "namespace",
+      "using",
+      "try",
+      "catch",
+      "finally",
+      "throw",
+      "new",
+      "async",
+      "await",
+      "var",
+      "void"
     ]
   }
 }

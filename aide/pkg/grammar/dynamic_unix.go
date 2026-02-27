@@ -10,6 +10,14 @@ import (
 	tree_sitter "github.com/tree-sitter/go-tree-sitter"
 )
 
+// closeLibrary releases a library handle obtained from openAndLoadLanguage.
+func closeLibrary(handle uintptr) error {
+	if handle == 0 {
+		return nil
+	}
+	return purego.Dlclose(handle)
+}
+
 // openAndLoadLanguage opens a shared library and loads the tree-sitter
 // Language from the given C symbol. On Unix systems this uses purego
 // (dlopen / dlsym).

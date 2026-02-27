@@ -3,6 +3,7 @@
   "name": "dockerfile",
   "version": "",
   "meta": {
+    "extensions": [".dockerfile"],
     "filenames": ["Dockerfile"],
     "aliases": ["docker"]
   }

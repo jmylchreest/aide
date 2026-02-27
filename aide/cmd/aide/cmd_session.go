@@ -145,7 +145,7 @@ func sessionInit(dbPath string, args []string) error {
 	// 3. Auto-import shared data if enabled
 	shareImport := hasFlag(args, "--share-import") || os.Getenv("AIDE_SHARE_AUTO_IMPORT") == "1"
 	if shareImport {
-		projectRoot := projectRootFromDB(dbPath)
+		projectRoot := projectRoot(dbPath)
 		sharedDir := filepath.Join(projectRoot, ".aide", "shared")
 		if _, statErr := os.Stat(sharedDir); statErr == nil {
 			imported, _, _ := shareImportDecisions(backend, sharedDir, false)

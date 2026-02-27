@@ -6,24 +6,15 @@
   "source_repo": "tree-sitter-grammars/tree-sitter-kotlin",
   "source_tag": "v1.1.0",
   "meta": {
-    "extensions": [
-      ".kt",
-      ".kts"
-    ],
-    "shebangs": [
-      "kotlin"
-    ],
-    "aliases": [
-      "kt"
-    ]
+    "extensions": [".kt", ".kts"],
+    "shebangs": ["kotlin"],
+    "aliases": ["kt"]
   },
   "queries": {
     "tags": "(function_declaration (simple_identifier) @name) @definition.function\n(class_declaration (type_identifier) @name) @definition.class\n(object_declaration (type_identifier) @name) @definition.class"
   },
   "complexity": {
-    "func_node_types": [
-      "function_declaration"
-    ],
+    "func_node_types": ["function_declaration"],
     "branch_types": [
       "if_expression",
       "for_statement",
@@ -47,9 +38,7 @@
     ]
   },
   "tokenisation": {
-    "identifier_types": [
-      "simple_identifier"
-    ],
+    "identifier_types": ["simple_identifier"],
     "literal_types": [
       "integer_literal",
       "real_literal",
@@ -61,7 +50,39 @@
     ],
     "keyword_types": [
       "when",
-      "val"
+      "val",
+      "fun",
+      "class",
+      "interface",
+      "object",
+      "if",
+      "else",
+      "for",
+      "while",
+      "do",
+      "return",
+      "break",
+      "continue",
+      "try",
+      "catch",
+      "finally",
+      "throw",
+      "import",
+      "package",
+      "is",
+      "in",
+      "as",
+      "null",
+      "this",
+      "super",
+      "override",
+      "abstract",
+      "data",
+      "sealed",
+      "enum",
+      "companion",
+      "suspend",
+      "async"
     ]
   }
 }

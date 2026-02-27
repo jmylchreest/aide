@@ -6,20 +6,14 @@
   "source_repo": "alex-pinkus/tree-sitter-swift",
   "source_tag": "0.7.1-with-generated-files",
   "meta": {
-    "extensions": [
-      ".swift"
-    ],
-    "shebangs": [
-      "swift"
-    ]
+    "extensions": [".swift"],
+    "shebangs": ["swift"]
   },
   "queries": {
     "tags": "(function_declaration name: (simple_identifier) @name) @definition.function\n(class_declaration name: (type_identifier) @name) @definition.class\n(struct_declaration name: (type_identifier) @name) @definition.class\n(protocol_declaration name: (type_identifier) @name) @definition.interface\n(enum_declaration name: (type_identifier) @name) @definition.class"
   },
   "complexity": {
-    "func_node_types": [
-      "function_declaration"
-    ],
+    "func_node_types": ["function_declaration"],
     "branch_types": [
       "if_statement",
       "for_statement",
@@ -42,10 +36,7 @@
     ]
   },
   "tokenisation": {
-    "identifier_types": [
-      "simple_identifier",
-      "type_identifier"
-    ],
+    "identifier_types": ["simple_identifier", "type_identifier"],
     "literal_types": [
       "integer_literal",
       "multi_line_string_literal",
@@ -54,7 +45,43 @@
     "keyword_types": [
       "guard",
       "let",
-      "var"
+      "var",
+      "func",
+      "class",
+      "struct",
+      "protocol",
+      "enum",
+      "extension",
+      "if",
+      "else",
+      "for",
+      "while",
+      "repeat",
+      "switch",
+      "case",
+      "break",
+      "continue",
+      "return",
+      "try",
+      "catch",
+      "throw",
+      "import",
+      "self",
+      "super",
+      "nil",
+      "true",
+      "false",
+      "init",
+      "deinit",
+      "override",
+      "static",
+      "private",
+      "public",
+      "internal",
+      "fileprivate",
+      "open",
+      "async",
+      "await"
     ]
   }
 }

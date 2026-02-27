@@ -98,6 +98,8 @@ func NewRunner(store ReplaceFindingsStore, config AnalyzerConfig, loader grammar
 }
 
 func (r *Runner) SetClonesRunner(fn ClonesRunner) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	r.clonesRunner = fn
 }
 
@@ -365,6 +367,11 @@ func (r *Runner) GetStatus() map[string]AnalyzerStatus {
 	return result
 }
 
+// WaitAll blocks until all running analysers have completed.
+func (r *Runner) WaitAll() {
+	r.wg.Wait()
+}
+
 func (r *Runner) Stop() {
 	r.cancel()
 	done := make(chan struct{})
@@ -380,6 +387,11 @@ func (r *Runner) Stop() {
 	}
 }
 
+// RunAll schedules analysis of all supported files in the configured paths.
+// Per-file analysers (complexity, secrets) are launched per file; project-wide
+// analysers (coupling, clones) are launched once. All analysers run
+// asynchronously via runAnalyzer — use WaitAll() to block until completion,
+// or Stop() to cancel and drain.
 func (r *Runner) RunAll(ctx context.Context) error {
 	paths := r.config.Paths
 	if len(paths) == 0 {

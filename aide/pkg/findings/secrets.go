@@ -1,7 +1,6 @@
 package findings
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -102,10 +101,13 @@ func AnalyzeSecrets(cfg SecretsConfig) ([]*Finding, *SecretsResult, error) {
 	var allFindings []*Finding
 
 	for _, root := range paths {
-		absRoot, _ := filepath.Abs(root)
+		absRoot, err := filepath.Abs(root)
+		if err != nil {
+			return nil, nil, fmt.Errorf("abs path %s: %w", root, err)
+		}
 		shouldSkip := ignore.WalkFunc(absRoot)
 
-		err := filepath.Walk(root, func(path string, info os.FileInfo, walkErr error) error {
+		err = filepath.Walk(root, func(path string, info os.FileInfo, walkErr error) error {
 			if walkErr != nil {
 				return nil // skip inaccessible files
 			}
@@ -211,19 +213,6 @@ func AnalyzeSecrets(cfg SecretsConfig) ([]*Finding, *SecretsResult, error) {
 	result.Duration = time.Since(start)
 
 	return allFindings, result, nil
-}
-
-// AnalyzeSecretsWithContext is the context-aware variant.
-func AnalyzeSecretsWithContext(ctx context.Context, cfg SecretsConfig) ([]*Finding, *SecretsResult, error) {
-	// Check for cancellation before starting.
-	select {
-	case <-ctx.Done():
-		return nil, nil, ctx.Err()
-	default:
-	}
-	// Titus supports context via ScanStringWithContext, but ScanFile doesn't.
-	// We check context between files for cancellation.
-	return AnalyzeSecrets(cfg)
 }
 
 // categorizeSecretRule maps a Titus rule ID prefix to a human-readable category.

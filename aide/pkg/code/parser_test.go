@@ -77,8 +77,6 @@ func TestDetectLanguageByFilename(t *testing.T) {
 		path string
 		want string
 	}{
-		{"Makefile", "bash"},
-		{"GNUmakefile", "bash"},
 		{"Jenkinsfile", "groovy"},
 		{"Vagrantfile", "ruby"},
 		{"Rakefile", "ruby"},

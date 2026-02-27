@@ -194,6 +194,10 @@ func (b *Backend) ReplaceFindingsForAnalyzer(analyzer string, ff []*findings.Fin
 	return fs.ReplaceFindingsForAnalyzer(analyzer, ff)
 }
 
+// grpcFindingsReplaceForAnalyzer replaces all findings for an analyzer over gRPC.
+// NOTE: This is non-atomic — it clears then re-adds one by one. If the process
+// crashes mid-way, the analyzer's findings will be partially populated. This is
+// acceptable for the CLI use-case where the server holds the authoritative store.
 func (b *Backend) grpcFindingsReplaceForAnalyzer(analyzer string, ff []*findings.Finding) error {
 	ctx := context.Background()
 

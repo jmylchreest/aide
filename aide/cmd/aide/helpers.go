@@ -18,15 +18,16 @@ func fatal(format string, args ...any) {
 	os.Exit(1)
 }
 
-// truncate shortens a string to n characters with ellipsis.
+// truncate shortens a string to n characters (runes) with ellipsis.
 func truncate(s string, n int) string {
 	if n < 4 {
 		return s
 	}
-	if len(s) <= n {
+	runes := []rune(s)
+	if len(runes) <= n {
 		return s
 	}
-	return s[:n-3] + "..."
+	return string(runes[:n-3]) + "..."
 }
 
 // flagAliases maps British spelling flag prefixes to their canonical (American) forms.
