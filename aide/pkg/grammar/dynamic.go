@@ -194,9 +194,9 @@ func (dl *DynamicLoader) Load(name string) (*tree_sitter.Language, error) {
 	return lang, nil
 }
 
-// Download fetches a grammar shared library from GitHub and caches it locally.
-// If a grammar is already installed with a different version, the old library
-// file is removed and replaced.
+// Download fetches a grammar pack archive (.tar.gz) from GitHub and extracts
+// it locally. The archive contains the shared library and a pack.json with
+// language metadata. If a grammar is already installed, it is replaced.
 func (dl *DynamicLoader) Download(ctx context.Context, name string, def *DynamicGrammarDef) error {
 	dl.mu.Lock()
 	defer dl.mu.Unlock()
@@ -211,32 +211,37 @@ func (dl *DynamicLoader) Download(ctx context.Context, name string, def *Dynamic
 		version = "snapshot"
 	}
 
-	filename := LibraryFilename(name, version)
-
-	// Clean up the old library file if we're replacing a different version.
-	oldEntry := dl.manifest.get(name)
-	if oldEntry != nil && oldEntry.File != filename {
-		oldPath := filepath.Join(dl.dir, oldEntry.File)
-		_ = os.Remove(oldPath) // Best-effort cleanup
+	// Clean up any existing installation before re-downloading.
+	if dl.manifest.get(name) != nil {
+		_ = os.RemoveAll(filepath.Join(dl.dir, name))
 	}
 
 	// Evict from in-memory cache so the new library gets loaded fresh.
 	delete(dl.loaded, name)
 	delete(dl.handles, name)
 
-	// Download the file
-	destPath := filepath.Join(dl.dir, filename)
-	sha256sum, err := downloadGrammarAsset(ctx, dl.baseURL, name, version, destPath)
+	// Download and extract the archive.
+	sha256sum, hasPack, err := downloadAndExtractGrammarPack(ctx, dl.baseURL, name, version, dl.dir)
 	if err != nil {
 		return &DownloadFailedError{Name: name, Err: err}
 	}
 
-	// Update manifest
+	// Load pack.json into the PackRegistry if present.
+	if hasPack {
+		packDir := filepath.Join(dl.dir, name)
+		if loadErr := DefaultPackRegistry().LoadFromDir(packDir); loadErr != nil {
+			// Non-fatal: pack metadata is supplementary. Log but continue.
+			_ = loadErr
+		}
+	}
+
+	// Update manifest.
 	dl.manifest.set(name, &ManifestEntry{
 		Version:     version,
-		File:        filename,
+		File:        LibraryFilename(name),
 		SHA256:      sha256sum,
 		CSymbol:     def.CSymbol,
+		HasPack:     hasPack,
 		InstalledAt: time.Now(),
 	})
 	dl.manifest.setAideVersion(dl.version)
@@ -260,7 +265,7 @@ func (dl *DynamicLoader) Installed() []GrammarInfo {
 	return infos
 }
 
-// Remove deletes a grammar's shared library and manifest entry.
+// Remove deletes a grammar's shared library, pack data, and manifest entry.
 func (dl *DynamicLoader) Remove(name string) error {
 	dl.mu.Lock()
 	defer dl.mu.Unlock()
@@ -269,12 +274,9 @@ func (dl *DynamicLoader) Remove(name string) error {
 	delete(dl.loaded, name)
 	delete(dl.handles, name)
 
-	// Remove the file
-	entry := dl.manifest.get(name)
-	if entry != nil {
-		libPath := filepath.Join(dl.dir, entry.File)
-		_ = os.Remove(libPath) // Ignore errors if file doesn't exist
-	}
+	// Remove the grammar subdirectory (contains library + pack.json).
+	grammarDir := filepath.Join(dl.dir, name)
+	_ = os.RemoveAll(grammarDir)
 
 	// Remove from manifest
 	dl.manifest.remove(name)

@@ -1,6 +1,7 @@
 package grammar
 
 import (
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -34,36 +35,48 @@ func TestCurrentPlatform(t *testing.T) {
 }
 
 func TestLibraryFilename(t *testing.T) {
+	p := CurrentPlatform()
+
 	tests := []struct {
-		name    string
-		version string
-		wantPfx string // prefix before the platform-specific parts
+		name string
+		want string
 	}{
-		{name: "ruby", version: "v0.23.1", wantPfx: "aide-grammar-ruby-v0.23.1-"},
-		{name: "kotlin", version: "latest", wantPfx: "aide-grammar-kotlin-latest-"},
-		{name: "csharp", version: "grammars-v1", wantPfx: "aide-grammar-csharp-grammars-v1-"},
+		{name: "ruby", want: filepath.Join("ruby", "grammar"+p.Ext)},
+		{name: "kotlin", want: filepath.Join("kotlin", "grammar"+p.Ext)},
+		{name: "csharp", want: filepath.Join("csharp", "grammar"+p.Ext)},
 	}
 
-	p := CurrentPlatform()
 	for _, tt := range tests {
-		t.Run(tt.name+"/"+tt.version, func(t *testing.T) {
-			got := LibraryFilename(tt.name, tt.version)
-			if !strings.HasPrefix(got, tt.wantPfx) {
-				t.Errorf("LibraryFilename(%q, %q) = %q; want prefix %q", tt.name, tt.version, got, tt.wantPfx)
-			}
-			wantSuffix := p.OS + "-" + p.Arch + p.Ext
-			if !strings.HasSuffix(got, wantSuffix) {
-				t.Errorf("LibraryFilename(%q, %q) = %q; want suffix %q", tt.name, tt.version, got, wantSuffix)
+		t.Run(tt.name, func(t *testing.T) {
+			got := LibraryFilename(tt.name)
+			if got != tt.want {
+				t.Errorf("LibraryFilename(%q) = %q; want %q", tt.name, got, tt.want)
 			}
 		})
 	}
 }
 
-func TestLibraryAssetName(t *testing.T) {
-	// LibraryAssetName is an alias for LibraryFilename — verify they match.
-	got := LibraryAssetName("ruby", "v1.0")
-	want := LibraryFilename("ruby", "v1.0")
-	if got != want {
-		t.Errorf("LibraryAssetName = %q; LibraryFilename = %q; should match", got, want)
+func TestPackArchiveFilename(t *testing.T) {
+	tests := []struct {
+		name    string
+		version string
+		wantPfx string
+	}{
+		{name: "ruby", version: "v0.1.0", wantPfx: "aide-grammar-ruby-v0.1.0-"},
+		{name: "kotlin", version: "snapshot", wantPfx: "aide-grammar-kotlin-snapshot-"},
+	}
+
+	p := CurrentPlatform()
+	for _, tt := range tests {
+		t.Run(tt.name+"/"+tt.version, func(t *testing.T) {
+			got := PackArchiveFilename(tt.name, tt.version)
+			if !strings.HasPrefix(got, tt.wantPfx) {
+				t.Errorf("PackArchiveFilename(%q, %q) = %q; want prefix %q", tt.name, tt.version, got, tt.wantPfx)
+			}
+			wantSuffix := p.OS + "-" + p.Arch + ".tar.gz"
+			if !strings.HasSuffix(got, wantSuffix) {
+				t.Errorf("PackArchiveFilename(%q, %q) = %q; want suffix %q", tt.name, tt.version, got, wantSuffix)
+			}
+		})
 	}
 }

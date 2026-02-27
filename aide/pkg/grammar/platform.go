@@ -1,6 +1,7 @@
 package grammar
 
 import (
+	"path/filepath"
 	"runtime"
 )
 
@@ -30,14 +31,17 @@ func CurrentPlatform() PlatformInfo {
 	return p
 }
 
-// LibraryFilename returns the expected filename for a grammar shared library.
-// Format: aide-grammar-{lang}-{version}-{os}-{arch}.{ext}
-func LibraryFilename(name, version string) string {
+// LibraryFilename returns the expected filename for a grammar shared library
+// within the grammar cache directory. Since Phase 3, grammars are stored in
+// per-language subdirectories: {name}/grammar{ext}
+func LibraryFilename(name string) string {
 	p := CurrentPlatform()
-	return "aide-grammar-" + name + "-" + version + "-" + p.OS + "-" + p.Arch + p.Ext
+	return filepath.Join(name, "grammar"+p.Ext)
 }
 
-// LibraryAssetName returns the GitHub release asset name for a grammar.
-func LibraryAssetName(name, version string) string {
-	return LibraryFilename(name, version)
+// PackArchiveFilename returns the GitHub release asset name for a grammar pack
+// archive. Format: aide-grammar-{name}-{version}-{os}-{arch}.tar.gz
+func PackArchiveFilename(name, version string) string {
+	p := CurrentPlatform()
+	return "aide-grammar-" + name + "-" + version + "-" + p.OS + "-" + p.Arch + ".tar.gz"
 }

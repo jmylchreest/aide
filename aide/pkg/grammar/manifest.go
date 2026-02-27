@@ -21,6 +21,7 @@ type ManifestEntry struct {
 	File        string    `json:"file"`
 	SHA256      string    `json:"sha256"`
 	CSymbol     string    `json:"c_symbol"`
+	HasPack     bool      `json:"has_pack,omitempty"`
 	InstalledAt time.Time `json:"installed_at"`
 }
 

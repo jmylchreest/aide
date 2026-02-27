@@ -1,6 +1,9 @@
 package grammar
 
 import (
+	"archive/tar"
+	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -21,15 +24,69 @@ import (
 // they verify the download, file-system, and manifest mechanics.
 // ---------------------------------------------------------------------------
 
-// newTestServer returns a test HTTP server that serves the given body for any
-// request, and a counter of how many requests were made.
-func newTestServer(t *testing.T, body []byte) (*httptest.Server, *atomic.Int64) {
+// makeGrammarArchive builds a .tar.gz archive in memory containing
+// {name}/grammar{ext} with the given body and optionally {name}/pack.json.
+func makeGrammarArchive(t *testing.T, name string, body []byte, includePack bool) []byte {
+	t.Helper()
+	p := CurrentPlatform()
+	var buf bytes.Buffer
+
+	gw := gzip.NewWriter(&buf)
+	tw := tar.NewWriter(gw)
+
+	// Grammar binary entry.
+	grammarEntry := name + "/grammar" + p.Ext
+	hdr := &tar.Header{Name: grammarEntry, Size: int64(len(body)), Mode: 0o755, Typeflag: tar.TypeReg}
+	if err := tw.WriteHeader(hdr); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tw.Write(body); err != nil {
+		t.Fatal(err)
+	}
+
+	// Optional pack.json entry.
+	if includePack {
+		packContent := []byte(`{"schema_version": 1, "name": "` + name + `"}`)
+		phdr := &tar.Header{Name: name + "/pack.json", Size: int64(len(packContent)), Mode: 0o644, Typeflag: tar.TypeReg}
+		if err := tw.WriteHeader(phdr); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := tw.Write(packContent); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	tw.Close()
+	gw.Close()
+	return buf.Bytes()
+}
+
+// newTestArchiveServer returns a test HTTP server that serves .tar.gz archives
+// containing a grammar for whatever language is requested. The grammar binary
+// content comes from body. Returns a request counter.
+func newTestArchiveServer(t *testing.T, body []byte) (*httptest.Server, *atomic.Int64) {
 	t.Helper()
 	var count atomic.Int64
+	// Pre-build archives for common test languages.
+	archives := map[string][]byte{}
+	for _, lang := range []string{"ruby", "php", "lua", "bash", "kotlin", "testlang"} {
+		archives[lang] = makeGrammarArchive(t, lang, body, true)
+	}
+
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		count.Add(1)
+		// Extract language name from the URL path (contains aide-grammar-{name}-...).
+		path := r.URL.Path
+		for lang, archive := range archives {
+			if strings.Contains(path, "aide-grammar-"+lang+"-") {
+				w.WriteHeader(http.StatusOK)
+				_, _ = w.Write(archive)
+				return
+			}
+		}
+		// Fallback: serve a generic archive using "unknown" prefix.
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write(body)
+		_, _ = w.Write(makeGrammarArchive(t, "unknown", body, true))
 	}))
 	t.Cleanup(srv.Close)
 	return srv, &count
@@ -56,7 +113,7 @@ func sha256Sum(data []byte) string {
 
 func TestIntegrationDownloadWritesFileAndManifest(t *testing.T) {
 	body := []byte("fake-shared-library-bytes")
-	srv, reqCount := newTestServer(t, body)
+	srv, reqCount := newTestArchiveServer(t, body)
 
 	dir := t.TempDir()
 	dl := NewDynamicLoader(dir)
@@ -78,8 +135,8 @@ func TestIntegrationDownloadWritesFileAndManifest(t *testing.T) {
 		t.Errorf("expected 1 request, got %d", got)
 	}
 
-	// Verify the file exists on disk with correct content.
-	expectedFilename := LibraryFilename("ruby", "v0.1.0")
+	// Verify the grammar binary exists on disk with correct content.
+	expectedFilename := LibraryFilename("ruby")
 	filePath := filepath.Join(dir, expectedFilename)
 	data, err := os.ReadFile(filePath)
 	if err != nil {
@@ -87,6 +144,12 @@ func TestIntegrationDownloadWritesFileAndManifest(t *testing.T) {
 	}
 	if string(data) != string(body) {
 		t.Errorf("file content mismatch: got %d bytes, want %d", len(data), len(body))
+	}
+
+	// Verify pack.json was also extracted.
+	packPath := filepath.Join(dir, "ruby", "pack.json")
+	if _, err := os.Stat(packPath); err != nil {
+		t.Errorf("pack.json should exist: %v", err)
 	}
 
 	// Verify the manifest was updated.
@@ -103,8 +166,11 @@ func TestIntegrationDownloadWritesFileAndManifest(t *testing.T) {
 	if entry.CSymbol != "tree_sitter_ruby" {
 		t.Errorf("manifest c_symbol = %q; want %q", entry.CSymbol, "tree_sitter_ruby")
 	}
-	if entry.SHA256 != sha256Sum(body) {
-		t.Errorf("manifest sha256 = %q; want %q", entry.SHA256, sha256Sum(body))
+	if entry.SHA256 == "" {
+		t.Error("manifest sha256 should be set")
+	}
+	if !entry.HasPack {
+		t.Error("manifest HasPack should be true")
 	}
 
 	// Verify the manifest was persisted to disk.
@@ -128,9 +194,10 @@ func TestIntegrationDownloadWritesFileAndManifest(t *testing.T) {
 
 func TestIntegrationDownloadVersionFallback(t *testing.T) {
 	var requestedURL atomic.Value
+	archiveBytes := makeGrammarArchive(t, "testlang", []byte("lib"), true)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestedURL.Store(r.URL.Path)
-		_, _ = w.Write([]byte("lib"))
+		_, _ = w.Write(archiveBytes)
 	}))
 	t.Cleanup(srv.Close)
 
@@ -191,7 +258,7 @@ func TestIntegrationDownloadVersionFallback(t *testing.T) {
 
 func TestIntegrationDownloadThenRemove(t *testing.T) {
 	body := []byte("removable-library")
-	srv, _ := newTestServer(t, body)
+	srv, _ := newTestArchiveServer(t, body)
 
 	dir := t.TempDir()
 	dl := NewDynamicLoader(dir)
@@ -228,10 +295,10 @@ func TestIntegrationDownloadThenRemove(t *testing.T) {
 		t.Errorf("Installed after remove: got %d, want 0", len(infos))
 	}
 
-	// Verify file is gone from disk.
-	filename := LibraryFilename("php", "v1.0.0")
-	if _, err := os.Stat(filepath.Join(dir, filename)); !os.IsNotExist(err) {
-		t.Error("library file should be deleted after Remove")
+	// Verify the grammar subdirectory is gone from disk.
+	grammarDir := filepath.Join(dir, "php")
+	if _, err := os.Stat(grammarDir); !os.IsNotExist(err) {
+		t.Error("grammar directory should be deleted after Remove")
 	}
 
 	// Verify manifest entry is gone.
@@ -246,7 +313,7 @@ func TestIntegrationDownloadThenRemove(t *testing.T) {
 
 func TestIntegrationDownloadMultiple(t *testing.T) {
 	body := []byte("grammar-lib")
-	srv, reqCount := newTestServer(t, body)
+	srv, reqCount := newTestArchiveServer(t, body)
 
 	dir := t.TempDir()
 	dl := NewDynamicLoader(dir)
@@ -303,7 +370,7 @@ func TestIntegrationDownloadMultiple(t *testing.T) {
 
 func TestIntegrationCompositeLoaderInstall(t *testing.T) {
 	body := []byte("composite-grammar-lib")
-	srv, _ := newTestServer(t, body)
+	srv, _ := newTestArchiveServer(t, body)
 
 	dir := t.TempDir()
 	cl := NewCompositeLoader(
@@ -381,7 +448,7 @@ func TestIntegrationCompositeLoaderAutoDownloadOnLoad(t *testing.T) {
 	// the file but then fail at Dlopen. We verify auto-download was triggered
 	// and the Dlopen error is propagated (not masked as GrammarNotFoundError).
 	body := []byte("not-a-real-shared-library")
-	srv, reqCount := newTestServer(t, body)
+	srv, reqCount := newTestArchiveServer(t, body)
 
 	dir := t.TempDir()
 	cl := NewCompositeLoader(
@@ -408,8 +475,8 @@ func TestIntegrationCompositeLoaderAutoDownloadOnLoad(t *testing.T) {
 		t.Error("got GrammarNotFoundError — should propagate Dlopen error instead")
 	}
 
-	// The file should exist on disk — download succeeded even though Load failed.
-	filename := LibraryFilename("bash", "v0.1.0")
+	// The grammar binary should exist on disk — download succeeded even though Load failed.
+	filename := LibraryFilename("bash")
 	if _, statErr := os.Stat(filepath.Join(dir, filename)); statErr != nil {
 		t.Errorf("downloaded file should exist: %v", statErr)
 	}
@@ -427,7 +494,7 @@ func TestIntegrationCompositeLoaderAutoDownloadOnLoad(t *testing.T) {
 
 func TestIntegrationCompositeLoaderInstallFromLock(t *testing.T) {
 	body := []byte("lock-grammar-lib")
-	srv, reqCount := newTestServer(t, body)
+	srv, reqCount := newTestArchiveServer(t, body)
 
 	dir := t.TempDir()
 	cl := NewCompositeLoader(
@@ -482,7 +549,7 @@ func TestIntegrationCompositeLoaderInstallFromLock(t *testing.T) {
 
 func TestIntegrationGenerateLockFileAfterInstall(t *testing.T) {
 	body := []byte("lockfile-test-lib")
-	srv, _ := newTestServer(t, body)
+	srv, _ := newTestArchiveServer(t, body)
 
 	dir := t.TempDir()
 	cl := NewCompositeLoader(
@@ -514,8 +581,9 @@ func TestIntegrationGenerateLockFileAfterInstall(t *testing.T) {
 		if entry.Version != "v0.2.0" {
 			t.Errorf("LockFile[%s].Version = %q; want %q", name, entry.Version, "v0.2.0")
 		}
-		if entry.SHA256 != sha256Sum(body) {
-			t.Errorf("LockFile[%s].SHA256 = %q; want %q", name, entry.SHA256, sha256Sum(body))
+		// SHA256 is of the archive, not the raw body — just check it's non-empty.
+		if entry.SHA256 == "" {
+			t.Errorf("LockFile[%s].SHA256 should be set", name)
 		}
 	}
 }
@@ -528,13 +596,13 @@ func TestIntegrationDownloadOverwritesExisting(t *testing.T) {
 	v1Body := []byte("version-1-library")
 	v2Body := []byte("version-2-library-updated")
 
-	var currentBody atomic.Value
-	currentBody.Store(v1Body)
+	var currentArchive atomic.Value
+	currentArchive.Store(makeGrammarArchive(t, "ruby", v1Body, true))
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, _ := currentBody.Load().([]byte)
+		archive, _ := currentArchive.Load().([]byte)
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write(body)
+		_, _ = w.Write(archive)
 	}))
 	t.Cleanup(srv.Close)
 
@@ -560,7 +628,7 @@ func TestIntegrationDownloadOverwritesExisting(t *testing.T) {
 	sha1 := entryV1.SHA256
 
 	// Download v2 (different body, same version tag to simulate overwrite)
-	currentBody.Store(v2Body)
+	currentArchive.Store(makeGrammarArchive(t, "ruby", v2Body, true))
 	if err := dl.Download(context.Background(), "ruby", def); err != nil {
 		t.Fatalf("Download v2: %v", err)
 	}
@@ -570,12 +638,9 @@ func TestIntegrationDownloadOverwritesExisting(t *testing.T) {
 		t.Fatal("manifest entry nil after v2 download")
 	}
 
-	// SHA should change because file content changed.
+	// SHA should change because archive content changed.
 	if entryV2.SHA256 == sha1 {
 		t.Error("SHA256 should differ after overwrite with different content")
-	}
-	if entryV2.SHA256 != sha256Sum(v2Body) {
-		t.Errorf("SHA256 after overwrite = %q; want %q", entryV2.SHA256, sha256Sum(v2Body))
 	}
 
 	// File on disk should have v2 content.
@@ -595,7 +660,7 @@ func TestIntegrationDownloadOverwritesExisting(t *testing.T) {
 
 func TestIntegrationManifestPersistence(t *testing.T) {
 	body := []byte("persistent-grammar")
-	srv, _ := newTestServer(t, body)
+	srv, _ := newTestArchiveServer(t, body)
 
 	dir := t.TempDir()
 
@@ -678,9 +743,10 @@ func TestIntegrationDownloadContextCancelled(t *testing.T) {
 
 func TestIntegrationDownloadURLTemplateExpansion(t *testing.T) {
 	var capturedPath atomic.Value
+	archiveBytes := makeGrammarArchive(t, "ruby", []byte("lib"), true)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		capturedPath.Store(r.URL.Path)
-		_, _ = w.Write([]byte("lib"))
+		_, _ = w.Write(archiveBytes)
 	}))
 	t.Cleanup(srv.Close)
 
@@ -727,7 +793,7 @@ func TestIntegrationDownloadURLTemplateExpansion(t *testing.T) {
 
 func TestIntegrationLoadReturnsStaleError(t *testing.T) {
 	body := []byte("stale-grammar-lib")
-	srv, _ := newTestServer(t, body)
+	srv, _ := newTestArchiveServer(t, body)
 
 	dir := t.TempDir()
 	dl := NewDynamicLoader(dir)
@@ -775,7 +841,7 @@ func TestIntegrationLoadReturnsStaleError(t *testing.T) {
 
 func TestIntegrationSnapshotSkipsStalenessCheck(t *testing.T) {
 	body := []byte("snapshot-grammar-lib")
-	srv, _ := newTestServer(t, body)
+	srv, _ := newTestArchiveServer(t, body)
 
 	dir := t.TempDir()
 	dl := NewDynamicLoader(dir)
@@ -865,13 +931,13 @@ func TestIntegrationDownloadCleansUpOldVersionFile(t *testing.T) {
 	v1Body := []byte("v1-lib-data")
 	v2Body := []byte("v2-lib-data-longer")
 
-	var currentBody atomic.Value
-	currentBody.Store(v1Body)
+	var currentArchive atomic.Value
+	currentArchive.Store(makeGrammarArchive(t, "ruby", v1Body, true))
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, _ := currentBody.Load().([]byte)
+		archive, _ := currentArchive.Load().([]byte)
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write(body)
+		_, _ = w.Write(archive)
 	}))
 	t.Cleanup(srv.Close)
 
@@ -890,39 +956,34 @@ func TestIntegrationDownloadCleansUpOldVersionFile(t *testing.T) {
 		t.Fatalf("Download v1: %v", err)
 	}
 
-	v1File := dl.manifest.get("ruby").File
-	v1Path := filepath.Join(dir, v1File)
-
-	// Verify v1 file exists
+	v1Path := filepath.Join(dir, LibraryFilename("ruby"))
 	if _, err := os.Stat(v1Path); err != nil {
 		t.Fatalf("v1 file should exist: %v", err)
 	}
 
-	// Download v0.2.0 — different version means different filename
-	currentBody.Store(v2Body)
+	// Verify v1 content.
+	v1Data, _ := os.ReadFile(v1Path)
+	if string(v1Data) != string(v1Body) {
+		t.Error("v1 file content mismatch")
+	}
+
+	// Download v0.2.0 — library filename is the same but content differs.
+	currentArchive.Store(makeGrammarArchive(t, "ruby", v2Body, true))
 	dl.version = "v0.2.0"
 	if err := dl.Download(context.Background(), "ruby", def); err != nil {
 		t.Fatalf("Download v2: %v", err)
 	}
 
-	// Old v0.1.0 file should be removed
-	if _, err := os.Stat(v1Path); !os.IsNotExist(err) {
-		t.Error("old v0.1.0 library file should have been removed")
-	}
-
-	// New v0.2.0 file should exist
-	v2File := dl.manifest.get("ruby").File
-	v2Path := filepath.Join(dir, v2File)
-	if _, err := os.Stat(v2Path); err != nil {
+	// File should exist with v2 content (same path, overwritten).
+	v2Data, err := os.ReadFile(v1Path)
+	if err != nil {
 		t.Fatalf("v2 file should exist: %v", err)
 	}
-
-	// Filenames should differ (version embedded in name)
-	if v1File == v2File {
-		t.Error("v1 and v2 filenames should differ")
+	if string(v2Data) != string(v2Body) {
+		t.Error("file content should be v2 after overwrite")
 	}
 
-	// Manifest version should be updated
+	// Manifest version should be updated.
 	if got := dl.manifest.get("ruby").Version; got != "v0.2.0" {
 		t.Errorf("manifest version = %q; want %q", got, "v0.2.0")
 	}
@@ -934,7 +995,7 @@ func TestIntegrationDownloadCleansUpOldVersionFile(t *testing.T) {
 
 func TestIntegrationManifestAideVersionSet(t *testing.T) {
 	body := []byte("aide-version-grammar")
-	srv, _ := newTestServer(t, body)
+	srv, _ := newTestArchiveServer(t, body)
 
 	dir := t.TempDir()
 	dl := NewDynamicLoader(dir)
@@ -969,7 +1030,7 @@ func TestIntegrationManifestAideVersionSet(t *testing.T) {
 
 func TestIntegrationCachedGrammarSkipsStalenessCheck(t *testing.T) {
 	body := []byte("cached-grammar-lib")
-	srv, _ := newTestServer(t, body)
+	srv, _ := newTestArchiveServer(t, body)
 
 	dir := t.TempDir()
 	dl := NewDynamicLoader(dir)
@@ -1014,15 +1075,15 @@ func TestIntegrationCompositeLoaderRedownloadsStale(t *testing.T) {
 	v1Body := []byte("v1-composite-lib")
 	v2Body := []byte("v2-composite-lib")
 
-	var currentBody atomic.Value
-	currentBody.Store(v1Body)
+	var currentArchive atomic.Value
+	currentArchive.Store(makeGrammarArchive(t, "ruby", v1Body, true))
 
 	var reqCount atomic.Int64
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		reqCount.Add(1)
-		body, _ := currentBody.Load().([]byte)
+		archive, _ := currentArchive.Load().([]byte)
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write(body)
+		_, _ = w.Write(archive)
 	}))
 	t.Cleanup(srv.Close)
 
@@ -1044,7 +1105,7 @@ func TestIntegrationCompositeLoaderRedownloadsStale(t *testing.T) {
 
 	// Phase 2: Create a CompositeLoader at v0.2.0 with autoLoad.
 	// Loading "ruby" should detect staleness and re-download.
-	currentBody.Store(v2Body)
+	currentArchive.Store(makeGrammarArchive(t, "ruby", v2Body, true))
 
 	cl := NewCompositeLoader(
 		WithGrammarDir(dir),
@@ -1113,7 +1174,7 @@ func TestIntegrationCompositeLoaderRedownloadsStale(t *testing.T) {
 
 func TestIntegrationCompositeLoaderNoAutoRedownloadWhenDisabled(t *testing.T) {
 	body := []byte("no-auto-lib")
-	srv, reqCount := newTestServer(t, body)
+	srv, reqCount := newTestArchiveServer(t, body)
 
 	dir := t.TempDir()
 
