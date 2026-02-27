@@ -163,7 +163,7 @@ func messageAck(b *Backend, args []string) error {
 }
 
 // messageClear requires direct store access for destructive operations
-func messageClear(b *Backend, dbPath string, args []string) error {
+func messageClear(b *Backend, _ string, args []string) error {
 	agentID := parseFlag(args, "--agent=")
 	all := hasFlag(args, "--all")
 

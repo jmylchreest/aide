@@ -138,7 +138,8 @@ func cmdStatus(dbPath string, args []string) error {
 		return enc.Encode(status)
 	}
 
-	return printStatusTable(status)
+	printStatusTable(status)
+	return nil
 }
 
 // populateFromGRPC fills the StatusOutput from a gRPC StatusResponse.
@@ -217,7 +218,7 @@ func populateFromGRPC(status *StatusOutput, resp *grpcapi.StatusResponse) {
 	}
 }
 
-func printStatusTable(status StatusOutput) error {
+func printStatusTable(status StatusOutput) {
 	fmt.Println("AIDE Status")
 	fmt.Println("──────────────────────────────────────────────────────────────")
 	fmt.Println()
@@ -236,60 +237,82 @@ func printStatusTable(status StatusOutput) error {
 	}
 	fmt.Println()
 
-	// File Watcher
+	printWatcherStatus(status.Watcher)
+	printCodeStatus(status.Code)
+	printFindingsStatus(status.Findings)
+	printMCPToolsStatus(status.MCPTools)
+	printStoresStatus(status.Stores)
+
+	// Environment
+	if len(status.Env) > 0 {
+		fmt.Println("ENVIRONMENT")
+		keys := make([]string, 0, len(status.Env))
+		for k := range status.Env {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			fmt.Printf("  %s=%s\n", k, status.Env[k])
+		}
+	}
+}
+
+func printWatcherStatus(w *WatcherStatus) {
 	fmt.Println("FILE WATCHER")
-	if status.Watcher != nil && status.Watcher.Enabled {
-		paths := strings.Join(status.Watcher.Paths, ", ")
+	if w != nil && w.Enabled {
+		paths := strings.Join(w.Paths, ", ")
 		if paths == "" {
 			paths = "."
 		}
 		fmt.Printf("  Status:       enabled\n")
 		fmt.Printf("  Paths:        %s\n", paths)
-		fmt.Printf("  Dirs:         %-20d Debounce:    %s\n", status.Watcher.DirsWatched, status.Watcher.Debounce)
-		fmt.Printf("  Pending:      %-20d Subscribers: %s\n", status.Watcher.PendingFiles, strings.Join(status.Watcher.Subscribers, ", "))
+		fmt.Printf("  Dirs:         %-20d Debounce:    %s\n", w.DirsWatched, w.Debounce)
+		fmt.Printf("  Pending:      %-20d Subscribers: %s\n", w.PendingFiles, strings.Join(w.Subscribers, ", "))
 	} else {
 		fmt.Println("  Status:       disabled")
 	}
 	fmt.Println()
+}
 
-	// Code Indexer
+func printCodeStatus(c *CodeStatus) {
 	fmt.Println("CODE INDEXER")
-	if status.Code != nil {
-		fmt.Printf("  Status:       %-20s Symbols:     %d\n", status.Code.Status, status.Code.Symbols)
-		fmt.Printf("  Files:        %-20d References:  %d\n", status.Code.Files, status.Code.References)
+	if c != nil {
+		fmt.Printf("  Status:       %-20s Symbols:     %d\n", c.Status, c.Symbols)
+		fmt.Printf("  Files:        %-20d References:  %d\n", c.Files, c.References)
 	} else {
 		fmt.Println("  Status:       not available")
 	}
 	fmt.Println()
+}
 
-	// Findings Analysers
+func printFindingsStatus(f *FindingsStatus) {
 	fmt.Println("FINDINGS ANALYSERS")
-	if status.Findings != nil {
-		fmt.Printf("  Total: %d", status.Findings.Total)
-		if len(status.Findings.ByAnalyzer) > 0 {
-			var parts []string
-			var names []string
-			for name := range status.Findings.ByAnalyzer {
+	if f != nil {
+		fmt.Printf("  Total: %d", f.Total)
+		if len(f.ByAnalyzer) > 0 {
+			names := make([]string, 0, len(f.ByAnalyzer))
+			for name := range f.ByAnalyzer {
 				names = append(names, name)
 			}
 			sort.Strings(names)
+			parts := make([]string, 0, len(names))
 			for _, name := range names {
-				parts = append(parts, fmt.Sprintf("%s: %d", name, status.Findings.ByAnalyzer[name]))
+				parts = append(parts, fmt.Sprintf("%s: %d", name, f.ByAnalyzer[name]))
 			}
 			fmt.Printf("  (%s)", strings.Join(parts, ", "))
 		}
 		fmt.Println()
-		if len(status.Findings.Analyzers) > 0 {
+		if len(f.Analyzers) > 0 {
 			fmt.Println()
 			fmt.Println("  Analyser     Scope            Status    Findings  Last Run")
 			fmt.Println("  ───────────  ───────────────  ────────  ────────  ─────────")
-			var anames []string
-			for name := range status.Findings.Analyzers {
+			anames := make([]string, 0, len(f.Analyzers))
+			for name := range f.Analyzers {
 				anames = append(anames, name)
 			}
 			sort.Strings(anames)
 			for _, name := range anames {
-				s := status.Findings.Analyzers[name]
+				s := f.Analyzers[name]
 				scope := s.Scope
 				if scope == "" {
 					scope = "<project>"
@@ -304,10 +327,11 @@ func printStatusTable(status StatusOutput) error {
 		fmt.Println("  Status:       not available")
 	}
 	fmt.Println()
+}
 
-	// MCP Tools
+func printMCPToolsStatus(tools []MCPToolStatus) {
 	fmt.Println("MCP TOOLS")
-	if len(status.MCPTools) > 0 {
+	if len(tools) > 0 {
 		// Group tools by category, track counts
 		type toolInfo struct {
 			name  string
@@ -315,20 +339,20 @@ func printStatusTable(status StatusOutput) error {
 		}
 		categories := make(map[string][]toolInfo)
 		var totalCalls int64
-		for _, t := range status.MCPTools {
+		for _, t := range tools {
 			categories[t.Category] = append(categories[t.Category], toolInfo{t.Name, t.ExecutionCount})
 			totalCalls += t.ExecutionCount
 		}
-		var cats []string
+		cats := make([]string, 0, len(categories))
 		for c := range categories {
 			cats = append(cats, c)
 		}
 		sort.Strings(cats)
 		for _, cat := range cats {
-			tools := categories[cat]
-			sort.Slice(tools, func(i, j int) bool { return tools[i].name < tools[j].name })
+			catTools := categories[cat]
+			sort.Slice(catTools, func(i, j int) bool { return catTools[i].name < catTools[j].name })
 			var toolStrs []string
-			for _, t := range tools {
+			for _, t := range catTools {
 				if t.count > 0 {
 					toolStrs = append(toolStrs, fmt.Sprintf("%s(%d)", t.name, t.count))
 				} else {
@@ -337,13 +361,13 @@ func printStatusTable(status StatusOutput) error {
 			}
 			fmt.Printf("  %-12s %s\n", cat+":", strings.Join(toolStrs, ", "))
 		}
-		fmt.Printf("  Total: %d tools, %d calls", len(status.MCPTools), totalCalls)
+		fmt.Printf("  Total: %d tools, %d calls", len(tools), totalCalls)
 		if totalCalls > 0 {
 			// List every tool with calls > 0
 			var calledTools []string
 			for _, cat := range cats {
-				tools := categories[cat]
-				for _, t := range tools {
+				catTools := categories[cat]
+				for _, t := range catTools {
 					if t.count > 0 {
 						calledTools = append(calledTools, fmt.Sprintf("%s: %d", t.name, t.count))
 					}
@@ -356,48 +380,34 @@ func printStatusTable(status StatusOutput) error {
 		fmt.Println("  Not available (server not running)")
 	}
 	fmt.Println()
+}
 
-	// Stores — deterministic order
+func printStoresStatus(stores StoreStatus) {
 	fmt.Println("STORES")
 	storeOrder := []string{"memory.db", "memory.bleve", "code.db", "code.bleve", "findings.db", "findings.bleve"}
 	printed := make(map[string]bool)
 	for _, name := range storeOrder {
-		path, ok := status.Stores.Paths[name]
+		path, ok := stores.Paths[name]
 		if !ok {
 			continue
 		}
-		size := status.Stores.Sizes[name]
+		size := stores.Sizes[name]
 		fmt.Printf("  %-16s %s (%s)\n", name+":", path, formatBytes(size))
 		printed[name] = true
 	}
 	// Any stores not in the predefined order
 	var extra []string
-	for name := range status.Stores.Paths {
+	for name := range stores.Paths {
 		if !printed[name] {
 			extra = append(extra, name)
 		}
 	}
 	sort.Strings(extra)
 	for _, name := range extra {
-		size := status.Stores.Sizes[name]
-		fmt.Printf("  %-16s %s (%s)\n", name+":", status.Stores.Paths[name], formatBytes(size))
+		size := stores.Sizes[name]
+		fmt.Printf("  %-16s %s (%s)\n", name+":", stores.Paths[name], formatBytes(size))
 	}
 	fmt.Println()
-
-	// Environment
-	if len(status.Env) > 0 {
-		fmt.Println("ENVIRONMENT")
-		var keys []string
-		for k := range status.Env {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-		for _, k := range keys {
-			fmt.Printf("  %s=%s\n", k, status.Env[k])
-		}
-	}
-
-	return nil
 }
 
 func formatBytes(b int64) string {
@@ -411,26 +421,6 @@ func formatBytes(b int64) string {
 		exp++
 	}
 	return fmt.Sprintf("%.1f %cB", float64(b)/float64(div), "KMGTPE"[exp])
-}
-
-func formatTimeAgo(t time.Time) string {
-	if t.IsZero() {
-		return "never"
-	}
-	d := time.Since(t)
-	if d < time.Second {
-		return "just now"
-	}
-	if d < time.Minute {
-		return fmt.Sprintf("%ds ago", int(d.Seconds()))
-	}
-	if d < time.Hour {
-		return fmt.Sprintf("%dm ago", int(d.Minutes()))
-	}
-	if d < 24*time.Hour {
-		return fmt.Sprintf("%dh ago", int(d.Hours()))
-	}
-	return fmt.Sprintf("%dd ago", int(d.Hours()/24))
 }
 
 func getStoreStatus(dbPath string) StoreStatus {

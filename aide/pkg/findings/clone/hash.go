@@ -71,10 +71,10 @@ func (rh *RollingHash) ComputeHashes(tokens []Token) []HashEntry {
 	for i := 1; i <= n-rh.window; i++ {
 		// Remove contribution of tokens[i-1], add tokens[i+window-1].
 		old := HashToken(tokens[i-1].Kind)
-		new := HashToken(tokens[i+rh.window-1].Kind)
+		next := HashToken(tokens[i+rh.window-1].Kind)
 
 		h = (h + hashMod - (old*rh.basePow)%hashMod) % hashMod
-		h = (h*hashBase + new) % hashMod
+		h = (h*hashBase + next) % hashMod
 
 		results = append(results, HashEntry{
 			Hash:      h,

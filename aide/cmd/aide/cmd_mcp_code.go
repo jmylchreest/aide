@@ -526,7 +526,7 @@ func buildOutline(content []byte, symbols []*code.Symbol, stripComments bool) st
 
 // filterLeafBodies returns only body ranges for leaf symbols (functions, methods)
 // and not for container symbols (classes, interfaces) that contain other symbols.
-func filterLeafBodies(ranges []bodyRange, symbols []*code.Symbol) []bodyRange {
+func filterLeafBodies(ranges []bodyRange, _ []*code.Symbol) []bodyRange {
 	var result []bodyRange
 	for _, r := range ranges {
 		kind := r.symbol.Kind

@@ -315,7 +315,7 @@ func (r *Runner) analyzeFileComplexity(ctx context.Context, filePath string, con
 	return analyzeFileComplexity(r.loader, content, filePath, lang, langCfg, threshold), nil
 }
 
-func (r *Runner) analyzeFileSecrets(ctx context.Context, filePath string, content []byte) ([]*Finding, error) {
+func (r *Runner) analyzeFileSecrets(ctx context.Context, filePath string, _ []byte) ([]*Finding, error) {
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()

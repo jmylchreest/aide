@@ -457,6 +457,84 @@ pub fn main() !void {
 }
 
 // ---------------------------------------------------------------------------
+// ParseContent — dynamic grammars (bash, lua)
+// These require dynamic grammar libraries to be installed.
+// Tests are skipped in CI (auto-download disabled, no grammars present).
+// ---------------------------------------------------------------------------
+
+func TestParseContentBash(t *testing.T) {
+	p := newTestParser()
+	content := []byte(`#!/bin/bash
+
+function greet() {
+    local name=$1
+    echo "Hello, $name!"
+}
+
+function farewell() {
+    local name=$1
+    echo "Goodbye, $name!"
+}
+
+function main() {
+    greet "world"
+    farewell "world"
+}
+`)
+
+	symbols, err := p.ParseContent(content, LangBash, "script.sh")
+	if err != nil {
+		t.Fatalf("ParseContent: %v", err)
+	}
+	if symbols == nil {
+		t.Skip("bash grammar not available (dynamic grammar not installed)")
+	}
+
+	names := symbolNames(symbols)
+	assertContains(t, names, "greet", "function greet")
+	assertContains(t, names, "farewell", "function farewell")
+	assertContains(t, names, "main", "function main")
+}
+
+func TestParseContentLua(t *testing.T) {
+	p := newTestParser()
+	content := []byte(`
+local function fibonacci(n)
+    if n <= 1 then
+        return n
+    end
+    return fibonacci(n - 1) + fibonacci(n - 2)
+end
+
+local function factorial(n)
+    if n == 0 then
+        return 1
+    end
+    return n * factorial(n - 1)
+end
+
+local M = {}
+
+function M.greet(name)
+    print("Hello, " .. name)
+end
+`)
+
+	symbols, err := p.ParseContent(content, LangLua, "lib.lua")
+	if err != nil {
+		t.Fatalf("ParseContent: %v", err)
+	}
+	if symbols == nil {
+		t.Skip("lua grammar not available (dynamic grammar not installed)")
+	}
+
+	names := symbolNames(symbols)
+	assertContains(t, names, "fibonacci", "function fibonacci")
+	assertContains(t, names, "factorial", "function factorial")
+	assertContains(t, names, "greet", "method M.greet")
+}
+
+// ---------------------------------------------------------------------------
 // ParseContent — edge cases
 // ---------------------------------------------------------------------------
 

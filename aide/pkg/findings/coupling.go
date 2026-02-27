@@ -411,13 +411,15 @@ func extractPythonImports(content []byte) []string {
 }
 
 func extractTSImports(content []byte) []string {
-	var imports []string
 	text := string(content)
+	fromMatches := tsImportFrom.FindAllStringSubmatch(text, -1)
+	reqMatches := tsRequire.FindAllStringSubmatch(text, -1)
 
-	for _, m := range tsImportFrom.FindAllStringSubmatch(text, -1) {
+	imports := make([]string, 0, len(fromMatches)+len(reqMatches))
+	for _, m := range fromMatches {
 		imports = append(imports, m[1])
 	}
-	for _, m := range tsRequire.FindAllStringSubmatch(text, -1) {
+	for _, m := range reqMatches {
 		imports = append(imports, m[1])
 	}
 	return imports

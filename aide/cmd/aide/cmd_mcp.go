@@ -37,8 +37,6 @@ type MCPServer struct {
 	codeInitWg     sync.WaitGroup
 	server         *mcp.Server
 	grpcServer     *grpcapi.Server
-	codeWatcher    *code.Watcher
-	codeWatcherMu  sync.Mutex
 	grammarLoader  *grammar.CompositeLoader
 
 	unifiedWatcher   *watcher.Watcher

@@ -9,7 +9,7 @@ import (
 // testdataDir returns the absolute path to the clone testdata directory.
 func testdataDir(t *testing.T) string {
 	t.Helper()
-	dir, err := filepath.Abs(filepath.Join("testdata"))
+	dir, err := filepath.Abs("testdata")
 	if err != nil {
 		t.Fatalf("failed to resolve testdata dir: %v", err)
 	}

@@ -120,7 +120,7 @@ func (s *MCPServer) handleFindingsSearch(_ context.Context, _ *mcp.CallToolReque
 	}
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("Found %d findings:\n\n", len(results)))
+	fmt.Fprintf(&sb, "Found %d findings:\n\n", len(results))
 	for _, r := range results {
 		f := r.Finding
 		sb.WriteString(formatFindingLine(f))
@@ -154,7 +154,7 @@ func (s *MCPServer) handleFindingsList(_ context.Context, _ *mcp.CallToolRequest
 	}
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("Found %d findings:\n\n", len(results)))
+	fmt.Fprintf(&sb, "Found %d findings:\n\n", len(results))
 	for _, f := range results {
 		sb.WriteString(formatFindingLine(f))
 	}
@@ -175,12 +175,12 @@ func (s *MCPServer) handleFindingsStats(_ context.Context, _ *mcp.CallToolReques
 	}
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("Total findings: %d\n\n", stats.Total))
+	fmt.Fprintf(&sb, "Total findings: %d\n\n", stats.Total)
 
 	if len(stats.ByAnalyzer) > 0 {
 		sb.WriteString("By analyser:\n")
 		for name, count := range stats.ByAnalyzer {
-			sb.WriteString(fmt.Sprintf("  %-12s %d\n", name, count))
+			fmt.Fprintf(&sb, "  %-12s %d\n", name, count)
 		}
 		sb.WriteString("\n")
 	}
@@ -188,7 +188,7 @@ func (s *MCPServer) handleFindingsStats(_ context.Context, _ *mcp.CallToolReques
 	if len(stats.BySeverity) > 0 {
 		sb.WriteString("By severity:\n")
 		for sev, count := range stats.BySeverity {
-			sb.WriteString(fmt.Sprintf("  %-12s %d\n", sev, count))
+			fmt.Fprintf(&sb, "  %-12s %d\n", sev, count)
 		}
 	}
 

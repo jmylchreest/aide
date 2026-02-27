@@ -51,8 +51,9 @@ jobs:
             fi
 
             # Snapshot version: {major}.{minor}.{next_patch}-dev.{commits}+{hash}
-            if git describe --tags --always --long 2>/dev/null | grep -q '^v'; then
-              DESCRIBE=$(git describe --tags --always --long 2>/dev/null)
+            # Use --match 'v*' to skip non-version tags (e.g. 'snapshot')
+            if git describe --tags --match 'v*' --always --long 2>/dev/null | grep -q '^v'; then
+              DESCRIBE=$(git describe --tags --match 'v*' --always --long 2>/dev/null)
               if [[ $DESCRIBE =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)-([0-9]+)-g([a-f0-9]+)$ ]]; then
                 MAJOR=${BASH_REMATCH[1]}
                 MINOR=${BASH_REMATCH[2]}

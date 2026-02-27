@@ -1,3 +1,4 @@
+// Package watcher provides file system watching for aide projects.
 package watcher
 
 import (
@@ -241,7 +242,7 @@ func (w *Watcher) processEvents() {
 			if event.Op&fsnotify.Create != 0 {
 				if info, err := os.Stat(event.Name); err == nil && info.IsDir() {
 					name := filepath.Base(event.Name)
-					if !DefaultSkipDirs[name] && !(len(name) > 1 && name[0] == '.') {
+					if !DefaultSkipDirs[name] && (len(name) <= 1 || name[0] != '.') {
 						if err := w.fsnotify.Add(event.Name); err == nil {
 							w.dirsWatched++
 							watchLog.Printf("watching new directory: %s", event.Name)

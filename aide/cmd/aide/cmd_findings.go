@@ -364,7 +364,7 @@ func cmdFindingsSearch(dbPath string, args []string) error {
 	defer backend.Close()
 
 	// limit=0 means no limit; negative values from the store mean unlimited.
-	storeLimit := limit
+	var storeLimit int
 	if limit <= 0 {
 		storeLimit = -1
 	} else {
@@ -436,7 +436,7 @@ func cmdFindingsList(dbPath string, args []string) error {
 	defer backend.Close()
 
 	// limit=0 means no limit; negative values from the store mean unlimited.
-	storeLimit := limit
+	var storeLimit int
 	if limit <= 0 {
 		storeLimit = -1
 	} else {

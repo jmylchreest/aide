@@ -356,11 +356,12 @@ func (s *FindingsStoreImpl) SearchFindings(queryStr string, opts findings.Search
 	}
 
 	var searchQuery query.Query
-	if len(queries) == 0 {
+	switch len(queries) {
+	case 0:
 		searchQuery = bleve.NewMatchAllQuery()
-	} else if len(queries) == 1 {
+	case 1:
 		searchQuery = queries[0]
-	} else {
+	default:
 		searchQuery = bleve.NewConjunctionQuery(queries...)
 	}
 

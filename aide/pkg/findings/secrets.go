@@ -159,7 +159,7 @@ func AnalyzeSecrets(cfg SecretsConfig) ([]*Finding, *SecretsResult, error) {
 			for _, match := range matches {
 				line := 0
 				if match.Location.Source.Start.Line > 0 {
-					line = int(match.Location.Source.Start.Line)
+					line = match.Location.Source.Start.Line
 				}
 
 				severity := SevWarning
@@ -278,21 +278,21 @@ func categorizeSecretRule(ruleID string) string {
 func buildSecretDetail(match *titus.Match, filePath string) string {
 	var sb strings.Builder
 
-	sb.WriteString(fmt.Sprintf("Rule: %s (%s)\n", match.RuleName, match.RuleID))
-	sb.WriteString(fmt.Sprintf("File: %s\n", filePath))
+	fmt.Fprintf(&sb, "Rule: %s (%s)\n", match.RuleName, match.RuleID)
+	fmt.Fprintf(&sb, "File: %s\n", filePath)
 
 	if match.Location.Source.Start.Line > 0 {
-		sb.WriteString(fmt.Sprintf("Line: %d", match.Location.Source.Start.Line))
+		fmt.Fprintf(&sb, "Line: %d", match.Location.Source.Start.Line)
 		if match.Location.Source.Start.Column > 0 {
-			sb.WriteString(fmt.Sprintf(", Column: %d", match.Location.Source.Start.Column))
+			fmt.Fprintf(&sb, ", Column: %d", match.Location.Source.Start.Column)
 		}
 		sb.WriteString("\n")
 	}
 
 	if match.ValidationResult != nil {
-		sb.WriteString(fmt.Sprintf("Validation: %s", match.ValidationResult.Status))
+		fmt.Fprintf(&sb, "Validation: %s", match.ValidationResult.Status)
 		if match.ValidationResult.Message != "" {
-			sb.WriteString(fmt.Sprintf(" (%s)", match.ValidationResult.Message))
+			fmt.Fprintf(&sb, " (%s)", match.ValidationResult.Message)
 		}
 		sb.WriteString("\n")
 	}
@@ -307,7 +307,7 @@ func buildSecretDetail(match *titus.Match, filePath string) string {
 			if len(line) > 120 {
 				line = line[:120] + "..."
 			}
-			sb.WriteString(fmt.Sprintf("  %s\n", line))
+			fmt.Fprintf(&sb, "  %s\n", line)
 		}
 		sb.WriteString("  [REDACTED SECRET]\n")
 		afterLines := strings.Split(strings.TrimSpace(string(match.Snippet.After)), "\n")
@@ -315,7 +315,7 @@ func buildSecretDetail(match *titus.Match, filePath string) string {
 			if len(line) > 120 {
 				line = line[:120] + "..."
 			}
-			sb.WriteString(fmt.Sprintf("  %s\n", line))
+			fmt.Fprintf(&sb, "  %s\n", line)
 		}
 	}
 

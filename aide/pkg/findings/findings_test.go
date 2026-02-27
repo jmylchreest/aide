@@ -9,7 +9,7 @@ import (
 // testdataDir returns the absolute path to the testdata directory.
 func testdataDir(t *testing.T) string {
 	t.Helper()
-	dir, err := filepath.Abs(filepath.Join("testdata"))
+	dir, err := filepath.Abs("testdata")
 	if err != nil {
 		t.Fatalf("failed to resolve testdata dir: %v", err)
 	}
@@ -367,7 +367,7 @@ func TestSecretsAnalyzer_FindingFields(t *testing.T) {
 
 // findingSummary returns a human-readable summary of findings (for error messages).
 func findingSummary(ff []*Finding) []string {
-	var ss []string
+	ss := make([]string, 0, len(ff))
 	for _, f := range ff {
 		ss = append(ss, f.Severity+":"+f.Category+":"+f.FilePath)
 	}

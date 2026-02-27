@@ -12,11 +12,11 @@ func Report(result *Result) string {
 	sb.WriteString("Clone Detection Report\n")
 	sb.WriteString("======================\n\n")
 
-	sb.WriteString(fmt.Sprintf("Files analyzed:  %d\n", result.FilesAnalyzed))
-	sb.WriteString(fmt.Sprintf("Files skipped:   %d\n", result.FilesSkipped))
-	sb.WriteString(fmt.Sprintf("Clone groups:    %d\n", result.CloneGroups))
-	sb.WriteString(fmt.Sprintf("Findings:        %d\n", result.FindingsCount))
-	sb.WriteString(fmt.Sprintf("Duration:        %s\n", result.Duration.Round(1_000_000)))
+	fmt.Fprintf(&sb, "Files analyzed:  %d\n", result.FilesAnalyzed)
+	fmt.Fprintf(&sb, "Files skipped:   %d\n", result.FilesSkipped)
+	fmt.Fprintf(&sb, "Clone groups:    %d\n", result.CloneGroups)
+	fmt.Fprintf(&sb, "Findings:        %d\n", result.FindingsCount)
+	fmt.Fprintf(&sb, "Duration:        %s\n", result.Duration.Round(1_000_000))
 
 	if result.CloneGroups == 0 {
 		sb.WriteString("\nNo code clones detected.\n")
