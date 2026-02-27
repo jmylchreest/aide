@@ -7,6 +7,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/jmylchreest/aide/aide/pkg/aideignore"
 	"github.com/jmylchreest/aide/aide/pkg/grammar"
 )
 
@@ -192,6 +193,7 @@ func TestCouplingAnalyzer_HighFanOut(t *testing.T) {
 		FanOutThreshold: 15,
 		FanInThreshold:  20,
 		Paths:           []string{dir},
+		Ignore:          aideignore.NewEmpty(), // allow scanning testdata
 	})
 	if err != nil {
 		t.Fatalf("AnalyzeCoupling error: %v", err)
@@ -228,6 +230,7 @@ func TestCouplingAnalyzer_ThresholdAbove(t *testing.T) {
 		FanOutThreshold: 100,
 		FanInThreshold:  100,
 		Paths:           []string{dir},
+		Ignore:          aideignore.NewEmpty(), // allow scanning testdata
 	})
 	if err != nil {
 		t.Fatalf("AnalyzeCoupling error: %v", err)
@@ -499,6 +502,7 @@ func TestCouplingAnalyzer_NoFanInForExternalImports(t *testing.T) {
 		FanOutThreshold: 100, // high → suppress fan-out findings
 		FanInThreshold:  1,   // very low → would trigger on everything
 		Paths:           []string{dir},
+		Ignore:          aideignore.NewEmpty(), // allow scanning testdata
 	})
 	if err != nil {
 		t.Fatalf("AnalyzeCoupling error: %v", err)

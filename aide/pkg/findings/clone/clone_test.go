@@ -4,7 +4,13 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/jmylchreest/aide/aide/pkg/aideignore"
 )
+
+// noIgnore is a matcher with no rules, used by tests to scan testdata
+// directories that would otherwise be excluded by built-in aideignore defaults.
+var noIgnore = aideignore.NewEmpty()
 
 // testdataDir returns the absolute path to the clone testdata directory.
 func testdataDir(t *testing.T) string {
@@ -27,7 +33,8 @@ func TestDetectClones_DuplicatedFunctions(t *testing.T) {
 	dir := testdataDir(t)
 
 	findings, result, err := DetectClones(Config{
-		Paths: []string{dir},
+		Paths:  []string{dir},
+		Ignore: noIgnore,
 	})
 	if err != nil {
 		t.Fatalf("DetectClones error: %v", err)
@@ -107,6 +114,7 @@ func TestDetectClones_CustomWindowSize(t *testing.T) {
 		WindowSize:    3,
 		MinCloneLines: 6,
 		Paths:         []string{dir},
+		Ignore:        noIgnore,
 	})
 	if err != nil {
 		t.Fatalf("DetectClones (small window) error: %v", err)
@@ -116,6 +124,7 @@ func TestDetectClones_CustomWindowSize(t *testing.T) {
 		WindowSize:    20,
 		MinCloneLines: 6,
 		Paths:         []string{dir},
+		Ignore:        noIgnore,
 	})
 	if err != nil {
 		t.Fatalf("DetectClones (large window) error: %v", err)
@@ -134,7 +143,8 @@ func TestDetectClones_FindingFields(t *testing.T) {
 	dir := testdataDir(t)
 
 	findings, _, err := DetectClones(Config{
-		Paths: []string{dir},
+		Paths:  []string{dir},
+		Ignore: noIgnore,
 	})
 	if err != nil {
 		t.Fatalf("DetectClones error: %v", err)
@@ -176,6 +186,7 @@ func TestDetectClones_MinMatchCount(t *testing.T) {
 		Paths:         []string{dir},
 		WindowSize:    20,
 		MinMatchCount: 1000, // impossibly high
+		Ignore:        noIgnore,
 	})
 	if err != nil {
 		t.Fatalf("DetectClones error: %v", err)
@@ -194,6 +205,7 @@ func TestDetectClones_MinSimilarity(t *testing.T) {
 	strictFindings, _, err := DetectClones(Config{
 		Paths:         []string{dir},
 		MinSimilarity: 1.0,
+		Ignore:        noIgnore,
 	})
 	if err != nil {
 		t.Fatalf("DetectClones (strict) error: %v", err)
@@ -203,6 +215,7 @@ func TestDetectClones_MinSimilarity(t *testing.T) {
 	relaxedFindings, _, err := DetectClones(Config{
 		Paths:         []string{dir},
 		MinSimilarity: 0.0,
+		Ignore:        noIgnore,
 	})
 	if err != nil {
 		t.Fatalf("DetectClones (relaxed) error: %v", err)
@@ -225,6 +238,7 @@ func TestDetectClones_MaxBucketSize(t *testing.T) {
 	limitedFindings, result, err := DetectClones(Config{
 		Paths:         []string{dir},
 		MaxBucketSize: 1,
+		Ignore:        noIgnore,
 	})
 	if err != nil {
 		t.Fatalf("DetectClones (limited bucket) error: %v", err)
@@ -234,6 +248,7 @@ func TestDetectClones_MaxBucketSize(t *testing.T) {
 	unlimitedFindings, _, err := DetectClones(Config{
 		Paths:         []string{dir},
 		MaxBucketSize: -1, // disabled
+		Ignore:        noIgnore,
 	})
 	if err != nil {
 		t.Fatalf("DetectClones (unlimited bucket) error: %v", err)
@@ -258,6 +273,7 @@ func TestDetectClones_LanguageIsolation(t *testing.T) {
 	isoFindings, _, err := DetectClones(Config{
 		Paths:             []string{dir},
 		LanguageIsolation: &trueVal,
+		Ignore:            noIgnore,
 	})
 	if err != nil {
 		t.Fatalf("DetectClones (iso=true) error: %v", err)
@@ -267,6 +283,7 @@ func TestDetectClones_LanguageIsolation(t *testing.T) {
 	noIsoFindings, _, err := DetectClones(Config{
 		Paths:             []string{dir},
 		LanguageIsolation: &falseVal,
+		Ignore:            noIgnore,
 	})
 	if err != nil {
 		t.Fatalf("DetectClones (iso=false) error: %v", err)
@@ -289,6 +306,7 @@ func TestDetectClones_BucketsSkippedReported(t *testing.T) {
 	_, result, err := DetectClones(Config{
 		Paths:         []string{dir},
 		MaxBucketSize: 1,
+		Ignore:        noIgnore,
 	})
 	if err != nil {
 		t.Fatalf("DetectClones error: %v", err)
@@ -309,6 +327,7 @@ func TestDetectClones_GroupedReporting(t *testing.T) {
 	findings, _, err := DetectClones(Config{
 		Paths:         []string{dir},
 		MinCloneLines: 6,
+		Ignore:        noIgnore,
 	})
 	if err != nil {
 		t.Fatalf("DetectClones error: %v", err)
@@ -389,6 +408,7 @@ func TestDetectClones_MinSeverity(t *testing.T) {
 		Paths:         []string{dir},
 		MinCloneLines: 6, // Low threshold to generate info-level findings.
 		MinSeverity:   "info",
+		Ignore:        noIgnore,
 	})
 	if err != nil {
 		t.Fatalf("DetectClones (min-severity=info) error: %v", err)
@@ -399,6 +419,7 @@ func TestDetectClones_MinSeverity(t *testing.T) {
 		Paths:         []string{dir},
 		MinCloneLines: 6,
 		MinSeverity:   "warning",
+		Ignore:        noIgnore,
 	})
 	if err != nil {
 		t.Fatalf("DetectClones (min-severity=warning) error: %v", err)
@@ -409,6 +430,7 @@ func TestDetectClones_MinSeverity(t *testing.T) {
 		Paths:         []string{dir},
 		MinCloneLines: 6,
 		MinSeverity:   "critical",
+		Ignore:        noIgnore,
 	})
 	if err != nil {
 		t.Fatalf("DetectClones (min-severity=critical) error: %v", err)

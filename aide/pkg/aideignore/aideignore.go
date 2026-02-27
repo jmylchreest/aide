@@ -159,6 +159,12 @@ func NewFromDefaults() *Matcher {
 	return m
 }
 
+// NewEmpty creates a Matcher with no rules at all — nothing is ignored.
+// Use this in tests that need to scan testdata or other normally-excluded paths.
+func NewEmpty() *Matcher {
+	return &Matcher{}
+}
+
 // ShouldIgnore reports whether the given path (relative to the project root)
 // should be ignored. isDir must be true when path refers to a directory.
 //
