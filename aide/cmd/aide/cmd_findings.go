@@ -62,9 +62,9 @@ Subcommands:
 Options:
   run <analyser> [paths...]:
     Analysers: complexity, coupling, secrets, clones, all
-    --threshold=N    Complexity threshold (default 10)
-    --fan-out=N      Coupling fan-out threshold (default 15)
-    --fan-in=N       Coupling fan-in threshold (default 20)
+    --threshold=N    Complexity threshold (default %d)
+    --fan-out=N      Coupling fan-out threshold (default %d)
+    --fan-in=N       Coupling fan-in threshold (default %d)
     --window=N          Clone window size in tokens (default %d)
     --min-lines=N       Clone minimum line span (default %d)
     --min-match-count=N Clone minimum matching windows per region (default %d)
@@ -79,7 +79,7 @@ Options:
     --severity=LEVEL Filter by severity (critical, warning, info)
     --file=PATH      Filter by file path pattern (substring)
     --category=CAT   Filter by category
-    --limit=N        Max results (default 20, 0 for no limit)
+    --limit=N        Max results (default %d, 0 for no limit)
     --json           Output as JSON
 
   list:
@@ -87,7 +87,7 @@ Options:
     --severity=LEVEL Filter by severity
     --file=PATH      Filter by file path pattern
     --category=CAT   Filter by category
-    --limit=N        Max results (default 100, 0 for no limit)
+    --limit=N        Max results (default %d, 0 for no limit)
     --json           Output as JSON
 
   clear [--analyser=NAME]:
@@ -104,12 +104,14 @@ Examples:
   aide findings search "cyclomatic"
   aide findings list --file=src/auth
   aide findings clear --analyser=secrets
-`, clone.DefaultWindowSize, clone.DefaultMinCloneLines, clone.DefaultMinMatchCount,
-		clone.DefaultMaxBucketSize, clone.DefaultMinSimilarity, clone.DefaultMinSeverity)
+`, findings.DefaultComplexityThreshold, findings.DefaultFanOutThreshold, findings.DefaultFanInThreshold,
+		clone.DefaultWindowSize, clone.DefaultMinCloneLines, clone.DefaultMinMatchCount,
+		clone.DefaultMaxBucketSize, clone.DefaultMinSimilarity, clone.DefaultMinSeverity,
+		findings.DefaultSearchLimit, findings.DefaultListLimit)
 }
 
 // cmdFindingsRun runs one or more static analyzers and stores findings.
-func cmdFindingsRun(dbPath string, args []string) error {
+func cmdFindingsRun(dbPath string, args []string) error { //nolint:gocyclo // CLI dispatcher with many analyser cases
 	if len(args) < 1 {
 		return fmt.Errorf("usage: aide findings run <analyser|all> [paths...] [options]")
 	}
@@ -134,7 +136,7 @@ func cmdFindingsRun(dbPath string, args []string) error {
 	projectRoot := projectRoot(dbPath)
 	cfg := loadFindingsConfig(projectRoot)
 
-	threshold := 10
+	threshold := findings.DefaultComplexityThreshold
 	if cfg.Complexity.Threshold > 0 {
 		threshold = cfg.Complexity.Threshold
 	}
@@ -145,7 +147,7 @@ func cmdFindingsRun(dbPath string, args []string) error {
 			threshold = v
 		}
 	}
-	fanOut := 15
+	fanOut := findings.DefaultFanOutThreshold
 	if cfg.Coupling.FanOut > 0 {
 		fanOut = cfg.Coupling.FanOut
 	}
@@ -156,7 +158,7 @@ func cmdFindingsRun(dbPath string, args []string) error {
 			fanOut = v
 		}
 	}
-	fanIn := 20
+	fanIn := findings.DefaultFanInThreshold
 	if cfg.Coupling.FanIn > 0 {
 		fanIn = cfg.Coupling.FanIn
 	}
@@ -459,7 +461,7 @@ func cmdFindingsSearch(dbPath string, args []string) error {
 	severity := parseFlag(args, "--severity=")
 	filePath := parseFlag(args, "--file=")
 	category := parseFlag(args, "--category=")
-	limit := 20
+	limit := findings.DefaultSearchLimit
 	if l := parseFlag(args, "--limit="); l != "" {
 		n, err := strconv.Atoi(l)
 		if err != nil {
@@ -535,7 +537,7 @@ func cmdFindingsList(dbPath string, args []string) error {
 	severity := parseFlag(args, "--severity=")
 	filePath := parseFlag(args, "--file=")
 	category := parseFlag(args, "--category=")
-	limit := 100
+	limit := findings.DefaultListLimit
 	if l := parseFlag(args, "--limit="); l != "" {
 		n, err := strconv.Atoi(l)
 		if err != nil {

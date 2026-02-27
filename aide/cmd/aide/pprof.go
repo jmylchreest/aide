@@ -24,9 +24,9 @@ func initPprof() {
 	srv := &http.Server{
 		Addr:         pprofAddr,
 		Handler:      nil,
-		ReadTimeout:  30 * time.Second,
-		WriteTimeout: 60 * time.Second,
-		IdleTimeout:  120 * time.Second,
+		ReadTimeout:  DefaultPprofReadTimeout,
+		WriteTimeout: DefaultPprofWriteTimeout,
+		IdleTimeout:  DefaultPprofIdleTimeout,
 	}
 	pprofServer = srv
 	go func() {
@@ -39,7 +39,7 @@ func initPprof() {
 
 func stopPprof() {
 	if pprofServer != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), DefaultPprofShutdownTimeout)
 		defer cancel()
 		if err := pprofServer.Shutdown(ctx); err != nil {
 			mcpLog.Printf("pprof shutdown error: %v", err)

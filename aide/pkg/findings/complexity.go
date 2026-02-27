@@ -17,7 +17,7 @@ import (
 
 // ComplexityConfig configures the complexity analyzer.
 type ComplexityConfig struct {
-	// Threshold is the minimum complexity to report (default 10).
+	// Threshold is the minimum complexity to report (default DefaultComplexityThreshold).
 	Threshold int
 	// Paths to analyze (default: current directory).
 	Paths []string
@@ -91,7 +91,7 @@ var genericComplexityLang = &complexityLang{
 // It returns findings for functions/methods that exceed the configured threshold.
 func AnalyzeComplexity(cfg ComplexityConfig) ([]*Finding, *ComplexityResult, error) {
 	if cfg.Threshold <= 0 {
-		cfg.Threshold = 10
+		cfg.Threshold = DefaultComplexityThreshold
 	}
 	if len(cfg.Paths) == 0 {
 		cfg.Paths = []string{"."}
@@ -210,7 +210,7 @@ func analyzeFileComplexity(ctx context.Context, loader grammar.Loader, content [
 			if complexity >= threshold {
 				name := extractFuncName(node, content, langCfg.nameField)
 				severity := SevInfo
-				if complexity >= threshold*2 {
+				if complexity >= threshold*SeverityCriticalMultiplier {
 					severity = SevCritical
 				} else if complexity >= threshold {
 					severity = SevWarning

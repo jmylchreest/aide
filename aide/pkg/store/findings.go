@@ -352,7 +352,7 @@ func (s *FindingsStoreImpl) SearchFindings(queryStr string, opts findings.Search
 	}
 	limit := opts.Limit
 	if limit == 0 {
-		limit = 20
+		limit = findings.DefaultSearchLimit
 	} else if limit < 0 {
 		limit = 100_000 // Effectively unlimited for bleve.
 	}
@@ -418,7 +418,7 @@ func (s *FindingsStoreImpl) SearchFindings(queryStr string, opts findings.Search
 func (s *FindingsStoreImpl) ListFindings(opts findings.SearchOptions) ([]*findings.Finding, error) {
 	limit := opts.Limit
 	if limit == 0 {
-		limit = 100
+		limit = findings.DefaultListLimit
 	} else if limit < 0 {
 		limit = 0 // Negative means no limit; the >0 check below will never break.
 	}

@@ -32,7 +32,7 @@ func TestComplexityAnalyzer_HighComplexity(t *testing.T) {
 	dir := testdataDir(t)
 
 	findings, result, err := AnalyzeComplexity(ComplexityConfig{
-		Threshold: 10,
+		Threshold: DefaultComplexityThreshold,
 		Paths:     []string{filepath.Join(dir, "complex_high.go")},
 	})
 	if err != nil {

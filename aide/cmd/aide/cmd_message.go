@@ -95,7 +95,7 @@ func messageSend(b *Backend, args []string) error {
 		return fmt.Errorf("--from is required")
 	}
 
-	ttlSeconds := 3600 // default 1 hour
+	ttlSeconds := DefaultMessageTTLSeconds // default 1 hour
 	if ttlStr != "" {
 		n, err := strconv.Atoi(ttlStr)
 		if err != nil {

@@ -83,12 +83,12 @@ func (g *importGraph) addEdge(from, to string) {
 // AnalyzeCoupling analyzes import coupling between files.
 // It reports files with high fan-out (too many imports), high fan-in
 // (too many dependents), and import cycles.
-func AnalyzeCoupling(cfg CouplingConfig) ([]*Finding, *CouplingResult, error) {
+func AnalyzeCoupling(cfg CouplingConfig) ([]*Finding, *CouplingResult, error) { //nolint:gocyclo // multi-phase import analysis pipeline
 	if cfg.FanOutThreshold <= 0 {
-		cfg.FanOutThreshold = 15
+		cfg.FanOutThreshold = DefaultFanOutThreshold
 	}
 	if cfg.FanInThreshold <= 0 {
-		cfg.FanInThreshold = 20
+		cfg.FanInThreshold = DefaultFanInThreshold
 	}
 	if len(cfg.Paths) == 0 {
 		cfg.Paths = []string{"."}
@@ -165,7 +165,7 @@ func AnalyzeCoupling(cfg CouplingConfig) ([]*Finding, *CouplingResult, error) {
 		fanOut := len(imports)
 		if fanOut >= cfg.FanOutThreshold {
 			severity := SevWarning
-			if fanOut >= cfg.FanOutThreshold*2 {
+			if fanOut >= cfg.FanOutThreshold*SeverityCriticalMultiplier {
 				severity = SevCritical
 			}
 
@@ -207,7 +207,7 @@ func AnalyzeCoupling(cfg CouplingConfig) ([]*Finding, *CouplingResult, error) {
 		fanIn := len(dependents)
 		if fanIn >= cfg.FanInThreshold {
 			severity := SevInfo
-			if fanIn >= cfg.FanInThreshold*2 {
+			if fanIn >= cfg.FanInThreshold*SeverityCriticalMultiplier {
 				severity = SevWarning
 			}
 
@@ -243,7 +243,7 @@ func AnalyzeCoupling(cfg CouplingConfig) ([]*Finding, *CouplingResult, error) {
 	result.CyclesFound = len(cycles)
 
 	for i, cycle := range cycles {
-		if i >= 50 { // Cap at 50 cycle findings
+		if i >= DefaultMaxCycleFindings { // Cap cycle findings
 			break
 		}
 		cycleStr := strings.Join(cycle, " -> ") + " -> " + cycle[0]

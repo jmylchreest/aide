@@ -47,4 +47,9 @@ const (
 	// MaxFileSize is the maximum file size (in bytes) processed by the
 	// clone detector. Files larger than this are skipped.
 	MaxFileSize = 512 * 1024
+
+	// DefaultMaxWorkers caps the number of parallel tokenisation
+	// goroutines during clone detection. Limiting concurrency prevents
+	// excessive memory use on large codebases.
+	DefaultMaxWorkers = 16
 )

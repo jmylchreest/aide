@@ -44,12 +44,12 @@ func defaultSecretsPaths(paths []string) []string {
 	return []string{"."}
 }
 
-// defaultMaxFileSize returns the max file size, defaulting to 1MB.
+// defaultMaxFileSize returns the max file size, defaulting to DefaultSecretsMaxFileSize.
 func defaultMaxFileSize(size int64) int64 {
 	if size > 0 {
 		return size
 	}
-	return 1 << 20 // 1MB
+	return DefaultSecretsMaxFileSize
 }
 
 // secretsSkipExtensions contains file extensions to skip (binary/large files).
@@ -290,16 +290,16 @@ func buildSecretDetail(match *titus.Match, filePath string) string {
 		// Only show context lines, NOT the matching line (which contains the secret).
 		beforeLines := strings.Split(strings.TrimSpace(string(match.Snippet.Before)), "\n")
 		for _, line := range beforeLines {
-			if len(line) > 120 {
-				line = line[:120] + "..."
+			if len(line) > DefaultSnippetTruncateLen {
+				line = line[:DefaultSnippetTruncateLen] + "..."
 			}
 			fmt.Fprintf(&sb, "  %s\n", line)
 		}
 		sb.WriteString("  [REDACTED SECRET]\n")
 		afterLines := strings.Split(strings.TrimSpace(string(match.Snippet.After)), "\n")
 		for _, line := range afterLines {
-			if len(line) > 120 {
-				line = line[:120] + "..."
+			if len(line) > DefaultSnippetTruncateLen {
+				line = line[:DefaultSnippetTruncateLen] + "..."
 			}
 			fmt.Fprintf(&sb, "  %s\n", line)
 		}

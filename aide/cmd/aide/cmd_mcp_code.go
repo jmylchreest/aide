@@ -152,7 +152,7 @@ func (s *MCPServer) handleCodeSearch(_ context.Context, _ *mcp.CallToolRequest, 
 
 	limit := input.Limit
 	if limit <= 0 {
-		limit = 20
+		limit = DefaultCodeSearchLimit
 	}
 
 	// Auto-wrap simple queries with wildcards for substring matching
@@ -265,7 +265,7 @@ func (s *MCPServer) handleCodeReferences(_ context.Context, _ *mcp.CallToolReque
 
 	limit := input.Limit
 	if limit <= 0 {
-		limit = 50
+		limit = DefaultCodeRefsLimit
 	}
 
 	opts := code.ReferenceSearchOptions{

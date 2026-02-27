@@ -112,7 +112,7 @@ func NewRunner(store ReplaceFindingsStore, config AnalyzerConfig, loader grammar
 		status: make(map[string]*AnalyzerStatus),
 		ctx:    ctx,
 		cancel: cancel,
-		sem:    make(chan struct{}, 16), // Limit concurrent per-file goroutines
+		sem:    make(chan struct{}, DefaultRunnerConcurrency), // Limit concurrent per-file goroutines
 	}
 }
 
@@ -309,10 +309,10 @@ func (r *Runner) runProjectAnalyzer(ctx context.Context, analyzer string) ([]*Fi
 			Ignore:          r.ignore(),
 		}
 		if cfg.FanOutThreshold <= 0 {
-			cfg.FanOutThreshold = 15
+			cfg.FanOutThreshold = DefaultFanOutThreshold
 		}
 		if cfg.FanInThreshold <= 0 {
-			cfg.FanInThreshold = 20
+			cfg.FanInThreshold = DefaultFanInThreshold
 		}
 		findings, _, err := AnalyzeCoupling(cfg)
 		return findings, err
@@ -326,11 +326,11 @@ func (r *Runner) runProjectAnalyzer(ctx context.Context, analyzer string) ([]*Fi
 		// the canonical values for any zero fields anyway.
 		windowSize := r.config.CloneWindowSize
 		if windowSize <= 0 {
-			windowSize = 50
+			windowSize = DefaultCloneWindowSize
 		}
 		minLines := r.config.CloneMinLines
 		if minLines <= 0 {
-			minLines = 20
+			minLines = DefaultCloneMinLines
 		}
 		return r.clonesRunner(ctx, paths, ClonesRunnerConfig{
 			WindowSize:    windowSize,
@@ -362,7 +362,7 @@ func (r *Runner) analyzeFileComplexity(ctx context.Context, filePath string, con
 
 	threshold := r.config.ComplexityThreshold
 	if threshold <= 0 {
-		threshold = 10
+		threshold = DefaultComplexityThreshold
 	}
 
 	return analyzeFileComplexity(ctx, r.loader, content, filePath, lang, langCfg, threshold), nil
@@ -378,7 +378,7 @@ func (r *Runner) analyzeFileSecrets(ctx context.Context, filePath string, _ []by
 	cfg := SecretsConfig{
 		Paths:          []string{filePath},
 		SkipValidation: true,
-		MaxFileSize:    10 << 20,
+		MaxFileSize:    DefaultRunnerSecretsMaxFileSize,
 	}
 
 	findings, _, err := AnalyzeSecrets(cfg)
@@ -432,7 +432,7 @@ func (r *Runner) Stop() {
 
 	select {
 	case <-done:
-	case <-time.After(30 * time.Second):
+	case <-time.After(DefaultRunnerStopTimeout):
 		runnerLog.Printf("timeout waiting for analyzers to stop")
 	}
 }

@@ -528,7 +528,7 @@ func (b *Backend) SendMessage(from, to, content, msgType string, ttlSeconds int)
 	}
 
 	if ttlSeconds == 0 {
-		ttlSeconds = 3600
+		ttlSeconds = DefaultMessageTTLSeconds
 	}
 	msg := &memory.Message{
 		From:      from,

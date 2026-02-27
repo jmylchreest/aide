@@ -171,7 +171,7 @@ func (s *MCPServer) initMCPCodeStore(dbPath string, cfg *mcpConfig, grpcServer *
 		s.codeInitWg.Add(1)
 		go func() {
 			defer s.codeInitWg.Done()
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(DefaultMCPPollInterval)
 			cs, err := openCodeStore()
 			if err != nil {
 				mcpLog.Printf("WARNING: lazy code store init failed: %v", err)
@@ -225,11 +225,11 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 
 	go func() {
 		if cfg.codeStoreLazy {
-			for i := 0; i < 50; i++ {
+			for i := 0; i < DefaultMCPPollCount; i++ {
 				if s.codeStoreReady.Load() {
 					break
 				}
-				time.Sleep(100 * time.Millisecond)
+				time.Sleep(DefaultMCPPollInterval)
 			}
 		}
 
@@ -417,7 +417,7 @@ func cmdMCP(dbPath string, args []string) error {
 	if grpcapi.SocketExistsForDB(dbPath) {
 		client, err := grpcapi.NewClientForDB(dbPath)
 		if err == nil {
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), DefaultPingTimeout)
 			pingErr := client.Ping(ctx)
 			cancel()
 			if pingErr == nil {

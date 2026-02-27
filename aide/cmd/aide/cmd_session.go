@@ -102,8 +102,8 @@ Examples:
 // 6. Fetch recent session memories
 func sessionInit(dbPath string, args []string) error {
 	project := parseFlag(args, "--project=")
-	cleanupAge := 30 * time.Minute
-	sessionLimit := 3
+	cleanupAge := DefaultSessionCleanupAge
+	sessionLimit := DefaultSessionLimit
 
 	if dur := parseFlag(args, "--cleanup-age="); dur != "" {
 		if d, err := time.ParseDuration(dur); err == nil {

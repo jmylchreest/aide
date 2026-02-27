@@ -4,7 +4,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi"
 	"github.com/jmylchreest/aide/aide/pkg/store"
@@ -32,7 +31,7 @@ func NewBackend(dbPath string) (*Backend, error) {
 		client, err := grpcapi.NewClientForDB(dbPath)
 		if err == nil {
 			// Verify connection works
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), DefaultPingTimeout)
 			defer cancel()
 			if err := client.Ping(ctx); err == nil {
 				b.grpcClient = client

@@ -112,7 +112,7 @@ func (cfg *Config) defaults() (windowSize, minLines, minMatchCount, maxBucket, s
 	if cfg.MinSeverity != "" {
 		minSev = cfg.MinSeverity
 	}
-	return
+	return windowSize, minLines, minMatchCount, maxBucket, sevWarn, sevCrit, minSim, langIso, minSev
 }
 
 // tokenizedFile holds the tokenisation result for a single file.
@@ -125,7 +125,7 @@ type tokenizedFile struct {
 
 // DetectClones analyzes source files for code clones using Rabin-Karp hashing.
 // It returns findings for each clone group and a result summary.
-func DetectClones(cfg Config) ([]*findings.Finding, *Result, error) {
+func DetectClones(cfg Config) ([]*findings.Finding, *Result, error) { //nolint:gocyclo // multi-phase clone detection pipeline
 	start := time.Now()
 	windowSize, minLines, minMatchCount, maxBucket, sevWarn, sevCrit, minSim, langIso, minSev := cfg.defaults()
 
@@ -206,8 +206,8 @@ func DetectClones(cfg Config) ([]*findings.Finding, *Result, error) {
 
 	// Parallel tokenisation.
 	workers := runtime.GOMAXPROCS(0)
-	if workers > 16 {
-		workers = 16
+	if workers > DefaultMaxWorkers {
+		workers = DefaultMaxWorkers
 	}
 	if workers < 1 {
 		workers = 1
