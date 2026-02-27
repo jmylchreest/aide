@@ -16,7 +16,7 @@ var embeddedPacks embed.FS
 var (
 	defaultRegistryOnce sync.Once
 	defaultRegistry     *PackRegistry
-	defaultRegistryErr  error
+	errDefaultRegistry  error
 )
 
 // DefaultPackRegistry returns a lazily-initialised singleton PackRegistry
@@ -24,8 +24,8 @@ var (
 // All standalone functions (DetectLanguage, SupportedFile, etc.) use this.
 func DefaultPackRegistry() *PackRegistry {
 	defaultRegistryOnce.Do(func() {
-		defaultRegistry, defaultRegistryErr = NewPackRegistry()
-		if defaultRegistryErr != nil {
+		defaultRegistry, errDefaultRegistry = NewPackRegistry()
+		if errDefaultRegistry != nil {
 			// This should never happen with valid embedded data.
 			// Fall back to an empty registry rather than panicking.
 			defaultRegistry = &PackRegistry{

@@ -5,8 +5,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -25,8 +23,8 @@ import (
 // ---------------------------------------------------------------------------
 
 // makeGrammarArchive builds a .tar.gz archive in memory containing
-// {name}/grammar{ext} with the given body and optionally {name}/pack.json.
-func makeGrammarArchive(t *testing.T, name string, body []byte, includePack bool) []byte {
+// {name}/grammar{ext} with the given body and {name}/pack.json.
+func makeGrammarArchive(t *testing.T, name string, body []byte) []byte {
 	t.Helper()
 	p := CurrentPlatform()
 	var buf bytes.Buffer
@@ -44,16 +42,14 @@ func makeGrammarArchive(t *testing.T, name string, body []byte, includePack bool
 		t.Fatal(err)
 	}
 
-	// Optional pack.json entry.
-	if includePack {
-		packContent := []byte(`{"schema_version": 1, "name": "` + name + `"}`)
-		phdr := &tar.Header{Name: name + "/pack.json", Size: int64(len(packContent)), Mode: 0o644, Typeflag: tar.TypeReg}
-		if err := tw.WriteHeader(phdr); err != nil {
-			t.Fatal(err)
-		}
-		if _, err := tw.Write(packContent); err != nil {
-			t.Fatal(err)
-		}
+	// pack.json entry.
+	packContent := []byte(`{"schema_version": 1, "name": "` + name + `"}`)
+	phdr := &tar.Header{Name: name + "/pack.json", Size: int64(len(packContent)), Mode: 0o644, Typeflag: tar.TypeReg}
+	if err := tw.WriteHeader(phdr); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tw.Write(packContent); err != nil {
+		t.Fatal(err)
 	}
 
 	tw.Close()
@@ -70,7 +66,7 @@ func newTestArchiveServer(t *testing.T, body []byte) (*httptest.Server, *atomic.
 	// Pre-build archives for common test languages.
 	archives := map[string][]byte{}
 	for _, lang := range []string{"ruby", "php", "lua", "bash", "kotlin", "testlang"} {
-		archives[lang] = makeGrammarArchive(t, lang, body, true)
+		archives[lang] = makeGrammarArchive(t, lang, body)
 	}
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -86,7 +82,7 @@ func newTestArchiveServer(t *testing.T, body []byte) (*httptest.Server, *atomic.
 		}
 		// Fallback: serve a generic archive using "unknown" prefix.
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write(makeGrammarArchive(t, "unknown", body, true))
+		_, _ = w.Write(makeGrammarArchive(t, "unknown", body))
 	}))
 	t.Cleanup(srv.Close)
 	return srv, &count
@@ -100,11 +96,6 @@ func newTest404Server(t *testing.T) *httptest.Server {
 	}))
 	t.Cleanup(srv.Close)
 	return srv
-}
-
-func sha256Sum(data []byte) string {
-	h := sha256.Sum256(data)
-	return hex.EncodeToString(h[:])
 }
 
 // ---------------------------------------------------------------------------
@@ -194,7 +185,7 @@ func TestIntegrationDownloadWritesFileAndManifest(t *testing.T) {
 
 func TestIntegrationDownloadVersionFallback(t *testing.T) {
 	var requestedURL atomic.Value
-	archiveBytes := makeGrammarArchive(t, "testlang", []byte("lib"), true)
+	archiveBytes := makeGrammarArchive(t, "testlang", []byte("lib"))
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestedURL.Store(r.URL.Path)
 		_, _ = w.Write(archiveBytes)
@@ -597,7 +588,7 @@ func TestIntegrationDownloadOverwritesExisting(t *testing.T) {
 	v2Body := []byte("version-2-library-updated")
 
 	var currentArchive atomic.Value
-	currentArchive.Store(makeGrammarArchive(t, "ruby", v1Body, true))
+	currentArchive.Store(makeGrammarArchive(t, "ruby", v1Body))
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		archive, _ := currentArchive.Load().([]byte)
@@ -628,7 +619,7 @@ func TestIntegrationDownloadOverwritesExisting(t *testing.T) {
 	sha1 := entryV1.SHA256
 
 	// Download v2 (different body, same version tag to simulate overwrite)
-	currentArchive.Store(makeGrammarArchive(t, "ruby", v2Body, true))
+	currentArchive.Store(makeGrammarArchive(t, "ruby", v2Body))
 	if err := dl.Download(context.Background(), "ruby", def); err != nil {
 		t.Fatalf("Download v2: %v", err)
 	}
@@ -743,7 +734,7 @@ func TestIntegrationDownloadContextCancelled(t *testing.T) {
 
 func TestIntegrationDownloadURLTemplateExpansion(t *testing.T) {
 	var capturedPath atomic.Value
-	archiveBytes := makeGrammarArchive(t, "ruby", []byte("lib"), true)
+	archiveBytes := makeGrammarArchive(t, "ruby", []byte("lib"))
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		capturedPath.Store(r.URL.Path)
 		_, _ = w.Write(archiveBytes)
@@ -932,7 +923,7 @@ func TestIntegrationDownloadCleansUpOldVersionFile(t *testing.T) {
 	v2Body := []byte("v2-lib-data-longer")
 
 	var currentArchive atomic.Value
-	currentArchive.Store(makeGrammarArchive(t, "ruby", v1Body, true))
+	currentArchive.Store(makeGrammarArchive(t, "ruby", v1Body))
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		archive, _ := currentArchive.Load().([]byte)
@@ -968,7 +959,7 @@ func TestIntegrationDownloadCleansUpOldVersionFile(t *testing.T) {
 	}
 
 	// Download v0.2.0 — library filename is the same but content differs.
-	currentArchive.Store(makeGrammarArchive(t, "ruby", v2Body, true))
+	currentArchive.Store(makeGrammarArchive(t, "ruby", v2Body))
 	dl.version = "v0.2.0"
 	if err := dl.Download(context.Background(), "ruby", def); err != nil {
 		t.Fatalf("Download v2: %v", err)
@@ -1076,7 +1067,7 @@ func TestIntegrationCompositeLoaderRedownloadsStale(t *testing.T) {
 	v2Body := []byte("v2-composite-lib")
 
 	var currentArchive atomic.Value
-	currentArchive.Store(makeGrammarArchive(t, "ruby", v1Body, true))
+	currentArchive.Store(makeGrammarArchive(t, "ruby", v1Body))
 
 	var reqCount atomic.Int64
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1105,7 +1096,7 @@ func TestIntegrationCompositeLoaderRedownloadsStale(t *testing.T) {
 
 	// Phase 2: Create a CompositeLoader at v0.2.0 with autoLoad.
 	// Loading "ruby" should detect staleness and re-download.
-	currentArchive.Store(makeGrammarArchive(t, "ruby", v2Body, true))
+	currentArchive.Store(makeGrammarArchive(t, "ruby", v2Body))
 
 	cl := NewCompositeLoader(
 		WithGrammarDir(dir),
