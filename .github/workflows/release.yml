@@ -170,6 +170,12 @@ jobs:
             export CXX="zig c++ -target ${{ matrix.zig_target }}"
           fi
 
+          # Suppress dllexport redeclaration warnings from upstream go-tree-sitter CGO
+          # when cross-compiling for Windows (7 warnings from CGO export header prolog)
+          if [[ "${{ matrix.goos }}" == "windows" ]]; then
+            export CGO_CFLAGS="-g -O2 -Wno-dll-attribute-on-redeclaration"
+          fi
+
           BINARY_NAME="aide-${{ matrix.goos }}-${{ matrix.goarch }}"
           if [[ "${{ matrix.goos }}" == "windows" ]]; then
             BINARY_NAME="${BINARY_NAME}.exe"
