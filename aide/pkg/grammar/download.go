@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/jmylchreest/aide/aide/pkg/httputil"
 )
 
 const (
@@ -90,19 +92,20 @@ func downloadAndExtractGrammarPack(ctx context.Context, urlTemplate, name, versi
 	return archiveSHA, hasPack, nil
 }
 
+// grammarHTTPClient is the shared retry-capable client for grammar downloads.
+var grammarHTTPClient = httputil.NewClient(
+	httputil.WithHTTPTimeout(httpTimeout),
+)
+
 // downloadToFile downloads a URL to a local file, computing SHA256 on the fly.
-// Returns the hex-encoded SHA256 checksum.
+// Returns the hex-encoded SHA256 checksum. Retries transient failures (429,
+// 502, 503, connection resets) with exponential backoff.
 func downloadToFile(ctx context.Context, url, destPath string) (string, error) {
 	if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
 		return "", fmt.Errorf("creating directory: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return "", fmt.Errorf("creating request: %w", err)
-	}
-
-	resp, err := (&http.Client{Timeout: httpTimeout}).Do(req)
+	resp, err := grammarHTTPClient.Get(ctx, url)
 	if err != nil {
 		return "", fmt.Errorf("downloading %s: %w", url, err)
 	}

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -21,7 +20,8 @@ type CodeSearchResult struct {
 }
 
 func (b *Backend) SearchCode(query string, kind, language, filePath string, limit int) ([]*CodeSearchResult, error) {
-	ctx := context.Background()
+	ctx, cancel := b.rpcCtx()
+	defer cancel()
 
 	if b.useGRPC {
 		resp, err := b.grpcClient.Code.Search(ctx, &grpcapi.CodeSearchRequest{
@@ -65,7 +65,8 @@ func (b *Backend) SearchCode(query string, kind, language, filePath string, limi
 }
 
 func (b *Backend) GetFileSymbols(filePath string) ([]*code.Symbol, error) {
-	ctx := context.Background()
+	ctx, cancel := b.rpcCtx()
+	defer cancel()
 
 	if b.useGRPC {
 		resp, err := b.grpcClient.Code.Symbols(ctx, &grpcapi.CodeSymbolsRequest{
@@ -92,7 +93,8 @@ func (b *Backend) GetFileSymbols(filePath string) ([]*code.Symbol, error) {
 }
 
 func (b *Backend) GetCodeStats() (*code.IndexStats, error) {
-	ctx := context.Background()
+	ctx, cancel := b.rpcCtx()
+	defer cancel()
 
 	if b.useGRPC {
 		resp, err := b.grpcClient.Code.Stats(ctx, &grpcapi.CodeStatsRequest{})
@@ -148,7 +150,8 @@ func (b *Backend) IndexCode(paths []string, force bool) (*CodeIndexResult, error
 
 // IndexCodeWithProgress indexes code with an optional progress callback.
 func (b *Backend) IndexCodeWithProgress(paths []string, force bool, progress func(path string, symbols int)) (*CodeIndexResult, error) {
-	ctx := context.Background()
+	ctx, cancel := b.rpcCtx()
+	defer cancel()
 
 	if b.useGRPC {
 		resp, err := b.grpcClient.Code.Index(ctx, &grpcapi.CodeIndexRequest{
@@ -261,7 +264,8 @@ func (b *Backend) IndexCodeWithProgress(paths []string, force bool, progress fun
 }
 
 func (b *Backend) ClearCode() (int, int, error) {
-	ctx := context.Background()
+	ctx, cancel := b.rpcCtx()
+	defer cancel()
 
 	if b.useGRPC {
 		resp, err := b.grpcClient.Code.Clear(ctx, &grpcapi.CodeClearRequest{})

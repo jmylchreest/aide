@@ -70,6 +70,12 @@ func (b *Backend) UsingGRPC() bool {
 	return b.useGRPC
 }
 
+// rpcCtx returns a context with a 10-second deadline for gRPC calls.
+// This matches the timeout used by grpcStoreAdapter.rpcCtx.
+func (b *Backend) rpcCtx() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), grpcRPCTimeout)
+}
+
 // openCodeStore opens the code store for direct access.
 func (b *Backend) openCodeStore() (store.CodeIndexStore, error) {
 	indexPath, searchPath := getCodeStorePaths(b.dbPath)

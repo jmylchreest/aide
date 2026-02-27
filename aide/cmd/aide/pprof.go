@@ -21,7 +21,13 @@ func initPprof() {
 	if !strings.HasPrefix(pprofAddr, "127.0.0.1:") && !strings.HasPrefix(pprofAddr, "localhost:") {
 		mcpLog.Printf("WARNING: pprof binding to %s - this exposes debug endpoints", pprofAddr)
 	}
-	srv := &http.Server{Addr: pprofAddr, Handler: nil}
+	srv := &http.Server{
+		Addr:         pprofAddr,
+		Handler:      nil,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 60 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	}
 	pprofServer = srv
 	go func() {
 		mcpLog.Printf("pprof server starting on http://%s/debug/pprof/", pprofAddr)

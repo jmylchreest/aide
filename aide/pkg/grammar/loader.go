@@ -348,14 +348,20 @@ func (cl *CompositeLoader) InstallFromLock(ctx context.Context, lf *LockFile) ([
 	}
 
 	var installedNames []string
+	var errs []error
 	for _, name := range lf.Names() {
 		if installed[name] {
 			continue
 		}
 		if err := cl.Install(ctx, name); err != nil {
-			return installedNames, fmt.Errorf("installing %s: %w", name, err)
+			// Record the failure but continue installing remaining grammars.
+			errs = append(errs, fmt.Errorf("installing %s: %w", name, err))
+			continue
 		}
 		installedNames = append(installedNames, name)
+	}
+	if len(errs) > 0 {
+		return installedNames, fmt.Errorf("%d grammar(s) failed to install: %w", len(errs), errors.Join(errs...))
 	}
 	return installedNames, nil
 }

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -16,7 +15,8 @@ import (
 // =============================================================================
 
 func (b *Backend) AddMemory(content, category string, tags []string) (*memory.Memory, error) {
-	ctx := context.Background()
+	ctx, cancel := b.rpcCtx()
+	defer cancel()
 
 	if b.useGRPC {
 		resp, err := b.grpcClient.Memory.Add(ctx, &grpcapi.MemoryAddRequest{
@@ -44,7 +44,8 @@ func (b *Backend) AddMemory(content, category string, tags []string) (*memory.Me
 }
 
 func (b *Backend) SearchMemories(query string, limit int) ([]*memory.Memory, error) {
-	ctx := context.Background()
+	ctx, cancel := b.rpcCtx()
+	defer cancel()
 
 	if b.useGRPC {
 		resp, err := b.grpcClient.Memory.Search(ctx, &grpcapi.MemorySearchRequest{
@@ -71,7 +72,8 @@ type SearchResult struct {
 // When using direct DB, it uses CombinedStore's bleve-backed scored search.
 // excludeTags filters out memories with any of the given tags (nil = DefaultExcludeTags).
 func (b *Backend) SearchMemoriesWithScore(query string, limit int, minScore float64, excludeTags []string) ([]SearchResult, error) {
-	ctx := context.Background()
+	ctx, cancel := b.rpcCtx()
+	defer cancel()
 
 	if b.useGRPC {
 		resp, err := b.grpcClient.Memory.Search(ctx, &grpcapi.MemorySearchRequest{
@@ -130,7 +132,8 @@ func (b *Backend) SearchMemoriesWithScore(query string, limit int, minScore floa
 // ListMemories returns memories matching the given category.
 // opts allows optional overrides (ExcludeTags, IncludeAll, etc.). If nil, defaults apply.
 func (b *Backend) ListMemories(category string, limit int, opts *memory.SearchOptions) ([]*memory.Memory, error) {
-	ctx := context.Background()
+	ctx, cancel := b.rpcCtx()
+	defer cancel()
 
 	if b.useGRPC {
 		resp, err := b.grpcClient.Memory.List(ctx, &grpcapi.MemoryListRequest{
@@ -166,7 +169,8 @@ func (b *Backend) ListMemories(category string, limit int, opts *memory.SearchOp
 // UpdateMemoryTags adds and/or removes tags from a memory.
 // Returns the updated memory.
 func (b *Backend) UpdateMemoryTags(id string, addTags, removeTags []string) (*memory.Memory, error) {
-	ctx := context.Background()
+	ctx, cancel := b.rpcCtx()
+	defer cancel()
 
 	// Get existing memory
 	var m *memory.Memory
@@ -232,7 +236,8 @@ func (b *Backend) UpdateMemoryTags(id string, addTags, removeTags []string) (*me
 
 func (b *Backend) GetMemory(id string) (*memory.Memory, error) {
 	if b.useGRPC {
-		ctx := context.Background()
+		ctx, cancel := b.rpcCtx()
+		defer cancel()
 		resp, err := b.grpcClient.Memory.Get(ctx, &grpcapi.MemoryGetRequest{Id: id})
 		if err != nil {
 			return nil, err
@@ -243,7 +248,8 @@ func (b *Backend) GetMemory(id string) (*memory.Memory, error) {
 }
 
 func (b *Backend) DeleteMemory(id string) error {
-	ctx := context.Background()
+	ctx, cancel := b.rpcCtx()
+	defer cancel()
 
 	if b.useGRPC {
 		_, err := b.grpcClient.Memory.Delete(ctx, &grpcapi.MemoryDeleteRequest{Id: id})
@@ -254,7 +260,8 @@ func (b *Backend) DeleteMemory(id string) error {
 }
 
 func (b *Backend) ClearMemories() (int, error) {
-	ctx := context.Background()
+	ctx, cancel := b.rpcCtx()
+	defer cancel()
 
 	if b.useGRPC {
 		resp, err := b.grpcClient.Memory.Clear(ctx, &grpcapi.MemoryClearRequest{})
@@ -272,7 +279,8 @@ func (b *Backend) ClearMemories() (int, error) {
 // =============================================================================
 
 func (b *Backend) GetState(key, agentID string) (*memory.State, error) {
-	ctx := context.Background()
+	ctx, cancel := b.rpcCtx()
+	defer cancel()
 
 	if b.useGRPC {
 		resp, err := b.grpcClient.State.Get(ctx, &grpcapi.StateGetRequest{
@@ -296,7 +304,8 @@ func (b *Backend) GetState(key, agentID string) (*memory.State, error) {
 }
 
 func (b *Backend) SetState(key, value, agentID string) error {
-	ctx := context.Background()
+	ctx, cancel := b.rpcCtx()
+	defer cancel()
 
 	if b.useGRPC {
 		_, err := b.grpcClient.State.Set(ctx, &grpcapi.StateSetRequest{
@@ -320,7 +329,8 @@ func (b *Backend) SetState(key, value, agentID string) error {
 }
 
 func (b *Backend) ListState(agentID string) ([]*memory.State, error) {
-	ctx := context.Background()
+	ctx, cancel := b.rpcCtx()
+	defer cancel()
 
 	if b.useGRPC {
 		resp, err := b.grpcClient.State.List(ctx, &grpcapi.StateListRequest{
@@ -336,7 +346,8 @@ func (b *Backend) ListState(agentID string) ([]*memory.State, error) {
 }
 
 func (b *Backend) DeleteState(key string) error {
-	ctx := context.Background()
+	ctx, cancel := b.rpcCtx()
+	defer cancel()
 
 	if b.useGRPC {
 		_, err := b.grpcClient.State.Delete(ctx, &grpcapi.StateDeleteRequest{Key: key})
@@ -347,7 +358,8 @@ func (b *Backend) DeleteState(key string) error {
 }
 
 func (b *Backend) ClearState(agentID string) (int, error) {
-	ctx := context.Background()
+	ctx, cancel := b.rpcCtx()
+	defer cancel()
 
 	if b.useGRPC {
 		resp, err := b.grpcClient.State.Clear(ctx, &grpcapi.StateClearRequest{AgentId: agentID})
@@ -361,7 +373,8 @@ func (b *Backend) ClearState(agentID string) (int, error) {
 }
 
 func (b *Backend) CleanupState(maxAge time.Duration) (int, error) {
-	ctx := context.Background()
+	ctx, cancel := b.rpcCtx()
+	defer cancel()
 
 	if b.useGRPC {
 		resp, err := b.grpcClient.State.Cleanup(ctx, &grpcapi.StateCleanupRequest{
@@ -381,7 +394,8 @@ func (b *Backend) CleanupState(maxAge time.Duration) (int, error) {
 // =============================================================================
 
 func (b *Backend) SetDecision(topic, decision, rationale, details, decidedBy string, references []string) (*memory.Decision, error) {
-	ctx := context.Background()
+	ctx, cancel := b.rpcCtx()
+	defer cancel()
 
 	if b.useGRPC {
 		resp, err := b.grpcClient.Decision.Set(ctx, &grpcapi.DecisionSetRequest{
@@ -414,7 +428,8 @@ func (b *Backend) SetDecision(topic, decision, rationale, details, decidedBy str
 }
 
 func (b *Backend) GetDecision(topic string) (*memory.Decision, error) {
-	ctx := context.Background()
+	ctx, cancel := b.rpcCtx()
+	defer cancel()
 
 	if b.useGRPC {
 		resp, err := b.grpcClient.Decision.Get(ctx, &grpcapi.DecisionGetRequest{Topic: topic})
@@ -431,7 +446,8 @@ func (b *Backend) GetDecision(topic string) (*memory.Decision, error) {
 }
 
 func (b *Backend) ListDecisions() ([]*memory.Decision, error) {
-	ctx := context.Background()
+	ctx, cancel := b.rpcCtx()
+	defer cancel()
 
 	if b.useGRPC {
 		resp, err := b.grpcClient.Decision.List(ctx, &grpcapi.DecisionListRequest{})
@@ -445,7 +461,8 @@ func (b *Backend) ListDecisions() ([]*memory.Decision, error) {
 }
 
 func (b *Backend) GetDecisionHistory(topic string) ([]*memory.Decision, error) {
-	ctx := context.Background()
+	ctx, cancel := b.rpcCtx()
+	defer cancel()
 
 	if b.useGRPC {
 		resp, err := b.grpcClient.Decision.History(ctx, &grpcapi.DecisionHistoryRequest{Topic: topic})
@@ -459,7 +476,8 @@ func (b *Backend) GetDecisionHistory(topic string) ([]*memory.Decision, error) {
 }
 
 func (b *Backend) DeleteDecision(topic string) (int, error) {
-	ctx := context.Background()
+	ctx, cancel := b.rpcCtx()
+	defer cancel()
 
 	if b.useGRPC {
 		resp, err := b.grpcClient.Decision.Delete(ctx, &grpcapi.DecisionDeleteRequest{Topic: topic})
@@ -473,7 +491,8 @@ func (b *Backend) DeleteDecision(topic string) (int, error) {
 }
 
 func (b *Backend) ClearDecisions() (int, error) {
-	ctx := context.Background()
+	ctx, cancel := b.rpcCtx()
+	defer cancel()
 
 	if b.useGRPC {
 		resp, err := b.grpcClient.Decision.Clear(ctx, &grpcapi.DecisionClearRequest{})
@@ -491,7 +510,8 @@ func (b *Backend) ClearDecisions() (int, error) {
 // =============================================================================
 
 func (b *Backend) SendMessage(from, to, content, msgType string, ttlSeconds int) (*memory.Message, error) {
-	ctx := context.Background()
+	ctx, cancel := b.rpcCtx()
+	defer cancel()
 
 	if b.useGRPC {
 		resp, err := b.grpcClient.Message.Send(ctx, &grpcapi.MessageSendRequest{
@@ -525,7 +545,8 @@ func (b *Backend) SendMessage(from, to, content, msgType string, ttlSeconds int)
 }
 
 func (b *Backend) ListMessages(agentID string) ([]*memory.Message, error) {
-	ctx := context.Background()
+	ctx, cancel := b.rpcCtx()
+	defer cancel()
 
 	if b.useGRPC {
 		resp, err := b.grpcClient.Message.List(ctx, &grpcapi.MessageListRequest{AgentId: agentID})
@@ -539,7 +560,8 @@ func (b *Backend) ListMessages(agentID string) ([]*memory.Message, error) {
 }
 
 func (b *Backend) AckMessage(messageID uint64, agentID string) error {
-	ctx := context.Background()
+	ctx, cancel := b.rpcCtx()
+	defer cancel()
 
 	if b.useGRPC {
 		_, err := b.grpcClient.Message.Ack(ctx, &grpcapi.MessageAckRequest{
@@ -553,7 +575,8 @@ func (b *Backend) AckMessage(messageID uint64, agentID string) error {
 }
 
 func (b *Backend) PruneMessages() (int, error) {
-	ctx := context.Background()
+	ctx, cancel := b.rpcCtx()
+	defer cancel()
 
 	if b.useGRPC {
 		resp, err := b.grpcClient.Message.Prune(ctx, &grpcapi.MessagePruneRequest{})
@@ -571,7 +594,8 @@ func (b *Backend) PruneMessages() (int, error) {
 // =============================================================================
 
 func (b *Backend) CreateTask(title, description string) (*memory.Task, error) {
-	ctx := context.Background()
+	ctx, cancel := b.rpcCtx()
+	defer cancel()
 
 	if b.useGRPC {
 		resp, err := b.grpcClient.Task.Create(ctx, &grpcapi.TaskCreateRequest{
@@ -597,7 +621,8 @@ func (b *Backend) CreateTask(title, description string) (*memory.Task, error) {
 }
 
 func (b *Backend) GetTask(id string) (*memory.Task, error) {
-	ctx := context.Background()
+	ctx, cancel := b.rpcCtx()
+	defer cancel()
 
 	if b.useGRPC {
 		resp, err := b.grpcClient.Task.Get(ctx, &grpcapi.TaskGetRequest{Id: id})
@@ -614,7 +639,8 @@ func (b *Backend) GetTask(id string) (*memory.Task, error) {
 }
 
 func (b *Backend) ListTasks(status string) ([]*memory.Task, error) {
-	ctx := context.Background()
+	ctx, cancel := b.rpcCtx()
+	defer cancel()
 
 	if b.useGRPC {
 		resp, err := b.grpcClient.Task.List(ctx, &grpcapi.TaskListRequest{Status: status})
@@ -628,7 +654,8 @@ func (b *Backend) ListTasks(status string) ([]*memory.Task, error) {
 }
 
 func (b *Backend) ClaimTask(taskID, agentID string) (*memory.Task, error) {
-	ctx := context.Background()
+	ctx, cancel := b.rpcCtx()
+	defer cancel()
 
 	if b.useGRPC {
 		resp, err := b.grpcClient.Task.Claim(ctx, &grpcapi.TaskClaimRequest{
@@ -648,7 +675,8 @@ func (b *Backend) ClaimTask(taskID, agentID string) (*memory.Task, error) {
 }
 
 func (b *Backend) CompleteTask(taskID, result string) error {
-	ctx := context.Background()
+	ctx, cancel := b.rpcCtx()
+	defer cancel()
 
 	if b.useGRPC {
 		resp, err := b.grpcClient.Task.Complete(ctx, &grpcapi.TaskCompleteRequest{

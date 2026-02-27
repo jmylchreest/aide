@@ -2,17 +2,19 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/jmylchreest/aide/aide/internal/version"
+	"github.com/jmylchreest/aide/aide/pkg/httputil"
 )
 
 // GitHubRelease represents a GitHub release API response.
@@ -32,6 +34,16 @@ const (
 	githubRepo    = "jmylchreest/aide"
 	githubAPIURL  = "https://api.github.com/repos/" + githubRepo + "/releases"
 	githubBaseURL = "https://github.com/" + githubRepo + "/releases/download"
+
+	// upgradeHTTPTimeout is the per-request timeout for upgrade API/download calls.
+	upgradeHTTPTimeout = 60 * time.Second
+	// maxUpgradeBinarySize caps the download to 200MiB to prevent unbounded writes.
+	maxUpgradeBinarySize int64 = 200 << 20
+)
+
+// upgradeClient is the shared HTTP client for upgrade operations.
+var upgradeClient = httputil.NewClient(
+	httputil.WithHTTPTimeout(upgradeHTTPTimeout),
 )
 
 func cmdUpgrade(args []string) error {
@@ -162,13 +174,14 @@ func cmdUpgrade(args []string) error {
 }
 
 func getLatestRelease() (*GitHubRelease, error) {
-	resp, err := http.Get(githubAPIURL + "/latest")
+	ctx := context.Background()
+	resp, err := upgradeClient.Get(ctx, githubAPIURL+"/latest")
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("GitHub API returned %d", resp.StatusCode)
 	}
 
@@ -186,17 +199,18 @@ func getRelease(version string) (*GitHubRelease, error) {
 		version = "v" + version
 	}
 
+	ctx := context.Background()
 	url := fmt.Sprintf("%s/tags/%s", githubAPIURL, version)
-	resp, err := http.Get(url)
+	resp, err := upgradeClient.Get(ctx, url)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusNotFound {
+	if resp.StatusCode == 404 {
 		return nil, fmt.Errorf("version %s not found", version)
 	}
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("GitHub API returned %d", resp.StatusCode)
 	}
 
@@ -221,13 +235,14 @@ func getBinaryName() string {
 }
 
 func downloadFile(url string) (string, error) {
-	resp, err := http.Get(url)
+	ctx := context.Background()
+	resp, err := upgradeClient.Get(ctx, url)
 	if err != nil {
 		return "", err
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != 200 {
 		return "", fmt.Errorf("download returned %d", resp.StatusCode)
 	}
 
@@ -237,10 +252,16 @@ func downloadFile(url string) (string, error) {
 	}
 	defer tmpFile.Close()
 
-	_, err = io.Copy(tmpFile, resp.Body)
+	// Limit download size to prevent unbounded writes from a compromised URL.
+	limited := io.LimitReader(resp.Body, maxUpgradeBinarySize+1)
+	n, err := io.Copy(tmpFile, limited)
 	if err != nil {
 		os.Remove(tmpFile.Name())
 		return "", err
+	}
+	if n > maxUpgradeBinarySize {
+		os.Remove(tmpFile.Name())
+		return "", fmt.Errorf("download exceeds maximum size of %d bytes", maxUpgradeBinarySize)
 	}
 
 	return tmpFile.Name(), nil
