@@ -4,7 +4,6 @@ package grpcapi
 import (
 	"context"
 	"fmt"
-	"net"
 	"os"
 	"time"
 
@@ -45,22 +44,16 @@ func NewClientWithSocket(socketPath string) (*Client, error) {
 		return nil, fmt.Errorf("socket not found: %s", socketPath)
 	}
 
-	// Connect to Unix socket
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-
-	conn, err := grpc.DialContext(ctx, "unix://"+socketPath, //nolint:staticcheck // TODO: migrate to grpc.NewClient
+	// Connect to Unix socket using grpc.NewClient (lazy connection).
+	conn, err := grpc.NewClient(
+		"unix://"+socketPath,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithBlock(), //nolint:staticcheck // required for connection-on-dial semantics
-		grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
-			return net.Dial("unix", socketPath)
-		}),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to socket: %w", err)
+		return nil, fmt.Errorf("failed to create client: %w", err)
 	}
 
-	return &Client{
+	c := &Client{
 		conn:     conn,
 		Memory:   NewMemoryServiceClient(conn),
 		State:    NewStateServiceClient(conn),
@@ -71,7 +64,17 @@ func NewClientWithSocket(socketPath string) (*Client, error) {
 		Findings: NewFindingsServiceClient(conn),
 		Health:   NewHealthServiceClient(conn),
 		Status:   NewStatusServiceClient(conn),
-	}, nil
+	}
+
+	// Verify connectivity with a health-check RPC.
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	if err := c.Ping(ctx); err != nil {
+		_ = conn.Close()
+		return nil, fmt.Errorf("failed to connect to socket: %w", err)
+	}
+
+	return c, nil
 }
 
 // Close closes the gRPC connection.

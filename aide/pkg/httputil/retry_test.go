@@ -76,7 +76,7 @@ func TestClient_ExhaustsRetries(t *testing.T) {
 		WithBaseDelay(1*time.Millisecond),
 		WithMaxDelay(2*time.Millisecond),
 	)
-	_, err := c.Get(context.Background(), srv.URL)
+	_, err := c.Get(context.Background(), srv.URL) //nolint:bodyclose // error path; no body to close
 	if err == nil {
 		t.Fatal("expected error after exhausting retries")
 	}
@@ -153,7 +153,7 @@ func TestClient_RespectsContextCancellation(t *testing.T) {
 		WithMaxRetries(5),
 		WithBaseDelay(1*time.Second), // Would be slow without cancellation.
 	)
-	_, err := c.Get(ctx, srv.URL)
+	_, err := c.Get(ctx, srv.URL) //nolint:bodyclose // error path; no body to close
 	if err == nil {
 		t.Fatal("expected error from cancelled context")
 	}
@@ -170,7 +170,7 @@ func TestClient_ZeroRetries(t *testing.T) {
 	c := NewClient(
 		WithMaxRetries(0),
 	)
-	_, err := c.Get(context.Background(), srv.URL)
+	_, err := c.Get(context.Background(), srv.URL) //nolint:bodyclose // error path; no body to close
 	if err == nil {
 		t.Fatal("expected error with 0 retries on 502")
 	}
