@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -716,5 +717,441 @@ func TestIntegrationDownloadURLTemplateExpansion(t *testing.T) {
 	}
 	if !strings.Contains(got, "aide-grammar-ruby-") {
 		t.Errorf("URL path %q missing asset prefix", got)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Staleness detection: DynamicLoader.Load returns GrammarStaleError when the
+// installed grammar version differs from the loader's version.
+// ---------------------------------------------------------------------------
+
+func TestIntegrationLoadReturnsStaleError(t *testing.T) {
+	body := []byte("stale-grammar-lib")
+	srv, _ := newTestServer(t, body)
+
+	dir := t.TempDir()
+	dl := NewDynamicLoader(dir)
+	dl.baseURL = srv.URL + "/{version}/{asset}"
+	dl.version = "v0.1.0"
+
+	def := &DynamicGrammarDef{
+		SourceRepo: "tree-sitter/tree-sitter-ruby",
+		CSymbol:    "tree_sitter_ruby",
+	}
+
+	// Install grammar at v0.1.0.
+	if err := dl.Download(context.Background(), "ruby", def); err != nil {
+		t.Fatalf("Download: %v", err)
+	}
+
+	// Simulate an aide upgrade: create a new loader at v0.2.0 pointing
+	// to the same directory, so it picks up the v0.1.0 manifest.
+	dl2 := NewDynamicLoader(dir)
+	dl2.version = "v0.2.0"
+
+	_, err := dl2.Load("ruby")
+	if err == nil {
+		t.Fatal("expected GrammarStaleError, got nil")
+	}
+
+	var staleErr *GrammarStaleError
+	if !errors.As(err, &staleErr) {
+		t.Fatalf("expected GrammarStaleError, got %T: %v", err, err)
+	}
+	if staleErr.Name != "ruby" {
+		t.Errorf("staleErr.Name = %q; want %q", staleErr.Name, "ruby")
+	}
+	if staleErr.InstalledVersion != "v0.1.0" {
+		t.Errorf("staleErr.InstalledVersion = %q; want %q", staleErr.InstalledVersion, "v0.1.0")
+	}
+	if staleErr.WantVersion != "v0.2.0" {
+		t.Errorf("staleErr.WantVersion = %q; want %q", staleErr.WantVersion, "v0.2.0")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Staleness detection: snapshot versions always skip the staleness check.
+// ---------------------------------------------------------------------------
+
+func TestIntegrationSnapshotSkipsStalenessCheck(t *testing.T) {
+	body := []byte("snapshot-grammar-lib")
+	srv, _ := newTestServer(t, body)
+
+	dir := t.TempDir()
+	dl := NewDynamicLoader(dir)
+	dl.baseURL = srv.URL + "/{version}/{asset}"
+
+	def := &DynamicGrammarDef{
+		SourceRepo: "tree-sitter/tree-sitter-ruby",
+		CSymbol:    "tree_sitter_ruby",
+	}
+
+	// Sub-test: installed version is "snapshot", loader version is a release.
+	// No staleness should be reported.
+	t.Run("installed_snapshot", func(t *testing.T) {
+		d := t.TempDir()
+		dl := NewDynamicLoader(d)
+		dl.baseURL = srv.URL + "/{version}/{asset}"
+		dl.version = "snapshot"
+
+		if err := dl.Download(context.Background(), "ruby", def); err != nil {
+			t.Fatalf("Download: %v", err)
+		}
+
+		// Now set loader to a release version — staleness should be skipped
+		// because installed version is "snapshot".
+		dl2 := NewDynamicLoader(d)
+		dl2.version = "v0.5.0"
+
+		// Load will fail because the .so isn't a real library, but the error
+		// should NOT be GrammarStaleError.
+		_, err := dl2.Load("ruby")
+		var staleErr *GrammarStaleError
+		if errors.As(err, &staleErr) {
+			t.Error("snapshot installed version should not trigger staleness")
+		}
+	})
+
+	// Sub-test: installed version is a release, loader version is "snapshot".
+	// No staleness should be reported.
+	t.Run("loader_snapshot", func(t *testing.T) {
+		d := t.TempDir()
+		dl := NewDynamicLoader(d)
+		dl.baseURL = srv.URL + "/{version}/{asset}"
+		dl.version = "v0.3.0"
+
+		if err := dl.Download(context.Background(), "ruby", def); err != nil {
+			t.Fatalf("Download: %v", err)
+		}
+
+		// Loader running as snapshot — should skip staleness.
+		dl2 := NewDynamicLoader(d)
+		dl2.version = "snapshot"
+
+		_, err := dl2.Load("ruby")
+		var staleErr *GrammarStaleError
+		if errors.As(err, &staleErr) {
+			t.Error("snapshot loader version should not trigger staleness")
+		}
+	})
+
+	// Sub-test: both versions are empty — no staleness.
+	t.Run("both_empty", func(t *testing.T) {
+		d := t.TempDir()
+		dl := NewDynamicLoader(d)
+		dl.baseURL = srv.URL + "/{version}/{asset}"
+		dl.version = ""
+
+		if err := dl.Download(context.Background(), "ruby", def); err != nil {
+			t.Fatalf("Download: %v", err)
+		}
+
+		dl2 := NewDynamicLoader(d)
+		dl2.version = ""
+
+		_, err := dl2.Load("ruby")
+		var staleErr *GrammarStaleError
+		if errors.As(err, &staleErr) {
+			t.Error("empty versions should not trigger staleness")
+		}
+	})
+}
+
+// ---------------------------------------------------------------------------
+// Staleness: Download cleans up old library file when version changes
+// ---------------------------------------------------------------------------
+
+func TestIntegrationDownloadCleansUpOldVersionFile(t *testing.T) {
+	v1Body := []byte("v1-lib-data")
+	v2Body := []byte("v2-lib-data-longer")
+
+	var currentBody atomic.Value
+	currentBody.Store(v1Body)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := currentBody.Load().([]byte)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(body)
+	}))
+	t.Cleanup(srv.Close)
+
+	dir := t.TempDir()
+	dl := NewDynamicLoader(dir)
+	dl.baseURL = srv.URL + "/{version}/{asset}"
+	dl.version = "v0.1.0"
+
+	def := &DynamicGrammarDef{
+		SourceRepo: "tree-sitter/tree-sitter-ruby",
+		CSymbol:    "tree_sitter_ruby",
+	}
+
+	// Download v0.1.0
+	if err := dl.Download(context.Background(), "ruby", def); err != nil {
+		t.Fatalf("Download v1: %v", err)
+	}
+
+	v1File := dl.manifest.get("ruby").File
+	v1Path := filepath.Join(dir, v1File)
+
+	// Verify v1 file exists
+	if _, err := os.Stat(v1Path); err != nil {
+		t.Fatalf("v1 file should exist: %v", err)
+	}
+
+	// Download v0.2.0 — different version means different filename
+	currentBody.Store(v2Body)
+	dl.version = "v0.2.0"
+	if err := dl.Download(context.Background(), "ruby", def); err != nil {
+		t.Fatalf("Download v2: %v", err)
+	}
+
+	// Old v0.1.0 file should be removed
+	if _, err := os.Stat(v1Path); !os.IsNotExist(err) {
+		t.Error("old v0.1.0 library file should have been removed")
+	}
+
+	// New v0.2.0 file should exist
+	v2File := dl.manifest.get("ruby").File
+	v2Path := filepath.Join(dir, v2File)
+	if _, err := os.Stat(v2Path); err != nil {
+		t.Fatalf("v2 file should exist: %v", err)
+	}
+
+	// Filenames should differ (version embedded in name)
+	if v1File == v2File {
+		t.Error("v1 and v2 filenames should differ")
+	}
+
+	// Manifest version should be updated
+	if got := dl.manifest.get("ruby").Version; got != "v0.2.0" {
+		t.Errorf("manifest version = %q; want %q", got, "v0.2.0")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Staleness: Manifest.AideVersion gets populated after download
+// ---------------------------------------------------------------------------
+
+func TestIntegrationManifestAideVersionSet(t *testing.T) {
+	body := []byte("aide-version-grammar")
+	srv, _ := newTestServer(t, body)
+
+	dir := t.TempDir()
+	dl := NewDynamicLoader(dir)
+	dl.baseURL = srv.URL + "/{version}/{asset}"
+	dl.version = "v0.5.0"
+
+	def := &DynamicGrammarDef{
+		SourceRepo: "tree-sitter/tree-sitter-ruby",
+		CSymbol:    "tree_sitter_ruby",
+	}
+
+	if err := dl.Download(context.Background(), "ruby", def); err != nil {
+		t.Fatalf("Download: %v", err)
+	}
+
+	// Check AideVersion in manifest
+	if got := dl.manifest.data.AideVersion; got != "v0.5.0" {
+		t.Errorf("manifest AideVersion = %q; want %q", got, "v0.5.0")
+	}
+
+	// Verify persistence: create a new loader pointing to the same dir
+	// and check that AideVersion was persisted to disk.
+	dl2 := NewDynamicLoader(dir)
+	if got := dl2.manifest.data.AideVersion; got != "v0.5.0" {
+		t.Errorf("persisted AideVersion = %q; want %q", got, "v0.5.0")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Staleness: in-memory cache short-circuits staleness check
+// ---------------------------------------------------------------------------
+
+func TestIntegrationCachedGrammarSkipsStalenessCheck(t *testing.T) {
+	body := []byte("cached-grammar-lib")
+	srv, _ := newTestServer(t, body)
+
+	dir := t.TempDir()
+	dl := NewDynamicLoader(dir)
+	dl.baseURL = srv.URL + "/{version}/{asset}"
+	dl.version = "v0.1.0"
+
+	def := &DynamicGrammarDef{
+		SourceRepo: "tree-sitter/tree-sitter-ruby",
+		CSymbol:    "tree_sitter_ruby",
+	}
+
+	// Download at v0.1.0
+	if err := dl.Download(context.Background(), "ruby", def); err != nil {
+		t.Fatalf("Download: %v", err)
+	}
+
+	// Manually inject a fake language into the loaded cache to simulate
+	// a grammar that was already loaded (the real .so isn't loadable in tests).
+	dl.mu.Lock()
+	dl.loaded["ruby"] = nil // nil *Language is fine for this test
+	dl.mu.Unlock()
+
+	// Even though we change the version, the in-memory cache hit should
+	// return immediately without checking staleness.
+	dl.version = "v999.0.0"
+
+	// Load should return the cached nil language without error.
+	lang, err := dl.Load("ruby")
+	if err != nil {
+		t.Fatalf("expected cached hit, got error: %v", err)
+	}
+	if lang != nil {
+		t.Error("expected nil (cached) language")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Staleness: CompositeLoader.Load auto-redownloads stale grammars
+// ---------------------------------------------------------------------------
+
+func TestIntegrationCompositeLoaderRedownloadsStale(t *testing.T) {
+	v1Body := []byte("v1-composite-lib")
+	v2Body := []byte("v2-composite-lib")
+
+	var currentBody atomic.Value
+	currentBody.Store(v1Body)
+
+	var reqCount atomic.Int64
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		reqCount.Add(1)
+		body, _ := currentBody.Load().([]byte)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(body)
+	}))
+	t.Cleanup(srv.Close)
+
+	dir := t.TempDir()
+
+	// Phase 1: install grammar at v0.1.0 using a DynamicLoader directly
+	dl := NewDynamicLoader(dir)
+	dl.baseURL = srv.URL + "/{version}/{asset}"
+	dl.version = "v0.1.0"
+
+	def := &DynamicGrammarDef{
+		SourceRepo: "tree-sitter/tree-sitter-ruby",
+		CSymbol:    "tree_sitter_ruby",
+	}
+	if err := dl.Download(context.Background(), "ruby", def); err != nil {
+		t.Fatalf("initial download: %v", err)
+	}
+	initialReqs := reqCount.Load()
+
+	// Phase 2: Create a CompositeLoader at v0.2.0 with autoLoad.
+	// Loading "ruby" should detect staleness and re-download.
+	currentBody.Store(v2Body)
+
+	cl := NewCompositeLoader(
+		WithGrammarDir(dir),
+		WithBaseURL(srv.URL+"/{version}/{asset}"),
+		WithVersion("v0.2.0"),
+		WithAutoDownload(true),
+	)
+
+	// CompositeLoader.Load will:
+	// 1. Miss built-in
+	// 2. DynamicLoader.Load returns GrammarStaleError
+	// 3. autoLoad triggers Install → Download at v0.2.0
+	// 4. DynamicLoader.Load again — now the library file exists but isn't
+	//    a real .so, so openAndLoadLanguage will fail. That's fine; we're
+	//    testing the download was triggered.
+	_, err := cl.Load(context.Background(), "ruby")
+
+	// We expect an error from the actual dlopen, NOT from staleness or not-found.
+	if err == nil {
+		// If somehow it loaded (shouldn't with fake .so), that's also acceptable.
+		return
+	}
+
+	var staleErr *GrammarStaleError
+	var notFoundErr *GrammarNotFoundError
+	if errors.As(err, &staleErr) {
+		t.Fatalf("should not get GrammarStaleError after re-download, got: %v", err)
+	}
+	if errors.As(err, &notFoundErr) {
+		t.Fatalf("should not get GrammarNotFoundError after re-download, got: %v", err)
+	}
+
+	// Verify a second download request was made (the re-download).
+	if got := reqCount.Load(); got <= initialReqs {
+		t.Errorf("expected re-download request; total requests = %d, initial = %d", got, initialReqs)
+	}
+
+	// Verify the manifest was updated to v0.2.0.
+	entry := cl.dynamic.manifest.get("ruby")
+	if entry == nil {
+		t.Fatal("manifest entry should exist after re-download")
+	}
+	if entry.Version != "v0.2.0" {
+		t.Errorf("manifest version = %q; want %q", entry.Version, "v0.2.0")
+	}
+
+	// Verify the v2 file content is on disk.
+	v2Path := filepath.Join(dir, entry.File)
+	data, err := os.ReadFile(v2Path)
+	if err != nil {
+		t.Fatalf("reading re-downloaded file: %v", err)
+	}
+	if string(data) != string(v2Body) {
+		t.Error("file content should be v2 after re-download")
+	}
+
+	// Verify AideVersion was set.
+	if got := cl.dynamic.manifest.data.AideVersion; got != "v0.2.0" {
+		t.Errorf("manifest AideVersion = %q; want %q", got, "v0.2.0")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Staleness: CompositeLoader.Load does NOT redownload when autoLoad is false
+// ---------------------------------------------------------------------------
+
+func TestIntegrationCompositeLoaderNoAutoRedownloadWhenDisabled(t *testing.T) {
+	body := []byte("no-auto-lib")
+	srv, reqCount := newTestServer(t, body)
+
+	dir := t.TempDir()
+
+	// Install grammar at v0.1.0.
+	dl := NewDynamicLoader(dir)
+	dl.baseURL = srv.URL + "/{version}/{asset}"
+	dl.version = "v0.1.0"
+
+	def := &DynamicGrammarDef{
+		SourceRepo: "tree-sitter/tree-sitter-ruby",
+		CSymbol:    "tree_sitter_ruby",
+	}
+	if err := dl.Download(context.Background(), "ruby", def); err != nil {
+		t.Fatalf("Download: %v", err)
+	}
+	initialReqs := reqCount.Load()
+
+	// Create CompositeLoader at v0.2.0 with autoLoad DISABLED.
+	cl := NewCompositeLoader(
+		WithGrammarDir(dir),
+		WithBaseURL(srv.URL+"/{version}/{asset}"),
+		WithVersion("v0.2.0"),
+		WithAutoDownload(false),
+	)
+
+	_, err := cl.Load(context.Background(), "ruby")
+	if err == nil {
+		t.Fatal("expected error when autoLoad is disabled and grammar is stale")
+	}
+
+	// Should get GrammarNotFoundError (the fallback at end of Load method).
+	var notFoundErr *GrammarNotFoundError
+	if !errors.As(err, &notFoundErr) {
+		t.Errorf("expected GrammarNotFoundError, got %T: %v", err, err)
+	}
+
+	// No additional requests should have been made.
+	if got := reqCount.Load(); got != initialReqs {
+		t.Errorf("expected no re-download; requests = %d, initial = %d", got, initialReqs)
 	}
 }

@@ -85,7 +85,7 @@ func (b *Backend) GetFileSymbols(filePath string) ([]*code.Symbol, error) {
 
 	symbols, err := codeStore.GetFileSymbols(filePath)
 	if err != nil {
-		parser := code.NewParser(newGrammarLoader(b.dbPath))
+		parser := code.NewParser(newGrammarLoader(b.dbPath, nil))
 		return parser.ParseFile(filePath)
 	}
 	return symbols, nil
@@ -171,7 +171,7 @@ func (b *Backend) IndexCodeWithProgress(paths []string, force bool, progress fun
 	}
 	defer codeStore.Close()
 
-	parser := code.NewParser(newGrammarLoader(b.dbPath))
+	parser := code.NewParser(newGrammarLoader(b.dbPath, nil))
 	if len(paths) == 0 {
 		paths = []string{"."}
 	}

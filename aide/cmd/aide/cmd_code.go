@@ -439,7 +439,7 @@ func NewIndexer(dbPath string) (*Indexer, error) {
 
 	return &Indexer{
 		store:  codeStore,
-		parser: code.NewParser(newGrammarLoader(dbPath)),
+		parser: code.NewParser(newGrammarLoader(dbPath, nil)),
 	}, nil
 }
 

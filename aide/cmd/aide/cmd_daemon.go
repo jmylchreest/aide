@@ -63,7 +63,7 @@ func cmdDaemon(dbPath string, args []string) error {
 	}
 
 	// Create gRPC server
-	server := grpcapi.NewServer(st, dbPath, socketPath, newGrammarLoader(dbPath))
+	server := grpcapi.NewServer(st, dbPath, socketPath, newGrammarLoader(dbPath, nil))
 
 	// Set code store if available
 	if codeStore != nil {

@@ -139,6 +139,9 @@ func NewDynamicLoader(dir string) *DynamicLoader {
 }
 
 // Load returns a Language by loading the shared library from disk.
+// If the loader has a version set (from the running aide release) and the
+// installed grammar's version differs, Load returns GrammarStaleError so the
+// caller can re-download. Snapshot versions are not checked for staleness.
 func (dl *DynamicLoader) Load(name string) (*tree_sitter.Language, error) {
 	dl.mu.RLock()
 	if lang, ok := dl.loaded[name]; ok {
@@ -161,6 +164,19 @@ func (dl *DynamicLoader) Load(name string) (*tree_sitter.Language, error) {
 		return nil, &GrammarNotFoundError{Name: name}
 	}
 
+	// Check version staleness: if the loader has a non-snapshot version set
+	// and the installed grammar was built for a different version, report it
+	// as stale so the CompositeLoader can re-download.
+	if dl.version != "" && dl.version != "snapshot" &&
+		entry.Version != "" && entry.Version != "snapshot" &&
+		entry.Version != dl.version {
+		return nil, &GrammarStaleError{
+			Name:             name,
+			InstalledVersion: entry.Version,
+			WantVersion:      dl.version,
+		}
+	}
+
 	// Load the shared library
 	libPath := filepath.Join(dl.dir, entry.File)
 	if _, err := os.Stat(libPath); err != nil {
@@ -179,6 +195,8 @@ func (dl *DynamicLoader) Load(name string) (*tree_sitter.Language, error) {
 }
 
 // Download fetches a grammar shared library from GitHub and caches it locally.
+// If a grammar is already installed with a different version, the old library
+// file is removed and replaced.
 func (dl *DynamicLoader) Download(ctx context.Context, name string, def *DynamicGrammarDef) error {
 	dl.mu.Lock()
 	defer dl.mu.Unlock()
@@ -195,6 +213,17 @@ func (dl *DynamicLoader) Download(ctx context.Context, name string, def *Dynamic
 
 	filename := LibraryFilename(name, version)
 
+	// Clean up the old library file if we're replacing a different version.
+	oldEntry := dl.manifest.get(name)
+	if oldEntry != nil && oldEntry.File != filename {
+		oldPath := filepath.Join(dl.dir, oldEntry.File)
+		_ = os.Remove(oldPath) // Best-effort cleanup
+	}
+
+	// Evict from in-memory cache so the new library gets loaded fresh.
+	delete(dl.loaded, name)
+	delete(dl.handles, name)
+
 	// Download the file
 	destPath := filepath.Join(dl.dir, filename)
 	sha256sum, err := downloadGrammarAsset(ctx, dl.baseURL, name, version, destPath)
@@ -210,6 +239,7 @@ func (dl *DynamicLoader) Download(ctx context.Context, name string, def *Dynamic
 		CSymbol:     def.CSymbol,
 		InstalledAt: time.Now(),
 	})
+	dl.manifest.setAideVersion(dl.version)
 
 	return dl.manifest.save()
 }

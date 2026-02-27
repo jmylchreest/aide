@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -179,15 +180,21 @@ func grammarVersion() string {
 // ("grammars.autoDownload": false) or environment variable
 // (AIDE_GRAMMAR_AUTO_DOWNLOAD=0).
 //
+// If logger is non-nil it is wired into the loader for grammar download/staleness
+// logging. Pass nil to suppress all grammar log output.
+//
 // This is the standard factory for all parsing / indexing call sites. The
 // grammar CLI subcommands override auto-download explicitly since they manage
 // grammars interactively.
-func newGrammarLoader(dbPath string) *grammar.CompositeLoader {
+func newGrammarLoader(dbPath string, logger *log.Logger) *grammar.CompositeLoader {
 	root := projectRoot(dbPath)
 	cfg := loadGrammarsConfig(root)
 	opts := []grammar.CompositeLoaderOption{
 		grammar.WithGrammarDir(grammarDir(dbPath)),
 		grammar.WithVersion(grammarVersion()),
+	}
+	if logger != nil {
+		opts = append(opts, grammar.WithLogger(logger))
 	}
 	if cfg.URL != "" {
 		opts = append(opts, grammar.WithBaseURL(cfg.URL))
@@ -202,13 +209,17 @@ func newGrammarLoader(dbPath string) *grammar.CompositeLoader {
 
 // newGrammarLoaderNoAuto creates a CompositeLoader with auto-download disabled.
 // Used by grammar CLI subcommands that manage grammars explicitly.
-func newGrammarLoaderNoAuto(dbPath string) *grammar.CompositeLoader {
+// If logger is non-nil it is wired into the loader for grammar event logging.
+func newGrammarLoaderNoAuto(dbPath string, logger *log.Logger) *grammar.CompositeLoader {
 	root := projectRoot(dbPath)
 	cfg := loadGrammarsConfig(root)
 	opts := []grammar.CompositeLoaderOption{
 		grammar.WithGrammarDir(grammarDir(dbPath)),
 		grammar.WithAutoDownload(false),
 		grammar.WithVersion(grammarVersion()),
+	}
+	if logger != nil {
+		opts = append(opts, grammar.WithLogger(logger))
 	}
 	if cfg.URL != "" {
 		opts = append(opts, grammar.WithBaseURL(cfg.URL))

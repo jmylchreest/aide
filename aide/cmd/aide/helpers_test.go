@@ -229,7 +229,7 @@ func TestNewGrammarLoader(t *testing.T) {
 	t.Setenv("AIDE_GRAMMAR_URL", "")
 	t.Setenv("AIDE_GRAMMAR_AUTO_DOWNLOAD", "")
 
-	loader := newGrammarLoader(dbPath)
+	loader := newGrammarLoader(dbPath, nil)
 	if loader == nil {
 		t.Fatal("newGrammarLoader returned nil")
 	}
@@ -261,7 +261,7 @@ func TestNewGrammarLoaderWithConfig(t *testing.T) {
 	t.Setenv("AIDE_GRAMMAR_URL", "")
 	t.Setenv("AIDE_GRAMMAR_AUTO_DOWNLOAD", "")
 
-	loader := newGrammarLoader(dbPath)
+	loader := newGrammarLoader(dbPath, nil)
 	if loader == nil {
 		t.Fatal("newGrammarLoader returned nil")
 	}
@@ -274,7 +274,7 @@ func TestNewGrammarLoaderNoAuto(t *testing.T) {
 	t.Setenv("AIDE_GRAMMAR_URL", "")
 	t.Setenv("AIDE_GRAMMAR_AUTO_DOWNLOAD", "")
 
-	loader := newGrammarLoaderNoAuto(dbPath)
+	loader := newGrammarLoaderNoAuto(dbPath, nil)
 	if loader == nil {
 		t.Fatal("newGrammarLoaderNoAuto returned nil")
 	}

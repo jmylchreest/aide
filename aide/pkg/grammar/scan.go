@@ -55,6 +55,9 @@ func ScanProject(root string, loader *CompositeLoader, detect LanguageDetector, 
 		installedSet[info.Name] = true
 	}
 
+	// Track first file seen per language for logging.
+	firstMatch := make(map[string]string)
+
 	err = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil // skip errors
@@ -81,6 +84,16 @@ func ScanProject(root string, loader *CompositeLoader, detect LanguageDetector, 
 		lang := detect(path, nil)
 		if lang == "" {
 			return nil
+		}
+
+		// Log first match per language.
+		if _, seen := firstMatch[lang]; !seen {
+			rel, relErr := filepath.Rel(root, path)
+			if relErr != nil {
+				rel = path
+			}
+			firstMatch[lang] = rel
+			loader.logf("detected language %q, first match: %s", lang, rel)
 		}
 
 		result.Languages[lang]++

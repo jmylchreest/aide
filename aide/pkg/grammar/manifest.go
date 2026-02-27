@@ -103,6 +103,15 @@ func (ms *manifestStore) set(name string, entry *ManifestEntry) {
 	ms.data.Grammars[name] = entry
 }
 
+// setAideVersion records the aide version that last modified the manifest.
+func (ms *manifestStore) setAideVersion(v string) {
+	ms.mu.Lock()
+	defer ms.mu.Unlock()
+	if v != "" {
+		ms.data.AideVersion = v
+	}
+}
+
 // remove deletes a grammar entry from the manifest.
 func (ms *manifestStore) remove(name string) {
 	ms.mu.Lock()

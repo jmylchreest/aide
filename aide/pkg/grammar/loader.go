@@ -9,7 +9,9 @@ package grammar
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log"
 	"sync"
 	"time"
 	"unsafe"
@@ -90,6 +92,22 @@ func (e *IncompatibleABIError) Error() string {
 	)
 }
 
+// GrammarStaleError is returned when an installed grammar's version does not
+// match the currently running aide version. The CompositeLoader handles this
+// by re-downloading the grammar automatically when auto-download is enabled.
+type GrammarStaleError struct {
+	Name             string
+	InstalledVersion string
+	WantVersion      string
+}
+
+func (e *GrammarStaleError) Error() string {
+	return fmt.Sprintf(
+		"grammar %q is stale (installed: %s, want: %s)",
+		e.Name, e.InstalledVersion, e.WantVersion,
+	)
+}
+
 // CompositeLoader tries multiple loaders in priority order:
 // 1. Built-in grammars (compiled-in via CGO)
 // 2. Dynamic grammars (loaded from local cache via purego)
@@ -98,6 +116,7 @@ type CompositeLoader struct {
 	builtin  *BuiltinRegistry
 	dynamic  *DynamicLoader
 	autoLoad bool // Whether to auto-download missing grammars
+	logger   *log.Logger
 
 	mu    sync.RWMutex
 	cache map[string]*tree_sitter.Language // Loaded language cache
@@ -142,6 +161,22 @@ func WithVersion(v string) CompositeLoaderOption {
 	}
 }
 
+// WithLogger sets an optional logger for the CompositeLoader. When set,
+// grammar loading events (auto-downloads, staleness detection, first-match
+// during scans) are logged. When nil (default), no output is produced.
+func WithLogger(l *log.Logger) CompositeLoaderOption {
+	return func(cl *CompositeLoader) {
+		cl.logger = l
+	}
+}
+
+// logf logs a message if a logger is configured; no-op otherwise.
+func (cl *CompositeLoader) logf(format string, args ...any) {
+	if cl.logger != nil {
+		cl.logger.Printf(format, args...)
+	}
+}
+
 // NewCompositeLoader creates a new CompositeLoader with the given options.
 func NewCompositeLoader(opts ...CompositeLoaderOption) *CompositeLoader {
 	cl := &CompositeLoader{
@@ -177,29 +212,41 @@ func (cl *CompositeLoader) Load(ctx context.Context, name string) (*tree_sitter.
 	}
 
 	// 2. Try dynamic loader (local cache)
-	if lang, err := cl.dynamic.Load(name); err == nil {
+	lang, dynErr := cl.dynamic.Load(name)
+	if dynErr == nil {
 		cl.mu.Lock()
 		cl.cache[name] = lang
 		cl.mu.Unlock()
 		return lang, nil
 	}
 
-	// 3. Auto-download if enabled
+	// 3. Auto-download if enabled — triggered for missing OR stale grammars
 	if cl.autoLoad {
-		if err := cl.Install(ctx, name); err != nil {
+		var staleErr *GrammarStaleError
+		var notFoundErr *GrammarNotFoundError
+		if errors.As(dynErr, &staleErr) {
+			cl.logf("grammar %q is stale (installed: %s, want: %s), re-downloading",
+				staleErr.Name, staleErr.InstalledVersion, staleErr.WantVersion)
+		} else if errors.As(dynErr, &notFoundErr) {
+			cl.logf("grammar %q not installed, auto-downloading", notFoundErr.Name)
+		}
+		if errors.As(dynErr, &staleErr) || errors.As(dynErr, &notFoundErr) {
+			if err := cl.Install(ctx, name); err != nil {
+				return nil, err
+			}
+			cl.logf("grammar %q downloaded successfully", name)
+			// Try loading again from dynamic cache
+			lang, err := cl.dynamic.Load(name)
+			if err == nil {
+				cl.mu.Lock()
+				cl.cache[name] = lang
+				cl.mu.Unlock()
+				return lang, nil
+			}
+			// Download succeeded but loading failed (e.g. Dlopen error) —
+			// propagate the actual error rather than masking it.
 			return nil, err
 		}
-		// Try loading again from dynamic cache
-		lang, err := cl.dynamic.Load(name)
-		if err == nil {
-			cl.mu.Lock()
-			cl.cache[name] = lang
-			cl.mu.Unlock()
-			return lang, nil
-		}
-		// Download succeeded but loading failed (e.g. Dlopen error) —
-		// propagate the actual error rather than masking it.
-		return nil, err
 	}
 
 	return nil, &GrammarNotFoundError{Name: name}

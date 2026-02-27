@@ -13,6 +13,9 @@
 # ── Test fixture data (embedded secrets, high-complexity samples, etc.) ──
 **/testdata/
 
+# ── Grammar testdata should be scanned (exercises language detection) ──
+!aide/pkg/grammar/testdata/
+
 # ── Protobuf generated code (already covered by *.pb.go default, but
 #    being explicit about the grpcapi output directory) ──
 aide/pkg/grpcapi/*.pb.go

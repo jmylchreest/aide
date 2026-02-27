@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -96,7 +97,7 @@ Examples:
 
 // cmdGrammarList shows grammar status.
 func cmdGrammarList(dbPath string, args []string) error {
-	loader := newGrammarLoaderNoAuto(dbPath)
+	loader := newGrammarLoaderNoAuto(dbPath, nil)
 	jsonOutput := hasFlag(args, "--json")
 	onlyInstalled := hasFlag(args, "--installed")
 	onlyAvailable := hasFlag(args, "--available")
@@ -231,7 +232,7 @@ func grammarListJSON(installed []grammar.GrammarInfo, available []string, onlyIn
 // cmdGrammarInstall downloads grammar shared libraries.
 func cmdGrammarInstall(dbPath string, args []string) error {
 	root := projectRoot(dbPath)
-	loader := newGrammarLoaderNoAuto(dbPath)
+	loader := newGrammarLoaderNoAuto(dbPath, nil)
 	ctx := context.Background()
 
 	installAll := hasFlag(args, "--all")
@@ -319,7 +320,7 @@ func cmdGrammarInstall(dbPath string, args []string) error {
 // cmdGrammarRemove deletes downloaded grammar shared libraries.
 func cmdGrammarRemove(dbPath string, args []string) error {
 	root := projectRoot(dbPath)
-	loader := newGrammarLoaderNoAuto(dbPath)
+	loader := newGrammarLoaderNoAuto(dbPath, nil)
 
 	removeAll := hasFlag(args, "--all")
 	noLock := hasFlag(args, "--no-lock")
@@ -393,8 +394,12 @@ func cmdGrammarScan(dbPath string, args []string) error {
 		}
 	}
 
-	loader := newGrammarLoaderNoAuto(dbPath)
-	ignore := aideignore.NewFromDefaults()
+	scanLog := log.New(os.Stderr, "[grammar] ", 0)
+	loader := newGrammarLoaderNoAuto(dbPath, scanLog)
+	ignore, err := aideignore.New(root)
+	if err != nil {
+		ignore = aideignore.NewFromDefaults()
+	}
 
 	statuses, err := grammar.ScanDetail(root, loader, code.DetectLanguage, ignore)
 	if err != nil {

@@ -401,7 +401,7 @@ func cmdMCP(dbPath string, args []string) error {
 	mcpLog.Printf("version: %s", version.String())
 	mcpLog.Printf("database: %s", dbPath)
 
-	grammarLoader := newGrammarLoader(dbPath)
+	grammarLoader := newGrammarLoader(dbPath, mcpLog)
 	socketPath := grpcapi.SocketPathFromDB(dbPath)
 
 	// Try client mode first: connect to existing primary via gRPC socket
