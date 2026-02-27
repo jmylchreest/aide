@@ -1,6 +1,6 @@
 # Plan: Tree-Sitter Grammar Migration
 
-## Status: In Progress
+## Status: Mostly Complete
 
 ## Summary
 
@@ -382,62 +382,77 @@ When aide is upgraded:
 
 This is a single-pass implementation. Order of work:
 
-### Step 1: Grammar Loader Package
+### Step 1: Grammar Loader Package — DONE
 
-Create `pkg/grammar/` with:
+Created `pkg/grammar/` with:
 
-- `loader.go` — `Loader` interface and composite loader
+- `loader.go` — `Loader` interface and `CompositeLoader` (builtin + dynamic)
 - `builtin.go` — compiled-in grammar registry (9 languages)
 - `dynamic.go` — purego-based loader from `.aide/grammars/`
-- `download.go` — GitHub release asset downloader
+- `download.go` — GitHub release asset downloader with configurable URL template
 - `manifest.go` — manifest.json read/write
 - `platform.go` — OS/arch detection, library file naming
+- `scan.go` — project language scanning
+- `lockfile.go` — lock file generation from manifest
 
-### Step 2: Core API Migration
+### Step 2: Core API Migration — DONE
 
-Rewrite all 3 consumer files to use the official `go-tree-sitter` API:
+Rewrote all 3 consumer files to use the official `go-tree-sitter` API:
 
-- `pkg/code/parser.go` — use `grammar.Loader`, update all API calls
-- `pkg/findings/complexity.go` — use `grammar.Loader`, update all API calls
-- `pkg/findings/clone/tokenize.go` — use `grammar.Loader`, update all API calls
+- `pkg/code/parser.go` — uses `grammar.Loader`, all API calls updated
+- `pkg/findings/complexity.go` — uses `grammar.Loader`, all API calls updated
+- `pkg/findings/clone/tokenize.go` — uses `grammar.Loader`, all API calls updated
 
-### Step 3: 9 Core Grammars
+### Step 3: 9 Core Grammars — DONE
 
-Add the 9 core grammar dependencies to `go.mod` and wire them into
-`pkg/grammar/builtin.go`.
+All 9 core grammar dependencies in `go.mod`, wired into `pkg/grammar/builtin.go`.
 
-### Step 4: go.mod Cleanup
+### Step 4: go.mod Cleanup — DONE
 
-Remove `smacker/go-tree-sitter` from `go.mod`. Run `go mod tidy`.
+Removed `smacker/go-tree-sitter` from `go.mod`. `go mod tidy` clean.
 
-### Step 5: Tests & Verification
+### Step 5: Tests & Verification — DONE
 
 - All existing tests pass
-- Build compiles for all target platforms
-- Binary size is in expected range (~20-25MB)
+- 13 integration tests for dynamic grammar download pipeline
+- Unit tests for all grammar package components
+- Build compiles cleanly for all targets
+- Zero lint issues in grammar package
 
-### Step 6: CLI & CI
+### Step 6: CLI & CI — DONE
 
-- `aide grammar` subcommand
-- Grammar build workflow in CI
-- `grammars.lock` file
+- `aide grammar` subcommand with list/install/remove/detect/clean/update
+- Grammar build merged into `release.yml` (19 dynamic grammars, 6 platforms)
+- Standalone `grammar-build.yml` removed
+- Version wired into grammar downloads (release tag or "snapshot")
+- Configurable download URL via env var and aide.json
 
-### Step 7: Auto-Detection
+### Step 7: Auto-Detection — DONE
 
-- Language scanner
-- Auto-download on first use
-- `aide.json` grammar configuration
+- Language scanner (`ScanProject`, `ScanDetail`)
+- Auto-download on first use (configurable via `autoDownload` in aide.json)
+- `AIDE_GRAMMAR_URL` and `AIDE_GRAMMAR_AUTO_DOWNLOAD` env overrides
+
+## Remaining Work
+
+- **End-to-end testing with real grammar .so files**: Once CI builds grammars,
+  test downloading real assets from a `snapshot` release and parsing real
+  code (Ruby, Bash, etc.) with them.
+- **Windows DLL loading**: Verify purego `Dlopen` works on Windows or add
+  `x/sys/windows.LoadLibrary` fallback with build tags.
+- **ABI version checking on upgrade**: Auto-re-download grammars whose ABI
+  version is outside the runtime's compatible range after an aide upgrade.
 
 ## Open Questions
 
 1. **Windows DLL loading**: purego's `Dlopen` is not available on Windows.
    Need to use `x/sys/windows.LoadLibrary` instead. Abstract behind the
-   Loader interface with build tags.
+   Loader interface with build tags. _Not yet tested on Windows._
 
-2. **Grammar build reproducibility**: Should we vendor grammar sources in a
-   submodule or fetch at build time? Submodule gives reproducibility;
-   fetch-at-build is simpler. Recommend fetch-at-build with version pinning
-   via `grammars.lock`.
+2. ~~**Grammar build reproducibility**~~: Resolved — grammars are built in
+   `release.yml` using a matrix of the 19 dynamic grammars across 6
+   platform/arch combinations. Grammar versions are pinned to the aide
+   release version (or "snapshot" for dev builds).
 
 3. **Extending complexity/clone analysers**: Currently only 6 languages.
    With dynamic loading, should these analysers also support dynamically

@@ -190,12 +190,16 @@ func (cl *CompositeLoader) Load(ctx context.Context, name string) (*tree_sitter.
 			return nil, err
 		}
 		// Try loading again from dynamic cache
-		if lang, err := cl.dynamic.Load(name); err == nil {
+		lang, err := cl.dynamic.Load(name)
+		if err == nil {
 			cl.mu.Lock()
 			cl.cache[name] = lang
 			cl.mu.Unlock()
 			return lang, nil
 		}
+		// Download succeeded but loading failed (e.g. Dlopen error) —
+		// propagate the actual error rather than masking it.
+		return nil, err
 	}
 
 	return nil, &GrammarNotFoundError{Name: name}
