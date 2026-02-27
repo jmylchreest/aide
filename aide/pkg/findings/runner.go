@@ -25,6 +25,9 @@ type AnalyzerConfig struct {
 	FanInThreshold      int
 	CloneWindowSize     int
 	CloneMinLines       int
+	CloneMinMatchCount  int
+	CloneMaxBucketSize  int
+	CloneMinSimilarity  float64
 	Paths               []string
 	// ProjectRoot is the absolute path to the project root, used for converting
 	// absolute file paths from the watcher to relative paths for aideignore matching.
@@ -55,7 +58,16 @@ type AnalyzerStatus struct {
 	Error        string
 }
 
-type ClonesRunner func(ctx context.Context, paths []string, windowSize, minLines int) ([]*Finding, error)
+// ClonesRunnerConfig holds clone-specific parameters passed to the ClonesRunner.
+type ClonesRunnerConfig struct {
+	WindowSize    int
+	MinLines      int
+	MinMatchCount int
+	MaxBucketSize int
+	MinSimilarity float64
+}
+
+type ClonesRunner func(ctx context.Context, paths []string, cfg ClonesRunnerConfig) ([]*Finding, error)
 
 type Runner struct {
 	store        ReplaceFindingsStore
@@ -307,15 +319,24 @@ func (r *Runner) runProjectAnalyzer(ctx context.Context, analyzer string) ([]*Fi
 		if r.clonesRunner == nil {
 			return nil, fmt.Errorf("clones runner not configured")
 		}
+		// Defaults mirror clone.DefaultWindowSize / clone.DefaultMinCloneLines.
+		// Can't import clone (cycle), but DetectClones.defaults() applies
+		// the canonical values for any zero fields anyway.
 		windowSize := r.config.CloneWindowSize
 		if windowSize <= 0 {
 			windowSize = 50
 		}
 		minLines := r.config.CloneMinLines
 		if minLines <= 0 {
-			minLines = 6
+			minLines = 20
 		}
-		return r.clonesRunner(ctx, paths, windowSize, minLines)
+		return r.clonesRunner(ctx, paths, ClonesRunnerConfig{
+			WindowSize:    windowSize,
+			MinLines:      minLines,
+			MinMatchCount: r.config.CloneMinMatchCount,
+			MaxBucketSize: r.config.CloneMaxBucketSize,
+			MinSimilarity: r.config.CloneMinSimilarity,
+		})
 
 	default:
 		return nil, fmt.Errorf("unknown analyzer: %s", analyzer)

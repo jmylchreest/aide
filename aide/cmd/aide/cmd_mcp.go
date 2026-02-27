@@ -284,13 +284,19 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 				FanInThreshold:      fcfg.Coupling.FanIn,
 				CloneWindowSize:     fcfg.Clones.WindowSize,
 				CloneMinLines:       fcfg.Clones.MinLines,
+				CloneMinMatchCount:  fcfg.Clones.MinMatchCount,
+				CloneMaxBucketSize:  fcfg.Clones.MaxBucketSize,
+				CloneMinSimilarity:  fcfg.Clones.MinSimilarity,
 			}
 			findingsRunner = findings.NewRunner(s.findingsStore, runnerConfig, s.grammarLoader)
-			findingsRunner.SetClonesRunner(func(ctx context.Context, paths []string, windowSize, minLines int) ([]*findings.Finding, error) {
+			findingsRunner.SetClonesRunner(func(ctx context.Context, paths []string, cfg findings.ClonesRunnerConfig) ([]*findings.Finding, error) {
 				cloneCfg := clone.Config{
 					Paths:         paths,
-					WindowSize:    windowSize,
-					MinCloneLines: minLines,
+					WindowSize:    cfg.WindowSize,
+					MinCloneLines: cfg.MinLines,
+					MinMatchCount: cfg.MinMatchCount,
+					MaxBucketSize: cfg.MaxBucketSize,
+					MinSimilarity: cfg.MinSimilarity,
 					Ignore:        ignore,
 					Loader:        s.grammarLoader,
 				}

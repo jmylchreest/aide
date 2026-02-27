@@ -92,8 +92,11 @@ type findingsConfig struct {
 		FanIn  int `json:"fanIn"`
 	} `json:"coupling"`
 	Clones struct {
-		WindowSize int `json:"windowSize"`
-		MinLines   int `json:"minLines"`
+		WindowSize    int     `json:"windowSize"`
+		MinLines      int     `json:"minLines"`
+		MinMatchCount int     `json:"minMatchCount"`
+		MaxBucketSize int     `json:"maxBucketSize"`
+		MinSimilarity float64 `json:"minSimilarity"`
 	} `json:"clones"`
 }
 

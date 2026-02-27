@@ -47,7 +47,7 @@ func cmdFindingsDispatcher(dbPath string, args []string) error {
 }
 
 func printFindingsUsage() {
-	fmt.Println(`aide findings - Run analysers and manage static analysis findings
+	fmt.Printf(`aide findings - Run analysers and manage static analysis findings
 
 Usage:
   aide findings <subcommand> [arguments]
@@ -65,9 +65,12 @@ Options:
     --threshold=N    Complexity threshold (default 10)
     --fan-out=N      Coupling fan-out threshold (default 15)
     --fan-in=N       Coupling fan-in threshold (default 20)
-    --window=N       Clone window size in tokens (default 50)
-    --min-lines=N    Clone minimum line span (default 6)
-    --no-validate    Secrets: skip live validation (default)
+    --window=N          Clone window size in tokens (default %d)
+    --min-lines=N       Clone minimum line span (default %d)
+    --min-match-count=N Clone minimum matching windows per region (default %d)
+    --max-bucket=N      Clone max locations per hash bucket (default %d, 0=unlimited)
+    --min-similarity=F  Clone minimum similarity ratio 0.0-1.0 (default %.1f)
+    --no-validate       Secrets: skip live validation (default)
 
   search <query>:
     --analyser=NAME  Filter by analyser (complexity, coupling, secrets, clones)
@@ -98,7 +101,9 @@ Examples:
   aide findings list --analyser=complexity --severity=critical
   aide findings search "cyclomatic"
   aide findings list --file=src/auth
-  aide findings clear --analyser=secrets`)
+  aide findings clear --analyser=secrets
+`, clone.DefaultWindowSize, clone.DefaultMinCloneLines, clone.DefaultMinMatchCount,
+		clone.DefaultMaxBucketSize, clone.DefaultMinSimilarity)
 }
 
 // cmdFindingsRun runs one or more static analyzers and stores findings.
@@ -160,7 +165,7 @@ func cmdFindingsRun(dbPath string, args []string) error {
 			fanIn = v
 		}
 	}
-	windowSize := 50
+	windowSize := clone.DefaultWindowSize
 	if cfg.Clones.WindowSize > 0 {
 		windowSize = cfg.Clones.WindowSize
 	}
@@ -171,7 +176,7 @@ func cmdFindingsRun(dbPath string, args []string) error {
 			windowSize = v
 		}
 	}
-	minCloneLines := 6
+	minCloneLines := clone.DefaultMinCloneLines
 	if cfg.Clones.MinLines > 0 {
 		minCloneLines = cfg.Clones.MinLines
 	}
@@ -181,6 +186,39 @@ func cmdFindingsRun(dbPath string, args []string) error {
 		} else {
 			minCloneLines = v
 		}
+	}
+	minMatchCount := 0 // 0 → clone.DefaultMinMatchCount applied by defaults().
+	if cfg.Clones.MinMatchCount > 0 {
+		minMatchCount = cfg.Clones.MinMatchCount
+	}
+	if m := parseFlag(subargs, "--min-match-count="); m != "" {
+		if v, err := strconv.Atoi(m); err != nil {
+			return fmt.Errorf("invalid --min-match-count value %q: %w", m, err)
+		} else {
+			minMatchCount = v
+		}
+	}
+	maxBucket := 0 // 0 → clone.DefaultMaxBucketSize applied by defaults().
+	if cfg.Clones.MaxBucketSize > 0 {
+		maxBucket = cfg.Clones.MaxBucketSize
+	}
+	if m := parseFlag(subargs, "--max-bucket="); m != "" {
+		if v, err := strconv.Atoi(m); err != nil {
+			return fmt.Errorf("invalid --max-bucket value %q: %w", m, err)
+		} else {
+			maxBucket = v
+		}
+	}
+	minSimilarity := 0.0
+	if cfg.Clones.MinSimilarity > 0 {
+		minSimilarity = cfg.Clones.MinSimilarity
+	}
+	if m := parseFlag(subargs, "--min-similarity="); m != "" {
+		v, err := strconv.ParseFloat(m, 64)
+		if err != nil {
+			return fmt.Errorf("invalid --min-similarity value %q: %w", m, err)
+		}
+		minSimilarity = v
 	}
 
 	// Determine which analyzers to run.
@@ -236,7 +274,7 @@ func cmdFindingsRun(dbPath string, args []string) error {
 			totalFindings += n
 
 		case findings.AnalyzerClones:
-			n, err := runClonesAnalyzer(backend, paths, windowSize, minCloneLines, ignore, loader)
+			n, err := runClonesAnalyzer(backend, paths, windowSize, minCloneLines, minMatchCount, maxBucket, minSimilarity, ignore, loader)
 			if err != nil {
 				return fmt.Errorf("clones analyser failed: %w", err)
 			}
@@ -330,12 +368,32 @@ func runSecretsAnalyzer(backend *Backend, paths []string, ignore *aideignore.Mat
 	return len(ff), nil
 }
 
-func runClonesAnalyzer(backend *Backend, paths []string, windowSize, minLines int, ignore *aideignore.Matcher, loader grammar.Loader) (int, error) {
-	fmt.Printf("Running clone detection (window=%d, min-lines=%d)...\n", windowSize, minLines)
+func runClonesAnalyzer(backend *Backend, paths []string, windowSize, minLines, minMatchCount, maxBucket int, minSimilarity float64, ignore *aideignore.Matcher, loader grammar.Loader) (int, error) {
+	// Show effective values (clone.Config.defaults() resolves zero → default).
+	effWindow, effMinLines := windowSize, minLines
+	if effWindow <= 0 {
+		effWindow = clone.DefaultWindowSize
+	}
+	if effMinLines <= 0 {
+		effMinLines = clone.DefaultMinCloneLines
+	}
+	effMinMatch := minMatchCount
+	if effMinMatch <= 0 {
+		effMinMatch = clone.DefaultMinMatchCount
+	}
+	effMaxBucket := maxBucket
+	if effMaxBucket <= 0 {
+		effMaxBucket = clone.DefaultMaxBucketSize
+	}
+	fmt.Printf("Running clone detection (window=%d, min-lines=%d, min-match-count=%d, max-bucket=%d, min-similarity=%.2f)...\n",
+		effWindow, effMinLines, effMinMatch, effMaxBucket, minSimilarity)
 
 	cfg := clone.Config{
 		WindowSize:    windowSize,
 		MinCloneLines: minLines,
+		MinMatchCount: minMatchCount,
+		MaxBucketSize: maxBucket,
+		MinSimilarity: minSimilarity,
 		Paths:         paths,
 		Ignore:        ignore,
 		Loader:        loader,
@@ -346,8 +404,12 @@ func runClonesAnalyzer(backend *Backend, paths []string, windowSize, minLines in
 		return 0, err
 	}
 
-	fmt.Printf("  Analyzed %d files (skipped %d), %d clone groups, %d findings (%s)\n",
+	fmt.Printf("  Analysed %d files (skipped %d), %d clone groups, %d findings (%s)\n",
 		result.FilesAnalyzed, result.FilesSkipped, result.CloneGroups, result.FindingsCount, result.Duration.Round(1_000_000))
+	if result.BucketsSkipped > 0 || result.CollisionsFiltered > 0 {
+		fmt.Printf("  Noise reduction: %d boilerplate buckets skipped, %d hash collisions filtered\n",
+			result.BucketsSkipped, result.CollisionsFiltered)
+	}
 
 	if err := backend.ReplaceFindingsForAnalyzer(findings.AnalyzerClones, ff); err != nil {
 		return 0, fmt.Errorf("failed to store findings: %w", err)
