@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/jmylchreest/aide/aide/pkg/aideignore"
@@ -101,9 +100,12 @@ func DetectClones(cfg Config) ([]*findings.Finding, *Result, error) {
 			}
 
 			// Only process supported source files.
-			ext := strings.ToLower(filepath.Ext(path))
-			lang, ok := code.LangExtensions[ext]
-			if !ok {
+			if !code.SupportedFile(path) {
+				result.FilesSkipped++
+				return nil
+			}
+			lang := code.DetectLanguage(path, nil)
+			if lang == "" {
 				result.FilesSkipped++
 				return nil
 			}

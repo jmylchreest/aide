@@ -150,6 +150,9 @@ var keywordTypes = map[string]bool{
 // Tokenize parses source content using tree-sitter and produces a normalized
 // token sequence. Identifiers are normalized to "id", literals to "lit",
 // keywords and operators are preserved for structural matching.
+//
+// Pack-specific tokenisation types (from grammar packs) are merged with
+// the generic base set — extending, not replacing.
 func Tokenize(loader grammar.Loader, filePath string, content []byte, lang string) (*TokenSequence, error) {
 	sitterLang, err := loader.Load(context.Background(), lang)
 	if err != nil {
@@ -168,8 +171,11 @@ func Tokenize(loader grammar.Loader, filePath string, content []byte, lang strin
 	}
 	defer tree.Close()
 
+	// Build merged token type lookups (pack-specific + generic base).
+	lookup := buildTokenLookup(lang)
+
 	var tokens []Token
-	walkLeaves(tree.RootNode(), content, &tokens)
+	walkLeaves(tree.RootNode(), content, &tokens, lookup)
 
 	return &TokenSequence{
 		FilePath: filePath,
@@ -177,14 +183,59 @@ func Tokenize(loader grammar.Loader, filePath string, content []byte, lang strin
 	}, nil
 }
 
+// tokenLookup holds the merged identifier/literal/keyword type sets for a
+// specific language. Created once per Tokenize call.
+type tokenLookup struct {
+	identifiers map[string]bool
+	literals    map[string]bool
+	keywords    map[string]bool
+}
+
+// buildTokenLookup creates a merged token lookup for the given language.
+// Pack-specific types extend the generic base sets (merge strategy).
+func buildTokenLookup(lang string) *tokenLookup {
+	// Start with copies of the generic base sets.
+	ids := make(map[string]bool, len(identifierTypes)+8)
+	for k, v := range identifierTypes {
+		ids[k] = v
+	}
+	lits := make(map[string]bool, len(literalTypes)+8)
+	for k, v := range literalTypes {
+		lits[k] = v
+	}
+	kws := make(map[string]bool, len(keywordTypes)+8)
+	for k, v := range keywordTypes {
+		kws[k] = v
+	}
+
+	// Merge pack-specific types if available.
+	if pack := grammar.DefaultPackRegistry().Get(lang); pack != nil && pack.Tokenisation != nil {
+		for _, t := range pack.Tokenisation.IdentifierTypes {
+			ids[t] = true
+		}
+		for _, t := range pack.Tokenisation.LiteralTypes {
+			lits[t] = true
+		}
+		for _, t := range pack.Tokenisation.KeywordTypes {
+			kws[t] = true
+		}
+	}
+
+	return &tokenLookup{
+		identifiers: ids,
+		literals:    lits,
+		keywords:    kws,
+	}
+}
+
 // walkLeaves performs a DFS over the tree and collects leaf nodes as tokens.
-func walkLeaves(node *tree_sitter.Node, content []byte, tokens *[]Token) {
+func walkLeaves(node *tree_sitter.Node, content []byte, tokens *[]Token, lookup *tokenLookup) {
 	if node.ChildCount() == 0 {
 		// Leaf node — normalize and collect.
 		nodeType := node.Kind()
 		line := int(node.StartPosition().Row) + 1 // tree-sitter is 0-indexed
 
-		kind := normalizeToken(nodeType, node, content)
+		kind := normalizeToken(nodeType, node, content, lookup)
 		if kind != "" {
 			*tokens = append(*tokens, Token{Kind: kind, Line: line})
 		}
@@ -194,30 +245,30 @@ func walkLeaves(node *tree_sitter.Node, content []byte, tokens *[]Token) {
 	for i := uint(0); i < node.ChildCount(); i++ {
 		child := node.Child(i)
 		if child != nil {
-			walkLeaves(child, content, tokens)
+			walkLeaves(child, content, tokens, lookup)
 		}
 	}
 }
 
 // normalizeToken maps a tree-sitter leaf node to a normalized token kind.
-func normalizeToken(nodeType string, node *tree_sitter.Node, content []byte) string {
+func normalizeToken(nodeType string, node *tree_sitter.Node, content []byte, lookup *tokenLookup) string {
 	// Skip comments and whitespace.
 	if strings.HasSuffix(nodeType, "comment") || nodeType == "comment" {
 		return ""
 	}
 
 	// Normalize identifiers.
-	if identifierTypes[nodeType] {
+	if lookup.identifiers[nodeType] {
 		return "id"
 	}
 
 	// Normalize literals.
-	if literalTypes[nodeType] {
+	if lookup.literals[nodeType] {
 		return "lit"
 	}
 
 	// Preserve keywords.
-	if keywordTypes[nodeType] {
+	if lookup.keywords[nodeType] {
 		return "kw:" + nodeType
 	}
 

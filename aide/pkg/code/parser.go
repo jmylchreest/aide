@@ -23,16 +23,28 @@ import (
 type Parser struct {
 	mu         sync.Mutex
 	loader     grammar.Loader
+	registry   *grammar.PackRegistry            // Grammar pack metadata
 	languages  map[string]*tree_sitter.Language // Loaded grammars (cache)
 	queries    map[string]*tree_sitter.Query    // Compiled tag queries (cache)
 	refQueries map[string]*tree_sitter.Query    // Compiled reference queries (cache)
 }
 
 // NewParser creates a new code parser backed by the given grammar loader.
+// Uses the default PackRegistry for query/metadata lookups.
 // Grammars and queries are loaded lazily on first use.
 func NewParser(loader grammar.Loader) *Parser {
+	return NewParserWithRegistry(loader, nil)
+}
+
+// NewParserWithRegistry creates a parser with an explicit PackRegistry.
+// If registry is nil, the DefaultPackRegistry is used.
+func NewParserWithRegistry(loader grammar.Loader, registry *grammar.PackRegistry) *Parser {
+	if registry == nil {
+		registry = grammar.DefaultPackRegistry()
+	}
 	return &Parser{
 		loader:     loader,
+		registry:   registry,
 		languages:  make(map[string]*tree_sitter.Language),
 		queries:    make(map[string]*tree_sitter.Query),
 		refQueries: make(map[string]*tree_sitter.Query),
@@ -60,6 +72,7 @@ func (p *Parser) getLanguage(lang string) *tree_sitter.Language {
 
 // getTagQuery returns the compiled tag query for a language,
 // compiling and caching it on first access. Also loads the grammar if needed.
+// Prefers pack registry queries; falls back to the hardcoded TagQueries map.
 func (p *Parser) getTagQuery(lang string) *tree_sitter.Query {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -68,8 +81,13 @@ func (p *Parser) getTagQuery(lang string) *tree_sitter.Query {
 		return q
 	}
 
-	pattern, ok := TagQueries[lang]
-	if !ok {
+	// Prefer pack registry, fall back to hardcoded map.
+	var pattern string
+	if pack := p.registry.Get(lang); pack != nil && pack.Queries.Tags != "" {
+		pattern = pack.Queries.Tags
+	} else if p, ok := TagQueries[lang]; ok {
+		pattern = p
+	} else {
 		return nil
 	}
 
@@ -95,6 +113,7 @@ func (p *Parser) getTagQuery(lang string) *tree_sitter.Query {
 
 // getRefQuery returns the compiled reference query for a language,
 // compiling and caching it on first access. Also loads the grammar if needed.
+// Prefers pack registry queries; falls back to the hardcoded RefQueries map.
 func (p *Parser) getRefQuery(lang string) *tree_sitter.Query {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -103,8 +122,13 @@ func (p *Parser) getRefQuery(lang string) *tree_sitter.Query {
 		return q
 	}
 
-	pattern, ok := RefQueries[lang]
-	if !ok {
+	// Prefer pack registry, fall back to hardcoded map.
+	var pattern string
+	if pack := p.registry.Get(lang); pack != nil && pack.Queries.Refs != "" {
+		pattern = pack.Queries.Refs
+	} else if p, ok := RefQueries[lang]; ok {
+		pattern = p
+	} else {
 		return nil
 	}
 
@@ -132,15 +156,26 @@ func (p *Parser) getRefQuery(lang string) *tree_sitter.Query {
 // 1. File extension (fastest, covers ~95% of cases)
 // 2. Known filenames (Makefile, Jenkinsfile, etc.)
 // 3. Shebang line (for extensionless scripts, requires content)
+//
+// Uses the default PackRegistry for lookups, with fallback to hardcoded maps.
 func DetectLanguage(filePath string, content []byte) string {
+	reg := grammar.DefaultPackRegistry()
+
 	// 1. Try file extension
 	ext := strings.ToLower(filepath.Ext(filePath))
+	if lang, ok := reg.LangForExtension(ext); ok {
+		return lang
+	}
+	// Fallback to hardcoded map (covers languages not yet in packs, e.g., json, dockerfile)
 	if lang, ok := LangExtensions[ext]; ok {
 		return lang
 	}
 
 	// 2. Try known filenames
 	base := filepath.Base(filePath)
+	if lang, ok := reg.LangForFilename(base); ok {
+		return lang
+	}
 	if lang, ok := LangFilenames[base]; ok {
 		return lang
 	}
@@ -154,6 +189,7 @@ func DetectLanguage(filePath string, content []byte) string {
 }
 
 // detectShebang parses the first line of content for a shebang interpreter.
+// Uses the default PackRegistry for lookups, with fallback to hardcoded map.
 func detectShebang(content []byte) string {
 	scanner := bufio.NewScanner(bytes.NewReader(content))
 	if !scanner.Scan() {
@@ -181,12 +217,22 @@ func detectShebang(content []byte) string {
 		interpreter = filepath.Base(parts[1])
 	}
 
-	// Strip version suffixes (python3.11 -> python3 -> python)
+	reg := grammar.DefaultPackRegistry()
+
+	// Try exact match via pack registry first.
+	if lang, ok := reg.LangForShebang(interpreter); ok {
+		return lang
+	}
+	// Fallback to hardcoded map.
 	if lang, ok := ShebangLangs[interpreter]; ok {
 		return lang
 	}
+
 	// Try stripping trailing digits (python3 -> python)
 	stripped := strings.TrimRight(interpreter, "0123456789.")
+	if lang, ok := reg.LangForShebang(stripped); ok {
+		return lang
+	}
 	if lang, ok := ShebangLangs[stripped]; ok {
 		return lang
 	}
@@ -1150,17 +1196,28 @@ func (p *Parser) SupportedLanguage(lang string) bool {
 
 // SupportedExtension returns true if the file extension is supported.
 func SupportedExtension(ext string) bool {
-	_, ok := LangExtensions[strings.ToLower(ext)]
+	ext = strings.ToLower(ext)
+	if _, ok := grammar.DefaultPackRegistry().LangForExtension(ext); ok {
+		return true
+	}
+	_, ok := LangExtensions[ext]
 	return ok
 }
 
 // SupportedFile returns true if the file is supported (by extension or filename).
 func SupportedFile(filePath string) bool {
+	reg := grammar.DefaultPackRegistry()
 	ext := strings.ToLower(filepath.Ext(filePath))
+	if _, ok := reg.LangForExtension(ext); ok {
+		return true
+	}
 	if _, ok := LangExtensions[ext]; ok {
 		return true
 	}
 	base := filepath.Base(filePath)
+	if _, ok := reg.LangForFilename(base); ok {
+		return true
+	}
 	_, ok := LangFilenames[base]
 	return ok
 }

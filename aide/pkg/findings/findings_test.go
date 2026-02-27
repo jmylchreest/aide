@@ -3,7 +3,11 @@ package findings
 import (
 	"os"
 	"path/filepath"
+	"reflect"
+	"sort"
 	"testing"
+
+	"github.com/jmylchreest/aide/aide/pkg/grammar"
 )
 
 // testdataDir returns the absolute path to the testdata directory.
@@ -372,4 +376,114 @@ func findingSummary(ff []*Finding) []string {
 		ss = append(ss, f.Severity+":"+f.Category+":"+f.FilePath)
 	}
 	return ss
+}
+
+// =============================================================================
+// Pack-based import extraction — verify parity with hardcoded extractors
+// =============================================================================
+
+func TestExtractImportsFromPack_Go(t *testing.T) {
+	content := []byte(`package main
+
+import "fmt"
+
+import (
+	"os"
+	"strings"
+)
+
+func main() {}
+`)
+	reg := grammar.DefaultPackRegistry()
+	pack := reg.Get("go")
+	if pack == nil || pack.Imports == nil {
+		t.Fatal("go pack has no imports config")
+	}
+
+	got := extractImportsFromPack(content, pack.Imports)
+	want := []string{"fmt", "os", "strings"}
+	sort.Strings(got)
+	sort.Strings(want)
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("go imports: got %v, want %v", got, want)
+	}
+}
+
+func TestExtractImportsFromPack_Python(t *testing.T) {
+	content := []byte(`import os
+from pathlib import Path
+import sys
+`)
+	reg := grammar.DefaultPackRegistry()
+	pack := reg.Get("python")
+	if pack == nil || pack.Imports == nil {
+		t.Fatal("python pack has no imports config")
+	}
+
+	got := extractImportsFromPack(content, pack.Imports)
+	want := []string{"os", "pathlib", "sys"}
+	sort.Strings(got)
+	sort.Strings(want)
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("python imports: got %v, want %v", got, want)
+	}
+}
+
+func TestExtractImportsFromPack_TypeScript(t *testing.T) {
+	content := []byte(`import { foo } from './foo';
+import bar from 'bar';
+const x = require('baz');
+export { thing } from '@scope/pkg';
+`)
+	reg := grammar.DefaultPackRegistry()
+	pack := reg.Get("typescript")
+	if pack == nil || pack.Imports == nil {
+		t.Fatal("typescript pack has no imports config")
+	}
+
+	got := extractImportsFromPack(content, pack.Imports)
+	want := []string{"./foo", "bar", "baz", "@scope/pkg"}
+	sort.Strings(got)
+	sort.Strings(want)
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("typescript imports: got %v, want %v", got, want)
+	}
+}
+
+func TestExtractImportsFromPack_Java(t *testing.T) {
+	content := []byte(`import java.util.List;
+import static org.junit.Assert.assertEquals;
+`)
+	reg := grammar.DefaultPackRegistry()
+	pack := reg.Get("java")
+	if pack == nil || pack.Imports == nil {
+		t.Fatal("java pack has no imports config")
+	}
+
+	got := extractImportsFromPack(content, pack.Imports)
+	want := []string{"java.util.List", "org.junit.Assert.assertEquals"}
+	sort.Strings(got)
+	sort.Strings(want)
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("java imports: got %v, want %v", got, want)
+	}
+}
+
+func TestExtractImportsFromPack_Rust(t *testing.T) {
+	content := []byte(`use std::collections::HashMap;
+use crate::config;
+`)
+	reg := grammar.DefaultPackRegistry()
+	pack := reg.Get("rust")
+	if pack == nil || pack.Imports == nil {
+		t.Fatal("rust pack has no imports config")
+	}
+
+	got := extractImportsFromPack(content, pack.Imports)
+	want := []string{"std::collections::HashMap", "config"}
+	sort.Strings(got)
+	sort.Strings(want)
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("rust imports: got %v, want %v", got, want)
+	}
 }

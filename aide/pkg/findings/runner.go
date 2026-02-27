@@ -306,10 +306,7 @@ func (r *Runner) analyzeFileComplexity(ctx context.Context, filePath string, con
 		return nil, nil
 	}
 
-	langCfg, ok := complexityLanguages[lang]
-	if !ok {
-		langCfg = genericComplexityLang
-	}
+	langCfg := getComplexityLang(lang)
 
 	threshold := r.config.ComplexityThreshold
 	if threshold <= 0 {

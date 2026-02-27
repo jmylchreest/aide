@@ -56,6 +56,26 @@ func registerComplexityLang(lang string, cfg *complexityLang) {
 	complexityLanguages[lang] = cfg
 }
 
+// getComplexityLang returns the complexity config for a language. It checks:
+// 1. PackRegistry (pack.json complexity data)
+// 2. Hardcoded complexityLanguages map (init()-registered per-language files)
+// 3. genericComplexityLang fallback
+func getComplexityLang(lang string) *complexityLang {
+	// Prefer pack registry data.
+	if pack := grammar.DefaultPackRegistry().Get(lang); pack != nil && pack.Complexity != nil {
+		return &complexityLang{
+			funcNodeTypes: pack.Complexity.FuncNodeTypes,
+			branchTypes:   pack.Complexity.BranchTypes,
+			nameField:     pack.Complexity.NameField,
+		}
+	}
+	// Fall back to hardcoded map.
+	if cfg, ok := complexityLanguages[lang]; ok {
+		return cfg
+	}
+	return genericComplexityLang
+}
+
 // genericComplexityLang is a superset fallback config covering common node types
 // across many tree-sitter grammars. Used when no language-specific config exists.
 // Unrecognised node types are harmlessly ignored by the complexity counter.
@@ -170,10 +190,7 @@ func AnalyzeComplexity(cfg ComplexityConfig) ([]*Finding, *ComplexityResult, err
 			}
 
 			lang := code.DetectLanguage(path, nil)
-			langCfg, ok := complexityLanguages[lang]
-			if !ok {
-				langCfg = genericComplexityLang
-			}
+			langCfg := getComplexityLang(lang)
 
 			content, err := os.ReadFile(path)
 			if err != nil {

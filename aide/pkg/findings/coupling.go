@@ -13,6 +13,7 @@ import (
 
 	"github.com/jmylchreest/aide/aide/pkg/aideignore"
 	"github.com/jmylchreest/aide/aide/pkg/code"
+	"github.com/jmylchreest/aide/aide/pkg/grammar"
 )
 
 // CouplingConfig configures the coupling analyzer.
@@ -336,12 +337,19 @@ var (
 
 // extractImports returns a list of import paths from a file.
 // Import paths are normalized to just the module/package name, not full paths.
+// Prefers pack registry patterns; falls back to hardcoded per-language extractors.
 func extractImports(filePath, lang string) []string {
 	content, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil
 	}
 
+	// Try pack registry first — generic regex-driven extraction.
+	if pack := grammar.DefaultPackRegistry().Get(lang); pack != nil && pack.Imports != nil && len(pack.Imports.Patterns) > 0 {
+		return extractImportsFromPack(content, pack.Imports)
+	}
+
+	// Fall back to hardcoded per-language extractors.
 	switch lang {
 	case code.LangGo:
 		return extractGoImports(content)
@@ -356,6 +364,67 @@ func extractImports(filePath, lang string) []string {
 	default:
 		return nil
 	}
+}
+
+// extractImportsFromPack uses pack.json import patterns to extract imports
+// generically. Handles block_start/block_end for languages like Go that have
+// multi-line import blocks.
+func extractImportsFromPack(content []byte, imports *grammar.PackImports) []string {
+	// Pre-compile all patterns.
+	type compiledPattern struct {
+		re      *regexp.Regexp
+		group   int
+		context string
+	}
+	compiled := make([]compiledPattern, 0, len(imports.Patterns))
+	for _, p := range imports.Patterns {
+		re, err := regexp.Compile(p.Regex)
+		if err != nil {
+			continue
+		}
+		compiled = append(compiled, compiledPattern{re: re, group: p.Group, context: p.Context})
+	}
+	if len(compiled) == 0 {
+		return nil
+	}
+
+	var result []string
+	scanner := bufio.NewScanner(strings.NewReader(string(content)))
+	inBlock := false
+
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		// Handle block boundaries if defined.
+		if imports.BlockStart != "" {
+			if !inBlock && strings.Contains(line, imports.BlockStart) {
+				inBlock = true
+				continue
+			}
+			if inBlock && strings.TrimSpace(line) == imports.BlockEnd {
+				inBlock = false
+				continue
+			}
+		}
+
+		for _, cp := range compiled {
+			// Filter by context: "single" patterns only match outside blocks,
+			// "block" patterns only match inside blocks, empty matches anywhere.
+			if cp.context == "single" && inBlock {
+				continue
+			}
+			if cp.context == "block" && !inBlock {
+				continue
+			}
+
+			m := cp.re.FindStringSubmatch(line)
+			if m != nil && cp.group < len(m) {
+				result = append(result, m[cp.group])
+				break // first match wins per line
+			}
+		}
+	}
+	return result
 }
 
 func extractGoImports(content []byte) []string {

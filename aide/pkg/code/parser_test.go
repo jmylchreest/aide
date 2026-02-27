@@ -705,6 +705,44 @@ func TestRefQueriesCompile(t *testing.T) {
 	}
 }
 
+// TestPackRegistryQueriesCompile verifies that tag/ref queries from the
+// PackRegistry compile against the corresponding grammar for all builtin
+// languages.
+func TestPackRegistryQueriesCompile(t *testing.T) {
+	p := newTestParser()
+	reg := grammar.DefaultPackRegistry()
+
+	for _, name := range reg.All() {
+		pack := reg.Get(name)
+		if pack.Queries.Tags != "" {
+			t.Run(name+"/tags", func(t *testing.T) {
+				tsLang := p.getLanguage(name)
+				if tsLang == nil {
+					t.Skipf("grammar %q not available (dynamic grammar)", name)
+					return
+				}
+				q := p.getTagQuery(name)
+				if q == nil {
+					t.Errorf("pack tag query for %q failed to compile", name)
+				}
+			})
+		}
+		if pack.Queries.Refs != "" {
+			t.Run(name+"/refs", func(t *testing.T) {
+				tsLang := p.getLanguage(name)
+				if tsLang == nil {
+					t.Skipf("grammar %q not available (dynamic grammar)", name)
+					return
+				}
+				q := p.getRefQuery(name)
+				if q == nil {
+					t.Errorf("pack ref query for %q failed to compile", name)
+				}
+			})
+		}
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
