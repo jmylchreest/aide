@@ -17,6 +17,7 @@ service MemoryService {
   rpc List(MemoryListRequest) returns (MemoryListResponse);
   rpc Delete(MemoryDeleteRequest) returns (MemoryDeleteResponse);
   rpc Clear(MemoryClearRequest) returns (MemoryClearResponse);
+  rpc Touch(MemoryTouchRequest) returns (MemoryTouchResponse);
 }
 
 message Memory {
@@ -30,6 +31,8 @@ message Memory {
   string namespace = 8;  // Swarm scope (empty = global)
   google.protobuf.Timestamp created_at = 9;
   google.protobuf.Timestamp updated_at = 10;
+  uint32 access_count = 11;                    // Number of times this memory was retrieved
+  google.protobuf.Timestamp last_accessed = 12; // Last time this memory was read/searched
 }
 
 message MemoryAddRequest {
@@ -81,6 +84,14 @@ message MemoryClearRequest {}
 
 message MemoryClearResponse {
   int32 count = 1;
+}
+
+message MemoryTouchRequest {
+  repeated string ids = 1; // Memory IDs to mark as accessed
+}
+
+message MemoryTouchResponse {
+  int32 touched = 1; // Number of memories touched
 }
 
 // =============================================================================

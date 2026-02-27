@@ -51,18 +51,23 @@ func protoToMemory(p *grpcapi.Memory) *memory.Memory {
 	if p == nil {
 		return nil
 	}
-	return &memory.Memory{
-		ID:        p.Id,
-		Category:  memory.Category(p.Category),
-		Content:   p.Content,
-		Tags:      p.Tags,
-		Priority:  p.Priority,
-		Plan:      p.Plan,
-		Agent:     p.Agent,
-		Namespace: p.Namespace,
-		CreatedAt: p.CreatedAt.AsTime(),
-		UpdatedAt: p.UpdatedAt.AsTime(),
+	m := &memory.Memory{
+		ID:          p.Id,
+		Category:    memory.Category(p.Category),
+		Content:     p.Content,
+		Tags:        p.Tags,
+		Priority:    p.Priority,
+		Plan:        p.Plan,
+		Agent:       p.Agent,
+		Namespace:   p.Namespace,
+		AccessCount: p.AccessCount,
+		CreatedAt:   p.CreatedAt.AsTime(),
+		UpdatedAt:   p.UpdatedAt.AsTime(),
 	}
+	if p.LastAccessed != nil {
+		m.LastAccessed = p.LastAccessed.AsTime()
+	}
+	return m
 }
 
 func protoToMemories(ps []*grpcapi.Memory) []*memory.Memory {

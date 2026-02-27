@@ -19,6 +19,7 @@ type MemoryStore interface {
 	ListMemories(opts memory.SearchOptions) ([]*memory.Memory, error)
 	SearchMemories(query string, limit int) ([]*memory.Memory, error)
 	ClearMemories() (int, error)
+	TouchMemory(ids []string) (int, error) // Increment AccessCount and update LastAccessed
 }
 
 // StateStore provides state key-value operations.

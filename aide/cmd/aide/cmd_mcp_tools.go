@@ -104,7 +104,7 @@ func (s *MCPServer) handleMemorySearch(_ context.Context, _ *mcp.CallToolRequest
 
 	limit := input.Limit
 	if limit == 0 {
-		limit = 10
+		limit = DefaultMemorySearchLimit
 	}
 
 	memories, err := s.store.SearchMemories(input.Query, limit)
@@ -114,6 +114,20 @@ func (s *MCPServer) handleMemorySearch(_ context.Context, _ *mcp.CallToolRequest
 	}
 
 	mcpLog.Printf("  found: %d memories", len(memories))
+
+	// Fire-and-forget access tracking
+	if len(memories) > 0 {
+		ids := make([]string, len(memories))
+		for i, m := range memories {
+			ids[i] = m.ID
+		}
+		go func() {
+			if _, err := s.store.TouchMemory(ids); err != nil {
+				mcpLog.Printf("  touch error (search): %v", err)
+			}
+		}()
+	}
+
 	return textResult(formatMemoriesMarkdown(memories)), nil, nil
 }
 
@@ -122,7 +136,7 @@ func (s *MCPServer) handleMemoryList(_ context.Context, _ *mcp.CallToolRequest, 
 
 	limit := input.Limit
 	if limit == 0 {
-		limit = 50
+		limit = DefaultMemoryListLimit
 	}
 
 	opts := memory.SearchOptions{
@@ -137,6 +151,20 @@ func (s *MCPServer) handleMemoryList(_ context.Context, _ *mcp.CallToolRequest, 
 	}
 
 	mcpLog.Printf("  found: %d memories", len(memories))
+
+	// Fire-and-forget access tracking
+	if len(memories) > 0 {
+		ids := make([]string, len(memories))
+		for i, m := range memories {
+			ids[i] = m.ID
+		}
+		go func() {
+			if _, err := s.store.TouchMemory(ids); err != nil {
+				mcpLog.Printf("  touch error (list): %v", err)
+			}
+		}()
+	}
+
 	return textResult(formatMemoriesMarkdown(memories)), nil, nil
 }
 

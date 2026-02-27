@@ -103,7 +103,7 @@ func (g *grpcStoreAdapter) ListMemories(opts memory.SearchOptions) ([]*memory.Me
 	defer cancel()
 	limit := opts.Limit
 	if limit == 0 {
-		limit = 50
+		limit = DefaultMemoryListLimit
 	}
 	resp, err := g.client.Memory.List(ctx, &grpcapi.MemoryListRequest{
 		Category: string(opts.Category),
@@ -136,6 +136,16 @@ func (g *grpcStoreAdapter) ClearMemories() (int, error) {
 		return 0, err
 	}
 	return int(resp.Count), nil
+}
+
+func (g *grpcStoreAdapter) TouchMemory(ids []string) (int, error) {
+	ctx, cancel := g.rpcCtx()
+	defer cancel()
+	resp, err := g.client.Memory.Touch(ctx, &grpcapi.MemoryTouchRequest{Ids: ids})
+	if err != nil {
+		return 0, err
+	}
+	return int(resp.Touched), nil
 }
 
 // =============================================================================
@@ -288,7 +298,7 @@ func (g *grpcStoreAdapter) ClearDecisions() (int, error) {
 func (g *grpcStoreAdapter) AddMessage(m *memory.Message) error {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
-	ttl := int32(3600)
+	ttl := int32(DefaultMessageTTLSeconds)
 	if !m.ExpiresAt.IsZero() && !m.CreatedAt.IsZero() {
 		ttl = int32(m.ExpiresAt.Sub(m.CreatedAt).Seconds())
 	}

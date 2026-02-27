@@ -227,6 +227,11 @@ func (c *CombinedStore) ClearMemories() (int, error) {
 	return count, nil
 }
 
+// TouchMemory increments AccessCount and updates LastAccessed for the given memory IDs.
+func (c *CombinedStore) TouchMemory(ids []string) (int, error) {
+	return c.bolt.TouchMemory(ids)
+}
+
 // SyncSearchIndex rebuilds the search index from bbolt (for recovery/migration).
 func (c *CombinedStore) SyncSearchIndex() error {
 	memories, err := c.bolt.ListMemories(memory.SearchOptions{})

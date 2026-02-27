@@ -301,6 +301,17 @@ func (s *memoryServiceImpl) Clear(ctx context.Context, req *MemoryClearRequest) 
 	}, nil
 }
 
+func (s *memoryServiceImpl) Touch(ctx context.Context, req *MemoryTouchRequest) (*MemoryTouchResponse, error) {
+	touched, err := s.store.TouchMemory(req.Ids)
+	if err != nil {
+		return nil, err
+	}
+
+	return &MemoryTouchResponse{
+		Touched: int32(touched),
+	}, nil
+}
+
 // =============================================================================
 // State Service Implementation
 // =============================================================================
@@ -1306,18 +1317,23 @@ func memoryToProto(m *memory.Memory) *Memory {
 	if m == nil {
 		return nil
 	}
-	return &Memory{
-		Id:        m.ID,
-		Category:  string(m.Category),
-		Content:   m.Content,
-		Tags:      m.Tags,
-		Priority:  m.Priority,
-		Plan:      m.Plan,
-		Agent:     m.Agent,
-		Namespace: m.Namespace,
-		CreatedAt: timestamppb.New(m.CreatedAt),
-		UpdatedAt: timestamppb.New(m.UpdatedAt),
+	pm := &Memory{
+		Id:          m.ID,
+		Category:    string(m.Category),
+		Content:     m.Content,
+		Tags:        m.Tags,
+		Priority:    m.Priority,
+		Plan:        m.Plan,
+		Agent:       m.Agent,
+		Namespace:   m.Namespace,
+		AccessCount: m.AccessCount,
+		CreatedAt:   timestamppb.New(m.CreatedAt),
+		UpdatedAt:   timestamppb.New(m.UpdatedAt),
 	}
+	if !m.LastAccessed.IsZero() {
+		pm.LastAccessed = timestamppb.New(m.LastAccessed)
+	}
+	return pm
 }
 
 func stateToProto(s *memory.State) *State {

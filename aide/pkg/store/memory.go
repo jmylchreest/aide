@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/jmylchreest/aide/aide/pkg/memory"
 	bolt "go.etcd.io/bbolt"
@@ -184,4 +185,41 @@ func (s *BoltStore) ClearMemories() (int, error) {
 	}
 
 	return count, err
+}
+
+// TouchMemory increments AccessCount and updates LastAccessed for the given memory IDs.
+// This is a lightweight operation for tracking access patterns (foundation for memory decay).
+func (s *BoltStore) TouchMemory(ids []string) (int, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	var touched int
+	now := time.Now()
+	err := s.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket(BucketMemories)
+		for _, id := range ids {
+			data := b.Get([]byte(id))
+			if data == nil {
+				continue
+			}
+			var m memory.Memory
+			if err := json.Unmarshal(data, &m); err != nil {
+				log.Printf("store: touchMemory: skipping malformed entry %s: %v", id, err)
+				continue
+			}
+			m.AccessCount++
+			m.LastAccessed = now
+			updated, err := json.Marshal(&m)
+			if err != nil {
+				log.Printf("store: touchMemory: marshal error for %s: %v", id, err)
+				continue
+			}
+			if err := b.Put([]byte(id), updated); err != nil {
+				return err
+			}
+			touched++
+		}
+		return nil
+	})
+	return touched, err
 }

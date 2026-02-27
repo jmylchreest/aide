@@ -288,3 +288,51 @@ func TestCombinedStoreMemoryOperations(t *testing.T) {
 		}
 	})
 }
+
+func TestCombinedStoreTouchMemory(t *testing.T) {
+	cs, _, cleanup := setupTestCombinedStore(t)
+	defer cleanup()
+
+	// Seed a memory.
+	m := &memory.Memory{
+		ID:        "ctouch-1",
+		Category:  memory.CategoryLearning,
+		Content:   "Combined store touch test",
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	if err := cs.AddMemory(m); err != nil {
+		t.Fatalf("AddMemory: %v", err)
+	}
+
+	t.Run("TouchThroughCombinedStore", func(t *testing.T) {
+		n, err := cs.TouchMemory([]string{"ctouch-1"})
+		if err != nil {
+			t.Fatalf("TouchMemory: %v", err)
+		}
+		if n != 1 {
+			t.Errorf("expected 1 touched, got %d", n)
+		}
+
+		got, err := cs.GetMemory("ctouch-1")
+		if err != nil {
+			t.Fatalf("GetMemory: %v", err)
+		}
+		if got.AccessCount != 1 {
+			t.Errorf("expected AccessCount=1, got %d", got.AccessCount)
+		}
+		if got.LastAccessed.IsZero() {
+			t.Error("expected LastAccessed to be set")
+		}
+	})
+
+	t.Run("NonexistentSkipped", func(t *testing.T) {
+		n, err := cs.TouchMemory([]string{"nonexistent"})
+		if err != nil {
+			t.Fatalf("TouchMemory: %v", err)
+		}
+		if n != 0 {
+			t.Errorf("expected 0 touched, got %d", n)
+		}
+	})
+}

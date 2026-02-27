@@ -17,16 +17,18 @@ const (
 // Memory represents a single memory entry.
 // Memories are short, transient user preferences or instructions.
 type Memory struct {
-	ID        string    `json:"id"`
-	Category  Category  `json:"category"`
-	Content   string    `json:"content"`
-	Tags      []string  `json:"tags,omitempty"`
-	Priority  float32   `json:"priority"`            // 0.0-1.0, decays over time
-	Plan      string    `json:"plan,omitempty"`      // Plan context
-	Agent     string    `json:"agent,omitempty"`     // Agent that created it
-	Namespace string    `json:"namespace,omitempty"` // Swarm scope (empty = global)
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	ID           string    `json:"id"`
+	Category     Category  `json:"category"`
+	Content      string    `json:"content"`
+	Tags         []string  `json:"tags,omitempty"`
+	Priority     float32   `json:"priority"`            // 0.0-1.0, decays over time
+	Plan         string    `json:"plan,omitempty"`      // Plan context
+	Agent        string    `json:"agent,omitempty"`     // Agent that created it
+	Namespace    string    `json:"namespace,omitempty"` // Swarm scope (empty = global)
+	AccessCount  uint32    `json:"accessCount"`         // Number of times this memory was retrieved
+	CreatedAt    time.Time `json:"createdAt"`
+	UpdatedAt    time.Time `json:"updatedAt"`
+	LastAccessed time.Time `json:"lastAccessed,omitempty"` // Last time this memory was read/searched
 }
 
 // TaskStatus represents the state of a swarm task.

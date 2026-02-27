@@ -1041,3 +1041,145 @@ func TestClearMessages(t *testing.T) {
 		t.Errorf("expected 1 cleared, got %d", count)
 	}
 }
+
+// =============================================================================
+// TouchMemory (Access Tracking)
+// =============================================================================
+
+func TestTouchMemory(t *testing.T) {
+	store, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	// Seed two memories.
+	m1 := &memory.Memory{
+		ID:        "touch-1",
+		Category:  memory.CategoryLearning,
+		Content:   "First memory",
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	m2 := &memory.Memory{
+		ID:        "touch-2",
+		Category:  memory.CategoryLearning,
+		Content:   "Second memory",
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	if err := store.AddMemory(m1); err != nil {
+		t.Fatalf("AddMemory(m1): %v", err)
+	}
+	if err := store.AddMemory(m2); err != nil {
+		t.Fatalf("AddMemory(m2): %v", err)
+	}
+
+	t.Run("IncrementFromZero", func(t *testing.T) {
+		n, err := store.TouchMemory([]string{"touch-1"})
+		if err != nil {
+			t.Fatalf("TouchMemory: %v", err)
+		}
+		if n != 1 {
+			t.Errorf("expected 1 touched, got %d", n)
+		}
+
+		got, err := store.GetMemory("touch-1")
+		if err != nil {
+			t.Fatalf("GetMemory: %v", err)
+		}
+		if got.AccessCount != 1 {
+			t.Errorf("expected AccessCount=1, got %d", got.AccessCount)
+		}
+		if got.LastAccessed.IsZero() {
+			t.Error("expected LastAccessed to be set")
+		}
+	})
+
+	t.Run("IncrementMultipleTimes", func(t *testing.T) {
+		if _, err := store.TouchMemory([]string{"touch-1"}); err != nil {
+			t.Fatalf("TouchMemory: %v", err)
+		}
+		got, err := store.GetMemory("touch-1")
+		if err != nil {
+			t.Fatalf("GetMemory: %v", err)
+		}
+		if got.AccessCount != 2 {
+			t.Errorf("expected AccessCount=2, got %d", got.AccessCount)
+		}
+	})
+
+	t.Run("TouchMultipleIDs", func(t *testing.T) {
+		n, err := store.TouchMemory([]string{"touch-1", "touch-2"})
+		if err != nil {
+			t.Fatalf("TouchMemory: %v", err)
+		}
+		if n != 2 {
+			t.Errorf("expected 2 touched, got %d", n)
+		}
+
+		got2, err := store.GetMemory("touch-2")
+		if err != nil {
+			t.Fatalf("GetMemory: %v", err)
+		}
+		if got2.AccessCount != 1 {
+			t.Errorf("expected AccessCount=1 for touch-2, got %d", got2.AccessCount)
+		}
+	})
+
+	t.Run("EmptyIDs", func(t *testing.T) {
+		n, err := store.TouchMemory([]string{})
+		if err != nil {
+			t.Fatalf("TouchMemory: %v", err)
+		}
+		if n != 0 {
+			t.Errorf("expected 0 touched for empty list, got %d", n)
+		}
+	})
+
+	t.Run("NonexistentIDs", func(t *testing.T) {
+		n, err := store.TouchMemory([]string{"does-not-exist"})
+		if err != nil {
+			t.Fatalf("TouchMemory: %v", err)
+		}
+		if n != 0 {
+			t.Errorf("expected 0 touched for nonexistent ID, got %d", n)
+		}
+	})
+
+	t.Run("MixedExistentAndNonexistent", func(t *testing.T) {
+		before, _ := store.GetMemory("touch-1")
+		prevCount := before.AccessCount
+
+		n, err := store.TouchMemory([]string{"touch-1", "nonexistent-id"})
+		if err != nil {
+			t.Fatalf("TouchMemory: %v", err)
+		}
+		if n != 1 {
+			t.Errorf("expected 1 touched, got %d", n)
+		}
+
+		after, _ := store.GetMemory("touch-1")
+		if after.AccessCount != prevCount+1 {
+			t.Errorf("expected AccessCount=%d, got %d", prevCount+1, after.AccessCount)
+		}
+	})
+
+	t.Run("DoesNotAlterOtherFields", func(t *testing.T) {
+		before, _ := store.GetMemory("touch-2")
+
+		if _, err := store.TouchMemory([]string{"touch-2"}); err != nil {
+			t.Fatalf("TouchMemory: %v", err)
+		}
+
+		after, _ := store.GetMemory("touch-2")
+
+		if after.Content != before.Content {
+			t.Errorf("Content changed: %q -> %q", before.Content, after.Content)
+		}
+		if after.Category != before.Category {
+			t.Errorf("Category changed: %q -> %q", before.Category, after.Category)
+		}
+		if after.Priority != before.Priority {
+			t.Errorf("Priority changed: %v -> %v", before.Priority, after.Priority)
+		}
+	})
+}

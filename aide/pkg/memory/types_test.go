@@ -7,16 +7,19 @@ import (
 )
 
 func TestMemoryJSON(t *testing.T) {
+	now := time.Now()
 	m := Memory{
-		ID:        "test-1",
-		Category:  CategoryLearning,
-		Content:   "Test content",
-		Tags:      []string{"tag1", "tag2"},
-		Priority:  0.8,
-		Plan:      "test-plan",
-		Agent:     "test-agent",
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		ID:           "test-1",
+		Category:     CategoryLearning,
+		Content:      "Test content",
+		Tags:         []string{"tag1", "tag2"},
+		Priority:     0.8,
+		Plan:         "test-plan",
+		Agent:        "test-agent",
+		AccessCount:  5,
+		LastAccessed: now,
+		CreatedAt:    now,
+		UpdatedAt:    now,
 	}
 
 	data, err := json.Marshal(m)
@@ -37,6 +40,12 @@ func TestMemoryJSON(t *testing.T) {
 	}
 	if decoded.Content != m.Content {
 		t.Errorf("Content mismatch: got %s, want %s", decoded.Content, m.Content)
+	}
+	if decoded.AccessCount != m.AccessCount {
+		t.Errorf("AccessCount mismatch: got %d, want %d", decoded.AccessCount, m.AccessCount)
+	}
+	if decoded.LastAccessed.IsZero() {
+		t.Error("LastAccessed should not be zero after round-trip")
 	}
 }
 

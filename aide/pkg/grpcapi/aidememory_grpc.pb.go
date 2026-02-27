@@ -25,6 +25,7 @@ const (
 	MemoryService_List_FullMethodName   = "/aidememory.MemoryService/List"
 	MemoryService_Delete_FullMethodName = "/aidememory.MemoryService/Delete"
 	MemoryService_Clear_FullMethodName  = "/aidememory.MemoryService/Clear"
+	MemoryService_Touch_FullMethodName  = "/aidememory.MemoryService/Touch"
 )
 
 // MemoryServiceClient is the client API for MemoryService service.
@@ -37,6 +38,7 @@ type MemoryServiceClient interface {
 	List(ctx context.Context, in *MemoryListRequest, opts ...grpc.CallOption) (*MemoryListResponse, error)
 	Delete(ctx context.Context, in *MemoryDeleteRequest, opts ...grpc.CallOption) (*MemoryDeleteResponse, error)
 	Clear(ctx context.Context, in *MemoryClearRequest, opts ...grpc.CallOption) (*MemoryClearResponse, error)
+	Touch(ctx context.Context, in *MemoryTouchRequest, opts ...grpc.CallOption) (*MemoryTouchResponse, error)
 }
 
 type memoryServiceClient struct {
@@ -107,6 +109,16 @@ func (c *memoryServiceClient) Clear(ctx context.Context, in *MemoryClearRequest,
 	return out, nil
 }
 
+func (c *memoryServiceClient) Touch(ctx context.Context, in *MemoryTouchRequest, opts ...grpc.CallOption) (*MemoryTouchResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(MemoryTouchResponse)
+	err := c.cc.Invoke(ctx, MemoryService_Touch_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // MemoryServiceServer is the server API for MemoryService service.
 // All implementations must embed UnimplementedMemoryServiceServer
 // for forward compatibility.
@@ -117,6 +129,7 @@ type MemoryServiceServer interface {
 	List(context.Context, *MemoryListRequest) (*MemoryListResponse, error)
 	Delete(context.Context, *MemoryDeleteRequest) (*MemoryDeleteResponse, error)
 	Clear(context.Context, *MemoryClearRequest) (*MemoryClearResponse, error)
+	Touch(context.Context, *MemoryTouchRequest) (*MemoryTouchResponse, error)
 	mustEmbedUnimplementedMemoryServiceServer()
 }
 
@@ -144,6 +157,9 @@ func (UnimplementedMemoryServiceServer) Delete(context.Context, *MemoryDeleteReq
 }
 func (UnimplementedMemoryServiceServer) Clear(context.Context, *MemoryClearRequest) (*MemoryClearResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Clear not implemented")
+}
+func (UnimplementedMemoryServiceServer) Touch(context.Context, *MemoryTouchRequest) (*MemoryTouchResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Touch not implemented")
 }
 func (UnimplementedMemoryServiceServer) mustEmbedUnimplementedMemoryServiceServer() {}
 func (UnimplementedMemoryServiceServer) testEmbeddedByValue()                       {}
@@ -274,6 +290,24 @@ func _MemoryService_Clear_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _MemoryService_Touch_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MemoryTouchRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MemoryServiceServer).Touch(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MemoryService_Touch_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MemoryServiceServer).Touch(ctx, req.(*MemoryTouchRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // MemoryService_ServiceDesc is the grpc.ServiceDesc for MemoryService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -304,6 +338,10 @@ var MemoryService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Clear",
 			Handler:    _MemoryService_Clear_Handler,
+		},
+		{
+			MethodName: "Touch",
+			Handler:    _MemoryService_Touch_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
