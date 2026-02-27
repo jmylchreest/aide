@@ -34,6 +34,15 @@ You are now in **Ralph Wiggum mode** - an iterative development methodology that
 
 All state is managed through aide. Use MCP tools for reads, CLI for writes:
 
+### Task System Roles
+
+| System                      | Role                                                    | How                                                                   |
+| --------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------- |
+| **aide tasks** (MCP or CLI) | Durable task backlog, claiming, persistence enforcement | `task_create`/`task_claim`/`task_complete` (MCP) or `aide task` (CLI) |
+| **Native todowrite**        | Personal progress tracking within current iteration     | `todowrite` tool — tracks sub-steps of current task                   |
+
+aide tasks are the source of truth for ralph — they survive session restarts and are checked by persistence hooks to block premature stopping. Use native `todowrite` for your own step-by-step checklist within each task iteration.
+
 ### Reads (MCP Tools)
 
 | Tool                                   | Purpose              |
@@ -43,14 +52,18 @@ All state is managed through aide. Use MCP tools for reads, CLI for writes:
 | `mcp__plugin_aide_aide__decision_get`  | Get decisions        |
 | `mcp__plugin_aide_aide__decision_list` | List all decisions   |
 | `mcp__plugin_aide_aide__memory_search` | Search discoveries   |
+| `task_list`                            | List aide tasks      |
+| `task_get`                             | Get task by ID       |
 
-### Writes (CLI via Bash)
+### Writes (CLI via Bash or MCP)
 
 ```bash
 # Phase tracking
 ./.aide/bin/aide state set ralph:phase planning   # or "building"
 
-# Task management (use Claude's native TaskCreate/TaskUpdate/TaskList)
+# Task management — use aide tasks (persistent, claimable)
+# Via MCP: task_create, task_claim, task_complete
+# Via CLI: ./.aide/bin/aide task create/claim/complete
 
 # Decisions
 ./.aide/bin/aide decision set <topic> "<decision>" --rationale="<why>"
@@ -160,12 +173,6 @@ Find the first pending task:
 
 ```bash
 ./.aide/bin/aide task list  # Look for [pending] status
-```
-
-Claim it:
-
-```bash
-./.aide/bin/aide task claim <task-id> --agent=ralph
 ```
 
 Claim it:

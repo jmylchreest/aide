@@ -432,43 +432,90 @@ message_ack: message_id=42, agent_id="agent-auth"
 ./.aide/bin/aide memory add --category=discovery "User model needs email validation"
 ```
 
-**Memory** (shared discoveries):
-
-```bash
-./.aide/bin/aide memory add --category=discovery "User model needs email validation"
-```
-
 ## OpenCode Mode
 
-OpenCode does not have native subagent support. For multi-agent swarms with OpenCode:
+OpenCode has native `todowrite`/`todoread` for per-agent progress tracking, and a `task` tool for spawning subagents. However, OpenCode's todos are **session-private** — they are NOT shared across agents. For multi-agent coordination, use **aide tasks** (MCP tools) as the shared task system.
 
-**Setup:**
+### Task System Roles (OpenCode)
+
+| System                                                                          | Role                                                | Scope                      |
+| ------------------------------------------------------------------------------- | --------------------------------------------------- | -------------------------- |
+| **aide tasks** (MCP: `task_create`, `task_list`, `task_claim`, `task_complete`) | Shared coordination — all agents see the same board | Cross-session, persistent  |
+| **todowrite** (native)                                                          | Personal progress tracking within each agent        | Session-private, per-agent |
+| **aide messages** (MCP: `message_send`, `message_list`)                         | Real-time coordination, status broadcasts, blockers | Cross-session              |
+
+### Setup
 
 1. Create worktrees as normal (one per story)
 2. Launch separate OpenCode terminal sessions, one per story
 3. Each session works in its assigned worktree directory
 
-**Coordination:**
+### Orchestrator Workflow
 
-- **No TaskList** — OpenCode sessions don't share a task system
-- **Use aide messages** as the primary coordination mechanism:
-  - Each session uses `message_send` to report status, blockers, and completion
-  - Check `message_list` at each stage transition
-  - The orchestrator monitors all agents via `message_list` with their own agent_id
-- **Use aide state** for progress tracking:
-  ```bash
-  ./.aide/bin/aide state set "agent-auth:stage" "TEST"
-  ./.aide/bin/aide state set "agent-auth:status" "running"
-  ```
-- Monitor all agents: `mcp__plugin_aide_aide__state_list`
-
-**Orchestrator role (human or primary session):**
+The orchestrator (human or primary session):
 
 1. Decompose stories (use `/aide:plan-swarm` first)
 2. Create worktrees
-3. Launch terminal sessions with instructions
-4. Monitor via `message_list` and `state_list`
-5. When all sessions report `completion`, run `/aide:worktree-resolve`
+3. Create aide tasks for all SDLC stages upfront:
+   ```
+   task_create: title="[story-auth][DESIGN] Design auth module"
+   task_create: title="[story-auth][TEST] Write auth tests"
+   task_create: title="[story-auth][DEV] Implement auth"
+   task_create: title="[story-auth][VERIFY] Verify auth"
+   task_create: title="[story-auth][DOCS] Document auth"
+   ```
+4. Launch terminal sessions with instructions (include agent ID and story assignment)
+5. Monitor progress via `task_list` (MCP tool) or `./.aide/bin/aide task list` (CLI)
+6. When all tasks show `done`, run `/aide:worktree-resolve`
+
+### Story Agent Workflow (OpenCode)
+
+Each story agent follows the same SDLC pipeline. Use aide tasks for shared tracking and native `todowrite` for personal step-by-step progress:
+
+```
+## Per SDLC Stage:
+
+1. Claim the stage task:
+   task_claim: task_id=<id>, agent_id=agent-auth
+
+2. Use todowrite for personal tracking:
+   todowrite: [{"content": "Design interfaces for auth", "status": "in_progress", "priority": "high"}]
+
+3. Execute the stage (use appropriate /aide: skill)
+
+4. Complete the aide task:
+   task_complete: task_id=<id>, result="Designed JWT auth with refresh tokens"
+
+5. Send status message:
+   message_send: from="agent-auth", type="status", content="[DESIGN] complete"
+
+6. Check for messages from other agents:
+   message_list: agent_id="agent-auth"
+```
+
+**Note:** aide tasks do not have `blockedBy` dependency chaining like Claude Code native tasks. Stage ordering is enforced by the SDLC pipeline instructions — each agent processes stages sequentially (DESIGN → TEST → DEV → VERIFY → DOCS).
+
+### Coordination (OpenCode)
+
+```
+# Shared task board — all agents see the same tasks
+task_list                                          # View all tasks
+task_list: status="pending"                        # View unclaimed work
+
+# Messages — real-time coordination
+message_send: from="agent-auth", type="status", content="[DESIGN] complete, starting TEST"
+message_send: from="agent-auth", to="agent-payments", type="request", content="Need payment API schema"
+message_list: agent_id="agent-auth"
+message_ack: message_id=42, agent_id="agent-auth"
+
+# State — supplementary progress tracking
+./.aide/bin/aide state set "agent-auth:stage" "TEST"
+
+# Decisions and discoveries — shared knowledge
+mcp__plugin_aide_aide__decision_get with topic="auth-strategy"
+./.aide/bin/aide decision set "auth-strategy" "JWT with refresh tokens"
+./.aide/bin/aide memory add --category=discovery "User model needs email validation"
+```
 
 ## Completion (MANDATORY STEPS)
 
@@ -477,7 +524,11 @@ Swarm completion checklist - ALL REQUIRED:
 ### Step 1: Verify All Stories Complete
 
 ```
+# Claude Code:
 TaskList  # All story tasks must show [completed]
+
+# OpenCode:
+task_list  # All aide tasks must show [done]
 ```
 
 - Every story must have completed all 5 SDLC stages

@@ -113,6 +113,11 @@ Output a structured story list. Each story must be:
 
 4. **Instruct the user**: Run `/aide:swarm` to execute the plan
 
+**Note on task materialization:** The plan is stored as a decision, not as tasks. The `/aide:swarm` skill reads the plan and materializes tasks at execution time:
+
+- **Claude Code**: Each story agent creates native tasks (`TaskCreate`) with `blockedBy` dependency chaining for SDLC stages.
+- **OpenCode**: The orchestrator creates aide tasks (`task_create` MCP tool) for all SDLC stages upfront, and story agents claim them.
+
 ## Output Format
 
 The stored `swarm-plan` decision should be a JSON object:

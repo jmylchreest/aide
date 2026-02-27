@@ -493,13 +493,12 @@ func (s *MCPServer) Run() error {
 	// Track tool execution counts
 	srv.AddReceivingMiddleware(s.toolCountMiddleware())
 
-	// Register tools - only data layer, not orchestration
-	// Task management and state mutations are handled by hooks/skills
+	// Register tools — data layer + task coordination
 	s.registerMemoryTools()
 	s.registerStateReadTools() // Read-only state access
 	s.registerDecisionTools()
 	s.registerMessageTools()
-	s.registerTaskTools()     // Swarm task management
+	s.registerTaskTools()     // Shared task management (swarm coordination, persistence)
 	s.registerCodeTools()     // Code indexing and search
 	s.registerFindingsTools() // Findings search and stats
 
