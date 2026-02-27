@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -174,7 +175,11 @@ func cmdCodeSearch(dbPath string, args []string) error {
 	filePath := parseFlag(args, "--file=")
 	limit := 20
 	if l := parseFlag(args, "--limit="); l != "" {
-		fmt.Sscanf(l, "%d", &limit)
+		n, err := strconv.Atoi(l)
+		if err != nil {
+			return fmt.Errorf("invalid --limit= value %q: %w", l, err)
+		}
+		limit = n
 	}
 	jsonOutput := hasFlag(args, "--json")
 
@@ -316,7 +321,11 @@ func cmdCodeReferences(dbPath string, args []string) error {
 	filePath := parseFlag(args, "--file=")
 	limit := 50
 	if l := parseFlag(args, "--limit="); l != "" {
-		fmt.Sscanf(l, "%d", &limit)
+		n, err := strconv.Atoi(l)
+		if err != nil {
+			return fmt.Errorf("invalid --limit= value %q: %w", l, err)
+		}
+		limit = n
 	}
 	jsonOutput := hasFlag(args, "--json")
 

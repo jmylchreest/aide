@@ -9,11 +9,25 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jmylchreest/aide/aide/pkg/aideignore"
 	"github.com/jmylchreest/aide/aide/pkg/code"
 	"github.com/jmylchreest/aide/aide/pkg/grammar"
+)
+
+// compiledPattern holds a pre-compiled regex and its capture group index.
+type compiledPattern struct {
+	re      *regexp.Regexp
+	group   int
+	context string
+}
+
+// importPatternCache caches compiled regex patterns keyed by language name.
+var (
+	importPatternCache   = make(map[string][]compiledPattern)
+	importPatternCacheMu sync.RWMutex
 )
 
 // CouplingConfig configures the coupling analyzer.
@@ -332,22 +346,30 @@ func extractImports(filePath, lang string) []string {
 	}
 
 	if pack := grammar.DefaultPackRegistry().Get(lang); pack != nil && pack.Imports != nil && len(pack.Imports.Patterns) > 0 {
-		return extractImportsFromPack(content, pack.Imports)
+		return extractImportsFromPack(content, lang, pack.Imports)
 	}
 
 	return nil
 }
 
-// extractImportsFromPack uses pack.json import patterns to extract imports
-// generically. Handles block_start/block_end for languages like Go that have
-// multi-line import blocks.
-func extractImportsFromPack(content []byte, imports *grammar.PackImports) []string {
-	// Pre-compile all patterns.
-	type compiledPattern struct {
-		re      *regexp.Regexp
-		group   int
-		context string
+// getCachedPatterns returns compiled regex patterns for a language, caching them
+// so they are only compiled once per language rather than once per file.
+func getCachedPatterns(lang string, imports *grammar.PackImports) []compiledPattern {
+	importPatternCacheMu.RLock()
+	if cached, ok := importPatternCache[lang]; ok {
+		importPatternCacheMu.RUnlock()
+		return cached
 	}
+	importPatternCacheMu.RUnlock()
+
+	importPatternCacheMu.Lock()
+	defer importPatternCacheMu.Unlock()
+
+	// Double-check after acquiring write lock.
+	if cached, ok := importPatternCache[lang]; ok {
+		return cached
+	}
+
 	compiled := make([]compiledPattern, 0, len(imports.Patterns))
 	for _, p := range imports.Patterns {
 		re, err := regexp.Compile(p.Regex)
@@ -356,6 +378,15 @@ func extractImportsFromPack(content []byte, imports *grammar.PackImports) []stri
 		}
 		compiled = append(compiled, compiledPattern{re: re, group: p.Group, context: p.Context})
 	}
+	importPatternCache[lang] = compiled
+	return compiled
+}
+
+// extractImportsFromPack uses pack.json import patterns to extract imports
+// generically. Handles block_start/block_end for languages like Go that have
+// multi-line import blocks. Compiled regex patterns are cached per language.
+func extractImportsFromPack(content []byte, lang string, imports *grammar.PackImports) []string {
+	compiled := getCachedPatterns(lang, imports)
 	if len(compiled) == 0 {
 		return nil
 	}

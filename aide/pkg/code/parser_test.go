@@ -24,7 +24,7 @@ func TestDetectLanguageByExtension(t *testing.T) {
 	}{
 		{"main.go", "go"},
 		{"app.ts", "typescript"},
-		{"app.tsx", "typescript"},
+		{"app.tsx", "tsx"},
 		{"index.js", "javascript"},
 		{"index.jsx", "javascript"},
 		{"lib.py", "python"},

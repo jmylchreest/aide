@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/jmylchreest/aide/aide/internal/version"
@@ -300,10 +301,10 @@ func compareVersions(a, b string) int {
 	for i := 0; i < 3; i++ {
 		var aNum, bNum int
 		if i < len(aVer) {
-			fmt.Sscanf(aVer[i], "%d", &aNum)
+			aNum, _ = strconv.Atoi(aVer[i])
 		}
 		if i < len(bVer) {
-			fmt.Sscanf(bVer[i], "%d", &bNum)
+			bNum, _ = strconv.Atoi(bVer[i])
 		}
 
 		if aNum < bNum {

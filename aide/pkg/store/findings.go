@@ -24,6 +24,8 @@ import (
 var (
 	BucketFindings     = []byte("findings")
 	BucketFindingsMeta = []byte("findings_meta")
+
+	errSearchClosed = fmt.Errorf("findings search index is closed")
 )
 
 // FindingsStoreImpl implements FindingsStore using BoltDB + Bleve.
@@ -207,8 +209,12 @@ func (s *FindingsStoreImpl) ensureFindingsSearchMapping(searchPath string) error
 	}
 
 	// Close current index, remove, recreate.
-	s.search.Close()
-	os.RemoveAll(searchPath)
+	if err := s.search.Close(); err != nil {
+		return fmt.Errorf("failed to close findings search for rebuild: %w", err)
+	}
+	if err := os.RemoveAll(searchPath); err != nil {
+		return fmt.Errorf("failed to remove findings search for rebuild: %w", err)
+	}
 
 	indexMapping, err := buildFindingsIndexMapping()
 	if err != nil {
@@ -262,17 +268,31 @@ func findingToSearchDoc(f *findings.Finding) map[string]interface{} {
 
 // Close closes the findings store.
 func (s *FindingsStoreImpl) Close() error {
+	var errs []error
 	if s.search != nil {
-		s.search.Close()
+		if err := s.search.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("close findings search: %w", err))
+		}
 	}
 	if s.db != nil {
-		return s.db.Close()
+		if err := s.db.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("close findings db: %w", err))
+		}
+	}
+	if len(errs) == 1 {
+		return errs[0]
+	}
+	if len(errs) > 1 {
+		return fmt.Errorf("%v; %v", errs[0], errs[1])
 	}
 	return nil
 }
 
 // AddFinding stores a finding and indexes it for search.
 func (s *FindingsStoreImpl) AddFinding(f *findings.Finding) error {
+	if s.search == nil {
+		return errSearchClosed
+	}
 	if f.ID == "" {
 		f.ID = ulid.Make().String()
 	}
@@ -313,6 +333,9 @@ func (s *FindingsStoreImpl) GetFinding(id string) (*findings.Finding, error) {
 
 // DeleteFinding removes a finding by ID.
 func (s *FindingsStoreImpl) DeleteFinding(id string) error {
+	if s.search == nil {
+		return errSearchClosed
+	}
 	err := s.db.Update(func(tx *bolt.Tx) error {
 		return tx.Bucket(BucketFindings).Delete([]byte(id))
 	})
@@ -324,6 +347,9 @@ func (s *FindingsStoreImpl) DeleteFinding(id string) error {
 
 // SearchFindings performs full-text search on findings.
 func (s *FindingsStoreImpl) SearchFindings(queryStr string, opts findings.SearchOptions) ([]*findings.SearchResult, error) {
+	if s.search == nil {
+		return nil, errSearchClosed
+	}
 	limit := opts.Limit
 	if limit == 0 {
 		limit = 20
@@ -393,6 +419,8 @@ func (s *FindingsStoreImpl) ListFindings(opts findings.SearchOptions) ([]*findin
 	limit := opts.Limit
 	if limit == 0 {
 		limit = 100
+	} else if limit < 0 {
+		limit = 0 // Negative means no limit; the >0 check below will never break.
 	}
 
 	var result []*findings.Finding
@@ -488,6 +516,9 @@ func (s *FindingsStoreImpl) Stats() (*findings.Stats, error) {
 // On success, old findings are gone and new ones are stored.
 // On error, old findings remain untouched.
 func (s *FindingsStoreImpl) ReplaceFindingsForAnalyzer(analyzer string, newFindings []*findings.Finding) error {
+	if s.search == nil {
+		return errSearchClosed
+	}
 	// Collect keys to delete and new data inside the BBolt tx, then apply
 	// Bleve mutations outside so a tx rollback doesn't leave Bleve inconsistent.
 	type pendingPut struct {
@@ -544,7 +575,9 @@ func (s *FindingsStoreImpl) ReplaceFindingsForAnalyzer(analyzer string, newFindi
 
 	// Apply Bleve mutations outside the BBolt tx for atomicity.
 	for _, id := range deleteIDs {
-		s.search.Delete(id)
+		if err := s.search.Delete(id); err != nil {
+			log.Printf("store: warning: failed to delete finding %s from search index: %v", id, err)
+		}
 	}
 	for _, p := range puts {
 		if err := s.search.Index(p.id, p.doc); err != nil {
@@ -557,6 +590,9 @@ func (s *FindingsStoreImpl) ReplaceFindingsForAnalyzer(analyzer string, newFindi
 // ReplaceFindingsForAnalyzerAndFile atomically replaces findings for an analyzer within a specific file.
 // Used for per-file incremental updates (complexity, secrets).
 func (s *FindingsStoreImpl) ReplaceFindingsForAnalyzerAndFile(analyzer, filePath string, newFindings []*findings.Finding) error {
+	if s.search == nil {
+		return errSearchClosed
+	}
 	type pendingPut struct {
 		id  string
 		doc map[string]interface{}
@@ -611,7 +647,9 @@ func (s *FindingsStoreImpl) ReplaceFindingsForAnalyzerAndFile(analyzer, filePath
 
 	// Apply Bleve mutations outside the BBolt tx for atomicity.
 	for _, id := range deleteIDs {
-		s.search.Delete(id)
+		if err := s.search.Delete(id); err != nil {
+			log.Printf("store: warning: failed to delete finding %s from search index: %v", id, err)
+		}
 	}
 	for _, p := range puts {
 		if err := s.search.Index(p.id, p.doc); err != nil {

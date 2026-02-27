@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/jmylchreest/aide/aide/pkg/memory"
@@ -267,10 +268,18 @@ func cmdSearch(dbPath string, args []string) error {
 	excludeOpts := parseExcludeOpts(args[1:])
 
 	if l := parseFlag(args[1:], "--limit="); l != "" {
-		fmt.Sscanf(l, "%d", &limit)
+		n, err := strconv.Atoi(l)
+		if err != nil {
+			return fmt.Errorf("invalid --limit= value %q: %w", l, err)
+		}
+		limit = n
 	}
 	if s := parseFlag(args[1:], "--min-score="); s != "" {
-		fmt.Sscanf(s, "%f", &minScore)
+		f, err := strconv.ParseFloat(s, 64)
+		if err != nil {
+			return fmt.Errorf("invalid --min-score= value %q: %w", s, err)
+		}
+		minScore = f
 	}
 
 	backend, err := NewBackend(dbPath)
@@ -341,7 +350,11 @@ func cmdSelect(dbPath string, args []string) error {
 	excludeOpts := parseExcludeOpts(args[1:])
 
 	if l := parseFlag(args[1:], "--limit="); l != "" {
-		fmt.Sscanf(l, "%d", &limit)
+		n, err := strconv.Atoi(l)
+		if err != nil {
+			return fmt.Errorf("invalid --limit= value %q: %w", l, err)
+		}
+		limit = n
 	}
 
 	backend, err := NewBackend(dbPath)
@@ -401,7 +414,11 @@ func cmdList(dbPath string, args []string) error {
 		tagsFilter = strings.Split(t, ",")
 	}
 	if l := parseFlag(args, "--limit="); l != "" {
-		fmt.Sscanf(l, "%d", &limit)
+		n, err := strconv.Atoi(l)
+		if err != nil {
+			return fmt.Errorf("invalid --limit= value %q: %w", l, err)
+		}
+		limit = n
 	}
 	if f := parseFlag(args, "--format="); f == "json" {
 		formatJSON = true
@@ -479,7 +496,11 @@ func cmdSessions(dbPath string, args []string) error {
 	formatJSON := parseFlag(args, "--format=") == "json"
 
 	if l := parseFlag(args, "--limit="); l != "" {
-		fmt.Sscanf(l, "%d", &limit)
+		n, err := strconv.Atoi(l)
+		if err != nil {
+			return fmt.Errorf("invalid --limit= value %q: %w", l, err)
+		}
+		limit = n
 	}
 
 	backend, err := NewBackend(dbPath)

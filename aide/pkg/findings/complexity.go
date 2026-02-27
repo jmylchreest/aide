@@ -149,7 +149,7 @@ func AnalyzeComplexity(cfg ComplexityConfig) ([]*Finding, *ComplexityResult, err
 				}
 			}
 
-			findings := analyzeFileComplexity(cfg.Loader, content, relPath, lang, langCfg, cfg.Threshold)
+			findings := analyzeFileComplexity(context.Background(), cfg.Loader, content, relPath, lang, langCfg, cfg.Threshold)
 			allFindings = append(allFindings, findings...)
 			result.FilesAnalyzed++
 
@@ -170,8 +170,8 @@ func AnalyzeComplexity(cfg ComplexityConfig) ([]*Finding, *ComplexityResult, err
 }
 
 // analyzeFileComplexity parses a single file and computes complexity for each function.
-func analyzeFileComplexity(loader grammar.Loader, content []byte, filePath, lang string, langCfg *complexityLang, threshold int) []*Finding {
-	sitterLang, err := loader.Load(context.Background(), lang)
+func analyzeFileComplexity(ctx context.Context, loader grammar.Loader, content []byte, filePath, lang string, langCfg *complexityLang, threshold int) []*Finding {
+	sitterLang, err := loader.Load(ctx, lang)
 	if err != nil {
 		return nil
 	}

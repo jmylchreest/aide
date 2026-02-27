@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -40,7 +41,6 @@ var DefaultSkipDirs = map[string]bool{
 	".tox":          true,
 	".mypy_cache":   true,
 	".pytest_cache": true,
-	"*.egg-info":    true,
 	"site-packages": true,
 
 	// Go
@@ -91,6 +91,12 @@ var DefaultSkipDirs = map[string]bool{
 	".DS_Store": true,
 }
 
+// DefaultSkipSuffixes contains directory name suffixes to skip during file watching.
+// These require suffix matching because the full directory name is dynamic.
+var DefaultSkipSuffixes = []string{
+	".egg-info", // Python: e.g. "mypackage.egg-info"
+}
+
 type Config struct {
 	Paths         []string
 	DebounceDelay time.Duration
@@ -111,17 +117,35 @@ func (f FileChangeHandlerFunc) OnChanges(files map[string]fsnotify.Op) {
 type Watcher struct {
 	fsnotify  *fsnotify.Watcher
 	config    Config
-	handlers  []FileChangeHandler
+	skipSet   map[string]bool // Merged DefaultSkipDirs + Config.SkipDirs
 	stop      chan struct{}
 	stopOnce  sync.Once
 	wg        sync.WaitGroup
 	startTime time.Time
 
 	mu           sync.Mutex
+	handlers     []FileChangeHandler
 	pending      map[string]fsnotify.Op
 	debounceOnce sync.Once
 	watchPaths   []string
-	dirsWatched  int
+	dirsWatched  atomic.Int32
+}
+
+// shouldSkipDir returns true if a directory name should be skipped.
+// Checks exact match in skipSet, hidden directories (dot prefix), and suffix patterns.
+func (w *Watcher) shouldSkipDir(name string) bool {
+	if w.skipSet[name] {
+		return true
+	}
+	if len(name) > 1 && name[0] == '.' {
+		return true
+	}
+	for _, suffix := range DefaultSkipSuffixes {
+		if strings.HasSuffix(name, suffix) {
+			return true
+		}
+	}
+	return false
 }
 
 func New(config Config, handlers ...FileChangeHandler) (*Watcher, error) {
@@ -145,6 +169,7 @@ func New(config Config, handlers ...FileChangeHandler) (*Watcher, error) {
 	return &Watcher{
 		fsnotify: fsWatcher,
 		config:   config,
+		skipSet:  skipSet,
 		handlers: handlers,
 		stop:     make(chan struct{}),
 		pending:  make(map[string]fsnotify.Op),
@@ -152,6 +177,8 @@ func New(config Config, handlers ...FileChangeHandler) (*Watcher, error) {
 }
 
 func (w *Watcher) AddHandler(h FileChangeHandler) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	w.handlers = append(w.handlers, h)
 }
 
@@ -174,11 +201,11 @@ func (w *Watcher) Start() error {
 			}
 			if info.IsDir() {
 				name := info.Name()
-				if DefaultSkipDirs[name] || (len(name) > 1 && name[0] == '.') {
+				if w.shouldSkipDir(name) {
 					return filepath.SkipDir
 				}
 				if err := w.fsnotify.Add(path); err == nil {
-					w.dirsWatched++
+					w.dirsWatched.Add(1)
 				}
 			}
 			return nil
@@ -192,7 +219,7 @@ func (w *Watcher) Start() error {
 	w.wg.Add(1)
 	go w.processEvents()
 
-	watchLog.Printf("watching %d directories in %v (debounce: %v)", w.dirsWatched, paths, w.config.DebounceDelay)
+	watchLog.Printf("watching %d directories in %v (debounce: %v)", w.dirsWatched.Load(), paths, w.config.DebounceDelay)
 	return nil
 }
 
@@ -200,6 +227,13 @@ func (w *Watcher) Stop() error {
 	w.stopOnce.Do(func() { close(w.stop) })
 	w.wg.Wait()
 	return w.fsnotify.Close()
+}
+
+// Close releases all resources. It is safe to call Close without ever
+// calling Start — the underlying fsnotify watcher is always closed.
+// Close is equivalent to Stop but provided for symmetry with New.
+func (w *Watcher) Close() error {
+	return w.Stop()
 }
 
 func (w *Watcher) Stats() WatcherStats {
@@ -210,7 +244,7 @@ func (w *Watcher) Stats() WatcherStats {
 	return WatcherStats{
 		Enabled:      true,
 		Paths:        w.watchPaths,
-		DirsWatched:  w.dirsWatched,
+		DirsWatched:  int(w.dirsWatched.Load()),
 		Debounce:     w.config.DebounceDelay,
 		PendingFiles: pending,
 		Uptime:       time.Since(w.startTime),
@@ -242,9 +276,9 @@ func (w *Watcher) processEvents() {
 			if event.Op&fsnotify.Create != 0 {
 				if info, err := os.Stat(event.Name); err == nil && info.IsDir() {
 					name := filepath.Base(event.Name)
-					if !DefaultSkipDirs[name] && (len(name) <= 1 || name[0] != '.') {
+					if !w.shouldSkipDir(name) {
 						if err := w.fsnotify.Add(event.Name); err == nil {
-							w.dirsWatched++
+							w.dirsWatched.Add(1)
 							watchLog.Printf("watching new directory: %s", event.Name)
 						}
 					}
@@ -298,6 +332,9 @@ func (w *Watcher) flushPending() {
 	pending := w.pending
 	w.pending = make(map[string]fsnotify.Op)
 	w.debounceOnce = sync.Once{}
+	// Copy handlers under lock to avoid racing with AddHandler.
+	handlers := make([]FileChangeHandler, len(w.handlers))
+	copy(handlers, w.handlers)
 	w.mu.Unlock()
 
 	if len(pending) == 0 {
@@ -306,8 +343,15 @@ func (w *Watcher) flushPending() {
 
 	watchLog.Printf("processing %d file changes", len(pending))
 
-	for _, h := range w.handlers {
-		h.OnChanges(pending)
+	for _, h := range handlers {
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					watchLog.Printf("handler panicked: %v", r)
+				}
+			}()
+			h.OnChanges(pending)
+		}()
 	}
 }
 

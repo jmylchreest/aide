@@ -6,9 +6,9 @@ import (
 	"unsafe"
 )
 
-// expectedBuiltins lists the 9 core grammars that must be compiled in.
+// expectedBuiltins lists the 10 core grammars that must be compiled in.
 var expectedBuiltins = []string{
-	"c", "cpp", "go", "java", "javascript", "python", "rust", "typescript", "zig",
+	"c", "cpp", "go", "java", "javascript", "python", "rust", "tsx", "typescript", "zig",
 }
 
 func TestNewBuiltinRegistryContainsAll(t *testing.T) {

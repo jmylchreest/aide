@@ -63,14 +63,18 @@ type Runner struct {
 	clonesRunner ClonesRunner
 	loader       grammar.Loader
 
-	mu       sync.Mutex
-	runs     map[RunKey]*activeRun
-	status   map[string]*AnalyzerStatus
-	runIDGen int64
+	mu            sync.Mutex
+	runs          map[RunKey]*activeRun
+	status        map[string]*AnalyzerStatus
+	runIDGen      int64
+	defaultIgnore *aideignore.Matcher // Cached default matcher (lazy-init)
 
 	ctx    context.Context
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
+
+	// sem limits concurrent per-file goroutines spawned by RunAll.
+	sem chan struct{}
 }
 
 type ReplaceFindingsStore interface {
@@ -94,6 +98,7 @@ func NewRunner(store ReplaceFindingsStore, config AnalyzerConfig, loader grammar
 		status: make(map[string]*AnalyzerStatus),
 		ctx:    ctx,
 		cancel: cancel,
+		sem:    make(chan struct{}, 16), // Limit concurrent per-file goroutines
 	}
 }
 
@@ -103,12 +108,19 @@ func (r *Runner) SetClonesRunner(fn ClonesRunner) {
 	r.clonesRunner = fn
 }
 
-// ignore returns the configured aideignore matcher, falling back to built-in defaults.
+// ignore returns the configured aideignore matcher, falling back to built-in
+// defaults. The default matcher is cached on first use to avoid repeated
+// allocation.
 func (r *Runner) ignore() *aideignore.Matcher {
 	if r.config.Ignore != nil {
 		return r.config.Ignore
 	}
-	return aideignore.NewFromDefaults()
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.defaultIgnore == nil {
+		r.defaultIgnore = aideignore.NewFromDefaults()
+	}
+	return r.defaultIgnore
 }
 
 func (r *Runner) OnChanges(files map[string]fsnotify.Op) {
@@ -155,6 +167,9 @@ func (r *Runner) runAnalyzer(key RunKey, run func(ctx context.Context) ([]*Findi
 	if existing, ok := r.runs[key]; ok {
 		existing.cancel()
 		runnerLog.Printf("%s on %s: cancelled existing run", key.Analyzer, key.Scope)
+		r.mu.Unlock()
+		<-existing.done
+		r.mu.Lock()
 	}
 
 	ctx, cancel := context.WithCancel(r.ctx)
@@ -174,6 +189,17 @@ func (r *Runner) runAnalyzer(key RunKey, run func(ctx context.Context) ([]*Findi
 
 	r.wg.Add(1)
 	go func() {
+		// Acquire semaphore slot to limit concurrent goroutines.
+		if r.sem != nil {
+			select {
+			case r.sem <- struct{}{}:
+				defer func() { <-r.sem }()
+			case <-ctx.Done():
+				r.wg.Done()
+				return
+			}
+		}
+
 		defer close(done)
 		defer r.wg.Done()
 		defer func() {
@@ -315,7 +341,7 @@ func (r *Runner) analyzeFileComplexity(ctx context.Context, filePath string, con
 		threshold = 10
 	}
 
-	return analyzeFileComplexity(r.loader, content, filePath, lang, langCfg, threshold), nil
+	return analyzeFileComplexity(ctx, r.loader, content, filePath, lang, langCfg, threshold), nil
 }
 
 func (r *Runner) analyzeFileSecrets(ctx context.Context, filePath string, _ []byte) ([]*Finding, error) {

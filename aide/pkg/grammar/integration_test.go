@@ -387,7 +387,7 @@ func TestIntegrationCompositeLoaderInstall(t *testing.T) {
 		t.Error("ruby not found in Installed() after Install")
 	}
 
-	// Total installed should be 9 builtins + 1 dynamic.
+	// Total installed should be 10 builtins + 1 dynamic.
 	expectedCount := len(expectedBuiltins) + 1
 	if len(installed) != expectedCount {
 		t.Errorf("Installed() count = %d; want %d", len(installed), expectedCount)

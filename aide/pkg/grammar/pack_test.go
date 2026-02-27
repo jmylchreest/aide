@@ -9,8 +9,8 @@ import (
 
 // allExpectedLanguages lists every language that should have a pack.json.
 var allExpectedLanguages = []string{
-	// 9 embedded (built-in)
-	"c", "cpp", "go", "java", "javascript", "python", "rust", "typescript", "zig",
+	// 10 embedded (built-in)
+	"c", "cpp", "go", "java", "javascript", "python", "rust", "tsx", "typescript", "zig",
 	// 19 dynamic
 	"bash", "csharp", "css", "elixir", "elm", "groovy", "hcl", "html",
 	"kotlin", "lua", "ocaml", "php", "protobuf", "ruby", "scala", "sql",
@@ -112,7 +112,7 @@ func TestLangForExtension_SpotChecks(t *testing.T) {
 		// Built-in
 		".go":   "go",
 		".ts":   "typescript",
-		".tsx":  "typescript",
+		".tsx":  "tsx",
 		".js":   "javascript",
 		".jsx":  "javascript",
 		".py":   "python",
@@ -243,6 +243,7 @@ func TestNormaliseLang_Aliases(t *testing.T) {
 		"go":         "go",
 		"python":     "python",
 		"typescript": "typescript",
+		"tsx":        "tsx",
 		"javascript": "javascript",
 		"rust":       "rust",
 		"java":       "java",
@@ -337,7 +338,7 @@ func TestPacksWithTagQueries(t *testing.T) {
 
 	// Languages that have tag queries in their pack.json.
 	langsWithTagQueries := []string{
-		"go", "typescript", "javascript", "python", "rust", "java", "c", "cpp",
+		"go", "typescript", "tsx", "javascript", "python", "rust", "java", "c", "cpp",
 		"csharp", "kotlin", "scala", "ruby", "php", "lua", "elixir", "bash",
 		"swift", "sql", "hcl", "protobuf",
 	}
@@ -362,7 +363,7 @@ func TestPacksWithRefQueries(t *testing.T) {
 
 	// Languages that have ref queries in their pack.json.
 	langsWithRefQueries := []string{
-		"go", "typescript", "javascript", "python", "rust", "java", "c", "cpp",
+		"go", "typescript", "tsx", "javascript", "python", "rust", "java", "c", "cpp",
 		"ruby", "php",
 	}
 	for _, name := range langsWithRefQueries {
@@ -402,7 +403,7 @@ func TestPacksWithComplexity(t *testing.T) {
 
 	// Languages that have complexity configurations.
 	langsWithComplexity := []string{
-		"go", "typescript", "javascript", "python", "rust", "java", "c", "cpp", "zig",
+		"go", "typescript", "tsx", "javascript", "python", "rust", "java", "c", "cpp", "zig",
 		"csharp", "kotlin", "scala", "ruby", "php", "lua", "bash", "swift",
 		"elixir", "ocaml", "groovy", "elm",
 	}
@@ -453,7 +454,7 @@ func TestPacksWithImports(t *testing.T) {
 
 	// Languages that have import patterns in pack.json.
 	langsWithImports := []string{
-		"go", "python", "typescript", "javascript", "java", "rust",
+		"go", "python", "typescript", "tsx", "javascript", "java", "rust",
 		"csharp", "kotlin", "scala", "ruby", "php", "lua", "elixir", "swift", "ocaml",
 	}
 	for _, name := range langsWithImports {

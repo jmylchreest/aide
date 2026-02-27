@@ -5,7 +5,7 @@ import (
 
 	tree_sitter "github.com/tree-sitter/go-tree-sitter"
 
-	// Core compiled-in grammar bindings (9 languages).
+	// Core compiled-in grammar bindings (10 languages).
 	tree_sitter_zig "github.com/tree-sitter-grammars/tree-sitter-zig/bindings/go"
 	tree_sitter_c "github.com/tree-sitter/tree-sitter-c/bindings/go"
 	tree_sitter_cpp "github.com/tree-sitter/tree-sitter-cpp/bindings/go"
@@ -23,7 +23,7 @@ type builtinGrammar struct {
 	provider BuiltinProvider
 }
 
-// BuiltinRegistry manages the 9 core grammars compiled into the binary.
+// BuiltinRegistry manages the 10 core grammars compiled into the binary.
 type BuiltinRegistry struct {
 	mu       sync.RWMutex
 	grammars map[string]*builtinGrammar
@@ -100,11 +100,12 @@ func (r *BuiltinRegistry) Names() []string {
 	return names
 }
 
-// registerBuiltins wires up the 9 core grammars compiled into the binary.
+// registerBuiltins wires up the 10 core grammars compiled into the binary.
 // Each grammar Go binding exposes a function returning unsafe.Pointer.
 func registerBuiltins(r *BuiltinRegistry) {
 	r.Register("go", tree_sitter_go.Language)
 	r.Register("typescript", tree_sitter_typescript.LanguageTypescript)
+	r.Register("tsx", tree_sitter_typescript.LanguageTSX)
 	r.Register("javascript", tree_sitter_javascript.Language)
 	r.Register("python", tree_sitter_python.Language)
 	r.Register("rust", tree_sitter_rust.Language)

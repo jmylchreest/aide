@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -110,7 +111,11 @@ func sessionInit(dbPath string, args []string) error {
 		}
 	}
 	if l := parseFlag(args, "--session-limit="); l != "" {
-		fmt.Sscanf(l, "%d", &sessionLimit)
+		n, err := strconv.Atoi(l)
+		if err != nil {
+			return fmt.Errorf("invalid --session-limit= value %q: %w", l, err)
+		}
+		sessionLimit = n
 	}
 
 	backend, err := NewBackend(dbPath)

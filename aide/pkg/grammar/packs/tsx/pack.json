@@ -1,12 +1,11 @@
 {
   "schema_version": 1,
-  "name": "typescript",
+  "name": "tsx",
   "version": "0.23.2",
-  "c_symbol": "tree_sitter_typescript",
+  "c_symbol": "tree_sitter_tsx",
   "meta": {
-    "extensions": [".ts"],
-    "shebangs": ["deno", "bun"],
-    "aliases": ["ts"]
+    "extensions": [".tsx"],
+    "aliases": []
   },
   "queries": {
     "tags": "(function_declaration name: (identifier) @name) @definition.function\n(method_definition name: (property_identifier) @name) @definition.method\n(class_declaration name: (type_identifier) @name) @definition.class\n(interface_declaration name: (type_identifier) @name) @definition.interface\n(type_alias_declaration name: (type_identifier) @name) @definition.type\n(enum_declaration name: (identifier) @name) @definition.class",

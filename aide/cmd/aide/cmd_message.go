@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 )
 
 func cmdMessage(dbPath string, args []string) error {
@@ -96,7 +97,11 @@ func messageSend(b *Backend, args []string) error {
 
 	ttlSeconds := 3600 // default 1 hour
 	if ttlStr != "" {
-		fmt.Sscanf(ttlStr, "%d", &ttlSeconds)
+		n, err := strconv.Atoi(ttlStr)
+		if err != nil {
+			return fmt.Errorf("invalid --ttl= value %q: %w", ttlStr, err)
+		}
+		ttlSeconds = n
 	}
 
 	msg, err := b.SendMessage(from, to, content, msgType, ttlSeconds)
@@ -145,9 +150,11 @@ func messageAck(b *Backend, args []string) error {
 	}
 
 	var msgID uint64
-	if _, err := fmt.Sscanf(args[0], "%d", &msgID); err != nil {
+	n, err := strconv.ParseUint(args[0], 10, 64)
+	if err != nil {
 		return fmt.Errorf("invalid message ID: %s", args[0])
 	}
+	msgID = n
 
 	agentID := parseFlag(args[1:], "--agent=")
 	if agentID == "" {

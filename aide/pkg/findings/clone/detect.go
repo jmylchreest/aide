@@ -269,11 +269,11 @@ func mergeCloneGroups(groups []CloneGroup, minLines int) map[filePair]*clonePair
 		}
 	}
 
-	// Filter out pairs below the minimum line threshold.
+	// Filter out pairs where either side is below the minimum line threshold.
 	for pair, info := range pairMap {
 		spanA := info.EndLineA - info.StartLineA + 1
 		spanB := info.EndLineB - info.StartLineB + 1
-		if spanA < minLines && spanB < minLines {
+		if spanA < minLines || spanB < minLines {
 			delete(pairMap, pair)
 		}
 	}

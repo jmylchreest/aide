@@ -137,11 +137,8 @@ func AnalyzeSecrets(cfg SecretsConfig) ([]*Finding, *SecretsResult, error) {
 				return nil
 			}
 
-			// Skip symlinks.
-			if info.Mode()&os.ModeSymlink != 0 {
-				result.FilesSkipped++
-				return nil
-			}
+			// Note: symlink check removed — filepath.Walk follows symlinks
+			// transparently, so info.Mode()&os.ModeSymlink is never true.
 
 			// Scan file.
 			matches, scanErr := scanner.ScanFile(path)

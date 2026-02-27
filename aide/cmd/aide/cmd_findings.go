@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/jmylchreest/aide/aide/pkg/aideignore"
@@ -131,35 +132,55 @@ func cmdFindingsRun(dbPath string, args []string) error {
 		threshold = cfg.Complexity.Threshold
 	}
 	if t := parseFlag(subargs, "--threshold="); t != "" {
-		fmt.Sscanf(t, "%d", &threshold)
+		if v, err := strconv.Atoi(t); err != nil {
+			return fmt.Errorf("invalid --threshold value %q: %w", t, err)
+		} else {
+			threshold = v
+		}
 	}
 	fanOut := 15
 	if cfg.Coupling.FanOut > 0 {
 		fanOut = cfg.Coupling.FanOut
 	}
 	if f := parseFlag(subargs, "--fan-out="); f != "" {
-		fmt.Sscanf(f, "%d", &fanOut)
+		if v, err := strconv.Atoi(f); err != nil {
+			return fmt.Errorf("invalid --fan-out value %q: %w", f, err)
+		} else {
+			fanOut = v
+		}
 	}
 	fanIn := 20
 	if cfg.Coupling.FanIn > 0 {
 		fanIn = cfg.Coupling.FanIn
 	}
 	if f := parseFlag(subargs, "--fan-in="); f != "" {
-		fmt.Sscanf(f, "%d", &fanIn)
+		if v, err := strconv.Atoi(f); err != nil {
+			return fmt.Errorf("invalid --fan-in value %q: %w", f, err)
+		} else {
+			fanIn = v
+		}
 	}
 	windowSize := 50
 	if cfg.Clones.WindowSize > 0 {
 		windowSize = cfg.Clones.WindowSize
 	}
 	if w := parseFlag(subargs, "--window="); w != "" {
-		fmt.Sscanf(w, "%d", &windowSize)
+		if v, err := strconv.Atoi(w); err != nil {
+			return fmt.Errorf("invalid --window value %q: %w", w, err)
+		} else {
+			windowSize = v
+		}
 	}
 	minCloneLines := 6
 	if cfg.Clones.MinLines > 0 {
 		minCloneLines = cfg.Clones.MinLines
 	}
 	if m := parseFlag(subargs, "--min-lines="); m != "" {
-		fmt.Sscanf(m, "%d", &minCloneLines)
+		if v, err := strconv.Atoi(m); err != nil {
+			return fmt.Errorf("invalid --min-lines value %q: %w", m, err)
+		} else {
+			minCloneLines = v
+		}
 	}
 
 	// Determine which analyzers to run.
@@ -359,7 +380,11 @@ func cmdFindingsSearch(dbPath string, args []string) error {
 	category := parseFlag(args, "--category=")
 	limit := 20
 	if l := parseFlag(args, "--limit="); l != "" {
-		fmt.Sscanf(l, "%d", &limit)
+		n, err := strconv.Atoi(l)
+		if err != nil {
+			return fmt.Errorf("invalid --limit= value %q: %w", l, err)
+		}
+		limit = n
 	}
 	jsonOutput := hasFlag(args, "--json")
 
@@ -431,7 +456,11 @@ func cmdFindingsList(dbPath string, args []string) error {
 	category := parseFlag(args, "--category=")
 	limit := 100
 	if l := parseFlag(args, "--limit="); l != "" {
-		fmt.Sscanf(l, "%d", &limit)
+		n, err := strconv.Atoi(l)
+		if err != nil {
+			return fmt.Errorf("invalid --limit= value %q: %w", l, err)
+		}
+		limit = n
 	}
 	jsonOutput := hasFlag(args, "--json")
 

@@ -89,7 +89,7 @@ func TestWithVersionEmpty(t *testing.T) {
 func TestCompositeLoaderLoadBuiltin(t *testing.T) {
 	cl := NewCompositeLoader(WithAutoDownload(false))
 
-	for _, name := range []string{"go", "python", "typescript", "javascript", "rust", "java", "c", "cpp", "zig"} {
+	for _, name := range []string{"go", "python", "typescript", "tsx", "javascript", "rust", "java", "c", "cpp", "zig"} {
 		t.Run(name, func(t *testing.T) {
 			lang, err := cl.Load(context.Background(), name)
 			if err != nil {
@@ -137,13 +137,13 @@ func TestCompositeLoaderAvailable(t *testing.T) {
 		t.Fatal("Available() returned empty list")
 	}
 
-	// Should include all 9 builtins.
+	// Should include all 10 builtins.
 	availSet := make(map[string]bool)
 	for _, n := range avail {
 		availSet[n] = true
 	}
 
-	for _, name := range []string{"go", "python", "typescript", "javascript", "rust", "java", "c", "cpp", "zig"} {
+	for _, name := range []string{"go", "python", "typescript", "tsx", "javascript", "rust", "java", "c", "cpp", "zig"} {
 		if !availSet[name] {
 			t.Errorf("Available() missing builtin %q", name)
 		}
@@ -156,7 +156,7 @@ func TestCompositeLoaderAvailable(t *testing.T) {
 		}
 	}
 
-	// Total should be 9 builtins + 19 dynamic = 28
+	// Total should be 10 builtins + 19 dynamic = 29
 	expected := len(expectedBuiltins) + len(DefaultPackRegistry().DynamicPacks())
 	if len(avail) != expected {
 		t.Errorf("Available() count = %d; want %d", len(avail), expected)
@@ -175,7 +175,7 @@ func TestCompositeLoaderInstalledOnlyBuiltins(t *testing.T) {
 
 	installed := cl.Installed()
 
-	// Should have exactly the 9 builtins.
+	// Should have exactly the 10 builtins.
 	if len(installed) != len(expectedBuiltins) {
 		t.Errorf("Installed() count = %d; want %d builtins", len(installed), len(expectedBuiltins))
 	}

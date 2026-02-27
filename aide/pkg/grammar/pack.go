@@ -166,19 +166,28 @@ func (r *PackRegistry) LoadFromDir(dir string) error {
 	return nil
 }
 
-// Get returns the pack for the given language name, or nil if not found.
+// Get returns a shallow copy of the pack for the given language name, or nil if not found.
+// The returned Pack is safe to read but must not be used to modify registry internals.
 func (r *PackRegistry) Get(name string) *Pack {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	return r.packs[name]
+	p := r.packs[name]
+	if p == nil {
+		return nil
+	}
+	cp := *p
+	return &cp
 }
 
-// GetByAlias returns the pack for the given alias, or nil if not found.
+// GetByAlias returns a shallow copy of the pack for the given alias, or nil if not found.
 func (r *PackRegistry) GetByAlias(alias string) *Pack {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	if canonical, ok := r.aliasLookup[alias]; ok {
-		return r.packs[canonical]
+		if p := r.packs[canonical]; p != nil {
+			cp := *p
+			return &cp
+		}
 	}
 	return nil
 }
@@ -233,13 +242,14 @@ func (r *PackRegistry) All() []string {
 	return names
 }
 
-// Languages returns all language names that have a grammar pack.
+// Languages returns all language names with shallow-copied grammar packs.
 func (r *PackRegistry) Languages() map[string]*Pack {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	result := make(map[string]*Pack, len(r.packs))
 	for k, v := range r.packs {
-		result[k] = v
+		cp := *v
+		result[k] = &cp
 	}
 	return result
 }
@@ -254,7 +264,8 @@ func (r *PackRegistry) DynamicPacks() map[string]*Pack {
 	result := make(map[string]*Pack)
 	for name, p := range r.packs {
 		if p.SourceRepo != "" && p.CSymbol != "" {
-			result[name] = p
+			cp := *p
+			result[name] = &cp
 		}
 	}
 	return result

@@ -1,7 +1,7 @@
 // Package grammar provides a hybrid grammar loading system for tree-sitter languages.
 //
 // It supports two modes:
-//   - Compiled-in (built-in): 9 core grammars linked via CGO at build time
+//   - Compiled-in (built-in): 10 core grammars linked via CGO at build time
 //   - Dynamic: grammars downloaded as shared libraries and loaded via purego at runtime
 //
 // The CompositeLoader tries built-in first, then dynamic, then auto-downloads.
@@ -252,6 +252,17 @@ func (cl *CompositeLoader) Load(ctx context.Context, name string) (*tree_sitter.
 			// propagate the actual error rather than masking it.
 			return nil, err
 		}
+		// Dynamic loader returned an error that is neither stale nor not-found
+		// (e.g. a dlopen failure). Propagate the real error.
+		return nil, dynErr
+	}
+
+	// Auto-download disabled — if dynamic loader returned a real error (not
+	// stale / not-found), propagate it rather than masking it.
+	var staleErr *GrammarStaleError
+	var notFoundErr *GrammarNotFoundError
+	if dynErr != nil && !errors.As(dynErr, &staleErr) && !errors.As(dynErr, &notFoundErr) {
+		return nil, dynErr
 	}
 
 	return nil, &GrammarNotFoundError{Name: name}

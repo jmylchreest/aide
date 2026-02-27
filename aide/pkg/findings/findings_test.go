@@ -400,7 +400,7 @@ func main() {}
 		t.Fatal("go pack has no imports config")
 	}
 
-	got := extractImportsFromPack(content, pack.Imports)
+	got := extractImportsFromPack(content, "go", pack.Imports)
 	want := []string{"fmt", "os", "strings"}
 	sort.Strings(got)
 	sort.Strings(want)
@@ -420,7 +420,7 @@ import sys
 		t.Fatal("python pack has no imports config")
 	}
 
-	got := extractImportsFromPack(content, pack.Imports)
+	got := extractImportsFromPack(content, "python", pack.Imports)
 	want := []string{"os", "pathlib", "sys"}
 	sort.Strings(got)
 	sort.Strings(want)
@@ -441,7 +441,7 @@ export { thing } from '@scope/pkg';
 		t.Fatal("typescript pack has no imports config")
 	}
 
-	got := extractImportsFromPack(content, pack.Imports)
+	got := extractImportsFromPack(content, "typescript", pack.Imports)
 	want := []string{"./foo", "bar", "baz", "@scope/pkg"}
 	sort.Strings(got)
 	sort.Strings(want)
@@ -460,7 +460,7 @@ import static org.junit.Assert.assertEquals;
 		t.Fatal("java pack has no imports config")
 	}
 
-	got := extractImportsFromPack(content, pack.Imports)
+	got := extractImportsFromPack(content, "java", pack.Imports)
 	want := []string{"java.util.List", "org.junit.Assert.assertEquals"}
 	sort.Strings(got)
 	sort.Strings(want)
@@ -479,7 +479,7 @@ use crate::config;
 		t.Fatal("rust pack has no imports config")
 	}
 
-	got := extractImportsFromPack(content, pack.Imports)
+	got := extractImportsFromPack(content, "rust", pack.Imports)
 	want := []string{"std::collections::HashMap", "config"}
 	sort.Strings(got)
 	sort.Strings(want)

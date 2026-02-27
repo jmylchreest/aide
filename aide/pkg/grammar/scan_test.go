@@ -17,7 +17,7 @@ func TestNormaliseLang(t *testing.T) {
 	}{
 		// Direct aliases
 		{"ts", "typescript"},
-		{"tsx", "typescript"},
+		{"tsx", "tsx"},
 		{"js", "javascript"},
 		{"jsx", "javascript"},
 		{"py", "python"},
