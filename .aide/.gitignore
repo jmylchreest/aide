@@ -6,6 +6,7 @@ bin/
 worktrees/
 memory/
 code/
+grammars/
 
 # MCP sync state - machine-specific
 config/mcp.json
