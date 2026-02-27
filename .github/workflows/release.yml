@@ -291,22 +291,22 @@ jobs:
           # Grammar definitions: name|repo|c_symbol|tag|extra_src_dir
           GRAMMARS=(
             "csharp|tree-sitter/tree-sitter-c-sharp|tree_sitter_c_sharp|v0.23.1|"
-            "kotlin|tree-sitter-grammars/tree-sitter-kotlin|tree_sitter_kotlin|v0.3.9|"
+            "kotlin|tree-sitter-grammars/tree-sitter-kotlin|tree_sitter_kotlin|v1.1.0|"
             "scala|tree-sitter/tree-sitter-scala|tree_sitter_scala|v0.23.4|"
-            "groovy|amaanq/tree-sitter-groovy|tree_sitter_groovy|v1.0.0|"
+            "groovy|amaanq/tree-sitter-groovy|tree_sitter_groovy|v0.1.2|"
             "ruby|tree-sitter/tree-sitter-ruby|tree_sitter_ruby|v0.23.1|"
             "php|tree-sitter/tree-sitter-php|tree_sitter_php|v0.23.11|php/src"
             "lua|tree-sitter-grammars/tree-sitter-lua|tree_sitter_lua|v0.3.0|"
-            "elixir|tree-sitter/tree-sitter-elixir|tree_sitter_elixir|v0.3.4|"
+            "elixir|elixir-lang/tree-sitter-elixir|tree_sitter_elixir|v0.3.4|"
             "bash|tree-sitter/tree-sitter-bash|tree_sitter_bash|v0.23.3|"
-            "swift|alex-pinkus/tree-sitter-swift|tree_sitter_swift|v0.7.1|"
-            "ocaml|tree-sitter/tree-sitter-ocaml|tree_sitter_ocaml|v0.23.3|grammars/ocaml/src"
-            "elm|elm-tooling/tree-sitter-elm|tree_sitter_elm|v6.0.0|"
-            "sql|DerekStride/tree-sitter-sql|tree_sitter_sql|v0.3.3|"
+            "swift|alex-pinkus/tree-sitter-swift|tree_sitter_swift|0.7.1-with-generated-files|"
+            "ocaml|tree-sitter/tree-sitter-ocaml|tree_sitter_ocaml|v0.24.2|grammars/ocaml/src"
+            "elm|elm-tooling/tree-sitter-elm|tree_sitter_elm|v5.9.0|"
+            "sql|DerekStride/tree-sitter-sql|tree_sitter_sql|v0.3.11|"
             "yaml|tree-sitter-grammars/tree-sitter-yaml|tree_sitter_yaml|v0.7.0|"
             "toml|tree-sitter-grammars/tree-sitter-toml|tree_sitter_toml|v0.7.0|"
             "hcl|tree-sitter-grammars/tree-sitter-hcl|tree_sitter_hcl|v1.1.0|"
-            "protobuf|coder3101/tree-sitter-proto|tree_sitter_proto|v1.0.0|"
+            "protobuf|coder3101/tree-sitter-proto|tree_sitter_proto|0.4.0|"
             "html|tree-sitter/tree-sitter-html|tree_sitter_html|v0.23.2|"
             "css|tree-sitter/tree-sitter-css|tree_sitter_css|v0.23.2|"
           )
@@ -326,6 +326,18 @@ jobs:
               SRC_DIR="grammar-src/${name}/src"
             fi
 
+            # If parser.c is not in the git tree, try downloading the GitHub
+            # release tarball which may include generated files.
+            if [[ ! -f "${SRC_DIR}/parser.c" ]]; then
+              echo "parser.c not in git tree, trying release tarball..."
+              TARBALL_URL="https://github.com/${repo}/releases/download/${tag}/${repo##*/}-${tag}.tar.gz"
+              if curl -fsSL "${TARBALL_URL}" -o "/tmp/${name}-release.tar.gz" 2>/dev/null; then
+                # Extract only src/ files into the clone directory
+                tar -xzf "/tmp/${name}-release.tar.gz" -C "grammar-src/${name}" --strip-components=0 2>/dev/null || true
+                rm -f "/tmp/${name}-release.tar.gz"
+              fi
+            fi
+
             if [[ ! -f "${SRC_DIR}/parser.c" ]]; then
               echo "WARNING: No parser.c found in ${SRC_DIR}, skipping ${name}"
               rm -rf "grammar-src/${name}"
@@ -333,8 +345,15 @@ jobs:
             fi
 
             SOURCES="${SRC_DIR}/parser.c"
+            CXX_SOURCES=""
             if [[ -f "${SRC_DIR}/scanner.c" ]]; then
               SOURCES="${SOURCES} ${SRC_DIR}/scanner.c"
+            fi
+            # Some grammars use C++ scanners (scanner.cc or scanner.cpp)
+            if [[ -f "${SRC_DIR}/scanner.cc" ]]; then
+              CXX_SOURCES="${SRC_DIR}/scanner.cc"
+            elif [[ -f "${SRC_DIR}/scanner.cpp" ]]; then
+              CXX_SOURCES="${SRC_DIR}/scanner.cpp"
             fi
 
             # Compile grammar into a staging directory: staging/{name}/grammar{ext}
@@ -342,15 +361,48 @@ jobs:
             mkdir -p "${STAGE_DIR}"
             GRAMMAR_FILE="${STAGE_DIR}/grammar${EXT}"
 
-            eval ${CC} ${SHARED_FLAG} -fPIC -O2 \
-              -I "${SRC_DIR}" \
-              -I "grammar-src/${name}/src" \
-              ${SOURCES} \
-              -o "${GRAMMAR_FILE}" 2>&1 || {
-              echo "WARNING: Failed to compile ${name}, skipping"
-              rm -rf "grammar-src/${name}" "${STAGE_DIR}"
-              continue
-            }
+            # If there are C++ sources, compile them separately and link together
+            if [[ -n "${CXX_SOURCES}" ]]; then
+              # Compile C sources to object files
+              eval ${CC} -fPIC -O2 -c -I "${SRC_DIR}" -I "grammar-src/${name}/src" \
+                ${SOURCES} 2>&1 || {
+                echo "WARNING: Failed to compile C sources for ${name}, skipping"
+                rm -rf "grammar-src/${name}" "${STAGE_DIR}"
+                continue
+              }
+              # Determine C++ compiler from CC (gcc -> g++, *-gcc -> *-g++)
+              CXX="${CC/gcc/g++}"
+              if [[ "${CXX}" == "${CC}" ]]; then
+                # CC doesn't contain "gcc", try clang -> clang++
+                CXX="${CC/clang/clang++}"
+              fi
+              # Compile C++ scanner to object file
+              eval ${CXX} -fPIC -O2 -c -I "${SRC_DIR}" -I "grammar-src/${name}/src" \
+                ${CXX_SOURCES} 2>&1 || {
+                echo "WARNING: Failed to compile C++ scanner for ${name}, skipping"
+                rm -f *.o
+                rm -rf "grammar-src/${name}" "${STAGE_DIR}"
+                continue
+              }
+              # Link all object files into shared library
+              eval ${CXX} ${SHARED_FLAG} -fPIC *.o -o "${GRAMMAR_FILE}" 2>&1 || {
+                echo "WARNING: Failed to link ${name}, skipping"
+                rm -f *.o
+                rm -rf "grammar-src/${name}" "${STAGE_DIR}"
+                continue
+              }
+              rm -f *.o
+            else
+              eval ${CC} ${SHARED_FLAG} -fPIC -O2 \
+                -I "${SRC_DIR}" \
+                -I "grammar-src/${name}/src" \
+                ${SOURCES} \
+                -o "${GRAMMAR_FILE}" 2>&1 || {
+                echo "WARNING: Failed to compile ${name}, skipping"
+                rm -rf "grammar-src/${name}" "${STAGE_DIR}"
+                continue
+              }
+            fi
 
             # Copy pack.json from embedded packs into the staging directory
             PACK_SRC="aide/pkg/grammar/packs/${name}/pack.json"

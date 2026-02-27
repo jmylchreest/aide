@@ -288,9 +288,21 @@ func cmdGrammarInstall(dbPath string, args []string) error {
 		return nil
 	}
 
+	// Separate builtins from dynamic grammars so we can give clear feedback.
+	builtinSet := make(map[string]bool)
+	for _, info := range loader.Installed() {
+		if info.BuiltIn {
+			builtinSet[info.Name] = true
+		}
+	}
+
 	sort.Strings(names)
 	var errors []string
 	for _, name := range names {
+		if builtinSet[name] {
+			fmt.Printf("Skipping %s (builtin grammar, no install needed)\n", name)
+			continue
+		}
 		fmt.Printf("Installing %s... ", name)
 		if err := loader.Install(ctx, name); err != nil {
 			fmt.Printf("FAILED: %v\n", err)
@@ -346,9 +358,21 @@ func cmdGrammarRemove(dbPath string, args []string) error {
 		return nil
 	}
 
+	// Build a set of builtins so we can skip them with a clear message.
+	builtinNames := make(map[string]bool)
+	for _, info := range loader.Installed() {
+		if info.BuiltIn {
+			builtinNames[info.Name] = true
+		}
+	}
+
 	sort.Strings(names)
 	var errors []string
 	for _, name := range names {
+		if builtinNames[name] {
+			fmt.Printf("Skipping %s (builtin grammar, cannot be removed)\n", name)
+			continue
+		}
 		fmt.Printf("Removing %s... ", name)
 		if err := loader.Remove(name); err != nil {
 			fmt.Printf("FAILED: %v\n", err)
