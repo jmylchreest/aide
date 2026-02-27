@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "name": "php",
+  "version": "",
+  "c_symbol": "tree_sitter_php",
+  "meta": {
+    "extensions": [".php"],
+    "shebangs": ["php"]
+  },
+  "queries": {
+    "tags": "(function_definition name: (name) @name) @definition.function\n(method_declaration name: (name) @name) @definition.method\n(class_declaration name: (name) @name) @definition.class\n(interface_declaration name: (name) @name) @definition.interface\n(trait_declaration name: (name) @name) @definition.interface",
+    "refs": "(function_call_expression function: (name) @name) @reference.call\n(member_call_expression name: (name) @name) @reference.call\n(named_type (name) @name) @reference.type"
+  },
+  "complexity": {
+    "func_node_types": ["function_definition", "method_declaration"],
+    "branch_types": [
+      "if_statement",
+      "for_statement",
+      "foreach_statement",
+      "while_statement",
+      "do_statement",
+      "switch_case",
+      "catch_clause",
+      "binary_expression"
+    ],
+    "name_field": "name"
+  },
+  "tokenisation": {
+    "identifier_types": ["variable_name", "name"],
+    "literal_types": ["encapsed_string", "nowdoc_string", "heredoc_content"],
+    "keyword_types": ["trait"]
+  }
+}

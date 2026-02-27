@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "name": "groovy",
+  "version": "",
+  "c_symbol": "tree_sitter_groovy",
+  "meta": {
+    "extensions": [".groovy", ".gradle"],
+    "filenames": ["Jenkinsfile"],
+    "shebangs": ["groovy"]
+  }
+}

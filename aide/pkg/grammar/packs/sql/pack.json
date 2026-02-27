@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "name": "sql",
+  "version": "",
+  "c_symbol": "tree_sitter_sql",
+  "meta": {
+    "extensions": [".sql"]
+  },
+  "queries": {
+    "tags": "(create_function_statement name: (identifier) @name) @definition.function\n(create_table_statement name: (identifier) @name) @definition.class"
+  }
+}

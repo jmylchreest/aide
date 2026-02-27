@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "name": "cpp",
+  "version": "0.23.4",
+  "c_symbol": "tree_sitter_cpp",
+  "meta": {
+    "extensions": [".cpp", ".cc", ".cxx", ".hpp", ".hh", ".hxx"],
+    "aliases": ["c++"]
+  },
+  "queries": {
+    "tags": "(function_definition declarator: (function_declarator declarator: (identifier) @name)) @definition.function\n(function_definition declarator: (function_declarator declarator: (qualified_identifier name: (identifier) @name))) @definition.method\n(class_specifier name: (type_identifier) @name) @definition.class\n(struct_specifier name: (type_identifier) @name) @definition.class\n(enum_specifier name: (type_identifier) @name) @definition.class",
+    "refs": "(call_expression function: (identifier) @name) @reference.call\n(call_expression function: (field_expression field: (field_identifier) @name)) @reference.call\n(type_identifier) @name @reference.type"
+  },
+  "complexity": {
+    "func_node_types": ["function_definition"],
+    "branch_types": [
+      "if_statement",
+      "for_statement",
+      "for_range_loop",
+      "while_statement",
+      "do_statement",
+      "case_statement",
+      "catch_clause",
+      "conditional_expression",
+      "binary_expression"
+    ],
+    "name_field": "declarator"
+  },
+  "tokenisation": {
+    "identifier_types": [
+      "identifier",
+      "type_identifier",
+      "field_identifier",
+      "namespace_identifier"
+    ],
+    "literal_types": [
+      "string_literal",
+      "number_literal",
+      "character_literal",
+      "true",
+      "false",
+      "null",
+      "nullptr"
+    ],
+    "keyword_types": [
+      "if",
+      "else",
+      "for",
+      "while",
+      "switch",
+      "case",
+      "return",
+      "break",
+      "continue",
+      "class",
+      "struct",
+      "enum",
+      "do",
+      "catch",
+      "try",
+      "throw",
+      "include"
+    ]
+  }
+}

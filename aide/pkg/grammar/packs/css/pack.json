@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "name": "css",
+  "version": "",
+  "c_symbol": "tree_sitter_css",
+  "meta": {
+    "extensions": [".css", ".scss", ".less"]
+  }
+}

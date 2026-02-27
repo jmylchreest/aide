@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "name": "python",
+  "version": "0.25.0",
+  "c_symbol": "tree_sitter_python",
+  "meta": {
+    "extensions": [".py", ".pyw", ".pyi"],
+    "filenames": [
+      "BUILD",
+      "BUILD.bazel",
+      "WORKSPACE",
+      "SConstruct",
+      "SConscript"
+    ],
+    "shebangs": ["python", "python2", "python3"],
+    "aliases": ["py"]
+  },
+  "queries": {
+    "tags": "(function_definition name: (identifier) @name) @definition.function\n(class_definition name: (identifier) @name) @definition.class",
+    "refs": "(call function: (identifier) @name) @reference.call\n(call function: (attribute attribute: (identifier) @name)) @reference.call\n(type (identifier) @name) @reference.type"
+  },
+  "complexity": {
+    "func_node_types": ["function_definition"],
+    "branch_types": [
+      "if_statement",
+      "elif_clause",
+      "for_statement",
+      "while_statement",
+      "except_clause",
+      "with_statement",
+      "assert_statement",
+      "boolean_operator",
+      "conditional_expression",
+      "list_comprehension",
+      "dictionary_comprehension",
+      "set_comprehension",
+      "generator_expression"
+    ],
+    "name_field": "name"
+  },
+  "imports": {
+    "patterns": [
+      { "regex": "^\\s*from\\s+(\\S+)\\s+import", "group": 1 },
+      { "regex": "^\\s*import\\s+(\\S+)", "group": 1 }
+    ]
+  },
+  "tokenisation": {
+    "identifier_types": ["identifier"],
+    "literal_types": [
+      "string",
+      "integer",
+      "float",
+      "true",
+      "false",
+      "none",
+      "None",
+      "True",
+      "False"
+    ],
+    "keyword_types": [
+      "if",
+      "else",
+      "elif",
+      "for",
+      "while",
+      "def",
+      "class",
+      "import",
+      "try",
+      "except",
+      "finally",
+      "raise",
+      "return",
+      "break",
+      "continue",
+      "with",
+      "yield",
+      "lambda",
+      "async",
+      "await"
+    ]
+  }
+}

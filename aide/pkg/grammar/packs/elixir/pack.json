@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "name": "elixir",
+  "version": "",
+  "c_symbol": "tree_sitter_elixir",
+  "meta": {
+    "extensions": [".ex", ".exs"],
+    "shebangs": ["elixir"],
+    "aliases": ["ex", "exs"]
+  },
+  "queries": {
+    "tags": "(call target: (identifier) @_def arguments: (arguments (identifier) @name)) @definition.function\n(call target: (identifier) @_defmodule arguments: (arguments (alias) @name)) @definition.module"
+  },
+  "tokenisation": {
+    "identifier_types": ["identifier", "constant", "atom"],
+    "literal_types": ["string", "charlist", "boolean"],
+    "keyword_types": ["fn", "module"]
+  }
+}

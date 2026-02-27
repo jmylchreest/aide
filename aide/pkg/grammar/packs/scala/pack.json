@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "name": "scala",
+  "version": "",
+  "c_symbol": "tree_sitter_scala",
+  "meta": {
+    "extensions": [".scala", ".sc"],
+    "shebangs": ["scala"]
+  },
+  "queries": {
+    "tags": "(function_definition name: (identifier) @name) @definition.function\n(class_definition name: (identifier) @name) @definition.class\n(object_definition name: (identifier) @name) @definition.class\n(trait_definition name: (identifier) @name) @definition.interface"
+  },
+  "complexity": {
+    "func_node_types": ["function_definition"],
+    "branch_types": [
+      "if_expression",
+      "for_expression",
+      "while_expression",
+      "case_clause",
+      "catch_clause",
+      "binary_expression"
+    ],
+    "name_field": "name"
+  },
+  "tokenisation": {
+    "identifier_types": ["identifier"],
+    "literal_types": ["boolean_literal"],
+    "keyword_types": ["match", "val", "trait"]
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "name": "ruby",
+  "version": "",
+  "c_symbol": "tree_sitter_ruby",
+  "meta": {
+    "extensions": [".rb", ".rake"],
+    "filenames": ["Vagrantfile", "Rakefile", "Gemfile"],
+    "shebangs": ["ruby"],
+    "aliases": ["rb"]
+  },
+  "queries": {
+    "tags": "(method name: (identifier) @name) @definition.method\n(singleton_method name: (identifier) @name) @definition.method\n(class name: (constant) @name) @definition.class\n(module name: (constant) @name) @definition.module",
+    "refs": "(call method: (identifier) @name) @reference.call\n(constant) @name @reference.type"
+  },
+  "complexity": {
+    "func_node_types": ["method", "singleton_method"],
+    "branch_types": [
+      "if",
+      "elsif",
+      "unless",
+      "while",
+      "until",
+      "for",
+      "when",
+      "rescue",
+      "binary",
+      "conditional"
+    ],
+    "name_field": "name"
+  },
+  "tokenisation": {
+    "identifier_types": ["identifier", "name", "constant", "symbol"],
+    "literal_types": ["string_content", "heredoc_content", "regex"],
+    "keyword_types": [
+      "module",
+      "require",
+      "include",
+      "rescue",
+      "ensure",
+      "unless",
+      "until",
+      "elsif",
+      "raise"
+    ]
+  }
+}

@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "name": "typescript",
+  "version": "0.23.2",
+  "c_symbol": "tree_sitter_typescript",
+  "meta": {
+    "extensions": [".ts", ".tsx"],
+    "shebangs": ["deno", "bun"],
+    "aliases": ["ts", "tsx"]
+  },
+  "queries": {
+    "tags": "(function_declaration name: (identifier) @name) @definition.function\n(method_definition name: (property_identifier) @name) @definition.method\n(class_declaration name: (type_identifier) @name) @definition.class\n(interface_declaration name: (type_identifier) @name) @definition.interface\n(type_alias_declaration name: (type_identifier) @name) @definition.type\n(enum_declaration name: (identifier) @name) @definition.class",
+    "refs": "(call_expression function: (identifier) @name) @reference.call\n(call_expression function: (member_expression property: (property_identifier) @name)) @reference.call\n(new_expression constructor: (identifier) @name) @reference.call\n(type_identifier) @name @reference.type"
+  },
+  "complexity": {
+    "func_node_types": [
+      "function_declaration",
+      "method_definition",
+      "arrow_function",
+      "function"
+    ],
+    "branch_types": [
+      "if_statement",
+      "for_statement",
+      "for_in_statement",
+      "while_statement",
+      "do_statement",
+      "switch_case",
+      "catch_clause",
+      "ternary_expression",
+      "binary_expression",
+      "optional_chain_expression"
+    ],
+    "name_field": "name"
+  },
+  "imports": {
+    "patterns": [
+      {
+        "regex": "(?:import|export)\\s+.*from\\s+['\"]([^'\"]+)['\"]",
+        "group": 1
+      },
+      { "regex": "require\\s*\\(\\s*['\"]([^'\"]+)['\"]", "group": 1 }
+    ]
+  },
+  "tokenisation": {
+    "identifier_types": [
+      "identifier",
+      "type_identifier",
+      "property_identifier",
+      "shorthand_property_identifier",
+      "shorthand_property_identifier_pattern"
+    ],
+    "literal_types": [
+      "string",
+      "template_string",
+      "number",
+      "true",
+      "false",
+      "null",
+      "undefined"
+    ],
+    "keyword_types": [
+      "if",
+      "else",
+      "for",
+      "while",
+      "switch",
+      "case",
+      "return",
+      "break",
+      "continue",
+      "function",
+      "class",
+      "import",
+      "try",
+      "catch",
+      "finally",
+      "throw",
+      "async",
+      "await",
+      "let",
+      "var",
+      "const",
+      "enum",
+      "interface",
+      "do"
+    ]
+  }
+}

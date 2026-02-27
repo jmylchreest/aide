@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "name": "lua",
+  "version": "",
+  "c_symbol": "tree_sitter_lua",
+  "meta": {
+    "extensions": [".lua"],
+    "shebangs": ["lua"]
+  },
+  "queries": {
+    "tags": "(function_declaration name: (identifier) @name) @definition.function\n(function_declaration name: (dot_index_expression field: (identifier) @name)) @definition.method\n(assignment_statement (variable_list name: (identifier) @name) (expression_list value: (function_definition))) @definition.function"
+  },
+  "complexity": {
+    "func_node_types": [
+      "function_declaration",
+      "local_function_declaration_statement",
+      "function_definition"
+    ],
+    "branch_types": [
+      "if_statement",
+      "elseif_clause",
+      "for_statement",
+      "for_generic_statement",
+      "while_statement",
+      "repeat_statement",
+      "binary_expression"
+    ],
+    "name_field": "name"
+  },
+  "tokenisation": {
+    "identifier_types": ["identifier"],
+    "literal_types": ["string", "number"],
+    "keyword_types": ["require"]
+  }
+}

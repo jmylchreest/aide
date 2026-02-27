@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "name": "java",
+  "version": "0.23.5",
+  "c_symbol": "tree_sitter_java",
+  "meta": {
+    "extensions": [".java"]
+  },
+  "queries": {
+    "tags": "(method_declaration name: (identifier) @name) @definition.method\n(constructor_declaration name: (identifier) @name) @definition.method\n(class_declaration name: (identifier) @name) @definition.class\n(interface_declaration name: (identifier) @name) @definition.interface\n(enum_declaration name: (identifier) @name) @definition.class",
+    "refs": "(method_invocation name: (identifier) @name) @reference.call\n(object_creation_expression type: (type_identifier) @name) @reference.call\n(type_identifier) @name @reference.type"
+  },
+  "complexity": {
+    "func_node_types": ["method_declaration", "constructor_declaration"],
+    "branch_types": [
+      "if_statement",
+      "for_statement",
+      "enhanced_for_statement",
+      "while_statement",
+      "do_statement",
+      "switch_block_statement_group",
+      "catch_clause",
+      "ternary_expression",
+      "binary_expression"
+    ],
+    "name_field": "name"
+  },
+  "imports": {
+    "patterns": [
+      { "regex": "^\\s*import\\s+(?:static\\s+)?([a-zA-Z0-9_.]+)", "group": 1 }
+    ]
+  },
+  "tokenisation": {
+    "identifier_types": ["identifier", "type_identifier"],
+    "literal_types": [
+      "string_literal",
+      "character_literal",
+      "decimal_integer_literal",
+      "hex_integer_literal",
+      "decimal_floating_point_literal",
+      "true",
+      "false",
+      "null"
+    ],
+    "keyword_types": [
+      "if",
+      "else",
+      "for",
+      "while",
+      "switch",
+      "case",
+      "return",
+      "break",
+      "continue",
+      "class",
+      "interface",
+      "import",
+      "try",
+      "catch",
+      "finally",
+      "throw",
+      "do",
+      "enum"
+    ]
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "name": "yaml",
+  "version": "",
+  "c_symbol": "tree_sitter_yaml",
+  "meta": {
+    "extensions": [".yaml", ".yml"],
+    "aliases": ["yml"]
+  }
+}

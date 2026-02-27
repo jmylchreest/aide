@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "name": "zig",
+  "version": "1.1.2",
+  "c_symbol": "tree_sitter_zig",
+  "meta": {
+    "extensions": [".zig"]
+  },
+  "complexity": {
+    "func_node_types": ["FnDecl", "TestDecl"],
+    "branch_types": [
+      "IfExpr",
+      "IfStatement",
+      "ForStatement",
+      "WhileStatement",
+      "SwitchExpr"
+    ],
+    "name_field": "name"
+  },
+  "tokenisation": {
+    "identifier_types": ["IDENTIFIER", "BUILTINIDENTIFIER"],
+    "literal_types": [
+      "INTEGER",
+      "FLOAT",
+      "STRINGLITERAL",
+      "CHAR_LITERAL",
+      "true",
+      "false",
+      "null"
+    ],
+    "keyword_types": [
+      "fn",
+      "if",
+      "else",
+      "for",
+      "while",
+      "switch",
+      "return",
+      "break",
+      "continue",
+      "struct",
+      "enum",
+      "defer",
+      "try",
+      "catch"
+    ]
+  }
+}

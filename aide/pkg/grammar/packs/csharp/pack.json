@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "name": "csharp",
+  "version": "",
+  "c_symbol": "tree_sitter_c_sharp",
+  "meta": {
+    "extensions": [".cs"],
+    "aliases": ["c#", "cs"]
+  },
+  "queries": {
+    "tags": "(method_declaration name: (identifier) @name) @definition.method\n(constructor_declaration name: (identifier) @name) @definition.method\n(class_declaration name: (identifier) @name) @definition.class\n(interface_declaration name: (identifier) @name) @definition.interface\n(struct_declaration name: (identifier) @name) @definition.class\n(enum_declaration name: (identifier) @name) @definition.class"
+  },
+  "complexity": {
+    "func_node_types": [
+      "method_declaration",
+      "constructor_declaration",
+      "local_function_statement"
+    ],
+    "branch_types": [
+      "if_statement",
+      "for_statement",
+      "for_each_statement",
+      "while_statement",
+      "do_statement",
+      "switch_section",
+      "catch_clause",
+      "conditional_expression",
+      "binary_expression"
+    ],
+    "name_field": "name"
+  }
+}

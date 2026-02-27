@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "name": "rust",
+  "version": "0.24.0",
+  "c_symbol": "tree_sitter_rust",
+  "meta": {
+    "extensions": [".rs"],
+    "aliases": ["rs"]
+  },
+  "queries": {
+    "tags": "(function_item name: (identifier) @name) @definition.function\n(impl_item type: (type_identifier) @name) @definition.class\n(struct_item name: (type_identifier) @name) @definition.class\n(enum_item name: (type_identifier) @name) @definition.class\n(trait_item name: (type_identifier) @name) @definition.interface\n(type_item name: (type_identifier) @name) @definition.type\n(mod_item name: (identifier) @name) @definition.module",
+    "refs": "(call_expression function: (identifier) @name) @reference.call\n(call_expression function: (field_expression field: (field_identifier) @name)) @reference.call\n(type_identifier) @name @reference.type"
+  },
+  "complexity": {
+    "func_node_types": ["function_item"],
+    "branch_types": [
+      "if_expression",
+      "for_expression",
+      "while_expression",
+      "loop_expression",
+      "match_arm",
+      "binary_expression"
+    ],
+    "name_field": "name"
+  },
+  "imports": {
+    "patterns": [
+      { "regex": "^\\s*use\\s+(?:crate::)?([a-zA-Z0-9_:]+)", "group": 1 }
+    ]
+  },
+  "tokenisation": {
+    "identifier_types": ["identifier", "type_identifier", "field_identifier"],
+    "literal_types": [
+      "string_literal",
+      "integer_literal",
+      "float_literal",
+      "char_literal",
+      "true",
+      "false"
+    ],
+    "keyword_types": [
+      "fn",
+      "let",
+      "if",
+      "else",
+      "for",
+      "while",
+      "match",
+      "return",
+      "break",
+      "continue",
+      "struct",
+      "enum",
+      "trait",
+      "impl",
+      "use",
+      "async",
+      "await"
+    ]
+  }
+}

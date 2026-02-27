@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "name": "bash",
+  "version": "",
+  "c_symbol": "tree_sitter_bash",
+  "meta": {
+    "extensions": [".sh", ".bash", ".zsh"],
+    "filenames": ["Makefile", "GNUmakefile", "CMakeLists.txt"],
+    "shebangs": ["bash", "sh", "zsh", "perl"],
+    "aliases": ["sh", "shell"]
+  },
+  "queries": {
+    "tags": "(function_definition name: (word) @name) @definition.function"
+  },
+  "complexity": {
+    "func_node_types": ["function_definition"],
+    "branch_types": [
+      "if_statement",
+      "elif_clause",
+      "for_statement",
+      "while_statement",
+      "case_item",
+      "binary_expression"
+    ],
+    "name_field": "name"
+  },
+  "tokenisation": {
+    "identifier_types": ["word", "variable_reference"],
+    "literal_types": ["string", "raw_string", "number"],
+    "keyword_types": ["if", "else", "for", "while", "case", "function"]
+  }
+}

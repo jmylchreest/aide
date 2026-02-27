@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "name": "c",
+  "version": "0.24.1",
+  "c_symbol": "tree_sitter_c",
+  "meta": {
+    "extensions": [".c", ".h"]
+  },
+  "queries": {
+    "tags": "(function_definition declarator: (function_declarator declarator: (identifier) @name)) @definition.function\n(struct_specifier name: (type_identifier) @name) @definition.class\n(enum_specifier name: (type_identifier) @name) @definition.class\n(type_definition declarator: (type_identifier) @name) @definition.type",
+    "refs": "(call_expression function: (identifier) @name) @reference.call\n(type_identifier) @name @reference.type"
+  },
+  "complexity": {
+    "func_node_types": ["function_definition"],
+    "branch_types": [
+      "if_statement",
+      "for_statement",
+      "while_statement",
+      "do_statement",
+      "case_statement",
+      "conditional_expression",
+      "binary_expression"
+    ],
+    "name_field": "declarator"
+  },
+  "tokenisation": {
+    "identifier_types": ["identifier", "type_identifier", "field_identifier"],
+    "literal_types": [
+      "string_literal",
+      "number_literal",
+      "character_literal",
+      "true",
+      "false",
+      "null"
+    ],
+    "keyword_types": [
+      "if",
+      "else",
+      "for",
+      "while",
+      "switch",
+      "case",
+      "return",
+      "break",
+      "continue",
+      "struct",
+      "enum",
+      "do",
+      "include"
+    ]
+  }
+}

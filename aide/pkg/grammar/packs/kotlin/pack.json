@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "name": "kotlin",
+  "version": "",
+  "c_symbol": "tree_sitter_kotlin",
+  "meta": {
+    "extensions": [".kt", ".kts"],
+    "shebangs": ["kotlin"],
+    "aliases": ["kt"]
+  },
+  "queries": {
+    "tags": "(function_declaration (simple_identifier) @name) @definition.function\n(class_declaration (type_identifier) @name) @definition.class\n(object_declaration (type_identifier) @name) @definition.class"
+  },
+  "complexity": {
+    "func_node_types": ["function_declaration"],
+    "branch_types": [
+      "if_expression",
+      "for_statement",
+      "while_statement",
+      "do_while_statement",
+      "when_entry",
+      "catch_block",
+      "binary_expression",
+      "conjunction_expression",
+      "disjunction_expression",
+      "elvis_expression"
+    ],
+    "name_field": "simple_identifier"
+  },
+  "tokenisation": {
+    "identifier_types": ["simple_identifier"],
+    "literal_types": [
+      "integer_literal",
+      "real_literal",
+      "long_literal",
+      "character_literal",
+      "boolean_literal",
+      "line_string_literal",
+      "multi_line_string_literal"
+    ],
+    "keyword_types": ["when", "val"]
+  }
+}

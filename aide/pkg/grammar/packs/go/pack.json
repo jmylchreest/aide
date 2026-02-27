@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "name": "go",
+  "version": "0.25.0",
+  "c_symbol": "tree_sitter_go",
+  "meta": {
+    "extensions": [".go"],
+    "aliases": ["golang"]
+  },
+  "queries": {
+    "tags": "(function_declaration name: (identifier) @name) @definition.function\n(method_declaration name: (field_identifier) @name) @definition.method\n(type_declaration (type_spec name: (type_identifier) @name type: (struct_type))) @definition.class\n(type_declaration (type_spec name: (type_identifier) @name type: (interface_type))) @definition.interface\n(type_declaration (type_spec name: (type_identifier) @name)) @definition.type",
+    "refs": "(call_expression function: (identifier) @name) @reference.call\n(call_expression function: (selector_expression field: (field_identifier) @name)) @reference.call\n(type_identifier) @name @reference.type"
+  },
+  "complexity": {
+    "func_node_types": [
+      "function_declaration",
+      "method_declaration",
+      "func_literal"
+    ],
+    "branch_types": [
+      "if_statement",
+      "for_statement",
+      "expression_case",
+      "type_case",
+      "default_case",
+      "communication_case",
+      "go_statement",
+      "defer_statement",
+      "binary_expression"
+    ],
+    "name_field": "name"
+  },
+  "imports": {
+    "patterns": [
+      {
+        "regex": "^\\s*import\\s+\"([^\"]+)\"",
+        "group": 1,
+        "context": "single"
+      },
+      { "regex": "^\\s*\"([^\"]+)\"", "group": 1, "context": "block" }
+    ],
+    "block_start": "import (",
+    "block_end": ")"
+  },
+  "tokenisation": {
+    "identifier_types": [
+      "identifier",
+      "type_identifier",
+      "field_identifier",
+      "package_identifier"
+    ],
+    "literal_types": [
+      "interpreted_string_literal",
+      "raw_string_literal",
+      "int_literal",
+      "float_literal"
+    ],
+    "keyword_types": [
+      "func",
+      "return",
+      "var",
+      "const",
+      "type",
+      "struct",
+      "interface",
+      "map",
+      "chan",
+      "go",
+      "defer",
+      "select",
+      "range"
+    ]
+  }
+}

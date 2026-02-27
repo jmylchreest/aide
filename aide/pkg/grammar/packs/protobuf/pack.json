@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "name": "protobuf",
+  "version": "",
+  "c_symbol": "tree_sitter_proto",
+  "meta": {
+    "extensions": [".proto"],
+    "aliases": ["proto"]
+  },
+  "queries": {
+    "tags": "(message name: (message_name) @name) @definition.class\n(enum name: (enum_name) @name) @definition.class\n(service name: (service_name) @name) @definition.interface\n(rpc name: (rpc_name) @name) @definition.method"
+  }
+}
