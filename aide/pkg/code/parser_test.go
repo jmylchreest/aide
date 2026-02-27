@@ -22,44 +22,44 @@ func TestDetectLanguageByExtension(t *testing.T) {
 		path string
 		want string
 	}{
-		{"main.go", LangGo},
-		{"app.ts", LangTypeScript},
-		{"app.tsx", LangTypeScript},
-		{"index.js", LangJavaScript},
-		{"index.jsx", LangJavaScript},
-		{"lib.py", LangPython},
-		{"main.rs", LangRust},
-		{"App.java", LangJava},
-		{"main.c", LangC},
-		{"main.h", LangC},
-		{"main.cpp", LangCPP},
-		{"main.cc", LangCPP},
-		{"main.hpp", LangCPP},
-		{"lib.cs", LangCSharp},
-		{"app.rb", LangRuby},
-		{"index.php", LangPHP},
-		{"main.swift", LangSwift},
-		{"main.kt", LangKotlin},
-		{"main.scala", LangScala},
-		{"app.ex", LangElixir},
-		{"app.exs", LangElixir},
-		{"main.lua", LangLua},
-		{"script.sh", LangBash},
-		{"script.bash", LangBash},
-		{"query.sql", LangSQL},
-		{"index.html", LangHTML},
-		{"style.css", LangCSS},
-		{"config.yaml", LangYAML},
-		{"config.yml", LangYAML},
-		{"config.toml", LangTOML},
-		{"data.json", LangJSON},
-		{"main.hcl", LangHCL},
-		{"main.tf", LangHCL},
-		{"schema.proto", LangProtobuf},
-		{"lib.ml", LangOCaml},
-		{"Main.elm", LangElm},
-		{"build.groovy", LangGroovy},
-		{"build.gradle", LangGroovy},
+		{"main.go", "go"},
+		{"app.ts", "typescript"},
+		{"app.tsx", "typescript"},
+		{"index.js", "javascript"},
+		{"index.jsx", "javascript"},
+		{"lib.py", "python"},
+		{"main.rs", "rust"},
+		{"App.java", "java"},
+		{"main.c", "c"},
+		{"main.h", "c"},
+		{"main.cpp", "cpp"},
+		{"main.cc", "cpp"},
+		{"main.hpp", "cpp"},
+		{"lib.cs", "csharp"},
+		{"app.rb", "ruby"},
+		{"index.php", "php"},
+		{"main.swift", "swift"},
+		{"main.kt", "kotlin"},
+		{"main.scala", "scala"},
+		{"app.ex", "elixir"},
+		{"app.exs", "elixir"},
+		{"main.lua", "lua"},
+		{"script.sh", "bash"},
+		{"script.bash", "bash"},
+		{"query.sql", "sql"},
+		{"index.html", "html"},
+		{"style.css", "css"},
+		{"config.yaml", "yaml"},
+		{"config.yml", "yaml"},
+		{"config.toml", "toml"},
+		{"data.json", "json"},
+		{"main.hcl", "hcl"},
+		{"main.tf", "hcl"},
+		{"schema.proto", "protobuf"},
+		{"lib.ml", "ocaml"},
+		{"Main.elm", "elm"},
+		{"build.groovy", "groovy"},
+		{"build.gradle", "groovy"},
 	}
 
 	for _, tt := range tests {
@@ -77,15 +77,15 @@ func TestDetectLanguageByFilename(t *testing.T) {
 		path string
 		want string
 	}{
-		{"Makefile", LangBash},
-		{"GNUmakefile", LangBash},
-		{"Jenkinsfile", LangGroovy},
-		{"Vagrantfile", LangRuby},
-		{"Rakefile", LangRuby},
-		{"Gemfile", LangRuby},
-		{"BUILD", LangPython},
-		{"BUILD.bazel", LangPython},
-		{"WORKSPACE", LangPython},
+		{"Makefile", "bash"},
+		{"GNUmakefile", "bash"},
+		{"Jenkinsfile", "groovy"},
+		{"Vagrantfile", "ruby"},
+		{"Rakefile", "ruby"},
+		{"Gemfile", "ruby"},
+		{"BUILD", "python"},
+		{"BUILD.bazel", "python"},
+		{"WORKSPACE", "python"},
 	}
 
 	for _, tt := range tests {
@@ -104,14 +104,14 @@ func TestDetectLanguageByShebang(t *testing.T) {
 		shebang string
 		want    string
 	}{
-		{"python3", "#!/usr/bin/env python3\nimport sys\n", LangPython},
-		{"python", "#!/usr/bin/python\nimport sys\n", LangPython},
-		{"bash", "#!/bin/bash\necho hi\n", LangBash},
-		{"sh", "#!/bin/sh\necho hi\n", LangBash},
-		{"node", "#!/usr/bin/env node\nconsole.log('hi');\n", LangJavaScript},
-		{"ruby", "#!/usr/bin/env ruby\nputs 'hi'\n", LangRuby},
-		{"lua", "#!/usr/bin/env lua\nprint('hi')\n", LangLua},
-		{"php", "#!/usr/bin/env php\n<?php\n", LangPHP},
+		{"python3", "#!/usr/bin/env python3\nimport sys\n", "python"},
+		{"python", "#!/usr/bin/python\nimport sys\n", "python"},
+		{"bash", "#!/bin/bash\necho hi\n", "bash"},
+		{"sh", "#!/bin/sh\necho hi\n", "bash"},
+		{"node", "#!/usr/bin/env node\nconsole.log('hi');\n", "javascript"},
+		{"ruby", "#!/usr/bin/env ruby\nputs 'hi'\n", "ruby"},
+		{"lua", "#!/usr/bin/env lua\nprint('hi')\n", "lua"},
+		{"php", "#!/usr/bin/env php\n<?php\n", "php"},
 	}
 
 	for _, tt := range tests {
@@ -135,8 +135,8 @@ func TestDetectLanguageUnknown(t *testing.T) {
 func TestDetectLanguageShebangPriority(t *testing.T) {
 	// Extension should take priority over shebang.
 	got := DetectLanguage("script.py", []byte("#!/usr/bin/env ruby\nputs 'hi'\n"))
-	if got != LangPython {
-		t.Errorf("extension should take priority: got %q; want %q", got, LangPython)
+	if got != "python" {
+		t.Errorf("extension should take priority: got %q; want %q", got, "python")
 	}
 }
 
@@ -165,7 +165,7 @@ type Handler interface {
 }
 `)
 
-	symbols, err := p.ParseContent(content, LangGo, "main.go")
+	symbols, err := p.ParseContent(content, "go", "main.go")
 	if err != nil {
 		t.Fatalf("ParseContent: %v", err)
 	}
@@ -205,7 +205,7 @@ enum Role {
 }
 `)
 
-	symbols, err := p.ParseContent(content, LangTypeScript, "app.ts")
+	symbols, err := p.ParseContent(content, "typescript", "app.ts")
 	if err != nil {
 		t.Fatalf("ParseContent: %v", err)
 	}
@@ -236,7 +236,7 @@ class Calculator {
 }
 `)
 
-	symbols, err := p.ParseContent(content, LangJavaScript, "calc.js")
+	symbols, err := p.ParseContent(content, "javascript", "calc.js")
 	if err != nil {
 		t.Fatalf("ParseContent: %v", err)
 	}
@@ -261,7 +261,7 @@ class UserService:
         return {"id": user_id}
 `)
 
-	symbols, err := p.ParseContent(content, LangPython, "app.py")
+	symbols, err := p.ParseContent(content, "python", "app.py")
 	if err != nil {
 		t.Fatalf("ParseContent: %v", err)
 	}
@@ -302,7 +302,7 @@ enum Status {
 }
 `)
 
-	symbols, err := p.ParseContent(content, LangRust, "main.rs")
+	symbols, err := p.ParseContent(content, "rust", "main.rs")
 	if err != nil {
 		t.Fatalf("ParseContent: %v", err)
 	}
@@ -339,7 +339,7 @@ public enum Role {
 }
 `)
 
-	symbols, err := p.ParseContent(content, LangJava, "UserService.java")
+	symbols, err := p.ParseContent(content, "java", "UserService.java")
 	if err != nil {
 		t.Fatalf("ParseContent: %v", err)
 	}
@@ -375,7 +375,7 @@ void greet(const char* name) {
 }
 `)
 
-	symbols, err := p.ParseContent(content, LangC, "main.c")
+	symbols, err := p.ParseContent(content, "c", "main.c")
 	if err != nil {
 		t.Fatalf("ParseContent: %v", err)
 	}
@@ -420,7 +420,7 @@ void freeFunction() {
 }
 `)
 
-	symbols, err := p.ParseContent(content, LangCPP, "server.cpp")
+	symbols, err := p.ParseContent(content, "cpp", "server.cpp")
 	if err != nil {
 		t.Fatalf("ParseContent: %v", err)
 	}
@@ -482,7 +482,7 @@ function main() {
 }
 `)
 
-	symbols, err := p.ParseContent(content, LangBash, "script.sh")
+	symbols, err := p.ParseContent(content, "bash", "script.sh")
 	if err != nil {
 		t.Fatalf("ParseContent: %v", err)
 	}
@@ -520,7 +520,7 @@ function M.greet(name)
 end
 `)
 
-	symbols, err := p.ParseContent(content, LangLua, "lib.lua")
+	symbols, err := p.ParseContent(content, "lua", "lib.lua")
 	if err != nil {
 		t.Fatalf("ParseContent: %v", err)
 	}
@@ -541,7 +541,7 @@ end
 func TestParseContentEmptyFile(t *testing.T) {
 	p := newTestParser()
 
-	symbols, err := p.ParseContent([]byte(""), LangGo, "empty.go")
+	symbols, err := p.ParseContent([]byte(""), "go", "empty.go")
 	if err != nil {
 		t.Fatalf("ParseContent empty: %v", err)
 	}
@@ -571,7 +571,7 @@ func Add(a, b int) int {
 }
 `)
 
-	symbols, err := p.ParseContent(content, LangGo, "math.go")
+	symbols, err := p.ParseContent(content, "go", "math.go")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -591,8 +591,8 @@ func Add(a, b int) int {
 	if addSym.Kind != KindFunction {
 		t.Errorf("Kind = %q; want %q", addSym.Kind, KindFunction)
 	}
-	if addSym.Language != LangGo {
-		t.Errorf("Language = %q; want %q", addSym.Language, LangGo)
+	if addSym.Language != "go" {
+		t.Errorf("Language = %q; want %q", addSym.Language, "go")
 	}
 	if addSym.FilePath != "math.go" {
 		t.Errorf("FilePath = %q; want %q", addSym.FilePath, "math.go")

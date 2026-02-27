@@ -58,7 +58,7 @@ func TestSymbolOperations(t *testing.T) {
 			FilePath:  "pkg/auth/user.go",
 			StartLine: 42,
 			EndLine:   55,
-			Language:  code.LangGo,
+			Language:  "go",
 		}
 
 		if err := cs.AddSymbol(sym); err != nil {
@@ -96,8 +96,8 @@ func TestSymbolOperations(t *testing.T) {
 		if got.StartLine != 42 {
 			t.Errorf("start line = %d, want %d", got.StartLine, 42)
 		}
-		if got.Language != code.LangGo {
-			t.Errorf("language = %q, want %q", got.Language, code.LangGo)
+		if got.Language != "go" {
+			t.Errorf("language = %q, want %q", got.Language, "go")
 		}
 	})
 
@@ -113,7 +113,7 @@ func TestSymbolOperations(t *testing.T) {
 			Name:     "toDelete",
 			Kind:     code.KindFunction,
 			FilePath: "delete.go",
-			Language: code.LangGo,
+			Language: "go",
 		}
 		cs.AddSymbol(sym)
 
@@ -133,7 +133,7 @@ func TestSymbolOperations(t *testing.T) {
 			Name:     "customFunc",
 			Kind:     code.KindFunction,
 			FilePath: "custom.go",
-			Language: code.LangGo,
+			Language: "go",
 		}
 		if err := cs.AddSymbol(sym); err != nil {
 			t.Fatalf("AddSymbol with explicit ID failed: %v", err)
@@ -162,12 +162,12 @@ func TestSymbolSearch(t *testing.T) {
 
 	// Add a set of symbols for searching
 	symbols := []*code.Symbol{
-		{Name: "getUser", Kind: code.KindFunction, Signature: "func getUser(id string) *User", FilePath: "user.go", Language: code.LangGo, StartLine: 10},
-		{Name: "getUserById", Kind: code.KindFunction, Signature: "func getUserById(id int) *User", FilePath: "user.go", Language: code.LangGo, StartLine: 20},
-		{Name: "createUser", Kind: code.KindFunction, Signature: "func createUser(name string) error", FilePath: "user.go", Language: code.LangGo, StartLine: 30},
-		{Name: "User", Kind: code.KindType, Signature: "type User struct", FilePath: "types.go", Language: code.LangGo, StartLine: 5},
-		{Name: "UserService", Kind: code.KindInterface, Signature: "interface UserService", FilePath: "service.ts", Language: code.LangTypeScript, StartLine: 1},
-		{Name: "handleRequest", Kind: code.KindMethod, Signature: "func (s *Server) handleRequest()", FilePath: "server.go", Language: code.LangGo, StartLine: 100},
+		{Name: "getUser", Kind: code.KindFunction, Signature: "func getUser(id string) *User", FilePath: "user.go", Language: "go", StartLine: 10},
+		{Name: "getUserById", Kind: code.KindFunction, Signature: "func getUserById(id int) *User", FilePath: "user.go", Language: "go", StartLine: 20},
+		{Name: "createUser", Kind: code.KindFunction, Signature: "func createUser(name string) error", FilePath: "user.go", Language: "go", StartLine: 30},
+		{Name: "User", Kind: code.KindType, Signature: "type User struct", FilePath: "types.go", Language: "go", StartLine: 5},
+		{Name: "UserService", Kind: code.KindInterface, Signature: "interface UserService", FilePath: "service.ts", Language: "typescript", StartLine: 1},
+		{Name: "handleRequest", Kind: code.KindMethod, Signature: "func (s *Server) handleRequest()", FilePath: "server.go", Language: "go", StartLine: 100},
 	}
 
 	for _, sym := range symbols {
@@ -215,14 +215,14 @@ func TestSymbolSearch(t *testing.T) {
 	})
 
 	t.Run("SearchWithLanguageFilter", func(t *testing.T) {
-		results, err := cs.SearchSymbols("User", code.SearchOptions{Language: code.LangTypeScript})
+		results, err := cs.SearchSymbols("User", code.SearchOptions{Language: "typescript"})
 		if err != nil {
 			t.Fatalf("SearchSymbols failed: %v", err)
 		}
 
 		for _, r := range results {
-			if r.Symbol.Language != code.LangTypeScript {
-				t.Errorf("expected lang %q, got %q", code.LangTypeScript, r.Symbol.Language)
+			if r.Symbol.Language != "typescript" {
+				t.Errorf("expected lang %q, got %q", "typescript", r.Symbol.Language)
 			}
 		}
 	})
@@ -536,8 +536,8 @@ func TestGetFileSymbols(t *testing.T) {
 	defer cleanup()
 
 	// Add symbols and track them in file info
-	sym1 := &code.Symbol{Name: "funcA", Kind: code.KindFunction, FilePath: "main.go", Language: code.LangGo}
-	sym2 := &code.Symbol{Name: "funcB", Kind: code.KindFunction, FilePath: "main.go", Language: code.LangGo}
+	sym1 := &code.Symbol{Name: "funcA", Kind: code.KindFunction, FilePath: "main.go", Language: "go"}
+	sym2 := &code.Symbol{Name: "funcB", Kind: code.KindFunction, FilePath: "main.go", Language: "go"}
 	cs.AddSymbol(sym1)
 	cs.AddSymbol(sym2)
 
@@ -582,8 +582,8 @@ func TestClearFile(t *testing.T) {
 	defer cleanup()
 
 	// Add symbols and register them with file info
-	sym1 := &code.Symbol{Name: "clearMe", Kind: code.KindFunction, FilePath: "clear.go", Language: code.LangGo}
-	sym2 := &code.Symbol{Name: "clearMeToo", Kind: code.KindFunction, FilePath: "clear.go", Language: code.LangGo}
+	sym1 := &code.Symbol{Name: "clearMe", Kind: code.KindFunction, FilePath: "clear.go", Language: "go"}
+	sym2 := &code.Symbol{Name: "clearMeToo", Kind: code.KindFunction, FilePath: "clear.go", Language: "go"}
 	cs.AddSymbol(sym1)
 	cs.AddSymbol(sym2)
 
@@ -649,7 +649,7 @@ func TestStats(t *testing.T) {
 	}
 
 	// Add data
-	sym := &code.Symbol{Name: "stat", Kind: code.KindFunction, FilePath: "stat.go", Language: code.LangGo}
+	sym := &code.Symbol{Name: "stat", Kind: code.KindFunction, FilePath: "stat.go", Language: "go"}
 	cs.AddSymbol(sym)
 	cs.SetFileInfo(&code.FileInfo{Path: "stat.go", SymbolIDs: []string{sym.ID}})
 	cs.AddReference(&code.Reference{SymbolName: "stat", Kind: code.RefKindCall, FilePath: "other.go", Line: 1})
@@ -678,7 +678,7 @@ func TestClear(t *testing.T) {
 	defer cleanup()
 
 	// Add symbols, references, file info
-	sym := &code.Symbol{Name: "clearAll", Kind: code.KindFunction, FilePath: "all.go", Language: code.LangGo}
+	sym := &code.Symbol{Name: "clearAll", Kind: code.KindFunction, FilePath: "all.go", Language: "go"}
 	cs.AddSymbol(sym)
 	cs.SetFileInfo(&code.FileInfo{Path: "all.go", SymbolIDs: []string{sym.ID}})
 	cs.AddReference(&code.Reference{SymbolName: "clearAll", Kind: code.RefKindCall, FilePath: "caller.go", Line: 1})
@@ -723,12 +723,12 @@ func TestUsableAfterClear(t *testing.T) {
 	defer cleanup()
 
 	// Add, clear, then add again
-	sym1 := &code.Symbol{Name: "before", Kind: code.KindFunction, FilePath: "a.go", Language: code.LangGo}
+	sym1 := &code.Symbol{Name: "before", Kind: code.KindFunction, FilePath: "a.go", Language: "go"}
 	cs.AddSymbol(sym1)
 
 	cs.Clear()
 
-	sym2 := &code.Symbol{Name: "after", Kind: code.KindFunction, FilePath: "b.go", Language: code.LangGo}
+	sym2 := &code.Symbol{Name: "after", Kind: code.KindFunction, FilePath: "b.go", Language: "go"}
 	if err := cs.AddSymbol(sym2); err != nil {
 		t.Fatalf("AddSymbol after Clear failed: %v", err)
 	}
@@ -806,7 +806,7 @@ func TestCodeSearchMappingRebuild(t *testing.T) {
 		Name:     "rebuildTest",
 		Kind:     code.KindFunction,
 		FilePath: "rebuild.go",
-		Language: code.LangGo,
+		Language: "go",
 	}
 	if err := cs.AddSymbol(sym); err != nil {
 		cs.Close()
@@ -874,7 +874,7 @@ func TestListAllSymbols(t *testing.T) {
 			Name:     "sym" + string(rune('A'+i)),
 			Kind:     code.KindFunction,
 			FilePath: "list.go",
-			Language: code.LangGo,
+			Language: "go",
 		})
 	}
 

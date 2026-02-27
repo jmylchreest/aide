@@ -202,9 +202,10 @@ func ScanDetail(root string, loader *CompositeLoader, detect LanguageDetector, i
 
 // dynamicAvailable returns sorted names and a set of all downloadable grammars.
 func dynamicAvailable() ([]string, map[string]bool) {
-	set := make(map[string]bool, len(DynamicGrammars))
-	names := make([]string, 0, len(DynamicGrammars))
-	for name := range DynamicGrammars {
+	dynPacks := DefaultPackRegistry().DynamicPacks()
+	set := make(map[string]bool, len(dynPacks))
+	names := make([]string, 0, len(dynPacks))
+	for name := range dynPacks {
 		set[name] = true
 		names = append(names, name)
 	}

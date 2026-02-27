@@ -1,6 +1,19 @@
 # Grammar Packs Design
 
-## Status: DESIGN (not yet implemented)
+## Status: IMPLEMENTED
+
+All four phases are complete. Grammar packs are the single source of truth
+for per-language metadata. The CI release pipeline, runtime loader, and all
+analysers now read from `aide/pkg/grammar/packs/<lang>/pack.json`.
+
+**Phases completed:**
+
+- Phase 1: Grammar pack infrastructure (PackRegistry, 30 pack.json files)
+- Phase 2: All consumers wired to PackRegistry
+- Phase 3: CI download pipeline switched to `.tar.gz` pack archives
+- Phase 4: Legacy hardcoded data removed (~1500 lines deleted)
+- Cleanup: Legacy extractors, `isNestedFunction()`, `genericComplexityLang`
+  trimmed, `Lang*` constants deleted, CI matrix generated from pack.json
 
 ## Problem
 

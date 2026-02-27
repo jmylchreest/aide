@@ -42,8 +42,10 @@ func makeGrammarArchive(t *testing.T, name string, body []byte) []byte {
 		t.Fatal(err)
 	}
 
-	// pack.json entry.
-	packContent := []byte(`{"schema_version": 1, "name": "` + name + `"}`)
+	// pack.json entry — include c_symbol and source_repo so the pack looks
+	// realistic when LoadFromDir overwrites the registry entry.
+	cSymbol := "tree_sitter_" + strings.ReplaceAll(name, "-", "_")
+	packContent := []byte(`{"schema_version": 1, "name": "` + name + `", "c_symbol": "` + cSymbol + `", "source_repo": "tree-sitter/tree-sitter-` + name + `", "meta": {"extensions": []}}`)
 	phdr := &tar.Header{Name: name + "/pack.json", Size: int64(len(packContent)), Mode: 0o644, Typeflag: tar.TypeReg}
 	if err := tw.WriteHeader(phdr); err != nil {
 		t.Fatal(err)
@@ -112,12 +114,13 @@ func TestIntegrationDownloadWritesFileAndManifest(t *testing.T) {
 	dl.version = "v0.1.0"
 
 	ctx := context.Background()
-	def := &DynamicGrammarDef{
+	pack := &Pack{
+		Name:       "ruby",
 		SourceRepo: "tree-sitter/tree-sitter-ruby",
 		CSymbol:    "tree_sitter_ruby",
 	}
 
-	if err := dl.Download(ctx, "ruby", def); err != nil {
+	if err := dl.Download(ctx, "ruby", pack); err != nil {
 		t.Fatalf("Download: %v", err)
 	}
 
@@ -193,28 +196,19 @@ func TestIntegrationDownloadVersionFallback(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	tests := []struct {
-		name       string
-		dlVersion  string // DynamicLoader.version
-		defVersion string // DynamicGrammarDef.LatestVersion
-		wantInURL  string // substring expected in the request URL
+		name      string
+		dlVersion string // DynamicLoader.version
+		wantInURL string // substring expected in the request URL
 	}{
 		{
-			name:       "loader version takes priority",
-			dlVersion:  "v0.2.0",
-			defVersion: "v0.1.0",
-			wantInURL:  "v0.2.0",
+			name:      "loader version used when set",
+			dlVersion: "v0.2.0",
+			wantInURL: "v0.2.0",
 		},
 		{
-			name:       "falls back to def version",
-			dlVersion:  "",
-			defVersion: "v0.3.0",
-			wantInURL:  "v0.3.0",
-		},
-		{
-			name:       "falls back to snapshot",
-			dlVersion:  "",
-			defVersion: "",
-			wantInURL:  "snapshot",
+			name:      "falls back to snapshot when empty",
+			dlVersion: "",
+			wantInURL: "snapshot",
 		},
 	}
 
@@ -225,13 +219,13 @@ func TestIntegrationDownloadVersionFallback(t *testing.T) {
 			dl.baseURL = srv.URL + "/{version}/{asset}"
 			dl.version = tt.dlVersion
 
-			def := &DynamicGrammarDef{
-				SourceRepo:    "test/test-grammar",
-				CSymbol:       "tree_sitter_test",
-				LatestVersion: tt.defVersion,
+			pack := &Pack{
+				Name:       "testlang",
+				SourceRepo: "test/test-grammar",
+				CSymbol:    "tree_sitter_test",
 			}
 
-			if err := dl.Download(context.Background(), "testlang", def); err != nil {
+			if err := dl.Download(context.Background(), "testlang", pack); err != nil {
 				t.Fatalf("Download: %v", err)
 			}
 
@@ -256,13 +250,14 @@ func TestIntegrationDownloadThenRemove(t *testing.T) {
 	dl.baseURL = srv.URL + "/{version}/{asset}"
 	dl.version = "v1.0.0"
 
-	def := &DynamicGrammarDef{
+	pack := &Pack{
+		Name:       "php",
 		SourceRepo: "tree-sitter/tree-sitter-php",
 		CSymbol:    "tree_sitter_php",
 	}
 
 	// Download
-	if err := dl.Download(context.Background(), "php", def); err != nil {
+	if err := dl.Download(context.Background(), "php", pack); err != nil {
 		t.Fatalf("Download: %v", err)
 	}
 
@@ -311,14 +306,14 @@ func TestIntegrationDownloadMultiple(t *testing.T) {
 	dl.baseURL = srv.URL + "/{version}/{asset}"
 	dl.version = "v0.5.0"
 
-	grammars := map[string]*DynamicGrammarDef{
-		"ruby": {SourceRepo: "tree-sitter/tree-sitter-ruby", CSymbol: "tree_sitter_ruby"},
-		"php":  {SourceRepo: "tree-sitter/tree-sitter-php", CSymbol: "tree_sitter_php"},
-		"lua":  {SourceRepo: "tree-sitter-grammars/tree-sitter-lua", CSymbol: "tree_sitter_lua"},
+	grammars := map[string]*Pack{
+		"ruby": {Name: "ruby", SourceRepo: "tree-sitter/tree-sitter-ruby", CSymbol: "tree_sitter_ruby"},
+		"php":  {Name: "php", SourceRepo: "tree-sitter/tree-sitter-php", CSymbol: "tree_sitter_php"},
+		"lua":  {Name: "lua", SourceRepo: "tree-sitter-grammars/tree-sitter-lua", CSymbol: "tree_sitter_lua"},
 	}
 
-	for name, def := range grammars {
-		if err := dl.Download(context.Background(), name, def); err != nil {
+	for name, pack := range grammars {
+		if err := dl.Download(context.Background(), name, pack); err != nil {
 			t.Fatalf("Download(%s): %v", name, err)
 		}
 	}
@@ -602,7 +597,8 @@ func TestIntegrationDownloadOverwritesExisting(t *testing.T) {
 	dl.baseURL = srv.URL + "/{version}/{asset}"
 	dl.version = "v1.0.0"
 
-	def := &DynamicGrammarDef{
+	def := &Pack{
+		Name:       "ruby",
 		SourceRepo: "tree-sitter/tree-sitter-ruby",
 		CSymbol:    "tree_sitter_ruby",
 	}
@@ -660,7 +656,8 @@ func TestIntegrationManifestPersistence(t *testing.T) {
 	dl1.baseURL = srv.URL + "/{version}/{asset}"
 	dl1.version = "v1.0.0"
 
-	def := &DynamicGrammarDef{
+	def := &Pack{
+		Name:       "ruby",
 		SourceRepo: "tree-sitter/tree-sitter-ruby",
 		CSymbol:    "tree_sitter_ruby",
 	}
@@ -709,7 +706,8 @@ func TestIntegrationDownloadContextCancelled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately.
 
-	def := &DynamicGrammarDef{
+	def := &Pack{
+		Name:       "ruby",
 		SourceRepo: "tree-sitter/tree-sitter-ruby",
 		CSymbol:    "tree_sitter_ruby",
 	}
@@ -747,7 +745,8 @@ func TestIntegrationDownloadURLTemplateExpansion(t *testing.T) {
 	dl.baseURL = srv.URL + "/{version}/{name}/{os}/{arch}/{asset}"
 	dl.version = "v0.3.0"
 
-	def := &DynamicGrammarDef{
+	def := &Pack{
+		Name:       "ruby",
 		SourceRepo: "tree-sitter/tree-sitter-ruby",
 		CSymbol:    "tree_sitter_ruby",
 	}
@@ -791,7 +790,8 @@ func TestIntegrationLoadReturnsStaleError(t *testing.T) {
 	dl.baseURL = srv.URL + "/{version}/{asset}"
 	dl.version = "v0.1.0"
 
-	def := &DynamicGrammarDef{
+	def := &Pack{
+		Name:       "ruby",
 		SourceRepo: "tree-sitter/tree-sitter-ruby",
 		CSymbol:    "tree_sitter_ruby",
 	}
@@ -838,7 +838,8 @@ func TestIntegrationSnapshotSkipsStalenessCheck(t *testing.T) {
 	dl := NewDynamicLoader(dir)
 	dl.baseURL = srv.URL + "/{version}/{asset}"
 
-	def := &DynamicGrammarDef{
+	def := &Pack{
+		Name:       "ruby",
 		SourceRepo: "tree-sitter/tree-sitter-ruby",
 		CSymbol:    "tree_sitter_ruby",
 	}
@@ -937,7 +938,8 @@ func TestIntegrationDownloadCleansUpOldVersionFile(t *testing.T) {
 	dl.baseURL = srv.URL + "/{version}/{asset}"
 	dl.version = "v0.1.0"
 
-	def := &DynamicGrammarDef{
+	def := &Pack{
+		Name:       "ruby",
 		SourceRepo: "tree-sitter/tree-sitter-ruby",
 		CSymbol:    "tree_sitter_ruby",
 	}
@@ -993,7 +995,8 @@ func TestIntegrationManifestAideVersionSet(t *testing.T) {
 	dl.baseURL = srv.URL + "/{version}/{asset}"
 	dl.version = "v0.5.0"
 
-	def := &DynamicGrammarDef{
+	def := &Pack{
+		Name:       "ruby",
 		SourceRepo: "tree-sitter/tree-sitter-ruby",
 		CSymbol:    "tree_sitter_ruby",
 	}
@@ -1028,7 +1031,8 @@ func TestIntegrationCachedGrammarSkipsStalenessCheck(t *testing.T) {
 	dl.baseURL = srv.URL + "/{version}/{asset}"
 	dl.version = "v0.1.0"
 
-	def := &DynamicGrammarDef{
+	def := &Pack{
+		Name:       "ruby",
 		SourceRepo: "tree-sitter/tree-sitter-ruby",
 		CSymbol:    "tree_sitter_ruby",
 	}
@@ -1085,7 +1089,8 @@ func TestIntegrationCompositeLoaderRedownloadsStale(t *testing.T) {
 	dl.baseURL = srv.URL + "/{version}/{asset}"
 	dl.version = "v0.1.0"
 
-	def := &DynamicGrammarDef{
+	def := &Pack{
+		Name:       "ruby",
 		SourceRepo: "tree-sitter/tree-sitter-ruby",
 		CSymbol:    "tree_sitter_ruby",
 	}
@@ -1174,7 +1179,8 @@ func TestIntegrationCompositeLoaderNoAutoRedownloadWhenDisabled(t *testing.T) {
 	dl.baseURL = srv.URL + "/{version}/{asset}"
 	dl.version = "v0.1.0"
 
-	def := &DynamicGrammarDef{
+	def := &Pack{
+		Name:       "ruby",
 		SourceRepo: "tree-sitter/tree-sitter-ruby",
 		CSymbol:    "tree_sitter_ruby",
 	}

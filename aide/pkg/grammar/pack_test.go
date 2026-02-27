@@ -338,7 +338,7 @@ func TestPacksWithTagQueries(t *testing.T) {
 		t.Fatalf("NewPackRegistry() error: %v", err)
 	}
 
-	// Languages that have tag queries in code/parser.go TagQueries map.
+	// Languages that have tag queries in their pack.json.
 	langsWithTagQueries := []string{
 		"go", "typescript", "javascript", "python", "rust", "java", "c", "cpp",
 		"csharp", "kotlin", "scala", "ruby", "php", "lua", "elixir", "bash",
@@ -363,7 +363,7 @@ func TestPacksWithRefQueries(t *testing.T) {
 		t.Fatalf("NewPackRegistry() error: %v", err)
 	}
 
-	// Languages that have ref queries in code/parser.go RefQueries map.
+	// Languages that have ref queries in their pack.json.
 	langsWithRefQueries := []string{
 		"go", "typescript", "javascript", "python", "rust", "java", "c", "cpp",
 		"ruby", "php",
@@ -403,10 +403,11 @@ func TestPacksWithComplexity(t *testing.T) {
 		t.Fatalf("NewPackRegistry() error: %v", err)
 	}
 
-	// Languages that have complexity_*.go files.
+	// Languages that have complexity configurations.
 	langsWithComplexity := []string{
 		"go", "typescript", "javascript", "python", "rust", "java", "c", "cpp", "zig",
 		"csharp", "kotlin", "scala", "ruby", "php", "lua", "bash", "swift",
+		"elixir", "ocaml", "groovy", "elm",
 	}
 	for _, name := range langsWithComplexity {
 		p := reg.Get(name)
@@ -431,7 +432,7 @@ func TestPacksWithComplexity(t *testing.T) {
 
 	// Languages without complexity should have nil.
 	langsWithoutComplexity := []string{
-		"groovy", "elixir", "ocaml", "elm", "sql", "yaml", "toml", "hcl",
+		"sql", "yaml", "toml", "hcl",
 		"protobuf", "html", "css",
 	}
 	for _, name := range langsWithoutComplexity {
@@ -453,8 +454,11 @@ func TestPacksWithImports(t *testing.T) {
 		t.Fatalf("NewPackRegistry() error: %v", err)
 	}
 
-	// Only the 5 languages in coupling.go have import patterns.
-	langsWithImports := []string{"go", "python", "typescript", "javascript", "java", "rust"}
+	// Languages that have import patterns in pack.json.
+	langsWithImports := []string{
+		"go", "python", "typescript", "javascript", "java", "rust",
+		"csharp", "kotlin", "scala", "ruby", "php", "lua", "elixir", "swift", "ocaml",
+	}
 	for _, name := range langsWithImports {
 		p := reg.Get(name)
 		if p == nil {
@@ -572,23 +576,20 @@ func TestLoadFromDir_ErrorOnInvalidJSON(t *testing.T) {
 	}
 }
 
-// TestCSymbol_MatchesDynamicGrammars verifies that the c_symbol in each dynamic
-// language's pack.json matches the DynamicGrammars map.
-func TestCSymbol_MatchesDynamicGrammars(t *testing.T) {
+// TestCSymbol_MatchesDynamicPacks verifies that each dynamic language pack
+// has a non-empty c_symbol and source_repo in its pack.json.
+func TestCSymbol_MatchesDynamicPacks(t *testing.T) {
 	reg, err := NewPackRegistry()
 	if err != nil {
 		t.Fatalf("NewPackRegistry() error: %v", err)
 	}
 
-	for name, dynGrammar := range DynamicGrammars {
-		p := reg.Get(name)
-		if p == nil {
-			t.Errorf("pack %q (from DynamicGrammars) not found in registry", name)
-			continue
+	for name, pack := range reg.DynamicPacks() {
+		if pack.CSymbol == "" {
+			t.Errorf("pack %q: c_symbol is empty", name)
 		}
-		if p.CSymbol != dynGrammar.CSymbol {
-			t.Errorf("pack %q: c_symbol = %q, DynamicGrammars has %q",
-				name, p.CSymbol, dynGrammar.CSymbol)
+		if pack.SourceRepo == "" {
+			t.Errorf("pack %q: source_repo is empty", name)
 		}
 	}
 }

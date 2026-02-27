@@ -3,16 +3,27 @@
   "name": "kotlin",
   "version": "",
   "c_symbol": "tree_sitter_kotlin",
+  "source_repo": "tree-sitter-grammars/tree-sitter-kotlin",
+  "source_tag": "v1.1.0",
   "meta": {
-    "extensions": [".kt", ".kts"],
-    "shebangs": ["kotlin"],
-    "aliases": ["kt"]
+    "extensions": [
+      ".kt",
+      ".kts"
+    ],
+    "shebangs": [
+      "kotlin"
+    ],
+    "aliases": [
+      "kt"
+    ]
   },
   "queries": {
     "tags": "(function_declaration (simple_identifier) @name) @definition.function\n(class_declaration (type_identifier) @name) @definition.class\n(object_declaration (type_identifier) @name) @definition.class"
   },
   "complexity": {
-    "func_node_types": ["function_declaration"],
+    "func_node_types": [
+      "function_declaration"
+    ],
     "branch_types": [
       "if_expression",
       "for_statement",
@@ -27,8 +38,18 @@
     ],
     "name_field": "simple_identifier"
   },
+  "imports": {
+    "patterns": [
+      {
+        "regex": "^\\s*import\\s+([a-zA-Z0-9_.]+)",
+        "group": 1
+      }
+    ]
+  },
   "tokenisation": {
-    "identifier_types": ["simple_identifier"],
+    "identifier_types": [
+      "simple_identifier"
+    ],
     "literal_types": [
       "integer_literal",
       "real_literal",
@@ -38,6 +59,9 @@
       "line_string_literal",
       "multi_line_string_literal"
     ],
-    "keyword_types": ["when", "val"]
+    "keyword_types": [
+      "when",
+      "val"
+    ]
   }
 }

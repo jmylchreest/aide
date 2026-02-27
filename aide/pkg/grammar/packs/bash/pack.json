@@ -3,17 +3,37 @@
   "name": "bash",
   "version": "",
   "c_symbol": "tree_sitter_bash",
+  "source_repo": "tree-sitter/tree-sitter-bash",
+  "source_tag": "v0.23.3",
   "meta": {
-    "extensions": [".sh", ".bash", ".zsh"],
-    "filenames": ["Makefile", "GNUmakefile", "CMakeLists.txt"],
-    "shebangs": ["bash", "sh", "zsh", "perl"],
-    "aliases": ["sh", "shell"]
+    "extensions": [
+      ".sh",
+      ".bash",
+      ".zsh"
+    ],
+    "filenames": [
+      "Makefile",
+      "GNUmakefile",
+      "CMakeLists.txt"
+    ],
+    "shebangs": [
+      "bash",
+      "sh",
+      "zsh",
+      "perl"
+    ],
+    "aliases": [
+      "sh",
+      "shell"
+    ]
   },
   "queries": {
     "tags": "(function_definition name: (word) @name) @definition.function"
   },
   "complexity": {
-    "func_node_types": ["function_definition"],
+    "func_node_types": [
+      "function_definition"
+    ],
     "branch_types": [
       "if_statement",
       "elif_clause",
@@ -25,8 +45,22 @@
     "name_field": "name"
   },
   "tokenisation": {
-    "identifier_types": ["word", "variable_reference"],
-    "literal_types": ["string", "raw_string", "number"],
-    "keyword_types": ["if", "else", "for", "while", "case", "function"]
+    "identifier_types": [
+      "word",
+      "variable_reference"
+    ],
+    "literal_types": [
+      "string",
+      "raw_string",
+      "number"
+    ],
+    "keyword_types": [
+      "if",
+      "else",
+      "for",
+      "while",
+      "case",
+      "function"
+    ]
   }
 }

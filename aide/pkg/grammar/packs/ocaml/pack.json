@@ -3,8 +3,88 @@
   "name": "ocaml",
   "version": "",
   "c_symbol": "tree_sitter_ocaml",
+  "source_repo": "tree-sitter/tree-sitter-ocaml",
+  "source_tag": "v0.24.2",
+  "source_src_dir": "grammars/ocaml/src",
   "meta": {
-    "extensions": [".ml", ".mli"],
-    "aliases": ["ml"]
+    "extensions": [
+      ".ml",
+      ".mli"
+    ],
+    "aliases": [
+      "ml"
+    ]
+  },
+  "queries": {
+    "tags": "(value_definition (let_binding pattern: (value_name) @name)) @definition.function\n(type_definition (type_binding name: (type_constructor) @name)) @definition.type\n(module_definition (module_binding name: (module_name) @name)) @definition.module",
+    "refs": "(value_path (value_name) @name) @reference.call\n(type_constructor_path (type_constructor) @name) @reference.type"
+  },
+  "complexity": {
+    "func_node_types": [
+      "let_binding",
+      "value_definition"
+    ],
+    "branch_types": [
+      "if_expression",
+      "match_expression",
+      "match_case",
+      "while_expression",
+      "for_expression",
+      "try_expression",
+      "boolean_operator"
+    ],
+    "name_field": "pattern"
+  },
+  "imports": {
+    "patterns": [
+      {
+        "regex": "^\\s*open\\s+([A-Z][a-zA-Z0-9_.]*)",
+        "group": 1
+      }
+    ]
+  },
+  "tokenisation": {
+    "identifier_types": [
+      "value_name",
+      "type_constructor",
+      "module_name",
+      "field_name"
+    ],
+    "literal_types": [
+      "string",
+      "character",
+      "number",
+      "boolean",
+      "unit"
+    ],
+    "keyword_types": [
+      "let",
+      "in",
+      "if",
+      "then",
+      "else",
+      "match",
+      "with",
+      "fun",
+      "function",
+      "type",
+      "module",
+      "struct",
+      "sig",
+      "end",
+      "open",
+      "begin",
+      "rec",
+      "and",
+      "or",
+      "try",
+      "raise",
+      "for",
+      "while",
+      "do",
+      "done",
+      "val",
+      "mutable"
+    ]
   }
 }

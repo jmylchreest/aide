@@ -3,9 +3,15 @@
   "name": "lua",
   "version": "",
   "c_symbol": "tree_sitter_lua",
+  "source_repo": "tree-sitter-grammars/tree-sitter-lua",
+  "source_tag": "v0.3.0",
   "meta": {
-    "extensions": [".lua"],
-    "shebangs": ["lua"]
+    "extensions": [
+      ".lua"
+    ],
+    "shebangs": [
+      "lua"
+    ]
   },
   "queries": {
     "tags": "(function_declaration name: (identifier) @name) @definition.function\n(function_declaration name: (dot_index_expression field: (identifier) @name)) @definition.method\n(assignment_statement (variable_list name: (identifier) @name) (expression_list value: (function_definition))) @definition.function"
@@ -27,9 +33,28 @@
     ],
     "name_field": "name"
   },
+  "imports": {
+    "patterns": [
+      {
+        "regex": "require\\s*\\(?\\s*['\"]([^'\"]+)['\"]",
+        "group": 1
+      },
+      {
+        "regex": "dofile\\s*\\(\\s*['\"]([^'\"]+)['\"]",
+        "group": 1
+      }
+    ]
+  },
   "tokenisation": {
-    "identifier_types": ["identifier"],
-    "literal_types": ["string", "number"],
-    "keyword_types": ["require"]
+    "identifier_types": [
+      "identifier"
+    ],
+    "literal_types": [
+      "string",
+      "number"
+    ],
+    "keyword_types": [
+      "require"
+    ]
   }
 }

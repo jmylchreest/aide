@@ -58,39 +58,6 @@ type FileInfo struct {
 	SymbolIDs []string  `json:"symbols"` // Symbol IDs in this file
 }
 
-// Language constants
-const (
-	LangTypeScript = "typescript"
-	LangJavaScript = "javascript"
-	LangGo         = "go"
-	LangPython     = "python"
-	LangRust       = "rust"
-	LangJava       = "java"
-	LangC          = "c"
-	LangCPP        = "cpp"
-	LangCSharp     = "csharp"
-	LangRuby       = "ruby"
-	LangPHP        = "php"
-	LangSwift      = "swift"
-	LangKotlin     = "kotlin"
-	LangScala      = "scala"
-	LangElixir     = "elixir"
-	LangLua        = "lua"
-	LangBash       = "bash"
-	LangSQL        = "sql"
-	LangHTML       = "html"
-	LangCSS        = "css"
-	LangYAML       = "yaml"
-	LangTOML       = "toml"
-	LangJSON       = "json"
-	LangProtobuf   = "protobuf"
-	LangHCL        = "hcl"
-	LangDockerfile = "dockerfile"
-	LangOCaml      = "ocaml"
-	LangElm        = "elm"
-	LangGroovy     = "groovy"
-)
-
 // SearchOptions for filtering symbol searches
 type SearchOptions struct {
 	Kind     string // Filter by symbol kind

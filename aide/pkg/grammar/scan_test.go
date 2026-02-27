@@ -149,7 +149,7 @@ func TestScanProject(t *testing.T) {
 		t.Errorf("TotalFiles: got %d, want 7", result.TotalFiles)
 	}
 
-	// "json" has no grammar (not builtin, not in DynamicGrammars) — should be unavailable.
+	// "json" has no grammar (not builtin, not in DynamicPacks) — should be unavailable.
 	found := false
 	for _, u := range result.Unavailable {
 		if u == "json" {
@@ -236,7 +236,7 @@ func TestScanDetail(t *testing.T) {
 		t.Errorf("go status = %q; want %q", g.Status, "builtin")
 	}
 
-	// Ruby should be available (in DynamicGrammars but not installed).
+	// Ruby should be available (in DynamicPacks but not installed).
 	if r, ok := statusMap["ruby"]; !ok {
 		t.Error("missing 'ruby' in statuses")
 	} else {
@@ -294,8 +294,9 @@ func TestSortedKeysEmpty(t *testing.T) {
 func TestDynamicAvailable(t *testing.T) {
 	names, set := dynamicAvailable()
 
-	if len(names) != len(DynamicGrammars) {
-		t.Errorf("names length = %d; want %d", len(names), len(DynamicGrammars))
+	dynPacks := DefaultPackRegistry().DynamicPacks()
+	if len(names) != len(dynPacks) {
+		t.Errorf("names length = %d; want %d", len(names), len(dynPacks))
 	}
 
 	// Names should be sorted.

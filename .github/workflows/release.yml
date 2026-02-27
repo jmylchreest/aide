@@ -289,27 +289,9 @@ jobs:
           fi
 
           # Grammar definitions: name|repo|c_symbol|tag|extra_src_dir
-          GRAMMARS=(
-            "csharp|tree-sitter/tree-sitter-c-sharp|tree_sitter_c_sharp|v0.23.1|"
-            "kotlin|tree-sitter-grammars/tree-sitter-kotlin|tree_sitter_kotlin|v1.1.0|"
-            "scala|tree-sitter/tree-sitter-scala|tree_sitter_scala|v0.23.4|"
-            "groovy|amaanq/tree-sitter-groovy|tree_sitter_groovy|v0.1.2|"
-            "ruby|tree-sitter/tree-sitter-ruby|tree_sitter_ruby|v0.23.1|"
-            "php|tree-sitter/tree-sitter-php|tree_sitter_php|v0.23.11|php/src"
-            "lua|tree-sitter-grammars/tree-sitter-lua|tree_sitter_lua|v0.3.0|"
-            "elixir|elixir-lang/tree-sitter-elixir|tree_sitter_elixir|v0.3.4|"
-            "bash|tree-sitter/tree-sitter-bash|tree_sitter_bash|v0.23.3|"
-            "swift|alex-pinkus/tree-sitter-swift|tree_sitter_swift|0.7.1-with-generated-files|"
-            "ocaml|tree-sitter/tree-sitter-ocaml|tree_sitter_ocaml|v0.24.2|grammars/ocaml/src"
-            "elm|elm-tooling/tree-sitter-elm|tree_sitter_elm|v5.9.0|"
-            "sql|DerekStride/tree-sitter-sql|tree_sitter_sql|v0.3.11|"
-            "yaml|tree-sitter-grammars/tree-sitter-yaml|tree_sitter_yaml|v0.7.0|"
-            "toml|tree-sitter-grammars/tree-sitter-toml|tree_sitter_toml|v0.7.0|"
-            "hcl|tree-sitter-grammars/tree-sitter-hcl|tree_sitter_hcl|v1.1.0|"
-            "protobuf|coder3101/tree-sitter-proto|tree_sitter_proto|0.4.0|"
-            "html|tree-sitter/tree-sitter-html|tree_sitter_html|v0.23.2|"
-            "css|tree-sitter/tree-sitter-css|tree_sitter_css|v0.23.2|"
-          )
+          # Generated from pack.json files — update grammars by editing
+          # aide/pkg/grammar/packs/<lang>/pack.json, not this array.
+          eval "$(bash "${GITHUB_WORKSPACE}/scripts/generate-grammar-matrix.sh")"
 
           for entry in "${GRAMMARS[@]}"; do
             IFS='|' read -r name repo c_symbol tag extra_src <<< "$entry"

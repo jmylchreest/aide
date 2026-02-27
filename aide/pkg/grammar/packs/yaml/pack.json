@@ -3,8 +3,15 @@
   "name": "yaml",
   "version": "",
   "c_symbol": "tree_sitter_yaml",
+  "source_repo": "tree-sitter-grammars/tree-sitter-yaml",
+  "source_tag": "v0.7.0",
   "meta": {
-    "extensions": [".yaml", ".yml"],
-    "aliases": ["yml"]
+    "extensions": [
+      ".yaml",
+      ".yml"
+    ],
+    "aliases": [
+      "yml"
+    ]
   }
 }

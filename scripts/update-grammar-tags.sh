@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
 #
-# update-grammar-tags.sh — Maintain tree-sitter grammar versions in release.yml
+# update-grammar-tags.sh — Maintain tree-sitter grammar versions in pack.json
 #
-# Queries GitHub for the latest tags of each grammar repository and updates
-# .github/workflows/release.yml in-place. Handles repos that use different
-# tag formats (no v prefix, -with-generated-files suffixes, etc.).
+# Queries GitHub for the latest tags of each dynamic grammar repository and
+# updates the source_tag field in each pack.json file.
 #
 # Usage:
 #   scripts/update-grammar-tags.sh              # Check for updates (dry run)
-#   scripts/update-grammar-tags.sh --update     # Update release.yml in-place
+#   scripts/update-grammar-tags.sh --update     # Update pack.json files in-place
 #   scripts/update-grammar-tags.sh --validate   # Validate current tags exist & have parser.c
 #   scripts/update-grammar-tags.sh --json       # Output status as JSON
 #
@@ -19,7 +18,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-RELEASE_YML="${REPO_ROOT}/.github/workflows/release.yml"
+PACKS_DIR="${REPO_ROOT}/aide/pkg/grammar/packs"
 
 # --- Colours (disabled when piped) ----------------------------------------
 if [[ -t 1 ]]; then
@@ -88,12 +87,26 @@ file_exists_at_tag() {
   [[ "${status}" == "200" ]]
 }
 
-# --- Parse grammar definitions from release.yml ---------------------------
+# --- Parse grammar definitions from pack.json files -----------------------
 # Returns lines of: name|repo|c_symbol|current_tag|extra_src
 parse_grammars() {
-  sed -n '/^[[:space:]]*GRAMMARS=(/,/^[[:space:]]*)/p' "${RELEASE_YML}" \
-    | grep -E '^\s+"[^"]+\|' \
-    | sed 's/^[[:space:]]*"//; s/"$//'
+  for pack_json in "${PACKS_DIR}"/*/pack.json; do
+    local line
+    line=$(python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+name = d.get('name', '')
+c_sym = d.get('c_symbol', '')
+repo = d.get('source_repo', '')
+tag = d.get('source_tag', '')
+src_dir = d.get('source_src_dir', '')
+if c_sym and repo and tag:
+    print(f'{name}|{repo}|{c_sym}|{tag}|{src_dir}')
+" < "$pack_json")
+    if [[ -n "${line}" ]]; then
+      echo "${line}"
+    fi
+  done
 }
 
 # --- Per-grammar tag selection rules ---------------------------------------
@@ -137,7 +150,7 @@ for arg in "$@"; do
       echo ""
       echo "Modes:"
       echo "  --check     (default) Show available updates without changing anything"
-      echo "  --update    Update release.yml in-place with latest tags"
+      echo "  --update    Update pack.json files in-place with latest tags"
       echo "  --validate  Verify current tags exist and have parser.c"
       echo ""
       echo "Options:"
@@ -152,8 +165,8 @@ for arg in "$@"; do
   esac
 done
 
-if [[ ! -f "${RELEASE_YML}" ]]; then
-  die "release.yml not found at ${RELEASE_YML}"
+if [[ ! -d "${PACKS_DIR}" ]]; then
+  die "packs directory not found at ${PACKS_DIR}"
 fi
 
 # Parse current grammar definitions.
@@ -256,7 +269,7 @@ info "${UPDATES} update(s) available, ${CURRENT} current, ${ERRORS} error(s)"
 
 # --- Apply updates ---------------------------------------------------------
 if [[ "${MODE}" == "update" ]]; then
-  info "applying updates to ${RELEASE_YML}..."
+  info "applying updates to pack.json files..."
 
   for entry in "${ENTRIES[@]}"; do
     IFS='|' read -r name repo c_symbol current_tag extra_src <<< "${entry}"
@@ -264,19 +277,25 @@ if [[ "${MODE}" == "update" ]]; then
     new_tag=$(latest_tag "${repo}" "${filter}")
 
     if [[ -n "${new_tag}" && "${current_tag}" != "${new_tag}" ]]; then
-      # Escape special characters for sed.
-      old_escaped=$(printf '%s\n' "${current_tag}" | sed 's/[[\.*^$/]/\\&/g')
-      new_escaped=$(printf '%s\n' "${new_tag}" | sed 's/[[\.*^$/]/\\&/g')
-
-      # Replace only within the matching grammar line (match by name|repo).
-      name_escaped=$(printf '%s\n' "${name}" | sed 's/[[\.*^$/]/\\&/g')
-      sed -i "/${name_escaped}|/s|${old_escaped}|${new_escaped}|" "${RELEASE_YML}"
-
-      info "  ${name}: ${current_tag} → ${new_tag}"
+      pack_file="${PACKS_DIR}/${name}/pack.json"
+      if [[ -f "${pack_file}" ]]; then
+        python3 -c "
+import json, sys
+with open('${pack_file}') as f:
+    data = json.load(f)
+data['source_tag'] = '${new_tag}'
+with open('${pack_file}', 'w') as f:
+    json.dump(data, f, indent=2)
+    f.write('\n')
+"
+        info "  ${name}: ${current_tag} → ${new_tag}"
+      else
+        warn "  ${name}: pack.json not found at ${pack_file}"
+      fi
     fi
   done
 
-  info "release.yml updated. Review changes with: git diff .github/workflows/release.yml"
+  info "pack.json files updated. Review changes with: git diff aide/pkg/grammar/packs/"
 else
   echo "" >&2
   info "run with --update to apply changes"

@@ -3,7 +3,54 @@
   "name": "elm",
   "version": "",
   "c_symbol": "tree_sitter_elm",
+  "source_repo": "elm-tooling/tree-sitter-elm",
+  "source_tag": "v5.9.0",
   "meta": {
-    "extensions": [".elm"]
+    "extensions": [
+      ".elm"
+    ]
+  },
+  "queries": {
+    "tags": "(value_declaration (function_declaration_left (lower_case_identifier) @name)) @definition.function\n(type_alias_declaration name: (upper_case_identifier) @name) @definition.type\n(type_declaration name: (upper_case_identifier) @name) @definition.type",
+    "refs": "(value_expr (value_qid (lower_case_identifier) @name)) @reference.call\n(upper_case_qid (upper_case_identifier) @name) @reference.type"
+  },
+  "complexity": {
+    "func_node_types": [
+      "value_declaration"
+    ],
+    "branch_types": [
+      "if_else_expr",
+      "case_of_expr",
+      "case_of_branch",
+      "anonymous_function_expr"
+    ],
+    "name_field": "pattern"
+  },
+  "tokenisation": {
+    "identifier_types": [
+      "lower_case_identifier",
+      "upper_case_identifier"
+    ],
+    "literal_types": [
+      "string_constant_expr",
+      "number_constant_expr",
+      "char_constant_expr"
+    ],
+    "keyword_types": [
+      "if",
+      "then",
+      "else",
+      "case",
+      "of",
+      "let",
+      "in",
+      "type",
+      "alias",
+      "module",
+      "import",
+      "exposing",
+      "as",
+      "port"
+    ]
   }
 }

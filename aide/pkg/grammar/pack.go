@@ -47,6 +47,9 @@ type Pack struct {
 	Name          string            `json:"name"`
 	Version       string            `json:"version,omitempty"`
 	CSymbol       string            `json:"c_symbol,omitempty"`
+	SourceRepo    string            `json:"source_repo,omitempty"`
+	SourceTag     string            `json:"source_tag,omitempty"`
+	SourceSrcDir  string            `json:"source_src_dir,omitempty"`
 	Meta          PackMeta          `json:"meta"`
 	Queries       PackQueries       `json:"queries,omitempty"`
 	Complexity    *PackComplexity   `json:"complexity,omitempty"`
@@ -237,6 +240,22 @@ func (r *PackRegistry) Languages() map[string]*Pack {
 	result := make(map[string]*Pack, len(r.packs))
 	for k, v := range r.packs {
 		result[k] = v
+	}
+	return result
+}
+
+// DynamicPacks returns all packs that represent downloadable grammars —
+// those with a non-empty SourceRepo and CSymbol. Built-in packs may also
+// have these fields set, but that is fine — the CompositeLoader checks
+// the BuiltinRegistry first.
+func (r *PackRegistry) DynamicPacks() map[string]*Pack {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	result := make(map[string]*Pack)
+	for name, p := range r.packs {
+		if p.SourceRepo != "" && p.CSymbol != "" {
+			result[name] = p
+		}
 	}
 	return result
 }

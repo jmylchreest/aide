@@ -264,7 +264,7 @@ func (cl *CompositeLoader) Available() []string {
 		}
 	}
 
-	for name := range DynamicGrammars {
+	for name := range DefaultPackRegistry().DynamicPacks() {
 		if !seen[name] {
 			seen[name] = true
 			names = append(names, name)
@@ -301,12 +301,12 @@ func (cl *CompositeLoader) Install(ctx context.Context, name string) error {
 		return nil
 	}
 
-	grammarDef, ok := DynamicGrammars[name]
-	if !ok {
+	pack := DefaultPackRegistry().Get(name)
+	if pack == nil || pack.CSymbol == "" {
 		return &GrammarNotFoundError{Name: name}
 	}
 
-	return cl.dynamic.Download(ctx, name, grammarDef)
+	return cl.dynamic.Download(ctx, name, pack)
 }
 
 // Remove deletes a grammar from the local cache.

@@ -3,15 +3,23 @@
   "name": "swift",
   "version": "",
   "c_symbol": "tree_sitter_swift",
+  "source_repo": "alex-pinkus/tree-sitter-swift",
+  "source_tag": "0.7.1-with-generated-files",
   "meta": {
-    "extensions": [".swift"],
-    "shebangs": ["swift"]
+    "extensions": [
+      ".swift"
+    ],
+    "shebangs": [
+      "swift"
+    ]
   },
   "queries": {
     "tags": "(function_declaration name: (simple_identifier) @name) @definition.function\n(class_declaration name: (type_identifier) @name) @definition.class\n(struct_declaration name: (type_identifier) @name) @definition.class\n(protocol_declaration name: (type_identifier) @name) @definition.interface\n(enum_declaration name: (type_identifier) @name) @definition.class"
   },
   "complexity": {
-    "func_node_types": ["function_declaration"],
+    "func_node_types": [
+      "function_declaration"
+    ],
     "branch_types": [
       "if_statement",
       "for_statement",
@@ -25,13 +33,28 @@
     ],
     "name_field": "name"
   },
+  "imports": {
+    "patterns": [
+      {
+        "regex": "^\\s*import\\s+(?:class\\s+|struct\\s+|enum\\s+|protocol\\s+|func\\s+)?([a-zA-Z0-9_.]+)",
+        "group": 1
+      }
+    ]
+  },
   "tokenisation": {
-    "identifier_types": ["simple_identifier", "type_identifier"],
+    "identifier_types": [
+      "simple_identifier",
+      "type_identifier"
+    ],
     "literal_types": [
       "integer_literal",
       "multi_line_string_literal",
       "boolean_literal"
     ],
-    "keyword_types": ["guard", "let", "var"]
+    "keyword_types": [
+      "guard",
+      "let",
+      "var"
+    ]
   }
 }

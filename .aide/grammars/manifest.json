@@ -1,0 +1,45 @@
+{
+  "aide_version": "snapshot",
+  "abi_version": 0,
+  "grammars": {
+    "bash": {
+      "version": "snapshot",
+      "file": "bash/grammar.so",
+      "sha256": "1e2f0c2366ff7ba7a18d510bbca2e33cadee4f8ec126344207bf11b9e01c2400",
+      "c_symbol": "tree_sitter_bash",
+      "has_pack": true,
+      "installed_at": "2026-02-27T13:07:40.104873772Z"
+    },
+    "lua": {
+      "version": "snapshot",
+      "file": "lua/grammar.so",
+      "sha256": "e25e0c7a3504ff92b82cb208d55a3e602b676b5d4cc3a1d0b28af6368a29de08",
+      "c_symbol": "tree_sitter_lua",
+      "has_pack": true,
+      "installed_at": "2026-02-27T13:07:40.497577679Z"
+    },
+    "protobuf": {
+      "version": "snapshot",
+      "file": "protobuf/grammar.so",
+      "sha256": "9f138353b90332836d57c945084b600014c9abba22ad3c2a4337862f1d408f7c",
+      "c_symbol": "tree_sitter_proto",
+      "has_pack": true,
+      "installed_at": "2026-02-27T13:44:00.750161479Z"
+    },
+    "ruby": {
+      "version": "snapshot",
+      "file": "ruby/grammar.so",
+      "sha256": "93c264285b453eb6a3c5d42fcb36d914188304ff59d56beca49895b2e00645bd",
+      "c_symbol": "tree_sitter_ruby",
+      "has_pack": true,
+      "installed_at": "2026-02-27T13:07:40.668489567Z"
+    },
+    "yaml": {
+      "version": "snapshot",
+      "file": "aide-grammar-yaml-snapshot-linux-amd64.so",
+      "sha256": "79162e6e05516d591cf322a34ed9817923aa51a4ce494d0ae7d524a60a430e44",
+      "c_symbol": "tree_sitter_yaml",
+      "installed_at": "2026-02-27T12:28:05.122934518Z"
+    }
+  }
+}

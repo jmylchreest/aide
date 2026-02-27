@@ -3,16 +3,26 @@
   "name": "php",
   "version": "",
   "c_symbol": "tree_sitter_php",
+  "source_repo": "tree-sitter/tree-sitter-php",
+  "source_tag": "v0.23.11",
+  "source_src_dir": "php/src",
   "meta": {
-    "extensions": [".php"],
-    "shebangs": ["php"]
+    "extensions": [
+      ".php"
+    ],
+    "shebangs": [
+      "php"
+    ]
   },
   "queries": {
     "tags": "(function_definition name: (name) @name) @definition.function\n(method_declaration name: (name) @name) @definition.method\n(class_declaration name: (name) @name) @definition.class\n(interface_declaration name: (name) @name) @definition.interface\n(trait_declaration name: (name) @name) @definition.interface",
     "refs": "(function_call_expression function: (name) @name) @reference.call\n(member_call_expression name: (name) @name) @reference.call\n(named_type (name) @name) @reference.type"
   },
   "complexity": {
-    "func_node_types": ["function_definition", "method_declaration"],
+    "func_node_types": [
+      "function_definition",
+      "method_declaration"
+    ],
     "branch_types": [
       "if_statement",
       "for_statement",
@@ -25,9 +35,30 @@
     ],
     "name_field": "name"
   },
+  "imports": {
+    "patterns": [
+      {
+        "regex": "^\\s*use\\s+([a-zA-Z0-9_\\\\]+)",
+        "group": 1
+      },
+      {
+        "regex": "^\\s*(?:require|require_once|include|include_once)\\s+['\"]([^'\"]+)['\"]",
+        "group": 1
+      }
+    ]
+  },
   "tokenisation": {
-    "identifier_types": ["variable_name", "name"],
-    "literal_types": ["encapsed_string", "nowdoc_string", "heredoc_content"],
-    "keyword_types": ["trait"]
+    "identifier_types": [
+      "variable_name",
+      "name"
+    ],
+    "literal_types": [
+      "encapsed_string",
+      "nowdoc_string",
+      "heredoc_content"
+    ],
+    "keyword_types": [
+      "trait"
+    ]
   }
 }

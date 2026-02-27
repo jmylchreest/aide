@@ -157,7 +157,7 @@ func TestCompositeLoaderAvailable(t *testing.T) {
 	}
 
 	// Total should be 9 builtins + 19 dynamic = 28
-	expected := len(expectedBuiltins) + len(DynamicGrammars)
+	expected := len(expectedBuiltins) + len(DefaultPackRegistry().DynamicPacks())
 	if len(avail) != expected {
 		t.Errorf("Available() count = %d; want %d", len(avail), expected)
 	}

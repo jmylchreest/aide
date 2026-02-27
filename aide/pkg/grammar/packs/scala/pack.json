@@ -3,15 +3,24 @@
   "name": "scala",
   "version": "",
   "c_symbol": "tree_sitter_scala",
+  "source_repo": "tree-sitter/tree-sitter-scala",
+  "source_tag": "v0.23.4",
   "meta": {
-    "extensions": [".scala", ".sc"],
-    "shebangs": ["scala"]
+    "extensions": [
+      ".scala",
+      ".sc"
+    ],
+    "shebangs": [
+      "scala"
+    ]
   },
   "queries": {
     "tags": "(function_definition name: (identifier) @name) @definition.function\n(class_definition name: (identifier) @name) @definition.class\n(object_definition name: (identifier) @name) @definition.class\n(trait_definition name: (identifier) @name) @definition.interface"
   },
   "complexity": {
-    "func_node_types": ["function_definition"],
+    "func_node_types": [
+      "function_definition"
+    ],
     "branch_types": [
       "if_expression",
       "for_expression",
@@ -22,9 +31,25 @@
     ],
     "name_field": "name"
   },
+  "imports": {
+    "patterns": [
+      {
+        "regex": "^\\s*import\\s+([a-zA-Z0-9_.{}]+)",
+        "group": 1
+      }
+    ]
+  },
   "tokenisation": {
-    "identifier_types": ["identifier"],
-    "literal_types": ["boolean_literal"],
-    "keyword_types": ["match", "val", "trait"]
+    "identifier_types": [
+      "identifier"
+    ],
+    "literal_types": [
+      "boolean_literal"
+    ],
+    "keyword_types": [
+      "match",
+      "val",
+      "trait"
+    ]
   }
 }

@@ -3,7 +3,13 @@
   "name": "css",
   "version": "",
   "c_symbol": "tree_sitter_css",
+  "source_repo": "tree-sitter/tree-sitter-css",
+  "source_tag": "v0.23.2",
   "meta": {
-    "extensions": [".css", ".scss", ".less"]
+    "extensions": [
+      ".css",
+      ".scss",
+      ".less"
+    ]
   }
 }

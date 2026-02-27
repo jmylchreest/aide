@@ -54,40 +54,41 @@ func TestDynamicLoaderRemoveNonexistent(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// DynamicGrammars map — sanity checks
+// Dynamic packs — sanity checks via PackRegistry
 // ---------------------------------------------------------------------------
 
-func TestDynamicGrammarsMap(t *testing.T) {
+func TestDynamicPacksMap(t *testing.T) {
 	expected := []string{
 		"bash", "csharp", "css", "elixir", "elm", "groovy", "hcl",
 		"html", "kotlin", "lua", "ocaml", "php", "protobuf", "ruby",
 		"scala", "sql", "swift", "toml", "yaml",
 	}
 
-	if len(DynamicGrammars) != len(expected) {
-		t.Errorf("DynamicGrammars has %d entries, want %d", len(DynamicGrammars), len(expected))
+	dynPacks := DefaultPackRegistry().DynamicPacks()
+	if len(dynPacks) != len(expected) {
+		t.Errorf("DynamicPacks has %d entries, want %d", len(dynPacks), len(expected))
 	}
 
 	for _, name := range expected {
-		def, ok := DynamicGrammars[name]
+		pack, ok := dynPacks[name]
 		if !ok {
-			t.Errorf("DynamicGrammars[%q] missing", name)
+			t.Errorf("DynamicPacks[%q] missing", name)
 			continue
 		}
-		if def.SourceRepo == "" {
-			t.Errorf("DynamicGrammars[%q].SourceRepo is empty", name)
+		if pack.SourceRepo == "" {
+			t.Errorf("DynamicPacks[%q].SourceRepo is empty", name)
 		}
-		if def.CSymbol == "" {
-			t.Errorf("DynamicGrammars[%q].CSymbol is empty", name)
+		if pack.CSymbol == "" {
+			t.Errorf("DynamicPacks[%q].CSymbol is empty", name)
 		}
 	}
 }
 
-func TestDynamicGrammarsNoOverlapWithBuiltins(t *testing.T) {
+func TestDynamicPacksNoOverlapWithBuiltins(t *testing.T) {
 	r := NewBuiltinRegistry()
-	for name := range DynamicGrammars {
+	for name := range DefaultPackRegistry().DynamicPacks() {
 		if r.Has(name) {
-			t.Errorf("DynamicGrammars[%q] overlaps with builtin — should be one or the other", name)
+			t.Errorf("DynamicPacks[%q] overlaps with builtin — should be one or the other", name)
 		}
 	}
 }

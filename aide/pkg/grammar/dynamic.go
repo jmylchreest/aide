@@ -11,100 +11,6 @@ import (
 	tree_sitter "github.com/tree-sitter/go-tree-sitter"
 )
 
-// DynamicGrammarDef describes a grammar that can be dynamically loaded.
-type DynamicGrammarDef struct {
-	// SourceRepo is the GitHub repository (e.g., "tree-sitter/tree-sitter-ruby").
-	SourceRepo string
-	// CSymbol is the C function name exported by the shared library
-	// (e.g., "tree_sitter_ruby").
-	CSymbol string
-	// LatestVersion is the latest known version of the grammar.
-	// Used for downloads when no version is specified.
-	LatestVersion string
-}
-
-// DynamicGrammars lists all grammars that can be dynamically loaded.
-// These are NOT compiled into the binary — they are downloaded as shared
-// libraries and loaded via purego.
-var DynamicGrammars = map[string]*DynamicGrammarDef{
-	"csharp": {
-		SourceRepo: "tree-sitter/tree-sitter-c-sharp",
-		CSymbol:    "tree_sitter_c_sharp",
-	},
-	"kotlin": {
-		SourceRepo: "tree-sitter-grammars/tree-sitter-kotlin",
-		CSymbol:    "tree_sitter_kotlin",
-	},
-	"scala": {
-		SourceRepo: "tree-sitter/tree-sitter-scala",
-		CSymbol:    "tree_sitter_scala",
-	},
-	"groovy": {
-		SourceRepo: "amaanq/tree-sitter-groovy",
-		CSymbol:    "tree_sitter_groovy",
-	},
-	"ruby": {
-		SourceRepo: "tree-sitter/tree-sitter-ruby",
-		CSymbol:    "tree_sitter_ruby",
-	},
-	"php": {
-		SourceRepo: "tree-sitter/tree-sitter-php",
-		CSymbol:    "tree_sitter_php",
-	},
-	"lua": {
-		SourceRepo: "tree-sitter-grammars/tree-sitter-lua",
-		CSymbol:    "tree_sitter_lua",
-	},
-	"elixir": {
-		SourceRepo: "tree-sitter/tree-sitter-elixir",
-		CSymbol:    "tree_sitter_elixir",
-	},
-	"bash": {
-		SourceRepo: "tree-sitter/tree-sitter-bash",
-		CSymbol:    "tree_sitter_bash",
-	},
-	"swift": {
-		SourceRepo: "alex-pinkus/tree-sitter-swift",
-		CSymbol:    "tree_sitter_swift",
-	},
-	"ocaml": {
-		SourceRepo: "tree-sitter/tree-sitter-ocaml",
-		CSymbol:    "tree_sitter_ocaml",
-	},
-	"elm": {
-		SourceRepo: "elm-tooling/tree-sitter-elm",
-		CSymbol:    "tree_sitter_elm",
-	},
-	"sql": {
-		SourceRepo: "DerekStride/tree-sitter-sql",
-		CSymbol:    "tree_sitter_sql",
-	},
-	"yaml": {
-		SourceRepo: "tree-sitter-grammars/tree-sitter-yaml",
-		CSymbol:    "tree_sitter_yaml",
-	},
-	"toml": {
-		SourceRepo: "tree-sitter-grammars/tree-sitter-toml",
-		CSymbol:    "tree_sitter_toml",
-	},
-	"hcl": {
-		SourceRepo: "tree-sitter-grammars/tree-sitter-hcl",
-		CSymbol:    "tree_sitter_hcl",
-	},
-	"protobuf": {
-		SourceRepo: "coder3101/tree-sitter-proto",
-		CSymbol:    "tree_sitter_proto",
-	},
-	"html": {
-		SourceRepo: "tree-sitter/tree-sitter-html",
-		CSymbol:    "tree_sitter_html",
-	},
-	"css": {
-		SourceRepo: "tree-sitter/tree-sitter-css",
-		CSymbol:    "tree_sitter_css",
-	},
-}
-
 // DynamicLoader loads tree-sitter grammars from shared libraries at runtime.
 // On Unix it uses purego (dlopen); on Windows it uses syscall.LoadDLL.
 type DynamicLoader struct {
@@ -197,16 +103,14 @@ func (dl *DynamicLoader) Load(name string) (*tree_sitter.Language, error) {
 // Download fetches a grammar pack archive (.tar.gz) from GitHub and extracts
 // it locally. The archive contains the shared library and a pack.json with
 // language metadata. If a grammar is already installed, it is replaced.
-func (dl *DynamicLoader) Download(ctx context.Context, name string, def *DynamicGrammarDef) error {
+// The Pack must have CSymbol set; SourceRepo is informational.
+func (dl *DynamicLoader) Download(ctx context.Context, name string, pack *Pack) error {
 	dl.mu.Lock()
 	defer dl.mu.Unlock()
 
 	// Determine version — prefer loader-level version (from aide release),
-	// then grammar-specific version, then "snapshot" as a safe fallback.
+	// then "snapshot" as a safe fallback.
 	version := dl.version
-	if version == "" {
-		version = def.LatestVersion
-	}
 	if version == "" {
 		version = "snapshot"
 	}
@@ -240,7 +144,7 @@ func (dl *DynamicLoader) Download(ctx context.Context, name string, def *Dynamic
 		Version:     version,
 		File:        LibraryFilename(name),
 		SHA256:      sha256sum,
-		CSymbol:     def.CSymbol,
+		CSymbol:     pack.CSymbol,
 		HasPack:     hasPack,
 		InstalledAt: time.Now(),
 	})
