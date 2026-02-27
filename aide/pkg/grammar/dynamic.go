@@ -7,9 +7,7 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
-	"unsafe"
 
-	"github.com/ebitengine/purego"
 	tree_sitter "github.com/tree-sitter/go-tree-sitter"
 )
 
@@ -107,7 +105,8 @@ var DynamicGrammars = map[string]*DynamicGrammarDef{
 	},
 }
 
-// DynamicLoader loads tree-sitter grammars from shared libraries using purego.
+// DynamicLoader loads tree-sitter grammars from shared libraries at runtime.
+// On Unix it uses purego (dlopen); on Windows it uses syscall.LoadDLL.
 type DynamicLoader struct {
 	mu       sync.RWMutex
 	dir      string // Directory containing .so/.dylib/.dll files
@@ -168,21 +167,10 @@ func (dl *DynamicLoader) Load(name string) (*tree_sitter.Language, error) {
 		return nil, fmt.Errorf("grammar library not found at %s: %w", libPath, err)
 	}
 
-	handle, err := purego.Dlopen(libPath, purego.RTLD_LAZY)
+	// openAndLoadLanguage is platform-specific (dynamic_unix.go / dynamic_windows.go).
+	lang, handle, err := openAndLoadLanguage(libPath, entry.CSymbol)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load grammar library %s: %w", libPath, err)
-	}
-
-	// Look up the C symbol.
-	// The function returns unsafe.Pointer directly to avoid the
-	// uintptr -> unsafe.Pointer conversion that go vet warns about.
-	var langFn func() unsafe.Pointer
-	purego.RegisterLibFunc(&langFn, handle, entry.CSymbol)
-
-	ptr := langFn()
-	lang := tree_sitter.NewLanguage(ptr)
-	if lang == nil {
-		return nil, fmt.Errorf("grammar %q returned nil language from symbol %s", name, entry.CSymbol)
+		return nil, fmt.Errorf("grammar %q: %w", name, err)
 	}
 
 	dl.loaded[name] = lang
