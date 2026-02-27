@@ -79,13 +79,17 @@ type ReplaceFindingsStore interface {
 	Stats() (*Stats, error)
 }
 
-func NewRunner(store ReplaceFindingsStore, config AnalyzerConfig) *Runner {
+func NewRunner(store ReplaceFindingsStore, config AnalyzerConfig, loader grammar.Loader) *Runner {
 	ctx, cancel := context.WithCancel(context.Background())
+
+	if loader == nil {
+		loader = grammar.NewCompositeLoader()
+	}
 
 	return &Runner{
 		store:  store,
 		config: config,
-		loader: grammar.NewCompositeLoader(),
+		loader: loader,
 		runs:   make(map[RunKey]*activeRun),
 		status: make(map[string]*AnalyzerStatus),
 		ctx:    ctx,
@@ -304,7 +308,7 @@ func (r *Runner) analyzeFileComplexity(ctx context.Context, filePath string, con
 
 	langCfg, ok := complexityLanguages[lang]
 	if !ok {
-		return nil, nil
+		langCfg = genericComplexityLang
 	}
 
 	threshold := r.config.ComplexityThreshold

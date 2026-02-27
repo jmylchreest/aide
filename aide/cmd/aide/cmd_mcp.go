@@ -285,13 +285,14 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 				CloneWindowSize:     fcfg.Clones.WindowSize,
 				CloneMinLines:       fcfg.Clones.MinLines,
 			}
-			findingsRunner = findings.NewRunner(s.findingsStore, runnerConfig)
+			findingsRunner = findings.NewRunner(s.findingsStore, runnerConfig, s.grammarLoader)
 			findingsRunner.SetClonesRunner(func(ctx context.Context, paths []string, windowSize, minLines int) ([]*findings.Finding, error) {
 				cloneCfg := clone.Config{
 					Paths:         paths,
 					WindowSize:    windowSize,
 					MinCloneLines: minLines,
 					Ignore:        ignore,
+					Loader:        s.grammarLoader,
 				}
 				f, _, err := clone.DetectClones(cloneCfg)
 				return f, err

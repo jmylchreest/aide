@@ -8,6 +8,7 @@ import (
 	"github.com/jmylchreest/aide/aide/pkg/aideignore"
 	"github.com/jmylchreest/aide/aide/pkg/findings"
 	"github.com/jmylchreest/aide/aide/pkg/findings/clone"
+	"github.com/jmylchreest/aide/aide/pkg/grammar"
 )
 
 // getFindingsStorePath returns the directory for findings data.
@@ -185,12 +186,15 @@ func cmdFindingsRun(dbPath string, args []string) error {
 		return fmt.Errorf("failed to load .aideignore: %w", err)
 	}
 
+	// Create a properly-configured grammar loader for analysers that need tree-sitter.
+	loader := newGrammarLoader(dbPath, nil)
+
 	totalFindings := 0
 
 	for _, name := range analyzers {
 		switch name {
 		case findings.AnalyzerComplexity:
-			n, err := runComplexityAnalyzer(backend, paths, threshold, ignore)
+			n, err := runComplexityAnalyzer(backend, paths, threshold, ignore, loader)
 			if err != nil {
 				return fmt.Errorf("complexity analyser failed: %w", err)
 			}
@@ -211,7 +215,7 @@ func cmdFindingsRun(dbPath string, args []string) error {
 			totalFindings += n
 
 		case findings.AnalyzerClones:
-			n, err := runClonesAnalyzer(backend, paths, windowSize, minCloneLines, ignore)
+			n, err := runClonesAnalyzer(backend, paths, windowSize, minCloneLines, ignore, loader)
 			if err != nil {
 				return fmt.Errorf("clones analyser failed: %w", err)
 			}
@@ -226,13 +230,14 @@ func cmdFindingsRun(dbPath string, args []string) error {
 	return nil
 }
 
-func runComplexityAnalyzer(backend *Backend, paths []string, threshold int, ignore *aideignore.Matcher) (int, error) {
+func runComplexityAnalyzer(backend *Backend, paths []string, threshold int, ignore *aideignore.Matcher, loader grammar.Loader) (int, error) {
 	fmt.Printf("Running complexity analyser (threshold=%d)...\n", threshold)
 
 	cfg := findings.ComplexityConfig{
 		Threshold: threshold,
 		Paths:     paths,
 		Ignore:    ignore,
+		Loader:    loader,
 		ProgressFn: func(path string, count int) {
 			if count > 0 {
 				fmt.Printf("  %s: %d findings\n", path, count)
@@ -304,7 +309,7 @@ func runSecretsAnalyzer(backend *Backend, paths []string, ignore *aideignore.Mat
 	return len(ff), nil
 }
 
-func runClonesAnalyzer(backend *Backend, paths []string, windowSize, minLines int, ignore *aideignore.Matcher) (int, error) {
+func runClonesAnalyzer(backend *Backend, paths []string, windowSize, minLines int, ignore *aideignore.Matcher, loader grammar.Loader) (int, error) {
 	fmt.Printf("Running clone detection (window=%d, min-lines=%d)...\n", windowSize, minLines)
 
 	cfg := clone.Config{
@@ -312,6 +317,7 @@ func runClonesAnalyzer(backend *Backend, paths []string, windowSize, minLines in
 		MinCloneLines: minLines,
 		Paths:         paths,
 		Ignore:        ignore,
+		Loader:        loader,
 	}
 
 	ff, result, err := clone.DetectClones(cfg)

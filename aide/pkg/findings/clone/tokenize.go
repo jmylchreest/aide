@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/jmylchreest/aide/aide/pkg/code"
 	"github.com/jmylchreest/aide/aide/pkg/grammar"
 	tree_sitter "github.com/tree-sitter/go-tree-sitter"
 )
@@ -30,16 +29,6 @@ type TokenSequence struct {
 	Tokens   []Token
 }
 
-// langProvider returns the tree-sitter language for a given language identifier.
-var supportedTokenizeLanguages = map[string]bool{
-	code.LangGo:         true,
-	code.LangTypeScript: true,
-	code.LangJavaScript: true,
-	code.LangPython:     true,
-	code.LangRust:       true,
-	code.LangJava:       true,
-}
-
 // identifierTypes are tree-sitter node types that represent identifiers.
 // These get normalized to "id" to detect structural clones.
 var identifierTypes = map[string]bool{
@@ -50,6 +39,15 @@ var identifierTypes = map[string]bool{
 	"property_identifier":                   true,
 	"shorthand_property_identifier":         true,
 	"shorthand_property_identifier_pattern": true,
+	// Additional cross-language identifier node types
+	"variable_name":      true, // PHP
+	"name":               true, // PHP, Ruby
+	"constant":           true, // Ruby, Elixir
+	"atom":               true, // Elixir
+	"symbol":             true, // Ruby
+	"simple_identifier":  true, // Kotlin, Swift
+	"word":               true, // Bash
+	"variable_reference": true, // Bash (e.g., $VAR)
 }
 
 // literalTypes are tree-sitter node types for literal values.
@@ -72,6 +70,25 @@ var literalTypes = map[string]bool{
 	"none":                       true,
 	"None":                       true,
 	"undefined":                  true,
+	// Additional cross-language literal node types
+	"integer_literal":           true, // Kotlin, C, C++
+	"real_literal":              true, // Kotlin, C#
+	"long_literal":              true, // Kotlin
+	"character_literal":         true, // Java, Kotlin, C
+	"hex_literal":               true, // Various
+	"octal_literal":             true, // Various
+	"binary_literal":            true, // Various
+	"boolean_literal":           true, // Kotlin, Scala
+	"string_content":            true, // Various
+	"heredoc_content":           true, // Ruby, Bash, PHP
+	"regex":                     true, // Ruby, JS
+	"regex_literal":             true, // Various
+	"encapsed_string":           true, // PHP
+	"nowdoc_string":             true, // PHP
+	"line_string_literal":       true, // Kotlin
+	"multi_line_string_literal": true, // Kotlin, Swift
+	"True":                      true, // Python
+	"False":                     true, // Python
 }
 
 // keywordTypes are significant structural keywords.
@@ -97,16 +114,43 @@ var keywordTypes = map[string]bool{
 	"throw":    true,
 	"async":    true,
 	"await":    true,
+	// Additional cross-language structural keywords
+	"do":        true,
+	"match":     true, // Rust, Scala
+	"when":      true, // Kotlin
+	"guard":     true, // Swift
+	"yield":     true, // Python, JS
+	"lambda":    true, // Python
+	"fn":        true, // Rust, Elixir
+	"let":       true, // JS, Rust, Swift
+	"var":       true, // JS, Go, Swift, Kotlin
+	"val":       true, // Kotlin, Scala
+	"const":     true, // JS, Go
+	"enum":      true, // Various
+	"interface": true, // Various
+	"trait":     true, // Rust, Scala, PHP
+	"impl":      true, // Rust
+	"module":    true, // Ruby, Elixir
+	"require":   true, // Ruby, Lua
+	"include":   true, // Ruby, C/C++
+	"rescue":    true, // Ruby
+	"ensure":    true, // Ruby
+	"unless":    true, // Ruby
+	"until":     true, // Ruby
+	"elsif":     true, // Ruby
+	"elif":      true, // Python
+	"except":    true, // Python
+	"raise":     true, // Python, Ruby
+	"with":      true, // Python
+	"select":    true, // Go
+	"defer":     true, // Go
+	"go":        true, // Go
 }
 
 // Tokenize parses source content using tree-sitter and produces a normalized
 // token sequence. Identifiers are normalized to "id", literals to "lit",
 // keywords and operators are preserved for structural matching.
 func Tokenize(loader grammar.Loader, filePath string, content []byte, lang string) (*TokenSequence, error) {
-	if !supportedTokenizeLanguages[lang] {
-		return nil, nil // unsupported language — skip
-	}
-
 	sitterLang, err := loader.Load(context.Background(), lang)
 	if err != nil {
 		return nil, nil // grammar not available — skip

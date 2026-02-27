@@ -47,120 +47,82 @@ type complexityLang struct {
 }
 
 // complexityLanguages defines supported languages for complexity analysis.
-var complexityLanguages = map[string]*complexityLang{
-	code.LangGo: {
-		funcNodeTypes: []string{
-			"function_declaration",
-			"method_declaration",
-			"func_literal",
-		},
-		branchTypes: []string{
-			"if_statement",
-			"for_statement",
-			"expression_case",    // each case in a switch
-			"type_case",          // each case in a type switch
-			"default_case",       // default clause
-			"communication_case", // select case
-			"go_statement",
-			"defer_statement",
-			"binary_expression", // will filter to && and ||
-		},
-		nameField: "name",
+// Per-language configs register themselves via init() in complexity_*.go files.
+var complexityLanguages = map[string]*complexityLang{}
+
+// registerComplexityLang registers a per-language complexity config.
+// Called from init() functions in complexity_*.go files.
+func registerComplexityLang(lang string, cfg *complexityLang) {
+	complexityLanguages[lang] = cfg
+}
+
+// genericComplexityLang is a superset fallback config covering common node types
+// across many tree-sitter grammars. Used when no language-specific config exists.
+// Unrecognised node types are harmlessly ignored by the complexity counter.
+var genericComplexityLang = &complexityLang{
+	funcNodeTypes: []string{
+		// Go
+		"function_declaration", "method_declaration", "func_literal",
+		// JS/TS
+		"method_definition", "arrow_function", "function",
+		// Python
+		"function_definition",
+		// Rust
+		"function_item",
+		// Java/Kotlin/C#
+		"constructor_declaration",
+		// C/C++
+		"function_definition",
+		// Ruby
+		"method", "singleton_method",
+		// PHP
+		"function_definition", "method_declaration",
+		// Lua
+		"function_declaration", "local_function_declaration_statement",
+		// Elixir
+		"call", // def/defp are calls in Elixir's tree-sitter grammar
+		// Swift
+		"function_declaration",
+		// Kotlin
+		"function_declaration",
+		// Scala
+		"function_definition",
+		// Bash
+		"function_definition",
 	},
-	code.LangTypeScript: {
-		funcNodeTypes: []string{
-			"function_declaration",
-			"method_definition",
-			"arrow_function",
-			"function",
-		},
-		branchTypes: []string{
-			"if_statement",
-			"for_statement",
-			"for_in_statement",
-			"while_statement",
-			"do_statement",
-			"switch_case",
-			"catch_clause",
-			"ternary_expression",
-			"binary_expression", // will filter to && and ||
-			"optional_chain_expression",
-		},
-		nameField: "name",
+	branchTypes: []string{
+		// Universal
+		"if_statement", "if_expression",
+		"for_statement", "for_expression", "for_in_statement",
+		"while_statement", "while_expression",
+		"do_statement",
+		"switch_case", "case_clause",
+		"catch_clause", "except_clause", "rescue",
+		"ternary_expression", "conditional_expression",
+		"binary_expression", "boolean_operator",
+		// Go
+		"expression_case", "type_case", "default_case", "communication_case",
+		"go_statement", "defer_statement",
+		// Python
+		"elif_clause", "with_statement", "assert_statement",
+		"list_comprehension", "dictionary_comprehension",
+		"set_comprehension", "generator_expression",
+		// Rust
+		"loop_expression", "match_arm",
+		// Java
+		"enhanced_for_statement", "switch_block_statement_group",
+		// JS/TS
+		"optional_chain_expression",
+		// Ruby
+		"elsif", "unless", "until", "when",
+		// Kotlin
+		"when_entry",
+		// C/C++
+		"case_statement",
+		// Bash
+		"elif_clause", "case_item",
 	},
-	code.LangJavaScript: {
-		funcNodeTypes: []string{
-			"function_declaration",
-			"method_definition",
-			"arrow_function",
-			"function",
-		},
-		branchTypes: []string{
-			"if_statement",
-			"for_statement",
-			"for_in_statement",
-			"while_statement",
-			"do_statement",
-			"switch_case",
-			"catch_clause",
-			"ternary_expression",
-			"binary_expression", // will filter to && and ||
-		},
-		nameField: "name",
-	},
-	code.LangPython: {
-		funcNodeTypes: []string{
-			"function_definition",
-		},
-		branchTypes: []string{
-			"if_statement",
-			"elif_clause",
-			"for_statement",
-			"while_statement",
-			"except_clause",
-			"with_statement",
-			"assert_statement",
-			"boolean_operator", // and/or
-			"conditional_expression",
-			"list_comprehension",
-			"dictionary_comprehension",
-			"set_comprehension",
-			"generator_expression",
-		},
-		nameField: "name",
-	},
-	code.LangRust: {
-		funcNodeTypes: []string{
-			"function_item",
-		},
-		branchTypes: []string{
-			"if_expression",
-			"for_expression",
-			"while_expression",
-			"loop_expression",
-			"match_arm",
-			"binary_expression", // will filter to && and ||
-		},
-		nameField: "name",
-	},
-	code.LangJava: {
-		funcNodeTypes: []string{
-			"method_declaration",
-			"constructor_declaration",
-		},
-		branchTypes: []string{
-			"if_statement",
-			"for_statement",
-			"enhanced_for_statement",
-			"while_statement",
-			"do_statement",
-			"switch_block_statement_group",
-			"catch_clause",
-			"ternary_expression",
-			"binary_expression", // will filter to && and ||
-		},
-		nameField: "name",
-	},
+	nameField: "name",
 }
 
 // AnalyzeComplexity analyzes files for cyclomatic complexity.
@@ -210,8 +172,7 @@ func AnalyzeComplexity(cfg ComplexityConfig) ([]*Finding, *ComplexityResult, err
 			lang := code.DetectLanguage(path, nil)
 			langCfg, ok := complexityLanguages[lang]
 			if !ok {
-				result.FilesSkipped++
-				return nil
+				langCfg = genericComplexityLang
 			}
 
 			content, err := os.ReadFile(path)
@@ -388,9 +349,33 @@ func getOperator(node *tree_sitter.Node, content []byte) string {
 func isNestedFunction(node *tree_sitter.Node) bool {
 	nodeType := node.Kind()
 	switch nodeType {
-	case "function_declaration", "function_definition", "method_declaration",
-		"method_definition", "function_item", "func_literal",
-		"arrow_function", "function", "constructor_declaration":
+	// Go
+	case "function_declaration", "method_declaration", "func_literal":
+		return true
+	// JS/TS
+	case "method_definition", "arrow_function", "function":
+		return true
+	// Python
+	case "function_definition":
+		return true
+	// Rust
+	case "function_item":
+		return true
+	// Java/C#
+	case "constructor_declaration", "local_function_statement":
+		return true
+	// Ruby
+	case "method", "singleton_method":
+		return true
+	// PHP
+	// function_definition already covered above
+	// Lua
+	case "local_function_declaration_statement":
+		return true
+	// Kotlin
+	// function_declaration already covered above
+	// Zig
+	case "FnDecl", "TestDecl":
 		return true
 	}
 	return false
