@@ -10,7 +10,6 @@ triggers:
   - clones
   - secrets
   - coupling
-  - findings
   - static analysis
   - code health
 ---
@@ -47,6 +46,7 @@ Findings must be generated first by running analyzers via the CLI:
 Full-text search across all findings. Supports Bleve query syntax for advanced searches.
 
 **Parameters:**
+
 - `query` (required) — Search term or Bleve query
 - `analyzer` (optional) — Filter to one analyzer: `complexity`, `coupling`, `secrets`, `clones`
 - `severity` (optional) — Filter by severity: `info`, `warning`, `critical`
@@ -66,6 +66,7 @@ Search for: "high complexity"
 List findings with filters. Use when you want to browse rather than search.
 
 **Parameters:**
+
 - `analyzer` (optional) — Filter to one analyzer
 - `severity` (optional) — Filter by severity
 - `file` (optional) — Filter by file path substring
@@ -133,13 +134,13 @@ How healthy is the codebase?
 
 Beyond the automated analyzers, look for these patterns using findings as starting points:
 
-| Finding | Likely Anti-Pattern | Action |
-|---------|-------------------|--------|
-| Complexity > 20 | God function | Decompose into smaller functions |
-| Fan-out > 15 | Kitchen sink module | Split responsibilities |
-| Fan-in > 20 | Fragile dependency | Consider interface/abstraction |
-| Multiple clones | Copy-paste programming | Extract shared utility |
-| Import cycle | Circular dependency | Restructure module boundaries |
+| Finding         | Likely Anti-Pattern    | Action                           |
+| --------------- | ---------------------- | -------------------------------- |
+| Complexity > 20 | God function           | Decompose into smaller functions |
+| Fan-out > 15    | Kitchen sink module    | Split responsibilities           |
+| Fan-in > 20     | Fragile dependency     | Consider interface/abstraction   |
+| Multiple clones | Copy-paste programming | Extract shared utility           |
+| Import cycle    | Circular dependency    | Restructure module boundaries    |
 
 ## Output Format
 
@@ -147,18 +148,22 @@ Beyond the automated analyzers, look for these patterns using findings as starti
 ## Code Health Report
 
 ### Overview
+
 - Total findings: X (Y critical, Z warnings)
 - Top concern: [area/file with most issues]
 
 ### Hotspots
+
 1. **`file:line`** - [description] (severity)
    - Impact: [why this matters]
    - Recommendation: [what to do]
 
 ### Patterns Detected
+
 - [List of anti-patterns found with evidence]
 
 ### Recommendations
+
 1. [Prioritized action items]
 ```
 

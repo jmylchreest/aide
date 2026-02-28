@@ -70,7 +70,7 @@ MCP server configurations are automatically synchronized across assistants. When
 
 ## MCP Tools
 
-AIDE exposes 18 MCP tools organized into 6 groups. All tools are prefixed `aide__` (e.g., `aide__memory_search`).
+AIDE exposes 25 MCP tools organized into 7 groups. All tools are prefixed `aide__` (e.g., `aide__memory_search`).
 
 ### Memory Tools
 
@@ -119,6 +119,18 @@ AIDE exposes 18 MCP tools organized into 6 groups. All tools are prefixed `aide_
 | `findings_search` | Full-text search across static analysis findings                |
 | `findings_list`   | List findings filtered by analyser, severity, file, or category |
 | `findings_stats`  | Codebase health overview with counts by analyser and severity   |
+| `findings_accept` | Accept (dismiss) findings by ID or filter — hides from output   |
+
+### Task Tools
+
+| Tool            | Purpose                                        |
+| --------------- | ---------------------------------------------- |
+| `task_create`   | Create a new swarm task (starts as pending)    |
+| `task_get`      | Get full task details by ID                    |
+| `task_list`     | List tasks, optionally filtered by status      |
+| `task_claim`    | Atomically claim a pending task for your agent |
+| `task_complete` | Mark a task as done with a result summary      |
+| `task_delete`   | Delete a task by ID                            |
 
 ## CLI Reference
 
@@ -191,6 +203,9 @@ aide findings search "high complexity"    # Search findings
 aide findings list --severity=critical    # List by severity
 aide findings list --file=src/auth        # List by file
 aide findings stats                       # Health overview
+aide findings accept <id1> <id2>          # Accept specific findings by ID
+aide findings accept --analyzer=clones    # Accept all clone findings
+aide findings accept --all                # Accept all findings
 aide findings clear                       # Clear all findings
 ```
 
@@ -338,6 +353,23 @@ aide findings list --severity=critical   # All critical findings
 aide findings list --file=src/auth       # Findings in specific files
 aide findings search "AWS"               # Search findings by keyword
 ```
+
+### Accepting (Dismissing) Findings
+
+Findings that are noise or irrelevant can be accepted (dismissed). Accepted findings are hidden from `list`, `search`, and `stats` output by default.
+
+```bash
+aide findings accept <id1> <id2>              # Accept specific findings by ID
+aide findings accept --analyzer=clones        # Accept all clone findings
+aide findings accept --severity=info          # Accept all info-severity findings
+aide findings accept --file=cmd/              # Accept findings in a path
+aide findings accept --all                    # Accept everything
+
+aide findings list --include-accepted         # Show accepted findings too
+aide findings stats --include-accepted        # Include accepted in counts
+```
+
+Use the `patterns` skill to analyse code health, then `assess-findings` to triage — the AI reads code for each finding and accepts noise automatically.
 
 ### Configuration
 

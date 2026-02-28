@@ -139,9 +139,12 @@ Set `AIDE_CODE_WATCH=1` for automatic re-indexing on file changes. Use `.aideign
 aide findings run                         # Run all analysers
 aide findings stats                       # Health overview
 aide findings list --severity=critical    # Critical findings
+aide findings accept --analyzer=clones    # Dismiss noise (hidden from future output)
 ```
 
-Findings are searchable via MCP tools during code review and debugging. The file watcher auto-runs analysers on changed files. Use `/aide:patterns` to activate findings-based analysis.
+Findings are searchable via MCP tools during code review and debugging. The file watcher auto-runs analysers on changed files.
+
+**Typical workflow:** Use `/aide:patterns` to surface code health issues, then `/aide:assess-findings` to triage — the AI reads actual code for each finding, accepts noise, and reports what remains actionable.
 
 ### Status Dashboard
 
@@ -180,6 +183,7 @@ Skills are markdown files that inject context when triggered by keywords. Trigge
 | **perf**             | `optimize the API`                | Performance profiling and optimization workflow                 |
 | **review**           | `review this PR`                  | Security-focused code review                                    |
 | **patterns**         | `find patterns`, `code health`    | Analyze codebase patterns using static analysis findings        |
+| **assess-findings**  | `assess findings`, `triage`       | Triage findings: read code, accept noise, keep genuine issues   |
 | **code-search**      | `find all auth functions`         | Search code symbols and find call sites                         |
 | **memorise**         | `remember I prefer vitest`        | Stores info for future sessions                                 |
 | **recall**           | `what testing framework?`         | Searches memories and decisions                                 |
@@ -224,7 +228,7 @@ Skills are auto-discovered from: `.aide/skills/` (project) > `skills/` (project)
 For detailed documentation on all subsystems, see **[docs/reference.md](docs/reference.md)**:
 
 - [Architecture](docs/reference.md#architecture) - Layered design, hooks, MCP read/write separation
-- [All 18 MCP Tools](docs/reference.md#mcp-tools) - Memory, decisions, state, messaging, code, findings
+- [All 25 MCP Tools](docs/reference.md#mcp-tools) - Memory, decisions, state, messaging, code, findings
 - [CLI Reference](docs/reference.md#cli-reference) - Full command reference
 - [Memory System](docs/reference.md#memory-system) - Tagging, scoping, auto-injection, decisions
 - [Code Indexing](docs/reference.md#code-indexing) - Tree-sitter, file watcher, .aideignore

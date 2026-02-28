@@ -539,6 +539,7 @@ func mcpToolList() []*grpcapi.StatusMCPTool {
 		{Name: "findings_search", Category: "findings"},
 		{Name: "findings_list", Category: "findings"},
 		{Name: "findings_stats", Category: "findings"},
+		{Name: "findings_accept", Category: "findings"},
 	}
 }
 
