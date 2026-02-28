@@ -87,7 +87,9 @@ export function checkPersistence(
   const mode = getActiveMode(binary, cwd);
   if (!mode) return null;
 
-  // Get and increment iteration counter (guard against NaN from corrupted state)
+  // Get and increment iteration counter (guard against NaN from corrupted state).
+  // NOTE: read-then-write is not atomic, but concurrent Stop events are extremely
+  // rare in practice. The counter is a safety cap, not a precise meter.
   const iterStr = getState(binary, cwd, `${mode}_iterations`) || "0";
   const parsed = parseInt(iterStr, 10);
   const iteration = (Number.isNaN(parsed) ? 0 : parsed) + 1;
