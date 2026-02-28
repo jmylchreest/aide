@@ -250,6 +250,16 @@ jobs:
         if: matrix.zig_target
         uses: mlugg/setup-zig@v2
 
+      - name: Ensure Xcode CLT (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          # Ensure clang is available; sudo xcode-select --switch may be needed
+          # on newer macOS runner images where CLT path isn't set.
+          if ! command -v clang &>/dev/null; then
+            sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
+          fi
+          clang --version
+
       - name: Determine grammar version
         id: gversion
         run: |
