@@ -8,7 +8,7 @@
  * platform-specific options instead of relying on CLAUDE_PLUGIN_ROOT.
  */
 
-import { execSync, execFileSync } from "child_process";
+import { execFileSync } from "child_process";
 import { existsSync, realpathSync } from "fs";
 import { join } from "path";
 import type { FindBinaryOptions } from "./types.js";
@@ -64,7 +64,10 @@ export function findAideBinary(opts: FindBinaryOptions = {}): string | null {
 
   // 4. PATH fallback
   try {
-    const result = execSync("which aide", { stdio: "pipe", timeout: 2000 })
+    const result = execFileSync("which", ["aide"], {
+      stdio: "pipe",
+      timeout: 2000,
+    })
       .toString()
       .trim();
     if (result) return result;

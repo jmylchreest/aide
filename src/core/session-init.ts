@@ -16,7 +16,7 @@ import {
   statSync,
 } from "fs";
 import { join } from "path";
-import { execSync, execFileSync } from "child_process";
+import { execFileSync } from "child_process";
 import { homedir } from "os";
 import type {
   AideConfig,
@@ -138,11 +138,15 @@ config/mcp-sync.journal.json
  */
 export function getProjectName(cwd: string): string {
   try {
-    const remoteUrl = execSync("git config --get remote.origin.url", {
-      cwd,
-      stdio: ["pipe", "pipe", "pipe"],
-      timeout: 2000,
-    })
+    const remoteUrl = execFileSync(
+      "git",
+      ["config", "--get", "remote.origin.url"],
+      {
+        cwd,
+        stdio: ["pipe", "pipe", "pipe"],
+        timeout: 2000,
+      },
+    )
       .toString()
       .trim();
 

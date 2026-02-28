@@ -5,7 +5,7 @@
  * to reduce code duplication and ensure consistent behavior.
  */
 
-import { execSync, execFileSync } from "child_process";
+import { execFileSync } from "child_process";
 import { existsSync, realpathSync } from "fs";
 import { join } from "path";
 import { debug } from "./logger.js";
@@ -52,7 +52,10 @@ export function findAideBinary(cwd?: string): string | null {
 
   // PATH fallback
   try {
-    const result = execSync("which aide", { stdio: "pipe", timeout: 2000 })
+    const result = execFileSync("which", ["aide"], {
+      stdio: "pipe",
+      timeout: 2000,
+    })
       .toString()
       .trim();
     if (result) return result;
