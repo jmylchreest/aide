@@ -4,8 +4,10 @@
   "version": "",
   "c_symbol": "tree_sitter_css",
   "source_repo": "tree-sitter/tree-sitter-css",
-  "source_tag": "v0.23.2",
+  "source_tag": "v0.25.0",
   "meta": {
-    "extensions": [".css"]
+    "extensions": [
+      ".css"
+    ]
   }
 }
