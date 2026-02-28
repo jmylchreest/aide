@@ -97,7 +97,7 @@ const ICONS = {
 };
 
 /**
- * Get all agent states from aide-memory
+ * Get all agent states from aide state store
  */
 export function getAgentStates(cwd: string): AgentState[] {
   const output = runAide(cwd, ["state", "list"]);
@@ -165,7 +165,7 @@ export function loadHudConfig(cwd: string): HudConfig {
 }
 
 /**
- * Get current session state from aide-memory
+ * Get current session state from aide state store
  */
 export function getSessionState(cwd: string): SessionState {
   const state: SessionState = {

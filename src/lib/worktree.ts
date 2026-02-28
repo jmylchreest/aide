@@ -23,7 +23,7 @@
  * 3. Error handling and edge cases are better tested
  */
 
-import { execSync, execFileSync } from "child_process";
+import { execFileSync } from "child_process";
 import {
   existsSync,
   mkdirSync,
@@ -451,33 +451,4 @@ export function markWorktreeMerged(cwd: string, name: string): boolean {
 export function getWorktreesReadyForMerge(cwd: string): Worktree[] {
   const state = loadWorktreeState(cwd);
   return state.active.filter((w) => w.status === "agent-complete");
-}
-
-/**
- * Execute command in a worktree
- * WARNING: This function executes arbitrary shell commands. Only call with trusted input.
- * Used internally for running git commands and build tools in isolated worktrees.
- */
-export function execInWorktree(
-  cwd: string,
-  name: string,
-  command: string,
-): string | null {
-  const state = loadWorktreeState(cwd);
-  const worktree = state.active.find((w) => w.name === name);
-
-  if (!worktree) {
-    console.error(`Worktree not found: ${name}`);
-    return null;
-  }
-
-  try {
-    return execSync(command, {
-      cwd: worktree.path,
-      encoding: "utf-8",
-    });
-  } catch (error) {
-    console.error(`Command failed in worktree: ${error}`);
-    return null;
-  }
 }

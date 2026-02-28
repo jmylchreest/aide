@@ -468,14 +468,6 @@ Then restart Claude Code to use the new version.`;
   };
 }
 
-/**
- * Synchronous version for simple existence check (no download, no version check)
- * Use ensureAideBinary() for full functionality
- */
-export function findAideBinarySync(cwd?: string): string | null {
-  return findAideBinary(cwd);
-}
-
 // --- CLI Mode ---
 // Run as standalone script for postinstall or manual download
 
