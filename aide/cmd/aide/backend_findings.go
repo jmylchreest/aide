@@ -81,7 +81,7 @@ func (b *Backend) ListFindings(opts findings.SearchOptions) ([]*findings.Finding
 	return fs.ListFindings(opts)
 }
 
-func (b *Backend) GetFindingsStats() (*findings.Stats, error) {
+func (b *Backend) GetFindingsStats(opts findings.SearchOptions) (*findings.Stats, error) {
 	ctx := context.Background()
 
 	if b.useGRPC {
@@ -110,7 +110,27 @@ func (b *Backend) GetFindingsStats() (*findings.Stats, error) {
 	}
 	defer fs.Close()
 
-	return fs.Stats()
+	return fs.Stats(opts)
+}
+
+func (b *Backend) AcceptFindings(ids []string) (int, error) {
+	fs, err := b.openFindingsStore()
+	if err != nil {
+		return 0, err
+	}
+	defer fs.Close()
+
+	return fs.AcceptFindings(ids)
+}
+
+func (b *Backend) AcceptFindingsByFilter(opts findings.SearchOptions) (int, error) {
+	fs, err := b.openFindingsStore()
+	if err != nil {
+		return 0, err
+	}
+	defer fs.Close()
+
+	return fs.AcceptFindingsByFilter(opts)
 }
 
 func (b *Backend) ClearFindings() error {

@@ -45,16 +45,18 @@ type Finding struct {
 	Title     string            `json:"title"`              // Short description
 	Detail    string            `json:"detail,omitempty"`   // Extended explanation
 	Metadata  map[string]string `json:"metadata,omitempty"` // Analyzer-specific data
+	Accepted  bool              `json:"accepted,omitempty"` // Acknowledged/accepted by user
 	CreatedAt time.Time         `json:"createdAt"`
 }
 
 // SearchOptions for filtering findings.
 type SearchOptions struct {
-	Analyzer string // Filter by analyzer name
-	Severity string // Filter by severity
-	FilePath string // Filter by file path pattern (substring)
-	Category string // Filter by category
-	Limit    int    // Max results (0 = default)
+	Analyzer        string // Filter by analyzer name
+	Severity        string // Filter by severity
+	FilePath        string // Filter by file path pattern (substring)
+	Category        string // Filter by category
+	Limit           int    // Max results (0 = default)
+	IncludeAccepted bool   // Include accepted findings (default: hide them)
 }
 
 // Stats holds aggregate counts of findings.

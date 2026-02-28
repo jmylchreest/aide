@@ -1110,7 +1110,7 @@ func (s *findingsServiceImpl) Stats(ctx context.Context, req *FindingStatsReques
 		return nil, fmt.Errorf("findings store not available")
 	}
 
-	stats, err := fs.Stats()
+	stats, err := fs.Stats(findings.SearchOptions{IncludeAccepted: true})
 	if err != nil {
 		return nil, err
 	}
@@ -1226,7 +1226,7 @@ func (s *statusServiceImpl) GetStatus(ctx context.Context, req *StatusRequest) (
 
 	// Findings status
 	if fss != nil {
-		stats, err := fss.Stats()
+		stats, err := fss.Stats(findings.SearchOptions{IncludeAccepted: true})
 		if err == nil && stats != nil {
 			findingsStatus := &StatusFindings{
 				Available: true,

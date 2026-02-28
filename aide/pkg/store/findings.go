@@ -263,6 +263,7 @@ func findingToSearchDoc(f *findings.Finding) map[string]interface{} {
 		"severity": f.Severity,
 		"category": f.Category,
 		"file":     f.FilePath,
+		"accepted": f.Accepted,
 	}
 }
 
@@ -405,6 +406,9 @@ func (s *FindingsStoreImpl) SearchFindings(queryStr string, opts findings.Search
 		if err != nil {
 			continue
 		}
+		if !opts.IncludeAccepted && f.Accepted {
+			continue
+		}
 		results = append(results, &findings.SearchResult{
 			Finding: f,
 			Score:   hit.Score,
@@ -430,6 +434,9 @@ func (s *FindingsStoreImpl) ListFindings(opts findings.SearchOptions) ([]*findin
 		for k, v := c.First(); k != nil; k, v = c.Next() {
 			var f findings.Finding
 			if err := json.Unmarshal(v, &f); err != nil {
+				continue
+			}
+			if !opts.IncludeAccepted && f.Accepted {
 				continue
 			}
 			if opts.Analyzer != "" && f.Analyzer != opts.Analyzer {
@@ -488,8 +495,68 @@ func (s *FindingsStoreImpl) ClearAnalyzer(analyzer string) (int, error) {
 	return len(toDelete), nil
 }
 
-// Stats returns aggregate finding counts.
-func (s *FindingsStoreImpl) Stats() (*findings.Stats, error) {
+// AcceptFindings marks findings with the given IDs as accepted.
+func (s *FindingsStoreImpl) AcceptFindings(ids []string) (int, error) {
+	if s.search == nil {
+		return 0, errSearchClosed
+	}
+
+	accepted := 0
+	for _, id := range ids {
+		f, err := s.GetFinding(id)
+		if err != nil {
+			continue // skip missing IDs
+		}
+		if f.Accepted {
+			continue // already accepted
+		}
+		f.Accepted = true
+
+		data, err := json.Marshal(f)
+		if err != nil {
+			return accepted, fmt.Errorf("marshal finding %s: %w", id, err)
+		}
+		if err := s.db.Update(func(tx *bolt.Tx) error {
+			return tx.Bucket(BucketFindings).Put([]byte(f.ID), data)
+		}); err != nil {
+			return accepted, err
+		}
+		if err := s.search.Index(f.ID, findingToSearchDoc(f)); err != nil {
+			return accepted, err
+		}
+		accepted++
+	}
+	return accepted, nil
+}
+
+// AcceptFindingsByFilter marks all findings matching the filter as accepted.
+func (s *FindingsStoreImpl) AcceptFindingsByFilter(opts findings.SearchOptions) (int, error) {
+	if s.search == nil {
+		return 0, errSearchClosed
+	}
+
+	// Collect all matching findings (no limit, include already-accepted).
+	filterOpts := opts
+	filterOpts.Limit = -1
+	filterOpts.IncludeAccepted = true
+
+	all, err := s.ListFindings(filterOpts)
+	if err != nil {
+		return 0, err
+	}
+
+	var ids []string
+	for _, f := range all {
+		if !f.Accepted {
+			ids = append(ids, f.ID)
+		}
+	}
+
+	return s.AcceptFindings(ids)
+}
+
+// Stats returns aggregate finding counts, optionally filtering by SearchOptions.
+func (s *FindingsStoreImpl) Stats(opts findings.SearchOptions) (*findings.Stats, error) {
 	stats := &findings.Stats{
 		ByAnalyzer: make(map[string]int),
 		BySeverity: make(map[string]int),
@@ -501,6 +568,21 @@ func (s *FindingsStoreImpl) Stats() (*findings.Stats, error) {
 		for k, v := c.First(); k != nil; k, v = c.Next() {
 			var f findings.Finding
 			if err := json.Unmarshal(v, &f); err != nil {
+				continue
+			}
+			if !opts.IncludeAccepted && f.Accepted {
+				continue
+			}
+			if opts.Analyzer != "" && f.Analyzer != opts.Analyzer {
+				continue
+			}
+			if opts.Severity != "" && f.Severity != opts.Severity {
+				continue
+			}
+			if opts.FilePath != "" && !strings.Contains(f.FilePath, opts.FilePath) {
+				continue
+			}
+			if opts.Category != "" && f.Category != opts.Category {
 				continue
 			}
 			stats.Total++

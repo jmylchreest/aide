@@ -102,13 +102,15 @@ type FindingsStore interface {
 	AddFinding(f *findings.Finding) error
 	GetFinding(id string) (*findings.Finding, error)
 	DeleteFinding(id string) error
+	AcceptFindings(ids []string) (int, error)
+	AcceptFindingsByFilter(opts findings.SearchOptions) (int, error)
 	SearchFindings(query string, opts findings.SearchOptions) ([]*findings.SearchResult, error)
 	ListFindings(opts findings.SearchOptions) ([]*findings.Finding, error)
 	GetFileFindings(filePath string) ([]*findings.Finding, error)
 	ClearAnalyzer(analyzer string) (int, error)
 	ReplaceFindingsForAnalyzer(analyzer string, newFindings []*findings.Finding) error
 	ReplaceFindingsForAnalyzerAndFile(analyzer, filePath string, newFindings []*findings.Finding) error
-	Stats() (*findings.Stats, error)
+	Stats(opts findings.SearchOptions) (*findings.Stats, error)
 	Clear() error
 	Close() error
 }

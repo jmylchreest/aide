@@ -94,7 +94,7 @@ type Runner struct {
 type ReplaceFindingsStore interface {
 	ReplaceFindingsForAnalyzer(analyzer string, findings []*Finding) error
 	ReplaceFindingsForAnalyzerAndFile(analyzer, filePath string, findings []*Finding) error
-	Stats() (*Stats, error)
+	Stats(opts SearchOptions) (*Stats, error)
 }
 
 func NewRunner(store ReplaceFindingsStore, config AnalyzerConfig, loader grammar.Loader) *Runner {

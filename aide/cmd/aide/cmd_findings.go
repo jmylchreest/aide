@@ -35,7 +35,9 @@ func cmdFindingsDispatcher(dbPath string, args []string) error {
 	case "list":
 		return cmdFindingsList(dbPath, subargs)
 	case "stats":
-		return cmdFindingsStats(dbPath)
+		return cmdFindingsStats(dbPath, subargs)
+	case "accept":
+		return cmdFindingsAccept(dbPath, subargs)
 	case "clear":
 		return cmdFindingsClear(dbPath, subargs)
 	case "help", "-h", "--help":
@@ -57,6 +59,7 @@ Subcommands:
   search     Search findings by keyword
   list       List findings with optional filters
   stats      Show finding statistics
+  accept     Mark findings as accepted/acknowledged
   clear      Clear findings (all or by analyser)
 
 Options:
@@ -75,20 +78,33 @@ Options:
     --no-validate       Secrets: skip live validation (default)
 
   search <query>:
-    --analyser=NAME  Filter by analyser (complexity, coupling, secrets, clones)
-    --severity=LEVEL Filter by severity (critical, warning, info)
-    --file=PATH      Filter by file path pattern (substring)
-    --category=CAT   Filter by category
-    --limit=N        Max results (default %d, 0 for no limit)
-    --json           Output as JSON
+    --analyser=NAME     Filter by analyser (complexity, coupling, secrets, clones)
+    --severity=LEVEL    Filter by severity (critical, warning, info)
+    --file=PATH         Filter by file path pattern (substring)
+    --category=CAT      Filter by category
+    --limit=N           Max results (default %d, 0 for no limit)
+    --include-accepted  Include accepted findings (hidden by default)
+    --json              Output as JSON
 
   list:
-    --analyser=NAME  Filter by analyser
-    --severity=LEVEL Filter by severity
-    --file=PATH      Filter by file path pattern
-    --category=CAT   Filter by category
-    --limit=N        Max results (default %d, 0 for no limit)
-    --json           Output as JSON
+    --analyser=NAME     Filter by analyser
+    --severity=LEVEL    Filter by severity
+    --file=PATH         Filter by file path pattern
+    --category=CAT      Filter by category
+    --limit=N           Max results (default %d, 0 for no limit)
+    --include-accepted  Include accepted findings (hidden by default)
+    --json              Output as JSON
+
+  stats:
+    --include-accepted  Include accepted findings in counts
+
+  accept [IDs...]:
+    Accept (acknowledge) findings so they are hidden from list/search/stats.
+    --all               Accept all findings
+    --analyser=NAME     Accept findings for this analyser
+    --severity=LEVEL    Accept findings with this severity
+    --file=PATH         Accept findings matching this file path
+    --category=CAT      Accept findings matching this category
 
   clear [--analyser=NAME]:
     Clears all findings, or only findings for the specified analyser.
@@ -103,6 +119,8 @@ Examples:
   aide findings list --analyser=complexity --severity=critical
   aide findings search "cyclomatic"
   aide findings list --file=src/auth
+  aide findings accept ABCDEF123456 GHIJKL789012
+  aide findings accept --all --analyser=complexity
   aide findings clear --analyser=secrets
 `, findings.DefaultComplexityThreshold, findings.DefaultFanOutThreshold, findings.DefaultFanInThreshold,
 		clone.DefaultWindowSize, clone.DefaultMinCloneLines, clone.DefaultMinMatchCount,
@@ -470,6 +488,7 @@ func cmdFindingsSearch(dbPath string, args []string) error {
 		limit = n
 	}
 	jsonOutput := hasFlag(args, "--json")
+	includeAccepted := hasFlag(args, "--include-accepted")
 
 	backend, err := NewBackend(dbPath)
 	if err != nil {
@@ -486,11 +505,12 @@ func cmdFindingsSearch(dbPath string, args []string) error {
 	}
 
 	opts := findings.SearchOptions{
-		Analyzer: analyzer,
-		Severity: severity,
-		FilePath: filePath,
-		Category: category,
-		Limit:    storeLimit,
+		Analyzer:        analyzer,
+		Severity:        severity,
+		FilePath:        filePath,
+		Category:        category,
+		Limit:           storeLimit,
+		IncludeAccepted: includeAccepted,
 	}
 
 	results, err := backend.SearchFindings(query, opts)
@@ -546,6 +566,7 @@ func cmdFindingsList(dbPath string, args []string) error {
 		limit = n
 	}
 	jsonOutput := hasFlag(args, "--json")
+	includeAccepted := hasFlag(args, "--include-accepted")
 
 	backend, err := NewBackend(dbPath)
 	if err != nil {
@@ -562,11 +583,12 @@ func cmdFindingsList(dbPath string, args []string) error {
 	}
 
 	opts := findings.SearchOptions{
-		Analyzer: analyzer,
-		Severity: severity,
-		FilePath: filePath,
-		Category: category,
-		Limit:    storeLimit,
+		Analyzer:        analyzer,
+		Severity:        severity,
+		FilePath:        filePath,
+		Category:        category,
+		Limit:           storeLimit,
+		IncludeAccepted: includeAccepted,
 	}
 
 	results, err := backend.ListFindings(opts)
@@ -607,14 +629,16 @@ func cmdFindingsList(dbPath string, args []string) error {
 	return nil
 }
 
-func cmdFindingsStats(dbPath string) error {
+func cmdFindingsStats(dbPath string, args []string) error {
+	includeAccepted := hasFlag(args, "--include-accepted")
+
 	backend, err := NewBackend(dbPath)
 	if err != nil {
 		return fmt.Errorf("failed to create backend: %w", err)
 	}
 	defer backend.Close()
 
-	stats, err := backend.GetFindingsStats()
+	stats, err := backend.GetFindingsStats(findings.SearchOptions{IncludeAccepted: includeAccepted})
 	if err != nil {
 		return fmt.Errorf("failed to get stats: %w", err)
 	}
@@ -637,6 +661,63 @@ func cmdFindingsStats(dbPath string) error {
 		}
 	}
 
+	return nil
+}
+
+func cmdFindingsAccept(dbPath string, args []string) error {
+	acceptAll := hasFlag(args, "--all")
+	analyzer := parseFlag(args, "--analyzer=")
+	severity := parseFlag(args, "--severity=")
+	filePath := parseFlag(args, "--file=")
+	category := parseFlag(args, "--category=")
+
+	// Collect positional IDs (non-flag arguments), supporting comma separation.
+	var ids []string
+	for _, arg := range args {
+		if strings.HasPrefix(arg, "--") {
+			continue
+		}
+		for _, part := range strings.Split(arg, ",") {
+			part = strings.TrimSpace(part)
+			if part != "" {
+				ids = append(ids, part)
+			}
+		}
+	}
+
+	hasFilter := acceptAll || analyzer != "" || severity != "" || filePath != "" || category != ""
+
+	if len(ids) == 0 && !hasFilter {
+		return fmt.Errorf("usage: aide findings accept <ID,...> | --all [--analyzer=NAME] [--severity=LEVEL] [--file=PATH] [--category=CAT]")
+	}
+	if len(ids) > 0 && hasFilter {
+		return fmt.Errorf("cannot combine explicit IDs with filter flags (--all, --analyzer, etc.)")
+	}
+
+	backend, err := NewBackend(dbPath)
+	if err != nil {
+		return fmt.Errorf("failed to create backend: %w", err)
+	}
+	defer backend.Close()
+
+	var count int
+	if len(ids) > 0 {
+		count, err = backend.AcceptFindings(ids)
+	} else {
+		opts := findings.SearchOptions{
+			Analyzer:        analyzer,
+			Severity:        severity,
+			FilePath:        filePath,
+			Category:        category,
+			IncludeAccepted: false, // Only accept non-accepted findings.
+		}
+		count, err = backend.AcceptFindingsByFilter(opts)
+	}
+	if err != nil {
+		return fmt.Errorf("failed to accept findings: %w", err)
+	}
+
+	fmt.Printf("Accepted %d findings\n", count)
 	return nil
 }
 
