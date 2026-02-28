@@ -87,7 +87,6 @@ func NewClient(opts ...RetryOption) *Client {
 // On success (or non-retryable failure), the caller owns the response.
 func (c *Client) Do(req *http.Request) (*http.Response, error) {
 	var lastErr error
-	var lastResp *http.Response
 
 	for attempt := 0; attempt <= c.maxRetries; attempt++ {
 		if attempt > 0 {
@@ -112,15 +111,11 @@ func (c *Client) Do(req *http.Request) (*http.Response, error) {
 		}
 
 		// Retryable HTTP status — close the body and retry.
-		lastResp = resp
 		lastErr = fmt.Errorf("HTTP %d from %s", resp.StatusCode, req.URL.Host)
 		resp.Body.Close()
 	}
 
 	// All retries exhausted.
-	if lastResp != nil {
-		return nil, fmt.Errorf("%w (after %d retries)", lastErr, c.maxRetries)
-	}
 	return nil, fmt.Errorf("%w (after %d retries)", lastErr, c.maxRetries)
 }
 
