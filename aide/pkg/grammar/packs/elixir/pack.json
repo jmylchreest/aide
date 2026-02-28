@@ -3,7 +3,7 @@
   "name": "elixir",
   "version": "",
   "c_symbol": "tree_sitter_elixir",
-  "source_repo": "tree-sitter/tree-sitter-elixir",
+  "source_repo": "elixir-lang/tree-sitter-elixir",
   "source_tag": "v0.3.4",
   "meta": {
     "extensions": [".ex", ".exs"],

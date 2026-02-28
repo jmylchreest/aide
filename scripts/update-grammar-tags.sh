@@ -41,18 +41,50 @@ require_cmd jq
 require_cmd sed
 
 # --- GitHub API helpers ----------------------------------------------------
+
+# Last API error detail — set by gh_api / latest_tag for callers to inspect.
+GH_API_ERROR=""
+
+# Make a GitHub API request. Sets GH_API_ERROR on failure.
+# Returns 0 on success (body on stdout), 1 on failure.
 gh_api() {
   local url="$1"
-  local -a curl_args=(-fsSL --retry 2 --retry-delay 1)
+  local -a curl_args=(-sSL --retry 2 --retry-delay 1 -w "\n%{http_code}")
   if [[ -n "${GITHUB_TOKEN:-}" ]]; then
     curl_args+=(-H "Authorization: token ${GITHUB_TOKEN}")
   fi
-  curl "${curl_args[@]}" "https://api.github.com${url}" 2>/dev/null
+
+  local raw http_code body
+  raw=$(curl "${curl_args[@]}" "https://api.github.com${url}" 2>/dev/null) || {
+    GH_API_ERROR="network error (curl failed)"
+    return 1
+  }
+
+  # Last line is the HTTP status code, everything before is the body.
+  http_code=$(echo "${raw}" | tail -1)
+  body=$(echo "${raw}" | sed '$d')
+
+  case "${http_code}" in
+    200) GH_API_ERROR=""; echo "${body}"; return 0 ;;
+    403)
+      local msg
+      msg=$(echo "${body}" | jq -r '.message // empty' 2>/dev/null)
+      if [[ "${msg}" == *"rate limit"* ]]; then
+        GH_API_ERROR="API rate limit exceeded (set GITHUB_TOKEN)"
+      else
+        GH_API_ERROR="access denied (HTTP 403)"
+      fi
+      return 1
+      ;;
+    404) GH_API_ERROR="repository not found (HTTP 404)"; return 1 ;;
+    *)   GH_API_ERROR="HTTP ${http_code}"; return 1 ;;
+  esac
 }
 
 # Fetch the latest release-quality tag for a repo.
 # Filters out pre-releases, draft tags, and -rc / -alpha / -beta suffixes.
 # Returns the tag name (e.g. "v0.23.4" or "0.4.0").
+# On failure, returns empty string and GH_API_ERROR describes the problem.
 latest_tag() {
   local repo="$1"
   local filter="${2:-}"  # Optional jq filter for special cases
@@ -63,18 +95,24 @@ latest_tag() {
     echo ""; return
   }
 
+  local result
   if [[ -n "${filter}" ]]; then
-    echo "${tags_json}" | jq -r "${filter}" | head -1
+    result=$(echo "${tags_json}" | jq -r "${filter}" | head -1)
   else
     # Default: pick the first tag that looks like a release (no -rc, -alpha,
     # -beta, -dev suffixes). Allow -with-generated-files for swift.
-    echo "${tags_json}" | jq -r '
+    result=$(echo "${tags_json}" | jq -r '
       [.[] | .name |
         select(test("-(rc|alpha|beta|dev|pre|nightly)"; "i") | not) |
         select(test("-(pypi|crates-io)"; "i") | not)
       ] | .[0] // empty
-    '
+    ')
   fi
+
+  if [[ -z "${result}" ]]; then
+    GH_API_ERROR="no matching release tag found"
+  fi
+  echo "${result}"
 }
 
 # Check whether a file exists at a given path in a repo at a tag.
@@ -198,7 +236,7 @@ for entry in "${ENTRIES[@]}"; do
   if [[ -z "${new_tag}" ]]; then
     ERRORS=$((ERRORS + 1))
     status="error"
-    detail="failed to fetch tags from ${repo}"
+    detail="${GH_API_ERROR:-failed to fetch tags from ${repo}}"
     if ! ${JSON_OUTPUT}; then
       echo "  ${RED}✗${RESET} ${BOLD}${name}${RESET}  ${current_tag}  →  ${RED}error: ${detail}${RESET}"
     fi
