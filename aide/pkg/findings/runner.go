@@ -203,17 +203,6 @@ func (r *Runner) runAnalyzer(key RunKey, run func(ctx context.Context) ([]*Findi
 
 	r.wg.Add(1)
 	go func() {
-		// Acquire semaphore slot to limit concurrent goroutines.
-		if r.sem != nil {
-			select {
-			case r.sem <- struct{}{}:
-				defer func() { <-r.sem }()
-			case <-ctx.Done():
-				r.wg.Done()
-				return
-			}
-		}
-
 		defer close(done)
 		defer r.wg.Done()
 		defer func() {
@@ -223,6 +212,16 @@ func (r *Runner) runAnalyzer(key RunKey, run func(ctx context.Context) ([]*Findi
 			}
 			r.mu.Unlock()
 		}()
+
+		// Acquire semaphore slot to limit concurrent goroutines.
+		if r.sem != nil {
+			select {
+			case r.sem <- struct{}{}:
+				defer func() { <-r.sem }()
+			case <-ctx.Done():
+				return
+			}
+		}
 
 		start := time.Now()
 		findings, err := run(ctx)
