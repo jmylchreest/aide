@@ -157,10 +157,20 @@ function readAideConfig(path: string): Record<string, CanonicalMcpServer> {
   if (!existsSync(path)) return {};
 
   try {
-    const raw = JSON.parse(readFileSync(path, "utf-8")) as AideMcpConfig;
+    const parsed: unknown = JSON.parse(readFileSync(path, "utf-8"));
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed))
+      return {};
+    const raw = parsed as AideMcpConfig;
+    const mcpServers = raw.mcpServers;
+    if (
+      typeof mcpServers !== "object" ||
+      mcpServers === null ||
+      Array.isArray(mcpServers)
+    )
+      return {};
     const servers: Record<string, CanonicalMcpServer> = {};
 
-    for (const [name, def] of Object.entries(raw.mcpServers || {})) {
+    for (const [name, def] of Object.entries(mcpServers)) {
       servers[name] = { name, ...def };
     }
 
@@ -444,7 +454,13 @@ function readJournal(path: string): McpSyncJournal {
   }
 
   try {
-    return JSON.parse(readFileSync(path, "utf-8")) as McpSyncJournal;
+    const parsed: unknown = JSON.parse(readFileSync(path, "utf-8"));
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed))
+      return { entries: [], removed: [] };
+    const journal = parsed as McpSyncJournal;
+    if (!Array.isArray(journal.entries)) return { entries: [], removed: [] };
+    if (!Array.isArray(journal.removed)) journal.removed = [];
+    return journal;
   } catch {
     return { entries: [], removed: [] };
   }

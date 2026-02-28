@@ -51,7 +51,10 @@ export function readConfig(configPath: string): OpenCodeConfig {
   }
   try {
     const raw = readFileSync(configPath, "utf-8");
-    return JSON.parse(raw) as OpenCodeConfig;
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed))
+      return {};
+    return parsed as OpenCodeConfig;
   } catch {
     return {};
   }

@@ -76,7 +76,14 @@ export function buildSessionSummary(
     const entries: TranscriptEntry[] = [];
     for (const line of lines) {
       try {
-        entries.push(JSON.parse(line) as TranscriptEntry);
+        const parsed: unknown = JSON.parse(line);
+        if (
+          typeof parsed === "object" &&
+          parsed !== null &&
+          !Array.isArray(parsed)
+        ) {
+          entries.push(parsed as TranscriptEntry);
+        }
       } catch {
         // Skip malformed
       }
