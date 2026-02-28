@@ -826,6 +826,22 @@ func (s *codeServiceImpl) Index(ctx context.Context, req *CodeIndexRequest) (*Co
 		paths = []string{"."}
 	}
 
+	// Validate that all requested paths are within the working directory.
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil, fmt.Errorf("get working directory: %w", err)
+	}
+	cwdPrefix := cwd + string(filepath.Separator)
+	for _, p := range paths {
+		abs, err := filepath.Abs(p)
+		if err != nil {
+			return nil, fmt.Errorf("invalid path %q: %w", p, err)
+		}
+		if abs != cwd && !strings.HasPrefix(abs, cwdPrefix) {
+			return nil, fmt.Errorf("path %q is outside the project directory", p)
+		}
+	}
+
 	var filesIndexed, symbolsIndexed, filesSkipped int32
 
 	for _, root := range paths {
