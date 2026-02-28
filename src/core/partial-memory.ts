@@ -105,7 +105,7 @@ export function buildPartialTags(
 ): string[] {
   const tags = [
     "partial",
-    `session:${sessionId.slice(0, 8)}`,
+    `session:${sessionId.slice(0, 12)}`,
     `tool:${info.toolName.toLowerCase()}`,
   ];
   if (info.filePath) {
@@ -164,7 +164,7 @@ export function gatherPartials(
   sessionId: string,
 ): string[] {
   try {
-    const sessionTag = `session:${sessionId.slice(0, 8)}`;
+    const sessionTag = `session:${sessionId.slice(0, 12)}`;
 
     const output = execFileSync(
       binary,
@@ -212,7 +212,7 @@ export function gatherPartialIds(
   sessionId: string,
 ): string[] {
   try {
-    const sessionTag = `session:${sessionId.slice(0, 8)}`;
+    const sessionTag = `session:${sessionId.slice(0, 12)}`;
 
     const output = execFileSync(
       binary,

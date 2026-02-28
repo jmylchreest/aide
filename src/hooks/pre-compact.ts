@@ -78,7 +78,7 @@ async function main(): Promise<void> {
 
         if (summary) {
           // Tag as partial so the session-end summary supersedes it
-          const tags = `partial,session-summary,session:${sessionId.slice(0, 8)}`;
+          const tags = `partial,session-summary,session:${sessionId.slice(0, 12)}`;
           (await import("child_process")).execFileSync(
             binary,
             ["memory", "add", "--category=session", `--tags=${tags}`, summary],
