@@ -90,7 +90,9 @@ func (c *CombinedStore) AddMemory(m *memory.Memory) error {
 		return err
 	}
 	// Search index failure is non-fatal - log but continue
-	_ = c.search.IndexMemory(m)
+	if err := c.search.IndexMemory(m); err != nil {
+		log.Printf("store: search index failed for memory %s: %v", m.ID, err)
+	}
 	return nil
 }
 
@@ -100,8 +102,12 @@ func (c *CombinedStore) UpdateMemory(m *memory.Memory) error {
 		return err
 	}
 	// Re-index in search (delete + re-add)
-	_ = c.search.DeleteMemory(m.ID)
-	_ = c.search.IndexMemory(m)
+	if err := c.search.DeleteMemory(m.ID); err != nil {
+		log.Printf("store: search delete failed for memory %s: %v", m.ID, err)
+	}
+	if err := c.search.IndexMemory(m); err != nil {
+		log.Printf("store: search re-index failed for memory %s: %v", m.ID, err)
+	}
 	return nil
 }
 
@@ -110,7 +116,9 @@ func (c *CombinedStore) DeleteMemory(id string) error {
 	if err := c.bolt.DeleteMemory(id); err != nil {
 		return err
 	}
-	_ = c.search.DeleteMemory(id)
+	if err := c.search.DeleteMemory(id); err != nil {
+		log.Printf("store: search delete failed for memory %s: %v", id, err)
+	}
 	return nil
 }
 
@@ -223,7 +231,9 @@ func (c *CombinedStore) ClearMemories() (int, error) {
 	if err != nil {
 		return count, err
 	}
-	_ = c.search.Clear()
+	if err := c.search.Clear(); err != nil {
+		log.Printf("store: search index clear failed: %v", err)
+	}
 	return count, nil
 }
 
