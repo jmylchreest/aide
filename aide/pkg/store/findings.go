@@ -516,80 +516,23 @@ func (s *FindingsStoreImpl) Stats() (*findings.Stats, error) {
 // On success, old findings are gone and new ones are stored.
 // On error, old findings remain untouched.
 func (s *FindingsStoreImpl) ReplaceFindingsForAnalyzer(analyzer string, newFindings []*findings.Finding) error {
-	if s.search == nil {
-		return errSearchClosed
-	}
-	// Collect keys to delete and new data inside the BBolt tx, then apply
-	// Bleve mutations outside so a tx rollback doesn't leave Bleve inconsistent.
-	type pendingPut struct {
-		id  string
-		doc map[string]interface{}
-	}
-	var deleteIDs []string
-	var puts []pendingPut
-
-	err := s.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket(BucketFindings)
-		c := b.Cursor()
-
-		for k, v := c.First(); k != nil; k, v = c.Next() {
-			var f findings.Finding
-			if err := json.Unmarshal(v, &f); err != nil {
-				continue
-			}
-			if f.Analyzer == analyzer {
-				// Copy key — cursor keys are only valid for the current position.
-				deleteIDs = append(deleteIDs, string(append([]byte(nil), k...)))
-			}
-		}
-
-		for _, id := range deleteIDs {
-			if err := b.Delete([]byte(id)); err != nil {
-				return err
-			}
-		}
-
-		for _, f := range newFindings {
-			if f.ID == "" {
-				f.ID = ulid.Make().String()
-			}
-			if f.CreatedAt.IsZero() {
-				f.CreatedAt = time.Now()
-			}
-
-			data, err := json.Marshal(f)
-			if err != nil {
-				return fmt.Errorf("marshal finding: %w", err)
-			}
-			if err := b.Put([]byte(f.ID), data); err != nil {
-				return err
-			}
-			puts = append(puts, pendingPut{id: f.ID, doc: findingToSearchDoc(f)})
-		}
-
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-
-	// Apply Bleve mutations outside the BBolt tx for atomicity.
-	for _, id := range deleteIDs {
-		if err := s.search.Delete(id); err != nil {
-			log.Printf("store: warning: failed to delete finding %s from search index: %v", id, err)
-		}
-	}
-	for _, p := range puts {
-		if err := s.search.Index(p.id, p.doc); err != nil {
-			return err
-		}
-	}
-	return nil
+	return s.replaceFindings(func(f *findings.Finding) bool {
+		return f.Analyzer == analyzer
+	}, newFindings)
 }
 
 // ReplaceFindingsForAnalyzerAndFile atomically replaces findings for an analyzer within a specific file.
 // Used for per-file incremental updates (complexity, secrets).
 func (s *FindingsStoreImpl) ReplaceFindingsForAnalyzerAndFile(analyzer, filePath string, newFindings []*findings.Finding) error {
+	return s.replaceFindings(func(f *findings.Finding) bool {
+		return f.Analyzer == analyzer && f.FilePath == filePath
+	}, newFindings)
+}
+
+// replaceFindings atomically replaces findings matching shouldDelete with newFindings.
+// Collects keys to delete and new data inside the BBolt tx, then applies
+// Bleve mutations outside so a tx rollback doesn't leave Bleve inconsistent.
+func (s *FindingsStoreImpl) replaceFindings(shouldDelete func(*findings.Finding) bool, newFindings []*findings.Finding) error {
 	if s.search == nil {
 		return errSearchClosed
 	}
@@ -609,7 +552,7 @@ func (s *FindingsStoreImpl) ReplaceFindingsForAnalyzerAndFile(analyzer, filePath
 			if err := json.Unmarshal(v, &f); err != nil {
 				continue
 			}
-			if f.Analyzer == analyzer && f.FilePath == filePath {
+			if shouldDelete(&f) {
 				// Copy key — cursor keys are only valid for the current position.
 				deleteIDs = append(deleteIDs, string(append([]byte(nil), k...)))
 			}
