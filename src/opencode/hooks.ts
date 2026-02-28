@@ -372,6 +372,18 @@ async function handleSessionCreated(
   if (state.initializedSessions.has(sessionId)) return;
   state.initializedSessions.add(sessionId);
 
+  // Defensive cap: if sessions leak without cleanup, evict oldest entries.
+  // Normal operation has only 1-2 concurrent sessions.
+  if (state.initializedSessions.size > 100) {
+    const entries = Array.from(state.initializedSessions);
+    const keepFrom = Math.floor(entries.length / 2);
+    state.initializedSessions.clear();
+    for (let i = keepFrom; i < entries.length; i++) {
+      state.initializedSessions.add(entries[i]);
+    }
+    debug(SOURCE, `Evicted ${keepFrom} stale entries from initializedSessions`);
+  }
+
   state.sessionState = initializeSession(sessionId, state.cwd);
 
   // Track this session for per-session context injection
@@ -379,6 +391,16 @@ async function handleSessionCreated(
     sessionId,
     createdAt: new Date().toISOString(),
   });
+
+  // Defensive cap for sessionInfoMap (mirrors initializedSessions cap)
+  if (state.sessionInfoMap.size > 100) {
+    const entries = Array.from(state.sessionInfoMap.keys());
+    const keepFrom = Math.floor(entries.length / 2);
+    for (let i = 0; i < keepFrom; i++) {
+      state.sessionInfoMap.delete(entries[i]);
+    }
+    debug(SOURCE, `Evicted ${keepFrom} stale entries from sessionInfoMap`);
+  }
 
   // Register session as an "agent" in aide state for visibility
   if (state.binary) {
