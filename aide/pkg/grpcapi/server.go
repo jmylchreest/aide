@@ -1110,7 +1110,9 @@ func (s *findingsServiceImpl) Stats(ctx context.Context, req *FindingStatsReques
 		return nil, fmt.Errorf("findings store not available")
 	}
 
-	stats, err := fs.Stats(findings.SearchOptions{IncludeAccepted: true})
+	// Note: FindingStatsRequest proto has no include_accepted field,
+	// so we default to hiding accepted findings (matching CLI/MCP behaviour).
+	stats, err := fs.Stats(findings.SearchOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -1224,9 +1226,9 @@ func (s *statusServiceImpl) GetStatus(ctx context.Context, req *StatusRequest) (
 		}
 	}
 
-	// Findings status
+	// Findings status (exclude accepted findings for consistency)
 	if fss != nil {
-		stats, err := fss.Stats(findings.SearchOptions{IncludeAccepted: true})
+		stats, err := fss.Stats(findings.SearchOptions{})
 		if err == nil && stats != nil {
 			findingsStatus := &StatusFindings{
 				Available: true,
