@@ -152,17 +152,26 @@ export function storePartialMemory(
   }
 }
 
+/** Shape returned by `aide memory list --format=json`. */
+interface PartialMemoryEntry {
+  id: string;
+  tags: string[];
+  content: string;
+}
+
 /**
- * Gather all partial memories for a session.
+ * Query session partials and map to a caller-chosen type.
  *
- * Uses `aide memory list` with tag filtering to find all partials.
- * Returns the raw output or null if none found.
+ * Runs `aide memory list --tags=partial --format=json`, filters to the
+ * given session, and maps each match through `mapFn`.
  */
-export function gatherPartials(
+function querySessionPartials<T>(
   binary: string,
   cwd: string,
   sessionId: string,
-): string[] {
+  mapFn: (m: PartialMemoryEntry) => T,
+  label: string,
+): T[] {
   try {
     const sessionTag = `session:${sessionId.slice(0, 12)}`;
 
@@ -186,21 +195,32 @@ export function gatherPartials(
 
     if (!output || output === "[]") return [];
 
-    interface PartialMemory {
-      id: string;
-      tags: string[];
-      content: string;
-    }
-
-    const memories: PartialMemory[] = JSON.parse(output);
-    // Filter to this session's partials
-    return memories
-      .filter((m) => m.tags?.includes(sessionTag))
-      .map((m) => m.content);
+    const memories: PartialMemoryEntry[] = JSON.parse(output);
+    return memories.filter((m) => m.tags?.includes(sessionTag)).map(mapFn);
   } catch (err) {
-    debug(SOURCE, `Failed to gather partials: ${err}`);
+    debug(SOURCE, `Failed to gather ${label}: ${err}`);
     return [];
   }
+}
+
+/**
+ * Gather all partial memories for a session.
+ *
+ * Uses `aide memory list` with tag filtering to find all partials.
+ * Returns the content strings or an empty array if none found.
+ */
+export function gatherPartials(
+  binary: string,
+  cwd: string,
+  sessionId: string,
+): string[] {
+  return querySessionPartials(
+    binary,
+    cwd,
+    sessionId,
+    (m) => m.content,
+    "partials",
+  );
 }
 
 /**
@@ -211,42 +231,13 @@ export function gatherPartialIds(
   cwd: string,
   sessionId: string,
 ): string[] {
-  try {
-    const sessionTag = `session:${sessionId.slice(0, 12)}`;
-
-    const output = execFileSync(
-      binary,
-      [
-        "memory",
-        "list",
-        "--tags=partial",
-        "--all",
-        "--format=json",
-        "--limit=500",
-      ],
-      {
-        cwd,
-        encoding: "utf-8",
-        stdio: ["pipe", "pipe", "pipe"],
-        timeout: 5000,
-      },
-    ).trim();
-
-    if (!output || output === "[]") return [];
-
-    interface PartialMemory {
-      id: string;
-      tags: string[];
-    }
-
-    const memories: PartialMemory[] = JSON.parse(output);
-    return memories
-      .filter((m) => m.tags?.includes(sessionTag))
-      .map((m) => m.id);
-  } catch (err) {
-    debug(SOURCE, `Failed to gather partial IDs: ${err}`);
-    return [];
-  }
+  return querySessionPartials(
+    binary,
+    cwd,
+    sessionId,
+    (m) => m.id,
+    "partial IDs",
+  );
 }
 
 /**
