@@ -18,8 +18,9 @@ func initPprof() {
 	if pprofAddr == "" {
 		pprofAddr = "localhost:6060"
 	}
-	if !strings.HasPrefix(pprofAddr, "127.0.0.1:") && !strings.HasPrefix(pprofAddr, "localhost:") {
-		mcpLog.Printf("WARNING: pprof binding to %s - this exposes debug endpoints", pprofAddr)
+	if !strings.HasPrefix(pprofAddr, "127.0.0.1:") && !strings.HasPrefix(pprofAddr, "localhost:") && !strings.HasPrefix(pprofAddr, "[::1]:") {
+		mcpLog.Printf("ERROR: refusing to bind pprof to %s — only localhost addresses are allowed (set AIDE_PPROF_ADDR to 127.0.0.1:<port> or localhost:<port>)", pprofAddr)
+		return
 	}
 	srv := &http.Server{
 		Addr:         pprofAddr,
