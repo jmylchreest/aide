@@ -271,10 +271,10 @@ func (r *Runner) runPerFileAnalyzer(ctx context.Context, analyzer string, file s
 	}
 
 	relPath := file
-	if cwd, err := os.Getwd(); err == nil {
-		if rel, err := filepath.Rel(cwd, file); err == nil {
-			relPath = rel
-		}
+	if cwd, err := os.Getwd(); err != nil {
+		log.Printf("findings: os.Getwd failed, using absolute paths: %v", err)
+	} else if rel, err := filepath.Rel(cwd, file); err == nil {
+		relPath = rel
 	}
 
 	switch analyzer {
