@@ -256,7 +256,7 @@ aide/
     ├── watcher/      # File watcher for auto-reindex and auto-analysis
     ├── aideignore/   # .aideignore file parser (gitignore syntax)
     ├── grpcapi/      # gRPC daemon server/client
-    └── server/       # HTTP API server
+    └── httputil/     # HTTP client utilities
 ```
 
 ## License

@@ -16,7 +16,7 @@ aide/
 │   ├── cmd/aide/         # CLI commands & MCP server
 │   ├── pkg/store/        # BBolt storage + Bleve search
 │   ├── pkg/code/         # Tree-sitter code indexing
-│   └── pkg/server/       # HTTP API for MCP
+│   └── pkg/grpcapi/      # gRPC daemon (Unix socket IPC)
 ├── src/hooks/            # TypeScript event handlers
 ├── skills/               # Built-in workflow skills
 └── .aide/                # Project-local storage
@@ -49,7 +49,7 @@ aide/
 
 - `aide memory|decision|state|task|message|code` commands
 - `aide mcp` - Starts MCP server (tools for Claude)
-- `aide daemon` - Background HTTP server
+- `aide daemon` - Background gRPC server (Unix socket)
 
 ### TypeScript Hooks (`src/hooks/`)
 
