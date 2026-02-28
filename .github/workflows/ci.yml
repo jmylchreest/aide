@@ -30,7 +30,6 @@ jobs:
 
       - name: Lint
         run: bun run lint
-        continue-on-error: true # Don't fail on lint initially
 
   go:
     name: Go Tests
@@ -99,7 +98,6 @@ jobs:
 
       - name: Build TypeScript
         run: bun run build
-        continue-on-error: true # May not have full build setup yet
 
       - name: Build aide
         run: |

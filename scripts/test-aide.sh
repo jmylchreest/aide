@@ -261,12 +261,13 @@ test_memory_system() {
 
     # Test adding a memory
     timer_start "memory-add"
-    local add_result=$("$AIDE_MEMORY_BIN" memory add \
+    local add_result
+    add_result=$("$AIDE_MEMORY_BIN" memory add \
         --category learning \
-        "Test learning: AIDE hooks work via stdin/stdout JSON" 2>&1)
+        "Test learning: AIDE hooks work via stdin/stdout JSON" 2>&1) && local add_rc=0 || local add_rc=$?
     timer_end "memory-add"
 
-    if [[ $? -eq 0 ]]; then
+    if [[ $add_rc -eq 0 ]]; then
         pass "memory add succeeded"
     else
         fail "memory add failed" "$add_result"
@@ -296,10 +297,11 @@ test_memory_system() {
 
     # Test task creation
     timer_start "task-create"
-    local task_result=$("$AIDE_MEMORY_BIN" task create "Test task for AIDE" 2>&1)
+    local task_result
+    task_result=$("$AIDE_MEMORY_BIN" task create "Test task for AIDE" 2>&1) && local task_rc=0 || local task_rc=$?
     timer_end "task-create"
 
-    if [[ $? -eq 0 ]]; then
+    if [[ $task_rc -eq 0 ]]; then
         pass "task create succeeded"
     else
         fail "task create failed" "$task_result"
@@ -334,10 +336,11 @@ test_memory_system() {
 
     # Test decision storage
     timer_start "decision-set"
-    local decision_result=$("$AIDE_MEMORY_BIN" decision set architecture "Use TypeScript for hooks" --rationale="Better type safety" 2>&1)
+    local decision_result
+    decision_result=$("$AIDE_MEMORY_BIN" decision set architecture "Use TypeScript for hooks" --rationale="Better type safety" 2>&1) && local dec_rc=0 || local dec_rc=$?
     timer_end "decision-set"
 
-    if [[ $? -eq 0 ]]; then
+    if [[ $dec_rc -eq 0 ]]; then
         pass "decision set succeeded"
     else
         fail "decision set failed" "$decision_result"
@@ -356,10 +359,11 @@ test_memory_system() {
 
     # Test message system (for swarm inter-agent communication)
     timer_start "message-send"
-    local msg_result=$("$AIDE_MEMORY_BIN" message send "Task A is complete, you can start Task B" --from=agent-1 --to=agent-2 2>&1)
+    local msg_result
+    msg_result=$("$AIDE_MEMORY_BIN" message send "Task A is complete, you can start Task B" --from=agent-1 --to=agent-2 2>&1) && local msg_rc=0 || local msg_rc=$?
     timer_end "message-send"
 
-    if [[ $? -eq 0 ]]; then
+    if [[ $msg_rc -eq 0 ]]; then
         pass "message send succeeded"
     else
         fail "message send failed" "$msg_result"
