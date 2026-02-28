@@ -34,6 +34,9 @@ import {
   statSync,
 } from "fs";
 import { join } from "path";
+import { debug } from "./logger.js";
+
+const SOURCE = "worktree";
 
 export type WorktreeStatus = "active" | "agent-complete" | "merged";
 
@@ -129,7 +132,7 @@ export function createWorktree(
   agentId: string,
 ): Worktree | null {
   if (!isGitRepo(cwd)) {
-    console.error("Not a git repository");
+    debug(SOURCE, "Not a git repository");
     return null;
   }
 
@@ -184,7 +187,7 @@ export function createWorktree(
 
     return worktree;
   } catch (error) {
-    console.error(`Failed to create worktree: ${error}`);
+    debug(SOURCE, `Failed to create worktree: ${error}`);
     return null;
   }
 }
@@ -197,7 +200,7 @@ export function removeWorktree(cwd: string, name: string): boolean {
   const worktree = state.active.find((w) => w.name === name);
 
   if (!worktree) {
-    console.error(`Worktree not found: ${name}`);
+    debug(SOURCE, `Worktree not found: ${name}`);
     return false;
   }
 
@@ -220,7 +223,7 @@ export function removeWorktree(cwd: string, name: string): boolean {
 
     return true;
   } catch (error) {
-    console.error(`Failed to remove worktree: ${error}`);
+    debug(SOURCE, `Failed to remove worktree: ${error}`);
     return false;
   }
 }
@@ -233,7 +236,7 @@ export function mergeWorktree(cwd: string, name: string): boolean {
   const worktree = state.active.find((w) => w.name === name);
 
   if (!worktree) {
-    console.error(`Worktree not found: ${name}`);
+    debug(SOURCE, `Worktree not found: ${name}`);
     return false;
   }
 
@@ -250,7 +253,7 @@ export function mergeWorktree(cwd: string, name: string): boolean {
 
     return true;
   } catch (error) {
-    console.error(`Failed to merge worktree: ${error}`);
+    debug(SOURCE, `Failed to merge worktree: ${error}`);
     return false;
   }
 }
@@ -315,7 +318,7 @@ export function registerWorktree(
   agentId: string,
 ): Worktree | null {
   if (!existsSync(worktreePath)) {
-    console.error(`Worktree path does not exist: ${worktreePath}`);
+    debug(SOURCE, `Worktree path does not exist: ${worktreePath}`);
     return null;
   }
 
