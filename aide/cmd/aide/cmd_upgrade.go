@@ -2,7 +2,10 @@
 package main
 
 import (
+	"bufio"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -126,6 +129,13 @@ func cmdUpgrade(args []string) error {
 		return fmt.Errorf("download failed: %w", err)
 	}
 	defer os.Remove(tmpFile)
+
+	// Verify checksum against checksums.txt from the release
+	checksumURL := fmt.Sprintf("%s/%s/checksums.txt", githubBaseURL, latestVersion)
+	if err := verifyDownloadChecksum(tmpFile, assetName, checksumURL); err != nil {
+		return fmt.Errorf("checksum verification failed: %w", err)
+	}
+	fmt.Println("Checksum verified.")
 
 	// Get current executable path
 	execPath, err := os.Executable()
@@ -266,6 +276,72 @@ func downloadFile(url string) (string, error) {
 	}
 
 	return tmpFile.Name(), nil
+}
+
+// verifyDownloadChecksum downloads the checksums file, finds the expected
+// SHA256 for assetName, computes the actual SHA256 of localPath, and returns
+// an error if they don't match.
+func verifyDownloadChecksum(localPath, assetName, checksumURL string) error {
+	expectedHash, err := fetchExpectedChecksum(checksumURL, assetName)
+	if err != nil {
+		return fmt.Errorf("could not fetch checksums: %w", err)
+	}
+
+	actualHash, err := sha256File(localPath)
+	if err != nil {
+		return fmt.Errorf("could not hash downloaded file: %w", err)
+	}
+
+	if actualHash != expectedHash {
+		return fmt.Errorf("sha256 mismatch for %s: expected %s, got %s", assetName, expectedHash, actualHash)
+	}
+	return nil
+}
+
+// fetchExpectedChecksum downloads checksumURL and returns the hex SHA256
+// for the given asset name. The file is expected to be in sha256sum format:
+// "<hex>  <filename>" or "<hex> <filename>".
+func fetchExpectedChecksum(checksumURL, assetName string) (string, error) {
+	ctx := context.Background()
+	resp, err := upgradeClient.Get(ctx, checksumURL)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("checksums download returned %d", resp.StatusCode)
+	}
+
+	// Limit to 1MiB to prevent abuse.
+	scanner := bufio.NewScanner(io.LimitReader(resp.Body, 1<<20))
+	for scanner.Scan() {
+		line := scanner.Text()
+		// sha256sum output: "<hex>  <filename>" (two spaces) or "<hex> <filename>"
+		parts := strings.Fields(line)
+		if len(parts) >= 2 && parts[len(parts)-1] == assetName {
+			return strings.ToLower(parts[0]), nil
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return "", fmt.Errorf("reading checksums: %w", err)
+	}
+	return "", fmt.Errorf("no checksum entry found for %s", assetName)
+}
+
+// sha256File returns the lowercase hex SHA256 of the file at path.
+func sha256File(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
 func copyFile(src, dst string) error {
