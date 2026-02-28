@@ -25,6 +25,14 @@ var (
 	storeMutex  sync.Mutex
 )
 
+// jsonError returns a C string with a properly escaped JSON error object.
+// Using json.Marshal ensures special characters in error messages don't
+// break the JSON structure (prevents injection via crafted error strings).
+func jsonError(msg string) *C.char {
+	b, _ := json.Marshal(map[string]string{"error": msg})
+	return C.CString(string(b))
+}
+
 //export AideMemoryInit
 func AideMemoryInit(dbPath *C.char) *C.char {
 	storeMutex.Lock()
@@ -37,7 +45,7 @@ func AideMemoryInit(dbPath *C.char) *C.char {
 	path := C.GoString(dbPath)
 	s, err := store.NewBoltStore(path)
 	if err != nil {
-		return C.CString(`{"error":"` + err.Error() + `"}`)
+		return jsonError(err.Error())
 	}
 
 	globalStore = s
@@ -61,7 +69,7 @@ func AideMemoryAdd(category, content, tags, plan *C.char) *C.char {
 	defer storeMutex.Unlock()
 
 	if globalStore == nil {
-		return C.CString(`{"error":"store not initialized"}`)
+		return jsonError("store not initialized")
 	}
 
 	m := &memory.Memory{
@@ -81,7 +89,7 @@ func AideMemoryAdd(category, content, tags, plan *C.char) *C.char {
 	}
 
 	if err := globalStore.AddMemory(m); err != nil {
-		return C.CString(`{"error":"` + err.Error() + `"}`)
+		return jsonError(err.Error())
 	}
 
 	result, _ := json.Marshal(m)
@@ -94,12 +102,12 @@ func AideMemorySearch(query *C.char, limit C.int) *C.char {
 	defer storeMutex.Unlock()
 
 	if globalStore == nil {
-		return C.CString(`{"error":"store not initialized"}`)
+		return jsonError("store not initialized")
 	}
 
 	memories, err := globalStore.SearchMemories(C.GoString(query), int(limit))
 	if err != nil {
-		return C.CString(`{"error":"` + err.Error() + `"}`)
+		return jsonError(err.Error())
 	}
 
 	result, _ := json.Marshal(memories)
@@ -112,7 +120,7 @@ func AideMemoryList(category *C.char, limit C.int) *C.char {
 	defer storeMutex.Unlock()
 
 	if globalStore == nil {
-		return C.CString(`{"error":"store not initialized"}`)
+		return jsonError("store not initialized")
 	}
 
 	opts := memory.SearchOptions{
@@ -122,7 +130,7 @@ func AideMemoryList(category *C.char, limit C.int) *C.char {
 
 	memories, err := globalStore.ListMemories(opts)
 	if err != nil {
-		return C.CString(`{"error":"` + err.Error() + `"}`)
+		return jsonError(err.Error())
 	}
 
 	result, _ := json.Marshal(memories)
@@ -135,7 +143,7 @@ func AideMemoryTaskCreate(title, description *C.char) *C.char {
 	defer storeMutex.Unlock()
 
 	if globalStore == nil {
-		return C.CString(`{"error":"store not initialized"}`)
+		return jsonError("store not initialized")
 	}
 
 	t := &memory.Task{
@@ -147,7 +155,7 @@ func AideMemoryTaskCreate(title, description *C.char) *C.char {
 	}
 
 	if err := globalStore.AddTask(t); err != nil {
-		return C.CString(`{"error":"` + err.Error() + `"}`)
+		return jsonError(err.Error())
 	}
 
 	result, _ := json.Marshal(t)
@@ -160,12 +168,12 @@ func AideMemoryTaskClaim(taskID, agentID *C.char) *C.char {
 	defer storeMutex.Unlock()
 
 	if globalStore == nil {
-		return C.CString(`{"error":"store not initialized"}`)
+		return jsonError("store not initialized")
 	}
 
 	task, err := globalStore.ClaimTask(C.GoString(taskID), C.GoString(agentID))
 	if err != nil {
-		return C.CString(`{"error":"` + err.Error() + `"}`)
+		return jsonError(err.Error())
 	}
 
 	result, _ := json.Marshal(task)
@@ -178,11 +186,11 @@ func AideMemoryTaskComplete(taskID, resultStr *C.char) *C.char {
 	defer storeMutex.Unlock()
 
 	if globalStore == nil {
-		return C.CString(`{"error":"store not initialized"}`)
+		return jsonError("store not initialized")
 	}
 
 	if err := globalStore.CompleteTask(C.GoString(taskID), C.GoString(resultStr)); err != nil {
-		return C.CString(`{"error":"` + err.Error() + `"}`)
+		return jsonError(err.Error())
 	}
 
 	return C.CString(`{"success":true}`)
@@ -194,12 +202,12 @@ func AideMemoryTaskList(status *C.char) *C.char {
 	defer storeMutex.Unlock()
 
 	if globalStore == nil {
-		return C.CString(`{"error":"store not initialized"}`)
+		return jsonError("store not initialized")
 	}
 
 	tasks, err := globalStore.ListTasks(memory.TaskStatus(C.GoString(status)))
 	if err != nil {
-		return C.CString(`{"error":"` + err.Error() + `"}`)
+		return jsonError(err.Error())
 	}
 
 	result, _ := json.Marshal(tasks)
@@ -212,7 +220,7 @@ func AideMemoryDecisionSet(topic, decision, rationale *C.char) *C.char {
 	defer storeMutex.Unlock()
 
 	if globalStore == nil {
-		return C.CString(`{"error":"store not initialized"}`)
+		return jsonError("store not initialized")
 	}
 
 	d := &memory.Decision{
@@ -223,7 +231,7 @@ func AideMemoryDecisionSet(topic, decision, rationale *C.char) *C.char {
 	}
 
 	if err := globalStore.SetDecision(d); err != nil {
-		return C.CString(`{"error":"` + err.Error() + `"}`)
+		return jsonError(err.Error())
 	}
 
 	result, _ := json.Marshal(d)
@@ -236,12 +244,12 @@ func AideMemoryDecisionGet(topic *C.char) *C.char {
 	defer storeMutex.Unlock()
 
 	if globalStore == nil {
-		return C.CString(`{"error":"store not initialized"}`)
+		return jsonError("store not initialized")
 	}
 
 	d, err := globalStore.GetDecision(C.GoString(topic))
 	if err != nil {
-		return C.CString(`{"error":"` + err.Error() + `"}`)
+		return jsonError(err.Error())
 	}
 
 	result, _ := json.Marshal(d)
