@@ -31,7 +31,7 @@ import {
   copyFileSync,
   unlinkSync,
 } from "fs";
-import { join, basename } from "path";
+import { join, basename, resolve } from "path";
 import { homedir } from "os";
 
 export interface SkillMetadata {
@@ -122,6 +122,30 @@ export function saveRegistry(cwd: string, registry: SkillsRegistry): void {
 }
 
 /**
+ * Sanitize a skill name to prevent path traversal.
+ * Strips path separators and rejects names that would escape the target directory.
+ */
+function sanitizeSkillName(name: string): string {
+  // Take only the basename to strip any directory components
+  const safe = basename(name).replace(/[^a-zA-Z0-9._-]/g, "_");
+  if (!safe || safe === "." || safe === "..") {
+    throw new Error(`Invalid skill name: ${name}`);
+  }
+  return safe;
+}
+
+/**
+ * Validate that a resolved path stays within the expected directory.
+ */
+function assertWithinDir(filePath: string, dir: string): void {
+  const resolved = resolve(filePath);
+  const resolvedDir = resolve(dir);
+  if (!resolved.startsWith(resolvedDir + "/") && resolved !== resolvedDir) {
+    throw new Error(`Path traversal detected: ${filePath} escapes ${dir}`);
+  }
+}
+
+/**
  * Install a skill from skills.sh or a URL
  *
  * Formats:
@@ -201,8 +225,10 @@ export async function installSkill(
     version = meta.version || version;
   }
 
-  // Write skill file
+  // Sanitize name and write skill file
+  name = sanitizeSkillName(name);
   const skillPath = join(targetDir, `${name}.md`);
+  assertWithinDir(skillPath, targetDir);
   writeFileSync(skillPath, content);
 
   // Update registry
@@ -242,8 +268,10 @@ export function uninstallSkill(cwd: string, name: string): boolean {
     return false;
   }
 
-  // Remove file
-  const skillPath = join(cwd, SKILLS_DIR, `${name}.md`);
+  // Sanitize name and remove file
+  const safeName = sanitizeSkillName(name);
+  const skillPath = join(cwd, SKILLS_DIR, `${safeName}.md`);
+  assertWithinDir(skillPath, join(cwd, SKILLS_DIR));
   if (existsSync(skillPath)) {
     try {
       unlinkSync(skillPath);
