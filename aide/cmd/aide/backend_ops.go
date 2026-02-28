@@ -679,17 +679,11 @@ func (b *Backend) CompleteTask(taskID, result string) error {
 	defer cancel()
 
 	if b.useGRPC {
-		resp, err := b.grpcClient.Task.Complete(ctx, &grpcapi.TaskCompleteRequest{
+		_, err := b.grpcClient.Task.Complete(ctx, &grpcapi.TaskCompleteRequest{
 			TaskId: taskID,
 			Result: result,
 		})
-		if err != nil {
-			return err
-		}
-		if !resp.Success {
-			return fmt.Errorf("failed to complete task")
-		}
-		return nil
+		return err
 	}
 
 	return b.store.CompleteTask(taskID, result)

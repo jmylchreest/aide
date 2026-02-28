@@ -415,47 +415,29 @@ func (g *grpcStoreAdapter) ClaimTask(taskID, agentID string) (*memory.Task, erro
 func (g *grpcStoreAdapter) CompleteTask(taskID, result string) error {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
-	resp, err := g.client.Task.Complete(ctx, &grpcapi.TaskCompleteRequest{
+	_, err := g.client.Task.Complete(ctx, &grpcapi.TaskCompleteRequest{
 		TaskId: taskID,
 		Result: result,
 	})
-	if err != nil {
-		return err
-	}
-	if !resp.Success {
-		return fmt.Errorf("failed to complete task")
-	}
-	return nil
+	return err
 }
 
 func (g *grpcStoreAdapter) UpdateTask(t *memory.Task) error {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
-	resp, err := g.client.Task.Update(ctx, &grpcapi.TaskUpdateRequest{
+	_, err := g.client.Task.Update(ctx, &grpcapi.TaskUpdateRequest{
 		TaskId: t.ID,
 		Status: string(t.Status),
 		Result: t.Result,
 	})
-	if err != nil {
-		return err
-	}
-	if !resp.Success {
-		return fmt.Errorf("failed to update task")
-	}
-	return nil
+	return err
 }
 
 func (g *grpcStoreAdapter) DeleteTask(id string) error {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
-	resp, err := g.client.Task.Delete(ctx, &grpcapi.TaskDeleteRequest{Id: id})
-	if err != nil {
-		return err
-	}
-	if !resp.Success {
-		return fmt.Errorf("failed to delete task")
-	}
-	return nil
+	_, err := g.client.Task.Delete(ctx, &grpcapi.TaskDeleteRequest{Id: id})
+	return err
 }
 
 func (g *grpcStoreAdapter) ClearTasks(status memory.TaskStatus) (int, error) {

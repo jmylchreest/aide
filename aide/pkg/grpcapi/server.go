@@ -672,9 +672,7 @@ func (s *taskServiceImpl) Claim(ctx context.Context, req *TaskClaimRequest) (*Ta
 
 func (s *taskServiceImpl) Complete(ctx context.Context, req *TaskCompleteRequest) (*TaskCompleteResponse, error) {
 	if err := s.store.CompleteTask(req.TaskId, req.Result); err != nil {
-		return &TaskCompleteResponse{
-			Success: false,
-		}, nil
+		return nil, fmt.Errorf("complete task: %w", err)
 	}
 
 	task, err := s.store.GetTask(req.TaskId)
@@ -694,7 +692,7 @@ func (s *taskServiceImpl) Update(ctx context.Context, req *TaskUpdateRequest) (*
 	// Get existing task
 	task, err := s.store.GetTask(req.TaskId)
 	if err != nil {
-		return &TaskUpdateResponse{Success: false}, nil
+		return nil, fmt.Errorf("get task for update: %w", err)
 	}
 
 	// Update fields
@@ -707,7 +705,7 @@ func (s *taskServiceImpl) Update(ctx context.Context, req *TaskUpdateRequest) (*
 
 	// Persist the changes
 	if err := s.store.UpdateTask(task); err != nil {
-		return &TaskUpdateResponse{Success: false}, nil
+		return nil, fmt.Errorf("update task: %w", err)
 	}
 
 	return &TaskUpdateResponse{
@@ -718,7 +716,7 @@ func (s *taskServiceImpl) Update(ctx context.Context, req *TaskUpdateRequest) (*
 
 func (s *taskServiceImpl) Delete(ctx context.Context, req *TaskDeleteRequest) (*TaskDeleteResponse, error) {
 	if err := s.store.DeleteTask(req.Id); err != nil {
-		return &TaskDeleteResponse{Success: false}, nil
+		return nil, fmt.Errorf("delete task: %w", err)
 	}
 	return &TaskDeleteResponse{Success: true}, nil
 }
