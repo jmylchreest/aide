@@ -19,12 +19,23 @@ import {
 
 export { sanitizeForLog, shellEscape };
 
+/** Maximum stdin payload size: 50 MiB. Prevents unbounded memory allocation. */
+const MAX_STDIN_BYTES = 50 * 1024 * 1024;
+
 /**
- * Read JSON input from stdin (used by all hooks)
+ * Read JSON input from stdin (used by all hooks).
+ * Rejects payloads exceeding MAX_STDIN_BYTES.
  */
 export async function readStdin(): Promise<string> {
   const chunks: Buffer[] = [];
+  let totalBytes = 0;
   for await (const chunk of process.stdin) {
+    totalBytes += chunk.length;
+    if (totalBytes > MAX_STDIN_BYTES) {
+      throw new Error(
+        `stdin payload exceeds ${MAX_STDIN_BYTES} bytes, rejecting`,
+      );
+    }
     chunks.push(chunk);
   }
   return Buffer.concat(chunks).toString("utf-8");
