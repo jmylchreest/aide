@@ -95,11 +95,9 @@ export function updateToolStats(
     setState(binary, cwd, "startedAt", new Date().toISOString());
   }
 
-  // Track tool calls
-  const currentToolCalls = parseInt(
-    getState(binary, cwd, "toolCalls") || "0",
-    10,
-  );
+  // Track tool calls (guard against NaN from corrupted state)
+  const parsed = parseInt(getState(binary, cwd, "toolCalls") || "0", 10);
+  const currentToolCalls = Number.isNaN(parsed) ? 0 : parsed;
   setState(binary, cwd, "toolCalls", String(currentToolCalls + 1));
   setState(binary, cwd, "lastToolUse", new Date().toISOString());
   setState(binary, cwd, "lastTool", toolName);
