@@ -42,10 +42,16 @@ require_cmd sed
 
 # --- GitHub API helpers ----------------------------------------------------
 
-# Last API error detail — set by gh_api / latest_tag for callers to inspect.
-GH_API_ERROR=""
+# Error detail file — used to pass error messages out of subshells created
+# by $() command substitution (subshells can't modify parent variables).
+_GH_ERROR_FILE=$(mktemp)
+trap 'rm -f "${_GH_ERROR_FILE}"' EXIT
 
-# Make a GitHub API request. Sets GH_API_ERROR on failure.
+gh_api_error() {
+  cat "${_GH_ERROR_FILE}" 2>/dev/null
+}
+
+# Make a GitHub API request. Writes error detail to $_GH_ERROR_FILE on failure.
 # Returns 0 on success (body on stdout), 1 on failure.
 gh_api() {
   local url="$1"
@@ -56,7 +62,7 @@ gh_api() {
 
   local raw http_code body
   raw=$(curl "${curl_args[@]}" "https://api.github.com${url}" 2>/dev/null) || {
-    GH_API_ERROR="network error (curl failed)"
+    echo "network error (curl failed)" > "${_GH_ERROR_FILE}"
     return 1
   }
 
@@ -65,26 +71,26 @@ gh_api() {
   body=$(echo "${raw}" | sed '$d')
 
   case "${http_code}" in
-    200) GH_API_ERROR=""; echo "${body}"; return 0 ;;
+    200) : > "${_GH_ERROR_FILE}"; echo "${body}"; return 0 ;;
     403)
       local msg
       msg=$(echo "${body}" | jq -r '.message // empty' 2>/dev/null)
       if [[ "${msg}" == *"rate limit"* ]]; then
-        GH_API_ERROR="API rate limit exceeded (set GITHUB_TOKEN)"
+        echo "API rate limit exceeded (set GITHUB_TOKEN)" > "${_GH_ERROR_FILE}"
       else
-        GH_API_ERROR="access denied (HTTP 403)"
+        echo "access denied (HTTP 403)" > "${_GH_ERROR_FILE}"
       fi
       return 1
       ;;
-    404) GH_API_ERROR="repository not found (HTTP 404)"; return 1 ;;
-    *)   GH_API_ERROR="HTTP ${http_code}"; return 1 ;;
+    404) echo "repository not found (HTTP 404)" > "${_GH_ERROR_FILE}"; return 1 ;;
+    *)   echo "HTTP ${http_code}" > "${_GH_ERROR_FILE}"; return 1 ;;
   esac
 }
 
 # Fetch the latest release-quality tag for a repo.
 # Filters out pre-releases, draft tags, and -rc / -alpha / -beta suffixes.
 # Returns the tag name (e.g. "v0.23.4" or "0.4.0").
-# On failure, returns empty string and GH_API_ERROR describes the problem.
+# On failure, returns empty string; call gh_api_error() for the reason.
 latest_tag() {
   local repo="$1"
   local filter="${2:-}"  # Optional jq filter for special cases
@@ -110,7 +116,7 @@ latest_tag() {
   fi
 
   if [[ -z "${result}" ]]; then
-    GH_API_ERROR="no matching release tag found"
+    echo "no matching release tag found" > "${_GH_ERROR_FILE}"
   fi
   echo "${result}"
 }
@@ -236,7 +242,8 @@ for entry in "${ENTRIES[@]}"; do
   if [[ -z "${new_tag}" ]]; then
     ERRORS=$((ERRORS + 1))
     status="error"
-    detail="${GH_API_ERROR:-failed to fetch tags from ${repo}}"
+    detail="$(gh_api_error)"
+    detail="${detail:-failed to fetch tags from ${repo}}"
     if ! ${JSON_OUTPUT}; then
       echo "  ${RED}✗${RESET} ${BOLD}${name}${RESET}  ${current_tag}  →  ${RED}error: ${detail}${RESET}"
     fi
