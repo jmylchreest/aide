@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/jmylchreest/aide/aide/pkg/watcher"
 )
 
 // Watcher watches for file changes and triggers reindexing.
@@ -68,9 +69,7 @@ func (w *Watcher) Start() error {
 			if info.IsDir() {
 				// Skip common non-source directories
 				name := info.Name()
-				if name == "node_modules" || name == ".git" || name == "vendor" ||
-					name == "__pycache__" || name == ".venv" || name == "dist" ||
-					name == "build" || name == ".aide" {
+				if watcher.DefaultSkipDirs[name] {
 					return filepath.SkipDir
 				}
 				return w.watcher.Add(path)
@@ -115,9 +114,7 @@ func (w *Watcher) processEvents() {
 				if info, err := os.Stat(event.Name); err == nil && info.IsDir() {
 					name := filepath.Base(event.Name)
 					// Skip excluded directories
-					if name != "node_modules" && name != ".git" && name != "vendor" &&
-						name != "__pycache__" && name != ".venv" && name != "dist" &&
-						name != "build" && name != ".aide" && !strings.HasPrefix(name, ".") {
+					if !watcher.DefaultSkipDirs[name] && !strings.HasPrefix(name, ".") {
 						if err := w.watcher.Add(event.Name); err == nil {
 							log.Printf("[aide:watcher] watching new directory: %s", event.Name)
 						}
