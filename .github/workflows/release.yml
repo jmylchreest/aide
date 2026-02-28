@@ -270,17 +270,17 @@ jobs:
           set -euo pipefail
           mkdir -p dist staging
 
-          # Set compiler based on platform
+          # Set compiler as arrays to avoid eval with multi-word commands
           if [[ -n "${ZIG_TARGET:-}" ]]; then
-            CC="zig cc -target ${ZIG_TARGET}"
+            CC=(zig cc -target "${ZIG_TARGET}")
             SHARED_FLAG="-shared"
           else
-            CC="clang"
+            CC=(clang)
             if [[ "${OS_NAME}" == "darwin" ]]; then
               if [[ "${ARCH}" == "arm64" ]]; then
-                CC="clang -arch arm64"
+                CC=(clang -arch arm64)
               else
-                CC="clang -arch x86_64"
+                CC=(clang -arch x86_64)
               fi
               SHARED_FLAG="-dynamiclib"
             else
@@ -291,7 +291,7 @@ jobs:
           # Grammar definitions: name|repo|c_symbol|tag|extra_src_dir
           # Generated from pack.json files — update grammars by editing
           # aide/pkg/grammar/packs/<lang>/pack.json, not this array.
-          eval "$(bash "${GITHUB_WORKSPACE}/scripts/generate-grammar-matrix.sh")"
+          mapfile -t GRAMMARS < <(bash "${GITHUB_WORKSPACE}/scripts/generate-grammar-matrix.sh" --print)
 
           for entry in "${GRAMMARS[@]}"; do
             IFS='|' read -r name repo c_symbol tag extra_src <<< "$entry"
@@ -326,16 +326,16 @@ jobs:
               continue
             fi
 
-            SOURCES="${SRC_DIR}/parser.c"
-            CXX_SOURCES=""
+            SOURCES=("${SRC_DIR}/parser.c")
+            CXX_SOURCES=()
             if [[ -f "${SRC_DIR}/scanner.c" ]]; then
-              SOURCES="${SOURCES} ${SRC_DIR}/scanner.c"
+              SOURCES+=("${SRC_DIR}/scanner.c")
             fi
             # Some grammars use C++ scanners (scanner.cc or scanner.cpp)
             if [[ -f "${SRC_DIR}/scanner.cc" ]]; then
-              CXX_SOURCES="${SRC_DIR}/scanner.cc"
+              CXX_SOURCES=("${SRC_DIR}/scanner.cc")
             elif [[ -f "${SRC_DIR}/scanner.cpp" ]]; then
-              CXX_SOURCES="${SRC_DIR}/scanner.cpp"
+              CXX_SOURCES=("${SRC_DIR}/scanner.cpp")
             fi
 
             # Compile grammar into a staging directory: staging/{name}/grammar{ext}
@@ -344,30 +344,30 @@ jobs:
             GRAMMAR_FILE="${STAGE_DIR}/grammar${EXT}"
 
             # If there are C++ sources, compile them separately and link together
-            if [[ -n "${CXX_SOURCES}" ]]; then
+            if [[ ${#CXX_SOURCES[@]} -gt 0 ]]; then
               # Compile C sources to object files
-              eval ${CC} -fPIC -O2 -c -I "${SRC_DIR}" -I "grammar-src/${name}/src" \
-                ${SOURCES} 2>&1 || {
+              "${CC[@]}" -fPIC -O2 -c -I "${SRC_DIR}" -I "grammar-src/${name}/src" \
+                "${SOURCES[@]}" 2>&1 || {
                 echo "WARNING: Failed to compile C sources for ${name}, skipping"
                 rm -rf "grammar-src/${name}" "${STAGE_DIR}"
                 continue
               }
-              # Determine C++ compiler from CC (gcc -> g++, *-gcc -> *-g++)
-              CXX="${CC/gcc/g++}"
-              if [[ "${CXX}" == "${CC}" ]]; then
-                # CC doesn't contain "gcc", try clang -> clang++
-                CXX="${CC/clang/clang++}"
+              # Determine C++ compiler from CC (replace gcc->g++, clang->clang++)
+              CXX=("${CC[@]}")
+              CXX[0]="${CXX[0]/gcc/g++}"
+              if [[ "${CXX[0]}" == "${CC[0]}" ]]; then
+                CXX[0]="${CXX[0]/clang/clang++}"
               fi
               # Compile C++ scanner to object file
-              eval ${CXX} -fPIC -O2 -c -I "${SRC_DIR}" -I "grammar-src/${name}/src" \
-                ${CXX_SOURCES} 2>&1 || {
+              "${CXX[@]}" -fPIC -O2 -c -I "${SRC_DIR}" -I "grammar-src/${name}/src" \
+                "${CXX_SOURCES[@]}" 2>&1 || {
                 echo "WARNING: Failed to compile C++ scanner for ${name}, skipping"
                 rm -f *.o
                 rm -rf "grammar-src/${name}" "${STAGE_DIR}"
                 continue
               }
               # Link all object files into shared library
-              eval ${CXX} ${SHARED_FLAG} -fPIC *.o -o "${GRAMMAR_FILE}" 2>&1 || {
+              "${CXX[@]}" "${SHARED_FLAG}" -fPIC *.o -o "${GRAMMAR_FILE}" 2>&1 || {
                 echo "WARNING: Failed to link ${name}, skipping"
                 rm -f *.o
                 rm -rf "grammar-src/${name}" "${STAGE_DIR}"
@@ -375,10 +375,10 @@ jobs:
               }
               rm -f *.o
             else
-              eval ${CC} ${SHARED_FLAG} -fPIC -O2 \
+              "${CC[@]}" "${SHARED_FLAG}" -fPIC -O2 \
                 -I "${SRC_DIR}" \
                 -I "grammar-src/${name}/src" \
-                ${SOURCES} \
+                "${SOURCES[@]}" \
                 -o "${GRAMMAR_FILE}" 2>&1 || {
                 echo "WARNING: Failed to compile ${name}, skipping"
                 rm -rf "grammar-src/${name}" "${STAGE_DIR}"
