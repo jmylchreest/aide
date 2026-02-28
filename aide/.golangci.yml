@@ -46,8 +46,6 @@ linters:
     staticcheck:
       checks: ["all"]
   exclusions:
-    paths:
-      - ffi
     rules:
       - path: _test\.go
         linters:
@@ -55,10 +53,6 @@ linters:
           - gosec
           - gocyclo
           - errorlint
-      - path: ffi/.*\.go
-        linters:
-          - errcheck
-          - gosec
       - path: cmd/.*\.go
         linters:
           - errcheck
