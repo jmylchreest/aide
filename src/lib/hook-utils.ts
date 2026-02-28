@@ -13,10 +13,11 @@ import {
   getState,
   deleteState,
   clearAgentState as clientClearAgentState,
+  sanitizeForLog,
   shellEscape,
 } from "../core/aide-client.js";
 
-export { shellEscape };
+export { sanitizeForLog, shellEscape };
 
 /**
  * Read JSON input from stdin (used by all hooks)

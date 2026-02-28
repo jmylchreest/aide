@@ -20,12 +20,8 @@
  * - { continue: true } to show normal permission prompt
  */
 
-import {
-  readStdin,
-  findAideBinary,
-  runAide,
-  shellEscape,
-} from "../lib/hook-utils.js";
+import { readStdin, findAideBinary, runAide } from "../lib/hook-utils.js";
+import { sanitizeForLog } from "../core/aide-client.js";
 import { debug } from "../lib/logger.js";
 
 const SOURCE = "permission-handler";
@@ -89,7 +85,7 @@ const BLOCKED_COMMANDS = [
 function logPermission(cwd: string, command: string, decision: string): void {
   if (!findAideBinary(cwd)) return;
 
-  const safeCommand = shellEscape(command).slice(0, 200);
+  const safeCommand = sanitizeForLog(command).slice(0, 200);
   runAide(cwd, [
     "message",
     "send",

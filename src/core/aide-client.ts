@@ -190,15 +190,15 @@ export function clearAgentState(
 }
 
 /**
- * Escape a string for safe shell usage (when shell is unavoidable)
+ * Sanitize a string for safe inclusion in log messages and CLI arguments.
+ *
+ * Strips control characters and limits length. This is NOT shell escaping —
+ * use execFileSync (which avoids shells entirely) for subprocess execution.
  */
-export function shellEscape(str: string): string {
-  return str
-    .replace(/\\/g, "\\\\")
-    .replace(/"/g, '\\"')
-    .replace(/\$/g, "\\$")
-    .replace(/`/g, "\\`")
-    .replace(/!/g, "\\!")
-    .replace(/\n/g, " ")
-    .slice(0, 1000);
+export function sanitizeForLog(str: string): string {
+  // eslint-disable-next-line no-control-regex
+  return str.replace(/[\x00-\x1f\x7f]/g, " ").slice(0, 1000);
 }
+
+/** @deprecated Use sanitizeForLog instead */
+export const shellEscape = sanitizeForLog;
