@@ -149,7 +149,11 @@ func taskList(b *Backend, args []string) error {
 		if len(t.ID) > 8 {
 			idDisplay = t.ID[:8]
 		}
-		fmt.Printf("[%s] %s: %s\n", t.Status, idDisplay, t.Title)
+		if t.ClaimedBy != "" {
+			fmt.Printf("[%s] %s: %s (agent:%s)\n", t.Status, idDisplay, t.Title, t.ClaimedBy)
+		} else {
+			fmt.Printf("[%s] %s: %s\n", t.Status, idDisplay, t.Title)
+		}
 	}
 	return nil
 }

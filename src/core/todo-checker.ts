@@ -1,17 +1,18 @@
 /**
  * Todo continuation checker — platform-agnostic.
  *
- * Reads the agent's todo list and checks for incomplete items.
+ * Reads aide tasks (`aide task list`) and checks for incomplete items.
  * Used to enhance persistence-logic.ts with precise todo-aware blocking:
  * instead of a generic "verify your work is complete", we list the
- * specific incomplete todos.
+ * specific incomplete tasks.
  *
- * For Claude Code: reads todos from the transcript (TodoWrite tool outputs)
- *   or from aide task list.
- * For OpenCode: reads todos via client.session.todo() API.
+ * Only checks aide tasks (persistent, cross-session). Native todos
+ * (Claude Code TodoWrite, OpenCode todowrite) are session-scoped
+ * personal tracking and are intentionally not checked here — neither
+ * platform exposes an API for reading them from hooks.
  *
  * This module provides the platform-agnostic core. Platform hooks
- * call it with however they obtained the todo list.
+ * call it via persistence-logic.ts.
  */
 
 import { runAide } from "./aide-client.js";
@@ -19,10 +20,24 @@ import { debug } from "../lib/logger.js";
 
 const SOURCE = "todo-checker";
 
+/**
+ * Known terminal statuses — tasks in these states are considered "done".
+ * Any status NOT in this set is treated as incomplete (including unknown
+ * statuses from future aide versions), which is the safe default for
+ * persistence enforcement.
+ *
+ * Covers both aide backend statuses (done) and any legacy/alias statuses
+ * (completed, cancelled) for forward/backward compatibility.
+ */
+export const TERMINAL_STATUSES = new Set(["done", "completed", "cancelled"]);
+
 export interface TodoItem {
   id: string;
   content: string;
-  status: "pending" | "in_progress" | "completed" | "cancelled";
+  /** Raw status string from aide — may be any value, not just known ones. */
+  status: string;
+  /** Agent that claimed this task, if any. */
+  claimedBy?: string;
   priority?: string;
 }
 
@@ -41,8 +56,16 @@ export interface TodoCheckResult {
 
 /**
  * Check a list of todos for incomplete items and build a continuation message.
+ *
+ * When agentId is provided, only tasks relevant to this agent are considered:
+ * - Unclaimed tasks (pending, blocked) — everyone's responsibility
+ * - Tasks claimed by this agent — this agent's responsibility
+ * Tasks claimed by other agents are filtered out.
  */
-export function checkTodos(todos: TodoItem[]): TodoCheckResult {
+export function checkTodos(
+  todos: TodoItem[],
+  agentId?: string,
+): TodoCheckResult {
   if (!todos || todos.length === 0) {
     return {
       hasIncomplete: false,
@@ -53,29 +76,34 @@ export function checkTodos(todos: TodoItem[]): TodoCheckResult {
     };
   }
 
-  const incomplete = todos.filter(
-    (t) => t.status !== "completed" && t.status !== "cancelled",
-  );
+  // When scoped to a specific agent, filter out tasks claimed by other agents.
+  // Unclaimed tasks (no claimedBy) are considered everyone's responsibility.
+  const relevant = agentId
+    ? todos.filter((t) => !t.claimedBy || t.claimedBy === agentId)
+    : todos;
+
+  const incomplete = relevant.filter((t) => !TERMINAL_STATUSES.has(t.status));
 
   if (incomplete.length === 0) {
     return {
       hasIncomplete: false,
       incompleteCount: 0,
-      totalCount: todos.length,
+      totalCount: relevant.length,
       incompleteItems: [],
       message: "",
     };
   }
 
-  const completedCount = todos.length - incomplete.length;
+  const completedCount = relevant.length - incomplete.length;
   const lines: string[] = [
-    `**TODO CONTINUATION** — ${incomplete.length} of ${todos.length} tasks incomplete (${completedCount} done)`,
+    `**TODO CONTINUATION** — ${incomplete.length} of ${relevant.length} tasks incomplete (${completedCount} done)`,
     "",
     "Remaining tasks:",
   ];
 
   for (const item of incomplete) {
-    const statusIcon = item.status === "in_progress" ? ">" : " ";
+    const statusIcon =
+      item.status === "in_progress" || item.status === "claimed" ? ">" : " ";
     lines.push(`  [${statusIcon}] ${item.content}`);
   }
 
@@ -87,7 +115,7 @@ export function checkTodos(todos: TodoItem[]): TodoCheckResult {
   return {
     hasIncomplete: true,
     incompleteCount: incomplete.length,
-    totalCount: todos.length,
+    totalCount: relevant.length,
     incompleteItems: incomplete,
     message: lines.join("\n"),
   };
@@ -99,6 +127,12 @@ export function checkTodos(todos: TodoItem[]): TodoCheckResult {
  * Output format from `aide task list`:
  *   [status] id: content
  *   e.g.: [pending] abc123: Implement feature X
+ *         [claimed] task-def: Deploy service
+ *
+ * The regex accepts any alphanumeric/underscore status to handle
+ * current statuses (pending, claimed, done, blocked) and any future
+ * additions without code changes. Unknown statuses are treated as
+ * incomplete by checkTodos().
  */
 export function parseTodosFromAide(output: string): TodoItem[] {
   const todos: TodoItem[] = [];
@@ -106,13 +140,14 @@ export function parseTodosFromAide(output: string): TodoItem[] {
 
   for (const line of lines) {
     const match = line.match(
-      /\[(pending|in_progress|completed|cancelled)\]\s+(\S+):\s+(.+)/,
+      /\[(\w+)\]\s+(\S+):\s+(.+?)(?:\s+\(agent:(\S+)\))?$/,
     );
     if (match) {
       todos.push({
-        status: match[1] as TodoItem["status"],
+        status: match[1],
         id: match[2],
         content: match[3].trim(),
+        claimedBy: match[4] || undefined,
       });
     }
   }

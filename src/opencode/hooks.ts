@@ -427,7 +427,11 @@ async function handleSessionIdle(
   // Check persistence: if ralph/autopilot mode is active, re-prompt the session
   if (state.binary) {
     try {
-      const persistResult = checkPersistence(state.binary, state.cwd);
+      const persistResult = checkPersistence(
+        state.binary,
+        state.cwd,
+        sessionId,
+      );
       if (persistResult) {
         const activeMode = getActiveMode(state.binary, state.cwd);
         debug(

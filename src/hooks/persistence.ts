@@ -53,7 +53,7 @@ async function main(): Promise<void> {
       return;
     }
 
-    const result = checkPersistence(binary, cwd);
+    const result = checkPersistence(binary, cwd, data.session_id);
     if (!result) {
       console.log(JSON.stringify({}));
       return;
