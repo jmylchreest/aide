@@ -180,6 +180,7 @@ info "found ${#ENTRIES[@]} grammar definitions in pack.json files"
 
 # Track results.
 declare -a RESULTS=()
+declare -A RESOLVED_TAGS=()  # Cache: name → latest tag (avoids re-fetching in --update)
 UPDATES=0
 ERRORS=0
 CURRENT=0
@@ -190,6 +191,9 @@ for entry in "${ENTRIES[@]}"; do
   # Look up the latest tag.
   filter=$(tag_filter_for "${name}" "${repo}")
   new_tag=$(latest_tag "${repo}" "${filter}")
+
+  # Cache resolved tag for reuse in --update mode.
+  RESOLVED_TAGS["${name}"]="${new_tag}"
 
   if [[ -z "${new_tag}" ]]; then
     ERRORS=$((ERRORS + 1))
@@ -273,8 +277,9 @@ if [[ "${MODE}" == "update" ]]; then
 
   for entry in "${ENTRIES[@]}"; do
     IFS='|' read -r name repo c_symbol current_tag extra_src <<< "${entry}"
-    filter=$(tag_filter_for "${name}" "${repo}")
-    new_tag=$(latest_tag "${repo}" "${filter}")
+
+    # Use cached tag from the check pass instead of re-fetching.
+    new_tag="${RESOLVED_TAGS["${name}"]:-}"
 
     if [[ -n "${new_tag}" && "${current_tag}" != "${new_tag}" ]]; then
       pack_file="${PACKS_DIR}/${name}/pack.json"
