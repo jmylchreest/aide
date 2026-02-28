@@ -131,7 +131,7 @@ func (s *Server) SetToolCountFunc(f func() map[string]int64) {
 func (s *Server) Start() error {
 	// Ensure socket directory exists
 	socketDir := filepath.Dir(s.socketPath)
-	if err := os.MkdirAll(socketDir, 0o755); err != nil {
+	if err := os.MkdirAll(socketDir, 0o700); err != nil {
 		return fmt.Errorf("failed to create socket directory: %w", err)
 	}
 

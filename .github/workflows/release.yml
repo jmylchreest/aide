@@ -8,7 +8,7 @@ on:
     branches: [main]
 
 permissions:
-  contents: write
+  contents: read
   id-token: write
 
 jobs:
@@ -472,6 +472,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [prepare, build, build-grammars, build-npm]
     if: needs.prepare.outputs.is_release == 'true'
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -553,6 +555,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [prepare, build, build-grammars, build-npm]
     if: needs.prepare.outputs.is_release == 'false' && github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v6

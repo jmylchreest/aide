@@ -59,7 +59,7 @@ func main() {
 
 	// Ensure memory directory exists.
 	memoryDir := filepath.Dir(dbPath)
-	if err := os.MkdirAll(memoryDir, 0o755); err != nil {
+	if err := os.MkdirAll(memoryDir, 0o700); err != nil {
 		fatal("failed to create memory directory: %v", err)
 	}
 
