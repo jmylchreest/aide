@@ -1,16 +1,22 @@
 /**
- * Shared utilities for Claude Code hooks
+ * Shared utilities for Claude Code hooks.
  *
- * This module provides common functions used across multiple hooks
- * to reduce code duplication and ensure consistent behavior.
+ * readStdin() is the only unique implementation here. All other functions
+ * are convenience wrappers around src/core/aide-client.ts that resolve the
+ * binary from AIDE_PLUGIN_ROOT / CLAUDE_PLUGIN_ROOT automatically.
  */
 
-import { execFileSync } from "child_process";
-import { existsSync, realpathSync } from "fs";
-import { join } from "path";
-import { debug } from "./logger.js";
+import {
+  findAideBinary as clientFindBinary,
+  runAide as clientRunAide,
+  setState,
+  getState,
+  deleteState,
+  clearAgentState as clientClearAgentState,
+  shellEscape,
+} from "../core/aide-client.js";
 
-const SOURCE = "hook-utils";
+export { shellEscape };
 
 /**
  * Read JSON input from stdin (used by all hooks)
@@ -24,60 +30,29 @@ export async function readStdin(): Promise<string> {
 }
 
 /**
- * Find the aide binary — canonical implementation.
- *
- * Search order:
- *   1. <CLAUDE_PLUGIN_ROOT>/bin/aide  (CLAUDE_PLUGIN_ROOT = project root)
- *   2. PATH fallback                  (system-wide install)
- *
- * All hooks and utilities should use this single function.
+ * Get the plugin root directory from environment variables.
  */
-export function findAideBinary(cwd?: string): string | null {
-  let pluginRoot =
-    process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT;
-  // Resolve symlinks (e.g., src-office -> dtkr4-cnjjf)
-  if (pluginRoot) {
-    try {
-      pluginRoot = realpathSync(pluginRoot);
-    } catch (err) {
-      debug(SOURCE, `realpath failed for pluginRoot ${pluginRoot}: ${err}`);
-    }
-  }
-  if (pluginRoot) {
-    const pluginBinary = join(pluginRoot, "bin", "aide");
-    if (existsSync(pluginBinary)) {
-      return pluginBinary;
-    }
-  }
-
-  // PATH fallback
-  try {
-    const result = execFileSync("which", ["aide"], {
-      stdio: "pipe",
-      timeout: 2000,
-    })
-      .toString()
-      .trim();
-    if (result) return result;
-  } catch (err) {
-    debug(SOURCE, `aide not found in PATH: ${err}`);
-  }
-
-  return null;
+function getPluginRoot(): string | undefined {
+  return process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT;
 }
 
 /**
- * Escape a string for safe shell usage
+ * Find the aide binary — Claude Code convenience wrapper.
+ *
+ * Reads AIDE_PLUGIN_ROOT / CLAUDE_PLUGIN_ROOT from the environment
+ * and delegates to the platform-agnostic aide-client implementation.
  */
-export function shellEscape(str: string): string {
-  return str
-    .replace(/\\/g, "\\\\")
-    .replace(/"/g, '\\"')
-    .replace(/\$/g, "\\$")
-    .replace(/`/g, "\\`")
-    .replace(/!/g, "\\!")
-    .replace(/\n/g, " ")
-    .slice(0, 1000);
+export function findAideBinary(cwd?: string): string | null {
+  return clientFindBinary({ cwd, pluginRoot: getPluginRoot() });
+}
+
+/**
+ * Run an aide command with the auto-discovered binary.
+ */
+export function runAide(cwd: string, args: string[]): string | null {
+  const binary = findAideBinary(cwd);
+  if (!binary) return null;
+  return clientRunAide(binary, cwd, args);
 }
 
 /**
@@ -91,16 +66,7 @@ export function setMemoryState(
 ): boolean {
   const binary = findAideBinary(cwd);
   if (!binary) return false;
-
-  try {
-    const args = ["state", "set", key, value];
-    if (agentId) args.push(`--agent=${agentId}`);
-    execFileSync(binary, args, { cwd, stdio: "pipe", timeout: 5000 });
-    return true;
-  } catch (err) {
-    debug(SOURCE, `setMemoryState failed for key=${key}: ${err}`);
-    return false;
-  }
+  return setState(binary, cwd, key, value, agentId);
 }
 
 /**
@@ -113,22 +79,7 @@ export function getMemoryState(
 ): string | null {
   const binary = findAideBinary(cwd);
   if (!binary) return null;
-
-  try {
-    const args = ["state", "get", key];
-    if (agentId) args.push(`--agent=${agentId}`);
-    const output = execFileSync(binary, args, {
-      cwd,
-      encoding: "utf-8",
-      timeout: 5000,
-    });
-    // Parse output format: "key = value" or "[agent] key = value"
-    const match = output.match(/=\s*(.+)$/m);
-    return match ? match[1].trim() : null;
-  } catch (err) {
-    debug(SOURCE, `getMemoryState failed for key=${key}: ${err}`);
-    return null;
-  }
+  return getState(binary, cwd, key, agentId);
 }
 
 /**
@@ -141,16 +92,7 @@ export function deleteMemoryState(
 ): boolean {
   const binary = findAideBinary(cwd);
   if (!binary) return false;
-
-  try {
-    // For agent-specific keys, we need to construct the full key
-    const fullKey = agentId ? `agent:${agentId}:${key}` : key;
-    execFileSync(binary, ["state", "delete", fullKey], { cwd, stdio: "pipe" });
-    return true;
-  } catch (err) {
-    debug(SOURCE, `deleteMemoryState failed for key=${key}: ${err}`);
-    return false;
-  }
+  return deleteState(binary, cwd, key, agentId);
 }
 
 /**
@@ -159,30 +101,5 @@ export function deleteMemoryState(
 export function clearAgentState(cwd: string, agentId: string): boolean {
   const binary = findAideBinary(cwd);
   if (!binary) return false;
-
-  try {
-    execFileSync(binary, ["state", "clear", `--agent=${agentId}`], {
-      cwd,
-      stdio: "pipe",
-    });
-    return true;
-  } catch (err) {
-    debug(SOURCE, `clearAgentState failed for agent=${agentId}: ${err}`);
-    return false;
-  }
-}
-
-/**
- * Run an aide command with proper escaping
- */
-export function runAide(cwd: string, args: string[]): string | null {
-  const binary = findAideBinary(cwd);
-  if (!binary) return null;
-
-  try {
-    return execFileSync(binary, args, { cwd, encoding: "utf-8" });
-  } catch (err) {
-    debug(SOURCE, `runAide failed: ${args.join(" ")}: ${err}`);
-    return null;
-  }
+  return clientClearAgentState(binary, cwd, agentId);
 }
