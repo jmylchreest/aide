@@ -301,7 +301,12 @@ jobs:
           # Grammar definitions: name|repo|c_symbol|tag|extra_src_dir
           # Generated from pack.json files — update grammars by editing
           # aide/pkg/grammar/packs/<lang>/pack.json, not this array.
-          mapfile -t GRAMMARS < <(bash "${GITHUB_WORKSPACE}/scripts/generate-grammar-matrix.sh" --print)
+          # Note: mapfile requires bash 4+; macOS ships bash 3.2, so use
+          # a read loop for portability.
+          GRAMMARS=()
+          while IFS= read -r line; do
+            GRAMMARS+=("$line")
+          done < <(bash "${GITHUB_WORKSPACE}/scripts/generate-grammar-matrix.sh" --print)
 
           for entry in "${GRAMMARS[@]}"; do
             IFS='|' read -r name repo c_symbol tag extra_src <<< "$entry"
