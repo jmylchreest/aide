@@ -214,7 +214,11 @@ if [[ ! -d "${PACKS_DIR}" ]]; then
 fi
 
 # Parse current grammar definitions.
-mapfile -t ENTRIES < <(parse_grammars)
+# Note: mapfile requires bash 4+; macOS ships bash 3.2, so use a read loop.
+ENTRIES=()
+while IFS= read -r line; do
+  ENTRIES+=("$line")
+done < <(parse_grammars)
 
 if [[ ${#ENTRIES[@]} -eq 0 ]]; then
   die "no grammar definitions found in pack.json files under ${PACKS_DIR}"
