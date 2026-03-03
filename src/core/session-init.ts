@@ -194,12 +194,11 @@ export function initializeSession(
     agentCount: 0,
   };
 
-  const statePath = join(cwd, ".aide", "state", "session.json");
-  try {
-    writeFileSync(statePath, JSON.stringify(state, null, 2));
-  } catch {
-    // Ignore
-  }
+  // Session state is kept in-memory only (returned to the caller).
+  // We no longer write .aide/state/session.json — this eliminates a race
+  // condition where concurrent sessions would overwrite each other's file.
+  // Callers that need startedAt (e.g. getSessionCommits) receive it as a
+  // parameter from the in-memory SessionState or use a fallback default.
 
   return state;
 }

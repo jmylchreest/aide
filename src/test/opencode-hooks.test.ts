@@ -79,4 +79,67 @@ Deploy instructions.
     expect(combined).toContain("<aide-skills>");
     expect(combined).toContain("Deploy Skill");
   });
+
+  it("config handler registers commands with template that avoids native skill tool", async () => {
+    const hooks = await createHooks(projectDir, projectDir, mockClient);
+
+    const config = { command: {} } as Record<string, unknown>;
+    await (hooks as any).config?.(config);
+
+    const commands = config.command as Record<
+      string,
+      { template: string; description: string }
+    >;
+    expect(commands["aide:Deploy Skill"]).toBeDefined();
+    // Template must NOT contain "Activate" which previously triggered native skill tool
+    expect(commands["aide:Deploy Skill"].template).not.toContain("Activate");
+    // Template must instruct model NOT to use the skill tool
+    expect(commands["aide:Deploy Skill"].template).toContain(
+      "Do NOT use the skill tool",
+    );
+  });
+
+  it("config handler registers native skill paths as fallback", async () => {
+    const hooks = await createHooks(projectDir, projectDir, mockClient);
+
+    const config = { command: {} } as Record<string, unknown>;
+    await (hooks as any).config?.(config);
+
+    const skills = config.skills as { paths?: string[] };
+    expect(skills).toBeDefined();
+    expect(skills.paths).toBeInstanceOf(Array);
+    // Should include the .aide/skills and skills directories
+    expect(skills.paths!.some((p: string) => p.endsWith(".aide/skills"))).toBe(
+      true,
+    );
+    expect(
+      skills.paths!.some(
+        (p: string) => p.endsWith("/skills") && !p.includes(".aide"),
+      ),
+    ).toBe(true);
+  });
+
+  it("command handler injects skill into output parts and pending context", async () => {
+    const hooks = await createHooks(projectDir, projectDir, mockClient);
+
+    const parts: Array<{ type: string; text: string }> = [];
+    await hooks["command.execute.before"]?.(
+      { command: "aide:Deploy Skill", sessionID: "s-1", arguments: "to prod" },
+      { parts },
+    );
+
+    // Should inject skill content into output parts
+    expect(parts.length).toBeGreaterThan(0);
+    expect(parts[0].text).toContain("Deploy instructions");
+    expect(parts[0].text).toContain("<aide-instructions>");
+
+    // System transform should also have the pending context
+    const output = { system: [] as string[] };
+    await hooks["experimental.chat.system.transform"]?.(
+      { sessionID: "s-1", model: { providerID: "x", modelID: "y" } },
+      output,
+    );
+    const combined = output.system.join("\n");
+    expect(combined).toContain("Deploy instructions");
+  });
 });

@@ -7,23 +7,22 @@
 
 import { execFileSync } from "child_process";
 import { readFileSync, existsSync } from "fs";
-import { join } from "path";
 
 /**
- * Get git commits made during this session
+ * Get git commits made during this session.
+ *
+ * @param cwd - Working directory
+ * @param startedAt - ISO timestamp of when the session started. When provided,
+ *   scopes `git log --since` to this time. When omitted, falls back to "4 hours ago"
+ *   as a reasonable default for a single coding session.
  */
-export function getSessionCommits(cwd: string): string[] {
+export function getSessionCommits(cwd: string, startedAt?: string): string[] {
   try {
-    const sessionPath = join(cwd, ".aide", "state", "session.json");
-    if (!existsSync(sessionPath)) return [];
-
-    const sessionData = JSON.parse(readFileSync(sessionPath, "utf-8"));
-    const startedAt = sessionData.startedAt;
-    if (!startedAt) return [];
+    const sinceArg = startedAt || "4 hours ago";
 
     const output = execFileSync(
       "git",
-      ["log", "--oneline", `--since=${startedAt}`],
+      ["log", "--oneline", `--since=${sinceArg}`],
       {
         cwd,
         encoding: "utf-8",
@@ -52,6 +51,7 @@ export function getSessionCommits(cwd: string): string[] {
 export function buildSessionSummary(
   transcriptPath: string,
   cwd: string,
+  startedAt?: string,
 ): string | null {
   if (!existsSync(transcriptPath)) return null;
 
@@ -120,7 +120,7 @@ export function buildSessionSummary(
       }
     }
 
-    const commits = getSessionCommits(cwd);
+    const commits = getSessionCommits(cwd, startedAt);
 
     if (
       filesModified.size === 0 &&
@@ -170,8 +170,11 @@ export function buildSessionSummary(
  *
  * Uses aide state and git history instead of transcript parsing.
  */
-export function buildSessionSummaryFromState(cwd: string): string | null {
-  const commits = getSessionCommits(cwd);
+export function buildSessionSummaryFromState(
+  cwd: string,
+  startedAt?: string,
+): string | null {
+  const commits = getSessionCommits(cwd, startedAt);
 
   const summaryParts: string[] = [];
 

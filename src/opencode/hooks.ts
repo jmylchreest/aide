@@ -26,6 +26,7 @@
  */
 
 import { execFileSync } from "child_process";
+import { join } from "path";
 import { findAideBinary } from "../core/aide-client.js";
 import {
   ensureDirectories,
@@ -188,6 +189,28 @@ function createConfigHandler(
       // Discover all skills and register them as OpenCode commands
       const skills = discoverSkills(state.cwd, state.pluginRoot ?? undefined);
 
+      // Register our skill directories with OpenCode's native skill discovery
+      // as a fallback, so the native `skill` tool can also find them.
+      const skillsConfig = (input as Record<string, unknown>).skills as
+        | { paths?: string[]; urls?: string[] }
+        | undefined;
+      const existingPaths = skillsConfig?.paths ?? [];
+      const aidePaths = [
+        join(state.cwd, ".aide", "skills"),
+        join(state.cwd, "skills"),
+      ];
+      if (state.pluginRoot) {
+        aidePaths.push(join(state.pluginRoot, "skills"));
+      }
+      // Only add paths that aren't already registered
+      const newPaths = aidePaths.filter((p) => !existingPaths.includes(p));
+      if (newPaths.length > 0) {
+        (input as Record<string, unknown>).skills = {
+          ...skillsConfig,
+          paths: [...existingPaths, ...newPaths],
+        };
+      }
+
       if (!input.command) {
         input.command = {};
       }
@@ -205,7 +228,10 @@ function createConfigHandler(
         // Only register if not already defined (user config takes priority)
         if (!input.command[commandName]) {
           input.command[commandName] = {
-            template: `Activate the aide "${skill.name}" skill. {{arguments}}`,
+            // IMPORTANT: Template wording must NOT trigger the native "skill" tool.
+            // The actual instructions are injected into the system prompt by
+            // createCommandHandler → pendingSkillsContext → createSystemTransformHandler.
+            template: `Follow the aide "${skill.name}" instructions that have been injected into your system prompt. Do NOT use the skill tool. {{arguments}}`,
             description: skill.description || `aide ${skill.name} skill`,
           };
         }
@@ -246,8 +272,17 @@ function createCommandHandler(state: AideState): (
         // Format the skill content for injection
         const context = formatSkillsContext([skill]);
 
-        // Store for system transform injection
+        // Store for system transform injection (into system prompt)
         state.pendingSkillsContext = context;
+
+        // Also inject into the command output parts so the model sees the
+        // instructions directly in the user message. This avoids reliance
+        // on the system transform alone and prevents the model from trying
+        // to call the native "skill" tool to find the instructions.
+        output.parts.push({
+          type: "text",
+          text: `<aide-instructions>\n${context}\n</aide-instructions>`,
+        });
 
         // Also store the arguments as the user prompt for the transform
         if (args) {
@@ -518,14 +553,20 @@ async function handleSessionIdle(
     let summary: string | null = null;
 
     if (partials.length > 0) {
-      const commits = getSessionCommits(state.cwd);
+      const commits = getSessionCommits(
+        state.cwd,
+        state.sessionState?.startedAt,
+      );
       summary = buildSummaryFromPartials(partials, commits, []);
       debug(SOURCE, `Built summary from ${partials.length} partials`);
     }
 
     // Fall back to state-only summary if no partials
     if (!summary) {
-      summary = buildSessionSummaryFromState(state.cwd);
+      summary = buildSessionSummaryFromState(
+        state.cwd,
+        state.sessionState?.startedAt,
+      );
     }
 
     if (summary) {
@@ -797,7 +838,10 @@ function createCompactionHandler(
         let summary: string | null = null;
 
         if (partials.length > 0) {
-          const commits = getSessionCommits(state.cwd);
+          const commits = getSessionCommits(
+            state.cwd,
+            state.sessionState?.startedAt,
+          );
           summary = buildSummaryFromPartials(partials, commits, []);
           debug(
             SOURCE,
@@ -807,7 +851,10 @@ function createCompactionHandler(
 
         // Fall back to state-only summary if no partials
         if (!summary) {
-          summary = buildSessionSummaryFromState(state.cwd);
+          summary = buildSessionSummaryFromState(
+            state.cwd,
+            state.sessionState?.startedAt,
+          );
         }
 
         if (summary) {
