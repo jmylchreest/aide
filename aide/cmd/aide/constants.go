@@ -32,7 +32,12 @@ const (
 
 	// DefaultSessionLimit is the default number of recent session
 	// memories to fetch during session init.
-	DefaultSessionLimit = 3
+	DefaultSessionLimit = 2
+
+	// DefaultProjectMemoryLimit is the maximum number of project
+	// memories to inject into the session context. When more exist,
+	// an overflow hint is appended.
+	DefaultProjectMemoryLimit = 30
 
 	// -------------------------------------------------------------------------
 	// Memory list

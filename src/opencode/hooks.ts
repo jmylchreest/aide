@@ -66,6 +66,7 @@ import {
   buildSummaryFromPartials,
   cleanupPartials,
 } from "../core/partial-memory.js";
+import { ContextPruningTracker } from "../core/context-pruning/index.js";
 import type { MemoryInjection, SessionState } from "../core/types.js";
 import type {
   Hooks,
@@ -114,6 +115,8 @@ interface AideState {
   /** Per-session metadata for agent-like tracking */
   sessionInfoMap: Map<string, SessionInfo>;
   client: OpenCodeClient;
+  /** Context pruning tracker for dedup/supersede/purge of tool outputs */
+  pruningTracker: ContextPruningTracker;
 }
 
 /**
@@ -142,6 +145,7 @@ export async function createHooks(
     lastUserPrompt: null,
     sessionInfoMap: new Map(),
     client,
+    pruningTracker: new ContextPruningTracker(cwd),
   };
 
   // Run one-time initialization (directories, binary, config)
@@ -189,6 +193,14 @@ function createConfigHandler(
       }
 
       for (const skill of skills) {
+        // Skip skills restricted to other platforms
+        if (
+          skill.platforms &&
+          skill.platforms.length > 0 &&
+          !skill.platforms.includes("opencode")
+        ) {
+          continue;
+        }
         const commandName = `aide:${skill.name}`;
         // Only register if not already defined (user config takes priority)
         if (!input.command[commandName]) {
@@ -299,7 +311,7 @@ function initializeAide(state: AideState): void {
         state.binary,
         state.cwd,
         projectName,
-        3,
+        2,
         config,
       );
     }
@@ -584,7 +596,7 @@ async function handleMessagePartUpdated(
   state.lastUserPrompt = prompt;
 
   const skills = discoverSkills(state.cwd, state.pluginRoot ?? undefined);
-  const matched = matchSkills(prompt, skills, 3);
+  const matched = matchSkills(prompt, skills, 3, "opencode");
 
   if (matched.length > 0) {
     try {
@@ -704,6 +716,29 @@ function createToolAfterHandler(
       debug(SOURCE, `Partial memory write failed (non-fatal): ${err}`);
     }
 
+    // Context pruning: dedup/supersede/purge tool outputs
+    try {
+      const toolArgs = (_output.metadata?.args || {}) as Record<
+        string,
+        unknown
+      >;
+      const pruneResult = state.pruningTracker.process(
+        input.callID,
+        input.tool,
+        toolArgs,
+        _output.output,
+      );
+      if (pruneResult.modified) {
+        _output.output = pruneResult.output;
+        debug(
+          SOURCE,
+          `Context pruning [${pruneResult.strategy}]: saved ${pruneResult.bytesSaved} bytes for ${input.tool}`,
+        );
+      }
+    } catch (err) {
+      debug(SOURCE, `Context pruning failed (non-fatal): ${err}`);
+    }
+
     // Comment checker: detect excessive comments in Write/Edit output
     try {
       const toolArgs = (_output.metadata?.args || {}) as Record<
@@ -742,6 +777,10 @@ function createCompactionHandler(
   output: { context: string[]; prompt?: string },
 ) => Promise<void> {
   return async (input, output) => {
+    // Reset context pruning tracker — compaction clears the conversation
+    // history, so dedup/supersede references would be stale.
+    state.pruningTracker.reset();
+
     // Save state snapshot before compaction
     if (state.binary) {
       saveStateSnapshot(state.binary, state.cwd, input.sessionID);
@@ -802,7 +841,7 @@ function createCompactionHandler(
           state.binary,
           state.cwd,
           projectName,
-          3,
+          2,
         );
         state.memories = freshMemories;
         state.welcomeContext = buildWelcomeContext(
@@ -842,6 +881,17 @@ function createSystemTransformHandler(
     // Inject welcome context (memories, decisions, etc.) into system prompt
     if (state.welcomeContext) {
       output.system.push(state.welcomeContext);
+    }
+
+    // Inject context pruning notes only after the first prune fires.
+    // Avoids adding ~280 bytes to every session that never triggers pruning.
+    if (state.pruningTracker.getStats().prunedCalls > 0) {
+      output.system.push(`<aide-context-pruning>
+Tool outputs may contain these tags from aide's context optimization:
+- [aide:dedup] — This output is identical to a previous call. Refer to the earlier result.
+- [aide:supersede] — A prior Read of this file is now stale after a Write/Edit.
+- [aide:purge] — Large error output was trimmed. Re-run the command for full output.
+</aide-context-pruning>`);
     }
 
     // Inject per-session context only when swarm mode is active and session
@@ -894,7 +944,12 @@ function createSystemTransformHandler(
     } else if (state.lastUserPrompt) {
       try {
         const skills = discoverSkills(state.cwd, state.pluginRoot ?? undefined);
-        const matched = matchSkills(state.lastUserPrompt, skills, 3);
+        const matched = matchSkills(
+          state.lastUserPrompt,
+          skills,
+          3,
+          "opencode",
+        );
         if (matched.length > 0) {
           output.system.push(formatSkillsContext(matched));
           debug(
@@ -907,8 +962,9 @@ function createSystemTransformHandler(
       }
     }
 
-    // Inject messaging protocol for multi-instance coordination
-    output.system.push(`<aide-messaging>
+    // Inject messaging protocol only in swarm mode (saves ~450 bytes per turn otherwise)
+    if (rawMode === "swarm") {
+      output.system.push(`<aide-messaging>
 
 ## Agent Messaging
 
@@ -927,6 +983,7 @@ Use aide MCP tools to coordinate with other agents or sessions:
 - Check messages periodically for requests from other agents
 
 </aide-messaging>`);
+    }
   };
 }
 

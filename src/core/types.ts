@@ -67,6 +67,7 @@ export interface SessionInitResult {
     category: string;
     tags: string[];
   }>;
+  project_memory_overflow?: boolean;
   decisions: Array<{ topic: string; value: string; rationale?: string }>;
   recent_sessions: Array<{
     session_id: string;
@@ -83,6 +84,7 @@ export interface MemoryInjection {
   static: {
     global: string[];
     project: string[];
+    projectOverflow?: boolean;
     decisions: string[];
   };
   dynamic: {
@@ -109,6 +111,8 @@ export interface Skill {
   path: string;
   triggers: string[];
   description?: string;
+  /** Optional platform restriction. If set, only matched on listed platforms ("opencode", "claude-code"). */
+  platforms?: string[];
   content: string;
 }
 

@@ -55,6 +55,11 @@
             "type": "command",
             "command": "npx tsx \"${CLAUDE_PLUGIN_ROOT}/src/hooks/comment-checker.ts\" 2>/dev/null",
             "timeout": 3
+          },
+          {
+            "type": "command",
+            "command": "npx tsx \"${CLAUDE_PLUGIN_ROOT}/src/hooks/context-pruning.ts\" 2>/dev/null",
+            "timeout": 3
           }
         ]
       }

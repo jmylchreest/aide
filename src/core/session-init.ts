@@ -314,6 +314,7 @@ export function runSessionInit(
 
     result.static.global = data.global_memories.map((m) => m.content);
     result.static.project = data.project_memories.map((m) => m.content);
+    result.static.projectOverflow = data.project_memory_overflow ?? false;
     result.static.decisions = data.decisions.map(
       (d) =>
         `**${d.topic}**: ${d.value}${d.rationale ? ` (${d.rationale})` : ""}`,
@@ -425,6 +426,12 @@ export function buildWelcomeContext(
     lines.push("");
     for (const mem of memories.static.project) {
       lines.push(`- ${mem}`);
+    }
+    if (memories.static.projectOverflow) {
+      lines.push("");
+      lines.push(
+        "_More project memories exist. Use `memory_search` to find specific context._",
+      );
     }
     lines.push("");
   }

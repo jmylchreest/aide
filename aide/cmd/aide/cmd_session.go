@@ -23,10 +23,11 @@ type SessionInitResult struct {
 	SharedImported int `json:"shared_imported,omitempty"`
 
 	// Memory injection data
-	GlobalMemories  []SessionMemory   `json:"global_memories"`
-	ProjectMemories []SessionMemory   `json:"project_memories"`
-	Decisions       []SessionDecision `json:"decisions"`
-	RecentSessions  []*SessionGroup   `json:"recent_sessions"`
+	GlobalMemories        []SessionMemory   `json:"global_memories"`
+	ProjectMemories       []SessionMemory   `json:"project_memories"`
+	ProjectMemoryOverflow bool              `json:"project_memory_overflow,omitempty"`
+	Decisions             []SessionDecision `json:"decisions"`
+	RecentSessions        []*SessionGroup   `json:"recent_sessions"`
 }
 
 // SessionMemory is a memory entry for JSON output.
@@ -175,25 +176,30 @@ func sessionInit(dbPath string, args []string) error {
 
 // sessionFetchContext gathers memories, decisions, and recent sessions.
 func sessionFetchContext(backend *Backend, project string, sessionLimit int, result *SessionInitResult) {
-	// Global memories (scope:global tag) — exclude forgotten
+	// Global memories (scope:global tag) — exclude forgotten and partials
 	globalMems, err := backend.ListMemories("global", 100, nil)
 	if err == nil {
 		for _, m := range globalMems {
-			if hasAllTags(m.Tags, []string{"scope:global"}) {
+			if hasAllTags(m.Tags, []string{"scope:global"}) && !hasAnyTag(m.Tags, []string{"partial"}) {
 				result.GlobalMemories = append(result.GlobalMemories, memoryToSession(m))
 			}
 		}
 	}
 
-	// Project memories
+	// Project memories — exclude partials, cap at DefaultProjectMemoryLimit
 	if project != "" {
 		projectMems, err := backend.ListMemories("", 1000, nil)
 		if err == nil {
 			projectTag := "project:" + project
 			for _, m := range projectMems {
-				if hasAllTags(m.Tags, []string{projectTag}) {
+				if hasAllTags(m.Tags, []string{projectTag}) && !hasAnyTag(m.Tags, []string{"partial"}) {
 					result.ProjectMemories = append(result.ProjectMemories, memoryToSession(m))
 				}
+			}
+			// Cap project memories with overflow hint
+			if len(result.ProjectMemories) > DefaultProjectMemoryLimit {
+				result.ProjectMemories = result.ProjectMemories[:DefaultProjectMemoryLimit]
+				result.ProjectMemoryOverflow = true
 			}
 		}
 	}
@@ -224,6 +230,9 @@ func sessionFetchContext(backend *Backend, project string, sessionLimit int, res
 }
 
 // fetchRecentSessions returns the most recent session groups for a project.
+// For each session, it prefers session-summary memories over raw partials.
+// If a session-summary exists, only that is included. Otherwise, non-partial
+// memories are included (decisions, learnings, etc.) as a fallback.
 func fetchRecentSessions(backend *Backend, project string, limit int) []*SessionGroup {
 	allMems, err := backend.ListMemories("", 1000, nil)
 	if err != nil {
@@ -231,7 +240,14 @@ func fetchRecentSessions(backend *Backend, project string, limit int) []*Session
 	}
 
 	projectTag := "project:" + project
-	sessionMap := make(map[string]*SessionGroup)
+
+	// Track per-session: summaries, non-partial memories, and latest timestamp
+	type sessionData struct {
+		summaries  []*memory.Memory
+		nonPartial []*memory.Memory
+		lastAt     string
+	}
+	sessionMap := make(map[string]*sessionData)
 
 	for _, m := range allMems {
 		hasProject := false
@@ -250,26 +266,55 @@ func fetchRecentSessions(backend *Backend, project string, limit int) []*Session
 			continue
 		}
 
-		group, ok := sessionMap[sessionID]
+		data, ok := sessionMap[sessionID]
 		if !ok {
-			group = &SessionGroup{
-				SessionID: sessionID,
-				Memories:  make([]*memory.Memory, 0),
-			}
-			sessionMap[sessionID] = group
+			data = &sessionData{}
+			sessionMap[sessionID] = data
 		}
-		group.Memories = append(group.Memories, m)
 
 		ts := m.CreatedAt.Format(time.RFC3339)
-		if group.LastAt == "" || ts > group.LastAt {
-			group.LastAt = ts
+		if data.lastAt == "" || ts > data.lastAt {
+			data.lastAt = ts
 		}
+
+		isSummary := hasAnyTag(m.Tags, []string{"session-summary"})
+		isPartial := hasAnyTag(m.Tags, []string{"partial"})
+
+		if isSummary && !isPartial {
+			// Non-partial session summary — highest priority
+			data.summaries = append(data.summaries, m)
+		} else if !isPartial {
+			// Non-partial, non-summary memory (decisions, learnings, etc.)
+			data.nonPartial = append(data.nonPartial, m)
+		}
+		// Skip raw partials entirely — they are granular tool-event records
 	}
 
+	// Build SessionGroups, preferring summaries over raw memories
 	sessions := make([]*SessionGroup, 0, len(sessionMap))
-	for _, group := range sessionMap {
+	for sid, data := range sessionMap {
+		group := &SessionGroup{
+			SessionID: sid,
+			LastAt:    data.lastAt,
+		}
+		if len(data.summaries) > 0 {
+			// Use the most recent summary only
+			latest := data.summaries[0]
+			for _, s := range data.summaries[1:] {
+				if s.CreatedAt.After(latest.CreatedAt) {
+					latest = s
+				}
+			}
+			group.Memories = []*memory.Memory{latest}
+		} else if len(data.nonPartial) > 0 {
+			group.Memories = data.nonPartial
+		} else {
+			// Session has only partials — skip it
+			continue
+		}
 		sessions = append(sessions, group)
 	}
+
 	sort.Slice(sessions, func(i, j int) bool {
 		return sessions[i].LastAt > sessions[j].LastAt
 	})

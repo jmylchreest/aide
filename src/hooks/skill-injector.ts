@@ -89,9 +89,14 @@ function discoverSkills(cwd: string): Skill[] {
 /**
  * Match skills to prompt — delegates to core
  */
-function matchSkills(prompt: string, skills: Skill[], maxResults = 3): Skill[] {
+function matchSkills(
+  prompt: string,
+  skills: Skill[],
+  maxResults = 3,
+  platform?: string,
+): Skill[] {
   log?.start("matchSkills");
-  const matched = coreMatchSkills(prompt, skills, maxResults);
+  const matched = coreMatchSkills(prompt, skills, maxResults, platform);
   log?.end("matchSkills", { checked: skills.length, matched: matched.length });
   return matched;
 }
@@ -185,7 +190,7 @@ async function main(): Promise<void> {
     );
 
     debugLog("matchSkills starting...");
-    const matched = matchSkills(prompt, skills);
+    const matched = matchSkills(prompt, skills, 3, "claude-code");
     debugLog(
       `matchSkills complete: ${matched.length} matches (${Date.now() - hookStart}ms)`,
     );

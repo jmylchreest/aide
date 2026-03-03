@@ -427,7 +427,7 @@ async function main(): Promise<void> {
     // Replaces 7 separate binary spawns (~35-50s) with 1 (~5s)
     const projectName = getProjectName(cwd);
     debugLog("sessionInit starting...");
-    const memories = runSessionInit(cwd, projectName, 3, log, config);
+    const memories = runSessionInit(cwd, projectName, 2, log, config);
     debugLog(`sessionInit complete (${Date.now() - hookStart}ms)`);
 
     // Build startup notices

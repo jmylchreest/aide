@@ -11,14 +11,9 @@ import { homedir } from "os";
 import type { Skill, SkillMatchResult } from "./types.js";
 
 // Skill search locations relative to cwd
-const SKILL_LOCATIONS = [
-  ".aide/skills",
-  "skills",
-];
+const SKILL_LOCATIONS = [".aide/skills", "skills"];
 
-const GLOBAL_SKILL_LOCATIONS = [
-  join(homedir(), ".aide", "skills"),
-];
+const GLOBAL_SKILL_LOCATIONS = [join(homedir(), ".aide", "skills")];
 
 /**
  * Calculate Levenshtein distance between two strings
@@ -120,6 +115,20 @@ export function parseSkillFrontmatter(
   }
   meta.triggers = triggers;
 
+  // Parse platforms array (e.g. "platforms:\n  - opencode")
+  const platforms: string[] = [];
+  const platformMatch = yamlContent.match(/platforms:\s*\n((?:\s+-\s*.+\n?)*)/);
+  if (platformMatch) {
+    const plines = platformMatch[1].split("\n");
+    for (const line of plines) {
+      const itemMatch = line.match(/^\s+-\s*["']?([^"'\n]+)["']?\s*$/);
+      if (itemMatch) platforms.push(itemMatch[1].trim().toLowerCase());
+    }
+  }
+  if (platforms.length > 0) {
+    meta.platforms = platforms;
+  }
+
   return { meta, body };
 }
 
@@ -166,6 +175,7 @@ export function loadSkill(path: string): Skill | null {
       path,
       triggers,
       description: meta.description as string | undefined,
+      platforms: meta.platforms as string[] | undefined,
       content: body,
     };
   } catch {
@@ -222,17 +232,27 @@ export function discoverSkills(cwd: string, pluginRoot?: string): Skill[] {
 }
 
 /**
- * Find skills matching the prompt (supports typos via Levenshtein distance)
+ * Find skills matching the prompt (supports typos via Levenshtein distance).
+ *
+ * @param platform - If provided, skills with a `platforms` restriction are
+ *   only included when the current platform is listed. Skills without the
+ *   field are always eligible.
  */
 export function matchSkills(
   prompt: string,
   skills: Skill[],
   maxResults = 3,
+  platform?: string,
 ): Skill[] {
   const promptLower = prompt.toLowerCase();
   const matches: SkillMatchResult[] = [];
 
   for (const skill of skills) {
+    // Platform gate: skip skills restricted to a different platform
+    if (platform && skill.platforms && skill.platforms.length > 0) {
+      if (!skill.platforms.includes(platform)) continue;
+    }
+
     let score = 0;
 
     for (const trigger of skill.triggers) {

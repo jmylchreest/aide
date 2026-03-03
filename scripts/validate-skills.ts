@@ -24,6 +24,7 @@ interface SkillFrontmatter {
   name?: string;
   description?: string;
   triggers?: string[];
+  platforms?: string[];
   [key: string]: unknown;
 }
 
@@ -92,16 +93,17 @@ function parseFrontmatter(content: string): {
 
 // ─── Validators ───────────────────────────────────────────────────────────
 
-function validateSkill(
-  filePath: string,
-  content: string
-): ValidationError[] {
+function validateSkill(filePath: string, content: string): ValidationError[] {
   const errors: ValidationError[] = [];
   const rel = relative(process.cwd(), filePath);
 
   // 1. Must have frontmatter
   if (!content.startsWith("---")) {
-    errors.push({ file: rel, message: "Missing YAML frontmatter (must start with ---)", line: 1 });
+    errors.push({
+      file: rel,
+      message: "Missing YAML frontmatter (must start with ---)",
+      line: 1,
+    });
     return errors;
   }
 
@@ -116,8 +118,16 @@ function validateSkill(
     errors.push({ file: rel, message: "Missing required field: description" });
   }
 
-  if (!data.triggers || !Array.isArray(data.triggers) || data.triggers.length === 0) {
-    errors.push({ file: rel, message: "Missing or empty required field: triggers (must be a non-empty array)" });
+  if (
+    !data.triggers ||
+    !Array.isArray(data.triggers) ||
+    data.triggers.length === 0
+  ) {
+    errors.push({
+      file: rel,
+      message:
+        "Missing or empty required field: triggers (must be a non-empty array)",
+    });
   }
 
   // 3. Name validation
@@ -134,7 +144,10 @@ function validateSkill(
   if (data.triggers && Array.isArray(data.triggers)) {
     for (const trigger of data.triggers) {
       if (typeof trigger !== "string" || trigger.trim().length === 0) {
-        errors.push({ file: rel, message: `Invalid trigger: "${trigger}" (must be a non-empty string)` });
+        errors.push({
+          file: rel,
+          message: `Invalid trigger: "${trigger}" (must be a non-empty string)`,
+        });
       }
     }
 
@@ -149,15 +162,36 @@ function validateSkill(
     }
   }
 
+  // 4b. Platforms validation (optional field)
+  const validPlatforms = ["opencode", "claude-code"];
+  if (data.platforms && Array.isArray(data.platforms)) {
+    for (const platform of data.platforms) {
+      if (!validPlatforms.includes(platform)) {
+        errors.push({
+          file: rel,
+          message: `Invalid platform: "${platform}" (must be one of: ${validPlatforms.join(", ")})`,
+        });
+      }
+    }
+  }
+
   // 5. Body must have at least one heading
   const bodyLines = content.split("\n").slice(bodyStart);
   const hasHeading = bodyLines.some((line) => /^#\s+/.test(line));
   if (!hasHeading) {
-    errors.push({ file: rel, message: "Skill body should contain at least one markdown heading (# ...)" });
+    errors.push({
+      file: rel,
+      message:
+        "Skill body should contain at least one markdown heading (# ...)",
+    });
   }
 
   // 6. Description should not be too long
-  if (data.description && typeof data.description === "string" && data.description.length > 200) {
+  if (
+    data.description &&
+    typeof data.description === "string" &&
+    data.description.length > 200
+  ) {
     errors.push({
       file: rel,
       message: `Description is too long (${data.description.length} chars, max 200)`,
@@ -228,7 +262,9 @@ function main(): void {
     console.log(`✓ ${validated} skills validated successfully`);
     process.exit(0);
   } else {
-    console.error(`✗ ${allErrors.length} validation error(s) in ${validated} skills:\n`);
+    console.error(
+      `✗ ${allErrors.length} validation error(s) in ${validated} skills:\n`,
+    );
     for (const err of allErrors) {
       const lineInfo = err.line ? `:${err.line}` : "";
       console.error(`  ${err.file}${lineInfo}: ${err.message}`);
