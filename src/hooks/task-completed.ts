@@ -211,6 +211,41 @@ function validateDev(
 }
 
 /**
+ * Run a validation command, checking package.json for script existence when
+ * the project is TypeScript. Returns a failure message or null if the check
+ * passed (or was skipped because the script doesn't exist).
+ */
+function runValidationStep(
+  label: string,
+  cmd: string,
+  scriptName: string | null,
+  projectType: string,
+  cwd: string,
+): string | null {
+  if (!cmd) return null;
+
+  if (projectType === "typescript" && scriptName) {
+    try {
+      const pkgPath = join(cwd, "package.json");
+      if (!existsSync(pkgPath)) return null;
+      const pkgJson = JSON.parse(readFileSync(pkgPath, "utf-8"));
+      if (!pkgJson.scripts?.[scriptName]) return null;
+    } catch (err) {
+      debug(
+        SOURCE,
+        `Failed to check ${scriptName} script in package.json: ${err}`,
+      );
+      return null;
+    }
+  }
+
+  if (!commandSucceeds(cmd, cwd)) {
+    return `${label}: run \`${cmd}\``;
+  }
+  return null;
+}
+
+/**
  * Validate VERIFY stage completion
  */
 function validateVerify(
@@ -222,79 +257,64 @@ function validateVerify(
   const projectType = detectProjectType(cwd);
   const failures: string[] = [];
 
-  // Test validation
-  const testCommands: Record<string, string> = {
-    typescript: "npm test",
-    go: "go test ./...",
-    python: "pytest",
-    unknown: "",
-  };
+  // Define validation steps per project type: [label, commands-by-type, package.json script name]
+  const steps: Array<{
+    label: string;
+    commands: Record<string, string>;
+    scriptName: string | null;
+  }> = [
+    {
+      label: "Tests failing",
+      commands: {
+        typescript: "npm test",
+        go: "go test ./...",
+        python: "pytest",
+        unknown: "",
+      },
+      scriptName: null, // always run if command exists
+    },
+    {
+      label: "Lint errors",
+      commands: {
+        typescript: "npm run lint",
+        go: "go vet ./...",
+        python: "ruff check .",
+        unknown: "",
+      },
+      scriptName: "lint",
+    },
+    {
+      label: "Type errors",
+      commands: {
+        typescript: "npx tsc --noEmit",
+        go: "",
+        python: "",
+        unknown: "",
+      },
+      scriptName: null,
+    },
+    {
+      label: "Build failing",
+      commands: {
+        typescript: "npm run build",
+        go: "go build ./...",
+        python: "",
+        unknown: "",
+      },
+      scriptName: "build",
+    },
+  ];
 
-  const testCmd = testCommands[projectType];
-  if (testCmd && !commandSucceeds(testCmd, cwd)) {
-    failures.push(`Tests failing: run \`${testCmd}\``);
-  }
-
-  // Lint validation
-  const lintCommands: Record<string, string> = {
-    typescript: "npm run lint",
-    go: "go vet ./...",
-    python: "ruff check .",
-    unknown: "",
-  };
-
-  const lintCmd = lintCommands[projectType];
-  if (lintCmd) {
-    // Check if lint script exists for typescript
-    if (projectType === "typescript") {
-      try {
-        const pkgPath = join(cwd, "package.json");
-        if (existsSync(pkgPath)) {
-          const pkgJson = JSON.parse(readFileSync(pkgPath, "utf-8"));
-          if (pkgJson.scripts?.lint && !commandSucceeds(lintCmd, cwd)) {
-            failures.push(`Lint errors: run \`${lintCmd}\``);
-          }
-        }
-      } catch (err) {
-        debug(SOURCE, `Failed to check lint script in package.json: ${err}`);
-      }
-    } else if (!commandSucceeds(lintCmd, cwd)) {
-      failures.push(`Lint errors: run \`${lintCmd}\``);
-    }
-  }
-
-  // Type check validation (TypeScript only)
-  if (projectType === "typescript") {
-    if (!commandSucceeds("npx tsc --noEmit", cwd)) {
-      failures.push("Type errors: run `npx tsc --noEmit`");
-    }
-  }
-
-  // Build validation
-  const buildCommands: Record<string, string> = {
-    typescript: "npm run build",
-    go: "go build ./...",
-    python: "",
-    unknown: "",
-  };
-
-  const buildCmd = buildCommands[projectType];
-  if (buildCmd) {
-    if (projectType === "typescript") {
-      try {
-        const pkgPath = join(cwd, "package.json");
-        if (existsSync(pkgPath)) {
-          const pkgJson = JSON.parse(readFileSync(pkgPath, "utf-8"));
-          if (pkgJson.scripts?.build && !commandSucceeds(buildCmd, cwd)) {
-            failures.push(`Build failing: run \`${buildCmd}\``);
-          }
-        }
-      } catch (err) {
-        debug(SOURCE, `Failed to check build script in package.json: ${err}`);
-      }
-    } else if (!commandSucceeds(buildCmd, cwd)) {
-      failures.push(`Build failing: run \`${buildCmd}\``);
-    }
+  for (const step of steps) {
+    const cmd = step.commands[projectType] || "";
+    const failure = runValidationStep(
+      step.label,
+      cmd,
+      step.scriptName,
+      projectType,
+      cwd,
+    );
+    if (failure) failures.push(failure);
   }
 
   if (failures.length > 0) {

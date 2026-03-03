@@ -22,12 +22,20 @@ and token costs by querying the OpenCode SQLite database directly.
 
 ## Prerequisites
 
-- The `$AIDE_SESSION_ID` environment variable must be set (injected automatically by aide on OpenCode).
+- This skill **only works on OpenCode**. Verify by checking the environment:
+  - `$OPENCODE=1` — set by the OpenCode runtime
+  - `$AIDE_PLATFORM=opencode` — set by aide when running under OpenCode
+  - `$AIDE_SESSION_ID` — the current session ID (injected by aide)
 - The OpenCode database is at `~/.local/share/opencode/opencode.db`.
 - `sqlite3` must be available on the system.
 
-If `$AIDE_SESSION_ID` is not set, abort with a message explaining this skill
-only works on OpenCode.
+If `$OPENCODE` is not `1` or `$AIDE_PLATFORM` is not `opencode`, abort immediately
+and inform the user that this skill is only supported on OpenCode.
+Do **not** attempt to query other databases (e.g. Claude Code's storage) — the
+schema is OpenCode-specific.
+
+If `$AIDE_SESSION_ID` is not set, abort with a message explaining that the
+session ID could not be determined.
 
 ## Workflow
 
@@ -37,9 +45,12 @@ Present results to the user in a formatted summary after all queries complete.
 ### Step 1: Validate environment
 
 ```bash
+test "$OPENCODE" = "1" && echo "Platform: OpenCode" || echo "ERROR: Not running on OpenCode (OPENCODE=$OPENCODE)"
+test "$AIDE_PLATFORM" = "opencode" && echo "AIDE Platform: opencode" || echo "WARNING: AIDE_PLATFORM=$AIDE_PLATFORM"
 test -n "$AIDE_SESSION_ID" && echo "Session: $AIDE_SESSION_ID" || echo "ERROR: AIDE_SESSION_ID not set"
 ```
 
+If `OPENCODE` is not `1`, stop immediately — this skill cannot work outside OpenCode.
 If `AIDE_SESSION_ID` is not set, stop and inform the user.
 
 ### Step 2: Session overview
