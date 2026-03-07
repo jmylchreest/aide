@@ -39,8 +39,9 @@ opencode.json
 # Lock files from aide binary downloads
 packages/opencode-plugin/bin/.aide-download.lock
 
-# npm lockfile (replaced by bun.lock)
+# npm lockfile (replaced by bun.lock for aide core)
 package-lock.json
+!docs/package-lock.json
 
 # Syncthing temporary files
 .syncthing.*.tmp
@@ -54,3 +55,8 @@ package-lock.json
 .env
 .env.local
 .orphaned_at
+
+# Docusaurus (docs site)
+docs/.docusaurus/
+docs/build/
+docs/node_modules/
