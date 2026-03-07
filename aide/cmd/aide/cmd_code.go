@@ -523,7 +523,8 @@ func (idx *Indexer) IndexFile(filePath string) (int, error) {
 	return len(symbols), nil
 }
 
-// RemoveFile removes a file from the index.
+// RemoveFile removes a file from the index, including its symbols, references,
+// and file tracking info.
 func (idx *Indexer) RemoveFile(filePath string) error {
 	relPath := filePath
 	if abs, err := filepath.Abs(filePath); err == nil {
@@ -534,5 +535,11 @@ func (idx *Indexer) RemoveFile(filePath string) error {
 		}
 	}
 
+	// Clear references from this file (call sites, type refs, etc.).
+	if err := idx.store.ClearFileReferences(relPath); err != nil {
+		return fmt.Errorf("clear references: %w", err)
+	}
+
+	// Clear symbols and file tracking info.
 	return idx.store.ClearFile(relPath)
 }

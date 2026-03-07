@@ -19,6 +19,21 @@ var runnerLog = log.New(os.Stderr, "[aide:findings] ", log.Ltime)
 
 const ScopeProject = "<project>"
 
+// toRelPath converts an absolute or mixed-format path to a cwd-relative path.
+// This ensures a consistent path format across findings storage and RunKey
+// scoping, preventing duplicates caused by path mismatches (e.g. the watcher
+// sends absolute paths, while findings store uses relative paths).
+func toRelPath(file string) string {
+	if cwd, err := os.Getwd(); err == nil {
+		if abs, err := filepath.Abs(file); err == nil {
+			if rel, err := filepath.Rel(cwd, abs); err == nil {
+				return rel
+			}
+		}
+	}
+	return file
+}
+
 type AnalyzerConfig struct {
 	ComplexityThreshold int
 	FanOutThreshold     int
@@ -143,7 +158,8 @@ func (r *Runner) OnChanges(files map[string]fsnotify.Op) {
 
 	ignore := r.ignore()
 
-	for file := range files {
+	hasChanges := false
+	for file, op := range files {
 		if !code.SupportedFile(file) {
 			continue
 		}
@@ -159,12 +175,37 @@ func (r *Runner) OnChanges(files map[string]fsnotify.Op) {
 			continue
 		}
 
+		hasChanges = true
+
+		// Normalise to cwd-relative so the RunKey scope, findings FilePath,
+		// and store replacement predicate all use the same format.
+		scopePath := toRelPath(file)
+
+		// When a file is deleted, clear its per-file findings instead of
+		// re-analysing (the file no longer exists on disk).
+		if op&fsnotify.Remove != 0 {
+			for _, analyzer := range perFileAnalyzers {
+				if err := r.store.ReplaceFindingsForAnalyzerAndFile(analyzer, scopePath, nil); err != nil {
+					runnerLog.Printf("%s on %s: failed to clear findings for deleted file: %v", analyzer, scopePath, err)
+				} else {
+					runnerLog.Printf("%s on %s: cleared findings (file deleted)", analyzer, scopePath)
+				}
+			}
+			continue
+		}
+
 		for _, analyzer := range perFileAnalyzers {
-			key := RunKey{Analyzer: analyzer, Scope: file}
+			key := RunKey{Analyzer: analyzer, Scope: scopePath}
 			r.runAnalyzer(key, func(ctx context.Context) ([]*Finding, error) {
 				return r.runPerFileAnalyzer(ctx, analyzer, file)
 			})
 		}
+	}
+
+	// Project-wide analyzers only need to run when files actually changed
+	// (including deletions — e.g. coupling/clone data may have changed).
+	if !hasChanges {
+		return
 	}
 
 	for _, analyzer := range projectAnalyzers {
@@ -270,12 +311,7 @@ func (r *Runner) runPerFileAnalyzer(ctx context.Context, analyzer string, file s
 		return nil, fmt.Errorf("read file: %w", err)
 	}
 
-	relPath := file
-	if cwd, err := os.Getwd(); err != nil {
-		log.Printf("findings: os.Getwd failed, using absolute paths: %v", err)
-	} else if rel, err := filepath.Rel(cwd, file); err == nil {
-		relPath = rel
-	}
+	relPath := toRelPath(file)
 
 	switch analyzer {
 	case AnalyzerComplexity:
@@ -470,8 +506,9 @@ func (r *Runner) RunAll(ctx context.Context) error {
 				return nil
 			}
 
+			scopePath := toRelPath(path)
 			for _, analyzer := range []string{AnalyzerComplexity, AnalyzerSecrets} {
-				key := RunKey{Analyzer: analyzer, Scope: path}
+				key := RunKey{Analyzer: analyzer, Scope: scopePath}
 				r.runAnalyzer(key, func(ctx context.Context) ([]*Finding, error) {
 					return r.runPerFileAnalyzer(ctx, analyzer, path)
 				})
