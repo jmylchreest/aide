@@ -73,6 +73,14 @@ type IndexStats struct {
 	References int `json:"references"`
 }
 
+// SymbolRefCount holds a symbol name and its reference count.
+type SymbolRefCount struct {
+	Symbol string `json:"symbol"` // Symbol name
+	Count  int    `json:"count"`  // Number of references
+	Kind   string `json:"kind"`   // Symbol kind (if resolved)
+	File   string `json:"file"`   // File where symbol is defined (if resolved)
+}
+
 // ReferenceSearchOptions for filtering reference searches
 type ReferenceSearchOptions struct {
 	SymbolName string // Filter by symbol name (required)

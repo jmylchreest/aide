@@ -1,6 +1,7 @@
 package store
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -574,6 +575,97 @@ func TestGetFileSymbolsNonexistentFile(t *testing.T) {
 }
 
 // =============================================================================
+// GetContainingSymbol
+// =============================================================================
+
+func TestGetContainingSymbol_ExactMatch(t *testing.T) {
+	cs, cleanup := setupTestCodeStore(t)
+	defer cleanup()
+
+	sym := &code.Symbol{Name: "main", Kind: code.KindFunction, FilePath: "main.go", Language: "go", StartLine: 10, EndLine: 20}
+	cs.AddSymbol(sym)
+	cs.SetFileInfo(&code.FileInfo{Path: "main.go", SymbolIDs: []string{sym.ID}})
+
+	got, err := cs.GetContainingSymbol("main.go", 15)
+	if err != nil {
+		t.Fatalf("GetContainingSymbol: %v", err)
+	}
+	if got.Name != "main" {
+		t.Errorf("expected 'main', got %q", got.Name)
+	}
+}
+
+func TestGetContainingSymbol_PicksNarrowest(t *testing.T) {
+	cs, cleanup := setupTestCodeStore(t)
+	defer cleanup()
+
+	outer := &code.Symbol{Name: "MyClass", Kind: code.KindClass, FilePath: "app.ts", Language: "typescript", StartLine: 1, EndLine: 50}
+	inner := &code.Symbol{Name: "doWork", Kind: code.KindMethod, FilePath: "app.ts", Language: "typescript", StartLine: 10, EndLine: 20}
+	cs.AddSymbol(outer)
+	cs.AddSymbol(inner)
+	cs.SetFileInfo(&code.FileInfo{Path: "app.ts", SymbolIDs: []string{outer.ID, inner.ID}})
+
+	got, err := cs.GetContainingSymbol("app.ts", 15)
+	if err != nil {
+		t.Fatalf("GetContainingSymbol: %v", err)
+	}
+	if got.Name != "doWork" {
+		t.Errorf("expected narrowest symbol 'doWork', got %q", got.Name)
+	}
+}
+
+func TestGetContainingSymbol_BoundaryLines(t *testing.T) {
+	cs, cleanup := setupTestCodeStore(t)
+	defer cleanup()
+
+	sym := &code.Symbol{Name: "handler", Kind: code.KindFunction, FilePath: "srv.go", Language: "go", StartLine: 5, EndLine: 15}
+	cs.AddSymbol(sym)
+	cs.SetFileInfo(&code.FileInfo{Path: "srv.go", SymbolIDs: []string{sym.ID}})
+
+	// Start line
+	got, err := cs.GetContainingSymbol("srv.go", 5)
+	if err != nil {
+		t.Fatalf("start line: %v", err)
+	}
+	if got.Name != "handler" {
+		t.Errorf("start line: expected 'handler', got %q", got.Name)
+	}
+
+	// End line
+	got, err = cs.GetContainingSymbol("srv.go", 15)
+	if err != nil {
+		t.Fatalf("end line: %v", err)
+	}
+	if got.Name != "handler" {
+		t.Errorf("end line: expected 'handler', got %q", got.Name)
+	}
+}
+
+func TestGetContainingSymbol_NoMatch(t *testing.T) {
+	cs, cleanup := setupTestCodeStore(t)
+	defer cleanup()
+
+	sym := &code.Symbol{Name: "init", Kind: code.KindFunction, FilePath: "main.go", Language: "go", StartLine: 10, EndLine: 20}
+	cs.AddSymbol(sym)
+	cs.SetFileInfo(&code.FileInfo{Path: "main.go", SymbolIDs: []string{sym.ID}})
+
+	_, err := cs.GetContainingSymbol("main.go", 5)
+	if err != ErrNotFound {
+		t.Errorf("expected ErrNotFound for line outside symbols, got %v", err)
+	}
+}
+
+func TestGetContainingSymbol_NonexistentFile(t *testing.T) {
+	cs, cleanup := setupTestCodeStore(t)
+	defer cleanup()
+
+	_, err := cs.GetContainingSymbol("nope.go", 1)
+	if err != ErrNotFound {
+		t.Errorf("expected ErrNotFound for nonexistent file, got %v", err)
+	}
+}
+
+// =============================================================================
 // ClearFile
 // =============================================================================
 
@@ -893,5 +985,215 @@ func TestListAllSymbols(t *testing.T) {
 	}
 	if len(limited) != 3 {
 		t.Errorf("expected 3 symbols with limit, got %d", len(limited))
+	}
+}
+
+// =============================================================================
+// GetFileReferences
+// =============================================================================
+
+func TestGetFileReferences_ReturnsMatchingRefs(t *testing.T) {
+	cs, cleanup := setupTestCodeStore(t)
+	defer cleanup()
+
+	// Add references in two different files.
+	cs.AddReference(&code.Reference{SymbolName: "foo", Kind: "call", FilePath: "main.go", Line: 10})
+	cs.AddReference(&code.Reference{SymbolName: "bar", Kind: "call", FilePath: "main.go", Line: 20})
+	cs.AddReference(&code.Reference{SymbolName: "baz", Kind: "call", FilePath: "other.go", Line: 5})
+
+	refs, err := cs.GetFileReferences("main.go")
+	if err != nil {
+		t.Fatalf("GetFileReferences: %v", err)
+	}
+	if len(refs) != 2 {
+		t.Fatalf("expected 2 refs for main.go, got %d", len(refs))
+	}
+
+	names := map[string]bool{}
+	for _, r := range refs {
+		names[r.SymbolName] = true
+		if r.FilePath != "main.go" {
+			t.Errorf("expected FilePath=main.go, got %q", r.FilePath)
+		}
+	}
+	if !names["foo"] || !names["bar"] {
+		t.Errorf("expected refs to foo and bar, got %v", names)
+	}
+}
+
+func TestGetFileReferences_EmptyForUnknownFile(t *testing.T) {
+	cs, cleanup := setupTestCodeStore(t)
+	defer cleanup()
+
+	cs.AddReference(&code.Reference{SymbolName: "foo", Kind: "call", FilePath: "main.go", Line: 10})
+
+	refs, err := cs.GetFileReferences("nope.go")
+	if err != nil {
+		t.Fatalf("GetFileReferences: %v", err)
+	}
+	if len(refs) != 0 {
+		t.Errorf("expected 0 refs for nope.go, got %d", len(refs))
+	}
+}
+
+func TestGetFileReferences_EmptyStore(t *testing.T) {
+	cs, cleanup := setupTestCodeStore(t)
+	defer cleanup()
+
+	refs, err := cs.GetFileReferences("main.go")
+	if err != nil {
+		t.Fatalf("GetFileReferences: %v", err)
+	}
+	if len(refs) != 0 {
+		t.Errorf("expected 0 refs for empty store, got %d", len(refs))
+	}
+}
+
+func TestGetFileReferences_MultipleRefsToSameSymbol(t *testing.T) {
+	cs, cleanup := setupTestCodeStore(t)
+	defer cleanup()
+
+	// Same symbol called twice in the same file at different lines.
+	cs.AddReference(&code.Reference{SymbolName: "fmt.Println", Kind: "call", FilePath: "main.go", Line: 10})
+	cs.AddReference(&code.Reference{SymbolName: "fmt.Println", Kind: "call", FilePath: "main.go", Line: 25})
+
+	refs, err := cs.GetFileReferences("main.go")
+	if err != nil {
+		t.Fatalf("GetFileReferences: %v", err)
+	}
+	if len(refs) != 2 {
+		t.Fatalf("expected 2 refs, got %d", len(refs))
+	}
+	if refs[0].Line == refs[1].Line {
+		t.Errorf("expected different lines, both are %d", refs[0].Line)
+	}
+}
+
+// =============================================================================
+// TopReferencedSymbols
+// =============================================================================
+
+func TestTopReferencedSymbols(t *testing.T) {
+	cs, cleanup := setupTestCodeStore(t)
+	defer cleanup()
+
+	// Add symbols so metadata can be resolved.
+	cs.AddSymbol(&code.Symbol{
+		Name:     "Foo",
+		Kind:     code.KindFunction,
+		FilePath: "foo.go",
+		Language: "go",
+	})
+	cs.AddSymbol(&code.Symbol{
+		Name:     "Bar",
+		Kind:     code.KindMethod,
+		FilePath: "bar.go",
+		Language: "go",
+	})
+	cs.AddSymbol(&code.Symbol{
+		Name:     "Baz",
+		Kind:     code.KindFunction,
+		FilePath: "baz.go",
+		Language: "go",
+	})
+
+	// Add references: Foo=3, Bar=2, Baz=1
+	for i := 0; i < 3; i++ {
+		cs.AddReference(&code.Reference{SymbolName: "Foo", Kind: "call", FilePath: "main.go", Line: 10 + i})
+	}
+	for i := 0; i < 2; i++ {
+		cs.AddReference(&code.Reference{SymbolName: "Bar", Kind: "call", FilePath: "main.go", Line: 30 + i})
+	}
+	cs.AddReference(&code.Reference{SymbolName: "Baz", Kind: "call", FilePath: "main.go", Line: 50})
+
+	// Basic: all symbols, no kind filter
+	results, err := cs.TopReferencedSymbols(10, "")
+	if err != nil {
+		t.Fatalf("TopReferencedSymbols: %v", err)
+	}
+	if len(results) != 3 {
+		t.Fatalf("expected 3 results, got %d", len(results))
+	}
+	// Should be sorted descending by count
+	if results[0].Symbol != "Foo" || results[0].Count != 3 {
+		t.Errorf("expected Foo with count 3 first, got %s with %d", results[0].Symbol, results[0].Count)
+	}
+	if results[1].Symbol != "Bar" || results[1].Count != 2 {
+		t.Errorf("expected Bar with count 2 second, got %s with %d", results[1].Symbol, results[1].Count)
+	}
+	if results[2].Symbol != "Baz" || results[2].Count != 1 {
+		t.Errorf("expected Baz with count 1 third, got %s with %d", results[2].Symbol, results[2].Count)
+	}
+
+	// Metadata should be resolved
+	if results[0].Kind != code.KindFunction {
+		t.Errorf("expected Foo kind=%s, got %s", code.KindFunction, results[0].Kind)
+	}
+	if results[0].File != "foo.go" {
+		t.Errorf("expected Foo file=foo.go, got %s", results[0].File)
+	}
+
+	// Test with limit
+	limited, err := cs.TopReferencedSymbols(2, "")
+	if err != nil {
+		t.Fatalf("TopReferencedSymbols with limit: %v", err)
+	}
+	if len(limited) != 2 {
+		t.Errorf("expected 2 results with limit, got %d", len(limited))
+	}
+
+	// Test with kind filter
+	filtered, err := cs.TopReferencedSymbols(10, code.KindFunction)
+	if err != nil {
+		t.Fatalf("TopReferencedSymbols with kind filter: %v", err)
+	}
+	// Should only include Foo and Baz (functions), not Bar (method)
+	if len(filtered) != 2 {
+		t.Fatalf("expected 2 function results, got %d", len(filtered))
+	}
+	if filtered[0].Symbol != "Foo" {
+		t.Errorf("expected Foo first in filtered, got %s", filtered[0].Symbol)
+	}
+	if filtered[1].Symbol != "Baz" {
+		t.Errorf("expected Baz second in filtered, got %s", filtered[1].Symbol)
+	}
+}
+
+func TestTopReferencedSymbols_EmptyStore(t *testing.T) {
+	cs, cleanup := setupTestCodeStore(t)
+	defer cleanup()
+
+	results, err := cs.TopReferencedSymbols(10, "")
+	if err != nil {
+		t.Fatalf("TopReferencedSymbols on empty store: %v", err)
+	}
+	if len(results) != 0 {
+		t.Errorf("expected 0 results on empty store, got %d", len(results))
+	}
+}
+
+func TestTopReferencedSymbols_DefaultLimit(t *testing.T) {
+	cs, cleanup := setupTestCodeStore(t)
+	defer cleanup()
+
+	// Add 30 distinct symbols with references
+	for i := 0; i < 30; i++ {
+		name := fmt.Sprintf("Sym%02d", i)
+		cs.AddSymbol(&code.Symbol{
+			Name:     name,
+			Kind:     code.KindFunction,
+			FilePath: "gen.go",
+			Language: "go",
+		})
+		cs.AddReference(&code.Reference{SymbolName: name, Kind: "call", FilePath: "main.go", Line: i})
+	}
+
+	// Default limit (0) should cap at 25
+	results, err := cs.TopReferencedSymbols(0, "")
+	if err != nil {
+		t.Fatalf("TopReferencedSymbols default limit: %v", err)
+	}
+	if len(results) != 25 {
+		t.Errorf("expected 25 results with default limit, got %d", len(results))
 	}
 }

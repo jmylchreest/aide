@@ -11,7 +11,10 @@ import (
 	"time"
 
 	"github.com/jmylchreest/aide/aide/internal/version"
+	"github.com/jmylchreest/aide/aide/pkg/findings"
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi"
+	"github.com/jmylchreest/aide/aide/pkg/store"
+	"github.com/jmylchreest/aide/aide/pkg/survey"
 )
 
 type StatusOutput struct {
@@ -24,6 +27,7 @@ type StatusOutput struct {
 	Watcher       *WatcherStatus    `json:"watcher,omitempty"`
 	Code          *CodeStatus       `json:"codeIndexer,omitempty"`
 	Findings      *FindingsStatus   `json:"findings,omitempty"`
+	Survey        *SurveyStatus     `json:"survey,omitempty"`
 	MCPTools      []MCPToolStatus   `json:"mcpTools,omitempty"`
 	Stores        StoreStatus       `json:"stores"`
 	Env           map[string]string `json:"environment,omitempty"`
@@ -66,6 +70,12 @@ type MCPToolStatus struct {
 	ExecutionCount int64  `json:"executionCount"`
 }
 
+type SurveyStatus struct {
+	Total      int            `json:"total"`
+	ByAnalyzer map[string]int `json:"byAnalyzer"`
+	ByKind     map[string]int `json:"byKind"`
+}
+
 type StoreStatus struct {
 	Paths map[string]string `json:"paths"`
 	Sizes map[string]int64  `json:"sizes"`
@@ -85,6 +95,7 @@ Shows:
   - File watcher status
   - Code indexer statistics
   - Findings analyser status
+  - Codebase survey status
   - MCP tools with execution counts
   - Store paths and sizes
   - Environment variables
@@ -128,6 +139,53 @@ func cmdStatus(dbPath string, args []string) error {
 			resp, err := client.Status.GetStatus(ctx, &grpcapi.StatusRequest{})
 			if err == nil {
 				populateFromGRPC(&status, resp)
+			}
+		}
+	}
+
+	// Direct store fallbacks when server is not running
+	memoryDir := filepath.Dir(dbPath)
+
+	if status.Code == nil {
+		codeDBPath := filepath.Join(memoryDir, "code", "index.db")
+		codeSearchPath := filepath.Join(memoryDir, "code", "search.bleve")
+		if cs, err := store.NewCodeStore(codeDBPath, codeSearchPath); err == nil {
+			defer cs.Close()
+			if stats, err := cs.Stats(); err == nil && stats != nil {
+				status.Code = &CodeStatus{
+					Status:     "idle",
+					Symbols:    stats.Symbols,
+					References: stats.References,
+					Files:      stats.Files,
+				}
+			}
+		}
+	}
+
+	if status.Findings == nil {
+		findingsDir := filepath.Join(memoryDir, "findings")
+		if fs, err := store.NewFindingsStore(findingsDir); err == nil {
+			defer fs.Close()
+			if stats, err := fs.Stats(findings.SearchOptions{}); err == nil && stats != nil {
+				status.Findings = &FindingsStatus{
+					Total:      stats.Total,
+					ByAnalyzer: stats.ByAnalyzer,
+					BySeverity: stats.BySeverity,
+				}
+			}
+		}
+	}
+
+	if status.Survey == nil {
+		surveyDir := getSurveyStorePath(dbPath)
+		if ss, err := store.NewSurveyStore(surveyDir); err == nil {
+			defer ss.Close()
+			if stats, err := ss.Stats(survey.SearchOptions{}); err == nil && stats != nil {
+				status.Survey = &SurveyStatus{
+					Total:      stats.Total,
+					ByAnalyzer: stats.ByAnalyzer,
+					ByKind:     stats.ByKind,
+				}
 			}
 		}
 	}
@@ -204,6 +262,23 @@ func populateFromGRPC(status *StatusOutput, resp *grpcapi.StatusResponse) {
 		}
 	}
 
+	// Survey
+	if sv := resp.Survey; sv != nil && sv.Available {
+		byAnalyzer := make(map[string]int, len(sv.ByAnalyzer))
+		for k, v := range sv.ByAnalyzer {
+			byAnalyzer[k] = int(v)
+		}
+		byKind := make(map[string]int, len(sv.ByKind))
+		for k, v := range sv.ByKind {
+			byKind[k] = int(v)
+		}
+		status.Survey = &SurveyStatus{
+			Total:      int(sv.Total),
+			ByAnalyzer: byAnalyzer,
+			ByKind:     byKind,
+		}
+	}
+
 	// MCP tools
 	if len(resp.McpTools) > 0 {
 		tools := make([]MCPToolStatus, len(resp.McpTools))
@@ -240,6 +315,7 @@ func printStatusTable(status StatusOutput) {
 	printWatcherStatus(status.Watcher)
 	printCodeStatus(status.Code)
 	printFindingsStatus(status.Findings)
+	printSurveyStatus(status.Survey)
 	printMCPToolsStatus(status.MCPTools)
 	printStoresStatus(status.Stores)
 
@@ -329,6 +405,41 @@ func printFindingsStatus(f *FindingsStatus) {
 	fmt.Println()
 }
 
+func printSurveyStatus(s *SurveyStatus) {
+	fmt.Println("CODEBASE SURVEY")
+	if s != nil {
+		fmt.Printf("  Total: %d", s.Total)
+		if len(s.ByAnalyzer) > 0 {
+			names := make([]string, 0, len(s.ByAnalyzer))
+			for name := range s.ByAnalyzer {
+				names = append(names, name)
+			}
+			sort.Strings(names)
+			parts := make([]string, 0, len(names))
+			for _, name := range names {
+				parts = append(parts, fmt.Sprintf("%s: %d", name, s.ByAnalyzer[name]))
+			}
+			fmt.Printf("  (%s)", strings.Join(parts, ", "))
+		}
+		fmt.Println()
+		if len(s.ByKind) > 0 {
+			kinds := make([]string, 0, len(s.ByKind))
+			for kind := range s.ByKind {
+				kinds = append(kinds, kind)
+			}
+			sort.Strings(kinds)
+			parts := make([]string, 0, len(kinds))
+			for _, kind := range kinds {
+				parts = append(parts, fmt.Sprintf("%s: %d", kind, s.ByKind[kind]))
+			}
+			fmt.Printf("  Kinds: %s\n", strings.Join(parts, ", "))
+		}
+	} else {
+		fmt.Println("  Status:       not available")
+	}
+	fmt.Println()
+}
+
 func printMCPToolsStatus(tools []MCPToolStatus) {
 	fmt.Println("MCP TOOLS")
 	if len(tools) > 0 {
@@ -384,7 +495,7 @@ func printMCPToolsStatus(tools []MCPToolStatus) {
 
 func printStoresStatus(stores StoreStatus) {
 	fmt.Println("STORES")
-	storeOrder := []string{"memory.db", "memory.bleve", "code.db", "code.bleve", "findings.db", "findings.bleve"}
+	storeOrder := []string{"memory.db", "memory.bleve", "code.db", "code.bleve", "findings.db", "findings.bleve", "survey.db", "survey.bleve"}
 	printed := make(map[string]bool)
 	for _, name := range storeOrder {
 		path, ok := stores.Paths[name]
@@ -477,6 +588,20 @@ func getStoreStatus(dbPath string) StoreStatus {
 	if size, err := dirSize(findingsSearchPath); err == nil {
 		status.Paths["findings.bleve"] = findingsSearchPath
 		status.Sizes["findings.bleve"] = size
+	}
+
+	// survey.db — survey store
+	surveyPath := filepath.Join(memoryDir, "survey", "survey.db")
+	if info, err := os.Stat(surveyPath); err == nil {
+		status.Paths["survey.db"] = surveyPath
+		status.Sizes["survey.db"] = info.Size()
+	}
+
+	// survey search index
+	surveySearchPath := filepath.Join(memoryDir, "survey", "search.bleve")
+	if size, err := dirSize(surveySearchPath); err == nil {
+		status.Paths["survey.bleve"] = surveySearchPath
+		status.Sizes["survey.bleve"] = size
 	}
 
 	return status

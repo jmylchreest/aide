@@ -8,6 +8,7 @@ import (
 	"github.com/jmylchreest/aide/aide/pkg/code"
 	"github.com/jmylchreest/aide/aide/pkg/findings"
 	"github.com/jmylchreest/aide/aide/pkg/memory"
+	"github.com/jmylchreest/aide/aide/pkg/survey"
 )
 
 // MemoryStore provides memory CRUD operations.
@@ -80,12 +81,15 @@ type CodeIndexStore interface {
 	DeleteSymbol(id string) error
 	SearchSymbols(query string, opts code.SearchOptions) ([]*CodeSearchResult, error)
 	GetFileSymbols(filePath string) ([]*code.Symbol, error)
+	GetContainingSymbol(filePath string, line int) (*code.Symbol, error)
 	GetFileInfo(path string) (*code.FileInfo, error)
 	SetFileInfo(info *code.FileInfo) error
 	ClearFile(filePath string) error
 	AddReference(ref *code.Reference) error
 	SearchReferences(opts code.ReferenceSearchOptions) ([]*code.Reference, error)
+	GetFileReferences(filePath string) ([]*code.Reference, error)
 	ClearFileReferences(filePath string) error
+	TopReferencedSymbols(limit int, kind string) ([]*code.SymbolRefCount, error)
 	Stats() (*code.IndexStats, error)
 	Clear() error
 	Close() error
@@ -116,3 +120,21 @@ type FindingsStore interface {
 }
 
 var _ FindingsStore = (*FindingsStoreImpl)(nil)
+
+// SurveyStore manages codebase survey entries in a separate database.
+type SurveyStore interface {
+	AddEntry(e *survey.Entry) error
+	GetEntry(id string) (*survey.Entry, error)
+	DeleteEntry(id string) error
+	SearchEntries(query string, opts survey.SearchOptions) ([]*survey.SearchResult, error)
+	ListEntries(opts survey.SearchOptions) ([]*survey.Entry, error)
+	GetFileEntries(filePath string) ([]*survey.Entry, error)
+	ClearAnalyzer(analyzer string) (int, error)
+	ReplaceEntriesForAnalyzer(analyzer string, newEntries []*survey.Entry) error
+	ReplaceEntriesForAnalyzerAndFile(analyzer, filePath string, newEntries []*survey.Entry) error
+	Stats(opts survey.SearchOptions) (*survey.Stats, error)
+	Clear() error
+	Close() error
+}
+
+var _ SurveyStore = (*SurveyStoreImpl)(nil)

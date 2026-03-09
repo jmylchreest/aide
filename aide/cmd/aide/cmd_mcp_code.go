@@ -45,6 +45,11 @@ type CodeOutlineInput struct {
 	KeepComments bool   `json:"keep_comments,omitempty" jsonschema:"Keep comments in output. By default comments are stripped to minimize tokens."`
 }
 
+type CodeTopReferencesInput struct {
+	Limit int    `json:"limit,omitempty" jsonschema:"Maximum results (default 25)"`
+	Kind  string `json:"kind,omitempty" jsonschema:"Filter by symbol kind: function, method, class, interface, type"`
+}
+
 // ============================================================================
 // Code tool registration and handlers
 // ============================================================================
@@ -61,10 +66,10 @@ Symbols are extracted from source files using tree-sitter parsing:
 - Functions and methods with their signatures
 - Classes and interfaces
 - Type definitions
-- Includes doc comments when present
+- Doc comments (searchable)
 
 **Search capabilities:**
-- Full-text search on symbol names and signatures
+- Full-text search on symbol names, signatures, and doc comments
 - Filter by kind (function, method, class, interface, type)
 - Filter by language (typescript, javascript, go, python)
 - Filter by file path pattern
@@ -105,10 +110,9 @@ If counts are zero, the codebase needs indexing: run 'aide code index'.`,
 		Description: `Find all references (call sites) for a symbol.
 
 **What are references?**
-References are places where a symbol is used:
-- Function/method calls
-- Type references
-- Constructor invocations
+References are places where a symbol is used, indexed by tree-sitter:
+- Function/method calls (kind: call)
+- Type references (kind: type_ref)
 
 **Use cases:**
 - Find all callers of a function
@@ -140,6 +144,21 @@ By default, comments are stripped. Set keep_comments=true to preserve them.
 47: func validateToken(token string) bool { ... }             // 47-62
 ` + "```" + ``,
 	}, s.handleCodeOutline)
+
+	mcp.AddTool(s.server, &mcp.Tool{
+		Name: "code_top_references",
+		Description: `Rank symbols by how many times they are referenced across the codebase.
+
+Returns symbols sorted by reference count (descending). Each result includes
+the symbol name, reference count, and definition location when available.
+
+**Use cases:**
+- Find the most-used functions, types, or methods in the codebase
+- Identify core APIs and shared utilities
+- Understand codebase coupling — heavily-referenced symbols are high-impact change targets
+
+**Note:** Run 'aide code index' to index your codebase first.`,
+	}, s.handleCodeTopReferences)
 }
 
 func (s *MCPServer) handleCodeSearch(_ context.Context, _ *mcp.CallToolRequest, input CodeSearchInput) (*mcp.CallToolResult, any, error) {
@@ -283,6 +302,47 @@ func (s *MCPServer) handleCodeReferences(_ context.Context, _ *mcp.CallToolReque
 
 	mcpLog.Printf("  found: %d references", len(refs))
 	return textResult(formatCodeReferences(input.SymbolName, refs)), nil, nil
+}
+
+func (s *MCPServer) handleCodeTopReferences(_ context.Context, _ *mcp.CallToolRequest, input CodeTopReferencesInput) (*mcp.CallToolResult, any, error) {
+	mcpLog.Printf("tool: code_top_references limit=%d kind=%s", input.Limit, input.Kind)
+
+	codeStore := s.getCodeStore()
+	if codeStore == nil {
+		return errorResult("code store not available (still initializing or disabled)"), nil, nil
+	}
+
+	limit := input.Limit
+	if limit <= 0 {
+		limit = 25
+	}
+
+	results, err := codeStore.TopReferencedSymbols(limit, input.Kind)
+	if err != nil {
+		mcpLog.Printf("  error: %v", err)
+		return errorResult(fmt.Sprintf("query failed: %v", err)), nil, nil
+	}
+
+	if len(results) == 0 {
+		return textResult("No referenced symbols found. Run 'aide code index' to index the codebase."), nil, nil
+	}
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("Top %d most-referenced symbols:\n\n", len(results)))
+	for i, r := range results {
+		loc := ""
+		if r.File != "" {
+			loc = fmt.Sprintf("  %s", r.File)
+		}
+		kind := ""
+		if r.Kind != "" {
+			kind = fmt.Sprintf(" [%s]", r.Kind)
+		}
+		sb.WriteString(fmt.Sprintf("%3d. %-40s %4d refs%s%s\n", i+1, r.Symbol, r.Count, kind, loc))
+	}
+
+	mcpLog.Printf("  returned: %d symbols", len(results))
+	return textResult(sb.String()), nil, nil
 }
 
 func (s *MCPServer) handleCodeOutline(_ context.Context, _ *mcp.CallToolRequest, input CodeOutlineInput) (*mcp.CallToolResult, any, error) {

@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -569,6 +570,31 @@ func (s *CodeStore) SearchReferences(opts code.ReferenceSearchOptions) ([]*code.
 	return refs, nil
 }
 
+// GetFileReferences returns all references in a given file.
+func (s *CodeStore) GetFileReferences(filePath string) ([]*code.Reference, error) {
+	var refs []*code.Reference
+
+	err := s.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket(BucketReferences)
+		c := b.Cursor()
+		for k, v := c.First(); k != nil; k, v = c.Next() {
+			var ref code.Reference
+			if err := json.Unmarshal(v, &ref); err != nil {
+				continue
+			}
+			if ref.FilePath == filePath {
+				refs = append(refs, &ref)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get file references: %w", err)
+	}
+
+	return refs, nil
+}
+
 // ClearFileReferences removes all references from a file.
 func (s *CodeStore) ClearFileReferences(filePath string) error {
 	return s.db.Update(func(tx *bolt.Tx) error {
@@ -763,6 +789,99 @@ func (s *CodeStore) GetFileSymbols(filePath string) ([]*code.Symbol, error) {
 	}
 
 	return symbols, nil
+}
+
+// GetContainingSymbol returns the narrowest symbol whose line range contains the given line.
+// Returns ErrNotFound if no symbol spans the given line.
+func (s *CodeStore) GetContainingSymbol(filePath string, line int) (*code.Symbol, error) {
+	symbols, err := s.GetFileSymbols(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	var best *code.Symbol
+	bestSpan := int(^uint(0) >> 1) // max int
+
+	for _, sym := range symbols {
+		if sym.StartLine <= line && line <= sym.EndLine {
+			span := sym.EndLine - sym.StartLine
+			if span < bestSpan {
+				best = sym
+				bestSpan = span
+			}
+		}
+	}
+
+	if best == nil {
+		return nil, ErrNotFound
+	}
+	return best, nil
+}
+
+// TopReferencedSymbols returns symbols ranked by reference count (descending).
+func (s *CodeStore) TopReferencedSymbols(limit int, kind string) ([]*code.SymbolRefCount, error) {
+	if limit <= 0 {
+		limit = 25
+	}
+
+	type entry struct {
+		name  string
+		count int
+	}
+
+	var entries []entry
+
+	err := s.db.View(func(tx *bolt.Tx) error {
+		refIdx := tx.Bucket(BucketRefIndex)
+		c := refIdx.Cursor()
+		for k, v := c.First(); k != nil; k, v = c.Next() {
+			var ids []string
+			if err := json.Unmarshal(v, &ids); err != nil {
+				continue
+			}
+			if len(ids) == 0 {
+				continue
+			}
+			entries = append(entries, entry{name: string(k), count: len(ids)})
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Sort descending by count
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].count > entries[j].count
+	})
+
+	// Build results, resolving symbol metadata where possible
+	var results []*code.SymbolRefCount
+	for _, e := range entries {
+		// Try to resolve symbol metadata via Bleve search
+		rc := &code.SymbolRefCount{
+			Symbol: e.name,
+			Count:  e.count,
+		}
+
+		hits, err := s.SearchSymbols(e.name, code.SearchOptions{Kind: kind, Limit: 1})
+		if err == nil && len(hits) > 0 && hits[0].Symbol.Name == e.name {
+			rc.Kind = hits[0].Symbol.Kind
+			rc.File = hits[0].Symbol.FilePath
+		}
+
+		// Apply kind filter: skip if kind requested but not matched
+		if kind != "" && rc.Kind != kind {
+			continue
+		}
+
+		results = append(results, rc)
+		if len(results) >= limit {
+			break
+		}
+	}
+
+	return results, nil
 }
 
 // ListAllSymbols returns all symbols (up to limit).

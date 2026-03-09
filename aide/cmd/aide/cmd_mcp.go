@@ -32,6 +32,7 @@ type MCPServer struct {
 	store          store.Store
 	codeStore      store.CodeIndexStore
 	findingsStore  store.FindingsStore
+	surveyStore    store.SurveyStore
 	codeStoreMu    sync.RWMutex
 	codeStoreReady atomic.Bool
 	codeInitWg     sync.WaitGroup
@@ -214,6 +215,23 @@ func (s *MCPServer) initMCPFindingsStore(dbPath string, grpcServer *grpcapi.Serv
 	s.findingsStore = fs
 	grpcServer.SetFindingsStore(fs)
 	return func() { fs.Close() }
+}
+
+// initMCPSurveyStore opens the survey store and registers it with gRPC.
+func (s *MCPServer) initMCPSurveyStore(dbPath string, grpcServer *grpcapi.Server) func() {
+	surveyDir := getSurveyStorePath(dbPath)
+
+	surveyStart := time.Now()
+	ss, err := store.NewSurveyStore(surveyDir)
+	if err != nil {
+		mcpLog.Printf("WARNING: failed to open survey store: %v (survey tools disabled)", err)
+		return nil
+	}
+	mcpLog.Printf("survey store opened in %v: %s", time.Since(surveyStart), surveyDir)
+
+	s.surveyStore = ss
+	grpcServer.SetSurveyStore(ss)
+	return func() { ss.Close() }
 }
 
 // startCodeWatcher launches the file watcher in the background.
@@ -424,7 +442,8 @@ func cmdMCP(dbPath string, args []string) error {
 				mcpLog.Printf("client mode: connected to existing primary via %s", socketPath)
 				adapter := newGRPCStoreAdapter(client)
 				findingsAdapter := newGRPCFindingsAdapter(client)
-				mcpServer := &MCPServer{store: adapter, findingsStore: findingsAdapter, grammarLoader: grammarLoader}
+				surveyAdapter := newGRPCSurveyAdapter(client)
+				mcpServer := &MCPServer{store: adapter, findingsStore: findingsAdapter, surveyStore: surveyAdapter, grammarLoader: grammarLoader}
 				mcpLog.Printf("MCP server ready in %v (client mode), listening on stdio", time.Since(startTime))
 				return mcpServer.Run()
 			}
@@ -465,6 +484,10 @@ func cmdMCP(dbPath string, args []string) error {
 		defer cleanup()
 	}
 
+	if cleanup := mcpServer.initMCPSurveyStore(dbPath, grpcServer); cleanup != nil {
+		defer cleanup()
+	}
+
 	go func() {
 		if err := grpcServer.Start(); err != nil {
 			mcpLog.Printf("gRPC server error: %v", err)
@@ -501,6 +524,7 @@ func (s *MCPServer) Run() error {
 	s.registerTaskTools()     // Shared task management (swarm coordination, persistence)
 	s.registerCodeTools()     // Code indexing and search
 	s.registerFindingsTools() // Findings search and stats
+	s.registerSurveyTools()   // Survey search, list, stats, run
 
 	// Expose registered MCP tools and count getter to gRPC StatusService
 	if s.grpcServer != nil {
@@ -540,6 +564,11 @@ func mcpToolList() []*grpcapi.StatusMCPTool {
 		{Name: "findings_list", Category: "findings"},
 		{Name: "findings_stats", Category: "findings"},
 		{Name: "findings_accept", Category: "findings"},
+		{Name: "survey_search", Category: "survey"},
+		{Name: "survey_list", Category: "survey"},
+		{Name: "survey_stats", Category: "survey"},
+		{Name: "survey_run", Category: "survey"},
+		{Name: "survey_graph", Category: "survey"},
 	}
 }
 

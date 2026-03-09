@@ -21,6 +21,7 @@ type Client struct {
 	Task     TaskServiceClient
 	Code     CodeServiceClient
 	Findings FindingsServiceClient
+	Survey   SurveyServiceClient
 	Health   HealthServiceClient
 	Status   StatusServiceClient
 }
@@ -62,6 +63,7 @@ func NewClientWithSocket(socketPath string) (*Client, error) {
 		Task:     NewTaskServiceClient(conn),
 		Code:     NewCodeServiceClient(conn),
 		Findings: NewFindingsServiceClient(conn),
+		Survey:   NewSurveyServiceClient(conn),
 		Health:   NewHealthServiceClient(conn),
 		Status:   NewStatusServiceClient(conn),
 	}

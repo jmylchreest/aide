@@ -17,6 +17,7 @@ import (
 	"github.com/jmylchreest/aide/aide/pkg/grammar"
 	"github.com/jmylchreest/aide/aide/pkg/memory"
 	"github.com/jmylchreest/aide/aide/pkg/store"
+	"github.com/jmylchreest/aide/aide/pkg/survey"
 	"github.com/jmylchreest/aide/aide/pkg/watcher"
 	"github.com/oklog/ulid/v2"
 	"google.golang.org/grpc"
@@ -42,6 +43,7 @@ type Server struct {
 	store         store.Store
 	codeStore     store.CodeIndexStore
 	findingsStore store.FindingsStore
+	surveyStore   store.SurveyStore
 	dbPath        string
 	grpcServer    *grpc.Server
 	socketPath    string
@@ -97,6 +99,20 @@ func (s *Server) GetFindingsStore() store.FindingsStore {
 	s.storeMu.RLock()
 	defer s.storeMu.RUnlock()
 	return s.findingsStore
+}
+
+// SetSurveyStore sets the survey store for survey services.
+func (s *Server) SetSurveyStore(ss store.SurveyStore) {
+	s.storeMu.Lock()
+	defer s.storeMu.Unlock()
+	s.surveyStore = ss
+}
+
+// GetSurveyStore returns the current survey store (thread-safe).
+func (s *Server) GetSurveyStore() store.SurveyStore {
+	s.storeMu.RLock()
+	defer s.storeMu.RUnlock()
+	return s.surveyStore
 }
 
 // SetWatcher sets the watcher for status reporting.
@@ -157,6 +173,7 @@ func (s *Server) Start() error {
 	RegisterTaskServiceServer(s.grpcServer, &taskServiceImpl{store: s.store})
 	RegisterCodeServiceServer(s.grpcServer, &codeServiceImpl{server: s, parser: code.NewParser(s.grammarLoader)})
 	RegisterFindingsServiceServer(s.grpcServer, &findingsServiceImpl{server: s})
+	RegisterSurveyServiceServer(s.grpcServer, &surveyServiceImpl{server: s})
 	RegisterHealthServiceServer(s.grpcServer, &healthServiceImpl{dbPath: s.dbPath})
 	RegisterStatusServiceServer(s.grpcServer, &statusServiceImpl{server: s})
 
@@ -948,6 +965,32 @@ func (s *codeServiceImpl) Clear(ctx context.Context, req *CodeClearRequest) (*Co
 	}, nil
 }
 
+func (s *codeServiceImpl) TopReferences(ctx context.Context, req *CodeTopReferencesRequest) (*CodeTopReferencesResponse, error) {
+	cs := s.server.GetCodeStore()
+	if cs == nil {
+		return nil, fmt.Errorf("code store not available")
+	}
+
+	results, err := cs.TopReferencedSymbols(int(req.Limit), req.Kind)
+	if err != nil {
+		return nil, err
+	}
+
+	protoResults := make([]*SymbolRefCount, len(results))
+	for i, r := range results {
+		protoResults[i] = &SymbolRefCount{
+			Symbol: r.Symbol,
+			Count:  int32(r.Count),
+			Kind:   r.Kind,
+			File:   r.File,
+		}
+	}
+
+	return &CodeTopReferencesResponse{
+		Symbols: protoResults,
+	}, nil
+}
+
 // =============================================================================
 // Findings Service Implementation
 // =============================================================================
@@ -1147,6 +1190,198 @@ func (s *findingsServiceImpl) Clear(ctx context.Context, req *FindingClearReques
 }
 
 // =============================================================================
+// Survey Service Implementation
+// =============================================================================
+
+type surveyServiceImpl struct {
+	UnimplementedSurveyServiceServer
+	server *Server
+}
+
+func (s *surveyServiceImpl) Add(ctx context.Context, req *SurveyAddRequest) (*SurveyAddResponse, error) {
+	ss := s.server.GetSurveyStore()
+	if ss == nil {
+		return nil, fmt.Errorf("survey store not available")
+	}
+
+	e := &survey.Entry{
+		Analyzer: req.Analyzer,
+		Kind:     req.Kind,
+		Name:     req.Name,
+		FilePath: req.FilePath,
+		Title:    req.Title,
+		Detail:   req.Detail,
+		Metadata: req.Metadata,
+	}
+
+	if err := ss.AddEntry(e); err != nil {
+		return nil, err
+	}
+
+	return &SurveyAddResponse{
+		Entry: surveyEntryToProto(e),
+	}, nil
+}
+
+func (s *surveyServiceImpl) Get(ctx context.Context, req *SurveyGetRequest) (*SurveyGetResponse, error) {
+	ss := s.server.GetSurveyStore()
+	if ss == nil {
+		return nil, fmt.Errorf("survey store not available")
+	}
+
+	e, err := ss.GetEntry(req.Id)
+	if err != nil {
+		if err == store.ErrNotFound {
+			return &SurveyGetResponse{Found: false}, nil
+		}
+		return nil, err
+	}
+
+	return &SurveyGetResponse{
+		Entry: surveyEntryToProto(e),
+		Found: true,
+	}, nil
+}
+
+func (s *surveyServiceImpl) Delete(ctx context.Context, req *SurveyDeleteRequest) (*SurveyDeleteResponse, error) {
+	ss := s.server.GetSurveyStore()
+	if ss == nil {
+		return nil, fmt.Errorf("survey store not available")
+	}
+
+	if err := ss.DeleteEntry(req.Id); err != nil {
+		return nil, err
+	}
+
+	return &SurveyDeleteResponse{Success: true}, nil
+}
+
+func (s *surveyServiceImpl) Search(ctx context.Context, req *SurveySearchRequest) (*SurveySearchResponse, error) {
+	ss := s.server.GetSurveyStore()
+	if ss == nil {
+		return nil, fmt.Errorf("survey store not available")
+	}
+
+	opts := survey.SearchOptions{
+		Analyzer: req.Analyzer,
+		Kind:     req.Kind,
+		FilePath: req.FilePath,
+		Limit:    int(req.Limit),
+	}
+
+	results, err := ss.SearchEntries(req.Query, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	protoEntries := make([]*SurveyEntry, len(results))
+	for i, r := range results {
+		protoEntries[i] = surveyEntryToProto(r.Entry)
+	}
+
+	return &SurveySearchResponse{Entries: protoEntries}, nil
+}
+
+func (s *surveyServiceImpl) List(ctx context.Context, req *SurveyListRequest) (*SurveySearchResponse, error) {
+	ss := s.server.GetSurveyStore()
+	if ss == nil {
+		return nil, fmt.Errorf("survey store not available")
+	}
+
+	opts := survey.SearchOptions{
+		Analyzer: req.Analyzer,
+		Kind:     req.Kind,
+		FilePath: req.FilePath,
+		Limit:    int(req.Limit),
+	}
+
+	results, err := ss.ListEntries(opts)
+	if err != nil {
+		return nil, err
+	}
+
+	protoEntries := make([]*SurveyEntry, len(results))
+	for i, e := range results {
+		protoEntries[i] = surveyEntryToProto(e)
+	}
+
+	return &SurveySearchResponse{Entries: protoEntries}, nil
+}
+
+func (s *surveyServiceImpl) GetFileEntries(ctx context.Context, req *SurveyFileRequest) (*SurveySearchResponse, error) {
+	ss := s.server.GetSurveyStore()
+	if ss == nil {
+		return nil, fmt.Errorf("survey store not available")
+	}
+
+	results, err := ss.GetFileEntries(req.FilePath)
+	if err != nil {
+		return nil, err
+	}
+
+	protoEntries := make([]*SurveyEntry, len(results))
+	for i, e := range results {
+		protoEntries[i] = surveyEntryToProto(e)
+	}
+
+	return &SurveySearchResponse{Entries: protoEntries}, nil
+}
+
+func (s *surveyServiceImpl) ClearAnalyzer(ctx context.Context, req *SurveyClearAnalyzerRequest) (*SurveyClearAnalyzerResponse, error) {
+	ss := s.server.GetSurveyStore()
+	if ss == nil {
+		return nil, fmt.Errorf("survey store not available")
+	}
+
+	count, err := ss.ClearAnalyzer(req.Analyzer)
+	if err != nil {
+		return nil, err
+	}
+
+	return &SurveyClearAnalyzerResponse{Count: int32(count)}, nil
+}
+
+func (s *surveyServiceImpl) Stats(ctx context.Context, req *SurveyStatsRequest) (*SurveyStatsResponse, error) {
+	ss := s.server.GetSurveyStore()
+	if ss == nil {
+		return nil, fmt.Errorf("survey store not available")
+	}
+
+	stats, err := ss.Stats(survey.SearchOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	byAnalyzer := make(map[string]int32, len(stats.ByAnalyzer))
+	for k, v := range stats.ByAnalyzer {
+		byAnalyzer[k] = int32(v)
+	}
+	byKind := make(map[string]int32, len(stats.ByKind))
+	for k, v := range stats.ByKind {
+		byKind[k] = int32(v)
+	}
+
+	return &SurveyStatsResponse{
+		Total:      int32(stats.Total),
+		ByAnalyzer: byAnalyzer,
+		ByKind:     byKind,
+	}, nil
+}
+
+func (s *surveyServiceImpl) Clear(ctx context.Context, req *SurveyClearRequest) (*SurveyClearResponse, error) {
+	ss := s.server.GetSurveyStore()
+	if ss == nil {
+		return nil, fmt.Errorf("survey store not available")
+	}
+
+	if err := ss.Clear(); err != nil {
+		return nil, err
+	}
+
+	return &SurveyClearResponse{Success: true}, nil
+}
+
+// =============================================================================
 // Status Service Implementation
 // =============================================================================
 
@@ -1269,6 +1504,30 @@ func (s *statusServiceImpl) GetStatus(ctx context.Context, req *StatusRequest) (
 		}
 	}
 
+	// Survey status
+	if ss := srv.GetSurveyStore(); ss != nil {
+		stats, err := ss.Stats(survey.SearchOptions{})
+		if err == nil && stats != nil {
+			surveyStatus := &StatusSurvey{
+				Available: true,
+				Total:     int32(stats.Total),
+			}
+			byAnalyzer := make(map[string]int32, len(stats.ByAnalyzer))
+			for k, v := range stats.ByAnalyzer {
+				byAnalyzer[k] = int32(v)
+			}
+			surveyStatus.ByAnalyzer = byAnalyzer
+
+			byKind := make(map[string]int32, len(stats.ByKind))
+			for k, v := range stats.ByKind {
+				byKind[k] = int32(v)
+			}
+			surveyStatus.ByKind = byKind
+
+			resp.Survey = surveyStatus
+		}
+	}
+
 	return resp, nil
 }
 
@@ -1323,6 +1582,23 @@ func findingToProto(f *findings.Finding) *Finding {
 		Detail:    f.Detail,
 		Metadata:  f.Metadata,
 		CreatedAt: timestamppb.New(f.CreatedAt),
+	}
+}
+
+func surveyEntryToProto(e *survey.Entry) *SurveyEntry {
+	if e == nil {
+		return nil
+	}
+	return &SurveyEntry{
+		Id:        e.ID,
+		Analyzer:  e.Analyzer,
+		Kind:      e.Kind,
+		Name:      e.Name,
+		FilePath:  e.FilePath,
+		Title:     e.Title,
+		Detail:    e.Detail,
+		Metadata:  e.Metadata,
+		CreatedAt: timestamppb.New(e.CreatedAt),
 	}
 }
 

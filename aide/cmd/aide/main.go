@@ -79,6 +79,8 @@ func runCommand(cmd, dbPath string, args []string) error {
 		return cmdCodeDispatcher(dbPath, args)
 	case "findings":
 		return cmdFindingsDispatcher(dbPath, args)
+	case "survey":
+		return cmdSurveyDispatcher(dbPath, args)
 	case "task":
 		return cmdTask(dbPath, args)
 	case "decision":
@@ -125,6 +127,7 @@ Commands:
   memory     Manage memories (add, delete, search, select, list, export, clear)
   code       Index and search code symbols (index, search, symbols, clear)
   findings   Query and manage static analysis findings (search, list, stats, clear)
+  survey     Query and manage codebase survey data (search, list, stats, clear)
   task       Manage swarm tasks (create, claim, complete, list)
   decision   Manage decisions (set, get, list, history) - append-only
   message    Inter-agent messaging (send, list, ack, clear, prune)

@@ -608,3 +608,225 @@ func TestMappingHash_DifferentMappings(t *testing.T) {
 		t.Error("different mappings should produce different hashes")
 	}
 }
+
+// =============================================================================
+// Survey Store Migrations
+// =============================================================================
+
+// setupSurveyMigrateTestDB creates a fresh BBolt database with the survey meta bucket.
+func setupSurveyMigrateTestDB(t *testing.T) (*bolt.DB, func()) {
+	t.Helper()
+
+	tmpDir, err := os.MkdirTemp("", "aide-survey-migrate-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	dbPath := filepath.Join(tmpDir, "survey.db")
+	db, err := bolt.Open(dbPath, 0o600, nil)
+	if err != nil {
+		os.RemoveAll(tmpDir)
+		t.Fatalf("failed to open db: %v", err)
+	}
+
+	err = db.Update(func(tx *bolt.Tx) error {
+		for _, b := range [][]byte{BucketSurvey, BucketSurveyMeta} {
+			if _, err := tx.CreateBucketIfNotExists(b); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		db.Close()
+		os.RemoveAll(tmpDir)
+		t.Fatalf("failed to create buckets: %v", err)
+	}
+
+	cleanup := func() {
+		db.Close()
+		os.RemoveAll(tmpDir)
+	}
+	return db, cleanup
+}
+
+// writeSurveySchemaVersion sets the schema_version in the survey meta bucket.
+func writeSurveySchemaVersion(t *testing.T, db *bolt.DB, version uint64) {
+	t.Helper()
+	err := db.Update(func(tx *bolt.Tx) error {
+		meta := tx.Bucket(BucketSurveyMeta)
+		buf := make([]byte, 8)
+		binary.BigEndian.PutUint64(buf, version)
+		return meta.Put([]byte("schema_version"), buf)
+	})
+	if err != nil {
+		t.Fatalf("failed to write survey schema version: %v", err)
+	}
+}
+
+func TestRunSurveyMigrations_FreshDB(t *testing.T) {
+	db, cleanup := setupSurveyMigrateTestDB(t)
+	defer cleanup()
+
+	v, err := GetSurveySchemaVersion(db)
+	if err != nil {
+		t.Fatalf("GetSurveySchemaVersion: %v", err)
+	}
+	if v != 0 {
+		t.Fatalf("expected version 0 on fresh db, got %d", v)
+	}
+
+	if err := RunSurveyMigrations(db); err != nil {
+		t.Fatalf("RunSurveyMigrations: %v", err)
+	}
+
+	v, err = GetSurveySchemaVersion(db)
+	if err != nil {
+		t.Fatalf("GetSurveySchemaVersion: %v", err)
+	}
+	if v != SurveySchemaVersion {
+		t.Errorf("expected version %d, got %d", SurveySchemaVersion, v)
+	}
+}
+
+func TestRunSurveyMigrations_AlreadyCurrent(t *testing.T) {
+	db, cleanup := setupSurveyMigrateTestDB(t)
+	defer cleanup()
+
+	writeSurveySchemaVersion(t, db, SurveySchemaVersion)
+
+	if err := RunSurveyMigrations(db); err != nil {
+		t.Fatalf("RunSurveyMigrations: %v", err)
+	}
+
+	v, err := GetSurveySchemaVersion(db)
+	if err != nil {
+		t.Fatalf("GetSurveySchemaVersion: %v", err)
+	}
+	if v != SurveySchemaVersion {
+		t.Errorf("expected version %d, got %d", SurveySchemaVersion, v)
+	}
+}
+
+func TestRunSurveyMigrations_DowngradeError(t *testing.T) {
+	db, cleanup := setupSurveyMigrateTestDB(t)
+	defer cleanup()
+
+	writeSurveySchemaVersion(t, db, SurveySchemaVersion+10)
+
+	err := RunSurveyMigrations(db)
+	if err == nil {
+		t.Fatal("expected error for downgrade, got nil")
+	}
+}
+
+func TestRunSurveyMigrations_AppliesPending(t *testing.T) {
+	db, cleanup := setupSurveyMigrateTestDB(t)
+	defer cleanup()
+
+	writeSurveySchemaVersion(t, db, 1)
+
+	// Seed a survey entry.
+	err := db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket(BucketSurvey)
+		data, _ := json.Marshal(map[string]interface{}{
+			"id":       "entry-1",
+			"category": "topology",
+		})
+		return b.Put([]byte("entry-1"), data)
+	})
+	if err != nil {
+		t.Fatalf("failed to seed survey entry: %v", err)
+	}
+
+	origMigrations := surveyMigrations
+	origVersion := SurveySchemaVersion
+	defer func() {
+		surveyMigrations = origMigrations
+		SurveySchemaVersion = origVersion
+	}()
+
+	SurveySchemaVersion = 2
+	surveyMigrations = append(surveyMigrations, migration{
+		version:     2,
+		description: "add scope field to survey entries",
+		migrate: func(tx *bolt.Tx) error {
+			b := tx.Bucket(BucketSurvey)
+			c := b.Cursor()
+			for k, v := c.First(); k != nil; k, v = c.Next() {
+				var m map[string]interface{}
+				if err := json.Unmarshal(v, &m); err != nil {
+					return err
+				}
+				if _, ok := m["scope"]; !ok {
+					m["scope"] = "repo"
+				}
+				data, err := json.Marshal(m)
+				if err != nil {
+					return err
+				}
+				if err := b.Put(k, data); err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+	})
+
+	if err := RunSurveyMigrations(db); err != nil {
+		t.Fatalf("RunSurveyMigrations: %v", err)
+	}
+
+	v, err := GetSurveySchemaVersion(db)
+	if err != nil {
+		t.Fatalf("GetSurveySchemaVersion: %v", err)
+	}
+	if v != 2 {
+		t.Errorf("expected version 2, got %d", v)
+	}
+
+	// Verify data was transformed.
+	err = db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket(BucketSurvey)
+		data := b.Get([]byte("entry-1"))
+		if data == nil {
+			return fmt.Errorf("entry-1 not found")
+		}
+		var m map[string]interface{}
+		if err := json.Unmarshal(data, &m); err != nil {
+			return err
+		}
+		scope, ok := m["scope"]
+		if !ok {
+			return fmt.Errorf("scope field not added")
+		}
+		if scope != "repo" {
+			return fmt.Errorf("expected scope 'repo', got %v", scope)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("data verification failed: %v", err)
+	}
+}
+
+func TestSurveyStoreRunsMigrationsOnOpen(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "aide-survey-migrate-open-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	ss, err := NewSurveyStore(tmpDir)
+	if err != nil {
+		t.Fatalf("NewSurveyStore: %v", err)
+	}
+	defer ss.Close()
+
+	v, err := GetSurveySchemaVersion(ss.db)
+	if err != nil {
+		t.Fatalf("GetSurveySchemaVersion: %v", err)
+	}
+	if v != SurveySchemaVersion {
+		t.Errorf("expected survey schema version %d after NewSurveyStore, got %d", SurveySchemaVersion, v)
+	}
+}

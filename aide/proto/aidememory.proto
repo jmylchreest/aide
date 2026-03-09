@@ -410,6 +410,7 @@ service CodeService {
   rpc Stats(CodeStatsRequest) returns (CodeStatsResponse);
   rpc Index(CodeIndexRequest) returns (CodeIndexResponse);
   rpc Clear(CodeClearRequest) returns (CodeClearResponse);
+  rpc TopReferences(CodeTopReferencesRequest) returns (CodeTopReferencesResponse);
 }
 
 message Symbol {
@@ -469,6 +470,22 @@ message CodeClearRequest {}
 message CodeClearResponse {
   int32 symbols_cleared = 1;
   int32 files_cleared = 2;
+}
+
+message CodeTopReferencesRequest {
+  int32 limit = 1;   // Max results (default 25)
+  string kind = 2;   // Optional: filter by symbol kind (function, method, type, etc.)
+}
+
+message CodeTopReferencesResponse {
+  repeated SymbolRefCount symbols = 1;
+}
+
+message SymbolRefCount {
+  string symbol = 1;  // Symbol name
+  int32 count = 2;    // Number of references
+  string kind = 3;    // Symbol kind (if resolved)
+  string file = 4;    // File where symbol is defined (if resolved)
 }
 
 // =============================================================================
@@ -582,6 +599,110 @@ message FindingClearResponse {
 }
 
 // =============================================================================
+// Survey Service
+// =============================================================================
+
+service SurveyService {
+  rpc Add(SurveyAddRequest) returns (SurveyAddResponse);
+  rpc Get(SurveyGetRequest) returns (SurveyGetResponse);
+  rpc Delete(SurveyDeleteRequest) returns (SurveyDeleteResponse);
+  rpc Search(SurveySearchRequest) returns (SurveySearchResponse);
+  rpc List(SurveyListRequest) returns (SurveySearchResponse);
+  rpc GetFileEntries(SurveyFileRequest) returns (SurveySearchResponse);
+  rpc ClearAnalyzer(SurveyClearAnalyzerRequest) returns (SurveyClearAnalyzerResponse);
+  rpc Stats(SurveyStatsRequest) returns (SurveyStatsResponse);
+  rpc Clear(SurveyClearRequest) returns (SurveyClearResponse);
+}
+
+message SurveyEntry {
+  string id = 1;
+  string analyzer = 2;
+  string kind = 3;
+  string name = 4;
+  string file_path = 5;
+  string title = 6;
+  string detail = 7;
+  map<string, string> metadata = 8;
+  google.protobuf.Timestamp created_at = 9;
+}
+
+message SurveyAddRequest {
+  string analyzer = 1;
+  string kind = 2;
+  string name = 3;
+  string file_path = 4;
+  string title = 5;
+  string detail = 6;
+  map<string, string> metadata = 7;
+}
+
+message SurveyAddResponse {
+  SurveyEntry entry = 1;
+}
+
+message SurveyGetRequest {
+  string id = 1;
+}
+
+message SurveyGetResponse {
+  SurveyEntry entry = 1;
+  bool found = 2;
+}
+
+message SurveyDeleteRequest {
+  string id = 1;
+}
+
+message SurveyDeleteResponse {
+  bool success = 1;
+}
+
+message SurveySearchRequest {
+  string query = 1;
+  string analyzer = 2;     // Optional: filter by analyzer
+  string kind = 3;         // Optional: filter by kind
+  string file_path = 4;    // Optional: filter by file path pattern
+  int32 limit = 5;         // Max results (default 20)
+}
+
+message SurveySearchResponse {
+  repeated SurveyEntry entries = 1;
+}
+
+message SurveyListRequest {
+  string analyzer = 1;     // Optional: filter by analyzer
+  string kind = 2;         // Optional: filter by kind
+  string file_path = 3;    // Optional: filter by file path pattern
+  int32 limit = 4;         // Max results (default 100)
+}
+
+message SurveyFileRequest {
+  string file_path = 1;
+}
+
+message SurveyClearAnalyzerRequest {
+  string analyzer = 1;
+}
+
+message SurveyClearAnalyzerResponse {
+  int32 count = 1;
+}
+
+message SurveyStatsRequest {}
+
+message SurveyStatsResponse {
+  int32 total = 1;
+  map<string, int32> by_analyzer = 2;
+  map<string, int32> by_kind = 3;
+}
+
+message SurveyClearRequest {}
+
+message SurveyClearResponse {
+  bool success = 1;
+}
+
+// =============================================================================
 // Health Service
 // =============================================================================
 
@@ -624,6 +745,9 @@ message StatusResponse {
 
   // MCP tools
   repeated StatusMCPTool mcp_tools = 7;
+
+  // Survey status
+  StatusSurvey survey = 8;
 }
 
 message StatusWatcher {
@@ -663,4 +787,11 @@ message StatusMCPTool {
   string name = 1;
   string category = 2;
   int64 execution_count = 3;
+}
+
+message StatusSurvey {
+  bool available = 1;
+  int32 total = 2;
+  map<string, int32> by_analyzer = 3;
+  map<string, int32> by_kind = 4;
 }
