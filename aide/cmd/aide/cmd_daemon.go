@@ -62,6 +62,15 @@ func cmdDaemon(dbPath string, args []string) error {
 		defer findingsStore.Close()
 	}
 
+	// Open survey store for codebase survey
+	surveyDir := getSurveyStorePath(dbPath)
+	surveyStore, err := store.NewSurveyStore(surveyDir)
+	if err != nil {
+		fmt.Printf("WARNING: failed to open survey store: %v (survey tools disabled)\n", err)
+	} else {
+		defer surveyStore.Close()
+	}
+
 	// Create gRPC server
 	server := grpcapi.NewServer(st, dbPath, socketPath, newGrammarLoader(dbPath, nil))
 
@@ -73,6 +82,11 @@ func cmdDaemon(dbPath string, args []string) error {
 	// Set findings store if available
 	if findingsStore != nil {
 		server.SetFindingsStore(findingsStore)
+	}
+
+	// Set survey store if available
+	if surveyStore != nil {
+		server.SetSurveyStore(surveyStore)
 	}
 
 	// Handle shutdown signals
