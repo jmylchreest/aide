@@ -333,10 +333,7 @@ func cmdSurveyGraph(dbPath string, args []string) error {
 func cmdSurveyRun(dbPath string, args []string) error {
 	analyzer := parseFlag(args, "--analyzer=")
 
-	rootDir, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("failed to get working directory: %w", err)
-	}
+	rootDir := projectRoot(dbPath)
 
 	b, err := NewBackend(dbPath)
 	if err != nil {

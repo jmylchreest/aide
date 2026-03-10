@@ -214,19 +214,16 @@ func (s *MCPServer) handleCodeSymbols(_ context.Context, _ *mcp.CallToolRequest,
 // getFileSymbolsFresh returns symbols for a file, checking freshness against disk.
 // If the index is stale or missing, it falls back to live tree-sitter parsing.
 func (s *MCPServer) getFileSymbolsFresh(filePath string) ([]*code.Symbol, error) {
+	root := projectRoot(s.dbPath)
 	// Resolve to absolute path for stat, relative for store lookup
 	absPath := filePath
 	if !filepath.IsAbs(filePath) {
-		if cwd, err := os.Getwd(); err == nil {
-			absPath = filepath.Join(cwd, filePath)
-		}
+		absPath = filepath.Join(root, filePath)
 	}
 	relPath := filePath
 	if filepath.IsAbs(filePath) {
-		if cwd, err := os.Getwd(); err == nil {
-			if rel, err := filepath.Rel(cwd, filePath); err == nil {
-				relPath = rel
-			}
+		if rel, err := filepath.Rel(root, filePath); err == nil {
+			relPath = rel
 		}
 	}
 
@@ -362,9 +359,7 @@ func (s *MCPServer) handleCodeOutline(_ context.Context, _ *mcp.CallToolRequest,
 	// Read the actual file
 	absPath := input.File
 	if !filepath.IsAbs(input.File) {
-		if cwd, err := os.Getwd(); err == nil {
-			absPath = filepath.Join(cwd, input.File)
-		}
+		absPath = filepath.Join(projectRoot(s.dbPath), input.File)
 	}
 
 	fileContent, err := os.ReadFile(absPath)

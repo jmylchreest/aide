@@ -433,8 +433,9 @@ func padString(s string, width int) string {
 
 // Indexer provides a reusable indexing interface for the watcher.
 type Indexer struct {
-	store  store.CodeIndexStore
-	parser *code.Parser
+	store   store.CodeIndexStore
+	parser  *code.Parser
+	rootDir string // absolute project root for relative path computation
 }
 
 // NewIndexer creates a new indexer by opening a new code store.
@@ -447,17 +448,19 @@ func NewIndexer(dbPath string) (*Indexer, error) {
 	}
 
 	return &Indexer{
-		store:  codeStore,
-		parser: code.NewParser(newGrammarLoader(dbPath, nil)),
+		store:   codeStore,
+		parser:  code.NewParser(newGrammarLoader(dbPath, nil)),
+		rootDir: projectRoot(dbPath),
 	}, nil
 }
 
 // NewIndexerFromStore creates an indexer reusing an existing code store.
 // The caller retains ownership of the store — Close() is a no-op.
-func NewIndexerFromStore(cs store.CodeIndexStore, loader grammar.Loader) *Indexer {
+func NewIndexerFromStore(cs store.CodeIndexStore, loader grammar.Loader, rootDir string) *Indexer {
 	return &Indexer{
-		store:  cs,
-		parser: code.NewParser(loader),
+		store:   cs,
+		parser:  code.NewParser(loader),
+		rootDir: rootDir,
 	}
 }
 
@@ -468,13 +471,11 @@ func (idx *Indexer) Close() error {
 
 // IndexFile indexes a single file (symbols and references).
 func (idx *Indexer) IndexFile(filePath string) (int, error) {
-	// Get relative path
+	// Get relative path from project root
 	relPath := filePath
 	if abs, err := filepath.Abs(filePath); err == nil {
-		if cwd, err := os.Getwd(); err == nil {
-			if rel, err := filepath.Rel(cwd, abs); err == nil {
-				relPath = rel
-			}
+		if rel, err := filepath.Rel(idx.rootDir, abs); err == nil {
+			relPath = rel
 		}
 	}
 
@@ -528,10 +529,8 @@ func (idx *Indexer) IndexFile(filePath string) (int, error) {
 func (idx *Indexer) RemoveFile(filePath string) error {
 	relPath := filePath
 	if abs, err := filepath.Abs(filePath); err == nil {
-		if cwd, err := os.Getwd(); err == nil {
-			if rel, err := filepath.Rel(cwd, abs); err == nil {
-				relPath = rel
-			}
+		if rel, err := filepath.Rel(idx.rootDir, abs); err == nil {
+			relPath = rel
 		}
 	}
 

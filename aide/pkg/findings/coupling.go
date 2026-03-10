@@ -38,6 +38,8 @@ type CouplingConfig struct {
 	FanInThreshold int
 	// Paths to analyze (default: current directory).
 	Paths []string
+	// ProjectRoot is the absolute project root for relative path computation.
+	ProjectRoot string
 	// ProgressFn is called after each file is analyzed.
 	ProgressFn func(path string, imports int)
 	// Ignore is the aideignore matcher for filtering files/directories.
@@ -133,12 +135,7 @@ func AnalyzeCoupling(cfg CouplingConfig) ([]*Finding, *CouplingResult, error) { 
 				return nil
 			}
 
-			relPath := path
-			if cwd, err := os.Getwd(); err == nil {
-				if rel, err := filepath.Rel(cwd, path); err == nil {
-					relPath = rel
-				}
-			}
+			relPath := toRelPath(cfg.ProjectRoot, path)
 
 			imports := extractImports(path, lang)
 			for _, imp := range imports {

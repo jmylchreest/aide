@@ -287,14 +287,14 @@ func cmdFindingsRun(dbPath string, args []string) error { //nolint:gocyclo // CL
 	for _, name := range analyzers {
 		switch name {
 		case findings.AnalyzerComplexity:
-			n, err := runComplexityAnalyzer(backend, paths, threshold, ignore, loader)
+			n, err := runComplexityAnalyzer(backend, paths, threshold, ignore, loader, projectRoot)
 			if err != nil {
 				return fmt.Errorf("complexity analyser failed: %w", err)
 			}
 			totalFindings += n
 
 		case findings.AnalyzerCoupling:
-			n, err := runCouplingAnalyzer(backend, paths, fanOut, fanIn, ignore)
+			n, err := runCouplingAnalyzer(backend, paths, fanOut, fanIn, ignore, projectRoot)
 			if err != nil {
 				return fmt.Errorf("coupling analyser failed: %w", err)
 			}
@@ -323,14 +323,15 @@ func cmdFindingsRun(dbPath string, args []string) error { //nolint:gocyclo // CL
 	return nil
 }
 
-func runComplexityAnalyzer(backend *Backend, paths []string, threshold int, ignore *aideignore.Matcher, loader grammar.Loader) (int, error) {
+func runComplexityAnalyzer(backend *Backend, paths []string, threshold int, ignore *aideignore.Matcher, loader grammar.Loader, root string) (int, error) {
 	fmt.Printf("Running complexity analyser (threshold=%d)...\n", threshold)
 
 	cfg := findings.ComplexityConfig{
-		Threshold: threshold,
-		Paths:     paths,
-		Ignore:    ignore,
-		Loader:    loader,
+		Threshold:   threshold,
+		Paths:       paths,
+		ProjectRoot: root,
+		Ignore:      ignore,
+		Loader:      loader,
 		ProgressFn: func(path string, count int) {
 			if count > 0 {
 				fmt.Printf("  %s: %d findings\n", path, count)
@@ -353,13 +354,14 @@ func runComplexityAnalyzer(backend *Backend, paths []string, threshold int, igno
 	return len(ff), nil
 }
 
-func runCouplingAnalyzer(backend *Backend, paths []string, fanOut, fanIn int, ignore *aideignore.Matcher) (int, error) {
+func runCouplingAnalyzer(backend *Backend, paths []string, fanOut, fanIn int, ignore *aideignore.Matcher, root string) (int, error) {
 	fmt.Printf("Running coupling analyser (fan-out=%d, fan-in=%d)...\n", fanOut, fanIn)
 
 	cfg := findings.CouplingConfig{
 		FanOutThreshold: fanOut,
 		FanInThreshold:  fanIn,
 		Paths:           paths,
+		ProjectRoot:     root,
 		Ignore:          ignore,
 	}
 

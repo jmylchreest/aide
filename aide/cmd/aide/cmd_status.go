@@ -540,9 +540,6 @@ func getStoreStatus(dbPath string) StoreStatus {
 		Sizes: make(map[string]int64),
 	}
 
-	// dbPath is .aide/memory/memory.db (or legacy .aide/memory/store.db)
-	memoryDir := filepath.Dir(dbPath)
-
 	// memory.db — main memory store
 	if info, err := os.Stat(dbPath); err == nil {
 		status.Paths["memory.db"] = dbPath
@@ -550,37 +547,35 @@ func getStoreStatus(dbPath string) StoreStatus {
 	}
 
 	// memory search.bleve — memory full-text index
-	memorySearchPath := filepath.Join(memoryDir, "search.bleve")
+	memorySearchPath := store.GetSearchPath(dbPath)
 	if size, err := dirSize(memorySearchPath); err == nil {
 		status.Paths["memory.bleve"] = memorySearchPath
 		status.Sizes["memory.bleve"] = size
 	}
 
-	// code.db — code symbol index
-	codePath := filepath.Join(memoryDir, "code", "index.db")
-	if info, err := os.Stat(codePath); err == nil {
-		status.Paths["code.db"] = codePath
+	// code.db + code search.bleve — code symbol index
+	codeDBPath, codeSearchPath := getCodeStorePaths(dbPath)
+	if info, err := os.Stat(codeDBPath); err == nil {
+		status.Paths["code.db"] = codeDBPath
 		status.Sizes["code.db"] = info.Size()
 	}
-
-	// code search.bleve — code full-text index
-	codeSearchPath := filepath.Join(memoryDir, "code", "search.bleve")
 	if size, err := dirSize(codeSearchPath); err == nil {
 		status.Paths["code.bleve"] = codeSearchPath
 		status.Sizes["code.bleve"] = size
 	}
 
 	// findings.db — findings store
-	findingsPath := filepath.Join(memoryDir, "findings", "findings.db")
-	if info, err := os.Stat(findingsPath); err == nil {
-		status.Paths["findings.db"] = findingsPath
+	findingsDir := getFindingsStorePath(dbPath)
+	findingsDBPath := filepath.Join(findingsDir, "findings.db")
+	if info, err := os.Stat(findingsDBPath); err == nil {
+		status.Paths["findings.db"] = findingsDBPath
 		status.Sizes["findings.db"] = info.Size()
 	}
 
 	// findings search index — check both search.bleve (new) and findings.idx (legacy)
-	findingsSearchPath := filepath.Join(memoryDir, "findings", "search.bleve")
+	findingsSearchPath := filepath.Join(findingsDir, "search.bleve")
 	if _, err := os.Stat(findingsSearchPath); os.IsNotExist(err) {
-		legacyFindingsSearch := filepath.Join(memoryDir, "findings", "findings.idx")
+		legacyFindingsSearch := filepath.Join(findingsDir, "findings.idx")
 		if _, err := os.Stat(legacyFindingsSearch); err == nil {
 			findingsSearchPath = legacyFindingsSearch
 		}
@@ -591,14 +586,15 @@ func getStoreStatus(dbPath string) StoreStatus {
 	}
 
 	// survey.db — survey store
-	surveyPath := filepath.Join(memoryDir, "survey", "survey.db")
-	if info, err := os.Stat(surveyPath); err == nil {
-		status.Paths["survey.db"] = surveyPath
+	surveyDir := getSurveyStorePath(dbPath)
+	surveyDBPath := filepath.Join(surveyDir, "survey.db")
+	if info, err := os.Stat(surveyDBPath); err == nil {
+		status.Paths["survey.db"] = surveyDBPath
 		status.Sizes["survey.db"] = info.Size()
 	}
 
 	// survey search index
-	surveySearchPath := filepath.Join(memoryDir, "survey", "search.bleve")
+	surveySearchPath := filepath.Join(surveyDir, "search.bleve")
 	if size, err := dirSize(surveySearchPath); err == nil {
 		status.Paths["survey.bleve"] = surveySearchPath
 		status.Sizes["survey.bleve"] = size

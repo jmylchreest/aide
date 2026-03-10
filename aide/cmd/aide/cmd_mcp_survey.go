@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/jmylchreest/aide/aide/pkg/code"
@@ -264,10 +263,7 @@ func (s *MCPServer) handleSurveyRun(_ context.Context, _ *mcp.CallToolRequest, i
 		return errorResult("survey store not available"), nil, nil
 	}
 
-	rootDir, err := os.Getwd()
-	if err != nil {
-		return errorResult(fmt.Sprintf("failed to get working directory: %v", err)), nil, nil
-	}
+	rootDir := projectRoot(s.dbPath)
 
 	var sb strings.Builder
 	analyzers := []string{input.Analyzer}

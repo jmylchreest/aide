@@ -59,7 +59,7 @@ func TestOnChanges_RemoveDeletesFindings(t *testing.T) {
 	defer runner.Stop()
 
 	absPath := "/project/src/deleted.go"
-	expectedPath := toRelPath(absPath)
+	expectedPath := toRelPath("", absPath)
 
 	// Simulate a Remove event for a Go file.
 	runner.OnChanges(map[string]fsnotify.Op{
@@ -165,7 +165,7 @@ func TestOnChanges_PathNormalization(t *testing.T) {
 	defer runner.Stop()
 
 	absPath := dir + "/complex_high.go"
-	expectedRelPath := toRelPath(absPath)
+	expectedRelPath := toRelPath("", absPath)
 
 	// Send a Write event with an absolute path.
 	runner.OnChanges(map[string]fsnotify.Op{

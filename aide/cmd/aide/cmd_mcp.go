@@ -254,7 +254,7 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 
 		var indexer *Indexer
 		if cs := s.getCodeStore(); cs != nil {
-			indexer = NewIndexerFromStore(cs, s.grammarLoader)
+			indexer = NewIndexerFromStore(cs, s.grammarLoader, projectRoot(dbPath))
 		} else {
 			var err error
 			indexer, err = NewIndexer(dbPath)

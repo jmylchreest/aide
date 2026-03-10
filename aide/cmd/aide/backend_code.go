@@ -202,10 +202,8 @@ func (b *Backend) IndexCodeWithProgress(paths []string, force bool, progress fun
 			}
 
 			relPath := path
-			if cwd, err := os.Getwd(); err == nil {
-				if rel, err := filepath.Rel(cwd, path); err == nil {
-					relPath = rel
-				}
+			if rel, err := filepath.Rel(projectRoot(b.dbPath), path); err == nil {
+				relPath = rel
 			}
 
 			if !force {

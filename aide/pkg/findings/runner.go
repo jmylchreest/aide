@@ -19,16 +19,14 @@ var runnerLog = log.New(os.Stderr, "[aide:findings] ", log.Ltime)
 
 const ScopeProject = "<project>"
 
-// toRelPath converts an absolute or mixed-format path to a cwd-relative path.
+// toRelPath converts an absolute or mixed-format path to a path relative to root.
 // This ensures a consistent path format across findings storage and RunKey
 // scoping, preventing duplicates caused by path mismatches (e.g. the watcher
 // sends absolute paths, while findings store uses relative paths).
-func toRelPath(file string) string {
-	if cwd, err := os.Getwd(); err == nil {
-		if abs, err := filepath.Abs(file); err == nil {
-			if rel, err := filepath.Rel(cwd, abs); err == nil {
-				return rel
-			}
+func toRelPath(root, file string) string {
+	if abs, err := filepath.Abs(file); err == nil {
+		if rel, err := filepath.Rel(root, abs); err == nil {
+			return rel
 		}
 	}
 	return file
@@ -179,7 +177,7 @@ func (r *Runner) OnChanges(files map[string]fsnotify.Op) {
 
 		// Normalise to cwd-relative so the RunKey scope, findings FilePath,
 		// and store replacement predicate all use the same format.
-		scopePath := toRelPath(file)
+		scopePath := toRelPath(r.config.ProjectRoot, file)
 
 		// When a file is deleted, clear its per-file findings instead of
 		// re-analysing (the file no longer exists on disk).
@@ -311,7 +309,7 @@ func (r *Runner) runPerFileAnalyzer(ctx context.Context, analyzer string, file s
 		return nil, fmt.Errorf("read file: %w", err)
 	}
 
-	relPath := toRelPath(file)
+	relPath := toRelPath(r.config.ProjectRoot, file)
 
 	switch analyzer {
 	case AnalyzerComplexity:
@@ -339,6 +337,7 @@ func (r *Runner) runProjectAnalyzer(ctx context.Context, analyzer string) ([]*Fi
 	case AnalyzerCoupling:
 		cfg := CouplingConfig{
 			Paths:           paths,
+			ProjectRoot:     r.config.ProjectRoot,
 			FanOutThreshold: r.config.FanOutThreshold,
 			FanInThreshold:  r.config.FanInThreshold,
 			Ignore:          r.ignore(),
@@ -506,7 +505,7 @@ func (r *Runner) RunAll(ctx context.Context) error {
 				return nil
 			}
 
-			scopePath := toRelPath(path)
+			scopePath := toRelPath(r.config.ProjectRoot, path)
 			for _, analyzer := range []string{AnalyzerComplexity, AnalyzerSecrets} {
 				key := RunKey{Analyzer: analyzer, Scope: scopePath}
 				r.runAnalyzer(key, func(ctx context.Context) ([]*Finding, error) {

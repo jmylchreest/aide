@@ -38,6 +38,12 @@ func SocketPathFromDB(dbPath string) string {
 	return filepath.Join(aideDir, "aide.sock")
 }
 
+// projectRoot derives the project root from the database path.
+// dbPath is <root>/.aide/memory/memory.db — three Dir() calls to reach <root>.
+func projectRoot(dbPath string) string {
+	return filepath.Dir(filepath.Dir(filepath.Dir(dbPath)))
+}
+
 // Server manages the gRPC server and all service implementations.
 type Server struct {
 	store         store.Store
@@ -843,18 +849,15 @@ func (s *codeServiceImpl) Index(ctx context.Context, req *CodeIndexRequest) (*Co
 		paths = []string{"."}
 	}
 
-	// Validate that all requested paths are within the working directory.
-	cwd, err := os.Getwd()
-	if err != nil {
-		return nil, fmt.Errorf("get working directory: %w", err)
-	}
-	cwdPrefix := cwd + string(filepath.Separator)
+	// Validate that all requested paths are within the project directory.
+	projRoot := projectRoot(s.server.dbPath)
+	rootPrefix := projRoot + string(filepath.Separator)
 	for _, p := range paths {
 		abs, err := filepath.Abs(p)
 		if err != nil {
 			return nil, fmt.Errorf("invalid path %q: %w", p, err)
 		}
-		if abs != cwd && !strings.HasPrefix(abs, cwdPrefix) {
+		if abs != projRoot && !strings.HasPrefix(abs, rootPrefix) {
 			return nil, fmt.Errorf("path %q is outside the project directory", p)
 		}
 	}
@@ -885,10 +888,8 @@ func (s *codeServiceImpl) Index(ctx context.Context, req *CodeIndexRequest) (*Co
 
 			// Get relative path
 			relPath := path
-			if cwd, err := os.Getwd(); err == nil {
-				if rel, err := filepath.Rel(cwd, path); err == nil {
-					relPath = rel
-				}
+			if rel, err := filepath.Rel(projRoot, path); err == nil {
+				relPath = rel
 			}
 
 			// Check if file needs reindexing
