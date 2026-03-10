@@ -36,9 +36,9 @@
  * ```
  */
 
-import { dirname, join, resolve } from "path";
+import { basename, dirname, join, resolve } from "path";
 import { fileURLToPath } from "url";
-import { existsSync, statSync } from "fs";
+import { existsSync, readFileSync, statSync } from "fs";
 import { createHooks } from "./hooks.js";
 import type { Plugin, PluginInput, Hooks } from "./types.js";
 
@@ -62,8 +62,16 @@ if (!process.env.AIDE_PLUGIN_ROOT) {
  *   ctx.project.worktree — `dirname(git rev-parse --git-common-dir)` (main repo root)
  *
  * Priority:
- *   1. ctx.worktree — the git sandbox root (correct for both normal repos and worktrees)
- *   2. ctx.directory — where OpenCode was invoked (fallback for non-git)
+ *   1. ctx.project.worktree — the main repo root (shared across all worktrees)
+ *   2. ctx.worktree — the git sandbox root (fallback if project.worktree missing)
+ *   3. ctx.directory — where OpenCode was invoked (fallback for non-git)
+ *
+ * IMPORTANT: We use ctx.project.worktree (git common dir parent) rather than
+ * ctx.worktree (show-toplevel) so that all git worktrees resolve to the SAME
+ * main repository root. This matches the Go binary's findProjectRoot() which
+ * follows .git worktree pointers to the main repo. Without this, each worktree
+ * would create its own .aide/ directory while the Go binary opens the database
+ * in the main repo's .aide/, causing BoltDB/SQLite lock contention.
  *
  * Both ctx.worktree and ctx.directory are "/" for non-git projects, so we
  * detect that case and skip initialization.
@@ -72,18 +80,23 @@ function resolveProjectRoot(ctx: PluginInput): {
   root: string;
   hasProjectRoot: boolean;
 } {
-  // ctx.worktree is the git working tree root (from `git rev-parse --show-toplevel`).
-  // For non-git projects, OpenCode sets this to "/".
-  const worktree = ctx.worktree;
   const directory = ctx.directory;
 
-  // OpenCode sets worktree to "/" for non-git projects — treat as no project.
-  // Also guard against empty strings.
+  // Prefer ctx.project.worktree — this is dirname(git rev-parse --git-common-dir),
+  // i.e. the main repo root that is shared across all worktrees.
+  // This matches the Go binary's resolveWorktreeRoot() behavior.
+  const projectWorktree = ctx.project?.worktree;
+  if (projectWorktree && projectWorktree !== "/") {
+    return { root: resolve(projectWorktree), hasProjectRoot: true };
+  }
+
+  // Fallback: ctx.worktree is git rev-parse --show-toplevel (per-worktree root).
+  // For normal (non-worktree) repos, this equals the main repo root anyway.
+  // For non-git projects, OpenCode sets this to "/".
+  const worktree = ctx.worktree;
   const isNonGitWorktree = !worktree || worktree === "/";
 
   if (!isNonGitWorktree) {
-    // The worktree is a valid git root — use it directly.
-    // No need to walk up the filesystem; OpenCode already resolved it.
     return { root: resolve(worktree), hasProjectRoot: true };
   }
 
@@ -110,6 +123,10 @@ function resolveProjectRoot(ctx: PluginInput): {
 /**
  * Walk up from `startDir` looking for .aide/ or .git/ directories.
  * Returns the project root path, or null if none found.
+ *
+ * For git worktrees, .git is a file containing "gitdir: <path>".
+ * We follow it to the main repo root, matching the Go binary's
+ * resolveWorktreeRoot() behavior.
  */
 function walkUpForProjectRoot(startDir: string): string | null {
   let dir = resolve(startDir);
@@ -121,8 +138,16 @@ function walkUpForProjectRoot(startDir: string): string | null {
     if (existsSync(gitPath)) {
       try {
         const stat = statSync(gitPath);
-        // .git can be a directory (normal repo) or a file (worktree pointer)
-        if (stat.isDirectory() || stat.isFile()) {
+        if (stat.isDirectory()) {
+          // Normal git repo
+          return dir;
+        }
+        if (stat.isFile()) {
+          // Worktree: .git is a file containing "gitdir: <path>"
+          // Follow it to the main repo root.
+          const mainRoot = resolveWorktreeGitFile(gitPath);
+          if (mainRoot) return mainRoot;
+          // Fallback to current dir if resolution fails
           return dir;
         }
       } catch {
@@ -134,6 +159,42 @@ function walkUpForProjectRoot(startDir: string): string | null {
       return null;
     }
     dir = parent;
+  }
+}
+
+/**
+ * Read a .git worktree file and resolve to the main repository root.
+ * Mirrors the Go binary's resolveWorktreeRoot() in main.go.
+ *
+ * The file contains "gitdir: /path/to/repo/.git/worktrees/<name>".
+ * We walk up from that gitdir path to find the .git directory,
+ * then return its parent.
+ */
+function resolveWorktreeGitFile(gitFilePath: string): string | null {
+  try {
+    const content = readFileSync(gitFilePath, "utf-8").trim();
+    if (!content.startsWith("gitdir:")) return null;
+
+    let gitdir = content.slice("gitdir:".length).trim();
+    // Make absolute if relative
+    if (!gitdir.startsWith("/")) {
+      gitdir = resolve(dirname(gitFilePath), gitdir);
+    }
+
+    // Walk up from .git/worktrees/<name> to find the .git directory,
+    // then return its parent as the repo root.
+    let candidate = gitdir;
+    for (;;) {
+      const parent = dirname(candidate);
+      if (parent === candidate) break;
+      if (basename(candidate) === ".git") {
+        return parent;
+      }
+      candidate = parent;
+    }
+    return null;
+  } catch {
+    return null;
   }
 }
 
