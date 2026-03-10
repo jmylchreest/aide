@@ -117,12 +117,12 @@ func cmdStatus(dbPath string, args []string) error {
 		}
 	}
 
-	projectRoot := getProjectRoot()
+	root := projectRoot(dbPath)
 
 	status := StatusOutput{
 		Version:   version.String(),
 		Mode:      os.Getenv("AIDE_MODE"),
-		Project:   projectRoot,
+		Project:   root,
 		Timestamp: time.Now(),
 		Env:       getAideEnvVars(),
 		Stores:    getStoreStatus(dbPath),
@@ -640,12 +640,4 @@ func getAideEnvVars() map[string]string {
 		}
 	}
 	return vars
-}
-
-func getProjectRoot() string {
-	cwd, err := os.Getwd()
-	if err != nil {
-		return "."
-	}
-	return cwd
 }

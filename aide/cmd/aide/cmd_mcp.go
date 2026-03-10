@@ -39,6 +39,7 @@ type MCPServer struct {
 	server         *mcp.Server
 	grpcServer     *grpcapi.Server
 	grammarLoader  *grammar.CompositeLoader
+	dbPath         string // path to the memory database; used to derive project root
 
 	unifiedWatcher   *watcher.Watcher
 	findingsRunner   *findings.Runner
@@ -443,7 +444,7 @@ func cmdMCP(dbPath string, args []string) error {
 				adapter := newGRPCStoreAdapter(client)
 				findingsAdapter := newGRPCFindingsAdapter(client)
 				surveyAdapter := newGRPCSurveyAdapter(client)
-				mcpServer := &MCPServer{store: adapter, findingsStore: findingsAdapter, surveyStore: surveyAdapter, grammarLoader: grammarLoader}
+				mcpServer := &MCPServer{store: adapter, findingsStore: findingsAdapter, surveyStore: surveyAdapter, grammarLoader: grammarLoader, dbPath: dbPath}
 				mcpLog.Printf("MCP server ready in %v (client mode), listening on stdio", time.Since(startTime))
 				return mcpServer.Run()
 			}
@@ -467,7 +468,7 @@ func cmdMCP(dbPath string, args []string) error {
 	defer st.Close()
 	mcpLog.Printf("database opened in %v (bolt + bleve search)", time.Since(storeStart))
 
-	mcpServer := &MCPServer{store: st, grammarLoader: grammarLoader}
+	mcpServer := &MCPServer{store: st, grammarLoader: grammarLoader, dbPath: dbPath}
 
 	grpcServer := grpcapi.NewServer(st, dbPath, socketPath, grammarLoader)
 	mcpServer.grpcServer = grpcServer
@@ -521,10 +522,11 @@ func (s *MCPServer) Run() error {
 	s.registerStateReadTools() // Read-only state access
 	s.registerDecisionTools()
 	s.registerMessageTools()
-	s.registerTaskTools()     // Shared task management (swarm coordination, persistence)
-	s.registerCodeTools()     // Code indexing and search
-	s.registerFindingsTools() // Findings search and stats
-	s.registerSurveyTools()   // Survey search, list, stats, run
+	s.registerTaskTools()         // Shared task management (swarm coordination, persistence)
+	s.registerCodeTools()         // Code indexing and search
+	s.registerFindingsTools()     // Findings search and stats
+	s.registerSurveyTools()       // Survey search, list, stats, run
+	s.registerInstanceInfoTools() // Instance identity: project root, version, paths
 
 	// Expose registered MCP tools and count getter to gRPC StatusService
 	if s.grpcServer != nil {
@@ -569,6 +571,7 @@ func mcpToolList() []*grpcapi.StatusMCPTool {
 		{Name: "survey_stats", Category: "survey"},
 		{Name: "survey_run", Category: "survey"},
 		{Name: "survey_graph", Category: "survey"},
+		{Name: "instance_info", Category: "instance"},
 	}
 }
 
