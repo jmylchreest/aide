@@ -50,13 +50,13 @@ jobs:
         run: go mod download
 
       - name: Run tests
-        run: go test -v -race -coverprofile=coverage.out ./pkg/...
+        run: go test -v -race -coverprofile=coverage.out ./...
 
       - name: Upload coverage
         uses: codecov/codecov-action@v5
         with:
           files: aide/coverage.out
-          flags: go
+          flags: go,aide
         continue-on-error: true
 
   go-lint:
@@ -112,6 +112,8 @@ jobs:
         with:
           name: aide-linux-amd64
           path: bin/aide
+          retention-days: 1
+          compression-level: 9
 
   integration:
     name: Integration Tests
