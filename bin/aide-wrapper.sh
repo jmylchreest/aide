@@ -126,9 +126,15 @@ if [[ "$NEEDS_DOWNLOAD" == "true" ]]; then
       log "Downloading binary..."
       log "Using downloader: $DOWNLOADER"
 
-      # Use tsx for .ts files (dev), node for .js files (npm install)
+      # Use bun/tsx for .ts files (dev), node for .js files (npm install)
       if [[ "$DOWNLOADER" == *.ts ]]; then
-        RUNNER="npx --yes tsx"
+        if command -v bun &>/dev/null; then
+          RUNNER="bun"
+        elif command -v tsx &>/dev/null; then
+          RUNNER="tsx"
+        else
+          RUNNER="npx --yes tsx"
+        fi
       else
         RUNNER="node"
       fi
