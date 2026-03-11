@@ -1,7 +1,6 @@
 package store
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
@@ -18,8 +17,6 @@ import (
 var (
 	BucketSurvey     = []byte("survey_entries")
 	BucketSurveyMeta = []byte("survey_meta")
-
-	errSurveySearchClosed = fmt.Errorf("survey search index is closed")
 )
 
 // SurveyStoreImpl implements SurveyStore using BoltDB + Bleve,
@@ -38,9 +35,7 @@ func NewSurveyStore(dir string) (*SurveyStoreImpl, error) {
 		StoreName:      "survey",
 
 		BuildIndexMapping: buildSurveyIndexMapping,
-		ToSearchDoc: func(e *survey.Entry) map[string]interface{} {
-			return surveyEntryToSearchDoc(e)
-		},
+		ToSearchDoc:       surveyEntryToSearchDoc,
 
 		GetID:        func(e *survey.Entry) string { return e.ID },
 		SetID:        func(e *survey.Entry, id string) { e.ID = id },

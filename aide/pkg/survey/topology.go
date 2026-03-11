@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
+
+	"github.com/jmylchreest/aide/aide/pkg/grammar"
 )
 
 // TopologyResult holds the output of the topology analyzer.
@@ -14,331 +17,259 @@ type TopologyResult struct {
 }
 
 // RunTopology detects repo structure by filesystem inspection.
-// It walks the directory tree looking for build system files, language markers,
-// workspace definitions, and emits survey entries for each discovery.
+// It iterates the project markers from the default PackRegistry, walks/stats
+// the filesystem according to each marker's check type, and emits survey
+// entries for each discovery. Fully data-driven from packs/index.json.
 func RunTopology(rootDir string) (*TopologyResult, error) {
+	return RunTopologyWithRegistry(rootDir, grammar.DefaultPackRegistry())
+}
+
+// RunTopologyWithRegistry is like RunTopology but accepts a specific PackRegistry.
+// Useful for testing with custom marker sets.
+func RunTopologyWithRegistry(rootDir string, reg *grammar.PackRegistry) (*TopologyResult, error) {
 	result := &TopologyResult{}
+	markers := reg.ProjectMarkers()
 
-	// Detect Go modules
-	result.detectGoModules(rootDir)
+	// Phase 1: Process file and directory markers.
+	// Track where file markers are found so sibling markers can reference them.
+	// Key: marker filename, Value: list of directories where it was found.
+	foundLocations := make(map[string][]string)
 
-	// Detect Node.js projects
-	result.detectNodeProjects(rootDir)
+	for i := range markers {
+		m := &markers[i]
+		switch m.Check {
+		case grammar.MarkerCheckFile:
+			result.processFileMarker(rootDir, m, foundLocations)
+		case grammar.MarkerCheckDirectory:
+			result.processDirectoryMarker(rootDir, m)
+		}
+	}
 
-	// Detect Python projects
-	result.detectPythonProjects(rootDir)
-
-	// Detect Rust projects
-	result.detectRustProjects(rootDir)
-
-	// Detect build systems
-	result.detectBuildSystems(rootDir)
-
-	// Detect Docker
-	result.detectDocker(rootDir)
-
-	// Detect CI/CD
-	result.detectCICD(rootDir)
-
-	// Detect monorepo tools
-	result.detectMonorepoTools(rootDir)
+	// Phase 2: Process sibling markers using found locations from Phase 1.
+	for i := range markers {
+		m := &markers[i]
+		if m.Check == grammar.MarkerCheckSibling {
+			result.processSiblingMarker(rootDir, m, foundLocations)
+		}
+	}
 
 	return result, nil
 }
 
-// detectGoModules finds go.mod files and emits module/workspace entries.
-func (r *TopologyResult) detectGoModules(rootDir string) {
-	walkForFile(rootDir, "go.mod", 3, func(path string) {
-		relPath, _ := filepath.Rel(rootDir, filepath.Dir(path))
+// processFileMarker walks the filesystem looking for a file with the marker's name,
+// up to the specified MaxDepth. For each found instance, it emits a survey entry
+// and records the location for sibling marker resolution.
+func (r *TopologyResult) processFileMarker(rootDir string, m *grammar.ProjectMarker, foundLocs map[string][]string) {
+	// Build skip set for this marker.
+	skipSet := make(map[string]bool, len(m.SkipPaths))
+	for _, sp := range m.SkipPaths {
+		skipSet[sp] = true
+	}
+
+	walkForFile(rootDir, m.File, m.MaxDepth, skipSet, func(path string) {
+		dir := filepath.Dir(path)
+		relPath, _ := filepath.Rel(rootDir, dir)
 		if relPath == "." {
 			relPath = ""
 		}
 
-		// Parse module name from go.mod
-		modName := parseGoModuleName(path)
-		if modName == "" {
-			modName = relPath
+		// Record location for sibling resolution.
+		foundLocs[m.File] = append(foundLocs[m.File], dir)
+
+		// Determine entry name.
+		name := m.ResolvedName()
+
+		// Apply parse directive if present.
+		if m.Parse != nil {
+			if parsed := parseFileContent(path, m.Parse); parsed != "" {
+				name = parsed
+			}
 		}
 
-		// Check for go.work (workspace)
-		workPath := filepath.Join(filepath.Dir(path), "go.work")
-		if _, err := os.Stat(workPath); err == nil {
-			r.Entries = append(r.Entries, &Entry{
-				Analyzer: AnalyzerTopology,
-				Kind:     KindWorkspace,
-				Name:     modName,
-				FilePath: relPath,
-				Title:    "Go workspace",
-				Detail:   fmt.Sprintf("Go workspace at %s with go.work", relPath),
-				Metadata: map[string]string{"language": "go", "build_system": "go.work"},
-			})
+		// For module entries without a parsed name, use the directory basename.
+		if m.Kind == KindModule && m.Parse == nil {
+			dirName := filepath.Base(dir)
+			if relPath == "" {
+				dirName = filepath.Base(rootDir)
+			}
+			name = dirName
 		}
+
+		// Build metadata — start with marker's declared metadata, then enrich.
+		metadata := make(map[string]string)
+		for k, v := range m.Metadata {
+			metadata[k] = v
+		}
+		if _, ok := metadata["marker"]; !ok {
+			metadata["marker"] = m.File
+		}
+		if m.Pack != "" {
+			if _, ok := metadata["language"]; !ok {
+				metadata["language"] = m.Pack
+			}
+		}
+
+		title := buildTitle(m, name, relPath)
 
 		r.Entries = append(r.Entries, &Entry{
 			Analyzer: AnalyzerTopology,
-			Kind:     KindModule,
-			Name:     modName,
-			FilePath: relPath,
-			Title:    fmt.Sprintf("Go module: %s", modName),
-			Metadata: map[string]string{"language": "go"},
-		})
-
-		r.Entries = append(r.Entries, &Entry{
-			Analyzer: AnalyzerTopology,
-			Kind:     KindTechStack,
-			Name:     "go",
-			FilePath: relPath,
-			Title:    "Go language detected",
-			Metadata: map[string]string{"language": "go", "marker": "go.mod"},
-		})
-	})
-}
-
-// detectNodeProjects finds package.json files and emits entries.
-func (r *TopologyResult) detectNodeProjects(rootDir string) {
-	walkForFile(rootDir, "package.json", 3, func(path string) {
-		relPath, _ := filepath.Rel(rootDir, filepath.Dir(path))
-		if relPath == "." {
-			relPath = ""
-		}
-
-		// Skip node_modules
-		if strings.Contains(path, "node_modules") {
-			return
-		}
-
-		name := parseJSONField(path, "name")
-		if name == "" {
-			name = filepath.Base(filepath.Dir(path))
-		}
-
-		r.Entries = append(r.Entries, &Entry{
-			Analyzer: AnalyzerTopology,
-			Kind:     KindModule,
+			Kind:     m.Kind,
 			Name:     name,
 			FilePath: relPath,
-			Title:    fmt.Sprintf("Node.js package: %s", name),
-			Metadata: map[string]string{"language": "javascript", "marker": "package.json"},
-		})
-
-		// Detect TypeScript
-		tsConfig := filepath.Join(filepath.Dir(path), "tsconfig.json")
-		if _, err := os.Stat(tsConfig); err == nil {
-			r.Entries = append(r.Entries, &Entry{
-				Analyzer: AnalyzerTopology,
-				Kind:     KindTechStack,
-				Name:     "typescript",
-				FilePath: relPath,
-				Title:    "TypeScript detected",
-				Metadata: map[string]string{"language": "typescript", "marker": "tsconfig.json"},
-			})
-		}
-
-		r.Entries = append(r.Entries, &Entry{
-			Analyzer: AnalyzerTopology,
-			Kind:     KindTechStack,
-			Name:     "nodejs",
-			FilePath: relPath,
-			Title:    "Node.js detected",
-			Metadata: map[string]string{"language": "javascript", "marker": "package.json"},
+			Title:    title,
+			Metadata: metadata,
 		})
 	})
 }
 
-// detectPythonProjects finds Python project markers.
-func (r *TopologyResult) detectPythonProjects(rootDir string) {
-	markers := []string{"pyproject.toml", "setup.py", "setup.cfg"}
-	for _, marker := range markers {
-		walkForFile(rootDir, marker, 2, func(path string) {
-			relPath, _ := filepath.Rel(rootDir, filepath.Dir(path))
-			if relPath == "." {
-				relPath = ""
-			}
-
-			r.Entries = append(r.Entries, &Entry{
-				Analyzer: AnalyzerTopology,
-				Kind:     KindTechStack,
-				Name:     "python",
-				FilePath: relPath,
-				Title:    "Python project detected",
-				Metadata: map[string]string{"language": "python", "marker": marker},
-			})
-		})
+// processDirectoryMarker checks for a directory at root and emits a survey entry
+// if the directory exists and is non-empty.
+func (r *TopologyResult) processDirectoryMarker(rootDir string, m *grammar.ProjectMarker) {
+	fullPath := filepath.Join(rootDir, m.File)
+	fi, err := os.Stat(fullPath)
+	if err != nil || !fi.IsDir() {
+		return
 	}
+
+	// Check directory is non-empty.
+	entries, err := os.ReadDir(fullPath)
+	if err != nil || len(entries) == 0 {
+		return
+	}
+
+	name := m.ResolvedName()
+	metadata := make(map[string]string)
+	for k, v := range m.Metadata {
+		metadata[k] = v
+	}
+
+	r.Entries = append(r.Entries, &Entry{
+		Analyzer: AnalyzerTopology,
+		Kind:     m.Kind,
+		Name:     name,
+		FilePath: m.File,
+		Title:    buildTitle(m, name, ""),
+		Metadata: metadata,
+	})
 }
 
-// detectRustProjects finds Cargo.toml files.
-func (r *TopologyResult) detectRustProjects(rootDir string) {
-	walkForFile(rootDir, "Cargo.toml", 3, func(path string) {
-		relPath, _ := filepath.Rel(rootDir, filepath.Dir(path))
+// processSiblingMarker checks for a sibling file next to each location where
+// the parent marker (SiblingOf) was found.
+func (r *TopologyResult) processSiblingMarker(rootDir string, m *grammar.ProjectMarker, foundLocs map[string][]string) {
+	parentDirs := foundLocs[m.SiblingOf]
+	for _, dir := range parentDirs {
+		siblingPath := filepath.Join(dir, m.File)
+		if _, err := os.Stat(siblingPath); err != nil {
+			continue
+		}
+
+		relPath, _ := filepath.Rel(rootDir, dir)
 		if relPath == "." {
 			relPath = ""
 		}
 
-		r.Entries = append(r.Entries, &Entry{
-			Analyzer: AnalyzerTopology,
-			Kind:     KindTechStack,
-			Name:     "rust",
-			FilePath: relPath,
-			Title:    "Rust project detected",
-			Metadata: map[string]string{"language": "rust", "marker": "Cargo.toml"},
-		})
+		name := m.ResolvedName()
 
-		r.Entries = append(r.Entries, &Entry{
-			Analyzer: AnalyzerTopology,
-			Kind:     KindModule,
-			Name:     filepath.Base(filepath.Dir(path)),
-			FilePath: relPath,
-			Title:    fmt.Sprintf("Rust crate: %s", filepath.Base(filepath.Dir(path))),
-			Metadata: map[string]string{"language": "rust"},
-		})
-	})
-}
-
-// detectBuildSystems finds common build system files at the root.
-func (r *TopologyResult) detectBuildSystems(rootDir string) {
-	buildFiles := map[string]string{
-		"Makefile":       "make",
-		"CMakeLists.txt": "cmake",
-		"BUILD.bazel":    "bazel",
-		"BUILD":          "bazel",
-		"Justfile":       "just",
-		"Taskfile.yml":   "task",
-		"Rakefile":       "rake",
-	}
-
-	for file, system := range buildFiles {
-		path := filepath.Join(rootDir, file)
-		if _, err := os.Stat(path); err == nil {
-			r.Entries = append(r.Entries, &Entry{
-				Analyzer: AnalyzerTopology,
-				Kind:     KindTechStack,
-				Name:     system,
-				FilePath: "",
-				Title:    fmt.Sprintf("Build system: %s", system),
-				Metadata: map[string]string{"build_system": system, "marker": file},
-			})
-		}
-	}
-}
-
-// detectDocker finds Docker-related files.
-func (r *TopologyResult) detectDocker(rootDir string) {
-	dockerFiles := []string{"Dockerfile", "docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml"}
-	found := false
-	for _, df := range dockerFiles {
-		path := filepath.Join(rootDir, df)
-		if _, err := os.Stat(path); err == nil && !found {
-			r.Entries = append(r.Entries, &Entry{
-				Analyzer: AnalyzerTopology,
-				Kind:     KindTechStack,
-				Name:     "docker",
-				FilePath: "",
-				Title:    "Docker detected",
-				Metadata: map[string]string{"marker": df},
-			})
-			found = true
-		}
-	}
-
-	// Also check for Dockerfiles in subdirectories (common pattern)
-	walkForFile(rootDir, "Dockerfile", 2, func(path string) {
-		if filepath.Dir(path) == rootDir {
-			return // Already handled above
-		}
-		relPath, _ := filepath.Rel(rootDir, filepath.Dir(path))
-		r.Entries = append(r.Entries, &Entry{
-			Analyzer: AnalyzerTopology,
-			Kind:     KindTechStack,
-			Name:     "docker",
-			FilePath: relPath,
-			Title:    fmt.Sprintf("Dockerfile in %s", relPath),
-			Metadata: map[string]string{"marker": "Dockerfile"},
-		})
-	})
-}
-
-// detectCICD finds CI/CD configuration.
-func (r *TopologyResult) detectCICD(rootDir string) {
-	ciFiles := map[string]string{
-		".github/workflows":    "github-actions",
-		".gitlab-ci.yml":       "gitlab-ci",
-		"Jenkinsfile":          "jenkins",
-		".circleci/config.yml": "circleci",
-		".travis.yml":          "travis-ci",
-		"azure-pipelines.yml":  "azure-devops",
-	}
-
-	for path, system := range ciFiles {
-		fullPath := filepath.Join(rootDir, path)
-		fi, err := os.Stat(fullPath)
-		if err != nil {
-			continue
-		}
-		// For directories (like .github/workflows), check it has files
-		if fi.IsDir() {
-			entries, err := os.ReadDir(fullPath)
-			if err != nil || len(entries) == 0 {
-				continue
+		// Apply parse if present.
+		if m.Parse != nil {
+			if parsed := parseFileContent(siblingPath, m.Parse); parsed != "" {
+				name = parsed
 			}
 		}
 
+		metadata := make(map[string]string)
+		for k, v := range m.Metadata {
+			metadata[k] = v
+		}
+		if m.Pack != "" {
+			if _, ok := metadata["language"]; !ok {
+				metadata["language"] = m.Pack
+			}
+		}
+		if _, ok := metadata["build_system"]; !ok && m.Kind == KindWorkspace {
+			metadata["build_system"] = m.File
+		}
+
 		r.Entries = append(r.Entries, &Entry{
 			Analyzer: AnalyzerTopology,
-			Kind:     KindTechStack,
-			Name:     system,
-			FilePath: path,
-			Title:    fmt.Sprintf("CI/CD: %s", system),
-			Metadata: map[string]string{"ci_cd": system, "marker": path},
+			Kind:     m.Kind,
+			Name:     name,
+			FilePath: relPath,
+			Title:    buildTitle(m, name, relPath),
+			Metadata: metadata,
 		})
 	}
 }
 
-// detectMonorepoTools finds monorepo management tools.
-func (r *TopologyResult) detectMonorepoTools(rootDir string) {
-	monoFiles := map[string]string{
-		"nx.json":             "nx",
-		"lerna.json":          "lerna",
-		"turbo.json":          "turborepo",
-		"pnpm-workspace.yaml": "pnpm",
-	}
-
-	for file, tool := range monoFiles {
-		path := filepath.Join(rootDir, file)
-		if _, err := os.Stat(path); err == nil {
-			r.Entries = append(r.Entries, &Entry{
-				Analyzer: AnalyzerTopology,
-				Kind:     KindWorkspace,
-				Name:     tool,
-				FilePath: "",
-				Title:    fmt.Sprintf("Monorepo tool: %s", tool),
-				Metadata: map[string]string{"monorepo": tool, "marker": file},
-			})
+// buildTitle generates a human-readable title for a survey entry based on
+// the marker definition.
+func buildTitle(m *grammar.ProjectMarker, name, relPath string) string {
+	switch m.Kind {
+	case KindModule:
+		lang := m.Pack
+		if lang == "" {
+			lang = m.Label
 		}
+		return fmt.Sprintf("%s module: %s", capitalise(lang), name)
+	case KindWorkspace:
+		tool := m.ResolvedName()
+		if relPath != "" {
+			return fmt.Sprintf("%s workspace at %s", capitalise(tool), relPath)
+		}
+		return fmt.Sprintf("Monorepo tool: %s", tool)
+	case KindTechStack:
+		displayName := m.ResolvedName()
+		if bs, ok := m.Metadata["build_system"]; ok {
+			return fmt.Sprintf("Build system: %s", bs)
+		}
+		if ci, ok := m.Metadata["ci_cd"]; ok {
+			return fmt.Sprintf("CI/CD: %s", ci)
+		}
+		return fmt.Sprintf("%s detected", capitalise(displayName))
+	default:
+		return fmt.Sprintf("%s: %s", m.Kind, name)
 	}
 }
 
-// walkForFile walks the directory tree up to maxDepth levels looking for files with the given name.
-func walkForFile(rootDir, fileName string, maxDepth int, fn func(path string)) {
-	filepath.WalkDir(rootDir, func(path string, d os.DirEntry, err error) error {
+// capitalise returns the string with its first letter upper-cased.
+func capitalise(s string) string {
+	if s == "" {
+		return s
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
+}
+
+// walkForFile walks the directory tree up to maxDepth levels looking for files
+// with the given name. Skips hidden directories, common vendor dirs, and any
+// directories in the skipSet.
+// maxDepth: 0 = root only, positive = limit, -1 = unlimited.
+func walkForFile(rootDir, fileName string, maxDepth int, skipSet map[string]bool, fn func(path string)) {
+	_ = filepath.WalkDir(rootDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
-			return nil // Skip errors
+			return nil
 		}
 
-		// Calculate depth
 		rel, _ := filepath.Rel(rootDir, path)
 		depth := strings.Count(rel, string(filepath.Separator))
-		if depth > maxDepth {
+
+		// Apply maxDepth guard: -1 means unlimited.
+		if maxDepth >= 0 && depth > maxDepth {
 			if d.IsDir() {
 				return filepath.SkipDir
 			}
 			return nil
 		}
 
-		// Skip hidden directories and common vendor dirs
 		if d.IsDir() {
 			base := d.Name()
-			if strings.HasPrefix(base, ".") || base == "node_modules" || base == "vendor" || base == "__pycache__" || base == "target" {
+			// Skip hidden directories (but not the root ".").
+			if base != "." && strings.HasPrefix(base, ".") {
+				return filepath.SkipDir
+			}
+			if base == "node_modules" || base == "vendor" || base == "__pycache__" || base == "target" {
+				return filepath.SkipDir
+			}
+			if skipSet[base] {
 				return filepath.SkipDir
 			}
 		}
@@ -351,7 +282,31 @@ func walkForFile(rootDir, fileName string, maxDepth int, fn func(path string)) {
 	})
 }
 
+// parseFileContent applies a MarkerParse regex to extract a value from file content.
+func parseFileContent(path string, p *grammar.MarkerParse) string {
+	re, err := regexp.Compile(p.Regex)
+	if err != nil {
+		return ""
+	}
+
+	f, err := os.Open(path)
+	if err != nil {
+		return ""
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		matches := re.FindStringSubmatch(scanner.Text())
+		if len(matches) > p.Group {
+			return matches[p.Group]
+		}
+	}
+	return ""
+}
+
 // parseGoModuleName reads the module directive from a go.mod file.
+// Kept for backward compatibility with tests.
 func parseGoModuleName(goModPath string) string {
 	f, err := os.Open(goModPath)
 	if err != nil {
@@ -370,7 +325,7 @@ func parseGoModuleName(goModPath string) string {
 }
 
 // parseJSONField does a quick scan for a "name": "value" pattern in a JSON file.
-// This is intentionally simple — no full JSON parsing needed for this use case.
+// Kept for backward compatibility with tests.
 func parseJSONField(path, field string) string {
 	f, err := os.Open(path)
 	if err != nil {
@@ -383,7 +338,6 @@ func parseJSONField(path, field string) string {
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if strings.Contains(line, target) {
-			// Extract value: "name": "value"
 			parts := strings.SplitN(line, ":", 2)
 			if len(parts) < 2 {
 				continue

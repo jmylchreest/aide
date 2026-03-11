@@ -1,7 +1,6 @@
 package store
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
@@ -18,8 +17,6 @@ import (
 var (
 	BucketFindings     = []byte("findings")
 	BucketFindingsMeta = []byte("findings_meta")
-
-	errSearchClosed = fmt.Errorf("findings search index is closed")
 )
 
 // FindingsStoreImpl implements FindingsStore using BoltDB + Bleve,
@@ -38,9 +35,7 @@ func NewFindingsStore(dir string) (*FindingsStoreImpl, error) {
 		StoreName:      "findings",
 
 		BuildIndexMapping: buildFindingsIndexMapping,
-		ToSearchDoc: func(f *findings.Finding) map[string]interface{} {
-			return findingToSearchDoc(f)
-		},
+		ToSearchDoc:       findingToSearchDoc,
 
 		GetID:        func(f *findings.Finding) string { return f.ID },
 		SetID:        func(f *findings.Finding, id string) { f.ID = id },

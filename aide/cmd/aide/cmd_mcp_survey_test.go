@@ -141,7 +141,8 @@ func (m *mockSurveyStore) ReplaceEntriesForAnalyzer(analyzer string, newEntries 
 			kept = append(kept, e)
 		}
 	}
-	m.entries = append(kept, newEntries...)
+	kept = append(kept, newEntries...)
+	m.entries = kept
 	return nil
 }
 

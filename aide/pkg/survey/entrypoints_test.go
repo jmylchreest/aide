@@ -58,20 +58,6 @@ func (m *mockCodeSearcher) FindReferences(symbolName string, kind string, limit 
 	return results, nil
 }
 
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
-		(len(s) > 0 && len(substr) > 0 && stringContains(s, substr)))
-}
-
-func stringContains(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
-}
-
 func TestRunEntrypoints_NilCodeSearcher(t *testing.T) {
 	// With nil code searcher, RunEntrypoints falls back to file scanning.
 	// Using a non-existent path ensures no files are found.
@@ -148,14 +134,14 @@ func TestRunEntrypoints_GoHTTPHandlers(t *testing.T) {
 
 	var httpEntries []*Entry
 	for _, e := range result.Entries {
-		if e.Kind == KindEntrypoint && e.Metadata["type"] == "http_handler" {
+		if e.Kind == KindEntrypoint && (e.Metadata["type"] == "http_handler" || e.Metadata["type"] == "server_start") {
 			httpEntries = append(httpEntries, e)
 		}
 	}
-	// HandleFunc matches "HandleFunc" pattern (exact), ListenAndServe matches
-	// "ListenAndServe" pattern. With file:line dedup, we get 2 unique entries.
+	// HandleFunc matches "HandleFunc" (http_handler), ListenAndServe matches
+	// "ListenAndServe" (server_start). With file:line dedup, we get 2 unique entries.
 	if len(httpEntries) != 2 {
-		t.Errorf("expected 2 HTTP handler entries, got %d", len(httpEntries))
+		t.Errorf("expected 2 HTTP-related entries, got %d", len(httpEntries))
 	}
 }
 
@@ -426,16 +412,16 @@ func TestRunEntrypoints_HTTPExactMatch(t *testing.T) {
 
 	var httpEntries []*Entry
 	for _, e := range result.Entries {
-		if e.Metadata["type"] == "http_handler" {
+		if e.Metadata["type"] == "http_handler" || e.Metadata["type"] == "server_start" {
 			httpEntries = append(httpEntries, e)
 		}
 	}
-	// HandleFunc + ListenAndServe = 2, NOT syscall.Handle or dll.Handle
+	// HandleFunc (http_handler) + ListenAndServe (server_start) = 2, NOT syscall.Handle or dll.Handle
 	if len(httpEntries) != 2 {
 		for _, e := range httpEntries {
-			t.Logf("  http entry: %s", e.Name)
+			t.Logf("  http entry: %s (type=%s)", e.Name, e.Metadata["type"])
 		}
-		t.Errorf("expected 2 HTTP entries (exact match), got %d", len(httpEntries))
+		t.Errorf("expected 2 HTTP-related entries (exact match), got %d", len(httpEntries))
 	}
 }
 
@@ -487,14 +473,14 @@ func TestRunEntrypoints_CobraCommands(t *testing.T) {
 
 	var cliEntries []*Entry
 	for _, e := range result.Entries {
-		if e.Metadata["type"] == "cli_root" {
+		if e.Metadata["type"] == "cli_root" || e.Metadata["type"] == "cli_command" {
 			cliEntries = append(cliEntries, e)
 		}
 	}
-	// Execute, AddCommand, ExecuteC = 3 (ExecuteQuery does NOT match)
+	// Execute (cli_root), AddCommand (cli_command), ExecuteC (cli_root) = 3 (ExecuteQuery does NOT match)
 	if len(cliEntries) != 3 {
 		for _, e := range cliEntries {
-			t.Logf("  cli entry: %s", e.Name)
+			t.Logf("  cli entry: %s (type=%s)", e.Name, e.Metadata["type"])
 		}
 		t.Errorf("expected 3 CLI entries, got %d", len(cliEntries))
 	}
@@ -503,8 +489,8 @@ func TestRunEntrypoints_CobraCommands(t *testing.T) {
 func TestRunEntrypoints_UrfaveCLI(t *testing.T) {
 	cs := &mockCodeSearcher{
 		references: []ReferenceHit{
-			{Symbol: "cli.App.Run", Kind: "call", FilePath: "cmd/main.go", Line: 20},
-			{Symbol: "http.Server.Run", Kind: "call", FilePath: "pkg/server.go", Line: 50}, // Should NOT match (no "App" or "cli")
+			{Symbol: "App.Run", Kind: "call", FilePath: "cmd/main.go", Line: 20},
+			{Symbol: "http.Server.Run", Kind: "call", FilePath: "pkg/server.go", Line: 50}, // Should NOT match (qualifier doesn't match App|cli)
 		},
 	}
 
@@ -520,6 +506,9 @@ func TestRunEntrypoints_UrfaveCLI(t *testing.T) {
 		}
 	}
 	if len(cliEntries) != 1 {
+		for _, e := range cliEntries {
+			t.Logf("  cli entry: %s (type=%s)", e.Name, e.Metadata["type"])
+		}
 		t.Errorf("expected 1 urfave/cli entry, got %d", len(cliEntries))
 	}
 }
@@ -649,47 +638,7 @@ func TestIsTestFile(t *testing.T) {
 	}
 }
 
-func TestIsHTTPSymbol(t *testing.T) {
-	tests := []struct {
-		sym  string
-		want bool
-	}{
-		{"HandleFunc", true},
-		{"Handle", true}, // standalone Handle is accepted
-		{"ListenAndServe", true},
-		{"ListenAndServeTLS", true},
-		{"http.HandleFunc", true},
-		{"http.Handle", true},     // http qualifier → accepted
-		{"mux.Handle", true},      // mux qualifier → accepted
-		{"router.Handle", true},   // router qualifier → accepted
-		{"syscall.Handle", false}, // syscall qualifier → rejected
-		{"dll.Handle", false},     // dll qualifier → rejected
-		{"ExecuteQuery", false},
-	}
-	for _, tt := range tests {
-		got := isHTTPSymbol(tt.sym)
-		if got != tt.want {
-			t.Errorf("isHTTPSymbol(%q) = %v, want %v", tt.sym, got, tt.want)
-		}
-	}
-}
-
-func TestIsCobraSymbol(t *testing.T) {
-	tests := []struct {
-		sym  string
-		want bool
-	}{
-		{"Execute", true},
-		{"ExecuteC", true},
-		{"AddCommand", true},
-		{"cmd.Execute", true},
-		{"rootCmd.AddCommand", true},
-		{"ExecuteQuery", false},
-		{"Command", false},
-	}
-	for _, tt := range tests {
-		if got := isCobraSymbol(tt.sym); got != tt.want {
-			t.Errorf("isCobraSymbol(%q) = %v, want %v", tt.sym, got, tt.want)
-		}
-	}
-}
+// Note: isHTTPSymbol and isCobraSymbol tests were removed because these functions
+// were replaced by data-driven qualifier/name_match patterns in pack.json.
+// The equivalent filtering logic is tested through the end-to-end tests above
+// (TestRunEntrypoints_HTTPExactMatch, TestRunEntrypoints_CobraCommands).

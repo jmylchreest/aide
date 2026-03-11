@@ -69,14 +69,7 @@ func BuildCallGraph(cg CodeGrapher, symbolName string, opts GraphOptions) (*Call
 			return false
 		}
 		visited[key] = true
-		graph.Nodes = append(graph.Nodes, GraphNode{
-			Name:     h.Name,
-			Kind:     h.Kind,
-			FilePath: h.FilePath,
-			Line:     h.Line,
-			EndLine:  h.EndLine,
-			Language: h.Language,
-		})
+		graph.Nodes = append(graph.Nodes, GraphNode(h))
 		return true
 	}
 
@@ -90,6 +83,22 @@ func BuildCallGraph(cg CodeGrapher, symbolName string, opts GraphOptions) (*Call
 	}
 	queue := []bfsItem{{sym: root, depth: 0}}
 
+	// processNeighbors adds edges and enqueues newly discovered nodes.
+	processNeighbors := func(neighbors []neighbor, depth int) {
+		for _, n := range neighbors {
+			graph.Edges = append(graph.Edges, GraphEdge{
+				From:     n.edgeFrom,
+				To:       n.edgeTo,
+				Kind:     n.ref.Kind,
+				FilePath: n.ref.FilePath,
+				Line:     n.ref.Line,
+			})
+			if n.node != nil && addNode(*n.node) {
+				queue = append(queue, bfsItem{sym: *n.node, depth: depth + 1})
+			}
+		}
+	}
+
 	for len(queue) > 0 {
 		item := queue[0]
 		queue = queue[1:]
@@ -102,18 +111,7 @@ func BuildCallGraph(cg CodeGrapher, symbolName string, opts GraphOptions) (*Call
 		if opts.Direction == "both" || opts.Direction == "callees" {
 			callees, err := findCallees(cg, item.sym)
 			if err == nil {
-				for _, ce := range callees {
-					graph.Edges = append(graph.Edges, GraphEdge{
-						From:     item.sym.Name,
-						To:       ce.ref.Symbol,
-						Kind:     ce.ref.Kind,
-						FilePath: ce.ref.FilePath,
-						Line:     ce.ref.Line,
-					})
-					if ce.target != nil && addNode(*ce.target) {
-						queue = append(queue, bfsItem{sym: *ce.target, depth: item.depth + 1})
-					}
-				}
+				processNeighbors(toCalleeNeighbors(item.sym, callees), item.depth)
 			}
 		}
 
@@ -121,18 +119,7 @@ func BuildCallGraph(cg CodeGrapher, symbolName string, opts GraphOptions) (*Call
 		if opts.Direction == "both" || opts.Direction == "callers" {
 			callers, err := findCallers(cg, item.sym)
 			if err == nil {
-				for _, cl := range callers {
-					graph.Edges = append(graph.Edges, GraphEdge{
-						From:     cl.caller.Name,
-						To:       item.sym.Name,
-						Kind:     cl.ref.Kind,
-						FilePath: cl.ref.FilePath,
-						Line:     cl.ref.Line,
-					})
-					if addNode(cl.caller) {
-						queue = append(queue, bfsItem{sym: cl.caller, depth: item.depth + 1})
-					}
-				}
+				processNeighbors(toCallerNeighbors(item.sym, callers), item.depth)
 			}
 		}
 
@@ -142,6 +129,43 @@ func BuildCallGraph(cg CodeGrapher, symbolName string, opts GraphOptions) (*Call
 	}
 
 	return graph, nil
+}
+
+// neighbor represents a discovered graph relationship (callee or caller).
+type neighbor struct {
+	edgeFrom string
+	edgeTo   string
+	ref      ReferenceHit
+	node     *SymbolHit // the neighbor node to potentially add to BFS queue
+}
+
+// toCalleeNeighbors converts calleeResults into a uniform []neighbor slice.
+func toCalleeNeighbors(sym SymbolHit, callees []calleeResult) []neighbor {
+	out := make([]neighbor, 0, len(callees))
+	for _, ce := range callees {
+		out = append(out, neighbor{
+			edgeFrom: sym.Name,
+			edgeTo:   ce.ref.Symbol,
+			ref:      ce.ref,
+			node:     ce.target,
+		})
+	}
+	return out
+}
+
+// toCallerNeighbors converts callerResults into a uniform []neighbor slice.
+func toCallerNeighbors(sym SymbolHit, callers []callerResult) []neighbor {
+	out := make([]neighbor, 0, len(callers))
+	for _, cl := range callers {
+		node := cl.caller // copy so we can take address
+		out = append(out, neighbor{
+			edgeFrom: cl.caller.Name,
+			edgeTo:   sym.Name,
+			ref:      cl.ref,
+			node:     &node,
+		})
+	}
+	return out
 }
 
 // calleeResult pairs a reference with its resolved target symbol (if found).

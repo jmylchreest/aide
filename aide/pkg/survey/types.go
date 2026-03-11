@@ -5,14 +5,18 @@ import "time"
 
 // Kind classifies what a survey entry describes.
 const (
-	KindModule      = "module"       // Package/module/workspace member
-	KindEntrypoint  = "entrypoint"   // main(), HTTP handler mount, CLI root, etc.
-	KindDependency  = "dependency"   // External dependency or internal module relationship
-	KindTechStack   = "tech_stack"   // Language, framework, build system detected
-	KindChurn       = "churn"        // Git history hotspot (high-change file/dir)
-	KindSubmodule   = "submodule"    // Git submodule reference
-	KindWorkspace   = "workspace"    // Monorepo workspace root (npm, go, cargo, etc.)
-	KindArchPattern = "arch_pattern" // Detected architectural pattern (MVC, hexagonal, etc.)
+	KindModule       = "module"       // Package/module/workspace member
+	KindEntrypoint   = "entrypoint"   // main(), HTTP handler mount, CLI root, etc.
+	KindDependency   = "dependency"   // External dependency or internal module relationship
+	KindTechStack    = "tech_stack"   // Language, framework, build system detected
+	KindChurn        = "churn"        // Git history hotspot (high-change file/dir)
+	KindSubmodule    = "submodule"    // Git submodule reference
+	KindWorkspace    = "workspace"    // Monorepo workspace root (npm, go, cargo, etc.)
+	KindArchPattern  = "arch_pattern" // Detected architectural pattern (MVC, hexagonal, etc.)
+	KindUnclassified = "unclassified" // Files not matching any known grammar pack, grouped by extension.
+	// TODO: Future enhancement — expose KindUnclassified entries via MCP tools so the
+	// calling LLM can classify unknown files. Since aide is an MCP server (not an LLM
+	// client), classification must be initiated by the LLM via survey skill tools.
 )
 
 // Analyzer names — who produced this entry.

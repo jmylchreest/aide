@@ -91,7 +91,7 @@ func TestRunTopology_NodeProject(t *testing.T) {
 		if e.Kind == KindModule && e.Name == "my-app" {
 			foundModule = true
 		}
-		if e.Kind == KindTechStack && e.Name == "nodejs" {
+		if e.Kind == KindTechStack && e.Name == "javascript" && e.Metadata["marker"] == "package.json" {
 			foundTechStack = true
 		}
 	}
@@ -99,7 +99,7 @@ func TestRunTopology_NodeProject(t *testing.T) {
 		t.Error("expected to find Node.js module entry")
 	}
 	if !foundTechStack {
-		t.Error("expected to find Node.js tech_stack entry")
+		t.Error("expected to find javascript tech_stack entry from package.json")
 	}
 }
 

@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
+
+	"github.com/jmylchreest/aide/aide/pkg/grammar"
 )
 
 // EntrypointsResult holds the output of the entrypoints analyzer.
@@ -15,25 +18,357 @@ type EntrypointsResult struct {
 
 // RunEntrypoints uses the code index to find entry points in the codebase.
 // If codeSearcher is nil, it falls back to file-scanning heuristics.
+// Entry point patterns are loaded from grammar pack.json files (PackEntrypoints).
 func RunEntrypoints(rootDir string, codeSearcher CodeSearcher) (*EntrypointsResult, error) {
+	return RunEntrypointsWithRegistry(rootDir, codeSearcher, grammar.DefaultPackRegistry())
+}
+
+// RunEntrypointsWithRegistry is like RunEntrypoints but accepts a specific PackRegistry.
+func RunEntrypointsWithRegistry(rootDir string, codeSearcher CodeSearcher, reg *grammar.PackRegistry) (*EntrypointsResult, error) {
 	result := &EntrypointsResult{}
 
-	if codeSearcher != nil {
-		// Code-index-based detection (preferred — more accurate)
-		result.detectGoMain(codeSearcher)
-		result.detectGoInit(codeSearcher)
-		result.detectGoHTTPHandlers(codeSearcher)
-		result.detectGoGRPC(codeSearcher)
-		result.detectGoCLI(codeSearcher)
-		result.detectPythonMain(codeSearcher)
-		result.detectRustMain(codeSearcher)
-	} else {
-		// Fallback: scan filesystem for common entrypoint patterns
-		result.detectEntrypointsByFileScan(rootDir)
+	// Iterate all packs with entrypoints defined.
+	for _, name := range reg.All() {
+		pack := reg.Get(name)
+		if pack == nil || pack.Entrypoints == nil {
+			continue
+		}
+
+		if codeSearcher != nil {
+			// Code-index-based detection (preferred — more accurate).
+			result.processSymbols(pack, codeSearcher)
+			result.processRefs(pack, codeSearcher)
+		} else {
+			// Fallback: file-scan patterns.
+			result.processFilePatterns(rootDir, pack)
+		}
 	}
 
 	return result, nil
 }
+
+// processSymbols searches the code index for entry point symbols defined in a pack.
+func (r *EntrypointsResult) processSymbols(pack *grammar.Pack, cs CodeSearcher) {
+	// Build set of file extensions for this language to filter results.
+	langExts := make(map[string]bool, len(pack.Meta.Extensions))
+	for _, ext := range pack.Meta.Extensions {
+		langExts[ext] = true
+	}
+
+	for _, sym := range pack.Entrypoints.Symbols {
+		results, err := cs.FindSymbols(sym.Name, sym.Kind, 100)
+		if err != nil {
+			continue
+		}
+
+		// Compile exclude regex if present.
+		var excludeRe *regexp.Regexp
+		if sym.Exclude != "" {
+			excludeRe, _ = regexp.Compile(sym.Exclude)
+		}
+
+		// Compile name_match regex if present.
+		var nameMatchRe *regexp.Regexp
+		if sym.NameMatch != "" {
+			nameMatchRe, _ = regexp.Compile(sym.NameMatch)
+		}
+
+		// Compile file_match regex if present.
+		var fileMatchRe *regexp.Regexp
+		if sym.FileMatch != "" {
+			fileMatchRe, _ = regexp.Compile(sym.FileMatch)
+		}
+
+		for _, hit := range results {
+			// Exact name match (FindSymbols may return partial matches).
+			if hit.Name != sym.Name {
+				continue
+			}
+			// Kind filter.
+			if sym.Kind != "" && hit.Kind != sym.Kind {
+				continue
+			}
+			// Language filter: only process files belonging to this pack's language.
+			if len(langExts) > 0 {
+				ext := filepath.Ext(hit.FilePath)
+				if !langExts[ext] {
+					continue
+				}
+			}
+			// Universal safety-net filters: always exclude test and generated files.
+			if isTestFile(hit.FilePath) || isGeneratedFile(hit.FilePath) {
+				continue
+			}
+			// Exclude filter (pack-specific patterns).
+			if excludeRe != nil && excludeRe.MatchString(hit.FilePath) {
+				continue
+			}
+			// Name match filter (on full symbol name).
+			if nameMatchRe != nil && !nameMatchRe.MatchString(hit.Name) {
+				continue
+			}
+			// File match filter.
+			if fileMatchRe != nil && !fileMatchRe.MatchString(hit.FilePath) {
+				continue
+			}
+
+			r.Entries = append(r.Entries, &Entry{
+				Analyzer: AnalyzerEntrypoints,
+				Kind:     KindEntrypoint,
+				Name:     fmt.Sprintf("%s:%s()", hit.FilePath, hit.Name),
+				FilePath: hit.FilePath,
+				Title:    sym.Label,
+				Detail:   fmt.Sprintf("%s at %s:%d", hit.Name, hit.FilePath, hit.Line),
+				Metadata: map[string]string{
+					"language": pack.Name,
+					"type":     sym.Type,
+					"line":     fmt.Sprintf("%d", hit.Line),
+				},
+			})
+		}
+	}
+}
+
+// processRefs searches the code index for entry point references defined in a pack.
+func (r *EntrypointsResult) processRefs(pack *grammar.Pack, cs CodeSearcher) {
+	// Build set of file extensions for this language to filter results.
+	langExts := make(map[string]bool, len(pack.Meta.Extensions))
+	for _, ext := range pack.Meta.Extensions {
+		langExts[ext] = true
+	}
+
+	for _, ref := range pack.Entrypoints.Refs {
+		refKind := ref.RefKind
+		if refKind == "" {
+			refKind = "call"
+		}
+
+		results, err := cs.FindReferences(ref.Name, refKind, 100)
+		if err != nil {
+			continue
+		}
+
+		// Compile qualifier regex if present.
+		var qualifierRe *regexp.Regexp
+		if ref.Qualifier != "" {
+			qualifierRe, _ = regexp.Compile(ref.Qualifier)
+		}
+
+		// Compile name_match regex if present.
+		var nameMatchRe *regexp.Regexp
+		if ref.NameMatch != "" {
+			nameMatchRe, _ = regexp.Compile(ref.NameMatch)
+		}
+
+		// Compile exclude regex if present.
+		var excludeRe *regexp.Regexp
+		if ref.Exclude != "" {
+			excludeRe, _ = regexp.Compile(ref.Exclude)
+		}
+
+		// Dedup strategy: when name_match is present, deduplicate by matched symbol name
+		// (e.g., gRPC RegisterUserServiceServer registered in multiple files counts as one).
+		// Otherwise, deduplicate by file:line to avoid duplicate entries for the same call site.
+		seen := make(map[string]bool)
+
+		for _, hit := range results {
+			// Language filter: only process files belonging to this pack's language.
+			if len(langExts) > 0 {
+				ext := filepath.Ext(hit.FilePath)
+				if !langExts[ext] {
+					continue
+				}
+			}
+
+			// Universal safety-net filters: always exclude test and generated files.
+			if isTestFile(hit.FilePath) || isGeneratedFile(hit.FilePath) {
+				continue
+			}
+
+			// Exclude filter (pack-specific patterns).
+			if excludeRe != nil && excludeRe.MatchString(hit.FilePath) {
+				continue
+			}
+
+			// Name match: apply regex to the full symbol name.
+			if nameMatchRe != nil && !nameMatchRe.MatchString(hit.Symbol) {
+				continue
+			}
+
+			// Extract base name and qualifier from symbol (e.g., "http.HandleFunc" -> qualifier="http", base="HandleFunc").
+			baseName := hit.Symbol
+			qualifierStr := ""
+			if idx := strings.LastIndex(hit.Symbol, "."); idx >= 0 {
+				qualifierStr = hit.Symbol[:idx]
+				baseName = hit.Symbol[idx+1:]
+			}
+
+			// Check base name matches the ref name (exact match for the base).
+			if baseName != ref.Name && (nameMatchRe == nil) {
+				continue
+			}
+
+			// Qualifier filter: if specified, the qualifier portion must match.
+			if qualifierRe != nil {
+				if qualifierStr == "" {
+					// No qualifier present — for "Handle" with qualifier filter, accept standalone calls.
+					// This matches the old isHTTPSymbol behavior.
+				} else if !qualifierRe.MatchString(qualifierStr) {
+					continue
+				}
+			}
+
+			// Dedup: by symbol name when name_match is present, otherwise by file:line.
+			var key string
+			if nameMatchRe != nil {
+				key = hit.Symbol
+			} else {
+				key = fmt.Sprintf("%s:%d", hit.FilePath, hit.Line)
+			}
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+
+			r.Entries = append(r.Entries, &Entry{
+				Analyzer: AnalyzerEntrypoints,
+				Kind:     KindEntrypoint,
+				Name:     fmt.Sprintf("%s:%s", hit.FilePath, hit.Symbol),
+				FilePath: hit.FilePath,
+				Title:    fmt.Sprintf("%s: %s", ref.Label, hit.Symbol),
+				Detail:   fmt.Sprintf("%s at %s:%d", hit.Symbol, hit.FilePath, hit.Line),
+				Metadata: map[string]string{
+					"language": pack.Name,
+					"type":     ref.Type,
+					"line":     fmt.Sprintf("%d", hit.Line),
+				},
+			})
+		}
+	}
+}
+
+// processFilePatterns walks the filesystem for entry point patterns when no code index
+// is available. Each pack's FilePatterns define glob matches and optional content regexes.
+func (r *EntrypointsResult) processFilePatterns(rootDir string, pack *grammar.Pack) {
+	for _, fp := range pack.Entrypoints.FilePatterns {
+		// Compile content regex if present.
+		var contentRe *regexp.Regexp
+		if fp.Content != "" {
+			contentRe, _ = regexp.Compile(fp.Content)
+		}
+
+		// Compile pre_content regex if present.
+		var preContentRe *regexp.Regexp
+		if fp.PreContent != "" {
+			preContentRe, _ = regexp.Compile(fp.PreContent)
+		}
+
+		_ = filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return nil
+			}
+			if info.IsDir() {
+				base := info.Name()
+				if base != "." && strings.HasPrefix(base, ".") {
+					return filepath.SkipDir
+				}
+				if base == "vendor" || base == "node_modules" || base == "testdata" || base == "__pycache__" || base == "target" {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+
+			relPath, _ := filepath.Rel(rootDir, path)
+			if relPath == "" {
+				relPath = path
+			}
+
+			// Exclude test and generated files.
+			if isTestFile(relPath) || isGeneratedFile(relPath) {
+				return nil
+			}
+
+			// Match file pattern (simple glob: *.go, main.rs, index.js, etc.)
+			matched, _ := filepath.Match(fp.FileMatch, filepath.Base(path))
+			if !matched {
+				return nil
+			}
+
+			// If no content regex, the file's existence is sufficient (e.g., main.rs).
+			if contentRe == nil {
+				r.Entries = append(r.Entries, &Entry{
+					Analyzer: AnalyzerEntrypoints,
+					Kind:     KindEntrypoint,
+					Name:     fmt.Sprintf("%s:entrypoint", relPath),
+					FilePath: relPath,
+					Title:    fp.Label,
+					Detail:   fmt.Sprintf("%s at %s (detected by file scan)", fp.Label, relPath),
+					Metadata: map[string]string{
+						"language":  pack.Name,
+						"type":      fp.Type,
+						"detection": "file_scan",
+					},
+				})
+				return nil
+			}
+
+			// Scan file content for the pattern.
+			r.scanFileForPattern(relPath, path, pack.Name, fp, contentRe, preContentRe)
+			return nil
+		})
+	}
+}
+
+// scanFileForPattern scans a file line-by-line for a content regex match.
+// If preContentRe is non-nil, the content match is only valid if preContentRe
+// matched at least one earlier line in the file (e.g., "package main" before "func main()").
+func (r *EntrypointsResult) scanFileForPattern(relPath, absPath, language string, fp grammar.EntrypointFilePattern, contentRe *regexp.Regexp, preContentRe *regexp.Regexp) {
+	f, err := os.Open(absPath)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	lineNum := 0
+	preContentSatisfied := preContentRe == nil // satisfied by default if no precondition
+	for scanner.Scan() {
+		lineNum++
+		line := scanner.Text()
+
+		// Check precondition.
+		if preContentRe != nil && !preContentSatisfied {
+			if preContentRe.MatchString(line) {
+				preContentSatisfied = true
+			}
+		}
+
+		if contentRe.MatchString(line) {
+			if !preContentSatisfied {
+				continue // Content matched but precondition not yet satisfied.
+			}
+			r.Entries = append(r.Entries, &Entry{
+				Analyzer: AnalyzerEntrypoints,
+				Kind:     KindEntrypoint,
+				Name:     fmt.Sprintf("%s:%s", relPath, fp.Type),
+				FilePath: relPath,
+				Title:    fp.Label,
+				Detail:   fmt.Sprintf("%s at %s:%d (detected by file scan)", fp.Label, relPath, lineNum),
+				Metadata: map[string]string{
+					"language":  language,
+					"type":      fp.Type,
+					"line":      fmt.Sprintf("%d", lineNum),
+					"detection": "file_scan",
+				},
+			})
+			return // One match per file
+		}
+	}
+}
+
+// =============================================================================
+// Helper functions
+// =============================================================================
 
 // isGeneratedFile returns true if the path looks like a generated file.
 func isGeneratedFile(path string) bool {
@@ -52,7 +387,6 @@ func isTestFile(path string) bool {
 		strings.HasSuffix(path, "_test.py") {
 		return true
 	}
-	// Check for test directories (handle both relative and absolute paths)
 	parts := strings.Split(path, "/")
 	for _, p := range parts {
 		if p == "testdata" || p == "test" || p == "tests" {
@@ -60,488 +394,4 @@ func isTestFile(path string) bool {
 		}
 	}
 	return false
-}
-
-// isGoFile returns true if the path is a Go source file.
-func isGoFile(path string) bool {
-	return strings.HasSuffix(path, ".go")
-}
-
-// detectGoMain finds Go main() functions.
-// Excludes generated files, test files, and non-Go files.
-func (r *EntrypointsResult) detectGoMain(cs CodeSearcher) {
-	symbols, err := cs.FindSymbols("main", "function", 100)
-	if err != nil {
-		return
-	}
-
-	for _, sym := range symbols {
-		if sym.Name != "main" || sym.Kind != "function" {
-			continue
-		}
-		if !isGoFile(sym.FilePath) {
-			continue // Rust main() is handled by detectRustMain
-		}
-		if isGeneratedFile(sym.FilePath) || isTestFile(sym.FilePath) {
-			continue
-		}
-		r.Entries = append(r.Entries, &Entry{
-			Analyzer: AnalyzerEntrypoints,
-			Kind:     KindEntrypoint,
-			Name:     fmt.Sprintf("%s:main()", sym.FilePath),
-			FilePath: sym.FilePath,
-			Title:    "Go main() entry point",
-			Detail:   fmt.Sprintf("func main() at %s:%d", sym.FilePath, sym.Line),
-			Metadata: map[string]string{
-				"language": "go",
-				"type":     "main",
-				"line":     fmt.Sprintf("%d", sym.Line),
-			},
-		})
-	}
-}
-
-// detectGoInit finds Go init() functions.
-// Excludes generated files (e.g. .pb.go protobuf boilerplate).
-func (r *EntrypointsResult) detectGoInit(cs CodeSearcher) {
-	symbols, err := cs.FindSymbols("init", "function", 100)
-	if err != nil {
-		return
-	}
-
-	for _, sym := range symbols {
-		if sym.Name != "init" || sym.Kind != "function" {
-			continue
-		}
-		if !isGoFile(sym.FilePath) {
-			continue
-		}
-		if isGeneratedFile(sym.FilePath) || isTestFile(sym.FilePath) {
-			continue
-		}
-		r.Entries = append(r.Entries, &Entry{
-			Analyzer: AnalyzerEntrypoints,
-			Kind:     KindEntrypoint,
-			Name:     fmt.Sprintf("%s:init()", sym.FilePath),
-			FilePath: sym.FilePath,
-			Title:    "Go init() function",
-			Detail:   fmt.Sprintf("func init() at %s:%d", sym.FilePath, sym.Line),
-			Metadata: map[string]string{
-				"language": "go",
-				"type":     "init",
-				"line":     fmt.Sprintf("%d", sym.Line),
-			},
-		})
-	}
-}
-
-// detectGoHTTPHandlers finds Go HTTP handler registrations.
-// Uses exact symbol matching (not substring) to avoid false positives
-// like syscall.Handle or other unrelated symbols containing "Handle".
-func (r *EntrypointsResult) detectGoHTTPHandlers(cs CodeSearcher) {
-	// Search for specific HTTP-related function calls
-	httpSymbols := []string{"HandleFunc", "Handle", "ListenAndServe"}
-	seen := make(map[string]bool) // deduplicate by file:line
-
-	for _, pattern := range httpSymbols {
-		refs, err := cs.FindReferences(pattern, "call", 50)
-		if err != nil {
-			continue
-		}
-		for _, ref := range refs {
-			if isGeneratedFile(ref.FilePath) || isTestFile(ref.FilePath) {
-				continue
-			}
-			// Exact match on known HTTP symbols — not substring matching.
-			// This prevents false positives like syscall.Handle, dll.Handle, etc.
-			if !isHTTPSymbol(ref.Symbol) {
-				continue
-			}
-			key := fmt.Sprintf("%s:%d", ref.FilePath, ref.Line)
-			if seen[key] {
-				continue
-			}
-			seen[key] = true
-			r.Entries = append(r.Entries, &Entry{
-				Analyzer: AnalyzerEntrypoints,
-				Kind:     KindEntrypoint,
-				Name:     fmt.Sprintf("%s:%s", ref.FilePath, ref.Symbol),
-				FilePath: ref.FilePath,
-				Title:    fmt.Sprintf("HTTP handler: %s", ref.Symbol),
-				Detail:   fmt.Sprintf("%s at %s:%d", ref.Symbol, ref.FilePath, ref.Line),
-				Metadata: map[string]string{
-					"language": "go",
-					"type":     "http_handler",
-					"line":     fmt.Sprintf("%d", ref.Line),
-				},
-			})
-		}
-	}
-}
-
-// isHTTPSymbol returns true if the symbol is a known HTTP handler/server function.
-// Matches against known net/http and popular framework symbols.
-func isHTTPSymbol(sym string) bool {
-	// Match the base name: "http.HandleFunc" → "HandleFunc"
-	baseName := sym
-	qualifier := ""
-	if idx := strings.LastIndex(sym, "."); idx >= 0 {
-		qualifier = sym[:idx]
-		baseName = sym[idx+1:]
-	}
-
-	switch baseName {
-	case "HandleFunc", "ListenAndServe", "ListenAndServeTLS", "ServeMux":
-		// These are unambiguously HTTP-related regardless of qualifier
-		return true
-	case "Handle":
-		// "Handle" alone is ambiguous — could be syscall.Handle, dll.Handle, etc.
-		// Only accept if qualifier is empty (standalone) or HTTP-related.
-		if qualifier == "" {
-			return true
-		}
-		// Accept known HTTP qualifiers
-		lq := strings.ToLower(qualifier)
-		return strings.Contains(lq, "http") || strings.Contains(lq, "mux") ||
-			strings.Contains(lq, "router") || strings.Contains(lq, "server")
-	}
-	return false
-}
-
-// detectGoGRPC finds gRPC service registrations.
-// Excludes generated files — we want the call sites (where services are wired up),
-// not the generated RegisterXxxServer function definitions.
-func (r *EntrypointsResult) detectGoGRPC(cs CodeSearcher) {
-	refs, err := cs.FindReferences("Register", "call", 100)
-	if err != nil {
-		return
-	}
-
-	seen := make(map[string]bool) // deduplicate by symbol name
-	for _, ref := range refs {
-		if !strings.HasPrefix(ref.Symbol, "Register") || !strings.HasSuffix(ref.Symbol, "Server") {
-			continue
-		}
-		if isGeneratedFile(ref.FilePath) || isTestFile(ref.FilePath) {
-			continue
-		}
-		// Deduplicate by symbol name — a gRPC service registered once is one entrypoint
-		if seen[ref.Symbol] {
-			continue
-		}
-		seen[ref.Symbol] = true
-		r.Entries = append(r.Entries, &Entry{
-			Analyzer: AnalyzerEntrypoints,
-			Kind:     KindEntrypoint,
-			Name:     fmt.Sprintf("%s:%s", ref.FilePath, ref.Symbol),
-			FilePath: ref.FilePath,
-			Title:    fmt.Sprintf("gRPC service registration: %s", ref.Symbol),
-			Detail:   fmt.Sprintf("%s at %s:%d", ref.Symbol, ref.FilePath, ref.Line),
-			Metadata: map[string]string{
-				"language": "go",
-				"type":     "grpc_service",
-				"line":     fmt.Sprintf("%d", ref.Line),
-			},
-		})
-	}
-}
-
-// detectGoCLI finds CLI root command definitions (cobra, urfave/cli, flag-based).
-func (r *EntrypointsResult) detectGoCLI(cs CodeSearcher) {
-	// Detect cobra root commands: cobra.Command references are CLI entry points
-	r.detectCobraCommands(cs)
-
-	// Detect urfave/cli apps
-	r.detectUrfaveCLI(cs)
-}
-
-// detectCobraCommands finds cobra.Command root definitions.
-func (r *EntrypointsResult) detectCobraCommands(cs CodeSearcher) {
-	// Search for known cobra function calls individually
-	cobraPatterns := []string{"Execute", "ExecuteC", "AddCommand"}
-
-	seen := make(map[string]bool)
-	for _, pattern := range cobraPatterns {
-		refs, err := cs.FindReferences(pattern, "call", 100)
-		if err != nil {
-			continue
-		}
-		for _, ref := range refs {
-			if isGeneratedFile(ref.FilePath) || isTestFile(ref.FilePath) {
-				continue
-			}
-			if !isCobraSymbol(ref.Symbol) {
-				continue
-			}
-			key := fmt.Sprintf("%s:%d", ref.FilePath, ref.Line)
-			if seen[key] {
-				continue
-			}
-			seen[key] = true
-			r.Entries = append(r.Entries, &Entry{
-				Analyzer: AnalyzerEntrypoints,
-				Kind:     KindEntrypoint,
-				Name:     fmt.Sprintf("%s:%s", ref.FilePath, ref.Symbol),
-				FilePath: ref.FilePath,
-				Title:    fmt.Sprintf("CLI command: %s", ref.Symbol),
-				Detail:   fmt.Sprintf("%s at %s:%d", ref.Symbol, ref.FilePath, ref.Line),
-				Metadata: map[string]string{
-					"language": "go",
-					"type":     "cli_root",
-					"line":     fmt.Sprintf("%d", ref.Line),
-				},
-			})
-		}
-	}
-}
-
-// isCobraSymbol returns true if the symbol is a known cobra CLI function.
-func isCobraSymbol(sym string) bool {
-	baseName := sym
-	if idx := strings.LastIndex(sym, "."); idx >= 0 {
-		baseName = sym[idx+1:]
-	}
-	switch baseName {
-	case "Execute", "ExecuteC", "AddCommand":
-		return true
-	}
-	return false
-}
-
-// detectUrfaveCLI finds urfave/cli app definitions.
-func (r *EntrypointsResult) detectUrfaveCLI(cs CodeSearcher) {
-	refs, err := cs.FindReferences("Run", "call", 100)
-	if err != nil {
-		return
-	}
-
-	seen := make(map[string]bool)
-	for _, ref := range refs {
-		if isGeneratedFile(ref.FilePath) || isTestFile(ref.FilePath) {
-			continue
-		}
-		// Look for cli.App.Run patterns
-		baseName := ref.Symbol
-		if idx := strings.LastIndex(ref.Symbol, "."); idx >= 0 {
-			baseName = ref.Symbol[idx+1:]
-		}
-		if baseName != "Run" {
-			continue
-		}
-		// Only match if the symbol looks CLI-related (contains "App" or "cli")
-		if !strings.Contains(ref.Symbol, "App") && !strings.Contains(ref.Symbol, "cli") {
-			continue
-		}
-		key := fmt.Sprintf("%s:%d", ref.FilePath, ref.Line)
-		if seen[key] {
-			continue
-		}
-		seen[key] = true
-		r.Entries = append(r.Entries, &Entry{
-			Analyzer: AnalyzerEntrypoints,
-			Kind:     KindEntrypoint,
-			Name:     fmt.Sprintf("%s:%s", ref.FilePath, ref.Symbol),
-			FilePath: ref.FilePath,
-			Title:    fmt.Sprintf("CLI app: %s", ref.Symbol),
-			Detail:   fmt.Sprintf("%s at %s:%d", ref.Symbol, ref.FilePath, ref.Line),
-			Metadata: map[string]string{
-				"language": "go",
-				"type":     "cli_root",
-				"line":     fmt.Sprintf("%d", ref.Line),
-			},
-		})
-	}
-}
-
-// detectPythonMain finds Python if __name__ == "__main__" patterns.
-func (r *EntrypointsResult) detectPythonMain(cs CodeSearcher) {
-	symbols, err := cs.FindSymbols("__main__", "", 50)
-	if err != nil {
-		return
-	}
-
-	for _, sym := range symbols {
-		if isTestFile(sym.FilePath) {
-			continue
-		}
-		r.Entries = append(r.Entries, &Entry{
-			Analyzer: AnalyzerEntrypoints,
-			Kind:     KindEntrypoint,
-			Name:     fmt.Sprintf("%s:__main__", sym.FilePath),
-			FilePath: sym.FilePath,
-			Title:    "Python entry point",
-			Detail:   fmt.Sprintf("__main__ block at %s:%d", sym.FilePath, sym.Line),
-			Metadata: map[string]string{
-				"language": "python",
-				"type":     "main",
-				"line":     fmt.Sprintf("%d", sym.Line),
-			},
-		})
-	}
-}
-
-// detectRustMain finds Rust fn main() functions.
-func (r *EntrypointsResult) detectRustMain(cs CodeSearcher) {
-	symbols, err := cs.FindSymbols("main", "function", 100)
-	if err != nil {
-		return
-	}
-
-	for _, sym := range symbols {
-		if sym.Name != "main" || sym.Kind != "function" || !strings.HasSuffix(sym.FilePath, ".rs") {
-			continue
-		}
-		if isTestFile(sym.FilePath) {
-			continue
-		}
-		r.Entries = append(r.Entries, &Entry{
-			Analyzer: AnalyzerEntrypoints,
-			Kind:     KindEntrypoint,
-			Name:     fmt.Sprintf("%s:main()", sym.FilePath),
-			FilePath: sym.FilePath,
-			Title:    "Rust main() entry point",
-			Detail:   fmt.Sprintf("fn main() at %s:%d", sym.FilePath, sym.Line),
-			Metadata: map[string]string{
-				"language": "rust",
-				"type":     "main",
-				"line":     fmt.Sprintf("%d", sym.Line),
-			},
-		})
-	}
-}
-
-// =============================================================================
-// File-scanning fallback — used when code index is not available
-// =============================================================================
-
-// detectEntrypointsByFileScan walks the filesystem to find obvious entrypoint
-// patterns when the code index is unavailable. Less accurate than code-index-based
-// detection but provides basic coverage.
-func (r *EntrypointsResult) detectEntrypointsByFileScan(rootDir string) {
-	_ = filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil // skip inaccessible paths
-		}
-		if info.IsDir() {
-			base := info.Name()
-			// Skip hidden dirs, vendor, node_modules, etc.
-			if strings.HasPrefix(base, ".") || base == "vendor" || base == "node_modules" || base == "testdata" {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-
-		relPath, _ := filepath.Rel(rootDir, path)
-		if relPath == "" {
-			relPath = path
-		}
-
-		// Skip generated and test files
-		if isGeneratedFile(relPath) || isTestFile(relPath) {
-			return nil
-		}
-
-		switch {
-		case strings.HasSuffix(relPath, ".go"):
-			r.scanGoFileForEntrypoints(relPath, path)
-		case strings.HasSuffix(relPath, ".py"):
-			r.scanPythonFileForEntrypoints(relPath, path)
-		case strings.HasSuffix(relPath, ".rs") && filepath.Base(relPath) == "main.rs":
-			// Rust convention: main.rs is always an entry point
-			r.Entries = append(r.Entries, &Entry{
-				Analyzer: AnalyzerEntrypoints,
-				Kind:     KindEntrypoint,
-				Name:     fmt.Sprintf("%s:main()", relPath),
-				FilePath: relPath,
-				Title:    "Rust main() entry point",
-				Detail:   fmt.Sprintf("main.rs at %s (detected by file scan)", relPath),
-				Metadata: map[string]string{
-					"language":  "rust",
-					"type":      "main",
-					"detection": "file_scan",
-				},
-			})
-		}
-		return nil
-	})
-}
-
-// scanGoFileForEntrypoints scans a Go file for func main() declarations.
-func (r *EntrypointsResult) scanGoFileForEntrypoints(relPath, absPath string) {
-	f, err := os.Open(absPath)
-	if err != nil {
-		return
-	}
-	defer f.Close()
-
-	scanner := bufio.NewScanner(f)
-	lineNum := 0
-	var packageName string
-	for scanner.Scan() {
-		lineNum++
-		line := strings.TrimSpace(scanner.Text())
-
-		// Track package name
-		if strings.HasPrefix(line, "package ") {
-			packageName = strings.TrimPrefix(line, "package ")
-			packageName = strings.TrimSpace(packageName)
-			continue
-		}
-
-		// Only look for main() in package main
-		if packageName != "main" {
-			continue
-		}
-
-		if line == "func main() {" || line == "func main(){" {
-			r.Entries = append(r.Entries, &Entry{
-				Analyzer: AnalyzerEntrypoints,
-				Kind:     KindEntrypoint,
-				Name:     fmt.Sprintf("%s:main()", relPath),
-				FilePath: relPath,
-				Title:    "Go main() entry point",
-				Detail:   fmt.Sprintf("func main() at %s:%d (detected by file scan)", relPath, lineNum),
-				Metadata: map[string]string{
-					"language":  "go",
-					"type":      "main",
-					"line":      fmt.Sprintf("%d", lineNum),
-					"detection": "file_scan",
-				},
-			})
-			return // Only one main() per file
-		}
-	}
-}
-
-// scanPythonFileForEntrypoints scans a Python file for if __name__ == "__main__" blocks.
-func (r *EntrypointsResult) scanPythonFileForEntrypoints(relPath, absPath string) {
-	f, err := os.Open(absPath)
-	if err != nil {
-		return
-	}
-	defer f.Close()
-
-	scanner := bufio.NewScanner(f)
-	lineNum := 0
-	for scanner.Scan() {
-		lineNum++
-		line := strings.TrimSpace(scanner.Text())
-		if line == `if __name__ == "__main__":` || line == `if __name__ == '__main__':` {
-			r.Entries = append(r.Entries, &Entry{
-				Analyzer: AnalyzerEntrypoints,
-				Kind:     KindEntrypoint,
-				Name:     fmt.Sprintf("%s:__main__", relPath),
-				FilePath: relPath,
-				Title:    "Python entry point",
-				Detail:   fmt.Sprintf("__main__ block at %s:%d (detected by file scan)", relPath, lineNum),
-				Metadata: map[string]string{
-					"language":  "python",
-					"type":      "main",
-					"line":      fmt.Sprintf("%d", lineNum),
-					"detection": "file_scan",
-				},
-			})
-			return // Only one per file
-		}
-	}
 }
