@@ -92,6 +92,17 @@ func (e *IncompatibleABIError) Error() string {
 	)
 }
 
+// GrammarMetadataOnlyError is returned when a pack exists but has no tree-sitter
+// grammar binary (CSymbol is empty). These packs provide file-detection metadata
+// (extensions, filenames) but cannot be loaded for parsing or analysis.
+type GrammarMetadataOnlyError struct {
+	Name string
+}
+
+func (e *GrammarMetadataOnlyError) Error() string {
+	return fmt.Sprintf("grammar %q is metadata-only (no tree-sitter parser available)", e.Name)
+}
+
 // GrammarStaleError is returned when an installed grammar's version does not
 // match the currently running aide version. The CompositeLoader handles this
 // by re-downloading the grammar automatically when auto-download is enabled.
@@ -200,6 +211,11 @@ func NewCompositeLoader(opts ...CompositeLoaderOption) *CompositeLoader {
 
 // Load returns the Language for the given name.
 func (cl *CompositeLoader) Load(ctx context.Context, name string) (*tree_sitter.Language, error) {
+	// Early check: metadata-only packs have no parser and can never be loaded.
+	if pack := DefaultPackRegistry().Get(name); pack != nil && !pack.HasParser() {
+		return nil, &GrammarMetadataOnlyError{Name: name}
+	}
+
 	// Check cache first
 	cl.mu.RLock()
 	if lang, ok := cl.cache[name]; ok {
@@ -318,8 +334,11 @@ func (cl *CompositeLoader) Install(ctx context.Context, name string) error {
 	}
 
 	pack := DefaultPackRegistry().Get(name)
-	if pack == nil || pack.CSymbol == "" {
+	if pack == nil {
 		return &GrammarNotFoundError{Name: name}
+	}
+	if !pack.HasParser() {
+		return &GrammarMetadataOnlyError{Name: name}
 	}
 
 	return cl.dynamic.Download(ctx, name, pack)

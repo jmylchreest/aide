@@ -149,15 +149,21 @@ func TestScanProject(t *testing.T) {
 		t.Errorf("TotalFiles: got %d, want 7", result.TotalFiles)
 	}
 
-	// "json" has no grammar (not builtin, not in DynamicPacks) — should be unavailable.
+	// "json" is a metadata-only pack (has file detection but no tree-sitter parser).
 	found := false
-	for _, u := range result.Unavailable {
-		if u == "json" {
+	for _, m := range result.MetadataOnly {
+		if m == "json" {
 			found = true
 		}
 	}
 	if !found {
-		t.Errorf("expected 'json' in Unavailable; got %v", result.Unavailable)
+		t.Errorf("expected 'json' in MetadataOnly; got %v", result.MetadataOnly)
+	}
+	// "json" should NOT appear in Unavailable.
+	for _, u := range result.Unavailable {
+		if u == "json" {
+			t.Errorf("'json' should not be in Unavailable (it is metadata-only); got %v", result.Unavailable)
+		}
 	}
 }
 
@@ -176,6 +182,107 @@ func TestScanProjectEmpty(t *testing.T) {
 	}
 	if len(result.Languages) != 0 {
 		t.Errorf("Languages should be empty, got %v", result.Languages)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// ScanProject — marker-based detection
+// ---------------------------------------------------------------------------
+
+func TestScanProject_MarkerDetection(t *testing.T) {
+	// Create a project with a go.mod marker but no .go files.
+	// The marker-based pass should still detect "go".
+	root := t.TempDir()
+
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/test\n\ngo 1.21\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Also add a Cargo.toml for Rust.
+	if err := os.WriteFile(filepath.Join(root, "Cargo.toml"), []byte("[package]\nname = \"test\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Detector only recognises .py files — nothing for .go or .rs.
+	detect := func(filePath string, _ []byte) string {
+		if filepath.Ext(filePath) == ".py" {
+			return "python"
+		}
+		return ""
+	}
+
+	loader := NewCompositeLoader(
+		WithAutoDownload(false),
+		WithGrammarDir(filepath.Join(root, ".aide", "grammars")),
+	)
+
+	result, err := ScanProject(root, loader, detect, nil)
+	if err != nil {
+		t.Fatalf("ScanProject: %v", err)
+	}
+
+	// "go" should be detected via go.mod marker (0 files from file scan).
+	if _, ok := result.Languages["go"]; !ok {
+		t.Error("expected 'go' in Languages (detected via marker), got:", result.Languages)
+	}
+
+	// "rust" should be detected via Cargo.toml marker.
+	if _, ok := result.Languages["rust"]; !ok {
+		t.Error("expected 'rust' in Languages (detected via marker), got:", result.Languages)
+	}
+
+	// MarkerLanguages should include both.
+	markerSet := make(map[string]bool)
+	for _, lang := range result.MarkerLanguages {
+		markerSet[lang] = true
+	}
+	if !markerSet["go"] {
+		t.Errorf("expected 'go' in MarkerLanguages; got %v", result.MarkerLanguages)
+	}
+	if !markerSet["rust"] {
+		t.Errorf("expected 'rust' in MarkerLanguages; got %v", result.MarkerLanguages)
+	}
+}
+
+func TestScanProject_MarkerAndFileDetection(t *testing.T) {
+	// Both marker and file scan detect the same language — should combine.
+	root := t.TempDir()
+
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module test\n\ngo 1.21\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "main.go"), []byte("package main"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	detect := func(filePath string, _ []byte) string {
+		if filepath.Ext(filePath) == ".go" {
+			return "go"
+		}
+		return ""
+	}
+
+	loader := NewCompositeLoader(
+		WithAutoDownload(false),
+		WithGrammarDir(filepath.Join(root, ".aide", "grammars")),
+	)
+
+	result, err := ScanProject(root, loader, detect, nil)
+	if err != nil {
+		t.Fatalf("ScanProject: %v", err)
+	}
+
+	// "go" should have 1 file from file scan (main.go; go.mod is not detected by the simple detector).
+	if result.Languages["go"] != 1 {
+		t.Errorf("go files: got %d, want 1", result.Languages["go"])
+	}
+
+	// Still should appear in MarkerLanguages.
+	markerSet := make(map[string]bool)
+	for _, lang := range result.MarkerLanguages {
+		markerSet[lang] = true
+	}
+	if !markerSet["go"] {
+		t.Errorf("expected 'go' in MarkerLanguages; got %v", result.MarkerLanguages)
 	}
 }
 

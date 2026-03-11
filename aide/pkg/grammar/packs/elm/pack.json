@@ -6,18 +6,14 @@
   "source_repo": "elm-tooling/tree-sitter-elm",
   "source_tag": "v5.9.0",
   "meta": {
-    "extensions": [
-      ".elm"
-    ]
+    "extensions": [".elm"]
   },
   "queries": {
     "tags": "(value_declaration (function_declaration_left (lower_case_identifier) @name)) @definition.function\n(type_alias_declaration name: (upper_case_identifier) @name) @definition.type\n(type_declaration name: (upper_case_identifier) @name) @definition.type",
     "refs": "(value_expr (value_qid (lower_case_identifier) @name)) @reference.call\n(upper_case_qid (upper_case_identifier) @name) @reference.type"
   },
   "complexity": {
-    "func_node_types": [
-      "value_declaration"
-    ],
+    "func_node_types": ["value_declaration"],
     "branch_types": [
       "if_else_expr",
       "case_of_expr",
@@ -27,10 +23,7 @@
     "name_field": "pattern"
   },
   "tokenisation": {
-    "identifier_types": [
-      "lower_case_identifier",
-      "upper_case_identifier"
-    ],
+    "identifier_types": ["lower_case_identifier", "upper_case_identifier"],
     "literal_types": [
       "string_constant_expr",
       "number_constant_expr",
@@ -51,6 +44,69 @@
       "exposing",
       "as",
       "port"
+    ]
+  },
+  "entrypoints": {
+    "symbols": [
+      {
+        "name": "main",
+        "kind": "function",
+        "type": "main",
+        "label": "Elm main function"
+      },
+      {
+        "name": "init",
+        "kind": "function",
+        "type": "init",
+        "label": "Elm init function (TEA)"
+      },
+      {
+        "name": "update",
+        "kind": "function",
+        "type": "init",
+        "label": "Elm update function (TEA)"
+      },
+      {
+        "name": "view",
+        "kind": "function",
+        "type": "init",
+        "label": "Elm view function (TEA)"
+      }
+    ],
+    "refs": [
+      {
+        "name": "sandbox",
+        "ref_kind": "call",
+        "type": "ui_root",
+        "label": "Elm Browser.sandbox"
+      },
+      {
+        "name": "element",
+        "ref_kind": "call",
+        "type": "ui_root",
+        "label": "Elm Browser.element"
+      },
+      {
+        "name": "document",
+        "ref_kind": "call",
+        "type": "ui_root",
+        "label": "Elm Browser.document"
+      },
+      {
+        "name": "application",
+        "ref_kind": "call",
+        "type": "ui_root",
+        "label": "Elm Browser.application"
+      }
+    ],
+    "file_patterns": [
+      { "file_match": "Main.elm", "type": "main", "label": "Elm Main module" },
+      {
+        "file_match": "*.elm",
+        "content": "^main\\s*=",
+        "type": "main",
+        "label": "Elm main definition"
+      }
     ]
   }
 }

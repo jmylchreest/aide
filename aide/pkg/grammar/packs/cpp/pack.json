@@ -61,5 +61,60 @@
       "throw",
       "include"
     ]
+  },
+  "entrypoints": {
+    "symbols": [
+      {
+        "name": "main",
+        "kind": "function",
+        "type": "main",
+        "label": "C++ main function",
+        "exclude": "test|mock|_test\\.cpp$"
+      }
+    ],
+    "refs": [
+      {
+        "name": "listen",
+        "ref_kind": "call",
+        "type": "server_start",
+        "label": "Socket/server listen"
+      },
+      {
+        "name": "AddService",
+        "ref_kind": "call",
+        "type": "grpc_service",
+        "label": "gRPC service registration"
+      },
+      {
+        "name": "BuildAndStart",
+        "ref_kind": "call",
+        "type": "server_start",
+        "label": "gRPC server start"
+      }
+    ],
+    "file_patterns": [
+      {
+        "file_match": "main.cpp",
+        "type": "main",
+        "label": "C++ main source file"
+      },
+      {
+        "file_match": "main.cc",
+        "type": "main",
+        "label": "C++ main source file"
+      },
+      {
+        "file_match": "*.cpp",
+        "content": "^int main\\(",
+        "type": "main",
+        "label": "C++ main function"
+      },
+      {
+        "file_match": "*.cc",
+        "content": "^int main\\(",
+        "type": "main",
+        "label": "C++ main function"
+      }
+    ]
   }
 }

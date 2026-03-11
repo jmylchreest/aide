@@ -84,19 +84,52 @@ func TestNewPackRegistry_AllPacksHaveCSymbol(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewPackRegistry() error: %v", err)
 	}
-	// Meta-only packs that have no grammar binary (e.g., json, dockerfile).
-	metaOnly := map[string]bool{"json": true, "dockerfile": true}
 	for _, name := range allExpectedLanguages {
 		p := reg.Get(name)
 		if p == nil {
 			t.Errorf("pack %q not found", name)
 			continue
 		}
-		if metaOnly[name] {
+		if !p.HasParser() {
+			// Metadata-only packs are expected to have no CSymbol.
 			continue
 		}
 		if p.CSymbol == "" {
 			t.Errorf("pack %q has no c_symbol", name)
+		}
+	}
+}
+
+// TestMetadataOnlyPacks_HasParserReturnsFalse verifies that metadata-only packs
+// are correctly identified by HasParser().
+func TestMetadataOnlyPacks_HasParserReturnsFalse(t *testing.T) {
+	reg, err := NewPackRegistry()
+	if err != nil {
+		t.Fatalf("NewPackRegistry() error: %v", err)
+	}
+
+	// Known metadata-only packs.
+	knownMetaOnly := []string{"json", "dockerfile"}
+	for _, name := range knownMetaOnly {
+		p := reg.Get(name)
+		if p == nil {
+			t.Errorf("pack %q not found", name)
+			continue
+		}
+		if p.HasParser() {
+			t.Errorf("pack %q: HasParser() = true, want false (metadata-only)", name)
+		}
+	}
+
+	// Verify that all packs with CSymbol == "" are in the known list.
+	knownSet := make(map[string]bool)
+	for _, n := range knownMetaOnly {
+		knownSet[n] = true
+	}
+	for _, name := range reg.All() {
+		p := reg.Get(name)
+		if p != nil && !p.HasParser() && !knownSet[name] {
+			t.Errorf("pack %q has no parser but is not in knownMetaOnly list — update the test", name)
 		}
 	}
 }

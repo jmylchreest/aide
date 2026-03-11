@@ -80,5 +80,35 @@
       "this",
       "super"
     ]
+  },
+  "entrypoints": {
+    "symbols": [
+      {
+        "name": "main",
+        "kind": "function",
+        "type": "main",
+        "label": "Scala main method"
+      }
+    ],
+    "file_patterns": [
+      {
+        "file_match": "*.scala",
+        "content": "def main\\(args:\\s*Array\\[String\\]\\)",
+        "type": "main",
+        "label": "Scala main method"
+      },
+      {
+        "file_match": "*.scala",
+        "content": "extends App\\b",
+        "type": "main",
+        "label": "Scala App trait entry point"
+      },
+      {
+        "file_match": "*.scala",
+        "content": "@main\\b",
+        "type": "main",
+        "label": "Scala 3 @main annotation"
+      }
+    ]
   }
 }

@@ -87,5 +87,62 @@
       "alias",
       "require"
     ]
+  },
+  "entrypoints": {
+    "symbols": [
+      {
+        "name": "start",
+        "kind": "function",
+        "type": "init",
+        "label": "Elixir OTP application start callback"
+      },
+      {
+        "name": "init",
+        "kind": "function",
+        "type": "init",
+        "label": "Elixir GenServer init callback"
+      },
+      {
+        "name": "main",
+        "kind": "function",
+        "type": "main",
+        "label": "Elixir escript main function"
+      }
+    ],
+    "file_patterns": [
+      {
+        "file_match": "*.ex",
+        "content": "use Application",
+        "type": "init",
+        "label": "Elixir OTP application module"
+      },
+      {
+        "file_match": "*.ex",
+        "content": "use GenServer",
+        "type": "init",
+        "label": "Elixir GenServer module"
+      },
+      {
+        "file_match": "*.ex",
+        "content": "use Phoenix\\.Router",
+        "type": "http_handler",
+        "label": "Phoenix router"
+      },
+      {
+        "file_match": "mix.exs",
+        "type": "build",
+        "label": "Elixir Mix project definition"
+      },
+      {
+        "file_match": "router.ex",
+        "type": "http_handler",
+        "label": "Phoenix router module"
+      },
+      {
+        "file_match": "application.ex",
+        "type": "init",
+        "label": "Elixir OTP application"
+      }
+    ]
   }
 }

@@ -48,5 +48,51 @@
       "do",
       "include"
     ]
+  },
+  "entrypoints": {
+    "symbols": [
+      {
+        "name": "main",
+        "kind": "function",
+        "type": "main",
+        "label": "C main function",
+        "exclude": "test|mock"
+      }
+    ],
+    "refs": [
+      {
+        "name": "listen",
+        "ref_kind": "call",
+        "type": "server_start",
+        "label": "Socket listen call"
+      },
+      {
+        "name": "bind",
+        "ref_kind": "call",
+        "type": "server_start",
+        "label": "Socket bind call"
+      },
+      {
+        "name": "accept",
+        "ref_kind": "call",
+        "type": "server_start",
+        "label": "Socket accept call"
+      },
+      {
+        "name": "pthread_create",
+        "ref_kind": "call",
+        "type": "thread_start",
+        "label": "POSIX thread creation"
+      }
+    ],
+    "file_patterns": [
+      {
+        "file_match": "*.c",
+        "content": "^int main\\(",
+        "type": "main",
+        "label": "C main function"
+      },
+      { "file_match": "main.c", "type": "main", "label": "C main source file" }
+    ]
   }
 }

@@ -82,5 +82,124 @@
       "do",
       "yield"
     ]
+  },
+  "entrypoints": {
+    "symbols": [
+      {
+        "name": "main",
+        "kind": "function",
+        "type": "main",
+        "label": "JavaScript main function"
+      }
+    ],
+    "refs": [
+      {
+        "name": "get",
+        "ref_kind": "call",
+        "type": "http_handler",
+        "label": "Express GET handler",
+        "qualifier": "app|router"
+      },
+      {
+        "name": "post",
+        "ref_kind": "call",
+        "type": "http_handler",
+        "label": "Express POST handler",
+        "qualifier": "app|router"
+      },
+      {
+        "name": "put",
+        "ref_kind": "call",
+        "type": "http_handler",
+        "label": "Express PUT handler",
+        "qualifier": "app|router"
+      },
+      {
+        "name": "delete",
+        "ref_kind": "call",
+        "type": "http_handler",
+        "label": "Express DELETE handler",
+        "qualifier": "app|router"
+      },
+      {
+        "name": "use",
+        "ref_kind": "call",
+        "type": "middleware",
+        "label": "Express middleware registration",
+        "qualifier": "app|router"
+      },
+      {
+        "name": "listen",
+        "ref_kind": "call",
+        "type": "server_start",
+        "label": "HTTP server listen",
+        "qualifier": "app|server|http"
+      },
+      {
+        "name": "createServer",
+        "ref_kind": "call",
+        "type": "server_start",
+        "label": "HTTP server creation"
+      },
+      {
+        "name": "register",
+        "ref_kind": "call",
+        "type": "plugin",
+        "label": "Fastify plugin registration",
+        "qualifier": "fastify|server"
+      },
+      {
+        "name": "command",
+        "ref_kind": "call",
+        "type": "cli_root",
+        "label": "Commander.js CLI command"
+      },
+      {
+        "name": "parse",
+        "ref_kind": "call",
+        "type": "cli_root",
+        "label": "Commander.js CLI parse",
+        "qualifier": "program|commander"
+      },
+      {
+        "name": "yargs",
+        "ref_kind": "call",
+        "type": "cli_root",
+        "label": "Yargs CLI setup"
+      }
+    ],
+    "file_patterns": [
+      {
+        "file_match": "index.js",
+        "type": "module_entry",
+        "label": "JavaScript module entry point"
+      },
+      {
+        "file_match": "index.mjs",
+        "type": "module_entry",
+        "label": "JavaScript ES module entry point"
+      },
+      {
+        "file_match": "server.js",
+        "type": "server_start",
+        "label": "JavaScript server entry point"
+      },
+      {
+        "file_match": "app.js",
+        "type": "server_start",
+        "label": "JavaScript application entry point"
+      },
+      {
+        "file_match": "cli.js",
+        "type": "cli_root",
+        "label": "JavaScript CLI entry point"
+      },
+      {
+        "file_match": "*.js",
+        "content": "^#!/usr/bin/env node",
+        "type": "cli_root",
+        "label": "Node.js executable script"
+      }
+    ]
   }
 }

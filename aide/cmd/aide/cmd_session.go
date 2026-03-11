@@ -297,7 +297,8 @@ func fetchRecentSessions(backend *Backend, project string, limit int) []*Session
 			SessionID: sid,
 			LastAt:    data.lastAt,
 		}
-		if len(data.summaries) > 0 {
+		switch {
+		case len(data.summaries) > 0:
 			// Use the most recent summary only
 			latest := data.summaries[0]
 			for _, s := range data.summaries[1:] {
@@ -306,9 +307,9 @@ func fetchRecentSessions(backend *Backend, project string, limit int) []*Session
 				}
 			}
 			group.Memories = []*memory.Memory{latest}
-		} else if len(data.nonPartial) > 0 {
+		case len(data.nonPartial) > 0:
 			group.Memories = data.nonPartial
-		} else {
+		default:
 			// Session has only partials — skip it
 			continue
 		}

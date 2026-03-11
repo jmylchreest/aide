@@ -57,5 +57,86 @@
       "async",
       "await"
     ]
+  },
+  "entrypoints": {
+    "symbols": [
+      {
+        "name": "main",
+        "kind": "function",
+        "type": "main",
+        "label": "Rust main function",
+        "exclude": "test|example"
+      }
+    ],
+    "refs": [
+      {
+        "name": "run",
+        "ref_kind": "call",
+        "type": "server_start",
+        "label": "Actix/Rocket/Axum server start",
+        "qualifier": "HttpServer|Server"
+      },
+      {
+        "name": "bind",
+        "ref_kind": "call",
+        "type": "server_start",
+        "label": "Server socket bind",
+        "qualifier": "HttpServer|TcpListener"
+      },
+      {
+        "name": "serve",
+        "ref_kind": "call",
+        "type": "server_start",
+        "label": "Hyper/Tonic server start"
+      },
+      {
+        "name": "add_service",
+        "ref_kind": "call",
+        "type": "grpc_service",
+        "label": "Tonic gRPC service registration"
+      },
+      {
+        "name": "route",
+        "ref_kind": "call",
+        "type": "http_handler",
+        "label": "HTTP route registration",
+        "qualifier": "Router|App"
+      },
+      {
+        "name": "command",
+        "ref_kind": "call",
+        "type": "cli_root",
+        "label": "Clap CLI command builder"
+      },
+      {
+        "name": "get_matches",
+        "ref_kind": "call",
+        "type": "cli_root",
+        "label": "Clap CLI parse"
+      },
+      {
+        "name": "parse",
+        "ref_kind": "call",
+        "type": "cli_root",
+        "label": "Clap derive CLI parse"
+      }
+    ],
+    "file_patterns": [
+      {
+        "file_match": "main.rs",
+        "type": "main",
+        "label": "Rust main entry point"
+      },
+      {
+        "file_match": "lib.rs",
+        "type": "lib_root",
+        "label": "Rust library root"
+      },
+      {
+        "file_match": "build.rs",
+        "type": "build_script",
+        "label": "Rust build script"
+      }
+    ]
   }
 }

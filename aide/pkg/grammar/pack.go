@@ -10,7 +10,7 @@ import (
 	"sync"
 )
 
-//go:embed packs/*/pack.json
+//go:embed packs/*/pack.json packs/index.json
 var embeddedPacks embed.FS
 
 var (
@@ -55,6 +55,14 @@ type Pack struct {
 	Complexity    *PackComplexity   `json:"complexity,omitempty"`
 	Imports       *PackImports      `json:"imports,omitempty"`
 	Tokenisation  *PackTokenisation `json:"tokenisation,omitempty"`
+	Entrypoints   *PackEntrypoints  `json:"entrypoints,omitempty"`
+}
+
+// HasParser reports whether this pack has a tree-sitter grammar binary (CSymbol != "").
+// Packs without a parser are metadata-only (e.g., dockerfile, json) — they provide
+// file-detection metadata but cannot be loaded for parsing or analysis.
+func (p *Pack) HasParser() bool {
+	return p.CSymbol != ""
 }
 
 // PackMeta holds file-detection metadata for a language.
@@ -99,6 +107,72 @@ type PackTokenisation struct {
 	KeywordTypes    []string `json:"keyword_types,omitempty"`
 }
 
+// PackEntrypoints defines entry point patterns for a language.
+// These drive the survey entrypoints analyzer to find main functions,
+// HTTP handlers, CLI roots, gRPC services, and other entry points.
+type PackEntrypoints struct {
+	// Symbols are code-index-based symbol searches (FindSymbols queries).
+	Symbols []EntrypointSymbol `json:"symbols,omitempty"`
+	// Refs are code-index-based reference searches (FindReferences queries).
+	Refs []EntrypointRef `json:"refs,omitempty"`
+	// FilePatterns are file-scan fallback patterns when no code index is available.
+	FilePatterns []EntrypointFilePattern `json:"file_patterns,omitempty"`
+}
+
+// EntrypointSymbol defines a code-index symbol search for entry point detection.
+type EntrypointSymbol struct {
+	// Name is the symbol name to search for (e.g., "main", "init").
+	Name string `json:"name"`
+	// Kind is the symbol kind filter (e.g., "function", "method"). Empty matches any kind.
+	Kind string `json:"kind,omitempty"`
+	// Type classifies the entry point: "main", "init", "test", etc.
+	Type string `json:"type"`
+	// Label is a human-readable description (e.g., "Go main function").
+	Label string `json:"label"`
+	// Exclude is a regex applied to file paths to skip (e.g., "_test\\.go$|vendor/").
+	Exclude string `json:"exclude,omitempty"`
+	// NameMatch is a regex the full symbol name must match (e.g., "^Test[A-Z]" for Go tests).
+	NameMatch string `json:"name_match,omitempty"`
+	// FileMatch is a regex the file path must match (e.g., "_test\\.go$" for test files).
+	FileMatch string `json:"file_match,omitempty"`
+}
+
+// EntrypointRef defines a code-index reference search for entry point detection.
+type EntrypointRef struct {
+	// Name is the reference name to search for (e.g., "HandleFunc", "Execute").
+	Name string `json:"name"`
+	// RefKind is the reference kind filter: "call" or "type_ref". Empty defaults to "call".
+	RefKind string `json:"ref_kind,omitempty"`
+	// Type classifies the entry point: "http_handler", "grpc_service", "cli_root", etc.
+	Type string `json:"type"`
+	// Label is a human-readable description (e.g., "HTTP handler registration").
+	Label string `json:"label"`
+	// Qualifier is a regex that the full symbol string must match (e.g., "http|mux|router").
+	// This filters the portion before the method name to reduce false positives.
+	Qualifier string `json:"qualifier,omitempty"`
+	// NameMatch is a regex the full reference name must match (e.g., "^Register.*Server$").
+	NameMatch string `json:"name_match,omitempty"`
+	// Exclude is a regex applied to file paths to skip.
+	Exclude string `json:"exclude,omitempty"`
+}
+
+// EntrypointFilePattern defines a file-scan fallback pattern for entry point detection.
+// Used when no code index is available.
+type EntrypointFilePattern struct {
+	// FileMatch is a glob pattern or filename (e.g., "*.go", "main.rs", "index.js").
+	FileMatch string `json:"file_match"`
+	// Content is a regex to match against file content. Empty means presence-only detection.
+	Content string `json:"content,omitempty"`
+	// PreContent is a regex that must match at least one line in the file before the Content
+	// match is considered valid. Used for language-specific preconditions (e.g., Go's
+	// "^package main$" before "^func main()"). Empty means no precondition.
+	PreContent string `json:"pre_content,omitempty"`
+	// Type classifies the entry point: "main", "server_start", "cli_root", etc.
+	Type string `json:"type"`
+	// Label is a human-readable description.
+	Label string `json:"label"`
+}
+
 // PackRegistry holds loaded pack metadata for all known languages.
 type PackRegistry struct {
 	mu    sync.RWMutex
@@ -109,6 +183,9 @@ type PackRegistry struct {
 	filenameLookup map[string]string // filename -> language name
 	shebangLookup  map[string]string // interpreter -> language name
 	aliasLookup    map[string]string // alias -> language name
+
+	// idx holds the project marker index, loaded from packs/index.json.
+	idx indexState
 }
 
 // NewPackRegistry creates a PackRegistry pre-loaded with all embedded packs.
@@ -142,6 +219,15 @@ func NewPackRegistry() (*PackRegistry, error) {
 	})
 	if err != nil {
 		return nil, fmt.Errorf("loading embedded packs: %w", err)
+	}
+
+	// Load the embedded project marker index.
+	indexData, err := embeddedPacks.ReadFile("packs/index.json")
+	if err != nil {
+		return nil, fmt.Errorf("reading embedded index: %w", err)
+	}
+	if err := r.LoadIndex(indexData); err != nil {
+		return nil, fmt.Errorf("loading embedded index: %w", err)
 	}
 
 	return r, nil

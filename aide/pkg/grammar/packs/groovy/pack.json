@@ -6,16 +6,9 @@
   "source_repo": "amaanq/tree-sitter-groovy",
   "source_tag": "v0.1.2",
   "meta": {
-    "extensions": [
-      ".groovy",
-      ".gradle"
-    ],
-    "filenames": [
-      "Jenkinsfile"
-    ],
-    "shebangs": [
-      "groovy"
-    ]
+    "extensions": [".groovy", ".gradle"],
+    "filenames": ["Jenkinsfile"],
+    "shebangs": ["groovy"]
   },
   "queries": {
     "tags": "(method_declaration name: (identifier) @name) @definition.method\n(class_declaration name: (identifier) @name) @definition.class",
@@ -42,10 +35,7 @@
     "name_field": "name"
   },
   "tokenisation": {
-    "identifier_types": [
-      "identifier",
-      "type_identifier"
-    ],
+    "identifier_types": ["identifier", "type_identifier"],
     "literal_types": [
       "string_literal",
       "number_literal",
@@ -75,6 +65,71 @@
       "new",
       "in",
       "as"
+    ]
+  },
+  "entrypoints": {
+    "symbols": [
+      {
+        "name": "main",
+        "kind": "method",
+        "type": "main",
+        "label": "Groovy main method"
+      }
+    ],
+    "refs": [
+      {
+        "name": "pipeline",
+        "ref_kind": "call",
+        "type": "ci_pipeline",
+        "label": "Jenkins pipeline definition"
+      },
+      {
+        "name": "stage",
+        "ref_kind": "call",
+        "type": "ci_pipeline",
+        "label": "Jenkins pipeline stage"
+      },
+      {
+        "name": "node",
+        "ref_kind": "call",
+        "type": "ci_pipeline",
+        "label": "Jenkins pipeline node"
+      },
+      {
+        "name": "task",
+        "ref_kind": "call",
+        "type": "build",
+        "label": "Gradle task definition"
+      },
+      {
+        "name": "apply",
+        "ref_kind": "call",
+        "type": "plugin",
+        "label": "Gradle plugin application"
+      }
+    ],
+    "file_patterns": [
+      {
+        "file_match": "Jenkinsfile",
+        "type": "ci_pipeline",
+        "label": "Jenkins pipeline script"
+      },
+      {
+        "file_match": "build.gradle",
+        "type": "build",
+        "label": "Gradle build script"
+      },
+      {
+        "file_match": "settings.gradle",
+        "type": "build",
+        "label": "Gradle settings"
+      },
+      {
+        "file_match": "*.groovy",
+        "content": "static void main\\(",
+        "type": "main",
+        "label": "Groovy main method"
+      }
     ]
   }
 }

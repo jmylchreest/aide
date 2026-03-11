@@ -78,5 +78,70 @@
       "var",
       "void"
     ]
+  },
+  "entrypoints": {
+    "symbols": [
+      {
+        "name": "Main",
+        "kind": "method",
+        "type": "main",
+        "label": "C# Main method",
+        "exclude": "Test|test"
+      },
+      {
+        "name": "ConfigureServices",
+        "kind": "method",
+        "type": "init",
+        "label": "ASP.NET service configuration"
+      },
+      {
+        "name": "Configure",
+        "kind": "method",
+        "type": "init",
+        "label": "ASP.NET middleware configuration"
+      }
+    ],
+    "file_patterns": [
+      {
+        "file_match": "Program.cs",
+        "type": "main",
+        "label": "C# program entry point"
+      },
+      {
+        "file_match": "Startup.cs",
+        "type": "init",
+        "label": "ASP.NET Startup class"
+      },
+      {
+        "file_match": "*.cs",
+        "content": "static void Main\\(",
+        "type": "main",
+        "label": "C# Main method"
+      },
+      {
+        "file_match": "*.cs",
+        "content": "static async Task Main\\(",
+        "type": "main",
+        "label": "C# async Main method"
+      },
+      {
+        "file_match": "*.cs",
+        "content": "\\[ApiController\\]",
+        "type": "http_handler",
+        "label": "ASP.NET API controller"
+      },
+      {
+        "file_match": "*.cs",
+        "content": "WebApplication\\.Create",
+        "type": "server_start",
+        "label": "ASP.NET minimal API"
+      },
+      {
+        "file_match": "*.cs",
+        "content": "Host\\.CreateDefaultBuilder",
+        "type": "server_start",
+        "label": "ASP.NET host builder"
+      }
+    ]
   }
 }

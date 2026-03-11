@@ -85,5 +85,117 @@
       "interface",
       "do"
     ]
+  },
+  "entrypoints": {
+    "symbols": [
+      {
+        "name": "main",
+        "kind": "function",
+        "type": "main",
+        "label": "TypeScript main function"
+      },
+      {
+        "name": "bootstrap",
+        "kind": "function",
+        "type": "init",
+        "label": "NestJS bootstrap function"
+      }
+    ],
+    "refs": [
+      {
+        "name": "get",
+        "ref_kind": "call",
+        "type": "http_handler",
+        "label": "Express/NestJS GET handler",
+        "qualifier": "app|router"
+      },
+      {
+        "name": "post",
+        "ref_kind": "call",
+        "type": "http_handler",
+        "label": "Express/NestJS POST handler",
+        "qualifier": "app|router"
+      },
+      {
+        "name": "put",
+        "ref_kind": "call",
+        "type": "http_handler",
+        "label": "Express/NestJS PUT handler",
+        "qualifier": "app|router"
+      },
+      {
+        "name": "delete",
+        "ref_kind": "call",
+        "type": "http_handler",
+        "label": "Express/NestJS DELETE handler",
+        "qualifier": "app|router"
+      },
+      {
+        "name": "use",
+        "ref_kind": "call",
+        "type": "middleware",
+        "label": "Express middleware registration",
+        "qualifier": "app|router"
+      },
+      {
+        "name": "listen",
+        "ref_kind": "call",
+        "type": "server_start",
+        "label": "HTTP server listen",
+        "qualifier": "app|server|http"
+      },
+      {
+        "name": "createServer",
+        "ref_kind": "call",
+        "type": "server_start",
+        "label": "HTTP server creation"
+      },
+      {
+        "name": "command",
+        "ref_kind": "call",
+        "type": "cli_root",
+        "label": "Commander.js CLI command"
+      },
+      {
+        "name": "parse",
+        "ref_kind": "call",
+        "type": "cli_root",
+        "label": "Commander.js CLI parse",
+        "qualifier": "program|commander"
+      },
+      {
+        "name": "defineConfig",
+        "ref_kind": "call",
+        "type": "config",
+        "label": "Vite/Vitest config definition"
+      }
+    ],
+    "file_patterns": [
+      {
+        "file_match": "index.ts",
+        "type": "module_entry",
+        "label": "TypeScript module entry point"
+      },
+      {
+        "file_match": "main.ts",
+        "type": "main",
+        "label": "TypeScript main entry point"
+      },
+      {
+        "file_match": "server.ts",
+        "type": "server_start",
+        "label": "TypeScript server entry point"
+      },
+      {
+        "file_match": "app.ts",
+        "type": "server_start",
+        "label": "TypeScript application entry point"
+      },
+      {
+        "file_match": "cli.ts",
+        "type": "cli_root",
+        "label": "TypeScript CLI entry point"
+      }
+    ]
   }
 }

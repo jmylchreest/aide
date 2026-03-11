@@ -83,5 +83,50 @@
       "async",
       "await"
     ]
+  },
+  "entrypoints": {
+    "symbols": [
+      {
+        "name": "main",
+        "kind": "function",
+        "type": "main",
+        "label": "Swift main function"
+      }
+    ],
+    "file_patterns": [
+      {
+        "file_match": "main.swift",
+        "type": "main",
+        "label": "Swift main entry point (convention)"
+      },
+      {
+        "file_match": "*.swift",
+        "content": "@main",
+        "type": "main",
+        "label": "Swift @main attribute entry point"
+      },
+      {
+        "file_match": "*.swift",
+        "content": "@UIApplicationMain",
+        "type": "ui_root",
+        "label": "iOS UIKit app delegate entry point"
+      },
+      {
+        "file_match": "*.swift",
+        "content": "WindowGroup",
+        "type": "ui_root",
+        "label": "SwiftUI app entry point"
+      },
+      {
+        "file_match": "AppDelegate.swift",
+        "type": "ui_root",
+        "label": "iOS/macOS app delegate"
+      },
+      {
+        "file_match": "ContentView.swift",
+        "type": "ui_root",
+        "label": "SwiftUI root view"
+      }
+    ]
   }
 }

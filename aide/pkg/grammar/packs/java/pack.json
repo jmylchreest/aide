@@ -62,5 +62,57 @@
       "do",
       "enum"
     ]
+  },
+  "entrypoints": {
+    "symbols": [
+      {
+        "name": "main",
+        "kind": "method",
+        "type": "main",
+        "label": "Java main method",
+        "exclude": "test/|Test\\.java$"
+      }
+    ],
+    "refs": [
+      {
+        "name": "run",
+        "ref_kind": "call",
+        "type": "server_start",
+        "label": "Spring Boot application start",
+        "qualifier": "SpringApplication"
+      },
+      {
+        "name": "addServlet",
+        "ref_kind": "call",
+        "type": "http_handler",
+        "label": "Servlet registration"
+      },
+      {
+        "name": "addService",
+        "ref_kind": "call",
+        "type": "grpc_service",
+        "label": "gRPC service registration"
+      },
+      {
+        "name": "bindService",
+        "ref_kind": "call",
+        "type": "grpc_service",
+        "label": "gRPC service binding"
+      }
+    ],
+    "file_patterns": [
+      {
+        "file_match": "*.java",
+        "content": "public static void main\\(String",
+        "type": "main",
+        "label": "Java main method"
+      },
+      {
+        "file_match": "*.java",
+        "content": "@SpringBootApplication",
+        "type": "server_start",
+        "label": "Spring Boot application"
+      }
+    ]
   }
 }

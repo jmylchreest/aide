@@ -79,5 +79,114 @@
       "true",
       "false"
     ]
+  },
+  "entrypoints": {
+    "symbols": [
+      {
+        "name": "handle",
+        "kind": "method",
+        "type": "http_handler",
+        "label": "Laravel controller handle method"
+      },
+      {
+        "name": "boot",
+        "kind": "method",
+        "type": "init",
+        "label": "Laravel service provider boot"
+      },
+      {
+        "name": "register",
+        "kind": "method",
+        "type": "init",
+        "label": "Laravel service provider register"
+      }
+    ],
+    "refs": [
+      {
+        "name": "get",
+        "ref_kind": "call",
+        "type": "http_handler",
+        "label": "Laravel/Slim GET route",
+        "qualifier": "Route|Router"
+      },
+      {
+        "name": "post",
+        "ref_kind": "call",
+        "type": "http_handler",
+        "label": "Laravel/Slim POST route",
+        "qualifier": "Route|Router"
+      },
+      {
+        "name": "put",
+        "ref_kind": "call",
+        "type": "http_handler",
+        "label": "Laravel/Slim PUT route",
+        "qualifier": "Route|Router"
+      },
+      {
+        "name": "delete",
+        "ref_kind": "call",
+        "type": "http_handler",
+        "label": "Laravel/Slim DELETE route",
+        "qualifier": "Route|Router"
+      },
+      {
+        "name": "run",
+        "ref_kind": "call",
+        "type": "server_start",
+        "label": "Slim/Symfony app run"
+      },
+      {
+        "name": "command",
+        "ref_kind": "call",
+        "type": "cli_command",
+        "label": "Laravel Artisan command"
+      },
+      {
+        "name": "addCommand",
+        "ref_kind": "call",
+        "type": "cli_command",
+        "label": "Symfony Console command registration"
+      },
+      {
+        "name": "register",
+        "ref_kind": "call",
+        "type": "plugin",
+        "label": "Service provider registration"
+      }
+    ],
+    "file_patterns": [
+      {
+        "file_match": "index.php",
+        "type": "main",
+        "label": "PHP web entry point"
+      },
+      {
+        "file_match": "artisan",
+        "type": "cli_root",
+        "label": "Laravel Artisan CLI"
+      },
+      {
+        "file_match": "public/index.php",
+        "type": "main",
+        "label": "Laravel/Symfony web entry point"
+      },
+      {
+        "file_match": "routes/web.php",
+        "type": "http_handler",
+        "label": "Laravel web routes"
+      },
+      {
+        "file_match": "routes/api.php",
+        "type": "http_handler",
+        "label": "Laravel API routes"
+      },
+      {
+        "file_match": "*.php",
+        "content": "^#!/usr/bin/env php",
+        "type": "cli_root",
+        "label": "PHP executable script"
+      }
+    ]
   }
 }

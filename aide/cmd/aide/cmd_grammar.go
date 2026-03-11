@@ -147,6 +147,22 @@ func cmdGrammarList(dbPath string, args []string) error {
 				status: "available",
 			})
 		}
+
+		// Add metadata-only packs (have file detection but no tree-sitter parser).
+		reg := grammar.DefaultPackRegistry()
+		for _, name := range reg.All() {
+			if seen[name] {
+				continue
+			}
+			p := reg.Get(name)
+			if p != nil && !p.HasParser() {
+				seen[name] = true
+				entries = append(entries, entry{
+					name:   name,
+					status: "metadata",
+				})
+			}
+		}
 	}
 
 	if len(entries) == 0 {
@@ -154,8 +170,8 @@ func cmdGrammarList(dbPath string, args []string) error {
 		return nil
 	}
 
-	// Sort: builtin, installed, available.
-	statusOrder := map[string]int{"builtin": 0, "installed": 1, "available": 2}
+	// Sort: builtin, installed, available, metadata.
+	statusOrder := map[string]int{"builtin": 0, "installed": 1, "available": 2, "metadata": 3}
 	sort.Slice(entries, func(i, j int) bool {
 		oi, oj := statusOrder[entries[i].status], statusOrder[entries[j].status]
 		if oi != oj {
@@ -222,6 +238,21 @@ func grammarListJSON(installed []grammar.GrammarInfo, available []string, onlyIn
 				continue
 			}
 			printEntry(name, "available", "")
+		}
+
+		// Add metadata-only packs.
+		reg := grammar.DefaultPackRegistry()
+		allNames := reg.All()
+		sort.Strings(allNames)
+		for _, name := range allNames {
+			if seen[name] {
+				continue
+			}
+			p := reg.Get(name)
+			if p != nil && !p.HasParser() {
+				seen[name] = true
+				printEntry(name, "metadata", "")
+			}
 		}
 	}
 
@@ -301,6 +332,11 @@ func cmdGrammarInstall(dbPath string, args []string) error {
 	for _, name := range names {
 		if builtinSet[name] {
 			fmt.Printf("Skipping %s (builtin grammar, no install needed)\n", name)
+			continue
+		}
+		// Check if this is a metadata-only pack before trying to install.
+		if pack := grammar.DefaultPackRegistry().Get(name); pack != nil && !pack.HasParser() {
+			fmt.Printf("Skipping %s (metadata-only, no tree-sitter parser available)\n", name)
 			continue
 		}
 		fmt.Printf("Installing %s... ", name)
@@ -447,16 +483,18 @@ func cmdGrammarScan(dbPath string, args []string) error {
 		}
 	}
 
-	fmt.Printf("%-*s  %6s  %-10s  %s\n", maxName, "LANGUAGE", "FILES", "STATUS", "ACTION")
+	fmt.Printf("%-*s  %6s  %-13s  %s\n", maxName, "LANGUAGE", "FILES", "STATUS", "ACTION")
 	for _, s := range statuses {
 		action := "-"
 		switch s.Status {
 		case "available":
 			action = "aide grammar install " + s.Name
+		case "metadata_only":
+			action = "(file detection only)"
 		case "unavailable":
 			action = "(no grammar available)"
 		}
-		fmt.Printf("%-*s  %6d  %-10s  %s\n", maxName, s.Name, s.Files, s.Status, action)
+		fmt.Printf("%-*s  %6d  %-13s  %s\n", maxName, s.Name, s.Files, s.Status, action)
 	}
 
 	// Summary line.

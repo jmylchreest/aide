@@ -84,5 +84,75 @@
       "interface",
       "do"
     ]
+  },
+  "entrypoints": {
+    "symbols": [
+      {
+        "name": "App",
+        "kind": "function",
+        "type": "ui_root",
+        "label": "React App root component"
+      }
+    ],
+    "refs": [
+      {
+        "name": "createRoot",
+        "ref_kind": "call",
+        "type": "ui_root",
+        "label": "React 18 root creation"
+      },
+      {
+        "name": "render",
+        "ref_kind": "call",
+        "type": "ui_root",
+        "label": "React DOM render",
+        "qualifier": "ReactDOM|root"
+      },
+      {
+        "name": "hydrate",
+        "ref_kind": "call",
+        "type": "ui_root",
+        "label": "React SSR hydration"
+      },
+      {
+        "name": "createBrowserRouter",
+        "ref_kind": "call",
+        "type": "http_handler",
+        "label": "React Router setup"
+      },
+      {
+        "name": "defineConfig",
+        "ref_kind": "call",
+        "type": "config",
+        "label": "Vite config definition"
+      }
+    ],
+    "file_patterns": [
+      {
+        "file_match": "index.tsx",
+        "type": "ui_root",
+        "label": "React application entry point"
+      },
+      {
+        "file_match": "App.tsx",
+        "type": "ui_root",
+        "label": "React App component"
+      },
+      {
+        "file_match": "main.tsx",
+        "type": "ui_root",
+        "label": "React main entry point"
+      },
+      {
+        "file_match": "layout.tsx",
+        "type": "ui_root",
+        "label": "Next.js root layout"
+      },
+      {
+        "file_match": "page.tsx",
+        "type": "http_handler",
+        "label": "Next.js page route"
+      }
+    ]
   }
 }

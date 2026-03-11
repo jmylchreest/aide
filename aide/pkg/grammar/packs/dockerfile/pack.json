@@ -6,5 +6,15 @@
     "extensions": [".dockerfile"],
     "filenames": ["Dockerfile"],
     "aliases": ["docker"]
+  },
+  "entrypoints": {
+    "file_patterns": [
+      {
+        "file_match": "Dockerfile*",
+        "content": "^(ENTRYPOINT|CMD)\\s",
+        "type": "container_entrypoint",
+        "label": "Docker ENTRYPOINT/CMD directive"
+      }
+    ]
   }
 }

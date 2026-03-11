@@ -70,5 +70,110 @@
       "select",
       "range"
     ]
+  },
+  "entrypoints": {
+    "symbols": [
+      {
+        "name": "main",
+        "kind": "function",
+        "type": "main",
+        "label": "Go main function",
+        "exclude": "_test\\.go$|vendor/|\\.pb\\.go$|_generated\\.go$|_gen\\.go$"
+      },
+      {
+        "name": "init",
+        "kind": "function",
+        "type": "init",
+        "label": "Go init function",
+        "exclude": "_test\\.go$|vendor/|\\.pb\\.go$|_generated\\.go$"
+      }
+    ],
+    "refs": [
+      {
+        "name": "HandleFunc",
+        "ref_kind": "call",
+        "type": "http_handler",
+        "label": "HTTP handler registration"
+      },
+      {
+        "name": "Handle",
+        "ref_kind": "call",
+        "type": "http_handler",
+        "label": "HTTP handler registration",
+        "qualifier": "http|mux|router|server"
+      },
+      {
+        "name": "ListenAndServe",
+        "ref_kind": "call",
+        "type": "server_start",
+        "label": "HTTP server start"
+      },
+      {
+        "name": "ListenAndServeTLS",
+        "ref_kind": "call",
+        "type": "server_start",
+        "label": "HTTPS server start"
+      },
+      {
+        "name": "Execute",
+        "ref_kind": "call",
+        "type": "cli_root",
+        "label": "Cobra CLI root execution"
+      },
+      {
+        "name": "ExecuteC",
+        "ref_kind": "call",
+        "type": "cli_root",
+        "label": "Cobra CLI root execution"
+      },
+      {
+        "name": "AddCommand",
+        "ref_kind": "call",
+        "type": "cli_command",
+        "label": "Cobra CLI subcommand registration"
+      },
+      {
+        "name": "Register",
+        "ref_kind": "call",
+        "type": "grpc_service",
+        "label": "gRPC service registration",
+        "name_match": "^Register.*Server$"
+      },
+      {
+        "name": "Run",
+        "ref_kind": "call",
+        "type": "cli_root",
+        "label": "urfave/cli app start",
+        "qualifier": "App|cli"
+      },
+      {
+        "name": "Serve",
+        "ref_kind": "call",
+        "type": "server_start",
+        "label": "gRPC/net server start",
+        "qualifier": "grpc|Server"
+      },
+      {
+        "name": "NewServeMux",
+        "ref_kind": "call",
+        "type": "http_handler",
+        "label": "HTTP multiplexer creation"
+      }
+    ],
+    "file_patterns": [
+      {
+        "file_match": "*.go",
+        "content": "^func main\\(\\)",
+        "pre_content": "^package main$",
+        "type": "main",
+        "label": "Go main function"
+      },
+      {
+        "file_match": "*.go",
+        "content": "^func init\\(\\)",
+        "type": "init",
+        "label": "Go init function"
+      }
+    ]
   }
 }

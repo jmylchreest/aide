@@ -68,5 +68,41 @@
       "true",
       "false"
     ]
+  },
+  "entrypoints": {
+    "symbols": [
+      {
+        "name": "main",
+        "kind": "function",
+        "type": "main",
+        "label": "Lua main function"
+      },
+      {
+        "name": "setup",
+        "kind": "function",
+        "type": "init",
+        "label": "Lua setup function (Neovim plugins)"
+      },
+      {
+        "name": "config",
+        "kind": "function",
+        "type": "init",
+        "label": "Lua config function (Neovim plugins)"
+      }
+    ],
+    "file_patterns": [
+      {
+        "file_match": "init.lua",
+        "type": "module_entry",
+        "label": "Lua module entry point"
+      },
+      { "file_match": "main.lua", "type": "main", "label": "Lua main script" },
+      {
+        "file_match": "*.lua",
+        "content": "^#!/usr/bin/env lua",
+        "type": "main",
+        "label": "Lua executable script"
+      }
+    ]
   }
 }

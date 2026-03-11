@@ -84,5 +84,41 @@
       "suspend",
       "async"
     ]
+  },
+  "entrypoints": {
+    "symbols": [
+      {
+        "name": "main",
+        "kind": "function",
+        "type": "main",
+        "label": "Kotlin main function",
+        "exclude": "Test|test"
+      }
+    ],
+    "file_patterns": [
+      {
+        "file_match": "*.kt",
+        "content": "^fun main\\(",
+        "type": "main",
+        "label": "Kotlin main function"
+      },
+      {
+        "file_match": "*.kt",
+        "content": "@SpringBootApplication",
+        "type": "server_start",
+        "label": "Spring Boot Kotlin application"
+      },
+      {
+        "file_match": "*.kt",
+        "content": "embeddedServer\\(",
+        "type": "server_start",
+        "label": "Ktor embedded server"
+      },
+      {
+        "file_match": "Application.kt",
+        "type": "server_start",
+        "label": "Ktor/Spring application"
+      }
+    ]
   }
 }

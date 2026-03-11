@@ -69,5 +69,134 @@
       "async",
       "await"
     ]
+  },
+  "entrypoints": {
+    "symbols": [
+      {
+        "name": "__main__",
+        "type": "main",
+        "label": "Python __main__ module",
+        "exclude": "test_|_test\\.py$"
+      },
+      {
+        "name": "main",
+        "kind": "function",
+        "type": "main",
+        "label": "Python main function",
+        "exclude": "test_|_test\\.py$"
+      },
+      {
+        "name": "setup",
+        "kind": "function",
+        "type": "init",
+        "label": "Python setup function (setuptools)"
+      }
+    ],
+    "refs": [
+      {
+        "name": "route",
+        "ref_kind": "call",
+        "type": "http_handler",
+        "label": "Flask/FastAPI route decorator"
+      },
+      {
+        "name": "get",
+        "ref_kind": "call",
+        "type": "http_handler",
+        "label": "HTTP GET handler",
+        "qualifier": "app|router|api"
+      },
+      {
+        "name": "post",
+        "ref_kind": "call",
+        "type": "http_handler",
+        "label": "HTTP POST handler",
+        "qualifier": "app|router|api"
+      },
+      {
+        "name": "put",
+        "ref_kind": "call",
+        "type": "http_handler",
+        "label": "HTTP PUT handler",
+        "qualifier": "app|router|api"
+      },
+      {
+        "name": "delete",
+        "ref_kind": "call",
+        "type": "http_handler",
+        "label": "HTTP DELETE handler",
+        "qualifier": "app|router|api"
+      },
+      {
+        "name": "include_router",
+        "ref_kind": "call",
+        "type": "http_handler",
+        "label": "FastAPI router mount"
+      },
+      {
+        "name": "run",
+        "ref_kind": "call",
+        "type": "server_start",
+        "label": "Flask/Uvicorn server start",
+        "qualifier": "app|uvicorn"
+      },
+      {
+        "name": "command",
+        "ref_kind": "call",
+        "type": "cli_root",
+        "label": "Click CLI command decorator"
+      },
+      {
+        "name": "group",
+        "ref_kind": "call",
+        "type": "cli_root",
+        "label": "Click CLI group decorator"
+      },
+      {
+        "name": "ArgumentParser",
+        "ref_kind": "call",
+        "type": "cli_root",
+        "label": "argparse CLI setup"
+      },
+      {
+        "name": "add_subparsers",
+        "ref_kind": "call",
+        "type": "cli_command",
+        "label": "argparse subcommand setup"
+      }
+    ],
+    "file_patterns": [
+      {
+        "file_match": "*.py",
+        "content": "if __name__ == [\"']__main__[\"']:",
+        "type": "main",
+        "label": "Python __main__ guard"
+      },
+      {
+        "file_match": "__main__.py",
+        "type": "main",
+        "label": "Python package entry point"
+      },
+      {
+        "file_match": "manage.py",
+        "type": "main",
+        "label": "Django management script"
+      },
+      {
+        "file_match": "wsgi.py",
+        "type": "server_start",
+        "label": "WSGI application"
+      },
+      {
+        "file_match": "asgi.py",
+        "type": "server_start",
+        "label": "ASGI application"
+      },
+      {
+        "file_match": "conftest.py",
+        "type": "test",
+        "label": "Pytest configuration/fixtures"
+      }
+    ]
   }
 }

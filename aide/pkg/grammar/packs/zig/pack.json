@@ -44,5 +44,25 @@
       "try",
       "catch"
     ]
+  },
+  "entrypoints": {
+    "file_patterns": [
+      {
+        "file_match": "main.zig",
+        "type": "main",
+        "label": "Zig main entry point"
+      },
+      {
+        "file_match": "*.zig",
+        "content": "pub fn main\\(\\)",
+        "type": "main",
+        "label": "Zig main function"
+      },
+      {
+        "file_match": "build.zig",
+        "type": "build",
+        "label": "Zig build script"
+      }
+    ]
   }
 }

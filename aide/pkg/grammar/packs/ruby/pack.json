@@ -89,5 +89,93 @@
       "attr_reader",
       "attr_writer"
     ]
+  },
+  "entrypoints": {
+    "symbols": [
+      {
+        "name": "configure",
+        "kind": "method",
+        "type": "init",
+        "label": "Ruby configuration block"
+      }
+    ],
+    "refs": [
+      {
+        "name": "get",
+        "ref_kind": "call",
+        "type": "http_handler",
+        "label": "Sinatra/Rails GET route"
+      },
+      {
+        "name": "post",
+        "ref_kind": "call",
+        "type": "http_handler",
+        "label": "Sinatra/Rails POST route"
+      },
+      {
+        "name": "put",
+        "ref_kind": "call",
+        "type": "http_handler",
+        "label": "Sinatra/Rails PUT route"
+      },
+      {
+        "name": "delete",
+        "ref_kind": "call",
+        "type": "http_handler",
+        "label": "Sinatra/Rails DELETE route"
+      },
+      {
+        "name": "resources",
+        "ref_kind": "call",
+        "type": "http_handler",
+        "label": "Rails resource routes"
+      },
+      {
+        "name": "mount",
+        "ref_kind": "call",
+        "type": "http_handler",
+        "label": "Rails engine mount"
+      },
+      {
+        "name": "run",
+        "ref_kind": "call",
+        "type": "server_start",
+        "label": "Rack/Rails server start"
+      },
+      {
+        "name": "task",
+        "ref_kind": "call",
+        "type": "task",
+        "label": "Rake task definition"
+      }
+    ],
+    "file_patterns": [
+      {
+        "file_match": "config.ru",
+        "type": "server_start",
+        "label": "Rack configuration (rackup)"
+      },
+      {
+        "file_match": "config/routes.rb",
+        "type": "http_handler",
+        "label": "Rails routes configuration"
+      },
+      {
+        "file_match": "config/application.rb",
+        "type": "init",
+        "label": "Rails application configuration"
+      },
+      {
+        "file_match": "Rakefile",
+        "type": "cli_root",
+        "label": "Rake task entry point"
+      },
+      {
+        "file_match": "*.rb",
+        "content": "^#!/usr/bin/env ruby",
+        "type": "cli_root",
+        "label": "Ruby executable script"
+      }
+    ]
   }
 }

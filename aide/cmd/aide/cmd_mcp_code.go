@@ -325,7 +325,7 @@ func (s *MCPServer) handleCodeTopReferences(_ context.Context, _ *mcp.CallToolRe
 	}
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("Top %d most-referenced symbols:\n\n", len(results)))
+	fmt.Fprintf(&sb, "Top %d most-referenced symbols:\n\n", len(results))
 	for i, r := range results {
 		loc := ""
 		if r.File != "" {
@@ -335,7 +335,7 @@ func (s *MCPServer) handleCodeTopReferences(_ context.Context, _ *mcp.CallToolRe
 		if r.Kind != "" {
 			kind = fmt.Sprintf(" [%s]", r.Kind)
 		}
-		sb.WriteString(fmt.Sprintf("%3d. %-40s %4d refs%s%s\n", i+1, r.Symbol, r.Count, kind, loc))
+		fmt.Fprintf(&sb, "%3d. %-40s %4d refs%s%s\n", i+1, r.Symbol, r.Count, kind, loc)
 	}
 
 	mcpLog.Printf("  returned: %d symbols", len(results))

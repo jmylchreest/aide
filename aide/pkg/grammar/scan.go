@@ -24,10 +24,19 @@ type ScanResult struct {
 	Needed []string
 	// Unavailable lists languages detected in the project that have no grammar at all.
 	Unavailable []string
+	// MetadataOnly lists languages that have a pack for file detection but no
+	// tree-sitter grammar binary (e.g., json, dockerfile).
+	MetadataOnly []string
+	// MarkerLanguages lists languages detected via project markers (e.g., go.mod → go).
+	// These may overlap with Languages (detected via file extensions too).
+	MarkerLanguages []string
 }
 
 // ScanProject walks a directory tree, detects languages using the provided
 // detector, and reports which grammars are needed but not yet installed.
+// Detection uses two passes:
+//  1. Marker-based: project markers (go.mod, Cargo.toml, etc.) imply languages.
+//  2. File-scan: individual file extensions/filenames identify languages.
 func ScanProject(root string, loader *CompositeLoader, detect LanguageDetector, ignore *aideignore.Matcher) (*ScanResult, error) {
 	if ignore == nil {
 		ignore = aideignore.NewFromDefaults()
@@ -55,6 +64,24 @@ func ScanProject(root string, loader *CompositeLoader, detect LanguageDetector, 
 		installedSet[info.Name] = true
 	}
 
+	// --- Pass 1: Marker-based detection ---
+	// Check project markers that link to grammar packs. If a marker file/directory
+	// exists, the associated language is considered present in the project.
+	reg := DefaultPackRegistry()
+	markerLangs := make(map[string]bool)
+	for _, marker := range reg.PackLinkedMarkers() {
+		if markerExistsInProject(absRoot, marker) {
+			markerLangs[marker.Pack] = true
+			// Ensure the language appears in the Languages map (file scan may add files later).
+			if _, exists := result.Languages[marker.Pack]; !exists {
+				result.Languages[marker.Pack] = 0
+			}
+			loader.logf("detected language %q via project marker: %s", marker.Pack, marker.File)
+		}
+	}
+	result.MarkerLanguages = sortedKeys(markerLangs)
+
+	// --- Pass 2: File-scan detection ---
 	// Track first file seen per language for logging.
 	firstMatch := make(map[string]string)
 
@@ -104,24 +131,72 @@ func ScanProject(root string, loader *CompositeLoader, detect LanguageDetector, 
 		return nil, err
 	}
 
-	// Classify languages into needed vs unavailable.
+	// Build a set of metadata-only packs (have a pack but no tree-sitter parser).
+	metadataOnlySet := make(map[string]bool)
+	for _, name := range reg.All() {
+		p := reg.Get(name)
+		if p != nil && !p.HasParser() {
+			metadataOnlySet[name] = true
+		}
+	}
+
+	// Classify languages into needed, metadata-only, or unavailable.
 	neededSet := make(map[string]bool)
 	unavailableSet := make(map[string]bool)
+	metaOnlyFound := make(map[string]bool)
 
 	for lang := range result.Languages {
 		if installedSet[lang] {
 			continue // already installed (builtin or dynamic)
 		}
-		if availableSet[lang] {
+		switch {
+		case availableSet[lang]:
 			neededSet[lang] = true
-		} else {
+		case metadataOnlySet[lang]:
+			metaOnlyFound[lang] = true
+		default:
 			unavailableSet[lang] = true
 		}
 	}
 
 	result.Needed = sortedKeys(neededSet)
 	result.Unavailable = sortedKeys(unavailableSet)
+	result.MetadataOnly = sortedKeys(metaOnlyFound)
 	return result, nil
+}
+
+// markerExistsInProject checks if a project marker exists at the project root.
+// For "file" markers: checks if the file exists at root (depth 0 only for scanner performance).
+// For "directory" markers: checks if the directory exists and is non-empty.
+// "sibling" markers are skipped (they depend on parent context from the topology analyzer).
+func markerExistsInProject(root string, marker ProjectMarker) bool {
+	switch marker.Check {
+	case MarkerCheckFile:
+		path := filepath.Join(root, marker.File)
+		info, err := os.Stat(path)
+		if err != nil {
+			return false
+		}
+		return !info.IsDir()
+	case MarkerCheckDirectory:
+		path := filepath.Join(root, marker.File)
+		info, err := os.Stat(path)
+		if err != nil {
+			return false
+		}
+		if !info.IsDir() {
+			return false
+		}
+		// Non-empty check: at least one entry.
+		entries, err := os.ReadDir(path)
+		if err != nil {
+			return false
+		}
+		return len(entries) > 0
+	default:
+		// Skip "sibling" and unknown check types.
+		return false
+	}
 }
 
 // sortedKeys returns sorted keys from a bool map.
@@ -141,7 +216,7 @@ func sortedKeys(m map[string]bool) []string {
 type LanguageStatus struct {
 	Name       string
 	Files      int    // Number of files found in the project
-	Status     string // "builtin", "installed", "available", "unavailable"
+	Status     string // "builtin", "installed", "available", "metadata_only", "unavailable"
 	CanInstall bool
 }
 
@@ -166,6 +241,16 @@ func ScanDetail(root string, loader *CompositeLoader, detect LanguageDetector, i
 
 	_, availableDynamic := dynamicAvailable()
 
+	// Build a set of metadata-only packs.
+	reg := DefaultPackRegistry()
+	metadataOnlySet := make(map[string]bool)
+	for _, name := range reg.All() {
+		p := reg.Get(name)
+		if p != nil && !p.HasParser() {
+			metadataOnlySet[name] = true
+		}
+	}
+
 	var statuses []LanguageStatus
 	for lang, count := range scan.Languages {
 		status := LanguageStatus{
@@ -180,15 +265,17 @@ func ScanDetail(root string, loader *CompositeLoader, detect LanguageDetector, i
 		case availableDynamic[lang]:
 			status.Status = "available"
 			status.CanInstall = true
+		case metadataOnlySet[lang]:
+			status.Status = "metadata_only"
 		default:
 			status.Status = "unavailable"
 		}
 		statuses = append(statuses, status)
 	}
 
-	// Sort: builtin first, then installed, then available, then unavailable.
+	// Sort: builtin first, then installed, then available, then metadata_only, then unavailable.
 	// Within each group, sort by file count descending.
-	statusOrder := map[string]int{"builtin": 0, "installed": 1, "available": 2, "unavailable": 3}
+	statusOrder := map[string]int{"builtin": 0, "installed": 1, "available": 2, "metadata_only": 3, "unavailable": 4}
 	sort.Slice(statuses, func(i, j int) bool {
 		oi, oj := statusOrder[statuses[i].Status], statusOrder[statuses[j].Status]
 		if oi != oj {

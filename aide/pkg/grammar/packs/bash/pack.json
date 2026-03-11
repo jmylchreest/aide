@@ -6,11 +6,7 @@
   "source_repo": "tree-sitter/tree-sitter-bash",
   "source_tag": "v0.25.1",
   "meta": {
-    "extensions": [
-      ".sh",
-      ".bash",
-      ".zsh"
-    ],
+    "extensions": [".sh", ".bash", ".zsh"],
     "filenames": [
       ".bashrc",
       ".bash_profile",
@@ -19,23 +15,14 @@
       ".zshrc",
       ".zprofile"
     ],
-    "shebangs": [
-      "bash",
-      "sh",
-      "zsh"
-    ],
-    "aliases": [
-      "sh",
-      "shell"
-    ]
+    "shebangs": ["bash", "sh", "zsh"],
+    "aliases": ["sh", "shell"]
   },
   "queries": {
     "tags": "(function_definition name: (word) @name) @definition.function"
   },
   "complexity": {
-    "func_node_types": [
-      "function_definition"
-    ],
+    "func_node_types": ["function_definition"],
     "branch_types": [
       "if_statement",
       "elif_clause",
@@ -47,22 +34,48 @@
     "name_field": "name"
   },
   "tokenisation": {
-    "identifier_types": [
-      "word",
-      "variable_reference"
+    "identifier_types": ["word", "variable_reference"],
+    "literal_types": ["string", "raw_string", "number"],
+    "keyword_types": ["if", "else", "for", "while", "case", "function"]
+  },
+  "entrypoints": {
+    "symbols": [
+      {
+        "name": "main",
+        "kind": "function",
+        "type": "main",
+        "label": "Bash main function"
+      },
+      {
+        "name": "usage",
+        "kind": "function",
+        "type": "cli_root",
+        "label": "Bash usage/help function"
+      }
     ],
-    "literal_types": [
-      "string",
-      "raw_string",
-      "number"
-    ],
-    "keyword_types": [
-      "if",
-      "else",
-      "for",
-      "while",
-      "case",
-      "function"
+    "file_patterns": [
+      {
+        "file_match": "*.sh",
+        "content": "^#!/bin/(ba)?sh",
+        "type": "main",
+        "label": "Shell script entry point"
+      },
+      {
+        "file_match": "*.sh",
+        "content": "^main \"\\$@\"",
+        "type": "main",
+        "label": "Bash main dispatch pattern"
+      },
+      {
+        "file_match": "entrypoint.sh",
+        "type": "main",
+        "label": "Docker entrypoint script"
+      },
+      {
+        "file_match": "install.sh",
+        "type": "init",
+        "label": "Installation script"
+      }
     ]
   }
 }
