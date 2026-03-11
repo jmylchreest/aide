@@ -351,7 +351,7 @@ export async function ensureAideBinary(cwd?: string): Promise<EnsureResult> {
 
   // Step 1: Check for existing binary
   let binaryPath = findAideBinary(cwd);
-  let binaryVersion = binaryPath ? getBinaryVersion(binaryPath) : null;
+  const binaryVersion = binaryPath ? getBinaryVersion(binaryPath) : null;
 
   // Step 2: Check version match
   // Skip download if the binary is a dev build with base version >= plugin version
@@ -407,7 +407,6 @@ export async function ensureAideBinary(cwd?: string): Promise<EnsureResult> {
 
     if (result.success && result.path) {
       binaryPath = result.path;
-      binaryVersion = getBinaryVersion(result.path);
       downloaded = true;
     } else {
       // Download failed - return error with manual instructions

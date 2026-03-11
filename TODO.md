@@ -7,6 +7,7 @@
 Enhance `/aide:swarm` to use structured SDLC stages for code changes, leveraging Claude Code's native task system.
 
 ### Project Stack
+
 - **TypeScript** (Node.js 20+): Hooks, plugins - vitest, eslint, prettier
 - **Go**: aide CLI binary
 
@@ -68,6 +69,7 @@ Fires when agent goes idle - validate work complete.
 **File**: `src/hooks/teammate-idle.ts` (new)
 
 **Checks**:
+
 - All claimed tasks complete
 - Tests pass in worktree
 - No uncommitted changes
@@ -82,35 +84,56 @@ Add current session memories to subagent context.
 **File**: `src/hooks/subagent-tracker.ts`
 
 **Add**:
+
 - Current session memories (`session:<current-id>`)
 - Task/story-specific memories (`task:<id>` or `story:<id>` tags)
+
+### 5. LLM-Based Classification of Unknown Files (Future)
+
+Surface unclassified files (not matching any grammar pack) via MCP tools so the calling
+LLM can classify them. Since aide is an MCP server (not an LLM client), classification
+must be initiated by the LLM via survey skill tools.
+
+**Approach**:
+
+- The topology analyzer already groups files by extension during scanning
+- `KindUnclassified` constant added to `pkg/survey/types.go`
+- Add a `processUnclassified()` pass to topology that emits `KindUnclassified` entries
+  grouped by extension (e.g., ".tf" -> 12 files, ".proto" -> 3 files)
+- Expose via `survey_list` / `survey_search` MCP tools (already works by kind filter)
+- Survey skill can prompt the LLM: "These file extensions are unclassified: .tf, .proto.
+  What languages/technologies do they represent?"
+- LLM responses can be stored as decisions or memories for future sessions
 
 ---
 
 ## SDLC Stage → Skill Mapping
 
-| Stage | Skill | Purpose |
-|-------|-------|---------|
+| Stage  | Skill                        | Purpose               |
+| ------ | ---------------------------- | --------------------- |
 | DESIGN | `design` (updated from plan) | Output technical spec |
-| TEST | `test` (existing) | Write failing tests |
-| DEV | `implement` (new) | Make tests pass |
-| VERIFY | `verify` (new) | Full QA validation |
-| FIX | `build-fix` (existing) | Fix failures |
-| DOCS | `docs` (new) | Update documentation |
+| TEST   | `test` (existing)            | Write failing tests   |
+| DEV    | `implement` (new)            | Make tests pass       |
+| VERIFY | `verify` (new)               | Full QA validation    |
+| FIX    | `build-fix` (existing)       | Fix failures          |
+| DOCS   | `docs` (new)                 | Update documentation  |
 
 ---
 
 ## Reference
 
 ### Claude Code Agent Teams
+
 See: https://code.claude.com/docs/en/agent-teams
 
 Key integrations:
+
 - Native `TaskCreate/TaskUpdate/TaskList` - shared across agents
 - `TeammateIdle` hook - quality gate when agent finishes
 - `TaskCompleted` hook - quality gate when task completes
 
 ### Architecture
+
 ```
 ORCHESTRATOR (swarm)
     │

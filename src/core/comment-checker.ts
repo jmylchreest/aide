@@ -127,6 +127,48 @@ function isObviousComment(line: string): boolean {
 }
 
 /**
+ * Track /* ... * / block comment state.
+ * Returns [shouldSkip, newInBlockState].
+ */
+function isInBlockComment(
+  trimmed: string,
+  inBlock: boolean,
+): [boolean, boolean] {
+  if (trimmed.startsWith("/*")) {
+    // Single-line block comments: /* ... */
+    const closed = trimmed.includes("*/");
+    return [true, !closed];
+  }
+  if (inBlock) {
+    const closed = trimmed.includes("*/");
+    return [true, !closed];
+  }
+  return [false, false];
+}
+
+/**
+ * Track Python/Ruby docstring state (triple quotes).
+ * Returns [shouldSkip, newInDocstringState].
+ */
+function isInDocstring(
+  trimmed: string,
+  ext: string,
+  inDocstring: boolean,
+): [boolean, boolean] {
+  if (ext !== ".py" && ext !== ".rb") {
+    return [false, inDocstring];
+  }
+  const tripleQuoteCount = (trimmed.match(/"""|'''/g) || []).length;
+  if (tripleQuoteCount === 1) {
+    return [true, !inDocstring];
+  }
+  if (inDocstring) {
+    return [true, inDocstring];
+  }
+  return [false, inDocstring];
+}
+
+/**
  * Extract comment lines from code content.
  * Returns only single-line comments (// or #), not block comments or docstrings.
  */
@@ -137,39 +179,23 @@ function extractCommentLines(
   const lines = content.split("\n");
   const comments: { line: string; lineNumber: number }[] = [];
   const usesHash = HASH_COMMENT_EXTENSIONS.has(ext);
-  let inBlockComment = false;
-  let inDocstring = false;
+  let inBlock = false;
+  let inDoc = false;
 
   for (let i = 0; i < lines.length; i++) {
     const trimmed = lines[i].trim();
 
-    // Track block comments (/* ... */)
-    if (!inDocstring) {
-      if (trimmed.startsWith("/*")) {
-        inBlockComment = true;
-        // Single-line block comments
-        if (trimmed.includes("*/")) {
-          inBlockComment = false;
-        }
-        continue;
-      }
-      if (inBlockComment) {
-        if (trimmed.includes("*/")) {
-          inBlockComment = false;
-        }
-        continue;
-      }
+    // Track block comments (/* ... */), but not inside docstrings
+    if (!inDoc) {
+      const [skipBlock, newBlock] = isInBlockComment(trimmed, inBlock);
+      inBlock = newBlock;
+      if (skipBlock) continue;
     }
 
     // Track Python/Ruby docstrings
-    if (ext === ".py" || ext === ".rb") {
-      const tripleQuoteCount = (trimmed.match(/"""|'''/g) || []).length;
-      if (tripleQuoteCount === 1) {
-        inDocstring = !inDocstring;
-        continue;
-      }
-      if (inDocstring) continue;
-    }
+    const [skipDoc, newDoc] = isInDocstring(trimmed, ext, inDoc);
+    inDoc = newDoc;
+    if (skipDoc) continue;
 
     // Single-line comments
     if (trimmed.startsWith("//")) {
