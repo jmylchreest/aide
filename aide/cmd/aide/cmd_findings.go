@@ -263,6 +263,7 @@ func cmdFindingsRun(dbPath string, args []string) error { //nolint:gocyclo // CL
 			findings.AnalyzerCoupling,
 			findings.AnalyzerSecrets,
 			findings.AnalyzerClones,
+			findings.AnalyzerSecurity,
 		}
 	}
 
@@ -314,8 +315,15 @@ func cmdFindingsRun(dbPath string, args []string) error { //nolint:gocyclo // CL
 			}
 			totalFindings += n
 
+		case findings.AnalyzerSecurity:
+			n, err := runSecurityAnalyzer(backend, paths, ignore, projectRoot)
+			if err != nil {
+				return fmt.Errorf("security analyser failed: %w", err)
+			}
+			totalFindings += n
+
 		default:
-			return fmt.Errorf("unknown analyser: %s (valid: complexity, coupling, secrets, clones, all)", name)
+			return fmt.Errorf("unknown analyser: %s (valid: complexity, coupling, secrets, clones, security, all)", name)
 		}
 	}
 
@@ -398,6 +406,35 @@ func runSecretsAnalyzer(backend *Backend, paths []string, ignore *aideignore.Mat
 		result.FilesScanned, result.FilesSkipped, result.RulesLoaded, result.FindingsCount, result.Duration.Round(1_000_000))
 
 	if err := backend.ReplaceFindingsForAnalyzer(findings.AnalyzerSecrets, ff); err != nil {
+		return 0, fmt.Errorf("failed to store findings: %w", err)
+	}
+
+	return len(ff), nil
+}
+
+func runSecurityAnalyzer(backend *Backend, paths []string, ignore *aideignore.Matcher, root string) (int, error) {
+	fmt.Printf("Running security analyser...\n")
+
+	cfg := findings.SecurityConfig{
+		Paths:       paths,
+		ProjectRoot: root,
+		Ignore:      ignore,
+		ProgressFn: func(path string, count int) {
+			if count > 0 {
+				fmt.Printf("  %s: %d findings\n", path, count)
+			}
+		},
+	}
+
+	ff, result, err := findings.AnalyzeSecurity(cfg)
+	if err != nil {
+		return 0, err
+	}
+
+	fmt.Printf("  Analysed %d files (skipped %d), found %d issues (%s)\n",
+		result.FilesAnalyzed, result.FilesSkipped, result.FindingsCount, result.Duration.Round(1_000_000))
+
+	if err := backend.ReplaceFindingsForAnalyzer(findings.AnalyzerSecurity, ff); err != nil {
 		return 0, fmt.Errorf("failed to store findings: %w", err)
 	}
 

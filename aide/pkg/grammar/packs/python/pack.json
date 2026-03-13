@@ -4,7 +4,11 @@
   "version": "0.25.0",
   "c_symbol": "tree_sitter_python",
   "meta": {
-    "extensions": [".py", ".pyw", ".pyi"],
+    "extensions": [
+      ".py",
+      ".pyw",
+      ".pyi"
+    ],
     "filenames": [
       "BUILD",
       "BUILD.bazel",
@@ -12,15 +16,23 @@
       "SConstruct",
       "SConscript"
     ],
-    "shebangs": ["python", "python2", "python3"],
-    "aliases": ["py"]
+    "shebangs": [
+      "python",
+      "python2",
+      "python3"
+    ],
+    "aliases": [
+      "py"
+    ]
   },
   "queries": {
     "tags": "(function_definition name: (identifier) @name) @definition.function\n(class_definition name: (identifier) @name) @definition.class",
-    "refs": "(call function: (identifier) @name) @reference.call\n(call function: (attribute attribute: (identifier) @name)) @reference.call\n(type (identifier) @name) @reference.type"
+    "refs": "(call function: (identifier) @name) @reference.call\n(call function: (attribute attribute: (identifier) @name)) @reference.call\n(type (identifier) @name) @reference.type\n(import_statement name: (dotted_name) @name) @reference.import\n(import_from_statement module_name: (dotted_name) @name) @reference.import"
   },
   "complexity": {
-    "func_node_types": ["function_definition"],
+    "func_node_types": [
+      "function_definition"
+    ],
     "branch_types": [
       "if_statement",
       "elif_clause",
@@ -40,13 +52,28 @@
   },
   "imports": {
     "patterns": [
-      { "regex": "^\\s*from\\s+(\\S+)\\s+import", "group": 1 },
-      { "regex": "^\\s*import\\s+(\\S+)", "group": 1 }
+      {
+        "regex": "^\\s*from\\s+(\\S+)\\s+import",
+        "group": 1
+      },
+      {
+        "regex": "^\\s*import\\s+(\\S+)",
+        "group": 1
+      }
     ]
   },
   "tokenisation": {
-    "identifier_types": ["identifier"],
-    "literal_types": ["string", "integer", "float", "true", "false", "none"],
+    "identifier_types": [
+      "identifier"
+    ],
+    "literal_types": [
+      "string",
+      "integer",
+      "float",
+      "true",
+      "false",
+      "none"
+    ],
     "keyword_types": [
       "if",
       "else",
@@ -196,6 +223,90 @@
         "file_match": "conftest.py",
         "type": "test",
         "label": "Pytest configuration/fixtures"
+      }
+    ]
+  },
+  "security": {
+    "rules": [
+      {
+        "id": "py-sql-string-format",
+        "name": "Potential SQL injection via string formatting",
+        "severity": "critical",
+        "category": "injection",
+        "pattern": "(?:execute|executemany|cursor\\.execute)\\s*\\(\\s*(?:f[\"\\']|[\"\\'][^\"\\']*%|[\"\\'][^\"\\']*\\.format\\(|[\"\\'][^\"\\']*\\+)",
+        "description": "SQL query built with f-strings, %-formatting, or .format(). Use parameterized queries with %s or ? placeholders instead."
+      },
+      {
+        "id": "py-eval",
+        "name": "Use of eval() or exec()",
+        "severity": "critical",
+        "category": "injection",
+        "pattern": "\\b(?:eval|exec)\\s*\\(",
+        "description": "eval()/exec() execute arbitrary code. Use ast.literal_eval() for data parsing, or avoid dynamic code execution entirely."
+      },
+      {
+        "id": "py-command-injection",
+        "name": "Potential command injection",
+        "severity": "critical",
+        "category": "exec",
+        "pattern": "(?:os\\.system|os\\.popen|subprocess\\.call|subprocess\\.run|subprocess\\.Popen)\\s*\\([^)]*(?:shell\\s*=\\s*True|\\+|\\.format\\(|f[\"\\'])",
+        "description": "Shell command with shell=True or string concatenation. Use subprocess with shell=False and an explicit argument list."
+      },
+      {
+        "id": "py-pickle-deserialize",
+        "name": "Unsafe deserialization via pickle",
+        "severity": "critical",
+        "category": "deserialize",
+        "pattern": "pickle\\.(?:loads?|Unpickler)\\s*\\(",
+        "description": "pickle deserialization can execute arbitrary code. Use json, msgpack, or protobuf for untrusted data."
+      },
+      {
+        "id": "py-yaml-unsafe-load",
+        "name": "Unsafe YAML loading",
+        "severity": "critical",
+        "category": "deserialize",
+        "pattern": "yaml\\.load\\s*\\([^)]*(?!\\s*Loader\\s*=)",
+        "description": "yaml.load() without a Loader can execute arbitrary code. Use yaml.safe_load() or yaml.load(data, Loader=yaml.SafeLoader)."
+      },
+      {
+        "id": "py-path-traversal",
+        "name": "Potential path traversal",
+        "severity": "warning",
+        "category": "traversal",
+        "pattern": "(?:os\\.path\\.join|open)\\s*\\([^)]*(?:request\\.|args\\.|kwargs\\.|user_|input)",
+        "description": "File path constructed with user input. Use os.path.realpath() and verify the path is within allowed directories."
+      },
+      {
+        "id": "py-weak-hash",
+        "name": "Use of weak hash function",
+        "severity": "warning",
+        "category": "crypto",
+        "pattern": "hashlib\\.(?:md5|sha1)\\s*\\(",
+        "description": "MD5/SHA1 are cryptographically weak. Use hashlib.sha256() or stronger. For passwords, use bcrypt or argon2."
+      },
+      {
+        "id": "py-ssrf",
+        "name": "Potential SSRF via user-controlled URL",
+        "severity": "warning",
+        "category": "ssrf",
+        "pattern": "requests\\.(?:get|post|put|delete|head|patch)\\s*\\([^)]*(?:request\\.|args\\.|kwargs\\.|user_|input)",
+        "description": "HTTP request with potentially user-controlled URL. Validate scheme and host against an allowlist."
+      },
+      {
+        "id": "py-debug-mode",
+        "name": "Debug mode enabled in production",
+        "severity": "warning",
+        "category": "config",
+        "pattern": "(?:DEBUG\\s*=\\s*True|app\\.run\\s*\\([^)]*debug\\s*=\\s*True)",
+        "description": "Debug mode exposes detailed error pages and may enable code execution. Disable in production."
+      },
+      {
+        "id": "py-hardcoded-password",
+        "name": "Potential hardcoded password in code",
+        "severity": "warning",
+        "category": "crypto",
+        "pattern": "(?:password|passwd|pwd|secret|api_key)\\s*=\\s*[\"\\'][^\"\\']{8,}[\"\\']",
+        "description": "Credentials appear to be hardcoded. Use environment variables or a secrets manager."
       }
     ]
   }

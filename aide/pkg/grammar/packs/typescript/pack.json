@@ -4,13 +4,20 @@
   "version": "0.23.2",
   "c_symbol": "tree_sitter_typescript",
   "meta": {
-    "extensions": [".ts"],
-    "shebangs": ["deno", "bun"],
-    "aliases": ["ts"]
+    "extensions": [
+      ".ts"
+    ],
+    "shebangs": [
+      "deno",
+      "bun"
+    ],
+    "aliases": [
+      "ts"
+    ]
   },
   "queries": {
     "tags": "(function_declaration name: (identifier) @name) @definition.function\n(method_definition name: (property_identifier) @name) @definition.method\n(class_declaration name: (type_identifier) @name) @definition.class\n(interface_declaration name: (type_identifier) @name) @definition.interface\n(type_alias_declaration name: (type_identifier) @name) @definition.type\n(enum_declaration name: (identifier) @name) @definition.class",
-    "refs": "(call_expression function: (identifier) @name) @reference.call\n(call_expression function: (member_expression property: (property_identifier) @name)) @reference.call\n(new_expression constructor: (identifier) @name) @reference.call\n(type_identifier) @name @reference.type"
+    "refs": "(call_expression function: (identifier) @name) @reference.call\n(call_expression function: (member_expression property: (property_identifier) @name)) @reference.call\n(new_expression constructor: (identifier) @name) @reference.call\n(type_identifier) @name @reference.type\n(import_statement source: (string (string_fragment) @name)) @reference.import\n(export_statement source: (string (string_fragment) @name)) @reference.import"
   },
   "complexity": {
     "func_node_types": [
@@ -39,7 +46,10 @@
         "regex": "(?:import|export)\\s+.*from\\s+['\"]([^'\"]+)['\"]",
         "group": 1
       },
-      { "regex": "require\\s*\\(\\s*['\"]([^'\"]+)['\"]", "group": 1 }
+      {
+        "regex": "require\\s*\\(\\s*['\"]([^'\"]+)['\"]",
+        "group": 1
+      }
     ]
   },
   "tokenisation": {
@@ -195,6 +205,90 @@
         "file_match": "cli.ts",
         "type": "cli_root",
         "label": "TypeScript CLI entry point"
+      }
+    ]
+  },
+  "security": {
+    "rules": [
+      {
+        "id": "ts-sql-string-concat",
+        "name": "Potential SQL injection via string concatenation",
+        "severity": "critical",
+        "category": "injection",
+        "pattern": "(?:query|execute|raw|prepare)\\s*\\(\\s*(?:`[^`]*\\$\\{|[\"'][^\"']*\\+)",
+        "description": "SQL query built with string concatenation or template literals. Use parameterized queries or prepared statements instead."
+      },
+      {
+        "id": "ts-eval",
+        "name": "Use of eval()",
+        "severity": "critical",
+        "category": "injection",
+        "pattern": "\\beval\\s*\\(",
+        "description": "eval() executes arbitrary code. Use safer alternatives like JSON.parse() for data or Function constructor for controlled execution."
+      },
+      {
+        "id": "ts-innerhtml",
+        "name": "Potential XSS via innerHTML",
+        "severity": "critical",
+        "category": "xss",
+        "pattern": "(?:\\.innerHTML\\s*=|\\.outerHTML\\s*=|dangerouslySetInnerHTML)",
+        "description": "Direct HTML injection enables XSS attacks. Use textContent for text, or sanitize HTML with DOMPurify before insertion."
+      },
+      {
+        "id": "ts-document-write",
+        "name": "Potential XSS via document.write",
+        "severity": "warning",
+        "category": "xss",
+        "pattern": "document\\.write(?:ln)?\\s*\\(",
+        "description": "document.write() can inject arbitrary HTML. Use DOM manipulation methods instead."
+      },
+      {
+        "id": "ts-exec-child-process",
+        "name": "Potential command injection",
+        "severity": "critical",
+        "category": "exec",
+        "pattern": "(?:child_process|exec|execSync|spawn|spawnSync|execFile)\\s*\\(",
+        "description": "Shell command execution. Use execFile with explicit arguments instead of exec with a command string. Never pass user input to shell commands."
+      },
+      {
+        "id": "ts-path-traversal",
+        "name": "Potential path traversal",
+        "severity": "warning",
+        "category": "traversal",
+        "pattern": "(?:path\\.join|path\\.resolve|fs\\.readFile|fs\\.writeFile|fs\\.readdir)\\s*\\([^)]*(?:req\\.|params\\.|query\\.|body\\.|user)",
+        "description": "File path constructed with user input. Validate the resolved path stays within the intended directory."
+      },
+      {
+        "id": "ts-weak-random",
+        "name": "Math.random() used for security-sensitive value",
+        "severity": "warning",
+        "category": "crypto",
+        "pattern": "Math\\.random\\s*\\(",
+        "description": "Math.random() is not cryptographically secure. Use crypto.randomBytes() or crypto.randomUUID() for tokens, IDs, or security-sensitive values."
+      },
+      {
+        "id": "ts-hardcoded-jwt-secret",
+        "name": "Hardcoded JWT secret",
+        "severity": "critical",
+        "category": "crypto",
+        "pattern": "(?:jwt|jsonwebtoken)\\.(?:sign|verify)\\s*\\([^)]*[\"'][^\"']{8,}[\"']",
+        "description": "JWT secret appears to be hardcoded. Store secrets in environment variables or a secrets manager."
+      },
+      {
+        "id": "ts-no-csrf",
+        "name": "HTTP handler without CSRF protection",
+        "severity": "info",
+        "category": "xss",
+        "pattern": "\\.(?:post|put|patch|delete)\\s*\\([^)]*(?:req|request)",
+        "description": "Ensure state-changing HTTP handlers have CSRF protection via tokens or SameSite cookies."
+      },
+      {
+        "id": "ts-open-redirect",
+        "name": "Potential open redirect",
+        "severity": "warning",
+        "category": "ssrf",
+        "pattern": "(?:res|response)\\.redirect\\s*\\([^)]*(?:req\\.|params\\.|query\\.|body\\.)",
+        "description": "Redirect URL from user input may allow open redirect attacks. Validate URLs against an allowlist."
       }
     ]
   }

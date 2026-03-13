@@ -4,14 +4,19 @@
   "version": "0.23.5",
   "c_symbol": "tree_sitter_java",
   "meta": {
-    "extensions": [".java"]
+    "extensions": [
+      ".java"
+    ]
   },
   "queries": {
     "tags": "(method_declaration name: (identifier) @name) @definition.method\n(constructor_declaration name: (identifier) @name) @definition.method\n(class_declaration name: (identifier) @name) @definition.class\n(interface_declaration name: (identifier) @name) @definition.interface\n(enum_declaration name: (identifier) @name) @definition.class",
-    "refs": "(method_invocation name: (identifier) @name) @reference.call\n(object_creation_expression type: (type_identifier) @name) @reference.call\n(type_identifier) @name @reference.type"
+    "refs": "(method_invocation name: (identifier) @name) @reference.call\n(object_creation_expression type: (type_identifier) @name) @reference.call\n(type_identifier) @name @reference.type\n(import_declaration (scoped_identifier) @name) @reference.import"
   },
   "complexity": {
-    "func_node_types": ["method_declaration", "constructor_declaration"],
+    "func_node_types": [
+      "method_declaration",
+      "constructor_declaration"
+    ],
     "branch_types": [
       "if_statement",
       "for_statement",
@@ -27,11 +32,17 @@
   },
   "imports": {
     "patterns": [
-      { "regex": "^\\s*import\\s+(?:static\\s+)?([a-zA-Z0-9_.]+)", "group": 1 }
+      {
+        "regex": "^\\s*import\\s+(?:static\\s+)?([a-zA-Z0-9_.]+)",
+        "group": 1
+      }
     ]
   },
   "tokenisation": {
-    "identifier_types": ["identifier", "type_identifier"],
+    "identifier_types": [
+      "identifier",
+      "type_identifier"
+    ],
     "literal_types": [
       "string_literal",
       "character_literal",
@@ -112,6 +123,74 @@
         "content": "@SpringBootApplication",
         "type": "server_start",
         "label": "Spring Boot application"
+      }
+    ]
+  },
+  "security": {
+    "rules": [
+      {
+        "id": "java-sql-string-concat",
+        "name": "Potential SQL injection via string concatenation",
+        "severity": "critical",
+        "category": "injection",
+        "pattern": "(?:executeQuery|executeUpdate|prepareStatement|execute)\\s*\\([^)]*(?:\\+|String\\.format)",
+        "description": "SQL query built with string concatenation. Use PreparedStatement with ? placeholders."
+      },
+      {
+        "id": "java-command-injection",
+        "name": "Potential command injection",
+        "severity": "critical",
+        "category": "exec",
+        "pattern": "Runtime\\.getRuntime\\(\\)\\.exec\\s*\\(",
+        "description": "Shell command execution via Runtime.exec(). Use ProcessBuilder with explicit arguments. Never pass user input directly."
+      },
+      {
+        "id": "java-deserialization",
+        "name": "Unsafe Java deserialization",
+        "severity": "critical",
+        "category": "deserialize",
+        "pattern": "ObjectInputStream\\s*\\(",
+        "description": "Java deserialization can execute arbitrary code. Use look-ahead deserialization or switch to JSON/protobuf."
+      },
+      {
+        "id": "java-xxe",
+        "name": "Potential XXE vulnerability",
+        "severity": "critical",
+        "category": "injection",
+        "pattern": "(?:SAXParserFactory|DocumentBuilderFactory|XMLInputFactory)\\.newInstance\\s*\\(",
+        "description": "XML parser may be vulnerable to XXE attacks. Disable external entities: setFeature(\"http://apache.org/xml/features/disallow-doctype-decl\", true)."
+      },
+      {
+        "id": "java-weak-hash",
+        "name": "Use of weak hash function",
+        "severity": "warning",
+        "category": "crypto",
+        "pattern": "MessageDigest\\.getInstance\\s*\\(\\s*\"(?:MD5|SHA-1|SHA1)\"",
+        "description": "MD5/SHA1 are cryptographically weak. Use SHA-256 or stronger. For passwords, use BCrypt or Argon2."
+      },
+      {
+        "id": "java-path-traversal",
+        "name": "Potential path traversal",
+        "severity": "warning",
+        "category": "traversal",
+        "pattern": "new\\s+File\\s*\\([^)]*(?:request\\.|getParameter|getHeader|getPathInfo)",
+        "description": "File path from user input. Canonicalize and validate against allowed directories."
+      },
+      {
+        "id": "java-xss",
+        "name": "Potential XSS via unescaped output",
+        "severity": "warning",
+        "category": "xss",
+        "pattern": "(?:getWriter\\(\\)|getOutputStream\\(\\))\\.(?:print|write)\\s*\\([^)]*(?:request\\.|getParameter)",
+        "description": "User input written directly to response. Escape HTML output or use a templating engine with auto-escaping."
+      },
+      {
+        "id": "java-insecure-random",
+        "name": "Use of java.util.Random for security",
+        "severity": "warning",
+        "category": "crypto",
+        "pattern": "new\\s+Random\\s*\\(",
+        "description": "java.util.Random is not cryptographically secure. Use java.security.SecureRandom for tokens and security-sensitive values."
       }
     ]
   }

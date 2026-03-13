@@ -56,6 +56,7 @@ type Pack struct {
 	Imports       *PackImports      `json:"imports,omitempty"`
 	Tokenisation  *PackTokenisation `json:"tokenisation,omitempty"`
 	Entrypoints   *PackEntrypoints  `json:"entrypoints,omitempty"`
+	Security      *PackSecurity     `json:"security,omitempty"`
 }
 
 // HasParser reports whether this pack has a tree-sitter grammar binary (CSymbol != "").
@@ -105,6 +106,23 @@ type PackTokenisation struct {
 	IdentifierTypes []string `json:"identifier_types,omitempty"`
 	LiteralTypes    []string `json:"literal_types,omitempty"`
 	KeywordTypes    []string `json:"keyword_types,omitempty"`
+}
+
+// PackSecurity holds security analysis rules for a language.
+// Rules can use either regex patterns (fast, simple) or tree-sitter queries (precise, structural).
+type PackSecurity struct {
+	Rules []SecurityRule `json:"rules"`
+}
+
+// SecurityRule defines a single security pattern to detect in source code.
+type SecurityRule struct {
+	ID          string `json:"id"`                    // Unique identifier, e.g., "go-sql-concat"
+	Name        string `json:"name"`                  // Human-readable name
+	Severity    string `json:"severity"`              // "critical", "warning", "info"
+	Category    string `json:"category"`              // "injection", "xss", "traversal", "crypto", "exec", "deserialize", "ssrf"
+	Pattern     string `json:"pattern,omitempty"`     // Regex pattern (simple mode)
+	Query       string `json:"query,omitempty"`       // Tree-sitter S-expression query (precise mode)
+	Description string `json:"description,omitempty"` // Guidance for the LLM / developer
 }
 
 // PackEntrypoints defines entry point patterns for a language.

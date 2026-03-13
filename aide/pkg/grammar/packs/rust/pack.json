@@ -4,15 +4,21 @@
   "version": "0.24.0",
   "c_symbol": "tree_sitter_rust",
   "meta": {
-    "extensions": [".rs"],
-    "aliases": ["rs"]
+    "extensions": [
+      ".rs"
+    ],
+    "aliases": [
+      "rs"
+    ]
   },
   "queries": {
     "tags": "(function_item name: (identifier) @name) @definition.function\n(impl_item type: (type_identifier) @name) @definition.class\n(struct_item name: (type_identifier) @name) @definition.class\n(enum_item name: (type_identifier) @name) @definition.class\n(trait_item name: (type_identifier) @name) @definition.interface\n(type_item name: (type_identifier) @name) @definition.type\n(mod_item name: (identifier) @name) @definition.module",
-    "refs": "(call_expression function: (identifier) @name) @reference.call\n(call_expression function: (field_expression field: (field_identifier) @name)) @reference.call\n(type_identifier) @name @reference.type"
+    "refs": "(call_expression function: (identifier) @name) @reference.call\n(call_expression function: (field_expression field: (field_identifier) @name)) @reference.call\n(type_identifier) @name @reference.type\n(use_declaration argument: (scoped_identifier) @name) @reference.import\n(use_declaration argument: (identifier) @name) @reference.import"
   },
   "complexity": {
-    "func_node_types": ["function_item"],
+    "func_node_types": [
+      "function_item"
+    ],
     "branch_types": [
       "if_expression",
       "for_expression",
@@ -25,11 +31,18 @@
   },
   "imports": {
     "patterns": [
-      { "regex": "^\\s*use\\s+(?:crate::)?([a-zA-Z0-9_:]+)", "group": 1 }
+      {
+        "regex": "^\\s*use\\s+(?:crate::)?([a-zA-Z0-9_:]+)",
+        "group": 1
+      }
     ]
   },
   "tokenisation": {
-    "identifier_types": ["identifier", "type_identifier", "field_identifier"],
+    "identifier_types": [
+      "identifier",
+      "type_identifier",
+      "field_identifier"
+    ],
     "literal_types": [
       "string_literal",
       "integer_literal",
@@ -136,6 +149,50 @@
         "file_match": "build.rs",
         "type": "build_script",
         "label": "Rust build script"
+      }
+    ]
+  },
+  "security": {
+    "rules": [
+      {
+        "id": "rust-unsafe-block",
+        "name": "Unsafe code block",
+        "severity": "info",
+        "category": "memory",
+        "pattern": "\\bunsafe\\s*\\{",
+        "description": "Unsafe block bypasses Rust memory safety guarantees. Ensure bounds checks and pointer validity are manually verified."
+      },
+      {
+        "id": "rust-command-injection",
+        "name": "Potential command injection",
+        "severity": "critical",
+        "category": "exec",
+        "pattern": "Command::new\\s*\\([^)]*(?:\\+|format!|&)",
+        "description": "Shell command with dynamic input. Use explicit argument lists via .arg() and validate all inputs."
+      },
+      {
+        "id": "rust-sql-format",
+        "name": "Potential SQL injection via format string",
+        "severity": "critical",
+        "category": "injection",
+        "pattern": "(?:query|execute)\\s*\\(\\s*&?format!\\s*\\(",
+        "description": "SQL query built with format!(). Use parameterized queries with $1 placeholders."
+      },
+      {
+        "id": "rust-unwrap-in-production",
+        "name": "Use of unwrap() may panic",
+        "severity": "info",
+        "category": "error-handling",
+        "pattern": "\\.unwrap\\(\\)",
+        "description": "unwrap() panics on error. Use expect() with a message, or handle errors with ? or match. Panics in production can cause denial of service."
+      },
+      {
+        "id": "rust-raw-pointer-deref",
+        "name": "Raw pointer dereference",
+        "severity": "warning",
+        "category": "memory",
+        "pattern": "\\*(?:mut|const)\\s+\\w+",
+        "description": "Raw pointer usage. Ensure pointer validity and alignment before dereferencing."
       }
     ]
   }

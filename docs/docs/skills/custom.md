@@ -40,10 +40,31 @@ If something goes wrong:
 
 ### Frontmatter Fields
 
-| Field      | Required | Description                               |
-| ---------- | -------- | ----------------------------------------- |
-| `name`     | Yes      | Unique identifier for the skill           |
-| `triggers` | Yes      | Array of strings that activate this skill |
+| Field             | Required | Description                                                                 |
+| ----------------- | -------- | --------------------------------------------------------------------------- |
+| `name`            | Yes      | Unique identifier for the skill                                             |
+| `triggers`        | Yes      | Array of strings that activate this skill                                   |
+| `description`     | No       | Short description shown in skill listings                                   |
+| `platforms`       | No       | Restrict to specific platforms (`claude-code`, `opencode`)                  |
+| `requires_binary` | No       | Array of binary names that must exist on PATH for the skill to be available |
+
+### Conditional Skills with `requires_binary`
+
+Skills can declare binary dependencies. The skill is silently skipped when any required binary is not found on PATH:
+
+```markdown title=".aide/skills/docker-deploy.md"
+---
+name: docker-deploy
+triggers:
+  - docker deploy
+  - container deploy
+requires_binary:
+  - docker
+  - kubectl
+---
+```
+
+This is useful for skills that wrap external tools like `semgrep`, `docker`, `terraform`, etc. The built-in `semgrep` skill uses this to only activate when Semgrep is installed.
 
 ### Trigger Design Tips
 

@@ -397,7 +397,7 @@ func TestPacksWithRefQueries(t *testing.T) {
 	// Languages that have ref queries in their pack.json.
 	langsWithRefQueries := []string{
 		"go", "typescript", "tsx", "javascript", "python", "rust", "java", "c", "cpp",
-		"ruby", "php",
+		"ruby", "php", "csharp", "elixir",
 	}
 	for _, name := range langsWithRefQueries {
 		p := reg.Get(name)
@@ -412,7 +412,7 @@ func TestPacksWithRefQueries(t *testing.T) {
 
 	// Languages without ref queries should have empty refs.
 	langsWithoutRefQueries := []string{
-		"zig", "csharp", "kotlin", "scala", "lua", "elixir", "bash", "swift",
+		"zig", "kotlin", "scala", "lua", "bash", "swift",
 		"sql", "hcl", "protobuf",
 	}
 	for _, name := range langsWithoutRefQueries {

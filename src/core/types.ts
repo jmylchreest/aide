@@ -113,6 +113,8 @@ export interface Skill {
   description?: string;
   /** Optional platform restriction. If set, only matched on listed platforms ("opencode", "claude-code"). */
   platforms?: string[];
+  /** Optional binary requirement. If set, skill is only matched when all listed binaries exist on PATH. */
+  requires_binary?: string[];
   content: string;
 }
 

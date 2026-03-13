@@ -6,15 +6,26 @@
   "source_repo": "elixir-lang/tree-sitter-elixir",
   "source_tag": "v0.3.4",
   "meta": {
-    "extensions": [".ex", ".exs"],
-    "shebangs": ["elixir"],
-    "aliases": ["ex", "exs"]
+    "extensions": [
+      ".ex",
+      ".exs"
+    ],
+    "shebangs": [
+      "elixir"
+    ],
+    "aliases": [
+      "ex",
+      "exs"
+    ]
   },
   "queries": {
-    "tags": "(call target: (identifier) @_def (#match? @_def \"^defp?$\") arguments: (arguments (identifier) @name)) @definition.function\n(call target: (identifier) @_defmodule (#match? @_defmodule \"^defmodule$\") arguments: (arguments (alias) @name)) @definition.module"
+    "tags": "(call target: (identifier) @_def (#match? @_def \"^defp?$\") arguments: (arguments (identifier) @name)) @definition.function\n(call target: (identifier) @_defmodule (#match? @_defmodule \"^defmodule$\") arguments: (arguments (alias) @name)) @definition.module",
+    "refs": "(call target: (identifier) @_fn (#match? @_fn \"^(import|alias|use|require)$\") (arguments (alias) @name)) @reference.import"
   },
   "complexity": {
-    "func_node_types": ["call"],
+    "func_node_types": [
+      "call"
+    ],
     "branch_types": [
       "if",
       "unless",
@@ -48,7 +59,11 @@
     ]
   },
   "tokenisation": {
-    "identifier_types": ["identifier", "alias", "atom"],
+    "identifier_types": [
+      "identifier",
+      "alias",
+      "atom"
+    ],
     "literal_types": [
       "string",
       "charlist",

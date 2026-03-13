@@ -25,7 +25,7 @@
  *   Stop (blocking)            → session.idle re-prompts via session.prompt() for persistence
  */
 
-import { execFileSync } from "child_process";
+import { execFileSync, execSync } from "child_process";
 import { join } from "path";
 import { findAideBinary } from "../core/aide-client.js";
 import {
@@ -223,6 +223,22 @@ function createConfigHandler(
           !skill.platforms.includes("opencode")
         ) {
           continue;
+        }
+        // Skip skills requiring binaries not on PATH
+        if (skill.requires_binary && skill.requires_binary.length > 0) {
+          const allPresent = skill.requires_binary.every((bin) => {
+            try {
+              const cmd =
+                process.platform === "win32"
+                  ? `where ${bin}`
+                  : `command -v ${bin}`;
+              execSync(cmd, { stdio: "ignore", timeout: 2000 });
+              return true;
+            } catch {
+              return false;
+            }
+          });
+          if (!allPresent) continue;
         }
         const commandName = `aide:${skill.name}`;
         // Only register if not already defined (user config takes priority)

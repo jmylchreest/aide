@@ -73,8 +73,8 @@ func TestOnChanges_RemoveDeletesFindings(t *testing.T) {
 	calls := store.replacedAnalyzerAndFile
 	store.mu.Unlock()
 
-	if len(calls) != 2 {
-		t.Fatalf("expected 2 ReplaceFindingsForAnalyzerAndFile calls (complexity + secrets), got %d", len(calls))
+	if len(calls) != 3 {
+		t.Fatalf("expected 3 ReplaceFindingsForAnalyzerAndFile calls (complexity + secrets + security), got %d", len(calls))
 	}
 
 	analyzers := map[string]bool{}
@@ -93,6 +93,9 @@ func TestOnChanges_RemoveDeletesFindings(t *testing.T) {
 	}
 	if !analyzers[AnalyzerSecrets] {
 		t.Error("expected secrets analyzer findings to be cleared")
+	}
+	if !analyzers[AnalyzerSecurity] {
+		t.Error("expected security analyzer findings to be cleared")
 	}
 }
 

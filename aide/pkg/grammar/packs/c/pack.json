@@ -4,14 +4,19 @@
   "version": "0.24.1",
   "c_symbol": "tree_sitter_c",
   "meta": {
-    "extensions": [".c", ".h"]
+    "extensions": [
+      ".c",
+      ".h"
+    ]
   },
   "queries": {
     "tags": "(function_definition declarator: (function_declarator declarator: (identifier) @name)) @definition.function\n(struct_specifier name: (type_identifier) @name) @definition.class\n(enum_specifier name: (type_identifier) @name) @definition.class\n(type_definition declarator: (type_identifier) @name) @definition.type",
     "refs": "(call_expression function: (identifier) @name) @reference.call\n(type_identifier) @name @reference.type"
   },
   "complexity": {
-    "func_node_types": ["function_definition"],
+    "func_node_types": [
+      "function_definition"
+    ],
     "branch_types": [
       "if_statement",
       "for_statement",
@@ -24,7 +29,11 @@
     "name_field": "declarator"
   },
   "tokenisation": {
-    "identifier_types": ["identifier", "type_identifier", "field_identifier"],
+    "identifier_types": [
+      "identifier",
+      "type_identifier",
+      "field_identifier"
+    ],
     "literal_types": [
       "string_literal",
       "number_literal",
@@ -92,7 +101,63 @@
         "type": "main",
         "label": "C main function"
       },
-      { "file_match": "main.c", "type": "main", "label": "C main source file" }
+      {
+        "file_match": "main.c",
+        "type": "main",
+        "label": "C main source file"
+      }
+    ]
+  },
+  "security": {
+    "rules": [
+      {
+        "id": "c-buffer-overflow-strcpy",
+        "name": "Potential buffer overflow via strcpy",
+        "severity": "critical",
+        "category": "overflow",
+        "pattern": "\\b(?:strcpy|strcat|sprintf|gets)\\s*\\(",
+        "description": "Unbounded string copy. Use strncpy/strncat/snprintf with explicit size limits, or strlcpy/strlcat where available."
+      },
+      {
+        "id": "c-format-string",
+        "name": "Potential format string vulnerability",
+        "severity": "critical",
+        "category": "injection",
+        "pattern": "(?:printf|fprintf|sprintf|snprintf|syslog)\\s*\\([^,)]*\\buser|input|buf|data|msg|str|arg",
+        "description": "Format string from variable input. Always use a literal format string: printf(\"%s\", user_data) instead of printf(user_data)."
+      },
+      {
+        "id": "c-command-injection",
+        "name": "Potential command injection via system()",
+        "severity": "critical",
+        "category": "exec",
+        "pattern": "\\bsystem\\s*\\(",
+        "description": "system() passes commands to the shell. Use execve() or posix_spawn() with explicit arguments to avoid shell injection."
+      },
+      {
+        "id": "c-integer-overflow",
+        "name": "Potential integer overflow in allocation",
+        "severity": "warning",
+        "category": "overflow",
+        "pattern": "(?:malloc|calloc|realloc)\\s*\\([^)]*\\*",
+        "description": "Multiplication in allocation size may overflow. Check for overflow before allocation or use safe multiplication helpers."
+      },
+      {
+        "id": "c-use-after-free",
+        "name": "Pointer used after free",
+        "severity": "warning",
+        "category": "memory",
+        "pattern": "free\\s*\\([^)]+\\)",
+        "description": "Ensure pointers are set to NULL after free() to prevent use-after-free vulnerabilities."
+      },
+      {
+        "id": "c-weak-random",
+        "name": "Use of rand() for security",
+        "severity": "warning",
+        "category": "crypto",
+        "pattern": "\\brand\\s*\\(\\s*\\)",
+        "description": "rand() is not cryptographically secure. Use getrandom(), /dev/urandom, or arc4random() for security-sensitive values."
+      }
     ]
   }
 }

@@ -151,7 +151,7 @@ func (r *Runner) ignore() *aideignore.Matcher {
 }
 
 func (r *Runner) OnChanges(files map[string]fsnotify.Op) {
-	perFileAnalyzers := []string{AnalyzerComplexity, AnalyzerSecrets}
+	perFileAnalyzers := []string{AnalyzerComplexity, AnalyzerSecrets, AnalyzerSecurity}
 	projectAnalyzers := []string{AnalyzerCoupling, AnalyzerClones}
 
 	ignore := r.ignore()
@@ -316,6 +316,8 @@ func (r *Runner) runPerFileAnalyzer(ctx context.Context, analyzer string, file s
 		return r.analyzeFileComplexity(ctx, relPath, content)
 	case AnalyzerSecrets:
 		return r.analyzeFileSecrets(ctx, relPath, content)
+	case AnalyzerSecurity:
+		return r.analyzeFileSecurity(ctx, relPath, content)
 	default:
 		return nil, fmt.Errorf("unknown analyzer: %s", analyzer)
 	}
@@ -419,6 +421,16 @@ func (r *Runner) analyzeFileSecrets(ctx context.Context, filePath string, _ []by
 	return findings, err
 }
 
+func (r *Runner) analyzeFileSecurity(ctx context.Context, filePath string, content []byte) ([]*Finding, error) {
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+	}
+
+	return analyzeFileSecurity(ctx, filePath, content), nil
+}
+
 func (r *Runner) updateStatus(analyzer, scope, status string, findings int, duration time.Duration, err string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -506,7 +518,7 @@ func (r *Runner) RunAll(ctx context.Context) error {
 			}
 
 			scopePath := toRelPath(r.config.ProjectRoot, path)
-			for _, analyzer := range []string{AnalyzerComplexity, AnalyzerSecrets} {
+			for _, analyzer := range []string{AnalyzerComplexity, AnalyzerSecrets, AnalyzerSecurity} {
 				key := RunKey{Analyzer: analyzer, Scope: scopePath}
 				r.runAnalyzer(key, func(ctx context.Context) ([]*Finding, error) {
 					return r.runPerFileAnalyzer(ctx, analyzer, path)

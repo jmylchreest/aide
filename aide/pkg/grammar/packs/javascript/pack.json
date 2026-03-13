@@ -4,13 +4,23 @@
   "version": "0.25.0",
   "c_symbol": "tree_sitter_javascript",
   "meta": {
-    "extensions": [".js", ".jsx", ".mjs", ".cjs"],
-    "shebangs": ["node"],
-    "aliases": ["js", "jsx"]
+    "extensions": [
+      ".js",
+      ".jsx",
+      ".mjs",
+      ".cjs"
+    ],
+    "shebangs": [
+      "node"
+    ],
+    "aliases": [
+      "js",
+      "jsx"
+    ]
   },
   "queries": {
     "tags": "(function_declaration name: (identifier) @name) @definition.function\n(method_definition name: (property_identifier) @name) @definition.method\n(class_declaration name: (identifier) @name) @definition.class",
-    "refs": "(call_expression function: (identifier) @name) @reference.call\n(call_expression function: (member_expression property: (property_identifier) @name)) @reference.call\n(new_expression constructor: (identifier) @name) @reference.call"
+    "refs": "(call_expression function: (identifier) @name) @reference.call\n(call_expression function: (member_expression property: (property_identifier) @name)) @reference.call\n(new_expression constructor: (identifier) @name) @reference.call\n(import_statement source: (string (string_fragment) @name)) @reference.import\n(export_statement source: (string (string_fragment) @name)) @reference.import"
   },
   "complexity": {
     "func_node_types": [
@@ -38,7 +48,10 @@
         "regex": "(?:import|export)\\s+.*from\\s+['\"]([^'\"]+)['\"]",
         "group": 1
       },
-      { "regex": "require\\s*\\(\\s*['\"]([^'\"]+)['\"]", "group": 1 }
+      {
+        "regex": "require\\s*\\(\\s*['\"]([^'\"]+)['\"]",
+        "group": 1
+      }
     ]
   },
   "tokenisation": {
@@ -199,6 +212,66 @@
         "content": "^#!/usr/bin/env node",
         "type": "cli_root",
         "label": "Node.js executable script"
+      }
+    ]
+  },
+  "security": {
+    "rules": [
+      {
+        "id": "js-sql-string-concat",
+        "name": "Potential SQL injection via string concatenation",
+        "severity": "critical",
+        "category": "injection",
+        "pattern": "(?:query|execute|raw|prepare)\\s*\\(\\s*(?:`[^`]*\\$\\{|[\"\\'][^\"\\']*\\+)",
+        "description": "SQL query built with string concatenation or template literals. Use parameterized queries or prepared statements."
+      },
+      {
+        "id": "js-eval",
+        "name": "Use of eval()",
+        "severity": "critical",
+        "category": "injection",
+        "pattern": "\\beval\\s*\\(",
+        "description": "eval() executes arbitrary code. Use JSON.parse() for data or safer alternatives."
+      },
+      {
+        "id": "js-innerhtml",
+        "name": "Potential XSS via innerHTML",
+        "severity": "critical",
+        "category": "xss",
+        "pattern": "(?:\\.innerHTML\\s*=|\\.outerHTML\\s*=|dangerouslySetInnerHTML)",
+        "description": "Direct HTML injection enables XSS. Use textContent for text, or sanitize with DOMPurify."
+      },
+      {
+        "id": "js-exec-child-process",
+        "name": "Potential command injection",
+        "severity": "critical",
+        "category": "exec",
+        "pattern": "(?:child_process|exec|execSync|spawn|spawnSync|execFile)\\s*\\(",
+        "description": "Shell command execution. Use execFile with explicit arguments. Never pass user input to shell commands."
+      },
+      {
+        "id": "js-weak-random",
+        "name": "Math.random() used for security-sensitive value",
+        "severity": "warning",
+        "category": "crypto",
+        "pattern": "Math\\.random\\s*\\(",
+        "description": "Math.random() is not cryptographically secure. Use crypto.randomBytes() or crypto.randomUUID()."
+      },
+      {
+        "id": "js-document-write",
+        "name": "Potential XSS via document.write",
+        "severity": "warning",
+        "category": "xss",
+        "pattern": "document\\.write(?:ln)?\\s*\\(",
+        "description": "document.write() can inject arbitrary HTML. Use DOM manipulation methods instead."
+      },
+      {
+        "id": "js-path-traversal",
+        "name": "Potential path traversal",
+        "severity": "warning",
+        "category": "traversal",
+        "pattern": "(?:path\\.join|path\\.resolve|fs\\.readFile|fs\\.writeFile)\\s*\\([^)]*(?:req\\.|params\\.|query\\.|body\\.|user)",
+        "description": "File path constructed with user input. Validate resolved path stays within intended directory."
       }
     ]
   }

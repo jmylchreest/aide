@@ -7,15 +7,22 @@
   "source_tag": "v0.23.11",
   "source_src_dir": "php/src",
   "meta": {
-    "extensions": [".php"],
-    "shebangs": ["php"]
+    "extensions": [
+      ".php"
+    ],
+    "shebangs": [
+      "php"
+    ]
   },
   "queries": {
     "tags": "(function_definition name: (name) @name) @definition.function\n(method_declaration name: (name) @name) @definition.method\n(class_declaration name: (name) @name) @definition.class\n(interface_declaration name: (name) @name) @definition.interface\n(trait_declaration name: (name) @name) @definition.interface",
-    "refs": "(function_call_expression function: (name) @name) @reference.call\n(member_call_expression name: (name) @name) @reference.call\n(named_type (name) @name) @reference.type"
+    "refs": "(function_call_expression function: (name) @name) @reference.call\n(member_call_expression name: (name) @name) @reference.call\n(named_type (name) @name) @reference.type\n(namespace_use_declaration (namespace_use_clause (qualified_name) @name)) @reference.import"
   },
   "complexity": {
-    "func_node_types": ["function_definition", "method_declaration"],
+    "func_node_types": [
+      "function_definition",
+      "method_declaration"
+    ],
     "branch_types": [
       "if_statement",
       "for_statement",
@@ -41,8 +48,15 @@
     ]
   },
   "tokenisation": {
-    "identifier_types": ["variable_name", "name"],
-    "literal_types": ["encapsed_string", "nowdoc_string", "heredoc_content"],
+    "identifier_types": [
+      "variable_name",
+      "name"
+    ],
+    "literal_types": [
+      "encapsed_string",
+      "nowdoc_string",
+      "heredoc_content"
+    ],
     "keyword_types": [
       "trait",
       "function",
@@ -186,6 +200,66 @@
         "content": "^#!/usr/bin/env php",
         "type": "cli_root",
         "label": "PHP executable script"
+      }
+    ]
+  },
+  "security": {
+    "rules": [
+      {
+        "id": "php-sql-injection",
+        "name": "Potential SQL injection",
+        "severity": "critical",
+        "category": "injection",
+        "pattern": "(?:mysql_query|mysqli_query|->query)\\s*\\([^)]*(?:\\.\\s*\\$|\\$_(?:GET|POST|REQUEST|COOKIE))",
+        "description": "SQL query with user input concatenation. Use prepared statements with PDO or mysqli_prepare."
+      },
+      {
+        "id": "php-xss",
+        "name": "Potential XSS via echo/print",
+        "severity": "critical",
+        "category": "xss",
+        "pattern": "(?:echo|print)\\s+[^;]*\\$_(?:GET|POST|REQUEST|COOKIE)",
+        "description": "User input echoed without escaping. Use htmlspecialchars() with ENT_QUOTES and UTF-8 encoding."
+      },
+      {
+        "id": "php-eval",
+        "name": "Use of eval()",
+        "severity": "critical",
+        "category": "injection",
+        "pattern": "\\beval\\s*\\(",
+        "description": "eval() executes arbitrary PHP code. Remove eval usage entirely or use safer alternatives."
+      },
+      {
+        "id": "php-command-injection",
+        "name": "Potential command injection",
+        "severity": "critical",
+        "category": "exec",
+        "pattern": "(?:exec|system|passthru|shell_exec|popen|proc_open)\\s*\\(",
+        "description": "Shell command execution. Use escapeshellarg() and escapeshellcmd() on all inputs, or avoid shell execution entirely."
+      },
+      {
+        "id": "php-file-include",
+        "name": "Potential remote file inclusion",
+        "severity": "critical",
+        "category": "traversal",
+        "pattern": "(?:include|require|include_once|require_once)\\s*\\([^)]*\\$_(?:GET|POST|REQUEST)",
+        "description": "File include with user input can lead to remote code execution. Never use user input in include paths."
+      },
+      {
+        "id": "php-unserialize",
+        "name": "Unsafe deserialization",
+        "severity": "critical",
+        "category": "deserialize",
+        "pattern": "\\bunserialize\\s*\\([^)]*\\$",
+        "description": "unserialize() on user input enables arbitrary object injection. Use json_decode() instead."
+      },
+      {
+        "id": "php-weak-hash",
+        "name": "Use of weak hash for passwords",
+        "severity": "warning",
+        "category": "crypto",
+        "pattern": "\\b(?:md5|sha1)\\s*\\(",
+        "description": "MD5/SHA1 are not suitable for passwords. Use password_hash() with PASSWORD_BCRYPT or PASSWORD_ARGON2ID."
       }
     ]
   }

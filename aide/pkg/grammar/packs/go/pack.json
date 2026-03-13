@@ -4,12 +4,16 @@
   "version": "0.25.0",
   "c_symbol": "tree_sitter_go",
   "meta": {
-    "extensions": [".go"],
-    "aliases": ["golang"]
+    "extensions": [
+      ".go"
+    ],
+    "aliases": [
+      "golang"
+    ]
   },
   "queries": {
     "tags": "(function_declaration name: (identifier) @name) @definition.function\n(method_declaration name: (field_identifier) @name) @definition.method\n(type_declaration (type_spec name: (type_identifier) @name type: (struct_type))) @definition.class\n(type_declaration (type_spec name: (type_identifier) @name type: (interface_type))) @definition.interface\n(type_declaration (type_spec name: (type_identifier) @name)) @definition.type",
-    "refs": "(call_expression function: (identifier) @name) @reference.call\n(call_expression function: (selector_expression field: (field_identifier) @name)) @reference.call\n(type_identifier) @name @reference.type"
+    "refs": "(call_expression function: (identifier) @name) @reference.call\n(call_expression function: (selector_expression field: (field_identifier) @name)) @reference.call\n(type_identifier) @name @reference.type\n(import_declaration (import_spec path: (interpreted_string_literal) @name)) @reference.import\n(import_declaration (import_spec_list (import_spec path: (interpreted_string_literal) @name))) @reference.import"
   },
   "complexity": {
     "func_node_types": [
@@ -37,7 +41,11 @@
         "group": 1,
         "context": "single"
       },
-      { "regex": "^\\s*\"([^\"]+)\"", "group": 1, "context": "block" }
+      {
+        "regex": "^\\s*\"([^\"]+)\"",
+        "group": 1,
+        "context": "block"
+      }
     ],
     "block_start": "import (",
     "block_end": ")"
@@ -173,6 +181,82 @@
         "content": "^func init\\(\\)",
         "type": "init",
         "label": "Go init function"
+      }
+    ]
+  },
+  "security": {
+    "rules": [
+      {
+        "id": "go-sql-string-concat",
+        "name": "Potential SQL injection via string concatenation",
+        "severity": "critical",
+        "category": "injection",
+        "pattern": "(?:Query|Exec|QueryRow|QueryContext|ExecContext|Prepare)\\s*\\([^)]*(?:\\+|fmt\\.Sprintf|fmt\\.Fprintf)",
+        "description": "SQL query built with string concatenation or fmt.Sprintf. Use parameterized queries with ? or $1 placeholders instead."
+      },
+      {
+        "id": "go-command-injection",
+        "name": "Potential command injection",
+        "severity": "critical",
+        "category": "exec",
+        "pattern": "exec\\.Command\\s*\\(",
+        "description": "Shell command execution. Ensure all arguments are validated and never pass user-controlled input directly. Prefer exec.CommandContext with explicit argument lists."
+      },
+      {
+        "id": "go-command-shell",
+        "name": "Shell command via bash -c",
+        "severity": "critical",
+        "category": "exec",
+        "pattern": "exec\\.Command\\s*\\(\\s*(?:\"bash\"|\"sh\"|\"cmd\"|\"powershell\"|\"zsh\")",
+        "description": "Shell invocation with subshell. This is highly susceptible to command injection. Pass arguments directly to exec.Command instead."
+      },
+      {
+        "id": "go-path-traversal",
+        "name": "Potential path traversal",
+        "severity": "warning",
+        "category": "traversal",
+        "pattern": "filepath\\.Join\\s*\\([^)]*(?:req\\.|r\\.|request\\.|params\\.|query\\.|c\\.)",
+        "description": "File path constructed with user input. Validate the resolved path stays within the intended directory using filepath.Rel or filepath.EvalSymlinks."
+      },
+      {
+        "id": "go-weak-crypto-md5",
+        "name": "Use of weak hash (MD5)",
+        "severity": "warning",
+        "category": "crypto",
+        "pattern": "md5\\.(?:New|Sum)",
+        "description": "MD5 is cryptographically broken. Use sha256 or stronger for integrity checks, and bcrypt/scrypt/argon2 for passwords."
+      },
+      {
+        "id": "go-weak-crypto-sha1",
+        "name": "Use of weak hash (SHA1)",
+        "severity": "warning",
+        "category": "crypto",
+        "pattern": "sha1\\.(?:New|Sum)",
+        "description": "SHA1 is cryptographically weak. Use sha256 or stronger for integrity checks."
+      },
+      {
+        "id": "go-http-get-user-url",
+        "name": "Potential SSRF via user-controlled URL",
+        "severity": "warning",
+        "category": "ssrf",
+        "pattern": "http\\.(?:Get|Post|Head|PostForm)\\s*\\([^)]*(?:req\\.|r\\.|request\\.|params\\.|query\\.|user)",
+        "description": "HTTP request with potentially user-controlled URL. Validate the URL scheme and host against an allowlist to prevent SSRF."
+      },
+      {
+        "id": "go-tls-insecure-skip",
+        "name": "TLS certificate verification disabled",
+        "severity": "critical",
+        "category": "crypto",
+        "pattern": "InsecureSkipVerify\\s*:\\s*true",
+        "description": "TLS certificate verification is disabled, allowing man-in-the-middle attacks. Remove InsecureSkipVerify or set to false."
+      },
+      {
+        "id": "go-unhandled-error",
+        "name": "Error discarded with blank identifier",
+        "severity": "info",
+        "category": "error-handling",
+        "pattern": "[^_]\\s*,\\s*_\\s*(?::=|=)\\s*\\w+\\.",
+        "description": "Error return value is discarded. Handle errors explicitly to avoid silent failures that may have security implications."
       }
     ]
   }

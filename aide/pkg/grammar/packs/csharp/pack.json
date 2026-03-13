@@ -6,11 +6,17 @@
   "source_repo": "tree-sitter/tree-sitter-c-sharp",
   "source_tag": "v0.23.1",
   "meta": {
-    "extensions": [".cs"],
-    "aliases": ["c#", "cs"]
+    "extensions": [
+      ".cs"
+    ],
+    "aliases": [
+      "c#",
+      "cs"
+    ]
   },
   "queries": {
-    "tags": "(method_declaration name: (identifier) @name) @definition.method\n(constructor_declaration name: (identifier) @name) @definition.method\n(class_declaration name: (identifier) @name) @definition.class\n(interface_declaration name: (identifier) @name) @definition.interface\n(struct_declaration name: (identifier) @name) @definition.class\n(enum_declaration name: (identifier) @name) @definition.class"
+    "tags": "(method_declaration name: (identifier) @name) @definition.method\n(constructor_declaration name: (identifier) @name) @definition.method\n(class_declaration name: (identifier) @name) @definition.class\n(interface_declaration name: (identifier) @name) @definition.interface\n(struct_declaration name: (identifier) @name) @definition.class\n(enum_declaration name: (identifier) @name) @definition.class",
+    "refs": "(using_directive (qualified_name) @name) @reference.import"
   },
   "complexity": {
     "func_node_types": [
@@ -40,7 +46,9 @@
     ]
   },
   "tokenisation": {
-    "identifier_types": ["identifier"],
+    "identifier_types": [
+      "identifier"
+    ],
     "literal_types": [
       "integer_literal",
       "real_literal",
@@ -141,6 +149,58 @@
         "content": "Host\\.CreateDefaultBuilder",
         "type": "server_start",
         "label": "ASP.NET host builder"
+      }
+    ]
+  },
+  "security": {
+    "rules": [
+      {
+        "id": "cs-sql-string-concat",
+        "name": "Potential SQL injection via string concatenation",
+        "severity": "critical",
+        "category": "injection",
+        "pattern": "(?:ExecuteNonQuery|ExecuteReader|ExecuteScalar|SqlCommand)\\s*\\([^)]*(?:\\+|\\$\")",
+        "description": "SQL query built with string concatenation. Use SqlParameter with parameterized queries."
+      },
+      {
+        "id": "cs-command-injection",
+        "name": "Potential command injection",
+        "severity": "critical",
+        "category": "exec",
+        "pattern": "Process\\.Start\\s*\\(",
+        "description": "Process execution. Use ProcessStartInfo with UseShellExecute=false and explicit arguments."
+      },
+      {
+        "id": "cs-xss",
+        "name": "Potential XSS via Html.Raw",
+        "severity": "warning",
+        "category": "xss",
+        "pattern": "Html\\.Raw\\s*\\(",
+        "description": "Html.Raw() bypasses HTML encoding. Only use on content you have explicitly sanitized."
+      },
+      {
+        "id": "cs-deserialization",
+        "name": "Unsafe deserialization",
+        "severity": "critical",
+        "category": "deserialize",
+        "pattern": "(?:BinaryFormatter|SoapFormatter|NetDataContractSerializer|ObjectStateFormatter)\\.Deserialize\\s*\\(",
+        "description": "BinaryFormatter deserialization enables arbitrary code execution. Use System.Text.Json or DataContractSerializer."
+      },
+      {
+        "id": "cs-xxe",
+        "name": "Potential XXE vulnerability",
+        "severity": "critical",
+        "category": "injection",
+        "pattern": "XmlReader\\.Create\\s*\\(",
+        "description": "XML parsing may be vulnerable to XXE. Use XmlReaderSettings with DtdProcessing = DtdProcessing.Prohibit."
+      },
+      {
+        "id": "cs-path-traversal",
+        "name": "Potential path traversal",
+        "severity": "warning",
+        "category": "traversal",
+        "pattern": "Path\\.Combine\\s*\\([^)]*(?:Request|HttpContext|user|input)",
+        "description": "File path from user input. Canonicalize with Path.GetFullPath() and validate against allowed directories."
       }
     ]
   }

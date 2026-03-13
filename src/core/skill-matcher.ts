@@ -8,7 +8,34 @@
 import { existsSync, readFileSync, readdirSync } from "fs";
 import { join, basename, extname } from "path";
 import { homedir } from "os";
+import { execSync } from "child_process";
 import type { Skill, SkillMatchResult } from "./types.js";
+
+/**
+ * Cache of binary existence checks to avoid repeated shell invocations.
+ * Maps binary name to boolean (exists on PATH).
+ */
+const binaryExistsCache = new Map<string, boolean>();
+
+/**
+ * Check if a binary exists on PATH.
+ * Results are cached for the lifetime of the process.
+ */
+function binaryExists(name: string): boolean {
+  const cached = binaryExistsCache.get(name);
+  if (cached !== undefined) return cached;
+
+  try {
+    const cmd =
+      process.platform === "win32" ? `where ${name}` : `command -v ${name}`;
+    execSync(cmd, { stdio: "ignore", timeout: 2000 });
+    binaryExistsCache.set(name, true);
+    return true;
+  } catch {
+    binaryExistsCache.set(name, false);
+    return false;
+  }
+}
 
 // Skill search locations relative to cwd
 const SKILL_LOCATIONS = [".aide/skills", "skills"];
@@ -129,6 +156,22 @@ export function parseSkillFrontmatter(
     meta.platforms = platforms;
   }
 
+  // Parse requires_binary array (e.g. "requires_binary:\n  - semgrep")
+  const requiresBinary: string[] = [];
+  const binaryMatch = yamlContent.match(
+    /requires_binary:\s*\n((?:\s+-\s*.+\n?)*)/,
+  );
+  if (binaryMatch) {
+    const blines = binaryMatch[1].split("\n");
+    for (const line of blines) {
+      const itemMatch = line.match(/^\s+-\s*["']?([^"'\n]+)["']?\s*$/);
+      if (itemMatch) requiresBinary.push(itemMatch[1].trim());
+    }
+  }
+  if (requiresBinary.length > 0) {
+    meta.requires_binary = requiresBinary;
+  }
+
   return { meta, body };
 }
 
@@ -176,6 +219,7 @@ export function loadSkill(path: string): Skill | null {
       triggers,
       description: meta.description as string | undefined,
       platforms: meta.platforms as string[] | undefined,
+      requires_binary: meta.requires_binary as string[] | undefined,
       content: body,
     };
   } catch {
@@ -251,6 +295,14 @@ export function matchSkills(
     // Platform gate: skip skills restricted to a different platform
     if (platform && skill.platforms && skill.platforms.length > 0) {
       if (!skill.platforms.includes(platform)) continue;
+    }
+
+    // Binary gate: skip skills that require binaries not on PATH
+    if (skill.requires_binary && skill.requires_binary.length > 0) {
+      const allPresent = skill.requires_binary.every((bin) =>
+        binaryExists(bin),
+      );
+      if (!allPresent) continue;
     }
 
     let score = 0;

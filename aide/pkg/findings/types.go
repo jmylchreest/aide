@@ -31,6 +31,7 @@ const (
 	AnalyzerCoupling   = "coupling"
 	AnalyzerSecrets    = "secrets"
 	AnalyzerClones     = "clones"
+	AnalyzerSecurity   = "security"
 )
 
 // Finding represents a single static analysis finding.

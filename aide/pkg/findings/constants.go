@@ -72,6 +72,14 @@ const (
 	DefaultRunnerStopTimeout = 30 * time.Second
 
 	// -------------------------------------------------------------------------
+	// Security analyser
+	// -------------------------------------------------------------------------
+
+	// DefaultSecurityMaxFileSize is the maximum file size (in bytes) the
+	// security analyser will scan. Larger files are skipped.
+	DefaultSecurityMaxFileSize int64 = 1 << 20 // 1 MiB
+
+	// -------------------------------------------------------------------------
 	// Severity scaling
 	// -------------------------------------------------------------------------
 

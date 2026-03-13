@@ -48,6 +48,11 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: "category",
+      label: "Integrations",
+      items: ["integrations/index"],
+    },
+    {
+      type: "category",
       label: "Reference",
       link: {
         type: "doc",

@@ -360,6 +360,163 @@
       "label": "pnpm",
       "kind": "workspace",
       "metadata": { "monorepo": "pnpm", "marker": "pnpm-workspace.yaml" }
+    },
+    {
+      "file": "main.tf",
+      "check": "file",
+      "max_depth": -1,
+      "label": "terraform",
+      "kind": "tech_stack",
+      "metadata": { "iac": "terraform", "marker": "main.tf" }
+    },
+    {
+      "file": "cdk.json",
+      "check": "file",
+      "max_depth": -1,
+      "label": "aws-cdk",
+      "kind": "tech_stack",
+      "metadata": { "iac": "aws-cdk", "marker": "cdk.json" }
+    },
+    {
+      "file": "Pulumi.yaml",
+      "check": "file",
+      "max_depth": -1,
+      "label": "pulumi",
+      "kind": "tech_stack",
+      "metadata": { "iac": "pulumi", "marker": "Pulumi.yaml" }
+    },
+    {
+      "file": "ansible.cfg",
+      "check": "file",
+      "max_depth": -1,
+      "label": "ansible",
+      "kind": "tech_stack",
+      "metadata": { "iac": "ansible", "marker": "ansible.cfg" }
+    },
+    {
+      "file": "crossplane.yaml",
+      "check": "file",
+      "max_depth": -1,
+      "label": "crossplane",
+      "kind": "tech_stack",
+      "metadata": { "iac": "crossplane", "marker": "crossplane.yaml" }
+    },
+    {
+      "file": "kustomization.yaml",
+      "check": "file",
+      "max_depth": -1,
+      "label": "kubernetes",
+      "kind": "tech_stack",
+      "metadata": {
+        "container_orchestration": "kubernetes",
+        "marker": "kustomization.yaml"
+      }
+    },
+    {
+      "file": "kustomization.yml",
+      "check": "file",
+      "max_depth": -1,
+      "label": "kubernetes",
+      "kind": "tech_stack",
+      "metadata": {
+        "container_orchestration": "kubernetes",
+        "marker": "kustomization.yml"
+      }
+    },
+    {
+      "file": "Chart.yaml",
+      "check": "file",
+      "max_depth": -1,
+      "label": "helm",
+      "kind": "tech_stack",
+      "metadata": { "container_orchestration": "helm", "marker": "Chart.yaml" }
+    },
+    {
+      "file": "skaffold.yaml",
+      "check": "file",
+      "max_depth": -1,
+      "label": "skaffold",
+      "kind": "tech_stack",
+      "metadata": {
+        "container_orchestration": "skaffold",
+        "marker": "skaffold.yaml"
+      }
+    },
+    {
+      "file": ".buildkite/pipeline.yml",
+      "check": "file",
+      "max_depth": -1,
+      "label": "buildkite",
+      "kind": "tech_stack",
+      "metadata": { "ci_cd": "buildkite", "marker": ".buildkite/pipeline.yml" }
+    },
+    {
+      "file": ".drone.yml",
+      "check": "file",
+      "max_depth": -1,
+      "label": "drone",
+      "kind": "tech_stack",
+      "metadata": { "ci_cd": "drone", "marker": ".drone.yml" }
+    },
+    {
+      "file": "bitbucket-pipelines.yml",
+      "check": "file",
+      "max_depth": -1,
+      "label": "bitbucket-pipelines",
+      "kind": "tech_stack",
+      "metadata": {
+        "ci_cd": "bitbucket-pipelines",
+        "marker": "bitbucket-pipelines.yml"
+      }
+    },
+    {
+      "file": "flake.nix",
+      "check": "file",
+      "max_depth": -1,
+      "label": "nix",
+      "kind": "tech_stack",
+      "metadata": { "build_system": "nix", "marker": "flake.nix" }
+    },
+    {
+      "file": "renovate.json",
+      "check": "file",
+      "max_depth": -1,
+      "label": "renovate",
+      "kind": "tech_stack",
+      "metadata": {
+        "dependency_automation": "renovate",
+        "marker": "renovate.json"
+      }
+    },
+    {
+      "file": ".github/dependabot.yml",
+      "check": "file",
+      "max_depth": -1,
+      "label": "dependabot",
+      "kind": "tech_stack",
+      "metadata": {
+        "dependency_automation": "dependabot",
+        "marker": ".github/dependabot.yml"
+      }
+    },
+    {
+      "file": ".pre-commit-config.yaml",
+      "check": "file",
+      "max_depth": -1,
+      "label": "pre-commit",
+      "kind": "tech_stack",
+      "metadata": {
+        "tooling": "pre-commit",
+        "marker": ".pre-commit-config.yaml"
+      }
+    },
+    {
+      "file": "mkdocs.yml",
+      "check": "file",
+      "max_depth": -1,
+      "label": "mkdocs",
+      "kind": "tech_stack",
+      "metadata": { "docs": "mkdocs", "marker": "mkdocs.yml" }
     }
   ]
 }

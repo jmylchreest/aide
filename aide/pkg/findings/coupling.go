@@ -31,23 +31,64 @@ var (
 )
 
 // CouplingConfig configures the coupling analyzer.
+// ImportSource provides import data for coupling analysis.
+// When available, the coupling analyzer uses this instead of regex-based extraction.
+type ImportSource interface {
+	// GetFileImports returns import paths for a file from the code index.
+	// Returns nil if the file is not indexed or has no import references.
+	GetFileImports(filePath string) []string
+}
+
 type CouplingConfig struct {
-	// FanOutThreshold is the max imports before a file is flagged (default 15).
+	// FanOutThreshold is the minimum import count for a file to be flagged.
 	FanOutThreshold int
-	// FanInThreshold is the max reverse-dependencies before a file is flagged (default 20).
+	// FanInThreshold is the minimum number of dependents for a file to be flagged.
 	FanInThreshold int
-	// Paths to analyze (default: current directory).
+	// Paths to scan.
 	Paths []string
-	// ProjectRoot is the absolute project root for relative path computation.
+	// ProjectRoot for relative path computation.
 	ProjectRoot string
-	// ProgressFn is called after each file is analyzed.
+	// ProgressFn is called per file with the number of imports found.
 	ProgressFn func(path string, imports int)
-	// Ignore is the aideignore matcher for filtering files/directories.
-	// If nil, built-in defaults are used.
+	// Ignore matcher for skipping files/directories.
 	Ignore *aideignore.Matcher
+	// Imports provides code-index-based import extraction (optional).
+	// When set, the coupling analyzer prefers this over regex-based extraction.
+	Imports ImportSource
 }
 
 // CouplingResult holds the output of a coupling analysis run.
+// CodeIndexImportSource adapts a code index reference source into an ImportSource.
+// It queries the code index for import references to provide more accurate import
+// data than regex-based extraction.
+type CodeIndexImportSource struct {
+	getRefs func(filePath string) ([]*code.Reference, error)
+}
+
+// NewCodeIndexImportSource creates an ImportSource backed by the code index.
+// getRefs should be a function like CodeIndexStore.GetFileReferences.
+func NewCodeIndexImportSource(getRefs func(filePath string) ([]*code.Reference, error)) *CodeIndexImportSource {
+	return &CodeIndexImportSource{getRefs: getRefs}
+}
+
+// GetFileImports returns import paths for a file from the code index.
+func (s *CodeIndexImportSource) GetFileImports(filePath string) []string {
+	if s.getRefs == nil {
+		return nil
+	}
+	refs, err := s.getRefs(filePath)
+	if err != nil {
+		return nil
+	}
+	var imports []string
+	for _, ref := range refs {
+		if ref.Kind == code.RefKindImport {
+			imports = append(imports, ref.SymbolName)
+		}
+	}
+	return imports
+}
+
 type CouplingResult struct {
 	FilesAnalyzed int
 	FindingsCount int
@@ -137,7 +178,7 @@ func AnalyzeCoupling(cfg CouplingConfig) ([]*Finding, *CouplingResult, error) { 
 
 			relPath := toRelPath(cfg.ProjectRoot, path)
 
-			imports := extractImports(path, lang)
+			imports := extractImports(path, relPath, lang, cfg.Imports)
 			for _, imp := range imports {
 				graph.addEdge(relPath, imp)
 			}
@@ -340,10 +381,23 @@ func findCycles(graph *importGraph) [][]string {
 // =============================================================================
 
 // extractImports returns a list of import paths from a file.
-// Import paths are normalised to just the module/package name, not full paths.
-// Uses pack registry import patterns for extraction.
-func extractImports(filePath, lang string) []string {
-	content, err := os.ReadFile(filePath)
+// Prefers code-index-based extraction when an ImportSource is provided;
+// falls back to regex patterns from pack.json.
+// extractImports returns a list of import paths from a file.
+// absPath is the absolute/walkable path for reading the file; relPath is the
+// cwd-relative path used as the key in the code index.
+// Prefers code-index-based extraction when an ImportSource is provided;
+// falls back to regex patterns from pack.json.
+func extractImports(absPath, relPath, lang string, importSource ImportSource) []string {
+	// Prefer code index when available (tree-sitter-based, more accurate).
+	if importSource != nil {
+		if imports := importSource.GetFileImports(relPath); len(imports) > 0 {
+			return imports
+		}
+	}
+
+	// Fallback to regex-based extraction from pack.json.
+	content, err := os.ReadFile(absPath)
 	if err != nil {
 		return nil
 	}

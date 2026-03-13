@@ -175,6 +175,26 @@ function validateSkill(filePath: string, content: string): ValidationError[] {
     }
   }
 
+  // 4c. requires_binary validation (optional field)
+  if (data.requires_binary) {
+    if (!Array.isArray(data.requires_binary)) {
+      errors.push({
+        file: rel,
+        message:
+          "requires_binary must be an array of binary names (e.g., [semgrep, docker])",
+      });
+    } else {
+      for (const bin of data.requires_binary) {
+        if (typeof bin !== "string" || bin.trim().length === 0) {
+          errors.push({
+            file: rel,
+            message: `Invalid requires_binary entry: "${bin}" (must be a non-empty string)`,
+          });
+        }
+      }
+    }
+  }
+
   // 5. Body must have at least one heading
   const bodyLines = content.split("\n").slice(bodyStart);
   const hasHeading = bodyLines.some((line) => /^#\s+/.test(line));
