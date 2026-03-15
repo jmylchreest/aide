@@ -178,7 +178,7 @@ func (s *MCPServer) registerStateReadTools() {
 		Description: `Get a state value (global or per-agent).
 
 **Common state keys:**
-- "mode" - Current operation mode (normal, eco, ralph, etc.)
+- "mode" - Current operation mode (normal, eco, autopilot, etc.)
 - "modelTier" - Current model tier (smart, fast, etc.)
 - "activeSkill" - Currently executing skill
 

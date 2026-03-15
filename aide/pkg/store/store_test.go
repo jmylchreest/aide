@@ -251,14 +251,14 @@ func TestStateOverwrite(t *testing.T) {
 	defer cleanup()
 
 	store.SetState(&memory.State{Key: "mode", Value: "eco"})
-	store.SetState(&memory.State{Key: "mode", Value: "ralph"})
+	store.SetState(&memory.State{Key: "mode", Value: "autopilot"})
 
 	got, err := store.GetState("mode")
 	if err != nil {
 		t.Fatalf("failed to get state: %v", err)
 	}
-	if got.Value != "ralph" {
-		t.Errorf("expected value 'ralph', got %q", got.Value)
+	if got.Value != "autopilot" {
+		t.Errorf("expected value 'autopilot', got %q", got.Value)
 	}
 }
 

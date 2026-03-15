@@ -3,7 +3,7 @@
  * Persistence Hook (Stop)
  *
  * Prevents Claude from stopping when work is incomplete.
- * Checks for active modes (ralph, autopilot) via aide-memory state.
+ * Checks for active modes (autopilot) via aide-memory state.
  */
 
 import { readStdin } from "../lib/hook-utils.js";

@@ -81,7 +81,6 @@ export function buildReminder(mode: string | null): string | null {
   if (!mode) return null;
 
   const reminders: Record<string, string> = {
-    ralph: `[aide:ralph] Persistence active. Verify work is complete before stopping.`,
     autopilot: `[aide:autopilot] Autonomous mode. Continue until all tasks verified.`,
     eco: `[aide:eco] Token-efficient mode. Minimize context, use fast models.`,
     swarm: `[aide:swarm] Swarm active. Use aide-memory for coordination.`,

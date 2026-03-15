@@ -67,7 +67,7 @@ Skills are markdown workflows triggered by keywords. Type naturally — trigger 
 | **implement**        | `implement the feature`                 | TDD — make failing tests pass                          |
 | **verify**           | `verify the implementation`             | Full QA: tests, lint, types, build, debug artifacts    |
 | **docs**             | `update the documentation`              | Updates docs to match implementation                   |
-| **ralph**            | `ralph fix all failing tests`           | Persistent — won't stop until verified complete        |
+| **autopilot**        | `autopilot fix all failing tests`       | Persistent — won't stop until verified complete        |
 | **build-fix**        | `fix the build errors`                  | Iteratively fixes build/lint/type errors               |
 | **debug**            | `debug why login fails`                 | Systematic debugging with hypothesis testing           |
 | **perf**             | `optimize the API`                      | Performance profiling and optimization                 |

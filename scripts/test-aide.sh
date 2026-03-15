@@ -107,7 +107,7 @@ setup() {
   "version": "0.1.0",
   "debug": false,
   "skills": { "autoDiscover": true, "cacheSeconds": 60 },
-  "modes": { "autopilot": { "enabled": true }, "ralph": { "enabled": true }, "eco": { "enabled": true }, "swarm": { "enabled": true, "maxAgents": 5 } },
+  "modes": { "autopilot": { "enabled": true }, "eco": { "enabled": true }, "swarm": { "enabled": true, "maxAgents": 5 } },
   "models": { "fast": "haiku", "balanced": "sonnet", "smart": "opus" }
 }
 EOF
@@ -218,31 +218,20 @@ test_keyword_detection() {
         fail "model override not detected" "Expected smart, got: $model_tier"
     fi
 
-    # Test ralph keyword
-    timer_start "keyword-ralph"
-    echo '{"event":"UserPromptSubmit","sessionId":"test","cwd":"'"$TEST_DIR"'","prompt":"ralph mode - dont stop until this is done"}' | node "$hook" 2>/dev/null
-    timer_end "keyword-ralph"
-
-    if [[ -f "$TEST_DIR/.aide/state/ralph-state.json" ]]; then
-        pass "ralph keyword detected"
-    else
-        fail "ralph keyword not detected"
-    fi
-
     # Test stop keyword clears mode
     timer_start "keyword-stop"
     echo '{"event":"UserPromptSubmit","sessionId":"test","cwd":"'"$TEST_DIR"'","prompt":"stop please"}' | node "$hook" 2>/dev/null
     timer_end "keyword-stop"
 
-    if [[ -f "$TEST_DIR/.aide/state/ralph-state.json" ]]; then
-        local active=$(grep -o '"active"[[:space:]]*:[[:space:]]*false' "$TEST_DIR/.aide/state/ralph-state.json" || echo "")
+    if [[ -f "$TEST_DIR/.aide/state/autopilot-state.json" ]]; then
+        local active=$(grep -o '"active"[[:space:]]*:[[:space:]]*false' "$TEST_DIR/.aide/state/autopilot-state.json" || echo "")
         if [[ -n "$active" ]]; then
-            pass "stop keyword deactivated ralph mode"
+            pass "stop keyword deactivated autopilot mode"
         else
             fail "stop keyword did not deactivate mode"
         fi
     else
-        pass "stop keyword cleared ralph state file"
+        pass "stop keyword cleared autopilot state file"
     fi
 }
 

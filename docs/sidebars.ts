@@ -44,7 +44,7 @@ const sidebars: SidebarsConfig = {
         type: "doc",
         id: "modes/index",
       },
-      items: ["modes/swarm", "modes/ralph"],
+      items: ["modes/swarm", "modes/autopilot"],
     },
     {
       type: "category",

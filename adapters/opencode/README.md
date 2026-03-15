@@ -88,13 +88,13 @@ npx tsx adapters/opencode/generate.ts --plugin-path /path/to/aide
 
 ## Known Limitations
 
-### 1. No Stop Blocking (Persistence / Ralph Mode)
+### 1. No Stop Blocking (Persistence / Autopilot Mode)
 
-**Impact**: Medium — ralph mode and autopilot work but with a different mechanism than Claude Code.
+**Impact**: Medium — autopilot mode works but with a different mechanism than Claude Code.
 
 Claude Code's Stop hook can return `{ decision: "block" }` to prevent the agent from stopping (preventive). OpenCode has no equivalent mechanism — the `session.idle` event fires _after_ the agent has already stopped responding.
 
-**Implementation**: The plugin uses `session.prompt()` to re-prompt the session when idle with a persistence mode active (ralph, autopilot). This is reactive (post-stop re-prompting) rather than preventive (block stop), using the same `checkPersistence()` core logic as Claude Code. The agent may briefly appear idle before being re-prompted to continue.
+**Implementation**: The plugin uses `session.prompt()` to re-prompt the session when idle with a persistence mode active (autopilot, swarm). This is reactive (post-stop re-prompting) rather than preventive (block stop), using the same `checkPersistence()` core logic as Claude Code. The agent may briefly appear idle before being re-prompted to continue.
 
 ### 2. No Subagent Hooks
 

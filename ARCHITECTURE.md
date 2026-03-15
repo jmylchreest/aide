@@ -89,7 +89,7 @@ triggers:
 
 Fuzzy matching tolerates typos (e.g., "desgin" matches "design").
 
-**Built-in skills:** `swarm`, `design`, `test`, `implement`, `verify`, `docs`, `decide`, `ralph`, `build-fix`, `debug`, `perf`, `review`, `code-search`, `memorise`, `recall`, `git`, `worktree-resolve`
+**Built-in skills:** `swarm`, `design`, `test`, `implement`, `verify`, `docs`, `decide`, `autopilot`, `build-fix`, `debug`, `perf`, `review`, `code-search`, `memorise`, `recall`, `git`, `worktree-resolve`
 
 ## Data Flow
 

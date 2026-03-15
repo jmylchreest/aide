@@ -38,7 +38,7 @@ Skills fall into several categories:
 | **Planning**    | plan-swarm, decide, design                | Decompose work, make decisions, create specs |
 | **Development** | test, implement, build-fix                | TDD, implementation, fixing build issues     |
 | **Quality**     | verify, review, patterns, assess-findings | QA, code review, static analysis             |
-| **Operations**  | swarm, ralph, debug, perf                 | Parallel execution, persistence, debugging   |
+| **Operations**  | swarm, autopilot, debug, perf             | Parallel execution, persistence, debugging   |
 | **Knowledge**   | memorise, recall, forget                  | Memory management                            |
 | **Code**        | code-search, git, worktree-resolve        | Code navigation, git operations              |
 | **Docs**        | docs                                      | Documentation updates                        |

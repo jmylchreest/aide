@@ -82,7 +82,7 @@ aide message ack <id> --agent=executor-1
 ## State
 
 ```bash
-aide state set mode ralph
+aide state set mode autopilot
 aide state set mode eco --agent=worker-1
 aide state get mode --agent=worker-1
 aide state list

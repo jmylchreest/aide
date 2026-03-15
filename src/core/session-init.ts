@@ -464,7 +464,6 @@ export function buildWelcomeContext(
   lines.push("");
   lines.push("- **autopilot**: Full autonomous execution");
   lines.push("- **eco**: Token-efficient mode");
-  lines.push("- **ralph**: Persistence until verified complete");
   lines.push("- **swarm**: Parallel agents with shared memory");
   lines.push("- **plan**: Planning interview workflow");
   lines.push("");

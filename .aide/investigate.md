@@ -7,7 +7,7 @@ investigation before deciding on an approach.
 
 **Problem:** Skills are the single largest source of context bloat. Up to 3
 full skill markdown files can be injected per turn, totaling 30-60KB. The
-largest skills are `swarm` (21KB), `ralph` (14KB), `memorise` (10KB). Total
+largest skills are `swarm` (21KB), `memorise` (10KB). Total
 bundled skills across 21 files: ~150KB.
 
 **Questions to investigate:**

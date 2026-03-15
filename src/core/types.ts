@@ -144,7 +144,7 @@ export interface ToolUseInfo {
 // Persistence
 // =============================================================================
 
-export const PERSISTENCE_MODES = ["ralph", "autopilot"] as const;
+export const PERSISTENCE_MODES = ["autopilot"] as const;
 export type PersistenceMode = (typeof PERSISTENCE_MODES)[number];
 export const MAX_PERSISTENCE_ITERATIONS = 20;
 

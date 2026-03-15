@@ -115,14 +115,14 @@ Spawns N parallel agents with SDLC pipeline per story using git worktrees.
 | **Triggers** | `swarm`, `parallel agents`, `spawn agents`, `multi-agent`    |
 | **Use when** | You have multiple independent stories to execute in parallel |
 
-### ralph
+### autopilot
 
-Persistence mode — won't stop until the task is verified complete.
+Full autonomous execution — keeps working until all tasks are verified complete.
 
-|              |                                                                                                                           |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------- |
-| **Triggers** | `ralph`, `persist`, `persistence`, `don't stop`, `dont stop`, `until done`, `must complete`, `relentless`, `ralph wiggum` |
-| **Use when** | You need the AI to keep going until a task is truly done                                                                  |
+|              |                                                                                                 |
+| ------------ | ----------------------------------------------------------------------------------------------- |
+| **Triggers** | `autopilot`, `full auto`, `autonomous`, `keep going`, `finish everything`, `run until complete` |
+| **Use when** | You need the AI to keep going until a task is truly done                                        |
 
 ### debug
 

@@ -20,7 +20,7 @@ These provide first-class aide support with hooks, memory, skills, and persisten
 | Tool tracking           |     PreToolUse     |   tool.execute.\*   |
 | Session summaries       |     Stop hook      |     State-based     |
 | Read-only enforcement   |     PreToolUse     |   permission.ask    |
-| Persistence (ralph)     | Stop hook (block)  |    session.idle     |
+| Persistence (autopilot) | Stop hook (block)  |    session.idle     |
 | Comment checker         |    PostToolUse     | tool.execute.after  |
 | Write guard             |     PreToolUse     | tool.execute.before |
 | Todo continuation       |     Stop hook      |    session.idle     |

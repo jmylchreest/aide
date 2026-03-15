@@ -509,7 +509,7 @@ async function handleSessionIdle(
 ): Promise<void> {
   const sessionId = extractSessionId(event);
 
-  // Check persistence: if ralph/autopilot mode is active, re-prompt the session
+  // Check persistence: if autopilot mode is active, re-prompt the session
   if (state.binary) {
     try {
       const persistResult = checkPersistence(

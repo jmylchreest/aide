@@ -82,7 +82,7 @@ Options:
     --older-than=DUR   Max age for stale entries (default: 1h)
 
 Examples:
-  aide state set mode ralph
+  aide state set mode autopilot
   aide state set mode eco --agent=worker-1
   aide state get mode
   aide state list

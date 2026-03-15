@@ -91,7 +91,7 @@ aide message list --agent=executor-1
 
 ```bash
 # Global state
-aide state set mode ralph
+aide state set mode autopilot
 
 # Per-agent state
 aide state set mode eco --agent=worker-1

@@ -10,18 +10,18 @@ AIDE supports both Claude Code and OpenCode through platform-specific adapters. 
 
 ## Feature Matrix
 
-| Feature             | Claude Code             | OpenCode                                          |
-| ------------------- | ----------------------- | ------------------------------------------------- |
-| Memory & decisions  | Full                    | Full                                              |
-| Code indexing       | Full                    | Full                                              |
-| Static analysis     | Full                    | Full                                              |
-| Skill injection     | Via hooks               | Via system prompt transform + slash commands      |
-| Swarm mode          | Native (subagent hooks) | Passive swarm-aware state; external orchestration |
-| HUD / status line   | Native                  | Not supported (OpenCode TUI has no status line)   |
-| Persistence (ralph) | Stop-blocking           | Re-prompting via `session.prompt()` on idle       |
-| Subagent lifecycle  | Full hooks              | Session-based tracking (observational, no spawn)  |
-| Write guard         | Full                    | Full                                              |
-| MCP sync            | Full                    | Full                                              |
+| Feature                 | Claude Code             | OpenCode                                          |
+| ----------------------- | ----------------------- | ------------------------------------------------- |
+| Memory & decisions      | Full                    | Full                                              |
+| Code indexing           | Full                    | Full                                              |
+| Static analysis         | Full                    | Full                                              |
+| Skill injection         | Via hooks               | Via system prompt transform + slash commands      |
+| Swarm mode              | Native (subagent hooks) | Passive swarm-aware state; external orchestration |
+| HUD / status line       | Native                  | Not supported (OpenCode TUI has no status line)   |
+| Persistence (autopilot) | Stop-blocking           | Re-prompting via `session.prompt()` on idle       |
+| Subagent lifecycle      | Full hooks              | Session-based tracking (observational, no spawn)  |
+| Write guard             | Full                    | Full                                              |
+| MCP sync                | Full                    | Full                                              |
 
 ## Detailed Comparison
 
@@ -60,7 +60,7 @@ Shows: version, current mode, session duration, task status, token usage, and es
 
 **OpenCode:** Not supported. OpenCode's TUI doesn't have a status line mechanism. Use `aide status` for the same information.
 
-### Persistence (Ralph Mode)
+### Persistence (Autopilot Mode)
 
 **Claude Code:** Uses stop-blocking to prevent the AI from ending the conversation early. The hook intercepts stop signals and re-injects the task prompt.
 

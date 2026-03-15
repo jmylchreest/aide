@@ -176,7 +176,7 @@ Examples:
   aide task claim task-abc123 --agent=executor-1
 
   # State
-  aide state set mode ralph                    # Global state
+  aide state set mode autopilot                # Global state
   aide state set mode eco --agent=worker-1    # Per-agent state
   aide state clear --agent=worker-1           # Clear agent state
 `, version.Short())
@@ -187,6 +187,10 @@ Examples:
 // For git worktrees, .git is a file pointing to the main repo; we follow it
 // to find the actual repository root so all worktrees share the same store.
 //
+// To prevent cross-project memory contamination, ~/.aide/ (created by the
+// TypeScript layer for global skills/MCP config) is skipped as a project
+// marker unless cwd is exactly $HOME (user intentionally working from home).
+//
 // Returns the resolved project root and a boolean indicating whether a
 // .aide/ or .git/ marker was actually found. When no marker is found,
 // the current working directory is returned.
@@ -196,10 +200,20 @@ func findProjectRoot() (string, bool) {
 		return ".", false
 	}
 
+	homeDir, _ := os.UserHomeDir()
+
 	dir := cwd
 	for {
-		if _, err := os.Stat(filepath.Join(dir, ".aide")); err == nil {
-			return dir, true
+		aidePath := filepath.Join(dir, ".aide")
+		if _, err := os.Stat(aidePath); err == nil {
+			// Skip ~/.aide/ unless cwd is $HOME itself.
+			// ~/.aide/ is created by the TS layer for global config and
+			// should not be treated as a project marker for other directories.
+			if homeDir != "" && dir == homeDir && cwd != homeDir {
+				// Fall through to check .git instead
+			} else {
+				return dir, true
+			}
 		}
 
 		gitPath := filepath.Join(dir, ".git")

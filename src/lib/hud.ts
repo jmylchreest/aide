@@ -84,7 +84,6 @@ const DEFAULT_HUD_CONFIG: HudConfig = {
 const ICONS = {
   mode: {
     autopilot: "🚀",
-    ralph: "🔄",
     eco: "💚",
     swarm: "🐝",
     plan: "📋",

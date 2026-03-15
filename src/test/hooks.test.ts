@@ -162,11 +162,11 @@ describe("Persistence Hook", () => {
     expect(result.decision).toBeUndefined();
   });
 
-  it("should prevent stop when ralph mode active", async () => {
-    // Create active ralph state
+  it("should prevent stop when autopilot mode active", async () => {
+    // Create active autopilot state
     writeFileSync(
-      join(testDir, ".aide", "state", "ralph-state.json"),
-      JSON.stringify({ active: true, mode: "ralph" }),
+      join(testDir, ".aide", "state", "autopilot-state.json"),
+      JSON.stringify({ active: true, mode: "autopilot" }),
     );
 
     const input = JSON.stringify({
@@ -176,10 +176,10 @@ describe("Persistence Hook", () => {
     });
 
     const result = runHook("persistence.ts", input);
-    // Note: This test expects ralph mode to be detected via aide-memory, not file state
+    // Note: This test expects autopilot mode to be detected via aide-memory, not file state
     // The persistence hook uses getMemoryState, not file-based state
-    // This test will pass when aide-memory has ralph mode set
-    expect(result.decision).toBeUndefined(); // No ralph mode in aide-memory during test
+    // This test will pass when aide-memory has autopilot mode set
+    expect(result.decision).toBeUndefined(); // No autopilot mode in aide-memory during test
   });
 });
 
