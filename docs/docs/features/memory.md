@@ -76,3 +76,18 @@ aide memory export --format=markdown     # Export to markdown
 | `/aide:memorise` | `remember I prefer vitest`     | Store info for future sessions      |
 | `/aide:recall`   | `what testing framework?`      | Search memories and decisions       |
 | `/aide:forget`   | `forget the old auth decision` | Soft-delete or hard-delete memories |
+
+## Memory Scoring
+
+When memories are injected at session start, they are ranked by a computed priority score. Higher-scoring memories are injected first, ensuring the most important context is always present within the injection limits.
+
+The score is computed from four weighted components:
+
+| Component      | Weight | Description                                                           |
+| -------------- | ------ | --------------------------------------------------------------------- |
+| **Category**   | 50%    | Base importance by category (user prefs > abandoned > blockers > ...) |
+| **Recency**    | 25%    | Exponential decay with 30-day half-life                               |
+| **Provenance** | 15%    | Boost for user-stated or verified memories                            |
+| **Access**     | 10%    | How frequently the memory is retrieved                                |
+
+For full details, see [Memory Scoring](./memory-scoring.md).
