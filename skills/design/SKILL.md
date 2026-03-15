@@ -170,7 +170,7 @@ List specific, testable criteria for the TEST stage:
 
 1. List specific ambiguities
 2. State assumptions you're making
-3. Record assumptions: `./.aide/bin/aide memory add --category=decision "Assumed X because Y"`
+3. Record assumptions: `./.aide/bin/aide memory add --category=decision --tags=project:<name>,session:${AIDE_SESSION_ID},source:inferred "Assumed X because Y"`
 4. Proceed with reasonable defaults
 
 ### Conflicting Patterns Found
@@ -197,6 +197,15 @@ Before completing design:
 - [ ] Acceptance criteria are testable
 - [ ] Files to modify are listed
 - [ ] Dependencies are identified
+
+## Memory Hygiene
+
+When storing memories from this skill (assumptions, decisions, discoveries), always:
+
+1. **Include `source:` tag** — Use `source:inferred` for assumptions, `source:discovered` for findings during exploration
+2. **Include scope tags** — Add `project:<name>,session:<id>` (get project name from git remote or directory; session ID from `$AIDE_SESSION_ID` or `$CLAUDE_SESSION_ID`)
+3. **Verify codebase claims** before storing — If a memory references a file, function, or path, confirm it exists first. See the `memorise` skill for the full verification workflow.
+4. **Never use `scope:global`** unless storing a user preference
 
 ## Completion
 

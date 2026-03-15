@@ -196,9 +196,15 @@ func (s *UserService) CreateUser(ctx context.Context, input CreateUserInput) (*U
 3. Check design decisions - is implementation matching spec?
 4. Record blocker:
    ```bash
-   ./.aide/bin/aide memory add --category=blocker "Cannot pass test X: <reason>"
+   ./.aide/bin/aide memory add --category=blocker --tags=project:<name>,session:<id>,source:discovered "Cannot pass test X: <reason>"
    ```
-5. If stuck after 3 attempts, ask for help
+5. **If you abandon the approach**, record it so future sessions don't repeat it:
+   ```bash
+   ./.aide/bin/aide memory add --category=abandoned \
+     --tags=reason:<why>,approach:<what>,project:<name>,session:<id>,source:discovered \
+     "ABANDONED: <what was tried>. REASON: <why>. ALTERNATIVE: <new direction>. CONTEXT: <details>"
+   ```
+6. If stuck after 3 attempts, ask for help
 
 ### Build Fails
 
@@ -214,7 +220,7 @@ func (s *UserService) CreateUser(ctx context.Context, input CreateUserInput) (*U
 2. Don't refactor during implement stage
 3. Note concerns for future:
    ```bash
-   ./.aide/bin/aide memory add --category=issue "Implementation of X could be improved: <how>"
+   ./.aide/bin/aide memory add --category=issue --tags=project:<name>,session:<id>,source:discovered "Implementation of X could be improved: <how>"
    ```
 4. Proceed - refactoring is a separate concern
 
@@ -242,6 +248,15 @@ go test -v ./pkg/feature/... && go build ./...
 ```
 
 Output: "Implementation complete. All tests passing. Ready for VERIFY stage."
+
+## Memory Hygiene
+
+When storing memories from this skill (blockers, issues, abandoned approaches), always:
+
+1. **Include `source:` tag** — Use `source:discovered` for things you found, `source:inferred` for deductions
+2. **Include scope tags** — Add `project:<name>,session:<id>` (get project name from git remote or directory; session ID from `$AIDE_SESSION_ID` or `$CLAUDE_SESSION_ID`)
+3. **Verify codebase claims** before storing — If a memory references a file, function, or path, confirm it exists first. See the `memorise` skill for the full verification workflow.
+4. **Never use `scope:global`** unless storing a user preference
 
 ## Integration with SDLC Pipeline
 

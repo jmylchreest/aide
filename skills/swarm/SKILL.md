@@ -207,7 +207,7 @@ Use native Claude Code task tools to track your progress:
 **Shared state (MCP + CLI):**
 - Check decisions: \`mcp__plugin_aide_aide__decision_get\` (MCP read)
 - Record decisions: \`./.aide/bin/aide decision set <topic> "<decision>"\` (CLI write)
-- Share discoveries: \`./.aide/bin/aide memory add --category=discovery "<finding>"\` (CLI write)
+- Share discoveries: \`./.aide/bin/aide memory add --category=discovery --tags=project:<name>,session:\${AIDE_SESSION_ID},source:discovered "<finding>"\` (CLI write)
 
 **Binary location:** The aide binary is at \`.aide/bin/aide\`. If it's on your \`$PATH\`, you can use \`aide\` directly.
 
@@ -366,7 +366,7 @@ activeForm: "Documenting [feature]"
 
 - Check existing decisions: `mcp__plugin_aide_aide__decision_get` (MCP read)
 - Record new decisions: `./.aide/bin/aide decision set <topic> "<decision>"` (CLI write)
-- Share discoveries: `./.aide/bin/aide memory add --category=discovery "<finding>"` (CLI write)
+- Share discoveries: `./.aide/bin/aide memory add --category=discovery --tags=project:<name>,session:${AIDE_SESSION_ID},source:discovered "<finding>"` (CLI write)
 
 ## VERIFY Failure Handling
 
@@ -429,8 +429,19 @@ message_ack: message_id=42, agent_id="agent-auth"
 **Memory** (shared discoveries):
 
 ```bash
-./.aide/bin/aide memory add --category=discovery "User model needs email validation"
+./.aide/bin/aide memory add --category=discovery --tags=project:<name>,session:${AIDE_SESSION_ID},source:discovered "User model needs email validation"
 ```
+
+## Memory Hygiene
+
+When any agent stores memories (discoveries, blockers, session summaries), always:
+
+1. **Include `source:` tag** — Use `source:discovered` for findings, `source:inferred` for deductions
+2. **Include scope tags** — Add `project:<name>,session:<id>` (get project name from git remote or directory; session ID from `$AIDE_SESSION_ID` or `$CLAUDE_SESSION_ID`)
+3. **Verify codebase claims** before storing — If a memory references a file, function, or path, confirm it exists first. See the `memorise` skill for the full verification workflow.
+4. **Never use `scope:global`** unless storing a user preference
+
+This applies to all `memory add` commands in agent prompts, coordination examples, and the orchestrator memory section above.
 
 ## OpenCode Mode
 
@@ -514,7 +525,7 @@ message_ack: message_id=42, agent_id="agent-auth"
 # Decisions and discoveries — shared knowledge
 mcp__plugin_aide_aide__decision_get with topic="auth-strategy"
 ./.aide/bin/aide decision set "auth-strategy" "JWT with refresh tokens"
-./.aide/bin/aide memory add --category=discovery "User model needs email validation"
+./.aide/bin/aide memory add --category=discovery --tags=project:<name>,session:${AIDE_SESSION_ID},source:discovered "User model needs email validation"
 ```
 
 ## Completion (MANDATORY STEPS)
@@ -574,7 +585,7 @@ Only after successful merge, record the swarm session (see Orchestrator Memory b
 After swarm completes, record the session using the CLI:
 
 ```bash
-./.aide/bin/aide memory add --category=session --tags=swarm,sdlc,session:${CLAUDE_SESSION_ID:0:8} "## Swarm: [Brief Description]
+./.aide/bin/aide memory add --category=session --tags=swarm,sdlc,project:<name>,session:${AIDE_SESSION_ID},source:discovered "## Swarm: [Brief Description]
 
 ### Stories Completed
 - Story A: [outcome]

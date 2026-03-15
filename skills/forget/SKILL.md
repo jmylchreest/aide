@@ -92,8 +92,8 @@ If the memory is being superseded (not just deleted), add a new corrected memory
 # 1. Forget the old memory
 ./.aide/bin/aide memory tag <OLD_ID> --add=forget
 
-# 2. Add the corrected memory (NO forget tag)
-./.aide/bin/aide memory add --category=<category> --tags=<relevant,tags> "<corrected content>"
+# 2. Add the corrected memory (NO forget tag) — include scope + provenance tags
+./.aide/bin/aide memory add --category=<category> --tags=<relevant,tags>,project:<name>,session:${AIDE_SESSION_ID},source:discovered "<corrected content>"
 ```
 
 ### Step 5: Verify
@@ -184,7 +184,7 @@ To clear ALL memories (destructive, requires explicit user request):
 ./.aide/bin/aide memory tag <OLD_ID> --add=forget
 
 # 3. Add the corrected one
-./.aide/bin/aide memory add --category=decision --tags=auth,sessions,project:myapp "Auth strategy changed from JWT to server-side sessions with Redis store"
+./.aide/bin/aide memory add --category=decision --tags=auth,sessions,project:myapp,session:${AIDE_SESSION_ID},source:discovered "Auth strategy changed from JWT to server-side sessions with Redis store"
 ```
 
 ### User says "recover that forgotten memory about testing"
@@ -210,6 +210,15 @@ If `aide memory tag` fails:
    ./.aide/bin/aide memory add --category=<cat> --tags=<existing-tags>,forget "<content>"
    ```
 3. **Database locked** - Another process may hold the lock. Wait and retry, or ensure the aide daemon is running (CLI routes through gRPC when daemon is active).
+
+## Memory Hygiene
+
+When adding replacement memories (Step 4 above), always:
+
+1. **Include `source:` tag** — Use `source:discovered` for corrected facts, `source:user` if the user provided the correction
+2. **Include scope tags** — Add `project:<name>,session:<id>` (get project name from git remote or directory; session ID from `$AIDE_SESSION_ID` or `$CLAUDE_SESSION_ID`)
+3. **Verify codebase claims** before storing — If a replacement memory references a file, function, or path, confirm it exists first. See the `memorise` skill for the full verification workflow.
+4. **Never use `scope:global`** unless storing a user preference
 
 ## Verification
 

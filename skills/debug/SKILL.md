@@ -159,6 +159,14 @@ npm test
 | Root cause is in dependency | Check for updates, file issue, implement workaround  |
 | Bug is in async code        | Add proper await, check Promise chains               |
 
+**When abandoning an approach:** If you try a fix direction and abandon it (e.g., revert because it causes regressions), record it as an abandoned approach so future sessions don't repeat it:
+
+```bash
+./.aide/bin/aide memory add --category=abandoned \
+  --tags=reason:<why>,approach:<what>,project:<name>,session:<id>,source:discovered \
+  "ABANDONED: <what was tried>. REASON: <why>. ALTERNATIVE: <new direction>. CONTEXT: <details>"
+```
+
 ## MCP Tools
 
 - `mcp__plugin_aide_aide__code_outline` - **Start here.** Get collapsed file skeleton to understand structure before reading
@@ -207,3 +215,12 @@ npm test
 - One fix at a time - don't bundle unrelated changes
 - Remove temporary logging before committing
 - Consider if the bug could occur elsewhere
+
+## Memory Hygiene
+
+When storing memories from this skill (abandoned approaches, blockers), always:
+
+1. **Include `source:` tag** — Use `source:discovered` for things you found, `source:inferred` for deductions
+2. **Include scope tags** — Add `project:<name>,session:<id>` (get project name from git remote or directory; session ID from `$AIDE_SESSION_ID` or `$CLAUDE_SESSION_ID`)
+3. **Verify codebase claims** before storing — If a memory references a file, function, or path, confirm it exists first. See the `memorise` skill for the full verification workflow.
+4. **Never use `scope:global`** unless storing a user preference
