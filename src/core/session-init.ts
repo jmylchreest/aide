@@ -75,6 +75,10 @@ bin/
 worktrees/
 memory/
 code/
+grammars/
+
+# Runtime socket - machine-specific
+aide.sock
 
 # MCP sync state - machine-specific
 config/mcp.json
@@ -106,6 +110,28 @@ aide-memory.db
           `\n
 # Shared data IS committed (git-friendly markdown with frontmatter)
 !shared/
+`;
+        updated = true;
+      }
+
+      // Ensure grammars are ignored (platform-specific binaries)
+      if (!existingContent.includes("grammars/")) {
+        existingContent =
+          existingContent.trimEnd() +
+          `\n
+# Tree-sitter grammars - platform-specific binaries
+grammars/
+`;
+        updated = true;
+      }
+
+      // Ensure runtime socket is ignored
+      if (!existingContent.includes("aide.sock")) {
+        existingContent =
+          existingContent.trimEnd() +
+          `\n
+# Runtime socket - machine-specific
+aide.sock
 `;
         updated = true;
       }

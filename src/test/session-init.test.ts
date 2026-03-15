@@ -49,6 +49,40 @@ describe("ensureDirectories", () => {
     const gitignoreContent = readFileSync(gitignorePath, "utf-8");
     expect(gitignoreContent).toContain("!shared/");
     expect(gitignoreContent).toContain("config/mcp.json");
+    expect(gitignoreContent).toContain("grammars/");
+    expect(gitignoreContent).toContain("aide.sock");
+  });
+
+  it("migrates old gitignore to include grammars and aide.sock", async () => {
+    const { ensureDirectories } = await import("../core/session-init.js");
+
+    // Create an old-style gitignore without grammars/ or aide.sock
+    const aideDir = join(projectDir, ".aide");
+    mkdirSync(aideDir, { recursive: true });
+    writeFileSync(
+      join(aideDir, ".gitignore"),
+      `# AIDE local runtime files
+_logs/
+state/
+bin/
+worktrees/
+memory/
+code/
+
+config/mcp.json
+config/mcp-sync.journal.json
+
+aide-memory.db
+
+!shared/
+`,
+    );
+
+    ensureDirectories(projectDir);
+
+    const gitignoreContent = readFileSync(join(aideDir, ".gitignore"), "utf-8");
+    expect(gitignoreContent).toContain("grammars/");
+    expect(gitignoreContent).toContain("aide.sock");
   });
 });
 
