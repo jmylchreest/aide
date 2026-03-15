@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "name": "markdown",
+  "version": "",
+  "meta": {
+    "extensions": [".md", ".markdown", ".mdx", ".mdown", ".mkd"],
+    "filenames": [
+      "README",
+      "CHANGELOG",
+      "CONTRIBUTING",
+      "LICENSE.md",
+      "CODE_OF_CONDUCT.md"
+    ],
+    "aliases": ["md", "mdx"]
+  },
+  "entrypoints": {
+    "file_patterns": [
+      {
+        "file_match": "docs/**/*.md",
+        "type": "documentation",
+        "label": "Documentation page"
+      },
+      {
+        "file_match": "README.md",
+        "type": "documentation",
+        "label": "Project README"
+      }
+    ]
+  }
+}

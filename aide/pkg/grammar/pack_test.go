@@ -15,8 +15,8 @@ var allExpectedLanguages = []string{
 	"bash", "csharp", "css", "elixir", "elm", "groovy", "hcl", "html",
 	"kotlin", "lua", "ocaml", "php", "protobuf", "ruby", "scala", "sql",
 	"swift", "toml", "yaml",
-	// 2 meta-only (no grammar, just file detection)
-	"dockerfile", "json",
+	// 3 meta-only (no grammar, just file detection)
+	"dockerfile", "json", "markdown",
 }
 
 func TestNewPackRegistry_LoadsAllPacks(t *testing.T) {
@@ -109,7 +109,7 @@ func TestMetadataOnlyPacks_HasParserReturnsFalse(t *testing.T) {
 	}
 
 	// Known metadata-only packs.
-	knownMetaOnly := []string{"json", "dockerfile"}
+	knownMetaOnly := []string{"json", "dockerfile", "markdown"}
 	for _, name := range knownMetaOnly {
 		p := reg.Get(name)
 		if p == nil {
