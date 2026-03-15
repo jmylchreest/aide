@@ -27,6 +27,7 @@ Memories are organized by category:
 - `discovery` -- New findings
 - `blocker` -- Blockers encountered
 - `issue` -- Issues found
+- `abandoned` -- Approaches that were tried and abandoned (prevents repeating failed directions)
 
 ## Memory Scoping
 

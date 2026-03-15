@@ -12,6 +12,7 @@ const (
 	CategoryIssue     Category = "issue"     // Known problems/workarounds
 	CategoryDiscovery Category = "discovery" // Swarm findings (shared)
 	CategoryBlocker   Category = "blocker"   // Things that stopped progress
+	CategoryAbandoned Category = "abandoned" // Failed/rejected approaches (prevents loops)
 )
 
 // Memory represents a single memory entry.
