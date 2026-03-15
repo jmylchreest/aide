@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/jmylchreest/aide/aide/pkg/memory"
 	"github.com/jmylchreest/aide/aide/pkg/store"
@@ -72,6 +73,7 @@ Options:
     --limit=N              Maximum results (default 10 for search, 50 for list)
     --latest               Return only the most recent memory per tag group
     --full                 Show full content instead of truncated
+    --scored               Show score breakdown per memory (sorted by score)
     --exclude-tags=a,b     Exclude memories with these tags (default: forget)
     --all                  Show all memories including forgotten/excluded
 
@@ -92,6 +94,7 @@ Examples:
   aide memory search "auth" --full
   aide memory search "auth" --min-score=0.5 --limit=20
   aide memory list --tags=preferences --latest   # Most recent per tag
+  aide memory list --scored                      # Show score breakdown
   aide memory list --all                         # Include forgotten memories
   aide memory list --exclude-tags=forget,partial  # Custom exclusions
   aide memory sessions --project=aide --limit=3  # Last 3 sessions for project
@@ -405,6 +408,7 @@ func cmdList(dbPath string, args []string) error {
 	limit := 50
 	formatJSON := false
 	latestOnly := hasFlag(args, "--latest")
+	scored := hasFlag(args, "--scored")
 	excludeOpts := parseExcludeOpts(args)
 
 	if c := parseFlag(args, "--category="); c != "" {
@@ -470,6 +474,44 @@ func cmdList(dbPath string, args []string) error {
 				m.CreatedAt.Format("2006-01-02T15:04:05Z07:00"))
 		}
 		fmt.Println("]")
+	} else if scored {
+		// Scored output: show score breakdown per memory, sorted by score
+		now := time.Now()
+		cfg := memoryScoringConfig()
+
+		type scoredEntry struct {
+			mem       *memory.Memory
+			breakdown memory.ScoreBreakdown
+		}
+		entries := make([]scoredEntry, len(memories))
+		for i, m := range memories {
+			entries[i] = scoredEntry{mem: m, breakdown: memory.ScoreMemoryDetailed(m, now, cfg)}
+		}
+		if !cfg.ScoringDisabled {
+			sort.SliceStable(entries, func(i, j int) bool {
+				return entries[i].breakdown.Total > entries[j].breakdown.Total
+			})
+		}
+
+		for rank, e := range entries {
+			b := e.breakdown
+			m := e.mem
+			if b.ManualOverride {
+				fmt.Printf("#%-3d  %.3f (manual)  [%s] %s: %s\n",
+					rank+1, b.Total, padCategory(string(m.Category)), m.ID, truncate(m.Content, 50))
+			} else {
+				fmt.Printf("#%-3d  %.3f  cat=%.2f(%.3f) rec=%.2f(%.3f) prov=%.2f(%.3f) acc=%.2f(%.3f)  [%s] %s: %s\n",
+					rank+1, b.Total,
+					b.CategoryRaw, b.CategoryWeighted,
+					b.RecencyRaw, b.RecencyWeighted,
+					b.ProvenanceRaw, b.ProvenanceWeighted,
+					b.AccessRaw, b.AccessWeighted,
+					padCategory(string(m.Category)), m.ID, truncate(m.Content, 50))
+			}
+		}
+		if cfg.ScoringDisabled {
+			fmt.Println("\n(scoring disabled — showing chronological order with computed scores)")
+		}
 	} else {
 		for _, m := range memories {
 			fmt.Printf("[%s] %s: %s\n", padCategory(string(m.Category)), m.ID, truncate(m.Content, 60))

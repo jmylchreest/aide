@@ -160,8 +160,10 @@ func sessionInit(dbPath string, args []string) error {
 		}
 	}
 
-	// 4-7. Gather context
-	sessionFetchContext(backend, project, sessionLimit, &result)
+	// 4-7. Gather context (skip if project root is invalid)
+	if validateProjectRoot(dbPath) {
+		sessionFetchContext(backend, project, sessionLimit, &result)
+	}
 
 	// Ensure nil slices become empty arrays in JSON
 	sessionInitDefaults(&result)
@@ -175,14 +177,25 @@ func sessionInit(dbPath string, args []string) error {
 }
 
 // sessionFetchContext gathers memories, decisions, and recent sessions.
+// When memory scoring is enabled (default), memories are sorted by computed
+// priority score (highest first). When scoring is disabled via
+// AIDE_MEMORY_SCORING_DISABLED=1, chronological ULID order is preserved.
 func sessionFetchContext(backend *Backend, project string, sessionLimit int, result *SessionInitResult) {
+	now := time.Now()
+	cfg := memoryScoringConfig()
+
 	// Global memories (scope:global tag) — exclude forgotten and partials
 	globalMems, err := backend.ListMemories("global", 100, nil)
 	if err == nil {
+		var filtered []*memory.Memory
 		for _, m := range globalMems {
 			if hasAllTags(m.Tags, []string{"scope:global"}) && !hasAnyTag(m.Tags, []string{"partial"}) {
-				result.GlobalMemories = append(result.GlobalMemories, memoryToSession(m))
+				filtered = append(filtered, m)
 			}
+		}
+		sorted := scoreAndSort(filtered, now, cfg)
+		for _, sm := range sorted {
+			result.GlobalMemories = append(result.GlobalMemories, memoryToSession(sm.Memory))
 		}
 	}
 
@@ -191,15 +204,20 @@ func sessionFetchContext(backend *Backend, project string, sessionLimit int, res
 		projectMems, err := backend.ListMemories("", 1000, nil)
 		if err == nil {
 			projectTag := "project:" + project
+			var filtered []*memory.Memory
 			for _, m := range projectMems {
 				if hasAllTags(m.Tags, []string{projectTag}) && !hasAnyTag(m.Tags, []string{"partial"}) {
-					result.ProjectMemories = append(result.ProjectMemories, memoryToSession(m))
+					filtered = append(filtered, m)
 				}
 			}
+			sorted := scoreAndSort(filtered, now, cfg)
 			// Cap project memories with overflow hint
-			if len(result.ProjectMemories) > DefaultProjectMemoryLimit {
-				result.ProjectMemories = result.ProjectMemories[:DefaultProjectMemoryLimit]
+			if len(sorted) > DefaultProjectMemoryLimit {
+				sorted = sorted[:DefaultProjectMemoryLimit]
 				result.ProjectMemoryOverflow = true
+			}
+			for _, sm := range sorted {
+				result.ProjectMemories = append(result.ProjectMemories, memoryToSession(sm.Memory))
 			}
 		}
 	}
@@ -227,6 +245,66 @@ func sessionFetchContext(backend *Backend, project string, sessionLimit int, res
 	if project != "" && sessionLimit > 0 {
 		result.RecentSessions = fetchRecentSessions(backend, project, sessionLimit)
 	}
+}
+
+// memoryScoringConfig builds a ScoringConfig from defaults and env vars.
+func memoryScoringConfig() memory.ScoringConfig {
+	cfg := memory.DefaultScoringConfig()
+	if os.Getenv(EnvMemoryScoringDisabled) == "1" {
+		cfg.ScoringDisabled = true
+	}
+	if os.Getenv(EnvMemoryDecayDisabled) == "1" {
+		cfg.DecayDisabled = true
+	}
+	return cfg
+}
+
+// scoreAndSort scores a slice of memories and returns them sorted by score
+// (highest first). When scoring is disabled, memories retain their original
+// ULID chronological order. Uses sort.SliceStable so that ULID order is the
+// tiebreaker when scores are equal.
+func scoreAndSort(mems []*memory.Memory, now time.Time, cfg memory.ScoringConfig) []memory.ScoredMemory {
+	scored := make([]memory.ScoredMemory, len(mems))
+	for i, m := range mems {
+		scored[i] = memory.ScoredMemory{
+			Memory: m,
+			Score:  memory.ScoreMemory(m, now, cfg),
+		}
+	}
+	if !cfg.ScoringDisabled {
+		sort.SliceStable(scored, func(i, j int) bool {
+			return scored[i].Score > scored[j].Score
+		})
+	}
+	return scored
+}
+
+// validateProjectRoot checks that the current working directory is inside
+// the resolved project root. Returns true if valid. When invalid (e.g.,
+// ~/.aide/ was incorrectly resolved as project root), it logs a warning
+// and returns false — the caller should skip memory injection but still
+// allow the session to start.
+func validateProjectRoot(dbPath string) bool {
+	root := projectRoot(dbPath)
+	cwd, err := os.Getwd()
+	if err != nil {
+		return true // can't validate, assume OK
+	}
+	// Resolve symlinks for accurate comparison
+	absRoot, err := filepath.Abs(root)
+	if err != nil {
+		return true
+	}
+	absCwd, err := filepath.Abs(cwd)
+	if err != nil {
+		return true
+	}
+	// cwd must be inside (or equal to) the project root
+	if !strings.HasPrefix(absCwd, absRoot) {
+		fmt.Fprintf(os.Stderr, "warning: cwd %q is not inside project root %q — skipping memory injection\n", absCwd, absRoot)
+		return false
+	}
+	return true
 }
 
 // fetchRecentSessions returns the most recent session groups for a project.

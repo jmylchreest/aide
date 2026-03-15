@@ -81,6 +81,18 @@ const (
 	DefaultMCPPollCount = 50
 
 	// -------------------------------------------------------------------------
+	// Memory scoring environment variables
+	// -------------------------------------------------------------------------
+
+	// EnvMemoryScoringDisabled is the environment variable that disables
+	// memory scoring entirely, preserving chronological ULID order.
+	EnvMemoryScoringDisabled = "AIDE_MEMORY_SCORING_DISABLED"
+
+	// EnvMemoryDecayDisabled is the environment variable that disables
+	// recency decay in memory scoring (recency factor is always 1.0).
+	EnvMemoryDecayDisabled = "AIDE_MEMORY_DECAY_DISABLED"
+
+	// -------------------------------------------------------------------------
 	// MCP / CLI default limits
 	// -------------------------------------------------------------------------
 
