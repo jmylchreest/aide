@@ -38,6 +38,7 @@ Use the `./.aide/bin/aide memory add` CLI command via Bash:
 - `session` - Summary of a work session
 - `pattern` - A reusable approach or pattern identified
 - `gotcha` - A pitfall or issue to avoid in future
+- `abandoned` - An approach that was tried and abandoned (see [Abandoned Approaches](#abandoned-approaches) below)
 
 ## When to Use
 
@@ -87,8 +88,8 @@ When the user invokes `/aide:memorise <something>`:
 2. **Verify factual claims before storing** (see [Verification Before Storage](#verification-before-storage-anti-poison) below)
 3. Determine the scope:
    - **User preference** (colour, style, etc.) → add `scope:global`
-   - **Project-specific learning** → add `project:<project-name>,session:${CLAUDE_SESSION_ID:0:8}`
-   - **Session summary** → add `project:<project-name>,session:${CLAUDE_SESSION_ID:0:8}`
+   - **Project-specific learning** → add `project:<project-name>,session:${AIDE_SESSION_ID}`
+   - **Session summary** → add `project:<project-name>,session:${AIDE_SESSION_ID}`
 4. Choose appropriate category and descriptive tags
 5. **Add provenance tags** (see [Provenance Tags](#provenance-tags) below)
 6. Format the content concisely but completely
@@ -215,7 +216,51 @@ Use scope tags to control when memories are injected:
 - **Project learnings** (API patterns, testing approach): Add `project:<name>,session:<id>`
 - **Session summaries**: Add `project:<name>,session:<id>` with `category=session`
 
-Get the project name from the git remote or directory name. Session ID is available as `$CLAUDE_SESSION_ID` (use first 8 chars).
+Get the project name from the git remote or directory name. Session ID is available as `$AIDE_SESSION_ID` (set by aide hooks) or `$CLAUDE_SESSION_ID` (Claude Code native).
+
+## Abandoned Approaches
+
+When an approach is tried and abandoned during implementation, debugging, or design, record it as an `abandoned` memory. This prevents future sessions from repeating the same failed approach.
+
+### When to Record
+
+- You try an implementation approach and it fails or is rejected
+- You explore a design direction and discover it won't work
+- The user explicitly abandons a direction (e.g., "let's not do it that way")
+- A dependency or library is evaluated and rejected
+
+### Content Template
+
+Use this structured format:
+
+```
+ABANDONED: <what was tried>
+REASON: <why it was abandoned>
+ALTERNATIVE: <what was done instead, or "none yet">
+CONTEXT: <any useful context for future reference>
+```
+
+### Required Tags
+
+| Tag                 | Purpose                           | Example               |
+| ------------------- | --------------------------------- | --------------------- |
+| `reason:<why>`      | Machine-searchable abandon reason | `reason:performance`  |
+| `approach:<what>`   | What was tried                    | `approach:sqlite-fts` |
+| `project:<name>`    | Project scope                     | `project:aide`        |
+| `source:discovered` | Provenance (always discovered)    | `source:discovered`   |
+| `session:<id>`      | Session context                   | `session:abc12345`    |
+
+### Example
+
+```bash
+./.aide/bin/aide memory add --category=abandoned \
+  --tags=reason:performance,approach:sqlite-fts,project:aide,session:abc12345,source:discovered \
+  "ABANDONED: Using SQLite FTS5 for memory search. REASON: go-sqlite3 requires CGO which breaks cross-compilation. ALTERNATIVE: Bleve full-text search (pure Go). CONTEXT: FTS5 was faster in benchmarks but CGO dependency was a non-starter for the release pipeline."
+```
+
+### Decision Interaction
+
+If an abandoned approach contradicts or supersedes an existing Decision (check with `mcp__plugin_aide_aide__decision_list`), also update the decision to reflect the change. For example, if a decision said "use SQLite FTS" and you abandoned that approach, update the decision with the new direction.
 
 ## For Swarm/Multi-Agent
 

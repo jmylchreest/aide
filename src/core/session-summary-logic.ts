@@ -224,7 +224,7 @@ export function storeSessionSummary(
   summary: string,
 ): boolean {
   try {
-    const tags = `session-summary,session:${sessionId.slice(0, 12)}`;
+    const tags = `session-summary,session:${sessionId}`;
 
     execFileSync(
       binary,

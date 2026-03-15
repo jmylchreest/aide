@@ -875,7 +875,7 @@ function createCompactionHandler(
 
         if (summary) {
           // Tag as partial so the session-end summary supersedes it
-          const tags = `partial,session-summary,session:${input.sessionID.slice(0, 8)}`;
+          const tags = `partial,session-summary,session:${input.sessionID}`;
           execFileSync(
             state.binary,
             ["memory", "add", "--category=session", `--tags=${tags}`, summary],
