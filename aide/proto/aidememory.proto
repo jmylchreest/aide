@@ -411,6 +411,9 @@ service CodeService {
   rpc Index(CodeIndexRequest) returns (CodeIndexResponse);
   rpc Clear(CodeClearRequest) returns (CodeClearResponse);
   rpc TopReferences(CodeTopReferencesRequest) returns (CodeTopReferencesResponse);
+  rpc SearchReferences(CodeSearchReferencesRequest) returns (CodeSearchReferencesResponse);
+  rpc GetFileReferences(CodeGetFileReferencesRequest) returns (CodeSearchReferencesResponse);
+  rpc GetContainingSymbol(CodeGetContainingSymbolRequest) returns (CodeGetContainingSymbolResponse);
 }
 
 message Symbol {
@@ -488,6 +491,43 @@ message SymbolRefCount {
   string file = 4;    // File where symbol is defined (if resolved)
 }
 
+message CodeReference {
+  string id = 1;
+  string symbol_name = 2;  // Name of the referenced symbol
+  string kind = 3;         // call, type_ref, import
+  string file_path = 4;    // File where the reference occurs
+  int32 line = 5;          // Line number (1-indexed)
+  int32 column = 6;        // Column number (0-indexed)
+  string context = 7;      // Surrounding code context
+  string language = 8;     // Language of the file
+  google.protobuf.Timestamp created_at = 9;
+}
+
+message CodeSearchReferencesRequest {
+  string symbol_name = 1;  // Symbol name to find references for (required)
+  string kind = 2;         // Optional: filter by reference kind (call, type_ref, import)
+  string file_path = 3;    // Optional: filter by file path pattern
+  int32 limit = 4;         // Max results (default 50)
+}
+
+message CodeSearchReferencesResponse {
+  repeated CodeReference references = 1;
+}
+
+message CodeGetFileReferencesRequest {
+  string file_path = 1;   // File path to get all references from
+}
+
+message CodeGetContainingSymbolRequest {
+  string file_path = 1;   // File containing the line
+  int32 line = 2;          // Line number (1-indexed)
+}
+
+message CodeGetContainingSymbolResponse {
+  Symbol symbol = 1;       // The narrowest containing symbol, or nil if none
+  bool found = 2;          // Whether a containing symbol was found
+}
+
 // =============================================================================
 // Findings Service
 // =============================================================================
@@ -502,6 +542,8 @@ service FindingsService {
   rpc ClearAnalyzer(FindingClearAnalyzerRequest) returns (FindingClearAnalyzerResponse);
   rpc Stats(FindingStatsRequest) returns (FindingStatsResponse);
   rpc Clear(FindingClearRequest) returns (FindingClearResponse);
+  rpc Accept(FindingAcceptRequest) returns (FindingAcceptResponse);
+  rpc AcceptByFilter(FindingAcceptByFilterRequest) returns (FindingAcceptResponse);
 }
 
 message Finding {
@@ -596,6 +638,21 @@ message FindingClearRequest {}
 
 message FindingClearResponse {
   bool success = 1;
+}
+
+message FindingAcceptRequest {
+  repeated string ids = 1;  // Finding IDs to accept
+}
+
+message FindingAcceptByFilterRequest {
+  string analyzer = 1;     // Optional: filter by analyzer
+  string severity = 2;     // Optional: filter by severity
+  string file_path = 3;    // Optional: filter by file path pattern
+  string category = 4;     // Optional: filter by category
+}
+
+message FindingAcceptResponse {
+  int32 count = 1;  // Number of findings accepted
 }
 
 // =============================================================================

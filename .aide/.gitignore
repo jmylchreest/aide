@@ -18,3 +18,6 @@ aide-memory.db
 # Shared data IS committed (git-friendly markdown with frontmatter)
 # See: aide share export / aide share import
 !shared/
+
+# Runtime socket - machine-specific
+aide.sock

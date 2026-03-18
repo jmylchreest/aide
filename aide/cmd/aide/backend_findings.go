@@ -114,6 +114,18 @@ func (b *Backend) GetFindingsStats(opts findings.SearchOptions) (*findings.Stats
 }
 
 func (b *Backend) AcceptFindings(ids []string) (int, error) {
+	ctx := context.Background()
+
+	if b.useGRPC {
+		resp, err := b.grpcClient.Findings.Accept(ctx, &grpcapi.FindingAcceptRequest{
+			Ids: ids,
+		})
+		if err != nil {
+			return 0, err
+		}
+		return int(resp.Count), nil
+	}
+
 	fs, err := b.openFindingsStore()
 	if err != nil {
 		return 0, err
@@ -124,6 +136,21 @@ func (b *Backend) AcceptFindings(ids []string) (int, error) {
 }
 
 func (b *Backend) AcceptFindingsByFilter(opts findings.SearchOptions) (int, error) {
+	ctx := context.Background()
+
+	if b.useGRPC {
+		resp, err := b.grpcClient.Findings.AcceptByFilter(ctx, &grpcapi.FindingAcceptByFilterRequest{
+			Analyzer: opts.Analyzer,
+			Severity: opts.Severity,
+			FilePath: opts.FilePath,
+			Category: opts.Category,
+		})
+		if err != nil {
+			return 0, err
+		}
+		return int(resp.Count), nil
+	}
+
 	fs, err := b.openFindingsStore()
 	if err != nil {
 		return 0, err

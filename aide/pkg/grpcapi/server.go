@@ -992,6 +992,78 @@ func (s *codeServiceImpl) TopReferences(ctx context.Context, req *CodeTopReferen
 	}, nil
 }
 
+func (s *codeServiceImpl) SearchReferences(ctx context.Context, req *CodeSearchReferencesRequest) (*CodeSearchReferencesResponse, error) {
+	cs := s.server.GetCodeStore()
+	if cs == nil {
+		return nil, fmt.Errorf("code store not available")
+	}
+
+	limit := int(req.Limit)
+	if limit == 0 {
+		limit = 50
+	}
+
+	opts := code.ReferenceSearchOptions{
+		SymbolName: req.SymbolName,
+		Kind:       req.Kind,
+		FilePath:   req.FilePath,
+		Limit:      limit,
+	}
+
+	results, err := cs.SearchReferences(opts)
+	if err != nil {
+		return nil, err
+	}
+
+	protoRefs := make([]*CodeReference, len(results))
+	for i, r := range results {
+		protoRefs[i] = referenceToProto(r)
+	}
+
+	return &CodeSearchReferencesResponse{
+		References: protoRefs,
+	}, nil
+}
+
+func (s *codeServiceImpl) GetFileReferences(ctx context.Context, req *CodeGetFileReferencesRequest) (*CodeSearchReferencesResponse, error) {
+	cs := s.server.GetCodeStore()
+	if cs == nil {
+		return nil, fmt.Errorf("code store not available")
+	}
+
+	refs, err := cs.GetFileReferences(req.FilePath)
+	if err != nil {
+		return nil, err
+	}
+
+	protoRefs := make([]*CodeReference, len(refs))
+	for i, r := range refs {
+		protoRefs[i] = referenceToProto(r)
+	}
+
+	return &CodeSearchReferencesResponse{
+		References: protoRefs,
+	}, nil
+}
+
+func (s *codeServiceImpl) GetContainingSymbol(ctx context.Context, req *CodeGetContainingSymbolRequest) (*CodeGetContainingSymbolResponse, error) {
+	cs := s.server.GetCodeStore()
+	if cs == nil {
+		return nil, fmt.Errorf("code store not available")
+	}
+
+	sym, err := cs.GetContainingSymbol(req.FilePath, int(req.Line))
+	if err != nil {
+		// ErrNotFound means no symbol contains this line — return found=false.
+		return &CodeGetContainingSymbolResponse{Found: false}, nil
+	}
+
+	return &CodeGetContainingSymbolResponse{
+		Symbol: symbolToProto(sym),
+		Found:  true,
+	}, nil
+}
+
 // =============================================================================
 // Findings Service Implementation
 // =============================================================================
@@ -1188,6 +1260,41 @@ func (s *findingsServiceImpl) Clear(ctx context.Context, req *FindingClearReques
 	}
 
 	return &FindingClearResponse{Success: true}, nil
+}
+
+func (s *findingsServiceImpl) Accept(ctx context.Context, req *FindingAcceptRequest) (*FindingAcceptResponse, error) {
+	fs := s.server.GetFindingsStore()
+	if fs == nil {
+		return nil, fmt.Errorf("findings store not available")
+	}
+
+	count, err := fs.AcceptFindings(req.Ids)
+	if err != nil {
+		return nil, err
+	}
+
+	return &FindingAcceptResponse{Count: int32(count)}, nil
+}
+
+func (s *findingsServiceImpl) AcceptByFilter(ctx context.Context, req *FindingAcceptByFilterRequest) (*FindingAcceptResponse, error) {
+	fs := s.server.GetFindingsStore()
+	if fs == nil {
+		return nil, fmt.Errorf("findings store not available")
+	}
+
+	opts := findings.SearchOptions{
+		Analyzer: req.Analyzer,
+		Severity: req.Severity,
+		FilePath: req.FilePath,
+		Category: req.Category,
+	}
+
+	count, err := fs.AcceptFindingsByFilter(opts)
+	if err != nil {
+		return nil, err
+	}
+
+	return &FindingAcceptResponse{Count: int32(count)}, nil
 }
 
 // =============================================================================
@@ -1618,6 +1725,23 @@ func symbolToProto(s *code.Symbol) *Symbol {
 		EndLine:    int32(s.EndLine),
 		Language:   s.Language,
 		CreatedAt:  timestamppb.New(s.CreatedAt),
+	}
+}
+
+func referenceToProto(r *code.Reference) *CodeReference {
+	if r == nil {
+		return nil
+	}
+	return &CodeReference{
+		Id:         r.ID,
+		SymbolName: r.SymbolName,
+		Kind:       r.Kind,
+		FilePath:   r.FilePath,
+		Line:       int32(r.Line),
+		Column:     int32(r.Column),
+		Context:    r.Context,
+		Language:   r.Language,
+		CreatedAt:  timestamppb.New(r.CreatedAt),
 	}
 }
 

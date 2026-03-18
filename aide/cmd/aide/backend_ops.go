@@ -690,9 +690,32 @@ func (b *Backend) CompleteTask(taskID, result string) error {
 }
 
 func (b *Backend) DeleteTask(taskID string) error {
+	ctx, cancel := b.rpcCtx()
+	defer cancel()
+
+	if b.useGRPC {
+		_, err := b.grpcClient.Task.Delete(ctx, &grpcapi.TaskDeleteRequest{
+			Id: taskID,
+		})
+		return err
+	}
+
 	return b.store.DeleteTask(taskID)
 }
 
 func (b *Backend) ClearTasks(status string) (int, error) {
+	ctx, cancel := b.rpcCtx()
+	defer cancel()
+
+	if b.useGRPC {
+		resp, err := b.grpcClient.Task.Clear(ctx, &grpcapi.TaskClearRequest{
+			Status: status,
+		})
+		if err != nil {
+			return 0, err
+		}
+		return int(resp.Count), nil
+	}
+
 	return b.store.ClearTasks(memory.TaskStatus(status))
 }

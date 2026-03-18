@@ -167,12 +167,33 @@ func (g *grpcFindingsAdapter) ReplaceFindingsForAnalyzerAndFile(analyzer, filePa
 	return errors.New("ReplaceFindingsForAnalyzerAndFile not supported in gRPC client mode")
 }
 
-func (g *grpcFindingsAdapter) AcceptFindings(_ []string) (int, error) {
-	return 0, errors.New("AcceptFindings not supported in gRPC client mode")
+func (g *grpcFindingsAdapter) AcceptFindings(ids []string) (int, error) {
+	ctx, cancel := g.rpcCtx()
+	defer cancel()
+
+	resp, err := g.client.Findings.Accept(ctx, &grpcapi.FindingAcceptRequest{
+		Ids: ids,
+	})
+	if err != nil {
+		return 0, err
+	}
+	return int(resp.Count), nil
 }
 
-func (g *grpcFindingsAdapter) AcceptFindingsByFilter(_ findings.SearchOptions) (int, error) {
-	return 0, errors.New("AcceptFindingsByFilter not supported in gRPC client mode")
+func (g *grpcFindingsAdapter) AcceptFindingsByFilter(opts findings.SearchOptions) (int, error) {
+	ctx, cancel := g.rpcCtx()
+	defer cancel()
+
+	resp, err := g.client.Findings.AcceptByFilter(ctx, &grpcapi.FindingAcceptByFilterRequest{
+		Analyzer: opts.Analyzer,
+		Severity: opts.Severity,
+		FilePath: opts.FilePath,
+		Category: opts.Category,
+	})
+	if err != nil {
+		return 0, err
+	}
+	return int(resp.Count), nil
 }
 
 func (g *grpcFindingsAdapter) Stats(_ findings.SearchOptions) (*findings.Stats, error) {

@@ -47,6 +47,31 @@ func protoToSymbols(ps []*grpcapi.Symbol) []*code.Symbol {
 	return result
 }
 
+func protoToReference(p *grpcapi.CodeReference) *code.Reference {
+	if p == nil {
+		return nil
+	}
+	return &code.Reference{
+		ID:         p.Id,
+		SymbolName: p.SymbolName,
+		Kind:       p.Kind,
+		FilePath:   p.FilePath,
+		Line:       int(p.Line),
+		Column:     int(p.Column),
+		Context:    p.Context,
+		Language:   p.Language,
+		CreatedAt:  p.CreatedAt.AsTime(),
+	}
+}
+
+func protoToReferences(ps []*grpcapi.CodeReference) []*code.Reference {
+	result := make([]*code.Reference, len(ps))
+	for i, p := range ps {
+		result[i] = protoToReference(p)
+	}
+	return result
+}
+
 func protoToMemory(p *grpcapi.Memory) *memory.Memory {
 	if p == nil {
 		return nil

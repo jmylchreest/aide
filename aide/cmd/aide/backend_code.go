@@ -1,12 +1,13 @@
 package main
 
 import (
-	"fmt"
+	"context"
 	"os"
 	"path/filepath"
 
 	"github.com/jmylchreest/aide/aide/pkg/code"
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi"
+	"github.com/jmylchreest/aide/aide/pkg/survey"
 )
 
 // =============================================================================
@@ -119,9 +120,20 @@ func (b *Backend) GetCodeStats() (*code.IndexStats, error) {
 
 // SearchReferences finds all references/call sites for a symbol.
 func (b *Backend) SearchReferences(symbolName, kind, filePath string, limit int) ([]*code.Reference, error) {
+	ctx, cancel := b.rpcCtx()
+	defer cancel()
+
 	if b.useGRPC {
-		// No gRPC RPC for SearchReferences — not supported in client mode
-		return nil, fmt.Errorf("code references search not supported in gRPC mode")
+		resp, err := b.grpcClient.Code.SearchReferences(ctx, &grpcapi.CodeSearchReferencesRequest{
+			SymbolName: symbolName,
+			Kind:       kind,
+			FilePath:   filePath,
+			Limit:      int32(limit),
+		})
+		if err != nil {
+			return nil, err
+		}
+		return protoToReferences(resp.References), nil
 	}
 
 	codeStore, err := b.openCodeStore()
@@ -288,4 +300,146 @@ func (b *Backend) ClearCode() (int, int, error) {
 		return stats.Symbols, stats.Files, nil
 	}
 	return 0, 0, nil
+}
+
+// CodeSearcher returns a survey.CodeSearcher backed by gRPC (when the MCP
+// server is running) or by direct code store access. Returns nil and an error
+// if the code store is not available. The caller should call the returned
+// cleanup function when done.
+func (b *Backend) CodeSearcher() (survey.CodeSearcher, func(), error) {
+	if b.useGRPC {
+		return &grpcCodeSearcher{client: b.grpcClient.Code}, func() {}, nil
+	}
+	codeStore, err := b.openCodeStore()
+	if err != nil {
+		return nil, nil, err
+	}
+	return &codeSearcherAdapter{store: codeStore}, func() { codeStore.Close() }, nil
+}
+
+// grpcCodeSearcher implements survey.CodeSearcher via gRPC.
+type grpcCodeSearcher struct {
+	client grpcapi.CodeServiceClient
+}
+
+func (g *grpcCodeSearcher) FindSymbols(query string, kind string, limit int) ([]survey.SymbolHit, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), grpcRPCTimeout)
+	defer cancel()
+
+	resp, err := g.client.Search(ctx, &grpcapi.CodeSearchRequest{
+		Query: query,
+		Kind:  kind,
+		Limit: int32(limit),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	hits := make([]survey.SymbolHit, 0, len(resp.Symbols))
+	for _, s := range resp.Symbols {
+		hits = append(hits, survey.SymbolHit{
+			Name:     s.Name,
+			Kind:     s.Kind,
+			FilePath: s.FilePath,
+			Line:     int(s.StartLine),
+			EndLine:  int(s.EndLine),
+			Language: s.Language,
+		})
+	}
+	return hits, nil
+}
+
+func (g *grpcCodeSearcher) FindReferences(symbolName string, kind string, limit int) ([]survey.ReferenceHit, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), grpcRPCTimeout)
+	defer cancel()
+
+	resp, err := g.client.SearchReferences(ctx, &grpcapi.CodeSearchReferencesRequest{
+		SymbolName: symbolName,
+		Kind:       kind,
+		Limit:      int32(limit),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	hits := make([]survey.ReferenceHit, 0, len(resp.References))
+	for _, r := range resp.References {
+		hits = append(hits, survey.ReferenceHit{
+			Symbol:   r.SymbolName,
+			Kind:     r.Kind,
+			FilePath: r.FilePath,
+			Line:     int(r.Line),
+		})
+	}
+	return hits, nil
+}
+
+// CodeGrapher returns a survey.CodeGrapher backed by gRPC (when the MCP
+// server is running) or by direct code store access. The caller should call
+// the returned cleanup function when done.
+func (b *Backend) CodeGrapher() (survey.CodeGrapher, func(), error) {
+	if b.useGRPC {
+		return &grpcCodeGrapher{grpcCodeSearcher: grpcCodeSearcher{client: b.grpcClient.Code}}, func() {}, nil
+	}
+	codeStore, err := b.openCodeStore()
+	if err != nil {
+		return nil, nil, err
+	}
+	return &codeGrapherAdapter{codeSearcherAdapter: codeSearcherAdapter{store: codeStore}}, func() { codeStore.Close() }, nil
+}
+
+// grpcCodeGrapher implements survey.CodeGrapher via gRPC.
+// It embeds grpcCodeSearcher for FindSymbols/FindReferences, and adds
+// GetFileReferences and GetContainingSymbol.
+type grpcCodeGrapher struct {
+	grpcCodeSearcher
+}
+
+func (g *grpcCodeGrapher) GetFileReferences(filePath string) ([]survey.ReferenceHit, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), grpcRPCTimeout)
+	defer cancel()
+
+	resp, err := g.client.GetFileReferences(ctx, &grpcapi.CodeGetFileReferencesRequest{
+		FilePath: filePath,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	hits := make([]survey.ReferenceHit, 0, len(resp.References))
+	for _, r := range resp.References {
+		hits = append(hits, survey.ReferenceHit{
+			Symbol:   r.SymbolName,
+			Kind:     r.Kind,
+			FilePath: r.FilePath,
+			Line:     int(r.Line),
+		})
+	}
+	return hits, nil
+}
+
+func (g *grpcCodeGrapher) GetContainingSymbol(filePath string, line int) (*survey.SymbolHit, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), grpcRPCTimeout)
+	defer cancel()
+
+	resp, err := g.client.GetContainingSymbol(ctx, &grpcapi.CodeGetContainingSymbolRequest{
+		FilePath: filePath,
+		Line:     int32(line),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if !resp.Found || resp.Symbol == nil {
+		return nil, nil
+	}
+
+	return &survey.SymbolHit{
+		Name:     resp.Symbol.Name,
+		Kind:     resp.Symbol.Kind,
+		FilePath: resp.Symbol.FilePath,
+		Line:     int(resp.Symbol.StartLine),
+		EndLine:  int(resp.Symbol.EndLine),
+		Language: resp.Symbol.Language,
+	}, nil
 }

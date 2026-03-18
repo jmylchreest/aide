@@ -268,13 +268,12 @@ func cmdSurveyGraph(dbPath string, args []string) error {
 	}
 	defer b.Close()
 
-	codeStore, err := b.openCodeStore()
+	cg, cleanup, err := b.CodeGrapher()
 	if err != nil {
 		return fmt.Errorf("code index not available — run 'aide code index' first: %w", err)
 	}
-	defer codeStore.Close()
+	defer cleanup()
 
-	cg := &codeGrapherAdapter{codeSearcherAdapter: codeSearcherAdapter{store: codeStore}}
 	opts := survey.GraphOptions{
 		MaxDepth:  maxDepth,
 		MaxNodes:  maxNodes,
@@ -360,16 +359,17 @@ func cmdSurveyRun(dbPath string, args []string) error {
 			fmt.Printf("topology: %d entries\n", len(result.Entries))
 
 		case survey.AnalyzerEntrypoints:
-			// Try to open the code index for richer entrypoint detection.
+			// Try to get a code searcher for richer entrypoint detection.
+			// Uses gRPC when MCP server is running, direct DB otherwise.
 			// Falls back gracefully to nil if the code index doesn't exist yet
 			// (e.g., user hasn't run 'aide code index').
 			var cs survey.CodeSearcher
-			codeStore, codeErr := b.openCodeStore()
+			searcher, cleanup, codeErr := b.CodeSearcher()
 			if codeErr != nil {
 				fmt.Fprintf(os.Stderr, "entrypoints: code index not available, running with limited detection: %v\n", codeErr)
 			} else {
-				cs = &codeSearcherAdapter{store: codeStore}
-				defer codeStore.Close()
+				cs = searcher
+				defer cleanup()
 			}
 			result, err := survey.RunEntrypoints(rootDir, cs)
 			if err != nil {
