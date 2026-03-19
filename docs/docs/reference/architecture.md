@@ -93,14 +93,15 @@ A journal (`.aide/config/mcp-sync.journal.json`) tracks intentional deletions so
 
 The Go binary (`aide`) provides the heavy-lifting backend:
 
-| Component       | Technology          | Purpose                                 |
-| --------------- | ------------------- | --------------------------------------- |
-| MCP Server      | JSON-RPC over stdio | Exposes 25 tools to the AI              |
-| Storage         | BBolt (embedded)    | Key-value store for all data            |
-| Search          | Bleve (embedded)    | Full-text search with fuzzy matching    |
-| Code Indexing   | tree-sitter         | Fast symbol extraction across languages |
-| Static Analysis | Custom analysers    | Complexity, coupling, secrets, clones   |
-| File Watcher    | fsnotify            | Auto re-index and re-analyse on changes |
-| gRPC            | Multiplexed daemon  | Shared process for multiple sessions    |
+| Component       | Technology          | Purpose                                         |
+| --------------- | ------------------- | ----------------------------------------------- |
+| MCP Server      | JSON-RPC over stdio | Exposes 32 tools to the AI                      |
+| Storage         | BBolt (embedded)    | Key-value store for all data                    |
+| Search          | Bleve (embedded)    | Full-text search with fuzzy matching            |
+| Code Indexing   | tree-sitter         | Fast symbol extraction across languages         |
+| Static Analysis | Custom analysers    | Complexity, coupling, secrets, clones, security |
+| Survey          | BoltDB + Bleve      | Codebase structure, entry points, churn         |
+| File Watcher    | fsnotify            | Auto re-index and re-analyse on changes         |
+| gRPC            | Multiplexed daemon  | Shared process for multiple sessions            |
 
 The binary is automatically downloaded when the plugin is installed — no separate installation needed. It self-upgrades via `aide upgrade`.

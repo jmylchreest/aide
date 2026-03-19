@@ -33,15 +33,16 @@ Trigger matching uses **Levenshtein distance** for typo tolerance. You don't nee
 
 Skills fall into several categories:
 
-| Category        | Skills                                    | Purpose                                      |
-| --------------- | ----------------------------------------- | -------------------------------------------- |
-| **Planning**    | plan-swarm, decide, design                | Decompose work, make decisions, create specs |
-| **Development** | test, implement, build-fix                | TDD, implementation, fixing build issues     |
-| **Quality**     | verify, review, patterns, assess-findings | QA, code review, static analysis             |
-| **Operations**  | swarm, autopilot, debug, perf             | Parallel execution, persistence, debugging   |
-| **Knowledge**   | memorise, recall, forget                  | Memory management                            |
-| **Code**        | code-search, git, worktree-resolve        | Code navigation, git operations              |
-| **Docs**        | docs                                      | Documentation updates                        |
+| Category        | Skills                                             | Purpose                                      |
+| --------------- | -------------------------------------------------- | -------------------------------------------- |
+| **Planning**    | plan-swarm, decide, design                         | Decompose work, make decisions, create specs |
+| **Development** | test, implement, build-fix                         | TDD, implementation, fixing build issues     |
+| **Quality**     | verify, review, patterns, assess-findings, semgrep | QA, code review, static analysis, security   |
+| **Operations**  | swarm, autopilot, debug, perf                      | Parallel execution, persistence, debugging   |
+| **Knowledge**   | memorise, recall, forget                           | Memory management                            |
+| **Code**        | code-search, survey, git, worktree-resolve         | Code navigation, codebase survey, git ops    |
+| **Docs**        | docs                                               | Documentation updates                        |
+| **Utility**     | context-usage                                      | Session diagnostics                          |
 
 ## Discovery Order
 
@@ -60,5 +61,5 @@ Skills are **automatically reloaded** when files change. Edit a skill file and i
 
 ## Next Steps
 
-- [Built-in Skills](./built-in.md) — Full reference of all 22 built-in skills
+- [Built-in Skills](./built-in.md) — Full reference of all 24 built-in skills
 - [Custom Skills](./custom.md) — Create your own project-specific skills

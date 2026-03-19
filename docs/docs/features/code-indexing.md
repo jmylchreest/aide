@@ -19,15 +19,16 @@ aide code clear              # Clear index
 
 ## MCP Tools
 
-5 code-related MCP tools are available to the AI:
+6 code-related MCP tools are available to the AI:
 
-| Tool              | Purpose                                                       |
-| ----------------- | ------------------------------------------------------------- |
-| `code_search`     | Search indexed symbol definitions (functions, classes, types) |
-| `code_symbols`    | List all symbols defined in a specific file                   |
-| `code_references` | Find all call sites and usages of a symbol                    |
-| `code_stats`      | Get index statistics (files, symbols, references)             |
-| `code_outline`    | Get collapsed file outline with signatures and line numbers   |
+| Tool                  | Purpose                                                       |
+| --------------------- | ------------------------------------------------------------- |
+| `code_search`         | Search indexed symbol definitions (functions, classes, types) |
+| `code_symbols`        | List all symbols defined in a specific file                   |
+| `code_references`     | Find all call sites and usages of a symbol                    |
+| `code_stats`          | Get index statistics (files, symbols, references)             |
+| `code_outline`        | Get collapsed file outline with signatures and line numbers   |
+| `code_top_references` | Rank symbols by reference count across the codebase           |
 
 ## File Watcher
 

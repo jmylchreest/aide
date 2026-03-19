@@ -31,6 +31,6 @@ The OpenCode adapter integrates through:
 - **System prompt transforms** for skill injection
 - **Slash commands** for skill activation (`/aide:memorise`, `/aide:recall`, etc.)
 - **Session-based tracking** for observational agent lifecycle
-- **MCP server** for all 25 tools
+- **MCP server** for all 32 tools
 
 See the [Platform Comparison](/docs/reference/platform-comparison) for detailed differences between Claude Code and OpenCode support.

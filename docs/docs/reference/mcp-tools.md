@@ -6,7 +6,7 @@ title: MCP Tools
 
 # MCP Tools
 
-AIDE exposes 25 MCP tools organized into 7 groups. All tools are prefixed `aide__` when accessed by the AI (e.g., `aide__memory_search`).
+AIDE exposes 32 MCP tools organized into 9 groups. All tools are prefixed `aide__` when accessed by the AI (e.g., `aide__memory_search`).
 
 ## Memory Tools
 
@@ -103,13 +103,14 @@ Marks a message as read so it won't appear in future `message_list` calls.
 
 ## Code Tools
 
-| Tool              | Purpose                           |
-| ----------------- | --------------------------------- |
-| `code_search`     | Search indexed symbol definitions |
-| `code_symbols`    | List all symbols in a file        |
-| `code_references` | Find all call sites of a symbol   |
-| `code_stats`      | Get index statistics              |
-| `code_outline`    | Get collapsed file outline        |
+| Tool                  | Purpose                           |
+| --------------------- | --------------------------------- |
+| `code_search`         | Search indexed symbol definitions |
+| `code_symbols`        | List all symbols in a file        |
+| `code_references`     | Find all call sites of a symbol   |
+| `code_stats`          | Get index statistics              |
+| `code_outline`        | Get collapsed file outline        |
+| `code_top_references` | Rank symbols by reference count   |
 
 ### code_search
 
@@ -138,6 +139,12 @@ Returns the number of indexed files, symbols, and references. Use to check if th
 Returns a collapsed file outline with signatures preserved and function/method/class bodies replaced by `{ ... }`. Shows ~5-15% of tokens vs the full file. Line numbers are preserved for targeted reads.
 
 **Parameters:** `file` (string), `keep_comments` (optional boolean)
+
+### code_top_references
+
+Ranks symbols by how many times they are referenced across the codebase. Useful for finding core APIs, shared utilities, and high-impact change targets.
+
+**Parameters:** `kind` (optional: function, method, class, interface, type), `limit` (optional, default 25)
 
 ## Findings Tools
 
@@ -218,3 +225,51 @@ Marks a claimed task as complete with a result summary.
 Deletes a task by ID.
 
 **Parameters:** `id` (string)
+
+## Survey Tools
+
+| Tool            | Purpose                                   |
+| --------------- | ----------------------------------------- |
+| `survey_search` | Full-text search across survey entries    |
+| `survey_list`   | Browse entries by analyzer, kind, or file |
+| `survey_stats`  | Aggregate counts by analyzer and kind     |
+| `survey_run`    | Execute analyzers to populate survey data |
+| `survey_graph`  | Build call graph for a symbol             |
+
+### survey_search
+
+Full-text search across codebase survey entries (module names, tech stack, entry points).
+
+**Parameters:** `query` (string), `analyzer` (optional: topology, entrypoints, churn), `kind` (optional: module, entrypoint, dependency, tech_stack, churn, submodule, workspace, arch_pattern), `file` (optional), `limit` (optional, default 20)
+
+### survey_list
+
+Browse survey entries with optional filters. No search query needed.
+
+**Parameters:** `analyzer` (optional), `kind` (optional), `file` (optional), `limit` (optional, default 100)
+
+### survey_stats
+
+Returns total survey entry count with breakdowns by analyzer and kind. Call this first when asked about codebase structure.
+
+### survey_run
+
+Runs survey analyzers to discover codebase structure. Three analyzers: `topology` (modules, workspaces, tech stack), `entrypoints` (main functions, HTTP handlers), `churn` (git history hotspots).
+
+**Parameters:** `analyzer` (optional: topology, entrypoints, churn -- omit to run all)
+
+### survey_graph
+
+Builds a call graph for a symbol showing callers, callees, or both. Uses BFS traversal over the code index.
+
+**Parameters:** `symbol` (string), `direction` (optional: both, callers, callees -- default both), `max_depth` (optional, default 2), `max_nodes` (optional, default 50)
+
+## Instance Tools
+
+| Tool            | Purpose                                  |
+| --------------- | ---------------------------------------- |
+| `instance_info` | Get identity and config of this instance |
+
+### instance_info
+
+Returns the resolved project root, working directory, version info, database path, gRPC socket path, operating mode, and process ID. Useful for debugging multi-instance or worktree issues.

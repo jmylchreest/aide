@@ -4,22 +4,28 @@ sidebar_position: 4
 
 # Static Analysis
 
-AIDE includes 4 built-in static analysers that detect code quality issues without external tools.
+AIDE includes 5 built-in static analysers that detect code quality and security issues without external tools.
 
 ## Analysers
 
-| Analyser     | Detects                                       | Severities        |
-| ------------ | --------------------------------------------- | ----------------- |
-| `complexity` | High cyclomatic complexity functions          | warning, critical |
-| `coupling`   | High fan-in/fan-out, import cycles            | warning, critical |
-| `secrets`    | Hardcoded API keys, tokens, passwords         | critical, warning |
-| `clones`     | Duplicated code blocks (copy-paste detection) | warning, info     |
+| Analyser     | Detects                                                                  | Severities        |
+| ------------ | ------------------------------------------------------------------------ | ----------------- |
+| `complexity` | High cyclomatic complexity functions                                     | warning, critical |
+| `coupling`   | High fan-in/fan-out, import cycles                                       | warning, critical |
+| `secrets`    | Hardcoded API keys, tokens, passwords                                    | critical, warning |
+| `clones`     | Duplicated code blocks (copy-paste detection)                            | warning, info     |
+| `security`   | SQL injection, XSS, command injection, path traversal, weak crypto, SSRF | warning, critical |
+
+### Security Analyser
+
+The security analyser uses regex-based pattern matching with rules from [language packs](./grammar.md). Rules ship for 10 languages (Go, Python, JavaScript, TypeScript, Java, C, C#, PHP, Ruby, Rust) covering categories like `injection`, `exec`, `traversal`, `crypto`, `ssrf`, `deserialize`, and `config`. Comments are automatically skipped to reduce false positives.
 
 ## Running Analysis
 
 ```bash
 aide findings run                         # Run all analysers
 aide findings run --analyser=complexity   # Run specific analyser
+aide findings run --analyser=security     # Run security analyser
 aide findings run --path=src/             # Scope to directory
 ```
 
@@ -51,7 +57,7 @@ aide findings stats --include-accepted        # Include accepted in counts
 
 ## MCP Tools
 
-3 findings-related MCP tools make analysis available to the AI during code review and debugging:
+4 findings-related MCP tools make analysis available to the AI during code review and debugging:
 
 | Tool              | Purpose                                                         |
 | ----------------- | --------------------------------------------------------------- |
@@ -62,7 +68,7 @@ aide findings stats --include-accepted        # Include accepted in counts
 
 ## Auto-Run
 
-When the file watcher is running (via `aide mcp`), findings are automatically re-run on changed files alongside code re-indexing.
+When the file watcher is running (via `aide mcp`), the `complexity`, `secrets`, and `security` analysers are automatically re-run on changed files alongside code re-indexing.
 
 ## Typical Workflow
 

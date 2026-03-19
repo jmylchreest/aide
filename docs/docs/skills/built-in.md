@@ -6,7 +6,7 @@ title: Built-in Skills
 
 # Built-in Skills
 
-AIDE ships with 22 built-in skills covering the full development lifecycle. Each skill is a markdown file that injects structured instructions when triggered.
+AIDE ships with 24 built-in skills covering the full development lifecycle. Each skill is a markdown file that injects structured instructions when triggered.
 
 ## Planning & Design
 
@@ -104,6 +104,16 @@ Triages static analysis findings — reads actual code, accepts noise, keeps gen
 | **Triggers** | `assess findings`, `analyse findings`, `analyze findings`, `triage findings`, `review findings`, `accept findings`, `dismiss findings`, `clean up findings` |
 | **Use when** | You have findings from `patterns` and need to separate signal from noise                                                                                    |
 
+### semgrep
+
+Runs Semgrep security and code quality analysis (requires `semgrep` binary installed).
+
+|              |                                                                                                  |
+| ------------ | ------------------------------------------------------------------------------------------------ |
+| **Triggers** | `semgrep`, `security scan`, `sast scan`, `vulnerability scan`, `code security`, `security audit` |
+| **Use when** | You want to run Semgrep for security vulnerability and code quality scanning                     |
+| **Requires** | `semgrep` binary on PATH                                                                         |
+
 ## Execution Modes
 
 ### swarm
@@ -181,6 +191,15 @@ Searches code symbols, finds function calls, and analyzes the codebase.
 | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **Triggers** | `find function`, `where is`, `who calls`, `find class`, `find method`, `search code`, `code search`, `find symbol`, `call sites`, `references to`, `what calls`, `show me the` |
 | **Use when** | Navigating unfamiliar code or tracing call chains                                                                                                                              |
+
+### survey
+
+Explores codebase structure, entry points, tech stack, hotspots, and call graphs.
+
+|              |                                                                                                                                                                                                                            |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Triggers** | `survey`, `codebase structure`, `what is this codebase`, `tech stack`, `entry points`, `entrypoints`, `what modules`, `what packages`, `code churn`, `hotspots`, `call graph`, `orient me`, `onboard`, `codebase overview` |
+| **Use when** | Orienting in an unfamiliar codebase or understanding its structure                                                                                                                                                         |
 
 ### git
 

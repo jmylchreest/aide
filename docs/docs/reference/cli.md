@@ -144,6 +144,54 @@ aide findings clear                       # Clear all findings
 Both `--analyser=` and `--analyzer=` spellings are accepted on all findings commands.
 :::
 
+## Survey
+
+```bash
+aide survey run                          # Run all 3 analyzers
+aide survey run --analyzer=topology      # Run specific analyzer
+aide survey search "auth"               # Search survey entries
+aide survey list --kind=module           # List by entry kind
+aide survey list --kind=tech_stack       # Detected technologies
+aide survey list --kind=entrypoint       # Entry points
+aide survey list --kind=churn            # High-change files
+aide survey stats                        # Overview by analyzer and kind
+aide survey graph getUserById            # Call graph (callers + callees)
+aide survey graph --symbol=main \
+    --direction=callers --max-depth=3    # Callers only, deeper traversal
+aide survey clear                        # Clear all survey data
+aide survey clear --analyzer=churn       # Clear specific analyzer
+```
+
+| Command         | Description                                          |
+| --------------- | ---------------------------------------------------- |
+| `survey run`    | Run analyzers (topology, entrypoints, churn, or all) |
+| `survey search` | Full-text search across survey entries               |
+| `survey list`   | List entries by analyzer, kind, or file              |
+| `survey stats`  | Aggregate counts by analyzer and kind                |
+| `survey graph`  | Build call graph for a symbol (callers/callees/both) |
+| `survey clear`  | Clear survey data (all or by analyzer)               |
+
+## Grammar
+
+```bash
+aide grammar list                        # List all grammars (built-in + available + installed)
+aide grammar list --installed            # Only installed grammars
+aide grammar install ruby                # Install a specific grammar
+aide grammar install --all               # Install all available grammars
+aide grammar install                     # Install from lock file
+aide grammar remove ruby                 # Remove a downloaded grammar
+aide grammar remove --all                # Remove all downloaded grammars
+aide grammar scan                        # Detect languages in current project
+aide grammar scan --json                 # JSON output
+```
+
+| Command           | Description                                    |
+| ----------------- | ---------------------------------------------- |
+| `grammar list`    | List grammars (built-in, available, installed) |
+| `grammar install` | Download and install dynamic grammars          |
+| `grammar remove`  | Remove downloaded grammars                     |
+| `grammar scan`    | Scan project for languages used                |
+
 ## Share
 
 ```bash
