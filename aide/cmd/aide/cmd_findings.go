@@ -64,7 +64,7 @@ Subcommands:
 
 Options:
   run <analyser> [paths...]:
-    Analysers: complexity, coupling, secrets, clones, all
+    Analysers: complexity, coupling, secrets, clones, security, all
     --threshold=N    Complexity threshold (default %d)
     --fan-out=N      Coupling fan-out threshold (default %d)
     --fan-in=N       Coupling fan-in threshold (default %d)
@@ -78,7 +78,7 @@ Options:
     --no-validate       Secrets: skip live validation (default)
 
   search <query>:
-    --analyser=NAME     Filter by analyser (complexity, coupling, secrets, clones)
+    --analyser=NAME     Filter by analyser (complexity, coupling, secrets, clones, security)
     --severity=LEVEL    Filter by severity (critical, warning, info)
     --file=PATH         Filter by file path pattern (substring)
     --category=CAT      Filter by category
