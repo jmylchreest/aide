@@ -155,7 +155,7 @@ sys.exit(1)
 # --------------------------------------------------------------------------
 build_binary() {
     info "Building aide binary..."
-    if ! make -C "$REPO_ROOT" build 2>&1; then
+    if ! make -C "$REPO_ROOT" build-pprof 2>&1; then
         err "Go build failed"
         return 1
     fi

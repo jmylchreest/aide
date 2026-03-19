@@ -66,6 +66,7 @@ type Server struct {
 	findingsRunner *findings.Runner
 	mcpTools       []*StatusMCPTool
 	toolCountFunc  func() map[string]int64
+	pprofURLFunc   func() string
 }
 
 // NewServer creates a new gRPC server.
@@ -147,6 +148,13 @@ func (s *Server) SetToolCountFunc(f func() map[string]int64) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.toolCountFunc = f
+}
+
+// SetPprofURLFunc sets the function used to retrieve the pprof server URL.
+func (s *Server) SetPprofURLFunc(f func() string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.pprofURLFunc = f
 }
 
 // Start starts the gRPC server on a Unix socket.
@@ -1505,6 +1513,7 @@ func (s *statusServiceImpl) GetStatus(ctx context.Context, req *StatusRequest) (
 	fr := srv.findingsRunner
 	tools := srv.mcpTools
 	countFunc := srv.toolCountFunc
+	pprofFunc := srv.pprofURLFunc
 	srv.mu.RUnlock()
 
 	// Get tool execution counts
@@ -1520,11 +1529,18 @@ func (s *statusServiceImpl) GetStatus(ctx context.Context, req *StatusRequest) (
 		}
 	}
 
+	// Get pprof URL if available
+	var pprofURL string
+	if pprofFunc != nil {
+		pprofURL = pprofFunc()
+	}
+
 	resp := &StatusResponse{
 		Version:       version.String(),
 		Uptime:        formatHumanDuration(time.Since(srv.startTime)),
 		ServerRunning: true,
 		McpTools:      tools,
+		PprofUrl:      pprofURL,
 	}
 
 	// Get stores via thread-safe getters

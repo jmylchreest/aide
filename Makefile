@@ -6,7 +6,7 @@
 #   make release-push                Auto-bump, commit, tag, and push
 #   make release-push VERSION=1.2.0  Bump to specific, commit, tag, and push
 
-.PHONY: release release-push build test lint
+.PHONY: release release-push build build-pprof test lint
 
 VERSION_FILES = package.json .claude-plugin/plugin.json .claude-plugin/marketplace.json packages/opencode-plugin/package.json
 
@@ -55,6 +55,9 @@ release-push: release
 # Delegate to aide/ Makefile for Go targets
 build:
 	$(MAKE) -C aide build
+
+build-pprof:
+	$(MAKE) -C aide build-pprof
 
 test:
 	$(MAKE) -C aide test

@@ -9,3 +9,8 @@ func initPprof() {
 func stopPprof() {
 	// No-op when pprof is not compiled in.
 }
+
+// pprofURL returns empty when pprof is not compiled in.
+func pprofURL() string {
+	return ""
+}

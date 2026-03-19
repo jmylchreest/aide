@@ -22,6 +22,7 @@ type InstanceInfo struct {
 	Mode        string       `json:"mode,omitempty"`
 	PID         int          `json:"pid"`
 	StartedAt   time.Time    `json:"started_at,omitempty"`
+	PprofURL    string       `json:"pprof_url,omitempty"`
 }
 
 // ============================================================================
@@ -58,6 +59,7 @@ func (s *MCPServer) handleInstanceInfo(_ context.Context, _ *mcp.CallToolRequest
 		SocketPath:  grpcapi.SocketPathFromDB(s.dbPath),
 		Mode:        os.Getenv("AIDE_MODE"),
 		PID:         os.Getpid(),
+		PprofURL:    pprofURL(),
 	}
 
 	// Derive .aide directory and check for a start-time marker if available.

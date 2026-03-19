@@ -24,6 +24,7 @@ type StatusOutput struct {
 	Timestamp     time.Time         `json:"timestamp"`
 	ServerRunning bool              `json:"serverRunning"`
 	Uptime        string            `json:"uptime,omitempty"`
+	PprofURL      string            `json:"pprofUrl,omitempty"`
 	Watcher       *WatcherStatus    `json:"watcher,omitempty"`
 	Code          *CodeStatus       `json:"codeIndexer,omitempty"`
 	Findings      *FindingsStatus   `json:"findings,omitempty"`
@@ -204,6 +205,7 @@ func cmdStatus(dbPath string, args []string) error {
 func populateFromGRPC(status *StatusOutput, resp *grpcapi.StatusResponse) {
 	status.ServerRunning = resp.ServerRunning
 	status.Uptime = resp.Uptime
+	status.PprofURL = resp.PprofUrl
 
 	// Override version with server version if available
 	if resp.Version != "" {
@@ -309,6 +311,9 @@ func printStatusTable(status StatusOutput) {
 		fmt.Printf("  Server:   running (uptime: %s)\n", status.Uptime)
 	} else {
 		fmt.Printf("  Server:   not running\n")
+	}
+	if status.PprofURL != "" {
+		fmt.Printf("  Pprof:    %s\n", status.PprofURL)
 	}
 	fmt.Println()
 

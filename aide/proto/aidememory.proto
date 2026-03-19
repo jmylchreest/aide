@@ -805,6 +805,9 @@ message StatusResponse {
 
   // Survey status
   StatusSurvey survey = 8;
+
+  // pprof URL (empty when pprof is not enabled or not compiled in)
+  string pprof_url = 9;
 }
 
 message StatusWatcher {

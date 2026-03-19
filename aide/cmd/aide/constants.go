@@ -67,6 +67,11 @@ const (
 	// pprof requests during graceful shutdown.
 	DefaultPprofShutdownTimeout = 2 * time.Second
 
+	// DefaultPprofMaxPortRetries is the number of consecutive ports to
+	// try when the preferred pprof port is already in use. This allows
+	// multiple aide instances to coexist without port conflicts.
+	DefaultPprofMaxPortRetries = 10
+
 	// -------------------------------------------------------------------------
 	// MCP lazy-init polling
 	// -------------------------------------------------------------------------
