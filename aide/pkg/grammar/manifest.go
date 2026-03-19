@@ -23,6 +23,7 @@ type ManifestEntry struct {
 	CSymbol     string    `json:"c_symbol"`
 	HasPack     bool      `json:"has_pack,omitempty"`
 	InstalledAt time.Time `json:"installed_at"`
+	NeedsRescan bool      `json:"needs_rescan,omitempty"` // True while post-install project re-scan is pending
 }
 
 // manifestStore handles reading/writing the manifest.json file.

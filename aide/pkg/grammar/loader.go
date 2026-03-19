@@ -12,11 +12,21 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math/rand/v2"
 	"sync"
 	"time"
 	"unsafe"
 
 	tree_sitter "github.com/tree-sitter/go-tree-sitter"
+)
+
+const (
+	// downloadBackoffBase is the initial backoff delay after a grammar
+	// download failure before the next attempt is allowed.
+	downloadBackoffBase = 30 * time.Second
+
+	// downloadBackoffMax caps the exponential backoff for failed downloads.
+	downloadBackoffMax = 5 * time.Minute
 )
 
 // Loader provides access to tree-sitter language grammars.
@@ -123,14 +133,50 @@ func (e *GrammarStaleError) Error() string {
 // 1. Built-in grammars (compiled-in via CGO)
 // 2. Dynamic grammars (loaded from local cache via purego)
 // 3. Auto-download (fetches from GitHub, caches, then loads)
+// downloadFailure tracks a failed download attempt for negative caching.
+type downloadFailure struct {
+	lastAttempt time.Time
+	attempts    int
+	lastErr     error
+}
+
+// backoff returns the current backoff duration for this failure using
+// exponential backoff with full jitter, matching the httputil pattern.
+func (f *downloadFailure) backoff() time.Duration {
+	delay := downloadBackoffBase
+	for i := 1; i < f.attempts; i++ {
+		delay *= 2
+		if delay > downloadBackoffMax {
+			delay = downloadBackoffMax
+			break
+		}
+	}
+	// Full jitter: uniform random in [0, delay].
+	if delay > 0 {
+		delay = time.Duration(rand.Int64N(int64(delay)))
+	}
+	return delay
+}
+
+// shouldRetry returns true if enough time has passed since the last
+// failed attempt to allow another download attempt.
+func (f *downloadFailure) shouldRetry() bool {
+	return time.Since(f.lastAttempt) >= f.backoff()
+}
+
+// CompositeLoader combines built-in grammars, a dynamic loader for
+// downloaded grammars, and optional auto-download.
 type CompositeLoader struct {
 	builtin  *BuiltinRegistry
 	dynamic  *DynamicLoader
 	autoLoad bool // Whether to auto-download missing grammars
 	logger   *log.Logger
 
-	mu    sync.RWMutex
-	cache map[string]*tree_sitter.Language // Loaded language cache
+	mu              sync.RWMutex
+	cache           map[string]*tree_sitter.Language // Loaded language cache
+	failedDownloads map[string]*downloadFailure      // Negative cache for failed downloads
+
+	onInstall func(name string) // Callback fired after a grammar is newly installed
 }
 
 // CompositeLoaderOption configures the CompositeLoader.
@@ -186,6 +232,15 @@ func WithLogger(l *log.Logger) CompositeLoaderOption {
 	}
 }
 
+// WithOnInstall sets a callback that fires after a grammar is newly
+// installed (downloaded). The callback receives the grammar name.
+// Use this to trigger re-indexing of files matching the new grammar.
+func WithOnInstall(fn func(name string)) CompositeLoaderOption {
+	return func(cl *CompositeLoader) {
+		cl.onInstall = fn
+	}
+}
+
 // logf logs a message if a logger is configured; no-op otherwise.
 func (cl *CompositeLoader) logf(format string, args ...any) {
 	if cl.logger != nil {
@@ -196,10 +251,11 @@ func (cl *CompositeLoader) logf(format string, args ...any) {
 // NewCompositeLoader creates a new CompositeLoader with the given options.
 func NewCompositeLoader(opts ...CompositeLoaderOption) *CompositeLoader {
 	cl := &CompositeLoader{
-		builtin:  NewBuiltinRegistry(),
-		dynamic:  NewDynamicLoader(""), // Default dir, resolved lazily
-		autoLoad: true,                 // Auto-download enabled by default
-		cache:    make(map[string]*tree_sitter.Language),
+		builtin:         NewBuiltinRegistry(),
+		dynamic:         NewDynamicLoader(""), // Default dir, resolved lazily
+		autoLoad:        true,                 // Auto-download enabled by default
+		cache:           make(map[string]*tree_sitter.Language),
+		failedDownloads: make(map[string]*downloadFailure),
 	}
 
 	for _, opt := range opts {
@@ -252,9 +308,40 @@ func (cl *CompositeLoader) Load(ctx context.Context, name string) (*tree_sitter.
 			cl.logf("grammar %q not installed, auto-downloading", notFoundErr.Name)
 		}
 		if errors.As(dynErr, &staleErr) || errors.As(dynErr, &notFoundErr) {
+			// Check negative cache — skip download if a recent attempt failed
+			// and the backoff period hasn't elapsed yet.
+			cl.mu.RLock()
+			failure := cl.failedDownloads[name]
+			cl.mu.RUnlock()
+			if failure != nil && !failure.shouldRetry() {
+				cl.logf("grammar %q download suppressed (attempt %d, backoff not elapsed): %v",
+					name, failure.attempts, failure.lastErr)
+				return nil, failure.lastErr
+			}
+
 			if err := cl.Install(ctx, name); err != nil {
+				// Record failure for negative caching with backoff.
+				cl.mu.Lock()
+				prev := cl.failedDownloads[name]
+				attempts := 1
+				if prev != nil {
+					attempts = prev.attempts + 1
+				}
+				cl.failedDownloads[name] = &downloadFailure{
+					lastAttempt: time.Now(),
+					attempts:    attempts,
+					lastErr:     err,
+				}
+				cl.mu.Unlock()
+				cl.logf("grammar %q download failed (attempt %d): %v", name, attempts, err)
 				return nil, err
 			}
+
+			// Download succeeded — clear any negative cache entry.
+			cl.mu.Lock()
+			delete(cl.failedDownloads, name)
+			cl.mu.Unlock()
+
 			cl.logf("grammar %q downloaded successfully", name)
 			// Try loading again from dynamic cache
 			lang, err := cl.dynamic.Load(name)
@@ -327,6 +414,7 @@ func (cl *CompositeLoader) Installed() []GrammarInfo {
 }
 
 // Install downloads a grammar to the local cache.
+// On success, fires the onInstall callback if set.
 func (cl *CompositeLoader) Install(ctx context.Context, name string) error {
 	// Don't download built-in grammars
 	if cl.builtin.Has(name) {
@@ -341,7 +429,16 @@ func (cl *CompositeLoader) Install(ctx context.Context, name string) error {
 		return &GrammarMetadataOnlyError{Name: name}
 	}
 
-	return cl.dynamic.Download(ctx, name, pack)
+	if err := cl.dynamic.Download(ctx, name, pack); err != nil {
+		return err
+	}
+
+	// Fire the install callback (e.g. to trigger re-indexing of matching files).
+	if cl.onInstall != nil {
+		cl.onInstall(name)
+	}
+
+	return nil
 }
 
 // Remove deletes a grammar from the local cache.
@@ -351,6 +448,39 @@ func (cl *CompositeLoader) Remove(name string) error {
 	cl.mu.Unlock()
 
 	return cl.dynamic.Remove(name)
+}
+
+// GrammarsNeedingRescan returns grammar names that were installed but whose
+// project re-scan did not complete (e.g. process restarted mid-scan).
+func (cl *CompositeLoader) GrammarsNeedingRescan() []string {
+	entries := cl.dynamic.manifest.entries()
+	var names []string
+	for name, entry := range entries {
+		if entry.NeedsRescan {
+			names = append(names, name)
+		}
+	}
+	return names
+}
+
+// MarkRescanComplete clears the NeedsRescan flag for a grammar in the
+// manifest and persists the change to disk.
+func (cl *CompositeLoader) MarkRescanComplete(name string) {
+	cl.dynamic.manifest.mu.Lock()
+	if entry, ok := cl.dynamic.manifest.data.Grammars[name]; ok {
+		entry.NeedsRescan = false
+	}
+	cl.dynamic.manifest.mu.Unlock()
+	_ = cl.dynamic.manifest.save()
+}
+
+// SetOnInstall sets or replaces the callback fired after a grammar is newly
+// installed. This is useful when the callback depends on objects that are
+// created after the loader (e.g. the code indexer).
+func (cl *CompositeLoader) SetOnInstall(fn func(name string)) {
+	cl.mu.Lock()
+	defer cl.mu.Unlock()
+	cl.onInstall = fn
 }
 
 // GenerateLockFile creates a LockFile from the current dynamic grammar manifest.

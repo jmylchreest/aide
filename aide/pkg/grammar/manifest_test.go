@@ -3,6 +3,7 @@ package grammar
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -146,5 +147,165 @@ func TestManifestStoreSaveCreatesDir(t *testing.T) {
 
 	if _, err := os.Stat(filepath.Join(dir, "manifest.json")); err != nil {
 		t.Errorf("manifest.json not found: %v", err)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// NeedsRescan field persistence
+// ---------------------------------------------------------------------------
+
+func TestManifestStoreNeedsRescanRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	ms := newManifestStore(dir)
+
+	// Set an entry with NeedsRescan=true.
+	ms.set("ruby", &ManifestEntry{
+		Version:     "v1.0.0",
+		File:        "ruby/grammar.so",
+		NeedsRescan: true,
+	})
+	// Set another entry without NeedsRescan (false/omitted).
+	ms.set("php", &ManifestEntry{
+		Version: "v1.0.0",
+		File:    "php/grammar.so",
+	})
+
+	if err := ms.save(); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+
+	// Reload from disk.
+	ms2 := newManifestStore(dir)
+	if err := ms2.load(); err != nil {
+		t.Fatalf("load: %v", err)
+	}
+
+	ruby := ms2.get("ruby")
+	if ruby == nil {
+		t.Fatal("expected ruby entry")
+	}
+	if !ruby.NeedsRescan {
+		t.Error("ruby.NeedsRescan should be true after round-trip")
+	}
+
+	php := ms2.get("php")
+	if php == nil {
+		t.Fatal("expected php entry")
+	}
+	if php.NeedsRescan {
+		t.Error("php.NeedsRescan should be false (default)")
+	}
+}
+
+func TestManifestStoreNeedsRescanClearAndPersist(t *testing.T) {
+	dir := t.TempDir()
+	ms := newManifestStore(dir)
+
+	ms.set("ruby", &ManifestEntry{
+		Version:     "v1.0.0",
+		File:        "ruby/grammar.so",
+		NeedsRescan: true,
+	})
+	if err := ms.save(); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+
+	// Clear NeedsRescan by modifying the entry directly (simulating MarkRescanComplete).
+	ms.mu.Lock()
+	if entry, ok := ms.data.Grammars["ruby"]; ok {
+		entry.NeedsRescan = false
+	}
+	ms.mu.Unlock()
+	if err := ms.save(); err != nil {
+		t.Fatalf("save after clear: %v", err)
+	}
+
+	// Reload.
+	ms2 := newManifestStore(dir)
+	if err := ms2.load(); err != nil {
+		t.Fatalf("load: %v", err)
+	}
+
+	entry := ms2.get("ruby")
+	if entry == nil {
+		t.Fatal("expected ruby entry")
+	}
+	if entry.NeedsRescan {
+		t.Error("NeedsRescan should be false after clearing and persisting")
+	}
+}
+
+func TestManifestStoreNeedsRescanOmittedInJSON(t *testing.T) {
+	dir := t.TempDir()
+	ms := newManifestStore(dir)
+
+	// Entry with NeedsRescan=false should use omitempty → field absent from JSON.
+	ms.set("ruby", &ManifestEntry{
+		Version: "v1.0.0",
+		File:    "ruby/grammar.so",
+	})
+	if err := ms.save(); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+
+	// Read the raw JSON and verify "needs_rescan" is not present.
+	data, err := os.ReadFile(filepath.Join(dir, "manifest.json"))
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+
+	// The JSON should NOT contain the "needs_rescan" key when false.
+	if strings.Contains(string(data), "needs_rescan") {
+		t.Error("expected needs_rescan to be omitted from JSON when false (omitempty)")
+	}
+
+	// Now set NeedsRescan=true and verify it IS present.
+	ms.set("ruby", &ManifestEntry{
+		Version:     "v1.0.0",
+		File:        "ruby/grammar.so",
+		NeedsRescan: true,
+	})
+	if err := ms.save(); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+
+	data, err = os.ReadFile(filepath.Join(dir, "manifest.json"))
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+
+	if !strings.Contains(string(data), "needs_rescan") {
+		t.Error("expected needs_rescan to be present in JSON when true")
+	}
+}
+
+func TestManifestStoreEntriesDefensiveCopyPreservesNeedsRescan(t *testing.T) {
+	dir := t.TempDir()
+	ms := newManifestStore(dir)
+
+	ms.set("ruby", &ManifestEntry{
+		Version:     "v1.0.0",
+		NeedsRescan: true,
+	})
+	ms.set("php", &ManifestEntry{
+		Version:     "v1.0.0",
+		NeedsRescan: false,
+	})
+
+	entries := ms.entries()
+
+	// Verify the defensive copy preserves NeedsRescan.
+	if !entries["ruby"].NeedsRescan {
+		t.Error("ruby.NeedsRescan should be true in copied entries")
+	}
+	if entries["php"].NeedsRescan {
+		t.Error("php.NeedsRescan should be false in copied entries")
+	}
+
+	// Mutating the copy should not affect the original.
+	entries["ruby"].NeedsRescan = false
+	original := ms.get("ruby")
+	if !original.NeedsRescan {
+		t.Error("mutating entries() copy should not affect original")
 	}
 }

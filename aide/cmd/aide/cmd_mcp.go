@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -329,6 +330,20 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 			mcpLog.Printf("WARNING: findings store not available, findings analysis disabled in watcher")
 		}
 
+		// Register grammar install callback: when a new grammar is downloaded,
+		// re-scan the project tree for files matching its extensions.
+		root := projectRoot(dbPath)
+		s.grammarLoader.SetOnInstall(func(name string) {
+			// Run re-scan in a goroutine to avoid blocking the parse call
+			// that triggered the download.
+			go func() {
+				rescanForGrammar(name, indexer, findingsRunner, root)
+				// Mark re-scan complete in the manifest so it won't be
+				// re-triggered on restart.
+				s.grammarLoader.MarkRescanComplete(name)
+			}()
+		})
+
 		w, err := watcher.New(watcher.Config{
 			Paths:         watchPaths,
 			DebounceDelay: debounceDelay,
@@ -360,6 +375,18 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 		} else {
 			mcpLog.Printf("unified watcher enabled for current directory (debounce: %v)", debounceDelay)
 		}
+
+		// Startup re-scan: check for grammars that were installed but whose
+		// project re-scan didn't complete (e.g. process was killed mid-scan).
+		if pending := s.grammarLoader.GrammarsNeedingRescan(); len(pending) > 0 {
+			mcpLog.Printf("found %d grammar(s) with pending re-scan: %s", len(pending), strings.Join(pending, ", "))
+			go func() {
+				for _, name := range pending {
+					rescanForGrammar(name, indexer, findingsRunner, root)
+					s.grammarLoader.MarkRescanComplete(name)
+				}
+			}()
+		}
 	}()
 }
 
@@ -379,10 +406,88 @@ func (h *codeIndexHandler) OnChanges(files map[string]fsnotify.Op) {
 			count, err := h.indexer.IndexFile(path)
 			if err != nil {
 				mcpLog.Printf("failed to index %s: %v", path, err)
+			} else if count == 0 {
+				// Zero symbols may indicate the grammar isn't available yet.
+				// Log at a higher level to distinguish from genuinely empty files.
+				if lang := code.GetLanguageForFile(path); lang != "" {
+					mcpLog.Printf("indexed %s: 0 symbols (grammar %q may not be installed yet)", path, lang)
+				} else {
+					mcpLog.Printf("indexed %s: 0 symbols", path)
+				}
 			} else {
 				mcpLog.Printf("indexed %s: %d symbols", path, count)
 			}
 		}
+	}
+}
+
+// rescanForGrammar walks the project tree and re-indexes files matching
+// the given grammar's extensions. This is called after a grammar is newly
+// installed to pick up files that were previously skipped (zero symbols).
+// It also notifies the findings runner if available.
+func rescanForGrammar(name string, indexer *Indexer, runner *findings.Runner, root string) {
+	pack := grammar.DefaultPackRegistry().Get(name)
+	if pack == nil {
+		return
+	}
+
+	// Build a set of extensions to match.
+	extSet := make(map[string]bool, len(pack.Meta.Extensions))
+	for _, ext := range pack.Meta.Extensions {
+		extSet[strings.ToLower(ext)] = true
+	}
+	fnSet := make(map[string]bool, len(pack.Meta.Filenames))
+	for _, fn := range pack.Meta.Filenames {
+		fnSet[fn] = true
+	}
+	if len(extSet) == 0 && len(fnSet) == 0 {
+		return
+	}
+
+	mcpLog.Printf("re-scanning project for %s files after grammar install", name)
+	var count int
+	var findingsFiles map[string]fsnotify.Op
+
+	if runner != nil {
+		findingsFiles = make(map[string]fsnotify.Op)
+	}
+
+	_ = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil // skip errors
+		}
+		if info.IsDir() {
+			dirName := info.Name()
+			if watcher.DefaultSkipDirs[dirName] || (len(dirName) > 1 && dirName[0] == '.') {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		ext := strings.ToLower(filepath.Ext(path))
+		base := filepath.Base(path)
+		if !extSet[ext] && !fnSet[base] {
+			return nil
+		}
+
+		n, indexErr := indexer.IndexFile(path)
+		if indexErr != nil {
+			mcpLog.Printf("re-scan: failed to index %s: %v", path, indexErr)
+		} else if n > 0 {
+			count++
+		}
+
+		if findingsFiles != nil {
+			findingsFiles[path] = fsnotify.Write
+		}
+		return nil
+	})
+
+	mcpLog.Printf("re-scan complete for %s: %d files indexed", name, count)
+
+	// Notify findings runner about the re-scanned files.
+	if runner != nil && len(findingsFiles) > 0 {
+		runner.OnChanges(findingsFiles)
 	}
 }
 
@@ -532,6 +637,7 @@ func (s *MCPServer) Run() error {
 	if s.grpcServer != nil {
 		s.grpcServer.SetMCPTools(mcpToolList())
 		s.grpcServer.SetToolCountFunc(s.getToolCounts)
+		s.grpcServer.SetPprofURLFunc(pprofURL)
 	}
 
 	// Run over stdio

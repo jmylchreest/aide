@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 // ---------------------------------------------------------------------------
@@ -1211,5 +1212,344 @@ func TestIntegrationCompositeLoaderNoAutoRedownloadWhenDisabled(t *testing.T) {
 	// No additional requests should have been made.
 	if got := reqCount.Load(); got != initialReqs {
 		t.Errorf("expected no re-download; requests = %d, initial = %d", got, initialReqs)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Negative cache integration tests
+// ---------------------------------------------------------------------------
+
+func TestIntegrationNegativeCacheBlocksRepeatedDownloads(t *testing.T) {
+	// Set up a 404 server so all downloads fail.
+	srv := newTest404Server(t)
+	dir := t.TempDir()
+
+	cl := NewCompositeLoader(
+		WithGrammarDir(dir),
+		WithBaseURL(srv.URL+"/{version}/{asset}"),
+		WithVersion("v1.0.0"),
+		WithAutoDownload(true),
+	)
+
+	// First Load should attempt download and fail.
+	_, err1 := cl.Load(context.Background(), "ruby")
+	if err1 == nil {
+		t.Fatal("expected error from 404 server")
+	}
+
+	// Should have 1 failure recorded.
+	cl.mu.RLock()
+	failure := cl.failedDownloads["ruby"]
+	cl.mu.RUnlock()
+	if failure == nil {
+		t.Fatal("expected negative cache entry for ruby")
+	}
+	if failure.attempts != 1 {
+		t.Errorf("attempts = %d, want 1", failure.attempts)
+	}
+
+	// Second Load should return the cached error without attempting download.
+	// (The backoff hasn't elapsed since we just failed.)
+	_, err2 := cl.Load(context.Background(), "ruby")
+	if err2 == nil {
+		t.Fatal("expected error from negative cache")
+	}
+
+	// The failure entry should still show 1 attempt (no new attempt made).
+	cl.mu.RLock()
+	failure2 := cl.failedDownloads["ruby"]
+	cl.mu.RUnlock()
+	if failure2 == nil {
+		t.Fatal("expected negative cache entry still present")
+	}
+	if failure2.attempts != 1 {
+		t.Errorf("attempts = %d, want 1 (no new attempt should have been made)", failure2.attempts)
+	}
+}
+
+func TestIntegrationNegativeCacheClearedOnSuccess(t *testing.T) {
+	body := []byte("success-lib")
+	dir := t.TempDir()
+
+	// Start with a 404 server.
+	srv404 := newTest404Server(t)
+
+	cl := NewCompositeLoader(
+		WithGrammarDir(dir),
+		WithBaseURL(srv404.URL+"/{version}/{asset}"),
+		WithVersion("v1.0.0"),
+		WithAutoDownload(true),
+	)
+
+	// First Load fails — populates negative cache.
+	_, err := cl.Load(context.Background(), "ruby")
+	if err == nil {
+		t.Fatal("expected error from 404 server")
+	}
+
+	cl.mu.RLock()
+	if cl.failedDownloads["ruby"] == nil {
+		cl.mu.RUnlock()
+		t.Fatal("expected negative cache entry")
+	}
+	cl.mu.RUnlock()
+
+	// Now switch to a working server and force retry by backdating the failure.
+	srvOK, _ := newTestArchiveServer(t, body)
+	cl.mu.Lock()
+	cl.failedDownloads["ruby"].lastAttempt = time.Now().Add(-10 * time.Minute)
+	cl.mu.Unlock()
+
+	cl.dynamic.baseURL = srvOK.URL + "/{version}/{asset}"
+
+	// Load again — should retry (backoff has elapsed) and succeed in downloading.
+	// Install succeeds but Load still fails at dlopen (fake binary). However,
+	// the negative cache clearing happens inside Load right after Install succeeds.
+	_, err = cl.Load(context.Background(), "ruby")
+	// The load will fail at dlopen (fake binary), but the *download* succeeded,
+	// so the negative cache entry should be gone.
+
+	cl.mu.RLock()
+	if cl.failedDownloads["ruby"] != nil {
+		cl.mu.RUnlock()
+		t.Error("negative cache should be cleared after successful download (even if dlopen fails)")
+	} else {
+		cl.mu.RUnlock()
+	}
+}
+
+func TestIntegrationNegativeCacheIncrementsAttempts(t *testing.T) {
+	srv := newTest404Server(t)
+	dir := t.TempDir()
+
+	cl := NewCompositeLoader(
+		WithGrammarDir(dir),
+		WithBaseURL(srv.URL+"/{version}/{asset}"),
+		WithVersion("v1.0.0"),
+		WithAutoDownload(true),
+	)
+
+	// Make 3 failed attempts, backdating between each to force retry.
+	for i := 1; i <= 3; i++ {
+		// Backdate the failure to allow retry.
+		if i > 1 {
+			cl.mu.Lock()
+			cl.failedDownloads["ruby"].lastAttempt = time.Now().Add(-10 * time.Minute)
+			cl.mu.Unlock()
+		}
+
+		_, err := cl.Load(context.Background(), "ruby")
+		if err == nil {
+			t.Fatal("expected error from 404 server")
+		}
+
+		cl.mu.RLock()
+		failure := cl.failedDownloads["ruby"]
+		cl.mu.RUnlock()
+		if failure == nil {
+			t.Fatalf("attempt %d: expected negative cache entry", i)
+		}
+		if failure.attempts != i {
+			t.Errorf("attempt %d: got attempts=%d", i, failure.attempts)
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// onInstall callback integration tests
+// ---------------------------------------------------------------------------
+
+func TestIntegrationInstallFiresOnInstall(t *testing.T) {
+	body := []byte("callback-test-lib")
+	srv, _ := newTestArchiveServer(t, body)
+	dir := t.TempDir()
+
+	var installed atomic.Value
+	cl := NewCompositeLoader(
+		WithGrammarDir(dir),
+		WithBaseURL(srv.URL+"/{version}/{asset}"),
+		WithVersion("v1.0.0"),
+		WithAutoDownload(true),
+		WithOnInstall(func(name string) {
+			installed.Store(name)
+		}),
+	)
+
+	if err := cl.Install(context.Background(), "ruby"); err != nil {
+		t.Fatalf("Install: %v", err)
+	}
+
+	got, ok := installed.Load().(string)
+	if !ok || got != "ruby" {
+		t.Errorf("onInstall callback received name=%q, want %q", got, "ruby")
+	}
+}
+
+func TestIntegrationInstallNoCallbackWhenNil(t *testing.T) {
+	body := []byte("no-callback-lib")
+	srv, _ := newTestArchiveServer(t, body)
+	dir := t.TempDir()
+
+	// No WithOnInstall — callback is nil.
+	cl := NewCompositeLoader(
+		WithGrammarDir(dir),
+		WithBaseURL(srv.URL+"/{version}/{asset}"),
+		WithVersion("v1.0.0"),
+		WithAutoDownload(true),
+	)
+
+	// Should not panic.
+	if err := cl.Install(context.Background(), "ruby"); err != nil {
+		t.Fatalf("Install: %v", err)
+	}
+}
+
+func TestIntegrationInstallCallbackNotFiredOnFailure(t *testing.T) {
+	srv := newTest404Server(t)
+	dir := t.TempDir()
+
+	var called atomic.Bool
+	cl := NewCompositeLoader(
+		WithGrammarDir(dir),
+		WithBaseURL(srv.URL+"/{version}/{asset}"),
+		WithVersion("v1.0.0"),
+		WithAutoDownload(true),
+		WithOnInstall(func(name string) {
+			called.Store(true)
+		}),
+	)
+
+	err := cl.Install(context.Background(), "ruby")
+	if err == nil {
+		t.Fatal("expected error from 404 server")
+	}
+
+	if called.Load() {
+		t.Error("onInstall callback should not be called when download fails")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// NeedsRescan set by Download and persisted
+// ---------------------------------------------------------------------------
+
+func TestIntegrationDownloadSetsNeedsRescan(t *testing.T) {
+	body := []byte("rescan-test-lib")
+	srv, _ := newTestArchiveServer(t, body)
+	dir := t.TempDir()
+
+	dl := NewDynamicLoader(dir)
+	dl.baseURL = srv.URL + "/{version}/{asset}"
+	dl.version = "v1.0.0"
+
+	def := &Pack{
+		Name:       "ruby",
+		SourceRepo: "tree-sitter/tree-sitter-ruby",
+		CSymbol:    "tree_sitter_ruby",
+	}
+	if err := dl.Download(context.Background(), "ruby", def); err != nil {
+		t.Fatalf("Download: %v", err)
+	}
+
+	entry := dl.manifest.get("ruby")
+	if entry == nil {
+		t.Fatal("expected manifest entry for ruby")
+	}
+	if !entry.NeedsRescan {
+		t.Error("NeedsRescan should be true after Download")
+	}
+}
+
+func TestIntegrationNeedsRescanPersistedToDisk(t *testing.T) {
+	body := []byte("persist-test-lib")
+	srv, _ := newTestArchiveServer(t, body)
+	dir := t.TempDir()
+
+	dl := NewDynamicLoader(dir)
+	dl.baseURL = srv.URL + "/{version}/{asset}"
+	dl.version = "v1.0.0"
+
+	def := &Pack{
+		Name:       "ruby",
+		SourceRepo: "tree-sitter/tree-sitter-ruby",
+		CSymbol:    "tree_sitter_ruby",
+	}
+	if err := dl.Download(context.Background(), "ruby", def); err != nil {
+		t.Fatalf("Download: %v", err)
+	}
+
+	// Reload manifest from disk.
+	dl2 := NewDynamicLoader(dir)
+	if err := dl2.manifest.load(); err != nil {
+		t.Fatalf("manifest.load: %v", err)
+	}
+
+	entry := dl2.manifest.get("ruby")
+	if entry == nil {
+		t.Fatal("expected ruby entry after reload")
+	}
+	if !entry.NeedsRescan {
+		t.Error("NeedsRescan should persist to disk as true after Download")
+	}
+}
+
+func TestIntegrationGrammarsNeedingRescanAfterInstall(t *testing.T) {
+	body := []byte("rescan-install-lib")
+	srv, _ := newTestArchiveServer(t, body)
+	dir := t.TempDir()
+
+	cl := NewCompositeLoader(
+		WithGrammarDir(dir),
+		WithBaseURL(srv.URL+"/{version}/{asset}"),
+		WithVersion("v1.0.0"),
+		WithAutoDownload(true),
+	)
+
+	if err := cl.Install(context.Background(), "ruby"); err != nil {
+		t.Fatalf("Install: %v", err)
+	}
+
+	got := cl.GrammarsNeedingRescan()
+	if len(got) != 1 || got[0] != "ruby" {
+		t.Errorf("GrammarsNeedingRescan() = %v, want [ruby]", got)
+	}
+
+	// Mark complete and verify.
+	cl.MarkRescanComplete("ruby")
+	got = cl.GrammarsNeedingRescan()
+	if len(got) != 0 {
+		t.Errorf("GrammarsNeedingRescan() after MarkRescanComplete = %v, want []", got)
+	}
+}
+
+func TestIntegrationMarkRescanCompleteSurvivesReload(t *testing.T) {
+	body := []byte("survive-reload-lib")
+	srv, _ := newTestArchiveServer(t, body)
+	dir := t.TempDir()
+
+	cl := NewCompositeLoader(
+		WithGrammarDir(dir),
+		WithBaseURL(srv.URL+"/{version}/{asset}"),
+		WithVersion("v1.0.0"),
+		WithAutoDownload(true),
+	)
+
+	if err := cl.Install(context.Background(), "ruby"); err != nil {
+		t.Fatalf("Install: %v", err)
+	}
+	cl.MarkRescanComplete("ruby")
+
+	// Create a new loader from the same dir — simulates a process restart.
+	cl2 := NewCompositeLoader(
+		WithGrammarDir(dir),
+		WithAutoDownload(false),
+	)
+	if err := cl2.dynamic.manifest.load(); err != nil {
+		t.Fatalf("manifest.load: %v", err)
+	}
+
+	got := cl2.GrammarsNeedingRescan()
+	if len(got) != 0 {
+		t.Errorf("expected 0 grammars needing rescan after reload, got %v", got)
 	}
 }

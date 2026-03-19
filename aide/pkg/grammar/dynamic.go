@@ -145,7 +145,10 @@ func (dl *DynamicLoader) Download(ctx context.Context, name string, pack *Pack) 
 		}
 	}
 
-	// Update manifest.
+	// Update manifest. NeedsRescan is set true so that a post-install
+	// project walk can re-index files matching this grammar. The caller
+	// (CompositeLoader.Install) clears it via MarkRescanComplete after
+	// the re-scan finishes.
 	dl.manifest.set(name, &ManifestEntry{
 		Version:     version,
 		File:        LibraryFilename(name),
@@ -153,6 +156,7 @@ func (dl *DynamicLoader) Download(ctx context.Context, name string, pack *Pack) 
 		CSymbol:     pack.CSymbol,
 		HasPack:     hasPack,
 		InstalledAt: time.Now(),
+		NeedsRescan: true,
 	})
 	dl.manifest.setAideVersion(dl.version)
 
