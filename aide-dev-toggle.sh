@@ -311,6 +311,45 @@ with open(installed_path, 'w') as f:
     f.write('\n')
 "
         ok "Claude Code plugin -> ${BOLD}dev${NC} mode (installPath -> repo)"
+
+        # Sync plugin.json to all cache locations so Claude Code picks up
+        # hook command changes (it reads hooks from the cache, not installPath)
+        if [[ -f "$REPO_ROOT/.claude-plugin/plugin.json" ]]; then
+            local cache_plugin
+            for cache_plugin in \
+                "$CC_PLUGINS_DIR/marketplaces/aide/.claude-plugin/plugin.json" \
+                "$CC_PLUGINS_DIR"/cache/aide/aide/*/.claude-plugin/plugin.json; do
+                if [[ -f "$cache_plugin" ]]; then
+                    # Back up original so prod toggle can restore it
+                    if [[ ! -f "${cache_plugin}.prod-bak" ]]; then
+                        cp "$cache_plugin" "${cache_plugin}.prod-bak"
+                    fi
+                    cp "$REPO_ROOT/.claude-plugin/plugin.json" "$cache_plugin"
+                fi
+            done
+            ok "Synced plugin.json -> plugin caches"
+
+            # Sync hook source files — Claude Code resolves CLAUDE_PLUGIN_ROOT
+            # to the cache dir, not installPath, so hooks run from the cache.
+            local cache_dir
+            for cache_dir in \
+                "$CC_PLUGINS_DIR/marketplaces/aide" \
+                "$CC_PLUGINS_DIR"/cache/aide/aide/*/; do
+                if [[ -d "$cache_dir" ]]; then
+                    for subdir in hooks lib core; do
+                        if [[ -d "$REPO_ROOT/src/$subdir" ]]; then
+                            # Back up prod originals (once) so prod toggle can restore
+                            if [[ -d "$cache_dir/src/$subdir" && ! -d "$cache_dir/src/${subdir}.prod-bak" ]]; then
+                                cp -a "$cache_dir/src/$subdir" "$cache_dir/src/${subdir}.prod-bak"
+                            fi
+                            mkdir -p "$cache_dir/src/$subdir"
+                            rsync -a --delete "$REPO_ROOT/src/$subdir/" "$cache_dir/src/$subdir/"
+                        fi
+                    done
+                fi
+            done
+            ok "Synced hook sources -> plugin caches"
+        fi
     else
         # Restore original prod path
         local prod_path=""
@@ -345,6 +384,33 @@ with open(installed_path, 'w') as f:
 "
         ok "Claude Code plugin -> ${BOLD}prod${NC} mode (installPath -> cache)"
         rm -f "$REPO_ROOT/.claude-prod-path"
+
+        # Restore original plugin.json in cache locations
+        local cache_plugin
+        for cache_plugin in \
+            "$CC_PLUGINS_DIR/marketplaces/aide/.claude-plugin/plugin.json" \
+            "$CC_PLUGINS_DIR"/cache/aide/aide/*/.claude-plugin/plugin.json; do
+            if [[ -f "${cache_plugin}.prod-bak" ]]; then
+                mv "${cache_plugin}.prod-bak" "$cache_plugin"
+            fi
+        done
+        ok "Restored plugin.json in plugin caches"
+
+        # Restore original hook sources from backups
+        local cache_dir
+        for cache_dir in \
+            "$CC_PLUGINS_DIR/marketplaces/aide" \
+            "$CC_PLUGINS_DIR"/cache/aide/aide/*/; do
+            if [[ -d "$cache_dir" ]]; then
+                for subdir in hooks lib core; do
+                    if [[ -d "$cache_dir/src/${subdir}.prod-bak" ]]; then
+                        rm -rf "$cache_dir/src/$subdir"
+                        mv "$cache_dir/src/${subdir}.prod-bak" "$cache_dir/src/$subdir"
+                    fi
+                done
+            fi
+        done
+        ok "Restored hook sources in plugin caches"
     fi
 }
 
