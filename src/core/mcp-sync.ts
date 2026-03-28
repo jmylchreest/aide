@@ -64,15 +64,29 @@ export interface AideMcpConfig {
   mcpServers: Record<string, Omit<CanonicalMcpServer, "name">>;
 }
 
-/** Journal tracking server presence across sync runs. */
+/** Per-server, per-source state entry in the journal. */
+export interface ServerSourceState {
+  /** Whether the server was present in this source at last check */
+  present: boolean;
+  /** Mtime of the source file when this state transition was detected */
+  mtime: number;
+  /** ISO timestamp for human readability */
+  ts: string;
+  /** Hash of the server config (to detect changes while present) */
+  configHash?: string;
+}
+
+/**
+ * Journal v2: per-server, per-source state tracking.
+ *
+ * Tracks the last state transition (added/removed/changed) for each
+ * MCP server in each config source file, with the file's mtime at the
+ * time of that transition. Resolution uses per-server latest-mtime-wins.
+ */
 export interface McpSyncJournal {
-  /** Chronological entries of known server sets */
-  entries: Array<{
-    ts: string;
-    servers: string[];
-  }>;
-  /** Server names intentionally removed from aide canonical config */
-  removed: string[];
+  version: 2;
+  /** server name → source file path → state */
+  servers: Record<string, Record<string, ServerSourceState>>;
 }
 
 /** Result of a sync operation. */
@@ -445,24 +459,48 @@ function writeAssistantConfig(
 }
 
 // =============================================================================
-// Journal
+// Journal (v2: per-server, per-source state tracking)
 // =============================================================================
 
+/** Legacy journal format (v1) — only used for migration. */
+interface McpSyncJournalV1 {
+  entries?: Array<{ ts: string; servers: string[] }>;
+  removed?: string[];
+}
+
 function readJournal(path: string): McpSyncJournal {
-  if (!existsSync(path)) {
-    return { entries: [], removed: [] };
-  }
+  const empty: McpSyncJournal = { version: 2, servers: {} };
+  if (!existsSync(path)) return empty;
 
   try {
     const parsed: unknown = JSON.parse(readFileSync(path, "utf-8"));
     if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed))
-      return { entries: [], removed: [] };
-    const journal = parsed as McpSyncJournal;
-    if (!Array.isArray(journal.entries)) return { entries: [], removed: [] };
-    if (!Array.isArray(journal.removed)) journal.removed = [];
-    return journal;
+      return empty;
+
+    const obj = parsed as Record<string, unknown>;
+
+    // v2 journal
+    if (obj.version === 2) return parsed as McpSyncJournal;
+
+    // v1 → v2 migration: preserve the removed list as synthetic removal entries.
+    // Use mtime=0 so any real source file with the server will override the
+    // migration entry. If no source has the server, absence resolves it as removed.
+    const v1 = parsed as McpSyncJournalV1;
+    const migrated: McpSyncJournal = { version: 2, servers: {} };
+    if (Array.isArray(v1.removed)) {
+      for (const name of v1.removed) {
+        migrated.servers[name] = {
+          "migrated-v1": {
+            present: false,
+            mtime: 0,
+            ts: new Date().toISOString(),
+          },
+        };
+      }
+    }
+    return migrated;
   } catch {
-    return { entries: [], removed: [] };
+    return empty;
   }
 }
 
@@ -472,66 +510,51 @@ function writeJournal(path: string, journal: McpSyncJournal): void {
     mkdirSync(dir, { recursive: true });
   }
 
-  // Keep only last 20 entries to avoid unbounded growth
-  if (journal.entries.length > 20) {
-    journal.entries = journal.entries.slice(-20);
+  // Prune server entries with no remaining sources
+  for (const [serverName, sourceMap] of Object.entries(journal.servers)) {
+    if (Object.keys(sourceMap).length === 0) {
+      delete journal.servers[serverName];
+    }
   }
 
   writeFileSync(path, JSON.stringify(journal, null, 2) + "\n");
 }
 
+/** Recursively sort object keys for deterministic serialization. */
+function sortDeep(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(sortDeep);
+  if (v && typeof v === "object") {
+    return Object.fromEntries(
+      Object.keys(v as object)
+        .sort()
+        .map((k) => [k, sortDeep((v as Record<string, unknown>)[k])]),
+    );
+  }
+  return v;
+}
+
 /**
- * Update the journal with the current set of aide canonical servers.
- * Detects deletions by comparing against the previous entry.
- *
- * Returns the set of server names that should be considered removed.
+ * Deterministic hash of a server config for change detection.
+ * Normalizes away trivial differences (empty env, undefined fields)
+ * and sorts all keys recursively for stable ordering.
  */
-function updateJournal(
-  jrnlPath: string,
-  currentAideServers: string[],
-): string[] {
-  const journal = readJournal(jrnlPath);
-  const sorted = [...currentAideServers].sort();
-
-  // Get previous entry's server list
-  const prevEntry =
-    journal.entries.length > 0
-      ? journal.entries[journal.entries.length - 1]
-      : null;
-  const prevServers = prevEntry
-    ? new Set(prevEntry.servers)
-    : new Set<string>();
-
-  // Detect deletions: servers in previous entry but not in current aide config
-  const currentSet = new Set(sorted);
-  for (const prev of prevServers) {
-    if (!currentSet.has(prev)) {
-      // Server was removed from aide config since last run
-      if (!journal.removed.includes(prev)) {
-        journal.removed.push(prev);
-      }
-    }
+function serverConfigHash(server: CanonicalMcpServer): string {
+  const { name: _, ...rest } = server;
+  const normalized: Record<string, unknown> = {};
+  const keys = Object.keys(rest).sort();
+  for (const k of keys) {
+    const v = (rest as Record<string, unknown>)[k];
+    if (v === undefined) continue;
+    if (
+      typeof v === "object" &&
+      v !== null &&
+      !Array.isArray(v) &&
+      Object.keys(v).length === 0
+    )
+      continue;
+    normalized[k] = v;
   }
-
-  // If a server is now in the aide config AND in the removed list, un-remove it
-  journal.removed = journal.removed.filter((r) => !currentSet.has(r));
-
-  // Only write a new entry if the server list changed
-  const prevSorted = prevEntry ? [...prevEntry.servers].sort() : [];
-  const changed =
-    sorted.length !== prevSorted.length ||
-    sorted.some((s, i) => s !== prevSorted[i]);
-
-  if (changed || !prevEntry) {
-    journal.entries.push({
-      ts: new Date().toISOString(),
-      servers: sorted,
-    });
-  }
-
-  writeJournal(jrnlPath, journal);
-
-  return journal.removed;
+  return JSON.stringify(sortDeep(normalized));
 }
 
 // =============================================================================
@@ -546,77 +569,173 @@ function getFileMtime(path: string): number {
   }
 }
 
-// =============================================================================
-// Core sync logic
-// =============================================================================
+interface McpSource {
+  path: string;
+  servers: Record<string, CanonicalMcpServer>;
+  mtime: number;
+}
 
 /**
- * Collect all MCP servers from all sources for a given scope.
- *
- * Priority order (last-modified wins for conflicts):
- * 1. Aide canonical config (always included as base)
- * 2. Each assistant's config (sorted by file mtime, oldest first)
+ * Gather all MCP config source files for a given scope.
  */
-function collectServers(
-  scope: McpScope,
-  cwd: string,
-): Record<string, CanonicalMcpServer> {
+function gatherSources(scope: McpScope, cwd: string): McpSource[] {
   const platforms: McpPlatform[] = ["claude-code", "opencode"];
+  const sources: McpSource[] = [];
 
-  // Collect all sources with their modification times
-  const sources: Array<{
-    label: string;
-    servers: Record<string, CanonicalMcpServer>;
-    mtime: number;
-  }> = [];
-
-  // Aide canonical config (always lowest priority as base)
   const aidePath =
     scope === "user" ? aideUserMcpPath() : aideProjectMcpPath(cwd);
   sources.push({
-    label: `aide:${scope}`,
+    path: aidePath,
     servers: readAideConfig(aidePath),
     mtime: getFileMtime(aidePath),
   });
 
-  // Assistant configs
   for (const platform of platforms) {
     const paths = getAssistantReadPaths(platform, scope, cwd);
     for (const p of paths) {
-      const servers = readAssistantConfig(platform, p);
-      if (Object.keys(servers).length > 0) {
-        sources.push({
-          label: `${platform}:${scope}:${p}`,
-          servers,
-          mtime: getFileMtime(p),
-        });
+      sources.push({
+        path: p,
+        servers: readAssistantConfig(platform, p),
+        mtime: getFileMtime(p),
+      });
+    }
+  }
+
+  return sources;
+}
+
+/**
+ * Update the journal with per-server state transitions and resolve the
+ * final server set using per-server latest-mtime-wins semantics.
+ *
+ * For each server in each source file, we track the last state transition
+ * (present→removed or absent→present or config changed). The mtime stored
+ * is the source file's mtime at the time of that transition. To resolve,
+ * for each server we pick the entry with the highest mtime: if present the
+ * server is included, if removed it is excluded.
+ */
+function updateJournalAndResolve(
+  jrnlPath: string,
+  sources: McpSource[],
+): { resolved: Record<string, CanonicalMcpServer>; journal: McpSyncJournal } {
+  const journal = readJournal(jrnlPath);
+  const now = new Date().toISOString();
+  const activePaths = new Set(sources.map((s) => s.path));
+
+  // Detect state transitions per server per source
+  for (const source of sources) {
+    const currentNames = new Set(Object.keys(source.servers));
+
+    // Servers currently present in this source
+    for (const [name, server] of Object.entries(source.servers)) {
+      if (!journal.servers[name]) journal.servers[name] = {};
+      const existing = journal.servers[name][source.path];
+      const hash = serverConfigHash(server);
+
+      if (!existing || !existing.present || existing.configHash !== hash) {
+        // State transition: newly added, re-added, or config changed
+        journal.servers[name][source.path] = {
+          present: true,
+          mtime: source.mtime,
+          ts: now,
+          configHash: hash,
+        };
+      }
+      // If already present with same config: no transition, keep existing mtime
+    }
+
+    // Servers previously tracked in this source but now gone
+    for (const [serverName, sourceMap] of Object.entries(journal.servers)) {
+      const entry = sourceMap[source.path];
+      if (entry?.present && !currentNames.has(serverName)) {
+        sourceMap[source.path] = {
+          present: false,
+          mtime: source.mtime,
+          ts: now,
+        };
       }
     }
   }
 
-  // Sort by mtime (oldest first, so newest overwrites)
-  sources.sort((a, b) => a.mtime - b.mtime);
-
-  // Merge: later entries override earlier ones for same server name
-  const merged: Record<string, CanonicalMcpServer> = {};
-  for (const source of sources) {
-    for (const [name, server] of Object.entries(source.servers)) {
-      merged[name] = server;
+  // Bootstrap: for servers found in some sources but absent from others,
+  // record "not present" entries for the missing sources. Without this,
+  // a server deleted from one file before the v2 journal existed would
+  // have no removal event to counterbalance presence in other files.
+  const allServerNames = new Set(Object.keys(journal.servers));
+  for (const serverName of allServerNames) {
+    const sourceMap = journal.servers[serverName];
+    for (const source of sources) {
+      if (!sourceMap[source.path]) {
+        // This source has never been tracked for this server.
+        // If the file exists (mtime > 0), record its absence.
+        if (source.mtime > 0) {
+          sourceMap[source.path] = {
+            present: false,
+            mtime: source.mtime,
+            ts: now,
+          };
+        }
+      }
     }
   }
 
-  return merged;
+  // Clean up journal entries for source files that no longer exist
+  for (const sourceMap of Object.values(journal.servers)) {
+    for (const sourcePath of Object.keys(sourceMap)) {
+      if (sourcePath !== "migrated-v1" && !activePaths.has(sourcePath)) {
+        delete sourceMap[sourcePath];
+      }
+    }
+  }
+
+  // Resolve: per server, latest mtime wins
+  const resolved: Record<string, CanonicalMcpServer> = {};
+
+  const allNames = new Set<string>();
+  for (const source of sources) {
+    for (const name of Object.keys(source.servers)) allNames.add(name);
+  }
+  for (const name of Object.keys(journal.servers)) allNames.add(name);
+
+  for (const serverName of allNames) {
+    const sourceMap = journal.servers[serverName];
+    if (!sourceMap) continue;
+
+    let bestMtime = -1;
+    let bestPresent = false;
+    let bestPath = "";
+
+    for (const [sourcePath, state] of Object.entries(sourceMap)) {
+      if (
+        state.mtime > bestMtime ||
+        (state.mtime === bestMtime && state.present && !bestPresent)
+      ) {
+        bestMtime = state.mtime;
+        bestPresent = state.present;
+        bestPath = sourcePath;
+      }
+    }
+
+    if (bestPresent) {
+      // Prefer the winning source; fall back to any source that has the server
+      const source = sources.find((s) => s.path === bestPath);
+      const server =
+        source?.servers[serverName] ??
+        sources.find((s) => s.servers[serverName])?.servers[serverName];
+      if (server) resolved[serverName] = server;
+    }
+  }
+
+  writeJournal(jrnlPath, journal);
+  return { resolved, journal };
 }
 
 /**
  * Run MCP sync for a specific scope level.
  *
- * 1. Reads the aide canonical config
- * 2. Updates the journal to detect deletions
- * 3. Collects servers from all sources
- * 4. Filters out removed servers
- * 5. Writes merged result to the aide canonical config
- * 6. Writes the result (in assistant-native format) to the current assistant's config
+ * Gathers servers from all sources, updates the per-server journal to
+ * track state transitions, resolves using latest-mtime-wins per server,
+ * and writes the result to the aide canonical config and current assistant.
  */
 function syncScope(
   platform: McpPlatform,
@@ -631,56 +750,55 @@ function syncScope(
     serverNames: [],
   };
 
-  // Step 1: Read current aide canonical config
   const aidePath =
     scope === "user" ? aideUserMcpPath() : aideProjectMcpPath(cwd);
   const aideServers = readAideConfig(aidePath);
-  const aideServerNames = Object.keys(aideServers);
 
-  // Step 2: Update journal and get removed list
   const jrnlPath = scope === "user" ? userJournalPath() : journalPath(cwd);
-  const removed = updateJournal(jrnlPath, aideServerNames);
-  const removedSet = new Set(removed);
+  const sources = gatherSources(scope, cwd);
+  const { resolved: finalServers, journal } = updateJournalAndResolve(
+    jrnlPath,
+    sources,
+  );
 
-  // Step 3: Collect all servers from all sources
-  const allServers = collectServers(scope, cwd);
-
-  // Step 4: Filter out removed servers
-  const finalServers: Record<string, CanonicalMcpServer> = {};
-  for (const [name, server] of Object.entries(allServers)) {
-    if (removedSet.has(name)) {
-      result.skipped++;
-      continue;
-    }
-    finalServers[name] = server;
-  }
-
-  // Step 5: Count imports (servers not previously in aide config)
+  // Count imports (servers not previously in aide config)
   for (const name of Object.keys(finalServers)) {
     if (!aideServers[name]) {
       result.imported++;
     }
   }
 
-  // Step 6: Write to aide canonical config (if changed)
+  // Count skipped (servers whose latest journal state is a removal)
+  for (const [serverName, sourceMap] of Object.entries(journal.servers)) {
+    if (finalServers[serverName]) continue;
+    let bestMtime = -1;
+    let bestPresent = false;
+    for (const state of Object.values(sourceMap)) {
+      if (state.mtime > bestMtime) {
+        bestMtime = state.mtime;
+        bestPresent = state.present;
+      }
+    }
+    if (!bestPresent) result.skipped++;
+  }
+
+  // Write to aide canonical config (if changed)
+  const sortedStringify = (obj: object) =>
+    JSON.stringify(obj, Object.keys(obj).sort());
   const aideChanged =
-    JSON.stringify(aideServers) !==
-    JSON.stringify(
-      Object.fromEntries(Object.entries(finalServers).map(([k, v]) => [k, v])),
-    );
+    sortedStringify(aideServers) !== sortedStringify(finalServers);
 
   if (aideChanged) {
     writeAideConfig(aidePath, finalServers);
     result.modified = true;
   }
 
-  // Step 7: Write to current assistant's config
+  // Write to current assistant's config
   const assistantPaths = getAssistantWritePaths(platform, scope, cwd);
   for (const p of assistantPaths) {
-    // Read existing assistant config to check if it needs updating
     const existingAssistant = readAssistantConfig(platform, p);
     const assistantChanged =
-      JSON.stringify(existingAssistant) !== JSON.stringify(finalServers);
+      sortedStringify(existingAssistant) !== sortedStringify(finalServers);
 
     if (assistantChanged) {
       writeAssistantConfig(platform, p, finalServers);
@@ -738,16 +856,32 @@ export function listSyncedServers(cwd: string): {
 
 /**
  * Get the current removed (blocked) server names.
+ * Derived from the v2 journal: a server is "removed" if its latest
+ * mtime across all sources corresponds to a removal event.
  */
 export function getRemovedServers(cwd: string): {
   user: string[];
   project: string[];
 } {
-  const userJournal = readJournal(userJournalPath());
-  const projectJournal = readJournal(journalPath(cwd));
+  function deriveRemoved(jrnlPath: string): string[] {
+    const journal = readJournal(jrnlPath);
+    const removed: string[] = [];
+    for (const [serverName, sourceMap] of Object.entries(journal.servers)) {
+      let bestMtime = -1;
+      let bestPresent = false;
+      for (const state of Object.values(sourceMap)) {
+        if (state.mtime > bestMtime) {
+          bestMtime = state.mtime;
+          bestPresent = state.present;
+        }
+      }
+      if (!bestPresent) removed.push(serverName);
+    }
+    return removed;
+  }
 
   return {
-    user: userJournal.removed,
-    project: projectJournal.removed,
+    user: deriveRemoved(userJournalPath()),
+    project: deriveRemoved(journalPath(cwd)),
   };
 }
