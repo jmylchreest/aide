@@ -42,6 +42,7 @@ packages/opencode-plugin/bin/.aide-download.lock
 # npm lockfile (replaced by bun.lock for aide core)
 package-lock.json
 !docs/package-lock.json
+!aide-web/web/package-lock.json
 
 # Syncthing temporary files
 .syncthing.*.tmp

@@ -1674,7 +1674,7 @@ func getStoreSizes(dbPath string) []*StatusStore {
 	if dbPath == "" {
 		return nil
 	}
-	baseDir := filepath.Dir(dbPath)     // .aide/memory/
+	baseDir := filepath.Dir(dbPath) // .aide/memory/
 	codeDir := filepath.Join(baseDir, "code")
 	findingsDir := filepath.Join(baseDir, "findings")
 	surveyDir := filepath.Join(baseDir, "survey")
