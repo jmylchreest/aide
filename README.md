@@ -110,6 +110,25 @@ aide findings list --severity=critical    # View critical findings
 aide version                              # Check binary version
 ```
 
+## aide-web
+
+Optional web dashboard for monitoring aide daemon instances — status, memories, decisions, findings, code search, and more.
+
+**Download:** [Latest release](https://github.com/jmylchreest/aide/releases/latest)
+
+| Platform | Binary |
+| -------- | ------ |
+| Linux x64 | [aide-web-linux-amd64](https://github.com/jmylchreest/aide/releases/latest/download/aide-web-linux-amd64) |
+| Linux arm64 | [aide-web-linux-arm64](https://github.com/jmylchreest/aide/releases/latest/download/aide-web-linux-arm64) |
+| macOS x64 | [aide-web-darwin-amd64](https://github.com/jmylchreest/aide/releases/latest/download/aide-web-darwin-amd64) |
+| macOS arm64 | [aide-web-darwin-arm64](https://github.com/jmylchreest/aide/releases/latest/download/aide-web-darwin-arm64) |
+| Windows x64 | [aide-web-windows-amd64.exe](https://github.com/jmylchreest/aide/releases/latest/download/aide-web-windows-amd64.exe) |
+| Windows arm64 | [aide-web-windows-arm64.exe](https://github.com/jmylchreest/aide/releases/latest/download/aide-web-windows-arm64.exe) |
+
+```bash
+aide-web --port 8080 --open
+```
+
 ## Documentation
 
 Full documentation: **[jmylchreest.github.io/aide](https://jmylchreest.github.io/aide/)**
