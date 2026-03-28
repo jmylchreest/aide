@@ -1,4 +1,4 @@
-package main
+package adapter
 
 import (
 	"testing"
@@ -22,7 +22,7 @@ func TestProtoToSurveyEntry_FullEntry(t *testing.T) {
 		CreatedAt: timestamppb.New(ts),
 	}
 
-	entry := protoToSurveyEntry(pe)
+	entry := ProtoToSurveyEntry(pe)
 	if entry == nil {
 		t.Fatal("expected non-nil entry")
 	}
@@ -63,7 +63,7 @@ func TestProtoToSurveyEntry_FullEntry(t *testing.T) {
 }
 
 func TestProtoToSurveyEntry_NilInput(t *testing.T) {
-	entry := protoToSurveyEntry(nil)
+	entry := ProtoToSurveyEntry(nil)
 	if entry != nil {
 		t.Errorf("expected nil, got %+v", entry)
 	}
@@ -78,7 +78,7 @@ func TestProtoToSurveyEntry_NilTimestamp(t *testing.T) {
 		CreatedAt: nil,
 	}
 
-	entry := protoToSurveyEntry(pe)
+	entry := ProtoToSurveyEntry(pe)
 	if entry == nil {
 		t.Fatal("expected non-nil entry")
 	}
@@ -95,7 +95,7 @@ func TestProtoToSurveyEntry_EmptyMetadata(t *testing.T) {
 		Metadata: nil,
 	}
 
-	entry := protoToSurveyEntry(pe)
+	entry := ProtoToSurveyEntry(pe)
 	if entry == nil {
 		t.Fatal("expected non-nil entry")
 	}
@@ -115,7 +115,7 @@ func TestProtoToSurveyEntry_EmptyStrings(t *testing.T) {
 		Detail:   "",
 	}
 
-	entry := protoToSurveyEntry(pe)
+	entry := ProtoToSurveyEntry(pe)
 	if entry == nil {
 		t.Fatal("expected non-nil entry")
 	}

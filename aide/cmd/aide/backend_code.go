@@ -7,6 +7,7 @@ import (
 
 	"github.com/jmylchreest/aide/aide/pkg/code"
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi"
+	"github.com/jmylchreest/aide/aide/pkg/grpcapi/adapter"
 	"github.com/jmylchreest/aide/aide/pkg/survey"
 )
 
@@ -18,6 +19,17 @@ import (
 type CodeSearchResult struct {
 	Symbol *code.Symbol
 	Score  float64
+}
+
+func protoToLocalCodeSearchResults(ps []*grpcapi.Symbol) []*CodeSearchResult {
+	result := make([]*CodeSearchResult, len(ps))
+	for i, p := range ps {
+		result[i] = &CodeSearchResult{
+			Symbol: adapter.ProtoToSymbol(p),
+			Score:  0,
+		}
+	}
+	return result
 }
 
 func (b *Backend) SearchCode(query string, kind, language, filePath string, limit int) ([]*CodeSearchResult, error) {
@@ -35,7 +47,7 @@ func (b *Backend) SearchCode(query string, kind, language, filePath string, limi
 		if err != nil {
 			return nil, err
 		}
-		return protoToCodeSearchResults(resp.Symbols), nil
+		return protoToLocalCodeSearchResults(resp.Symbols), nil
 	}
 
 	codeStore, err := b.openCodeStore()
@@ -76,7 +88,7 @@ func (b *Backend) GetFileSymbols(filePath string) ([]*code.Symbol, error) {
 		if err != nil {
 			return nil, err
 		}
-		return protoToSymbols(resp.Symbols), nil
+		return adapter.ProtoToSymbols(resp.Symbols), nil
 	}
 
 	codeStore, err := b.openCodeStore()
@@ -133,7 +145,7 @@ func (b *Backend) SearchReferences(symbolName, kind, filePath string, limit int)
 		if err != nil {
 			return nil, err
 		}
-		return protoToReferences(resp.References), nil
+		return adapter.ProtoToReferences(resp.References), nil
 	}
 
 	codeStore, err := b.openCodeStore()
@@ -323,7 +335,7 @@ type grpcCodeSearcher struct {
 }
 
 func (g *grpcCodeSearcher) FindSymbols(query string, kind string, limit int) ([]survey.SymbolHit, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), grpcRPCTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), adapter.RPCTimeout)
 	defer cancel()
 
 	resp, err := g.client.Search(ctx, &grpcapi.CodeSearchRequest{
@@ -350,7 +362,7 @@ func (g *grpcCodeSearcher) FindSymbols(query string, kind string, limit int) ([]
 }
 
 func (g *grpcCodeSearcher) FindReferences(symbolName string, kind string, limit int) ([]survey.ReferenceHit, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), grpcRPCTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), adapter.RPCTimeout)
 	defer cancel()
 
 	resp, err := g.client.SearchReferences(ctx, &grpcapi.CodeSearchReferencesRequest{
@@ -396,7 +408,7 @@ type grpcCodeGrapher struct {
 }
 
 func (g *grpcCodeGrapher) GetFileReferences(filePath string) ([]survey.ReferenceHit, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), grpcRPCTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), adapter.RPCTimeout)
 	defer cancel()
 
 	resp, err := g.client.GetFileReferences(ctx, &grpcapi.CodeGetFileReferencesRequest{
@@ -419,7 +431,7 @@ func (g *grpcCodeGrapher) GetFileReferences(filePath string) ([]survey.Reference
 }
 
 func (g *grpcCodeGrapher) GetContainingSymbol(filePath string, line int) (*survey.SymbolHit, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), grpcRPCTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), adapter.RPCTimeout)
 	defer cancel()
 
 	resp, err := g.client.GetContainingSymbol(ctx, &grpcapi.CodeGetContainingSymbolRequest{

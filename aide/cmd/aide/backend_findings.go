@@ -5,6 +5,7 @@ import (
 
 	"github.com/jmylchreest/aide/aide/pkg/findings"
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi"
+	"github.com/jmylchreest/aide/aide/pkg/grpcapi/adapter"
 	"github.com/jmylchreest/aide/aide/pkg/store"
 )
 
@@ -36,7 +37,7 @@ func (b *Backend) SearchFindings(query string, opts findings.SearchOptions) ([]*
 		results := make([]*findings.SearchResult, 0, len(resp.Findings))
 		for _, pf := range resp.Findings {
 			results = append(results, &findings.SearchResult{
-				Finding: protoToFinding(pf),
+				Finding: adapter.ProtoToFinding(pf),
 			})
 		}
 		return results, nil
@@ -67,7 +68,7 @@ func (b *Backend) ListFindings(opts findings.SearchOptions) ([]*findings.Finding
 		}
 		result := make([]*findings.Finding, 0, len(resp.Findings))
 		for _, pf := range resp.Findings {
-			result = append(result, protoToFinding(pf))
+			result = append(result, adapter.ProtoToFinding(pf))
 		}
 		return result, nil
 	}

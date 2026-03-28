@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi"
+	"github.com/jmylchreest/aide/aide/pkg/grpcapi/registry"
 	"github.com/jmylchreest/aide/aide/pkg/store"
 )
 
@@ -98,6 +99,18 @@ func cmdDaemon(dbPath string, args []string) error {
 		fmt.Println("\nShutting down...")
 		server.Stop()
 	}()
+
+	// Register instance for discovery by aide-web
+	projRoot := projectRoot(dbPath)
+	if err := registry.Register(projRoot, socketPath, dbPath); err != nil {
+		fmt.Printf("WARNING: failed to register instance: %v\n", err)
+	} else {
+		defer func() {
+			if err := registry.Unregister(projRoot); err != nil {
+				fmt.Printf("WARNING: failed to unregister instance: %v\n", err)
+			}
+		}()
+	}
 
 	fmt.Printf("aide daemon starting on %s\n", socketPath)
 	fmt.Printf("Database: %s\n", dbPath)

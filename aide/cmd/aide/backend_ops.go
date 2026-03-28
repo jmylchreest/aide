@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi"
+	"github.com/jmylchreest/aide/aide/pkg/grpcapi/adapter"
 	"github.com/jmylchreest/aide/aide/pkg/memory"
 	"github.com/jmylchreest/aide/aide/pkg/store"
 	"github.com/oklog/ulid/v2"
@@ -27,7 +28,7 @@ func (b *Backend) AddMemory(content, category string, tags []string) (*memory.Me
 		if err != nil {
 			return nil, err
 		}
-		return protoToMemory(resp.Memory), nil
+		return adapter.ProtoToMemory(resp.Memory), nil
 	}
 
 	mem := &memory.Memory{
@@ -55,7 +56,7 @@ func (b *Backend) SearchMemories(query string, limit int) ([]*memory.Memory, err
 		if err != nil {
 			return nil, err
 		}
-		return protoToMemories(resp.Memories), nil
+		return adapter.ProtoToMemories(resp.Memories), nil
 	}
 
 	return b.store.SearchMemories(query, limit)
@@ -85,7 +86,7 @@ func (b *Backend) SearchMemoriesWithScore(query string, limit int, minScore floa
 		}
 		memories := make([]*memory.Memory, len(resp.Memories))
 		for i, m := range resp.Memories {
-			memories[i] = protoToMemory(m)
+			memories[i] = adapter.ProtoToMemory(m)
 		}
 		memories = memory.FilterMemories(memories, excludeTags)
 		results := make([]SearchResult, len(memories))
@@ -143,7 +144,7 @@ func (b *Backend) ListMemories(category string, limit int, opts *memory.SearchOp
 		if err != nil {
 			return nil, err
 		}
-		memories := protoToMemories(resp.Memories)
+		memories := adapter.ProtoToMemories(resp.Memories)
 		// Apply exclude-tag filtering for gRPC results
 		if opts != nil && opts.IncludeAll {
 			return memories, nil
@@ -179,7 +180,7 @@ func (b *Backend) UpdateMemoryTags(id string, addTags, removeTags []string) (*me
 		if err != nil {
 			return nil, fmt.Errorf("memory not found: %w", err)
 		}
-		m = protoToMemory(resp.Memory)
+		m = adapter.ProtoToMemory(resp.Memory)
 		if m == nil {
 			return nil, fmt.Errorf("memory not found: server returned nil for id %s", id)
 		}
@@ -225,7 +226,7 @@ func (b *Backend) UpdateMemoryTags(id string, addTags, removeTags []string) (*me
 		if err != nil {
 			return nil, fmt.Errorf("failed to re-add memory with updated tags: %w", err)
 		}
-		return protoToMemory(resp.Memory), nil
+		return adapter.ProtoToMemory(resp.Memory), nil
 	}
 
 	if err := b.store.UpdateMemory(m); err != nil {
@@ -242,7 +243,7 @@ func (b *Backend) GetMemory(id string) (*memory.Memory, error) {
 		if err != nil {
 			return nil, err
 		}
-		return protoToMemory(resp.Memory), nil
+		return adapter.ProtoToMemory(resp.Memory), nil
 	}
 	return b.store.GetMemory(id)
 }
@@ -293,7 +294,7 @@ func (b *Backend) GetState(key, agentID string) (*memory.State, error) {
 		if !resp.Found {
 			return nil, store.ErrNotFound
 		}
-		return protoToState(resp.State), nil
+		return adapter.ProtoToState(resp.State), nil
 	}
 
 	fullKey := key
@@ -339,7 +340,7 @@ func (b *Backend) ListState(agentID string) ([]*memory.State, error) {
 		if err != nil {
 			return nil, err
 		}
-		return protoToStates(resp.States), nil
+		return adapter.ProtoToStates(resp.States), nil
 	}
 
 	return b.store.ListState(agentID)
@@ -409,7 +410,7 @@ func (b *Backend) SetDecision(topic, decision, rationale, details, decidedBy str
 		if err != nil {
 			return nil, err
 		}
-		return protoToDecision(resp.Decision), nil
+		return adapter.ProtoToDecision(resp.Decision), nil
 	}
 
 	dec := &memory.Decision{
@@ -439,7 +440,7 @@ func (b *Backend) GetDecision(topic string) (*memory.Decision, error) {
 		if !resp.Found {
 			return nil, store.ErrNotFound
 		}
-		return protoToDecision(resp.Decision), nil
+		return adapter.ProtoToDecision(resp.Decision), nil
 	}
 
 	return b.store.GetDecision(topic)
@@ -454,7 +455,7 @@ func (b *Backend) ListDecisions() ([]*memory.Decision, error) {
 		if err != nil {
 			return nil, err
 		}
-		return protoToDecisions(resp.Decisions), nil
+		return adapter.ProtoToDecisions(resp.Decisions), nil
 	}
 
 	return b.store.ListDecisions()
@@ -469,7 +470,7 @@ func (b *Backend) GetDecisionHistory(topic string) ([]*memory.Decision, error) {
 		if err != nil {
 			return nil, err
 		}
-		return protoToDecisions(resp.Decisions), nil
+		return adapter.ProtoToDecisions(resp.Decisions), nil
 	}
 
 	return b.store.GetDecisionHistory(topic)
@@ -524,7 +525,7 @@ func (b *Backend) SendMessage(from, to, content, msgType string, ttlSeconds int)
 		if err != nil {
 			return nil, err
 		}
-		return protoToMessage(resp.Message), nil
+		return adapter.ProtoToMessage(resp.Message), nil
 	}
 
 	if ttlSeconds == 0 {
@@ -553,7 +554,7 @@ func (b *Backend) ListMessages(agentID string) ([]*memory.Message, error) {
 		if err != nil {
 			return nil, err
 		}
-		return protoToMessages(resp.Messages), nil
+		return adapter.ProtoToMessages(resp.Messages), nil
 	}
 
 	return b.store.GetMessages(agentID)
@@ -605,7 +606,7 @@ func (b *Backend) CreateTask(title, description string) (*memory.Task, error) {
 		if err != nil {
 			return nil, err
 		}
-		return protoToTask(resp.Task), nil
+		return adapter.ProtoToTask(resp.Task), nil
 	}
 
 	task := &memory.Task{
@@ -632,7 +633,7 @@ func (b *Backend) GetTask(id string) (*memory.Task, error) {
 		if !resp.Found {
 			return nil, store.ErrNotFound
 		}
-		return protoToTask(resp.Task), nil
+		return adapter.ProtoToTask(resp.Task), nil
 	}
 
 	return b.store.GetTask(id)
@@ -647,7 +648,7 @@ func (b *Backend) ListTasks(status string) ([]*memory.Task, error) {
 		if err != nil {
 			return nil, err
 		}
-		return protoToTasks(resp.Tasks), nil
+		return adapter.ProtoToTasks(resp.Tasks), nil
 	}
 
 	return b.store.ListTasks(memory.TaskStatus(status))
@@ -668,7 +669,7 @@ func (b *Backend) ClaimTask(taskID, agentID string) (*memory.Task, error) {
 		if !resp.Success {
 			return nil, fmt.Errorf("%s", resp.Error)
 		}
-		return protoToTask(resp.Task), nil
+		return adapter.ProtoToTask(resp.Task), nil
 	}
 
 	return b.store.ClaimTask(taskID, agentID)

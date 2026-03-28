@@ -6,7 +6,7 @@
 #   make release-push                Auto-bump, commit, tag, and push
 #   make release-push VERSION=1.2.0  Bump to specific, commit, tag, and push
 
-.PHONY: release release-push build build-pprof test lint
+.PHONY: release release-push build build-pprof build-web test lint
 
 VERSION_FILES = package.json .claude-plugin/plugin.json .claude-plugin/marketplace.json packages/opencode-plugin/package.json
 
@@ -61,6 +61,9 @@ build-pprof:
 
 test:
 	$(MAKE) -C aide test
+
+build-web:
+	$(MAKE) -C aide-web build
 
 lint:
 	$(MAKE) -C aide lint

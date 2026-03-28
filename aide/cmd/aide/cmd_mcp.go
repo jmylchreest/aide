@@ -20,6 +20,8 @@ import (
 	"github.com/jmylchreest/aide/aide/pkg/findings/clone"
 	"github.com/jmylchreest/aide/aide/pkg/grammar"
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi"
+	"github.com/jmylchreest/aide/aide/pkg/grpcapi/adapter"
+	"github.com/jmylchreest/aide/aide/pkg/grpcapi/registry"
 	"github.com/jmylchreest/aide/aide/pkg/store"
 	"github.com/jmylchreest/aide/aide/pkg/watcher"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -546,10 +548,10 @@ func cmdMCP(dbPath string, args []string) error {
 			cancel()
 			if pingErr == nil {
 				mcpLog.Printf("client mode: connected to existing primary via %s", socketPath)
-				adapter := newGRPCStoreAdapter(client)
-				findingsAdapter := newGRPCFindingsAdapter(client)
-				surveyAdapter := newGRPCSurveyAdapter(client)
-				mcpServer := &MCPServer{store: adapter, findingsStore: findingsAdapter, surveyStore: surveyAdapter, grammarLoader: grammarLoader, dbPath: dbPath}
+				storeAdapter := adapter.NewStoreAdapter(client)
+				findingsAdapter := adapter.NewFindingsAdapter(client)
+				surveyAdapter := adapter.NewSurveyAdapter(client)
+				mcpServer := &MCPServer{store: storeAdapter, findingsStore: findingsAdapter, surveyStore: surveyAdapter, grammarLoader: grammarLoader, dbPath: dbPath}
 				mcpLog.Printf("MCP server ready in %v (client mode), listening on stdio", time.Since(startTime))
 				return mcpServer.Run()
 			}
@@ -600,6 +602,18 @@ func cmdMCP(dbPath string, args []string) error {
 		}
 	}()
 	defer grpcServer.Stop()
+
+	// Register instance for discovery by aide-web
+	projRoot := projectRoot(dbPath)
+	if err := registry.Register(projRoot, socketPath, dbPath); err != nil {
+		mcpLog.Printf("warning: failed to register instance: %v", err)
+	} else {
+		defer func() {
+			if err := registry.Unregister(projRoot); err != nil {
+				mcpLog.Printf("warning: failed to unregister instance: %v", err)
+			}
+		}()
+	}
 
 	mcpServer.startCodeWatcher(dbPath, cfg)
 	defer mcpServer.stopCodeWatcher()

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi"
+	"github.com/jmylchreest/aide/aide/pkg/grpcapi/adapter"
 	"github.com/jmylchreest/aide/aide/pkg/store"
 	"github.com/jmylchreest/aide/aide/pkg/survey"
 )
@@ -35,7 +36,7 @@ func (b *Backend) SearchSurvey(query string, opts survey.SearchOptions) ([]*surv
 		results := make([]*survey.SearchResult, 0, len(resp.Entries))
 		for _, pe := range resp.Entries {
 			results = append(results, &survey.SearchResult{
-				Entry: protoToSurveyEntry(pe),
+				Entry: adapter.ProtoToSurveyEntry(pe),
 			})
 		}
 		return results, nil
@@ -65,7 +66,7 @@ func (b *Backend) ListSurvey(opts survey.SearchOptions) ([]*survey.Entry, error)
 		}
 		result := make([]*survey.Entry, 0, len(resp.Entries))
 		for _, pe := range resp.Entries {
-			result = append(result, protoToSurveyEntry(pe))
+			result = append(result, adapter.ProtoToSurveyEntry(pe))
 		}
 		return result, nil
 	}

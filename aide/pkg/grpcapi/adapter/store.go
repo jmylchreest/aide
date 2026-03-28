@@ -1,7 +1,4 @@
-// Package main provides a gRPC-backed store.Store adapter.
-// This allows MCP server instances to share a single BoltDB
-// via the gRPC socket when another MCP instance is already the primary.
-package main
+package adapter
 
 import (
 	"context"
@@ -14,29 +11,34 @@ import (
 	"github.com/oklog/ulid/v2"
 )
 
-// grpcRPCTimeout is the default timeout for gRPC calls from the adapter.
-// This prevents hanging indefinitely if the primary MCP server is unresponsive.
-const grpcRPCTimeout = 10 * time.Second
+// RPCTimeout is the default timeout for gRPC calls from adapters.
+const RPCTimeout = 10 * time.Second
 
-// grpcStoreAdapter implements store.Store by delegating to a gRPC client.
-// It allows secondary MCP instances to operate without opening BoltDB directly.
-type grpcStoreAdapter struct {
+// Default constants for adapter behavior.
+const (
+	DefaultMemoryListLimit   = 50
+	DefaultMessageTTLSeconds = 3600
+)
+
+// StoreAdapter implements store.Store by delegating to a gRPC client.
+// It allows secondary processes to operate without opening BoltDB directly.
+type StoreAdapter struct {
 	client *grpcapi.Client
 }
 
-// Compile-time check that grpcStoreAdapter implements store.Store.
-var _ store.Store = (*grpcStoreAdapter)(nil)
+// Compile-time check that StoreAdapter implements store.Store.
+var _ store.Store = (*StoreAdapter)(nil)
 
-func newGRPCStoreAdapter(client *grpcapi.Client) *grpcStoreAdapter {
-	return &grpcStoreAdapter{client: client}
+// NewStoreAdapter creates a new gRPC-backed store adapter.
+func NewStoreAdapter(client *grpcapi.Client) *StoreAdapter {
+	return &StoreAdapter{client: client}
 }
 
-// rpcCtx returns a context with the standard gRPC timeout.
-func (g *grpcStoreAdapter) rpcCtx() (context.Context, context.CancelFunc) {
-	return context.WithTimeout(context.Background(), grpcRPCTimeout)
+func (g *StoreAdapter) rpcCtx() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), RPCTimeout)
 }
 
-func (g *grpcStoreAdapter) Close() error {
+func (g *StoreAdapter) Close() error {
 	return g.client.Close()
 }
 
@@ -44,7 +46,7 @@ func (g *grpcStoreAdapter) Close() error {
 // MemoryStore
 // =============================================================================
 
-func (g *grpcStoreAdapter) AddMemory(m *memory.Memory) error {
+func (g *StoreAdapter) AddMemory(m *memory.Memory) error {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
 	if m.ID == "" {
@@ -66,18 +68,17 @@ func (g *grpcStoreAdapter) AddMemory(m *memory.Memory) error {
 	return nil
 }
 
-func (g *grpcStoreAdapter) GetMemory(id string) (*memory.Memory, error) {
+func (g *StoreAdapter) GetMemory(id string) (*memory.Memory, error) {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
 	resp, err := g.client.Memory.Get(ctx, &grpcapi.MemoryGetRequest{Id: id})
 	if err != nil {
 		return nil, err
 	}
-	return protoToMemory(resp.Memory), nil
+	return ProtoToMemory(resp.Memory), nil
 }
 
-func (g *grpcStoreAdapter) UpdateMemory(m *memory.Memory) error {
-	// gRPC has no native update — delete and re-add.
+func (g *StoreAdapter) UpdateMemory(m *memory.Memory) error {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
 	if _, err := g.client.Memory.Delete(ctx, &grpcapi.MemoryDeleteRequest{Id: m.ID}); err != nil {
@@ -91,14 +92,14 @@ func (g *grpcStoreAdapter) UpdateMemory(m *memory.Memory) error {
 	return err
 }
 
-func (g *grpcStoreAdapter) DeleteMemory(id string) error {
+func (g *StoreAdapter) DeleteMemory(id string) error {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
 	_, err := g.client.Memory.Delete(ctx, &grpcapi.MemoryDeleteRequest{Id: id})
 	return err
 }
 
-func (g *grpcStoreAdapter) ListMemories(opts memory.SearchOptions) ([]*memory.Memory, error) {
+func (g *StoreAdapter) ListMemories(opts memory.SearchOptions) ([]*memory.Memory, error) {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
 	limit := opts.Limit
@@ -112,10 +113,10 @@ func (g *grpcStoreAdapter) ListMemories(opts memory.SearchOptions) ([]*memory.Me
 	if err != nil {
 		return nil, err
 	}
-	return protoToMemories(resp.Memories), nil
+	return ProtoToMemories(resp.Memories), nil
 }
 
-func (g *grpcStoreAdapter) SearchMemories(query string, limit int) ([]*memory.Memory, error) {
+func (g *StoreAdapter) SearchMemories(query string, limit int) ([]*memory.Memory, error) {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
 	resp, err := g.client.Memory.Search(ctx, &grpcapi.MemorySearchRequest{
@@ -125,10 +126,10 @@ func (g *grpcStoreAdapter) SearchMemories(query string, limit int) ([]*memory.Me
 	if err != nil {
 		return nil, err
 	}
-	return protoToMemories(resp.Memories), nil
+	return ProtoToMemories(resp.Memories), nil
 }
 
-func (g *grpcStoreAdapter) ClearMemories() (int, error) {
+func (g *StoreAdapter) ClearMemories() (int, error) {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
 	resp, err := g.client.Memory.Clear(ctx, &grpcapi.MemoryClearRequest{})
@@ -138,7 +139,7 @@ func (g *grpcStoreAdapter) ClearMemories() (int, error) {
 	return int(resp.Count), nil
 }
 
-func (g *grpcStoreAdapter) TouchMemory(ids []string) (int, error) {
+func (g *StoreAdapter) TouchMemory(ids []string) (int, error) {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
 	resp, err := g.client.Memory.Touch(ctx, &grpcapi.MemoryTouchRequest{Ids: ids})
@@ -152,7 +153,7 @@ func (g *grpcStoreAdapter) TouchMemory(ids []string) (int, error) {
 // StateStore
 // =============================================================================
 
-func (g *grpcStoreAdapter) SetState(st *memory.State) error {
+func (g *StoreAdapter) SetState(st *memory.State) error {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
 	_, err := g.client.State.Set(ctx, &grpcapi.StateSetRequest{
@@ -163,7 +164,7 @@ func (g *grpcStoreAdapter) SetState(st *memory.State) error {
 	return err
 }
 
-func (g *grpcStoreAdapter) GetState(key string) (*memory.State, error) {
+func (g *StoreAdapter) GetState(key string) (*memory.State, error) {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
 	resp, err := g.client.State.Get(ctx, &grpcapi.StateGetRequest{Key: key})
@@ -173,27 +174,27 @@ func (g *grpcStoreAdapter) GetState(key string) (*memory.State, error) {
 	if !resp.Found {
 		return nil, store.ErrNotFound
 	}
-	return protoToState(resp.State), nil
+	return ProtoToState(resp.State), nil
 }
 
-func (g *grpcStoreAdapter) DeleteState(key string) error {
+func (g *StoreAdapter) DeleteState(key string) error {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
 	_, err := g.client.State.Delete(ctx, &grpcapi.StateDeleteRequest{Key: key})
 	return err
 }
 
-func (g *grpcStoreAdapter) ListState(agentFilter string) ([]*memory.State, error) {
+func (g *StoreAdapter) ListState(agentFilter string) ([]*memory.State, error) {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
 	resp, err := g.client.State.List(ctx, &grpcapi.StateListRequest{AgentId: agentFilter})
 	if err != nil {
 		return nil, err
 	}
-	return protoToStates(resp.States), nil
+	return ProtoToStates(resp.States), nil
 }
 
-func (g *grpcStoreAdapter) ClearState(agentID string) (int, error) {
+func (g *StoreAdapter) ClearState(agentID string) (int, error) {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
 	resp, err := g.client.State.Clear(ctx, &grpcapi.StateClearRequest{AgentId: agentID})
@@ -203,7 +204,7 @@ func (g *grpcStoreAdapter) ClearState(agentID string) (int, error) {
 	return int(resp.Count), nil
 }
 
-func (g *grpcStoreAdapter) CleanupStaleState(maxAge time.Duration) (int, error) {
+func (g *StoreAdapter) CleanupStaleState(maxAge time.Duration) (int, error) {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
 	resp, err := g.client.State.Cleanup(ctx, &grpcapi.StateCleanupRequest{MaxAge: maxAge.String()})
@@ -217,7 +218,7 @@ func (g *grpcStoreAdapter) CleanupStaleState(maxAge time.Duration) (int, error) 
 // DecisionStore
 // =============================================================================
 
-func (g *grpcStoreAdapter) SetDecision(d *memory.Decision) error {
+func (g *StoreAdapter) SetDecision(d *memory.Decision) error {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
 	resp, err := g.client.Decision.Set(ctx, &grpcapi.DecisionSetRequest{
@@ -238,7 +239,7 @@ func (g *grpcStoreAdapter) SetDecision(d *memory.Decision) error {
 	return nil
 }
 
-func (g *grpcStoreAdapter) GetDecision(topic string) (*memory.Decision, error) {
+func (g *StoreAdapter) GetDecision(topic string) (*memory.Decision, error) {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
 	resp, err := g.client.Decision.Get(ctx, &grpcapi.DecisionGetRequest{Topic: topic})
@@ -248,30 +249,30 @@ func (g *grpcStoreAdapter) GetDecision(topic string) (*memory.Decision, error) {
 	if !resp.Found {
 		return nil, store.ErrNotFound
 	}
-	return protoToDecision(resp.Decision), nil
+	return ProtoToDecision(resp.Decision), nil
 }
 
-func (g *grpcStoreAdapter) ListDecisions() ([]*memory.Decision, error) {
+func (g *StoreAdapter) ListDecisions() ([]*memory.Decision, error) {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
 	resp, err := g.client.Decision.List(ctx, &grpcapi.DecisionListRequest{})
 	if err != nil {
 		return nil, err
 	}
-	return protoToDecisions(resp.Decisions), nil
+	return ProtoToDecisions(resp.Decisions), nil
 }
 
-func (g *grpcStoreAdapter) GetDecisionHistory(topic string) ([]*memory.Decision, error) {
+func (g *StoreAdapter) GetDecisionHistory(topic string) ([]*memory.Decision, error) {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
 	resp, err := g.client.Decision.History(ctx, &grpcapi.DecisionHistoryRequest{Topic: topic})
 	if err != nil {
 		return nil, err
 	}
-	return protoToDecisions(resp.Decisions), nil
+	return ProtoToDecisions(resp.Decisions), nil
 }
 
-func (g *grpcStoreAdapter) DeleteDecision(topic string) (int, error) {
+func (g *StoreAdapter) DeleteDecision(topic string) (int, error) {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
 	resp, err := g.client.Decision.Delete(ctx, &grpcapi.DecisionDeleteRequest{Topic: topic})
@@ -281,7 +282,7 @@ func (g *grpcStoreAdapter) DeleteDecision(topic string) (int, error) {
 	return int(resp.Count), nil
 }
 
-func (g *grpcStoreAdapter) ClearDecisions() (int, error) {
+func (g *StoreAdapter) ClearDecisions() (int, error) {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
 	resp, err := g.client.Decision.Clear(ctx, &grpcapi.DecisionClearRequest{})
@@ -295,7 +296,7 @@ func (g *grpcStoreAdapter) ClearDecisions() (int, error) {
 // MessageStore
 // =============================================================================
 
-func (g *grpcStoreAdapter) AddMessage(m *memory.Message) error {
+func (g *StoreAdapter) AddMessage(m *memory.Message) error {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
 	ttl := int32(DefaultMessageTTLSeconds)
@@ -321,17 +322,17 @@ func (g *grpcStoreAdapter) AddMessage(m *memory.Message) error {
 	return nil
 }
 
-func (g *grpcStoreAdapter) GetMessages(agentID string) ([]*memory.Message, error) {
+func (g *StoreAdapter) GetMessages(agentID string) ([]*memory.Message, error) {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
 	resp, err := g.client.Message.List(ctx, &grpcapi.MessageListRequest{AgentId: agentID})
 	if err != nil {
 		return nil, err
 	}
-	return protoToMessages(resp.Messages), nil
+	return ProtoToMessages(resp.Messages), nil
 }
 
-func (g *grpcStoreAdapter) AckMessage(messageID uint64, agentID string) error {
+func (g *StoreAdapter) AckMessage(messageID uint64, agentID string) error {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
 	_, err := g.client.Message.Ack(ctx, &grpcapi.MessageAckRequest{
@@ -341,7 +342,7 @@ func (g *grpcStoreAdapter) AckMessage(messageID uint64, agentID string) error {
 	return err
 }
 
-func (g *grpcStoreAdapter) PruneMessages() (int, error) {
+func (g *StoreAdapter) PruneMessages() (int, error) {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
 	resp, err := g.client.Message.Prune(ctx, &grpcapi.MessagePruneRequest{})
@@ -355,7 +356,7 @@ func (g *grpcStoreAdapter) PruneMessages() (int, error) {
 // TaskStore
 // =============================================================================
 
-func (g *grpcStoreAdapter) CreateTask(t *memory.Task) error {
+func (g *StoreAdapter) CreateTask(t *memory.Task) error {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
 	resp, err := g.client.Task.Create(ctx, &grpcapi.TaskCreateRequest{
@@ -373,7 +374,7 @@ func (g *grpcStoreAdapter) CreateTask(t *memory.Task) error {
 	return nil
 }
 
-func (g *grpcStoreAdapter) GetTask(id string) (*memory.Task, error) {
+func (g *StoreAdapter) GetTask(id string) (*memory.Task, error) {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
 	resp, err := g.client.Task.Get(ctx, &grpcapi.TaskGetRequest{Id: id})
@@ -383,20 +384,20 @@ func (g *grpcStoreAdapter) GetTask(id string) (*memory.Task, error) {
 	if !resp.Found {
 		return nil, store.ErrNotFound
 	}
-	return protoToTask(resp.Task), nil
+	return ProtoToTask(resp.Task), nil
 }
 
-func (g *grpcStoreAdapter) ListTasks(status memory.TaskStatus) ([]*memory.Task, error) {
+func (g *StoreAdapter) ListTasks(status memory.TaskStatus) ([]*memory.Task, error) {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
 	resp, err := g.client.Task.List(ctx, &grpcapi.TaskListRequest{Status: string(status)})
 	if err != nil {
 		return nil, err
 	}
-	return protoToTasks(resp.Tasks), nil
+	return ProtoToTasks(resp.Tasks), nil
 }
 
-func (g *grpcStoreAdapter) ClaimTask(taskID, agentID string) (*memory.Task, error) {
+func (g *StoreAdapter) ClaimTask(taskID, agentID string) (*memory.Task, error) {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
 	resp, err := g.client.Task.Claim(ctx, &grpcapi.TaskClaimRequest{
@@ -409,10 +410,10 @@ func (g *grpcStoreAdapter) ClaimTask(taskID, agentID string) (*memory.Task, erro
 	if !resp.Success {
 		return nil, fmt.Errorf("%s", resp.Error)
 	}
-	return protoToTask(resp.Task), nil
+	return ProtoToTask(resp.Task), nil
 }
 
-func (g *grpcStoreAdapter) CompleteTask(taskID, result string) error {
+func (g *StoreAdapter) CompleteTask(taskID, result string) error {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
 	_, err := g.client.Task.Complete(ctx, &grpcapi.TaskCompleteRequest{
@@ -422,7 +423,7 @@ func (g *grpcStoreAdapter) CompleteTask(taskID, result string) error {
 	return err
 }
 
-func (g *grpcStoreAdapter) UpdateTask(t *memory.Task) error {
+func (g *StoreAdapter) UpdateTask(t *memory.Task) error {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
 	_, err := g.client.Task.Update(ctx, &grpcapi.TaskUpdateRequest{
@@ -433,14 +434,14 @@ func (g *grpcStoreAdapter) UpdateTask(t *memory.Task) error {
 	return err
 }
 
-func (g *grpcStoreAdapter) DeleteTask(id string) error {
+func (g *StoreAdapter) DeleteTask(id string) error {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
 	_, err := g.client.Task.Delete(ctx, &grpcapi.TaskDeleteRequest{Id: id})
 	return err
 }
 
-func (g *grpcStoreAdapter) ClearTasks(status memory.TaskStatus) (int, error) {
+func (g *StoreAdapter) ClearTasks(status memory.TaskStatus) (int, error) {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
 	resp, err := g.client.Task.Clear(ctx, &grpcapi.TaskClearRequest{Status: string(status)})
