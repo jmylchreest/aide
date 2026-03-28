@@ -1,0 +1,13 @@
+{{define "content"}}
+<h2>{{.Project}} - Status</h2>
+<dl>
+  <dt>Connection</dt>
+  <dd><span class="status-badge {{.Instance.Status}}"></span> {{.Instance.Status}}</dd>
+  <dt>Project Root</dt>
+  <dd><code>{{.Instance.ProjectRoot}}</code></dd>
+  <dt>Socket</dt>
+  <dd><code>{{.Instance.SocketPath}}</code></dd>
+  <dt>Version</dt>
+  <dd>{{.Instance.Version}}</dd>
+</dl>
+{{end}}

@@ -1,0 +1,33 @@
+{{define "content"}}
+<h2>Code Index</h2>
+<input type="search" id="code-search" placeholder="Search symbols..." class="search-input">
+<div id="tbl"></div>
+<script>
+var codeTable = new Tabulator("#tbl", {
+  data: [],
+  layout: "fitColumns",
+  maxHeight: "calc(100vh - 12rem)",
+  placeholder: "Type a symbol name to search...",
+  columns: [
+    {title:"Name", field:"name", headerFilter:"input", formatter:function(c){return '<strong>'+c.getValue()+'</strong>'}},
+    {title:"Kind", field:"kind", headerFilter:"list", headerFilterParams:{valuesLookup:true}, width:90},
+    {title:"Language", field:"language", headerFilter:"list", headerFilterParams:{valuesLookup:true}, width:90},
+    {title:"File", field:"file", headerFilter:"input", formatter:function(c){return '<code>'+c.getValue()+'</code>'}},
+    {title:"Line", field:"line", width:60, sorter:"number"},
+    {title:"Signature", field:"signature", headerFilter:"input", formatter:function(c){return '<code>'+c.getValue()+'</code>'}},
+  ],
+});
+var searchInput = document.getElementById("code-search");
+var debounce = null;
+searchInput.addEventListener("input", function() {
+  clearTimeout(debounce);
+  debounce = setTimeout(function() {
+    var q = searchInput.value.trim();
+    if (q.length < 2) { codeTable.clearData(); return; }
+    fetch("/instances/{{.Project}}/code/search.json?q=" + encodeURIComponent(q))
+      .then(function(r){return r.json()})
+      .then(function(d){codeTable.replaceData(d.symbols||[])});
+  }, 300);
+});
+</script>
+{{end}}

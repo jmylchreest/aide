@@ -1,0 +1,29 @@
+{{define "content"}}
+<h2>Instances</h2>
+{{if .Instances}}
+<table class="sortable">
+  <thead>
+    <tr><th>Project</th><th>Status</th><th>Path</th><th>Actions</th></tr>
+  </thead>
+  <tbody>
+    {{range .Instances}}
+    <tr>
+      <td><strong>{{.ProjectName}}</strong></td>
+      <td><span class="status-badge {{.Status}}"></span> {{.Status}}</td>
+      <td><code>{{.ProjectRoot}}</code></td>
+      <td>
+        {{if eq (printf "%s" .Status) "connected"}}
+        <a href="/instances/{{.ProjectName}}/status" role="button" class="outline">Open</a>
+        {{else}}
+        <span>Offline</span>
+        {{end}}
+      </td>
+    </tr>
+    {{end}}
+  </tbody>
+</table>
+{{else}}
+<p>No aide instances discovered. Start aide in a project to see it here.</p>
+<p>Instances are registered automatically when <code>aide mcp</code> or <code>aide daemon</code> starts.</p>
+{{end}}
+{{end}}

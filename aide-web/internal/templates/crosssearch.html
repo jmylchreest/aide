@@ -1,0 +1,7 @@
+{{define "content"}}
+<h2>Cross-Instance Search</h2>
+<input type="search" class="search-input" placeholder="Search across all instances..." hx-get="/search/results" hx-trigger="keyup changed delay:300ms" hx-target="#results" name="q" value="{{.Query}}">
+<div id="results">
+  <p>Enter a search query to search across all connected instances.</p>
+</div>
+{{end}}

@@ -1,0 +1,3 @@
+# Ignore Astro build output except the placeholder
+build/*
+!build/index.html

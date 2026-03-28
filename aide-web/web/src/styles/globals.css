@@ -1,0 +1,42 @@
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-aide-border;
+  }
+
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply bg-aide-bg text-aide-text font-mono text-base antialiased;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar {
+    @apply w-2 h-2;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-aide-surface;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-aide-border-light rounded;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #444;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-aide-surface border border-aide-border rounded p-3 transition-colors;
+  }
+  .card:hover {
+    @apply border-aide-border-light;
+  }
+}

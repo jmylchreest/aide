@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{.Title}}</title>
+  <link rel="stylesheet" href="/static/css/pico.min.css">
+  <link rel="stylesheet" href="/static/css/tabulator.min.css">
+  <link rel="stylesheet" href="/static/css/app.css">
+  <script src="/static/js/htmx.min.js"></script>
+  <script src="/static/js/tabulator.min.js"></script>
+</head>
+<body>
+  <header class="container">
+    <nav>
+      <ul>
+        <li><a href="/"><strong>aide-web</strong></a></li>
+      </ul>
+      <ul>
+        {{range .Instances}}
+        <li>
+          <a href="/instances/{{.ProjectName}}/status" class="instance-tab" data-status="{{.Status}}">
+            <span class="status-badge {{.Status}}"></span>
+            {{.ProjectName}}
+          </a>
+        </li>
+        {{end}}
+        <li><a href="/search">Search</a></li>
+      </ul>
+    </nav>
+  </header>
+  <main class="container">
+    {{if .Instance}}
+    <div class="main-layout">
+      <aside class="sidebar">
+        <a href="/instances/{{.Project}}/status" {{if eq .NavActive "status"}}aria-current="page"{{end}}>Status</a>
+        <a href="/instances/{{.Project}}/memories" {{if eq .NavActive "memories"}}aria-current="page"{{end}}>Memories</a>
+        <a href="/instances/{{.Project}}/decisions" {{if eq .NavActive "decisions"}}aria-current="page"{{end}}>Decisions</a>
+        <a href="/instances/{{.Project}}/tasks" {{if eq .NavActive "tasks"}}aria-current="page"{{end}}>Tasks</a>
+        <a href="/instances/{{.Project}}/messages" {{if eq .NavActive "messages"}}aria-current="page"{{end}}>Messages</a>
+        <a href="/instances/{{.Project}}/state" {{if eq .NavActive "state"}}aria-current="page"{{end}}>State</a>
+        <a href="/instances/{{.Project}}/code" {{if eq .NavActive "code"}}aria-current="page"{{end}}>Code</a>
+        <a href="/instances/{{.Project}}/findings" {{if eq .NavActive "findings"}}aria-current="page"{{end}}>Findings</a>
+        <a href="/instances/{{.Project}}/survey" {{if eq .NavActive "survey"}}aria-current="page"{{end}}>Survey</a>
+      </aside>
+      <div class="main-content">
+        {{template "content" .}}
+      </div>
+    </div>
+    {{else}}
+    {{template "content" .}}
+    {{end}}
+  </main>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

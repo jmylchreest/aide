@@ -1,0 +1,32 @@
+{{define "content"}}
+<h2>Decisions</h2>
+<input type="search" id="global-filter" placeholder="Filter all columns..." class="search-input">
+<div id="tbl"></div>
+<script>
+fetch("/api/instances/{{.Project}}/decisions")
+  .then(r => r.json())
+  .then(data => {
+    var tbl = new Tabulator("#tbl", {
+      data: data.decisions || [],
+      layout: "fitColumns",
+      pagination: true,
+      paginationSize: 50,
+      paginationSizeSelector: [25, 50, 100],
+      paginationCounter: "rows",
+      headerFilterLiveFilterDelay: 200,
+      rowHeight: 28,
+      columns: [
+        {title:"Topic", field:"topic", headerFilter:"input", width:150, formatter:"plaintext", cssClass:"cell-bold"},
+        {title:"Decision", field:"decision", formatter:function(c){var v=c.getValue()||""; return v.length>150 ? v.substring(0,150)+"..." : v;}, headerFilter:"input"},
+        {title:"Rationale", field:"rationale", formatter:function(c){var v=c.getValue()||""; return v.length>150 ? v.substring(0,150)+"..." : v;}, headerFilter:"input"},
+        {title:"By", field:"decided_by", headerFilter:"list", headerFilterParams:{valuesLookup:true}, width:100},
+      ],
+    });
+    var filterEl = document.getElementById("global-filter");
+    var applyFilter = function(v){ v=v.toLowerCase(); if(!v){tbl.clearFilter();return;} tbl.setFilter(function(d){return JSON.stringify(d).toLowerCase().includes(v);}); };
+    filterEl.addEventListener("input", function(e){ applyFilter(e.target.value); });
+    var urlQ = new URLSearchParams(window.location.search).get("q");
+    if (urlQ) { filterEl.value = urlQ; applyFilter(urlQ); }
+  });
+</script>
+{{end}}

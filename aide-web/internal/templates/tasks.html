@@ -1,0 +1,23 @@
+{{define "content"}}
+<h2>Tasks</h2>
+<div class="kanban">
+  <div class="kanban-column">
+    <h4>Pending</h4>
+    {{with .Data}}{{range .}}{{if eq (printf "%s" .Status) "pending"}}
+    <div class="card"><strong>{{.Title}}</strong><p>{{.Description}}</p></div>
+    {{end}}{{end}}{{end}}
+  </div>
+  <div class="kanban-column">
+    <h4>Claimed</h4>
+    {{with .Data}}{{range .}}{{if eq (printf "%s" .Status) "claimed"}}
+    <div class="card"><strong>{{.Title}}</strong><p>Claimed by: {{.ClaimedBy}}</p></div>
+    {{end}}{{end}}{{end}}
+  </div>
+  <div class="kanban-column">
+    <h4>Done</h4>
+    {{with .Data}}{{range .}}{{if eq (printf "%s" .Status) "done"}}
+    <div class="card"><strong>{{.Title}}</strong><p>{{.Result}}</p></div>
+    {{end}}{{end}}{{end}}
+  </div>
+</div>
+{{end}}

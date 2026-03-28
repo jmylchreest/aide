@@ -1,0 +1,33 @@
+{{define "content"}}
+<h2>Memories</h2>
+<input type="search" id="global-filter" placeholder="Filter all columns..." class="search-input">
+<div id="tbl"></div>
+<script>
+fetch("/api/instances/{{.Project}}/memories?limit=500")
+  .then(r => r.json())
+  .then(data => {
+    var tbl = new Tabulator("#tbl", {
+      data: data.memories || [],
+      layout: "fitColumns",
+      pagination: true,
+      paginationSize: 50,
+      paginationSizeSelector: [25, 50, 100],
+      paginationCounter: "rows",
+      headerFilterLiveFilterDelay: 200,
+      rowHeight: 28,
+      columns: [
+        {title:"Category", field:"category", headerFilter:"list", headerFilterParams:{valuesLookup:true}, width:80},
+        {title:"Content", field:"content", headerFilter:"input", formatter:function(c){var v=c.getValue()||""; return v.length>120 ? v.substring(0,120)+"..." : v;}},
+        {title:"Tags", field:"tags", formatter:function(c){return (c.getValue()||[]).map(function(t){return '<mark>'+t+'</mark>'}).join(' ')}, headerFilter:"input", headerFilterFunc:function(h,v){return (v||[]).some(function(t){return t.includes(h)})}},
+        {title:"ID", field:"id", width:200, formatter:function(c){return '<code>'+c.getValue()+'</code>'}},
+        {title:"", width:30, headerSort:false, formatter:function(){return '<span class="btn-action danger" title="Delete">✕</span>'}, cellClick:function(e,cell){if(confirm("Delete this memory?"))cell.getRow().delete()}},
+      ],
+    });
+    var filterEl = document.getElementById("global-filter");
+    var applyFilter = function(v){ v=v.toLowerCase(); if(!v){tbl.clearFilter();return;} tbl.setFilter(function(d){return JSON.stringify(d).toLowerCase().includes(v);}); };
+    filterEl.addEventListener("input", function(e){ applyFilter(e.target.value); });
+    var urlQ = new URLSearchParams(window.location.search).get("q");
+    if (urlQ) { filterEl.value = urlQ; applyFilter(urlQ); }
+  });
+</script>
+{{end}}
