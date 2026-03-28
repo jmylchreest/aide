@@ -808,6 +808,12 @@ message StatusResponse {
 
   // pprof URL (empty when pprof is not enabled or not compiled in)
   string pprof_url = 9;
+
+  // Store sizes
+  repeated StatusStore stores = 10;
+
+  // Installed grammars
+  repeated StatusGrammar grammars = 11;
 }
 
 message StatusWatcher {
@@ -854,4 +860,16 @@ message StatusSurvey {
   int32 total = 2;
   map<string, int32> by_analyzer = 3;
   map<string, int32> by_kind = 4;
+}
+
+message StatusStore {
+  string name = 1;
+  string path = 2;
+  int64 size = 3; // bytes
+}
+
+message StatusGrammar {
+  string name = 1;
+  string version = 2;
+  bool built_in = 3;
 }

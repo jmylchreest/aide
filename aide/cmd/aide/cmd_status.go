@@ -31,6 +31,7 @@ type StatusOutput struct {
 	Survey        *SurveyStatus     `json:"survey,omitempty"`
 	MCPTools      []MCPToolStatus   `json:"mcpTools,omitempty"`
 	Stores        StoreStatus       `json:"stores"`
+	Grammars      []GrammarStatus   `json:"grammars,omitempty"`
 	Env           map[string]string `json:"environment,omitempty"`
 }
 
@@ -80,6 +81,12 @@ type SurveyStatus struct {
 type StoreStatus struct {
 	Paths map[string]string `json:"paths"`
 	Sizes map[string]int64  `json:"sizes"`
+}
+
+type GrammarStatus struct {
+	Name    string `json:"name"`
+	Version string `json:"version,omitempty"`
+	BuiltIn bool   `json:"builtIn"`
 }
 
 var statusUsage = `aide status - Show aide internal status
@@ -293,6 +300,31 @@ func populateFromGRPC(status *StatusOutput, resp *grpcapi.StatusResponse) {
 		}
 		status.MCPTools = tools
 	}
+
+	// Stores (override local computation when server provides data)
+	if len(resp.Stores) > 0 {
+		status.Stores = StoreStatus{
+			Paths: make(map[string]string, len(resp.Stores)),
+			Sizes: make(map[string]int64, len(resp.Stores)),
+		}
+		for _, s := range resp.Stores {
+			status.Stores.Paths[s.Name] = s.Path
+			status.Stores.Sizes[s.Name] = s.Size
+		}
+	}
+
+	// Grammars
+	if len(resp.Grammars) > 0 {
+		grammars := make([]GrammarStatus, len(resp.Grammars))
+		for i, g := range resp.Grammars {
+			grammars[i] = GrammarStatus{
+				Name:    g.Name,
+				Version: g.Version,
+				BuiltIn: g.BuiltIn,
+			}
+		}
+		status.Grammars = grammars
+	}
 }
 
 func printStatusTable(status StatusOutput) {
@@ -323,6 +355,7 @@ func printStatusTable(status StatusOutput) {
 	printSurveyStatus(status.Survey)
 	printMCPToolsStatus(status.MCPTools)
 	printStoresStatus(status.Stores)
+	printGrammarsStatus(status.Grammars)
 
 	// Environment
 	if len(status.Env) > 0 {
@@ -522,6 +555,32 @@ func printStoresStatus(stores StoreStatus) {
 	for _, name := range extra {
 		size := stores.Sizes[name]
 		fmt.Printf("  %-16s %s (%s)\n", name+":", stores.Paths[name], formatBytes(size))
+	}
+	fmt.Println()
+}
+
+func printGrammarsStatus(grammars []GrammarStatus) {
+	fmt.Println("GRAMMARS")
+	if len(grammars) > 0 {
+		var builtin, installed []string
+		for _, g := range grammars {
+			if g.BuiltIn {
+				builtin = append(builtin, g.Name)
+			} else {
+				installed = append(installed, g.Name)
+			}
+		}
+		sort.Strings(builtin)
+		sort.Strings(installed)
+		if len(builtin) > 0 {
+			fmt.Printf("  Built-in:     %s\n", strings.Join(builtin, ", "))
+		}
+		if len(installed) > 0 {
+			fmt.Printf("  Installed:    %s\n", strings.Join(installed, ", "))
+		}
+		fmt.Printf("  Total:        %d\n", len(grammars))
+	} else {
+		fmt.Println("  Not available (server not running)")
 	}
 	fmt.Println()
 }

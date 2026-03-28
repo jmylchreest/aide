@@ -1652,7 +1652,88 @@ func (s *statusServiceImpl) GetStatus(ctx context.Context, req *StatusRequest) (
 		}
 	}
 
+	// Store sizes
+	resp.Stores = getStoreSizes(srv.dbPath)
+
+	// Grammars
+	if srv.grammarLoader != nil {
+		for _, gi := range srv.grammarLoader.Installed() {
+			resp.Grammars = append(resp.Grammars, &StatusGrammar{
+				Name:    gi.Name,
+				Version: gi.Version,
+				BuiltIn: gi.BuiltIn,
+			})
+		}
+	}
+
 	return resp, nil
+}
+
+// getStoreSizes computes sizes for all known stores under .aide/memory/.
+func getStoreSizes(dbPath string) []*StatusStore {
+	if dbPath == "" {
+		return nil
+	}
+	baseDir := filepath.Dir(dbPath)     // .aide/memory/
+	codeDir := filepath.Join(baseDir, "code")
+	findingsDir := filepath.Join(baseDir, "findings")
+	surveyDir := filepath.Join(baseDir, "survey")
+
+	entries := []struct{ name, path string }{
+		{"memory.db", dbPath},
+		{"memory.bleve", store.GetSearchPath(dbPath)},
+		{"code.db", filepath.Join(codeDir, "index.db")},
+		{"code.bleve", filepath.Join(codeDir, "search.bleve")},
+		{"findings.db", filepath.Join(findingsDir, "findings.db")},
+		{"findings.bleve", findingsSearchPath(findingsDir)},
+		{"survey.db", filepath.Join(surveyDir, "survey.db")},
+		{"survey.bleve", filepath.Join(surveyDir, "search.bleve")},
+	}
+
+	// Derive relative path from project root for display
+	projectRoot := projectRoot(dbPath)
+
+	var stores []*StatusStore
+	for _, e := range entries {
+		size := dirOrFileSize(e.path)
+		if size > 0 {
+			rel, _ := filepath.Rel(projectRoot, e.path)
+			stores = append(stores, &StatusStore{
+				Name: e.name,
+				Path: rel,
+				Size: size,
+			})
+		}
+	}
+	return stores
+}
+
+// findingsSearchPath returns search.bleve if it exists, otherwise falls back to legacy findings.idx.
+func findingsSearchPath(dir string) string {
+	p := filepath.Join(dir, "search.bleve")
+	if _, err := os.Stat(p); err == nil {
+		return p
+	}
+	return filepath.Join(dir, "findings.idx")
+}
+
+// dirOrFileSize returns the total size of a file, or of all files in a directory tree.
+func dirOrFileSize(path string) int64 {
+	info, err := os.Stat(path)
+	if err != nil {
+		return 0
+	}
+	if !info.IsDir() {
+		return info.Size()
+	}
+	var total int64
+	_ = filepath.Walk(path, func(_ string, fi os.FileInfo, err error) error {
+		if err == nil && !fi.IsDir() {
+			total += fi.Size()
+		}
+		return nil
+	})
+	return total
 }
 
 // formatHumanDuration returns a human-readable duration string like "3m 21s" or "1h 5m".
