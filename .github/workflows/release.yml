@@ -101,9 +101,24 @@ jobs:
           cache: true
           cache-dependency-path: aide/go.sum
 
-      - name: Run tests
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: aide-web/web/package-lock.json
+
+      - name: Run aide tests
         run: |
           cd aide
+          go test -v -race ./...
+
+      - name: Build Astro frontend
+        run: cd aide-web/web && npm ci && npm run build
+
+      - name: Run aide-web tests
+        run: |
+          cd aide-web
           go test -v -race ./...
 
   # Build binaries for all Claude Code supported platforms
@@ -201,6 +216,108 @@ jobs:
         with:
           name: aide-${{ matrix.goos }}-${{ matrix.goarch }}
           path: dist/aide-*
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 9
+
+  # Build aide-web for all platforms (CGO required via transitive tree-sitter dep)
+  build-web:
+    name: Build Web (${{ matrix.goos }}/${{ matrix.goarch }})
+    runs-on: ${{ matrix.runner }}
+    needs: [prepare, test]
+    if: needs.prepare.outputs.should_skip != 'true' && github.event_name == 'push'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            runner: ubuntu-latest
+            zig_target: x86_64-linux-gnu
+          - goos: linux
+            goarch: arm64
+            runner: ubuntu-latest
+            zig_target: aarch64-linux-gnu
+          - goos: darwin
+            goarch: amd64
+            runner: macos-latest
+          - goos: darwin
+            goarch: arm64
+            runner: macos-latest
+          - goos: windows
+            goarch: amd64
+            runner: ubuntu-latest
+            zig_target: x86_64-windows-gnu
+          - goos: windows
+            goarch: arm64
+            runner: ubuntu-latest
+            zig_target: aarch64-windows-gnu
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: aide-web/go.mod
+          cache: true
+          cache-dependency-path: aide-web/go.sum
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: aide-web/web/package-lock.json
+
+      - name: Install Zig
+        if: matrix.zig_target
+        uses: mlugg/setup-zig@v2
+
+      - name: Build Astro frontend
+        run: cd aide-web/web && npm ci && npm run build
+
+      - name: Build aide-web binary
+        env:
+          CGO_ENABLED: 1
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          cd aide-web
+
+          # Set zig cross-compiler for Linux/Windows builds
+          if [[ -n "${{ matrix.zig_target }}" ]]; then
+            export CC="zig cc -target ${{ matrix.zig_target }}"
+            export CXX="zig c++ -target ${{ matrix.zig_target }}"
+          fi
+
+          if [[ "${{ matrix.goos }}" == "windows" ]]; then
+            export CGO_CFLAGS="-g -O2 -Wno-dll-attribute-on-redeclaration"
+          fi
+
+          BINARY_NAME="aide-web-${{ matrix.goos }}-${{ matrix.goarch }}"
+          if [[ "${{ matrix.goos }}" == "windows" ]]; then
+            BINARY_NAME="${BINARY_NAME}.exe"
+          fi
+
+          go build -ldflags "-s -w \
+            -X github.com/jmylchreest/aide/aide-web/internal/handler.Version=${{ needs.prepare.outputs.version }}" \
+            -o "../dist/${BINARY_NAME}" ./cmd/aide-web
+
+      - name: Compress binary with UPX
+        if: matrix.goos != 'darwin' && !(matrix.goos == 'windows' && matrix.goarch == 'arm64')
+        uses: svenstaro/upx-action@v2
+        with:
+          files: |
+            dist/aide-web-*
+          args: --best --lzma
+          strip: false
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: aide-web-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/aide-web-*
           if-no-files-found: error
           retention-days: 1
           compression-level: 9
@@ -491,7 +608,7 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
-    needs: [prepare, build, build-grammars, build-npm]
+    needs: [prepare, build, build-web, build-grammars, build-npm]
     if: needs.prepare.outputs.is_release == 'true'
     permissions:
       contents: write
@@ -507,8 +624,13 @@ jobs:
       - name: Prepare release assets
         run: |
           mkdir -p release
-          # Copy Go binaries
+          # Copy aide binaries (exclude aide-web dirs matched by aide-*)
           for dir in artifacts/aide-*/; do
+            [[ "$dir" == artifacts/aide-web-* ]] && continue
+            cp "$dir"/* release/ 2>/dev/null || true
+          done
+          # Copy aide-web binaries
+          for dir in artifacts/aide-web-*/; do
             cp "$dir"/* release/ 2>/dev/null || true
           done
           # Copy grammar pack archives (.tar.gz)
@@ -574,7 +696,7 @@ jobs:
   snapshot:
     name: Snapshot
     runs-on: ubuntu-latest
-    needs: [prepare, build, build-grammars, build-npm]
+    needs: [prepare, build, build-web, build-grammars, build-npm]
     if: needs.prepare.outputs.is_release == 'false' && github.ref == 'refs/heads/main' && github.event_name == 'push'
     permissions:
       contents: write
@@ -590,7 +712,12 @@ jobs:
       - name: Prepare release assets
         run: |
           mkdir -p release
+          # Copy aide binaries
           for dir in artifacts/aide-*/; do
+            cp "$dir"/* release/ 2>/dev/null || true
+          done
+          # Copy aide-web binaries
+          for dir in artifacts/aide-web-*/; do
             cp "$dir"/* release/ 2>/dev/null || true
           done
           # Copy grammar pack archives (.tar.gz)

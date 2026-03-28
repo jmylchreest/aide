@@ -32,7 +32,7 @@ jobs:
         run: bun run lint
 
   go:
-    name: Go Tests
+    name: Go Tests (aide)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -59,6 +59,34 @@ jobs:
           flags: go,aide
         continue-on-error: true
 
+  go-web:
+    name: Go Tests (aide-web)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: aide-web
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: aide-web/go.mod
+          cache-dependency-path: aide-web/go.sum
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: aide-web/web/package-lock.json
+
+      - name: Build Astro frontend
+        run: cd web && npm ci && npm run build
+
+      - name: Run tests
+        run: go test -v -race ./...
+
   go-lint:
     name: Go Lint
     runs-on: ubuntu-latest
@@ -71,7 +99,7 @@ jobs:
           go-version-file: aide/go.mod
           cache-dependency-path: aide/go.sum
 
-      - name: golangci-lint
+      - name: golangci-lint (aide)
         uses: golangci/golangci-lint-action@v9
         with:
           version: latest
@@ -80,12 +108,19 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
-    needs: [typescript, go]
+    needs: [typescript, go, go-web]
     steps:
       - uses: actions/checkout@v6
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: aide-web/web/package-lock.json
 
       - name: Setup Go
         uses: actions/setup-go@v6
@@ -104,14 +139,30 @@ jobs:
           cd aide
           go build -ldflags "-s -w" -o ../bin/aide ./cmd/aide
 
-      - name: Verify binary
-        run: ./bin/aide --help
+      - name: Build aide-web (Astro + Go)
+        run: |
+          cd aide-web/web && npm ci && npm run build && cd ../..
+          cd aide-web
+          go build -ldflags "-s -w" -o ../bin/aide-web ./cmd/aide-web
+
+      - name: Verify binaries
+        run: |
+          ./bin/aide --help
+          ./bin/aide-web --help
 
       - name: Upload aide binary
         uses: actions/upload-artifact@v6
         with:
           name: aide-linux-amd64
           path: bin/aide
+          retention-days: 1
+          compression-level: 9
+
+      - name: Upload aide-web binary
+        uses: actions/upload-artifact@v6
+        with:
+          name: aide-web-linux-amd64
+          path: bin/aide-web
           retention-days: 1
           compression-level: 9
 
