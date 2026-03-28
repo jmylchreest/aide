@@ -2,9 +2,9 @@
 /**
  * Write Guard Hook (PreToolUse)
  *
- * Blocks the Write tool from being used on existing files.
- * Forces the agent to use Edit instead, preventing destructive
- * full-file rewrites that lose forgotten code.
+ * Advises the agent to use Edit instead of Write on existing files.
+ * Injects advisory context (soft warning) rather than blocking,
+ * preventing excessive permission prompts in Claude Code.
  *
  * Core logic is in src/core/write-guard.ts for cross-platform reuse.
  */
@@ -30,6 +30,10 @@ interface HookInput {
 interface HookOutput {
   continue: boolean;
   message?: string;
+  hookSpecificOutput?: {
+    hookEventName: string;
+    additionalContext?: string;
+  };
 }
 
 async function main(): Promise<void> {
@@ -50,11 +54,14 @@ async function main(): Promise<void> {
     if (!result.allowed) {
       debug(
         SOURCE,
-        `Blocked Write to existing file: ${toolInput.file_path || toolInput.filePath || toolInput.path}`,
+        `Advisory: Write to existing file: ${toolInput.file_path || toolInput.filePath || toolInput.path}`,
       );
       const output: HookOutput = {
-        continue: false,
-        message: result.message,
+        continue: true,
+        hookSpecificOutput: {
+          hookEventName: data.hook_event_name || "PreToolUse",
+          additionalContext: result.message,
+        },
       };
       console.log(JSON.stringify(output));
     } else {
