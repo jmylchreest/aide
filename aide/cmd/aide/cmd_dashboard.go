@@ -219,12 +219,13 @@ func downloadAideWeb(targetVersion, destPath string) error {
 	var release *GitHubRelease
 	var err error
 
-	if targetVersion != "" {
+	switch {
+	case targetVersion != "":
 		release, err = getRelease(targetVersion)
 		if err != nil {
 			return fmt.Errorf("failed to get release %s: %w", targetVersion, err)
 		}
-	} else if version.IsRelease() {
+	case version.IsRelease():
 		// Use the matching release for this aide version.
 		release, err = getRelease("v" + version.Version)
 		if err != nil {
@@ -234,7 +235,7 @@ func downloadAideWeb(targetVersion, destPath string) error {
 				return fmt.Errorf("failed to get latest release: %w", err)
 			}
 		}
-	} else {
+	default:
 		// Dev/snapshot build — use latest release.
 		fmt.Println("Dev build detected, fetching latest release...")
 		release, err = getLatestRelease()
