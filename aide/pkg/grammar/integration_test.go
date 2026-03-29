@@ -1305,7 +1305,7 @@ func TestIntegrationNegativeCacheClearedOnSuccess(t *testing.T) {
 	// Load again — should retry (backoff has elapsed) and succeed in downloading.
 	// Install succeeds but Load still fails at dlopen (fake binary). However,
 	// the negative cache clearing happens inside Load right after Install succeeds.
-	_, err = cl.Load(context.Background(), "ruby")
+	_, _ = cl.Load(context.Background(), "ruby")
 	// The load will fail at dlopen (fake binary), but the *download* succeeded,
 	// so the negative cache entry should be gone.
 

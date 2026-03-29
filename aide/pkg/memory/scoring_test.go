@@ -97,7 +97,7 @@ func TestScoreMemory_CategoryPriorityOrder(t *testing.T) {
 		{"session", tags},
 	}
 
-	var prev float64 = 2.0 // above max
+	var prev = 2.0 // above max
 	for i, tc := range categories {
 		m := &Memory{
 			Category:  tc.cat,

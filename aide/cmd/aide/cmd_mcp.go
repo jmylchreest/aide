@@ -406,9 +406,10 @@ func (h *codeIndexHandler) OnChanges(files map[string]fsnotify.Op) {
 			}
 		} else {
 			count, err := h.indexer.IndexFile(path)
-			if err != nil {
+			switch {
+			case err != nil:
 				mcpLog.Printf("failed to index %s: %v", path, err)
-			} else if count == 0 {
+			case count == 0:
 				// Zero symbols may indicate the grammar isn't available yet.
 				// Log at a higher level to distinguish from genuinely empty files.
 				if lang := code.GetLanguageForFile(path); lang != "" {
@@ -416,7 +417,7 @@ func (h *codeIndexHandler) OnChanges(files map[string]fsnotify.Op) {
 				} else {
 					mcpLog.Printf("indexed %s: 0 symbols", path)
 				}
-			} else {
+			default:
 				mcpLog.Printf("indexed %s: %d symbols", path, count)
 			}
 		}

@@ -455,7 +455,8 @@ func cmdList(dbPath string, args []string) error {
 		memories = keepLatestPerTagGroup(memories)
 	}
 
-	if formatJSON {
+	switch {
+	case formatJSON:
 		// JSON output for programmatic use
 		fmt.Print("[")
 		for i, m := range memories {
@@ -474,7 +475,7 @@ func cmdList(dbPath string, args []string) error {
 				m.CreatedAt.Format("2006-01-02T15:04:05Z07:00"))
 		}
 		fmt.Println("]")
-	} else if scored {
+	case scored:
 		// Scored output: show score breakdown per memory, sorted by score
 		now := time.Now()
 		cfg := memoryScoringConfig()
@@ -512,7 +513,7 @@ func cmdList(dbPath string, args []string) error {
 		if cfg.ScoringDisabled {
 			fmt.Println("\n(scoring disabled — showing chronological order with computed scores)")
 		}
-	} else {
+	default:
 		for _, m := range memories {
 			fmt.Printf("[%s] %s: %s\n", padCategory(string(m.Category)), m.ID, truncate(m.Content, 60))
 		}

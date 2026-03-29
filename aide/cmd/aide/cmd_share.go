@@ -364,6 +364,8 @@ func isShareableMemory(m *memory.Memory) bool {
 		return true
 	case memory.CategoryLearning, memory.CategoryIssue, memory.CategoryDiscovery, memory.CategoryBlocker:
 		// Fall through to tag-based checks below
+	case memory.CategoryAbandoned:
+		// Abandoned memories are not shareable by default
 	}
 
 	// Check tags for sharing signals

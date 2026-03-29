@@ -4,7 +4,6 @@ package memory
 
 import (
 	"math"
-	"strings"
 	"time"
 )
 
@@ -243,23 +242,13 @@ func hasTag(tags []string, target string) bool {
 	return false
 }
 
-// hasTagPrefix checks if any tag in the slice starts with the given prefix.
-func hasTagPrefix(tags []string, prefix string) bool {
-	for _, t := range tags {
-		if strings.HasPrefix(t, prefix) {
-			return true
-		}
+// clamp restricts a value to [lo, hi].
+func clamp(v, lo, hi float64) float64 {
+	if v < lo {
+		return lo
 	}
-	return false
-}
-
-// clamp restricts a value to [min, max].
-func clamp(v, min, max float64) float64 {
-	if v < min {
-		return min
-	}
-	if v > max {
-		return max
+	if v > hi {
+		return hi
 	}
 	return v
 }

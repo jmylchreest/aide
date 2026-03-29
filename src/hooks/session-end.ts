@@ -51,7 +51,7 @@ function findBinary(cwd?: string): string | null {
   const pluginRoot = process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT;
   let resolvedRoot = pluginRoot;
   if (resolvedRoot) {
-    try { resolvedRoot = realpathSync(resolvedRoot); } catch {}
+    try { resolvedRoot = realpathSync(resolvedRoot); } catch { /* symlink may not resolve */ }
     const p = join(resolvedRoot, "bin", "aide");
     if (existsSync(p)) return p;
   }

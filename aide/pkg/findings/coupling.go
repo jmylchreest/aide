@@ -30,7 +30,6 @@ var (
 	importPatternCacheMu sync.RWMutex
 )
 
-// CouplingConfig configures the coupling analyzer.
 // ImportSource provides import data for coupling analysis.
 // When available, the coupling analyzer uses this instead of regex-based extraction.
 type ImportSource interface {
@@ -57,7 +56,6 @@ type CouplingConfig struct {
 	Imports ImportSource
 }
 
-// CouplingResult holds the output of a coupling analysis run.
 // CodeIndexImportSource adapts a code index reference source into an ImportSource.
 // It queries the code index for import references to provide more accurate import
 // data than regex-based extraction.
@@ -89,6 +87,7 @@ func (s *CodeIndexImportSource) GetFileImports(filePath string) []string {
 	return imports
 }
 
+// CouplingResult holds the output of a coupling analysis run.
 type CouplingResult struct {
 	FilesAnalyzed int
 	FindingsCount int
