@@ -2,7 +2,12 @@ module github.com/jmylchreest/aide/aide-web
 
 go 1.25.3
 
-require github.com/jmylchreest/aide/aide v0.0.0
+require (
+	github.com/danielgtaylor/huma/v2 v2.37.2
+	github.com/fsnotify/fsnotify v1.9.0
+	github.com/go-chi/chi/v5 v5.2.5
+	github.com/jmylchreest/aide/aide v0.0.0
+)
 
 require (
 	dario.cat/mergo v1.0.2 // indirect
@@ -48,13 +53,10 @@ require (
 	github.com/cloudflare/ahocorasick v0.0.0-20240916140611-054963ec9396 // indirect
 	github.com/cloudflare/circl v1.6.3 // indirect
 	github.com/cyphar/filepath-securejoin v0.6.1 // indirect
-	github.com/danielgtaylor/huma/v2 v2.37.2 // indirect
 	github.com/dlclark/regexp2 v1.11.5 // indirect
 	github.com/ebitengine/purego v0.10.0 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/flier/gohs v1.2.3 // indirect
-	github.com/fsnotify/fsnotify v1.9.0 // indirect
-	github.com/go-chi/chi/v5 v5.2.5 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-git/go-billy/v5 v5.8.0 // indirect
 	github.com/go-git/go-git/v5 v5.17.0 // indirect

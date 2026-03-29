@@ -38,11 +38,11 @@ all: fmt lint test web build
 
 web-install:
 	@echo "Installing web dependencies..."
-	cd web && npm install
+	cd web && bun install
 
 web: web-install
 	@echo "Building web frontend..."
-	cd web && npm run build
+	cd web && bun run build
 
 build: web
 	@echo "Building $(BINARY)..."

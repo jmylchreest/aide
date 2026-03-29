@@ -101,12 +101,8 @@ jobs:
           cache: true
           cache-dependency-path: aide/go.sum
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: aide-web/web/package-lock.json
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
 
       - name: Run aide tests
         run: |
@@ -114,7 +110,7 @@ jobs:
           go test -v -race ./...
 
       - name: Build Astro frontend
-        run: cd aide-web/web && npm ci && npm run build
+        run: cd aide-web/web && bun install --frozen-lockfile && bun run build
 
       - name: Run aide-web tests
         run: |
@@ -263,19 +259,15 @@ jobs:
           cache: true
           cache-dependency-path: aide-web/go.sum
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: aide-web/web/package-lock.json
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
 
       - name: Install Zig
         if: matrix.zig_target
         uses: mlugg/setup-zig@v2
 
       - name: Build Astro frontend
-        run: cd aide-web/web && npm ci && npm run build
+        run: cd aide-web/web && bun install --frozen-lockfile && bun run build
 
       - name: Build aide-web binary
         env:
