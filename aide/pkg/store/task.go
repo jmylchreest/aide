@@ -6,11 +6,18 @@ import (
 	"time"
 
 	"github.com/jmylchreest/aide/aide/pkg/memory"
+	"github.com/oklog/ulid/v2"
 	bolt "go.etcd.io/bbolt"
 )
 
-// AddTask creates a new task.
+// AddTask creates a new task. If the task has no ID, one is generated automatically.
 func (s *BoltStore) AddTask(t *memory.Task) error {
+	if t.ID == "" {
+		t.ID = ulid.Make().String()
+	}
+	if t.CreatedAt.IsZero() {
+		t.CreatedAt = time.Now()
+	}
 	return s.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(BucketTasks)
 		data, err := json.Marshal(t)

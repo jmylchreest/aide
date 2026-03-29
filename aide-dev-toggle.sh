@@ -151,7 +151,7 @@ sys.exit(1)
 }
 
 # --------------------------------------------------------------------------
-# Build the Go binary
+# Build the Go binaries (aide + aide-web)
 # --------------------------------------------------------------------------
 build_binary() {
     info "Building aide binary..."
@@ -173,6 +173,13 @@ build_binary() {
     mkdir -p "$REPO_ROOT/.aide/bin"
     ln -sf "$REPO_ROOT/bin/aide" "$REPO_ROOT/.aide/bin/aide"
     ok "Symlinked .aide/bin/aide -> bin/aide"
+
+    info "Building aide-web binary..."
+    if ! make -C "$REPO_ROOT" build-web 2>&1; then
+        warn "aide-web build failed (non-fatal)"
+    elif [[ -x "$REPO_ROOT/bin/aide-web" ]]; then
+        ok "Built bin/aide-web"
+    fi
 }
 
 # --------------------------------------------------------------------------
@@ -532,6 +539,12 @@ show_status() {
         echo -e "    Binary:   ${GREEN}$version${NC}"
     else
         echo -e "    Binary:   ${YELLOW}not built${NC}"
+    fi
+
+    if [[ -x "$REPO_ROOT/bin/aide-web" ]]; then
+        echo -e "    Web:      ${GREEN}built${NC}"
+    else
+        echo -e "    Web:      ${YELLOW}not built${NC}"
     fi
 
     if [[ -L "$REPO_ROOT/.aide/bin/aide" ]]; then

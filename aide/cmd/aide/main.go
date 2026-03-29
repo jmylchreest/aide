@@ -37,6 +37,11 @@ func main() {
 			fatal("%v", err)
 		}
 		return
+	case "dashboard":
+		if err := cmdDashboard(args); err != nil {
+			fatal("%v", err)
+		}
+		return
 	}
 
 	// Determine database path from project root (walks up to .aide or .git).
@@ -137,6 +142,7 @@ Commands:
   mcp        Start MCP server (for Claude Code plugin integration)
   grammar    Manage tree-sitter language grammars (list, install, remove, scan)
   status     Show aide internal status (watcher, stores, analysers)
+  dashboard  Manage aide-web dashboard (run, download, upgrade)
   upgrade    Check for updates and upgrade to latest version
   version    Show version information
 

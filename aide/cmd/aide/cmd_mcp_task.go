@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/jmylchreest/aide/aide/pkg/memory"
 	"github.com/jmylchreest/aide/aide/pkg/store"
@@ -118,7 +117,6 @@ func (s *MCPServer) handleTaskCreate(_ context.Context, _ *mcp.CallToolRequest, 
 		Title:       input.Title,
 		Description: input.Description,
 		Status:      memory.TaskStatusPending,
-		CreatedAt:   time.Now(),
 	}
 
 	if err := s.store.CreateTask(task); err != nil {

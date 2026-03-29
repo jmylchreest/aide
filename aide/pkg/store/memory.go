@@ -7,11 +7,18 @@ import (
 	"time"
 
 	"github.com/jmylchreest/aide/aide/pkg/memory"
+	"github.com/oklog/ulid/v2"
 	bolt "go.etcd.io/bbolt"
 )
 
-// AddMemory stores a new memory entry.
+// AddMemory stores a new memory entry. If the memory has no ID, one is generated automatically.
 func (s *BoltStore) AddMemory(m *memory.Memory) error {
+	if m.ID == "" {
+		m.ID = ulid.Make().String()
+	}
+	if m.CreatedAt.IsZero() {
+		m.CreatedAt = time.Now()
+	}
 	return s.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(BucketMemories)
 		data, err := json.Marshal(m)

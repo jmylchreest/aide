@@ -206,19 +206,19 @@ Returns full task details including status, assigned agent, and result.
 
 Lists tasks, optionally filtered by status.
 
-**Parameters:** `status` (optional: pending, claimed, completed)
+**Parameters:** `status` (optional: pending, claimed, done, blocked)
 
 ### task_claim
 
 Atomically claims a pending task for an agent. Prevents two agents from claiming the same task.
 
-**Parameters:** `id` (string), `agent_id` (string)
+**Parameters:** `task_id` (string), `agent_id` (string)
 
 ### task_complete
 
 Marks a claimed task as complete with a result summary.
 
-**Parameters:** `id` (string), `result` (string)
+**Parameters:** `task_id` (string), `result` (string)
 
 ### task_delete
 

@@ -8,7 +8,6 @@ import (
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi"
 	"github.com/jmylchreest/aide/aide/pkg/memory"
 	"github.com/jmylchreest/aide/aide/pkg/store"
-	"github.com/oklog/ulid/v2"
 )
 
 // RPCTimeout is the default timeout for gRPC calls from adapters.
@@ -49,9 +48,6 @@ func (g *StoreAdapter) Close() error {
 func (g *StoreAdapter) AddMemory(m *memory.Memory) error {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
-	if m.ID == "" {
-		m.ID = ulid.Make().String()
-	}
 	resp, err := g.client.Memory.Add(ctx, &grpcapi.MemoryAddRequest{
 		Content:  m.Content,
 		Category: string(m.Category),

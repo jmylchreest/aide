@@ -19,15 +19,9 @@ import (
 	"github.com/jmylchreest/aide/aide/pkg/store"
 	"github.com/jmylchreest/aide/aide/pkg/survey"
 	"github.com/jmylchreest/aide/aide/pkg/watcher"
-	"github.com/oklog/ulid/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
-
-// generateID creates a new ULID for use as an entity ID.
-func generateID() string {
-	return ulid.Make().String()
-}
 
 // SocketPathFromDB returns the Unix socket path derived from the database path.
 // The socket is placed in the project's .aide directory (sibling to the memory dir).
@@ -237,11 +231,9 @@ type memoryServiceImpl struct {
 
 func (s *memoryServiceImpl) Add(ctx context.Context, req *MemoryAddRequest) (*MemoryAddResponse, error) {
 	mem := &memory.Memory{
-		ID:        generateID(),
-		Content:   req.Content,
-		Category:  memory.Category(req.Category),
-		Tags:      req.Tags,
-		CreatedAt: time.Now(),
+		Content:  req.Content,
+		Category: memory.Category(req.Category),
+		Tags:     req.Tags,
 	}
 
 	if err := s.store.AddMemory(mem); err != nil {
@@ -628,11 +620,9 @@ type taskServiceImpl struct {
 
 func (s *taskServiceImpl) Create(ctx context.Context, req *TaskCreateRequest) (*TaskCreateResponse, error) {
 	task := &memory.Task{
-		ID:          generateID(),
 		Title:       req.Title,
 		Description: req.Description,
 		Status:      memory.TaskStatusPending,
-		CreatedAt:   time.Now(),
 	}
 
 	if err := s.store.CreateTask(task); err != nil {

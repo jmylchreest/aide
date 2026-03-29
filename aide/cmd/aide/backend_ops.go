@@ -8,7 +8,6 @@ import (
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi/adapter"
 	"github.com/jmylchreest/aide/aide/pkg/memory"
 	"github.com/jmylchreest/aide/aide/pkg/store"
-	"github.com/oklog/ulid/v2"
 )
 
 // =============================================================================
@@ -32,11 +31,9 @@ func (b *Backend) AddMemory(content, category string, tags []string) (*memory.Me
 	}
 
 	mem := &memory.Memory{
-		ID:        ulid.Make().String(),
-		Content:   content,
-		Category:  memory.Category(category),
-		Tags:      tags,
-		CreatedAt: time.Now(),
+		Content:  content,
+		Category: memory.Category(category),
+		Tags:     tags,
 	}
 	if err := b.store.AddMemory(mem); err != nil {
 		return nil, err
@@ -613,7 +610,6 @@ func (b *Backend) CreateTask(title, description string) (*memory.Task, error) {
 		Title:       title,
 		Description: description,
 		Status:      memory.TaskStatusPending,
-		CreatedAt:   time.Now(),
 	}
 	if err := b.store.CreateTask(task); err != nil {
 		return nil, err
