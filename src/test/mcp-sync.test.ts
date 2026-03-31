@@ -80,6 +80,13 @@ describe("syncMcpServers", () => {
     const oldMtime = Date.now() - 60_000;
     const newMtime = Date.now();
 
+    // Set file mtimes so updatePresence uses the expected timestamps.
+    // .mcp.json is old (server was present a while ago), aide config is new.
+    const oldDate = new Date(oldMtime);
+    const newDate = new Date(newMtime);
+    utimesSync(mcpJsonPath, oldDate, oldDate);
+    utimesSync(aideMcpPath, newDate, newDate);
+
     writeFileSync(
       join(journalDir, "mcp-sync.journal.json"),
       JSON.stringify(

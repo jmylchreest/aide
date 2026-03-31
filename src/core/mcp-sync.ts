@@ -605,16 +605,24 @@ function gatherSources(scope: McpScope, cwd: string): McpSource[] {
 }
 
 /**
- * Phase 1: Detect state transitions per server per source.
+ * Update the journal with per-server state transitions and resolve the
+ * final server set using per-server latest-mtime-wins semantics.
  *
- * For each source, marks servers as present (with config hash) or removed
- * when they disappear from a file they were previously tracked in.
+ * For each server in each source file, we track the last state transition
+ * (present→removed or absent→present or config changed). The mtime stored
+ * is the source file's mtime at the time of that transition. To resolve,
+ * for each server we pick the entry with the highest mtime: if present the
+ * server is included, if removed it is excluded.
  */
-function updatePresence(
-  journal: McpSyncJournal,
+function updateJournalAndResolve(
+  jrnlPath: string,
   sources: McpSource[],
-  now: string,
-): void {
+): { resolved: Record<string, CanonicalMcpServer>; journal: McpSyncJournal } {
+  const journal = readJournal(jrnlPath);
+  const now = new Date().toISOString();
+  const activePaths = new Set(sources.map((s) => s.path));
+
+  // Detect state transitions per server per source
   for (const source of sources) {
     const currentNames = new Set(Object.keys(source.servers));
 
@@ -648,21 +656,11 @@ function updatePresence(
       }
     }
   }
-}
 
-/**
- * Phase 2: Bootstrap missing source entries.
- *
- * For servers found in some sources but absent from others, record
- * "not present" entries for the missing sources. Without this, a server
- * deleted from one file before the v2 journal existed would have no
- * removal event to counterbalance presence in other files.
- */
-function bootstrapMissingSources(
-  journal: McpSyncJournal,
-  sources: McpSource[],
-  now: string,
-): void {
+  // Bootstrap: for servers found in some sources but absent from others,
+  // record "not present" entries for the missing sources. Without this,
+  // a server deleted from one file before the v2 journal existed would
+  // have no removal event to counterbalance presence in other files.
   const allServerNames = new Set(Object.keys(journal.servers));
   for (const serverName of allServerNames) {
     const sourceMap = journal.servers[serverName];
@@ -680,15 +678,8 @@ function bootstrapMissingSources(
       }
     }
   }
-}
 
-/**
- * Phase 3: Clean up journal entries for source files that no longer exist.
- */
-function pruneStaleEntries(
-  journal: McpSyncJournal,
-  activePaths: Set<string>,
-): void {
+  // Clean up journal entries for source files that no longer exist
   for (const sourceMap of Object.values(journal.servers)) {
     for (const sourcePath of Object.keys(sourceMap)) {
       if (sourcePath !== "migrated-v1" && !activePaths.has(sourcePath)) {
@@ -696,19 +687,8 @@ function pruneStaleEntries(
       }
     }
   }
-}
 
-/**
- * Phase 4: Resolve servers using latest-mtime-wins semantics.
- *
- * For each server, pick the journal entry with the highest mtime. If that
- * entry marks the server as present, include it in the result; otherwise
- * exclude it.
- */
-function resolveServers(
-  journal: McpSyncJournal,
-  sources: McpSource[],
-): Record<string, CanonicalMcpServer> {
+  // Resolve: per server, latest mtime wins
   const resolved: Record<string, CanonicalMcpServer> = {};
 
   const allNames = new Set<string>();
@@ -745,32 +725,6 @@ function resolveServers(
       if (server) resolved[serverName] = server;
     }
   }
-
-  return resolved;
-}
-
-/**
- * Update the journal with per-server state transitions and resolve the
- * final server set using per-server latest-mtime-wins semantics.
- *
- * For each server in each source file, we track the last state transition
- * (present→removed or absent→present or config changed). The mtime stored
- * is the source file's mtime at the time of that transition. To resolve,
- * for each server we pick the entry with the highest mtime: if present the
- * server is included, if removed it is excluded.
- */
-function updateJournalAndResolve(
-  jrnlPath: string,
-  sources: McpSource[],
-): { resolved: Record<string, CanonicalMcpServer>; journal: McpSyncJournal } {
-  const journal = readJournal(jrnlPath);
-  const now = new Date().toISOString();
-  const activePaths = new Set(sources.map((s) => s.path));
-
-  updatePresence(journal, sources, now);
-  bootstrapMissingSources(journal, sources, now);
-  pruneStaleEntries(journal, activePaths);
-  const resolved = resolveServers(journal, sources);
 
   writeJournal(jrnlPath, journal);
   return { resolved, journal };

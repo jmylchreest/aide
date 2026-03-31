@@ -9,7 +9,7 @@
   "scripts": {
     "build": "tsc",
     "watch": "tsc --watch",
-    "test": "vitest",
+    "test": "vitest --exclude 'dist/**'",
     "lint": "eslint src/",
     "format": "prettier --write src/",
     "typecheck": "tsc --noEmit"
