@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/jmylchreest/aide/aide/internal/version"
@@ -230,4 +231,57 @@ func newGrammarLoaderNoAuto(dbPath string, logger *log.Logger) *grammar.Composit
 		opts = append(opts, grammar.WithBaseURL(cfg.URL))
 	}
 	return grammar.NewCompositeLoader(opts...)
+}
+
+// resolveIntOpt resolves an integer option using the three-tier precedence:
+// CLI flag > config value (if > 0) > fallback.
+func resolveIntOpt(args []string, flag string, cfgVal int, fallback int) (int, error) {
+	v := fallback
+	if cfgVal > 0 {
+		v = cfgVal
+	}
+	if raw := parseFlag(args, flag); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil {
+			return 0, fmt.Errorf("invalid %s value %q: %w", strings.TrimSuffix(flag, "="), raw, err)
+		}
+		v = parsed
+	}
+	return v, nil
+}
+
+// resolveFloatOpt resolves a float64 option using the three-tier precedence:
+// CLI flag > config value (if > 0) > fallback.
+func resolveFloatOpt(args []string, flag string, cfgVal float64, fallback float64) (float64, error) {
+	v := fallback
+	if cfgVal > 0 {
+		v = cfgVal
+	}
+	if raw := parseFlag(args, flag); raw != "" {
+		parsed, err := strconv.ParseFloat(raw, 64)
+		if err != nil {
+			return 0, fmt.Errorf("invalid %s value %q: %w", strings.TrimSuffix(flag, "="), raw, err)
+		}
+		v = parsed
+	}
+	return v, nil
+}
+
+// resolveSeverityOpt resolves a severity string option using the three-tier
+// precedence: CLI flag > config value (if non-empty) > fallback.
+// Valid values are "info", "warning", and "critical".
+func resolveSeverityOpt(args []string, flag string, cfgVal string, fallback string) (string, error) {
+	v := fallback
+	if cfgVal != "" {
+		v = cfgVal
+	}
+	if raw := parseFlag(args, flag); raw != "" {
+		switch raw {
+		case "info", "warning", "critical":
+			v = raw
+		default:
+			return "", fmt.Errorf("invalid %s value %q: must be info, warning, or critical", strings.TrimSuffix(flag, "="), raw)
+		}
+	}
+	return v, nil
 }

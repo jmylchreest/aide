@@ -129,7 +129,7 @@ Examples:
 }
 
 // cmdFindingsRun runs one or more static analyzers and stores findings.
-func cmdFindingsRun(dbPath string, args []string) error { //nolint:gocyclo // CLI dispatcher with many analyser cases
+func cmdFindingsRun(dbPath string, args []string) error {
 	if len(args) < 1 {
 		return fmt.Errorf("usage: aide findings run <analyser|all> [paths...] [options]")
 	}
@@ -154,105 +154,42 @@ func cmdFindingsRun(dbPath string, args []string) error { //nolint:gocyclo // CL
 	projectRoot := projectRoot(dbPath)
 	cfg := loadFindingsConfig(projectRoot)
 
-	threshold := findings.DefaultComplexityThreshold
-	if cfg.Complexity.Threshold > 0 {
-		threshold = cfg.Complexity.Threshold
+	threshold, err := resolveIntOpt(subargs, "--threshold=", cfg.Complexity.Threshold, findings.DefaultComplexityThreshold)
+	if err != nil {
+		return err
 	}
-	if t := parseFlag(subargs, "--threshold="); t != "" {
-		if v, err := strconv.Atoi(t); err != nil {
-			return fmt.Errorf("invalid --threshold value %q: %w", t, err)
-		} else {
-			threshold = v
-		}
+	fanOut, err := resolveIntOpt(subargs, "--fan-out=", cfg.Coupling.FanOut, findings.DefaultFanOutThreshold)
+	if err != nil {
+		return err
 	}
-	fanOut := findings.DefaultFanOutThreshold
-	if cfg.Coupling.FanOut > 0 {
-		fanOut = cfg.Coupling.FanOut
+	fanIn, err := resolveIntOpt(subargs, "--fan-in=", cfg.Coupling.FanIn, findings.DefaultFanInThreshold)
+	if err != nil {
+		return err
 	}
-	if f := parseFlag(subargs, "--fan-out="); f != "" {
-		if v, err := strconv.Atoi(f); err != nil {
-			return fmt.Errorf("invalid --fan-out value %q: %w", f, err)
-		} else {
-			fanOut = v
-		}
+	windowSize, err := resolveIntOpt(subargs, "--window=", cfg.Clones.WindowSize, clone.DefaultWindowSize)
+	if err != nil {
+		return err
 	}
-	fanIn := findings.DefaultFanInThreshold
-	if cfg.Coupling.FanIn > 0 {
-		fanIn = cfg.Coupling.FanIn
+	minCloneLines, err := resolveIntOpt(subargs, "--min-lines=", cfg.Clones.MinLines, clone.DefaultMinCloneLines)
+	if err != nil {
+		return err
 	}
-	if f := parseFlag(subargs, "--fan-in="); f != "" {
-		if v, err := strconv.Atoi(f); err != nil {
-			return fmt.Errorf("invalid --fan-in value %q: %w", f, err)
-		} else {
-			fanIn = v
-		}
+	// 0 fallback → clone.Config.defaults() resolves zero → default at runtime.
+	minMatchCount, err := resolveIntOpt(subargs, "--min-match-count=", cfg.Clones.MinMatchCount, 0)
+	if err != nil {
+		return err
 	}
-	windowSize := clone.DefaultWindowSize
-	if cfg.Clones.WindowSize > 0 {
-		windowSize = cfg.Clones.WindowSize
+	maxBucket, err := resolveIntOpt(subargs, "--max-bucket=", cfg.Clones.MaxBucketSize, 0)
+	if err != nil {
+		return err
 	}
-	if w := parseFlag(subargs, "--window="); w != "" {
-		if v, err := strconv.Atoi(w); err != nil {
-			return fmt.Errorf("invalid --window value %q: %w", w, err)
-		} else {
-			windowSize = v
-		}
+	minSimilarity, err := resolveFloatOpt(subargs, "--min-similarity=", cfg.Clones.MinSimilarity, 0.0)
+	if err != nil {
+		return err
 	}
-	minCloneLines := clone.DefaultMinCloneLines
-	if cfg.Clones.MinLines > 0 {
-		minCloneLines = cfg.Clones.MinLines
-	}
-	if m := parseFlag(subargs, "--min-lines="); m != "" {
-		if v, err := strconv.Atoi(m); err != nil {
-			return fmt.Errorf("invalid --min-lines value %q: %w", m, err)
-		} else {
-			minCloneLines = v
-		}
-	}
-	minMatchCount := 0 // 0 → clone.DefaultMinMatchCount applied by defaults().
-	if cfg.Clones.MinMatchCount > 0 {
-		minMatchCount = cfg.Clones.MinMatchCount
-	}
-	if m := parseFlag(subargs, "--min-match-count="); m != "" {
-		if v, err := strconv.Atoi(m); err != nil {
-			return fmt.Errorf("invalid --min-match-count value %q: %w", m, err)
-		} else {
-			minMatchCount = v
-		}
-	}
-	maxBucket := 0 // 0 → clone.DefaultMaxBucketSize applied by defaults().
-	if cfg.Clones.MaxBucketSize > 0 {
-		maxBucket = cfg.Clones.MaxBucketSize
-	}
-	if m := parseFlag(subargs, "--max-bucket="); m != "" {
-		if v, err := strconv.Atoi(m); err != nil {
-			return fmt.Errorf("invalid --max-bucket value %q: %w", m, err)
-		} else {
-			maxBucket = v
-		}
-	}
-	minSimilarity := 0.0
-	if cfg.Clones.MinSimilarity > 0 {
-		minSimilarity = cfg.Clones.MinSimilarity
-	}
-	if m := parseFlag(subargs, "--min-similarity="); m != "" {
-		v, err := strconv.ParseFloat(m, 64)
-		if err != nil {
-			return fmt.Errorf("invalid --min-similarity value %q: %w", m, err)
-		}
-		minSimilarity = v
-	}
-	minSeverity := clone.DefaultMinSeverity
-	if cfg.Clones.MinSeverity != "" {
-		minSeverity = cfg.Clones.MinSeverity
-	}
-	if m := parseFlag(subargs, "--min-severity="); m != "" {
-		switch m {
-		case "info", "warning", "critical":
-			minSeverity = m
-		default:
-			return fmt.Errorf("invalid --min-severity value %q: must be info, warning, or critical", m)
-		}
+	minSeverity, err := resolveSeverityOpt(subargs, "--min-severity=", cfg.Clones.MinSeverity, clone.DefaultMinSeverity)
+	if err != nil {
+		return err
 	}
 
 	// Determine which analyzers to run.

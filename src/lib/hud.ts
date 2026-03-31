@@ -290,6 +290,87 @@ async function refreshUsageCache(): Promise<void> {
   }
 }
 
+type ElementFormatter = (
+  state: SessionState,
+  agents: AgentState[],
+  config: HudConfig,
+  cwd: string,
+) => string | null;
+
+const elementFormatters: Record<string, ElementFormatter> = {
+  mode: (state, _agents, config) => {
+    const modeName = state.activeMode || "idle";
+    const toolSuffix = state.lastTool ? `(${state.lastTool})` : "";
+    if (config.format === "icons") {
+      const icon = ICONS.mode[state.activeMode || "none"] || ICONS.mode.none;
+      return `${icon} ${modeName}${toolSuffix}`;
+    }
+    return `mode:${modeName}${toolSuffix}`;
+  },
+
+  agents: (_state, agents, config) => {
+    const runningCount = agents.filter((a) => a.status === "running").length;
+    if (runningCount <= 0) return null;
+    if (config.format === "icons") {
+      return `${ICONS.agents} ${runningCount}`;
+    }
+    return `agents:${runningCount}`;
+  },
+
+  duration: (state, _agents, config) => {
+    const duration = formatDuration(state.startedAt);
+    if (config.format === "icons") {
+      return `${ICONS.time} ${duration}`;
+    }
+    return duration;
+  },
+
+  tools: (state, _agents, config) => {
+    if (state.toolCalls <= 0) return null;
+    if (config.format === "icons") {
+      return `🔧 ${state.toolCalls}`;
+    }
+    return `tools:${state.toolCalls}`;
+  },
+
+  usage: (_state, _agents, config, cwd) => {
+    const cacheTTL = config.usageCacheTTL
+      ? config.usageCacheTTL * 1000
+      : undefined;
+    const usage = getUsageSummary(cwd, cacheTTL);
+    if (!usage) return null;
+
+    const fmt = (n: number) =>
+      n >= 1000000
+        ? `${(n / 1000000).toFixed(1)}M`
+        : n >= 1000
+          ? `${(n / 1000).toFixed(0)}K`
+          : `${n}`;
+
+    let usageStr: string;
+    if (usage.fiveHourPercent !== null) {
+      // API-sourced percentages (accurate)
+      const remainStr =
+        usage.fiveHourRemain && usage.fiveHourRemain !== "expired"
+          ? ` ~${usage.fiveHourRemain}`
+          : "";
+      const weekStr =
+        usage.weeklyPercent !== null
+          ? ` wk:${Math.round(usage.weeklyPercent)}%`
+          : "";
+      usageStr = `5h:${Math.round(usage.fiveHourPercent)}%${remainStr}${weekStr}`;
+    } else {
+      // Fallback to weighted token counts
+      usageStr = `5h:${fmt(usage.window5hTokens)}`;
+    }
+
+    if (config.format === "icons") {
+      return `📊 ${usageStr}`;
+    }
+    return usageStr;
+  },
+};
+
 /**
  * Format HUD output based on config
  */
@@ -304,92 +385,10 @@ export function formatHud(
   const parts: string[] = [];
 
   for (const element of config.elements) {
-    switch (element) {
-      case "mode": {
-        const modeName = state.activeMode || "idle";
-        const toolSuffix = state.lastTool ? `(${state.lastTool})` : "";
-        if (config.format === "icons") {
-          const icon =
-            ICONS.mode[state.activeMode || "none"] || ICONS.mode.none;
-          parts.push(`${icon} ${modeName}${toolSuffix}`);
-        } else {
-          parts.push(`mode:${modeName}${toolSuffix}`);
-        }
-        break;
-      }
-
-      case "agents": {
-        const runningCount = agents.filter(
-          (a) => a.status === "running",
-        ).length;
-        if (runningCount > 0) {
-          if (config.format === "icons") {
-            parts.push(`${ICONS.agents} ${runningCount}`);
-          } else {
-            parts.push(`agents:${runningCount}`);
-          }
-        }
-        break;
-      }
-
-      case "duration": {
-        const duration = formatDuration(state.startedAt);
-        if (config.format === "icons") {
-          parts.push(`${ICONS.time} ${duration}`);
-        } else {
-          parts.push(duration);
-        }
-        break;
-      }
-
-      case "tools":
-        if (state.toolCalls > 0) {
-          if (config.format === "icons") {
-            parts.push(`🔧 ${state.toolCalls}`);
-          } else {
-            parts.push(`tools:${state.toolCalls}`);
-          }
-        }
-        break;
-
-      case "usage": {
-        const cacheTTL = config.usageCacheTTL
-          ? config.usageCacheTTL * 1000
-          : undefined;
-        const usage = getUsageSummary(cwd, cacheTTL);
-        if (usage) {
-          const fmt = (n: number) =>
-            n >= 1000000
-              ? `${(n / 1000000).toFixed(1)}M`
-              : n >= 1000
-                ? `${(n / 1000).toFixed(0)}K`
-                : `${n}`;
-
-          let usageStr: string;
-          if (usage.fiveHourPercent !== null) {
-            // API-sourced percentages (accurate)
-            const remainStr =
-              usage.fiveHourRemain && usage.fiveHourRemain !== "expired"
-                ? ` ~${usage.fiveHourRemain}`
-                : "";
-            const weekStr =
-              usage.weeklyPercent !== null
-                ? ` wk:${Math.round(usage.weeklyPercent)}%`
-                : "";
-            usageStr = `5h:${Math.round(usage.fiveHourPercent)}%${remainStr}${weekStr}`;
-          } else {
-            // Fallback to weighted token counts
-            usageStr = `5h:${fmt(usage.window5hTokens)}`;
-          }
-
-          if (config.format === "icons") {
-            parts.push(`📊 ${usageStr}`);
-          } else {
-            parts.push(usageStr);
-          }
-        }
-        break;
-      }
+    const formatter = elementFormatters[element];
+    if (formatter) {
+      const part = formatter(state, agents, config, cwd);
+      if (part) parts.push(part);
     }
   }
 

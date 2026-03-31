@@ -41,6 +41,78 @@ export function getSessionCommits(cwd: string, startedAt?: string): string[] {
   }
 }
 
+interface TranscriptEntry {
+  type?: string;
+  tool_name?: string;
+  tool_input?: { file_path?: string; [key: string]: unknown };
+  content?:
+    | string
+    | {
+        text?: string;
+        tool_use?: { name?: string; input?: { file_path?: string } };
+      };
+}
+
+interface TranscriptData {
+  filesModified: Set<string>;
+  toolsUsed: Set<string>;
+  userMessages: string[];
+}
+
+/**
+ * Parse raw JSONL transcript lines into structured data.
+ */
+function parseTranscript(lines: string[]): TranscriptData {
+  const entries: TranscriptEntry[] = [];
+  for (const line of lines) {
+    try {
+      const parsed: unknown = JSON.parse(line);
+      if (
+        typeof parsed === "object" &&
+        parsed !== null &&
+        !Array.isArray(parsed)
+      ) {
+        entries.push(parsed as TranscriptEntry);
+      }
+    } catch {
+      // Skip malformed
+    }
+  }
+
+  const filesModified = new Set<string>();
+  const toolsUsed = new Set<string>();
+  const userMessages: string[] = [];
+
+  for (const entry of entries) {
+    const contentObj =
+      typeof entry.content === "object" ? entry.content : null;
+    if (
+      entry.type === "tool_use" ||
+      (entry.type === "assistant" && contentObj?.tool_use)
+    ) {
+      const toolName = entry.tool_name || contentObj?.tool_use?.name;
+      if (toolName) toolsUsed.add(toolName);
+
+      const toolInput = entry.tool_input || contentObj?.tool_use?.input;
+      if (toolInput?.file_path && toolName) {
+        if (["Write", "Edit"].includes(toolName)) {
+          filesModified.add(toolInput.file_path);
+        }
+      }
+    }
+
+    if (entry.type === "human" || entry.type === "user") {
+      const text =
+        typeof entry.content === "string" ? entry.content : contentObj?.text;
+      if (text && text.length > 10 && text.length < 500) {
+        userMessages.push(text.slice(0, 200));
+      }
+    }
+  }
+
+  return { filesModified, toolsUsed, userMessages };
+}
+
 /**
  * Build a session summary from transcript data.
  *
@@ -61,64 +133,7 @@ export function buildSessionSummary(
 
     if (lines.length < 5) return null;
 
-    interface TranscriptEntry {
-      type?: string;
-      tool_name?: string;
-      tool_input?: { file_path?: string; [key: string]: unknown };
-      content?:
-        | string
-        | {
-            text?: string;
-            tool_use?: { name?: string; input?: { file_path?: string } };
-          };
-    }
-
-    const entries: TranscriptEntry[] = [];
-    for (const line of lines) {
-      try {
-        const parsed: unknown = JSON.parse(line);
-        if (
-          typeof parsed === "object" &&
-          parsed !== null &&
-          !Array.isArray(parsed)
-        ) {
-          entries.push(parsed as TranscriptEntry);
-        }
-      } catch {
-        // Skip malformed
-      }
-    }
-
-    const filesModified = new Set<string>();
-    const toolsUsed = new Set<string>();
-    const userMessages: string[] = [];
-
-    for (const entry of entries) {
-      const contentObj =
-        typeof entry.content === "object" ? entry.content : null;
-      if (
-        entry.type === "tool_use" ||
-        (entry.type === "assistant" && contentObj?.tool_use)
-      ) {
-        const toolName = entry.tool_name || contentObj?.tool_use?.name;
-        if (toolName) toolsUsed.add(toolName);
-
-        const toolInput = entry.tool_input || contentObj?.tool_use?.input;
-        if (toolInput?.file_path && toolName) {
-          if (["Write", "Edit"].includes(toolName)) {
-            filesModified.add(toolInput.file_path);
-          }
-        }
-      }
-
-      if (entry.type === "human" || entry.type === "user") {
-        const text =
-          typeof entry.content === "string" ? entry.content : contentObj?.text;
-        if (text && text.length > 10 && text.length < 500) {
-          userMessages.push(text.slice(0, 200));
-        }
-      }
-    }
+    const { filesModified, toolsUsed, userMessages } = parseTranscript(lines);
 
     const commits = getSessionCommits(cwd, startedAt);
 
