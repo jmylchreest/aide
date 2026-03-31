@@ -2,7 +2,9 @@
  * AIDE Debug Logger
  *
  * Provides timing and tracing for hooks and operations.
- * Disabled by default - enable with AIDE_DEBUG=1 environment variable.
+ * Disabled by default. Enable with either:
+ *   1. AIDE_DEBUG=1 environment variable
+ *   2. touch .aide/.debug sentinel file (no restart needed)
  *
  * Usage:
  *   import { Logger } from '../lib/logger';
@@ -13,7 +15,8 @@
  *   log.flush();  // Write all logs to file
  *
  * Enable logging:
- *   AIDE_DEBUG=1 claude
+ *   AIDE_DEBUG=1 claude          # env var (requires restart)
+ *   touch .aide/.debug           # sentinel file (live toggle)
  */
 
 import { existsSync, mkdirSync, appendFileSync, writeFileSync } from "fs";
@@ -46,10 +49,11 @@ export class Logger {
   private sessionStart: number;
 
   constructor(source: string, cwd?: string) {
-    const debugEnv = process.env.AIDE_DEBUG || "";
-    this.enabled = debugEnv === "1" || debugEnv === "true";
     this.source = source;
     this.cwd = cwd || process.cwd();
+    // Set debugLogCwd so isDebugEnabled() can check the sentinel file
+    if (cwd) setDebugCwd(cwd);
+    this.enabled = isDebugEnabled();
     this.logDir = join(this.cwd, ".aide", "_logs");
     this.logFile = join(this.logDir, "startup.log");
     this.sessionStart = Date.now();
@@ -329,16 +333,39 @@ export function getLogger(source: string, cwd?: string): Logger {
   return defaultLogger;
 }
 
+// Debug log state - tracks cwd for file-based logging
+let debugLogCwd = process.cwd();
+
+// Cache sentinel file check per cwd to avoid repeated stat calls
+let debugSentinelCwd = "";
+let debugSentinelResult = false;
+
 /**
- * Quick check if debug logging is enabled
+ * Quick check if debug logging is enabled.
+ *
+ * Checks (in order):
+ * 1. AIDE_DEBUG=1 environment variable
+ * 2. .aide/.debug sentinel file in the project root
+ *
+ * The sentinel file allows enabling debug without restarting Claude.
+ * Create it with: touch .aide/.debug
+ * Remove it with: rm .aide/.debug
  */
 export function isDebugEnabled(): boolean {
   const debugEnv = process.env.AIDE_DEBUG || "";
-  return debugEnv === "1" || debugEnv === "true";
-}
+  if (debugEnv === "1" || debugEnv === "true") return true;
 
-// Debug log state - tracks cwd for file-based logging
-let debugLogCwd = process.cwd();
+  // Check sentinel file (cached per cwd)
+  if (debugLogCwd !== debugSentinelCwd) {
+    debugSentinelCwd = debugLogCwd;
+    try {
+      debugSentinelResult = existsSync(join(debugLogCwd, ".aide", ".debug"));
+    } catch {
+      debugSentinelResult = false;
+    }
+  }
+  return debugSentinelResult;
+}
 
 /**
  * Set the working directory for debug logging.
@@ -346,6 +373,8 @@ let debugLogCwd = process.cwd();
  */
 export function setDebugCwd(cwd: string): void {
   debugLogCwd = cwd;
+  // Invalidate sentinel cache so next isDebugEnabled() re-checks
+  debugSentinelCwd = "";
 }
 
 /**

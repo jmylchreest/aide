@@ -40,6 +40,7 @@ import { basename, dirname, join, resolve } from "path";
 import { fileURLToPath } from "url";
 import { existsSync, readFileSync, statSync } from "fs";
 import { createHooks } from "./hooks.js";
+import { isDebugEnabled } from "../lib/logger.js";
 import type { Plugin, PluginInput, Hooks } from "./types.js";
 
 // Resolve the plugin package root so we can find bundled skills.
@@ -218,7 +219,7 @@ export const AidePlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => {
   }
 
   // Also log to stderr when debugging
-  if (process.env.AIDE_DEBUG === "1") console.error(rawLog);
+  if (isDebugEnabled()) console.error(rawLog);
 
   const resolved = resolveProjectRoot(ctx);
 
@@ -231,7 +232,7 @@ export const AidePlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => {
   } catch {
     // non-fatal
   }
-  if (process.env.AIDE_DEBUG === "1") console.error(resolvedLog);
+  if (isDebugEnabled()) console.error(resolvedLog);
 
   return createHooks(resolved.root, ctx.worktree, ctx.client, pluginRoot, {
     skipInit: !resolved.hasProjectRoot,
