@@ -9,8 +9,8 @@
   "license": "MIT",
   "mcpServers": {
     "aide": {
-      "command": "${CLAUDE_PLUGIN_ROOT}/bin/aide-wrapper.sh",
-      "args": ["mcp"],
+      "command": "bun",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/bin/aide-wrapper.ts", "mcp"],
       "env": {
         "AIDE_CODE_WATCH": "1",
         "AIDE_CODE_WATCH_DELAY": "30s"
@@ -24,7 +24,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "npx tsx \"${CLAUDE_PLUGIN_ROOT}/src/hooks/session-start.ts\"",
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}/src/hooks/session-start.ts\"",
             "timeout": 60
           }
         ]
@@ -36,7 +36,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "npx tsx \"${CLAUDE_PLUGIN_ROOT}/src/hooks/skill-injector.ts\" 2>/dev/null",
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}/src/hooks/skill-injector.ts\"",
             "timeout": 5
           }
         ]
@@ -48,17 +48,17 @@
         "hooks": [
           {
             "type": "command",
-            "command": "npx tsx \"${CLAUDE_PLUGIN_ROOT}/src/hooks/hud-updater.ts\" 2>/dev/null",
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}/src/hooks/hud-updater.ts\"",
             "timeout": 3
           },
           {
             "type": "command",
-            "command": "npx tsx \"${CLAUDE_PLUGIN_ROOT}/src/hooks/comment-checker.ts\" 2>/dev/null",
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}/src/hooks/comment-checker.ts\"",
             "timeout": 3
           },
           {
             "type": "command",
-            "command": "npx tsx \"${CLAUDE_PLUGIN_ROOT}/src/hooks/context-pruning.ts\" 2>/dev/null",
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}/src/hooks/context-pruning.ts\"",
             "timeout": 3
           }
         ]
@@ -70,7 +70,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "npx tsx \"${CLAUDE_PLUGIN_ROOT}/src/hooks/subagent-tracker.ts\" 2>/dev/null",
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}/src/hooks/subagent-tracker.ts\"",
             "timeout": 3
           }
         ]
@@ -82,7 +82,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "npx tsx \"${CLAUDE_PLUGIN_ROOT}/src/hooks/subagent-tracker.ts\" 2>/dev/null",
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}/src/hooks/subagent-tracker.ts\"",
             "timeout": 3
           }
         ]
@@ -94,17 +94,17 @@
         "hooks": [
           {
             "type": "command",
-            "command": "npx tsx \"${CLAUDE_PLUGIN_ROOT}/src/hooks/persistence.ts\" 2>/dev/null",
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}/src/hooks/persistence.ts\"",
             "timeout": 5
           },
           {
             "type": "command",
-            "command": "npx tsx \"${CLAUDE_PLUGIN_ROOT}/src/hooks/session-summary.ts\" 2>/dev/null",
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}/src/hooks/session-summary.ts\"",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "npx tsx \"${CLAUDE_PLUGIN_ROOT}/src/hooks/agent-cleanup.ts\" 2>/dev/null",
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}/src/hooks/agent-cleanup.ts\"",
             "timeout": 5
           }
         ]
@@ -116,22 +116,22 @@
         "hooks": [
           {
             "type": "command",
-            "command": "npx tsx \"${CLAUDE_PLUGIN_ROOT}/src/hooks/tool-tracker.ts\" 2>/dev/null",
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}/src/hooks/tool-tracker.ts\"",
             "timeout": 2
           },
           {
             "type": "command",
-            "command": "npx tsx \"${CLAUDE_PLUGIN_ROOT}/src/hooks/write-guard.ts\" 2>/dev/null",
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}/src/hooks/write-guard.ts\"",
             "timeout": 3
           },
           {
             "type": "command",
-            "command": "npx tsx \"${CLAUDE_PLUGIN_ROOT}/src/hooks/pre-tool-enforcer.ts\" 2>/dev/null",
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}/src/hooks/pre-tool-enforcer.ts\"",
             "timeout": 3
           },
           {
             "type": "command",
-            "command": "npx tsx \"${CLAUDE_PLUGIN_ROOT}/src/hooks/context-guard.ts\" 2>/dev/null",
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}/src/hooks/context-guard.ts\"",
             "timeout": 2
           }
         ]
@@ -143,7 +143,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "npx tsx \"${CLAUDE_PLUGIN_ROOT}/src/hooks/session-end.ts\" 2>/dev/null",
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}/src/hooks/session-end.ts\"",
             "timeout": 10
           }
         ]
@@ -155,7 +155,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "npx tsx \"${CLAUDE_PLUGIN_ROOT}/src/hooks/pre-compact.ts\" 2>/dev/null",
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}/src/hooks/pre-compact.ts\"",
             "timeout": 10
           }
         ]

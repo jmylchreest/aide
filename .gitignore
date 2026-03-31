@@ -3,7 +3,7 @@ node_modules/
 
 # Build outputs
 bin/*
-!bin/aide-wrapper.sh
+!bin/aide-wrapper.ts
 dist/
 
 # IDE/Editor

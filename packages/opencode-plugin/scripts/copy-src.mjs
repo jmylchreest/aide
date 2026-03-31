@@ -49,16 +49,15 @@ if (existsSync(skillsSrc)) {
   console.error("WARNING: skills/ directory not found at repo root");
 }
 
-// Copy bin/aide-wrapper.sh
+// Copy bin/aide-wrapper.ts
 const binDest = join(pkgRoot, "bin");
 mkdirSync(binDest, { recursive: true });
 
-const wrapperSrc = join(repoRoot, "bin", "aide-wrapper.sh");
-const wrapperDest = join(binDest, "aide-wrapper.sh");
+const wrapperSrc = join(repoRoot, "bin", "aide-wrapper.ts");
+const wrapperDest = join(binDest, "aide-wrapper.ts");
 if (existsSync(wrapperSrc)) {
   copyFileSync(wrapperSrc, wrapperDest);
-  chmodSync(wrapperDest, 0o755);
-  console.log("  copied bin/aide-wrapper.sh");
+  console.log("  copied bin/aide-wrapper.ts");
 }
 
 console.log("\nPackage src/ ready for publishing.");

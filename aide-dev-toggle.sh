@@ -13,7 +13,7 @@
 #   OpenCode:
 #     - Builds the Go binary to bin/aide with correct LDFLAGS
 #     - Points opencode.json plugin at src/opencode/index.ts
-#     - Points opencode.json MCP at bin/aide-wrapper.sh
+#     - Points opencode.json MCP at bin/aide-wrapper.ts
 #   Claude Code:
 #     - Builds the Go binary to bin/aide with correct LDFLAGS
 #     - Patches installed_plugins.json installPath to this repo
@@ -41,7 +41,7 @@ OC_GLOBAL_CONFIG="$HOME/.config/opencode/opencode.json"
 OC_PROJECT_CONFIG="$REPO_ROOT/opencode.json"
 NPM_PACKAGE="@jmylchreest/aide-plugin"
 DEV_PLUGIN="$REPO_ROOT/src/opencode/index.ts"
-DEV_MCP_CMD="$REPO_ROOT/bin/aide-wrapper.sh"
+DEV_MCP_CMD="$REPO_ROOT/bin/aide-wrapper.ts"
 
 # --- Claude Code config paths ---
 CC_PLUGINS_DIR="$HOME/.claude/plugins"
@@ -227,7 +227,7 @@ if 'plugin' in cfg:
 # MCP command: use local wrapper
 mcp_aide = cfg.get('mcp', {}).get('aide', {})
 if mcp_aide:
-    mcp_aide['command'] = [dev_mcp, 'mcp']
+    mcp_aide['command'] = ['bun', dev_mcp, 'mcp']
 
 with open(cfg_path, 'w') as f:
     json.dump(cfg, f, indent=2)
@@ -444,8 +444,8 @@ with open(mcp_path, 'r') as f:
 
 aide = cfg.get('mcpServers', {}).get('aide', {})
 if aide:
-    aide['command'] = dev_cmd
-    aide['args'] = ['mcp']
+    aide['command'] = 'bun'
+    aide['args'] = [dev_cmd, 'mcp']
 
 with open(mcp_path, 'w') as f:
     json.dump(cfg, f, indent=2)

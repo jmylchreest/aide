@@ -53,7 +53,7 @@ Shows: version, current mode, session duration, task status, token usage, and es
 {
   "statusLine": {
     "type": "command",
-    "command": "bash ~/.claude/bin/aide-hud.sh"
+    "command": "bun ~/.claude/bin/aide-hud.ts"
   }
 }
 ```

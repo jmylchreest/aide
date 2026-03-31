@@ -36,7 +36,7 @@ Add to `.claude/settings.json`:
 {
   "statusLine": {
     "type": "command",
-    "command": "bash ~/.claude/bin/aide-hud.sh"
+    "command": "bun ~/.claude/bin/aide-hud.ts"
   }
 }
 ```
