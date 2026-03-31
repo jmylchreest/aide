@@ -10,7 +10,7 @@
 
 import { execFileSync } from "child_process";
 import { existsSync, realpathSync } from "fs";
-import { join } from "path";
+import { dirname, join } from "path";
 import which from "which";
 import type { FindBinaryOptions } from "./types.js";
 import { debug } from "../lib/logger.js";
@@ -45,6 +45,7 @@ export function findAideBinary(opts: FindBinaryOptions = {}): string | null {
   if (pluginRoot) {
     const pluginBinary = join(pluginRoot, "bin", BINARY_NAME);
     if (existsSync(pluginBinary)) {
+      ensureBinInPath(dirname(pluginBinary));
       return pluginBinary;
     }
   }
@@ -53,6 +54,7 @@ export function findAideBinary(opts: FindBinaryOptions = {}): string | null {
   if (cwd) {
     const projectBinary = join(cwd, ".aide", "bin", BINARY_NAME);
     if (existsSync(projectBinary)) {
+      ensureBinInPath(dirname(projectBinary));
       return projectBinary;
     }
   }
@@ -61,18 +63,29 @@ export function findAideBinary(opts: FindBinaryOptions = {}): string | null {
   for (const searchPath of additionalPaths) {
     const binary = join(searchPath, BINARY_NAME);
     if (existsSync(binary)) {
+      ensureBinInPath(dirname(binary));
       return binary;
     }
   }
 
-  // 4. PATH fallback
-  try {
-    return which.sync("aide", { nothrow: true });
-  } catch (err) {
-    debug(SOURCE, `aide not found in PATH: ${err}`);
-  }
+  // 4. PATH fallback (already on PATH, no injection needed)
+  const fromPath = which.sync("aide", { nothrow: true });
+  if (fromPath) return fromPath;
 
+  debug(SOURCE, `aide binary not found (checked pluginRoot=${pluginRoot || "none"}, cwd=${cwd || "none"}, PATH)`);
   return null;
+}
+
+/**
+ * Ensure a directory is on PATH so child processes can find the aide binary.
+ * Only prepends if not already present.
+ */
+function ensureBinInPath(binDir: string): void {
+  const currentPath = process.env.PATH || "";
+  const sep = process.platform === "win32" ? ";" : ":";
+  if (!currentPath.split(sep).includes(binDir)) {
+    process.env.PATH = `${binDir}${sep}${currentPath}`;
+  }
 }
 
 /**
