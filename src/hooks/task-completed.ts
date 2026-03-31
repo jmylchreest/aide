@@ -21,9 +21,10 @@
  * - 2: Block completion (stderr fed back as feedback)
  */
 
-import { execSync } from "child_process";
+import spawn from "cross-spawn";
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
+import which from "which";
 import { debug, setDebugCwd } from "../lib/logger.js";
 import { readStdin } from "../lib/hook-utils.js";
 
@@ -72,30 +73,46 @@ function parseStageFromSubject(subject: string): StageInfo | null {
 }
 
 /**
- * Check if a command succeeds
+ * Split a shell-style command string into [binary, ...args] for execFileSync.
+ * Handles simple cases like "npm test", "go test ./...", "npx tsc --noEmit".
  */
-function commandSucceeds(cmd: string, cwd: string): boolean {
-  try {
-    execSync(cmd, { cwd, stdio: "pipe", timeout: 60000 });
-    return true;
-  } catch (err) {
-    debug(SOURCE, `Command failed: ${cmd}: ${err}`);
-    return false;
-  }
+function splitCommand(cmd: string): [string, string[]] {
+  const parts = cmd.split(/\s+/).filter(Boolean);
+  return [parts[0], parts.slice(1)];
 }
 
 /**
- * Get command output or null on failure
+ * Check if a command succeeds (cross-platform via cross-spawn)
+ */
+function commandSucceeds(cmd: string, cwd: string): boolean {
+  const [bin, args] = splitCommand(cmd);
+  if (!which.sync(bin, { nothrow: true })) {
+    debug(SOURCE, `Binary not found in PATH: ${bin}`);
+    return false;
+  }
+  const result = spawn.sync(bin, args, { cwd, stdio: "pipe", timeout: 60000 });
+  if (result.status !== 0) {
+    debug(SOURCE, `Command failed: ${cmd}: exit ${result.status}`);
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Get command output or null on failure (cross-platform via cross-spawn)
  */
 function getCommandOutput(cmd: string, cwd: string): string | null {
-  try {
-    return execSync(cmd, { cwd, stdio: "pipe", timeout: 30000 })
-      .toString()
-      .trim();
-  } catch (err) {
-    debug(SOURCE, `getCommandOutput failed for: ${cmd}: ${err}`);
+  const [bin, args] = splitCommand(cmd);
+  if (!which.sync(bin, { nothrow: true })) {
+    debug(SOURCE, `Binary not found in PATH: ${bin}`);
     return null;
   }
+  const result = spawn.sync(bin, args, { cwd, stdio: "pipe", timeout: 30000 });
+  if (result.status !== 0 || !result.stdout) {
+    debug(SOURCE, `getCommandOutput failed for: ${cmd}: exit ${result.status}`);
+    return null;
+  }
+  return result.stdout.toString().trim();
 }
 
 /**

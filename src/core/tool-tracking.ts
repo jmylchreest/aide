@@ -5,6 +5,7 @@
  * Tracks tool usage per-agent and updates session statistics.
  */
 
+import { basename } from "path";
 import { setState, getState } from "./aide-client.js";
 import type { ToolUseInfo } from "./types.js";
 
@@ -31,7 +32,7 @@ export function formatToolDescription(
     case "Read":
       if (toolInput.file_path) {
         const filename =
-          toolInput.file_path.split("/").pop() || toolInput.file_path;
+          basename(toolInput.file_path);
         return `Read(${filename})`;
       }
       return toolName;
@@ -40,7 +41,7 @@ export function formatToolDescription(
     case "Write":
       if (toolInput.file_path) {
         const filename =
-          toolInput.file_path.split("/").pop() || toolInput.file_path;
+          basename(toolInput.file_path);
         return `${toolName}(${filename})`;
       }
       return toolName;

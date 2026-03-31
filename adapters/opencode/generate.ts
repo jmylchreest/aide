@@ -12,7 +12,6 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { join, parse, resolve } from "path";
-import { execSync } from "child_process";
 
 const args = process.argv.slice(2);
 const useNpm = args.includes("--npm");
@@ -88,7 +87,7 @@ interface OpenCodeConfig {
 }
 
 /**
- * Find the aide-wrapper.sh path.
+ * Find the aide-wrapper.ts command.
  *
  * Resolution order:
  *   1. Local plugin path (--plugin-path)
@@ -98,9 +97,9 @@ interface OpenCodeConfig {
 function findWrapperCommand(): string[] {
   // Local development: use the wrapper from the plugin path
   if (pluginPath) {
-    const wrapper = join(pluginPath, "bin", "aide-wrapper.sh");
+    const wrapper = join(pluginPath, "bin", "aide-wrapper.ts");
     if (existsSync(wrapper)) {
-      return [wrapper, "mcp"];
+      return ["bun", wrapper, "mcp"];
     }
   }
 
@@ -138,7 +137,7 @@ function generateConfig(): OpenCodeConfig {
     environment.AIDE_PLUGIN_ROOT = pluginPath;
   }
   // For --npm, AIDE_PLUGIN_ROOT is NOT set in the config — the wrapper resolves
-  // its own package root at runtime by following its symlink (see aide-wrapper.sh).
+  // its own package root at runtime by following its symlink (see aide-wrapper.ts).
 
   config.mcp = {
     aide: {

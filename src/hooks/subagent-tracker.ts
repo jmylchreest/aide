@@ -15,6 +15,7 @@
  */
 
 import { execFileSync } from "child_process";
+import { basename } from "path";
 import { Logger } from "../lib/logger.js";
 import { readStdin, setMemoryState } from "../lib/hook-utils.js";
 import { findAideBinary } from "../core/aide-client.js";
@@ -92,7 +93,7 @@ function getProjectName(cwd: string): string {
   }
 
   // Fallback to directory name
-  return cwd.split("/").pop() || "unknown";
+  return basename(cwd) || "unknown";
 }
 
 /**

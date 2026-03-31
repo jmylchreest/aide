@@ -1,5 +1,5 @@
 /**
- * MCP subcommand — delegates to aide-wrapper.sh to start the MCP server.
+ * MCP subcommand — delegates to aide-wrapper.ts to start the MCP server.
  *
  * This is the entry point used by OpenCode's MCP config:
  *   "command": ["bunx", "-y", "@jmylchreest/aide-plugin", "mcp"]
@@ -7,27 +7,27 @@
  * The wrapper handles binary discovery/download, then exec's `aide mcp`.
  */
 
-import { execFileSync } from "child_process";
+import spawn from "cross-spawn";
 import { existsSync } from "fs";
 import { dirname, join, resolve } from "path";
 import { fileURLToPath } from "url";
 
 /**
- * Find the aide-wrapper.sh script relative to this CLI module.
+ * Find the aide-wrapper.ts script relative to this CLI module.
  *
  * Resolution: this file lives at <plugin-root>/src/cli/mcp.ts,
- * so the wrapper is at <plugin-root>/bin/aide-wrapper.sh.
+ * so the wrapper is at <plugin-root>/bin/aide-wrapper.ts.
  */
 function findWrapper(): string {
   // __dirname equivalent for ESM
   const thisDir = dirname(fileURLToPath(import.meta.url));
   // src/cli -> src -> plugin-root
   const pluginRoot = resolve(thisDir, "..", "..");
-  const wrapper = join(pluginRoot, "bin", "aide-wrapper.sh");
+  const wrapper = join(pluginRoot, "bin", "aide-wrapper.ts");
 
   if (!existsSync(wrapper)) {
     throw new Error(
-      `aide-wrapper.sh not found at ${wrapper}\n` +
+      `aide-wrapper.ts not found at ${wrapper}\n` +
         `Expected plugin root: ${pluginRoot}\n` +
         `Ensure the package is installed correctly.`,
     );
@@ -37,27 +37,22 @@ function findWrapper(): string {
 }
 
 /**
- * Start the MCP server by exec'ing aide-wrapper.sh with "mcp" + any extra args.
+ * Start the MCP server by exec'ing aide-wrapper.ts with "mcp" + any extra args.
  * This replaces the current process so stdio is inherited directly.
  */
 export async function mcp(extraArgs: string[]): Promise<void> {
   const wrapper = findWrapper();
-  const args = ["mcp", ...extraArgs];
+  const args = [wrapper, "mcp", ...extraArgs];
 
-  // Use execFileSync with stdio inherit so the MCP JSON-RPC protocol
+  // Use bun (via cross-spawn for Windows .cmd resolution) to run the
+  // TypeScript wrapper. stdio is inherited so the MCP JSON-RPC protocol
   // flows directly between OpenCode and the aide binary.
-  // The wrapper will exec() into the aide binary, replacing itself.
-  try {
-    execFileSync(wrapper, args, {
-      stdio: "inherit",
-      env: process.env,
-    });
-  } catch (err: unknown) {
-    // execFileSync throws on non-zero exit. If the process was killed
-    // by a signal (e.g. OpenCode shutting down), exit cleanly.
-    if (err && typeof err === "object" && "status" in err) {
-      process.exit((err as { status: number }).status ?? 1);
-    }
-    throw err;
+  const result = spawn.sync("bun", args, {
+    stdio: "inherit",
+    env: process.env,
+  });
+
+  if (result.status !== 0) {
+    process.exit(result.status ?? 1);
   }
 }

@@ -22,9 +22,10 @@ const T0 = performance.now();
 // Output continue IMMEDIATELY — before require(), before anything.
 console.log(JSON.stringify({ continue: true }));
 
-const { execFileSync, spawn } = require("child_process") as typeof import("child_process");
+const { spawn } = require("child_process") as typeof import("child_process");
 const { existsSync, realpathSync, appendFileSync, mkdirSync, readFileSync } = require("fs") as typeof import("fs");
 const { join } = require("path") as typeof import("path");
+const whichSync = (require("which") as typeof import("which")).sync;
 
 const SESSION_ID_RE = /^[a-zA-Z0-9_-]{1,128}$/;
 
@@ -60,8 +61,7 @@ function findBinary(cwd?: string): string | null {
     if (existsSync(p)) return p;
   }
   try {
-    return execFileSync("which", ["aide"], { stdio: "pipe", timeout: 2000 })
-      .toString().trim() || null;
+    return whichSync("aide", { nothrow: true });
   } catch { return null; }
 }
 

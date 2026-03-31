@@ -11,10 +11,13 @@
 import { execFileSync } from "child_process";
 import { existsSync, realpathSync } from "fs";
 import { join } from "path";
+import which from "which";
 import type { FindBinaryOptions } from "./types.js";
 import { debug } from "../lib/logger.js";
 
 const SOURCE = "aide-client";
+const IS_WINDOWS = process.platform === "win32";
+const BINARY_NAME = IS_WINDOWS ? "aide.exe" : "aide";
 
 /**
  * Find the aide binary — platform-agnostic implementation.
@@ -40,7 +43,7 @@ export function findAideBinary(opts: FindBinaryOptions = {}): string | null {
 
   // 1. Plugin root bin/
   if (pluginRoot) {
-    const pluginBinary = join(pluginRoot, "bin", "aide");
+    const pluginBinary = join(pluginRoot, "bin", BINARY_NAME);
     if (existsSync(pluginBinary)) {
       return pluginBinary;
     }
@@ -48,7 +51,7 @@ export function findAideBinary(opts: FindBinaryOptions = {}): string | null {
 
   // 2. Project-local .aide/bin/
   if (cwd) {
-    const projectBinary = join(cwd, ".aide", "bin", "aide");
+    const projectBinary = join(cwd, ".aide", "bin", BINARY_NAME);
     if (existsSync(projectBinary)) {
       return projectBinary;
     }
@@ -56,7 +59,7 @@ export function findAideBinary(opts: FindBinaryOptions = {}): string | null {
 
   // 3. Additional paths
   for (const searchPath of additionalPaths) {
-    const binary = join(searchPath, "aide");
+    const binary = join(searchPath, BINARY_NAME);
     if (existsSync(binary)) {
       return binary;
     }
@@ -64,13 +67,7 @@ export function findAideBinary(opts: FindBinaryOptions = {}): string | null {
 
   // 4. PATH fallback
   try {
-    const result = execFileSync("which", ["aide"], {
-      stdio: "pipe",
-      timeout: 2000,
-    })
-      .toString()
-      .trim();
-    if (result) return result;
+    return which.sync("aide", { nothrow: true });
   } catch (err) {
     debug(SOURCE, `aide not found in PATH: ${err}`);
   }

@@ -8,12 +8,16 @@
  * - ContextPruningTracker: orchestration, stats, pressure, reset, history
  */
 
+import { tmpdir } from "os";
+import { join } from "path";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { DedupStrategy } from "../core/context-pruning/dedup.js";
 import { SupersedeStrategy } from "../core/context-pruning/supersede.js";
 import { PurgeErrorsStrategy } from "../core/context-pruning/purge.js";
 import { ContextPruningTracker } from "../core/context-pruning/tracker.js";
 import type { ToolRecord } from "../core/context-pruning/types.js";
+
+const TEST_CWD = join(tmpdir(), "test-cwd");
 
 // =============================================================================
 // DedupStrategy
@@ -23,7 +27,7 @@ describe("DedupStrategy", () => {
   let strategy: DedupStrategy;
 
   beforeEach(() => {
-    strategy = new DedupStrategy("/tmp/test-cwd");
+    strategy = new DedupStrategy(TEST_CWD);
   });
 
   it("should not dedup when history is empty", () => {
@@ -629,7 +633,7 @@ describe("ContextPruningTracker", () => {
   let tracker: ContextPruningTracker;
 
   beforeEach(() => {
-    tracker = new ContextPruningTracker("/tmp/test-cwd");
+    tracker = new ContextPruningTracker(TEST_CWD);
   });
 
   it("should return unmodified output for first call", () => {
@@ -782,7 +786,7 @@ describe("ContextPruningTracker", () => {
   });
 
   it("should trim history when exceeding maxHistory", () => {
-    const smallTracker = new ContextPruningTracker("/tmp/test", 5);
+    const smallTracker = new ContextPruningTracker(join(tmpdir(), "test"), 5);
 
     for (let i = 0; i < 10; i++) {
       smallTracker.process(

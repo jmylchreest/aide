@@ -154,7 +154,7 @@ function installHudWrapper(log: Logger): void {
   log.start("installHudWrapper");
 
   const claudeBinDir = join(homedir(), ".claude", "bin");
-  const wrapperDest = join(claudeBinDir, "aide-hud.sh");
+  const wrapperDest = join(claudeBinDir, "aide-hud.ts");
 
   // Check if wrapper already exists
   if (existsSync(wrapperDest)) {
@@ -171,7 +171,7 @@ function installHudWrapper(log: Logger): void {
     return;
   }
 
-  const wrapperSrc = join(pluginRoot, "scripts", "aide-hud-wrapper.sh");
+  const wrapperSrc = join(pluginRoot, "scripts", "aide-hud-wrapper.ts");
   if (!existsSync(wrapperSrc)) {
     log.warn(`HUD wrapper source not found: ${wrapperSrc}`);
     log.end("installHudWrapper", { skipped: true, reason: "no-source" });
@@ -186,7 +186,7 @@ function installHudWrapper(log: Logger): void {
 
     // Copy wrapper script
     copyFileSync(wrapperSrc, wrapperDest);
-    chmodSync(wrapperDest, 0o755);
+    try { chmodSync(wrapperDest, 0o755); } catch { /* no-op on Windows */ }
 
     log.info(`Installed HUD wrapper to ${wrapperDest}`);
     log.end("installHudWrapper", { success: true, path: wrapperDest });

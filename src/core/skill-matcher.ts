@@ -8,11 +8,11 @@
 import { existsSync, readFileSync, readdirSync } from "fs";
 import { join, basename, extname } from "path";
 import { homedir } from "os";
-import { execSync } from "child_process";
+import which from "which";
 import type { Skill, SkillMatchResult } from "./types.js";
 
 /**
- * Cache of binary existence checks to avoid repeated shell invocations.
+ * Cache of binary existence checks to avoid repeated lookups.
  * Maps binary name to boolean (exists on PATH).
  */
 const binaryExistsCache = new Map<string, boolean>();
@@ -25,16 +25,9 @@ function binaryExists(name: string): boolean {
   const cached = binaryExistsCache.get(name);
   if (cached !== undefined) return cached;
 
-  try {
-    const cmd =
-      process.platform === "win32" ? `where ${name}` : `command -v ${name}`;
-    execSync(cmd, { stdio: "ignore", timeout: 2000 });
-    binaryExistsCache.set(name, true);
-    return true;
-  } catch {
-    binaryExistsCache.set(name, false);
-    return false;
-  }
+  const found = which.sync(name, { nothrow: true }) !== null;
+  binaryExistsCache.set(name, found);
+  return found;
 }
 
 // Skill search locations relative to cwd

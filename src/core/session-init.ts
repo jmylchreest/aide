@@ -15,7 +15,7 @@ import {
   unlinkSync,
   statSync,
 } from "fs";
-import { join } from "path";
+import { basename, join } from "path";
 import { execFileSync } from "child_process";
 import { homedir } from "os";
 import type {
@@ -182,7 +182,7 @@ export function getProjectName(cwd: string): string {
     // Not a git repo or no remote
   }
 
-  return cwd.split("/").pop() || "unknown";
+  return basename(cwd) || "unknown";
 }
 
 /**
