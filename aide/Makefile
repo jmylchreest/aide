@@ -102,8 +102,8 @@ proto:
 
 calibrate-tokens:
 	@echo "Calibrating token ratios via Anthropic count_tokens API..."
-	@test -n "$(ANTHROPIC_API_KEY)" || (echo "ANTHROPIC_API_KEY is required" && exit 1)
-	$(GOCMD) run ./cmd/calibrate-tokens ..
+	@test -n "$(ANTHROPIC_API_KEY)$(OPENROUTER_API_KEY)" || (echo "ANTHROPIC_API_KEY or OPENROUTER_API_KEY is required" && exit 1)
+	$(GOCMD) run ./cmd/calibrate-tokens $(or $(DIR),.)
 
 clean:
 	@echo "Cleaning..."
