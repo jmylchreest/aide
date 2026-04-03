@@ -180,18 +180,22 @@ export function TokensPage() {
           <h3 className="text-xs font-semibold text-aide-text mb-3">
             Estimated Savings Breakdown
           </h3>
-          <SavingsBar
-            label="Outline substitutions"
-            value={stats.by_saving_type?.outline ?? 0}
-            max={savingsMax}
-            tooltip="Tokens saved when code_outline was used instead of reading the full file. The outline shows file structure at ~5-15% of full token cost."
-          />
-          <SavingsBar
-            label="Avoided re-reads"
-            value={stats.by_saving_type?.read_avoided ?? 0}
-            max={savingsMax}
-            tooltip="Tokens saved when aide's smart-read hint detected a file was already read this session and hadn't changed, avoiding a redundant full re-read."
-          />
+          {(stats.by_saving_type?.outline ?? 0) > 0 && (
+            <SavingsBar
+              label="Outline substitutions"
+              value={stats.by_saving_type.outline}
+              max={savingsMax}
+              tooltip="Tokens saved when code_outline was used instead of reading the full file. The outline shows file structure at ~5-15% of full token cost."
+            />
+          )}
+          {(stats.by_saving_type?.read_avoided ?? 0) > 0 && (
+            <SavingsBar
+              label="Avoided re-reads"
+              value={stats.by_saving_type.read_avoided}
+              max={savingsMax}
+              tooltip="Tokens saved when aide's smart-read hint detected a file was already read this session and hadn't changed, avoiding a redundant full re-read."
+            />
+          )}
         </div>
       )}
 
