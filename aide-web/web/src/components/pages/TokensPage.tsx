@@ -22,20 +22,12 @@ function StatCard({ label, value, sub }: { label: string; value: string; sub?: s
   );
 }
 
-function SavingsBar({ label, value, max, tooltip }: { label: string; value: number; max: number; tooltip?: string }) {
-  const pct = max > 0 ? Math.min((value / max) * 100, 100) : 0;
+function SavingCard({ label, value, tooltip }: { label: string; value: number; tooltip?: string }) {
   return (
-    <div className="mb-2">
-      <div className="flex justify-between text-xs mb-0.5">
-        <span className="text-aide-text-muted cursor-help" title={tooltip}>{label}</span>
-        <span className="text-aide-text font-medium">~{formatTokens(value)}</span>
-      </div>
-      <div className="w-full bg-aide-bg-tertiary rounded-full h-2">
-        <div
-          className="bg-aide-accent h-2 rounded-full transition-all"
-          style={{ width: `${pct}%` }}
-        />
-      </div>
+    <div className="rounded-md border border-aide-border bg-aide-bg-secondary px-4 py-3">
+      <div className="text-[10px] uppercase tracking-wider text-aide-text-dim mb-1 cursor-help" title={tooltip}>{label}</div>
+      <div className="text-lg font-semibold text-green-500">~{formatTokens(value)}</div>
+      <div className="text-[10px] text-aide-text-muted mt-0.5">est. tokens saved</div>
     </div>
   );
 }
@@ -77,14 +69,6 @@ export function TokensPage() {
       .sort()
       .map((t) => ({ value: t, label: t }));
   }, [events]);
-
-  const savingsMax = stats
-    ? Math.max(
-        stats.by_saving_type?.outline ?? 0,
-        stats.by_saving_type?.read_avoided ?? 0,
-        1,
-      )
-    : 1;
 
   const savingsPct =
     stats && stats.total_read + stats.total_saved > 0
@@ -176,26 +160,26 @@ export function TokensPage() {
 
       {/* Savings breakdown */}
       {stats && stats.total_saved > 0 && (
-        <div className="mb-6 rounded-md border border-aide-border bg-aide-bg-secondary p-4">
-          <h3 className="text-xs font-semibold text-aide-text mb-3">
+        <div className="mb-6">
+          <h3 className="text-xs font-semibold text-aide-text mb-2">
             Estimated Savings Breakdown
           </h3>
-          {(stats.by_saving_type?.outline ?? 0) > 0 && (
-            <SavingsBar
-              label="Outline substitutions"
-              value={stats.by_saving_type.outline}
-              max={savingsMax}
-              tooltip="Tokens saved when code_outline was used instead of reading the full file. The outline shows file structure at ~5-15% of full token cost."
-            />
-          )}
-          {(stats.by_saving_type?.read_avoided ?? 0) > 0 && (
-            <SavingsBar
-              label="Avoided re-reads"
-              value={stats.by_saving_type.read_avoided}
-              max={savingsMax}
-              tooltip="Tokens saved when aide's smart-read hint detected a file was already read this session and hadn't changed, avoiding a redundant full re-read."
-            />
-          )}
+          <div className="grid grid-cols-3 gap-3">
+            {(stats.by_saving_type?.outline ?? 0) > 0 && (
+              <SavingCard
+                label="Outline Substitutions"
+                value={stats.by_saving_type.outline}
+                tooltip="Tokens saved when code_outline was used instead of reading the full file. The outline shows file structure at ~5-15% of full token cost."
+              />
+            )}
+            {(stats.by_saving_type?.read_avoided ?? 0) > 0 && (
+              <SavingCard
+                label="Avoided Re-reads"
+                value={stats.by_saving_type.read_avoided}
+                tooltip="Tokens saved when aide's smart-read hint detected a file was already read this session and hadn't changed, avoiding a redundant full re-read."
+              />
+            )}
+          </div>
         </div>
       )}
 
