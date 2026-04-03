@@ -46,30 +46,41 @@ function makeColumns(onRemove: (project: string) => void): Column<InstanceInfo>[
       key: "actions",
       label: "Actions",
       sortable: false,
-      render: (row) =>
-        row.status === "connected" ? (
-          <Link
-            to={`/instances/${encodeURIComponent(row.project_name)}/status`}
-            className="inline-block border border-aide-accent text-aide-accent px-3 py-0.5 rounded-sm text-xs font-semibold hover:bg-aide-accent hover:text-aide-bg transition-all"
-          >
-            Open
-          </Link>
-        ) : (
-          <div className="flex items-center gap-2">
-            <span className="text-aide-text-dim">Offline</span>
+      render: (row) => {
+        const isOnline = row.status === "connected";
+        return (
+          <div className="flex items-center gap-2 justify-end">
+            {isOnline ? (
+              <Link
+                to={`/instances/${encodeURIComponent(row.project_name)}/status`}
+                className="w-[72px] text-center border border-aide-accent text-aide-accent px-3 py-0.5 rounded-sm text-xs font-semibold hover:bg-aide-accent hover:text-aide-bg transition-all"
+              >
+                Open
+              </Link>
+            ) : (
+              <span className="w-[72px] text-center text-aide-text-dim text-xs py-0.5">
+                Offline
+              </span>
+            )}
             <button
               onClick={() => {
-                if (confirm(`Remove ${row.project_name} from the instance list?`)) {
+                if (!isOnline && confirm(`Remove ${row.project_name} from the instance list?`)) {
                   onRemove(row.project_name);
                 }
               }}
-              className="inline-block border border-red-500/50 text-red-400 px-2 py-0.5 rounded-sm text-[10px] font-medium hover:bg-red-500/10 transition-all"
-              title="Remove this offline instance from the registry"
+              disabled={isOnline}
+              className={`w-[72px] text-center border px-3 py-0.5 rounded-sm text-xs font-semibold transition-all ${
+                isOnline
+                  ? "border-aide-border text-aide-text-dim/30 cursor-not-allowed"
+                  : "border-red-500/50 text-red-400 hover:bg-red-500/10 cursor-pointer"
+              }`}
+              title={isOnline ? "Cannot remove a connected instance" : "Remove this offline instance from the registry"}
             >
               Remove
             </button>
           </div>
-        ),
+        );
+      },
     },
   ];
 }
