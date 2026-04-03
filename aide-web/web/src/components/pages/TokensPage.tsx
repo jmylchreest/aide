@@ -97,7 +97,7 @@ export function TokensPage() {
       label: "Time",
       render: (row) => (
         <span className="text-aide-text-dim text-[11px] font-mono">
-          {new Date(row.timestamp).toLocaleTimeString()}
+          {new Date(row.timestamp).toLocaleString()}
         </span>
       ),
       sortValue: (row) => row.timestamp,
