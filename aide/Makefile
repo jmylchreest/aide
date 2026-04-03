@@ -1,6 +1,6 @@
 # aide Makefile
 
-.PHONY: all build test clean lint fmt install install-plugin
+.PHONY: all build test clean lint fmt install install-plugin proto
 
 # Binary name
 BINARY=aide
@@ -96,6 +96,10 @@ fmt:
 	@echo "Formatting code..."
 	$(GOFMT) -s -w .
 
+proto:
+	@echo "Generating protobuf code..."
+	buf generate proto/
+
 clean:
 	@echo "Cleaning..."
 	@rm -f $(BUILD_DIR)/$(BINARY)*
@@ -142,6 +146,7 @@ help:
 	@echo "  make deps         Download dependencies"
 	@echo "  make install        Install binary to GOPATH or /usr/local/bin"
 	@echo "  make install-plugin Install dev binary to .claude-plugin/bin/"
+	@echo "  make proto          Regenerate protobuf Go code (requires buf)"
 	@echo "  make help           Show this help"
 	@echo ""
 	@echo "Dev version: $(DEV_VERSION)"

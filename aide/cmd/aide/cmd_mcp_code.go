@@ -50,6 +50,10 @@ type CodeTopReferencesInput struct {
 	Kind  string `json:"kind,omitempty" jsonschema:"Filter by symbol kind: function, method, class, interface, type"`
 }
 
+type CodeReadCheckInput struct {
+	File string `json:"file" jsonschema:"Path to the file to check (relative or absolute). Required."`
+}
+
 // ============================================================================
 // Code tool registration and handlers
 // ============================================================================
@@ -159,6 +163,24 @@ the symbol name, reference count, and definition location when available.
 
 **Note:** Run 'aide code index' to index your codebase first.`,
 	}, s.handleCodeTopReferences)
+
+	mcp.AddTool(s.server, &mcp.Tool{
+		Name: "code_read_check",
+		Description: `Check if a file is indexed and whether its content has changed since indexing.
+
+Returns freshness status so you can decide whether to re-read a file or use
+code_outline/code_symbols/code_references instead.
+
+**Response fields:**
+- indexed: whether the file exists in the code index
+- fresh: whether the file hasn't changed since last indexing (mtime match)
+- symbols: number of symbols indexed for this file
+- outline_available: whether code_outline would return useful data
+
+**Use this before re-reading a file** to check if the version you already read
+is still current. If fresh=true and outline_available=true, prefer code_outline
+or code_symbols over a full Read to save context window tokens.`,
+	}, s.handleCodeReadCheck)
 }
 
 func (s *MCPServer) handleCodeSearch(_ context.Context, _ *mcp.CallToolRequest, input CodeSearchInput) (*mcp.CallToolResult, any, error) {
@@ -371,6 +393,55 @@ func (s *MCPServer) handleCodeOutline(_ context.Context, _ *mcp.CallToolRequest,
 	outline := buildOutline(fileContent, symbols, !input.KeepComments)
 	mcpLog.Printf("  outline: %d symbols, %d/%d lines", len(symbols), countLines(outline), countLines(string(fileContent)))
 	return textResult(outline), nil, nil
+}
+
+func (s *MCPServer) handleCodeReadCheck(_ context.Context, _ *mcp.CallToolRequest, input CodeReadCheckInput) (*mcp.CallToolResult, any, error) {
+	mcpLog.Printf("tool: code_read_check file=%s", input.File)
+
+	if input.File == "" {
+		return errorResult("file path is required"), nil, nil
+	}
+
+	codeStore := s.getCodeStore()
+	if codeStore == nil {
+		return textResult(`{"indexed":false,"fresh":false,"symbols":0,"outline_available":false}`), nil, nil
+	}
+
+	root := projectRoot(s.dbPath)
+
+	// Resolve to absolute path for os.Stat
+	absPath := input.File
+	if !filepath.IsAbs(input.File) {
+		absPath = filepath.Join(root, input.File)
+	}
+
+	// Resolve to relative path for store lookup
+	relPath := input.File
+	if filepath.IsAbs(input.File) {
+		if rel, err := filepath.Rel(root, input.File); err == nil {
+			relPath = rel
+		}
+	}
+
+	fileInfo, err := codeStore.GetFileInfo(relPath)
+	if err != nil {
+		return textResult(`{"indexed":false,"fresh":false,"symbols":0,"outline_available":false}`), nil, nil
+	}
+
+	stat, err := os.Stat(absPath)
+	if err != nil {
+		result := fmt.Sprintf(`{"indexed":true,"fresh":false,"symbols":%d,"outline_available":%t}`,
+			len(fileInfo.SymbolIDs), len(fileInfo.SymbolIDs) > 0)
+		return textResult(result), nil, nil
+	}
+
+	fresh := fileInfo.ModTime.Equal(stat.ModTime())
+	symbolCount := len(fileInfo.SymbolIDs)
+
+	result := fmt.Sprintf(`{"indexed":true,"fresh":%t,"symbols":%d,"outline_available":%t}`,
+		fresh, symbolCount, symbolCount > 0)
+	mcpLog.Printf("  result: %s", result)
+	return textResult(result), nil, nil
 }
 
 // ============================================================================

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -32,6 +33,8 @@ func cmdCodeDispatcher(dbPath string, args []string) error {
 		return cmdCodeSymbols(dbPath, subargs)
 	case "references", "refs":
 		return cmdCodeReferences(dbPath, subargs)
+	case "read-check":
+		return cmdCodeReadCheck(dbPath, subargs)
 	case "clear":
 		return cmdCodeClear(dbPath)
 	case "stats":
@@ -55,6 +58,7 @@ Subcommands:
   search     Search for symbols by name/signature
   symbols    List symbols in a file
   references Find all call sites/usages of a symbol
+  read-check Check if a file is indexed and unchanged
   clear      Clear the code index
   stats      Show indexing statistics
 
@@ -78,6 +82,9 @@ Options:
     --limit=N      Max results (default 50)
     --json         Output as JSON
 
+  read-check <file>:
+    --json         Output as JSON
+
 Examples:
   aide code index                     # Index current directory
   aide code index src/ lib/           # Index specific directories
@@ -85,6 +92,7 @@ Examples:
   aide code search "User" --kind=interface
   aide code symbols src/auth.ts       # List symbols in file
   aide code refs getUserById          # Find all calls to getUserById
+  aide code read-check src/auth.ts    # Check if file is indexed and fresh
   aide code clear                     # Clear all indexed data`)
 }
 
@@ -421,6 +429,58 @@ func cmdCodeStats(dbPath string) error {
 	fmt.Printf("  References indexed: %d\n", stats.References)
 
 	return nil
+}
+
+func cmdCodeReadCheck(dbPath string, args []string) error {
+	jsonOutput := hasFlag(args, "--json")
+
+	// Extract first non-flag argument as file path
+	var filePath string
+	for _, arg := range args {
+		if !strings.HasPrefix(arg, "--") {
+			filePath = arg
+			break
+		}
+	}
+	if filePath == "" {
+		return fmt.Errorf("usage: aide code read-check <file> [--json]")
+	}
+
+	backend, err := NewBackend(dbPath)
+	if err != nil {
+		// Graceful fallback: code store might not be available
+		result := &ReadCheckResult{}
+		if jsonOutput {
+			return printJSON(result)
+		}
+		fmt.Println("not indexed")
+		return nil
+	}
+	defer backend.Close()
+
+	result, err := backend.ReadCheck(filePath)
+	if err != nil {
+		result = &ReadCheckResult{}
+	}
+
+	if jsonOutput {
+		return printJSON(result)
+	}
+
+	if !result.Indexed {
+		fmt.Println("not indexed")
+	} else if result.Fresh {
+		fmt.Printf("indexed (fresh): %d symbols\n", result.Symbols)
+	} else {
+		fmt.Printf("indexed (stale): %d symbols\n", result.Symbols)
+	}
+
+	return nil
+}
+
+func printJSON(v interface{}) error {
+	enc := json.NewEncoder(os.Stdout)
+	return enc.Encode(v)
 }
 
 // padString pads a string to a minimum width.

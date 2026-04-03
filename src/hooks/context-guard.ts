@@ -13,7 +13,8 @@
 
 import { readStdin } from "../lib/hook-utils.js";
 import { debug } from "../lib/logger.js";
-import { checkContextGuard } from "../core/context-guard.js";
+import { checkContextGuard, checkSmartReadHint } from "../core/context-guard.js";
+import { findAideBinary } from "../core/aide-client.js";
 
 const SOURCE = "context-guard";
 
@@ -65,7 +66,26 @@ async function main(): Promise<void> {
       };
       console.log(JSON.stringify(output));
     } else {
-      console.log(JSON.stringify({ continue: true }));
+      // Smart read hint: suggest code index for re-reads of unchanged files
+      const binary = findAideBinary({
+        cwd,
+        pluginRoot:
+          process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT,
+      });
+      const hintResult = checkSmartReadHint(toolName, toolInput, cwd, binary);
+      if (hintResult.shouldHint && hintResult.hint) {
+        debug(SOURCE, `Smart read hint triggered`);
+        const output: HookOutput = {
+          continue: true,
+          hookSpecificOutput: {
+            hookEventName: "PreToolUse",
+            additionalContext: hintResult.hint,
+          },
+        };
+        console.log(JSON.stringify(output));
+      } else {
+        console.log(JSON.stringify({ continue: true }));
+      }
     }
   } catch (error) {
     debug(SOURCE, `Hook error: ${error}`);

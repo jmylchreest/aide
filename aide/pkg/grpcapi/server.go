@@ -1062,6 +1062,50 @@ func (s *codeServiceImpl) GetContainingSymbol(ctx context.Context, req *CodeGetC
 	}, nil
 }
 
+func (s *codeServiceImpl) ReadCheck(ctx context.Context, req *CodeReadCheckRequest) (*CodeReadCheckResponse, error) {
+	cs := s.server.GetCodeStore()
+	if cs == nil {
+		return &CodeReadCheckResponse{}, nil
+	}
+
+	filePath := req.FilePath
+	root := projectRoot(s.server.dbPath)
+
+	// Resolve to absolute path for os.Stat
+	absPath := filePath
+	if !filepath.IsAbs(filePath) {
+		absPath = filepath.Join(root, filePath)
+	}
+
+	// Resolve to relative path for store lookup
+	relPath := filePath
+	if filepath.IsAbs(filePath) {
+		if rel, err := filepath.Rel(root, filePath); err == nil {
+			relPath = rel
+		}
+	}
+
+	fileInfo, err := cs.GetFileInfo(relPath)
+	if err != nil {
+		return &CodeReadCheckResponse{}, nil
+	}
+
+	stat, err := os.Stat(absPath)
+	if err != nil {
+		return &CodeReadCheckResponse{Indexed: true, Symbols: int32(len(fileInfo.SymbolIDs))}, nil
+	}
+
+	fresh := fileInfo.ModTime.Equal(stat.ModTime())
+	symbolCount := int32(len(fileInfo.SymbolIDs))
+
+	return &CodeReadCheckResponse{
+		Indexed:          true,
+		Fresh:            fresh,
+		Symbols:          symbolCount,
+		OutlineAvailable: symbolCount > 0,
+	}, nil
+}
+
 // =============================================================================
 // Findings Service Implementation
 // =============================================================================

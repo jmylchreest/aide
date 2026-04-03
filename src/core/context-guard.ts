@@ -15,10 +15,11 @@
  */
 
 import { statSync, readFileSync, writeFileSync, existsSync } from "fs";
-import { resolve, isAbsolute, normalize } from "path";
+import { resolve, isAbsolute, normalize, extname } from "path";
 import { tmpdir } from "os";
 import { join } from "path";
 import { debug } from "../lib/logger.js";
+import { getPreviousRead, checkFileReadFreshness } from "./read-tracking.js";
 
 const SOURCE = "context-guard";
 
@@ -211,4 +212,100 @@ export function checkContextGuard(
 
   debug(SOURCE, `Advisory for ${filePath}: ${estLines} lines, ${sizeKB}KB`);
   return { shouldAdvise: true, advisory };
+}
+
+// ============================================================================
+// Smart Read Hint — suggest code index tools over redundant file re-reads
+// ============================================================================
+
+export interface SmartReadHintResult {
+  /** Whether to inject a hint message */
+  shouldHint: boolean;
+  /** Hint message to inject */
+  hint?: string;
+}
+
+/**
+ * Check whether a Read call should receive a smart-read hint suggesting
+ * the agent use code_outline/code_symbols/code_references instead.
+ *
+ * Triggers when:
+ *   1. The file was already read this session (tracked via state store)
+ *   2. The file hasn't changed since last indexing (mtime comparison)
+ *   3. The file is indexed with symbols (code_outline would be useful)
+ *
+ * Gated behind AIDE_CODE_WATCH=1 and requires a valid aide binary.
+ */
+export function checkSmartReadHint(
+  toolName: string,
+  toolInput: Record<string, unknown>,
+  cwd: string,
+  binary: string | null,
+): SmartReadHintResult {
+  // Only advise on Read tool calls (case-insensitive for OpenCode compat)
+  if (toolName.toLowerCase() !== "read") {
+    return { shouldHint: false };
+  }
+
+  // Require code watcher to be enabled
+  if (process.env.AIDE_CODE_WATCH !== "1") {
+    return { shouldHint: false };
+  }
+
+  // Require aide binary
+  if (!binary) {
+    return { shouldHint: false };
+  }
+
+  // Extract file path from tool input (check multiple variants)
+  // Precedence matches checkContextGuard and checkWriteGuard
+  const filePath =
+    (toolInput.filePath as string) ||
+    (toolInput.file_path as string) ||
+    (toolInput.path as string);
+
+  if (!filePath) {
+    return { shouldHint: false };
+  }
+
+  // Skip targeted reads (agent already using offset/limit)
+  const offset = toolInput.offset as number | undefined;
+  const limit = toolInput.limit as number | undefined;
+  if (offset !== undefined && offset > 1) {
+    return { shouldHint: false };
+  }
+  if (limit !== undefined && limit < 100) {
+    return { shouldHint: false };
+  }
+
+  // Skip non-source-code files
+  const ext = extname(filePath).toLowerCase();
+  if (SKIP_EXTENSIONS.has(ext)) {
+    return { shouldHint: false };
+  }
+
+  // Check if this file was already read this session
+  const previousRead = getPreviousRead(binary, cwd, filePath);
+  if (!previousRead) {
+    // First read — no hint needed
+    return { shouldHint: false };
+  }
+
+  // Check if the file is indexed and fresh
+  const readCheck = checkFileReadFreshness(binary, cwd, filePath);
+  if (!readCheck) {
+    return { shouldHint: false };
+  }
+
+  if (readCheck.indexed && readCheck.fresh && readCheck.outline_available) {
+    const hint =
+      `[aide:smart-read] This file was already read this session and hasn't changed. ` +
+      `Consider using code_outline (for structure), code_symbols (for API surface), ` +
+      `or code_references (for call sites) to avoid re-reading the full file.`;
+
+    debug(SOURCE, `Smart read hint for: ${filePath}`);
+    return { shouldHint: true, hint };
+  }
+
+  return { shouldHint: false };
 }

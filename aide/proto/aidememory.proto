@@ -414,6 +414,7 @@ service CodeService {
   rpc SearchReferences(CodeSearchReferencesRequest) returns (CodeSearchReferencesResponse);
   rpc GetFileReferences(CodeGetFileReferencesRequest) returns (CodeSearchReferencesResponse);
   rpc GetContainingSymbol(CodeGetContainingSymbolRequest) returns (CodeGetContainingSymbolResponse);
+  rpc ReadCheck(CodeReadCheckRequest) returns (CodeReadCheckResponse);
 }
 
 message Symbol {
@@ -526,6 +527,17 @@ message CodeGetContainingSymbolRequest {
 message CodeGetContainingSymbolResponse {
   Symbol symbol = 1;       // The narrowest containing symbol, or nil if none
   bool found = 2;          // Whether a containing symbol was found
+}
+
+message CodeReadCheckRequest {
+  string file_path = 1;   // File path to check (relative or absolute)
+}
+
+message CodeReadCheckResponse {
+  bool indexed = 1;           // Whether the file exists in the code index
+  bool fresh = 2;             // Whether the indexed version matches current disk mtime
+  int32 symbols = 3;          // Number of symbols indexed for this file
+  bool outline_available = 4; // Whether code_outline would return useful data
 }
 
 // =============================================================================

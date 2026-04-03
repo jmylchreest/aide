@@ -684,6 +684,7 @@ func mcpToolList() []*grpcapi.StatusMCPTool {
 		{Name: "code_references", Category: "code"},
 		{Name: "code_outline", Category: "code"},
 		{Name: "code_top_references", Category: "code"},
+		{Name: "code_read_check", Category: "code"},
 		{Name: "findings_search", Category: "findings"},
 		{Name: "findings_list", Category: "findings"},
 		{Name: "findings_stats", Category: "findings"},

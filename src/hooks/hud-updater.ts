@@ -15,6 +15,7 @@ const SOURCE = "hud-updater";
 import { findAideBinary } from "../core/aide-client.js";
 import { updateToolStats } from "../core/tool-tracking.js";
 import { storePartialMemory } from "../core/partial-memory.js";
+import { recordFileRead } from "../core/read-tracking.js";
 import {
   getAgentStates,
   loadHudConfig,
@@ -86,6 +87,15 @@ async function main(): Promise<void> {
           description: data.tool_input?.description,
           success: data.tool_result?.success,
         });
+
+        // Record file reads for smart-read-hint feature
+        if (
+          toolName === "Read" &&
+          data.tool_result?.success &&
+          data.tool_input?.file_path
+        ) {
+          recordFileRead(binary, cwd, data.tool_input.file_path as string);
+        }
       }
       log.end("updateSessionState");
     }

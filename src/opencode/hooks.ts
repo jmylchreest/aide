@@ -49,6 +49,8 @@ import { trackToolUse, updateToolStats } from "../core/tool-tracking.js";
 import { evaluateToolUse, isToolDenied } from "../core/tool-enforcement.js";
 import { checkPersistence, getActiveMode } from "../core/persistence-logic.js";
 import { checkWriteGuard } from "../core/write-guard.js";
+import { checkSmartReadHint } from "../core/context-guard.js";
+import { recordFileRead } from "../core/read-tracking.js";
 import {
   checkComments,
   getCheckableFilePath,
@@ -722,6 +724,21 @@ function createToolBeforeHandler(
       debug(SOURCE, `Tool enforcement check failed (non-fatal): ${err}`);
     }
 
+    // Smart read hint: suggest code index for re-reads of unchanged files
+    try {
+      const hintResult = checkSmartReadHint(
+        input.tool,
+        (_output.args || {}) as Record<string, unknown>,
+        state.cwd,
+        state.binary,
+      );
+      if (hintResult.shouldHint && hintResult.hint) {
+        debug(SOURCE, `Smart read hint for ${input.tool}: ${hintResult.hint}`);
+      }
+    } catch (err) {
+      debug(SOURCE, `Smart read hint check failed (non-fatal): ${err}`);
+    }
+
     // Track tool use
     if (!state.binary) return;
 
@@ -763,6 +780,27 @@ function createToolAfterHandler(
       });
     } catch (err) {
       debug(SOURCE, `Partial memory write failed (non-fatal): ${err}`);
+    }
+
+    // Record file reads for smart-read-hint feature
+    try {
+      const toolArgs = (_output.metadata?.args || {}) as Record<
+        string,
+        unknown
+      >;
+      if (
+        input.tool.toLowerCase() === "read" &&
+        toolArgs.file_path &&
+        state.binary
+      ) {
+        recordFileRead(
+          state.binary,
+          state.cwd,
+          toolArgs.file_path as string,
+        );
+      }
+    } catch (err) {
+      debug(SOURCE, `Read tracking failed (non-fatal): ${err}`);
     }
 
     // Context pruning: dedup/supersede/purge tool outputs

@@ -314,6 +314,77 @@ func (b *Backend) ClearCode() (int, int, error) {
 	return 0, 0, nil
 }
 
+// ReadCheckResult holds the result of a file read-check operation.
+type ReadCheckResult struct {
+	Indexed          bool `json:"indexed"`
+	Fresh            bool `json:"fresh"`
+	Symbols          int  `json:"symbols"`
+	OutlineAvailable bool `json:"outline_available"`
+}
+
+// ReadCheck checks whether a file is indexed and whether its index is fresh
+// (i.e., the file hasn't changed on disk since it was last indexed).
+func (b *Backend) ReadCheck(filePath string) (*ReadCheckResult, error) {
+	ctx, cancel := b.rpcCtx()
+	defer cancel()
+
+	if b.useGRPC {
+		resp, err := b.grpcClient.Code.ReadCheck(ctx, &grpcapi.CodeReadCheckRequest{
+			FilePath: filePath,
+		})
+		if err != nil {
+			return &ReadCheckResult{}, nil
+		}
+		return &ReadCheckResult{
+			Indexed:          resp.Indexed,
+			Fresh:            resp.Fresh,
+			Symbols:          int(resp.Symbols),
+			OutlineAvailable: resp.OutlineAvailable,
+		}, nil
+	}
+
+	// Direct store access fallback
+	codeStore, err := b.openCodeStore()
+	if err != nil {
+		return &ReadCheckResult{}, nil
+	}
+	defer codeStore.Close()
+
+	root := projectRoot(b.dbPath)
+
+	// Resolve paths
+	absPath := filePath
+	if !filepath.IsAbs(filePath) {
+		absPath = filepath.Join(root, filePath)
+	}
+	relPath := filePath
+	if filepath.IsAbs(filePath) {
+		if rel, err := filepath.Rel(root, filePath); err == nil {
+			relPath = rel
+		}
+	}
+
+	fileInfo, err := codeStore.GetFileInfo(relPath)
+	if err != nil {
+		return &ReadCheckResult{}, nil
+	}
+
+	stat, err := os.Stat(absPath)
+	if err != nil {
+		return &ReadCheckResult{Indexed: true, Symbols: len(fileInfo.SymbolIDs)}, nil
+	}
+
+	fresh := fileInfo.ModTime.Equal(stat.ModTime())
+	symbolCount := len(fileInfo.SymbolIDs)
+
+	return &ReadCheckResult{
+		Indexed:          true,
+		Fresh:            fresh,
+		Symbols:          symbolCount,
+		OutlineAvailable: symbolCount > 0,
+	}, nil
+}
+
 // CodeSearcher returns a survey.CodeSearcher backed by gRPC (when the MCP
 // server is running) or by direct code store access. Returns nil and an error
 // if the code store is not available. The caller should call the returned
