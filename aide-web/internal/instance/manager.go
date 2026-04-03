@@ -97,6 +97,20 @@ func (m *Manager) ConnectedInstances() []*Instance {
 	return result
 }
 
+// RemoveInstance disconnects and removes an instance by project root,
+// and unregisters it from the file-based registry.
+func (m *Manager) RemoveInstance(projectRoot string) error {
+	m.mu.Lock()
+	inst, exists := m.instances[projectRoot]
+	if exists {
+		inst.Disconnect()
+		delete(m.instances, projectRoot)
+	}
+	m.mu.Unlock()
+
+	return registry.Unregister(projectRoot)
+}
+
 func (m *Manager) loadFromRegistry() error {
 	entries, err := registry.List()
 	if err != nil {

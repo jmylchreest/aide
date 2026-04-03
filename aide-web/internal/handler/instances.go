@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 
+	"github.com/danielgtaylor/huma/v2"
 	"github.com/jmylchreest/aide/aide-web/internal/instance"
 )
 
@@ -20,6 +21,23 @@ type ListInstancesOutput struct {
 	Body struct {
 		Instances []InstanceInfo `json:"instances"`
 	}
+}
+
+// APIDeleteInstance removes a disconnected instance from the registry.
+func (h *Handler) APIDeleteInstance(ctx context.Context, input *struct {
+	Project string `path:"project"`
+}) (*struct{}, error) {
+	inst := h.findInstance(input.Project)
+	if inst == nil {
+		return nil, huma.Error404NotFound("instance not found")
+	}
+	if inst.Status() == instance.StatusConnected {
+		return nil, huma.Error409Conflict("cannot remove a connected instance — stop it first")
+	}
+	if err := h.manager.RemoveInstance(inst.ProjectRoot()); err != nil {
+		return nil, err
+	}
+	return nil, nil
 }
 
 // APIListInstances returns all known instances as JSON.

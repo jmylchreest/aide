@@ -70,6 +70,9 @@ export const api = {
       (r) => r.instances ?? []
     ),
 
+  deleteInstance: (project: string) =>
+    del(`${BASE}/instances/${encodeURIComponent(project)}`),
+
   getStatus: (project: string) =>
     get<{ status: string; version?: string }>(
       `${BASE}/instances/${encodeURIComponent(project)}/status`

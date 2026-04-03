@@ -48,6 +48,7 @@ func (s *Server) setupRouter() {
 	api := humachi.New(r, huma.DefaultConfig("aide-web", "1.0.0"))
 	huma.Get(api, "/api/version", h.APIGetVersion)
 	huma.Get(api, "/api/instances", h.APIListInstances)
+	huma.Delete(api, "/api/instances/{project}", h.APIDeleteInstance)
 	huma.Get(api, "/api/instances/{project}/status", h.APIGetStatus)
 	huma.Get(api, "/api/instances/{project}/status/detailed", h.APIGetDetailedStatus)
 	huma.Get(api, "/api/instances/{project}/memories", h.APIListMemories)

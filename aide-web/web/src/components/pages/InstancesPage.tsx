@@ -5,62 +5,88 @@ import { SortableTable, type Column } from "../shared/SortableTable";
 import { StatusBadge } from "../shared/StatusBadge";
 import type { InstanceInfo } from "@/lib/types";
 
-const columns: Column<InstanceInfo>[] = [
-  {
-    key: "project_name",
-    label: "Project",
-    sortable: true,
-    render: (row) => (
-      <span className="font-medium text-aide-text">{row.project_name}</span>
-    ),
-  },
-  {
-    key: "status",
-    label: "Status",
-    sortable: true,
-    render: (row) => (
-      <span className="inline-flex items-center gap-1.5 text-aide-text-muted">
-        <StatusBadge status={row.status} />
-        {row.status}
-      </span>
-    ),
-  },
-  {
-    key: "project_root",
-    label: "Path",
-    sortable: true,
-    render: (row) => (
-      <code className="text-aide-text-dim bg-transparent px-0">
-        {row.project_root}
-      </code>
-    ),
-  },
-  {
-    key: "version",
-    label: "Version",
-    sortable: true,
-    render: (row) => <>{row.version || "\u2014"}</>,
-  },
-  {
-    key: "actions",
-    label: "Actions",
-    sortable: false,
-    render: (row) =>
-      row.status === "connected" ? (
-        <Link
-          to={`/instances/${encodeURIComponent(row.project_name)}/status`}
-          className="inline-block border border-aide-accent text-aide-accent px-3 py-0.5 rounded-sm text-xs font-semibold hover:bg-aide-accent hover:text-aide-bg transition-all"
-        >
-          Open
-        </Link>
-      ) : (
-        <span className="text-aide-text-dim">Offline</span>
+function makeColumns(onRemove: (project: string) => void): Column<InstanceInfo>[] {
+  return [
+    {
+      key: "project_name",
+      label: "Project",
+      sortable: true,
+      render: (row) => (
+        <span className="font-medium text-aide-text">{row.project_name}</span>
       ),
-  },
-];
+    },
+    {
+      key: "status",
+      label: "Status",
+      sortable: true,
+      render: (row) => (
+        <span className="inline-flex items-center gap-1.5 text-aide-text-muted">
+          <StatusBadge status={row.status} />
+          {row.status}
+        </span>
+      ),
+    },
+    {
+      key: "project_root",
+      label: "Path",
+      sortable: true,
+      render: (row) => (
+        <code className="text-aide-text-dim bg-transparent px-0">
+          {row.project_root}
+        </code>
+      ),
+    },
+    {
+      key: "version",
+      label: "Version",
+      sortable: true,
+      render: (row) => <>{row.version || "\u2014"}</>,
+    },
+    {
+      key: "actions",
+      label: "Actions",
+      sortable: false,
+      render: (row) =>
+        row.status === "connected" ? (
+          <Link
+            to={`/instances/${encodeURIComponent(row.project_name)}/status`}
+            className="inline-block border border-aide-accent text-aide-accent px-3 py-0.5 rounded-sm text-xs font-semibold hover:bg-aide-accent hover:text-aide-bg transition-all"
+          >
+            Open
+          </Link>
+        ) : (
+          <div className="flex items-center gap-2">
+            <span className="text-aide-text-dim">Offline</span>
+            <button
+              onClick={() => {
+                if (confirm(`Remove ${row.project_name} from the instance list?`)) {
+                  onRemove(row.project_name);
+                }
+              }}
+              className="inline-block border border-red-500/50 text-red-400 px-2 py-0.5 rounded-sm text-[10px] font-medium hover:bg-red-500/10 transition-all"
+              title="Remove this offline instance from the registry"
+            >
+              Remove
+            </button>
+          </div>
+        ),
+    },
+  ];
+}
 
 export function InstancesPage() {
-  const { data: instances, loading, error } = useApi(() => api.listInstances());
+  const { data: instances, loading, error, refresh } = useApi(() => api.listInstances());
+
+  const handleRemove = async (project: string) => {
+    try {
+      await api.deleteInstance(project);
+      refresh();
+    } catch (e) {
+      alert(`Failed to remove: ${e instanceof Error ? e.message : e}`);
+    }
+  };
+
+  const columns = makeColumns(handleRemove);
 
   return (
     <div>
