@@ -46,6 +46,7 @@ function makeColumns(onRemove: (project: string) => void): Column<InstanceInfo>[
       key: "actions",
       label: "Actions",
       sortable: false,
+      headerClassName: "text-right",
       render: (row) => {
         const isOnline = row.status === "connected";
         return (
