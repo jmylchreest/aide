@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 )
@@ -66,7 +67,7 @@ func (h *Handler) APIListTokenEvents(ctx context.Context, input *struct {
 		out.Body.Events = append(out.Body.Events, TokenEventItem{
 			ID:          e.ID,
 			SessionID:   e.SessionID,
-			Timestamp:   e.Timestamp.Format("2006-01-02T15:04:05Z"),
+			Timestamp:   e.Timestamp.UTC().Format(time.RFC3339),
 			EventType:   e.EventType,
 			Tool:        e.Tool,
 			FilePath:    e.FilePath,
