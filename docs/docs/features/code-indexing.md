@@ -19,7 +19,7 @@ aide code clear              # Clear index
 
 ## MCP Tools
 
-6 code-related MCP tools are available to the AI:
+8 code-related MCP tools are available to the AI:
 
 | Tool                  | Purpose                                                       |
 | --------------------- | ------------------------------------------------------------- |
@@ -29,6 +29,8 @@ aide code clear              # Clear index
 | `code_stats`          | Get index statistics (files, symbols, references)             |
 | `code_outline`        | Get collapsed file outline with signatures and line numbers   |
 | `code_top_references` | Rank symbols by reference count across the codebase           |
+| `code_read_check`     | Check if a file is indexed, unchanged, and estimate its token cost |
+| `token_stats`         | Get estimated token usage and savings statistics              |
 
 ## File Watcher
 
@@ -39,6 +41,18 @@ When the MCP server is running, a file watcher automatically re-indexes changed 
 - `AIDE_CODE_WATCH_DELAY=30s` debounce delay (default 30s)
 
 The watcher also triggers findings analysers on changed files.
+
+## Smart Read Hints
+
+When the file watcher is enabled, aide tracks which files the AI has read during a session. If the AI attempts to re-read a file that hasn't changed, a soft hint suggests using `code_outline`, `code_symbols`, or `code_references` instead. This avoids redundant full-file reads and preserves context window tokens.
+
+The hint includes an estimated token count for the file, based on calibrated per-language character ratios.
+
+## Token Estimation
+
+Each indexed file stores an estimated token count alongside its symbols. Estimates are calibrated against the Anthropic `count_tokens` API with per-language ratios (e.g., Go ~2.8 chars/token, TypeScript ~3.2, Markdown ~3.7). These estimates are used by the smart read hints and the Token Intelligence dashboard in aide-web.
+
+Token events (reads, outline substitutions, avoided re-reads) are recorded in the store and can be viewed with `aide token stats` or the aide-web Tokens page.
 
 ## File Exclusions
 

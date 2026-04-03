@@ -6,7 +6,7 @@ title: MCP Tools
 
 # MCP Tools
 
-AIDE exposes 32 MCP tools organized into 9 groups. All tools are prefixed `aide__` when accessed by the AI (e.g., `aide__memory_search`).
+AIDE exposes 34 MCP tools organized into 10 groups. All tools are prefixed `aide__` when accessed by the AI (e.g., `aide__memory_search`).
 
 ## Memory Tools
 
@@ -111,6 +111,7 @@ Marks a message as read so it won't appear in future `message_list` calls.
 | `code_stats`          | Get index statistics              |
 | `code_outline`        | Get collapsed file outline        |
 | `code_top_references` | Rank symbols by reference count   |
+| `code_read_check`     | Check if a file is indexed and unchanged |
 
 ### code_search
 
@@ -145,6 +146,28 @@ Returns a collapsed file outline with signatures preserved and function/method/c
 Ranks symbols by how many times they are referenced across the codebase. Useful for finding core APIs, shared utilities, and high-impact change targets.
 
 **Parameters:** `kind` (optional: function, method, class, interface, type), `limit` (optional, default 25)
+
+### code_read_check
+
+Checks whether a file is indexed and whether its content has changed since last indexing. Returns freshness status and an estimated token count so you can decide whether to use `code_outline` or `code_symbols` instead of re-reading the full file.
+
+**Parameters:** `file` (string)
+
+**Response fields:** `indexed`, `fresh`, `symbols`, `outline_available`, `estimated_tokens`
+
+## Token Tools
+
+| Tool           | Purpose                            |
+| -------------- | ---------------------------------- |
+| `token_stats`  | Get estimated token usage statistics |
+
+### token_stats
+
+Returns aggregated estimates of tokens consumed and saved by aide features. All values are estimates based on calibrated per-language character ratios.
+
+**Parameters:** `session_id` (optional, filter by session)
+
+**Response fields:** `total_read`, `total_saved`, `event_count`, `by_tool`, `by_saving_type`, `sessions`
 
 ## Findings Tools
 

@@ -103,6 +103,7 @@ aide code index                          # Index codebase (incremental)
 aide code search "getUser"               # Search symbols
 aide code symbols src/auth.ts            # List file symbols
 aide code references getUserById         # Find call sites
+aide code read-check src/auth.ts --json  # Check if file is indexed and fresh
 aide code stats                          # Index statistics
 aide code clear                          # Clear index
 ```
@@ -113,6 +114,7 @@ aide code clear                          # Clear index
 | `code search`     | Search symbol definitions                          |
 | `code symbols`    | List all symbols in a specific file                |
 | `code references` | Find all call sites of a symbol                    |
+| `code read-check` | Check if a file is indexed and unchanged           |
 | `code stats`      | Show index statistics                              |
 | `code clear`      | Clear the code index                               |
 
@@ -205,6 +207,25 @@ aide share import --dry-run              # Preview import
 | -------------- | ------------------------------------------------ |
 | `share export` | Export decisions and memories to `.aide/shared/` |
 | `share import` | Import from `.aide/shared/`                      |
+
+## Token
+
+```bash
+aide token stats                         # Estimated all-time token statistics
+aide token stats --json                  # JSON output
+aide token summary                       # Recent token events
+aide token summary --last=20             # Last 20 events
+aide token cleanup                       # Remove events older than 30 days
+aide token cleanup --max-age=168h        # Custom retention
+```
+
+| Command         | Description                                   |
+| --------------- | --------------------------------------------- |
+| `token stats`   | Show estimated token read/saved statistics    |
+| `token summary` | List recent token events                      |
+| `token cleanup` | Remove old token events (default 30 days)     |
+
+All token counts are estimates based on calibrated per-language character ratios.
 
 ## Status
 
