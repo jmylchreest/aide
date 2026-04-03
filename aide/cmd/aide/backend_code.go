@@ -320,6 +320,7 @@ type ReadCheckResult struct {
 	Fresh            bool `json:"fresh"`
 	Symbols          int  `json:"symbols"`
 	OutlineAvailable bool `json:"outline_available"`
+	EstimatedTokens  int  `json:"estimated_tokens"`
 }
 
 // ReadCheck checks whether a file is indexed and whether its index is fresh
@@ -340,6 +341,7 @@ func (b *Backend) ReadCheck(filePath string) (*ReadCheckResult, error) {
 			Fresh:            resp.Fresh,
 			Symbols:          int(resp.Symbols),
 			OutlineAvailable: resp.OutlineAvailable,
+			EstimatedTokens:  int(resp.EstimatedTokens),
 		}, nil
 	}
 
@@ -371,17 +373,26 @@ func (b *Backend) ReadCheck(filePath string) (*ReadCheckResult, error) {
 
 	stat, err := os.Stat(absPath)
 	if err != nil {
-		return &ReadCheckResult{Indexed: true, Symbols: len(fileInfo.SymbolIDs)}, nil
+		return &ReadCheckResult{
+			Indexed:         true,
+			Symbols:         len(fileInfo.SymbolIDs),
+			EstimatedTokens: fileInfo.Tokens,
+		}, nil
 	}
 
 	fresh := fileInfo.ModTime.Equal(stat.ModTime())
 	symbolCount := len(fileInfo.SymbolIDs)
+	tokens := fileInfo.Tokens
+	if tokens == 0 && stat.Size() > 0 {
+		tokens = code.EstimateTokensFromSize(relPath, stat.Size())
+	}
 
 	return &ReadCheckResult{
 		Indexed:          true,
 		Fresh:            fresh,
 		Symbols:          symbolCount,
 		OutlineAvailable: symbolCount > 0,
+		EstimatedTokens:  tokens,
 	}, nil
 }
 

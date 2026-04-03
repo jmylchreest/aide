@@ -128,6 +128,7 @@ describe("checkSmartReadHint", () => {
       fresh: true,
       symbols: 5,
       outline_available: true,
+      estimated_tokens: 1200,
     });
 
     const result = checkSmartReadHint(
@@ -139,6 +140,7 @@ describe("checkSmartReadHint", () => {
     expect(result.shouldHint).toBe(true);
     expect(result.hint).toContain("[aide:smart-read]");
     expect(result.hint).toContain("code_outline");
+    expect(result.hint).toContain("~1200 tokens");
   });
 
   it("should not hint when file changed since indexing (not fresh)", () => {
@@ -148,6 +150,7 @@ describe("checkSmartReadHint", () => {
       fresh: false,
       symbols: 5,
       outline_available: true,
+      estimated_tokens: 1200,
     });
 
     const result = checkSmartReadHint(
@@ -166,6 +169,7 @@ describe("checkSmartReadHint", () => {
       fresh: false,
       symbols: 0,
       outline_available: false,
+      estimated_tokens: 0,
     });
 
     const result = checkSmartReadHint(
@@ -197,6 +201,7 @@ describe("checkSmartReadHint", () => {
       fresh: true,
       symbols: 3,
       outline_available: true,
+      estimated_tokens: 800,
     });
 
     const result = checkSmartReadHint(
@@ -215,6 +220,7 @@ describe("checkSmartReadHint", () => {
       fresh: true,
       symbols: 2,
       outline_available: true,
+      estimated_tokens: 600,
     });
 
     const result = checkSmartReadHint(

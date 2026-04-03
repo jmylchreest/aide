@@ -4684,6 +4684,7 @@ type CodeReadCheckResponse struct {
 	Fresh            bool                   `protobuf:"varint,2,opt,name=fresh,proto3" json:"fresh,omitempty"`                                               // Whether the indexed version matches current disk mtime
 	Symbols          int32                  `protobuf:"varint,3,opt,name=symbols,proto3" json:"symbols,omitempty"`                                           // Number of symbols indexed for this file
 	OutlineAvailable bool                   `protobuf:"varint,4,opt,name=outline_available,json=outlineAvailable,proto3" json:"outline_available,omitempty"` // Whether code_outline would return useful data
+	EstimatedTokens  int32                  `protobuf:"varint,5,opt,name=estimated_tokens,json=estimatedTokens,proto3" json:"estimated_tokens,omitempty"`    // Estimated token count for the full file
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -4744,6 +4745,13 @@ func (x *CodeReadCheckResponse) GetOutlineAvailable() bool {
 		return x.OutlineAvailable
 	}
 	return false
+}
+
+func (x *CodeReadCheckResponse) GetEstimatedTokens() int32 {
+	if x != nil {
+		return x.EstimatedTokens
+	}
+	return 0
 }
 
 type Finding struct {
@@ -7932,12 +7940,13 @@ const file_aidememory_proto_rawDesc = "" +
 	"\x06symbol\x18\x01 \x01(\v2\x12.aidememory.SymbolR\x06symbol\x12\x14\n" +
 	"\x05found\x18\x02 \x01(\bR\x05found\"3\n" +
 	"\x14CodeReadCheckRequest\x12\x1b\n" +
-	"\tfile_path\x18\x01 \x01(\tR\bfilePath\"\x8e\x01\n" +
+	"\tfile_path\x18\x01 \x01(\tR\bfilePath\"\xb9\x01\n" +
 	"\x15CodeReadCheckResponse\x12\x18\n" +
 	"\aindexed\x18\x01 \x01(\bR\aindexed\x12\x14\n" +
 	"\x05fresh\x18\x02 \x01(\bR\x05fresh\x12\x18\n" +
 	"\asymbols\x18\x03 \x01(\x05R\asymbols\x12+\n" +
-	"\x11outline_available\x18\x04 \x01(\bR\x10outlineAvailable\"\x9e\x03\n" +
+	"\x11outline_available\x18\x04 \x01(\bR\x10outlineAvailable\x12)\n" +
+	"\x10estimated_tokens\x18\x05 \x01(\x05R\x0festimatedTokens\"\x9e\x03\n" +
 	"\aFinding\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\banalyzer\x18\x02 \x01(\tR\banalyzer\x12\x1a\n" +

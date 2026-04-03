@@ -176,6 +176,7 @@ code_outline/code_symbols/code_references instead.
 - fresh: whether the file hasn't changed since last indexing (mtime match)
 - symbols: number of symbols indexed for this file
 - outline_available: whether code_outline would return useful data
+- estimated_tokens: estimated token count for the full file (calibrated per-language)
 
 **Use this before re-reading a file** to check if the version you already read
 is still current. If fresh=true and outline_available=true, prefer code_outline
@@ -404,7 +405,7 @@ func (s *MCPServer) handleCodeReadCheck(_ context.Context, _ *mcp.CallToolReques
 
 	codeStore := s.getCodeStore()
 	if codeStore == nil {
-		return textResult(`{"indexed":false,"fresh":false,"symbols":0,"outline_available":false}`), nil, nil
+		return textResult(`{"indexed":false,"fresh":false,"symbols":0,"outline_available":false,"estimated_tokens":0}`), nil, nil
 	}
 
 	root := projectRoot(s.dbPath)
@@ -425,21 +426,25 @@ func (s *MCPServer) handleCodeReadCheck(_ context.Context, _ *mcp.CallToolReques
 
 	fileInfo, err := codeStore.GetFileInfo(relPath)
 	if err != nil {
-		return textResult(`{"indexed":false,"fresh":false,"symbols":0,"outline_available":false}`), nil, nil
+		return textResult(`{"indexed":false,"fresh":false,"symbols":0,"outline_available":false,"estimated_tokens":0}`), nil, nil
 	}
 
 	stat, err := os.Stat(absPath)
 	if err != nil {
-		result := fmt.Sprintf(`{"indexed":true,"fresh":false,"symbols":%d,"outline_available":%t}`,
-			len(fileInfo.SymbolIDs), len(fileInfo.SymbolIDs) > 0)
+		result := fmt.Sprintf(`{"indexed":true,"fresh":false,"symbols":%d,"outline_available":%t,"estimated_tokens":%d}`,
+			len(fileInfo.SymbolIDs), len(fileInfo.SymbolIDs) > 0, fileInfo.Tokens)
 		return textResult(result), nil, nil
 	}
 
 	fresh := fileInfo.ModTime.Equal(stat.ModTime())
 	symbolCount := len(fileInfo.SymbolIDs)
+	tokens := fileInfo.Tokens
+	if tokens == 0 && stat.Size() > 0 {
+		tokens = code.EstimateTokensFromSize(relPath, stat.Size())
+	}
 
-	result := fmt.Sprintf(`{"indexed":true,"fresh":%t,"symbols":%d,"outline_available":%t}`,
-		fresh, symbolCount, symbolCount > 0)
+	result := fmt.Sprintf(`{"indexed":true,"fresh":%t,"symbols":%d,"outline_available":%t,"estimated_tokens":%d}`,
+		fresh, symbolCount, symbolCount > 0, tokens)
 	mcpLog.Printf("  result: %s", result)
 	return textResult(result), nil, nil
 }

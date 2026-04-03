@@ -298,12 +298,15 @@ export function checkSmartReadHint(
   }
 
   if (readCheck.indexed && readCheck.fresh && readCheck.outline_available) {
+    const tokens = readCheck.estimated_tokens;
+    const tokenInfo = tokens > 0 ? ` (~${tokens} tokens)` : "";
     const hint =
-      `[aide:smart-read] This file was already read this session and hasn't changed. ` +
-      `Consider using code_outline (for structure), code_symbols (for API surface), ` +
-      `or code_references (for call sites) to avoid re-reading the full file.`;
+      `[aide:smart-read] This file was already read this session and hasn't changed${tokenInfo}. ` +
+      `Consider using code_outline (for structure, ~5-15% of full tokens), ` +
+      `code_symbols (for API surface), or code_references (for call sites) ` +
+      `to avoid re-reading the full file.`;
 
-    debug(SOURCE, `Smart read hint for: ${filePath}`);
+    debug(SOURCE, `Smart read hint for: ${filePath} (${tokens} tokens)`);
     return { shouldHint: true, hint };
   }
 

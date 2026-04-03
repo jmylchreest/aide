@@ -568,17 +568,21 @@ func (idx *Indexer) IndexFile(filePath string) (int, error) {
 		idx.store.AddReference(ref)
 	}
 
-	// Update file info
+	// Update file info with token estimate
 	info, _ := os.Stat(filePath)
 	modTime := time.Now()
+	var sizeBytes int64
 	if info != nil {
 		modTime = info.ModTime()
+		sizeBytes = info.Size()
 	}
 
 	idx.store.SetFileInfo(&code.FileInfo{
 		Path:      relPath,
 		ModTime:   modTime,
 		SymbolIDs: symbolIDs,
+		Tokens:    code.EstimateTokensFromSize(relPath, sizeBytes),
+		SizeBytes: sizeBytes,
 	})
 
 	return len(symbols), nil

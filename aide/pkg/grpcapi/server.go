@@ -919,11 +919,13 @@ func (s *codeServiceImpl) Index(ctx context.Context, req *CodeIndexRequest) (*Co
 				symbolsIndexed++
 			}
 
-			// Update file info
+			// Update file info with token estimate
 			cs.SetFileInfo(&code.FileInfo{
 				Path:      relPath,
 				ModTime:   info.ModTime(),
 				SymbolIDs: symbolIDs,
+				Tokens:    code.EstimateTokensFromSize(relPath, info.Size()),
+				SizeBytes: info.Size(),
 			})
 
 			filesIndexed++
@@ -1092,17 +1094,28 @@ func (s *codeServiceImpl) ReadCheck(ctx context.Context, req *CodeReadCheckReque
 
 	stat, err := os.Stat(absPath)
 	if err != nil {
-		return &CodeReadCheckResponse{Indexed: true, Symbols: int32(len(fileInfo.SymbolIDs))}, nil
+		return &CodeReadCheckResponse{
+			Indexed:         true,
+			Symbols:         int32(len(fileInfo.SymbolIDs)),
+			EstimatedTokens: int32(fileInfo.Tokens),
+		}, nil
 	}
 
 	fresh := fileInfo.ModTime.Equal(stat.ModTime())
 	symbolCount := int32(len(fileInfo.SymbolIDs))
+	tokens := int32(fileInfo.Tokens)
+
+	// If tokens weren't stored at index time, estimate from current size
+	if tokens == 0 && stat.Size() > 0 {
+		tokens = int32(code.EstimateTokensFromSize(relPath, stat.Size()))
+	}
 
 	return &CodeReadCheckResponse{
 		Indexed:          true,
 		Fresh:            fresh,
 		Symbols:          symbolCount,
 		OutlineAvailable: symbolCount > 0,
+		EstimatedTokens:  tokens,
 	}, nil
 }
 

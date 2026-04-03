@@ -27,6 +27,7 @@ export interface ReadCheckResult {
   fresh: boolean;
   symbols: number;
   outline_available: boolean;
+  estimated_tokens: number;
 }
 
 /**
