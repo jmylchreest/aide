@@ -1,6 +1,6 @@
 # aide Makefile
 
-.PHONY: all build test clean lint fmt install install-plugin proto
+.PHONY: all build test clean lint fmt install install-plugin proto calibrate-tokens
 
 # Binary name
 BINARY=aide
@@ -100,6 +100,11 @@ proto:
 	@echo "Generating protobuf code..."
 	buf generate proto/
 
+calibrate-tokens:
+	@echo "Calibrating token ratios via Anthropic count_tokens API..."
+	@test -n "$(ANTHROPIC_API_KEY)" || (echo "ANTHROPIC_API_KEY is required" && exit 1)
+	$(GOCMD) run ./cmd/calibrate-tokens ..
+
 clean:
 	@echo "Cleaning..."
 	@rm -f $(BUILD_DIR)/$(BINARY)*
@@ -146,7 +151,8 @@ help:
 	@echo "  make deps         Download dependencies"
 	@echo "  make install        Install binary to GOPATH or /usr/local/bin"
 	@echo "  make install-plugin Install dev binary to .claude-plugin/bin/"
-	@echo "  make proto          Regenerate protobuf Go code (requires buf)"
+	@echo "  make proto            Regenerate protobuf Go code (requires buf)"
+	@echo "  make calibrate-tokens Calibrate token ratios via Anthropic API"
 	@echo "  make help           Show this help"
 	@echo ""
 	@echo "Dev version: $(DEV_VERSION)"
