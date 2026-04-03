@@ -56,6 +56,9 @@ package-lock.json
 .env.local
 .orphaned_at
 
+# aide-web frontend build output (rebuilt by CI and `bun run build`)
+aide-web/internal/webdist/build/
+
 # Docusaurus (docs site)
 docs/.docusaurus/
 docs/build/
