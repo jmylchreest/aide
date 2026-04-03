@@ -22,12 +22,12 @@ function StatCard({ label, value, sub }: { label: string; value: string; sub?: s
   );
 }
 
-function SavingsBar({ label, value, max }: { label: string; value: number; max: number }) {
+function SavingsBar({ label, value, max, tooltip }: { label: string; value: number; max: number; tooltip?: string }) {
   const pct = max > 0 ? Math.min((value / max) * 100, 100) : 0;
   return (
     <div className="mb-2">
       <div className="flex justify-between text-xs mb-0.5">
-        <span className="text-aide-text-muted">{label}</span>
+        <span className="text-aide-text-muted cursor-help" title={tooltip}>{label}</span>
         <span className="text-aide-text font-medium">~{formatTokens(value)}</span>
       </div>
       <div className="w-full bg-aide-bg-tertiary rounded-full h-2">
@@ -157,7 +157,7 @@ export function TokensPage() {
       </p>
 
       {/* Headline stats */}
-      <div className="grid grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-3 gap-3 mb-6">
         <StatCard
           label="Est. Tokens Read"
           value={stats ? `~${formatTokens(stats.total_read)}` : "-"}
@@ -167,10 +167,6 @@ export function TokensPage() {
           label="Est. Tokens Saved"
           value={stats ? `~${formatTokens(stats.total_saved)}` : "-"}
           sub={`~${savingsPct}% savings`}
-        />
-        <StatCard
-          label="Est. Tokens Written"
-          value={stats ? `~${formatTokens(stats.total_written)}` : "-"}
         />
         <StatCard
           label="Sessions Tracked"
@@ -188,11 +184,13 @@ export function TokensPage() {
             label="Outline substitutions"
             value={stats.by_saving_type?.outline ?? 0}
             max={savingsMax}
+            tooltip="Tokens saved when code_outline was used instead of reading the full file. The outline shows file structure at ~5-15% of full token cost."
           />
           <SavingsBar
             label="Avoided re-reads"
             value={stats.by_saving_type?.read_avoided ?? 0}
             max={savingsMax}
+            tooltip="Tokens saved when aide's smart-read hint detected a file was already read this session and hadn't changed, avoiding a redundant full re-read."
           />
         </div>
       )}

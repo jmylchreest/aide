@@ -90,11 +90,9 @@ type State struct {
 
 // Token event type constants.
 const (
-	TokenEventRead         = "read"          // File was read (tokens = estimated file tokens)
-	TokenEventOutlineUsed  = "outline_used"  // code_outline used (saved = full - outline tokens)
-	TokenEventReadAvoided  = "read_avoided"  // Smart-read hint heeded (saved = file tokens)
-	TokenEventWrite        = "write"         // File written
-	TokenEventEdit         = "edit"          // File edited
+	TokenEventRead        = "read"         // File was read (tokens = estimated file tokens)
+	TokenEventOutlineUsed = "outline_used" // code_outline used (saved = full - outline tokens)
+	TokenEventReadAvoided = "read_avoided" // Smart-read hint heeded (saved = file tokens)
 )
 
 // TokenEvent records an estimated token impact from a tool call.

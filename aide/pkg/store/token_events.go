@@ -94,9 +94,6 @@ func (s *BoltStore) TokenStats(sessionID string) (*memory.TokenStats, error) {
 			case memory.TokenEventReadAvoided:
 				stats.TotalSaved += e.TokensSaved
 				stats.BySavingType["read_avoided"] += e.TokensSaved
-			case memory.TokenEventWrite, memory.TokenEventEdit:
-				stats.TotalWritten += e.Tokens
-				stats.ByTool[e.Tool] += e.Tokens
 			}
 
 			return nil

@@ -17,7 +17,7 @@ const SOURCE = "hud-updater";
 import { findAideBinary } from "../core/aide-client.js";
 import { updateToolStats } from "../core/tool-tracking.js";
 import { storePartialMemory } from "../core/partial-memory.js";
-import { recordFileRead, recordTokenEvent, estimateTokensFromSize } from "../core/read-tracking.js";
+import { recordFileRead, recordTokenEvent, estimateTokensFromSize } from "../core/read-tracking.js"; // estimateTokensFromSize used for read events
 import {
   getAgentStates,
   loadHudConfig,
@@ -110,19 +110,6 @@ async function main(): Promise<void> {
           }
         }
 
-        // Record token events for Edit/Write
-        if (
-          (toolName === "Edit" || toolName === "Write") &&
-          data.tool_result?.success &&
-          data.tool_input?.file_path
-        ) {
-          const fp = data.tool_input.file_path as string;
-          const content = (data.tool_input.new_string as string) ||
-            (data.tool_input.content as string) || "";
-          const tokens = estimateTokensFromSize(content.length);
-          const eventType = toolName === "Edit" ? "edit" : "write";
-          recordTokenEvent(binary, cwd, eventType, toolName, fp, tokens);
-        }
       }
       log.end("updateSessionState");
     }
