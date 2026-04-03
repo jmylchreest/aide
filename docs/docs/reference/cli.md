@@ -208,7 +208,7 @@ aide share import --dry-run              # Preview import
 | `share export` | Export decisions and memories to `.aide/shared/` |
 | `share import` | Import from `.aide/shared/`                      |
 
-## Token
+## Token (Experimental)
 
 ```bash
 aide token stats                         # Estimated all-time token statistics
@@ -225,7 +225,7 @@ aide token cleanup --max-age=168h        # Custom retention
 | `token summary` | List recent token events                      |
 | `token cleanup` | Remove old token events (default 30 days)     |
 
-All token counts are estimates based on calibrated per-language character ratios.
+Token tracking is experimental. All counts are estimates based on calibrated per-language character ratios — useful for relative comparisons, not exact cost accounting.
 
 ## Status
 

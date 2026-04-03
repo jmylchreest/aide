@@ -48,7 +48,11 @@ When the file watcher is enabled, aide tracks which files the AI has read during
 
 The hint includes an estimated token count for the file, based on calibrated per-language character ratios.
 
-## Token Estimation
+## Token Estimation (Experimental)
+
+:::note
+Token tracking is **experimental** and all values are **estimates**. Token counts are approximations based on calibrated character ratios, not exact tokenizer output. Use them for relative comparisons and trend analysis, not precise cost accounting.
+:::
 
 Each indexed file stores an estimated token count alongside its symbols. Estimates are calibrated against the Anthropic `count_tokens` API with per-language ratios (e.g., Go ~2.8 chars/token, TypeScript ~3.2, Markdown ~3.7). These estimates are used by the smart read hints and the Token Intelligence dashboard in aide-web.
 

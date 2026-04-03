@@ -155,7 +155,7 @@ Checks whether a file is indexed and whether its content has changed since last 
 
 **Response fields:** `indexed`, `fresh`, `symbols`, `outline_available`, `estimated_tokens`
 
-## Token Tools
+## Token Tools (Experimental)
 
 | Tool           | Purpose                            |
 | -------------- | ---------------------------------- |
@@ -163,7 +163,7 @@ Checks whether a file is indexed and whether its content has changed since last 
 
 ### token_stats
 
-Returns aggregated estimates of tokens consumed and saved by aide features. All values are estimates based on calibrated per-language character ratios.
+Returns aggregated estimates of tokens consumed and saved by aide features. All values are **estimates** based on calibrated per-language character ratios — use for relative comparisons, not exact cost accounting.
 
 **Parameters:** `session_id` (optional, filter by session)
 
