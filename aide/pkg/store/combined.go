@@ -315,3 +315,16 @@ func (c *CombinedStore) DeleteTask(id string) error      { return c.bolt.DeleteT
 func (c *CombinedStore) ClearTasks(status memory.TaskStatus) (int, error) {
 	return c.bolt.ClearTasks(status)
 }
+
+// --- Token Event Operations (delegated to BoltStore) ---
+
+func (c *CombinedStore) AddTokenEvent(e *memory.TokenEvent) error { return c.bolt.AddTokenEvent(e) }
+func (c *CombinedStore) ListTokenEvents(sessionID string, limit int) ([]*memory.TokenEvent, error) {
+	return c.bolt.ListTokenEvents(sessionID, limit)
+}
+func (c *CombinedStore) TokenStats(sessionID string) (*memory.TokenStats, error) {
+	return c.bolt.TokenStats(sessionID)
+}
+func (c *CombinedStore) CleanupTokenEvents(maxAge time.Duration) (int, error) {
+	return c.bolt.CleanupTokenEvents(maxAge)
+}

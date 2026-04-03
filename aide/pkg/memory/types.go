@@ -88,6 +88,40 @@ type State struct {
 	UpdatedAt time.Time `json:"updatedAt"`
 }
 
+// Token event type constants.
+const (
+	TokenEventRead         = "read"          // File was read (tokens = estimated file tokens)
+	TokenEventOutlineUsed  = "outline_used"  // code_outline used (saved = full - outline tokens)
+	TokenEventReadAvoided  = "read_avoided"  // Smart-read hint heeded (saved = file tokens)
+	TokenEventWrite        = "write"         // File written
+	TokenEventEdit         = "edit"          // File edited
+)
+
+// TokenEvent records an estimated token impact from a tool call.
+// All token counts are estimates based on calibrated per-language ratios.
+type TokenEvent struct {
+	ID          string    `json:"id"`      // ULID
+	SessionID   string    `json:"session"` // Session identifier
+	Timestamp   time.Time `json:"ts"`
+	EventType   string    `json:"type"`    // read, outline_used, read_avoided, write, edit
+	Tool        string    `json:"tool"`    // Read, code_outline, code_symbols, Edit, Write
+	FilePath    string    `json:"file"`    // Relative file path
+	Tokens      int       `json:"tokens"`  // Estimated tokens for this event
+	TokensSaved int       `json:"saved"`   // Estimated tokens saved (for outline/avoided events)
+}
+
+// TokenStats holds aggregated token event statistics.
+// All values are estimates.
+type TokenStats struct {
+	TotalRead    int            `json:"total_read"`     // Estimated tokens consumed by reads
+	TotalSaved   int            `json:"total_saved"`    // Estimated tokens saved
+	TotalWritten int            `json:"total_written"`  // Estimated tokens output
+	EventCount   int            `json:"event_count"`    // Total events
+	ByTool       map[string]int `json:"by_tool"`        // Estimated tokens per tool
+	BySavingType map[string]int `json:"by_saving_type"` // Estimated saved tokens by category
+	Sessions     int            `json:"sessions"`       // Unique session count
+}
+
 // DefaultExcludeTags are tags excluded from all memory queries by default.
 // Use --all (CLI) or IncludeAll (programmatic) to bypass this filter.
 var DefaultExcludeTags = []string{"forget"}

@@ -446,3 +446,82 @@ func (g *StoreAdapter) ClearTasks(status memory.TaskStatus) (int, error) {
 	}
 	return int(resp.Count), nil
 }
+
+// --- Token Event Operations (via gRPC TokenService) ---
+
+func (g *StoreAdapter) AddTokenEvent(e *memory.TokenEvent) error {
+	ctx, cancel := g.rpcCtx()
+	defer cancel()
+	resp, err := g.client.Token.RecordTokenEvent(ctx, &grpcapi.TokenEventRequest{
+		SessionId:   e.SessionID,
+		EventType:   e.EventType,
+		Tool:        e.Tool,
+		FilePath:    e.FilePath,
+		Tokens:      int32(e.Tokens),
+		TokensSaved: int32(e.TokensSaved),
+	})
+	if err != nil {
+		return err
+	}
+	e.ID = resp.Id
+	return nil
+}
+
+func (g *StoreAdapter) ListTokenEvents(sessionID string, limit int) ([]*memory.TokenEvent, error) {
+	ctx, cancel := g.rpcCtx()
+	defer cancel()
+	resp, err := g.client.Token.ListTokenEvents(ctx, &grpcapi.TokenEventListRequest{
+		SessionId: sessionID,
+		Limit:     int32(limit),
+	})
+	if err != nil {
+		return nil, err
+	}
+	events := make([]*memory.TokenEvent, len(resp.Events))
+	for i, e := range resp.Events {
+		events[i] = &memory.TokenEvent{
+			ID:          e.Id,
+			SessionID:   e.SessionId,
+			Timestamp:   e.Timestamp.AsTime(),
+			EventType:   e.EventType,
+			Tool:        e.Tool,
+			FilePath:    e.FilePath,
+			Tokens:      int(e.Tokens),
+			TokensSaved: int(e.TokensSaved),
+		}
+	}
+	return events, nil
+}
+
+func (g *StoreAdapter) TokenStats(sessionID string) (*memory.TokenStats, error) {
+	ctx, cancel := g.rpcCtx()
+	defer cancel()
+	resp, err := g.client.Token.GetTokenStats(ctx, &grpcapi.TokenStatsRequest{
+		SessionId: sessionID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	byTool := make(map[string]int, len(resp.ByTool))
+	for k, v := range resp.ByTool {
+		byTool[k] = int(v)
+	}
+	bySaving := make(map[string]int, len(resp.BySavingType))
+	for k, v := range resp.BySavingType {
+		bySaving[k] = int(v)
+	}
+	return &memory.TokenStats{
+		TotalRead:    int(resp.TotalRead),
+		TotalSaved:   int(resp.TotalSaved),
+		TotalWritten: int(resp.TotalWritten),
+		EventCount:   int(resp.EventCount),
+		ByTool:       byTool,
+		BySavingType: bySaving,
+		Sessions:     int(resp.Sessions),
+	}, nil
+}
+
+func (g *StoreAdapter) CleanupTokenEvents(maxAge time.Duration) (int, error) {
+	// Cleanup is handled locally by the MCP server, not via gRPC
+	return 0, fmt.Errorf("token event cleanup not supported via gRPC")
+}

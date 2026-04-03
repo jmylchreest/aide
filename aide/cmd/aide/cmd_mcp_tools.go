@@ -457,5 +457,51 @@ func (s *MCPServer) handleMessageAck(_ context.Context, _ *mcp.CallToolRequest, 
 }
 
 // ============================================================================
+// Token Intelligence Tools
+// ============================================================================
+
+type TokenStatsInput struct {
+	SessionID string `json:"session_id,omitempty" jsonschema:"Filter by session ID. Leave empty for all-time stats."`
+}
+
+func (s *MCPServer) registerTokenTools() {
+	mcp.AddTool(s.server, &mcp.Tool{
+		Name: "token_stats",
+		Description: `Get estimated token usage statistics.
+
+Returns aggregated estimates of tokens consumed and saved by aide features.
+All values are **estimates** based on calibrated per-language character ratios.
+
+**Response fields:**
+- total_read: estimated tokens consumed by Read operations
+- total_saved: estimated tokens saved (outline substitutions, avoided re-reads)
+- total_written: estimated tokens from write operations
+- event_count: total recorded events
+- by_tool: estimated token breakdown per tool
+- by_saving_type: estimated savings breakdown (outline, read_avoided)
+- sessions: number of unique sessions tracked
+
+Use session_id to see stats for a specific session, or leave empty for all-time.`,
+	}, s.handleTokenStats)
+}
+
+func (s *MCPServer) handleTokenStats(_ context.Context, _ *mcp.CallToolRequest, input TokenStatsInput) (*mcp.CallToolResult, any, error) {
+	mcpLog.Printf("tool: token_stats session=%s", input.SessionID)
+
+	stats, err := s.store.TokenStats(input.SessionID)
+	if err != nil {
+		mcpLog.Printf("  error: %v", err)
+		return errorResult(fmt.Sprintf("failed to get token stats: %v", err)), nil, nil
+	}
+
+	data, err := json.MarshalIndent(stats, "", "  ")
+	if err != nil {
+		return errorResult(fmt.Sprintf("failed to marshal stats: %v", err)), nil, nil
+	}
+
+	return textResult(string(data)), nil, nil
+}
+
+// ============================================================================
 // Usage Tools (Claude Code token usage statistics)
 // ============================================================================

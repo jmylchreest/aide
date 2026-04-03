@@ -70,6 +70,11 @@ func (b *Backend) UsingGRPC() bool {
 	return b.useGRPC
 }
 
+// Store returns the underlying store (gRPC adapter or direct BoltStore).
+func (b *Backend) Store() store.Store {
+	return b.store
+}
+
 // rpcCtx returns a context with a 10-second deadline for gRPC calls.
 // This matches the timeout used by grpcStoreAdapter.rpcCtx.
 func (b *Backend) rpcCtx() (context.Context, context.CancelFunc) {

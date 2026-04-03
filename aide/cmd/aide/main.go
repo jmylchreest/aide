@@ -96,6 +96,8 @@ func runCommand(cmd, dbPath string, args []string) error {
 		return cmdSession(dbPath, args)
 	case "state":
 		return cmdState(dbPath, args)
+	case "token":
+		return cmdTokenDispatcher(dbPath, args)
 	case "daemon":
 		return cmdDaemon(dbPath, args)
 	case "mcp":

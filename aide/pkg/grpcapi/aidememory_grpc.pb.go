@@ -3051,3 +3051,181 @@ var StatusService_ServiceDesc = grpc.ServiceDesc{
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "aidememory.proto",
 }
+
+const (
+	TokenService_RecordTokenEvent_FullMethodName = "/aidememory.TokenService/RecordTokenEvent"
+	TokenService_GetTokenStats_FullMethodName    = "/aidememory.TokenService/GetTokenStats"
+	TokenService_ListTokenEvents_FullMethodName  = "/aidememory.TokenService/ListTokenEvents"
+)
+
+// TokenServiceClient is the client API for TokenService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type TokenServiceClient interface {
+	RecordTokenEvent(ctx context.Context, in *TokenEventRequest, opts ...grpc.CallOption) (*TokenEventResponse, error)
+	GetTokenStats(ctx context.Context, in *TokenStatsRequest, opts ...grpc.CallOption) (*TokenStatsResponse, error)
+	ListTokenEvents(ctx context.Context, in *TokenEventListRequest, opts ...grpc.CallOption) (*TokenEventListResponse, error)
+}
+
+type tokenServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewTokenServiceClient(cc grpc.ClientConnInterface) TokenServiceClient {
+	return &tokenServiceClient{cc}
+}
+
+func (c *tokenServiceClient) RecordTokenEvent(ctx context.Context, in *TokenEventRequest, opts ...grpc.CallOption) (*TokenEventResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(TokenEventResponse)
+	err := c.cc.Invoke(ctx, TokenService_RecordTokenEvent_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tokenServiceClient) GetTokenStats(ctx context.Context, in *TokenStatsRequest, opts ...grpc.CallOption) (*TokenStatsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(TokenStatsResponse)
+	err := c.cc.Invoke(ctx, TokenService_GetTokenStats_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tokenServiceClient) ListTokenEvents(ctx context.Context, in *TokenEventListRequest, opts ...grpc.CallOption) (*TokenEventListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(TokenEventListResponse)
+	err := c.cc.Invoke(ctx, TokenService_ListTokenEvents_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// TokenServiceServer is the server API for TokenService service.
+// All implementations must embed UnimplementedTokenServiceServer
+// for forward compatibility.
+type TokenServiceServer interface {
+	RecordTokenEvent(context.Context, *TokenEventRequest) (*TokenEventResponse, error)
+	GetTokenStats(context.Context, *TokenStatsRequest) (*TokenStatsResponse, error)
+	ListTokenEvents(context.Context, *TokenEventListRequest) (*TokenEventListResponse, error)
+	mustEmbedUnimplementedTokenServiceServer()
+}
+
+// UnimplementedTokenServiceServer must be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedTokenServiceServer struct{}
+
+func (UnimplementedTokenServiceServer) RecordTokenEvent(context.Context, *TokenEventRequest) (*TokenEventResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RecordTokenEvent not implemented")
+}
+func (UnimplementedTokenServiceServer) GetTokenStats(context.Context, *TokenStatsRequest) (*TokenStatsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetTokenStats not implemented")
+}
+func (UnimplementedTokenServiceServer) ListTokenEvents(context.Context, *TokenEventListRequest) (*TokenEventListResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListTokenEvents not implemented")
+}
+func (UnimplementedTokenServiceServer) mustEmbedUnimplementedTokenServiceServer() {}
+func (UnimplementedTokenServiceServer) testEmbeddedByValue()                      {}
+
+// UnsafeTokenServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to TokenServiceServer will
+// result in compilation errors.
+type UnsafeTokenServiceServer interface {
+	mustEmbedUnimplementedTokenServiceServer()
+}
+
+func RegisterTokenServiceServer(s grpc.ServiceRegistrar, srv TokenServiceServer) {
+	// If the following call panics, it indicates UnimplementedTokenServiceServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&TokenService_ServiceDesc, srv)
+}
+
+func _TokenService_RecordTokenEvent_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TokenEventRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TokenServiceServer).RecordTokenEvent(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TokenService_RecordTokenEvent_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TokenServiceServer).RecordTokenEvent(ctx, req.(*TokenEventRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TokenService_GetTokenStats_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TokenStatsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TokenServiceServer).GetTokenStats(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TokenService_GetTokenStats_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TokenServiceServer).GetTokenStats(ctx, req.(*TokenStatsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TokenService_ListTokenEvents_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TokenEventListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TokenServiceServer).ListTokenEvents(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TokenService_ListTokenEvents_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TokenServiceServer).ListTokenEvents(ctx, req.(*TokenEventListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// TokenService_ServiceDesc is the grpc.ServiceDesc for TokenService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var TokenService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "aidememory.TokenService",
+	HandlerType: (*TokenServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "RecordTokenEvent",
+			Handler:    _TokenService_RecordTokenEvent_Handler,
+		},
+		{
+			MethodName: "GetTokenStats",
+			Handler:    _TokenService_GetTokenStats_Handler,
+		},
+		{
+			MethodName: "ListTokenEvents",
+			Handler:    _TokenService_ListTokenEvents_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "aidememory.proto",
+}

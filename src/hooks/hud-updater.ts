@@ -8,6 +8,8 @@
  * Output is written to .aide/state/hud.txt for the terminal to display.
  */
 
+import { statSync } from "fs";
+import { resolve, isAbsolute } from "path";
 import { Logger, debug } from "../lib/logger.js";
 import { readStdin } from "../lib/hook-utils.js";
 
@@ -15,7 +17,7 @@ const SOURCE = "hud-updater";
 import { findAideBinary } from "../core/aide-client.js";
 import { updateToolStats } from "../core/tool-tracking.js";
 import { storePartialMemory } from "../core/partial-memory.js";
-import { recordFileRead } from "../core/read-tracking.js";
+import { recordFileRead, recordTokenEvent, estimateTokensFromSize } from "../core/read-tracking.js";
 import {
   getAgentStates,
   loadHudConfig,
@@ -94,7 +96,32 @@ async function main(): Promise<void> {
           data.tool_result?.success &&
           data.tool_input?.file_path
         ) {
-          recordFileRead(binary, cwd, data.tool_input.file_path as string);
+          const fp = data.tool_input.file_path as string;
+          recordFileRead(binary, cwd, fp);
+
+          // Record token event for the read (estimate from file size)
+          try {
+            const abs = isAbsolute(fp) ? fp : resolve(cwd, fp);
+            const stat = statSync(abs);
+            const tokens = estimateTokensFromSize(stat.size);
+            recordTokenEvent(binary, cwd, "read", "Read", fp, tokens);
+          } catch {
+            // stat failed — skip token recording
+          }
+        }
+
+        // Record token events for Edit/Write
+        if (
+          (toolName === "Edit" || toolName === "Write") &&
+          data.tool_result?.success &&
+          data.tool_input?.file_path
+        ) {
+          const fp = data.tool_input.file_path as string;
+          const content = (data.tool_input.new_string as string) ||
+            (data.tool_input.content as string) || "";
+          const tokens = estimateTokensFromSize(content.length);
+          const eventType = toolName === "Edit" ? "edit" : "write";
+          recordTokenEvent(binary, cwd, eventType, toolName, fp, tokens);
         }
       }
       log.end("updateSessionState");

@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/jmylchreest/aide/aide/pkg/code"
+	"github.com/jmylchreest/aide/aide/pkg/memory"
 	"github.com/jmylchreest/aide/aide/pkg/store"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -393,6 +394,21 @@ func (s *MCPServer) handleCodeOutline(_ context.Context, _ *mcp.CallToolRequest,
 
 	outline := buildOutline(fileContent, symbols, !input.KeepComments)
 	mcpLog.Printf("  outline: %d symbols, %d/%d lines", len(symbols), countLines(outline), countLines(string(fileContent)))
+
+	// Record token event: outline used instead of full file read
+	fullTokens := code.EstimateTokensFromSize(input.File, int64(len(fileContent)))
+	outlineTokens := code.EstimateTokens(input.File, len(outline))
+	saved := fullTokens - outlineTokens
+	if saved > 0 && s.store != nil {
+		s.store.AddTokenEvent(&memory.TokenEvent{
+			EventType:   memory.TokenEventOutlineUsed,
+			Tool:        "code_outline",
+			FilePath:    input.File,
+			Tokens:      outlineTokens,
+			TokensSaved: saved,
+		})
+	}
+
 	return textResult(outline), nil, nil
 }
 

@@ -112,3 +112,40 @@ export function checkFileReadFreshness(
     return null;
   }
 }
+
+/**
+ * Record a token event via `aide token record`.
+ * Fire-and-forget — errors are logged but not propagated.
+ */
+export function recordTokenEvent(
+  binary: string,
+  cwd: string,
+  eventType: string,
+  tool: string,
+  filePath: string,
+  tokens: number,
+  tokensSaved: number = 0,
+): void {
+  try {
+    const args = ["token", "record", eventType, tool, filePath, String(tokens)];
+    if (tokensSaved > 0) {
+      args.push(String(tokensSaved));
+    }
+    execFileSync(binary, args, {
+      cwd,
+      timeout: 3000,
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    debug(SOURCE, `Token event: ${eventType} ${tool} ${filePath} tokens=${tokens} saved=${tokensSaved}`);
+  } catch (err) {
+    debug(SOURCE, `Failed to record token event: ${err}`);
+  }
+}
+
+/**
+ * Estimate tokens for a file by its size, using the default ratio.
+ * This is a rough client-side estimate; the Go binary has per-language ratios.
+ */
+export function estimateTokensFromSize(sizeBytes: number): number {
+  return Math.round(sizeBytes / 3.0);
+}

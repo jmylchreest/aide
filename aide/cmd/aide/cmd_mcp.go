@@ -647,6 +647,7 @@ func (s *MCPServer) Run() error {
 	s.registerFindingsTools()     // Findings search and stats
 	s.registerSurveyTools()       // Survey search, list, stats, run
 	s.registerInstanceInfoTools() // Instance identity: project root, version, paths
+	s.registerTokenTools()        // Token intelligence and statistics
 
 	// Expose registered MCP tools and count getter to gRPC StatusService
 	if s.grpcServer != nil {
@@ -695,6 +696,7 @@ func mcpToolList() []*grpcapi.StatusMCPTool {
 		{Name: "survey_run", Category: "survey"},
 		{Name: "survey_graph", Category: "survey"},
 		{Name: "instance_info", Category: "instance"},
+		{Name: "token_stats", Category: "token"},
 	}
 }
 

@@ -182,6 +182,7 @@ func (s *Server) Start() error {
 	RegisterCodeServiceServer(s.grpcServer, &codeServiceImpl{server: s, parser: code.NewParser(s.grammarLoader)})
 	RegisterFindingsServiceServer(s.grpcServer, &findingsServiceImpl{server: s})
 	RegisterSurveyServiceServer(s.grpcServer, &surveyServiceImpl{server: s})
+	RegisterTokenServiceServer(s.grpcServer, &tokenServiceImpl{store: s.store})
 	RegisterHealthServiceServer(s.grpcServer, &healthServiceImpl{dbPath: s.dbPath})
 	RegisterStatusServiceServer(s.grpcServer, &statusServiceImpl{server: s})
 
@@ -1117,6 +1118,84 @@ func (s *codeServiceImpl) ReadCheck(ctx context.Context, req *CodeReadCheckReque
 		OutlineAvailable: symbolCount > 0,
 		EstimatedTokens:  tokens,
 	}, nil
+}
+
+// =============================================================================
+// Token Service Implementation
+// =============================================================================
+
+type tokenServiceImpl struct {
+	UnimplementedTokenServiceServer
+	store store.Store
+}
+
+func (s *tokenServiceImpl) RecordTokenEvent(ctx context.Context, req *TokenEventRequest) (*TokenEventResponse, error) {
+	e := &memory.TokenEvent{
+		SessionID:   req.SessionId,
+		EventType:   req.EventType,
+		Tool:        req.Tool,
+		FilePath:    req.FilePath,
+		Tokens:      int(req.Tokens),
+		TokensSaved: int(req.TokensSaved),
+	}
+	if err := s.store.AddTokenEvent(e); err != nil {
+		return nil, err
+	}
+	return &TokenEventResponse{Id: e.ID}, nil
+}
+
+func (s *tokenServiceImpl) GetTokenStats(ctx context.Context, req *TokenStatsRequest) (*TokenStatsResponse, error) {
+	stats, err := s.store.TokenStats(req.SessionId)
+	if err != nil {
+		return nil, err
+	}
+
+	byTool := make(map[string]int32, len(stats.ByTool))
+	for k, v := range stats.ByTool {
+		byTool[k] = int32(v)
+	}
+	bySaving := make(map[string]int32, len(stats.BySavingType))
+	for k, v := range stats.BySavingType {
+		bySaving[k] = int32(v)
+	}
+
+	return &TokenStatsResponse{
+		TotalRead:    int32(stats.TotalRead),
+		TotalSaved:   int32(stats.TotalSaved),
+		TotalWritten: int32(stats.TotalWritten),
+		EventCount:   int32(stats.EventCount),
+		ByTool:       byTool,
+		BySavingType: bySaving,
+		Sessions:     int32(stats.Sessions),
+	}, nil
+}
+
+func (s *tokenServiceImpl) ListTokenEvents(ctx context.Context, req *TokenEventListRequest) (*TokenEventListResponse, error) {
+	limit := int(req.Limit)
+	if limit <= 0 {
+		limit = 100
+	}
+
+	events, err := s.store.ListTokenEvents(req.SessionId, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	protoEvents := make([]*TokenEventItem, len(events))
+	for i, e := range events {
+		protoEvents[i] = &TokenEventItem{
+			Id:          e.ID,
+			SessionId:   e.SessionID,
+			Timestamp:   timestamppb.New(e.Timestamp),
+			EventType:   e.EventType,
+			Tool:        e.Tool,
+			FilePath:    e.FilePath,
+			Tokens:      int32(e.Tokens),
+			TokensSaved: int32(e.TokensSaved),
+		}
+	}
+
+	return &TokenEventListResponse{Events: protoEvents}, nil
 }
 
 // =============================================================================

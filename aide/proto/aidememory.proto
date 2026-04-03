@@ -886,3 +886,60 @@ message StatusGrammar {
   string version = 2;
   bool built_in = 3;
 }
+
+// =============================================================================
+// Token Service (estimated token tracking and intelligence)
+// =============================================================================
+
+service TokenService {
+  rpc RecordTokenEvent(TokenEventRequest) returns (TokenEventResponse);
+  rpc GetTokenStats(TokenStatsRequest) returns (TokenStatsResponse);
+  rpc ListTokenEvents(TokenEventListRequest) returns (TokenEventListResponse);
+}
+
+message TokenEventRequest {
+  string session_id = 1;
+  string event_type = 2;     // read, outline_used, read_avoided, write, edit
+  string tool = 3;           // Read, code_outline, code_symbols, Edit, Write
+  string file_path = 4;
+  int32 tokens = 5;          // estimated tokens
+  int32 tokens_saved = 6;    // estimated tokens saved
+}
+
+message TokenEventResponse {
+  string id = 1;
+}
+
+message TokenStatsRequest {
+  string session_id = 1;     // optional: filter by session (empty = all)
+}
+
+message TokenStatsResponse {
+  int32 total_read = 1;      // estimated tokens consumed by reads
+  int32 total_saved = 2;     // estimated tokens saved
+  int32 total_written = 3;   // estimated tokens output
+  int32 event_count = 4;
+  map<string, int32> by_tool = 5;
+  map<string, int32> by_saving_type = 6;
+  int32 sessions = 7;
+}
+
+message TokenEventListRequest {
+  string session_id = 1;     // optional: filter by session
+  int32 limit = 2;           // max results (default: 100)
+}
+
+message TokenEventListResponse {
+  repeated TokenEventItem events = 1;
+}
+
+message TokenEventItem {
+  string id = 1;
+  string session_id = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  string event_type = 4;
+  string tool = 5;
+  string file_path = 6;
+  int32 tokens = 7;
+  int32 tokens_saved = 8;
+}

@@ -63,6 +63,14 @@ type TaskStore interface {
 	ClearTasks(status memory.TaskStatus) (int, error)
 }
 
+// TokenEventStore provides token event recording and aggregation.
+type TokenEventStore interface {
+	AddTokenEvent(e *memory.TokenEvent) error
+	ListTokenEvents(sessionID string, limit int) ([]*memory.TokenEvent, error)
+	TokenStats(sessionID string) (*memory.TokenStats, error)
+	CleanupTokenEvents(maxAge time.Duration) (int, error)
+}
+
 // Store combines all domain-specific store interfaces.
 // Implementations must satisfy all sub-interfaces.
 type Store interface {
@@ -71,6 +79,7 @@ type Store interface {
 	DecisionStore
 	MessageStore
 	TaskStore
+	TokenEventStore
 	Close() error
 }
 
