@@ -10,6 +10,7 @@ import {
   Code2,
   AlertTriangle,
   Map,
+  Coins,
 } from "lucide-react";
 
 const navItems = [
@@ -22,6 +23,7 @@ const navItems = [
   { to: "code", label: "Code", icon: Code2 },
   { to: "findings", label: "Findings", icon: AlertTriangle },
   { to: "survey", label: "Survey", icon: Map },
+  { to: "tokens", label: "Tokens", icon: Coins },
 ];
 
 interface SidebarProps {

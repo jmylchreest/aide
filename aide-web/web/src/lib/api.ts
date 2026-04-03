@@ -9,6 +9,8 @@ import type {
   SurveyItem,
   SearchResult,
   DetailedStatus,
+  TokenEventItem,
+  TokenStats,
 } from "./types";
 
 const BASE = "/api";
@@ -147,6 +149,18 @@ export const api = {
       `${BASE}/instances/${encodeURIComponent(project)}/survey`,
       { ...(analyzer && { analyzer }), ...(kind && { kind }) }
     ).then((r) => r.entries ?? []),
+
+  getTokenStats: (project: string, session?: string) =>
+    get<TokenStats>(
+      `${BASE}/instances/${encodeURIComponent(project)}/tokens/stats`,
+      session ? { session } : undefined,
+    ),
+
+  listTokenEvents: (project: string, session?: string, limit?: number) =>
+    get<{ events: TokenEventItem[] }>(
+      `${BASE}/instances/${encodeURIComponent(project)}/tokens/events`,
+      { ...(session && { session }), ...(limit && { limit: String(limit) }) },
+    ).then((r) => r.events ?? []),
 
   search: (query: string) =>
     get<{ results: SearchResult[] }>(`${BASE}/search`, { q: query }).then(

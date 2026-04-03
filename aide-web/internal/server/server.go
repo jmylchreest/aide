@@ -66,6 +66,8 @@ func (s *Server) setupRouter() {
 	huma.Get(api, "/api/instances/{project}/findings", h.APIListFindings)
 	huma.Post(api, "/api/instances/{project}/findings/accept", h.APIAcceptFindings)
 	huma.Get(api, "/api/instances/{project}/survey", h.APIListSurvey)
+	huma.Get(api, "/api/instances/{project}/tokens/stats", h.APIGetTokenStats)
+	huma.Get(api, "/api/instances/{project}/tokens/events", h.APIListTokenEvents)
 	huma.Get(api, "/api/search", h.APISearch)
 	huma.Post(api, "/api/instances/{project}/code/index", h.APIRunCodeIndex)
 	huma.Get(api, "/api/instances/{project}/code/file", h.APIReadFile)

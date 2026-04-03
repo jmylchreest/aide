@@ -73,6 +73,27 @@ export interface SearchResult {
   link?: string;
 }
 
+export interface TokenEventItem {
+  id: string;
+  session_id: string;
+  timestamp: string;
+  event_type: string;
+  tool: string;
+  file_path: string;
+  tokens: number;
+  tokens_saved: number;
+}
+
+export interface TokenStats {
+  total_read: number;
+  total_saved: number;
+  total_written: number;
+  event_count: number;
+  by_tool: Record<string, number>;
+  by_saving_type: Record<string, number>;
+  sessions: number;
+}
+
 export interface DetailedStatus {
   version: string;
   uptime: string;
