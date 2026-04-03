@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/jmylchreest/aide/aide/pkg/memory"
+	"github.com/jmylchreest/aide/aide/pkg/store"
 )
 
 func cmdTokenDispatcher(dbPath string, args []string) error {
@@ -75,6 +76,19 @@ Examples:
   aide token cleanup --max-age=168h`)
 }
 
+func getStoreOrFail(dbPath string) (*Backend, store.Store, error) {
+	backend, err := NewBackend(dbPath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create backend: %w", err)
+	}
+	st := backend.Store()
+	if st == nil {
+		backend.Close()
+		return nil, nil, fmt.Errorf("store not available (MCP server may need restart)")
+	}
+	return backend, st, nil
+}
+
 // cmdTokenRecord records a single token event. Called by TS hooks.
 func cmdTokenRecord(dbPath string, args []string) error {
 	if len(args) < 4 {
@@ -93,13 +107,13 @@ func cmdTokenRecord(dbPath string, args []string) error {
 
 	sessionID := parseFlag(args, "--session=")
 
-	backend, err := NewBackend(dbPath)
+	backend, st, err := getStoreOrFail(dbPath)
 	if err != nil {
-		return fmt.Errorf("failed to create backend: %w", err)
+		return err
 	}
 	defer backend.Close()
 
-	return backend.Store().AddTokenEvent(&memory.TokenEvent{
+	return st.AddTokenEvent(&memory.TokenEvent{
 		SessionID:   sessionID,
 		EventType:   eventType,
 		Tool:        tool,
@@ -114,9 +128,9 @@ func cmdTokenSummary(dbPath string, args []string) error {
 	jsonOutput := hasFlag(args, "--json")
 	sessionID := parseFlag(args, "--session=")
 
-	backend, err := NewBackend(dbPath)
+	backend, st, err := getStoreOrFail(dbPath)
 	if err != nil {
-		return fmt.Errorf("failed to create backend: %w", err)
+		return err
 	}
 	defer backend.Close()
 
@@ -125,7 +139,7 @@ func cmdTokenSummary(dbPath string, args []string) error {
 		fmt.Sscanf(l, "%d", &limit)
 	}
 
-	events, err := backend.Store().ListTokenEvents(sessionID, limit)
+	events, err := st.ListTokenEvents(sessionID, limit)
 	if err != nil {
 		return fmt.Errorf("failed to list events: %w", err)
 	}
@@ -165,13 +179,13 @@ func cmdTokenStats(dbPath string, args []string) error {
 	jsonOutput := hasFlag(args, "--json")
 	sessionID := parseFlag(args, "--session=")
 
-	backend, err := NewBackend(dbPath)
+	backend, st, err := getStoreOrFail(dbPath)
 	if err != nil {
-		return fmt.Errorf("failed to create backend: %w", err)
+		return err
 	}
 	defer backend.Close()
 
-	stats, err := backend.Store().TokenStats(sessionID)
+	stats, err := st.TokenStats(sessionID)
 	if err != nil {
 		return fmt.Errorf("failed to get stats: %w", err)
 	}
@@ -239,13 +253,13 @@ func cmdTokenCleanup(dbPath string, args []string) error {
 		maxAge = parsed
 	}
 
-	backend, err := NewBackend(dbPath)
+	backend, st, err := getStoreOrFail(dbPath)
 	if err != nil {
-		return fmt.Errorf("failed to create backend: %w", err)
+		return err
 	}
 	defer backend.Close()
 
-	count, err := backend.Store().CleanupTokenEvents(maxAge)
+	count, err := st.CleanupTokenEvents(maxAge)
 	if err != nil {
 		return fmt.Errorf("failed to cleanup: %w", err)
 	}
