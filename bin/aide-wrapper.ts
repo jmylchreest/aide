@@ -18,7 +18,6 @@
  */
 
 import { execFileSync, spawnSync } from "child_process";
-import spawn from "cross-spawn";
 import {
   existsSync,
   mkdirSync,
@@ -248,7 +247,10 @@ function downloadBinary(): void {
       runnerArgs = [downloader, "--dest", BIN_DIR];
     }
 
-    const result = spawn.sync(runner, runnerArgs, {
+    // Use cross-spawn for cross-platform compatibility (lazy import to
+    // survive missing node_modules during bootstrap).
+    const crossSpawn = require("cross-spawn");
+    const result = crossSpawn.sync(runner, runnerArgs, {
       stdio: ["ignore", "inherit", "inherit"],
       timeout: 120000,
     });
@@ -268,6 +270,35 @@ function downloadBinary(): void {
 
   log(`Binary ready at ${BINARY}`);
 }
+
+// --- Ensure dependencies ---
+
+// After a Claude Code marketplace autoUpdate (git pull), node_modules/
+// may be missing since it's gitignored. Detect and self-heal before any
+// imports that depend on npm packages (e.g. 'which', 'cross-spawn').
+function ensureDependencies(): void {
+  const nodeModules = join(PLUGIN_ROOT, "node_modules");
+  if (!existsSync(nodeModules)) {
+    log("node_modules missing — running bun install to restore dependencies");
+    try {
+      const result = spawnSync("bun", ["install", "--frozen-lockfile"], {
+        cwd: PLUGIN_ROOT,
+        stdio: ["ignore", "pipe", "pipe"],
+        timeout: 60000,
+      });
+      if (result.status === 0) {
+        log("bun install completed successfully");
+      } else {
+        const stderr = result.stderr?.toString().trim();
+        log(`WARNING: bun install failed (status ${result.status}): ${stderr}`);
+      }
+    } catch (err) {
+      log(`WARNING: bun install error: ${err}`);
+    }
+  }
+}
+
+ensureDependencies();
 
 // --- Main ---
 
