@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { api } from "@/lib/api";
 import type { InstanceInfo } from "@/lib/types";
 import { StatusBadge } from "../shared/StatusBadge";
 
 export function Header() {
   const [instances, setInstances] = useState<InstanceInfo[]>([]);
-
   const [version, setVersion] = useState<string>("");
+  const { project: activeProject } = useParams<{ project: string }>();
 
   useEffect(() => {
     api.getVersion().then(setVersion).catch(() => {});
@@ -46,27 +46,32 @@ export function Header() {
         </Link>
 
         <div className="flex items-center gap-0.5">
-          {instances.map((inst) => (
-            <Link
-              key={inst.project_name}
-              to={`/instances/${encodeURIComponent(inst.project_name)}/status`}
-              className={`
-                inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm
-                text-xs font-medium transition-all
-                ${
-                  inst.status === "connected"
-                    ? "bg-aide-green/10 text-aide-green"
-                    : inst.status === "connecting"
-                      ? "text-aide-yellow"
-                      : "text-aide-text-dim opacity-40"
-                }
-                hover:text-aide-text hover:bg-aide-surface-hover
-              `}
-            >
-              <StatusBadge status={inst.status} />
-              {inst.project_name}
-            </Link>
-          ))}
+          {instances.map((inst) => {
+            const isActive = activeProject === inst.project_name;
+            return (
+              <Link
+                key={inst.project_name}
+                to={`/instances/${encodeURIComponent(inst.project_name)}/status`}
+                className={`
+                  inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm
+                  text-xs font-medium transition-all
+                  ${
+                    isActive
+                      ? "bg-aide-accent/15 text-aide-accent ring-1 ring-aide-accent/30"
+                      : inst.status === "connected"
+                        ? "bg-aide-green/10 text-aide-green"
+                        : inst.status === "connecting"
+                          ? "text-aide-yellow"
+                          : "text-aide-text-dim opacity-40"
+                  }
+                  hover:text-aide-text hover:bg-aide-surface-hover
+                `}
+              >
+                <StatusBadge status={inst.status} />
+                {inst.project_name}
+              </Link>
+            );
+          })}
           <Link
             to="/search"
             className="px-2.5 py-1.5 rounded-sm text-xs font-medium text-aide-text-muted hover:text-aide-text hover:bg-aide-surface-hover transition-all"
