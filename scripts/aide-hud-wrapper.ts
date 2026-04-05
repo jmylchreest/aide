@@ -5,7 +5,7 @@
  * This is a thin wrapper that delegates to the real HUD script in the aide plugin.
  * This allows the plugin to update without requiring users to reinstall the wrapper.
  *
- * Cross-platform TypeScript replacement for aide-hud-wrapper.sh.
+ * Cross-platform TypeScript HUD wrapper script.
  */
 
 import { existsSync, readdirSync, statSync } from "fs";

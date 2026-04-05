@@ -2,7 +2,6 @@
 /**
  * aide-wrapper.ts - Ensures aide binary exists before executing
  *
- * Cross-platform TypeScript replacement for aide-wrapper.sh.
  * Called by an assistant's MCP server configuration.
  * Finds the aide binary, downloads it if missing, then delegates to it.
  *
@@ -333,7 +332,15 @@ if (!binaryExists()) {
       );
     }
   } else {
-    log(`Release binary v${binaryVersion ?? "unknown"}`);
+    const pluginVersion = getPluginVersion();
+    if (pluginVersion && binaryVersion && !versionGte(binaryVersion, pluginVersion)) {
+      needsDownload = true;
+      log(
+        `Release binary v${binaryVersion} is older than plugin v${pluginVersion}, re-downloading`,
+      );
+    } else {
+      log(`Release binary v${binaryVersion ?? "unknown"} (plugin v${pluginVersion ?? "unknown"})`);
+    }
   }
 }
 

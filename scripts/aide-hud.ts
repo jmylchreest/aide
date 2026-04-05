@@ -5,7 +5,7 @@
  * Reads HUD state from .aide/state/hud.txt and outputs formatted status.
  * Falls back to minimal display if state doesn't exist.
  *
- * Cross-platform TypeScript replacement for aide-hud.sh.
+ * Cross-platform TypeScript HUD status line script.
  */
 
 import { existsSync, readFileSync } from "fs";
