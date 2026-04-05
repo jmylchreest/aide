@@ -2,6 +2,8 @@
 
 Persistent memory, code intelligence, and multi-agent orchestration for AI coding assistants. Works with **Claude Code** and **OpenCode**.
 
+**Prerequisite:** [Bun](https://bun.sh/) — the only runtime dependency. The Go binary downloads automatically.
+
 ## Install
 
 **Claude Code:**
@@ -17,7 +19,7 @@ claude plugin install aide@aide
 bunx @jmylchreest/aide-plugin install
 ```
 
-The Go binary downloads automatically. Skills become available immediately.
+The Go binary downloads automatically on first run. Skills become available immediately.
 
 ## What You Get
 
@@ -30,7 +32,7 @@ The Go binary downloads automatically. Skills become available immediately.
 | **Survey**          | Maps codebase structure: modules, entry points, tech stack, churn hotspots       |
 | **Skills**          | 23 built-in workflows triggered by natural language                              |
 | **Swarm**           | Parallel agents with full SDLC pipelines (design, test, implement, verify, docs) |
-| **32 MCP Tools**    | Full programmatic access to all capabilities above                               |
+| **34 MCP Tools**    | Full programmatic access to all capabilities above                               |
 
 ## Get Started
 
@@ -134,7 +136,7 @@ aide-web --port 8080 --open
 Full documentation: **[jmylchreest.github.io/aide](https://jmylchreest.github.io/aide/)**
 
 - [Architecture](https://jmylchreest.github.io/aide/docs/reference/architecture) — Layered design, hooks, MCP read/write separation
-- [MCP Tools](https://jmylchreest.github.io/aide/docs/reference/mcp-tools) — All 32 tools: memory, decisions, code, findings, survey, tasks
+- [MCP Tools](https://jmylchreest.github.io/aide/docs/reference/mcp-tools) — All 34 tools: memory, decisions, code, findings, survey, tasks, tokens
 - [CLI Reference](https://jmylchreest.github.io/aide/docs/reference/cli) — Full command reference
 - [Swarm Mode](https://jmylchreest.github.io/aide/docs/modes/swarm) — SDLC pipeline, worktrees, agent coordination
 - [Skills](https://jmylchreest.github.io/aide/docs/skills) — Built-in and custom skill reference
@@ -181,9 +183,9 @@ Add to `~/.claude/settings.json`:
 ```bash
 git clone https://github.com/jmylchreest/aide && cd aide
 
-# Build (requires Go 1.25+)
+# Build (requires Go 1.25+ and Bun)
 cd aide && go build -o ../bin/aide ./cmd/aide && cd ..
-npm install && npm run build
+bun install && bun run build
 
 # Claude Code
 claude --plugin-dir /path/to/aide
