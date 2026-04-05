@@ -17,9 +17,11 @@
 import {
   existsSync,
   readFileSync,
+  readdirSync,
   writeFileSync,
   mkdirSync,
   statSync,
+  unlinkSync,
 } from "fs";
 import { join, dirname } from "path";
 import { homedir } from "os";
@@ -30,6 +32,69 @@ import { homedir } from "os";
 
 /** Platform identifier for the current assistant. */
 export type McpPlatform = "claude-code" | "opencode";
+
+/**
+ * Discover MCP server names managed by installed Claude Code plugins.
+ *
+ * Scans plugin cache and marketplace directories for plugin.json files
+ * and returns the set of MCP server names they define. These servers
+ * must not be synced from assistant configs — doing so would override
+ * the plugin's own definition and bypass CLAUDE_PLUGIN_ROOT.
+ */
+function getPluginManagedServers(): Set<string> {
+  const names = new Set<string>();
+  const pluginsDir = join(homedir(), ".claude", "plugins");
+
+  // Scan both cache (installed plugins) and marketplaces (git-cloned plugins)
+  const searchDirs = [
+    join(pluginsDir, "cache"),
+    join(pluginsDir, "marketplaces"),
+  ];
+
+  for (const baseDir of searchDirs) {
+    if (!existsSync(baseDir)) continue;
+
+    try {
+      // Walk up to 3 levels deep to find .claude-plugin/plugin.json
+      // cache: <marketplace>/<plugin>/<version>/.claude-plugin/plugin.json
+      // marketplaces: <name>/.claude-plugin/plugin.json
+      const findPluginJsons = (dir: string, depth: number): string[] => {
+        if (depth > 3) return [];
+        const results: string[] = [];
+        const pluginJson = join(dir, ".claude-plugin", "plugin.json");
+        if (existsSync(pluginJson)) results.push(pluginJson);
+
+        try {
+          for (const entry of readdirSync(dir, { withFileTypes: true })) {
+            if (entry.isDirectory() && !entry.name.startsWith(".")) {
+              results.push(...findPluginJsons(join(dir, entry.name), depth + 1));
+            }
+          }
+        } catch {
+          // Permission or read error — skip
+        }
+        return results;
+      };
+
+      for (const pluginJsonPath of findPluginJsons(baseDir, 0)) {
+        try {
+          const content = JSON.parse(readFileSync(pluginJsonPath, "utf-8"));
+          if (content.mcpServers && typeof content.mcpServers === "object") {
+            for (const serverName of Object.keys(content.mcpServers)) {
+              names.add(serverName);
+            }
+          }
+        } catch {
+          // Skip unparseable plugin.json files
+        }
+      }
+    } catch {
+      // Directory read error — skip
+    }
+  }
+
+  return names;
+}
 
 /** Scope level for config files. */
 export type McpScope = "user" | "project";
@@ -782,7 +847,7 @@ function syncScope(
     if (!bestPresent) result.skipped++;
   }
 
-  // Write to aide canonical config (if changed)
+  // Write to aide canonical config (if changed) — includes ALL servers
   const sortedStringify = (obj: object) =>
     JSON.stringify(obj, Object.keys(obj).sort());
   const aideChanged =
@@ -793,21 +858,43 @@ function syncScope(
     result.modified = true;
   }
 
+  // For Claude Code, exclude servers managed by plugins — these are
+  // defined in plugin.json and must not be written to assistant configs
+  // (doing so overrides the plugin's definition and bypasses
+  // CLAUDE_PLUGIN_ROOT). The aide canonical config keeps them so they
+  // can still sync to non-plugin assistants like OpenCode.
+  let assistantServers = finalServers;
+  if (platform === "claude-code") {
+    const pluginManaged = getPluginManagedServers();
+    if (pluginManaged.size > 0) {
+      assistantServers = { ...finalServers };
+      for (const name of pluginManaged) {
+        delete assistantServers[name];
+      }
+    }
+  }
+
   // Write to current assistant's config
   const assistantPaths = getAssistantWritePaths(platform, scope, cwd);
   for (const p of assistantPaths) {
     const existingAssistant = readAssistantConfig(platform, p);
     const assistantChanged =
-      sortedStringify(existingAssistant) !== sortedStringify(finalServers);
+      sortedStringify(existingAssistant) !== sortedStringify(assistantServers);
 
     if (assistantChanged) {
-      writeAssistantConfig(platform, p, finalServers);
+      if (Object.keys(assistantServers).length === 0 && existsSync(p)) {
+        // No servers to write — remove the file rather than leaving
+        // an empty mcpServers block that the assistant still loads.
+        try { unlinkSync(p); } catch { /* ignore */ }
+      } else if (Object.keys(assistantServers).length > 0) {
+        writeAssistantConfig(platform, p, assistantServers);
+      }
       result.modified = true;
     }
   }
 
-  result.serversWritten = Object.keys(finalServers).length;
-  result.serverNames = Object.keys(finalServers);
+  result.serversWritten = Object.keys(assistantServers).length;
+  result.serverNames = Object.keys(assistantServers);
 
   return result;
 }

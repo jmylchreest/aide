@@ -251,10 +251,10 @@ if 'plugin' in cfg:
         for p in cfg['plugin']
     ]
 
-# MCP command: use npx
+# MCP command: use bunx
 mcp_aide = cfg.get('mcp', {}).get('aide', {})
 if mcp_aide:
-    mcp_aide['command'] = ['npx', '-y', npm_pkg, 'mcp']
+    mcp_aide['command'] = ['bunx', '-y', npm_pkg, 'mcp']
 
 with open(cfg_path, 'w') as f:
     json.dump(cfg, f, indent=2)
@@ -453,25 +453,31 @@ with open(mcp_path, 'w') as f:
 "
         ok ".mcp.json -> ${BOLD}dev${NC} mode"
     else
+        # In prod mode, remove the aide entry from .mcp.json entirely.
+        # The marketplace plugin's plugin.json defines the MCP server;
+        # having it in .mcp.json too overrides the plugin and bypasses
+        # CLAUDE_PLUGIN_ROOT / the wrapper's version-check logic.
         python3 -c "
-import json
+import json, os
 
 mcp_path = '$CC_MCP_JSON'
-npm_pkg = '$NPM_PACKAGE'
 
 with open(mcp_path, 'r') as f:
     cfg = json.load(f)
 
-aide = cfg.get('mcpServers', {}).get('aide', {})
-if aide:
-    aide['command'] = 'npx'
-    aide['args'] = ['-y', npm_pkg, 'mcp']
+servers = cfg.get('mcpServers', {})
+servers.pop('aide', None)
 
-with open(mcp_path, 'w') as f:
-    json.dump(cfg, f, indent=2)
-    f.write('\n')
+if servers:
+    cfg['mcpServers'] = servers
+    with open(mcp_path, 'w') as f:
+        json.dump(cfg, f, indent=2)
+        f.write('\n')
+else:
+    # No servers left — remove the file
+    os.remove(mcp_path)
 "
-        ok ".mcp.json -> ${BOLD}prod${NC} mode"
+        ok ".mcp.json -> ${BOLD}prod${NC} mode (aide entry removed, managed by plugin)"
     fi
 }
 
