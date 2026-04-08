@@ -488,7 +488,7 @@ Use session_id to see stats for a specific session, or leave empty for all-time.
 func (s *MCPServer) handleTokenStats(_ context.Context, _ *mcp.CallToolRequest, input TokenStatsInput) (*mcp.CallToolResult, any, error) {
 	mcpLog.Printf("tool: token_stats session=%s", input.SessionID)
 
-	stats, err := s.store.TokenStats(input.SessionID)
+	stats, err := s.store.TokenStats(input.SessionID, time.Time{}, time.Time{})
 	if err != nil {
 		mcpLog.Printf("  error: %v", err)
 		return errorResult(fmt.Sprintf("failed to get token stats: %v", err)), nil, nil

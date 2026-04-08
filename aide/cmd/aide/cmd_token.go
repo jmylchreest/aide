@@ -139,7 +139,7 @@ func cmdTokenSummary(dbPath string, args []string) error {
 		fmt.Sscanf(l, "%d", &limit)
 	}
 
-	events, err := st.ListTokenEvents(sessionID, limit)
+	events, err := st.ListTokenEvents(sessionID, limit, time.Time{}, time.Time{})
 	if err != nil {
 		return fmt.Errorf("failed to list events: %w", err)
 	}
@@ -185,7 +185,7 @@ func cmdTokenStats(dbPath string, args []string) error {
 	}
 	defer backend.Close()
 
-	stats, err := st.TokenStats(sessionID)
+	stats, err := st.TokenStats(sessionID, time.Time{}, time.Time{})
 	if err != nil {
 		return fmt.Errorf("failed to get stats: %w", err)
 	}

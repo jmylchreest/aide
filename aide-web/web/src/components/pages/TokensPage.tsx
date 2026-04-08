@@ -4,6 +4,7 @@ import { api } from "@/lib/api";
 import { useApi } from "@/hooks/use-api";
 import { FilterBar } from "../shared/FilterBar";
 import { SortableTable, type Column } from "../shared/SortableTable";
+import { DateRangePicker, presetToRange, type DateRangeValue } from "../shared/DateRangePicker";
 import type { TokenEventItem } from "@/lib/types";
 
 function formatTokens(n: number): string {
@@ -37,14 +38,20 @@ export function TokensPage() {
   const [query, setQuery] = useState("");
   const [toolFilter, setToolFilter] = useState("");
 
+  // Default to last 30 days
+  const [dateRange, setDateRange] = useState<DateRangeValue>(() => {
+    const { since, until } = presetToRange("30d");
+    return { preset: "30d", since, until };
+  });
+
   const { data: stats, loading: statsLoading } = useApi(
-    () => api.getTokenStats(project!),
-    [project],
+    () => api.getTokenStats(project!, undefined, dateRange.since || undefined, dateRange.until || undefined),
+    [project, dateRange.since, dateRange.until],
   );
 
   const { data: events, loading: eventsLoading } = useApi(
-    () => api.listTokenEvents(project!, undefined, 200),
-    [project],
+    () => api.listTokenEvents(project!, undefined, 200, dateRange.since || undefined, dateRange.until || undefined),
+    [project, dateRange.since, dateRange.until],
   );
 
   const filteredEvents = useMemo(() => {
@@ -139,6 +146,10 @@ export function TokensPage() {
       <p className="text-[11px] text-aide-text-dim mb-4">
         All token counts are <strong>estimates</strong> based on calibrated per-language character ratios.
       </p>
+
+      <div className="mb-4">
+        <DateRangePicker value={dateRange} onChange={setDateRange} />
+      </div>
 
       {/* Headline stats */}
       <div className="grid grid-cols-3 gap-3 mb-6">

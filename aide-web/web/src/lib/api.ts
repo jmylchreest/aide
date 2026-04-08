@@ -153,16 +153,16 @@ export const api = {
       { ...(analyzer && { analyzer }), ...(kind && { kind }) }
     ).then((r) => r.entries ?? []),
 
-  getTokenStats: (project: string, session?: string) =>
+  getTokenStats: (project: string, session?: string, since?: string, until?: string) =>
     get<TokenStats>(
       `${BASE}/instances/${encodeURIComponent(project)}/tokens/stats`,
-      session ? { session } : undefined,
+      { ...(session && { session }), ...(since && { since }), ...(until && { until }) },
     ),
 
-  listTokenEvents: (project: string, session?: string, limit?: number) =>
+  listTokenEvents: (project: string, session?: string, limit?: number, since?: string, until?: string) =>
     get<{ events: TokenEventItem[] }>(
       `${BASE}/instances/${encodeURIComponent(project)}/tokens/events`,
-      { ...(session && { session }), ...(limit && { limit: String(limit) }) },
+      { ...(session && { session }), ...(limit && { limit: String(limit) }), ...(since && { since }), ...(until && { until }) },
     ).then((r) => r.events ?? []),
 
   search: (query: string) =>

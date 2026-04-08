@@ -27,10 +27,11 @@ func (s *BoltStore) AddTokenEvent(e *memory.TokenEvent) error {
 	})
 }
 
-// ListTokenEvents returns token events, optionally filtered by session ID.
+// ListTokenEvents returns token events, optionally filtered by session ID and time range.
 // Results are returned in reverse chronological order (newest first).
 // If limit <= 0, all matching events are returned.
-func (s *BoltStore) ListTokenEvents(sessionID string, limit int) ([]*memory.TokenEvent, error) {
+// Zero-value since/until are ignored (no bound).
+func (s *BoltStore) ListTokenEvents(sessionID string, limit int, since, until time.Time) ([]*memory.TokenEvent, error) {
 	var events []*memory.TokenEvent
 
 	err := s.db.View(func(tx *bolt.Tx) error {
@@ -41,6 +42,12 @@ func (s *BoltStore) ListTokenEvents(sessionID string, limit int) ([]*memory.Toke
 		for k, v := c.Last(); k != nil; k, v = c.Prev() {
 			var e memory.TokenEvent
 			if err := json.Unmarshal(v, &e); err != nil {
+				continue
+			}
+			if !since.IsZero() && e.Timestamp.Before(since) {
+				break // ULIDs are time-ordered; no older events will match
+			}
+			if !until.IsZero() && e.Timestamp.After(until) {
 				continue
 			}
 			if sessionID != "" && e.SessionID != sessionID {
@@ -61,7 +68,8 @@ func (s *BoltStore) ListTokenEvents(sessionID string, limit int) ([]*memory.Toke
 
 // TokenStats computes aggregate statistics from token events.
 // If sessionID is non-empty, only events from that session are included.
-func (s *BoltStore) TokenStats(sessionID string) (*memory.TokenStats, error) {
+// Zero-value since/until are ignored (no bound).
+func (s *BoltStore) TokenStats(sessionID string, since, until time.Time) (*memory.TokenStats, error) {
 	stats := &memory.TokenStats{
 		ByTool:       make(map[string]int),
 		BySavingType: make(map[string]int),
@@ -70,13 +78,22 @@ func (s *BoltStore) TokenStats(sessionID string) (*memory.TokenStats, error) {
 
 	err := s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(BucketTokenEvents)
-		return b.ForEach(func(k, v []byte) error {
+		c := b.Cursor()
+
+		// Iterate newest-first so we can break early on since bound.
+		for k, v := c.Last(); k != nil; k, v = c.Prev() {
 			var e memory.TokenEvent
 			if err := json.Unmarshal(v, &e); err != nil {
-				return nil // skip malformed
+				continue // skip malformed
+			}
+			if !since.IsZero() && e.Timestamp.Before(since) {
+				break // ULIDs are time-ordered; everything older is out of range
+			}
+			if !until.IsZero() && e.Timestamp.After(until) {
+				continue
 			}
 			if sessionID != "" && e.SessionID != sessionID {
-				return nil
+				continue
 			}
 
 			stats.EventCount++
@@ -95,9 +112,8 @@ func (s *BoltStore) TokenStats(sessionID string) (*memory.TokenStats, error) {
 				stats.TotalSaved += e.TokensSaved
 				stats.BySavingType["read_avoided"] += e.TokensSaved
 			}
-
-			return nil
-		})
+		}
+		return nil
 	})
 	if err != nil {
 		return nil, err

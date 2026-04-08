@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -47,6 +48,8 @@ func (h *Handler) APIListTokenEvents(ctx context.Context, input *struct {
 	Project   string `path:"project"`
 	SessionID string `query:"session"`
 	Limit     int    `query:"limit" minimum:"1" maximum:"500" default:"100"`
+	Since     string `query:"since" doc:"RFC3339 lower bound (inclusive)"`
+	Until     string `query:"until" doc:"RFC3339 upper bound (inclusive)"`
 }) (*ListTokenEventsOutput, error) {
 	inst := h.findInstance(input.Project)
 	if inst == nil {
@@ -57,7 +60,12 @@ func (h *Handler) APIListTokenEvents(ctx context.Context, input *struct {
 		return nil, huma.Error503ServiceUnavailable("instance not connected")
 	}
 
-	events, err := st.ListTokenEvents(input.SessionID, input.Limit)
+	since, until, err := parseTimeRange(input.Since, input.Until)
+	if err != nil {
+		return nil, huma.Error400BadRequest(err.Error())
+	}
+
+	events, err := st.ListTokenEvents(input.SessionID, input.Limit, since, until)
 	if err != nil {
 		return nil, err
 	}
@@ -82,6 +90,8 @@ func (h *Handler) APIListTokenEvents(ctx context.Context, input *struct {
 func (h *Handler) APIGetTokenStats(ctx context.Context, input *struct {
 	Project   string `path:"project"`
 	SessionID string `query:"session"`
+	Since     string `query:"since" doc:"RFC3339 lower bound (inclusive)"`
+	Until     string `query:"until" doc:"RFC3339 upper bound (inclusive)"`
 }) (*GetTokenStatsOutput, error) {
 	inst := h.findInstance(input.Project)
 	if inst == nil {
@@ -92,7 +102,12 @@ func (h *Handler) APIGetTokenStats(ctx context.Context, input *struct {
 		return nil, huma.Error503ServiceUnavailable("instance not connected")
 	}
 
-	stats, err := st.TokenStats(input.SessionID)
+	since, until, err := parseTimeRange(input.Since, input.Until)
+	if err != nil {
+		return nil, huma.Error400BadRequest(err.Error())
+	}
+
+	stats, err := st.TokenStats(input.SessionID, since, until)
 	if err != nil {
 		return nil, err
 	}
@@ -108,4 +123,25 @@ func (h *Handler) APIGetTokenStats(ctx context.Context, input *struct {
 		Sessions:     stats.Sessions,
 	}
 	return out, nil
+}
+
+// parseTimeRange parses optional RFC3339 since/until strings into time.Time values.
+// Empty strings result in zero-value times (no bound).
+func parseTimeRange(sinceStr, untilStr string) (since, until time.Time, err error) {
+	if sinceStr != "" {
+		since, err = time.Parse(time.RFC3339Nano, sinceStr)
+		if err != nil {
+			return time.Time{}, time.Time{}, fmt.Errorf("invalid since: %w", err)
+		}
+	}
+	if untilStr != "" {
+		until, err = time.Parse(time.RFC3339Nano, untilStr)
+		if err != nil {
+			return time.Time{}, time.Time{}, fmt.Errorf("invalid until: %w", err)
+		}
+	}
+	if !since.IsZero() && !until.IsZero() && since.After(until) {
+		return time.Time{}, time.Time{}, fmt.Errorf("since must not be after until")
+	}
+	return since, until, nil
 }

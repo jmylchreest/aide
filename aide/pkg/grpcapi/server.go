@@ -1145,7 +1145,7 @@ func (s *tokenServiceImpl) RecordTokenEvent(ctx context.Context, req *TokenEvent
 }
 
 func (s *tokenServiceImpl) GetTokenStats(ctx context.Context, req *TokenStatsRequest) (*TokenStatsResponse, error) {
-	stats, err := s.store.TokenStats(req.SessionId)
+	stats, err := s.store.TokenStats(req.SessionId, time.Time{}, time.Time{})
 	if err != nil {
 		return nil, err
 	}
@@ -1176,7 +1176,7 @@ func (s *tokenServiceImpl) ListTokenEvents(ctx context.Context, req *TokenEventL
 		limit = 100
 	}
 
-	events, err := s.store.ListTokenEvents(req.SessionId, limit)
+	events, err := s.store.ListTokenEvents(req.SessionId, limit, time.Time{}, time.Time{})
 	if err != nil {
 		return nil, err
 	}

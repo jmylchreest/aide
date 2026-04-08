@@ -66,8 +66,8 @@ type TaskStore interface {
 // TokenEventStore provides token event recording and aggregation.
 type TokenEventStore interface {
 	AddTokenEvent(e *memory.TokenEvent) error
-	ListTokenEvents(sessionID string, limit int) ([]*memory.TokenEvent, error)
-	TokenStats(sessionID string) (*memory.TokenStats, error)
+	ListTokenEvents(sessionID string, limit int, since, until time.Time) ([]*memory.TokenEvent, error)
+	TokenStats(sessionID string, since, until time.Time) (*memory.TokenStats, error)
 	CleanupTokenEvents(maxAge time.Duration) (int, error)
 }
 

@@ -467,58 +467,106 @@ func (g *StoreAdapter) AddTokenEvent(e *memory.TokenEvent) error {
 	return nil
 }
 
-func (g *StoreAdapter) ListTokenEvents(sessionID string, limit int) ([]*memory.TokenEvent, error) {
+func (g *StoreAdapter) ListTokenEvents(sessionID string, limit int, since, until time.Time) ([]*memory.TokenEvent, error) {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
+	// gRPC proto doesn't support since/until yet; over-fetch then filter client-side.
+	fetchLimit := limit
+	if !since.IsZero() || !until.IsZero() {
+		fetchLimit = 0 // fetch all, filter below
+	}
 	resp, err := g.client.Token.ListTokenEvents(ctx, &grpcapi.TokenEventListRequest{
 		SessionId: sessionID,
-		Limit:     int32(limit),
+		Limit:     int32(fetchLimit),
 	})
 	if err != nil {
 		return nil, err
 	}
-	events := make([]*memory.TokenEvent, len(resp.Events))
-	for i, e := range resp.Events {
-		events[i] = &memory.TokenEvent{
+	events := make([]*memory.TokenEvent, 0, len(resp.Events))
+	for _, e := range resp.Events {
+		ts := e.Timestamp.AsTime()
+		if !since.IsZero() && ts.Before(since) {
+			continue
+		}
+		if !until.IsZero() && ts.After(until) {
+			continue
+		}
+		events = append(events, &memory.TokenEvent{
 			ID:          e.Id,
 			SessionID:   e.SessionId,
-			Timestamp:   e.Timestamp.AsTime(),
+			Timestamp:   ts,
 			EventType:   e.EventType,
 			Tool:        e.Tool,
 			FilePath:    e.FilePath,
 			Tokens:      int(e.Tokens),
 			TokensSaved: int(e.TokensSaved),
+		})
+		if limit > 0 && len(events) >= limit {
+			break
 		}
 	}
 	return events, nil
 }
 
-func (g *StoreAdapter) TokenStats(sessionID string) (*memory.TokenStats, error) {
-	ctx, cancel := g.rpcCtx()
-	defer cancel()
-	resp, err := g.client.Token.GetTokenStats(ctx, &grpcapi.TokenStatsRequest{
-		SessionId: sessionID,
-	})
+func (g *StoreAdapter) TokenStats(sessionID string, since, until time.Time) (*memory.TokenStats, error) {
+	// If no time range, use the fast gRPC aggregation endpoint.
+	if since.IsZero() && until.IsZero() {
+		ctx, cancel := g.rpcCtx()
+		defer cancel()
+		resp, err := g.client.Token.GetTokenStats(ctx, &grpcapi.TokenStatsRequest{
+			SessionId: sessionID,
+		})
+		if err != nil {
+			return nil, err
+		}
+		byTool := make(map[string]int, len(resp.ByTool))
+		for k, v := range resp.ByTool {
+			byTool[k] = int(v)
+		}
+		bySaving := make(map[string]int, len(resp.BySavingType))
+		for k, v := range resp.BySavingType {
+			bySaving[k] = int(v)
+		}
+		return &memory.TokenStats{
+			TotalRead:    int(resp.TotalRead),
+			TotalSaved:   int(resp.TotalSaved),
+			TotalWritten: int(resp.TotalWritten),
+			EventCount:   int(resp.EventCount),
+			ByTool:       byTool,
+			BySavingType: bySaving,
+			Sessions:     int(resp.Sessions),
+		}, nil
+	}
+
+	// gRPC proto doesn't support since/until yet; fetch events and aggregate client-side.
+	events, err := g.ListTokenEvents(sessionID, 0, since, until)
 	if err != nil {
 		return nil, err
 	}
-	byTool := make(map[string]int, len(resp.ByTool))
-	for k, v := range resp.ByTool {
-		byTool[k] = int(v)
+	stats := &memory.TokenStats{
+		ByTool:       make(map[string]int),
+		BySavingType: make(map[string]int),
 	}
-	bySaving := make(map[string]int, len(resp.BySavingType))
-	for k, v := range resp.BySavingType {
-		bySaving[k] = int(v)
+	sessions := make(map[string]bool)
+	for _, e := range events {
+		stats.EventCount++
+		sessions[e.SessionID] = true
+		switch e.EventType {
+		case memory.TokenEventRead:
+			stats.TotalRead += e.Tokens
+			stats.ByTool[e.Tool] += e.Tokens
+		case memory.TokenEventOutlineUsed:
+			stats.TotalRead += e.Tokens
+			stats.TotalSaved += e.TokensSaved
+			stats.ByTool[e.Tool] += e.Tokens
+			stats.BySavingType["outline"] += e.TokensSaved
+		case memory.TokenEventReadAvoided:
+			stats.TotalSaved += e.TokensSaved
+			stats.BySavingType["read_avoided"] += e.TokensSaved
+		}
 	}
-	return &memory.TokenStats{
-		TotalRead:    int(resp.TotalRead),
-		TotalSaved:   int(resp.TotalSaved),
-		TotalWritten: int(resp.TotalWritten),
-		EventCount:   int(resp.EventCount),
-		ByTool:       byTool,
-		BySavingType: bySaving,
-		Sessions:     int(resp.Sessions),
-	}, nil
+	stats.Sessions = len(sessions)
+	return stats, nil
 }
 
 func (g *StoreAdapter) CleanupTokenEvents(maxAge time.Duration) (int, error) {
