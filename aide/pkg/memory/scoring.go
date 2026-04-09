@@ -99,7 +99,7 @@ func DefaultScoringConfig() ScoringConfig {
 func ScoreMemory(m *Memory, now time.Time, cfg ScoringConfig) float64 {
 	// Manual override: non-zero Priority replaces computed score.
 	if m.Priority > 0 {
-		return clamp(float64(m.Priority), 0.0, 1.0)
+		return clamp01(float64(m.Priority))
 	}
 
 	base := categoryWeight(m, cfg)
@@ -112,7 +112,7 @@ func ScoreMemory(m *Memory, now time.Time, cfg ScoringConfig) float64 {
 		recency*cfg.WeightRecency +
 		access*cfg.WeightAccess
 
-	return clamp(score, 0.0, 1.0)
+	return clamp01(score)
 }
 
 // ScoredMemory pairs a memory with its computed score for sorting.
@@ -148,7 +148,7 @@ type ScoreBreakdown struct {
 // a full breakdown of component values for observability.
 func ScoreMemoryDetailed(m *Memory, now time.Time, cfg ScoringConfig) ScoreBreakdown {
 	if m.Priority > 0 {
-		total := clamp(float64(m.Priority), 0.0, 1.0)
+		total := clamp01(float64(m.Priority))
 		return ScoreBreakdown{Total: total, ManualOverride: true}
 	}
 
@@ -158,7 +158,7 @@ func ScoreMemoryDetailed(m *Memory, now time.Time, cfg ScoringConfig) ScoreBreak
 	acc := accessFactor(m.AccessCount, cfg)
 
 	return ScoreBreakdown{
-		Total:              clamp(cat*cfg.WeightCategory+prov*cfg.WeightProvenance+rec*cfg.WeightRecency+acc*cfg.WeightAccess, 0.0, 1.0),
+		Total:              clamp01(cat*cfg.WeightCategory + prov*cfg.WeightProvenance + rec*cfg.WeightRecency + acc*cfg.WeightAccess),
 		CategoryRaw:        cat,
 		ProvenanceRaw:      prov,
 		RecencyRaw:         rec,
@@ -193,7 +193,7 @@ func provenanceBoost(tags []string, cfg ScoringConfig) float64 {
 			boost += b
 		}
 	}
-	return clamp(boost, 0.0, 1.0)
+	return clamp01(boost)
 }
 
 // recencyFactor computes exponential time decay.
@@ -229,7 +229,7 @@ func accessFactor(accessCount uint32, cfg ScoringConfig) float64 {
 		base = 10 // safety fallback
 	}
 
-	return clamp(math.Log10(float64(accessCount)+1)/math.Log10(base), 0.0, 1.0)
+	return clamp01(math.Log10(float64(accessCount)+1) / math.Log10(base))
 }
 
 // hasTag checks if a tag slice contains a specific tag.
@@ -242,13 +242,13 @@ func hasTag(tags []string, target string) bool {
 	return false
 }
 
-// clamp restricts a value to [lo, hi].
-func clamp(v, lo, hi float64) float64 {
-	if v < lo {
-		return lo
+// clamp01 restricts a value to [0, 1].
+func clamp01(v float64) float64 {
+	if v < 0 {
+		return 0
 	}
-	if v > hi {
-		return hi
+	if v > 1 {
+		return 1
 	}
 	return v
 }

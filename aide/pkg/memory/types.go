@@ -101,11 +101,11 @@ type TokenEvent struct {
 	ID          string    `json:"id"`      // ULID
 	SessionID   string    `json:"session"` // Session identifier
 	Timestamp   time.Time `json:"ts"`
-	EventType   string    `json:"type"`    // read, outline_used, read_avoided, write, edit
-	Tool        string    `json:"tool"`    // Read, code_outline, code_symbols, Edit, Write
-	FilePath    string    `json:"file"`    // Relative file path
-	Tokens      int       `json:"tokens"`  // Estimated tokens for this event
-	TokensSaved int       `json:"saved"`   // Estimated tokens saved (for outline/avoided events)
+	EventType   string    `json:"type"`   // read, outline_used, read_avoided, write, edit
+	Tool        string    `json:"tool"`   // Read, code_outline, code_symbols, Edit, Write
+	FilePath    string    `json:"file"`   // Relative file path
+	Tokens      int       `json:"tokens"` // Estimated tokens for this event
+	TokensSaved int       `json:"saved"`  // Estimated tokens saved (for outline/avoided events)
 }
 
 // TokenStats holds aggregated token event statistics.

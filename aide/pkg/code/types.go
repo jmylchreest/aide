@@ -56,8 +56,8 @@ type FileInfo struct {
 	Path      string    `json:"path"`
 	ModTime   time.Time `json:"modTime"`
 	SymbolIDs []string  `json:"symbols"`          // Symbol IDs in this file
-	Tokens    int       `json:"tokens,omitempty"`  // Estimated token count (calibrated)
-	SizeBytes int64     `json:"size,omitempty"`    // File size in bytes at index time
+	Tokens    int       `json:"tokens,omitempty"` // Estimated token count (calibrated)
+	SizeBytes int64     `json:"size,omitempty"`   // File size in bytes at index time
 }
 
 // SearchOptions for filtering symbol searches

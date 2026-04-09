@@ -433,11 +433,12 @@ func cmdCodeReadCheck(dbPath string, args []string) error {
 		return printJSON(result)
 	}
 
-	if !result.Indexed {
+	switch {
+	case !result.Indexed:
 		fmt.Println("not indexed")
-	} else if result.Fresh {
+	case result.Fresh:
 		fmt.Printf("indexed (fresh): %d symbols\n", result.Symbols)
-	} else {
+	default:
 		fmt.Printf("indexed (stale): %d symbols\n", result.Symbols)
 	}
 

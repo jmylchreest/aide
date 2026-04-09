@@ -19,7 +19,7 @@ var TokenRatios = map[string]float64{
 	"python":     3.44,
 	"ruby":       2.63,
 	"shell":      2.97,
-	"typescript":  3.22,
+	"typescript": 3.22,
 	"yaml":       3.28,
 }
 

@@ -713,4 +713,3 @@ func keepLatestPerTagGroup(memories []*memory.Memory) []*memory.Memory {
 	}
 	return result
 }
-

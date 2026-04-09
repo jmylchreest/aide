@@ -722,4 +722,3 @@ func printFindingLine(f *findings.Finding) {
 	locPad := padString(loc, 40)
 	fmt.Printf("  %s %s %s (%s)\n", sevPad, locPad, f.Title, f.Analyzer)
 }
-

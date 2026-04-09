@@ -256,4 +256,3 @@ func formatTasksMarkdown(tasks []*memory.Task) string {
 
 	return sb.String()
 }
-

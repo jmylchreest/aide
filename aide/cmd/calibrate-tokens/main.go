@@ -184,7 +184,7 @@ func main() {
 	})
 
 	// Sample up to maxPerLanguage files per language, preferring a range of sizes.
-	var sampled []fileEntry
+	sampled := make([]fileEntry, 0, len(byLang)*maxPerLanguage)
 	for lang, files := range byLang {
 		sort.Slice(files, func(i, j int) bool { return files[i].size < files[j].size })
 		n := len(files)
@@ -263,7 +263,7 @@ func main() {
 		langData[r.Language] = append(langData[r.Language], r)
 	}
 
-	var summaries []langSummary
+	summaries := make([]langSummary, 0, len(langData))
 	for lang, rs := range langData {
 		totalChars := 0
 		totalTokens := 0
@@ -360,7 +360,7 @@ func countTokensAnthropic(client *http.Client, apiKey, content string) (int, err
 		"messages": []msg{{Role: "user", Content: content}},
 	})
 
-	req, err := http.NewRequest("POST", anthropicCountURL, bytes.NewReader(reqBody))
+	req, err := http.NewRequest(http.MethodPost, anthropicCountURL, bytes.NewReader(reqBody))
 	if err != nil {
 		return 0, err
 	}
@@ -379,7 +379,7 @@ func countTokensAnthropic(client *http.Client, apiKey, content string) (int, err
 		return 0, err
 	}
 
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		return 0, fmt.Errorf("API error %d: %s", resp.StatusCode, string(respBody))
 	}
 
@@ -405,7 +405,7 @@ func countTokensOpenRouter(client *http.Client, apiKey, content string) (int, er
 		"messages":   []msg{{Role: "user", Content: "Count only. " + content}},
 	})
 
-	req, err := http.NewRequest("POST", openrouterMsgURL, bytes.NewReader(reqBody))
+	req, err := http.NewRequest(http.MethodPost, openrouterMsgURL, bytes.NewReader(reqBody))
 	if err != nil {
 		return 0, err
 	}
@@ -424,7 +424,7 @@ func countTokensOpenRouter(client *http.Client, apiKey, content string) (int, er
 		return 0, err
 	}
 
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		return 0, fmt.Errorf("API error %d: %s", resp.StatusCode, string(respBody))
 	}
 
