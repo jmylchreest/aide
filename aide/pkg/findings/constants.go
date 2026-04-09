@@ -13,9 +13,14 @@ const (
 
 	// DefaultComplexityThreshold is the minimum cyclomatic complexity to
 	// report. Functions below this are not flagged. At threshold 15 only
-	// genuinely complex functions surface; the critical boundary is 2×
-	// threshold (30).
+	// genuinely complex functions surface.
 	DefaultComplexityThreshold = 15
+
+	// DefaultComplexityCriticalOffset adds a small buffer above the
+	// threshold-derived critical boundary so functions just over 2x the
+	// threshold stay warnings. At the default threshold of 15, critical
+	// begins at 34 instead of 30.
+	DefaultComplexityCriticalOffset = 4
 
 	// -------------------------------------------------------------------------
 	// Coupling analyser

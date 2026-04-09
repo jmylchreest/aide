@@ -197,10 +197,10 @@
       {
         "id": "go-command-injection",
         "name": "Potential command injection",
-        "severity": "critical",
+        "severity": "warning",
         "category": "exec",
         "pattern": "exec\\.Command\\s*\\(",
-        "description": "Shell command execution. Ensure all arguments are validated and never pass user-controlled input directly. Prefer exec.CommandContext with explicit argument lists."
+        "description": "Process execution primitive used. Prefer exec.CommandContext with explicit argument lists, and treat shell-style invocation or user-controlled command construction as critical."
       },
       {
         "id": "go-command-shell",

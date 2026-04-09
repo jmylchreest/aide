@@ -245,10 +245,10 @@
       {
         "id": "ts-exec-child-process",
         "name": "Potential command injection",
-        "severity": "critical",
+        "severity": "warning",
         "category": "exec",
         "pattern": "(?:child_process|exec|execSync|spawn|spawnSync|execFile)\\s*\\(",
-        "description": "Shell command execution. Use execFile with explicit arguments instead of exec with a command string. Never pass user input to shell commands."
+        "description": "Process execution primitive used. Prefer explicit argument lists, and escalate cases that invoke a shell or interpolate user input."
       },
       {
         "id": "ts-path-traversal",

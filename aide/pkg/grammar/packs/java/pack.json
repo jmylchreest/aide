@@ -139,10 +139,10 @@
       {
         "id": "java-command-injection",
         "name": "Potential command injection",
-        "severity": "critical",
+        "severity": "warning",
         "category": "exec",
         "pattern": "Runtime\\.getRuntime\\(\\)\\.exec\\s*\\(",
-        "description": "Shell command execution via Runtime.exec(). Use ProcessBuilder with explicit arguments. Never pass user input directly."
+        "description": "Process execution primitive used. Prefer ProcessBuilder with explicit arguments, and treat shell-style invocation or user-controlled command construction as critical."
       },
       {
         "id": "java-deserialization",

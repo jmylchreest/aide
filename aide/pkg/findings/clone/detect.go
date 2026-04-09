@@ -390,12 +390,15 @@ func DetectClones(cfg Config) ([]*findings.Finding, *Result, error) { //nolint:g
 
 	for _, gr := range merged {
 		lineSpan := gr.endLine - gr.startLine + 1
+		nLocs := len(gr.locations)
+		criticalLineSpan := sevCrit + sevWarn
 
 		severity := findings.SevInfo
 		if lineSpan >= sevWarn {
 			severity = findings.SevWarning
 		}
-		if lineSpan >= sevCrit {
+		// Promote to critical only for larger, repeated duplication.
+		if lineSpan >= criticalLineSpan && nLocs >= 3 {
 			severity = findings.SevCritical
 		}
 
@@ -405,7 +408,6 @@ func DetectClones(cfg Config) ([]*findings.Finding, *Result, error) { //nolint:g
 		}
 
 		// Build human-readable detail listing all clone locations.
-		nLocs := len(gr.locations)
 		var detail string
 		if nLocs == 1 {
 			loc := gr.locations[0]

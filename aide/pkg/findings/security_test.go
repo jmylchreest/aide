@@ -155,6 +155,29 @@ func TestSecurityAnalyzer_SeverityLevels(t *testing.T) {
 	}
 }
 
+func TestSecurityAnalyzer_CommandSeverityCalibration(t *testing.T) {
+	dir := testdataDir(t)
+
+	findings, _, err := AnalyzeSecurity(SecurityConfig{
+		Paths: []string{filepath.Join(dir, "security_go.go")},
+	})
+	if err != nil {
+		t.Fatalf("AnalyzeSecurity error: %v", err)
+	}
+
+	severityByRule := make(map[string]string)
+	for _, f := range findings {
+		severityByRule[f.Metadata["rule_id"]] = f.Severity
+	}
+
+	if got := severityByRule["go-command-injection"]; got != SevWarning {
+		t.Errorf("go-command-injection severity = %q, want %q", got, SevWarning)
+	}
+	if got := severityByRule["go-command-shell"]; got != SevCritical {
+		t.Errorf("go-command-shell severity = %q, want %q", got, SevCritical)
+	}
+}
+
 func TestSecurityAnalyzer_RuleMetadata(t *testing.T) {
 	dir := testdataDir(t)
 

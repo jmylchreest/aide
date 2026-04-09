@@ -223,10 +223,10 @@
       {
         "id": "ruby-command-injection",
         "name": "Potential command injection",
-        "severity": "critical",
+        "severity": "warning",
         "category": "exec",
         "pattern": "(?:system|exec|\\`[^`]*\\`|%x\\{)",
-        "description": "Shell command execution. Use Open3.capture3 with explicit arguments. Never interpolate user input into shell commands."
+        "description": "Shell execution primitive used. Prefer explicit argument lists via Open3, and treat interpolated or user-controlled command construction as critical."
       },
       {
         "id": "ruby-xss",

@@ -232,10 +232,10 @@
       {
         "id": "php-command-injection",
         "name": "Potential command injection",
-        "severity": "critical",
+        "severity": "warning",
         "category": "exec",
         "pattern": "(?:exec|system|passthru|shell_exec|popen|proc_open)\\s*\\(",
-        "description": "Shell command execution. Use escapeshellarg() and escapeshellcmd() on all inputs, or avoid shell execution entirely."
+        "description": "Shell execution primitive used. Prefer avoiding shell execution entirely, and treat user-controlled command construction as critical."
       },
       {
         "id": "php-file-include",

@@ -198,6 +198,7 @@ func analyzeFileComplexity(ctx context.Context, loader grammar.Loader, content [
 	}
 
 	var findings []*Finding
+	criticalThreshold := threshold*SeverityCriticalMultiplier + DefaultComplexityCriticalOffset
 
 	// Walk AST to find function nodes
 	var walk func(node *tree_sitter.Node)
@@ -207,7 +208,7 @@ func analyzeFileComplexity(ctx context.Context, loader grammar.Loader, content [
 			if complexity >= threshold {
 				name := extractFuncName(node, content, langCfg.nameField)
 				severity := SevInfo
-				if complexity >= threshold*SeverityCriticalMultiplier {
+				if complexity >= criticalThreshold {
 					severity = SevCritical
 				} else if complexity >= threshold {
 					severity = SevWarning

@@ -6,9 +6,10 @@ package fixture
 
 import "fmt"
 
-// HighComplexity has cyclomatic complexity >= 30 (critical at threshold 15).
+// HighComplexity has cyclomatic complexity 34, which clears the tightened
+// critical boundary (15*2+4=34) at the default threshold of 15.
 // Each decision point adds +1: if, for, case, &&, ||
-// Base complexity = 1, counted branch points bring total to ~34.
+// Base complexity = 1, counted branch points bring total to 34.
 func HighComplexity(a, b, c, d, e int, s string) string {
 	result := ""
 
@@ -104,6 +105,11 @@ func HighComplexity(a, b, c, d, e int, s string) string {
 	// +1 if, +1 ||, +1 &&
 	if (a > 5 || b > 5) && c != d {
 		result += "complex"
+	}
+
+	// +1 if, +1 &&
+	if a != b && d > 1 {
+		result += "extra"
 	}
 
 	fmt.Println(result)

@@ -30,8 +30,9 @@ const (
 	// finding is promoted from info to warning severity.
 	DefaultSevWarningLines = 50
 
-	// DefaultSevCriticalLines is the line-span threshold at which a clone
-	// finding is promoted from warning to critical severity.
+	// DefaultSevCriticalLines is the base line-span threshold used when
+	// considering a clone for critical severity. The detector also requires
+	// the clone to appear in multiple other locations before promoting it.
 	DefaultSevCriticalLines = 100
 
 	// DefaultMinSeverity is the minimum severity level for clone findings

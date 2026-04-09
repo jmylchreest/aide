@@ -165,10 +165,10 @@
       {
         "id": "cs-command-injection",
         "name": "Potential command injection",
-        "severity": "critical",
+        "severity": "warning",
         "category": "exec",
         "pattern": "Process\\.Start\\s*\\(",
-        "description": "Process execution. Use ProcessStartInfo with UseShellExecute=false and explicit arguments."
+        "description": "Process execution primitive used. Prefer ProcessStartInfo with UseShellExecute=false and explicit arguments, and treat shell-style invocation or user-controlled command construction as critical."
       },
       {
         "id": "cs-xss",
