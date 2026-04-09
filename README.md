@@ -1,6 +1,6 @@
 # AIDE - AI Development Environment
 
-Persistent memory, code intelligence, and multi-agent orchestration for AI coding assistants. Works with **Claude Code** and **OpenCode**.
+Persistent memory, code intelligence, and multi-agent orchestration for AI coding assistants. Works with **Claude Code**, **OpenCode**, and **Codex CLI**.
 
 **Prerequisite:** [Bun](https://bun.sh/) — the only runtime dependency. The Go binary downloads automatically.
 
@@ -17,6 +17,12 @@ claude plugin install aide@aide
 
 ```bash
 bunx @jmylchreest/aide-plugin install
+```
+
+**Codex CLI:**
+
+```bash
+bunx @jmylchreest/aide-plugin install --platform codex
 ```
 
 The Go binary downloads automatically on first run. Skills become available immediately.

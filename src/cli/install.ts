@@ -1,5 +1,5 @@
 /**
- * Install command — registers aide plugin and MCP server in OpenCode config.
+ * Install command — registers aide plugin and MCP server for OpenCode or Codex CLI.
  *
  * On reinstall, detects and upgrades stale MCP command configurations
  * (e.g. old `aide-wrapper` commands) to the current format.
@@ -15,51 +15,37 @@ import {
   PLUGIN_NAME,
   MCP_SERVER_NAME,
 } from "./config.js";
+import { installCodex, isCodexConfigured } from "./codex-config.js";
 
 export interface InstallFlags {
   project?: boolean;
   noMcp?: boolean;
+  platform?: "opencode" | "codex";
 }
 
-/**
- * Check if an existing MCP config has the current expected command format.
- * Returns false if the command is missing, empty, or uses an outdated format.
- */
 function isMcpCommandCurrent(config: ReturnType<typeof readConfig>): boolean {
   const mcpConfig = config.mcp?.[MCP_SERVER_NAME];
-  if (!mcpConfig?.command || mcpConfig.command.length === 0) {
-    return false;
-  }
-
+  if (!mcpConfig?.command || mcpConfig.command.length === 0) return false;
   const cmd = mcpConfig.command;
-
-  // Current format: ["bunx", "-y", "@jmylchreest/aide-plugin", "mcp"]
-  if (
+  return (
     cmd.length === 4 &&
     cmd[0] === "bunx" &&
     cmd[1] === "-y" &&
     cmd[2] === PLUGIN_NAME &&
     cmd[3] === "mcp"
-  ) {
-    return true;
-  }
-
-  return false;
+  );
 }
 
-export async function install(flags: InstallFlags): Promise<void> {
+async function installOpenCode(flags: InstallFlags): Promise<void> {
   const configPath = flags.project
     ? getProjectConfigPath()
     : getGlobalConfigPath();
 
   const scope = flags.project ? "project" : "global";
-  console.log(`Installing aide plugin (${scope})...\n`);
+  console.log(`Installing aide plugin for OpenCode (${scope})...\n`);
 
-  // Read existing config
   const existing = readConfig(configPath);
   const before = isAideConfigured(existing);
-
-  // Check if MCP command needs updating (stale format from older versions)
   const mcpNeedsUpdate =
     !flags.noMcp && before.mcp && !isMcpCommandCurrent(existing);
 
@@ -71,16 +57,13 @@ export async function install(flags: InstallFlags): Promise<void> {
     return;
   }
 
-  // If MCP config is stale, remove it so addAideToConfig will write the current version
   if (mcpNeedsUpdate && existing.mcp) {
     delete existing.mcp[MCP_SERVER_NAME];
   }
 
-  // Apply changes
   const updated = addAideToConfig(existing, { noMcp: flags.noMcp });
   writeConfig(configPath, updated);
 
-  // Report what was done
   const after = isAideConfigured(updated);
   console.log(`Updated: ${configPath}\n`);
 
@@ -108,5 +91,49 @@ export async function install(flags: InstallFlags): Promise<void> {
     console.log(
       "\nThe plugin is installed globally and will apply to all OpenCode projects.",
     );
+  }
+}
+
+async function installForCodex(flags: InstallFlags): Promise<void> {
+  const scope = flags.project ? "project" : "user";
+  console.log(`Installing aide for Codex CLI (${scope})...\n`);
+
+  const before = isCodexConfigured(scope);
+  if (before.mcp && before.hooks) {
+    console.log("aide is already configured for Codex CLI");
+    console.log("  mcp:   registered in config.toml");
+    console.log("  hooks: registered in hooks.json");
+    console.log("\nNothing to do.");
+    return;
+  }
+
+  const result = installCodex(scope);
+
+  if (result.configWritten) {
+    console.log("  + Added aide MCP server to config.toml");
+  } else if (before.mcp) {
+    console.log("  = MCP server already registered in config.toml");
+  }
+
+  if (result.hooksWritten) {
+    console.log("  + Generated hooks.json with aide hooks");
+  } else if (before.hooks) {
+    console.log("  = Hooks already registered in hooks.json");
+  }
+
+  console.log("\nInstallation complete. Start Codex CLI to use aide.");
+
+  if (!flags.project) {
+    console.log(
+      "\nThe plugin is installed globally and will apply to all Codex CLI sessions.",
+    );
+  }
+}
+
+export async function install(flags: InstallFlags): Promise<void> {
+  if (flags.platform === "codex") {
+    await installForCodex(flags);
+  } else {
+    await installOpenCode(flags);
   }
 }

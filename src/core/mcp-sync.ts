@@ -8,6 +8,7 @@
  * Supports:
  *   - Claude Code: ~/.claude.json (user), .mcp.json (project) (reads legacy ~/.mcp.json)
  *   - OpenCode:    ~/.config/opencode/opencode.json (user), ./opencode.json (project)
+ *   - Codex CLI:   ~/.codex/config.toml (user), .codex/config.toml (project)
  *   - Aide canonical: ~/.aide/config/mcp.json (user), .aide/config/mcp.json (project)
  *
  * Uses a journal to detect intentional deletions from the aide canonical file,
@@ -21,17 +22,17 @@ import {
   writeFileSync,
   mkdirSync,
   statSync,
-  unlinkSync,
 } from "fs";
 import { join, dirname } from "path";
 import { homedir } from "os";
+import * as TOML from "smol-toml";
 
 // =============================================================================
 // Types
 // =============================================================================
 
 /** Platform identifier for the current assistant. */
-export type McpPlatform = "claude-code" | "opencode";
+export type McpPlatform = "claude-code" | "opencode" | "codex";
 
 /**
  * Discover MCP server names managed by installed Claude Code plugins.
@@ -204,6 +205,11 @@ function getAssistantReadPaths(
       ? [join(homedir(), ".config", "opencode", "opencode.json")]
       : [join(cwd, "opencode.json")];
   }
+  if (platform === "codex") {
+    return scope === "user"
+      ? [join(homedir(), ".codex", "config.toml")]
+      : [join(cwd, ".codex", "config.toml")];
+  }
   return [];
 }
 
@@ -221,6 +227,11 @@ function getAssistantWritePaths(
     return scope === "user"
       ? [join(homedir(), ".config", "opencode", "opencode.json")]
       : [join(cwd, "opencode.json")];
+  }
+  if (platform === "codex") {
+    return scope === "user"
+      ? [join(homedir(), ".codex", "config.toml")]
+      : [join(cwd, ".codex", "config.toml")];
   }
   return [];
 }
@@ -370,6 +381,59 @@ function readOpenCodeConfig(path: string): Record<string, CanonicalMcpServer> {
 }
 
 /**
+ * Read Codex CLI MCP config from config.toml.
+ *
+ * Format:
+ * ```toml
+ * [mcp_servers.name]
+ * command = "npx"
+ * args = ["package-name"]
+ *
+ * [mcp_servers.name.env]
+ * KEY = "value"
+ * ```
+ */
+function readCodexConfig(path: string): Record<string, CanonicalMcpServer> {
+  if (!existsSync(path)) return {};
+
+  try {
+    const raw = TOML.parse(readFileSync(path, "utf-8"));
+    const servers: Record<string, CanonicalMcpServer> = {};
+
+    const mcpServers = raw.mcp_servers as
+      | Record<string, Record<string, unknown>>
+      | undefined;
+    if (
+      typeof mcpServers !== "object" ||
+      mcpServers === null ||
+      Array.isArray(mcpServers)
+    )
+      return {};
+
+    for (const [name, def] of Object.entries(mcpServers)) {
+      const hasUrl = typeof def.url === "string";
+      const isRemote = hasUrl;
+
+      servers[name] = {
+        name,
+        type: isRemote ? "remote" : "local",
+        transport: isRemote ? "http" : undefined,
+        command: def.command as string | undefined,
+        args: def.args as string[] | undefined,
+        url: def.url as string | undefined,
+        env: (def.env as Record<string, string>) || undefined,
+        headers: def.headers as Record<string, string> | undefined,
+        enabled: true,
+      };
+    }
+
+    return servers;
+  } catch {
+    return {};
+  }
+}
+
+/**
  * Read MCP servers from a specific assistant's config file.
  */
 function readAssistantConfig(
@@ -378,6 +442,7 @@ function readAssistantConfig(
 ): Record<string, CanonicalMcpServer> {
   if (platform === "claude-code") return readClaudeConfig(path);
   if (platform === "opencode") return readOpenCodeConfig(path);
+  if (platform === "codex") return readCodexConfig(path);
   return {};
 }
 
@@ -512,6 +577,59 @@ function writeOpenCodeConfig(
 }
 
 /**
+ * Write canonical servers to a Codex CLI config.toml file.
+ *
+ * Preserves all non-mcp_servers content in the file.
+ */
+function writeCodexConfig(
+  path: string,
+  servers: Record<string, CanonicalMcpServer>,
+): void {
+  const dir = dirname(path);
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true });
+  }
+
+  // Read existing file to preserve non-mcp_servers keys
+  let existing: Record<string, unknown> = {};
+  if (existsSync(path)) {
+    try {
+      existing = TOML.parse(readFileSync(path, "utf-8")) as Record<
+        string,
+        unknown
+      >;
+    } catch {
+      // Start fresh
+    }
+  }
+
+  const mcpServers: Record<string, Record<string, unknown>> = {};
+  for (const [name, server] of Object.entries(servers)) {
+    const entry: Record<string, unknown> = {};
+
+    if (server.type === "remote") {
+      if (server.url) entry.url = server.url;
+      if (server.headers) entry.headers = server.headers;
+    } else {
+      if (server.command) entry.command = server.command;
+      if (server.args) entry.args = server.args;
+    }
+
+    if (server.env && Object.keys(server.env).length > 0) {
+      entry.env = server.env;
+    }
+
+    mcpServers[name] = entry;
+  }
+
+  existing.mcp_servers = mcpServers;
+  writeFileSync(
+    path,
+    TOML.stringify(existing as Record<string, unknown>) + "\n",
+  );
+}
+
+/**
  * Write canonical servers to the current assistant's config file.
  */
 function writeAssistantConfig(
@@ -521,6 +639,7 @@ function writeAssistantConfig(
 ): void {
   if (platform === "claude-code") writeClaudeConfig(path, servers);
   else if (platform === "opencode") writeOpenCodeConfig(path, servers);
+  else if (platform === "codex") writeCodexConfig(path, servers);
 }
 
 // =============================================================================
@@ -644,7 +763,7 @@ interface McpSource {
  * Gather all MCP config source files for a given scope.
  */
 function gatherSources(scope: McpScope, cwd: string): McpSource[] {
-  const platforms: McpPlatform[] = ["claude-code", "opencode"];
+  const platforms: McpPlatform[] = ["claude-code", "opencode", "codex"];
   const sources: McpSource[] = [];
 
   const aidePath =
@@ -882,13 +1001,7 @@ function syncScope(
       sortedStringify(existingAssistant) !== sortedStringify(assistantServers);
 
     if (assistantChanged) {
-      if (Object.keys(assistantServers).length === 0 && existsSync(p)) {
-        // No servers to write — remove the file rather than leaving
-        // an empty mcpServers block that the assistant still loads.
-        try { unlinkSync(p); } catch { /* ignore */ }
-      } else if (Object.keys(assistantServers).length > 0) {
-        writeAssistantConfig(platform, p, assistantServers);
-      }
+      writeAssistantConfig(platform, p, assistantServers);
       result.modified = true;
     }
   }
@@ -911,7 +1024,7 @@ function syncScope(
  * handles intentional deletions via a journal, and writes the result to
  * both the aide canonical config and the current assistant's config files.
  *
- * @param platform - The current assistant platform ("claude-code" or "opencode")
+ * @param platform - The current assistant platform ("claude-code", "opencode", or "codex")
  * @param cwd - The project working directory
  * @returns Combined sync results for both user and project scopes
  */

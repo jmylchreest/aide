@@ -24,7 +24,7 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { homedir } from "os";
 import { Logger, debug, setDebugCwd } from "../lib/logger.js";
-import { readStdin } from "../lib/hook-utils.js";
+import { readStdin, detectPlatform } from "../lib/hook-utils.js";
 import { findAideBinary, ensureAideBinary } from "../lib/aide-downloader.js";
 import {
   ensureDirectories as coreEnsureDirectories,
@@ -368,7 +368,7 @@ async function main(): Promise<void> {
     debugLog("mcpSync starting...");
     log.start("mcpSync");
     try {
-      const mcpResult = syncMcpServers("claude-code", cwd);
+      const mcpResult = syncMcpServers(detectPlatform(), cwd);
       const totalImported =
         mcpResult.user.imported + mcpResult.project.imported;
       const totalWritten =

@@ -4,6 +4,10 @@
  *
  * Delegates cleanup to `aide session end` — single binary invocation.
  *
+ * When invoked from Codex CLI's Stop hook (which has no separate SessionEnd),
+ * checks whether autopilot mode is active and skips cleanup if so — the
+ * session is continuing, not ending.
+ *
  * CONSTRAINTS:
  * - No ES module imports (hoisted resolution adds ~3s)
  * - Output {"continue": true} before require() resolves
@@ -22,7 +26,7 @@ const T0 = performance.now();
 // Output continue IMMEDIATELY — before require(), before anything.
 console.log(JSON.stringify({ continue: true }));
 
-const { spawn } = require("child_process") as typeof import("child_process");
+const { spawn, execFileSync } = require("child_process") as typeof import("child_process");
 const { existsSync, realpathSync, appendFileSync, mkdirSync, readFileSync } = require("fs") as typeof import("fs");
 const { join } = require("path") as typeof import("path");
 const whichSync = (require("which") as typeof import("which")).sync;
@@ -106,6 +110,21 @@ function main(): void {
     if (!binary) {
       log(cwd, "no binary found, skipping cleanup");
       return;
+    }
+
+    // Mode guard: skip cleanup if autopilot is active (session is continuing,
+    // not ending). This matters when Codex CLI invokes session-end from Stop
+    // hook since there's no separate SessionEnd event.
+    try {
+      const mode = execFileSync(binary, ["state", "get", "mode"], {
+        cwd, timeout: 500, encoding: "utf-8",
+      }).trim();
+      if (mode === "autopilot") {
+        log(cwd, "autopilot mode active, skipping cleanup (session continuing)");
+        return;
+      }
+    } catch {
+      // Binary may not support 'state get' or state may not exist — proceed
     }
 
     log(cwd, `spawning cleanup: session end --session=${sessionId}`);

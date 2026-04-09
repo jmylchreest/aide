@@ -1,5 +1,5 @@
 /**
- * Status command — shows current aide installation status for OpenCode.
+ * Status command — shows current aide installation status for OpenCode or Codex CLI.
  */
 
 import { existsSync } from "fs";
@@ -9,38 +9,71 @@ import {
   isAideConfigured,
   readConfig,
 } from "./config.js";
+import {
+  isCodexConfigured,
+  getCodexConfigTomlPath,
+  getCodexHooksJsonPath,
+} from "./codex-config.js";
 
-export async function status(): Promise<void> {
-  console.log("aide plugin status\n");
+export interface StatusFlags {
+  platform?: "opencode" | "codex";
+}
+
+function showOpenCodeStatus(): void {
+  console.log("aide plugin status (OpenCode)\n");
 
   const globalPath = getGlobalConfigPath();
   const projectPath = getProjectConfigPath();
 
-  // Global config
   console.log(`Global config: ${globalPath}`);
   if (existsSync(globalPath)) {
-    const globalConfig = readConfig(globalPath);
-    const globalStatus = isAideConfigured(globalConfig);
-    console.log(
-      `  plugin: ${globalStatus.plugin ? "registered" : "not found"}`,
-    );
-    console.log(`  mcp:    ${globalStatus.mcp ? "registered" : "not found"}`);
+    const s = isAideConfigured(readConfig(globalPath));
+    console.log(`  plugin: ${s.plugin ? "registered" : "not found"}`);
+    console.log(`  mcp:    ${s.mcp ? "registered" : "not found"}`);
   } else {
     console.log("  (file does not exist)");
   }
 
   console.log();
 
-  // Project config
   console.log(`Project config: ${projectPath}`);
   if (existsSync(projectPath)) {
-    const projectConfig = readConfig(projectPath);
-    const projectStatus = isAideConfigured(projectConfig);
-    console.log(
-      `  plugin: ${projectStatus.plugin ? "registered" : "not found"}`,
-    );
-    console.log(`  mcp:    ${projectStatus.mcp ? "registered" : "not found"}`);
+    const s = isAideConfigured(readConfig(projectPath));
+    console.log(`  plugin: ${s.plugin ? "registered" : "not found"}`);
+    console.log(`  mcp:    ${s.mcp ? "registered" : "not found"}`);
   } else {
     console.log("  (file does not exist)");
+  }
+}
+
+function showCodexStatus(): void {
+  console.log("aide plugin status (Codex CLI)\n");
+
+  const userConfig = getCodexConfigTomlPath("user");
+  const userHooks = getCodexHooksJsonPath("user");
+  const userStatus = isCodexConfigured("user");
+
+  console.log(`User config:  ${userConfig}`);
+  console.log(`User hooks:   ${userHooks}`);
+  console.log(`  mcp:   ${userStatus.mcp ? "registered" : "not found"}`);
+  console.log(`  hooks: ${userStatus.hooks ? "registered" : "not found"}`);
+
+  console.log();
+
+  const projectConfig = getCodexConfigTomlPath("project");
+  const projectHooks = getCodexHooksJsonPath("project");
+  const projectStatus = isCodexConfigured("project");
+
+  console.log(`Project config: ${projectConfig}`);
+  console.log(`Project hooks:  ${projectHooks}`);
+  console.log(`  mcp:   ${projectStatus.mcp ? "registered" : "not found"}`);
+  console.log(`  hooks: ${projectStatus.hooks ? "registered" : "not found"}`);
+}
+
+export async function status(flags?: StatusFlags): Promise<void> {
+  if (flags?.platform === "codex") {
+    showCodexStatus();
+  } else {
+    showOpenCodeStatus();
   }
 }

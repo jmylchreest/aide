@@ -1,7 +1,7 @@
 {
   "name": "@jmylchreest/aide-plugin",
   "version": "0.0.57",
-  "description": "aide plugin for OpenCode — multi-agent orchestration, memory, skills, and persistence",
+  "description": "aide plugin for OpenCode and Codex CLI — multi-agent orchestration, memory, skills, and persistence",
   "type": "module",
   "main": "./src/opencode/index.ts",
   "exports": {
@@ -14,6 +14,7 @@
     "src/core",
     "src/cli",
     "src/lib",
+    "src/hooks",
     "skills",
     "bin",
     "README.md"
@@ -31,6 +32,7 @@
   "keywords": [
     "aide",
     "opencode",
+    "codex",
     "ai",
     "agents",
     "orchestration",
@@ -50,6 +52,7 @@
   },
   "dependencies": {
     "cross-spawn": "^7.0.6",
+    "smol-toml": "^1.3.1",
     "which": "^6.0.1"
   }
 }

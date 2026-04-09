@@ -111,7 +111,7 @@ export interface Skill {
   path: string;
   triggers: string[];
   description?: string;
-  /** Optional platform restriction. If set, only matched on listed platforms ("opencode", "claude-code"). */
+  /** Optional platform restriction. If set, only matched on listed platforms ("opencode", "claude-code", "codex"). */
   platforms?: string[];
   /** Optional binary requirement. If set, skill is only matched when all listed binaries exist on PATH. */
   requires_binary?: string[];
@@ -156,7 +156,7 @@ export const MAX_PERSISTENCE_ITERATIONS = 20;
  * Identifies which host platform aide is running in.
  * Used for platform-specific behavior like binary discovery or context injection.
  */
-export type AidePlatform = "claude-code" | "opencode" | "unknown";
+export type AidePlatform = "claude-code" | "opencode" | "codex" | "unknown";
 
 /**
  * Options for finding the aide binary.

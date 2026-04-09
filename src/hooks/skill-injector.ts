@@ -18,7 +18,7 @@
 import { existsSync, mkdirSync } from "fs";
 import { join } from "path";
 import { Logger, debug, setDebugCwd } from "../lib/logger.js";
-import { readStdin } from "../lib/hook-utils.js";
+import { readStdin, detectPlatform } from "../lib/hook-utils.js";
 import {
   discoverSkills as coreDiscoverSkills,
   matchSkills as coreMatchSkills,
@@ -190,7 +190,7 @@ async function main(): Promise<void> {
     );
 
     debugLog("matchSkills starting...");
-    const matched = matchSkills(prompt, skills, 3, "claude-code");
+    const matched = matchSkills(prompt, skills, 3, detectPlatform());
     debugLog(
       `matchSkills complete: ${matched.length} matches (${Date.now() - hookStart}ms)`,
     );

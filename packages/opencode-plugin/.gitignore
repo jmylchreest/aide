@@ -4,5 +4,9 @@
 /src/core/
 /src/cli/
 /src/lib/
+/src/hooks/
 /skills/
 /bin/
+
+# Runtime data — local only
+/.aide/
