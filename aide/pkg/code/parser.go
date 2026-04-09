@@ -86,22 +86,23 @@ func (p *Parser) getLanguage(lang string) *tree_sitter.Language {
 	return l
 }
 
-// getTagQuery returns the compiled tag query for a language,
+// getQuery returns a compiled query for a language from the given cache,
 // compiling and caching it on first access. Also loads the grammar if needed.
-// Uses pack registry queries for all languages.
-func (p *Parser) getTagQuery(lang string) *tree_sitter.Query {
+func (p *Parser) getQuery(lang string, cache map[string]*tree_sitter.Query, patternFn func(*grammar.Pack) string) *tree_sitter.Query {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	if q, ok := p.queries[lang]; ok {
+	if q, ok := cache[lang]; ok {
 		return q
 	}
 
 	// Look up query from pack registry.
-	var pattern string
-	if pack := p.registry.Get(lang); pack != nil && pack.Queries.Tags != "" {
-		pattern = pack.Queries.Tags
-	} else {
+	pack := p.registry.Get(lang)
+	if pack == nil {
+		return nil
+	}
+	pattern := patternFn(pack)
+	if pattern == "" {
 		return nil
 	}
 
@@ -121,47 +122,18 @@ func (p *Parser) getTagQuery(lang string) *tree_sitter.Query {
 		return nil
 	}
 
-	p.queries[lang] = q
+	cache[lang] = q
 	return q
 }
 
-// getRefQuery returns the compiled reference query for a language,
-// compiling and caching it on first access. Also loads the grammar if needed.
-// Uses pack registry queries for all languages.
+// getTagQuery returns the compiled tag query for a language.
+func (p *Parser) getTagQuery(lang string) *tree_sitter.Query {
+	return p.getQuery(lang, p.queries, func(pack *grammar.Pack) string { return pack.Queries.Tags })
+}
+
+// getRefQuery returns the compiled reference query for a language.
 func (p *Parser) getRefQuery(lang string) *tree_sitter.Query {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	if q, ok := p.refQueries[lang]; ok {
-		return q
-	}
-
-	// Look up query from pack registry.
-	var pattern string
-	if pack := p.registry.Get(lang); pack != nil && pack.Queries.Refs != "" {
-		pattern = pack.Queries.Refs
-	} else {
-		return nil
-	}
-
-	// Ensure language grammar is loaded
-	sitterLang, ok := p.languages[lang]
-	if !ok {
-		l, err := p.loader.Load(context.Background(), lang)
-		if err != nil {
-			return nil
-		}
-		sitterLang = l
-		p.languages[lang] = sitterLang
-	}
-
-	q, qErr := tree_sitter.NewQuery(sitterLang, pattern)
-	if qErr != nil {
-		return nil
-	}
-
-	p.refQueries[lang] = q
-	return q
+	return p.getQuery(lang, p.refQueries, func(pack *grammar.Pack) string { return pack.Queries.Refs })
 }
 
 // DetectLanguage determines the language for a file using multiple heuristics:
@@ -238,57 +210,71 @@ func detectShebang(content []byte) string {
 	return ""
 }
 
-// ParseFile parses a file and extracts symbols.
-func (p *Parser) ParseFile(filePath string) ([]*Symbol, error) {
-	// Try extension and filename detection first (no file read needed)
+// readAndDetectLang reads a file and detects its language.
+// Returns the content, detected language, and any read error.
+// Returns empty lang (not an error) for unsupported languages.
+func readAndDetectLang(filePath string) ([]byte, string, error) {
 	lang := DetectLanguage(filePath, nil)
 
-	// Read file content
 	content, err := os.ReadFile(filePath)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
-	// If no language detected yet, try shebang
 	if lang == "" {
 		lang = detectShebang(content)
 	}
 
-	if lang == "" {
-		return nil, nil // Unsupported language, skip silently
-	}
+	return content, lang, nil
+}
 
+// ParseFile parses a file and extracts symbols.
+func (p *Parser) ParseFile(filePath string) ([]*Symbol, error) {
+	content, lang, err := readAndDetectLang(filePath)
+	if err != nil {
+		return nil, err
+	}
+	if lang == "" {
+		return nil, nil
+	}
 	return p.ParseContent(content, lang, filePath)
 }
 
-// ParseContent parses source code and extracts symbols.
-func (p *Parser) ParseContent(content []byte, lang, filePath string) ([]*Symbol, error) {
+// parseTree creates a tree-sitter parser, parses the content, and calls fn with the root node.
+// Handles parser/tree lifecycle (defer Close). Returns nil, nil if grammar or tree unavailable.
+func (p *Parser) parseTree(content []byte, lang string, fn func(*tree_sitter.Node) (interface{}, error)) (interface{}, error) {
 	language := p.getLanguage(lang)
 	if language == nil {
-		return nil, nil // Unsupported language
+		return nil, nil
 	}
 
-	// Create parser
 	parser := tree_sitter.NewParser()
 	defer parser.Close()
 	if err := parser.SetLanguage(language); err != nil {
 		return nil, fmt.Errorf("set language %q: %w", lang, err)
 	}
 
-	// Parse content
 	tree := parser.Parse(content, nil)
 	if tree == nil {
 		return nil, nil
 	}
 	defer tree.Close()
 
-	// Use query-based extraction (all languages with queries in pack.json).
-	if query := p.getTagQuery(lang); query != nil {
-		return p.extractWithQuery(query, tree.RootNode(), content, filePath, lang), nil
-	}
+	return fn(tree.RootNode())
+}
 
-	// No query available for this language — nothing to extract.
-	return nil, nil
+// ParseContent parses source code and extracts symbols.
+func (p *Parser) ParseContent(content []byte, lang, filePath string) ([]*Symbol, error) {
+	result, err := p.parseTree(content, lang, func(root *tree_sitter.Node) (interface{}, error) {
+		if query := p.getTagQuery(lang); query != nil {
+			return p.extractWithQuery(query, root, content, filePath, lang), nil
+		}
+		return nil, nil
+	})
+	if result == nil {
+		return nil, err
+	}
+	return result.([]*Symbol), err
 }
 
 // extractWithQuery extracts symbols using a tree-sitter query.
@@ -481,54 +467,28 @@ func GetLanguageForFile(filePath string) string {
 
 // ParseFileReferences parses a file and extracts references (call sites).
 func (p *Parser) ParseFileReferences(filePath string) ([]*Reference, error) {
-	// Try extension and filename detection first
-	lang := DetectLanguage(filePath, nil)
-
-	// Read file content
-	content, err := os.ReadFile(filePath)
+	content, lang, err := readAndDetectLang(filePath)
 	if err != nil {
 		return nil, err
 	}
-
-	// If no language detected yet, try shebang
 	if lang == "" {
-		lang = detectShebang(content)
+		return nil, nil
 	}
-
-	if lang == "" {
-		return nil, nil // Unsupported language, skip silently
-	}
-
 	return p.ParseContentReferences(content, lang, filePath)
 }
 
 // ParseContentReferences parses source code and extracts references.
 func (p *Parser) ParseContentReferences(content []byte, lang, filePath string) ([]*Reference, error) {
-	language := p.getLanguage(lang)
-	if language == nil {
-		return nil, nil // Unsupported language
-	}
-
-	query := p.getRefQuery(lang)
-	if query == nil {
-		return nil, nil // No reference query for this language
-	}
-
-	// Create parser
-	parser := tree_sitter.NewParser()
-	defer parser.Close()
-	if err := parser.SetLanguage(language); err != nil {
-		return nil, fmt.Errorf("set language %q: %w", lang, err)
-	}
-
-	// Parse content
-	tree := parser.Parse(content, nil)
-	if tree == nil {
+	result, err := p.parseTree(content, lang, func(root *tree_sitter.Node) (interface{}, error) {
+		if query := p.getRefQuery(lang); query != nil {
+			return p.extractReferences(query, root, content, filePath, lang), nil
+		}
 		return nil, nil
+	})
+	if result == nil {
+		return nil, err
 	}
-	defer tree.Close()
-
-	return p.extractReferences(query, tree.RootNode(), content, filePath, lang), nil
+	return result.([]*Reference), err
 }
 
 // extractReferences extracts references using a tree-sitter query.
