@@ -6,7 +6,7 @@
 #   make release-push                Auto-bump, commit, tag, and push
 #   make release-push VERSION=1.2.0  Bump to specific, commit, tag, and push
 
-.PHONY: release release-push build build-pprof build-web test lint
+.PHONY: release release-push build build-pprof build-web test test-ts test-go lint
 
 VERSION_FILES = package.json .claude-plugin/plugin.json .claude-plugin/marketplace.json packages/opencode-plugin/package.json
 
@@ -30,7 +30,7 @@ check-version:
 		(echo "ERROR: VERSION must be semver (e.g., 1.2.3), got: $(VERSION)" && exit 1)
 
 # Update version in all JSON manifests, commit, and tag
-release: check-version
+release: check-version test-ts
 	@echo "Releasing v$(VERSION)..."
 	@for f in $(VERSION_FILES); do \
 		sed -i 's/"version": *"[^"]*"/"version": "$(VERSION)"/' $$f; \
@@ -59,8 +59,13 @@ build:
 build-pprof:
 	$(MAKE) -C aide build-pprof
 
-test:
+test: test-go test-ts
+
+test-go:
 	$(MAKE) -C aide test
+
+test-ts:
+	bunx vitest run --exclude='tests/memory-capture.test.ts'
 
 build-web:
 	$(MAKE) -C aide-web build
