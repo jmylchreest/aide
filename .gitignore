@@ -51,6 +51,9 @@ package-lock.json
 .claude-prod-path
 *.bak
 
+# Codex CLI local config
+.codex/
+
 # Environment
 .env
 .env.local

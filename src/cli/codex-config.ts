@@ -247,17 +247,26 @@ export function installCodex(scope: "user" | "project"): {
   let configWritten = false;
   let hooksWritten = false;
 
-  // Add aide MCP server to config.toml
   const config = readCodexToml(configPath);
+  const resolved = resolvePluginCommand();
+  let configChanged = false;
+
+  // Enable hooks feature flag (required for Codex to process hooks.json)
+  const features = (config.features || {}) as Record<string, unknown>;
+  if (!features.codex_hooks) {
+    features.codex_hooks = true;
+    config.features = features;
+    configChanged = true;
+  }
+
+  // Add aide MCP server
   const mcpServers = (config.mcp_servers || {}) as Record<
     string,
     Record<string, unknown>
   >;
 
-  const resolved = resolvePluginCommand();
-
   if (!mcpServers[MCP_SERVER_NAME]) {
-    const mcpEntry: Record<string, unknown> = {
+    mcpServers[MCP_SERVER_NAME] = {
       command: resolved.mcpCommand,
       args: resolved.mcpArgs,
       env: {
@@ -266,8 +275,11 @@ export function installCodex(scope: "user" | "project"): {
         ...(resolved.wrapperEnv || {}),
       },
     };
-    mcpServers[MCP_SERVER_NAME] = mcpEntry;
     config.mcp_servers = mcpServers;
+    configChanged = true;
+  }
+
+  if (configChanged) {
     writeCodexToml(configPath, config);
     configWritten = true;
   }
