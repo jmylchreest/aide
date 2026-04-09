@@ -505,15 +505,11 @@ func cmdFindingsSearch(dbPath string, args []string) error {
 	}
 
 	if jsonOutput {
-		fmt.Print("[")
+		findingsOnly := make([]*findings.Finding, len(results))
 		for i, r := range results {
-			if i > 0 {
-				fmt.Print(",")
-			}
-			f := r.Finding
-			printFindingJSON(f)
+			findingsOnly[i] = r.Finding
 		}
-		fmt.Println("]")
+		return printJSON(findingsOnly)
 	} else {
 		if truncated {
 			fmt.Printf("Found more than %d findings. Showing the first %d (use --limit=N to see more):\n\n", limit, limit)
@@ -583,14 +579,7 @@ func cmdFindingsList(dbPath string, args []string) error {
 	}
 
 	if jsonOutput {
-		fmt.Print("[")
-		for i, f := range results {
-			if i > 0 {
-				fmt.Print(",")
-			}
-			printFindingJSON(f)
-		}
-		fmt.Println("]")
+		return printJSON(results)
 	} else {
 		if truncated {
 			fmt.Printf("Found more than %d findings. Showing the first %d (use --limit=N to see more):\n\n", limit, limit)
@@ -734,13 +723,3 @@ func printFindingLine(f *findings.Finding) {
 	fmt.Printf("  %s %s %s (%s)\n", sevPad, locPad, f.Title, f.Analyzer)
 }
 
-// printFindingJSON prints a single finding as a JSON object (no trailing newline).
-func printFindingJSON(f *findings.Finding) {
-	fmt.Printf(`{"id":"%s","analyzer":"%s","severity":"%s","file":"%s","line":%d,"title":"%s"}`,
-		escapeJSON(f.ID),
-		escapeJSON(f.Analyzer),
-		escapeJSON(f.Severity),
-		escapeJSON(f.FilePath),
-		f.Line,
-		escapeJSON(f.Title))
-}

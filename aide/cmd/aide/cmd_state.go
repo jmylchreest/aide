@@ -73,6 +73,7 @@ Options:
 
   list:
     --agent=AGENT_ID   Filter by agent
+    --json             Output as JSON
 
   clear:
     --agent=AGENT_ID   Clear state for specific agent
@@ -165,14 +166,21 @@ func stateList(b *Backend, args []string) error {
 		return fmt.Errorf("failed to list state: %w", err)
 	}
 
-	for _, st := range states {
-		if st.Agent != "" {
-			fmt.Printf("[%s] %s = %s\n", st.Agent, st.Key, st.Value)
-		} else {
-			fmt.Printf("%s = %s\n", st.Key, st.Value)
-		}
+	if wantJSON(args) {
+		return printJSON(states)
 	}
-	return nil
+
+	if len(states) == 0 {
+		fmt.Println("No state entries found")
+		return nil
+	}
+
+	w := newTabWriter()
+	fmt.Fprintln(w, "AGENT\tKEY\tVALUE")
+	for _, st := range states {
+		fmt.Fprintf(w, "%s\t%s\t%s\n", st.Agent, st.Key, st.Value)
+	}
+	return w.Flush()
 }
 
 func stateClear(b *Backend, args []string) error {

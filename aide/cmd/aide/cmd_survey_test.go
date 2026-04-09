@@ -567,19 +567,19 @@ func TestCmdSurveyGraph_SymbolFlag(t *testing.T) {
 	}
 }
 
-// TestPrintSurveyJSON_EmptySlice verifies that an empty slice produces [].
-func TestPrintSurveyJSON_EmptySlice(t *testing.T) {
+// TestPrintJSON_EmptySurveySlice verifies that an empty slice produces [].
+func TestPrintJSON_EmptySurveySlice(t *testing.T) {
 	oldStdout := os.Stdout
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 
-	err := printSurveyJSON([]*survey.Entry{})
+	err := printJSON([]*survey.Entry{})
 
 	w.Close()
 	os.Stdout = oldStdout
 
 	if err != nil {
-		t.Fatalf("printSurveyJSON failed: %v", err)
+		t.Fatalf("printJSON failed: %v", err)
 	}
 
 	buf := make([]byte, 64*1024)

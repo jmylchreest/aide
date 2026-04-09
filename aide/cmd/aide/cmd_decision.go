@@ -149,8 +149,6 @@ func decisionGet(b *Backend, args []string) error {
 }
 
 func decisionList(b *Backend, args []string) error {
-	formatJSON := parseFlag(args, "--format=") == "json"
-
 	decisions, err := b.ListDecisions()
 	if err != nil {
 		return fmt.Errorf("failed to list decisions: %w", err)
@@ -164,31 +162,27 @@ func decisionList(b *Backend, args []string) error {
 		}
 	}
 
-	if formatJSON {
-		fmt.Print("[")
-		first := true
-		for _, d := range latest {
-			if !first {
-				fmt.Print(",")
-			}
-			first = false
-			rationale := ""
-			if d.Rationale != "" {
-				rationale = escapeJSON(d.Rationale)
-			}
-			fmt.Printf(`{"topic":"%s","value":"%s","rationale":"%s","created_at":"%s"}`,
-				escapeJSON(d.Topic),
-				escapeJSON(d.Decision),
-				rationale,
-				d.CreatedAt.Format("2006-01-02T15:04:05Z07:00"))
-		}
-		fmt.Println("]")
-	} else {
-		for _, d := range latest {
-			fmt.Printf("[%s] %s: %s\n", d.CreatedAt.Format("2006-01-02"), d.Topic, d.Decision)
-		}
+	// Collect map values into a stable slice.
+	latestSlice := make([]*memory.Decision, 0, len(latest))
+	for _, d := range latest {
+		latestSlice = append(latestSlice, d)
 	}
-	return nil
+
+	if wantJSON(args) {
+		return printJSON(latestSlice)
+	}
+
+	if len(latestSlice) == 0 {
+		fmt.Println("No decisions found")
+		return nil
+	}
+
+	w := newTabWriter()
+	fmt.Fprintln(w, "DATE\tTOPIC\tDECISION")
+	for _, d := range latestSlice {
+		fmt.Fprintf(w, "%s\t%s\t%s\n", d.CreatedAt.Format("2006-01-02"), d.Topic, truncate(d.Decision, 60))
+	}
+	return w.Flush()
 }
 
 func decisionHistory(b *Backend, args []string) error {

@@ -64,6 +64,7 @@ Options:
 
   list:
     --agent=AGENT      Filter by recipient
+    --json             Output as JSON
 
   ack MESSAGE_ID:
     --agent=AGENT      Acknowledging agent (required)
@@ -125,23 +126,33 @@ func messageList(b *Backend, args []string) error {
 		return fmt.Errorf("failed to list messages: %w", err)
 	}
 
+	if wantJSON(args) {
+		return printJSON(messages)
+	}
+
 	if len(messages) == 0 {
 		fmt.Println("No messages")
 		return nil
 	}
 
+	w := newTabWriter()
+	fmt.Fprintln(w, "ID\tTYPE\tFROM\tTO\tCONTENT\tREAD")
 	for _, m := range messages {
-		readStatus := ""
+		msgType := m.Type
+		if msgType == "" {
+			if m.To == "" {
+				msgType = "broadcast"
+			} else {
+				msgType = "direct"
+			}
+		}
+		readCount := ""
 		if len(m.ReadBy) > 0 {
-			readStatus = fmt.Sprintf(" (read by %d)", len(m.ReadBy))
+			readCount = fmt.Sprintf("%d", len(m.ReadBy))
 		}
-		if m.To == "" {
-			fmt.Printf("[%d] [broadcast] %s: %s%s\n", m.ID, m.From, m.Content, readStatus)
-		} else {
-			fmt.Printf("[%d] [%s -> %s] %s%s\n", m.ID, m.From, m.To, m.Content, readStatus)
-		}
+		fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%s\t%s\n", m.ID, msgType, m.From, m.To, truncate(m.Content, 60), readCount)
 	}
-	return nil
+	return w.Flush()
 }
 
 func messageAck(b *Backend, args []string) error {

@@ -324,7 +324,7 @@ func cmdSearch(dbPath string, args []string) error {
 		}
 	} else {
 		for _, m := range memories {
-			fmt.Printf("[%s] %s: %s\n", padCategory(string(m.Category)), m.ID, truncate(m.Content, 60))
+			fmt.Printf("[%s] %s: %s\n", padString(string(m.Category), 10), m.ID, truncate(m.Content, 60))
 		}
 	}
 	return nil
@@ -396,7 +396,7 @@ func cmdSelect(dbPath string, args []string) error {
 		}
 	} else {
 		for _, m := range memories {
-			fmt.Printf("[%s] %s: %s\n", padCategory(string(m.Category)), m.ID, truncate(m.Content, 60))
+			fmt.Printf("[%s] %s: %s\n", padString(string(m.Category), 10), m.ID, truncate(m.Content, 60))
 		}
 	}
 	return nil
@@ -424,9 +424,7 @@ func cmdList(dbPath string, args []string) error {
 		}
 		limit = n
 	}
-	if f := parseFlag(args, "--format="); f == "json" {
-		formatJSON = true
-	}
+	formatJSON = wantJSON(args)
 
 	backend, err := NewBackend(dbPath)
 	if err != nil {
@@ -457,24 +455,7 @@ func cmdList(dbPath string, args []string) error {
 
 	switch {
 	case formatJSON:
-		// JSON output for programmatic use
-		fmt.Print("[")
-		for i, m := range memories {
-			if i > 0 {
-				fmt.Print(",")
-			}
-			tagsJSON := "[]"
-			if len(m.Tags) > 0 {
-				tagsJSON = `["` + strings.Join(m.Tags, `","`) + `"]`
-			}
-			fmt.Printf(`{"id":"%s","category":"%s","content":"%s","tags":%s,"created_at":"%s"}`,
-				m.ID,
-				m.Category,
-				escapeJSON(m.Content),
-				tagsJSON,
-				m.CreatedAt.Format("2006-01-02T15:04:05Z07:00"))
-		}
-		fmt.Println("]")
+		return printJSON(memories)
 	case scored:
 		// Scored output: show score breakdown per memory, sorted by score
 		now := time.Now()
@@ -499,7 +480,7 @@ func cmdList(dbPath string, args []string) error {
 			m := e.mem
 			if b.ManualOverride {
 				fmt.Printf("#%-3d  %.3f (manual)  [%s] %s: %s\n",
-					rank+1, b.Total, padCategory(string(m.Category)), m.ID, truncate(m.Content, 50))
+					rank+1, b.Total, padString(string(m.Category), 10), m.ID, truncate(m.Content, 50))
 			} else {
 				fmt.Printf("#%-3d  %.3f  cat=%.2f(%.3f) rec=%.2f(%.3f) prov=%.2f(%.3f) acc=%.2f(%.3f)  [%s] %s: %s\n",
 					rank+1, b.Total,
@@ -507,7 +488,7 @@ func cmdList(dbPath string, args []string) error {
 					b.RecencyRaw, b.RecencyWeighted,
 					b.ProvenanceRaw, b.ProvenanceWeighted,
 					b.AccessRaw, b.AccessWeighted,
-					padCategory(string(m.Category)), m.ID, truncate(m.Content, 50))
+					padString(string(m.Category), 10), m.ID, truncate(m.Content, 50))
 			}
 		}
 		if cfg.ScoringDisabled {
@@ -515,7 +496,7 @@ func cmdList(dbPath string, args []string) error {
 		}
 	default:
 		for _, m := range memories {
-			fmt.Printf("[%s] %s: %s\n", padCategory(string(m.Category)), m.ID, truncate(m.Content, 60))
+			fmt.Printf("[%s] %s: %s\n", padString(string(m.Category), 10), m.ID, truncate(m.Content, 60))
 		}
 	}
 	return nil
@@ -536,7 +517,7 @@ func cmdSessions(dbPath string, args []string) error {
 	}
 
 	limit := 3
-	formatJSON := parseFlag(args, "--format=") == "json"
+	formatJSON := wantJSON(args)
 
 	if l := parseFlag(args, "--limit="); l != "" {
 		n, err := strconv.Atoi(l)
@@ -622,37 +603,15 @@ func cmdSessions(dbPath string, args []string) error {
 	}
 
 	if formatJSON {
-		// JSON output for programmatic use
-		fmt.Print("[")
-		for i, sess := range sessions {
-			if i > 0 {
-				fmt.Print(",")
-			}
-			fmt.Printf(`{"session_id":"%s","last_at":"%s","memories":[`, sess.SessionID, sess.LastAt)
-			for j, m := range sess.Memories {
-				if j > 0 {
-					fmt.Print(",")
-				}
-				tagsJSON := "[]"
-				if len(m.Tags) > 0 {
-					tagsJSON = `["` + strings.Join(m.Tags, `","`) + `"]`
-				}
-				fmt.Printf(`{"id":"%s","category":"%s","content":"%s","tags":%s,"created_at":"%s"}`,
-					m.ID,
-					m.Category,
-					escapeJSON(m.Content),
-					tagsJSON,
-					m.CreatedAt.Format("2006-01-02T15:04:05Z07:00"))
-			}
-			fmt.Print("]}")
+		if err := printJSON(sessions); err != nil {
+			return err
 		}
-		fmt.Println("]")
 	} else {
 		// Human-readable output
 		for _, sess := range sessions {
 			fmt.Printf("=== Session %s (%s) ===\n", sess.SessionID, sess.LastAt[:10])
 			for _, m := range sess.Memories {
-				fmt.Printf("  [%s] %s: %s\n", padCategory(string(m.Category)), m.ID, truncate(m.Content, 50))
+				fmt.Printf("  [%s] %s: %s\n", padString(string(m.Category), 10), m.ID, truncate(m.Content, 50))
 			}
 			fmt.Println()
 		}
@@ -755,22 +714,3 @@ func keepLatestPerTagGroup(memories []*memory.Memory) []*memory.Memory {
 	return result
 }
 
-// padCategory pads category to fixed width inside brackets
-// Categories: learning(8), session(7), decision(8), gotcha(6), pattern(7)
-func padCategory(cat string) string {
-	const width = 8
-	if len(cat) >= width {
-		return cat
-	}
-	return cat + strings.Repeat(" ", width-len(cat))
-}
-
-// escapeJSON escapes a string for JSON output
-func escapeJSON(s string) string {
-	s = strings.ReplaceAll(s, `\`, `\\`)
-	s = strings.ReplaceAll(s, `"`, `\"`)
-	s = strings.ReplaceAll(s, "\n", `\n`)
-	s = strings.ReplaceAll(s, "\r", `\r`)
-	s = strings.ReplaceAll(s, "\t", `\t`)
-	return s
-}

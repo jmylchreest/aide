@@ -455,3 +455,90 @@ func TestLoadFindingsConfigMissing(t *testing.T) {
 		t.Errorf("expected zero threshold, got %d", got.Complexity.Threshold)
 	}
 }
+
+// =============================================================================
+// wantJSON
+// =============================================================================
+
+func TestWantJSON(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want bool
+	}{
+		{"--json flag", []string{"--status=pending", "--json"}, true},
+		{"--format=json", []string{"--format=json"}, true},
+		{"no json flag", []string{"--status=pending"}, false},
+		{"empty args", []string{}, false},
+		{"--format=other", []string{"--format=csv"}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := wantJSON(tt.args)
+			if got != tt.want {
+				t.Errorf("wantJSON(%v) = %v, want %v", tt.args, got, tt.want)
+			}
+		})
+	}
+}
+
+// =============================================================================
+// printJSON
+// =============================================================================
+
+func TestPrintJSON(t *testing.T) {
+	type item struct {
+		Name string `json:"name"`
+		Val  int    `json:"val"`
+	}
+	items := []item{{Name: "a", Val: 1}, {Name: "b", Val: 2}}
+
+	// Capture stdout
+	old := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	err := printJSON(items)
+
+	w.Close()
+	os.Stdout = old
+
+	if err != nil {
+		t.Fatalf("printJSON returned error: %v", err)
+	}
+
+	var buf [1024]byte
+	n, _ := r.Read(buf[:])
+	output := string(buf[:n])
+
+	var got []item
+	if err := json.Unmarshal([]byte(output), &got); err != nil {
+		t.Fatalf("output is not valid JSON: %v\noutput: %s", err, output)
+	}
+	if len(got) != 2 || got[0].Name != "a" || got[1].Val != 2 {
+		t.Errorf("unexpected output: %s", output)
+	}
+}
+
+// =============================================================================
+// padString
+// =============================================================================
+
+func TestPadString(t *testing.T) {
+	tests := []struct {
+		s     string
+		width int
+		want  string
+	}{
+		{"hi", 5, "hi   "},
+		{"hello", 5, "hello"},
+		{"toolong", 3, "toolong"},
+		{"", 4, "    "},
+	}
+	for _, tt := range tests {
+		got := padString(tt.s, tt.width)
+		if got != tt.want {
+			t.Errorf("padString(%q, %d) = %q, want %q", tt.s, tt.width, got, tt.want)
+		}
+	}
+}

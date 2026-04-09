@@ -82,7 +82,7 @@ func cmdSurveySearch(dbPath string, args []string) error {
 		for _, r := range results {
 			entries = append(entries, r.Entry)
 		}
-		return printSurveyJSON(entries)
+		return printJSON(entries)
 	}
 
 	if len(results) == 0 {
@@ -124,7 +124,7 @@ func cmdSurveyList(dbPath string, args []string) error {
 	}
 
 	if jsonOutput {
-		return printSurveyJSON(entries)
+		return printJSON(entries)
 	}
 
 	if len(entries) == 0 {
@@ -218,16 +218,6 @@ func printSurveyEntry(e *survey.Entry) {
 		}
 		fmt.Printf("  Metadata: %s\n", strings.Join(parts, ", "))
 	}
-}
-
-// printSurveyJSON encodes survey entries as a JSON array to stdout.
-func printSurveyJSON(entries []*survey.Entry) error {
-	data, err := json.Marshal(entries)
-	if err != nil {
-		return fmt.Errorf("json encoding failed: %w", err)
-	}
-	fmt.Println(string(data))
-	return nil
 }
 
 // cmdSurveyGraph builds and displays a call graph for a symbol.

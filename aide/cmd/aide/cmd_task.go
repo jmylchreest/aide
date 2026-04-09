@@ -69,6 +69,7 @@ Options:
 
   list:
     --status=STATUS      Filter by status (pending, claimed, done)
+    --json               Output as JSON
 
   clear:
     --status=STATUS      Clear tasks with status (default: done)
@@ -144,18 +145,21 @@ func taskList(b *Backend, args []string) error {
 		return fmt.Errorf("failed to list tasks: %w", err)
 	}
 
-	for _, t := range tasks {
-		idDisplay := t.ID
-		if len(t.ID) > 8 {
-			idDisplay = t.ID[:8]
-		}
-		if t.ClaimedBy != "" {
-			fmt.Printf("[%s] %s: %s (agent:%s)\n", t.Status, idDisplay, t.Title, t.ClaimedBy)
-		} else {
-			fmt.Printf("[%s] %s: %s\n", t.Status, idDisplay, t.Title)
-		}
+	if wantJSON(args) {
+		return printJSON(tasks)
 	}
-	return nil
+
+	if len(tasks) == 0 {
+		fmt.Println("No tasks found")
+		return nil
+	}
+
+	w := newTabWriter()
+	fmt.Fprintln(w, "STATUS\tID\tTITLE\tAGENT")
+	for _, t := range tasks {
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", t.Status, t.ID, t.Title, t.ClaimedBy)
+	}
+	return w.Flush()
 }
 
 func taskClear(b *Backend, args []string) error {

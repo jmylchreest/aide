@@ -244,7 +244,7 @@ func formatTasksMarkdown(tasks []*memory.Task) string {
 	fmt.Fprintf(&sb, "# Tasks (%d)\n\n", len(tasks))
 
 	for _, t := range tasks {
-		fmt.Fprintf(&sb, "- **[%s]** `%s`: %s", t.Status, truncateID(t.ID), t.Title)
+		fmt.Fprintf(&sb, "- **[%s]** `%s`: %s", t.Status, t.ID, t.Title)
 		if t.ClaimedBy != "" {
 			fmt.Fprintf(&sb, " (claimed by %s)", t.ClaimedBy)
 		}
@@ -257,10 +257,3 @@ func formatTasksMarkdown(tasks []*memory.Task) string {
 	return sb.String()
 }
 
-// truncateID shortens a ULID-style ID for display (first 8 chars).
-func truncateID(id string) string {
-	if len(id) > 8 {
-		return id[:8]
-	}
-	return id
-}

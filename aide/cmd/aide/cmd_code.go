@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -217,20 +216,11 @@ func cmdCodeSearch(dbPath string, args []string) error {
 
 	// Output results
 	if jsonOutput {
-		fmt.Print("[")
+		symbols := make([]*code.Symbol, len(results))
 		for i, r := range results {
-			if i > 0 {
-				fmt.Print(",")
-			}
-			fmt.Printf(`{"name":"%s","kind":"%s","signature":"%s","file":"%s","line":%d,"lang":"%s"}`,
-				escapeJSON(r.Symbol.Name),
-				r.Symbol.Kind,
-				escapeJSON(r.Symbol.Signature),
-				escapeJSON(r.Symbol.FilePath),
-				r.Symbol.StartLine,
-				r.Symbol.Language)
+			symbols[i] = r.Symbol
 		}
-		fmt.Println("]")
+		return printJSON(symbols)
 	} else {
 		for _, r := range results {
 			sym := r.Symbol
@@ -283,18 +273,7 @@ func cmdCodeSymbols(dbPath string, args []string) error {
 
 	// Output
 	if jsonOutput {
-		fmt.Print("[")
-		for i, sym := range symbols {
-			if i > 0 {
-				fmt.Print(",")
-			}
-			fmt.Printf(`{"name":"%s","kind":"%s","signature":"%s","line":%d}`,
-				escapeJSON(sym.Name),
-				sym.Kind,
-				escapeJSON(sym.Signature),
-				sym.StartLine)
-		}
-		fmt.Println("]")
+		return printJSON(symbols)
 	} else {
 		fmt.Printf("%s (%d symbols):\n", filePath, len(symbols))
 		for _, sym := range symbols {
@@ -357,20 +336,7 @@ func cmdCodeReferences(dbPath string, args []string) error {
 
 	// Output results
 	if jsonOutput {
-		fmt.Print("[")
-		for i, ref := range refs {
-			if i > 0 {
-				fmt.Print(",")
-			}
-			fmt.Printf(`{"symbol":"%s","kind":"%s","file":"%s","line":%d,"col":%d,"context":"%s"}`,
-				escapeJSON(ref.SymbolName),
-				ref.Kind,
-				escapeJSON(ref.FilePath),
-				ref.Line,
-				ref.Column,
-				escapeJSON(ref.Context))
-		}
-		fmt.Println("]")
+		return printJSON(refs)
 	} else {
 		fmt.Printf("References to '%s' (%d found):\n", symbolName, len(refs))
 		for _, ref := range refs {
@@ -476,19 +442,6 @@ func cmdCodeReadCheck(dbPath string, args []string) error {
 	}
 
 	return nil
-}
-
-func printJSON(v interface{}) error {
-	enc := json.NewEncoder(os.Stdout)
-	return enc.Encode(v)
-}
-
-// padString pads a string to a minimum width.
-func padString(s string, width int) string {
-	if len(s) >= width {
-		return s
-	}
-	return s + strings.Repeat(" ", width-len(s))
 }
 
 // Indexer provides a reusable indexing interface for the watcher.

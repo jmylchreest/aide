@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"text/tabwriter"
 
 	"github.com/jmylchreest/aide/aide/internal/version"
 	"github.com/jmylchreest/aide/aide/pkg/grammar"
@@ -29,6 +30,36 @@ func truncate(s string, n int) string {
 		return s
 	}
 	return string(runes[:n-3]) + "..."
+}
+
+// wantJSON returns true when the caller requested JSON output.
+// Accepts both --json (canonical) and --format=json (legacy compat).
+func wantJSON(args []string) bool {
+	return hasFlag(args, "--json") || parseFlag(args, "--format=") == "json"
+}
+
+// printJSON marshals v as JSON and writes it to stdout.
+func printJSON(v any) error {
+	data, err := json.Marshal(v)
+	if err != nil {
+		return fmt.Errorf("json encoding failed: %w", err)
+	}
+	_, err = fmt.Println(string(data))
+	return err
+}
+
+// newTabWriter returns a tabwriter.Writer configured for CLI table output.
+// Flush() must be called after writing.
+func newTabWriter() *tabwriter.Writer {
+	return tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+}
+
+// padString pads a string to a minimum width with trailing spaces.
+func padString(s string, width int) string {
+	if len(s) >= width {
+		return s
+	}
+	return s + strings.Repeat(" ", width-len(s))
 }
 
 // flagAliases maps British spelling flag prefixes to their canonical (American) forms.
