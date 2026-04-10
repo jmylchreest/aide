@@ -4,29 +4,29 @@ sidebar_position: 3
 
 # Blueprints
 
-Blueprints are portable, language-specific bundles of best-practice decisions that bootstrap a project with proven conventions. Instead of manually recording dozens of decisions one by one, `aide init` seeds your project's decision store from curated blueprints in a single command.
+Blueprints are portable, language-specific bundles of best-practice decisions that bootstrap a project with proven conventions. Instead of manually recording dozens of decisions one by one, `aide blueprint import` seeds your project's decision store from curated blueprints in a single command.
 
 ## Quick Start
 
 ```bash
 # Seed Go best practices
-aide init go
+aide blueprint import go
 
 # Seed Go + CI/CD best practices (auto-includes general + github-actions)
-aide init go go-github-actions
+aide blueprint import go go-github-actions
 
 # Auto-detect from project markers (go.mod, Cargo.toml, .github/workflows, etc.)
-aide init --detect
+aide blueprint import --detect
 
 # Preview what would be imported
-aide init --show go
+aide blueprint show go
 ```
 
 Once imported, blueprint decisions work exactly like any other decision — they are injected into every session context and enforced by all agents.
 
 ## How It Works
 
-A blueprint is a JSON file containing a list of decisions with topic, rationale, and detailed guidance. When you run `aide init <name>`, AIDE:
+A blueprint is a JSON file containing a list of decisions with topic, rationale, and detailed guidance. When you run `aide blueprint import <name>`, AIDE:
 
 1. Resolves the blueprint (local override, embedded, or remote registry)
 2. Follows the `includes` chain (e.g., `go` includes `general`)
@@ -70,7 +70,7 @@ The `go` blueprint covers:
 
 ## Resolution Order
 
-When you run `aide init <name>`, AIDE looks for the blueprint in this order:
+When you run `aide blueprint import <name>`, AIDE looks for the blueprint in this order:
 
 1. **Local override** — `.aide/blueprints/<name>.json` in your project
 2. **Embedded** — shipped with the aide binary
@@ -79,8 +79,8 @@ When you run `aide init <name>`, AIDE looks for the blueprint in this order:
 First match wins. Direct file paths and URLs bypass the resolution chain:
 
 ```bash
-aide init ./our-practices.json                        # local file
-aide init https://example.com/blueprints/rust.json    # direct URL
+aide blueprint import ./our-practices.json                        # local file
+aide blueprint import https://example.com/blueprints/rust.json    # direct URL
 ```
 
 ## Remote Registries
@@ -114,14 +114,14 @@ myorg/aide-blueprints/
 3. Import:
 
 ```bash
-aide init myorg-standards    # fetches from registry
-aide init --list             # shows all available (embedded + registry)
+aide blueprint import myorg-standards    # fetches from registry
+aide blueprint list                      # shows all available (embedded + registry)
 ```
 
 ### One-Off Registry
 
 ```bash
-aide init --registry=https://raw.githubusercontent.com/myorg/aide-blueprints/main go
+aide blueprint import --registry=https://raw.githubusercontent.com/myorg/aide-blueprints/main go
 ```
 
 ## Local Overrides
@@ -132,10 +132,10 @@ For example, to override the Go blueprint with stricter complexity thresholds:
 
 ```bash
 # Copy the embedded blueprint as a starting point
-aide init --show go > .aide/blueprints/go.json
+aide blueprint show go > .aide/blueprints/go.json
 
 # Edit as needed, then import
-aide init go    # uses your local override
+aide blueprint import go    # uses your local override
 ```
 
 ## Blueprint Schema
@@ -166,7 +166,7 @@ aide init go    # uses your local override
 | Field | Required | Description |
 |-------|----------|-------------|
 | `schema_version` | Yes | Always `1` for now |
-| `name` | Yes | Identifier used in `aide init <name>` |
+| `name` | Yes | Identifier used in `aide blueprint import <name>` |
 | `display_name` | Yes | Human-readable name for `--list` output |
 | `description` | Yes | One-line description |
 | `version` | Yes | Tracks which AIDE release last modified the blueprint |
@@ -194,24 +194,21 @@ aide init go    # uses your local override
 ## CLI Reference
 
 ```bash
-aide init [flags] [blueprints...]
+# List and inspect
+aide blueprint list                               # List all available blueprints
+aide blueprint show go                            # Preview decisions without importing
 
 # Import blueprints
-aide init go                          # Import Go best practices
-aide init go go-github-actions        # Import multiple
-aide init --detect                    # Auto-detect from project markers
-aide init ./custom.json               # Import from local file
-aide init https://example.com/bp.json # Import from URL
+aide blueprint import go                          # Import Go best practices
+aide blueprint import go go-github-actions        # Import multiple
+aide blueprint import --detect                    # Auto-detect from project markers
+aide blueprint import ./custom.json               # Import from local file
+aide blueprint import https://example.com/bp.json # Import from URL
 
-# Inspect
-aide init --list                      # List all available blueprints
-aide init --show go                   # Preview decisions without importing
-
-# Options
-aide init --force                     # Overwrite existing decisions
-aide init --dry-run                   # Show what would happen
-aide init --registry=URL go           # Use a one-off registry
-aide init --no-cache go               # Force fresh fetch from remote
+# Import options
+aide blueprint import --force go                  # Overwrite existing decisions
+aide blueprint import --dry-run go                # Show what would happen
+aide blueprint import --registry=URL go           # Use a one-off registry
 ```
 
 ## Contributing Blueprints

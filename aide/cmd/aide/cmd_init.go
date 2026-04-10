@@ -12,19 +12,36 @@ import (
 	"github.com/jmylchreest/aide/aide/pkg/store"
 )
 
-func cmdInit(dbPath string, args []string) error {
+func cmdBlueprint(dbPath string, args []string) error {
 	if len(args) == 0 || hasFlag(args, "--help") || hasFlag(args, "-h") {
-		printInitUsage()
+		printBlueprintUsage()
 		return nil
 	}
 
-	if hasFlag(args, "--list") {
-		return initList()
-	}
+	subcmd := args[0]
+	subargs := args[1:]
 
-	showName := parseFlag(args, "--show=")
-	if showName != "" {
-		return initShow(showName, dbPath)
+	switch subcmd {
+	case "list":
+		return blueprintList()
+	case "show":
+		if len(subargs) < 1 {
+			return fmt.Errorf("usage: aide blueprint show <name>")
+		}
+		return blueprintShow(subargs[0], dbPath)
+	case "import":
+		return blueprintImport(dbPath, subargs)
+	case "help", "-h", "--help":
+		printBlueprintUsage()
+		return nil
+	default:
+		return fmt.Errorf("unknown blueprint subcommand: %s", subcmd)
+	}
+}
+
+func blueprintImport(dbPath string, args []string) error {
+	if len(args) == 0 && !hasFlag(args, "--detect") {
+		return fmt.Errorf("usage: aide blueprint import [--detect] [names...]")
 	}
 
 	force := hasFlag(args, "--force")
@@ -58,7 +75,6 @@ func cmdInit(dbPath string, args []string) error {
 
 	if len(names) == 0 {
 		fmt.Println("No blueprints specified. Use --detect or provide names.")
-		printInitUsage()
 		return nil
 	}
 
@@ -176,7 +192,7 @@ func printImportSummary(results []blueprint.ImportResult, dryRun bool) {
 	}
 }
 
-func initList() error {
+func blueprintList() error {
 	blueprints, err := blueprint.ListEmbedded()
 	if err != nil {
 		return err
@@ -195,7 +211,7 @@ func initList() error {
 	return w.Flush()
 }
 
-func initShow(name, dbPath string) error {
+func blueprintShow(name, dbPath string) error {
 	localDir := blueprintOverrideDir(dbPath)
 	bp, source, err := blueprint.Resolve(name, localDir, nil)
 	if err != nil {
@@ -348,31 +364,38 @@ func blueprintOverrideDir(dbPath string) string {
 	return filepath.Join(projectRoot, ".aide", "blueprints")
 }
 
-func printInitUsage() {
-	fmt.Println(`aide init - Bootstrap project with best-practice decisions from blueprints
+func printBlueprintUsage() {
+	fmt.Println(`aide blueprint - Manage and import best-practice decision blueprints
 
 Usage:
-  aide init [flags] [blueprints...]
+  aide blueprint <subcommand> [arguments]
 
-Sources:
-  go                           Resolve via chain (local → embedded → registries)
-  ./path/to/custom.json        Load from local file
-  https://example.com/bp.json  Fetch from URL
+Subcommands:
+  import     Import blueprint decisions into the project
+  list       List available blueprints
+  show       Preview a blueprint's decisions
 
-Flags:
-  --detect          Auto-detect blueprints from project markers
-  --list            List available blueprints
-  --show=NAME       Preview decisions without importing
-  --force           Overwrite existing decisions on conflict
-  --dry-run         Show what would happen without writing
-  --registry=URL    Add a one-off registry for this invocation
+Import:
+  aide blueprint import [flags] [blueprints...]
+
+  Sources:
+    go                           Resolve via chain (local → embedded → registries)
+    ./path/to/custom.json        Load from local file
+    https://example.com/bp.json  Fetch from URL
+
+  Flags:
+    --detect          Auto-detect blueprints from project markers
+    --force           Overwrite existing decisions on conflict
+    --dry-run         Show what would happen without writing
+    --registry=URL    Add a one-off registry for this invocation
 
 Examples:
-  aide init go                          # Import Go best practices
-  aide init go go-github-actions        # Import multiple (includes resolved)
-  aide init --detect                    # Auto-detect from project markers
-  aide init --list                      # List available blueprints
-  aide init --show go                   # Preview Go blueprint decisions
-  aide init --dry-run go                # See what would be imported
-  aide init ./our-practices.json        # Import from local file`)
+  aide blueprint list                           # List available blueprints
+  aide blueprint show go                        # Preview Go blueprint decisions
+  aide blueprint import go                      # Import Go best practices
+  aide blueprint import go rust                 # Import multiple
+  aide blueprint import go go-github-actions    # With CI/CD patterns
+  aide blueprint import --detect                # Auto-detect from project markers
+  aide blueprint import --dry-run go            # See what would be imported
+  aide blueprint import ./our-practices.json    # Import from local file`)
 }

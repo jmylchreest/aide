@@ -40,9 +40,9 @@ Exported files use YAML frontmatter + markdown body, so they work as LLM context
 For language-specific best practices, use [Blueprints](/docs/features/blueprints) to seed decisions in bulk:
 
 ```bash
-aide init go                   # 18 Go best-practice decisions
-aide init go go-github-actions # + 6 CI/CD decisions
-aide init --detect             # auto-detect from project markers
+aide blueprint import go                   # 18 Go best-practice decisions
+aide blueprint import go go-github-actions # + CI/CD decisions
+aide blueprint import --detect             # auto-detect from project markers
 ```
 
 Blueprint-imported decisions work exactly like manually recorded ones — they are injected into every session and can be overridden with `aide decision set`.

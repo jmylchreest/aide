@@ -8,14 +8,14 @@ Blueprints seed your project with curated best-practice decisions for your langu
 
 ```bash
 # Seed Go best practices + CI/CD patterns
-aide init go go-github-actions
+aide blueprint import go go-github-actions
 
 # Or auto-detect from project markers (go.mod, Cargo.toml, .github/workflows, etc.)
-aide init --detect
+aide blueprint import --detect
 
 # Preview before importing
-aide init --show go
-aide init --list
+aide blueprint show go
+aide blueprint list
 ```
 
 This imports decisions covering language idioms, tooling, project structure, concurrency, testing, and more. Each is stored as its own decision topic and injected into every future session automatically.

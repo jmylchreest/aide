@@ -56,8 +56,8 @@ AIDE indexes symbols, discovers modules, tech stack, entry points, and git churn
 Bootstrap with curated best practices, then customise:
 
 ```bash
-aide init go go-github-actions    # seeds 36 decisions from blueprints
-aide init --detect                # or auto-detect from project markers
+aide blueprint import go go-github-actions    # seeds decisions from blueprints
+aide blueprint import --detect               # or auto-detect from project markers
 ```
 
 Then refine with the decide skill for project-specific choices:
