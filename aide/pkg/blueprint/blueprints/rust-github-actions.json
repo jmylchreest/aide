@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "name": "rust-github-actions",
+  "display_name": "Rust CI/CD with GitHub Actions",
+  "description": "Rust-specific CI patterns: clippy, cargo-nextest, cargo-deny, sanitizers, coverage, and release automation",
+  "version": "0.0.0",
+  "tags": ["ci", "github-actions", "rust"],
+  "includes": ["github-actions"],
+  "decisions": [
+    {
+      "topic": "rust-ci-workflow",
+      "decision": "Separate CI jobs for formatting, linting, testing, and security scanning with dtolnay/rust-toolchain",
+      "rationale": "Separate jobs provide fast feedback on the specific failure type. dtolnay/rust-toolchain is the maintained replacement for the deprecated actions-rs toolchain. Parallel jobs reduce total CI time.",
+      "details": "Jobs:\n1. fmt — cargo fmt --all -- --check\n2. clippy — cargo clippy --workspace --all-targets --all-features (with RUSTFLAGS=\"-Dwarnings\")\n3. test — cargo nextest run --workspace\n4. deny — cargo deny check (advisories, licenses, bans, sources)\n5. coverage — cargo llvm-cov (on main branch only)\n\nUse dtolnay/rust-toolchain@stable (or @nightly, @1.XX for MSRV). Use Swatinem/rust-cache@v2 after toolchain setup for CARGO_HOME and target/ caching.",
+      "references": [
+        "https://github.com/dtolnay/rust-toolchain",
+        "https://github.com/Swatinem/rust-cache"
+      ]
+    },
+    {
+      "topic": "rust-ci-matrix",
+      "decision": "Test on stable + MSRV; optionally nightly with continue-on-error; cross-platform matrix for binaries",
+      "rationale": "Stable catches current issues. MSRV ensures downstream compatibility. Nightly previews upcoming breakage but should not block PRs. Cross-platform testing catches platform-specific bugs.",
+      "details": "Matrix strategy:\n  rust: [stable, \"1.XX\"] (MSRV from rust-version in Cargo.toml)\n  os: [ubuntu-latest, macos-latest, windows-latest] (for binaries)\n\nNightly job: continue-on-error: true.\n\nfail-fast: false to ensure all combinations complete.\n\nFor cross-compilation (ARM, musl), use cross-rs via houseabsolute/actions-rust-cross action.\n\nTest feature combinations with cargo-hack: cargo hack test --feature-powerset --depth 2.",
+      "references": []
+    },
+    {
+      "topic": "rust-ci-caching",
+      "decision": "Use Swatinem/rust-cache for Cargo and target directory caching",
+      "rationale": "Swatinem/rust-cache automatically caches ~/.cargo and target/ directories, keyed on Cargo.lock, toolchain, and job. It sets CARGO_INCREMENTAL=0 for reproducible CI builds. Saves 2-5 minutes per job.",
+      "details": "Place after toolchain setup, before build steps. Key options: shared-key for cross-job sharing, cache-on-failure: true to cache even on test failures, save-if for conditional saving.\n\nFor workspaces with multiple Cargo.lock files, the action auto-detects. Cap at 10 GiB per repository (GitHub Actions limit).",
+      "references": ["https://github.com/Swatinem/rust-cache"]
+    },
+    {
+      "topic": "rust-ci-security",
+      "decision": "Run cargo-deny in CI on every PR; cargo audit on weekly schedule",
+      "rationale": "cargo-deny checks advisories, licenses, bans, and sources in one pass. Running on every PR catches issues at introduction time. Weekly cargo audit catches newly disclosed vulnerabilities in existing dependencies.",
+      "details": "Use EmbarkStudios/cargo-deny-action@v2 with matrix strategy for parallel checks:\n  matrix:\n    checks: [advisories, bans, licenses, sources]\n  steps:\n    - uses: EmbarkStudios/cargo-deny-action@v2\n      with:\n        command: check ${{ matrix.checks }}\n\nRequires deny.toml configuration in the repo. Start permissive, tighten over time.\n\nWeekly cron job runs cargo audit separately as a safety net.",
+      "references": ["https://github.com/EmbarkStudios/cargo-deny-action"]
+    },
+    {
+      "topic": "rust-ci-sanitizers",
+      "decision": "Run sanitizers in CI: ASan+UBSan together, TSan separately, optionally MSan",
+      "rationale": "Sanitizers catch memory safety and concurrency bugs that tests alone miss. ASan and TSan are mutually exclusive and must run as separate jobs. MSan is Clang-only and requires all dependencies instrumented.",
+      "details": "Job 1: RUSTFLAGS=\"-Zsanitizer=address\" cargo +nightly nextest run (ASan + UBSan)\nJob 2: RUSTFLAGS=\"-Zsanitizer=thread\" cargo +nightly nextest run (TSan, for multithreaded code)\n\nSanitizers require nightly Rust. Use -Zbuild-std to build stdlib with sanitizer instrumentation. Set ASAN_OPTIONS=detect_leaks=1 and UBSAN_OPTIONS=print_stacktrace=1.\n\nRun Miri as an additional CI job: cargo +nightly miri test (detects UB that sanitizers miss).",
+      "references": ["https://doc.rust-lang.org/nightly/unstable-book/compiler-flags/sanitizer.html"]
+    },
+    {
+      "topic": "rust-ci-coverage",
+      "decision": "Use cargo-llvm-cov for code coverage; upload to Codecov",
+      "rationale": "cargo-llvm-cov uses LLVM source-based instrumentation for accurate, region-level coverage. It is cross-platform (Linux/macOS/Windows), unlike cargo-tarpaulin which is Linux-only and ptrace-based.",
+      "details": "Install: cargo install cargo-llvm-cov\nRun: cargo llvm-cov --workspace --lcov --output-path lcov.info\nUpload: codecov/codecov-action@v4 with file: lcov.info\n\nTarget 80%+ coverage. Run on main branch merges to track trends. Optionally run on PRs with diff coverage reporting.",
+      "references": ["https://github.com/taiki-e/cargo-llvm-cov"]
+    },
+    {
+      "topic": "rust-release-automation",
+      "decision": "Use release-plz for version bumping and changelog; cargo-dist for binary packaging and GitHub Releases",
+      "rationale": "release-plz automates version bumping from Conventional Commits, changelog generation via git-cliff, and crates.io publishing. cargo-dist handles cross-platform binary builds, installers, and GitHub Release uploads. They complement each other.",
+      "details": "release-plz: Runs on push to main, creates a release PR with version bumps and changelog updates. On merge, publishes to crates.io.\n\ncargo-dist: Triggered on tag push, builds binaries for all targets, creates GitHub Release with installers (shell script, PowerShell, Homebrew tap).\n\nFor simpler projects, cargo-release handles both versioning and publishing in one tool.",
+      "references": [
+        "https://release-plz.ieni.dev/",
+        "https://opensource.axo.dev/cargo-dist/"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,104 @@
+{
+  "schema_version": 1,
+  "name": "rust",
+  "display_name": "Rust Best Practices",
+  "description": "Idiomatic Rust conventions, error handling, testing, async, and tooling for production code",
+  "version": "0.0.0",
+  "tags": ["language", "rust"],
+  "includes": ["general"],
+  "decisions": [
+    {
+      "topic": "rust-edition-policy",
+      "decision": "Always use the latest stable Rust edition; set rust-version (MSRV) in Cargo.toml",
+      "rationale": "Each edition unlocks safety improvements and language features. The latest edition (currently 2024) adds critical safety defaults like unsafe_op_in_unsafe_fn warnings. MSRV communicates the minimum compiler version to downstream users.",
+      "details": "Set edition in workspace Cargo.toml. Migrate with cargo fix --edition. Set rust-version to the minimum Rust version your code compiles on. CI should test on both stable and MSRV.",
+      "references": ["https://doc.rust-lang.org/edition-guide/"]
+    },
+    {
+      "topic": "rust-error-handling",
+      "decision": "Use thiserror for library error types, anyhow for application error propagation; never use unwrap() in production code paths",
+      "rationale": "thiserror provides zero-cost derive macros for std::error::Error without appearing in your public API. anyhow provides easy context addition with .context(). unwrap() panics on failure — use ? to propagate or expect() with a reason when panic is justified.",
+      "details": "Libraries: define domain-specific error enums with #[derive(thiserror::Error)]. Use #[from] for automatic conversion, #[source] for chains. Applications: use anyhow::Result with .context() for human-readable error chains. For large projects, consider snafu for richer context selectors. For CLIs/dev tools, miette provides diagnostic-quality error output with source code snippets.\n\nEnable clippy::unwrap_used as a lint in production crates, allow in test modules. If you must panic, use expect(\"reason\") with a clear explanation.",
+      "references": [
+        "https://docs.rs/thiserror",
+        "https://docs.rs/anyhow"
+      ]
+    },
+    {
+      "topic": "rust-clippy",
+      "decision": "Configure lints in Cargo.toml with workspace inheritance; enable pedantic and nursery with selective allows",
+      "rationale": "Cargo.toml lint configuration (RFC 3389) is the modern approach — workspace inheritance ensures consistency across all crates. Pedantic catches real issues but has noisy lints that should be selectively allowed. Restriction group should never be enabled wholesale — cherry-pick specific lints.",
+      "details": "In workspace Cargo.toml:\n[workspace.lints.clippy]\nall = { level = \"warn\", priority = -1 }\npedantic = { level = \"warn\", priority = -1 }\nnursery = { level = \"warn\", priority = -1 }\ncargo = { level = \"warn\", priority = -1 }\n\nCommon pedantic allows: cast_precision_loss, module_name_repetitions, must_use_candidate, missing_errors_doc, missing_panics_doc.\n\nCherry-pick from restriction: dbg_macro, undocumented_unsafe_blocks, clone_on_ref_ptr, unwrap_used.\n\nMember crates inherit with [lints] workspace = true.\n\nCI runs: cargo clippy --workspace --all-targets --all-features with RUSTFLAGS=\"-Dwarnings\".",
+      "references": ["https://doc.rust-lang.org/stable/clippy/lints.html"]
+    },
+    {
+      "topic": "rust-project-structure",
+      "decision": "Use Cargo workspaces with crates/ directory; separate lib.rs from main.rs even in binaries",
+      "rationale": "Workspaces provide dependency and lint inheritance. Separating lib.rs from main.rs enables unit testing without running the binary and allows library reuse.",
+      "details": "Workspace layout:\n  Cargo.toml — [workspace] root with [workspace.dependencies] and [workspace.lints]\n  crates/core/ — shared types and traits\n  crates/cli/ — binary crate\n  crates/server/ — binary crate\n\nFor simple projects, single crate with lib.rs + main.rs is fine. main.rs should be thin — parse args, wire deps, call into lib.\n\nUse workspace = true inheritance for all shared deps, package metadata, and lints. Set publish = false for internal workspace crates. Commit Cargo.lock for binaries, not for libraries.",
+      "references": ["https://doc.rust-lang.org/cargo/reference/workspaces.html"]
+    },
+    {
+      "topic": "rust-testing",
+      "decision": "Multi-layered testing with cargo-nextest as runner; property testing with proptest; snapshot testing with insta",
+      "rationale": "cargo-nextest is up to 3x faster than cargo test with per-test process isolation and flaky test detection. proptest catches edge cases manual tests miss. insta makes golden-file testing trivial with cargo insta review.",
+      "details": "Testing pyramid:\n1. Unit tests — inline #[cfg(test)] modules with #[test] functions.\n2. Property-based — proptest for core logic and algorithms.\n3. Snapshot — insta for serialization, CLI output, rendering.\n4. Integration — tests/ directory for system-level behavior.\n5. Doc tests — runnable examples in doc comments.\n\nUse rstest for parameterized tests and fixtures. Use mockall for trait mocking when needed. Target 80%+ coverage with cargo-llvm-cov.\n\nCI: cargo nextest run --workspace. Coverage: cargo llvm-cov --workspace.",
+      "references": [
+        "https://nexte.st/",
+        "https://insta.rs/"
+      ]
+    },
+    {
+      "topic": "rust-async",
+      "decision": "Use tokio as the async runtime; keep domain logic synchronous; async only at I/O boundaries",
+      "rationale": "Tokio is the dominant async runtime (20,000+ crates depend on it). async-std is discontinued (March 2025). Async adds complexity — only use it when you need high-concurrency I/O. Keeping domain logic synchronous makes it testable and composable.",
+      "details": "Use #[tokio::main] for applications. Use tokio::spawn_blocking for CPU-intensive work within async context. Use .instrument(span) from tracing to maintain context across async boundaries.\n\nPrefer the multi-threaded runtime for most applications. Use current_thread for constrained environments.\n\nAnti-patterns: blocking in async code (use spawn_blocking), making everything async when threads would be simpler, forgetting Send + 'static bounds when spawning tasks.",
+      "references": ["https://tokio.rs/tokio/tutorial"]
+    },
+    {
+      "topic": "rust-logging",
+      "decision": "Use tracing for all logging and observability; never use println! or the log crate directly",
+      "rationale": "tracing is the de facto standard for Rust logging, developed by the Tokio team. It supports structured logging, spans, async context propagation, and OpenTelemetry integration. It supersedes the log crate.",
+      "details": "Use tracing for instrumentation. Use tracing-subscriber for configuration (fmt layer, JSON output, EnvFilter for RUST_LOG). Use tracing-log as a compatibility bridge for dependencies still using the log crate.\n\nStructured fields: tracing::info!(user_id = %id, \"processing request\") — never string interpolation in messages.\n\nUse .instrument(span) on futures for async context. Integrate with tracing-opentelemetry for distributed tracing in production.",
+      "references": ["https://docs.rs/tracing"]
+    },
+    {
+      "topic": "rust-unsafe",
+      "decision": "Avoid writing unsafe code; when necessary, minimize scope, document safety invariants, and test with Miri",
+      "rationale": "Most unsafe functionality exists in the standard library or established crates. Unsafe blocks that lack safety documentation are time bombs. Miri detects undefined behavior that tests and sanitizers miss.",
+      "details": "Rules:\n- Prefer safe abstractions (Rc, Arc, RefCell, Mutex, Pin) over raw pointers.\n- Minimize unsafe blocks — one operation per block.\n- Every unsafe block needs a // SAFETY: comment explaining why the operation is safe.\n- Wrap unsafe code in modules that expose only safe interfaces.\n- Run cargo +nightly miri test to detect UB (aliasing violations, data races, use-after-free).\n- Enable clippy::undocumented_unsafe_blocks lint.\n- The latest edition defaults unsafe_op_in_unsafe_fn to warn — forces explicit unsafe blocks inside unsafe functions.",
+      "references": ["https://doc.rust-lang.org/nomicon/"]
+    },
+    {
+      "topic": "rust-documentation",
+      "decision": "All public API items must have doc comments with examples; use deny(missing_docs) in library crates",
+      "rationale": "Rust doc comments are runnable tests — they serve as both documentation and regression tests. The Rust API Guidelines require documentation with examples for all public items.",
+      "details": "Structure: one-line summary, detailed explanation, # Examples (runnable), # Errors, # Panics, # Safety (for unsafe fns).\n\nUse /// for item docs, //! for module/crate-level docs. Examples should use ? not unwrap(). Run cargo doc --no-deps --open to review.\n\nSet #![warn(missing_docs)] or #![deny(missing_docs)] in library crate roots. Doc tests run with cargo test --doc.",
+      "references": ["https://rust-lang.github.io/api-guidelines/documentation.html"]
+    },
+    {
+      "topic": "rust-dependencies",
+      "decision": "Use workspace dependency inheritance; run cargo-deny for license compliance and vulnerability scanning",
+      "rationale": "Workspace inheritance eliminates version duplication across crates. cargo-deny subsumes cargo-audit and adds license, ban, and source checks — critical for production software.",
+      "details": "Define shared deps once in [workspace.dependencies] with version and features. Members reference with dep.workspace = true.\n\nUse SemVer ranges (\"1.2\" not \"=1.2.3\") to allow compatible updates. Commit Cargo.lock for binaries.\n\ncargo-deny configuration (deny.toml): check advisories, licenses, bans, and sources. Run in CI on every PR. Also run cargo audit on a weekly cron as belt-and-suspenders.\n\nUse cargo-semver-checks before publishing libraries to detect breaking API changes.",
+      "references": [
+        "https://doc.rust-lang.org/cargo/reference/specifying-dependencies.html",
+        "https://embarkstudios.github.io/cargo-deny/"
+      ]
+    },
+    {
+      "topic": "rust-formatting",
+      "decision": "Use rustfmt with default settings; enforce in CI with cargo fmt --check",
+      "rationale": "rustfmt eliminates all formatting debates. Default settings match community convention. Consistent formatting reduces review noise.",
+      "details": "Run cargo fmt --all -- --check in CI (non-zero exit on diff). Customize minimally via rustfmt.toml if needed — defaults are well-chosen. Use #[rustfmt::skip] for exceptional blocks.",
+      "references": ["https://rust-lang.github.io/rustfmt/"]
+    },
+    {
+      "topic": "rust-performance",
+      "decision": "Profile before optimizing; use criterion or divan for benchmarks; track regressions in CI",
+      "rationale": "Micro-benchmarks can be misleading — always profile realistic workloads first. criterion provides statistical analysis with historical tracking. divan is the modern alternative with simpler API and less timing noise in CI.",
+      "details": "Use criterion for comprehensive benchmarking with HTML reports. Use divan for CI benchmarks (less timing noise). Use iai-callgrind for deterministic instruction-count benchmarks.\n\nUse black_box to prevent compiler optimizations in benchmarks. Profile with flamegraph or cargo-instruments before optimizing.\n\nPerformance-related crates: rayon (data parallelism), dashmap (concurrent map), smallvec (stack-allocated small vectors), parking_lot (faster locks).",
+      "references": ["https://nnethercote.github.io/perf-book/benchmarking.html"]
+    }
+  ]
+}
