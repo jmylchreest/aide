@@ -58,9 +58,9 @@
     },
     {
       "topic": "c-testing",
-      "decision": "Use CMocka 2.0 for testing; it provides integrated type-safe mocking with no external dependencies",
-      "rationale": "CMocka 2.0 (released December 2025) is the leading C test framework. It has built-in type-safe mocking macros (no code generation or Ruby needed), TAP 14 output, and first-class CMake and Meson support. Used by samba, libssh, coreboot, OpenVPN.",
-      "details": "CMocka requires only C99. Provides setup/teardown functions, group fixtures, type-safe assertions, and mocking via expect_* and will_return macros.\n\nAlternative: Unity + CMock for embedded (requires Ruby for mock generation).\n\nOrganise one test file per module in tests/. Run via CTest (CMake) or Meson test runner.",
+      "decision": "Use a test framework with integrated mocking support; CMocka and Unity+CMock are the leading choices",
+      "rationale": "C has no built-in test framework. A framework with mocking support enables proper isolation testing. CMocka provides built-in mocking with no external dependencies. Unity+CMock is strong for embedded (requires Ruby for mock generation).",
+      "details": "CMocka: requires only C99, built-in type-safe mocking macros, TAP output, CMake and Meson support. Used by samba, libssh, coreboot.\n\nUnity + CMock: lightweight xUnit assertions, auto-generated mocks from headers, excellent embedded documentation. Paired with Ceedling build/test tool.\n\nOther options: Check (fork-safe, timeout support), Criterion (modern, auto-discovery).\n\nOrganise one test file per module in tests/. Run via CTest (CMake) or Meson test runner.",
       "references": ["https://cmocka.org/"]
     },
     {
@@ -86,7 +86,7 @@
     },
     {
       "topic": "c-build-system",
-      "decision": "Use Meson for new projects (clean syntax, integrated dependencies); CMake for ecosystem compatibility",
+      "decision": "Choose Meson or CMake as the build system; both are production-quality with different trade-offs",
       "rationale": "Meson provides cleaner syntax, faster builds (Ninja backend), and integrated dependency management via WrapDB. CMake has the largest ecosystem and IDE support. Both are viable — choose based on project needs.",
       "details": "Meson: Python-like syntax, built-in subproject/wrap system, native cross-compilation. Use meson wrap search/install for dependencies.\n\nCMake: target-based configuration (target_* commands, PRIVATE/PUBLIC/INTERFACE). Use CMakePresets.json. Generate compile_commands.json with -DCMAKE_EXPORT_COMPILE_COMMANDS=ON.\n\nBoth support sanitizer flags, test integration, and installation targets.",
       "references": [

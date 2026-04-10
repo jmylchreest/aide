@@ -44,9 +44,9 @@
     },
     {
       "topic": "cpp-testing",
-      "decision": "Use Catch2 v3 as primary test framework; CTest as runner; pair with Trompeloeil for mocking",
-      "rationale": "Catch2 provides expressive BDD-style tests with low setup overhead. CTest integrates naturally with CMake. For enterprise codebases with existing infrastructure, Google Test with GoogleMock is equally valid.",
-      "details": "Catch2 v3: library (not header-only like v2), CMake integration via FetchContent or vcpkg. Supports BDD-style (GIVEN/WHEN/THEN), generators, matchers, and benchmarks.\n\nGoogle Test: comprehensive, built-in mocking via GoogleMock, excellent IDE integration. Choose for large teams with existing GTest infrastructure.\n\nFor mocking with Catch2, use Trompeloeil or FakeIt. For property-based testing, use RapidCheck.\n\nOrganise: one test file per source file in tests/. Run via CTest in CI.",
+      "decision": "Choose Catch2 or Google Test as the test framework; use CTest as the runner; add a mocking library as needed",
+      "rationale": "Catch2 provides expressive BDD-style tests with low setup overhead. Google Test provides comprehensive features with built-in mocking via GoogleMock. Both are production-proven. CTest integrates naturally with CMake regardless of framework choice.",
+      "details": "Catch2 (latest): library (not header-only like v2), CMake integration via FetchContent or vcpkg. Supports BDD-style (GIVEN/WHEN/THEN), generators, matchers, and benchmarks.\n\nGoogle Test: comprehensive, built-in mocking via GoogleMock, excellent IDE integration. Choose for large teams with existing GTest infrastructure.\n\nFor mocking with Catch2, use Trompeloeil or FakeIt. For property-based testing, use RapidCheck.\n\nOrganise: one test file per source file in tests/. Run via CTest in CI.",
       "references": ["https://github.com/catchorg/Catch2"]
     },
     {
@@ -58,16 +58,16 @@
     },
     {
       "topic": "cpp-build-system",
-      "decision": "CMake 3.25+ with target-based configuration, CMakePresets.json, and Ninja as default generator",
+      "decision": "Use modern CMake with target-based configuration, CMakePresets.json, and Ninja as generator",
       "rationale": "CMake is the de facto standard for C++ builds. Target-based commands (target_*) replace error-prone directory-scoped settings. CMakePresets provide reproducible, shareable build configurations. Ninja is significantly faster than Make for incremental builds.",
       "details": "Core principles: target-centric (target_link_libraries, target_include_directories), PRIVATE/PUBLIC/INTERFACE for dependency visibility, generator expressions for portable targets, no global state (avoid set(CMAKE_CXX_FLAGS ...)).\n\nCMakePresets.json: define hidden base presets for common settings, derive platform/compiler-specific presets via inherits. Include configure, build, and test preset types.\n\nDependencies: find_package for system libraries, FetchContent for small deps, vcpkg for larger dependency sets.",
       "references": ["https://cmake.org/cmake/help/latest/manual/cmake-presets.7.html"]
     },
     {
       "topic": "cpp-package-management",
-      "decision": "Use vcpkg in manifest mode for dependency management; Conan 2 for complex cross-platform or embedded projects",
-      "rationale": "vcpkg provides the tightest CMake integration, simple manifest mode (vcpkg.json), and prebuilt binary caching on GitHub Actions. Conan 2 is better for complex dependency trees, cross-compilation profiles, and private package hosting.",
-      "details": "vcpkg: place vcpkg.json at project root. Wire via CMakePresets.json toolchain file. Dependencies are built from source ensuring ABI compatibility. Binary caching speeds up CI.\n\nConan 2: use for large projects with many dependencies, embedded targets, or internal package ecosystems. Lockfiles for reproducibility. Profiles for cross-compilation.\n\nFor small projects or header-only deps, CMake FetchContent is sufficient.",
+      "decision": "Use a package manager (vcpkg or Conan) for dependency management; choose based on project needs",
+      "rationale": "vcpkg provides tight CMake integration and simple manifest mode. Conan provides better cross-compilation profiles and private package hosting. Both are production-quality. For small projects, CMake FetchContent may be sufficient.",
+      "details": "vcpkg: place vcpkg.json at project root. Wire via CMakePresets.json toolchain file. Dependencies are built from source ensuring ABI compatibility. Binary caching speeds up CI.\n\nConan (latest): use for large projects with many dependencies, embedded targets, or internal package ecosystems. Lockfiles for reproducibility. Profiles for cross-compilation.\n\nFor small projects or header-only deps, CMake FetchContent is sufficient.",
       "references": [
         "https://vcpkg.io/",
         "https://docs.conan.io/2/"
