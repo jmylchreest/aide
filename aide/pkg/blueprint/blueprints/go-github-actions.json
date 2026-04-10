@@ -11,7 +11,7 @@
       "topic": "go-ci-workflow",
       "decision": "CI runs lint, vet, test with race detector, module verification, and vulnerability scan on every PR",
       "rationale": "Each check catches a different class of bug. Linting catches style and correctness issues. Vet catches suspicious constructs. Race detector catches data races invisible to normal testing. Module verification catches supply chain tampering. Vulnerability scanning catches known CVEs in dependencies.",
-      "details": "CI workflow structure (ci.yml, triggers on PR and push to main):\n\nJobs:\n1. lint — golangci-lint with your .golangci.yml v2 config.\n2. test — go mod verify, go vet ./..., go test -race -coverprofile=coverage.out -covermode=atomic ./...\n3. vuln — govulncheck via golang/govulncheck-action.\n\nKey configuration:\n- go-version-file: go.mod — reads the go directive, no hardcoded version to drift.\n- cache: true on actions/setup-go — automatically caches GOMODCACHE and GOCACHE keyed on go.sum. No separate actions/cache step needed.\n- fetch-depth: 1 on checkout — CI does not need full history.\n- Upload coverage as an artifact for tracking trends.\n\nAll three jobs can run in parallel since they have no dependencies on each other. Add a build job that depends on lint+test passing.",
+      "details": "ci.yml (PR + push to main). Three parallel jobs: 1) lint: golangci-lint v2, 2) test: go mod verify, go vet, go test -race -coverprofile=coverage.out -covermode=atomic ./..., 3) vuln: govulncheck-action. Config: go-version-file: go.mod, cache: true, fetch-depth: 1. Upload coverage artifact. Build job depends on lint+test.",
       "references": [
         "https://github.com/actions/setup-go"
       ]
@@ -20,7 +20,7 @@
       "topic": "go-ci-lint",
       "decision": "Use golangci-lint-action with version: latest to run the latest golangci-lint in CI",
       "rationale": "golangci-lint-action handles installation, caching, and reporting. Using version: latest ensures you always get the latest the latest golangci-lint release. The .golangci.yml in the repo controls which linters run.",
-      "details": "Workflow step:\n- name: golangci-lint\n  uses: golangci/golangci-lint-action@<sha> # latest\n  with:\n    version: latest\n\nThe action reads .golangci.yml from the repo root. Ensure the config has version: \"2\" at the top for the latest golangci-lint.\n\ngolangci-lint runs in the lint job with permissions: contents: read. It does not need write access.\n\nIf you have multiple Go modules in the repo (monorepo), run golangci-lint separately for each module with working-directory set appropriately.",
+      "details": "Step: uses: golangci/golangci-lint-action@<sha> with version: latest. Reads .golangci.yml from repo root (must have version: \"2\"). Permissions: contents: read only. Monorepo: run separately per module with working-directory.",
       "references": [
         "https://github.com/golangci/golangci-lint-action"
       ]
@@ -29,7 +29,7 @@
       "topic": "go-ci-caching",
       "decision": "Use setup-go cache: true for Go module and build caching; no separate cache step needed",
       "rationale": "actions/setup-go with cache: true automatically caches both GOMODCACHE and GOCACHE, keyed on go.sum. This eliminates the need for a separate actions/cache step for most Go projects and keeps workflows simple.",
-      "details": "Configuration:\n- uses: actions/setup-go@<sha>\n  with:\n    go-version-file: go.mod\n    cache: true\n\nThis caches:\n- GOMODCACHE (downloaded modules) — keyed on go.sum hash.\n- GOCACHE (build cache) — keyed on go.sum hash + workflow context.\n\nFor monorepos with multiple go.sum files, use cache-dependency-path to specify which files to key on:\n  cache-dependency-path: |\n    aide/go.sum\n    aide-web/go.sum\n\nOnly add a separate actions/cache step if you need to cache additional artifacts beyond what setup-go handles (e.g., tree-sitter grammar builds, generated code).",
+      "details": "setup-go with go-version-file: go.mod, cache: true. Caches GOMODCACHE (keyed on go.sum) and GOCACHE (go.sum + workflow). Monorepo: set cache-dependency-path to list all go.sum files. Only add separate actions/cache for extra artifacts (e.g., tree-sitter builds, generated code).",
       "references": [
         "https://github.com/actions/setup-go/blob/main/docs/advanced-usage.md"
       ]
@@ -38,14 +38,14 @@
       "topic": "go-release-workflow",
       "decision": "Use matrix builds with go build and gh release create for releases; inject version via ldflags; generate checksums",
       "rationale": "A matrix build with go build gives full control over the build process, supports CGO cross-compilation with zig, and avoids third-party tool dependencies. ldflags version injection is the standard Go pattern. gh release create is built into GitHub's own CLI.",
-      "details": "Release workflow (release.yml, triggers on tag push matching v[0-9]+.[0-9]+.[0-9]*):\n\nJob: release\n  permissions:\n    contents: write — create GitHub Release and upload assets.\n    id-token: write — OIDC for attestation (optional).\n  Steps:\n    1. Checkout with fetch-depth: 0 (for changelog generation).\n    2. Setup Go with go-version-file: go.mod.\n    3. Matrix build across targets (see go-matrix-builds decision).\n    4. Generate SHA256 checksums for all artifacts.\n    5. Create GitHub Release with gh release create, uploading binaries and checksums.\n\nVersion injection via ldflags:\n  go build -ldflags \"-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}\" ./cmd/myapp\n\n-s -w strips debug info, reducing binary size ~30%.\n\nAdd workflow_dispatch trigger for manual re-runs of failed releases.\n\nFor simple pure-Go projects without CGO, GoReleaser is a viable alternative that handles builds, archives, changelogs, and publishing in a single config. Choose based on complexity needs.",
+      "details": "release.yml (tag v*). Permissions: contents: write, id-token: write (OIDC optional). Checkout fetch-depth: 0, setup-go, matrix build, SHA256 checksums, gh release create.\nldflags: -s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}\nAdd workflow_dispatch for re-runs. GoReleaser viable for pure-Go without CGO.",
       "references": []
     },
     {
       "topic": "go-matrix-builds",
       "decision": "Use explicit matrix includes for cross-platform builds; zig for Linux/Windows cross-compilation, native runners for macOS",
       "rationale": "Explicit include entries per target give precise control over runner, compiler, and flags for each platform/arch combination. Zig provides a single-binary C cross-compiler that targets all platforms from a Linux runner. macOS builds use native clang because macOS SDK headers are required.",
-      "details": "Matrix strategy pattern (6 targets):\n\nstrategy:\n  fail-fast: false\n  matrix:\n    include:\n      - goos: linux\n        goarch: amd64\n        runner: ubuntu-latest\n        zig_target: x86_64-linux-gnu\n      - goos: linux\n        goarch: arm64\n        runner: ubuntu-latest\n        zig_target: aarch64-linux-gnu\n      - goos: darwin\n        goarch: amd64\n        runner: macos-latest\n      - goos: darwin\n        goarch: arm64\n        runner: macos-latest\n      - goos: windows\n        goarch: amd64\n        runner: ubuntu-latest\n        zig_target: x86_64-windows-gnu\n      - goos: windows\n        goarch: arm64\n        runner: ubuntu-latest\n        zig_target: aarch64-windows-gnu\n\nKey patterns:\n- fail-fast: false — do not cancel other platforms if one fails.\n- Linux and Windows targets cross-compile on ubuntu-latest using zig as CC.\n- macOS targets use native clang on macos-latest runners (supports both amd64 and arm64).\n- Set CGO_ENABLED=1, CC='zig cc -target ${{ matrix.zig_target }}' for zig targets.\n- Windows binaries get .exe suffix.\n- Artifact naming: {binary}-{os}-{arch}[.exe] for consistent naming across all platforms.\n- UPX compression for size reduction (skip for darwin and windows/arm64 where UPX is unreliable).\n\nUse this matrix approach instead of GoReleaser when CGO is required. GoReleaser's built-in cross-compilation does not support CGO well.",
+      "details": "6-target matrix (fail-fast: false): linux/{amd64,arm64} ubuntu+zig, darwin/{amd64,arm64} macos+clang, windows/{amd64,arm64} ubuntu+zig. CGO_ENABLED=1, CC='zig cc -target ${{ matrix.zig_target }}'. .exe for Windows. Naming: {binary}-{os}-{arch}[.exe]. UPX optional (skip darwin, windows/arm64). Use over GoReleaser when CGO needed.",
       "references": []
     }
   ]

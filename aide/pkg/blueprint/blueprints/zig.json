@@ -11,84 +11,84 @@
       "topic": "zig-version-policy",
       "decision": "Target the latest stable Zig release; set minimum_zig_version in build.zig.zon",
       "rationale": "Zig is pre-1.0 with breaking changes between minor versions. Targeting the latest stable ensures access to critical fixes and API improvements. minimum_zig_version documents compatibility (advisory only — not yet enforced by the compiler).",
-      "details": "Check https://ziglang.org/download/ for the current stable release. Use master builds only for experimentation, never for production. The 0.14 to 0.15 migration was extremely breaking (I/O overhaul, ArrayList API changes, usingnamespace removal) — expect similar breaks until 1.0.",
+      "details": "Check ziglang.org/download/ for current stable. Use master builds for experimentation only. Expect breaking migrations (e.g., 0.14->0.15: I/O overhaul, ArrayList changes, usingnamespace removal) until 1.0.",
       "references": ["https://ziglang.org/download/"]
     },
     {
       "topic": "zig-naming-conventions",
       "decision": "Follow the official Zig style guide: PascalCase for types and type-returning functions, camelCase for regular functions, snake_case for variables and fields",
       "rationale": "Zig naming conventions encode semantic meaning. When you see a PascalCase function name, you immediately know it returns a type. This is a powerful signal embedded in naming that the community universally follows.",
-      "details": "Types (struct, enum, union, error): PascalCase (Point, Color, FileError).\nFunctions returning a type: PascalCase (fn ArrayList(comptime T: type) type).\nRegular functions: camelCase (fn isSigned(), fn readByte()).\nVariables, fields, constants: snake_case (var my_count, const max_size).\nNamespace structs (zero fields): snake_case binding (const std = @import(\"std\")).\nFiles exposing a type: PascalCase (Foo.zig, HttpClient.zig).\nRegular files: snake_case (main.zig, root.zig, build_utils.zig).\n\nzig fmt enforces whitespace/structure but NOT naming — naming is enforced by convention and review.",
+      "details": "Types: PascalCase. Type-returning fns: PascalCase. Regular fns: camelCase. Vars/fields/consts: snake_case. Namespace structs: snake_case binding. Files exposing type: PascalCase (HttpClient.zig). Regular files: snake_case (main.zig). zig fmt enforces whitespace only, not naming.",
       "references": ["https://ziglang.org/documentation/master/"]
     },
     {
       "topic": "zig-error-handling",
       "decision": "Use explicit error sets for public APIs, inferred error sets for internals; errdefer for all partial cleanup",
       "rationale": "Explicit error sets document what can go wrong and enable exhaustive handling at call sites. Inferred error sets reduce boilerplate in internal code. errdefer is essential for correct cleanup when functions allocate multiple resources — it only runs when the function returns an error.",
-      "details": "Use try to propagate errors to the caller. Use catch for custom handling. Use errdefer for cleanup that should only happen on error path.\n\nPatterns:\n- errdefer allocator.free(memory) — free on error\n- errdefer |err| log.err(\"failed: {}\", .{err}) — log error context at origin\n- errdefer comptime unreachable — compile-time assert that error path is impossible\n\nAnti-patterns: catch unreachable unless mathematically proven impossible, catch {} silently swallowing errors, over-broad error sets that lose specificity.",
+      "details": "Use try to propagate, catch for custom handling, errdefer for error-path-only cleanup.\nPatterns: errdefer allocator.free(memory); errdefer |err| log.err(\"failed: {}\", .{err}); errdefer comptime unreachable (assert no error path).\nAvoid: catch unreachable (unless proven), catch {} (silent swallow), over-broad error sets.",
       "references": []
     },
     {
       "topic": "zig-allocator-patterns",
       "decision": "Always pass allocators as parameters; use DebugAllocator in development, ArenaAllocator for batch work, std.testing.allocator in tests",
       "rationale": "Explicit allocator injection is Zig's central design pattern — no hidden control flow. When you see an allocator parameter, the function will allocate. Different allocators serve different purposes: DebugAllocator detects leaks and UAF, ArenaAllocator enables efficient bulk allocation, std.testing.allocator automatically reports leaks.",
-      "details": "Allocator selection:\n- Development: std.heap.DebugAllocator (leak/double-free/UAF detection)\n- Production multithreaded: std.heap.SmpAllocator\n- Batch work (parsers, request handlers): std.heap.ArenaAllocator\n- Tests: std.testing.allocator (auto leak detection)\n- Stack/embedded: std.heap.FixedBufferAllocator\n- C interop: std.heap.c_allocator (requires -lc)\n\nEvery allocation must have a corresponding free. Use defer allocator.free(memory) immediately after allocation. For slices use alloc/free; for single items use create/destroy.\n\nAnti-patterns: global allocators, calling individual free() on arena-allocated memory (it is a no-op), using page_allocator for small allocations.",
+      "details": "DebugAllocator (dev), SmpAllocator (prod MT), ArenaAllocator (batch), std.testing.allocator (tests), FixedBufferAllocator (embedded), c_allocator (C interop, -lc).\ndefer allocator.free() right after alloc. Slices: alloc/free. Singles: create/destroy.\nAvoid: globals, free() on arena (no-op), page_allocator for small allocs.",
       "references": ["https://zig.guide/standard-library/allocators/"]
     },
     {
       "topic": "zig-project-structure",
       "decision": "Use zig init for project scaffolding; build.zig for build instructions, build.zig.zon for package metadata",
       "rationale": "zig init creates the canonical project structure. build.zig is Zig code (not a DSL) providing full build system expressiveness. build.zig.zon is the package manifest with dependencies, version, and fingerprint.",
-      "details": "Standard layout:\n  build.zig — build instructions\n  build.zig.zon — package metadata (name, version, dependencies, fingerprint)\n  src/main.zig — executable entry point\n  src/root.zig — library root (delete if exe-only)\n  src/Module.zig — PascalCase if the file exports a type\n  .zig-cache/ — build cache (gitignore)\n  zig-out/ — install output (gitignore)\n\nEvery .zig file IS a struct — @import returns the file's struct type. This enables 'files as namespaces' and 'files as types'.\n\nDo not include 'zig' in the package name. Keep the name as a bare Zig identifier, max 32 bytes.",
+      "details": "Layout: build.zig, build.zig.zon, src/main.zig (exe entry), src/root.zig (lib root), src/Module.zig (PascalCase = exports type). Gitignore .zig-cache/ and zig-out/.\nEvery .zig file IS a struct; @import returns its struct type (files as namespaces/types).\nPackage name: bare Zig identifier, max 32 bytes, no 'zig' prefix.",
       "references": ["https://ziglang.org/learn/build-system/"]
     },
     {
       "topic": "zig-dependencies",
       "decision": "Use build.zig.zon for dependencies with zig fetch --save; no central registry — use direct URLs",
       "rationale": "Zig's package manager is decentralized. Packages are distributed via Git URLs and tarballs. The hash in build.zig.zon IS the lock — no separate lockfile needed. Transitive dependencies are automatically resolved.",
-      "details": "Add dependencies: zig fetch --save <url> (fetches, hashes, adds to build.zig.zon).\n\nUse in build.zig:\n  const dep = b.dependency(\"dep_name\", .{ .target = target, .optimize = optimize });\n  exe.root_module.addImport(\"dep_name\", dep.module(\"dep_name\"));\n\nSet lazy: true for optional dependencies — access via b.lazyDependency() which returns an optional.\n\nThe hash is the source of truth, not the URL. Dependencies are only fetched/built when actually used.",
+      "details": "Add: zig fetch --save <url>. Use: b.dependency(\"name\", .{.target=target, .optimize=optimize}), then exe.root_module.addImport(\"name\", dep.module(\"name\")).\nOptional deps: lazy: true in build.zig.zon, access via b.lazyDependency() (returns optional).\nHash is source of truth, not URL. Deps only fetched/built when used.",
       "references": []
     },
     {
       "topic": "zig-testing",
       "decision": "Colocate tests with implementation; use std.testing.allocator for all test allocations; use descriptive test names",
       "rationale": "The standard library keeps tests in the same file as the code under test — this is the canonical pattern. std.testing.allocator automatically detects memory leaks after test completion. Descriptive names enable test filtering.",
-      "details": "Test declarations:\n  test \"descriptive name\" { ... } — named, filterable with --test-filter\n  test myFunction { ... } — doctest, appears in generated documentation\n  test { ... } — unnamed, always runs regardless of filtering\n\nKey assertions: expect(), expectEqual(), expectError(), expectEqualStrings(), expectEqualSlices().\n\nUse std.testing.allocator for ALL test allocations. Skip tests with return error.SkipZigTest when a test cannot run on the current platform.\n\nRun: zig build test (via build system), zig test src/main.zig (single file), zig build test -- --test-filter \"name\" (filtered).",
+      "details": "Forms: test \"name\" (filterable), test myFunction (doctest, in docs), test {} (unnamed, always runs).\nAssertions: expect(), expectEqual(), expectError(), expectEqualStrings(), expectEqualSlices().\nSkip: return error.SkipZigTest for platform-specific tests.\nRun: zig build test, zig test src/main.zig, zig build test -- --test-filter \"name\".",
       "references": []
     },
     {
       "topic": "zig-comptime",
       "decision": "Use comptime for generics, type introspection, and compile-time validation; never for I/O or side effects",
       "rationale": "Comptime is Zig's single mechanism replacing macros, templates, and generics. It is hermetic, reproducible, and cacheable — no I/O or side effects allowed. This makes builds deterministic.",
-      "details": "Key patterns:\n- Generic types: fn ArrayList(comptime T: type) type { return struct { ... }; }\n- Type introspection: @typeInfo(), @FieldType(), @tagName(), @field()\n- Loop unrolling: inline for over comptime-known sequences\n- Compile-time validation: comptime assert() for assumptions\n- Configuration: feature flags and protocol definitions at zero runtime cost\n- Type generation: @Type() to build struct/union/enum types dynamically\n\nLimitations by design: no I/O at comptime (use build.zig for build-time code generation), no dynamic code generation or string mixins, no custom syntax extension.\n\nAnti-pattern: using comptime when runtime would suffice (wastes compile time).",
+      "details": "Generic types: fn ArrayList(comptime T: type) type. Introspection: @typeInfo(), @FieldType(), @tagName(), @field(). inline for for unrolling. comptime assert() for validation. @Type() for dynamic types.\nNo I/O at comptime; use build.zig for codegen. Avoid comptime when runtime suffices.",
       "references": []
     },
     {
       "topic": "zig-memory-safety",
       "decision": "Use ReleaseSafe for production builds; rely on defer/errdefer for cleanup; understand that Zig lacks compile-time borrow checking",
       "rationale": "ReleaseSafe enables runtime bounds checking, overflow detection, and undefined detection while maintaining good performance. Unlike Rust, Zig does not prevent use-after-free or iterator invalidation at compile time — safety relies on runtime checks and disciplined coding.",
-      "details": "Safety modes:\n  Debug — all safety checks, fills 0xAA for uninitialized memory\n  ReleaseSafe — all safety checks with optimizations (recommended for production)\n  ReleaseFast — no safety checks (performance-critical only)\n  ReleaseSmall — no safety checks (size-constrained only)\n\ndefer/errdefer patterns:\n- defer allocator.free(memory) — cleanup always runs\n- errdefer allocator.free(memory) — cleanup only on error return\n- defer assert(postcondition) — verify state at scope exit\n- errdefer |err| log.err(\"failed: {}\", .{err}) — log at origin\n\nUse wrapping (+%, -%, *%) and saturating (+|, -|, *|) arithmetic for intentional overflow.\n\nUse DebugAllocator during development to catch UAF and double-free at runtime.",
+      "details": "Modes: Debug (all checks, 0xAA fill), ReleaseSafe (checks+opt), ReleaseFast (no checks), ReleaseSmall (size).\ndefer=unconditional, errdefer=error-path, defer assert()=postconditions.\nWrapping: +%, -%, *%. Saturating: +|, -|, *|. DebugAllocator in dev for UAF/double-free.",
       "references": []
     },
     {
       "topic": "zig-formatting",
       "decision": "Always run zig fmt; trailing commas control single-line vs multi-line layout",
       "rationale": "zig fmt is the canonical AST-based auto-formatter (like gofmt). Zero configuration. All Zig code should be formatted with it. Non-canonical formatting causes unnecessary churn in diffs.",
-      "details": "Run: zig fmt src/ or zig fmt . to format all Zig files.\n\nTrailing commas are significant: a trailing comma forces multi-line layout. Removing the trailing comma collapses to single-line if it fits.\n\nUse // zig fmt: off and // zig fmt: on directives to opt out for specific blocks.\n\nEnforce in CI: zig fmt --check src/ (non-zero exit on diff).",
+      "details": "Run: zig fmt src/ or zig fmt . Trailing comma forces multi-line; remove it to collapse to single-line.\nOpt out: // zig fmt: off / // zig fmt: on.\nCI: zig fmt --check src/ (non-zero exit on diff).",
       "references": []
     },
     {
       "topic": "zig-build-system",
       "decision": "Use build.zig with the module-based API; define standard steps for run, test, and install",
       "rationale": "build.zig is Zig code — not a DSL — providing full expressiveness. The module-based API (createModule) is the current standard. Steps run concurrently as a DAG; dependency edges determine execution order.",
-      "details": "Standard build.zig pattern:\n  const target = b.standardTargetOptions(.{});\n  const optimize = b.standardOptimizeOption(.{});\n  const exe = b.addExecutable(.{ .name = \"myapp\", .root_module = b.createModule(.{ .root_source_file = b.path(\"src/main.zig\"), .target = target, .optimize = optimize }) });\n  b.installArtifact(exe);\n\nAlways define: run step, test step, install step.\n\nAdvanced patterns: custom build options via b.option(), compile-time options injection via addOptions(), cross-compilation loops over target triples, code generation via addRunArtifact + captureStdOut.\n\nUse b.path() for source files, LazyPath for generated files. Avoid hardcoded paths (breaks caching and composability).",
+      "details": "b.standardTargetOptions(.{}), b.standardOptimizeOption(.{}), b.addExecutable + b.createModule(.{.root_source_file=b.path(\"src/main.zig\"), ...}), b.installArtifact(). Define run, test, install steps.\nAdvanced: b.option(), addOptions() (comptime injection), addRunArtifact+captureStdOut (codegen). Use b.path() for sources, LazyPath for generated.",
       "references": ["https://ziglang.org/learn/build-system/"]
     },
     {
       "topic": "zig-documentation",
       "decision": "Document all public APIs with /// doc comments; use //! for module-level documentation; write doctests",
       "rationale": "Zig doc comments support Markdown and are rendered by autodoc. Doctests (test named with an identifier) appear in generated documentation and serve as both docs and tests.",
-      "details": "/// for declaration docs (the item below). //! for module/file-level docs (at file top).\n\nDoctests: test myFunction { ... } — named with an identifier, appears in docs for myFunction.\n\nDoc comments support Markdown formatting. No HTML tags allowed — only Markdown that looks good both as source and rendered.\n\nGenerate docs: via build system or zig build-exe -femit-docs.",
+      "details": "/// for declaration docs. //! for module-level docs (file top). Doctests: test myFunction { ... } appears in generated docs.\nMarkdown only, no HTML. Generate: build system or zig build-exe -femit-docs.",
       "references": []
     }
   ]

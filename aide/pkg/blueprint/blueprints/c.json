@@ -11,84 +11,84 @@
       "topic": "c-standard-policy",
       "decision": "Target the latest stable C standard (C23) with C17 as fallback for portability",
       "rationale": "C23 adds critical safety features: nullptr (type-safe null), [[nodiscard]], bool/true/false as keywords, typeof, auto, constexpr, and standard attributes. GCC defaults to C23 in recent versions. C17 fallback covers older toolchains.",
-      "details": "Use -std=c23 as the default. Guard C23-specific features with __STDC_VERSION__ >= 202311L for portability. Key C23 features to adopt: nullptr (replaces NULL), [[nodiscard]] on error-returning functions, [[maybe_unused]], [[fallthrough]], [[deprecated]], unreachable() macro, binary literals (0b1010), digit separators.",
+      "details": "Use -std=c23. Guard with __STDC_VERSION__ >= 202311L for portability. Adopt: nullptr, [[nodiscard]], [[maybe_unused]], [[fallthrough]], [[deprecated]], unreachable(), binary literals (0b1010), digit separators.",
       "references": ["https://en.cppreference.com/w/c/23"]
     },
     {
       "topic": "c-compiler-warnings",
       "decision": "Enable comprehensive warnings in development; use -Werror=<specific> for critical warnings in distributed builds",
       "rationale": "Warnings catch real bugs at compile time. -Wall -Wextra alone miss important checks. Specific -Werror= flags catch critical issues without breaking builds on new compiler versions.",
-      "details": "Development baseline: -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wformat=2 -Wimplicit-fallthrough -Wdouble-promotion -Wshadow -Wundef -Wstrict-prototypes -Wmissing-prototypes.\n\nAlways error on: -Werror=format-security -Werror=implicit -Werror=incompatible-pointer-types -Werror=int-conversion -Werror=return-type.\n\nDo NOT distribute -Werror blanket — it creates a dependency on specific compiler versions. Use -Werror only in CI.",
+      "details": "Dev: -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wformat=2 -Wimplicit-fallthrough -Wdouble-promotion -Wshadow -Wundef -Wstrict-prototypes -Wmissing-prototypes.\nAlways: -Werror=format-security -Werror=implicit -Werror=incompatible-pointer-types -Werror=int-conversion -Werror=return-type.\nNever distribute blanket -Werror; use only in CI.",
       "references": ["https://best.openssf.org/Compiler-Hardening-Guides/Compiler-Options-Hardening-Guide-for-C-and-C++.html"]
     },
     {
       "topic": "c-hardening-flags",
       "decision": "Apply the full OpenSSF compiler hardening set in release builds",
       "rationale": "The OpenSSF Compiler Options Hardening Guide is the authoritative reference for production C code. These flags defend against buffer overflows, stack smashing, ROP/JOP attacks, and other exploits with minimal performance impact.",
-      "details": "Compile-time: -O2 -D_FORTIFY_SOURCE=3 -fstack-clash-protection -fstack-protector-strong -ftrivial-auto-var-init=zero -fno-delete-null-pointer-checks -fno-strict-overflow -fno-strict-aliasing.\n\nPosition-independent: -fPIE -pie (executables), -fPIC -shared (libraries).\n\nLinker: -Wl,-z,nodlopen -Wl,-z,noexecstack -Wl,-z,relro -Wl,-z,now -Wl,--as-needed.\n\nArchitecture: -fcf-protection=full (x86_64), -mbranch-protection=standard (ARM64).\n\nGCC 15+ shortcut: -fhardened applies a predetermined hardening set in one flag.",
+      "details": "-O2 -D_FORTIFY_SOURCE=3 -fstack-clash-protection -fstack-protector-strong -ftrivial-auto-var-init=zero -fno-delete-null-pointer-checks -fno-strict-overflow -fno-strict-aliasing.\n-fPIE/-pie (exe), -fPIC/-shared (lib). Link: -Wl,-z,{nodlopen,noexecstack,relro,now}.\n-fcf-protection=full (x86), -mbranch-protection=standard (arm64). GCC15+: -fhardened.",
       "references": ["https://best.openssf.org/Compiler-Hardening-Guides/Compiler-Options-Hardening-Guide-for-C-and-C++.html"]
     },
     {
       "topic": "c-error-handling",
       "decision": "Return error codes with out-parameters; use [[nodiscard]] on all error-returning functions; goto-cleanup for multi-resource functions",
       "rationale": "C has no exceptions. Return codes are the universal pattern (POSIX, Linux kernel). [[nodiscard]] (C23) forces callers to check return values at compile time. The goto-cleanup pattern (CERT C MEM12-C) handles multi-resource cleanup safely.",
-      "details": "Primary pattern: return error enum, output via pointer parameter. Define a project-wide error enum (ERR_OK = 0, ERR_INVALID_INPUT, ERR_OUT_OF_MEMORY, etc.).\n\nMulti-resource cleanup: goto-cleanup with resources freed in reverse acquisition order.\n\nConsider tagged union result types for complex APIs where errors carry data.\n\nNever return nil/NULL as 'not found' without an accompanying error code.",
+      "details": "Return error enum, output via pointer param. Define project-wide enum (ERR_OK=0, ERR_INVALID_INPUT, ERR_OUT_OF_MEMORY, ...).\ngoto-cleanup: free resources in reverse acquisition order.\nConsider tagged union result types when errors carry data. Never return NULL as 'not found' without error code.",
       "references": []
     },
     {
       "topic": "c-memory-management",
       "decision": "Use __attribute__((cleanup)) macros for automatic resource management; arena allocation for batch work",
       "rationale": "The cleanup attribute provides RAII-like automatic resource cleanup in C — when a variable goes out of scope, the cleanup function is called even on early returns. The Linux kernel adopted this pattern in 2023. Arena allocation eliminates individual free() calls for request-scoped work.",
-      "details": "Define cleanup macros: _cleanup_(func) __attribute__((cleanup(func))). Provide convenience wrappers: _autofree_ for malloc'd pointers, _autoclose_ for file descriptors.\n\nDo NOT mix goto-cleanup and cleanup attributes in the same function.\n\nFor portable code (MSVC), fall back to goto-cleanup.\n\nUse -ftrivial-auto-var-init=zero to zero-initialize stack variables, preventing information leaks from uninitialized memory.\n\nDocument ownership transfer explicitly. Use naming conventions: *_new() allocates, *_free() releases.",
+      "details": "Define: _cleanup_(func) __attribute__((cleanup(func))). Wrappers: _autofree_ (malloc), _autoclose_ (fd).\nDo not mix goto-cleanup and cleanup attrs in same function. Fall back to goto-cleanup for MSVC portability.\nUse -ftrivial-auto-var-init=zero for stack zeroing. Name conventions: *_new() allocates, *_free() releases. Document ownership transfer.",
       "references": []
     },
     {
       "topic": "c-sanitizers",
       "decision": "Mandate ASan+UBSan in CI for all test runs; TSan for threaded code; Valgrind for deep analysis",
       "rationale": "Sanitizers catch memory errors, undefined behavior, and data races that tests alone miss. ASan+UBSan has ~2-3x overhead and catches the most common bugs. TSan catches data races invisible to other tools.",
-      "details": "CI matrix:\n1. ASan + UBSan (always): -fsanitize=address,undefined -fno-omit-frame-pointer -O1 -g\n2. TSan (for threaded code, separate job): -fsanitize=thread\n3. MSan (Clang-only, optional): -fsanitize=memory — requires ALL dependencies instrumented\n4. Valgrind (optional): deep analysis, 10-50x overhead but catches things sanitizers miss\n\nASan, TSan, and MSan are mutually exclusive — run as separate CI jobs.\n\nSet ASAN_OPTIONS=detect_leaks=1:abort_on_error=1 and UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1.",
+      "details": "Separate CI jobs (mutually exclusive): ASan+UBSan (-fsanitize=address,undefined -fno-omit-frame-pointer -O1 -g), TSan (-fsanitize=thread), MSan (-fsanitize=memory, Clang-only, all deps instrumented). Optional: Valgrind.\nASAN_OPTIONS=detect_leaks=1:abort_on_error=1, UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1.",
       "references": ["https://github.com/google/sanitizers"]
     },
     {
       "topic": "c-static-analysis",
       "decision": "Run clang-tidy and cppcheck in CI; enable CERT C checks in clang-tidy",
       "rationale": "clang-tidy and cppcheck are free, complementary, and CI-friendly. clang-tidy uses the compilation database for accurate analysis. cppcheck has a low false-positive rate. Together they catch different classes of bugs.",
-      "details": "clang-tidy config (.clang-tidy): enable bugprone-*, cert-*, clang-analyzer-*, misc-*, performance-*, portability-*, readability-*.\n\nGenerate compile_commands.json from CMake (-DCMAKE_EXPORT_COMPILE_COMMANDS=ON) or Meson (automatic).\n\ncppcheck: run with --enable=all --error-exitcode=1 --suppress=missingIncludeSystem.\n\nConsider CodeChecker for a web dashboard over clang-tidy results with differential analysis.",
+      "details": ".clang-tidy: enable bugprone-*, cert-*, clang-analyzer-*, misc-*, performance-*, portability-*, readability-*.\nGenerate compile_commands.json: CMake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON or Meson (auto).\ncppcheck: --enable=all --error-exitcode=1 --suppress=missingIncludeSystem.\nOptional: CodeChecker for web dashboard with differential analysis.",
       "references": []
     },
     {
       "topic": "c-testing",
       "decision": "Use a test framework with integrated mocking support; CMocka and Unity+CMock are the leading choices",
       "rationale": "C has no built-in test framework. A framework with mocking support enables proper isolation testing. CMocka provides built-in mocking with no external dependencies. Unity+CMock is strong for embedded (requires Ruby for mock generation).",
-      "details": "CMocka: requires only C99, built-in type-safe mocking macros, TAP output, CMake and Meson support. Used by samba, libssh, coreboot.\n\nUnity + CMock: lightweight xUnit assertions, auto-generated mocks from headers, excellent embedded documentation. Paired with Ceedling build/test tool.\n\nOther options: Check (fork-safe, timeout support), Criterion (modern, auto-discovery).\n\nOrganise one test file per module in tests/. Run via CTest (CMake) or Meson test runner.",
+      "details": "CMocka: C99, built-in mocking, TAP output, CMake/Meson support.\nUnity+CMock: xUnit assertions, auto-generated mocks from headers, Ceedling build tool. Good for embedded.\nAlternatives: Check (fork-safe), Criterion (auto-discovery).\nOne test file per module in tests/. Run via CTest or Meson test.",
       "references": ["https://cmocka.org/"]
     },
     {
       "topic": "c-formatting",
       "decision": "Use clang-format with a project-specific .clang-format config; enforce in CI",
       "rationale": "clang-format is the universal standard for C formatting. No serious alternative exists. Committed config eliminates formatting debates. CI enforcement prevents style drift.",
-      "details": "Place .clang-format at project root. Start from a base style: BasedOnStyle: LLVM (or Linux for kernel-style). Customize minimally (IndentWidth, ColumnLimit, PointerAlignment, BreakBeforeBraces).\n\nCI: clang-format --dry-run --Werror (non-zero exit on diff).\n\nUse // clang-format off / // clang-format on for exceptional blocks. Use git blame --ignore-revs-file to skip bulk-reformat commits.",
+      "details": ".clang-format at root. Base: BasedOnStyle: LLVM (or Linux). Customize minimally: IndentWidth, ColumnLimit, PointerAlignment, BreakBeforeBraces.\nCI: clang-format --dry-run --Werror. Opt out: // clang-format off / on.\nUse git blame --ignore-revs-file to skip reformat commits.",
       "references": ["https://clang.llvm.org/docs/ClangFormatStyleOptions.html"]
     },
     {
       "topic": "c-naming",
       "decision": "Use snake_case throughout; prefix all public API functions with the module name; SCREAMING_SNAKE_CASE for constants and macros",
       "rationale": "The C ecosystem universally uses snake_case (stdlib, POSIX, Linux kernel). Module prefixes prevent naming collisions and immediately signal the data domain.",
-      "details": "Variables and functions: snake_case (buffer_size, config_parse).\nTypes: snake_case_t suffix (config_t, error_t).\nConstants and macros: SCREAMING_SNAKE_CASE (MAX_BUFFER_SIZE, ERR_OK).\nEnum values: SCREAMING_SNAKE_CASE (PARSE_OK, PARSE_ERROR).\nPublic functions: module_action() (sensor_read, http_request_new).\nHeader guards: PROJECT_MODULE_H or use #pragma once.",
+      "details": "Vars/fns: snake_case. Types: snake_case_t. Constants/macros/enums: SCREAMING_SNAKE_CASE. Public fns: module_action() (sensor_read, http_request_new). Header guards: PROJECT_MODULE_H or #pragma once.",
       "references": []
     },
     {
       "topic": "c-project-structure",
       "decision": "Namespace public headers under include/project_name/; use src/ for implementation; generate compile_commands.json",
       "rationale": "Namespaced headers prevent collisions when installed alongside other libraries. compile_commands.json enables accurate clang-tidy analysis and IDE support.",
-      "details": "Layout:\n  src/ — C source files\n  include/project_name/ — public headers\n  tests/ — test files\n  build/ — build output (gitignore)\n  .clang-format, .clang-tidy — tool configs\n  meson.build (or CMakeLists.txt)\n\nOne test file per module. Use compile_commands.json (auto-generated by Meson, -DCMAKE_EXPORT_COMPILE_COMMANDS=ON for CMake).",
+      "details": "Layout: src/, include/project_name/, tests/, build/ (gitignore), .clang-format, .clang-tidy, meson.build or CMakeLists.txt.\nOne test file per module. Generate compile_commands.json (Meson: auto, CMake: -DCMAKE_EXPORT_COMPILE_COMMANDS=ON).",
       "references": []
     },
     {
       "topic": "c-build-system",
       "decision": "Choose Meson or CMake as the build system; both are production-quality with different trade-offs",
       "rationale": "Meson provides cleaner syntax, faster builds (Ninja backend), and integrated dependency management via WrapDB. CMake has the largest ecosystem and IDE support. Both are viable — choose based on project needs.",
-      "details": "Meson: Python-like syntax, built-in subproject/wrap system, native cross-compilation. Use meson wrap search/install for dependencies.\n\nCMake: target-based configuration (target_* commands, PRIVATE/PUBLIC/INTERFACE). Use CMakePresets.json. Generate compile_commands.json with -DCMAKE_EXPORT_COMPILE_COMMANDS=ON.\n\nBoth support sanitizer flags, test integration, and installation targets.",
+      "details": "Meson: built-in wrap system (meson wrap search/install), native cross-compilation.\nCMake: target-based (target_* + PRIVATE/PUBLIC/INTERFACE), CMakePresets.json, -DCMAKE_EXPORT_COMPILE_COMMANDS=ON.\nBoth support sanitizers, test integration, and install targets.",
       "references": [
         "https://mesonbuild.com/",
         "https://cmake.org/"

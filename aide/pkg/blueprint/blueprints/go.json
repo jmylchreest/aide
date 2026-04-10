@@ -11,7 +11,7 @@
       "topic": "go-version-policy",
       "decision": "Always target the latest stable Go version; use the go directive in go.mod as the single source of truth",
       "rationale": "Go maintains excellent backwards compatibility. Staying current ensures access to security fixes, performance improvements, and new language features. The Go team supports the two most recent major releases. The go directive in go.mod is read by tooling (setup-go, IDE, CI) so it eliminates version drift.",
-      "details": "When creating new modules, run go mod init with the current stable Go version. When updating existing modules, bump the go directive in go.mod to the latest stable release. CI workflows should use go-version-file: go.mod rather than hardcoding a version. Check https://go.dev/dl/ for the current stable version.",
+      "details": "- New modules: go mod init with current stable version.\n- Existing modules: bump go directive in go.mod to latest stable.\n- CI: use go-version-file: go.mod, never hardcode versions.\n- Check https://go.dev/dl/ for current stable.",
       "references": [
         "https://go.dev/doc/devel/release",
         "https://go.dev/dl/"
@@ -21,7 +21,7 @@
       "topic": "go-module-management",
       "decision": "Use go mod tidy after every dependency change; pin tool dependencies with go tool directives",
       "rationale": "go mod tidy ensures go.mod and go.sum are consistent and minimal. The go tool directive (modern Go) replaces the tools.go blank-import hack with first-class support for tool dependencies tracked in go.sum.",
-      "details": "Module path must be a real import path: go mod init github.com/org/repo.\n\nAfter any dependency change, run go mod tidy to prune unused deps and add missing ones. Run go mod verify in CI to check the module cache has not been tampered with.\n\nFor tool dependencies (linters, generators, etc.), use go tool directives in go.mod rather than a separate tools.go file. Install and run with: go tool <name>.\n\nNever vendor unless you have a specific reason (air-gapped builds, hermetic CI). Vendoring adds noise to diffs and increases repo size.",
+      "details": "- Module path must be a real import path: go mod init github.com/org/repo.\n- Run go mod tidy after every dep change. Run go mod verify in CI.\n- Tool deps (linters, generators): use go tool directives in go.mod, run with go tool <name>. No tools.go hack.\n- Never vendor unless air-gapped/hermetic builds require it.",
       "references": [
         "https://go.dev/ref/mod"
       ]
@@ -30,7 +30,7 @@
       "topic": "go-project-structure",
       "decision": "Use cmd/internal/pkg layout for multi-binary projects; flat layout for simple projects",
       "rationale": "The cmd/internal/pkg convention is well-understood in the Go community. internal/ provides compiler-enforced encapsulation. But adding structure prematurely increases complexity without benefit.",
-      "details": "Standard layout:\n  cmd/<name>/main.go — thin entry point (~50 lines). Parse flags, wire dependencies, start. Nothing else.\n  internal/ — all private logic. The compiler enforces this boundary.\n  pkg/ — only promote code here when another team/module actually imports it today. Not 'maybe someday'.\n\nFor small single-binary projects, a flat layout (packages at root) is fine. Add cmd/ and internal/ when complexity warrants it.\n\nPackage names: short, lowercase, no underscores, no utils/helpers/common. A package named 'user' is better than 'userManagement'. The package path provides context — the name should add, not repeat.",
+      "details": "- cmd/<name>/main.go: thin entry (~50 lines). internal/: private logic. pkg/: only when another module imports it today.\n- Flat layout fine for simple projects; add structure when complexity warrants.\n- Package names: short, lowercase, no underscores/utils/helpers/common.",
       "references": [
         "https://go.dev/doc/modules/layout"
       ]
@@ -39,7 +39,7 @@
       "topic": "go-error-handling",
       "decision": "Always wrap errors with context using %w; use errors.Is/As for inspection; never return nil, nil",
       "rationale": "Wrapping preserves the error chain for diagnosis while adding context at each call site. errors.Is/As work with wrapped errors while direct comparison (==) breaks. Returning nil, nil for 'not found' forces callers to check for both nil cases and leads to subtle bugs.",
-      "details": "Always wrap: return fmt.Errorf(\"create user: %w\", err)\n\nInspect with errors.Is(err, ErrNotFound) and errors.As(err, &target) — never err == ErrFoo.\n\nDeclare sentinel errors with Err prefix: var ErrNotFound = errors.New(\"not found\").\n\nUse structured error types when callers need to extract fields (errors.As). Use sentinels when callers only need identity checks (errors.Is). Use plain fmt.Errorf with %w when the caller never inspects the error.\n\nNever return nil, nil for 'not found' — return nil, ErrNotFound.\n\nUse errors.Join for multi-error aggregation — no third-party library needed.\n\nNever ignore errors. Never use _ for an error return unless you have an explicit comment explaining why.\n\nNo panic in production paths. Recover only at goroutine boundaries (e.g., HTTP handler middleware).",
+      "details": "- Wrap: fmt.Errorf(\"create user: %w\", err). Inspect: errors.Is/As, never ==.\n- Sentinels: var ErrNotFound = errors.New(\"not found\"). Structured types for field extraction.\n- Never nil, nil — use sentinel. errors.Join for multi-error.\n- Never ignore errors (_ needs comment). No panic; recover at goroutine boundaries only.",
       "references": [
         "https://go.dev/blog/go1.13-errors",
         "https://go.dev/doc/effective_go#errors"
@@ -49,7 +49,7 @@
       "topic": "go-context",
       "decision": "context.Context is always the first parameter named ctx; use typed keys; always defer cancel",
       "rationale": "Consistent placement makes context visible in every function signature. Typed keys prevent collisions across packages. Deferred cancel prevents context leaks which leak goroutines and memory.",
-      "details": "context.Context is always the first parameter, named ctx. Never store it in a struct.\n\nUse typed unexported struct pointer keys for context.WithValue — never strings or other built-in types. This prevents cross-package key collisions.\n\nAlways defer cancel() immediately after context.WithTimeout / context.WithCancel:\n  ctx, cancel := context.WithTimeout(parentCtx, 5*time.Second)\n  defer cancel()\n\nUse context.WithoutCancel(ctx) for fire-and-forget goroutines (webhooks, background tasks) — preserves parent values without inheriting cancellation. This replaces the old context.Background() workaround which lost all parent values.",
+      "details": "- First param, named ctx. Never store in a struct.\n- WithValue keys: typed unexported struct pointers, never strings.\n- Always defer cancel() immediately after WithTimeout/WithCancel.\n- context.WithoutCancel(ctx) for fire-and-forget goroutines — preserves values without inheriting cancellation.",
       "references": [
         "https://go.dev/blog/context"
       ]
@@ -58,7 +58,7 @@
       "topic": "go-naming",
       "decision": "Follow Go naming conventions: short packages, -er interfaces, Err prefix for sentinels, MixedCaps throughout",
       "rationale": "Consistent naming reduces cognitive load and makes code accessible to any Go developer. Go's naming conventions are well-established and enforced by community tooling.",
-      "details": "Packages: short, lowercase, no underscores. 'user' not 'userManagement'. Never 'utils', 'helpers', 'common'.\n\nInterfaces: -er suffix for single-method interfaces (Reader, UserFinder). Avoid IUser or UserInterface prefixes/suffixes.\n\nError sentinels: Err prefix (ErrNotFound, ErrTimeout). Never ErrorNotFound.\n\nConstants: MixedCaps (DefaultTimeout). Never SCREAMING_SNAKE_CASE.\n\nVariables: short in narrow scope ('u' for user in a 3-line function), descriptive in wider scope. Let scope determine name length.\n\nExported names include the package as context: user.New() not user.NewUser().",
+      "details": "- Packages: short, lowercase, no underscores/utils/helpers/common.\n- Interfaces: -er suffix (Reader, UserFinder). No IUser/UserInterface.\n- Sentinels: Err prefix. Constants: MixedCaps, no SCREAMING_SNAKE.\n- Vars: short in narrow scope, descriptive in wide. user.New() not user.NewUser().",
       "references": [
         "https://go.dev/doc/effective_go#names"
       ]
@@ -67,7 +67,7 @@
       "topic": "go-interfaces",
       "decision": "Define interfaces at the consumer, keep them small (1-3 methods), accept interfaces and return concrete types",
       "rationale": "Consumer-side interfaces decouple packages without premature abstraction. Small interfaces are easier to implement, compose, and mock. Returning concrete types preserves full API surface for callers who do not need abstraction.",
-      "details": "Define interfaces where they are used, not where they are implemented. The consumer knows what it needs; the producer should not guess.\n\nKeep interfaces small and focused: 1-3 methods. Compose larger behaviours from small interfaces (io.ReadWriteCloser = Reader + Writer + Closer).\n\nDo not create an interface until you have two implementations or need to mock for tests. A concrete type with methods is perfectly fine.\n\nAccept interfaces, return concrete types. This gives callers maximum flexibility on input and maximum information on output.",
+      "details": "- Define at consumer, not producer. 1-3 methods max.\n- Compose larger behaviours from small interfaces (io.ReadWriteCloser).\n- No interface until two implementations or test mocking requires it.\n- Accept interfaces, return concrete types.",
       "references": [
         "https://go.dev/doc/effective_go#interfaces"
       ]
@@ -76,7 +76,7 @@
       "topic": "go-concurrency",
       "decision": "Use errgroup over WaitGroup; bound all goroutine counts; channels for ownership transfer, mutexes for shared state",
       "rationale": "errgroup handles error propagation and context cancellation that WaitGroup ignores. Unbounded goroutines cause resource exhaustion under load. Channels and mutexes solve different problems — mixing them causes deadlocks.",
-      "details": "Prefer golang.org/x/sync/errgroup over bare sync.WaitGroup — it propagates the first error and cancels the group's context.\n\nAlways set g.SetLimit(n) to bound goroutine count. Unbounded goroutines are a production incident waiting to happen.\n\nUse channels for ownership transfer (one goroutine produces, another consumes, ownership moves). Use mutexes for shared state (multiple goroutines read/write the same data). Do not mix these patterns for the same resource.\n\nRespect context cancellation in all loops: check ctx.Err() or select on ctx.Done().\n\nCapture loop variables explicitly in goroutine closures for clarity, even in modern Go where the loop variable semantics have been fixed.",
+      "details": "- errgroup over WaitGroup. Always g.SetLimit(n) to bound goroutine count.\n- Channels for ownership transfer; mutexes for shared state. Don't mix for same resource.\n- All loops: check ctx.Err() or select on ctx.Done().\n- Capture loop vars explicitly in goroutine closures for clarity.",
       "references": [
         "https://pkg.go.dev/golang.org/x/sync/errgroup"
       ]
@@ -85,14 +85,14 @@
       "topic": "go-goroutine-lifecycle",
       "decision": "Every goroutine must have a guaranteed exit path; no unbounded loops without cancellation",
       "rationale": "A leaked goroutine is a memory leak that does not show up in unit tests but compounds in production. Unlike allocated memory, the garbage collector cannot reclaim a running goroutine. Leaked goroutines also hold references to their closure variables, channels, and connections — the blast radius grows over time.",
-      "details": "Rules:\n- Every go func() must have a clear termination condition. If you cannot describe when it exits, do not start it.\n- All blocking operations inside goroutines must be wrapped in a select with ctx.Done() or a stop channel.\n- No for {} or for range ch without a cancellation path. Every loop must select on context or a quit signal.\n- Use errgroup (with context) to bind goroutine lifetime to a parent scope. When the parent exits, all child goroutines must exit.\n- Ticker/timer loops must defer ticker.Stop() and select on ctx.Done() alongside the ticker channel.\n- Channel consumers must handle the channel being closed (the zero-value, ok idiom).\n- Never rely on process exit to clean up goroutines — this masks leaks that matter in long-running services.\n\nCommon leaked goroutine patterns to reject:\n- for { select { case msg := <-ch: ... } } — no ctx.Done() case.\n- go func() { for range ticker.C { ... } }() — no way to stop.\n- go func() { <-blockingCall() }() — no timeout or cancellation.\n- Goroutine outliving HTTP request handler scope without explicit lifecycle management.",
+      "details": "- Every go func() needs a clear exit. All blocking ops: select with ctx.Done().\n- No for{}/for range ch without cancellation. Bind lifetime via errgroup.\n- Tickers: defer Stop(), select ctx.Done(). Channels: handle close (ok idiom).\n- Reject: missing ctx.Done(); unstoppable ticker; no-timeout blocking; goroutine outliving handler.",
       "references": []
     },
     {
       "topic": "go-cgo",
       "decision": "Prefer CGO_ENABLED=0 for pure Go; when CGO is required, document why and use zig for cross-compilation",
       "rationale": "Pure Go (CGO_ENABLED=0) produces static binaries with no libc dependency, trivial cross-compilation, and simpler CI. But some dependencies require CGO (tree-sitter, SQLite, etc.). When CGO is necessary, zig provides a drop-in C/C++ cross-compiler that targets all major platforms from a single CI runner.",
-      "details": "Default to CGO_ENABLED=0 unless a dependency explicitly requires CGO. This produces fully static binaries suitable for scratch/distroless Docker images.\n\nWhen CGO is required:\n- Document which dependency requires it and why (e.g., tree-sitter C bindings).\n- Use zig as the cross-compiler for Linux and Windows targets (CC='zig cc -target x86_64-linux-gnu'). Zig is a single static binary that targets all platforms without installing separate toolchains.\n- Use native clang on macOS runners (macOS clang supports both x86_64 and arm64).\n- Test CGO builds on all target platforms in CI — CGO code that compiles on one platform may fail on another.\n- Strip debug info with -s -w ldflags to reduce binary size.\n- Consider UPX compression for distribution binaries (skip for darwin and some arch combos where UPX is unreliable).\n\nArtifact naming convention: {binary}-{os}-{arch}[.exe] (e.g., myapp-linux-amd64, myapp-windows-arm64.exe).",
+      "details": "- Default CGO_ENABLED=0 for static binaries.\n- CGO required: document why. CC='zig cc -target x86_64-linux-gnu' for Linux/Windows. Native clang on macOS.\n- Test CGO on all target platforms in CI. Strip with -s -w ldflags.\n- Naming: {binary}-{os}-{arch}[.exe]. UPX optional (skip darwin).",
       "references": [
         "https://go.dev/doc/install/source#environment",
         "https://ziglang.org/"
@@ -102,7 +102,7 @@
       "topic": "go-logging",
       "decision": "Use log/slog from the standard library; structured key-value pairs; no third-party logging libraries",
       "rationale": "log/slog is the official structured logging package in Go's standard library. It eliminates the need for logrus, zap, or zerolog while providing a standard interface that libraries and applications can share.",
-      "details": "Use log/slog for all logging. Do not add logrus, zap, or zerolog as dependencies.\n\nUse structured key-value pairs: slog.Info(\"job started\", \"job_id\", id, \"model\", model).\n\nEnrich the logger per operation with slog.With(...) rather than repeating fields on every call.\n\nLibraries must never call slog.SetDefault() — that is the application's job in main(). Libraries should accept a *slog.Logger parameter or use slog.Default() if none is provided.\n\nUse logger.InfoContext(ctx, ...) / ErrorContext to propagate trace context.\n\nLog levels: Debug for development diagnostics, Info for normal operations, Warn for recoverable issues, Error for failures that need attention. Never log at Error and also return the error — choose one.",
+      "details": "- slog only. No logrus/zap/zerolog. Structured KV: slog.Info(\"msg\", \"key\", val). Enrich with slog.With(...).\n- Libraries: never slog.SetDefault(); accept *slog.Logger or use slog.Default().\n- Use InfoContext/ErrorContext for trace propagation.\n- Debug=dev, Info=ops, Warn=recoverable, Error=actionable. Never log Error and return err.",
       "references": [
         "https://pkg.go.dev/log/slog"
       ]
@@ -111,7 +111,7 @@
       "topic": "go-testing",
       "decision": "Table-driven tests with t.Parallel, t.Helper, race detector always on, testing/synctest for concurrency",
       "rationale": "Table-driven tests reduce duplication and make it easy to add cases. Parallel tests catch data races and reduce CI time. The race detector finds bugs that are invisible to normal testing. testing/synctest replaces fragile time.Sleep in concurrent tests.",
-      "details": "Use table-driven tests with t.Run for subtests. Each case is a struct with inputs and expected outputs.\n\nCall t.Parallel() at the top of each test and subtest to run concurrently.\n\nUse t.Helper() in all test utility functions so failures point to the call site, not the helper.\n\nInject dependencies via interfaces. Write manual mocks — do not use generated mocks unless the interface is large.\n\nUse testing/synctest (modern Go) instead of time.Sleep in concurrent tests. It provides a fake clock and deterministic goroutine synchronisation.\n\nAlways run go test -race ./... in CI. Non-negotiable.\n\nBenchmarks: b.ResetTimer() after setup, b.ReportAllocs() for allocation tracking.\n\nPrefer stdlib testing assertions. Add github.com/stretchr/testify only if the team agrees — it is fine but not required.",
+      "details": "- Table-driven with t.Run. t.Parallel() in each test/subtest. t.Helper() in test utils.\n- Manual mocks via interfaces; generated only for large interfaces.\n- testing/synctest for concurrency (fake clock). No time.Sleep.\n- CI: go test -race ./... always. Benchmarks: b.ResetTimer(), b.ReportAllocs().\n- Prefer stdlib assertions; testify optional.",
       "references": [
         "https://go.dev/doc/tutorial/add-a-test",
         "https://pkg.go.dev/testing"
@@ -121,7 +121,7 @@
       "topic": "go-stdlib-preference",
       "decision": "Prefer modern standard library features over third-party equivalents",
       "rationale": "The Go standard library is high quality, stable, and has zero dependency cost. Modern Go has absorbed many features that previously required third-party libraries. Fewer dependencies mean less supply chain risk and simpler maintenance.",
-      "details": "Prefer these stdlib features over their third-party equivalents:\n\n- log/slog — replaces logrus, zap, zerolog.\n- errors.Join — replaces multierr, hashicorp/go-multierror.\n- context.WithoutCancel — replaces context.Background() workaround for fire-and-forget goroutines.\n- net/http enhanced routing (method+path patterns) — replaces gorilla/mux for simple APIs.\n- iter.Seq / iter.Seq2 with range-over-func — replaces manual slice accumulation and custom iterator patterns.\n- testing/synctest — replaces time.Sleep in concurrent tests.\n- min / max builtins — replaces manual ternary patterns.\n- slices and maps packages — replaces hand-rolled sort, search, and collection utilities.\n\nEvaluate new stdlib additions with each Go release. If a third-party dependency is now covered by stdlib, migrate and remove the dependency.",
+      "details": "Prefer stdlib: log/slog over logrus/zap/zerolog, errors.Join over multierr, context.WithoutCancel over Background() hack, net/http patterns over gorilla/mux, iter.Seq/Seq2 over manual iterators, testing/synctest over time.Sleep, min/max builtins, slices/maps packages. Migrate deps when stdlib catches up.",
       "references": [
         "https://go.dev/doc/devel/release"
       ]
@@ -130,7 +130,7 @@
       "topic": "go-rest-api",
       "decision": "For REST APIs, use an OpenAPI spec-first approach; prefer huma with chi or stdlib net/http enhanced routing depending on complexity",
       "rationale": "OpenAPI spec-first design ensures API documentation stays in sync with implementation. For complex APIs, huma generates OpenAPI 3.1 specs from Go types with automatic validation and RFC 7807 errors. For simple APIs, stdlib net/http with its enhanced routing (method+path patterns) is sufficient and has zero dependencies.",
-      "details": "Import: github.com/danielgtaylor/huma (latest) with the humachi adapter.\n\nDefine request/response as Go structs with struct tags for path/query/header params and documentation. huma auto-generates the OpenAPI 3.1 spec at /openapi.json from these types.\n\nBenefits:\n- Type-safe handlers: func(ctx context.Context, input *MyInput) (*MyOutput, error)\n- Automatic JSON Schema 2020-12 validation on all requests.\n- RFC 7807 structured error responses.\n- Content negotiation (JSON, CBOR).\n- Router-agnostic — works with chi, stdlib mux, fiber, gin via adapters.\n\nFor simple APIs where full OpenAPI generation is not needed, use stdlib net/http with its enhanced routing (method+path patterns). Add chi only when you need middleware composition, route groups, or URL parameters beyond what stdlib provides.\n\nNever use gorilla/mux for new projects — it is in maintenance mode. Avoid heavy frameworks (gin, echo) unless the team has strong existing expertise.",
+      "details": "- huma (danielgtaylor/huma) + humachi adapter. Structs with tags auto-generate OpenAPI 3.1. Type-safe handlers, JSON Schema validation, RFC 7807 errors.\n- Simple APIs: stdlib net/http patterns. Add chi for middleware/route groups.\n- Never gorilla/mux (maintenance mode). Avoid gin/echo.",
       "references": [
         "https://huma.rocks/",
         "https://github.com/danielgtaylor/huma",
@@ -141,7 +141,7 @@
       "topic": "go-async-api",
       "decision": "Use AsyncAPI specs as the contract for event-driven microservices; hand-write specs and validate in CI",
       "rationale": "AsyncAPI is the event-driven equivalent of OpenAPI — it documents channels, messages, schemas, and protocol bindings for async APIs (NATS, Kafka, AMQP, MQTT, WebSocket). Spec-first design ensures producers and consumers agree on the contract before implementation.",
-      "details": "AsyncAPI spec version: use the latest stable (currently 3.0). Write specs in YAML alongside the Go code.\n\nGo tooling for AsyncAPI is less mature than OpenAPI — there is no swaggo-equivalent for auto-generation from code. Treat specs as hand-written contracts:\n- Define message schemas using JSON Schema shared between AsyncAPI specs and Go struct definitions.\n- Validate specs in CI with the official asyncapi CLI: asyncapi validate ./asyncapi.yml\n- Generate documentation with asyncapi generate from the spec.\n- Keep protocol bindings (NATS subjects, Kafka topics, etc.) explicit in the spec so infrastructure topology is documented.\n\nPair with Protobuf or Avro for schema evolution when messages cross team/service boundaries. AsyncAPI describes the transport topology; the serialisation format is a separate concern.\n\nThis applies only to event-driven microservices architecture. For simple HTTP APIs, use huma with OpenAPI (see go-rest-api decision).",
+      "details": "- AsyncAPI 3.0 specs in YAML. Hand-written contracts (no Go auto-gen). Share JSON Schema with Go structs.\n- CI: asyncapi validate ./asyncapi.yml. Docs: asyncapi generate.\n- Keep protocol bindings (NATS subjects, Kafka topics) explicit in spec.\n- Pair with Protobuf/Avro for cross-service schema evolution. Event-driven only.",
       "references": [
         "https://www.asyncapi.com/",
         "https://www.asyncapi.com/docs/tools/cli"
@@ -151,14 +151,14 @@
       "topic": "go-third-party",
       "decision": "Justified third-party library choices for common needs; prefer narrow, well-maintained libraries over frameworks",
       "rationale": "Go's stdlib covers most needs but some problem domains benefit from proven third-party solutions. Each dependency should be justified by clear value over rolling your own. Prefer libraries with narrow scope, active maintenance, and significant community adoption.",
-      "details": "Recommended libraries by purpose:\n\n- HTTP routing (complex APIs): github.com/go-chi/chi — lightweight, stdlib-compatible. Use stdlib net/http for simple APIs.\n- OpenAPI REST: github.com/danielgtaylor/huma/v2 — spec-first API framework (see go-rest-api decision).\n- CLI: github.com/spf13/cobra — standard for multi-command CLIs.\n- Config: github.com/spf13/viper or github.com/caarlos0/env — env is simpler for 12-factor apps.\n- Database (Postgres): github.com/jackc/pgx/v5 — prefer over database/sql for Postgres-specific features.\n- SQL generation: github.com/sqlc-dev/sqlc — type-safe queries from SQL. Preferred over ORMs.\n- Validation: github.com/go-playground/validator — struct tag validation.\n- HTTP client retries: github.com/hashicorp/go-retryablehttp — wraps stdlib client.\n- Concurrency: golang.org/x/sync/errgroup — semi-stdlib, use over sync.WaitGroup.\n\nAvoid heavy ORMs (GORM) — they obscure SQL and fight Go's type system.\n\nEvery third-party dependency must pass the bar: is the value clearly higher than writing it ourselves? If not, use stdlib.",
+      "details": "Approved: chi (complex routing), huma/v2 (OpenAPI), cobra (CLI), viper or caarlos0/env (config), pgx/v5 (Postgres), sqlc (SQL gen over ORMs), go-playground/validator, go-retryablehttp (HTTP retries), x/sync/errgroup. Avoid GORM. Every dep must clearly beat stdlib.",
       "references": []
     },
     {
       "topic": "go-tooling",
       "decision": "Use gofmt/goimports, the latest golangci-lint, go vet, and govulncheck as the standard toolchain",
       "rationale": "gofmt eliminates all formatting debates. the latest golangci-lint runs dozens of linters in a single pass with a unified configuration. govulncheck catches known vulnerabilities in dependencies. These tools catch real bugs with minimal false positives.",
-      "details": "Required tools:\n- gofmt -w . (or goimports -w . for import grouping) — non-negotiable formatting.\n- go vet ./... — catches real bugs (suspicious constructs, printf format mismatches, etc.).\n- golangci-lint run ./... — single tool, runs all linters. Use version 2 (latest).\n- govulncheck ./... — scans for known vulnerabilities in dependencies.\n- go test -race ./... — race detector in CI.\n\nthe latest golangci-lint configuration (.golangci.yml):\n\nversion: \"2\"\nrun:\n  timeout: 5m\n  tests: true\nlinters:\n  default: standard\n  enable:\n    - errcheck\n    - gocyclo\n    - revive\n    - gosec\n    - unconvert\n    - unparam\n    - misspell\n  settings:\n    errcheck:\n      check-type-assertions: true\n      check-blank: true\n    gocyclo:\n      min-complexity: 15\n  exclusions:\n    presets:\n      - comments\n      - std-error-handling\n    rules:\n      - path: _test\\.go\n        linters:\n          - gocyclo\n          - errcheck\n          - gosec\nformatters:\n  enable:\n    - gofmt\n    - goimports\n\nKey v2 changes from v1: version: \"2\" required at top, linters.settings (nested, not top-level linters-settings), linters.default replaces enable-all/disable-all, formatters are a separate section.",
+      "details": "Run: gofmt/goimports, go vet, golangci-lint v2, govulncheck, go test -race. .golangci.yml v2: version: \"2\", timeout 5m, default: standard + errcheck/gocyclo/revive/gosec/unconvert/unparam/misspell, gocyclo min 15, exclude comments+std-error-handling, relax in _test.go, formatters: gofmt+goimports. v2 needs version field, nested linters.settings.",
       "references": [
         "https://golangci-lint.run/"
       ]
@@ -167,7 +167,7 @@
       "topic": "go-import-grouping",
       "decision": "Three import groups: stdlib, third-party, internal — enforced by goimports",
       "rationale": "Consistent import grouping makes dependency relationships visible at a glance and is enforced automatically by goimports.",
-      "details": "Import groups separated by blank lines:\n\n1. Standard library\n2. Third-party packages\n3. Internal packages (same module)\n\nExample:\nimport (\n    \"context\"\n    \"fmt\"\n\n    \"github.com/go-chi/chi/v5\"\n\n    \"github.com/org/repo/internal/service\"\n)\n\ngoimports handles this automatically. Include it in your editor save hook and in the latest golangci-lint formatters configuration.",
+      "details": "Three groups separated by blank lines: 1) stdlib 2) third-party 3) internal (same module). Example: import (\"context\" / \"github.com/go-chi/chi/v5\" / \"github.com/org/repo/internal/service\"). goimports handles this automatically; include in editor save hook and golangci-lint formatters.",
       "references": []
     }
   ]

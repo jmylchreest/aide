@@ -11,7 +11,7 @@
       "topic": "gha-workflow-structure",
       "decision": "One workflow per concern with deny-all permissions and concurrency control",
       "rationale": "Separation of concerns keeps workflows maintainable and auditable. Deny-all permissions prevents accidental privilege escalation. Concurrency groups avoid wasted CI minutes on stale runs.",
-      "details": "Organise as: ci.yml (PR checks), release.yml (tag-triggered), optionally codeql.yml, docs.yml.\n\nSet permissions: {} at the workflow level to deny everything, then grant per-job with minimum required permissions.\n\nUse concurrency groups on PR workflows to cancel stale runs:\n\nconcurrency:\n  group: ci-${{ github.ref }}\n  cancel-in-progress: true\n\nAdd workflow_dispatch on release workflows for manual re-runs.\n\nSet cancel-in-progress: false on deployment workflows to avoid partial deploys.",
+      "details": "Files: ci.yml (PR checks), release.yml (tag-triggered), optionally codeql.yml, docs.yml. Set permissions: {} at workflow level, grant per-job. Concurrency on PR workflows: group: ci-${{ github.ref }}, cancel-in-progress: true. Add workflow_dispatch on release workflows. Set cancel-in-progress: false on deploy workflows.",
       "references": [
         "https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/controlling-permissions-for-github_token"
       ]
@@ -20,7 +20,7 @@
       "topic": "gha-action-pinning",
       "decision": "Pin all third-party actions to full commit SHA with version comment",
       "rationale": "Mutable tags (@v4, @main, @latest) can be moved by action maintainers — a compromised action tag is a supply chain attack. Full SHA is immutable. The version comment provides human readability.",
-      "details": "Format:\n  uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2\n\nNever use:\n  uses: actions/checkout@main\n  uses: actions/checkout@v4\n\nEnable Dependabot for the github-actions ecosystem to get automated SHA-bump PRs:\n\n# .github/dependabot.yml\nversion: 2\nupdates:\n  - package-ecosystem: github-actions\n    directory: /\n    schedule:\n      interval: weekly\n\nThis keeps actions current without manual SHA tracking.",
+      "details": "Do: uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2. Never: @main or @v4. Enable Dependabot for github-actions ecosystem (package-ecosystem: github-actions, interval: weekly) to automate SHA-bump PRs.",
       "references": [
         "https://docs.github.com/en/actions/security-for-github-actions/security-guides/security-hardening-for-github-actions#using-third-party-actions"
       ]
@@ -29,7 +29,7 @@
       "topic": "gha-permissions",
       "decision": "Deny all at workflow level; grant minimum per-job; use OIDC over long-lived secrets",
       "rationale": "Default GITHUB_TOKEN permissions are overly broad. Explicit per-job declarations make privilege requirements auditable. OIDC eliminates long-lived credential storage entirely.",
-      "details": "Workflow level:\n  permissions: {}\n\nCI jobs:\n  permissions:\n    contents: read\n\nRelease jobs:\n  permissions:\n    contents: write\n    id-token: write    # OIDC for Sigstore/cloud auth\n    packages: write    # only if pushing to GHCR\n\nFor cloud provider auth (AWS, GCP, Azure), use OIDC with id-token: write instead of storing access keys as secrets. This eliminates credential rotation and reduces blast radius of a token leak.",
+      "details": "Workflow: permissions: {}. CI jobs: contents: read. Release jobs: contents: write, id-token: write (OIDC for Sigstore/cloud auth), packages: write (if pushing to GHCR). Use OIDC with id-token: write for AWS/GCP/Azure auth instead of stored access keys.",
       "references": [
         "https://docs.github.com/en/actions/security-for-github-actions/security-guides/automatic-token-authentication"
       ]
@@ -38,7 +38,7 @@
       "topic": "gha-security",
       "decision": "Prevent injection attacks, restrict untrusted code execution, and limit token scope",
       "rationale": "GitHub Actions workflows are a common attack surface. Event data in run: blocks enables shell injection. pull_request_target grants write access to fork PRs. Defence in depth requires multiple controls.",
-      "details": "Rules:\n- Never use ${{ github.event.*.body }} or similar event data directly in run: blocks — pass via env: to prevent shell injection.\n- Never use pull_request_target with untrusted code checkout — it grants write access to fork PRs.\n- Restrict GITHUB_TOKEN scope: contents: read for CI, contents: write only for release.\n- Use environment protection rules for production deployments.\n- Enable required reviewers on environments with secrets.\n- Audit third-party actions before adoption — prefer actions from verified creators or with significant community usage.",
+      "details": "Never use ${{ github.event.*.body }} in run: blocks — pass via env: to prevent injection. Never use pull_request_target with untrusted checkout. Use environment protection rules + required reviewers for production. Audit third-party actions; prefer verified creators.",
       "references": [
         "https://docs.github.com/en/actions/security-for-github-actions/security-guides/security-hardening-for-github-actions"
       ]
@@ -47,7 +47,7 @@
       "topic": "gha-versioning",
       "decision": "Semantic versioning with Conventional Commits for automated version bumps",
       "rationale": "Semver communicates compatibility guarantees. Conventional Commits make version bumps deterministic and auditable — the commit history IS the changelog source.",
-      "details": "Tag format: vMAJOR.MINOR.PATCH (e.g., v1.2.3). GoReleaser and most release tools enforce this.\n\nVersion bump mapping from Conventional Commits:\n  fix:  → PATCH\n  feat: → MINOR\n  feat!: or BREAKING CHANGE: → MAJOR\n  chore:, docs:, test: → no bump\n\nPre-release tags: v1.0.0-rc1, v1.0.0-beta.2 — detected automatically by release tooling.\n\nFor manual tagging, always tag from main after PR merge. For automated tagging, use go-semantic-release or similar action triggered on push to main.",
+      "details": "Tag format: vMAJOR.MINOR.PATCH. Bump mapping: fix->PATCH, feat->MINOR, feat!/BREAKING CHANGE->MAJOR, chore/docs/test->no bump. Pre-release: v1.0.0-rc1, v1.0.0-beta.2. Tag from main after merge. Automate with go-semantic-release on push to main.",
       "references": [
         "https://semver.org/"
       ]
@@ -56,14 +56,14 @@
       "topic": "gha-snapshot-releases",
       "decision": "Continuous snapshot releases from main with dev version metadata",
       "rationale": "Snapshot releases give users and CI consumers access to the latest changes without waiting for a tagged release. Deterministic version format makes snapshots sortable and traceable.",
-      "details": "Snapshot version format: {major}.{minor}.{next_patch}-dev.{commits_since_tag}+{short_hash}\nExample: 0.0.59-dev.7+abc1234\n\nImplementation:\n- Trigger on push to main (not tags).\n- Skip if the commit already has a release tag.\n- Delete previous snapshot release/tag before creating new one (single rolling snapshot).\n- Mark as prerelease so it does not become 'latest' on GitHub.\n- Include same artifacts as full release for testing parity.",
+      "details": "Format: {major}.{minor}.{next_patch}-dev.{commits_since_tag}+{short_hash} (e.g. 0.0.59-dev.7+abc1234). Trigger on push to main (not tags). Skip if commit has a release tag. Delete previous snapshot release/tag (single rolling snapshot). Mark as prerelease. Include same artifacts as full release.",
       "references": []
     },
     {
       "topic": "gha-branch-protection",
       "decision": "Enforce PR workflow, required status checks, and up-to-date branches on main",
       "rationale": "Branch protection prevents accidental direct pushes, ensures CI passes before merge, and catches integration issues from stale branches.",
-      "details": "Configure on main:\n- Require pull request before merging (no direct pushes).\n- Require status checks to pass: lint, test, vuln (match your CI job names).\n- Require branches to be up to date before merging.\n- Dismiss stale pull request approvals when new commits are pushed.\n- Restrict who can push to matching branches (maintainers and release bots only).\n- Optionally require signed commits for supply chain integrity.",
+      "details": "On main: require PR (no direct pushes), require status checks (lint, test, vuln), require up-to-date branches, dismiss stale approvals on new commits. Restrict push to maintainers + release bots. Optionally require signed commits.",
       "references": [
         "https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-a-branch-protection-rule/about-protected-branches"
       ]
