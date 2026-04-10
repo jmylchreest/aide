@@ -146,44 +146,34 @@ func importBlueprint(backend *Backend, bp *blueprint.Blueprint, force, dryRun bo
 }
 
 func printImportSummary(results []blueprint.ImportResult, dryRun bool) {
-	if dryRun {
-		fmt.Println("Dry run — no changes made.")
-		fmt.Println()
-	}
-
 	totalImported := 0
 	totalSkipped := 0
 
+	w := newTabWriter()
 	for _, r := range results {
 		totalImported += r.Imported
 		totalSkipped += r.Skipped
 
-		if r.Imported > 0 || r.Skipped > 0 {
-			parts := []string{fmt.Sprintf("%s:", r.BlueprintName)}
-			if r.Imported > 0 {
-				verb := "imported"
-				if dryRun {
-					verb = "would import"
-				}
-				parts = append(parts, fmt.Sprintf("%d %s", r.Imported, verb))
-			}
-			if r.Skipped > 0 {
-				parts = append(parts, fmt.Sprintf("%d skipped (already set)", r.Skipped))
-			}
-			fmt.Println("  " + strings.Join(parts, " "))
+		if r.Imported == 0 && r.Skipped == 0 {
+			continue
 		}
+		status := fmt.Sprintf("%d decisions", r.Imported)
+		if r.Skipped > 0 {
+			status += fmt.Sprintf(", %d skipped", r.Skipped)
+		}
+		fmt.Fprintf(w, "  %s\t%s\n", r.BlueprintName, status)
 	}
+	w.Flush()
 
-	fmt.Printf("\nTotal: %d decisions", totalImported)
+	fmt.Println()
 	if dryRun {
-		fmt.Print(" would be imported")
+		fmt.Printf("%d decisions would be imported (dry run)\n", totalImported)
 	} else {
-		fmt.Print(" imported")
+		fmt.Printf("%d decisions imported\n", totalImported)
 	}
 	if totalSkipped > 0 {
-		fmt.Printf(", %d skipped", totalSkipped)
+		fmt.Printf("%d skipped (already set)\n", totalSkipped)
 	}
-	fmt.Println()
 }
 
 func initList() error {
