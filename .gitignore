@@ -26,10 +26,8 @@ Thumbs.db
 # Logs
 *.log
 
-# Claude Code local settings (machine-specific, contains paths and permissions)
-.claude/settings.local.json
-.claude/statsig/
-.claude/todos/
+# Claude Code (all local/machine-specific)
+.claude/
 
 # OpenCode local config and runtime (machine-specific paths)
 .opencode/

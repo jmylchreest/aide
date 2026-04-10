@@ -29,6 +29,7 @@ All AIDE data is stored in `.aide/` at the project root. A `.aide/.gitignore` is
 │   ├── aide.json              # Project-level configuration
 │   ├── mcp.json               # Canonical MCP server config
 │   └── mcp-sync.journal.json  # MCP sync deletion journal
+├── blueprints/                # Local blueprint overrides (JSON)
 ├── shared/                    # Exported decisions and memories
 │   ├── decisions/             # One markdown file per topic
 │   └── memories/              # One markdown file per category
@@ -65,10 +66,11 @@ Files use YAML frontmatter + markdown body, making them useful as LLM context ev
 
 ### Tracked by default (committing optional)
 
-| Path               | Purpose                          |
-| ------------------ | -------------------------------- |
-| `config/aide.json` | Project-level AIDE configuration |
-| `skills/`          | Project-specific custom skills   |
+| Path               | Purpose                                                |
+| ------------------ | ------------------------------------------------------ |
+| `config/aide.json` | Project-level AIDE configuration                       |
+| `blueprints/`      | Local blueprint overrides (override or extend shipped)  |
+| `skills/`          | Project-specific custom skills                         |
 
 ## Sharing Knowledge via Git
 

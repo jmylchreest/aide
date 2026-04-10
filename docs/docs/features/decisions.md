@@ -35,6 +35,18 @@ Set `AIDE_SHARE_AUTO_IMPORT=1` for automatic import on session start.
 
 Exported files use YAML frontmatter + markdown body, so they work as LLM context even without AIDE installed.
 
+## Blueprints
+
+For language-specific best practices, use [Blueprints](/docs/features/blueprints) to seed decisions in bulk:
+
+```bash
+aide init go                   # 18 Go best-practice decisions
+aide init go go-github-actions # + 6 CI/CD decisions
+aide init --detect             # auto-detect from project markers
+```
+
+Blueprint-imported decisions work exactly like manually recorded ones — they are injected into every session and can be overridden with `aide decision set`.
+
 ## Skill
 
 Use `/aide:decide` for formal decision-making interviews that record architectural choices with full rationale.

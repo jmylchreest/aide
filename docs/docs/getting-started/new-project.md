@@ -2,27 +2,43 @@
 
 For a greenfield project, use AIDE to set up guardrails and architectural foundations before writing code. This pays dividends as the codebase grows.
 
-## Step 1: Set Guardrails and Record Decisions
+## Step 1: Bootstrap with Blueprints
 
-Use the decide skill to establish coding standards, architectural patterns, and technology choices as formal decisions. Each one persists across sessions and is automatically enforced — every future session and swarm agent sees them.
+Blueprints seed your project with curated best-practice decisions for your language and tooling — error handling conventions, testing strategies, CI/CD patterns, and common pitfalls. One command, dozens of decisions:
 
-You can cover a lot of ground in a single prompt — the decide skill will work through each topic in turn, recording each as a separate decision:
+```bash
+# Seed Go best practices + CI/CD patterns
+aide init go go-github-actions
+
+# Or auto-detect from project markers (go.mod, Cargo.toml, .github/workflows, etc.)
+aide init --detect
+
+# Preview before importing
+aide init --show go
+aide init --list
+```
+
+This imports decisions covering language idioms, tooling, project structure, concurrency, testing, and more. Each is stored as its own decision topic and injected into every future session automatically.
+
+See [Blueprints](/docs/features/blueprints) for the full list of shipped blueprints and how to create your own.
+
+## Step 2: Refine with Project-Specific Decisions
+
+Blueprints cover general best practices. For choices specific to your project — auth strategy, database schema, API design — use the decide skill:
 
 ```
-Help me decide on the coding standards, error handling strategy, testing approach,
-and architecture patterns for this project. I want to enforce SOLID, DRY, Clean Code,
-and idiomatic language best practices.
+Help me decide on the auth strategy, database schema, and deployment approach
+for this project.
 ```
 
 The decide skill runs a structured interview for each topic: it explores options, weighs trade-offs, makes a recommendation, and records the decision with rationale once you confirm. A single conversation might produce decisions for:
 
-- **Coding standards** — SOLID, DRY, Clean Code, composition over inheritance, test coverage expectations
-- **Language idioms** — Go: accept interfaces, return structs. TypeScript: no `any`, discriminated unions. Python: type hints, dataclasses.
 - **Architecture** — Module boundaries, dependency direction, I/O separation
-- **Error handling** — Structured errors, fail-fast boundaries, no swallowed errors
-- **Testing strategy** — Framework choice, coverage targets, TDD vs test-after
+- **Auth** — JWT vs sessions, RBAC vs ABAC, token refresh flow
+- **Database** — Schema design, migration strategy, connection pooling
+- **Deployment** — Container strategy, environment promotion, rollback approach
 
-Each is stored as its own decision topic (e.g., `coding-standards`, `error-handling`, `testing-strategy`) so they can be reviewed and updated independently. Run more decision sessions later for database, auth, deployment, or anything else your project needs.
+Each is stored as its own decision topic (e.g., `auth-strategy`, `database-schema`) so they can be reviewed and updated independently. Run more decision sessions later for anything else your project needs.
 
 These decisions are injected into every session context automatically. You don't need to repeat yourself.
 

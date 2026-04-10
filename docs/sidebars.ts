@@ -23,6 +23,7 @@ const sidebars: SidebarsConfig = {
       items: [
         "features/memory",
         "features/decisions",
+        "features/blueprints",
         "features/code-indexing",
         "features/static-analysis",
         "features/status-dashboard",

@@ -33,6 +33,7 @@ The Go binary downloads automatically on first run. Skills become available imme
 | ------------------- | -------------------------------------------------------------------------------- |
 | **Memory**          | Remembers preferences and context across sessions                                |
 | **Decisions**       | Records architectural choices, enforces them in every session                    |
+| **Blueprints**      | Seeds best-practice decisions for Go, Rust, GitHub Actions, and more             |
 | **Code Index**      | Fast symbol search, call graphs, and references via tree-sitter                  |
 | **Static Analysis** | Detects complexity, coupling, secrets, and code duplication                      |
 | **Survey**          | Maps codebase structure: modules, entry points, tech stack, churn hotspots       |
@@ -52,13 +53,20 @@ AIDE indexes symbols, discovers modules, tech stack, entry points, and git churn
 
 ### New project — set up guardrails:
 
-```
-Help me decide on the coding standards, error handling strategy, testing approach,
-and architecture patterns for this project. I want to enforce SOLID, DRY, Clean Code,
-and idiomatic language best practices.
+Bootstrap with curated best practices, then customise:
+
+```bash
+aide init go go-github-actions    # seeds 36 decisions from blueprints
+aide init --detect                # or auto-detect from project markers
 ```
 
-The decide skill works through each topic in turn, recording separate decisions that persist across every future session. [Full guide](docs/docs/getting-started/new-project.md)
+Then refine with the decide skill for project-specific choices:
+
+```
+Help me decide on the auth strategy and database schema for this project.
+```
+
+Blueprints cover language idioms, tooling, CI/CD, and common pitfalls. The decide skill handles project-specific architectural choices. Both persist across every future session. [Full guide](docs/docs/getting-started/new-project.md)
 
 ## Skills
 

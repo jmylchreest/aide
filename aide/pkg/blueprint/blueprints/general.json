@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "name": "general",
+  "display_name": "General Best Practices",
+  "description": "Universal software engineering practices applicable to any language or stack",
+  "version": "0.0.0",
+  "tags": ["general"],
+  "includes": [],
+  "decisions": [
+    {
+      "topic": "commit-messages",
+      "decision": "Use Conventional Commits format with imperative mood",
+      "rationale": "Conventional Commits enable automated versioning (semver), changelog generation, and provide a parseable commit history. Imperative mood ('add feature' not 'added feature') matches git's own conventions (merge, revert).",
+      "details": "Format: <type>[optional scope]: <description>\n\nTypes: feat (MINOR bump), fix (PATCH bump), docs, test, chore, refactor, perf, ci, build.\nAppend ! for breaking changes (MAJOR bump): feat!: remove deprecated endpoint.\n\nThe body explains WHY, not WHAT — the diff shows what changed. Footer for references: Closes #123, BREAKING CHANGE: description.",
+      "references": [
+        "https://www.conventionalcommits.org/"
+      ]
+    },
+    {
+      "topic": "pr-hygiene",
+      "decision": "Small, focused pull requests with squash merge to main",
+      "rationale": "Small PRs are easier to review, less likely to introduce bugs, and faster to merge. Squash merge keeps main's history clean and parseable for automated tooling.",
+      "details": "Each PR should address one concern — a single feature, bug fix, or refactor. Title under 70 characters, description explains motivation and test plan. Avoid mixing refactoring with feature work in the same PR. If a change is large, split it into stacked PRs with clear dependencies.",
+      "references": []
+    },
+    {
+      "topic": "dependency-management",
+      "decision": "Pin dependencies, automate updates, audit vulnerabilities in CI",
+      "rationale": "Unpinned dependencies lead to non-reproducible builds and supply chain risk. Automated update PRs (Dependabot, Renovate) keep dependencies current without manual toil.",
+      "details": "Use lockfiles (go.sum, package-lock.json, Cargo.lock) and commit them. Enable Dependabot or Renovate for automated update PRs. Run vulnerability scanning in CI (govulncheck for Go, cargo audit for Rust, npm audit for Node). Review dependency additions carefully — prefer well-maintained libraries with narrow scope over kitchen-sink frameworks.",
+      "references": []
+    },
+    {
+      "topic": "secret-management",
+      "decision": "Never commit secrets; use environment-specific injection",
+      "rationale": "Committed secrets are near-impossible to fully remove from git history and are a common attack vector. Environment injection ensures secrets differ per environment and are managed by infrastructure.",
+      "details": "Use .env files locally (always in .gitignore). Use platform secret management in CI/CD (GitHub Actions secrets, Vault, cloud KMS). Rotate secrets regularly. Run secret detection in CI (gitleaks, trufflehog, or the aide secrets analyzer). If a secret is accidentally committed, rotate it immediately — do not rely on history rewriting alone.",
+      "references": []
+    },
+    {
+      "topic": "code-documentation",
+      "decision": "Code should be self-documenting; write docs for WHY, not WHAT",
+      "rationale": "Comments that restate what code does become stale and misleading. Documentation that explains intent, constraints, and non-obvious decisions remains valuable as code evolves.",
+      "details": "Name things clearly so the code reads as prose. Document: public API contracts, non-obvious design decisions, performance constraints, security boundaries, and anything where 'why' is not apparent from 'what'. Keep documentation next to the code it describes (doc comments, README in package directory). Separate architectural decision records (ADRs) for cross-cutting decisions.",
+      "references": []
+    }
+  ]
+}
