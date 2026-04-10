@@ -161,25 +161,44 @@ export function compareVersions(a: string, b: string): number {
 }
 
 /**
- * Get the download URL for the current platform
+ * Get the platform-specific binary name
  */
-export function getDownloadUrl(): string {
-  const platform = process.platform; // 'darwin', 'linux', 'win32'
-  const arch = process.arch; // 'x64', 'arm64'
-
+export function getBinaryName(): string {
+  const platform = process.platform;
+  const arch = process.arch;
   const goos = platform === "win32" ? "windows" : platform;
   const goarch = arch === "x64" ? "amd64" : arch;
   const ext = platform === "win32" ? ".exe" : "";
+  return `aide-${goos}-${goarch}${ext}`;
+}
 
-  const binaryName = `aide-${goos}-${goarch}${ext}`;
-
+/**
+ * Get download URLs for the current platform, in priority order.
+ * Returns the versioned URL first (exact match), then the latest release
+ * URL as a fallback. The fallback handles the race condition where the
+ * marketplace pulls the new plugin version before the release action
+ * has finished publishing binary artifacts.
+ */
+export function getDownloadUrls(): string[] {
+  const binaryName = getBinaryName();
   const version = getPluginVersion();
+
   if (version) {
-    return `https://github.com/jmylchreest/aide/releases/download/v${version}/${binaryName}`;
+    return [
+      `https://github.com/jmylchreest/aide/releases/download/v${version}/${binaryName}`,
+      `https://github.com/jmylchreest/aide/releases/latest/download/${binaryName}`,
+    ];
   }
 
-  // Fallback to latest if version can't be determined
-  return `https://github.com/jmylchreest/aide/releases/latest/download/${binaryName}`;
+  return [`https://github.com/jmylchreest/aide/releases/latest/download/${binaryName}`];
+}
+
+/**
+ * Get the download URL for the current platform (first priority URL).
+ * @deprecated Use getDownloadUrls() for fallback support.
+ */
+export function getDownloadUrl(): string {
+  return getDownloadUrls()[0];
 }
 
 /**
@@ -250,11 +269,7 @@ export async function downloadAideBinary(
     }
   }
 
-  const url = getDownloadUrl();
-
-  if (!quiet) {
-    log(`[aide] Downloading from: ${url}`);
-  }
+  const urls = getDownloadUrls();
 
   try {
     // Create bin directory
@@ -262,13 +277,35 @@ export async function downloadAideBinary(
       mkdirSync(destDir, { recursive: true });
     }
 
-    // Download using native fetch (follows redirects by default)
-    const response = await fetch(url, {
-      headers: { "User-Agent": "aide-plugin" },
-    });
+    // Try each URL in priority order, falling back on 404/network errors.
+    // This handles the race where the marketplace pulls a new plugin version
+    // before the release action has finished publishing binaries.
+    let response: Response | null = null;
+    let usedUrl = urls[0];
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    for (const url of urls) {
+      if (!quiet) {
+        log(`[aide] Downloading from: ${url}`);
+      }
+      const resp = await fetch(url, {
+        headers: { "User-Agent": "aide-plugin" },
+      });
+      if (resp.ok) {
+        response = resp;
+        usedUrl = url;
+        break;
+      }
+      if (resp.status === 404 && url !== urls[urls.length - 1]) {
+        if (!quiet) {
+          log(`[aide] Release not found (HTTP 404), trying fallback...`);
+        }
+        continue;
+      }
+      throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+    }
+
+    if (!response || !response.ok) {
+      throw new Error("All download URLs failed");
     }
 
     if (!response.body) {
