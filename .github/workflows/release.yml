@@ -165,7 +165,21 @@ jobs:
 
       - name: Install Zig
         if: matrix.zig_target
-        uses: mlugg/setup-zig@v2
+        run: |
+          ZIG_VERSION=$(curl -sf https://ziglang.org/download/index.json | jq -r '.master.version // empty' || echo "")
+          if [ -z "$ZIG_VERSION" ]; then
+            echo "::error::Failed to determine latest zig version"
+            exit 1
+          fi
+          case "$(uname -s)-$(uname -m)" in
+            Linux-x86_64)  ZIG_ARCH="x86_64-linux" ;;
+            Linux-aarch64) ZIG_ARCH="aarch64-linux" ;;
+            Darwin-x86_64) ZIG_ARCH="x86_64-macos" ;;
+            Darwin-arm64)  ZIG_ARCH="aarch64-macos" ;;
+            *) echo "::error::Unsupported platform"; exit 1 ;;
+          esac
+          curl -fSL "https://ziglang.org/builds/zig-${ZIG_ARCH}-${ZIG_VERSION}.tar.xz" | tar -xJ
+          echo "${PWD}/zig-${ZIG_ARCH}-${ZIG_VERSION}" >> "$GITHUB_PATH"
 
       - name: Build
         env:
@@ -264,7 +278,21 @@ jobs:
 
       - name: Install Zig
         if: matrix.zig_target
-        uses: mlugg/setup-zig@v2
+        run: |
+          ZIG_VERSION=$(curl -sf https://ziglang.org/download/index.json | jq -r '.master.version // empty' || echo "")
+          if [ -z "$ZIG_VERSION" ]; then
+            echo "::error::Failed to determine latest zig version"
+            exit 1
+          fi
+          case "$(uname -s)-$(uname -m)" in
+            Linux-x86_64)  ZIG_ARCH="x86_64-linux" ;;
+            Linux-aarch64) ZIG_ARCH="aarch64-linux" ;;
+            Darwin-x86_64) ZIG_ARCH="x86_64-macos" ;;
+            Darwin-arm64)  ZIG_ARCH="aarch64-macos" ;;
+            *) echo "::error::Unsupported platform"; exit 1 ;;
+          esac
+          curl -fSL "https://ziglang.org/builds/zig-${ZIG_ARCH}-${ZIG_VERSION}.tar.xz" | tar -xJ
+          echo "${PWD}/zig-${ZIG_ARCH}-${ZIG_VERSION}" >> "$GITHUB_PATH"
 
       - name: Build Astro frontend
         run: cd aide-web/web && bun install --frozen-lockfile && bun run build
@@ -359,7 +387,21 @@ jobs:
 
       - name: Install Zig
         if: matrix.zig_target
-        uses: mlugg/setup-zig@v2
+        run: |
+          ZIG_VERSION=$(curl -sf https://ziglang.org/download/index.json | jq -r '.master.version // empty' || echo "")
+          if [ -z "$ZIG_VERSION" ]; then
+            echo "::error::Failed to determine latest zig version"
+            exit 1
+          fi
+          case "$(uname -s)-$(uname -m)" in
+            Linux-x86_64)  ZIG_ARCH="x86_64-linux" ;;
+            Linux-aarch64) ZIG_ARCH="aarch64-linux" ;;
+            Darwin-x86_64) ZIG_ARCH="x86_64-macos" ;;
+            Darwin-arm64)  ZIG_ARCH="aarch64-macos" ;;
+            *) echo "::error::Unsupported platform"; exit 1 ;;
+          esac
+          curl -fSL "https://ziglang.org/builds/zig-${ZIG_ARCH}-${ZIG_VERSION}.tar.xz" | tar -xJ
+          echo "${PWD}/zig-${ZIG_ARCH}-${ZIG_VERSION}" >> "$GITHUB_PATH"
 
       - name: Ensure Xcode CLT (macOS)
         if: runner.os == 'macOS'
