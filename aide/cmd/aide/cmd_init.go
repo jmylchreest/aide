@@ -5,7 +5,12 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
+
+	"github.com/olekukonko/tablewriter"
+	"github.com/olekukonko/tablewriter/renderer"
+	"github.com/olekukonko/tablewriter/tw"
 
 	"github.com/jmylchreest/aide/aide/pkg/blueprint"
 	"github.com/jmylchreest/aide/aide/pkg/grammar"
@@ -133,17 +138,50 @@ func blueprintImport(dbPath string, args []string) error {
 
 func importBlueprint(backend *Backend, bp *blueprint.Blueprint, force, dryRun bool) (blueprint.ImportResult, error) {
 	result := blueprint.ImportResult{BlueprintName: bp.Name}
-	provenance := "blueprint:" + bp.Name
+	provenance := "blueprint:" + bp.Name + "@" + bp.Version
+	provenancePrefix := "blueprint:" + bp.Name + "@"
 
 	for _, d := range bp.Decisions {
 		existing, err := backend.GetDecision(d.Topic)
+		if err != nil && err != store.ErrNotFound {
+			return result, fmt.Errorf("check existing decision %s: %w", d.Topic, err)
+		}
+
 		if err == nil && existing != nil && !force {
+			// Check if this decision was imported from the same blueprint.
+			// Legacy provenance: "blueprint:go" (no version).
+			// Current provenance: "blueprint:go@1.0.0".
+			legacyProvenance := "blueprint:" + bp.Name
+			fromThisBlueprint := strings.HasPrefix(existing.DecidedBy, provenancePrefix) ||
+				existing.DecidedBy == legacyProvenance
+
+			if fromThisBlueprint {
+				contentChanged := existing.Decision != d.Decision ||
+					existing.Rationale != d.Rationale ||
+					existing.Details != d.Details
+
+				// Extract existing version; legacy (unversioned) is always superseded.
+				existingVer := "0.0.0"
+				if strings.HasPrefix(existing.DecidedBy, provenancePrefix) {
+					existingVer = strings.TrimPrefix(existing.DecidedBy, provenancePrefix)
+				}
+
+				if compareVersions(bp.Version, existingVer) > 0 && contentChanged {
+					// Newer blueprint version with changed content — supersede.
+					if !dryRun {
+						_, err = backend.SetDecision(d.Topic, d.Decision, d.Rationale, d.Details, provenance, d.References)
+						if err != nil {
+							return result, fmt.Errorf("update decision %s: %w", d.Topic, err)
+						}
+					}
+					result.Updated++
+					continue
+				}
+			}
+			// User-set decision or same version/content — skip.
 			result.Skipped++
 			result.SkippedTopics = append(result.SkippedTopics, d.Topic)
 			continue
-		}
-		if err != nil && err != store.ErrNotFound {
-			return result, fmt.Errorf("check existing decision %s: %w", d.Topic, err)
 		}
 
 		if dryRun {
@@ -163,17 +201,22 @@ func importBlueprint(backend *Backend, bp *blueprint.Blueprint, force, dryRun bo
 
 func printImportSummary(results []blueprint.ImportResult, dryRun bool) {
 	totalImported := 0
+	totalUpdated := 0
 	totalSkipped := 0
 
 	w := newTabWriter()
 	for _, r := range results {
 		totalImported += r.Imported
+		totalUpdated += r.Updated
 		totalSkipped += r.Skipped
 
-		if r.Imported == 0 && r.Skipped == 0 {
+		if r.Imported == 0 && r.Updated == 0 && r.Skipped == 0 {
 			continue
 		}
-		status := fmt.Sprintf("%d decisions", r.Imported)
+		status := fmt.Sprintf("%d new", r.Imported)
+		if r.Updated > 0 {
+			status += fmt.Sprintf(", %d updated", r.Updated)
+		}
 		if r.Skipped > 0 {
 			status += fmt.Sprintf(", %d skipped", r.Skipped)
 		}
@@ -183,9 +226,9 @@ func printImportSummary(results []blueprint.ImportResult, dryRun bool) {
 
 	fmt.Println()
 	if dryRun {
-		fmt.Printf("%d decisions would be imported (dry run)\n", totalImported)
+		fmt.Printf("%d would be imported, %d would be updated (dry run)\n", totalImported, totalUpdated)
 	} else {
-		fmt.Printf("%d decisions imported\n", totalImported)
+		fmt.Printf("%d imported, %d updated\n", totalImported, totalUpdated)
 	}
 	if totalSkipped > 0 {
 		fmt.Printf("%d skipped (already set)\n", totalSkipped)
@@ -198,17 +241,65 @@ func blueprintList() error {
 		return err
 	}
 
-	w := newTabWriter()
-	fmt.Fprintln(w, "NAME\tVERSION\tDECISIONS\tINCLUDES\tDESCRIPTION")
+	// Sort: base blueprints (no includes) first, then group by includes, then by name.
+	sort.Slice(blueprints, func(i, j int) bool {
+		iBase := len(blueprints[i].Includes) == 0
+		jBase := len(blueprints[j].Includes) == 0
+		if iBase != jBase {
+			return iBase
+		}
+		iInc := strings.Join(blueprints[i].Includes, ",")
+		jInc := strings.Join(blueprints[j].Includes, ",")
+		if iInc != jInc {
+			return iInc < jInc
+		}
+		return blueprints[i].Name < blueprints[j].Name
+	})
+
+	cfg := tablewriter.NewConfigBuilder().
+		WithHeaderAutoFormat(tw.Off).
+		WithRowAutoWrap(tw.WrapNormal).
+		WithRowAlignment(tw.AlignLeft).
+		WithHeaderAlignment(tw.AlignLeft).
+		ForColumn(4).WithMaxWidth(50).Build().
+		Build()
+
+	table := tablewriter.NewTable(os.Stdout,
+		tablewriter.WithConfig(cfg),
+		tablewriter.WithRenderer(renderer.NewBlueprint(tw.Rendition{
+			Borders: tw.Border{Left: tw.Off, Right: tw.Off, Top: tw.Off, Bottom: tw.Off},
+			Settings: tw.Settings{
+				Separators: tw.Separators{
+					BetweenRows:    tw.Off,
+					BetweenColumns: tw.On,
+				},
+				Lines: tw.Lines{
+					ShowHeaderLine: tw.On,
+					ShowTop:        tw.Off,
+					ShowBottom:     tw.Off,
+				},
+			},
+		})),
+	)
+	table.Header([]string{"NAME", "VERSION", "DECISIONS", "INCLUDES", "DESCRIPTION"})
+
 	for _, bp := range blueprints {
-		includes := "-"
+		includes := "—"
 		if len(bp.Includes) > 0 {
 			includes = strings.Join(bp.Includes, ", ")
 		}
-		fmt.Fprintf(w, "%s\t%s\t%d\t%s\t%s\n",
-			bp.Name, bp.Version, len(bp.Decisions), includes, bp.Description)
+		table.Append([]string{
+			bp.Name,
+			bp.Version,
+			fmt.Sprintf("%d", len(bp.Decisions)),
+			includes,
+			bp.Description,
+		})
 	}
-	return w.Flush()
+	table.Render()
+
+	fmt.Printf("\n%d blueprints available\n", len(blueprints))
+	return nil
 }
 
 func blueprintShow(name, dbPath string) error {

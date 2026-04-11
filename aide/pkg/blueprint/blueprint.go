@@ -42,6 +42,7 @@ type BlueprintDecision struct {
 type ImportResult struct {
 	BlueprintName string
 	Imported      int
+	Updated       int
 	Skipped       int
 	SkippedTopics []string
 }

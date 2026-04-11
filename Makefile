@@ -29,19 +29,45 @@ check-version:
 	@echo "$(VERSION)" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$$' || \
 		(echo "ERROR: VERSION must be semver (e.g., 1.2.3), got: $(VERSION)" && exit 1)
 
-# Update version in all JSON manifests, commit, and tag
+# Update version in all JSON manifests, bump changed blueprints, commit, and tag
 release: check-version test-ts
 	@echo "Releasing v$(VERSION)..."
 	@for f in $(VERSION_FILES); do \
 		sed -i 's/"version": *"[^"]*"/"version": "$(VERSION)"/' $$f; \
 	done
 	@echo "Updated: $(VERSION_FILES)"
+	@command -v jq >/dev/null || { echo "jq is required: brew install jq / apt install jq"; exit 1; }
+	@LAST_TAG=$$(git describe --tags --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' 2>/dev/null || echo ""); \
+	BP_DIR=aide/pkg/blueprint/blueprints; \
+	if [ -n "$$LAST_TAG" ]; then \
+		echo "Checking blueprints changed since $$LAST_TAG..."; \
+		CHANGED=$$(git diff --name-only "$$LAST_TAG" HEAD -- "$$BP_DIR" | grep '\.json$$'); \
+	else \
+		echo "No previous tag found, updating all blueprints..."; \
+		CHANGED=$$(ls "$$BP_DIR/"*.json 2>/dev/null); \
+	fi; \
+	UPDATED=0; \
+	for f in $$CHANGED; do \
+		if [ -f "$$f" ]; then \
+			echo "  $$f → $(VERSION)"; \
+			jq --arg v "$(VERSION)" '.version = $$v' "$$f" > "$$f.tmp" && mv "$$f.tmp" "$$f"; \
+			UPDATED=$$((UPDATED + 1)); \
+		fi; \
+	done; \
+	if [ "$$UPDATED" -gt 0 ]; then \
+		echo "$$UPDATED blueprint(s) updated to $(VERSION)"; \
+	else \
+		echo "No blueprint files changed since $${LAST_TAG:-the beginning}"; \
+	fi
+	@echo "Snapshotting docs for v$(VERSION)..."
+	@cd docs && npm run docusaurus docs:version $(VERSION)
 	@echo "Syncing bun.lock..."
 	@bun install
 	@echo ""
 	@git diff --stat
 	@echo ""
-	@git add $(VERSION_FILES) bun.lock
+	@git add $(VERSION_FILES) bun.lock aide/pkg/blueprint/blueprints/ \
+		docs/versions.json docs/versioned_docs/ docs/versioned_sidebars/
 	@git commit -m "release: v$(VERSION)"
 	@git tag -a "v$(VERSION)" -m "v$(VERSION)"
 	@echo ""
