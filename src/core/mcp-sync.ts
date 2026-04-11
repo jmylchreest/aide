@@ -806,6 +806,13 @@ function updateJournalAndResolve(
   const now = new Date().toISOString();
   const activePaths = new Set(sources.map((s) => s.path));
 
+  // Capture servers already in the journal before we process state
+  // transitions. The bootstrap phase should only backfill absence for
+  // these pre-existing servers — not for servers discovered for the
+  // first time in this run — to avoid treating "never existed in
+  // another platform's config" as "intentionally removed".
+  const preExistingServers = new Set(Object.keys(journal.servers));
+
   // Detect state transitions per server per source
   for (const source of sources) {
     const currentNames = new Set(Object.keys(source.servers));
@@ -841,12 +848,14 @@ function updateJournalAndResolve(
     }
   }
 
-  // Bootstrap: for servers found in some sources but absent from others,
-  // record "not present" entries for the missing sources. Without this,
-  // a server deleted from one file before the v2 journal existed would
-  // have no removal event to counterbalance presence in other files.
-  const allServerNames = new Set(Object.keys(journal.servers));
-  for (const serverName of allServerNames) {
+  // Bootstrap: for servers that were already tracked in the journal
+  // before this run, record "not present" entries for sources that
+  // have never been tracked for that server. Without this, a server
+  // deleted from one file before the v2 journal existed would have
+  // no removal event to counterbalance presence in other files.
+  // We only bootstrap pre-existing servers to avoid treating "never
+  // existed in another platform's config" as an intentional removal.
+  for (const serverName of preExistingServers) {
     const sourceMap = journal.servers[serverName];
     for (const source of sources) {
       if (!sourceMap[source.path]) {
