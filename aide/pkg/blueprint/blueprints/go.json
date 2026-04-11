@@ -3,9 +3,14 @@
   "name": "go",
   "display_name": "Go Best Practices",
   "description": "Idiomatic Go conventions, modern stdlib usage, and best practices for production Go code",
-  "version": "0.0.0",
-  "tags": ["language", "go"],
-  "includes": ["general"],
+  "version": "0.0.59",
+  "tags": [
+    "language",
+    "go"
+  ],
+  "includes": [
+    "general"
+  ],
   "decisions": [
     {
       "topic": "go-version-policy",

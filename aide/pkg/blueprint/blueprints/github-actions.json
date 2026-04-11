@@ -3,9 +3,14 @@
   "name": "github-actions",
   "display_name": "GitHub Actions Best Practices",
   "description": "Security-hardened GitHub Actions workflow patterns and CI/CD best practices",
-  "version": "0.0.0",
-  "tags": ["ci", "github-actions"],
-  "includes": ["general"],
+  "version": "0.0.59",
+  "tags": [
+    "ci",
+    "github-actions"
+  ],
+  "includes": [
+    "general"
+  ],
   "decisions": [
     {
       "topic": "gha-workflow-structure",

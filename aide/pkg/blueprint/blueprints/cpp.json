@@ -3,65 +3,87 @@
   "name": "cpp",
   "display_name": "C++ Best Practices",
   "description": "Modern C++ conventions (C++20/23), Core Guidelines, RAII, smart pointers, testing, and tooling for production code",
-  "version": "0.0.0",
-  "tags": ["language", "cpp", "c++"],
-  "includes": ["general"],
+  "version": "0.0.59",
+  "tags": [
+    "language",
+    "cpp",
+    "c++"
+  ],
+  "includes": [
+    "general"
+  ],
   "decisions": [
     {
       "topic": "cpp-standard-policy",
       "decision": "Target C++20 as baseline; adopt C++23 features via feature-test macros; do not use C++20 modules yet",
       "rationale": "C++20 has mature compiler support across GCC, Clang, and MSVC. C++23 features like std::expected and std::print are valuable but not universally available. C++20 modules lack ecosystem maturity (major libraries have not adopted them, cross-compiler interop is incomplete).",
       "details": "Set CMAKE_CXX_STANDARD 20, CMAKE_CXX_STANDARD_REQUIRED ON, CMAKE_CXX_EXTENSIONS OFF. Guard C++23 features via __cpp_lib_* macros.\nAdopt: concepts, ranges, std::format, std::jthread, <=>, designated initializers, constexpr.\nNo C++20 modules yet; use traditional headers.",
-      "references": ["https://en.cppreference.com/w/cpp/compiler_support"]
+      "references": [
+        "https://en.cppreference.com/w/cpp/compiler_support"
+      ]
     },
     {
       "topic": "cpp-error-handling",
       "decision": "Use std::expected for recoverable errors; exceptions only for truly unrecoverable conditions",
       "rationale": "std::expected (C++23) provides type-safe error handling without hidden control flow or exception overhead. It encodes success and failure in the type system and supports monadic chaining (and_then, transform, or_else). Exceptions remain appropriate for programming errors and conditions that cannot be handled locally.",
       "details": "std::expected<T, E> at API boundaries. Project-wide error enum for E.\nNever .value() without has_value(). Chain: .and_then().transform().or_else().\nExceptions for: constructor failures, unrecoverable errors, multi-level unwinding.\nPolyfill: tl::expected or std::optional for simple cases.",
-      "references": ["https://en.cppreference.com/w/cpp/utility/expected"]
+      "references": [
+        "https://en.cppreference.com/w/cpp/utility/expected"
+      ]
     },
     {
       "topic": "cpp-memory-safety",
       "decision": "Ban raw new/delete; use smart pointers, containers, span, and string_view; enforce via Core Guidelines clang-tidy checks",
       "rationale": "Memory safety is under regulatory scrutiny (CISA/NSA guidance). Modern C++ can be made memory-safe through disciplined use of RAII, containers, and views. The C++ Core Guidelines codify these practices with tooling enforcement via clang-tidy.",
       "details": "Prefer: stack > unique_ptr > shared_ptr > weak_ptr > raw ptr/ref (non-owning). Use make_unique/make_shared. Non-owning params: T& or const T&.\nstd::span for buffers, std::string_view for read-only strings, std::variant over unions, range-for over index loops.\nEnforce via cppcoreguidelines-* in clang-tidy.",
-      "references": ["https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines"]
+      "references": [
+        "https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines"
+      ]
     },
     {
       "topic": "cpp-core-guidelines",
       "decision": "Follow the C++ Core Guidelines as the primary reference; enforce via clang-tidy cppcoreguidelines-* checks",
       "rationale": "The Core Guidelines (Stroustrup/Sutter) are a living document providing practical rules for safe, efficient C++. They are enforced by clang-tidy and supported by the Guidelines Support Library (GSL). Following them systematically addresses the most common C++ pitfalls.",
       "details": "Enable cppcoreguidelines-* in clang-tidy. Consider Microsoft GSL: gsl::not_null<T>, gsl::narrow<T>.\nPrinciples: safe subset of superset, static type safety, RAII resource safety, zero-overhead abstractions.",
-      "references": ["https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines"]
+      "references": [
+        "https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines"
+      ]
     },
     {
       "topic": "cpp-static-analysis",
       "decision": "Use clang-tidy with broad checks enabled minus vendor-specific; cppcheck as complement",
       "rationale": "clang-tidy integrates with the compilation database for accurate analysis. Starting with all checks enabled and selectively disabling vendor-specific ones gives maximum coverage. cppcheck catches different classes of bugs with a low false-positive rate.",
       "details": "Checks: * then disable: -abseil-*, -altera-*, -android-*, -fuchsia-*, -google-*, -llvm*, -zircon-*.\nKey: bugprone-*, cert-*, cppcoreguidelines-*, clang-analyzer-*, modernize-*, performance-*, readability-*.\nIntegrate via CMAKE_CXX_CLANG_TIDY. Run cppcheck as complement. Place .clang-tidy at root.",
-      "references": ["https://clang.llvm.org/extra/clang-tidy/"]
+      "references": [
+        "https://clang.llvm.org/extra/clang-tidy/"
+      ]
     },
     {
       "topic": "cpp-testing",
       "decision": "Choose Catch2 or Google Test as the test framework; use CTest as the runner; add a mocking library as needed",
       "rationale": "Catch2 provides expressive BDD-style tests with low setup overhead. Google Test provides comprehensive features with built-in mocking via GoogleMock. Both are production-proven. CTest integrates naturally with CMake regardless of framework choice.",
       "details": "Catch2: library, FetchContent/vcpkg, BDD-style, generators, matchers, benchmarks. Mock via Trompeloeil or FakeIt.\nGTest: built-in GoogleMock, good IDE support. Choose for large teams with existing infra.\nProperty-based: RapidCheck. One test per source in tests/. Run via CTest.",
-      "references": ["https://github.com/catchorg/Catch2"]
+      "references": [
+        "https://github.com/catchorg/Catch2"
+      ]
     },
     {
       "topic": "cpp-sanitizers",
       "decision": "Three sanitizer CI jobs: ASan+UBSan, TSan, and optionally MSan; define CMake presets for each",
       "rationale": "Sanitizers catch memory safety and concurrency bugs that tests alone miss. ASan, TSan, and MSan are mutually exclusive — they must run as separate CI jobs. CMake presets make sanitizer configurations reusable.",
       "details": "Job 1: -fsanitize=address,undefined -fno-omit-frame-pointer. Job 2: -fsanitize=thread. Job 3: -fsanitize=memory (Clang-only).\nDefine CMakePresets.json per sanitizer. Rebuild all deps with same flags. Enable in Debug. Set ASAN_OPTIONS/UBSAN_OPTIONS for diagnostics.",
-      "references": ["https://github.com/google/sanitizers"]
+      "references": [
+        "https://github.com/google/sanitizers"
+      ]
     },
     {
       "topic": "cpp-build-system",
       "decision": "Use modern CMake with target-based configuration, CMakePresets.json, and Ninja as generator",
       "rationale": "CMake is the de facto standard for C++ builds. Target-based commands (target_*) replace error-prone directory-scoped settings. CMakePresets provide reproducible, shareable build configurations. Ninja is significantly faster than Make for incremental builds.",
       "details": "Target-centric: target_link_libraries, target_include_directories + PRIVATE/PUBLIC/INTERFACE. Generator expressions for portability. Avoid set(CMAKE_CXX_FLAGS).\nCMakePresets.json: hidden base presets, inherit for variants. Configure/build/test types.\nDeps: find_package (system), FetchContent (small), vcpkg (large).",
-      "references": ["https://cmake.org/cmake/help/latest/manual/cmake-presets.7.html"]
+      "references": [
+        "https://cmake.org/cmake/help/latest/manual/cmake-presets.7.html"
+      ]
     },
     {
       "topic": "cpp-package-management",
@@ -78,7 +100,9 @@
       "decision": "Use clang-format with a project-specific .clang-format config; enforce in CI",
       "rationale": "clang-format is the universal standard for C++ formatting. Committed config eliminates formatting debates. CI enforcement prevents style drift.",
       "details": ".clang-format at root. Base: LLVM, Google, or Chromium. Customize minimally.\nCI: clang-format --dry-run --Werror. Pre-commit hooks recommended.\nOpt out: // clang-format off / on.",
-      "references": ["https://clang.llvm.org/docs/ClangFormatStyleOptions.html"]
+      "references": [
+        "https://clang.llvm.org/docs/ClangFormatStyleOptions.html"
+      ]
     },
     {
       "topic": "cpp-cpp20-features",

@@ -3,9 +3,15 @@
   "name": "rust-github-actions",
   "display_name": "Rust CI/CD with GitHub Actions",
   "description": "Rust-specific CI patterns: clippy, cargo-nextest, cargo-deny, sanitizers, coverage, and release automation",
-  "version": "0.0.0",
-  "tags": ["ci", "github-actions", "rust"],
-  "includes": ["github-actions"],
+  "version": "0.0.59",
+  "tags": [
+    "ci",
+    "github-actions",
+    "rust"
+  ],
+  "includes": [
+    "github-actions"
+  ],
   "decisions": [
     {
       "topic": "rust-ci-workflow",
@@ -29,28 +35,36 @@
       "decision": "Use Swatinem/rust-cache for Cargo and target directory caching",
       "rationale": "Swatinem/rust-cache automatically caches ~/.cargo and target/ directories, keyed on Cargo.lock, toolchain, and job. It sets CARGO_INCREMENTAL=0 for reproducible CI builds. Saves 2-5 minutes per job.",
       "details": "Place after toolchain, before build. Options: shared-key (cross-job sharing), cache-on-failure: true, save-if (conditional). Auto-detects multiple Cargo.lock files. 10 GiB repo cache limit.",
-      "references": ["https://github.com/Swatinem/rust-cache"]
+      "references": [
+        "https://github.com/Swatinem/rust-cache"
+      ]
     },
     {
       "topic": "rust-ci-security",
       "decision": "Run cargo-deny in CI on every PR; cargo audit on weekly schedule",
       "rationale": "cargo-deny checks advisories, licenses, bans, and sources in one pass. Running on every PR catches issues at introduction time. Weekly cargo audit catches newly disclosed vulnerabilities in existing dependencies.",
       "details": "EmbarkStudios/cargo-deny-action@v2, matrix on checks: [advisories, bans, licenses, sources], command: check ${{ matrix.checks }}. Requires deny.toml -- start permissive, tighten over time. Weekly cron: cargo audit as safety net.",
-      "references": ["https://github.com/EmbarkStudios/cargo-deny-action"]
+      "references": [
+        "https://github.com/EmbarkStudios/cargo-deny-action"
+      ]
     },
     {
       "topic": "rust-ci-sanitizers",
       "decision": "Run sanitizers in CI: ASan+UBSan together, TSan separately, optionally MSan",
       "rationale": "Sanitizers catch memory safety and concurrency bugs that tests alone miss. ASan and TSan are mutually exclusive and must run as separate jobs. MSan is Clang-only and requires all dependencies instrumented.",
       "details": "Job 1: RUSTFLAGS=\"-Zsanitizer=address\" cargo +nightly nextest run. Job 2: RUSTFLAGS=\"-Zsanitizer=thread\" cargo +nightly nextest run. Use -Zbuild-std for instrumented stdlib. Set ASAN_OPTIONS=detect_leaks=1, UBSAN_OPTIONS=print_stacktrace=1. Add Miri job: cargo +nightly miri test.",
-      "references": ["https://doc.rust-lang.org/nightly/unstable-book/compiler-flags/sanitizer.html"]
+      "references": [
+        "https://doc.rust-lang.org/nightly/unstable-book/compiler-flags/sanitizer.html"
+      ]
     },
     {
       "topic": "rust-ci-coverage",
       "decision": "Use cargo-llvm-cov for code coverage; upload to Codecov",
       "rationale": "cargo-llvm-cov uses LLVM source-based instrumentation for accurate, region-level coverage. It is cross-platform (Linux/macOS/Windows), unlike cargo-tarpaulin which is Linux-only and ptrace-based.",
       "details": "Run: cargo llvm-cov --workspace --lcov --output-path lcov.info. Upload: codecov/codecov-action@v4, file: lcov.info. Target 80%+. Run on main merges for trends; optionally on PRs for diff coverage.",
-      "references": ["https://github.com/taiki-e/cargo-llvm-cov"]
+      "references": [
+        "https://github.com/taiki-e/cargo-llvm-cov"
+      ]
     },
     {
       "topic": "rust-release-automation",

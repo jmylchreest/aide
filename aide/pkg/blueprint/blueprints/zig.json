@@ -3,23 +3,32 @@
   "name": "zig",
   "display_name": "Zig Best Practices",
   "description": "Idiomatic Zig conventions, allocator patterns, error handling, comptime, testing, and build system practices",
-  "version": "0.0.0",
-  "tags": ["language", "zig"],
-  "includes": ["general"],
+  "version": "0.0.59",
+  "tags": [
+    "language",
+    "zig"
+  ],
+  "includes": [
+    "general"
+  ],
   "decisions": [
     {
       "topic": "zig-version-policy",
       "decision": "Target the latest stable Zig release; set minimum_zig_version in build.zig.zon",
       "rationale": "Zig is pre-1.0 with breaking changes between minor versions. Targeting the latest stable ensures access to critical fixes and API improvements. minimum_zig_version documents compatibility (advisory only — not yet enforced by the compiler).",
       "details": "Check ziglang.org/download/ for current stable. Use master builds for experimentation only. Expect breaking migrations (e.g., 0.14->0.15: I/O overhaul, ArrayList changes, usingnamespace removal) until 1.0.",
-      "references": ["https://ziglang.org/download/"]
+      "references": [
+        "https://ziglang.org/download/"
+      ]
     },
     {
       "topic": "zig-naming-conventions",
       "decision": "Follow the official Zig style guide: PascalCase for types and type-returning functions, camelCase for regular functions, snake_case for variables and fields",
       "rationale": "Zig naming conventions encode semantic meaning. When you see a PascalCase function name, you immediately know it returns a type. This is a powerful signal embedded in naming that the community universally follows.",
       "details": "Types: PascalCase. Type-returning fns: PascalCase. Regular fns: camelCase. Vars/fields/consts: snake_case. Namespace structs: snake_case binding. Files exposing type: PascalCase (HttpClient.zig). Regular files: snake_case (main.zig). zig fmt enforces whitespace only, not naming.",
-      "references": ["https://ziglang.org/documentation/master/"]
+      "references": [
+        "https://ziglang.org/documentation/master/"
+      ]
     },
     {
       "topic": "zig-error-handling",
@@ -33,14 +42,18 @@
       "decision": "Always pass allocators as parameters; use DebugAllocator in development, ArenaAllocator for batch work, std.testing.allocator in tests",
       "rationale": "Explicit allocator injection is Zig's central design pattern — no hidden control flow. When you see an allocator parameter, the function will allocate. Different allocators serve different purposes: DebugAllocator detects leaks and UAF, ArenaAllocator enables efficient bulk allocation, std.testing.allocator automatically reports leaks.",
       "details": "DebugAllocator (dev), SmpAllocator (prod MT), ArenaAllocator (batch), std.testing.allocator (tests), FixedBufferAllocator (embedded), c_allocator (C interop, -lc).\ndefer allocator.free() right after alloc. Slices: alloc/free. Singles: create/destroy.\nAvoid: globals, free() on arena (no-op), page_allocator for small allocs.",
-      "references": ["https://zig.guide/standard-library/allocators/"]
+      "references": [
+        "https://zig.guide/standard-library/allocators/"
+      ]
     },
     {
       "topic": "zig-project-structure",
       "decision": "Use zig init for project scaffolding; build.zig for build instructions, build.zig.zon for package metadata",
       "rationale": "zig init creates the canonical project structure. build.zig is Zig code (not a DSL) providing full build system expressiveness. build.zig.zon is the package manifest with dependencies, version, and fingerprint.",
       "details": "Layout: build.zig, build.zig.zon, src/main.zig (exe entry), src/root.zig (lib root), src/Module.zig (PascalCase = exports type). Gitignore .zig-cache/ and zig-out/.\nEvery .zig file IS a struct; @import returns its struct type (files as namespaces/types).\nPackage name: bare Zig identifier, max 32 bytes, no 'zig' prefix.",
-      "references": ["https://ziglang.org/learn/build-system/"]
+      "references": [
+        "https://ziglang.org/learn/build-system/"
+      ]
     },
     {
       "topic": "zig-dependencies",
@@ -82,7 +95,9 @@
       "decision": "Use build.zig with the module-based API; define standard steps for run, test, and install",
       "rationale": "build.zig is Zig code — not a DSL — providing full expressiveness. The module-based API (createModule) is the current standard. Steps run concurrently as a DAG; dependency edges determine execution order.",
       "details": "b.standardTargetOptions(.{}), b.standardOptimizeOption(.{}), b.addExecutable + b.createModule(.{.root_source_file=b.path(\"src/main.zig\"), ...}), b.installArtifact(). Define run, test, install steps.\nAdvanced: b.option(), addOptions() (comptime injection), addRunArtifact+captureStdOut (codegen). Use b.path() for sources, LazyPath for generated.",
-      "references": ["https://ziglang.org/learn/build-system/"]
+      "references": [
+        "https://ziglang.org/learn/build-system/"
+      ]
     },
     {
       "topic": "zig-documentation",

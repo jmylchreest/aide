@@ -3,9 +3,15 @@
   "name": "go-github-actions",
   "display_name": "Go CI/CD with GitHub Actions",
   "description": "Go-specific GitHub Actions patterns: CI workflows, golangci-lint, matrix builds, cross-compilation, and releases",
-  "version": "0.0.0",
-  "tags": ["ci", "github-actions", "go"],
-  "includes": ["github-actions"],
+  "version": "0.0.59",
+  "tags": [
+    "ci",
+    "github-actions",
+    "go"
+  ],
+  "includes": [
+    "github-actions"
+  ],
   "decisions": [
     {
       "topic": "go-ci-workflow",

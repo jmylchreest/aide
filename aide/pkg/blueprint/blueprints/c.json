@@ -3,30 +3,41 @@
   "name": "c",
   "display_name": "C Best Practices",
   "description": "Modern C conventions, safety hardening, memory management, testing, and tooling for production C code",
-  "version": "0.0.0",
-  "tags": ["language", "c"],
-  "includes": ["general"],
+  "version": "0.0.59",
+  "tags": [
+    "language",
+    "c"
+  ],
+  "includes": [
+    "general"
+  ],
   "decisions": [
     {
       "topic": "c-standard-policy",
       "decision": "Target the latest stable C standard (C23) with C17 as fallback for portability",
       "rationale": "C23 adds critical safety features: nullptr (type-safe null), [[nodiscard]], bool/true/false as keywords, typeof, auto, constexpr, and standard attributes. GCC defaults to C23 in recent versions. C17 fallback covers older toolchains.",
       "details": "Use -std=c23. Guard with __STDC_VERSION__ >= 202311L for portability. Adopt: nullptr, [[nodiscard]], [[maybe_unused]], [[fallthrough]], [[deprecated]], unreachable(), binary literals (0b1010), digit separators.",
-      "references": ["https://en.cppreference.com/w/c/23"]
+      "references": [
+        "https://en.cppreference.com/w/c/23"
+      ]
     },
     {
       "topic": "c-compiler-warnings",
       "decision": "Enable comprehensive warnings in development; use -Werror=<specific> for critical warnings in distributed builds",
       "rationale": "Warnings catch real bugs at compile time. -Wall -Wextra alone miss important checks. Specific -Werror= flags catch critical issues without breaking builds on new compiler versions.",
       "details": "Dev: -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion -Wformat=2 -Wimplicit-fallthrough -Wdouble-promotion -Wshadow -Wundef -Wstrict-prototypes -Wmissing-prototypes.\nAlways: -Werror=format-security -Werror=implicit -Werror=incompatible-pointer-types -Werror=int-conversion -Werror=return-type.\nNever distribute blanket -Werror; use only in CI.",
-      "references": ["https://best.openssf.org/Compiler-Hardening-Guides/Compiler-Options-Hardening-Guide-for-C-and-C++.html"]
+      "references": [
+        "https://best.openssf.org/Compiler-Hardening-Guides/Compiler-Options-Hardening-Guide-for-C-and-C++.html"
+      ]
     },
     {
       "topic": "c-hardening-flags",
       "decision": "Apply the full OpenSSF compiler hardening set in release builds",
       "rationale": "The OpenSSF Compiler Options Hardening Guide is the authoritative reference for production C code. These flags defend against buffer overflows, stack smashing, ROP/JOP attacks, and other exploits with minimal performance impact.",
       "details": "-O2 -D_FORTIFY_SOURCE=3 -fstack-clash-protection -fstack-protector-strong -ftrivial-auto-var-init=zero -fno-delete-null-pointer-checks -fno-strict-overflow -fno-strict-aliasing.\n-fPIE/-pie (exe), -fPIC/-shared (lib). Link: -Wl,-z,{nodlopen,noexecstack,relro,now}.\n-fcf-protection=full (x86), -mbranch-protection=standard (arm64). GCC15+: -fhardened.",
-      "references": ["https://best.openssf.org/Compiler-Hardening-Guides/Compiler-Options-Hardening-Guide-for-C-and-C++.html"]
+      "references": [
+        "https://best.openssf.org/Compiler-Hardening-Guides/Compiler-Options-Hardening-Guide-for-C-and-C++.html"
+      ]
     },
     {
       "topic": "c-error-handling",
@@ -47,7 +58,9 @@
       "decision": "Mandate ASan+UBSan in CI for all test runs; TSan for threaded code; Valgrind for deep analysis",
       "rationale": "Sanitizers catch memory errors, undefined behavior, and data races that tests alone miss. ASan+UBSan has ~2-3x overhead and catches the most common bugs. TSan catches data races invisible to other tools.",
       "details": "Separate CI jobs (mutually exclusive): ASan+UBSan (-fsanitize=address,undefined -fno-omit-frame-pointer -O1 -g), TSan (-fsanitize=thread), MSan (-fsanitize=memory, Clang-only, all deps instrumented). Optional: Valgrind.\nASAN_OPTIONS=detect_leaks=1:abort_on_error=1, UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1.",
-      "references": ["https://github.com/google/sanitizers"]
+      "references": [
+        "https://github.com/google/sanitizers"
+      ]
     },
     {
       "topic": "c-static-analysis",
@@ -61,14 +74,18 @@
       "decision": "Use a test framework with integrated mocking support; CMocka and Unity+CMock are the leading choices",
       "rationale": "C has no built-in test framework. A framework with mocking support enables proper isolation testing. CMocka provides built-in mocking with no external dependencies. Unity+CMock is strong for embedded (requires Ruby for mock generation).",
       "details": "CMocka: C99, built-in mocking, TAP output, CMake/Meson support.\nUnity+CMock: xUnit assertions, auto-generated mocks from headers, Ceedling build tool. Good for embedded.\nAlternatives: Check (fork-safe), Criterion (auto-discovery).\nOne test file per module in tests/. Run via CTest or Meson test.",
-      "references": ["https://cmocka.org/"]
+      "references": [
+        "https://cmocka.org/"
+      ]
     },
     {
       "topic": "c-formatting",
       "decision": "Use clang-format with a project-specific .clang-format config; enforce in CI",
       "rationale": "clang-format is the universal standard for C formatting. No serious alternative exists. Committed config eliminates formatting debates. CI enforcement prevents style drift.",
       "details": ".clang-format at root. Base: BasedOnStyle: LLVM (or Linux). Customize minimally: IndentWidth, ColumnLimit, PointerAlignment, BreakBeforeBraces.\nCI: clang-format --dry-run --Werror. Opt out: // clang-format off / on.\nUse git blame --ignore-revs-file to skip reformat commits.",
-      "references": ["https://clang.llvm.org/docs/ClangFormatStyleOptions.html"]
+      "references": [
+        "https://clang.llvm.org/docs/ClangFormatStyleOptions.html"
+      ]
     },
     {
       "topic": "c-naming",
