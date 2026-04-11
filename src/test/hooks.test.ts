@@ -9,6 +9,7 @@ import { execSync, spawn } from "child_process";
 import { existsSync, mkdirSync, rmSync, writeFileSync, readFileSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
+import { randomBytes } from "crypto";
 
 const PROJECT_ROOT = process.cwd();
 
@@ -74,7 +75,7 @@ This is a test skill.
   });
 
   it("should create .aide directories if missing", async () => {
-    const emptyDir = join(tmpdir(), `aide-empty-${Date.now()}`);
+    const emptyDir = join(tmpdir(), `aide-empty-${Date.now()}-${randomBytes(4).toString("hex")}`);
     mkdirSync(emptyDir);
 
     const input = JSON.stringify({

@@ -60,7 +60,7 @@ release: check-version test-ts
 		echo "No blueprint files changed since $${LAST_TAG:-the beginning}"; \
 	fi
 	@echo "Snapshotting docs for v$(VERSION)..."
-	@cd docs && npm run docusaurus docs:version $(VERSION)
+	@cd docs && bun run docusaurus docs:version $(VERSION)
 	@echo "Syncing bun.lock..."
 	@bun install
 	@echo ""
