@@ -31,8 +31,32 @@ A blueprint is a JSON file containing a list of decisions with topic, rationale,
 1. Resolves the blueprint (local override, embedded, or remote registry)
 2. Follows the `includes` chain (e.g., `go` includes `general`)
 3. Imports each decision into your project's decision store
-4. Skips topics that already have a decision (use `--force` to overwrite)
-5. Sets `decided_by: "blueprint:<name>"` for provenance tracking
+4. Skips user-set decisions; upgrades blueprint-set decisions if the version is newer and content changed
+5. Sets `decided_by: "blueprint:<name>@<version>"` for provenance tracking
+
+## Auto-Detection
+
+`aide blueprint import --detect` scans your project and imports matching blueprints automatically. Detection is powered by the same [project marker index](./grammar.md#project-marker-index) used by the grammar/pack system.
+
+For example, a project containing `go.mod` and `.github/workflows/` triggers markers for the `go` pack and `github-actions` label. AIDE then checks for matching blueprints:
+
+1. **Direct match** — pack name `go` → `go` blueprint
+2. **Label match** — label `github-actions` → `github-actions` blueprint
+3. **Compound match** — pack `go` + label `github-actions` → `go-github-actions` blueprint
+
+```bash
+$ aide blueprint import --detect
+Detected: go, github-actions, go-github-actions
+
+  general            5 new
+  go                 18 new
+  github-actions     7 new
+  go-github-actions  5 new
+
+35 imported, 0 updated
+```
+
+Custom markers in `.aide/grammars/index.json` are included in detection, so org-specific tooling can automatically trigger custom blueprints.
 
 ## Shipped Blueprints
 
@@ -42,8 +66,13 @@ These blueprints ship with every AIDE release:
 |-----------|-----------|----------|-------------|
 | `general` | 5 | — | Universal practices: commits, PRs, dependencies, secrets, documentation |
 | `go` | 18 | general | Idiomatic Go: error handling, context, testing, slog, huma, golangci-lint v2 |
+| `rust` | 12 | general | Idiomatic Rust: error handling, testing, async, and tooling |
+| `c` | 12 | general | Modern C: safety hardening, memory management, testing |
+| `cpp` | 12 | general | Modern C++ (C++20/23): Core Guidelines, RAII, smart pointers |
+| `zig` | 12 | general | Idiomatic Zig: allocator patterns, comptime, error handling |
 | `github-actions` | 7 | general | Workflow security: SHA pinning, permissions, OIDC, branch protection |
-| `go-github-actions` | 6 | github-actions | Go CI/CD: race detector, GoReleaser, matrix builds, zig cross-compilation |
+| `go-github-actions` | 5 | github-actions | Go CI/CD: golangci-lint, matrix builds, cross-compilation, releases |
+| `rust-github-actions` | 7 | github-actions | Rust CI/CD: clippy, cargo-nextest, cargo-deny, sanitizers, coverage |
 
 ### Go Blueprint Decisions
 
@@ -169,7 +198,7 @@ aide blueprint import go    # uses your local override
 | `name` | Yes | Identifier used in `aide blueprint import <name>` |
 | `display_name` | Yes | Human-readable name for `--list` output |
 | `description` | Yes | One-line description |
-| `version` | Yes | Tracks which AIDE release last modified the blueprint |
+| `version` | Yes | Semver version; used for version-aware upgrade during import |
 | `tags` | No | Searchable tags |
 | `includes` | No | Other blueprints to import first (resolved recursively) |
 | `decisions` | Yes | Array of decision objects |
@@ -186,9 +215,10 @@ aide blueprint import go    # uses your local override
 
 ## Import Semantics
 
-- **Skip on conflict** (default): If a topic already exists in the decision store, the blueprint decision is skipped. A notice is printed.
-- **Force overwrite** (`--force`): Overwrites existing decisions with blueprint values.
-- **Provenance**: All imported decisions have `decided_by: "blueprint:<name>"` for traceability.
+- **Skip on conflict** (default): If a topic already exists and was set by the user (or a different blueprint), it is skipped.
+- **Version-aware upgrade**: If a topic was previously imported from the same blueprint, and the blueprint version is newer with changed content, a new decision version is appended that supersedes the old one. The old version is preserved in history (`aide decision history <topic>`).
+- **Force overwrite** (`--force`): Overwrites all existing decisions regardless of source or version.
+- **Provenance**: Imported decisions have `decided_by: "blueprint:<name>@<version>"` for traceability (e.g., `blueprint:go@0.1.0`).
 - **Includes**: Resolved recursively with cycle detection. Included blueprints are imported before the parent.
 
 ## CLI Reference
@@ -220,4 +250,4 @@ Blueprints live in `aide/pkg/blueprint/blueprints/` as JSON files. To contribute
 3. Remove version-specific references — frame guidance as "latest stable" or "modern Go"
 4. Submit a PR — CI validates the schema automatically
 
-Blueprint versions for shipped blueprints track the AIDE release version. The version is only bumped when the blueprint content actually changes between releases.
+Blueprint versions for shipped blueprints are automatically bumped to match the release version by `make release` when the blueprint content has changed since the last tag.
