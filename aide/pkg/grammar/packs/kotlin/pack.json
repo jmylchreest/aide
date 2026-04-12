@@ -4,7 +4,7 @@
   "version": "",
   "c_symbol": "tree_sitter_kotlin",
   "source_repo": "tree-sitter-grammars/tree-sitter-kotlin",
-  "source_tag": "v1.1.0",
+  "source_tag": "latest",
   "meta": {
     "extensions": [".kt", ".kts"],
     "shebangs": ["kotlin"],

@@ -1,0 +1,199 @@
+{
+  "schema_version": 1,
+  "name": "dart",
+  "display_name": "Dart & Flutter Best Practices",
+  "description": "Idiomatic Dart conventions, Flutter widget patterns, null safety, testing, state management, and tooling for production apps",
+  "version": "0.0.59",
+  "tags": [
+    "language",
+    "dart",
+    "flutter"
+  ],
+  "includes": [
+    "general"
+  ],
+  "decisions": [
+    {
+      "topic": "dart-sdk-version",
+      "decision": "Target the latest stable Dart SDK; use caret syntax in pubspec.yaml environment constraint as the single source of truth",
+      "rationale": "Dart 3+ is mandatory for sound null safety, sealed classes, pattern matching, and records. The environment constraint in pubspec.yaml is read by all tooling (IDE, CI, pub). Staying current ensures access to language features and security fixes.",
+      "details": "pubspec.yaml: environment: sdk: ^3.0.0. Flutter pins its own Dart SDK — stay on the stable channel. CI: use dart-version from pubspec.yaml, never hardcode. Run dart pub upgrade --major-versions periodically.",
+      "references": [
+        "https://dart.dev/get-dart",
+        "https://dart.dev/tools/pub/pubspec#sdk-constraints"
+      ]
+    },
+    {
+      "topic": "dart-null-safety",
+      "decision": "Default to non-nullable types; use nullable (?) only when null is a valid domain value; avoid late and dynamic",
+      "rationale": "Sound null safety (mandatory since Dart 3) eliminates null reference errors at compile time. Overusing late defeats this by deferring checks to runtime. dynamic bypasses the type system entirely and hides bugs that the compiler would otherwise catch.",
+      "details": "Non-nullable by default. Use ? only for genuinely optional values. Prefer ?? and ?. over !. Use required for mandatory named params. late only for framework lifecycle (initState) and late final lazy init. Never use dynamic when a real type is knowable — use Object? if the type is truly unknown.",
+      "references": [
+        "https://dart.dev/null-safety",
+        "https://dart.dev/null-safety/understanding-null-safety"
+      ]
+    },
+    {
+      "topic": "dart-error-handling",
+      "decision": "Use sealed Result types for domain errors; try/catch only at system boundaries; never throw raw strings",
+      "rationale": "Dart exceptions are unchecked — the compiler cannot enforce handling. A sealed Result<T> type makes error handling explicit and exhaustive via pattern matching. try/catch belongs at boundaries (network, platform channels, file I/O) where external failures are unpredictable.",
+      "details": "sealed class Result<T> { Ok(T value), Error(Exception error) }. Pattern match exhaustively: switch (result) { case Ok(:final value) => ..., case Error(:final error) => ... }. Create specific exception types per domain. Document thrown exceptions in doc comments. Never throw strings or return null as an error signal.",
+      "references": [
+        "https://docs.flutter.dev/app-architecture/design-patterns/result",
+        "https://dart.dev/language/error-handling"
+      ]
+    },
+    {
+      "topic": "dart-sealed-classes-patterns",
+      "decision": "Use sealed classes for finite state variants; always use exhaustive switch; combine with records for lightweight data",
+      "rationale": "Sealed classes (Dart 3) give compiler-enforced exhaustive switching — the compiler errors if you miss a case. This eliminates an entire class of runtime bugs when modelling states like API results, auth status, or form validation. Records provide lightweight, immutable data carriers without boilerplate.",
+      "details": "sealed class AuthState { Authenticated(User user), Unauthenticated(), Loading() }. Always exhaustive switch — never add a default case on sealed types (it defeats exhaustiveness checking). Use records for multi-return: (String name, int age). Destructure in patterns: case Ok(:final value):. Replace Freezed unions with sealed classes where practical.",
+      "references": [
+        "https://dart.dev/language/class-modifiers#sealed",
+        "https://dart.dev/language/patterns"
+      ]
+    },
+    {
+      "topic": "dart-project-structure",
+      "decision": "Feature-first organisation under lib/src/; public API exported from a single barrel file; test/ mirrors lib/",
+      "rationale": "Feature-first grouping scales better than layer-first (putting all models together, all widgets together) because related code stays together. The barrel file pattern (lib/<package>.dart) provides a clean public API surface. Never importing from another package's lib/src/ is a pub convention enforced by linting.",
+      "details": "lib/<package>.dart (barrel exports), lib/src/features/<feature>/{data,domain,presentation}/. test/ mirrors lib/ structure. bin/ for CLI entry points. Keep lib/src/ private — export only through barrel file. analysis_options.yaml at root. Assets in assets/ with pubspec.yaml declaration.",
+      "references": [
+        "https://dart.dev/tools/pub/package-layout"
+      ]
+    },
+    {
+      "topic": "flutter-state-management",
+      "decision": "setState for ephemeral widget-local state only; lift shared state to dedicated state holders; keep business logic out of widgets",
+      "rationale": "Mixing business logic into widgets makes code untestable and couples UI to implementation details. Dedicated state holders (controllers, notifiers, blocs) are independently testable and reusable. Placing listeners as deep in the tree as possible minimises unnecessary rebuilds.",
+      "details": "setState: toggles, form fields, animation state. Shared state: lift to nearest common ancestor or state management solution. No specific framework mandated — Provider, Riverpod, Bloc, and signals are all valid. Place Consumer/listener widgets as deep as possible. Never call setState after async gaps without mounted check.",
+      "references": [
+        "https://docs.flutter.dev/data-and-backend/state-mgmt/simple",
+        "https://docs.flutter.dev/get-started/fundamentals/state-management"
+      ]
+    },
+    {
+      "topic": "flutter-widget-composition",
+      "decision": "Prefer many small const widgets over few large ones; extract widget methods into separate widget classes",
+      "rationale": "Flutter's reconciliation skips entire subtrees when widgets are const. Widget methods (helper methods returning Widget) cannot be const and rebuild every time the parent rebuilds. Extracting them into separate StatelessWidget classes enables const construction and fine-grained rebuilds.",
+      "details": "const constructors on all unchanging widgets. Extract build helper methods into StatelessWidget subclasses. Prefer StatelessWidget unless state is needed. Use ListView.builder/GridView.builder for lazy list rendering. Keep build() simple — no expensive computation, no side effects. Use RepaintBoundary to isolate expensive painting subtrees.",
+      "references": [
+        "https://docs.flutter.dev/perf/best-practices"
+      ]
+    },
+    {
+      "topic": "dart-testing",
+      "decision": "Three test tiers: unit (logic), widget (UI components), integration (full app); aim for 80%+ coverage from unit and widget tests",
+      "rationale": "Unit tests are fast and precise. Widget tests verify rendering and interaction without a device. Integration tests are slow and flaky — reserve them for critical user flows. The testing pyramid applies: many unit tests, moderate widget tests, few integration tests.",
+      "details": "test/ mirrors lib/ structure. Use group() and descriptive names: 'context_action_expectedResult'. Mock external deps — never hit network in unit/widget tests. flutter test runs in VM (fast). flutter test integration_test/ for integration. Use setUpAll/tearDownAll for expensive fixtures. Widget tests: pumpWidget, tap, expect, pump.",
+      "references": [
+        "https://docs.flutter.dev/testing/overview",
+        "https://docs.flutter.dev/cookbook/testing/widget/introduction"
+      ]
+    },
+    {
+      "topic": "dart-dependency-management",
+      "decision": "Caret syntax for version constraints; commit pubspec.lock for apps, not for packages; audit packages on pub.dev",
+      "rationale": "Caret syntax (^) allows compatible updates while preventing breaking changes. Committing the lockfile ensures reproducible app builds. Packages omit the lockfile so consumers resolve their own compatible versions. pub.dev scores indicate maintenance quality.",
+      "details": "dependencies: for runtime, dev_dependencies: for test/build tools. Caret (^) by default; exact pins only when necessary. Commit pubspec.lock for apps, gitignore for packages. Run flutter pub upgrade --major-versions periodically. Check pub.dev scores, null safety status, and maintenance before adopting. Prefer packages with 100+ likes and recent updates.",
+      "references": [
+        "https://dart.dev/tools/pub/dependencies",
+        "https://dart.dev/tools/pub/pubspec"
+      ]
+    },
+    {
+      "topic": "dart-naming",
+      "decision": "Follow Effective Dart naming: UpperCamelCase for types, lowerCamelCase for everything else including constants, snake_case for files and packages",
+      "rationale": "Dart's naming conventions are well-established and enforced by the linter. Constants use lowerCamelCase (not SCREAMING_SNAKE) — this is a deliberate Dart convention. Consistent naming reduces cognitive load and makes code accessible to any Dart developer.",
+      "details": "Classes/enums/extensions/typedefs: UpperCamelCase. Variables/functions/params/constants: lowerCamelCase. Files/packages/libraries: lowercase_with_underscores. Private: _prefix. Acronyms >2 letters: capitalize like a word (HttpClient, not HTTPClient). Boolean: positive names (isEnabled, not isNotDisabled).",
+      "references": [
+        "https://dart.dev/effective-dart/style"
+      ]
+    },
+    {
+      "topic": "dart-linting",
+      "decision": "Use the official recommended lint set; enable additional rules in analysis_options.yaml; run dart analyze in CI with --fatal-warnings",
+      "rationale": "The official lint packages (package:lints for Dart, package:flutter_lints for Flutter) encode community-vetted best practices. Running analysis in CI catches issues before review. Treating warnings as errors prevents lint debt accumulation.",
+      "details": "Flutter: include: package:flutter_lints/flutter.yaml. Dart: include: package:lints/recommended.yaml. Add project-specific rules under linter: rules:. CI: dart analyze --fatal-warnings (or flutter analyze). Consider DCM (dart code metrics) for complexity and coupling thresholds. Never disable lints globally — use // ignore: on specific lines with a reason comment.",
+      "references": [
+        "https://dart.dev/tools/analysis",
+        "https://dart.dev/tools/linter-rules"
+      ]
+    },
+    {
+      "topic": "dart-formatting",
+      "decision": "Use dart format (or flutter format) with default settings; enforce in CI",
+      "rationale": "dart format is the canonical formatter — zero configuration, deterministic output. All Dart code should be formatted with it. Fighting the formatter wastes time and creates noisy diffs.",
+      "details": "Run: dart format . or flutter format . CI: dart format --set-exit-if-changed . (non-zero on diff). Default line length is 80 — override with --line-length only if team agrees. Trailing commas control multi-line layout (like Zig). Set up editor format-on-save.",
+      "references": [
+        "https://dart.dev/tools/dart-format"
+      ]
+    },
+    {
+      "topic": "dart-async-patterns",
+      "decision": "async/await for Futures; async*/yield for Streams; Isolate.run() for CPU-intensive work; never block the main isolate",
+      "rationale": "Dart is single-threaded per isolate. Blocking the main isolate freezes the UI. Isolates provide true parallelism without shared memory (no data races). Future.wait() enables concurrent I/O without isolates.",
+      "details": "async/await for sequential async. Future.wait() for parallel independent I/O. Isolate.run() for CPU work (JSON parsing, image processing, crypto). async*/yield for custom streams. Always close StreamControllers. Use Completer sparingly — async/await is almost always clearer. Handle stream errors with onError or handleError.",
+      "references": [
+        "https://dart.dev/language/concurrency",
+        "https://dart.dev/language/isolates"
+      ]
+    },
+    {
+      "topic": "flutter-performance",
+      "decision": "Profile before optimising; use const widgets, lazy builders, and RepaintBoundary; avoid Opacity widget",
+      "rationale": "Premature optimisation wastes effort. Flutter DevTools provides widget rebuild tracking, timeline analysis, and performance overlays that pinpoint actual bottlenecks. The most impactful optimisations — const widgets, lazy builders, and RepaintBoundary — are easy to apply systematically.",
+      "details": "const constructors on all unchanging widgets. ListView.builder for long lists (not ListView with children). RepaintBoundary to isolate expensive painting. Avoid Opacity — use AnimatedOpacity or color alpha. Use Key purposefully: ValueKey for lists, GlobalKey sparingly. Profile with Flutter DevTools. Never do I/O or heavy computation in build().",
+      "references": [
+        "https://docs.flutter.dev/perf/best-practices"
+      ]
+    },
+    {
+      "topic": "flutter-accessibility",
+      "decision": "Provide semanticLabel on all icons and images; ensure 48x48 minimum touch targets; test with screen readers",
+      "rationale": "Accessibility is a legal requirement in many jurisdictions and expands your user base. Flutter's Semantics tree drives screen readers (TalkBack, VoiceOver). Missing semantic labels make the app unusable for visually impaired users.",
+      "details": "semanticLabel on Icon, Image, custom painters. Semantics widget for non-standard interactive elements. ExcludeSemantics for decorative elements. Minimum 48x48 touch targets (Material default). Test with TalkBack (Android) and VoiceOver (iOS). SemanticsService.announce() for dynamic content changes. Use MergeSemantics to group related elements.",
+      "references": [
+        "https://docs.flutter.dev/ui/accessibility"
+      ]
+    },
+    {
+      "topic": "flutter-theming",
+      "decision": "Use ThemeData with Material 3 and ColorScheme.fromSeed; support dark mode; never hardcode colors in widgets",
+      "rationale": "Material 3 theming with seed colors generates a consistent, accessible color palette automatically. Hardcoded colors bypass the theme system and break when switching between light and dark modes. Theme.of(context) ensures widgets adapt to the current theme.",
+      "details": "ColorScheme.fromSeed(seedColor: ...) for palette generation. Define component themes in ThemeData (elevatedButtonTheme, cardTheme, etc.). Use TextTheme roles (displayLarge, bodyMedium) not hardcoded styles. Support dark mode via darkTheme: on MaterialApp. Read values with Theme.of(context). Define custom extension themes via ThemeExtension<T> for app-specific tokens.",
+      "references": [
+        "https://docs.flutter.dev/cookbook/design/themes"
+      ]
+    },
+    {
+      "topic": "flutter-navigation",
+      "decision": "Use declarative routing over imperative Navigator.push; define routes as constants with type-safe parameters",
+      "rationale": "Declarative routing maps URL-like paths to screens, which is essential for deep linking, web support, and state restoration. Imperative navigation (Navigator.push) does not support deep links and makes back-button handling complex on web and Android.",
+      "details": "Use Router API or GoRouter for declarative routing. Define routes as string constants or enums. Type-safe route parameters via extra or path parameters. Redirect guards for authentication flows. StatefulShellRoute for persistent bottom navigation. Deep links work automatically with declarative routing on mobile and web.",
+      "references": [
+        "https://docs.flutter.dev/ui/navigation"
+      ]
+    },
+    {
+      "topic": "dart-extension-methods",
+      "decision": "Use extension methods to add functionality to types you do not own; use extension types for zero-cost wrappers",
+      "rationale": "Extension methods avoid utility classes with static methods and feel like native API. Extension types (Dart 3.3+) provide compile-time type safety around existing types with zero runtime cost — ideal for IDs, validated strings, and newtype patterns.",
+      "details": "Name extensions descriptively: extension DateTimeFormatting on DateTime. Keep extensions in dedicated files (lib/src/extensions/). Prefer extensions over utility classes. Extension types: extension type UserId(int id) implements int — zero-cost wrapper, compile-time type safety, no allocation overhead.",
+      "references": [
+        "https://dart.dev/language/extension-methods",
+        "https://dart.dev/language/extension-types"
+      ]
+    },
+    {
+      "topic": "dart-platform-channels",
+      "decision": "Use Pigeon for type-safe platform channel generation; prefer dart:ffi for performance-critical native calls",
+      "rationale": "Hand-written platform channel code is error-prone and requires maintaining parallel implementations in Dart, Kotlin/Java, and Swift/ObjC. Pigeon generates type-safe bindings from a shared schema. dart:ffi has ~100ns overhead vs milliseconds for MethodChannel, making it essential for performance-critical paths.",
+      "details": "Pigeon: define .dart schema, generate Dart + native code. Type-safe, null-safe, no string-based method names. dart:ffi for C/C++ interop — synchronous calls, use Isolate.run() for long-running native ops. ffigen generates Dart bindings from C headers. Android: support all target ABIs (armeabi-v7a, arm64-v8a, x86_64).",
+      "references": [
+        "https://docs.flutter.dev/platform-integration/platform-channels",
+        "https://docs.flutter.dev/platform-integration/android/c-interop"
+      ]
+    }
+  ]
+}

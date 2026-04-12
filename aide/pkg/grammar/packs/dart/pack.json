@@ -1,0 +1,220 @@
+{
+  "schema_version": 1,
+  "name": "dart",
+  "version": "",
+  "c_symbol": "tree_sitter_dart",
+  "source_repo": "UserNobody14/tree-sitter-dart",
+  "source_tag": "latest",
+  "meta": {
+    "extensions": [".dart"],
+    "aliases": ["flutter"]
+  },
+  "queries": {
+    "tags": "(class_definition name: (identifier) @name) @definition.class\n(mixin_declaration name: (identifier) @name) @definition.class\n(enum_declaration name: (identifier) @name) @definition.class\n(extension_declaration name: (identifier) @name) @definition.class\n(function_signature name: (identifier) @name) @definition.function\n(method_signature name: (identifier) @name) @definition.method\n(getter_signature name: (identifier) @name) @definition.method\n(setter_signature name: (identifier) @name) @definition.method\n(constructor_signature name: (identifier) @name) @definition.method\n(type_alias name: (type_identifier) @name) @definition.type"
+  },
+  "complexity": {
+    "func_node_types": [
+      "function_signature",
+      "method_signature",
+      "getter_signature",
+      "setter_signature",
+      "function_expression",
+      "local_function_declaration"
+    ],
+    "branch_types": [
+      "if_statement",
+      "for_statement",
+      "while_statement",
+      "do_statement",
+      "switch_statement",
+      "conditional_expression",
+      "binary_expression",
+      "catch_clause"
+    ],
+    "name_field": "name"
+  },
+  "imports": {
+    "patterns": [
+      {
+        "regex": "^\\s*import\\s+'([^']+)'",
+        "group": 1
+      },
+      {
+        "regex": "^\\s*export\\s+'([^']+)'",
+        "group": 1
+      }
+    ]
+  },
+  "tokenisation": {
+    "identifier_types": ["identifier", "type_identifier"],
+    "literal_types": [
+      "string_literal",
+      "integer_literal",
+      "decimal_floating_point_literal",
+      "true",
+      "false",
+      "null_literal"
+    ],
+    "keyword_types": [
+      "class",
+      "extends",
+      "implements",
+      "with",
+      "mixin",
+      "enum",
+      "abstract",
+      "sealed",
+      "final",
+      "const",
+      "var",
+      "late",
+      "required",
+      "static",
+      "void",
+      "dynamic",
+      "async",
+      "await",
+      "yield",
+      "import",
+      "export",
+      "part",
+      "return",
+      "if",
+      "else",
+      "for",
+      "while",
+      "do",
+      "switch",
+      "case",
+      "break",
+      "continue",
+      "try",
+      "catch",
+      "throw",
+      "new",
+      "super",
+      "this",
+      "is",
+      "as",
+      "in",
+      "typedef",
+      "extension",
+      "on",
+      "show",
+      "hide"
+    ]
+  },
+  "entrypoints": {
+    "symbols": [
+      {
+        "name": "main",
+        "kind": "function",
+        "type": "main",
+        "label": "Dart main function",
+        "exclude": "_test\\.dart$"
+      }
+    ],
+    "refs": [
+      {
+        "name": "runApp",
+        "ref_kind": "call",
+        "type": "app_start",
+        "label": "Flutter app launch"
+      }
+    ],
+    "file_patterns": [
+      {
+        "file_match": "lib/main.dart",
+        "type": "main",
+        "label": "Flutter app entry point"
+      },
+      {
+        "file_match": "bin/*.dart",
+        "content": "^void main\\(",
+        "type": "main",
+        "label": "Dart CLI entry point"
+      },
+      {
+        "file_match": "*.dart",
+        "content": "runApp\\(",
+        "type": "app_start",
+        "label": "Flutter app launch"
+      },
+      {
+        "file_match": "*.dart",
+        "content": "@SpringBootApplication",
+        "pre_content": "package:spring",
+        "type": "server_start",
+        "label": "Dart server application"
+      }
+    ]
+  },
+  "security": {
+    "rules": [
+      {
+        "id": "dart-hardcoded-secret",
+        "name": "Potential hardcoded secret",
+        "severity": "critical",
+        "category": "secret",
+        "pattern": "(?i)(api[_-]?key|secret|password|token|auth)\\s*[:=]\\s*['\"][^'\"]{8,}['\"]",
+        "description": "Hardcoded API keys, passwords, or tokens in source code"
+      },
+      {
+        "id": "dart-tls-skip-verify",
+        "name": "TLS certificate verification disabled",
+        "severity": "critical",
+        "category": "crypto",
+        "pattern": "badCertificateCallback\\s*[:=]\\s*\\(.*\\)\\s*=>\\s*true",
+        "description": "Disabling TLS certificate verification allows man-in-the-middle attacks"
+      },
+      {
+        "id": "dart-sql-injection",
+        "name": "Potential SQL injection",
+        "severity": "critical",
+        "category": "injection",
+        "pattern": "(rawQuery|rawInsert|rawUpdate|rawDelete|execute)\\s*\\(\\s*['\"].*\\$",
+        "description": "SQL queries built with string interpolation are vulnerable to injection"
+      },
+      {
+        "id": "dart-command-execution",
+        "name": "Process execution with dynamic input",
+        "severity": "warning",
+        "category": "exec",
+        "pattern": "Process\\.(run|start)\\s*\\(",
+        "description": "Process execution with dynamic input may allow command injection"
+      },
+      {
+        "id": "dart-http-no-tls",
+        "name": "HTTP without TLS",
+        "severity": "warning",
+        "category": "crypto",
+        "pattern": "['\"]http://[^'\"]+['\"]",
+        "description": "Using HTTP instead of HTTPS exposes data to network interception"
+      },
+      {
+        "id": "dart-insecure-storage",
+        "name": "Sensitive data in SharedPreferences",
+        "severity": "warning",
+        "category": "storage",
+        "pattern": "SharedPreferences.*\\.(setString|setInt|setBool)\\s*\\(\\s*['\"](?i)(token|password|secret|key|auth)",
+        "description": "SharedPreferences stores data unencrypted; use flutter_secure_storage for sensitive values"
+      },
+      {
+        "id": "dart-webview-js",
+        "name": "WebView JavaScript injection risk",
+        "severity": "warning",
+        "category": "injection",
+        "pattern": "javascriptMode\\s*:\\s*JavascriptMode\\.unrestricted",
+        "description": "Enabling JavaScript in WebView with user-controlled URLs may allow injection"
+      },
+      {
+        "id": "dart-print-production",
+        "name": "Print statement in production code",
+        "severity": "info",
+        "category": "info-leak",
+        "pattern": "\\bprint\\s*\\(",
+        "description": "Print statements may leak sensitive data in production; use a logging framework"
+      }
+    ]
+  }
+}

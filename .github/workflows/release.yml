@@ -429,6 +429,7 @@ jobs:
           ARCH: ${{ matrix.arch }}
           EXT: ${{ matrix.ext }}
           ZIG_TARGET: ${{ matrix.zig_target }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           mkdir -p dist staging

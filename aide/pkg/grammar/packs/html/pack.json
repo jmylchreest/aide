@@ -4,7 +4,7 @@
   "version": "",
   "c_symbol": "tree_sitter_html",
   "source_repo": "tree-sitter/tree-sitter-html",
-  "source_tag": "v0.23.2",
+  "source_tag": "latest",
   "meta": {
     "extensions": [
       ".html",

@@ -4,7 +4,7 @@
   "version": "",
   "c_symbol": "tree_sitter_toml",
   "source_repo": "tree-sitter-grammars/tree-sitter-toml",
-  "source_tag": "v0.7.0",
+  "source_tag": "latest",
   "meta": {
     "extensions": [
       ".toml"

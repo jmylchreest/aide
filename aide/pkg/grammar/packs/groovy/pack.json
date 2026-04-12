@@ -4,7 +4,7 @@
   "version": "",
   "c_symbol": "tree_sitter_groovy",
   "source_repo": "amaanq/tree-sitter-groovy",
-  "source_tag": "v0.1.2",
+  "source_tag": "latest",
   "meta": {
     "extensions": [".groovy", ".gradle"],
     "filenames": ["Jenkinsfile"],

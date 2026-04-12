@@ -4,7 +4,7 @@
   "version": "",
   "c_symbol": "tree_sitter_lua",
   "source_repo": "tree-sitter-grammars/tree-sitter-lua",
-  "source_tag": "v0.3.0",
+  "source_tag": "latest",
   "meta": {
     "extensions": [".lua"],
     "shebangs": ["lua"]

@@ -59,7 +59,7 @@ func TestDynamicLoaderRemoveNonexistent(t *testing.T) {
 
 func TestDynamicPacksMap(t *testing.T) {
 	expected := []string{
-		"bash", "csharp", "css", "elixir", "elm", "groovy", "hcl",
+		"bash", "csharp", "css", "dart", "elixir", "elm", "groovy", "hcl",
 		"html", "kotlin", "lua", "ocaml", "php", "protobuf", "ruby",
 		"scala", "sql", "swift", "toml", "yaml",
 	}

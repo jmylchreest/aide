@@ -4,7 +4,7 @@
   "version": "",
   "c_symbol": "tree_sitter_sql",
   "source_repo": "DerekStride/tree-sitter-sql",
-  "source_tag": "v0.3.11",
+  "source_tag": "latest",
   "meta": {
     "extensions": [
       ".sql"

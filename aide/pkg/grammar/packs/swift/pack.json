@@ -4,7 +4,7 @@
   "version": "",
   "c_symbol": "tree_sitter_swift",
   "source_repo": "alex-pinkus/tree-sitter-swift",
-  "source_tag": "0.7.1-with-generated-files",
+  "source_tag": "latest",
   "meta": {
     "extensions": [".swift"],
     "shebangs": ["swift"]

@@ -1,0 +1,196 @@
+{
+  "schema_version": 1,
+  "name": "kotlin",
+  "display_name": "Kotlin Best Practices",
+  "description": "Idiomatic Kotlin conventions, null safety, coroutines, testing, and tooling for production Kotlin/JVM and multiplatform code",
+  "version": "0.0.59",
+  "tags": [
+    "language",
+    "kotlin",
+    "jvm"
+  ],
+  "includes": [
+    "general"
+  ],
+  "decisions": [
+    {
+      "topic": "kotlin-version-jvm-target",
+      "decision": "Track the latest stable Kotlin release; set jvmTarget explicitly in build config; align with your minimum supported JDK",
+      "rationale": "Kotlin evolves rapidly with meaningful language features each release (context receivers, value classes stabilisation, K2 compiler). Explicit jvmTarget prevents bytecode incompatibilities when consumers use older JDKs. The Kotlin/JVM target and JDK version are independent and must be set deliberately.",
+      "details": "build.gradle.kts: kotlin { jvmToolchain(17) } or compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }. Use toolchains for reproducible builds. CI: test on target JDK, not just latest. Check https://kotlinlang.org/docs/releases.html for current stable.",
+      "references": [
+        "https://kotlinlang.org/docs/releases.html",
+        "https://kotlinlang.org/docs/gradle-configure-project.html#gradle-java-toolchains-support"
+      ]
+    },
+    {
+      "topic": "kotlin-null-safety",
+      "decision": "Leverage Kotlin's type system for null safety; avoid !! operator; use safe calls, Elvis, and smart casts",
+      "rationale": "Kotlin's nullable type system eliminates NullPointerException at compile time when used correctly. The !! operator bypasses this safety net entirely and produces crashes with no context. Safe calls (?.) and Elvis (?:) express intent clearly while maintaining safety.",
+      "details": "Default to non-nullable types. Use ? only when null is a valid domain value. Prefer ?.let { } or ?: default over !!. Use require()/check() for preconditions (throws IllegalArgumentException/IllegalStateException). Platform types from Java: annotate or wrap immediately. Enable -Xjsr305=strict for Java nullability annotations.",
+      "references": [
+        "https://kotlinlang.org/docs/null-safety.html"
+      ]
+    },
+    {
+      "topic": "kotlin-data-sealed-value-classes",
+      "decision": "Use data classes for value holders, sealed hierarchies for finite state, and value classes for type-safe wrappers",
+      "rationale": "Data classes generate equals/hashCode/copy/toString correctly, eliminating boilerplate bugs. Sealed classes give exhaustive when expressions enforced by the compiler. Value classes provide type safety (e.g., UserId vs OrderId) with zero runtime overhead.",
+      "details": "data class for DTOs, domain entities, events. sealed class/interface for Result, state machines, error hierarchies — always exhaustive when (no else branch). @JvmInline value class for primitive wrappers (UserId, Email). Avoid data class inheritance. Use copy() for immutable updates.",
+      "references": [
+        "https://kotlinlang.org/docs/data-classes.html",
+        "https://kotlinlang.org/docs/sealed-classes.html",
+        "https://kotlinlang.org/docs/inline-classes.html"
+      ]
+    },
+    {
+      "topic": "kotlin-coroutines-structured-concurrency",
+      "decision": "Always use structured concurrency; never use GlobalScope; bind coroutine lifetime to a meaningful scope",
+      "rationale": "Structured concurrency guarantees that child coroutines complete (or cancel) before their parent scope exits, preventing leaks. GlobalScope creates unmanaged coroutines that outlive their intended lifecycle and cannot be cancelled. Scope hierarchy makes cancellation propagation automatic.",
+      "details": "Use coroutineScope { } or supervisorScope { } for parallel decomposition. Frameworks provide scopes: viewModelScope (Android), lifecycle-aware scopes, application-scoped CoroutineScope. launch for fire-and-forget, async for results. Always handle CancellationException correctly (never swallow it). Use withContext(Dispatchers.IO) for blocking I/O.",
+      "references": [
+        "https://kotlinlang.org/docs/coroutines-basics.html#structured-concurrency",
+        "https://kotlinlang.org/docs/coroutine-context-and-dispatchers.html"
+      ]
+    },
+    {
+      "topic": "kotlin-flow",
+      "decision": "Use Flow for reactive streams; prefer cold flows; use StateFlow/SharedFlow for state holders",
+      "rationale": "Flow is Kotlin's native reactive streams API, fully integrated with coroutines and cancellation. Cold flows are lazy and only execute when collected, making them efficient and testable. StateFlow/SharedFlow replace LiveData and BroadcastChannel with coroutine-native state management.",
+      "details": "flow { emit() } for cold streams. stateIn()/shareIn() to convert to hot flows with defined sharing policies. Use .flowOn(Dispatchers.IO) to shift upstream context. Collect in lifecycle-aware scope (repeatOnLifecycle on Android). Prefer Flow operators (map, filter, combine) over manual channel manipulation. Use Turbine for testing flows.",
+      "references": [
+        "https://kotlinlang.org/docs/flow.html",
+        "https://kotlinlang.org/docs/stateflow-and-sharedflow.html"
+      ]
+    },
+    {
+      "topic": "kotlin-error-handling",
+      "decision": "Use sealed class hierarchies for domain errors; Result/runCatching at boundaries; reserve exceptions for truly exceptional conditions",
+      "rationale": "Kotlin has no checked exceptions, so callers have no compile-time signal to handle them. Sealed error hierarchies make failure modes explicit and exhaustively checkable. runCatching is useful at API boundaries but should not replace structured error modelling in domain logic.",
+      "details": "Domain: sealed class DomainError { data class NotFound(...), data class Validation(...) }. Return Result<T, DomainError> or Arrow's Either. Boundary: runCatching { }.onFailure { }.getOrElse { }. Never catch Throwable/Exception broadly — catch specific types. CancellationException must always be rethrown. Use require()/check() for programming errors.",
+      "references": [
+        "https://kotlinlang.org/docs/exceptions.html",
+        "https://kotlinlang.org/api/core/kotlin-stdlib/kotlin/-result/"
+      ]
+    },
+    {
+      "topic": "kotlin-immutability",
+      "decision": "Default to val over var; use read-only collection interfaces; treat mutability as an explicit opt-in",
+      "rationale": "Immutability reduces bugs from unintended side effects and makes code safer in concurrent contexts. Kotlin distinguishes read-only (List, Map) from mutable (MutableList, MutableMap) collections at the type level. Defaulting to immutability makes mutable state visible and deliberate.",
+      "details": "val for all properties unless mutation is required. Return List/Set/Map from public APIs, not MutableList. Use buildList { }, toList(), .map { } for construction. Use copy() on data classes for immutable updates. var only for genuinely mutable local accumulators or framework-required mutability (lateinit for DI). Consider kotlinx.collections.immutable for enforced immutability.",
+      "references": [
+        "https://kotlinlang.org/docs/collections-overview.html",
+        "https://github.com/Kotlin/kotlinx.collections.immutable"
+      ]
+    },
+    {
+      "topic": "kotlin-scope-functions",
+      "decision": "Use scope functions (let, apply, run, also, with) with clear intent; avoid nesting; prefer named functions for complex logic",
+      "rationale": "Scope functions reduce boilerplate for null checks, object configuration, and transformation chains. But overuse (especially nesting) creates unreadable code. Each function has a distinct semantic role that should be respected for clarity.",
+      "details": "let: null-safe transforms (x?.let { use(it) }). apply: object configuration (Builder().apply { name = ... }). also: side effects (logging, validation). run: compute + return on receiver. with: grouping calls on an object. Never nest more than one deep. Prefer explicit functions over long scope blocks. Avoid let just for non-null assertion.",
+      "references": [
+        "https://kotlinlang.org/docs/scope-functions.html"
+      ]
+    },
+    {
+      "topic": "kotlin-extension-functions",
+      "decision": "Use extension functions to add domain-specific operations; keep them discoverable and avoid shadowing member functions",
+      "rationale": "Extension functions add behaviour without inheritance or wrapper classes, keeping APIs clean and domain-focused. However, they are resolved statically (not virtually) and can shadow member functions, causing confusion. They should enhance readability, not replace good class design.",
+      "details": "Use for: domain conversions (User.toDto()), utility on types you don't own (String.isValidEmail()), DSL building. Define close to usage (same file or package). Never shadow existing member functions (members always win). Avoid extension properties with side effects. Keep receiver type specific — don't extend Any or overly generic types.",
+      "references": [
+        "https://kotlinlang.org/docs/extensions.html"
+      ]
+    },
+    {
+      "topic": "kotlin-functional-patterns",
+      "decision": "Use higher-order functions, sequences for large collections, and function composition; avoid premature abstraction",
+      "rationale": "Kotlin has first-class support for functional programming with lambdas, higher-order functions, and collection operators. Sequences provide lazy evaluation that avoids intermediate collection allocations on large datasets. But over-abstracting with functional patterns can hurt readability for the team.",
+      "details": "Prefer .map/.filter/.fold over manual loops for transforms. Use sequences (asSequence()) for chains of 3+ operations on large collections or when only first match needed (firstOrNull). Use inline functions for lambdas in hot paths to avoid allocation. Destructuring: { (key, value) -> }. Prefer named functions over complex lambda chains. Use typealias for complex function types.",
+      "references": [
+        "https://kotlinlang.org/docs/sequences.html",
+        "https://kotlinlang.org/docs/lambdas.html"
+      ]
+    },
+    {
+      "topic": "kotlin-project-structure",
+      "decision": "Organise by feature/module; use Gradle multi-module builds for non-trivial projects; follow Kotlin directory conventions",
+      "rationale": "Feature-based modules enforce separation of concerns at the build level, enable parallel compilation, and make dependency direction explicit. Kotlin follows Java's source-set conventions but adds multiplatform source sets (commonMain, jvmMain, etc.).",
+      "details": "Source: src/main/kotlin/, src/test/kotlin/. Package structure mirrors directory structure. Multi-module: :core, :domain, :feature-x, :app. Use api vs implementation dependency scoping. Keep the app/entrypoint module thin. Internal visibility modifier for module-private APIs. Avoid circular module dependencies.",
+      "references": [
+        "https://kotlinlang.org/docs/coding-conventions.html#source-code-organization",
+        "https://docs.gradle.org/current/userguide/multi_project_builds.html"
+      ]
+    },
+    {
+      "topic": "kotlin-testing",
+      "decision": "Use JUnit 5 or Kotest as test framework; MockK for mocking; kotlinx-coroutines-test for coroutine testing",
+      "rationale": "JUnit 5 is the standard on JVM with excellent IDE and Gradle support. Kotest offers Kotlin-native DSLs and property-based testing. MockK understands Kotlin features (coroutines, extension functions, companion objects) that Mockito struggles with. kotlinx-coroutines-test provides TestScope with virtual time.",
+      "details": "JUnit 5 with @Test, @Nested, @ParameterizedTest. Or Kotest with FunSpec/BehaviorSpec/FreeSpec styles. MockK: mockk<T>(), every { }, coEvery { } for suspend. Coroutines: runTest { } with TestScope, advanceUntilIdle(). Use Turbine for Flow testing. Assertions: kotlin.test, Kotest matchers, or AssertJ. Test naming: backtick names allowed (`should return empty when no results`).",
+      "references": [
+        "https://kotlinlang.org/docs/jvm-test-using-junit.html",
+        "https://kotest.io/",
+        "https://mockk.io/",
+        "https://github.com/Kotlin/kotlinx.coroutines/tree/master/kotlinx-coroutines-test"
+      ]
+    },
+    {
+      "topic": "kotlin-dependency-management",
+      "decision": "Use Gradle Kotlin DSL with version catalogs; centralise dependency versions in libs.versions.toml",
+      "rationale": "Version catalogs (Gradle 7.4+) provide type-safe, IDE-autocompletable dependency accessors and centralise version management across multi-module projects. The Kotlin DSL provides compile-time checking of build scripts. This eliminates version drift and ext-variable hacks.",
+      "details": "gradle/libs.versions.toml: [versions], [libraries], [plugins] sections. Reference: implementation(libs.ktor.server.core). Use version ranges sparingly — prefer exact versions. Dependabot or Renovate for automated updates. Run ./gradlew dependencies for conflict resolution. Use BOM imports (platform()) for framework version alignment.",
+      "references": [
+        "https://docs.gradle.org/current/userguide/version_catalogs.html",
+        "https://kotlinlang.org/docs/gradle-configure-project.html"
+      ]
+    },
+    {
+      "topic": "kotlin-naming-conventions",
+      "decision": "Follow Kotlin coding conventions: camelCase functions/properties, PascalCase classes, SCREAMING_SNAKE for constants",
+      "rationale": "Consistent naming reduces cognitive load and is enforced by detekt/ktlint. Kotlin conventions differ from Java in specific ways (e.g., no get/set prefixes for properties, backing properties use underscore prefix).",
+      "details": "Classes/objects/interfaces: PascalCase. Functions/properties: camelCase. Constants (const val, top-level val): SCREAMING_SNAKE_CASE. Packages: lowercase, no underscores. Enum entries: SCREAMING_SNAKE_CASE. Backing properties: _underscorePrefix. Factory functions can be PascalCase (listOf(), Flow()). Test functions: backtick names permitted.",
+      "references": [
+        "https://kotlinlang.org/docs/coding-conventions.html#naming-rules"
+      ]
+    },
+    {
+      "topic": "kotlin-linting-formatting",
+      "decision": "Use detekt for static analysis and ktlint (or ktfmt) for formatting; configure in version control and enforce in CI",
+      "rationale": "detekt catches code smells, complexity, and potential bugs with configurable rules. ktlint enforces the official Kotlin coding conventions with minimal configuration. Separating formatting (ktlint) from analysis (detekt) gives clear, non-overlapping responsibilities.",
+      "details": "detekt: detekt.yml with complexity, style, potential-bugs rulesets. Integrate via Gradle plugin. Suppress with @Suppress(\"RuleName\") sparingly. ktlint: runs as Gradle task or pre-commit hook. Use .editorconfig for ktlint style overrides. CI: both must pass. Consider detekt type resolution for deeper analysis (--classpath). Custom rules for project-specific patterns.",
+      "references": [
+        "https://detekt.dev/",
+        "https://pinterest.github.io/ktlint/"
+      ]
+    },
+    {
+      "topic": "kotlin-dsl-patterns",
+      "decision": "Use Kotlin DSL builders with @DslMarker for domain-specific APIs; prefer type-safe builders over stringly-typed configuration",
+      "rationale": "Kotlin's lambda-with-receiver, extension functions, and operator overloading enable expressive, type-safe DSLs. @DslMarker prevents accidental access to outer receivers in nested scopes, catching bugs at compile time. DSLs eliminate stringly-typed configuration errors.",
+      "details": "@DslMarker annotation on builder scope classes. Lambda with receiver: fun html(block: HtmlBuilder.() -> Unit). Use apply pattern for builder configuration. Keep DSL vocabulary small and consistent. Provide IDE support with clear receiver types. Examples: Gradle build scripts, Ktor routing, Exposed SQL, kotlinx.html.",
+      "references": [
+        "https://kotlinlang.org/docs/type-safe-builders.html",
+        "https://kotlinlang.org/docs/type-safe-builders.html#scope-control-dslmarker"
+      ]
+    },
+    {
+      "topic": "kotlin-multiplatform",
+      "decision": "Use Kotlin Multiplatform (KMP) for shared business logic; keep platform-specific code behind expect/actual declarations",
+      "rationale": "KMP enables sharing domain logic, networking, and data layers across JVM, iOS, JS, and native targets without lowest-common-denominator APIs. The expect/actual mechanism provides compile-time checked platform abstractions. KMP is stable for production since Kotlin 1.9.20.",
+      "details": "Source sets: commonMain (shared logic, kotlinx libs), jvmMain, iosMain, jsMain. Use expect/actual for platform APIs (file I/O, crypto, platform settings). Prefer kotlinx libraries: kotlinx.coroutines, kotlinx.serialization, kotlinx.datetime, Ktor client. Test shared logic in commonTest. Keep UI platform-native (Compose Multiplatform optional).",
+      "references": [
+        "https://kotlinlang.org/docs/multiplatform.html",
+        "https://kotlinlang.org/docs/multiplatform-expect-actual.html"
+      ]
+    },
+    {
+      "topic": "kotlin-java-interop",
+      "decision": "Annotate Kotlin APIs consumed by Java with @JvmStatic, @JvmOverloads, @JvmField, and @JvmName; use -Xjsr305=strict for Java nullability",
+      "rationale": "Kotlin generates JVM bytecode that can be awkward to call from Java without interop annotations. Default parameter values, companion object functions, and property access patterns all need explicit annotation to produce idiomatic Java APIs. JSR-305 strict mode turns Java nullability annotations into Kotlin compiler errors.",
+      "details": "@JvmStatic on companion object functions for static access. @JvmOverloads for default parameter overloads. @JvmField to expose properties as fields (not getters). @JvmName to resolve clashes (e.g., getX() conflicts). @file:JvmName(\"Utils\") for top-level functions. Enable -Xjsr305=strict in compilerOptions. Use @Throws for checked exception interop.",
+      "references": [
+        "https://kotlinlang.org/docs/java-to-kotlin-interop.html",
+        "https://kotlinlang.org/docs/java-interop.html#jsr-305-support"
+      ]
+    }
+  ]
+}

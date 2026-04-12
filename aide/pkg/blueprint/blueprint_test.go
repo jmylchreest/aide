@@ -10,7 +10,7 @@ import (
 func TestLoadEmbedded(t *testing.T) {
 	t.Parallel()
 
-	names := []string{"general", "go", "github-actions", "go-github-actions"}
+	names := []string{"general", "go", "github-actions", "go-github-actions", "c", "cpp", "rust", "rust-github-actions", "zig", "dart", "kotlin"}
 	for _, name := range names {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()

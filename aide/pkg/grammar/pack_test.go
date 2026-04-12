@@ -11,8 +11,8 @@ import (
 var allExpectedLanguages = []string{
 	// 10 embedded (built-in)
 	"c", "cpp", "go", "java", "javascript", "python", "rust", "tsx", "typescript", "zig",
-	// 19 dynamic
-	"bash", "csharp", "css", "elixir", "elm", "groovy", "hcl", "html",
+	// 20 dynamic
+	"bash", "csharp", "css", "dart", "elixir", "elm", "groovy", "hcl", "html",
 	"kotlin", "lua", "ocaml", "php", "protobuf", "ruby", "scala", "sql",
 	"swift", "toml", "yaml",
 	// 3 meta-only (no grammar, just file detection)

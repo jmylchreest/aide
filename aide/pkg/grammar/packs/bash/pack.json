@@ -4,7 +4,7 @@
   "version": "",
   "c_symbol": "tree_sitter_bash",
   "source_repo": "tree-sitter/tree-sitter-bash",
-  "source_tag": "v0.25.1",
+  "source_tag": "latest",
   "meta": {
     "extensions": [".sh", ".bash", ".zsh"],
     "filenames": [

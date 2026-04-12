@@ -4,7 +4,7 @@
   "version": "",
   "c_symbol": "tree_sitter_ocaml",
   "source_repo": "tree-sitter/tree-sitter-ocaml",
-  "source_tag": "v0.24.2",
+  "source_tag": "latest",
   "source_src_dir": "grammars/ocaml/src",
   "meta": {
     "extensions": [".ml", ".mli"],

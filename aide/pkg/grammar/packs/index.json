@@ -178,6 +178,26 @@
       "metadata": { "language": "elm", "marker": "elm.json" }
     },
     {
+      "file": "pubspec.yaml",
+      "check": "file",
+      "max_depth": 3,
+      "pack": "dart",
+      "kind": "module",
+      "parse": {
+        "regex": "^name:\\s+(\\S+)",
+        "group": 1,
+        "field": "name"
+      }
+    },
+    {
+      "file": "pubspec.yaml",
+      "check": "file",
+      "max_depth": 3,
+      "pack": "dart",
+      "kind": "tech_stack",
+      "metadata": { "language": "dart", "marker": "pubspec.yaml" }
+    },
+    {
       "file": "build.zig",
       "check": "file",
       "max_depth": 2,

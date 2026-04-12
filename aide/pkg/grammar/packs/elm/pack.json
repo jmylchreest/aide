@@ -4,7 +4,7 @@
   "version": "",
   "c_symbol": "tree_sitter_elm",
   "source_repo": "elm-tooling/tree-sitter-elm",
-  "source_tag": "v5.9.0",
+  "source_tag": "latest",
   "meta": {
     "extensions": [".elm"]
   },
