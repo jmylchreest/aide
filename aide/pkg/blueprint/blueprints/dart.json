@@ -3,7 +3,7 @@
   "name": "dart",
   "display_name": "Dart & Flutter Best Practices",
   "description": "Idiomatic Dart conventions, Flutter widget patterns, null safety, testing, state management, and tooling for production apps",
-  "version": "0.0.59",
+  "version": "0.0.60",
   "tags": [
     "language",
     "dart",

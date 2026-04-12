@@ -3,7 +3,7 @@
   "name": "kotlin",
   "display_name": "Kotlin Best Practices",
   "description": "Idiomatic Kotlin conventions, null safety, coroutines, testing, and tooling for production Kotlin/JVM and multiplatform code",
-  "version": "0.0.59",
+  "version": "0.0.60",
   "tags": [
     "language",
     "kotlin",
