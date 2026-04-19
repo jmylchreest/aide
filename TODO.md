@@ -88,7 +88,25 @@ Add current session memories to subagent context.
 - Current session memories (`session:<current-id>`)
 - Task/story-specific memories (`task:<id>` or `story:<id>` tags)
 
-### 5. LLM-Based Classification of Unknown Files (Future)
+### 5. Qualified Symbol Names in Code Index (Future)
+
+Add qualifier/scope information to the code index so call graph traversal
+can distinguish `auth.GetUser` from `cache.GetUser`.
+
+**Steps**:
+
+1. Add `@qualifier` capture to tree-sitter ref queries in pack.json (all languages, data-only)
+2. Extend `parser.go` `extractReferences` to store qualifier on `Reference` struct
+3. Implement import resolution per language (Go + Rust first, then Python, then TS/JS)
+4. Schema migration: add `Qualifier` to Reference, `QualifiedName` to Symbol, secondary index
+
+**Enables**: Reliable `survey_graph` BFS, blast-radius-from-diff, execution flow tracing,
+accurate dead code detection, scoped `code_references` results.
+
+**Effort**: ~1 day for steps 1-2 (all languages), ~1 day each for Go/Rust resolution,
+~2-3 days for TS/JS resolution. See design doc for full per-language feasibility analysis.
+
+### 6. LLM-Based Classification of Unknown Files (Future)
 
 Surface unclassified files (not matching any grammar pack) via MCP tools so the calling
 LLM can classify them. Since aide is an MCP server (not an LLM client), classification
