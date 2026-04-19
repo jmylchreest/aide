@@ -886,7 +886,7 @@ func (s *CodeStore) TopReferencedSymbols(limit int, kind string) ([]*code.Symbol
 
 // ListAllSymbols returns all symbols (up to limit).
 func (s *CodeStore) ListAllSymbols(limit int) ([]*code.Symbol, error) {
-	if limit <= 0 {
+	if limit == 0 {
 		limit = 1000
 	}
 

@@ -518,6 +518,10 @@ func (m *mockCodeIndexStore) TopReferencedSymbols(limit int, kind string) ([]*co
 	return nil, nil
 }
 
+func (m *mockCodeIndexStore) ListAllSymbols(limit int) ([]*code.Symbol, error) {
+	return m.symbols, nil
+}
+
 // =============================================================================
 // codeSearcherAdapter Tests
 // =============================================================================

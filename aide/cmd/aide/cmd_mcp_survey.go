@@ -139,6 +139,10 @@ Returns a graph of nodes (symbols) and edges (call/type_ref relationships).
 - "Who calls this function?" → direction=callers
 - "What does this function call?" → direction=callees
 - "Show the call neighborhood" → direction=both (default)
+- "What breaks if I change this?" → direction=callers, max_depth=3 (impact analysis)
+
+**Impact analysis:** Use direction=callers with a higher max_depth to trace the
+full blast radius of a change. All transitive callers are potential breakage points.
 
 **How it works:**
 - Callees: found by scanning references within the symbol's body line range
@@ -147,7 +151,7 @@ Returns a graph of nodes (symbols) and edges (call/type_ref relationships).
 **Parameters:**
 - symbol (required): Function/method name to start from
 - direction: "both" (default), "callers", "callees"
-- max_depth: BFS hops from root (default 2)
+- max_depth: BFS hops from root (default 2, increase for impact analysis)
 - max_nodes: Cap on total graph nodes (default 50)
 
 **Note:** Requires the code index to be populated (run 'aide code index').

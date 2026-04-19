@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/jmylchreest/aide/aide/pkg/aideignore"
+	"github.com/jmylchreest/aide/aide/pkg/code"
 	"github.com/jmylchreest/aide/aide/pkg/findings"
 	"github.com/jmylchreest/aide/aide/pkg/findings/clone"
 	"github.com/jmylchreest/aide/aide/pkg/grammar"
@@ -64,7 +65,7 @@ Subcommands:
 
 Options:
   run <analyser> [paths...]:
-    Analysers: complexity, coupling, secrets, clones, security, all
+    Analysers: complexity, coupling, secrets, clones, security, deadcode, all
     --threshold=N    Complexity threshold (default %d)
     --fan-out=N      Coupling fan-out threshold (default %d)
     --fan-in=N       Coupling fan-in threshold (default %d)
@@ -78,7 +79,7 @@ Options:
     --no-validate       Secrets: skip live validation (default)
 
   search <query>:
-    --analyser=NAME     Filter by analyser (complexity, coupling, secrets, clones, security)
+    --analyser=NAME     Filter by analyser (complexity, coupling, secrets, clones, security, deadcode)
     --severity=LEVEL    Filter by severity (critical, warning, info)
     --file=PATH         Filter by file path pattern (substring)
     --category=CAT      Filter by category
@@ -201,6 +202,7 @@ func cmdFindingsRun(dbPath string, args []string) error {
 			findings.AnalyzerSecrets,
 			findings.AnalyzerClones,
 			findings.AnalyzerSecurity,
+			findings.AnalyzerDeadCode,
 		}
 	}
 
@@ -259,8 +261,15 @@ func cmdFindingsRun(dbPath string, args []string) error {
 			}
 			totalFindings += n
 
+		case findings.AnalyzerDeadCode:
+			n, err := runDeadCodeAnalyzer(backend, dbPath)
+			if err != nil {
+				return fmt.Errorf("deadcode analyser failed: %w", err)
+			}
+			totalFindings += n
+
 		default:
-			return fmt.Errorf("unknown analyser: %s (valid: complexity, coupling, secrets, clones, security, all)", name)
+			return fmt.Errorf("unknown analyser: %s (valid: complexity, coupling, secrets, clones, security, deadcode, all)", name)
 		}
 	}
 
@@ -709,6 +718,55 @@ func cmdFindingsClear(dbPath string, args []string) error {
 	}
 
 	return nil
+}
+
+func runDeadCodeAnalyzer(backend *Backend, dbPath string) (int, error) {
+	fmt.Printf("Running dead code analyser...\n")
+
+	codeStore, err := backend.openCodeStore()
+	if err != nil {
+		return 0, fmt.Errorf("code index required: %w", err)
+	}
+	defer codeStore.Close()
+
+	stats, err := codeStore.Stats()
+	if err != nil || stats.Symbols == 0 {
+		return 0, fmt.Errorf("code index is empty — run 'aide code index' first")
+	}
+
+	cfg := findings.DeadCodeConfig{
+		GetAllSymbols: func() ([]*code.Symbol, error) {
+			return codeStore.ListAllSymbols(-1)
+		},
+		GetRefCount: func(name string) (int, error) {
+			refs, err := codeStore.SearchReferences(code.ReferenceSearchOptions{
+				SymbolName: name,
+				Limit:      1,
+			})
+			if err != nil {
+				return 0, err
+			}
+			return len(refs), nil
+		},
+		ProjectRoot: projectRoot(dbPath),
+		ProgressFn: func(checked, found int) {
+			fmt.Printf("  checked %d symbols, %d unreferenced so far\n", checked, found)
+		},
+	}
+
+	ff, result, err := findings.AnalyzeDeadCode(cfg)
+	if err != nil {
+		return 0, err
+	}
+
+	fmt.Printf("  Checked %d symbols (skipped %d), found %d unreferenced (%s)\n",
+		result.SymbolsChecked, result.SymbolsSkipped, result.FindingsCount, result.Duration.Round(1_000_000))
+
+	if err := backend.ReplaceFindingsForAnalyzer(findings.AnalyzerDeadCode, ff); err != nil {
+		return 0, fmt.Errorf("failed to store findings: %w", err)
+	}
+
+	return len(ff), nil
 }
 
 // printFindingLine prints a human-readable single-line summary of a finding.

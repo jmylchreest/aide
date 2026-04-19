@@ -93,6 +93,7 @@ const (
 	TokenEventRead        = "read"         // File was read (tokens = estimated file tokens)
 	TokenEventOutlineUsed = "outline_used" // code_outline used (saved = full - outline tokens)
 	TokenEventReadAvoided = "read_avoided" // Smart-read hint heeded (saved = file tokens)
+	TokenEventSymbolRead  = "symbol_read"  // code_read_symbol used (saved = full - symbol tokens)
 )
 
 // TokenEvent records an estimated token impact from a tool call.

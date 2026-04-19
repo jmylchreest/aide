@@ -1,13 +1,10 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
-	"sort"
 	"strings"
 
 	"github.com/jmylchreest/aide/aide/pkg/code"
@@ -35,10 +32,11 @@ type CodeSymbolsInput struct {
 type CodeStatsInput struct{}
 
 type CodeReferencesInput struct {
-	SymbolName string `json:"symbol" jsonschema:"Name of the symbol to find references for (e.g., 'getUserById')"`
-	Kind       string `json:"kind,omitempty" jsonschema:"Filter by reference kind: call, type_ref"`
-	FilePath   string `json:"file,omitempty" jsonschema:"Filter by file path pattern (substring match)"`
-	Limit      int    `json:"limit,omitempty" jsonschema:"Maximum results (default 50)"`
+	SymbolName  string   `json:"symbol" jsonschema:"Name of the symbol to find references for (e.g., 'getUserById'). Required if symbols is empty."`
+	SymbolNames []string `json:"symbols,omitempty" jsonschema:"Batch mode: list of symbol names to find references for (max 10). If set, symbol is ignored."`
+	Kind        string   `json:"kind,omitempty" jsonschema:"Filter by reference kind: call, type_ref"`
+	FilePath    string   `json:"file,omitempty" jsonschema:"Filter by file path pattern (substring match)"`
+	Limit       int      `json:"limit,omitempty" jsonschema:"Maximum results per symbol (default 50)"`
 }
 
 type CodeOutlineInput struct {
@@ -53,6 +51,12 @@ type CodeTopReferencesInput struct {
 
 type CodeReadCheckInput struct {
 	File string `json:"file" jsonschema:"Path to the file to check (relative or absolute). Required."`
+}
+
+type CodeReadSymbolInput struct {
+	Symbol  string   `json:"symbol" jsonschema:"Name of the symbol to read (e.g., 'getUserById', 'AuthConfig'). Required if symbols is empty."`
+	Symbols []string `json:"symbols,omitempty" jsonschema:"Batch mode: list of symbol names to read (max 10). If set, symbol is ignored."`
+	Kind    string   `json:"kind,omitempty" jsonschema:"Filter by symbol kind: function, method, class, interface, type"`
 }
 
 // ============================================================================
@@ -122,7 +126,10 @@ References are places where a symbol is used, indexed by tree-sitter:
 **Use cases:**
 - Find all callers of a function
 - Understand how a type is used
-- Impact analysis before refactoring
+- Impact analysis before refactoring — "what breaks if I change this?"
+
+**Batch mode:** Pass multiple names in the "symbols" array (max 10) to find
+references for several symbols in a single call.
 
 **Note:** Run 'aide code index' to index your codebase first.`,
 	}, s.handleCodeReferences)
@@ -164,6 +171,38 @@ the symbol name, reference count, and definition location when available.
 
 **Note:** Run 'aide code index' to index your codebase first.`,
 	}, s.handleCodeTopReferences)
+
+	mcp.AddTool(s.server, &mcp.Tool{
+		Name: "code_read_symbol",
+		Description: `Read the full source code of a symbol by name — without reading the entire file.
+
+Returns the complete source (signature + body) for a function, method, class, or type,
+extracted from the indexed file using the symbol's known line range. This is dramatically
+cheaper than reading the whole file when you only need one symbol.
+
+**Batch mode:** Pass multiple names in the "symbols" array (max 10) to read several
+symbols in a single call, eliminating round-trip overhead.
+
+**What you get:**
+- The symbol's source code with line numbers preserved
+- File path and line range for navigation
+- Doc comment if present
+- Estimated token savings vs reading the full file
+
+**Use this when:**
+- You know the symbol name (from code_search, code_outline, or code_references)
+- You need to read the implementation of a specific function
+- You want to review a class or type definition
+- You need several symbol bodies at once (use batch mode)
+
+**Example:**
+- Single: {"symbol": "getUserById"}
+- Batch: {"symbols": ["getUserById", "createUser", "deleteUser"]}
+- Filtered: {"symbol": "handle", "kind": "method"}
+
+**Note:** Requires the code index (run 'aide code index'). If the symbol isn't found
+in the index, check the name with code_search first.`,
+	}, s.handleCodeReadSymbol)
 
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name: "code_read_check",
@@ -292,15 +331,24 @@ func (s *MCPServer) handleCodeStats(_ context.Context, _ *mcp.CallToolRequest, _
 }
 
 func (s *MCPServer) handleCodeReferences(_ context.Context, _ *mcp.CallToolRequest, input CodeReferencesInput) (*mcp.CallToolResult, any, error) {
-	mcpLog.Printf("tool: code_references symbol=%q kind=%s file=%s", input.SymbolName, input.Kind, input.FilePath)
+	// Resolve symbol names: batch mode takes precedence
+	names := input.SymbolNames
+	if len(names) == 0 && input.SymbolName != "" {
+		names = []string{input.SymbolName}
+	}
+
+	mcpLog.Printf("tool: code_references symbols=%v kind=%s file=%s", names, input.Kind, input.FilePath)
 
 	codeStore := s.getCodeStore()
 	if codeStore == nil {
 		return errorResult("code store not available (still initializing or disabled)"), nil, nil
 	}
 
-	if input.SymbolName == "" {
-		return errorResult("symbol name is required"), nil, nil
+	if len(names) == 0 {
+		return errorResult("symbol name is required (set 'symbol' or 'symbols')"), nil, nil
+	}
+	if len(names) > 10 {
+		return errorResult("batch mode supports at most 10 symbols per call"), nil, nil
 	}
 
 	limit := input.Limit
@@ -308,21 +356,44 @@ func (s *MCPServer) handleCodeReferences(_ context.Context, _ *mcp.CallToolReque
 		limit = DefaultCodeRefsLimit
 	}
 
-	opts := code.ReferenceSearchOptions{
-		SymbolName: input.SymbolName,
-		Kind:       input.Kind,
-		FilePath:   input.FilePath,
-		Limit:      limit,
+	// Single-symbol mode: return as before
+	if len(names) == 1 {
+		opts := code.ReferenceSearchOptions{
+			SymbolName: names[0],
+			Kind:       input.Kind,
+			FilePath:   input.FilePath,
+			Limit:      limit,
+		}
+		refs, err := codeStore.SearchReferences(opts)
+		if err != nil {
+			mcpLog.Printf("  error: %v", err)
+			return errorResult(fmt.Sprintf("search failed: %v", err)), nil, nil
+		}
+		mcpLog.Printf("  found: %d references", len(refs))
+		return textResult(formatCodeReferences(names[0], refs)), nil, nil
 	}
 
-	refs, err := codeStore.SearchReferences(opts)
-	if err != nil {
-		mcpLog.Printf("  error: %v", err)
-		return errorResult(fmt.Sprintf("search failed: %v", err)), nil, nil
+	// Batch mode: query each symbol and combine results
+	var sb strings.Builder
+	sb.WriteString("# Batch Reference Results\n\n")
+	totalRefs := 0
+	for _, name := range names {
+		opts := code.ReferenceSearchOptions{
+			SymbolName: name,
+			Kind:       input.Kind,
+			FilePath:   input.FilePath,
+			Limit:      limit,
+		}
+		refs, err := codeStore.SearchReferences(opts)
+		if err != nil {
+			fmt.Fprintf(&sb, "## `%s` — error: %v\n\n", name, err)
+			continue
+		}
+		totalRefs += len(refs)
+		sb.WriteString(formatCodeReferences(name, refs))
 	}
-
-	mcpLog.Printf("  found: %d references", len(refs))
-	return textResult(formatCodeReferences(input.SymbolName, refs)), nil, nil
+	mcpLog.Printf("  batch: %d symbols, %d total references", len(names), totalRefs)
+	return textResult(sb.String()), nil, nil
 }
 
 func (s *MCPServer) handleCodeTopReferences(_ context.Context, _ *mcp.CallToolRequest, input CodeTopReferencesInput) (*mcp.CallToolResult, any, error) {
@@ -465,260 +536,125 @@ func (s *MCPServer) handleCodeReadCheck(_ context.Context, _ *mcp.CallToolReques
 	return textResult(result), nil, nil
 }
 
-// ============================================================================
-// Code formatting helpers
-// ============================================================================
-
-func formatCodeSearchResults(results []*store.CodeSearchResult) string {
-	if len(results) == 0 {
-		return "No matching symbols found.\n\nTip: Run `aide code index` to index your codebase."
+func (s *MCPServer) handleCodeReadSymbol(_ context.Context, _ *mcp.CallToolRequest, input CodeReadSymbolInput) (*mcp.CallToolResult, any, error) {
+	// Resolve symbol names: batch mode takes precedence
+	names := input.Symbols
+	if len(names) == 0 && input.Symbol != "" {
+		names = []string{input.Symbol}
 	}
 
+	mcpLog.Printf("tool: code_read_symbol symbols=%v kind=%s", names, input.Kind)
+
+	codeStore := s.getCodeStore()
+	if codeStore == nil {
+		return errorResult("code store not available (still initializing or disabled)"), nil, nil
+	}
+
+	if len(names) == 0 {
+		return errorResult("symbol name is required (set 'symbol' or 'symbols')"), nil, nil
+	}
+	if len(names) > 10 {
+		return errorResult("batch mode supports at most 10 symbols per call"), nil, nil
+	}
+
+	root := projectRoot(s.dbPath)
 	var sb strings.Builder
-	sb.WriteString("# Code Search Results\n\n")
-
-	for _, r := range results {
-		sym := r.Symbol
-		fmt.Fprintf(&sb, "## `%s` [%s]\n", sym.Name, sym.Kind)
-		fmt.Fprintf(&sb, "**File:** `%s:%d`\n", sym.FilePath, sym.StartLine)
-		fmt.Fprintf(&sb, "**Signature:** `%s`\n", sym.Signature)
-		if sym.DocComment != "" {
-			fmt.Fprintf(&sb, "**Doc:** %s\n", sym.DocComment)
-		}
-		sb.WriteString("\n")
+	if len(names) > 1 {
+		sb.WriteString("# Batch Symbol Source\n\n")
 	}
 
-	return sb.String()
-}
+	totalTokens := 0
+	totalSaved := 0
+	found := 0
 
-// containsBleveSyntax checks if a query contains Bleve query syntax characters.
-func containsBleveSyntax(query string) bool {
-	special := []string{"*", "?", "+", "-", ":", "^", "~", "(", ")", "[", "]", "{", "}", "\"", "&&", "||", "!"}
-	for _, s := range special {
-		if strings.Contains(query, s) {
-			return true
-		}
-	}
-	return false
-}
-
-func formatCodeSymbols(filePath string, symbols []*code.Symbol) string {
-	if len(symbols) == 0 {
-		return fmt.Sprintf("No symbols found in `%s`", filePath)
-	}
-
-	var sb strings.Builder
-	fmt.Fprintf(&sb, "# Symbols in `%s`\n\n", filePath)
-	fmt.Fprintf(&sb, "_Total: %d symbols_\n\n", len(symbols))
-
-	grouped := make(map[string][]*code.Symbol)
-	for _, sym := range symbols {
-		grouped[sym.Kind] = append(grouped[sym.Kind], sym)
-	}
-
-	kindOrder := []string{"interface", "class", "type", "function", "method"}
-	for _, kind := range kindOrder {
-		syms := grouped[kind]
-		if len(syms) == 0 {
+	for _, name := range names {
+		sym, symbolTokens, saved, text := s.readOneSymbol(codeStore, root, name, input.Kind)
+		sb.WriteString(text)
+		if sym == nil {
 			continue
 		}
+		found++
+		totalTokens += symbolTokens
+		totalSaved += saved
 
-		fmt.Fprintf(&sb, "## %ss\n\n", titleCase(kind))
-		for _, sym := range syms {
-			fmt.Fprintf(&sb, "- **%s** (line %d): `%s`\n", sym.Name, sym.StartLine, sym.Signature)
-		}
-		sb.WriteString("\n")
-	}
-
-	return sb.String()
-}
-
-func formatCodeReferences(symbolName string, refs []*code.Reference) string {
-	if len(refs) == 0 {
-		return fmt.Sprintf("No references found for `%s`.\n\nTip: Run `aide code index` to index your codebase.", symbolName)
-	}
-
-	var sb strings.Builder
-	fmt.Fprintf(&sb, "# References to `%s`\n\n", symbolName)
-	fmt.Fprintf(&sb, "_Found %d references_\n\n", len(refs))
-
-	grouped := make(map[string][]*code.Reference)
-	for _, ref := range refs {
-		grouped[ref.FilePath] = append(grouped[ref.FilePath], ref)
-	}
-
-	for filePath, fileRefs := range grouped {
-		fmt.Fprintf(&sb, "## `%s`\n\n", filePath)
-		for _, ref := range fileRefs {
-			kindTag := ""
-			switch ref.Kind {
-			case code.RefKindCall:
-				kindTag = "[call]"
-			case code.RefKindTypeRef:
-				kindTag = "[type]"
-			}
-			fmt.Fprintf(&sb, "- **Line %d** %s: `%s`\n", ref.Line, kindTag, ref.Context)
-		}
-		sb.WriteString("\n")
-	}
-
-	return sb.String()
-}
-
-// ============================================================================
-// Code outline helpers
-// ============================================================================
-
-// bodyRange represents a collapsible body region in a file.
-type bodyRange struct {
-	startLine int // 1-indexed, first line of body (e.g., the { line)
-	endLine   int // 1-indexed, last line of body
-	symbol    *code.Symbol
-}
-
-// commentPattern matches common single-line comment patterns.
-var commentPattern = regexp.MustCompile(`^\s*(//|#|/\*|\*|\*/|--)`)
-
-// buildOutline creates a collapsed view of a file using symbol body ranges.
-// Lines inside function/method bodies are replaced with a single "{ ... }" marker.
-// If stripComments is true, standalone comment lines outside bodies are removed.
-func buildOutline(content []byte, symbols []*code.Symbol, stripComments bool) string {
-	// Read all lines
-	var lines []string
-	scanner := bufio.NewScanner(strings.NewReader(string(content)))
-	for scanner.Scan() {
-		lines = append(lines, scanner.Text())
-	}
-	totalLines := len(lines)
-
-	if totalLines == 0 {
-		return "(empty file)"
-	}
-
-	// Build body ranges from symbols, sorted by start line.
-	// Only include symbols that actually have body ranges.
-	var ranges []bodyRange
-	for _, sym := range symbols {
-		if sym.BodyStartLine > 0 && sym.BodyEndLine > 0 && sym.BodyEndLine > sym.BodyStartLine {
-			ranges = append(ranges, bodyRange{
-				startLine: sym.BodyStartLine,
-				endLine:   sym.BodyEndLine,
-				symbol:    sym,
+		if saved > 0 && s.store != nil {
+			s.store.AddTokenEvent(&memory.TokenEvent{
+				EventType:   memory.TokenEventSymbolRead,
+				Tool:        "code_read_symbol",
+				FilePath:    sym.FilePath,
+				Tokens:      symbolTokens,
+				TokensSaved: saved,
 			})
 		}
 	}
-	sort.Slice(ranges, func(i, j int) bool {
-		return ranges[i].startLine < ranges[j].startLine
-	})
 
-	// Merge overlapping/nested ranges: for nested symbols (e.g., methods inside classes),
-	// we want to collapse the inner bodies but keep the class structure visible.
-	// Strategy: only collapse leaf-level bodies (functions/methods), not container bodies (classes).
-	// For classes, we keep the body open so inner methods are visible.
-	leafRanges := filterLeafBodies(ranges, symbols)
+	mcpLog.Printf("  returned %d/%d symbols, %d tokens, %d saved", found, len(names), totalTokens, totalSaved)
+	return textResult(sb.String()), nil, nil
+}
 
-	// Build a set of lines that are "inside a collapsed body"
-	// Map: lineNumber -> bodyRange (for the collapse marker)
-	collapseStart := make(map[int]*bodyRange) // first line of body -> range
-	collapsedLines := make(map[int]bool)      // lines to skip entirely
-
-	for i := range leafRanges {
-		r := &leafRanges[i]
-		// The body start line itself gets the collapse marker
-		collapseStart[r.startLine] = r
-		// All lines after the start until end are collapsed (skipped)
-		for line := r.startLine + 1; line <= r.endLine; line++ {
-			collapsedLines[line] = true
-		}
+// readOneSymbol looks up a symbol by name in the code index and extracts its source lines.
+// Returns the matched symbol (nil if not found), token count, tokens saved, and formatted output.
+func (s *MCPServer) readOneSymbol(codeStore store.CodeIndexStore, root, name, kind string) (*code.Symbol, int, int, string) {
+	query := name
+	if !containsBleveSyntax(query) {
+		query = "\"" + query + "\""
+	}
+	opts := code.SearchOptions{
+		Kind:  kind,
+		Limit: 20,
+	}
+	results, err := codeStore.SearchSymbols(query, opts)
+	if err != nil {
+		return nil, 0, 0, fmt.Sprintf("## `%s` — search error: %v\n\n", name, err)
 	}
 
-	// Build the outline
+	var match *code.Symbol
+	for _, r := range results {
+		if r.Symbol.Name == name {
+			match = r.Symbol
+			break
+		}
+	}
+	if match == nil {
+		return nil, 0, 0, fmt.Sprintf("## `%s` — not found in index\n\n", name)
+	}
+
+	absPath := filepath.Join(root, match.FilePath)
+	symbolLines, err := readFileLines(absPath, match.StartLine, match.EndLine)
+	if err != nil {
+		return nil, 0, 0, fmt.Sprintf("## `%s` — file error: %v\n\n", name, err)
+	}
+
+	if len(symbolLines) == 0 {
+		return nil, 0, 0, fmt.Sprintf("## `%s` — no source lines at %s:%d-%d\n\n", name, match.FilePath, match.StartLine, match.EndLine)
+	}
+
 	var sb strings.Builder
-	fmt.Fprintf(&sb, "// Outline: %d symbols, %d lines total\n\n", len(symbols), totalLines)
-
-	for lineNum := 1; lineNum <= totalLines; lineNum++ {
-		lineIdx := lineNum - 1
-		line := lines[lineIdx]
-
-		// If this line is inside a collapsed body (not the start), skip it
-		if collapsedLines[lineNum] {
-			continue
-		}
-
-		// If this line starts a collapsed body, emit the collapse marker
-		if r, ok := collapseStart[lineNum]; ok {
-			// Emit the signature line (which should be the line(s) before the body)
-			// and then the collapse marker
-			indent := extractIndent(line)
-			fmt.Fprintf(&sb, "%s%s{ ... }  // lines %d-%d\n", lineNumPrefix(lineNum), indent, r.startLine, r.endLine)
-			continue
-		}
-
-		// Strip comment-only lines if requested
-		if stripComments && isCommentLine(line) {
-			continue
-		}
-
-		// Strip blank lines between collapsed sections to keep output tight
-		if strings.TrimSpace(line) == "" {
-			// Keep blank lines that separate logical sections, skip consecutive ones
-			continue
-		}
-
-		fmt.Fprintf(&sb, "%s%s\n", lineNumPrefix(lineNum), line)
+	fmt.Fprintf(&sb, "## `%s` [%s]\n", match.Name, match.Kind)
+	fmt.Fprintf(&sb, "**File:** `%s:%d-%d`", match.FilePath, match.StartLine, match.EndLine)
+	if match.Signature != "" {
+		fmt.Fprintf(&sb, " | **Signature:** `%s`", match.Signature)
 	}
-
-	return sb.String()
-}
-
-// filterLeafBodies returns only body ranges for leaf symbols (functions, methods)
-// and not for container symbols (classes, interfaces) that contain other symbols.
-func filterLeafBodies(ranges []bodyRange, _ []*code.Symbol) []bodyRange {
-	var result []bodyRange
-	for _, r := range ranges {
-		kind := r.symbol.Kind
-		// Classes and interfaces are containers — don't collapse their bodies
-		// so inner methods remain visible
-		if kind == code.KindClass || kind == code.KindInterface {
-			continue
-		}
-		result = append(result, r)
+	sb.WriteString("\n")
+	if match.DocComment != "" {
+		fmt.Fprintf(&sb, "**Doc:** %s\n", match.DocComment)
 	}
-	return result
-}
-
-// isCommentLine checks if a line is a standalone comment (not code with trailing comment).
-func isCommentLine(line string) bool {
-	trimmed := strings.TrimSpace(line)
-	if trimmed == "" {
-		return false
+	sb.WriteString("\n```\n")
+	for i, line := range symbolLines {
+		fmt.Fprintf(&sb, "%-4d: %s\n", match.StartLine+i, line)
 	}
-	return commentPattern.MatchString(trimmed)
-}
+	sb.WriteString("```\n\n")
 
-// extractIndent returns the leading whitespace of a line.
-func extractIndent(line string) string {
-	for i, ch := range line {
-		if ch != ' ' && ch != '\t' {
-			return line[:i]
+	symbolContent := strings.Join(symbolLines, "\n")
+	symbolTokens := code.EstimateTokens(match.FilePath, len(symbolContent))
+	saved := 0
+	if stat, err := os.Stat(absPath); err == nil {
+		fileTokens := code.EstimateTokensFromSize(match.FilePath, stat.Size())
+		if fileTokens > symbolTokens {
+			saved = fileTokens - symbolTokens
 		}
 	}
-	return line
+
+	return match, symbolTokens, saved, sb.String()
 }
 
-// lineNumPrefix formats a line number for the outline output.
-func lineNumPrefix(lineNum int) string {
-	return fmt.Sprintf("%-4d: ", lineNum)
-}
-
-// countLines counts the number of lines in a string.
-func countLines(s string) int {
-	if s == "" {
-		return 0
-	}
-	n := strings.Count(s, "\n")
-	if !strings.HasSuffix(s, "\n") {
-		n++
-	}
-	return n
-}

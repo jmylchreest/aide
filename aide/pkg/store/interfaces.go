@@ -99,6 +99,7 @@ type CodeIndexStore interface {
 	GetFileReferences(filePath string) ([]*code.Reference, error)
 	ClearFileReferences(filePath string) error
 	TopReferencedSymbols(limit int, kind string) ([]*code.SymbolRefCount, error)
+	ListAllSymbols(limit int) ([]*code.Symbol, error)
 	Stats() (*code.IndexStats, error)
 	Clear() error
 	Close() error
