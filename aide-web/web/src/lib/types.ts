@@ -13,6 +13,7 @@ export interface MemoryItem {
   category: string;
   content: string;
   tags: string[];
+  created_at: string;
 }
 
 export interface DecisionItem {
@@ -20,6 +21,7 @@ export interface DecisionItem {
   decision: string;
   rationale: string;
   decided_by: string;
+  created_at: string;
 }
 
 export interface TaskItem {

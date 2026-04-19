@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/jmylchreest/aide/aide/pkg/memory"
@@ -13,6 +14,7 @@ type DecisionItem struct {
 	Decision  string `json:"decision"`
 	Rationale string `json:"rationale"`
 	DecidedBy string `json:"decided_by"`
+	CreatedAt string `json:"created_at"`
 }
 
 // ListDecisionsOutput is the response body for APIListDecisions.
@@ -47,6 +49,7 @@ func (h *Handler) APIListDecisions(ctx context.Context, input *struct {
 			Decision:  d.Decision,
 			Rationale: d.Rationale,
 			DecidedBy: d.DecidedBy,
+			CreatedAt: d.CreatedAt.Format(time.RFC3339),
 		})
 	}
 	return out, nil

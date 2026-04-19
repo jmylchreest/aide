@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { api } from "@/lib/api";
 import { useApi } from "@/hooks/use-api";
@@ -12,10 +12,12 @@ import {
   textareaClass,
   ModalFooterButtons,
 } from "../shared/Modal";
-import { Trash2, Plus, Pencil, Copy } from "lucide-react";
+import { Trash2, Plus, Pencil, Copy, ArrowDownAZ, Clock } from "lucide-react";
 import { useClipboard } from "@/context/ClipboardContext";
 import { ClipboardBanner } from "../shared/ClipboardBanner";
 import type { MemoryItem } from "@/lib/types";
+
+type SortMode = "newest" | "alpha";
 
 // Official categories — matches aide/pkg/memory/types.go constants
 const CATEGORIES = [
@@ -52,6 +54,7 @@ export function MemoriesPage() {
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [sortMode, setSortMode] = useState<SortMode>("newest");
 
   const { item: clipboardItem, copy, clear } = useClipboard();
 
@@ -72,15 +75,25 @@ export function MemoriesPage() {
   );
 
   const lowerQuery = query.toLowerCase();
-  const filtered = isIdQuery
-    ? memories
-    : memories?.filter(
-        (m) =>
-          !query ||
-          m.content.toLowerCase().includes(lowerQuery) ||
-          m.category.toLowerCase().includes(lowerQuery) ||
-          m.tags?.some((t) => t.toLowerCase().includes(lowerQuery))
-      );
+  const filtered = useMemo(() => {
+    if (!memories) return undefined;
+    if (isIdQuery) return memories;
+    const matched = memories.filter(
+      (m) =>
+        !query ||
+        m.content.toLowerCase().includes(lowerQuery) ||
+        m.category.toLowerCase().includes(lowerQuery) ||
+        m.tags?.some((t) => t.toLowerCase().includes(lowerQuery))
+    );
+    const sorted = [...matched];
+    if (sortMode === "newest") {
+      // ULID is time-ordered; reverse for newest first
+      sorted.sort((a, b) => b.id.localeCompare(a.id));
+    } else {
+      sorted.sort((a, b) => a.content.localeCompare(b.content));
+    }
+    return sorted;
+  }, [memories, query, lowerQuery, isIdQuery, sortMode]);
 
   // Derive project-specific tag suggestions
   const tagSuggestions = useMemo(() => {
@@ -196,13 +209,23 @@ export function MemoriesPage() {
           },
         ]}
         right={
-          <button
-            onClick={openCreateModal}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-aide-accent border border-aide-accent/30 rounded-sm hover:bg-aide-accent/10 transition-colors shrink-0"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Add Memory
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setSortMode(sortMode === "newest" ? "alpha" : "newest")}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-aide-text-muted border border-aide-border rounded-sm hover:bg-aide-surface transition-colors shrink-0"
+              title={sortMode === "newest" ? "Sort: newest first" : "Sort: alphabetical"}
+            >
+              {sortMode === "newest" ? <Clock className="w-3.5 h-3.5" /> : <ArrowDownAZ className="w-3.5 h-3.5" />}
+              {sortMode === "newest" ? "Newest" : "A\u2013Z"}
+            </button>
+            <button
+              onClick={openCreateModal}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-aide-accent border border-aide-accent/30 rounded-sm hover:bg-aide-accent/10 transition-colors shrink-0"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Add Memory
+            </button>
+          </div>
         }
       />
 
@@ -267,9 +290,16 @@ export function MemoriesPage() {
                       <Tag key={tag} label={tag} />
                     ))}
                   </div>
-                  <span className="text-[0.6rem] text-aide-text-dim font-mono shrink-0">
-                    {m.id}
-                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {m.created_at && (
+                      <span className="text-[0.6rem] text-aide-text-dim font-mono">
+                        {new Date(m.created_at).toLocaleDateString()}
+                      </span>
+                    )}
+                    <span className="text-[0.6rem] text-aide-text-dim font-mono">
+                      {m.id}
+                    </span>
+                  </div>
                 </div>
               }
             >

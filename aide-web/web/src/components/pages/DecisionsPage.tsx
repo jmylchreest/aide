@@ -1,14 +1,16 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { api } from "@/lib/api";
 import { useApi } from "@/hooks/use-api";
 import { FilterBar } from "../shared/FilterBar";
 import { ExpandableCard, Badge } from "../shared/ExpandableCard";
 import { Modal, ConfirmDialog, FormField, inputClass, textareaClass, ModalFooterButtons } from "../shared/Modal";
-import { Trash2, Copy, Plus } from "lucide-react";
+import { Trash2, Copy, Plus, ArrowDownAZ, Clock } from "lucide-react";
 import { useClipboard } from "@/context/ClipboardContext";
 import { ClipboardBanner } from "../shared/ClipboardBanner";
 import type { DecisionItem } from "@/lib/types";
+
+type SortMode = "newest" | "alpha";
 
 export function DecisionsPage() {
   const { project } = useParams<{ project: string }>();
@@ -23,6 +25,8 @@ export function DecisionsPage() {
   const [creating, setCreating] = useState(false);
   const [pasteConfirmOpen, setPasteConfirmOpen] = useState(false);
 
+  const [sortMode, setSortMode] = useState<SortMode>("newest");
+
   const { item: clipboardItem, copy, clear } = useClipboard();
 
   const { data: decisions, loading, error, refresh } = useApi(
@@ -30,14 +34,47 @@ export function DecisionsPage() {
     [project]
   );
 
+  // Compute superseded status: for each topic, only the newest is current
+  const supersededSet = useMemo(() => {
+    if (!decisions) return new Set<number>();
+    const latestByTopic = new Map<string, { idx: number; date: string }>();
+    decisions.forEach((d, i) => {
+      const existing = latestByTopic.get(d.topic);
+      if (!existing || d.created_at > existing.date) {
+        latestByTopic.set(d.topic, { idx: i, date: d.created_at });
+      }
+    });
+    const superseded = new Set<number>();
+    decisions.forEach((d, i) => {
+      const latest = latestByTopic.get(d.topic);
+      if (latest && latest.idx !== i) {
+        superseded.add(i);
+      }
+    });
+    return superseded;
+  }, [decisions]);
+
   const lowerQuery = query.toLowerCase();
-  const filtered = decisions?.filter(
-    (d) =>
-      !query ||
-      d.topic.toLowerCase().includes(lowerQuery) ||
-      d.decision.toLowerCase().includes(lowerQuery) ||
-      d.rationale?.toLowerCase().includes(lowerQuery)
-  );
+  const filtered = useMemo(() => {
+    if (!decisions) return undefined;
+    const matched = decisions
+      .map((d, i) => ({ ...d, _idx: i }))
+      .filter(
+        (d) =>
+          !query ||
+          d.topic.toLowerCase().includes(lowerQuery) ||
+          d.decision.toLowerCase().includes(lowerQuery) ||
+          d.rationale?.toLowerCase().includes(lowerQuery)
+      );
+
+    const sorted = [...matched];
+    if (sortMode === "newest") {
+      sorted.sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
+    } else {
+      sorted.sort((a, b) => a.topic.localeCompare(b.topic) || (b.created_at || "").localeCompare(a.created_at || ""));
+    }
+    return sorted;
+  }, [decisions, query, lowerQuery, sortMode]);
 
   async function handleDelete() {
     if (!deleteTarget) return;
@@ -92,13 +129,23 @@ export function DecisionsPage() {
         onQueryChange={setQuery}
         placeholder="Filter by topic, decision, or rationale..."
         right={
-          <button
-            onClick={() => setCreateOpen(true)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-aide-accent border border-aide-accent/30 rounded-sm hover:bg-aide-accent/10 transition-colors shrink-0"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Add Decision
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setSortMode(sortMode === "newest" ? "alpha" : "newest")}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-aide-text-muted border border-aide-border rounded-sm hover:bg-aide-surface transition-colors shrink-0"
+              title={sortMode === "newest" ? "Sort: newest first" : "Sort: alphabetical"}
+            >
+              {sortMode === "newest" ? <Clock className="w-3.5 h-3.5" /> : <ArrowDownAZ className="w-3.5 h-3.5" />}
+              {sortMode === "newest" ? "Newest" : "A\u2013Z"}
+            </button>
+            <button
+              onClick={() => setCreateOpen(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-aide-accent border border-aide-accent/30 rounded-sm hover:bg-aide-accent/10 transition-colors shrink-0"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Add Decision
+            </button>
+          </div>
         }
       />
 
@@ -109,67 +156,82 @@ export function DecisionsPage() {
 
       {filtered && filtered.length > 0 ? (
         <div className="flex flex-col gap-2">
-          {filtered.map((d, i) => (
-            <ExpandableCard
-              key={`${d.topic}-${i}`}
-              header={
-                <>
-                  <Badge label="Decision" variant="green" />
-                  <span className="text-xs font-medium text-aide-text truncate">
-                    {d.topic}
-                  </span>
-                </>
-              }
-              headerRight={
-                <>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      copy({ type: "decision", sourceInstance: project!, data: { topic: d.topic, decision: d.decision, rationale: d.rationale, decided_by: d.decided_by }, label: d.topic });
-                    }}
-                    className="p-1 rounded-sm text-aide-text-dim hover:text-aide-accent hover:bg-aide-accent/10 transition-colors"
-                    title="Copy decision"
-                  >
-                    <Copy className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDeleteTarget(d);
-                    }}
-                    className="p-1 rounded-sm text-aide-text-dim hover:text-aide-red hover:bg-aide-red/10 transition-colors"
-                    title="Delete decision"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </>
-              }
-              footer={
-                d.decided_by ? (
-                  <span className="text-[0.6rem] text-aide-text-dim">
-                    Decided by {d.decided_by}
-                  </span>
-                ) : undefined
-              }
-            >
-              <div className="space-y-2">
-                <div>
-                  <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-aide-text-dim">
-                    Decision
-                  </span>
-                  <p className="mt-0.5">{d.decision}</p>
-                </div>
-                {d.rationale && (
+          {filtered.map((d) => {
+            const isSuperseded = supersededSet.has(d._idx);
+            return (
+              <ExpandableCard
+                key={`${d.topic}-${d._idx}`}
+                className={isSuperseded ? "opacity-50" : undefined}
+                header={
+                  <>
+                    {isSuperseded ? (
+                      <Badge label="Superseded" variant="dim" />
+                    ) : (
+                      <Badge label="Decision" variant="green" />
+                    )}
+                    <span className="text-xs font-medium text-aide-text truncate">
+                      {d.topic}
+                    </span>
+                  </>
+                }
+                headerRight={
+                  <>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        copy({ type: "decision", sourceInstance: project!, data: { topic: d.topic, decision: d.decision, rationale: d.rationale, decided_by: d.decided_by }, label: d.topic });
+                      }}
+                      className="p-1 rounded-sm text-aide-text-dim hover:text-aide-accent hover:bg-aide-accent/10 transition-colors"
+                      title="Copy decision"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteTarget(d);
+                      }}
+                      className="p-1 rounded-sm text-aide-text-dim hover:text-aide-red hover:bg-aide-red/10 transition-colors"
+                      title="Delete decision"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </>
+                }
+                footer={
+                  <div className="flex items-center justify-between gap-2">
+                    {d.decided_by ? (
+                      <span className="text-[0.6rem] text-aide-text-dim">
+                        Decided by {d.decided_by}
+                      </span>
+                    ) : <span />}
+                    {d.created_at && (
+                      <span className="text-[0.6rem] text-aide-text-dim font-mono shrink-0">
+                        {new Date(d.created_at).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
+                }
+              >
+                <div className="space-y-2">
                   <div>
                     <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-aide-text-dim">
-                      Rationale
+                      Decision
                     </span>
-                    <p className="mt-0.5">{d.rationale}</p>
+                    <p className="mt-0.5">{d.decision}</p>
                   </div>
-                )}
-              </div>
-            </ExpandableCard>
-          ))}
+                  {d.rationale && (
+                    <div>
+                      <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-aide-text-dim">
+                        Rationale
+                      </span>
+                      <p className="mt-0.5">{d.rationale}</p>
+                    </div>
+                  )}
+                </div>
+              </ExpandableCard>
+            );
+          })}
         </div>
       ) : (
         !loading && (

@@ -4,7 +4,7 @@ import { ChevronDown } from "lucide-react";
 
 interface BadgeProps {
   label: string;
-  variant?: "accent" | "muted" | "green" | "red" | "yellow";
+  variant?: "accent" | "muted" | "green" | "red" | "yellow" | "dim";
 }
 
 const badgeVariants: Record<string, string> = {
@@ -13,6 +13,7 @@ const badgeVariants: Record<string, string> = {
   green: "text-aide-green bg-aide-green/10",
   red: "text-aide-red bg-aide-red/10",
   yellow: "text-aide-yellow bg-aide-yellow/10",
+  dim: "text-aide-text-dim bg-white/5 border border-white/8 line-through",
 };
 
 export function Badge({ label, variant = "accent" }: BadgeProps) {
@@ -42,6 +43,7 @@ interface ExpandableCardProps {
   children: React.ReactNode;
   footer?: React.ReactNode;
   defaultExpanded?: boolean;
+  className?: string;
 }
 
 const COLLAPSED_HEIGHT = 60; // px — ~3 lines of text
@@ -52,6 +54,7 @@ export function ExpandableCard({
   children,
   footer,
   defaultExpanded = false,
+  className,
 }: ExpandableCardProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [overflows, setOverflows] = useState(false);
@@ -68,7 +71,8 @@ export function ExpandableCard({
     <div
       className={cn(
         "bg-aide-surface border border-aide-border rounded p-3 transition-colors hover:border-aide-border-light",
-        overflows && "cursor-pointer"
+        overflows && "cursor-pointer",
+        className
       )}
       onClick={overflows ? () => setExpanded((e) => !e) : undefined}
     >

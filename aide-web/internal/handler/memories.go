@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/jmylchreest/aide/aide/pkg/memory"
@@ -9,10 +10,11 @@ import (
 
 // MemoryItem is the JSON representation of a memory entry.
 type MemoryItem struct {
-	ID       string   `json:"id"`
-	Category string   `json:"category"`
-	Content  string   `json:"content"`
-	Tags     []string `json:"tags"`
+	ID        string   `json:"id"`
+	Category  string   `json:"category"`
+	Content   string   `json:"content"`
+	Tags      []string `json:"tags"`
+	CreatedAt string   `json:"created_at"`
 }
 
 // CreateMemoryInput is the request body for creating a memory.
@@ -103,10 +105,11 @@ func (h *Handler) APIGetMemory(ctx context.Context, input *struct {
 	}
 	out := &GetMemoryOutput{}
 	out.Body.Memory = &MemoryItem{
-		ID:       m.ID,
-		Category: string(m.Category),
-		Content:  m.Content,
-		Tags:     m.Tags,
+		ID:        m.ID,
+		Category:  string(m.Category),
+		Content:   m.Content,
+		Tags:      m.Tags,
+		CreatedAt: m.CreatedAt.Format(time.RFC3339),
 	}
 	return out, nil
 }
@@ -145,10 +148,11 @@ func (h *Handler) APIListMemories(ctx context.Context, input *struct {
 	out := &ListMemoriesOutput{}
 	for _, m := range memories {
 		out.Body.Memories = append(out.Body.Memories, MemoryItem{
-			ID:       m.ID,
-			Category: string(m.Category),
-			Content:  m.Content,
-			Tags:     m.Tags,
+			ID:        m.ID,
+			Category:  string(m.Category),
+			Content:   m.Content,
+			Tags:      m.Tags,
+			CreatedAt: m.CreatedAt.Format(time.RFC3339),
 		})
 	}
 	return out, nil
