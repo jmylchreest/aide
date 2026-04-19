@@ -99,11 +99,21 @@ async function main(): Promise<void> {
           const fp = data.tool_input.file_path as string;
           recordFileRead(binary, cwd, fp);
 
-          // Record token event for the read (estimate from file size)
+          // Record token event for the read
+          // If offset/limit were used, estimate only the portion actually read
           try {
             const abs = isAbsolute(fp) ? fp : resolve(cwd, fp);
             const stat = statSync(abs);
-            const tokens = estimateTokensFromSize(stat.size);
+            const fullTokens = estimateTokensFromSize(stat.size);
+            const offset = data.tool_input?.offset as number | undefined;
+            const limit = data.tool_input?.limit as number | undefined;
+            let tokens = fullTokens;
+            if (limit !== undefined && limit > 0 && stat.size > 0) {
+              // Estimate average bytes per line, scale by lines actually read
+              const estTotalLines = Math.max(1, Math.round(stat.size / 35));
+              const linesRead = Math.min(limit, estTotalLines - (offset || 0));
+              tokens = Math.round(fullTokens * (linesRead / estTotalLines));
+            }
             recordTokenEvent(binary, cwd, "read", "Read", fp, tokens);
           } catch {
             // stat failed — skip token recording

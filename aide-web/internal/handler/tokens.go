@@ -22,13 +22,17 @@ type TokenEventItem struct {
 
 // TokenStatsItem is the JSON representation of token stats.
 type TokenStatsItem struct {
-	TotalRead    int            `json:"total_read"`
-	TotalSaved   int            `json:"total_saved"`
-	TotalWritten int            `json:"total_written"`
-	EventCount   int            `json:"event_count"`
-	ByTool       map[string]int `json:"by_tool"`
-	BySavingType map[string]int `json:"by_saving_type"`
-	Sessions     int            `json:"sessions"`
+	TotalRead      int            `json:"total_read"`
+	TotalSaved     int            `json:"total_saved"`
+	TotalWritten   int            `json:"total_written"`
+	TotalDelivered int            `json:"total_delivered"`
+	EventCount     int            `json:"event_count"`
+	ByTool         map[string]int `json:"by_tool"`
+	BySavingType   map[string]int `json:"by_saving_type"`
+	ByDelivery     map[string]int `json:"by_delivery"`
+	Sessions       int            `json:"sessions"`
+	ReadCount      int            `json:"read_count"`
+	CodeToolCount  int            `json:"code_tool_count"`
 }
 
 // ListTokenEventsOutput is the response body for APIListTokenEvents.
@@ -114,13 +118,17 @@ func (h *Handler) APIGetTokenStats(ctx context.Context, input *struct {
 
 	out := &GetTokenStatsOutput{}
 	out.Body = TokenStatsItem{
-		TotalRead:    stats.TotalRead,
-		TotalSaved:   stats.TotalSaved,
-		TotalWritten: stats.TotalWritten,
-		EventCount:   stats.EventCount,
-		ByTool:       stats.ByTool,
-		BySavingType: stats.BySavingType,
-		Sessions:     stats.Sessions,
+		TotalRead:      stats.TotalRead,
+		TotalSaved:     stats.TotalSaved,
+		TotalWritten:   stats.TotalWritten,
+		TotalDelivered: stats.TotalDelivered,
+		EventCount:     stats.EventCount,
+		ByTool:         stats.ByTool,
+		BySavingType:   stats.BySavingType,
+		ByDelivery:     stats.ByDelivery,
+		Sessions:       stats.Sessions,
+		ReadCount:      stats.ReadCount,
+		CodeToolCount:  stats.CodeToolCount,
 	}
 	return out, nil
 }

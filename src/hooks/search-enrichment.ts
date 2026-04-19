@@ -15,6 +15,7 @@ import { readStdin } from "../lib/hook-utils.js";
 import { debug } from "../lib/logger.js";
 import { checkSearchEnrichment } from "../core/search-enrichment.js";
 import { findAideBinary } from "../core/aide-client.js";
+import { recordTokenEvent } from "../core/read-tracking.js";
 
 const SOURCE = "search-enrichment";
 
@@ -60,6 +61,17 @@ async function main(): Promise<void> {
 
     if (result.shouldEnrich && result.enrichment) {
       debug(SOURCE, `Enriching grep with code index context`);
+
+      // Record token event for search enrichment
+      if (binary) {
+        try {
+          const tokens = Math.round(result.enrichment.length / 3.0);
+          recordTokenEvent(binary, cwd, "context_injected", "enrichment", "search-enrichment", tokens);
+        } catch {
+          // Non-fatal
+        }
+      }
+
       const output: HookOutput = {
         continue: true,
         hookSpecificOutput: {

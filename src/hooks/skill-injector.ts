@@ -25,6 +25,8 @@ import {
   formatSkillsContext as coreFormatSkillsContext,
 } from "../core/skill-matcher.js";
 import type { Skill } from "../core/types.js";
+import { findAideBinary } from "../core/aide-client.js";
+import { recordTokenEvent } from "../core/read-tracking.js";
 
 const SOURCE = "skill-injector";
 
@@ -201,6 +203,20 @@ async function main(): Promise<void> {
       log.info(
         `Injecting ${matched.length} skills: ${matched.map((s) => s.name).join(", ")}`,
       );
+
+      const skillContext = formatSkillsContext(matched);
+
+      // Record token event for skill injection
+      try {
+        const binary = findAideBinary({ cwd });
+        if (binary && skillContext) {
+          const tokens = Math.round(skillContext.length / 3.0);
+          recordTokenEvent(binary, cwd, "context_injected", "skill", "skill-injector", tokens);
+        }
+      } catch {
+        // Non-fatal
+      }
+
       debugLog(`Flushing logs...`);
       log.flush();
       debugLog(`Hook complete (${Date.now() - hookStart}ms total)`);
@@ -209,7 +225,7 @@ async function main(): Promise<void> {
         continue: true,
         hookSpecificOutput: {
           hookEventName: "UserPromptSubmit",
-          additionalContext: formatSkillsContext(matched),
+          additionalContext: skillContext,
         },
       };
       console.log(JSON.stringify(output));

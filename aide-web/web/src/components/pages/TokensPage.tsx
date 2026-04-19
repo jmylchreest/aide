@@ -33,6 +33,16 @@ function SavingCard({ label, value, tooltip }: { label: string; value: number; t
   );
 }
 
+function DeliveryCard({ label, value, tooltip }: { label: string; value: number; tooltip?: string }) {
+  return (
+    <div className="rounded-md border border-aide-border bg-aide-bg-secondary px-4 py-3">
+      <div className="text-[10px] uppercase tracking-wider text-aide-text-dim mb-1 cursor-help" title={tooltip}>{label}</div>
+      <div className="text-lg font-semibold text-blue-400">~{formatTokens(value)}</div>
+      <div className="text-[10px] text-aide-text-muted mt-0.5">tokens delivered</div>
+    </div>
+  );
+}
+
 export function TokensPage() {
   const { project } = useParams<{ project: string }>();
   const [query, setQuery] = useState("");
@@ -81,6 +91,12 @@ export function TokensPage() {
     stats && stats.total_read + stats.total_saved > 0
       ? ((stats.total_saved / (stats.total_read + stats.total_saved)) * 100).toFixed(1)
       : "0";
+
+  const totalFileInteractions = (stats?.read_count ?? 0) + (stats?.code_tool_count ?? 0);
+  const adoptionPct =
+    totalFileInteractions > 0
+      ? ((stats!.code_tool_count / totalFileInteractions) * 100).toFixed(0)
+      : null;
 
   const columns: Column<TokenEventItem>[] = [
     {
@@ -152,7 +168,7 @@ export function TokensPage() {
       </div>
 
       {/* Headline stats */}
-      <div className="grid grid-cols-3 gap-3 mb-6">
+      <div className="grid grid-cols-4 gap-3 mb-6">
         <StatCard
           label="Est. Tokens Read"
           value={stats ? `~${formatTokens(stats.total_read)}` : "-"}
@@ -161,11 +177,17 @@ export function TokensPage() {
         <StatCard
           label="Est. Tokens Saved"
           value={stats ? `~${formatTokens(stats.total_saved)}` : "-"}
-          sub={`~${savingsPct}% savings`}
+          sub={`~${savingsPct}% reduction`}
+        />
+        <StatCard
+          label="Context Delivered"
+          value={stats ? `~${formatTokens(stats.total_delivered)}` : "-"}
+          sub="proactive injections"
         />
         <StatCard
           label="Sessions Tracked"
           value={stats ? String(stats.sessions) : "-"}
+          sub={adoptionPct ? `${adoptionPct}% code tool adoption` : undefined}
         />
       </div>
 
@@ -173,7 +195,7 @@ export function TokensPage() {
       {stats && stats.total_saved > 0 && (
         <div className="mb-6">
           <h3 className="text-xs font-semibold text-aide-text mb-2">
-            Estimated Savings Breakdown
+            Savings Breakdown
           </h3>
           <div className="grid grid-cols-3 gap-3">
             {(stats.by_saving_type?.outline ?? 0) > 0 && (
@@ -183,14 +205,86 @@ export function TokensPage() {
                 tooltip="Tokens saved when code_outline was used instead of reading the full file. The outline shows file structure at ~5-15% of full token cost."
               />
             )}
+            {(stats.by_saving_type?.symbol_read ?? 0) > 0 && (
+              <SavingCard
+                label="Symbol Reads"
+                value={stats.by_saving_type.symbol_read}
+                tooltip="Tokens saved when code_read_symbol returned just a function/class body instead of the full file."
+              />
+            )}
             {(stats.by_saving_type?.read_avoided ?? 0) > 0 && (
               <SavingCard
                 label="Avoided Re-reads"
                 value={stats.by_saving_type.read_avoided}
-                tooltip="Tokens saved when aide's smart-read hint detected a file was already read this session and hadn't changed, avoiding a redundant full re-read."
+                tooltip="Tokens saved when aide detected a file was already read and unchanged, avoiding a redundant full re-read."
               />
             )}
           </div>
+        </div>
+      )}
+
+      {/* Context delivery breakdown */}
+      {stats && stats.total_delivered > 0 && (
+        <div className="mb-6">
+          <h3 className="text-xs font-semibold text-aide-text mb-2">
+            Context Delivered
+          </h3>
+          <p className="text-[10px] text-aide-text-dim mb-2">
+            Tokens aide proactively injected so the agent didn't need to search for them.
+          </p>
+          <div className="grid grid-cols-4 gap-3">
+            {(stats.by_delivery?.memory ?? 0) > 0 && (
+              <DeliveryCard
+                label="Memories"
+                value={stats.by_delivery.memory}
+                tooltip="Tokens from project and global memories injected at session start."
+              />
+            )}
+            {(stats.by_delivery?.decision ?? 0) > 0 && (
+              <DeliveryCard
+                label="Decisions"
+                value={stats.by_delivery.decision}
+                tooltip="Tokens from architectural decisions injected at session start."
+              />
+            )}
+            {(stats.by_delivery?.skill ?? 0) > 0 && (
+              <DeliveryCard
+                label="Skills"
+                value={stats.by_delivery.skill}
+                tooltip="Tokens from matched skill instructions injected on user prompts."
+              />
+            )}
+            {(stats.by_delivery?.enrichment ?? 0) > 0 && (
+              <DeliveryCard
+                label="Search Enrichment"
+                value={stats.by_delivery.enrichment}
+                tooltip="Tokens from code index context appended to Grep searches."
+              />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Tool adoption */}
+      {stats && totalFileInteractions > 0 && (
+        <div className="mb-6">
+          <h3 className="text-xs font-semibold text-aide-text mb-2">
+            Tool Adoption
+          </h3>
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-2 rounded-full bg-aide-bg-secondary overflow-hidden">
+              <div
+                className="h-full rounded-full bg-aide-accent"
+                style={{ width: `${adoptionPct}%` }}
+              />
+            </div>
+            <span className="text-xs text-aide-text-muted whitespace-nowrap">
+              {stats.code_tool_count} code tools / {stats.read_count} reads ({adoptionPct}%)
+            </span>
+          </div>
+          <p className="text-[10px] text-aide-text-dim mt-1">
+            Ratio of efficient code tool calls (outline, symbol_read) vs raw file reads.
+          </p>
         </div>
       )}
 

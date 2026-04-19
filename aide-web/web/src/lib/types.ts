@@ -90,10 +90,14 @@ export interface TokenStats {
   total_read: number;
   total_saved: number;
   total_written: number;
+  total_delivered: number;
   event_count: number;
   by_tool: Record<string, number>;
   by_saving_type: Record<string, number>;
+  by_delivery: Record<string, number>;
   sessions: number;
+  read_count: number;
+  code_tool_count: number;
 }
 
 export interface DetailedStatus {

@@ -26,6 +26,7 @@ import { homedir } from "os";
 import { Logger, debug, setDebugCwd } from "../lib/logger.js";
 import { readStdin, detectPlatform } from "../lib/hook-utils.js";
 import { findAideBinary, ensureAideBinary } from "../lib/aide-downloader.js";
+import { recordTokenEvent } from "../core/read-tracking.js";
 import {
   ensureDirectories as coreEnsureDirectories,
   loadConfig as coreLoadConfig,
@@ -457,6 +458,28 @@ async function main(): Promise<void> {
     const context = buildWelcomeContext(state, memories, notices);
     log.end("buildWelcomeContext");
     debugLog(`buildWelcomeContext complete (${Date.now() - hookStart}ms)`);
+
+    // Record token events for context injection
+    try {
+      const binary = findAideBinary(cwd);
+      if (binary && context) {
+        const memoryTokens = Math.round(
+          ([...memories.static.global, ...memories.static.project, ...memories.dynamic.sessions]
+            .join("").length) / 3.0
+        );
+        const decisionTokens = Math.round(
+          memories.static.decisions.join("").length / 3.0
+        );
+        if (memoryTokens > 0) {
+          recordTokenEvent(binary, cwd, "context_injected", "memory", "session-start", memoryTokens);
+        }
+        if (decisionTokens > 0) {
+          recordTokenEvent(binary, cwd, "context_injected", "decision", "session-start", decisionTokens);
+        }
+      }
+    } catch {
+      // Non-fatal — don't break session start for token tracking
+    }
 
     log.end("total");
     log.info("Session start complete");

@@ -546,6 +546,7 @@ func (g *StoreAdapter) TokenStats(sessionID string, since, until time.Time) (*me
 	stats := &memory.TokenStats{
 		ByTool:       make(map[string]int),
 		BySavingType: make(map[string]int),
+		ByDelivery:   make(map[string]int),
 	}
 	sessions := make(map[string]bool)
 	for _, e := range events {
@@ -555,14 +556,27 @@ func (g *StoreAdapter) TokenStats(sessionID string, since, until time.Time) (*me
 		case memory.TokenEventRead:
 			stats.TotalRead += e.Tokens
 			stats.ByTool[e.Tool] += e.Tokens
+			stats.ReadCount++
 		case memory.TokenEventOutlineUsed:
 			stats.TotalRead += e.Tokens
 			stats.TotalSaved += e.TokensSaved
 			stats.ByTool[e.Tool] += e.Tokens
 			stats.BySavingType["outline"] += e.TokensSaved
+			stats.CodeToolCount++
+		case memory.TokenEventSymbolRead:
+			stats.TotalRead += e.Tokens
+			stats.TotalSaved += e.TokensSaved
+			stats.ByTool[e.Tool] += e.Tokens
+			stats.BySavingType["symbol_read"] += e.TokensSaved
+			stats.CodeToolCount++
 		case memory.TokenEventReadAvoided:
 			stats.TotalSaved += e.TokensSaved
 			stats.BySavingType["read_avoided"] += e.TokensSaved
+		case memory.TokenEventContextInjected:
+			stats.TotalDelivered += e.Tokens
+			if e.Tool != "" {
+				stats.ByDelivery[e.Tool] += e.Tokens
+			}
 		}
 	}
 	stats.Sessions = len(sessions)
