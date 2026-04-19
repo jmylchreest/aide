@@ -183,6 +183,11 @@ function generateHooksJson(hookPrefix: string): CodexHooksJson {
               command: `${hookPrefix} context-guard`,
               timeout: 2,
             },
+            {
+              type: "command",
+              command: `${hookPrefix} search-enrichment`,
+              timeout: 3,
+            },
           ],
         },
       ],

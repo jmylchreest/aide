@@ -23,6 +23,7 @@ const HOOK_MAP: Record<string, string> = {
   "write-guard": "write-guard.ts",
   "pre-tool-enforcer": "pre-tool-enforcer.ts",
   "context-guard": "context-guard.ts",
+  "search-enrichment": "search-enrichment.ts",
   "hud-updater": "hud-updater.ts",
   "comment-checker": "comment-checker.ts",
   "context-pruning": "context-pruning.ts",

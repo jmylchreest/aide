@@ -50,6 +50,7 @@ import { evaluateToolUse, isToolDenied } from "../core/tool-enforcement.js";
 import { checkPersistence, getActiveMode } from "../core/persistence-logic.js";
 import { checkWriteGuard } from "../core/write-guard.js";
 import { checkSmartReadHint } from "../core/context-guard.js";
+import { checkSearchEnrichment } from "../core/search-enrichment.js";
 import { recordFileRead } from "../core/read-tracking.js";
 import {
   checkComments,
@@ -737,6 +738,21 @@ function createToolBeforeHandler(
       }
     } catch (err) {
       debug(SOURCE, `Smart read hint check failed (non-fatal): ${err}`);
+    }
+
+    // Search enrichment: append code index context for grep calls
+    try {
+      const enrichResult = checkSearchEnrichment(
+        input.tool,
+        (_output.args || {}) as Record<string, unknown>,
+        state.cwd,
+        state.binary,
+      );
+      if (enrichResult.shouldEnrich && enrichResult.enrichment) {
+        debug(SOURCE, `Search enrichment for ${input.tool}: ${enrichResult.enrichment.length} chars`);
+      }
+    } catch (err) {
+      debug(SOURCE, `Search enrichment check failed (non-fatal): ${err}`);
     }
 
     // Track tool use
