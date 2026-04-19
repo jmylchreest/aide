@@ -45,6 +45,20 @@
       "rationale": "Comments that restate what code does become stale and misleading. Documentation that explains intent, constraints, and non-obvious decisions remains valuable as code evolves.",
       "details": "Name things clearly. Document: public API contracts, non-obvious design decisions, performance constraints, security boundaries. Keep docs next to code (doc comments, package-level README). Use ADRs for cross-cutting architectural decisions.",
       "references": []
+    },
+    {
+      "topic": "aide-memory-persistence",
+      "decision": "Store learnings, gotchas, patterns, and session context via aide memory, not local assistant memory",
+      "rationale": "Local assistant memory (e.g. Claude Code MEMORY.md, OpenCode memory) is scoped to a single assistant and invisible to other agents, swarm workers, or different AI tools working on the same project. aide memories are shared across all sessions, agents, and assistant implementations, and are injected at session start with scoring and decay.",
+      "details": "Use `aide memory add --category=<cat> --tags=<tags> \"<content>\"` (or the aide MCP memory tools) to persist learnings, patterns, gotchas, abandoned approaches, and session summaries. Categories: learning, pattern, gotcha, abandoned, session. Always include provenance tags (source:user|discovered|inferred, verified:true|false for codebase claims). Memories are soft facts — useful context that may become stale. Do not over-rely on them; verify against current code before acting on recalled memories. Prefer not storing over storing something unverified. Never use the assistant's native/local memory system for project knowledge.",
+      "references": []
+    },
+    {
+      "topic": "aide-decision-persistence",
+      "decision": "Record architectural and technical decisions via aide decisions, not local assistant memory",
+      "rationale": "Decisions are project guardrails that constrain all future work. Storing them in local assistant memory makes them invisible to other agents, swarm workers, and different AI tools. aide decisions are injected into every session context, respected by all agents, and maintain supersession history.",
+      "details": "Use `aide decision set \"<topic-slug>\" \"<summary>\" --rationale=\"<why>\"` (or the aide MCP decision tools) to record significant technical choices. Decisions are hard rules — they supersede defaults and act as guardrails. Good candidates: technology choices, architectural patterns, testing strategies, API design, deployment approaches. Not needed for: minor implementation details, personal preferences (use memories), or temporary experiments. Decisions can be superseded by re-running the decide workflow for the same topic (history is preserved). Never store architectural decisions in the assistant's native/local memory system.",
+      "references": []
     }
   ]
 }
