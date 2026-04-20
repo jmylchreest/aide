@@ -20,12 +20,6 @@ import { Logger } from "../lib/logger.js";
 import { readStdin, setMemoryState } from "../lib/hook-utils.js";
 import { findAideBinary } from "../core/aide-client.js";
 import { refreshHud } from "../lib/hud.js";
-import {
-  getWorktreeForAgent,
-  markWorktreeComplete,
-  discoverWorktrees,
-  Worktree,
-} from "../lib/worktree.js";
 
 // Global logger instance
 let log: Logger | null = null;
@@ -207,35 +201,14 @@ function fetchSubagentMemories(cwd: string): {
 /**
  * Build context for subagent injection
  */
-function buildSubagentContext(
-  memories: {
-    global: string[];
-    project: string[];
-    decisions: string[];
-  },
-  worktree?: Worktree,
-): string {
+function buildSubagentContext(memories: {
+  global: string[];
+  project: string[];
+  decisions: string[];
+}): string {
   const lines: string[] = [];
 
   lines.push("<aide-subagent-context>");
-
-  // Inject worktree information if this is a swarm agent
-  if (worktree) {
-    lines.push("");
-    lines.push("## Swarm Worktree");
-    lines.push("");
-    lines.push(`You are working in an isolated git worktree for swarm mode.`);
-    lines.push(`- **Worktree Path**: ${worktree.path}`);
-    lines.push(`- **Branch**: ${worktree.branch}`);
-    lines.push(`- **Story ID**: ${worktree.taskId || "unknown"}`);
-    lines.push("");
-    lines.push(
-      `**IMPORTANT**: All file operations should be performed in: ${worktree.path}`,
-    );
-    lines.push(
-      `Commit your changes to the ${worktree.branch} branch when complete.`,
-    );
-  }
 
   if (memories.global.length > 0) {
     lines.push("");
@@ -349,46 +322,6 @@ async function processSubagentStart(
   refreshHud(cwd, session_id);
   log?.end("refreshHud");
 
-  // Auto-discover any worktrees created by the orchestrator via git commands
-  // This ensures we track worktrees even if they weren't created via our library
-  log?.start("discoverWorktrees");
-  const discovered = discoverWorktrees(cwd);
-  if (discovered.length > 0) {
-    log?.info(`Auto-discovered ${discovered.length} worktrees`);
-  }
-  log?.end("discoverWorktrees", { discovered: discovered.length });
-
-  // Check if this agent has an associated worktree (swarm mode)
-  // Match by agent_id or by pattern in worktree name
-  log?.start("checkWorktree");
-  let worktree = getWorktreeForAgent(cwd, agent_id);
-
-  // If no direct match, try to match by agent_id pattern in worktree name
-  // This handles cases where worktree was created before agent_id was known
-  if (!worktree) {
-    const { loadWorktreeState } = await import("../lib/worktree.js");
-    const state = loadWorktreeState(cwd);
-    // Look for worktree with matching name pattern (e.g., "story-auth" matches "agent-auth")
-    const agentPattern = agent_id.replace(/^agent-/, "");
-    worktree = state.active.find(
-      (w) => w.name.includes(agentPattern) && !w.agentId,
-    );
-    if (worktree) {
-      // Assign this agent to the worktree
-      worktree.agentId = agent_id;
-      const { saveWorktreeState } = await import("../lib/worktree.js");
-      saveWorktreeState(cwd, state);
-      log?.info(`Assigned worktree ${worktree.name} to agent ${agent_id}`);
-    }
-  }
-
-  if (worktree) {
-    log?.info(
-      `Found worktree for agent ${agent_id}: ${worktree.path} (branch: ${worktree.branch})`,
-    );
-  }
-  log?.end("checkWorktree", { hasWorktree: !!worktree });
-
   // Fetch memories for subagent context injection
   log?.start("fetchMemories");
   const memories = fetchSubagentMemories(cwd);
@@ -399,9 +332,9 @@ async function processSubagentStart(
   });
 
   // Always build and inject context (messaging section is unconditional)
-  const context = buildSubagentContext(memories, worktree);
+  const context = buildSubagentContext(memories);
   log?.info(
-    `Injecting context for subagent: ${memories.global.length} preferences, ${memories.project.length} project, ${memories.decisions.length} decisions, worktree=${!!worktree}`,
+    `Injecting context for subagent: ${memories.global.length} preferences, ${memories.project.length} project, ${memories.decisions.length} decisions`,
   );
   return context;
 }
@@ -421,17 +354,6 @@ async function processSubagentStop(data: SubagentStopInput): Promise<void> {
   setAgentState(cwd, agent_id, "status", "completed");
   setAgentState(cwd, agent_id, "endedAt", new Date().toISOString());
   log?.end("updateAgentStatus");
-
-  // Mark worktree as agent-complete if this agent had one (swarm mode)
-  // The worktree stays for merge review - cleanup happens after worktree-resolve
-  log?.start("checkWorktreeComplete");
-  const worktreeMarked = markWorktreeComplete(cwd, agent_id);
-  if (worktreeMarked) {
-    log?.info(
-      `Marked worktree as agent-complete for ${agent_id} - ready for merge review`,
-    );
-  }
-  log?.end("checkWorktreeComplete", { worktreeMarked });
 
   // Refresh HUD to remove the completed agent
   log?.start("refreshHud");
