@@ -815,6 +815,10 @@ function createToolAfterHandler(
           command?: string;
           pattern?: string;
         },
+        // OpenCode's tool.execute.after gives us the rendered output text
+        // directly — that's what gets fed back to the model, so it's the
+        // right thing to estimate output-sized tool cost from.
+        toolResponse: _output.output,
         sessionId: input.sessionID,
       });
     } catch (err) {

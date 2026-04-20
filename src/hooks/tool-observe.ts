@@ -25,6 +25,9 @@ interface HookInput {
   tool_name?: string;
   tool_input?: Record<string, unknown>;
   tool_result?: { success: boolean };
+  // Claude Code passes the tool's actual output payload as tool_response.
+  // Shape varies per tool (string for Bash, object for others).
+  tool_response?: unknown;
 }
 
 function outputContinue(): void {
@@ -61,6 +64,7 @@ async function main(): Promise<void> {
     recordToolEvent(binary, cwd, {
       toolName,
       toolInput: data.tool_input as ToolInput,
+      toolResponse: data.tool_response,
       success: data.tool_result?.success,
       sessionId: data.session_id,
     });

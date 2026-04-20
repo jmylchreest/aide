@@ -67,6 +67,33 @@ const CONTENT_WRITE_TOOLS: Record<string, string> = {
   NotebookEdit: "new_source",
 };
 
+/**
+ * Tools whose cost is the size of the *output* they produce — Bash stdout,
+ * WebFetch page body, WebSearch results, Grep match lines. The PostToolUse
+ * payload carries the tool's response so we can estimate the tokens that
+ * flowed back into the agent's context.
+ */
+const OUTPUT_SIZED_TOOLS = new Set(["Bash", "WebFetch", "WebSearch", "Grep"]);
+
+/**
+ * Pull the textual output from a tool_response / tool_result payload. The
+ * shape varies by tool and by harness (Claude Code passes string for Bash,
+ * objects for others; OpenCode wraps things differently), so we try the
+ * common keys defensively and return "" when there's no text to count.
+ */
+function extractOutputText(payload: unknown): string {
+  if (!payload) return "";
+  if (typeof payload === "string") return payload;
+  if (typeof payload === "object") {
+    const obj = payload as Record<string, unknown>;
+    for (const key of ["output", "stdout", "content", "text", "result"]) {
+      const v = obj[key];
+      if (typeof v === "string") return v;
+    }
+  }
+  return "";
+}
+
 export interface ToolObserveInput {
   toolName: string;
   toolInput?: {
@@ -80,10 +107,12 @@ export interface ToolObserveInput {
     new_source?: string;
     [key: string]: unknown;
   };
-  toolResult?: {
-    output?: string;
-    [key: string]: unknown;
-  };
+  /**
+   * The tool's response payload, used to estimate output token cost for
+   * Bash/WebFetch/WebSearch/Grep. Shape varies per tool and per harness;
+   * extractOutputText handles the common cases.
+   */
+  toolResponse?: unknown;
   success?: boolean;
   sessionId?: string;
 }
@@ -172,6 +201,14 @@ export function recordToolEvent(
     const content = input.toolInput?.[field];
     if (typeof content === "string" && content.length > 0) {
       tokens = Math.round(content.length / 3.0);
+    }
+  } else if (OUTPUT_SIZED_TOOLS.has(input.toolName)) {
+    // Output-sized tools: cost = how much text came back into context.
+    // Stays 0 when the harness didn't pass a tool_response (some hooks
+    // strip it for size). That's still useful — we get the call count.
+    const text = extractOutputText(input.toolResponse);
+    if (text.length > 0) {
+      tokens = Math.round(text.length / 3.0);
     }
   }
 

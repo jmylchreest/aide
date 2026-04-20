@@ -107,15 +107,34 @@ interface PerToolStat {
   calls: number;
   spent: number;
   avoided: number;
+  /** code_search-only: how many calls were *not* followed by a Grep within
+   *  the comparison window (treated as "satisfied" — the index answered
+   *  the question and the agent didn't fall back to raw text search). */
+  satisfied?: number;
 }
 
+/** Window after a code_search in which a follow-up Grep is treated as
+ *  evidence the index didn't answer the question. */
+const CODE_SEARCH_FOLLOWUP_WINDOW_MS = 60_000;
+
 /**
- * Tools that produce a meaningful "avoided" counterfactual: they pull a
- * subset of a file the agent could otherwise have Read whole. Raw `Read`
- * is consume but cannot claim avoided — it IS the expensive path, with
- * nothing cheaper to compare against.
+ * Tools that produce a meaningful "avoided" counterfactual.
+ *
+ * - code_outline / code_read_symbol: pull a subset of a file the agent
+ *   could otherwise have Read whole — counterfactual = what Read would
+ *   have cost, set on the recording side.
+ * - code_search: counterfactual is "would the agent have run Grep
+ *   instead?" — computed client-side by checking whether a Grep
+ *   followed within CODE_SEARCH_FOLLOWUP_WINDOW_MS in the same session.
+ *
+ * Raw Read is consume but cannot claim avoided — it IS the expensive
+ * path, with nothing cheaper to compare against.
  */
-const AVOIDED_CLAIM_TOOLS = new Set(["code_outline", "code_read_symbol"]);
+const AVOIDED_CLAIM_TOOLS = new Set([
+  "code_outline",
+  "code_read_symbol",
+  "code_search",
+]);
 
 function PerToolEfficiency({ stats }: { stats: PerToolStat[] }) {
   if (stats.length === 0) return null;
@@ -142,6 +161,14 @@ function PerToolEfficiency({ stats }: { stats: PerToolStat[] }) {
               <span className="text-[10px] text-aide-text-dim">
                 {s.calls} {s.calls === 1 ? "call" : "calls"}
               </span>
+              {s.satisfied !== undefined && (
+                <span
+                  className="text-[10px] text-aide-text-dim"
+                  title="Calls not followed by a Grep within 60s in the same session"
+                >
+                  {s.satisfied}/{s.calls} satisfied
+                </span>
+              )}
               {eff && (
                 <span className="ml-auto text-[10px] text-green-500 font-medium">
                   {eff} efficiency
@@ -247,18 +274,60 @@ export function TokensPage() {
 
   const perToolStats = useMemo<PerToolStat[]>(() => {
     if (!events) return [];
+
+    // Build a session-keyed timeline of Grep events so we can do an O(N)
+    // walk over code_search calls and binary-search the next Grep per
+    // session. Events come back newest-first from the API; we want oldest
+    // first for forward-looking counterfactual checks.
+    const ordered = [...events].sort(
+      (a, b) =>
+        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+    );
+    const grepBySession = new Map<string, number[]>();
+    for (const e of ordered) {
+      if (e.tool === "Grep") {
+        const arr = grepBySession.get(e.session_id) ?? [];
+        arr.push(new Date(e.timestamp).getTime());
+        grepBySession.set(e.session_id, arr);
+      }
+    }
+    function followedByGrep(e: TokenEventItem): boolean {
+      const greps = grepBySession.get(e.session_id);
+      if (!greps) return false;
+      const t = new Date(e.timestamp).getTime();
+      // Linear scan is fine — typical sessions have few Greps. If this
+      // becomes hot, swap in a binary search.
+      for (const gt of greps) {
+        if (gt > t && gt - t <= CODE_SEARCH_FOLLOWUP_WINDOW_MS) return true;
+        if (gt > t) break;
+      }
+      return false;
+    }
+
     const m = new Map<string, PerToolStat>();
-    for (const e of events) {
+    for (const e of ordered) {
       if (!e.tool) continue;
       // Injection events use the Tool field as the source name (memory /
       // decision / skill / enrichment) — those belong in the delivered
       // section, not the per-tool efficiency chart. Filter them out.
       if (e.event_type === "context_injected") continue;
       const category = TOOL_CATEGORIES[e.tool] ?? "other";
-      const b = m.get(e.tool) ?? { tool: e.tool, category, calls: 0, spent: 0, avoided: 0 };
+      const b =
+        m.get(e.tool) ??
+        ({ tool: e.tool, category, calls: 0, spent: 0, avoided: 0 } as PerToolStat);
       b.calls += 1;
       b.spent += e.tokens || 0;
       b.avoided += e.tokens_saved || 0;
+
+      // code_search counterfactual: if this call wasn't followed by a Grep
+      // in the same session within the window, treat it as "satisfied" —
+      // the index answered the question. Avoided estimate = 3× spent
+      // (conservative; a Grep on the same project usually returns several
+      // times the bytes a focused symbol search does).
+      if (e.tool === "code_search" && !followedByGrep(e)) {
+        b.satisfied = (b.satisfied ?? 0) + 1;
+        b.avoided += (e.tokens || 0) * 3;
+      }
       m.set(e.tool, b);
     }
     return Array.from(m.values()).sort((a, b) => {
@@ -459,12 +528,28 @@ export function TokensPage() {
                 compare against.
               </p>
               <p>
-                <strong className="text-aide-text">Navigation / search tools</strong>
-                (code_search, code_references, Grep, ...): we report only what
-                they cost. Their value is indirect — they let the agent find
-                the right file before reading — and we can't claim a specific
-                "avoided" amount without speculating about what the agent would
-                have done otherwise.
+                <strong className="text-aide-text">code_search</strong>: counts a
+                call as <em>satisfied</em> when no Grep follows within 60s in the
+                same session — the index answered the question and the agent
+                didn't fall back to raw text search. Avoided estimate = 3× spent
+                (a Grep on the same project typically returns several times the
+                bytes a focused symbol search does). Calls followed by Grep
+                claim no avoided.
+              </p>
+              <p>
+                <strong className="text-aide-text">Other navigation / search</strong>
+                (code_references, Grep, Glob): we report only what they cost.
+                Their value is indirect — they let the agent find the right file
+                before reading — and we can't claim a specific "avoided" amount
+                without speculating about what the agent would have done
+                otherwise.
+              </p>
+              <p>
+                <strong className="text-aide-text">Output-sized tools</strong>
+                (Bash, WebFetch, WebSearch, Grep): spent = bytes of
+                tool_response that flowed back into context, divided by the
+                same per-language ratio. 0 when the harness didn't pass a
+                response payload (some hooks strip it for size).
               </p>
             </div>
           </details>
