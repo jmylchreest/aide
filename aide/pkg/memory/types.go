@@ -108,6 +108,12 @@ type TokenEvent struct {
 	FilePath    string    `json:"file"`   // Relative file path
 	Tokens      int       `json:"tokens"` // Estimated tokens for this event
 	TokensSaved int       `json:"saved"`  // Estimated tokens saved (for outline/avoided events)
+	// StartLine/EndLine optionally identify a span within FilePath. Used by
+	// the dashboard's clickable file viewer to scroll/highlight the range.
+	// Source events (where FilePath is a label like "session-start") leave
+	// these zero.
+	StartLine int `json:"start_line,omitempty"`
+	EndLine   int `json:"end_line,omitempty"`
 }
 
 // TokenStats holds aggregated token event statistics.

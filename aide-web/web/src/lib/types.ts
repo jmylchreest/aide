@@ -84,6 +84,10 @@ export interface TokenEventItem {
   file_path: string;
   tokens: number;
   tokens_saved: number;
+  /** 1-based start line within file_path; 0 = no range available. */
+  start_line?: number;
+  /** 1-based end line (inclusive); 0 = no range. */
+  end_line?: number;
 }
 
 export interface TokenStats {

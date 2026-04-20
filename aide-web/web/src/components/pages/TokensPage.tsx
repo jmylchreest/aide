@@ -5,7 +5,21 @@ import { useApi } from "@/hooks/use-api";
 import { FilterBar } from "../shared/FilterBar";
 import { SortableTable, type Column } from "../shared/SortableTable";
 import { DateRangePicker, presetToRange, type DateRangeValue } from "../shared/DateRangePicker";
+import { CodeViewer } from "../shared/CodeViewer";
 import type { TokenEventItem } from "@/lib/types";
+
+/**
+ * Heuristic: is this `file_path` value likely a real on-disk file (vs. a
+ * source label like "session-start" or "skill-injector")? Real file paths
+ * either contain a slash, OR have an extension. Source labels are short
+ * single tokens with no slash and no dot.
+ */
+function looksLikeFilePath(s: string): boolean {
+  if (!s) return false;
+  if (s.includes("/")) return true;
+  // file.ext form
+  return /\.[a-z0-9]+$/i.test(s);
+}
 
 function formatTokens(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -157,6 +171,11 @@ export function TokensPage() {
   const { project } = useParams<{ project: string }>();
   const [query, setQuery] = useState("");
   const [toolFilter, setToolFilter] = useState("");
+  const [viewer, setViewer] = useState<{
+    file: string;
+    line?: number;
+    endLine?: number;
+  } | null>(null);
 
   // Default to last 30 days
   const [dateRange, setDateRange] = useState<DateRangeValue>(() => {
@@ -281,13 +300,52 @@ export function TokensPage() {
       sortValue: (row) => row.tokens_saved,
     },
     {
+      // Column carries either a real file path (Read/Edit/code_*) or a
+      // source label (session-start, skill-injector, ...) — hence "Source".
       key: "file_path",
-      label: "File",
-      render: (row) => (
-        <span className="text-aide-text-dim font-mono text-[11px] truncate max-w-[300px] block">
-          {row.file_path}
-        </span>
-      ),
+      label: "Source",
+      render: (row) => {
+        const value = row.file_path;
+        if (!value) {
+          return <span className="text-aide-text-dim text-[11px]">-</span>;
+        }
+        const clickable = looksLikeFilePath(value) && !!project;
+        if (!clickable) {
+          return (
+            <span
+              title={value}
+              className="text-aide-text-dim font-mono text-[11px] truncate max-w-[300px] block"
+            >
+              {value}
+            </span>
+          );
+        }
+        const lineSuffix =
+          row.start_line && row.end_line && row.end_line > row.start_line
+            ? `:${row.start_line}-${row.end_line}`
+            : row.start_line
+              ? `:${row.start_line}`
+              : "";
+        return (
+          <button
+            type="button"
+            title={value + lineSuffix}
+            onClick={() =>
+              setViewer({
+                file: value,
+                line: row.start_line || undefined,
+                endLine: row.end_line || undefined,
+              })
+            }
+            className="bg-transparent px-0 text-aide-text-dim hover:text-aide-accent transition-colors text-left font-mono text-[11px] truncate max-w-[300px] block"
+          >
+            {value}
+            {lineSuffix && (
+              <span className="text-aide-text-dim/60">{lineSuffix}</span>
+            )}
+          </button>
+        );
+      },
     },
   ];
 
@@ -468,6 +526,17 @@ export function TokensPage() {
           keyFn={(row) => row.id}
           defaultSortKey="timestamp"
           defaultSortDir="desc"
+        />
+      )}
+
+      {viewer && project && (
+        <CodeViewer
+          open={!!viewer}
+          onClose={() => setViewer(null)}
+          project={project}
+          filePath={viewer.file}
+          line={viewer.line}
+          endLine={viewer.endLine}
         />
       )}
     </div>

@@ -129,13 +129,19 @@ export function recordToolEvent(
 
   const filePath = input.toolInput?.file_path as string | undefined;
   let tokens = 0;
+  let startLine: number | undefined;
+  let endLine: number | undefined;
   if (FILE_SIZED_TOOLS.has(input.toolName) && filePath) {
-    tokens = estimateReadTokens(
-      cwd,
-      filePath,
-      input.toolInput?.offset as number | undefined,
-      input.toolInput?.limit as number | undefined,
-    );
+    const offset = input.toolInput?.offset as number | undefined;
+    const limit = input.toolInput?.limit as number | undefined;
+    tokens = estimateReadTokens(cwd, filePath, offset, limit);
+    // Read tool offset/limit are line-based (1-based when present, default
+    // 1..end). Persist the range so the dashboard's file viewer can
+    // scroll/highlight the slice the agent actually consumed.
+    startLine = offset && offset > 0 ? offset : 1;
+    if (limit && limit > 0) {
+      endLine = startLine + limit - 1;
+    }
     // Smart-read-hint state: record that this file was read so subsequent
     // re-reads can be flagged as candidates for code_outline/code_symbols.
     // No-op when AIDE_CODE_WATCH is unset.
@@ -154,6 +160,8 @@ export function recordToolEvent(
     if (tokens > 0) args.push(`--tokens=${tokens}`);
     if (filePath) args.push(`--file=${filePath}`);
     if (input.sessionId) args.push(`--session=${input.sessionId}`);
+    if (startLine !== undefined) args.push(`--attr=start_line=${startLine}`);
+    if (endLine !== undefined) args.push(`--attr=end_line=${endLine}`);
     execFileSync(binary, args, {
       cwd,
       timeout: 3000,

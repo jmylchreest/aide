@@ -10,7 +10,10 @@ interface CodeViewerProps {
   onClose: () => void;
   project: string;
   filePath: string;
+  /** 1-based first line to highlight. */
   line?: number;
+  /** 1-based last line to highlight; defaults to `line` when omitted (single-line). */
+  endLine?: number;
   title?: string;
 }
 
@@ -20,6 +23,7 @@ export function CodeViewer({
   project,
   filePath,
   line,
+  endLine,
   title,
 }: CodeViewerProps) {
   const [content, setContent] = useState<string | null>(null);
@@ -75,7 +79,10 @@ export function CodeViewer({
             <span className="tabular-nums">{lines.length} lines</span>
             {line && (
               <span>
-                &middot; line <span className="text-aide-accent">{line}</span>
+                &middot; line{" "}
+                <span className="text-aide-accent">
+                  {endLine && endLine > line ? `${line}–${endLine}` : line}
+                </span>
               </span>
             )}
           </div>
@@ -107,20 +114,25 @@ export function CodeViewer({
             <code>
               {lines.map((lineContent, i) => {
                 const lineNum = i + 1;
-                const isTarget = lineNum === line;
+                const rangeEnd = endLine && line ? endLine : line;
+                const inRange =
+                  line !== undefined &&
+                  lineNum >= line &&
+                  lineNum <= (rangeEnd ?? line);
+                const isFirstInRange = lineNum === line;
                 return (
                   <div
                     key={lineNum}
-                    ref={isTarget ? targetRef : undefined}
+                    ref={isFirstInRange ? targetRef : undefined}
                     className={cn(
                       "flex hover:bg-aide-surface-hover/50",
-                      isTarget && "bg-aide-accent/10 border-l-2 border-aide-accent"
+                      inRange && "bg-aide-accent/10 border-l-2 border-aide-accent"
                     )}
                   >
                     <span
                       className={cn(
                         "select-none text-right pr-3 pl-2 min-w-[3.5rem] shrink-0",
-                        isTarget
+                        inRange
                           ? "text-aide-accent font-medium"
                           : "text-aide-text-dim/40"
                       )}

@@ -18,6 +18,10 @@ type TokenEventItem struct {
 	FilePath    string `json:"file_path"`
 	Tokens      int    `json:"tokens"`
 	TokensSaved int    `json:"tokens_saved"`
+	// StartLine/EndLine optionally point at a span within FilePath. The
+	// dashboard uses these to scroll the file viewer to the right region.
+	StartLine int `json:"start_line,omitempty"`
+	EndLine   int `json:"end_line,omitempty"`
 }
 
 // TokenStatsItem is the JSON representation of token stats.
@@ -85,6 +89,8 @@ func (h *Handler) APIListTokenEvents(ctx context.Context, input *struct {
 			FilePath:    e.FilePath,
 			Tokens:      e.Tokens,
 			TokensSaved: e.TokensSaved,
+			StartLine:   e.StartLine,
+			EndLine:     e.EndLine,
 		})
 	}
 	return out, nil

@@ -2,12 +2,21 @@ package store
 
 import (
 	"encoding/json"
+	"strconv"
 	"time"
 
 	"github.com/jmylchreest/aide/aide/pkg/memory"
 	"github.com/jmylchreest/aide/aide/pkg/observe"
 	"github.com/oklog/ulid/v2"
 	bolt "go.etcd.io/bbolt"
+)
+
+const (
+	// attrStartLine / attrEndLine are well-known Attrs keys used to carry a
+	// line range from the recorder (Read tool with offset/limit, code_read_symbol)
+	// through observe events to the dashboard's clickable file viewer.
+	attrStartLine = "start_line"
+	attrEndLine   = "end_line"
 )
 
 // tokenEventToObserve translates a legacy TokenEvent into the observe.Event
@@ -33,7 +42,7 @@ func tokenEventToObserve(t *memory.TokenEvent) *observe.Event {
 	default:
 		return nil
 	}
-	return &observe.Event{
+	ev := &observe.Event{
 		ID:          t.ID,
 		Timestamp:   t.Timestamp,
 		Kind:        kind,
@@ -45,6 +54,16 @@ func tokenEventToObserve(t *memory.TokenEvent) *observe.Event {
 		TokensSaved: t.TokensSaved,
 		SessionID:   t.SessionID,
 	}
+	if t.StartLine > 0 || t.EndLine > 0 {
+		ev.Attrs = map[string]string{}
+		if t.StartLine > 0 {
+			ev.Attrs[attrStartLine] = strconv.Itoa(t.StartLine)
+		}
+		if t.EndLine > 0 {
+			ev.Attrs[attrEndLine] = strconv.Itoa(t.EndLine)
+		}
+	}
+	return ev
 }
 
 // observeToTokenEvent maps an observe.Event into the legacy TokenEvent shape
@@ -72,7 +91,7 @@ func observeToTokenEvent(e *observe.Event) *memory.TokenEvent {
 	default:
 		return nil
 	}
-	return &memory.TokenEvent{
+	te := &memory.TokenEvent{
 		ID:          e.ID,
 		SessionID:   e.SessionID,
 		Timestamp:   e.Timestamp,
@@ -82,6 +101,19 @@ func observeToTokenEvent(e *observe.Event) *memory.TokenEvent {
 		Tokens:      e.Tokens,
 		TokensSaved: e.TokensSaved,
 	}
+	if e.Attrs != nil {
+		if v, ok := e.Attrs[attrStartLine]; ok {
+			if n, err := strconv.Atoi(v); err == nil {
+				te.StartLine = n
+			}
+		}
+		if v, ok := e.Attrs[attrEndLine]; ok {
+			if n, err := strconv.Atoi(v); err == nil {
+				te.EndLine = n
+			}
+		}
+	}
+	return te
 }
 
 // AddObserveEvent persists one observe.Event. Populates ID and Timestamp if

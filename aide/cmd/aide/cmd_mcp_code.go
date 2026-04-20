@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/jmylchreest/aide/aide/pkg/code"
@@ -577,11 +578,19 @@ func (s *MCPServer) handleCodeReadSymbol(ctx context.Context, _ *mcp.CallToolReq
 
 	span.Tokens(totalTokens).Saved(totalSaved).Attr("symbols", fmt.Sprintf("%d/%d", found, len(names)))
 	if found == 1 {
-		// Single-symbol mode: surface the file path on the span.
-		// (Batch mode mixes files; we leave FilePath empty.)
+		// Single-symbol mode: surface the file path AND symbol body line
+		// range on the span so the dashboard's file viewer can scroll
+		// straight to the symbol. (Batch mode mixes files; we leave both
+		// empty there.)
 		for _, name := range names {
 			if sym, _, _, _ := s.readOneSymbol(s.getCodeStore(), projectRoot(s.dbPath), name, input.Kind); sym != nil {
 				span.FilePath(sym.FilePath)
+				if sym.StartLine > 0 {
+					span.Attr("start_line", strconv.Itoa(sym.StartLine))
+				}
+				if sym.EndLine > 0 {
+					span.Attr("end_line", strconv.Itoa(sym.EndLine))
+				}
 				break
 			}
 		}
