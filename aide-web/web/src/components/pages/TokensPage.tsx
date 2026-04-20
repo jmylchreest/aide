@@ -6,7 +6,7 @@ import { FilterBar } from "../shared/FilterBar";
 import { SortableTable, type Column } from "../shared/SortableTable";
 import { DateRangePicker, presetToRange, type DateRangeValue } from "../shared/DateRangePicker";
 import { CodeViewer } from "../shared/CodeViewer";
-import type { TokenEventItem } from "@/lib/types";
+import type { InstanceInfo, TokenEventItem } from "@/lib/types";
 
 /**
  * Heuristic: is this `file_path` value likely a real on-disk file (vs. a
@@ -19,6 +19,17 @@ function looksLikeFilePath(s: string): boolean {
   if (s.includes("/")) return true;
   // file.ext form
   return /\.[a-z0-9]+$/i.test(s);
+}
+
+/**
+ * Trim the project_root prefix off an absolute path so the visible label
+ * is meaningfully short. No-op when the path is already relative or the
+ * root doesn't match.
+ */
+function relativeToRoot(filePath: string, root?: string): string {
+  if (!root || !filePath.startsWith(root)) return filePath;
+  const rest = filePath.slice(root.length);
+  return rest.startsWith("/") ? rest.slice(1) : rest;
 }
 
 function formatTokens(n: number): string {
@@ -177,6 +188,16 @@ export function TokensPage() {
     endLine?: number;
   } | null>(null);
 
+  // Used to make absolute file paths relative for display in the Source
+  // column. Cheap to fetch and shared across many places in the dashboard.
+  const { data: instances } = useApi(() => api.listInstances());
+  const projectRoot = useMemo(
+    () =>
+      instances?.find((i: InstanceInfo) => i.project_name === project)
+        ?.project_root,
+    [instances, project],
+  );
+
   // Default to last 30 days
   const [dateRange, setDateRange] = useState<DateRangeValue>(() => {
     const { since, until } = presetToRange("30d");
@@ -310,13 +331,22 @@ export function TokensPage() {
           return <span className="text-aide-text-dim text-[11px]">-</span>;
         }
         const clickable = looksLikeFilePath(value) && !!project;
+        // Strip the project root prefix so common leading path is gone and
+        // the filename is what reads. Tooltip keeps the full absolute value.
+        const display = relativeToRoot(value, projectRoot);
+        // RTL truncation trick: when overflow happens we want the *start*
+        // ellipsised so the filename stays visible. direction:rtl with
+        // unicode-bidi:plaintext keeps the text order untouched while
+        // anchoring the overflow on the left edge.
+        const truncClasses =
+          "font-mono text-[11px] block max-w-[320px] overflow-hidden whitespace-nowrap text-ellipsis [direction:rtl] [unicode-bidi:plaintext] text-left";
         if (!clickable) {
           return (
             <span
               title={value}
-              className="text-aide-text-dim font-mono text-[11px] truncate max-w-[300px] block"
+              className={`${truncClasses} text-aide-text-dim`}
             >
-              {value}
+              {display}
             </span>
           );
         }
@@ -337,9 +367,9 @@ export function TokensPage() {
                 endLine: row.end_line || undefined,
               })
             }
-            className="bg-transparent px-0 text-aide-text-dim hover:text-aide-accent transition-colors text-left font-mono text-[11px] truncate max-w-[300px] block"
+            className={`${truncClasses} bg-transparent px-0 text-aide-text-dim hover:text-aide-accent transition-colors`}
           >
-            {value}
+            {display}
             {lineSuffix && (
               <span className="text-aide-text-dim/60">{lineSuffix}</span>
             )}
