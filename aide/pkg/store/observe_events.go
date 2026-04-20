@@ -6,6 +6,7 @@ import (
 
 	"github.com/jmylchreest/aide/aide/pkg/memory"
 	"github.com/jmylchreest/aide/aide/pkg/observe"
+	"github.com/oklog/ulid/v2"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -83,9 +84,17 @@ func observeToTokenEvent(e *observe.Event) *memory.TokenEvent {
 	}
 }
 
-// AddObserveEvent persists one observe.Event. ID/Timestamp must be set by the
-// caller (the Recorder always populates them).
+// AddObserveEvent persists one observe.Event. Populates ID and Timestamp if
+// the caller left them empty (e.g., external RecordEvent RPC, observe record
+// CLI) — the in-process Recorder always sets them, but defending here keeps
+// the bolt layer from rejecting the write with "key required".
 func (s *BoltStore) AddObserveEvent(e *observe.Event) error {
+	if e.ID == "" {
+		e.ID = ulid.Make().String()
+	}
+	if e.Timestamp.IsZero() {
+		e.Timestamp = time.Now()
+	}
 	return s.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(BucketObserveEvents)
 		data, err := json.Marshal(e)
