@@ -1837,24 +1837,40 @@ func (s *statusServiceImpl) GetStatus(ctx context.Context, req *StatusRequest) (
 			}
 			findingsStatus.BySeverity = bySeverity
 
+			// Seed analyzers from stats.ByAnalyzer first so every analyser
+			// with persisted findings appears in the panel — even brand-new
+			// ones (deadcode, todos, ...) that haven't run on this daemon
+			// instance yet. The runner overlay below then adds runtime
+			// status (lastRun, duration) for analysers that have run.
+			analyzers := make(map[string]*StatusAnalyzer, len(stats.ByAnalyzer))
+			for name, n := range stats.ByAnalyzer {
+				analyzers[name] = &StatusAnalyzer{
+					Status:   "idle",
+					LastRun:  "never",
+					Findings: int32(n),
+				}
+			}
 			if fr != nil {
-				runnerStatus := fr.GetStatus()
-				analyzers := make(map[string]*StatusAnalyzer, len(runnerStatus))
-				for name, as := range runnerStatus {
+				for name, as := range fr.GetStatus() {
 					lastRun := "never"
 					if !as.LastRun.IsZero() {
 						lastRun = as.LastRun.Format(time.RFC3339)
 					}
-					analyzers[name] = &StatusAnalyzer{
-						Status:       as.Status,
-						Scope:        as.Scope,
-						LastRun:      lastRun,
-						Findings:     int32(as.Findings),
-						LastDuration: as.LastDuration.String(),
+					existing, ok := analyzers[name]
+					if !ok {
+						existing = &StatusAnalyzer{}
+						analyzers[name] = existing
+					}
+					existing.Status = as.Status
+					existing.Scope = as.Scope
+					existing.LastRun = lastRun
+					existing.LastDuration = as.LastDuration.String()
+					if as.Findings > 0 {
+						existing.Findings = int32(as.Findings)
 					}
 				}
-				findingsStatus.Analyzers = analyzers
 			}
+			findingsStatus.Analyzers = analyzers
 
 			resp.Findings = findingsStatus
 		}

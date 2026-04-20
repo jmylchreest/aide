@@ -251,7 +251,9 @@ export function StatusPage() {
         {detailed?.grammars && detailed.grammars.length > 0 && (
           <Section title="Grammars">
             <div className="flex flex-wrap gap-1.5">
-              {detailed.grammars.map((g) => (
+              {[...detailed.grammars]
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map((g) => (
                 <span
                   key={g.name}
                   className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-aide-surface border border-aide-border text-aide-text"
