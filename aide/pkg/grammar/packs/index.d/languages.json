@@ -1,0 +1,209 @@
+{
+  "schema_version": 1,
+  "project_markers": [
+    {
+      "file": "go.mod",
+      "check": "file",
+      "max_depth": 3,
+      "pack": "go",
+      "kind": "module",
+      "parse": { "regex": "^module\\s+(\\S+)", "group": 1, "field": "name" }
+    },
+    {
+      "file": "go.work",
+      "check": "sibling",
+      "sibling_of": "go.mod",
+      "pack": "go",
+      "kind": "workspace"
+    },
+    {
+      "file": "go.mod",
+      "check": "file",
+      "max_depth": 3,
+      "pack": "go",
+      "kind": "tech_stack",
+      "metadata": { "language": "go", "marker": "go.mod" }
+    },
+    {
+      "file": "package.json",
+      "check": "file",
+      "max_depth": 3,
+      "pack": "javascript",
+      "kind": "module",
+      "skip_paths": ["node_modules"],
+      "parse": {
+        "regex": "\"name\"\\s*:\\s*\"([^\"]+)\"",
+        "group": 1,
+        "field": "name"
+      }
+    },
+    {
+      "file": "tsconfig.json",
+      "check": "sibling",
+      "sibling_of": "package.json",
+      "pack": "typescript",
+      "kind": "tech_stack",
+      "metadata": { "language": "typescript", "marker": "tsconfig.json" }
+    },
+    {
+      "file": "package.json",
+      "check": "file",
+      "max_depth": 3,
+      "pack": "javascript",
+      "kind": "tech_stack",
+      "skip_paths": ["node_modules"],
+      "metadata": { "language": "javascript", "marker": "package.json" }
+    },
+    {
+      "file": "pyproject.toml",
+      "check": "file",
+      "max_depth": 2,
+      "pack": "python",
+      "kind": "tech_stack",
+      "metadata": { "language": "python", "marker": "pyproject.toml" }
+    },
+    {
+      "file": "setup.py",
+      "check": "file",
+      "max_depth": 2,
+      "pack": "python",
+      "kind": "tech_stack",
+      "metadata": { "language": "python", "marker": "setup.py" }
+    },
+    {
+      "file": "setup.cfg",
+      "check": "file",
+      "max_depth": 2,
+      "pack": "python",
+      "kind": "tech_stack",
+      "metadata": { "language": "python", "marker": "setup.cfg" }
+    },
+    {
+      "file": "Cargo.toml",
+      "check": "file",
+      "max_depth": 3,
+      "pack": "rust",
+      "kind": "module"
+    },
+    {
+      "file": "Cargo.toml",
+      "check": "file",
+      "max_depth": 3,
+      "pack": "rust",
+      "kind": "tech_stack",
+      "metadata": { "language": "rust", "marker": "Cargo.toml" }
+    },
+    {
+      "file": "pom.xml",
+      "check": "file",
+      "max_depth": 3,
+      "pack": "java",
+      "kind": "module",
+      "metadata": { "language": "java", "build_system": "maven" }
+    },
+    {
+      "file": "build.gradle",
+      "check": "file",
+      "max_depth": 3,
+      "pack": "java",
+      "kind": "module",
+      "metadata": { "language": "java", "build_system": "gradle" }
+    },
+    {
+      "file": "build.gradle.kts",
+      "check": "file",
+      "max_depth": 3,
+      "pack": "kotlin",
+      "kind": "module",
+      "metadata": { "language": "kotlin", "build_system": "gradle" }
+    },
+    {
+      "file": "composer.json",
+      "check": "file",
+      "max_depth": 2,
+      "pack": "php",
+      "kind": "module",
+      "parse": {
+        "regex": "\"name\"\\s*:\\s*\"([^\"]+)\"",
+        "group": 1,
+        "field": "name"
+      }
+    },
+    {
+      "file": "Gemfile",
+      "check": "file",
+      "max_depth": 2,
+      "pack": "ruby",
+      "kind": "tech_stack",
+      "metadata": { "language": "ruby", "marker": "Gemfile" }
+    },
+    {
+      "file": "mix.exs",
+      "check": "file",
+      "max_depth": 2,
+      "pack": "elixir",
+      "kind": "module",
+      "metadata": { "language": "elixir", "marker": "mix.exs" }
+    },
+    {
+      "file": "Package.swift",
+      "check": "file",
+      "max_depth": 2,
+      "pack": "swift",
+      "kind": "module",
+      "metadata": { "language": "swift", "marker": "Package.swift" }
+    },
+    {
+      "file": "build.sbt",
+      "check": "file",
+      "max_depth": 2,
+      "pack": "scala",
+      "kind": "module",
+      "metadata": { "language": "scala", "build_system": "sbt" }
+    },
+    {
+      "file": "dune-project",
+      "check": "file",
+      "max_depth": 2,
+      "pack": "ocaml",
+      "kind": "module",
+      "metadata": { "language": "ocaml", "build_system": "dune" }
+    },
+    {
+      "file": "elm.json",
+      "check": "file",
+      "max_depth": 0,
+      "pack": "elm",
+      "kind": "module",
+      "metadata": { "language": "elm", "marker": "elm.json" }
+    },
+    {
+      "file": "pubspec.yaml",
+      "check": "file",
+      "max_depth": 3,
+      "pack": "dart",
+      "kind": "module",
+      "parse": {
+        "regex": "^name:\\s+(\\S+)",
+        "group": 1,
+        "field": "name"
+      }
+    },
+    {
+      "file": "pubspec.yaml",
+      "check": "file",
+      "max_depth": 3,
+      "pack": "dart",
+      "kind": "tech_stack",
+      "metadata": { "language": "dart", "marker": "pubspec.yaml" }
+    },
+    {
+      "file": "build.zig",
+      "check": "file",
+      "max_depth": 2,
+      "pack": "zig",
+      "kind": "module",
+      "metadata": { "language": "zig", "marker": "build.zig" }
+    }
+  ]
+}

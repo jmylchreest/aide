@@ -7,10 +7,11 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"sync"
 )
 
-//go:embed packs/*/pack.json packs/index.json
+//go:embed packs/*/pack.json packs/index.json packs/index.d/*.json
 var embeddedPacks embed.FS
 
 var (
@@ -266,7 +267,8 @@ func NewPackRegistry() (*PackRegistry, error) {
 		return nil, fmt.Errorf("loading embedded packs: %w", err)
 	}
 
-	// Load the embedded project marker index.
+	// Load the embedded project marker index, then merge any additional
+	// partials in packs/index.d/ — split by topic for maintainability.
 	indexData, err := embeddedPacks.ReadFile("packs/index.json")
 	if err != nil {
 		return nil, fmt.Errorf("reading embedded index: %w", err)
@@ -275,7 +277,59 @@ func NewPackRegistry() (*PackRegistry, error) {
 		return nil, fmt.Errorf("loading embedded index: %w", err)
 	}
 
+	if err := r.loadEmbeddedIndexDir("packs/index.d"); err != nil {
+		return nil, fmt.Errorf("loading embedded index.d: %w", err)
+	}
+
 	return r, nil
+}
+
+// loadEmbeddedIndexDir merges every *.json file under the given embedded
+// directory into the registry's project marker index. Files are loaded in
+// lexical order; later files override earlier ones via the standard
+// (File, Kind) merge semantics.
+func (r *PackRegistry) loadEmbeddedIndexDir(dir string) error {
+	entries, err := fs.ReadDir(embeddedPacks, dir)
+	if err != nil {
+		// No index.d directory is fine.
+		return nil
+	}
+	names := make([]string, 0, len(entries))
+	for _, e := range entries {
+		if e.IsDir() || filepath.Ext(e.Name()) != ".json" {
+			continue
+		}
+		names = append(names, e.Name())
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		data, readErr := embeddedPacks.ReadFile(filepath.Join(dir, name))
+		if readErr != nil {
+			return fmt.Errorf("reading embedded index partial %s: %w", name, readErr)
+		}
+		if err := r.LoadIndex(data); err != nil {
+			return fmt.Errorf("loading embedded index partial %s: %w", name, err)
+		}
+	}
+	return nil
+}
+
+// LoadIndexDir merges every *.json file under the given on-disk directory
+// into the registry's project marker index. Used for user/team overrides at
+// .aide/grammars/index.d/. Files are loaded in lexical order; later files
+// (and individual entries) override earlier ones via (File, Kind) keys.
+func (r *PackRegistry) LoadIndexDir(dir string) error {
+	matches, err := filepath.Glob(filepath.Join(dir, "*.json"))
+	if err != nil {
+		return fmt.Errorf("globbing %s: %w", dir, err)
+	}
+	sort.Strings(matches)
+	for _, p := range matches {
+		if err := r.LoadIndexFromFile(p); err != nil {
+			return fmt.Errorf("loading index partial %s: %w", p, err)
+		}
+	}
+	return nil
 }
 
 // LoadFromDir loads a pack.json from a directory (e.g., .aide/grammars/{name}/).

@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "project_markers": [
+    {
+      "file": "renovate.json",
+      "check": "file",
+      "max_depth": -1,
+      "label": "renovate",
+      "kind": "tech_stack",
+      "metadata": {
+        "dependency_automation": "renovate",
+        "marker": "renovate.json"
+      }
+    },
+    {
+      "file": ".github/dependabot.yml",
+      "check": "file",
+      "max_depth": -1,
+      "label": "dependabot",
+      "kind": "tech_stack",
+      "metadata": {
+        "dependency_automation": "dependabot",
+        "marker": ".github/dependabot.yml"
+      }
+    },
+    {
+      "file": ".pre-commit-config.yaml",
+      "check": "file",
+      "max_depth": -1,
+      "label": "pre-commit",
+      "kind": "tech_stack",
+      "metadata": {
+        "tooling": "pre-commit",
+        "marker": ".pre-commit-config.yaml"
+      }
+    },
+    {
+      "file": ".markdownlint.json",
+      "check": "file",
+      "max_depth": 0,
+      "label": "markdownlint",
+      "kind": "tech_stack",
+      "metadata": { "docs": "markdownlint", "marker": ".markdownlint.json" }
+    },
+    {
+      "file": ".markdownlint.yaml",
+      "check": "file",
+      "max_depth": 0,
+      "label": "markdownlint",
+      "kind": "tech_stack",
+      "metadata": { "docs": "markdownlint", "marker": ".markdownlint.yaml" }
+    },
+    {
+      "file": ".markdownlint.yml",
+      "check": "file",
+      "max_depth": 0,
+      "label": "markdownlint",
+      "kind": "tech_stack",
+      "metadata": { "docs": "markdownlint", "marker": ".markdownlint.yml" }
+    }
+  ]
+}

@@ -20,7 +20,7 @@ Survey has 3 analyzers, each using a different data source:
 
 ### Topology
 
-Scans the filesystem for project markers defined in language packs and `packs/index.json`. Detects:
+Scans the filesystem for project markers defined in language packs and the per-topic partials under `packs/index.d/` (`languages.json`, `build-systems.json`, `ci-cd.json`, `containers.json`, `iac.json`, `monorepo.json`, `dev-tooling.json`, `docs.json`). See the [grammar](./grammar.md#project-marker-index) docs for the index layout. Detects:
 
 - **Modules**: Go modules, npm packages, Cargo crates, Python packages, etc.
 - **Workspaces**: Monorepo layouts (Nx, Lerna, Turborepo, pnpm workspaces)

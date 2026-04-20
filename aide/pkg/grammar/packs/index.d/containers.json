@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "project_markers": [
+    {
+      "file": "Dockerfile",
+      "check": "file",
+      "max_depth": 2,
+      "label": "docker",
+      "kind": "tech_stack",
+      "metadata": { "marker": "Dockerfile" }
+    },
+    {
+      "file": "docker-compose.yml",
+      "check": "file",
+      "max_depth": 0,
+      "label": "docker",
+      "kind": "tech_stack",
+      "metadata": { "marker": "docker-compose.yml" }
+    },
+    {
+      "file": "docker-compose.yaml",
+      "check": "file",
+      "max_depth": 0,
+      "label": "docker",
+      "kind": "tech_stack",
+      "metadata": { "marker": "docker-compose.yaml" }
+    },
+    {
+      "file": "compose.yml",
+      "check": "file",
+      "max_depth": 0,
+      "label": "docker",
+      "kind": "tech_stack",
+      "metadata": { "marker": "compose.yml" }
+    },
+    {
+      "file": "compose.yaml",
+      "check": "file",
+      "max_depth": 0,
+      "label": "docker",
+      "kind": "tech_stack",
+      "metadata": { "marker": "compose.yaml" }
+    },
+    {
+      "file": "kustomization.yaml",
+      "check": "file",
+      "max_depth": -1,
+      "label": "kubernetes",
+      "kind": "tech_stack",
+      "metadata": {
+        "container_orchestration": "kubernetes",
+        "marker": "kustomization.yaml"
+      }
+    },
+    {
+      "file": "kustomization.yml",
+      "check": "file",
+      "max_depth": -1,
+      "label": "kubernetes",
+      "kind": "tech_stack",
+      "metadata": {
+        "container_orchestration": "kubernetes",
+        "marker": "kustomization.yml"
+      }
+    },
+    {
+      "file": "Chart.yaml",
+      "check": "file",
+      "max_depth": -1,
+      "label": "helm",
+      "kind": "tech_stack",
+      "metadata": { "container_orchestration": "helm", "marker": "Chart.yaml" }
+    },
+    {
+      "file": "skaffold.yaml",
+      "check": "file",
+      "max_depth": -1,
+      "label": "skaffold",
+      "kind": "tech_stack",
+      "metadata": {
+        "container_orchestration": "skaffold",
+        "marker": "skaffold.yaml"
+      }
+    }
+  ]
+}

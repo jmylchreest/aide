@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "project_markers": [
+    {
+      "file": "mkdocs.yml",
+      "check": "file",
+      "max_depth": -1,
+      "label": "mkdocs",
+      "kind": "tech_stack",
+      "metadata": { "docs": "mkdocs", "marker": "mkdocs.yml" }
+    },
+    {
+      "file": "docusaurus.config.js",
+      "check": "file",
+      "max_depth": 0,
+      "label": "docusaurus",
+      "kind": "tech_stack",
+      "metadata": { "docs": "docusaurus", "marker": "docusaurus.config.js" }
+    },
+    {
+      "file": "docusaurus.config.ts",
+      "check": "file",
+      "max_depth": 0,
+      "label": "docusaurus",
+      "kind": "tech_stack",
+      "metadata": { "docs": "docusaurus", "marker": "docusaurus.config.ts" }
+    },
+    {
+      "file": ".readthedocs.yaml",
+      "check": "file",
+      "max_depth": 0,
+      "label": "readthedocs",
+      "kind": "tech_stack",
+      "metadata": { "docs": "readthedocs", "marker": ".readthedocs.yaml" }
+    },
+    {
+      "file": ".readthedocs.yml",
+      "check": "file",
+      "max_depth": 0,
+      "label": "readthedocs",
+      "kind": "tech_stack",
+      "metadata": { "docs": "readthedocs", "marker": ".readthedocs.yml" }
+    },
+    {
+      "file": "book.toml",
+      "check": "file",
+      "max_depth": 0,
+      "label": "mdbook",
+      "kind": "tech_stack",
+      "metadata": { "docs": "mdbook", "marker": "book.toml" }
+    }
+  ]
+}

@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "project_markers": [
+    {
+      "file": ".github/workflows",
+      "check": "directory",
+      "max_depth": 0,
+      "label": "github-actions",
+      "kind": "tech_stack",
+      "metadata": { "ci_cd": "github-actions", "marker": ".github/workflows" }
+    },
+    {
+      "file": ".gitlab-ci.yml",
+      "check": "file",
+      "max_depth": 0,
+      "label": "gitlab-ci",
+      "kind": "tech_stack",
+      "metadata": { "ci_cd": "gitlab-ci", "marker": ".gitlab-ci.yml" }
+    },
+    {
+      "file": "Jenkinsfile",
+      "check": "file",
+      "max_depth": 0,
+      "label": "jenkins",
+      "kind": "tech_stack",
+      "metadata": { "ci_cd": "jenkins", "marker": "Jenkinsfile" }
+    },
+    {
+      "file": ".circleci/config.yml",
+      "check": "file",
+      "max_depth": 0,
+      "label": "circleci",
+      "kind": "tech_stack",
+      "metadata": { "ci_cd": "circleci", "marker": ".circleci/config.yml" }
+    },
+    {
+      "file": ".travis.yml",
+      "check": "file",
+      "max_depth": 0,
+      "label": "travis-ci",
+      "kind": "tech_stack",
+      "metadata": { "ci_cd": "travis-ci", "marker": ".travis.yml" }
+    },
+    {
+      "file": "azure-pipelines.yml",
+      "check": "file",
+      "max_depth": 0,
+      "label": "azure-devops",
+      "kind": "tech_stack",
+      "metadata": { "ci_cd": "azure-devops", "marker": "azure-pipelines.yml" }
+    },
+    {
+      "file": ".buildkite/pipeline.yml",
+      "check": "file",
+      "max_depth": -1,
+      "label": "buildkite",
+      "kind": "tech_stack",
+      "metadata": { "ci_cd": "buildkite", "marker": ".buildkite/pipeline.yml" }
+    },
+    {
+      "file": ".drone.yml",
+      "check": "file",
+      "max_depth": -1,
+      "label": "drone",
+      "kind": "tech_stack",
+      "metadata": { "ci_cd": "drone", "marker": ".drone.yml" }
+    },
+    {
+      "file": "bitbucket-pipelines.yml",
+      "check": "file",
+      "max_depth": -1,
+      "label": "bitbucket-pipelines",
+      "kind": "tech_stack",
+      "metadata": {
+        "ci_cd": "bitbucket-pipelines",
+        "marker": "bitbucket-pipelines.yml"
+      }
+    }
+  ]
+}

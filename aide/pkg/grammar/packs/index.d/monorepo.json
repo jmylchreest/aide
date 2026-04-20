@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "project_markers": [
+    {
+      "file": "nx.json",
+      "check": "file",
+      "max_depth": 0,
+      "label": "nx",
+      "kind": "workspace",
+      "metadata": { "monorepo": "nx", "marker": "nx.json" }
+    },
+    {
+      "file": "lerna.json",
+      "check": "file",
+      "max_depth": 0,
+      "label": "lerna",
+      "kind": "workspace",
+      "metadata": { "monorepo": "lerna", "marker": "lerna.json" }
+    },
+    {
+      "file": "turbo.json",
+      "check": "file",
+      "max_depth": 0,
+      "label": "turborepo",
+      "kind": "workspace",
+      "metadata": { "monorepo": "turborepo", "marker": "turbo.json" }
+    },
+    {
+      "file": "pnpm-workspace.yaml",
+      "check": "file",
+      "max_depth": 0,
+      "label": "pnpm",
+      "kind": "workspace",
+      "metadata": { "monorepo": "pnpm", "marker": "pnpm-workspace.yaml" }
+    }
+  ]
+}

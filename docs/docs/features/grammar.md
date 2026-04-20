@@ -70,20 +70,64 @@ Scanning uses a dual-pass approach:
 
 ## Project Marker Index
 
-The project marker index (`packs/index.json`) contains 68+ detection rules for:
+The project marker index lives in `packs/index.json` (a minimal stub) plus
+per-topic partials under `packs/index.d/`:
 
-- Language project files (go.mod, Cargo.toml, package.json, pyproject.toml, etc.)
-- Build systems (Make, CMake, Bazel, Just, Task, Rake)
-- CI/CD (GitHub Actions, GitLab CI, Jenkins, CircleCI, Travis, Azure DevOps, Buildkite)
-- Container/orchestration (Docker, Kubernetes, Helm)
-- IaC (Terraform, Pulumi, Ansible, Crossplane)
-- Monorepo tools (Nx, Lerna, Turborepo, pnpm workspaces)
-- Documentation (MkDocs, Docusaurus, mdBook)
+```
+packs/
+  index.json                       # canonical (intentionally minimal)
+  index.d/
+    languages.json                 # go.mod, Cargo.toml, pyproject.toml, ...
+    build-systems.json             # Make, CMake, Bazel, Just, Task, Rake, Nix
+    containers.json                # Docker, docker-compose, Helm, Kustomize
+    ci-cd.json                     # GitHub Actions, GitLab, Jenkins, ...
+    monorepo.json                  # Nx, Lerna, Turbo, pnpm workspaces
+    iac.json                       # Terraform, Pulumi, Ansible, ...
+    dev-tooling.json               # pre-commit, renovate, dependabot, ...
+    docs.json                      # MkDocs, Docusaurus, mdBook, ...
+    consumer-formats.json          # .astro/.svelte/.vue/.mdx (see below)
+```
 
-These markers are also used by the [survey](./survey.md) topology analyzer.
+All `*.json` files in `index.d/` are loaded in lexical order and merged into
+the registry. This split keeps each topic file under ~50 lines and lets
+contributors add a new tech stack by creating one focused partial instead of
+editing a 600-line monolith. These markers feed the [survey](./survey.md)
+topology analyzer.
+
+### Consumer Formats
+
+Some file formats consume code without containing parseable symbols
+themselves — for example, an `.astro` file imports a React component and
+references it by element name (`<App />`). These formats have no grammar
+pack and produce no symbols, but reference verifiers (e.g. the deadcode
+analyzer) need to scan them as plain text to catch use sites the index
+cannot capture.
+
+`packs/index.d/consumer-formats.json` declares them:
+
+```json
+{
+  "consumer_formats": [
+    { "extensions": [".astro"], "label": "astro" },
+    { "extensions": [".svelte"], "label": "svelte" },
+    { "extensions": [".vue"], "label": "vue" },
+    { "extensions": [".mdx"], "label": "mdx" }
+  ]
+}
+```
+
+Consumer formats merge by `Label`; users can add or override via
+`.aide/grammars/index.d/*.json`.
 
 ## Overriding Packs
 
-Place custom `pack.json` files in `.aide/grammars/<language>/pack.json` to override the built-in pack for a language. Custom packs are merged with the built-in defaults (your file takes precedence).
+Place custom `pack.json` files in `.aide/grammars/<language>/pack.json` to
+override the built-in pack for a language. Custom packs are merged with the
+built-in defaults (your file takes precedence).
 
-Similarly, place a custom `index.json` in `.aide/grammars/index.json` to add or override project markers. Entries match by `(File, Kind)` composite key -- your entries override matching built-in entries while unmatched built-in entries are preserved.
+For project markers and consumer formats, drop overrides into either
+`.aide/grammars/index.json` (canonical) or `.aide/grammars/index.d/*.json`
+(per-topic partials). All disk files load after the embedded defaults.
+Project markers merge by `(File, Kind)`; consumer formats merge by
+`Label`. Your entries override matching built-in entries while unmatched
+built-in entries are preserved.
