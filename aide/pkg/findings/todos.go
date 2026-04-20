@@ -27,8 +27,10 @@ var todoKeywordSeverity = map[string]string{
 }
 
 // todoLine captures keyword, optional owner/ticket in parens, and remaining text.
+// Case-sensitive — these keywords are an ALL-CAPS convention; matching "broken" or
+// "note" case-insensitively produces endless false positives from ordinary prose.
 var todoLine = regexp.MustCompile(
-	`(?i)\b(TODO|FIXME|XXX|HACK|BUG|BROKEN|NOTE|DEPRECATED)\b(?:\(([^)]*)\))?\s*:?\s*(.*)$`,
+	`\b(TODO|FIXME|XXX|HACK|BUG|BROKEN|NOTE|DEPRECATED)\b(?:\(([^)]*)\))?\s*:?\s*(.*)$`,
 )
 
 // TodosConfig holds configuration for standalone TODO analysis (CLI).
