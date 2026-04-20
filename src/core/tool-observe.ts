@@ -52,6 +52,30 @@ const NATIVE_TOOL_TAXONOMY: Record<string, ToolTax> = {
   TodoWrite: { category: "coordinate", subtype: "todo" },
 };
 
+/**
+ * Cross-harness aliases. Codex and other harnesses name the same primitives
+ * differently — `update`/`apply_patch` for Edit, `view` for Read, `shell`
+ * for Bash, etc. Mapping them to Claude Code's canonical names keeps the
+ * dashboard's per-tool aggregation coherent across plugins (no separate
+ * "update" + "Edit" buckets that mean the same thing).
+ *
+ * Lookup is case-insensitive; aliases here are the lowercase form.
+ */
+const TOOL_ALIASES: Record<string, string> = {
+  // Codex / OpenAI-style tool names
+  update: "Edit",
+  apply_patch: "Edit",
+  str_replace_editor: "Edit",
+  view: "Read",
+  read_file: "Read",
+  get: "Read",
+  create: "Write",
+  shell: "Bash",
+  exec: "Bash",
+  fetch: "WebFetch",
+  search_web: "WebSearch",
+};
+
 /** Tools whose tokens we estimate from on-disk file size (the Read path). */
 const FILE_SIZED_TOOLS = new Set(["Read"]);
 
@@ -121,15 +145,34 @@ export interface ToolObserveInput {
  * Resolve a native tool name (any casing) to its taxonomy entry. Returns
  * `null` for tools we don't classify — callers skip recording rather than
  * pollute the dashboard with an "other" bucket.
+ *
+ * Lookup order: exact → case-insensitive → cross-harness alias.
  */
 function lookupTool(name: string): ToolTax | null {
   if (NATIVE_TOOL_TAXONOMY[name]) return NATIVE_TOOL_TAXONOMY[name];
-  // OpenCode passes lowercased tool names; try a case-insensitive lookup.
   const lower = name.toLowerCase();
   for (const [k, v] of Object.entries(NATIVE_TOOL_TAXONOMY)) {
     if (k.toLowerCase() === lower) return v;
   }
+  const canonical = TOOL_ALIASES[lower];
+  if (canonical && NATIVE_TOOL_TAXONOMY[canonical]) {
+    return NATIVE_TOOL_TAXONOMY[canonical];
+  }
   return null;
+}
+
+/**
+ * Resolve to the canonical tool name (Edit/Read/Write/...) so observe
+ * events from different harnesses aggregate into the same bucket on the
+ * dashboard. Falls back to the original name when no alias matches.
+ */
+function canonicalToolName(name: string): string {
+  if (NATIVE_TOOL_TAXONOMY[name]) return name;
+  const lower = name.toLowerCase();
+  for (const k of Object.keys(NATIVE_TOOL_TAXONOMY)) {
+    if (k.toLowerCase() === lower) return k;
+  }
+  return TOOL_ALIASES[lower] ?? name;
 }
 
 /**

@@ -197,6 +197,16 @@ function generateHooksJson(hookPrefix: string): CodexHooksJson {
           hooks: [
             {
               type: "command",
+              command: `${hookPrefix} tool-observe`,
+              timeout: 3,
+            },
+            {
+              type: "command",
+              command: `${hookPrefix} hud-updater`,
+              timeout: 3,
+            },
+            {
+              type: "command",
               command: `${hookPrefix} comment-checker`,
               timeout: 3,
             },
