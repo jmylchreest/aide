@@ -1048,22 +1048,6 @@ export function syncMcpServers(
 }
 
 /**
- * Get the list of currently synced MCP servers (for display/logging).
- */
-export function listSyncedServers(cwd: string): {
-  user: string[];
-  project: string[];
-} {
-  const userServers = readAideConfig(aideUserMcpPath());
-  const projectServers = readAideConfig(aideProjectMcpPath(cwd));
-
-  return {
-    user: Object.keys(userServers),
-    project: Object.keys(projectServers),
-  };
-}
-
-/**
  * Get the current removed (blocked) server names.
  * Derived from the v2 journal: a server is "removed" if its latest
  * mtime across all sources corresponds to a removal event.

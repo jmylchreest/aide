@@ -194,14 +194,6 @@ export function getDownloadUrls(): string[] {
 }
 
 /**
- * Get the download URL for the current platform (first priority URL).
- * @deprecated Use getDownloadUrls() for fallback support.
- */
-export function getDownloadUrl(): string {
-  return getDownloadUrls()[0];
-}
-
-/**
  * Get the plugin root directory (where package.json lives)
  */
 export function getPluginRoot(): string | null {

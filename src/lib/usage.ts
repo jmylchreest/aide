@@ -50,12 +50,6 @@ export interface RealtimeUsage {
   messagesToday: number;
 }
 
-export interface UsageSummary {
-  limits: APILimits | null;
-  realtime: RealtimeUsage;
-  timestamp: string;
-}
-
 interface OAuthCredentials {
   claudeAiOauth?: {
     accessToken: string;
@@ -89,14 +83,7 @@ let apiLimitsCache: CacheEntry<APILimits> | null = null;
 const API_CACHE_TTL = 30_000; // 30 seconds
 
 let realtimeCache: CacheEntry<RealtimeUsage> | null = null;
-let realtimeCacheTTL = 60_000; // 1 minute default, configurable
-
-/**
- * Set the cache TTL for realtime usage data (JSONL scanning).
- */
-export function setRealtimeCacheTTL(ms: number): void {
-  realtimeCacheTTL = ms;
-}
+const realtimeCacheTTL = 60_000;
 
 // =============================================================================
 // OAuth API
@@ -429,22 +416,6 @@ async function scanSingleFile(
 // =============================================================================
 // Combined Usage
 // =============================================================================
-
-/**
- * Get combined usage data: API limits + local token counts.
- */
-export async function getUsage(): Promise<UsageSummary> {
-  const [limits, realtime] = await Promise.all([
-    fetchAPILimits(),
-    scanTokenUsage(),
-  ]);
-
-  return {
-    limits: limits.error ? null : limits,
-    realtime,
-    timestamp: new Date().toISOString(),
-  };
-}
 
 /**
  * Get usage formatted for HUD display.

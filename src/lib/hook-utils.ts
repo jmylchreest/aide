@@ -147,19 +147,6 @@ export function getMemoryState(
 }
 
 /**
- * Delete a state key from aide
- */
-export function deleteMemoryState(
-  cwd: string,
-  key: string,
-  agentId?: string,
-): boolean {
-  const binary = findAideBinary(cwd);
-  if (!binary) return false;
-  return deleteState(binary, cwd, key, agentId);
-}
-
-/**
  * Clear all state for an agent
  */
 export function clearAgentState(cwd: string, agentId: string): boolean {

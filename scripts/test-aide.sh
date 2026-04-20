@@ -541,51 +541,6 @@ EOF
     fi
 }
 
-# ============================================================================
-# TEST: Swarm Mode & Worktrees
-# ============================================================================
-test_swarm_mode() {
-    section "Swarm Mode & Worktrees"
-
-    # Check if worktree library exists
-    local worktree_lib="$PROJECT_ROOT/dist/lib/worktree.js"
-    if [[ ! -f "$worktree_lib" ]]; then
-        skip "worktree.js not built"
-        return
-    fi
-
-    cd "$TEST_DIR"
-
-    # Test worktree creation via direct node execution
-    timer_start "worktree-create"
-    local create_script='
-    const { createWorktree } = require("'"$worktree_lib"'");
-    createWorktree("'"$TEST_DIR"'", "task-1", "agent-1")
-      .then(r => console.log(JSON.stringify(r)))
-      .catch(e => console.error(e.message));
-    '
-    local wt_result=$(node -e "$create_script" 2>&1)
-    timer_end "worktree-create"
-
-    if echo "$wt_result" | grep -q "path"; then
-        pass "worktree created successfully"
-        if [[ "$DEBUG" != "0" ]]; then
-            echo "  ${BLUE}Result: $wt_result${NC}"
-        fi
-    else
-        # Git worktree might fail in test environment, that's ok
-        skip "worktree creation (may need full git setup): $wt_result"
-    fi
-
-    # Test worktree state tracking
-    if [[ -f "$TEST_DIR/.aide/state/worktrees.json" ]]; then
-        pass "worktree state file created"
-    else
-        skip "worktree state file not created"
-    fi
-
-    cd - > /dev/null
-}
 
 # ============================================================================
 # TEST: Run Vitest Hook Tests
@@ -656,7 +611,6 @@ main() {
             test_memory_system
             test_hud_updates
             test_config_reload
-            test_swarm_mode
             test_vitest_hooks
             test_go_memory
             ;;
@@ -671,9 +625,6 @@ main() {
             ;;
         config)
             test_config_reload
-            ;;
-        swarm)
-            test_swarm_mode
             ;;
         hooks)
             test_vitest_hooks

@@ -99,23 +99,6 @@ function commandSucceeds(cmd: string, cwd: string): boolean {
 }
 
 /**
- * Get command output or null on failure (cross-platform via cross-spawn)
- */
-function getCommandOutput(cmd: string, cwd: string): string | null {
-  const [bin, args] = splitCommand(cmd);
-  if (!which.sync(bin, { nothrow: true })) {
-    debug(SOURCE, `Binary not found in PATH: ${bin}`);
-    return null;
-  }
-  const result = spawn.sync(bin, args, { cwd, stdio: "pipe", timeout: 30000 });
-  if (result.status !== 0 || !result.stdout) {
-    debug(SOURCE, `getCommandOutput failed for: ${cmd}: exit ${result.status}`);
-    return null;
-  }
-  return result.stdout.toString().trim();
-}
-
-/**
  * Detect project type (typescript, go, python)
  */
 function detectProjectType(

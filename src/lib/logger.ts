@@ -19,7 +19,7 @@
  *   touch .aide/.debug           # sentinel file (live toggle)
  */
 
-import { existsSync, mkdirSync, appendFileSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, appendFileSync } from "fs";
 import { join } from "path";
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
@@ -196,21 +196,6 @@ export class Logger {
   }
 
   /**
-   * Time a synchronous operation
-   */
-  timeSync<T>(label: string, fn: () => T): T {
-    this.start(label);
-    try {
-      const result = fn();
-      this.end(label);
-      return result;
-    } catch (err) {
-      this.end(label, { error: String(err) });
-      throw err;
-    }
-  }
-
-  /**
    * Format entries for file output
    */
   private formatEntries(): string {
@@ -266,43 +251,6 @@ export class Logger {
   }
 
   /**
-   * Write to a custom log file (relative to .aide/_logs/)
-   */
-  writeToFile(filename: string, content: string): void {
-    if (!this.enabled) return;
-
-    try {
-      this.ensureLogDir();
-      const filepath = join(this.logDir, filename);
-      writeFileSync(filepath, content);
-    } catch {
-      // Silently fail
-    }
-  }
-
-  /**
-   * Append to a custom log file (relative to .aide/_logs/)
-   */
-  appendToFile(filename: string, content: string): void {
-    if (!this.enabled) return;
-
-    try {
-      this.ensureLogDir();
-      const filepath = join(this.logDir, filename);
-      appendFileSync(filepath, content);
-    } catch {
-      // Silently fail
-    }
-  }
-
-  /**
-   * Get the log directory path
-   */
-  getLogDir(): string {
-    return this.logDir;
-  }
-
-  /**
    * Get the main log file path
    */
   getLogFile(): string {
@@ -316,21 +264,6 @@ export class Logger {
     const childLogger = new Logger(`${this.source}:${subSource}`, this.cwd);
     return childLogger;
   }
-}
-
-/**
- * Create a singleton logger instance for quick use
- *
- * Note: Currently not used by hooks. Hooks create Logger instances
- * directly for more control. Exported for potential future use.
- */
-let defaultLogger: Logger | null = null;
-
-export function getLogger(source: string, cwd?: string): Logger {
-  if (!defaultLogger || defaultLogger["source"] !== source) {
-    defaultLogger = new Logger(source, cwd);
-  }
-  return defaultLogger;
 }
 
 // Debug log state - tracks cwd for file-based logging
