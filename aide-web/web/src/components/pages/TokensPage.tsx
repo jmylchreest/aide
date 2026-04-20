@@ -439,7 +439,10 @@ export function TokensPage() {
             title={value + lineSuffix}
             onClick={() =>
               setViewer({
-                file: value,
+                // The file API rejects absolute paths (path-traversal
+                // guard). Send the project-relative form — same value we
+                // already display in the column.
+                file: display,
                 line: row.start_line || undefined,
                 endLine: row.end_line || undefined,
               })
