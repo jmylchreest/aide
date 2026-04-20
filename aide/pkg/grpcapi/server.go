@@ -924,14 +924,19 @@ func (s *codeServiceImpl) Index(ctx context.Context, req *CodeIndexRequest) (*Co
 				}
 			}
 
-			// Parse file
+			// Parse file for symbols and references. References are required
+			// by the deadcode analyzer (refcount check) and every code_references
+			// query — omitting them silently leaves the index missing all call
+			// sites and type usages from the re-indexed file.
 			symbols, err := s.parser.ParseFile(path)
 			if err != nil {
 				return nil
 			}
+			refs, _ := s.parser.ParseFileReferences(path)
 
-			// Clear existing symbols
+			// Clear existing symbols AND references before re-adding.
 			cs.ClearFile(relPath)
+			cs.ClearFileReferences(relPath)
 
 			// Store symbols
 			var symbolIDs []string
@@ -942,6 +947,12 @@ func (s *codeServiceImpl) Index(ctx context.Context, req *CodeIndexRequest) (*Co
 				}
 				symbolIDs = append(symbolIDs, sym.ID)
 				symbolsIndexed++
+			}
+
+			// Store references
+			for _, ref := range refs {
+				ref.FilePath = relPath
+				cs.AddReference(ref)
 			}
 
 			// Update file info with token estimate
