@@ -225,8 +225,6 @@ or code_symbols over a full Read to save context window tokens.`,
 }
 
 func (s *MCPServer) handleCodeSearch(_ context.Context, _ *mcp.CallToolRequest, input CodeSearchInput) (*mcp.CallToolResult, any, error) {
-	span := observe.Start("code_search", observe.KindToolCall).Category("navigate").Subtype("sym_search").Attr("query", input.Query)
-	defer span.End()
 	mcpLog.Printf("tool: code_search query=%q kind=%s lang=%s", input.Query, input.Kind, input.Language)
 
 	codeStore := s.getCodeStore()
@@ -264,8 +262,6 @@ func (s *MCPServer) handleCodeSearch(_ context.Context, _ *mcp.CallToolRequest, 
 }
 
 func (s *MCPServer) handleCodeSymbols(_ context.Context, _ *mcp.CallToolRequest, input CodeSymbolsInput) (*mcp.CallToolResult, any, error) {
-	span := observe.Start("code_symbols", observe.KindToolCall).Category("navigate").Subtype("file_syms").FilePath(input.FilePath)
-	defer span.End()
 	mcpLog.Printf("tool: code_symbols file=%s", input.FilePath)
 
 	symbols, err := s.getFileSymbolsFresh(input.FilePath)
@@ -317,8 +313,6 @@ func (s *MCPServer) getFileSymbolsFresh(filePath string) ([]*code.Symbol, error)
 }
 
 func (s *MCPServer) handleCodeStats(_ context.Context, _ *mcp.CallToolRequest, _ CodeStatsInput) (*mcp.CallToolResult, any, error) {
-	span := observe.Start("code_stats", observe.KindToolCall).Category("navigate").Subtype("stats")
-	defer span.End()
 	mcpLog.Printf("tool: code_stats")
 
 	codeStore := s.getCodeStore()
@@ -337,8 +331,6 @@ func (s *MCPServer) handleCodeStats(_ context.Context, _ *mcp.CallToolRequest, _
 }
 
 func (s *MCPServer) handleCodeReferences(_ context.Context, _ *mcp.CallToolRequest, input CodeReferencesInput) (*mcp.CallToolResult, any, error) {
-	span := observe.Start("code_references", observe.KindToolCall).Category("navigate").Subtype("refs")
-	defer span.End()
 	// Resolve symbol names: batch mode takes precedence
 	names := input.SymbolNames
 	if len(names) == 0 && input.SymbolName != "" {
@@ -405,8 +397,6 @@ func (s *MCPServer) handleCodeReferences(_ context.Context, _ *mcp.CallToolReque
 }
 
 func (s *MCPServer) handleCodeTopReferences(_ context.Context, _ *mcp.CallToolRequest, input CodeTopReferencesInput) (*mcp.CallToolResult, any, error) {
-	span := observe.Start("code_top_references", observe.KindToolCall).Category("navigate").Subtype("top_refs")
-	defer span.End()
 	mcpLog.Printf("tool: code_top_references limit=%d kind=%s", input.Limit, input.Kind)
 
 	codeStore := s.getCodeStore()
@@ -490,8 +480,6 @@ func (s *MCPServer) handleCodeOutline(_ context.Context, _ *mcp.CallToolRequest,
 }
 
 func (s *MCPServer) handleCodeReadCheck(_ context.Context, _ *mcp.CallToolRequest, input CodeReadCheckInput) (*mcp.CallToolResult, any, error) {
-	span := observe.Start("code_read_check", observe.KindToolCall).Category("navigate").Subtype("read_check").FilePath(input.File)
-	defer span.End()
 	mcpLog.Printf("tool: code_read_check file=%s", input.File)
 
 	if input.File == "" {

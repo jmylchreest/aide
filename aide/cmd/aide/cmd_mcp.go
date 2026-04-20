@@ -100,6 +100,101 @@ func (s *MCPServer) toolCountMiddleware() mcp.Middleware {
 	}
 }
 
+// mcpToolTaxonomy maps MCP tool names to (category, subtype) for observe.
+// Single source of truth for which class of work each tool represents —
+// keeps the dashboard's per-category view honest as new tools are added.
+var mcpToolTaxonomy = map[string]struct {
+	Category string
+	Subtype  string
+}{
+	// code (consume — manual spans in handler add token math)
+	"code_outline":     {"consume", "outline"},
+	"code_read_symbol": {"consume", "symbol"},
+
+	// code (navigate)
+	"code_search":         {"navigate", "sym_search"},
+	"code_symbols":        {"navigate", "file_syms"},
+	"code_references":     {"navigate", "refs"},
+	"code_top_references": {"navigate", "top_refs"},
+	"code_read_check":     {"navigate", "read_check"},
+	"code_stats":          {"navigate", "stats"},
+
+	// memory / decisions / state / findings / survey (knowledge)
+	"memory_add":       {"knowledge", "memory_add"},
+	"memory_search":    {"knowledge", "memory_search"},
+	"memory_list":      {"knowledge", "memory_list"},
+	"memory_get":       {"knowledge", "memory_get"},
+	"decision_get":     {"knowledge", "decision_get"},
+	"decision_list":    {"knowledge", "decision_list"},
+	"decision_history": {"knowledge", "decision_history"},
+	"decision_set":     {"knowledge", "decision_set"},
+	"state_get":        {"knowledge", "state_get"},
+	"state_list":       {"knowledge", "state_list"},
+	"findings_search":  {"knowledge", "findings_search"},
+	"findings_list":    {"knowledge", "findings_list"},
+	"findings_stats":   {"knowledge", "findings_stats"},
+	"findings_accept":  {"knowledge", "findings_accept"},
+	"survey_search":    {"knowledge", "survey_search"},
+	"survey_list":      {"knowledge", "survey_list"},
+	"survey_stats":     {"knowledge", "survey_stats"},
+	"survey_run":       {"knowledge", "survey_run"},
+	"survey_graph":     {"knowledge", "survey_graph"},
+
+	// coordination
+	"task_create":   {"coordinate", "task_create"},
+	"task_get":      {"coordinate", "task_get"},
+	"task_list":     {"coordinate", "task_list"},
+	"task_claim":    {"coordinate", "task_claim"},
+	"task_complete": {"coordinate", "task_complete"},
+	"task_delete":   {"coordinate", "task_delete"},
+	"message_send":  {"coordinate", "message_send"},
+	"message_list":  {"coordinate", "message_list"},
+	"message_ack":   {"coordinate", "message_ack"},
+
+	// status / introspection
+	"instance_info": {"navigate", "instance"},
+	"token_stats":   {"navigate", "token_stats"},
+}
+
+// mcpHandlerEmitsOwnSpan lists tools whose handler manually emits a span
+// (because it has token math the middleware can't compute). The middleware
+// skips these to avoid double-recording.
+var mcpHandlerEmitsOwnSpan = map[string]bool{
+	"code_outline":     true,
+	"code_read_symbol": true,
+}
+
+// toolObserveMiddleware records every MCP tool call as an observe.KindToolCall
+// span with name + category + subtype + duration + error. Tools whose
+// handler manually emits a richer span (with token math) are skipped here.
+func (s *MCPServer) toolObserveMiddleware() mcp.Middleware {
+	return func(next mcp.MethodHandler) mcp.MethodHandler {
+		return func(ctx context.Context, method string, req mcp.Request) (mcp.Result, error) {
+			if method != "tools/call" {
+				return next(ctx, method, req)
+			}
+			params, ok := req.GetParams().(*mcp.CallToolParamsRaw)
+			if !ok || mcpHandlerEmitsOwnSpan[params.Name] {
+				return next(ctx, method, req)
+			}
+			category, subtype := "other", ""
+			if tax, found := mcpToolTaxonomy[params.Name]; found {
+				category = tax.Category
+				subtype = tax.Subtype
+			}
+			span := observe.Start(params.Name, observe.KindToolCall).
+				Category(category).
+				Subtype(subtype)
+			defer span.End()
+			result, err := next(ctx, method, req)
+			if err != nil {
+				span.Err(err)
+			}
+			return result, err
+		}
+	}
+}
+
 // mcpConfig holds parsed configuration for the MCP server.
 type mcpConfig struct {
 	codeWatch         bool
@@ -670,8 +765,9 @@ func (s *MCPServer) Run() error {
 	)
 	s.server = srv
 
-	// Track tool execution counts
+	// Track tool execution counts + emit observe events
 	srv.AddReceivingMiddleware(s.toolCountMiddleware())
+	srv.AddReceivingMiddleware(s.toolObserveMiddleware())
 
 	// Register tools — data layer + task coordination
 	s.registerMemoryTools()
