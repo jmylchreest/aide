@@ -9,6 +9,43 @@ import (
 	bolt "go.etcd.io/bbolt"
 )
 
+// tokenEventToObserve translates a legacy TokenEvent into the observe.Event
+// shape. Used by the one-shot migration that drains BucketTokenEvents into
+// BucketObserveEvents at daemon startup.
+func tokenEventToObserve(t *memory.TokenEvent) *observe.Event {
+	var kind observe.Kind
+	var category, subtype, name string
+	switch t.EventType {
+	case memory.TokenEventRead:
+		kind, category, subtype, name = observe.KindToolCall, "consume", "file", t.Tool
+	case memory.TokenEventOutlineUsed:
+		kind, category, subtype, name = observe.KindToolCall, "consume", "outline", t.Tool
+	case memory.TokenEventSymbolRead:
+		kind, category, subtype, name = observe.KindToolCall, "consume", "symbol", t.Tool
+	case memory.TokenEventReadAvoided:
+		kind, category, subtype, name = observe.KindToolCall, "consume", "avoided", t.Tool
+	case memory.TokenEventContextInjected:
+		// For injections, the legacy Tool field carried the source label
+		// (memory / decision / skill / enrichment). Preserve it as both
+		// name and subtype.
+		kind, category, subtype, name = observe.KindInjection, "inject", t.Tool, t.Tool
+	default:
+		return nil
+	}
+	return &observe.Event{
+		ID:          t.ID,
+		Timestamp:   t.Timestamp,
+		Kind:        kind,
+		Name:        name,
+		Category:    category,
+		Subtype:     subtype,
+		FilePath:    t.FilePath,
+		Tokens:      t.Tokens,
+		TokensSaved: t.TokensSaved,
+		SessionID:   t.SessionID,
+	}
+}
+
 // observeToTokenEvent maps an observe.Event into the legacy TokenEvent shape
 // where it carries cost data the old token UI/CLI consumes. Returns nil for
 // events that have no equivalent (e.g., generic spans, hook lifecycle).
@@ -147,6 +184,68 @@ func (s *BoltStore) CleanupObserveEvents(maxAge time.Duration) (int, error) {
 		return nil
 	})
 	return count, err
+}
+
+// metaKeyTokensMigrated is set in BucketMeta once MigrateTokenEventsToObserve
+// completes successfully so subsequent daemon starts skip the migration.
+const metaKeyTokensMigrated = "schema.tokens_migrated_to_observe"
+
+// MigrateTokenEventsToObserve drains every entry from the legacy
+// BucketTokenEvents into BucketObserveEvents (translated) and clears the
+// legacy bucket. Idempotent: subsequent calls are no-ops once the meta flag
+// is set. Atomic per-batch within a single bbolt transaction so a crash mid-
+// migration leaves a recoverable state.
+//
+// Returns the number of events migrated on this call.
+func (s *BoltStore) MigrateTokenEventsToObserve() (int, error) {
+	if v, _ := s.GetMeta(metaKeyTokensMigrated); v == "1" {
+		return 0, nil
+	}
+	migrated := 0
+	err := s.db.Update(func(tx *bolt.Tx) error {
+		legacy := tx.Bucket(BucketTokenEvents)
+		obs := tx.Bucket(BucketObserveEvents)
+		if legacy == nil || obs == nil {
+			return nil
+		}
+		var keys [][]byte
+		err := legacy.ForEach(func(k, v []byte) error {
+			var t memory.TokenEvent
+			if err := json.Unmarshal(v, &t); err != nil {
+				keys = append(keys, append([]byte{}, k...))
+				return nil
+			}
+			ev := tokenEventToObserve(&t)
+			if ev == nil {
+				keys = append(keys, append([]byte{}, k...))
+				return nil
+			}
+			data, err := json.Marshal(ev)
+			if err != nil {
+				return err
+			}
+			if err := obs.Put([]byte(ev.ID), data); err != nil {
+				return err
+			}
+			keys = append(keys, append([]byte{}, k...))
+			migrated++
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+		for _, k := range keys {
+			if err := legacy.Delete(k); err != nil {
+				return err
+			}
+		}
+		meta := tx.Bucket(BucketMeta)
+		if meta != nil {
+			return meta.Put([]byte(metaKeyTokensMigrated), []byte("1"))
+		}
+		return nil
+	})
+	return migrated, err
 }
 
 // ObserveSink adapts BoltStore to observe.Sink so the package-level Recorder

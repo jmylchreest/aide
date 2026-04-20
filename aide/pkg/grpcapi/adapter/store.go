@@ -7,6 +7,7 @@ import (
 
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi"
 	"github.com/jmylchreest/aide/aide/pkg/memory"
+	"github.com/jmylchreest/aide/aide/pkg/observe"
 	"github.com/jmylchreest/aide/aide/pkg/store"
 )
 
@@ -586,4 +587,85 @@ func (g *StoreAdapter) TokenStats(sessionID string, since, until time.Time) (*me
 func (g *StoreAdapter) CleanupTokenEvents(maxAge time.Duration) (int, error) {
 	// Cleanup is handled locally by the MCP server, not via gRPC
 	return 0, fmt.Errorf("token event cleanup not supported via gRPC")
+}
+
+// --- Observe Event Operations ---
+
+func (g *StoreAdapter) AddObserveEvent(e *observe.Event) error {
+	ctx, cancel := g.rpcCtx()
+	defer cancel()
+	attrs := e.Attrs
+	if attrs == nil {
+		attrs = map[string]string{}
+	}
+	resp, err := g.client.Observe.RecordEvent(ctx, &grpcapi.ObserveRecordRequest{
+		Kind:        string(e.Kind),
+		Name:        e.Name,
+		Category:    e.Category,
+		Subtype:     e.Subtype,
+		DurationMs:  e.DurationMs,
+		Tokens:      int32(e.Tokens),
+		TokensSaved: int32(e.TokensSaved),
+		FilePath:    e.FilePath,
+		Parent:      e.Parent,
+		SessionId:   e.SessionID,
+		Error:       e.Error,
+		Attrs:       attrs,
+	})
+	if err != nil {
+		return err
+	}
+	if e.ID == "" {
+		e.ID = resp.Id
+	}
+	return nil
+}
+
+func (g *StoreAdapter) ListObserveEvents(f store.ObserveFilter) ([]*observe.Event, error) {
+	ctx, cancel := g.rpcCtx()
+	defer cancel()
+	req := &grpcapi.ObserveListRequest{
+		Kind:      string(f.Kind),
+		Name:      f.Name,
+		Category:  f.Category,
+		SessionId: f.SessionID,
+		Limit:     int32(f.Limit),
+	}
+	if !f.Since.IsZero() {
+		req.SinceUnixMs = f.Since.UnixMilli()
+	}
+	if !f.Until.IsZero() {
+		req.UntilUnixMs = f.Until.UnixMilli()
+	}
+	resp, err := g.client.Observe.ListEvents(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*observe.Event, 0, len(resp.Events))
+	for _, pe := range resp.Events {
+		e := &observe.Event{
+			ID:          pe.Id,
+			Kind:        observe.Kind(pe.Kind),
+			Name:        pe.Name,
+			Category:    pe.Category,
+			Subtype:     pe.Subtype,
+			DurationMs:  pe.DurationMs,
+			Tokens:      int(pe.Tokens),
+			TokensSaved: int(pe.TokensSaved),
+			FilePath:    pe.FilePath,
+			Parent:      pe.Parent,
+			SessionID:   pe.SessionId,
+			Error:       pe.Error,
+			Attrs:       pe.Attrs,
+		}
+		if pe.Timestamp != nil {
+			e.Timestamp = pe.Timestamp.AsTime()
+		}
+		out = append(out, e)
+	}
+	return out, nil
+}
+
+func (g *StoreAdapter) CleanupObserveEvents(maxAge time.Duration) (int, error) {
+	return 0, fmt.Errorf("observe event cleanup not supported via gRPC")
 }

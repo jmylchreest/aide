@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/jmylchreest/aide/aide/pkg/memory"
+	"github.com/jmylchreest/aide/aide/pkg/observe"
 )
 
 // Verify CombinedStore implements Store at compile time.
@@ -54,6 +55,18 @@ func NewCombinedStore(dbPath string) (*CombinedStore, error) {
 // Bolt returns the underlying BoltStore. Used by code that needs direct
 // access to bbolt-only operations (observe sink, schema migrations).
 func (c *CombinedStore) Bolt() *BoltStore { return c.bolt }
+
+// --- Observe Event Operations (delegated to BoltStore) ---
+
+func (c *CombinedStore) AddObserveEvent(e *observe.Event) error {
+	return c.bolt.AddObserveEvent(e)
+}
+func (c *CombinedStore) ListObserveEvents(f ObserveFilter) ([]*observe.Event, error) {
+	return c.bolt.ListObserveEvents(f)
+}
+func (c *CombinedStore) CleanupObserveEvents(maxAge time.Duration) (int, error) {
+	return c.bolt.CleanupObserveEvents(maxAge)
+}
 
 // ensureSearchMapping checks if the search index mapping has changed and rebuilds if needed.
 func (c *CombinedStore) ensureSearchMapping() error {

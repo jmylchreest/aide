@@ -8,6 +8,7 @@ import (
 	"github.com/jmylchreest/aide/aide/pkg/code"
 	"github.com/jmylchreest/aide/aide/pkg/findings"
 	"github.com/jmylchreest/aide/aide/pkg/memory"
+	"github.com/jmylchreest/aide/aide/pkg/observe"
 	"github.com/jmylchreest/aide/aide/pkg/survey"
 )
 
@@ -71,6 +72,13 @@ type TokenEventStore interface {
 	CleanupTokenEvents(maxAge time.Duration) (int, error)
 }
 
+// ObserveEventStore provides the unified observability event API.
+type ObserveEventStore interface {
+	AddObserveEvent(e *observe.Event) error
+	ListObserveEvents(f ObserveFilter) ([]*observe.Event, error)
+	CleanupObserveEvents(maxAge time.Duration) (int, error)
+}
+
 // Store combines all domain-specific store interfaces.
 // Implementations must satisfy all sub-interfaces.
 type Store interface {
@@ -80,6 +88,7 @@ type Store interface {
 	MessageStore
 	TaskStore
 	TokenEventStore
+	ObserveEventStore
 	Close() error
 }
 

@@ -3267,3 +3267,151 @@ var TokenService_ServiceDesc = grpc.ServiceDesc{
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "aidememory.proto",
 }
+
+const (
+	ObserveService_RecordEvent_FullMethodName = "/aidememory.ObserveService/RecordEvent"
+	ObserveService_ListEvents_FullMethodName  = "/aidememory.ObserveService/ListEvents"
+)
+
+// ObserveServiceClient is the client API for ObserveService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+//
+// ObserveService is the unified observability event API (tool calls, spans,
+// hooks, injections, sessions). Supersedes the narrow TokenService for new
+// consumers; TokenService remains as a derived view over ObserveService data.
+type ObserveServiceClient interface {
+	RecordEvent(ctx context.Context, in *ObserveRecordRequest, opts ...grpc.CallOption) (*ObserveRecordResponse, error)
+	ListEvents(ctx context.Context, in *ObserveListRequest, opts ...grpc.CallOption) (*ObserveListResponse, error)
+}
+
+type observeServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewObserveServiceClient(cc grpc.ClientConnInterface) ObserveServiceClient {
+	return &observeServiceClient{cc}
+}
+
+func (c *observeServiceClient) RecordEvent(ctx context.Context, in *ObserveRecordRequest, opts ...grpc.CallOption) (*ObserveRecordResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ObserveRecordResponse)
+	err := c.cc.Invoke(ctx, ObserveService_RecordEvent_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *observeServiceClient) ListEvents(ctx context.Context, in *ObserveListRequest, opts ...grpc.CallOption) (*ObserveListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ObserveListResponse)
+	err := c.cc.Invoke(ctx, ObserveService_ListEvents_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// ObserveServiceServer is the server API for ObserveService service.
+// All implementations must embed UnimplementedObserveServiceServer
+// for forward compatibility.
+//
+// ObserveService is the unified observability event API (tool calls, spans,
+// hooks, injections, sessions). Supersedes the narrow TokenService for new
+// consumers; TokenService remains as a derived view over ObserveService data.
+type ObserveServiceServer interface {
+	RecordEvent(context.Context, *ObserveRecordRequest) (*ObserveRecordResponse, error)
+	ListEvents(context.Context, *ObserveListRequest) (*ObserveListResponse, error)
+	mustEmbedUnimplementedObserveServiceServer()
+}
+
+// UnimplementedObserveServiceServer must be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedObserveServiceServer struct{}
+
+func (UnimplementedObserveServiceServer) RecordEvent(context.Context, *ObserveRecordRequest) (*ObserveRecordResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RecordEvent not implemented")
+}
+func (UnimplementedObserveServiceServer) ListEvents(context.Context, *ObserveListRequest) (*ObserveListResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListEvents not implemented")
+}
+func (UnimplementedObserveServiceServer) mustEmbedUnimplementedObserveServiceServer() {}
+func (UnimplementedObserveServiceServer) testEmbeddedByValue()                        {}
+
+// UnsafeObserveServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to ObserveServiceServer will
+// result in compilation errors.
+type UnsafeObserveServiceServer interface {
+	mustEmbedUnimplementedObserveServiceServer()
+}
+
+func RegisterObserveServiceServer(s grpc.ServiceRegistrar, srv ObserveServiceServer) {
+	// If the following call panics, it indicates UnimplementedObserveServiceServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&ObserveService_ServiceDesc, srv)
+}
+
+func _ObserveService_RecordEvent_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ObserveRecordRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ObserveServiceServer).RecordEvent(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ObserveService_RecordEvent_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ObserveServiceServer).RecordEvent(ctx, req.(*ObserveRecordRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ObserveService_ListEvents_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ObserveListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ObserveServiceServer).ListEvents(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ObserveService_ListEvents_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ObserveServiceServer).ListEvents(ctx, req.(*ObserveListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// ObserveService_ServiceDesc is the grpc.ServiceDesc for ObserveService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var ObserveService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "aidememory.ObserveService",
+	HandlerType: (*ObserveServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "RecordEvent",
+			Handler:    _ObserveService_RecordEvent_Handler,
+		},
+		{
+			MethodName: "ListEvents",
+			Handler:    _ObserveService_ListEvents_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "aidememory.proto",
+}

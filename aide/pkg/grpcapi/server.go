@@ -16,6 +16,7 @@ import (
 	"github.com/jmylchreest/aide/aide/pkg/findings"
 	"github.com/jmylchreest/aide/aide/pkg/grammar"
 	"github.com/jmylchreest/aide/aide/pkg/memory"
+	"github.com/jmylchreest/aide/aide/pkg/observe"
 	"github.com/jmylchreest/aide/aide/pkg/store"
 	"github.com/jmylchreest/aide/aide/pkg/survey"
 	"github.com/jmylchreest/aide/aide/pkg/watcher"
@@ -207,6 +208,7 @@ func (s *Server) Start() error {
 	RegisterFindingsServiceServer(s.grpcServer, &findingsServiceImpl{server: s})
 	RegisterSurveyServiceServer(s.grpcServer, &surveyServiceImpl{server: s})
 	RegisterTokenServiceServer(s.grpcServer, &tokenServiceImpl{store: s.store})
+	RegisterObserveServiceServer(s.grpcServer, &observeServiceImpl{store: s.store})
 	RegisterHealthServiceServer(s.grpcServer, &healthServiceImpl{dbPath: s.dbPath})
 	RegisterStatusServiceServer(s.grpcServer, &statusServiceImpl{server: s})
 
@@ -2146,4 +2148,74 @@ func taskToProto(t *memory.Task) *Task {
 		ClaimedAt:   timestamppb.New(t.ClaimedAt),
 		CompletedAt: timestamppb.New(t.CompletedAt),
 	}
+}
+
+// =============================================================================
+// Observe Service Implementation
+// =============================================================================
+
+type observeServiceImpl struct {
+	UnimplementedObserveServiceServer
+	store store.Store
+}
+
+func (s *observeServiceImpl) RecordEvent(ctx context.Context, req *ObserveRecordRequest) (*ObserveRecordResponse, error) {
+	e := &observe.Event{
+		Kind:        observe.Kind(req.Kind),
+		Name:        req.Name,
+		Category:    req.Category,
+		Subtype:     req.Subtype,
+		DurationMs:  req.DurationMs,
+		Tokens:      int(req.Tokens),
+		TokensSaved: int(req.TokensSaved),
+		FilePath:    req.FilePath,
+		Parent:      req.Parent,
+		SessionID:   req.SessionId,
+		Error:       req.Error,
+		Attrs:       req.Attrs,
+	}
+	if err := s.store.AddObserveEvent(e); err != nil {
+		return nil, err
+	}
+	return &ObserveRecordResponse{Id: e.ID}, nil
+}
+
+func (s *observeServiceImpl) ListEvents(ctx context.Context, req *ObserveListRequest) (*ObserveListResponse, error) {
+	f := store.ObserveFilter{
+		Kind:      observe.Kind(req.Kind),
+		Name:      req.Name,
+		Category:  req.Category,
+		SessionID: req.SessionId,
+		Limit:     int(req.Limit),
+	}
+	if req.SinceUnixMs > 0 {
+		f.Since = time.UnixMilli(req.SinceUnixMs)
+	}
+	if req.UntilUnixMs > 0 {
+		f.Until = time.UnixMilli(req.UntilUnixMs)
+	}
+	events, err := s.store.ListObserveEvents(f)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*ObserveEvent, 0, len(events))
+	for _, e := range events {
+		out = append(out, &ObserveEvent{
+			Id:          e.ID,
+			Timestamp:   timestamppb.New(e.Timestamp),
+			Kind:        string(e.Kind),
+			Name:        e.Name,
+			Category:    e.Category,
+			Subtype:     e.Subtype,
+			DurationMs:  e.DurationMs,
+			Tokens:      int32(e.Tokens),
+			TokensSaved: int32(e.TokensSaved),
+			FilePath:    e.FilePath,
+			Parent:      e.Parent,
+			SessionId:   e.SessionID,
+			Error:       e.Error,
+			Attrs:       e.Attrs,
+		})
+	}
+	return &ObserveListResponse{Events: out}, nil
 }

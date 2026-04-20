@@ -23,6 +23,7 @@ type Client struct {
 	Findings FindingsServiceClient
 	Survey   SurveyServiceClient
 	Token    TokenServiceClient
+	Observe  ObserveServiceClient
 	Health   HealthServiceClient
 	Status   StatusServiceClient
 }
@@ -66,6 +67,7 @@ func NewClientWithSocket(socketPath string) (*Client, error) {
 		Findings: NewFindingsServiceClient(conn),
 		Survey:   NewSurveyServiceClient(conn),
 		Token:    NewTokenServiceClient(conn),
+		Observe:  NewObserveServiceClient(conn),
 		Health:   NewHealthServiceClient(conn),
 		Status:   NewStatusServiceClient(conn),
 	}

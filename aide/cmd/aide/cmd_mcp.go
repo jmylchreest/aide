@@ -606,6 +606,12 @@ func cmdMCP(dbPath string, args []string) error {
 	observe.SetDefault(store.NewObserveSink(st.Bolt()))
 	defer observe.SetDefault(nil)
 
+	if migrated, err := st.Bolt().MigrateTokenEventsToObserve(); err != nil {
+		mcpLog.Printf("WARNING: token-event migration failed: %v", err)
+	} else if migrated > 0 {
+		mcpLog.Printf("migrated %d legacy token events into observe store", migrated)
+	}
+
 	mcpServer := &MCPServer{store: st, grammarLoader: grammarLoader, dbPath: dbPath}
 
 	grpcServer := grpcapi.NewServer(st, dbPath, socketPath, grammarLoader)

@@ -909,6 +909,64 @@ service TokenService {
   rpc ListTokenEvents(TokenEventListRequest) returns (TokenEventListResponse);
 }
 
+// ObserveService is the unified observability event API (tool calls, spans,
+// hooks, injections, sessions). Supersedes the narrow TokenService for new
+// consumers; TokenService remains as a derived view over ObserveService data.
+service ObserveService {
+  rpc RecordEvent(ObserveRecordRequest) returns (ObserveRecordResponse);
+  rpc ListEvents(ObserveListRequest) returns (ObserveListResponse);
+}
+
+message ObserveRecordRequest {
+  string kind = 1;        // tool_call | span | hook | injection | session
+  string name = 2;
+  string category = 3;
+  string subtype = 4;
+  int64 duration_ms = 5;
+  int32 tokens = 6;
+  int32 tokens_saved = 7;
+  string file_path = 8;
+  string parent = 9;
+  string session_id = 10;
+  string error = 11;
+  map<string, string> attrs = 12;
+}
+
+message ObserveRecordResponse {
+  string id = 1;
+}
+
+message ObserveListRequest {
+  string kind = 1;
+  string name = 2;
+  string category = 3;
+  string session_id = 4;
+  int64 since_unix_ms = 5;   // 0 = no lower bound
+  int64 until_unix_ms = 6;   // 0 = no upper bound
+  int32 limit = 7;           // 0 = no limit
+}
+
+message ObserveEvent {
+  string id = 1;
+  google.protobuf.Timestamp timestamp = 2;
+  string kind = 3;
+  string name = 4;
+  string category = 5;
+  string subtype = 6;
+  int64 duration_ms = 7;
+  int32 tokens = 8;
+  int32 tokens_saved = 9;
+  string file_path = 10;
+  string parent = 11;
+  string session_id = 12;
+  string error = 13;
+  map<string, string> attrs = 14;
+}
+
+message ObserveListResponse {
+  repeated ObserveEvent events = 1;
+}
+
 message TokenEventRequest {
   string session_id = 1;
   string event_type = 2;     // read, outline_used, read_avoided, write, edit
