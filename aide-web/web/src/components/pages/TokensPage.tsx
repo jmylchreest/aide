@@ -23,22 +23,132 @@ function StatCard({ label, value, sub }: { label: string; value: string; sub?: s
   );
 }
 
-function SavingCard({ label, value, tooltip }: { label: string; value: number; tooltip?: string }) {
-  return (
-    <div className="rounded-md border border-aide-border bg-aide-bg-secondary px-4 py-3">
-      <div className="text-[10px] uppercase tracking-wider text-aide-text-dim mb-1 cursor-help" title={tooltip}>{label}</div>
-      <div className="text-lg font-semibold text-green-500">~{formatTokens(value)}</div>
-      <div className="text-[10px] text-aide-text-muted mt-0.5">est. tokens saved</div>
-    </div>
-  );
-}
-
 function DeliveryCard({ label, value, tooltip }: { label: string; value: number; tooltip?: string }) {
   return (
     <div className="rounded-md border border-aide-border bg-aide-bg-secondary px-4 py-3">
       <div className="text-[10px] uppercase tracking-wider text-aide-text-dim mb-1 cursor-help" title={tooltip}>{label}</div>
       <div className="text-lg font-semibold text-blue-400">~{formatTokens(value)}</div>
       <div className="text-[10px] text-aide-text-muted mt-0.5">tokens delivered</div>
+    </div>
+  );
+}
+
+// TOOL_CATEGORIES mirrors the observe taxonomy. "consume" tools replace a
+// Read and so have a meaningful "avoided" counterfactual. "navigate" and
+// "search" tools spend tokens to find things; their value is indirect
+// (smaller downstream Reads) — we don't claim savings for them because
+// we can't ground the counterfactual.
+const TOOL_CATEGORIES: Record<string, "consume" | "navigate" | "search" | "modify" | "execute" | "network"> = {
+  Read: "consume",
+  code_outline: "consume",
+  code_read_symbol: "consume",
+  code_search: "navigate",
+  code_symbols: "navigate",
+  code_references: "navigate",
+  code_top_references: "navigate",
+  code_read_check: "navigate",
+  code_stats: "navigate",
+  Grep: "search",
+  Glob: "search",
+  Edit: "modify",
+  Write: "modify",
+  NotebookEdit: "modify",
+  Bash: "execute",
+  WebFetch: "network",
+  WebSearch: "network",
+};
+
+function ToolCategoryBadge({ category }: { category: string }) {
+  const colors: Record<string, string> = {
+    consume: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+    navigate: "bg-sky-500/10 text-sky-400 border-sky-500/20",
+    search: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+    modify: "bg-rose-500/10 text-rose-400 border-rose-500/20",
+    execute: "bg-purple-500/10 text-purple-400 border-purple-500/20",
+    network: "bg-slate-500/10 text-slate-400 border-slate-500/20",
+    other: "bg-aide-border/20 text-aide-text-muted border-aide-border",
+  };
+  const cls = colors[category] ?? colors.other;
+  return (
+    <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-medium border ${cls}`}>
+      {category}
+    </span>
+  );
+}
+
+interface PerToolStat {
+  tool: string;
+  category: string;
+  calls: number;
+  spent: number;
+  avoided: number;
+}
+
+function PerToolEfficiency({ stats }: { stats: PerToolStat[] }) {
+  if (stats.length === 0) return null;
+  const max = Math.max(1, ...stats.map((s) => Math.max(s.spent, s.avoided)));
+  return (
+    <div className="space-y-2">
+      {stats.map((s) => {
+        const avoidedClaimable = s.category === "consume";
+        const spentPct = (s.spent / max) * 100;
+        const avoidedPct = (s.avoided / max) * 100;
+        const totalCounterfactual = s.spent + s.avoided;
+        const eff =
+          avoidedClaimable && totalCounterfactual > 0
+            ? ((s.avoided / totalCounterfactual) * 100).toFixed(1) + "%"
+            : null;
+        return (
+          <div
+            key={s.tool}
+            className="rounded-md border border-aide-border bg-aide-bg-secondary px-3 py-2"
+          >
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="font-mono text-xs text-aide-text font-medium">{s.tool}</span>
+              <ToolCategoryBadge category={s.category} />
+              <span className="text-[10px] text-aide-text-dim">
+                {s.calls} {s.calls === 1 ? "call" : "calls"}
+              </span>
+              {eff && (
+                <span className="ml-auto text-[10px] text-green-500 font-medium">
+                  {eff} efficiency
+                </span>
+              )}
+              {!avoidedClaimable && (
+                <span className="ml-auto text-[10px] text-aide-text-dim italic">
+                  indirect value — no avoided-read claim
+                </span>
+              )}
+            </div>
+            <div className="grid grid-cols-[60px_1fr_auto] gap-2 items-center text-[10px] mb-1">
+              <span className="text-aide-text-dim">spent</span>
+              <div className="h-2 bg-aide-bg rounded-sm overflow-hidden">
+                <div
+                  className="h-full bg-blue-500/70"
+                  style={{ width: `${spentPct}%` }}
+                />
+              </div>
+              <span className="font-mono text-aide-text-muted w-16 text-right">
+                {s.spent > 0 ? `~${formatTokens(s.spent)}` : "-"}
+              </span>
+            </div>
+            {avoidedClaimable && (
+              <div className="grid grid-cols-[60px_1fr_auto] gap-2 items-center text-[10px]">
+                <span className="text-aide-text-dim">avoided</span>
+                <div className="h-2 bg-aide-bg rounded-sm overflow-hidden">
+                  <div
+                    className="h-full bg-green-500/80"
+                    style={{ width: `${avoidedPct}%` }}
+                  />
+                </div>
+                <span className="font-mono text-green-500 w-16 text-right">
+                  {s.avoided > 0 ? `~${formatTokens(s.avoided)}` : "-"}
+                </span>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -85,6 +195,33 @@ export function TokensPage() {
     return [...new Set(events.map((e) => e.tool))]
       .sort()
       .map((t) => ({ value: t, label: t }));
+  }, [events]);
+
+  const perToolStats = useMemo<PerToolStat[]>(() => {
+    if (!events) return [];
+    const m = new Map<string, PerToolStat>();
+    for (const e of events) {
+      if (!e.tool) continue;
+      // Injection events use the Tool field as the source name (memory /
+      // decision / skill / enrichment) — those belong in the delivered
+      // section, not the per-tool efficiency chart. Filter them out.
+      if (e.event_type === "context_injected") continue;
+      const category = TOOL_CATEGORIES[e.tool] ?? "other";
+      const b = m.get(e.tool) ?? { tool: e.tool, category, calls: 0, spent: 0, avoided: 0 };
+      b.calls += 1;
+      b.spent += e.tokens || 0;
+      b.avoided += e.tokens_saved || 0;
+      m.set(e.tool, b);
+    }
+    return Array.from(m.values()).sort((a, b) => {
+      // Consume tools first (they're the efficiency story), sorted by avoided desc.
+      // Then everything else sorted by activity (calls desc).
+      const aConsume = a.category === "consume" ? 1 : 0;
+      const bConsume = b.category === "consume" ? 1 : 0;
+      if (aConsume !== bConsume) return bConsume - aConsume;
+      if (aConsume) return b.avoided - a.avoided;
+      return b.calls - a.calls;
+    });
   }, [events]);
 
   const savingsPct =
@@ -191,35 +328,50 @@ export function TokensPage() {
         />
       </div>
 
-      {/* Savings breakdown */}
-      {stats && stats.total_saved > 0 && (
+      {/* Per-tool efficiency chart with concrete methodology */}
+      {perToolStats.length > 0 && (
         <div className="mb-6">
-          <h3 className="text-xs font-semibold text-aide-text mb-2">
-            Savings Breakdown
-          </h3>
-          <div className="grid grid-cols-3 gap-3">
-            {(stats.by_saving_type?.outline ?? 0) > 0 && (
-              <SavingCard
-                label="Outline Substitutions"
-                value={stats.by_saving_type.outline}
-                tooltip="Tokens saved when code_outline was used instead of reading the full file. The outline shows file structure at ~5-15% of full token cost."
-              />
-            )}
-            {(stats.by_saving_type?.symbol_read ?? 0) > 0 && (
-              <SavingCard
-                label="Symbol Reads"
-                value={stats.by_saving_type.symbol_read}
-                tooltip="Tokens saved when code_read_symbol returned just a function/class body instead of the full file."
-              />
-            )}
-            {(stats.by_saving_type?.read_avoided ?? 0) > 0 && (
-              <SavingCard
-                label="Avoided Re-reads"
-                value={stats.by_saving_type.read_avoided}
-                tooltip="Tokens saved when aide detected a file was already read and unchanged, avoiding a redundant full re-read."
-              />
-            )}
+          <div className="flex items-baseline justify-between mb-2">
+            <h3 className="text-xs font-semibold text-aide-text">
+              Per-tool efficiency
+            </h3>
+            <span className="text-[10px] text-aide-text-dim">
+              spent = actual tokens &middot; avoided = counterfactual − spent
+            </span>
           </div>
+          <PerToolEfficiency stats={perToolStats} />
+          <details className="mt-3 text-[11px] text-aide-text-dim">
+            <summary className="cursor-pointer hover:text-aide-text-muted">
+              How "avoided" is computed
+            </summary>
+            <div className="mt-2 space-y-1.5 pl-4 border-l border-aide-border">
+              <p>
+                All token counts use calibrated chars-per-token ratios per
+                language (<code className="text-aide-text">pkg/code/tokens.go</code>),
+                measured against Anthropic's <code className="text-aide-text">count_tokens</code> API.
+              </p>
+              <p>
+                <strong className="text-aide-text">Consume tools</strong> (code_outline,
+                code_read_symbol): <em>avoided</em> = tokens in the full file the
+                agent asked about, minus what we actually sent. Grounded — the
+                agent explicitly targeted this file/symbol, so a raw
+                <code className="text-aide-text"> Read</code> is the concrete counterfactual.
+              </p>
+              <p>
+                <strong className="text-aide-text">Raw Read</strong>: avoided = 0. The
+                agent chose the expensive path; there's nothing cheaper to
+                compare against.
+              </p>
+              <p>
+                <strong className="text-aide-text">Navigation / search tools</strong>
+                (code_search, code_references, Grep, ...): we report only what
+                they cost. Their value is indirect — they let the agent find
+                the right file before reading — and we can't claim a specific
+                "avoided" amount without speculating about what the agent would
+                have done otherwise.
+              </p>
+            </div>
+          </details>
         </div>
       )}
 
