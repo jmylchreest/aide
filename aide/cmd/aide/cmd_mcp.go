@@ -156,17 +156,10 @@ var mcpToolTaxonomy = map[string]struct {
 	"token_stats":   {"navigate", "token_stats"},
 }
 
-// mcpHandlerEmitsOwnSpan lists tools whose handler manually emits a span
-// (because it has token math the middleware can't compute). The middleware
-// skips these to avoid double-recording.
-var mcpHandlerEmitsOwnSpan = map[string]bool{
-	"code_outline":     true,
-	"code_read_symbol": true,
-}
-
-// toolObserveMiddleware records every MCP tool call as an observe.KindToolCall
-// span with name + category + subtype + duration + error. Tools whose
-// handler manually emits a richer span (with token math) are skipped here.
+// toolObserveMiddleware records every MCP tool call as one observe.KindToolCall
+// span. The span is attached to the request context so handlers can enrich it
+// (e.g. code_outline adds Tokens/Saved) via observe.FromContext — no
+// per-handler bookkeeping or skip lists needed.
 func (s *MCPServer) toolObserveMiddleware() mcp.Middleware {
 	return func(next mcp.MethodHandler) mcp.MethodHandler {
 		return func(ctx context.Context, method string, req mcp.Request) (mcp.Result, error) {
@@ -174,7 +167,7 @@ func (s *MCPServer) toolObserveMiddleware() mcp.Middleware {
 				return next(ctx, method, req)
 			}
 			params, ok := req.GetParams().(*mcp.CallToolParamsRaw)
-			if !ok || mcpHandlerEmitsOwnSpan[params.Name] {
+			if !ok {
 				return next(ctx, method, req)
 			}
 			category, subtype := "other", ""
@@ -182,9 +175,8 @@ func (s *MCPServer) toolObserveMiddleware() mcp.Middleware {
 				category = tax.Category
 				subtype = tax.Subtype
 			}
-			span := observe.Start(params.Name, observe.KindToolCall).
-				Category(category).
-				Subtype(subtype)
+			ctx, span := observe.StartCtx(ctx, params.Name, observe.KindToolCall)
+			span.Category(category).Subtype(subtype)
 			defer span.End()
 			result, err := next(ctx, method, req)
 			if err != nil {

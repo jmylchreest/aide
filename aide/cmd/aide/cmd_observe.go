@@ -6,6 +6,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jmylchreest/aide/aide/pkg/observe"
@@ -24,6 +25,8 @@ func cmdObserveDispatcher(dbPath string, args []string) error {
 		return cmdObserveSummary(dbPath, args[1:])
 	case "efficiency":
 		return cmdObserveEfficiency(dbPath, args[1:])
+	case "record":
+		return cmdObserveRecord(dbPath, args[1:])
 	case "cleanup":
 		return cmdObserveCleanup(dbPath, args[1:])
 	case "--help", "-h":
@@ -44,7 +47,19 @@ Subcommands:
   list        List recent events (newest first)
   summary     Aggregate counts by kind / category
   efficiency  Token efficiency: counterfactual vs actual reads
+  record      Record a one-off event (used by hooks / scripts)
   cleanup     Remove events older than --age (default 30d)
+
+record options:
+  --kind=K         tool_call | span | hook | injection | session   (required)
+  --name=NAME      Event identifier (e.g., skill name, hook name)  (required)
+  --category=C     consume / navigate / inject / coordinate / ...
+  --subtype=S      Sub-class within category
+  --tokens=N       Tokens consumed by this event
+  --saved=N        Counterfactual tokens avoided
+  --file=PATH      Associated file
+  --session=ID     Session identifier
+  --attr=K=V       Repeatable extra metadata
 
 Options for list / summary:
   --kind=K         Filter by kind: tool_call | span | hook | injection | session
@@ -207,6 +222,58 @@ type bucket struct {
 	totalMs int64
 	tokens  int
 	saved   int
+}
+
+// cmdObserveRecord emits a one-off observe event from the CLI. Used by hooks
+// (skill-injector, session-start) to record per-source injection events
+// without each writer needing to translate via the legacy TokenEvent shape.
+func cmdObserveRecord(dbPath string, args []string) error {
+	kind := parseFlag(args, "--kind=")
+	name := parseFlag(args, "--name=")
+	if kind == "" || name == "" {
+		return fmt.Errorf("--kind and --name are required")
+	}
+	ev := &observe.Event{
+		Kind:      observe.Kind(kind),
+		Name:      name,
+		Category:  parseFlag(args, "--category="),
+		Subtype:   parseFlag(args, "--subtype="),
+		FilePath:  parseFlag(args, "--file="),
+		SessionID: parseFlag(args, "--session="),
+	}
+	if v := parseFlag(args, "--tokens="); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			return fmt.Errorf("invalid --tokens: %w", err)
+		}
+		ev.Tokens = n
+	}
+	if v := parseFlag(args, "--saved="); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			return fmt.Errorf("invalid --saved: %w", err)
+		}
+		ev.TokensSaved = n
+	}
+	for _, a := range args {
+		if !strings.HasPrefix(a, "--attr=") {
+			continue
+		}
+		kv := strings.SplitN(strings.TrimPrefix(a, "--attr="), "=", 2)
+		if len(kv) == 2 {
+			if ev.Attrs == nil {
+				ev.Attrs = map[string]string{}
+			}
+			ev.Attrs[kv[0]] = kv[1]
+		}
+	}
+
+	backend, err := NewBackend(dbPath)
+	if err != nil {
+		return err
+	}
+	defer backend.Close()
+	return backend.Store().AddObserveEvent(ev)
 }
 
 // cmdObserveEfficiency prints a token-efficiency summary: for every consume

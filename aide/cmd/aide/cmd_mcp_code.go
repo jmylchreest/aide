@@ -437,9 +437,8 @@ func (s *MCPServer) handleCodeTopReferences(_ context.Context, _ *mcp.CallToolRe
 	return textResult(sb.String()), nil, nil
 }
 
-func (s *MCPServer) handleCodeOutline(_ context.Context, _ *mcp.CallToolRequest, input CodeOutlineInput) (*mcp.CallToolResult, any, error) {
-	span := observe.Start("code_outline", observe.KindToolCall).Category("consume").Subtype("outline").FilePath(input.File)
-	defer span.End()
+func (s *MCPServer) handleCodeOutline(ctx context.Context, _ *mcp.CallToolRequest, input CodeOutlineInput) (*mcp.CallToolResult, any, error) {
+	span := observe.FromContext(ctx).FilePath(input.File)
 	mcpLog.Printf("tool: code_outline file=%s keep_comments=%v", input.File, input.KeepComments)
 
 	if input.File == "" {
@@ -532,9 +531,8 @@ func (s *MCPServer) handleCodeReadCheck(_ context.Context, _ *mcp.CallToolReques
 	return textResult(result), nil, nil
 }
 
-func (s *MCPServer) handleCodeReadSymbol(_ context.Context, _ *mcp.CallToolRequest, input CodeReadSymbolInput) (*mcp.CallToolResult, any, error) {
-	span := observe.Start("code_read_symbol", observe.KindToolCall).Category("consume").Subtype("symbol")
-	defer span.End()
+func (s *MCPServer) handleCodeReadSymbol(ctx context.Context, _ *mcp.CallToolRequest, input CodeReadSymbolInput) (*mcp.CallToolResult, any, error) {
+	span := observe.FromContext(ctx)
 	// Resolve symbol names: batch mode takes precedence
 	names := input.Symbols
 	if len(names) == 0 && input.Symbol != "" {

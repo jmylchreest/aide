@@ -143,6 +143,48 @@ export function recordTokenEvent(
 }
 
 /**
+ * Record an arbitrary observe event via `aide observe record`.
+ * Use when you need richer fields than recordTokenEvent (per-skill name with
+ * a stable subtype, attrs, etc.). Fire-and-forget.
+ */
+export function recordObserveEvent(
+  binary: string,
+  cwd: string,
+  opts: {
+    kind: string;
+    name: string;
+    category?: string;
+    subtype?: string;
+    tokens?: number;
+    saved?: number;
+    file?: string;
+    session?: string;
+    attrs?: Record<string, string>;
+  },
+): void {
+  try {
+    const args = ["observe", "record", `--kind=${opts.kind}`, `--name=${opts.name}`];
+    if (opts.category) args.push(`--category=${opts.category}`);
+    if (opts.subtype) args.push(`--subtype=${opts.subtype}`);
+    if (opts.tokens !== undefined) args.push(`--tokens=${opts.tokens}`);
+    if (opts.saved !== undefined) args.push(`--saved=${opts.saved}`);
+    if (opts.file) args.push(`--file=${opts.file}`);
+    if (opts.session) args.push(`--session=${opts.session}`);
+    for (const [k, v] of Object.entries(opts.attrs ?? {})) {
+      args.push(`--attr=${k}=${v}`);
+    }
+    execFileSync(binary, args, {
+      cwd,
+      timeout: 3000,
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    debug(SOURCE, `Observe event: ${opts.kind} ${opts.name} subtype=${opts.subtype ?? ""} tokens=${opts.tokens ?? 0}`);
+  } catch (err) {
+    debug(SOURCE, `Failed to record observe event: ${err}`);
+  }
+}
+
+/**
  * Estimate tokens for a file by its size, using the default ratio.
  * This is a rough client-side estimate; the Go binary has per-language ratios.
  */

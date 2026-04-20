@@ -26,7 +26,7 @@ import {
 } from "../core/skill-matcher.js";
 import type { Skill } from "../core/types.js";
 import { findAideBinary } from "../core/aide-client.js";
-import { recordTokenEvent } from "../core/read-tracking.js";
+import { recordObserveEvent } from "../core/read-tracking.js";
 
 const SOURCE = "skill-injector";
 
@@ -206,12 +206,24 @@ async function main(): Promise<void> {
 
       const skillContext = formatSkillsContext(matched);
 
-      // Record token event for skill injection
+      // Record one observe event per matched skill so the dashboard can
+      // attribute injected tokens to the specific skills (not just a
+      // single "skill-injector" aggregate). Subtype="skill" keeps the
+      // category roll-up; Name carries the per-skill identifier.
       try {
         const binary = findAideBinary({ cwd });
-        if (binary && skillContext) {
-          const tokens = Math.round(skillContext.length / 3.0);
-          recordTokenEvent(binary, cwd, "context_injected", "skill", "skill-injector", tokens);
+        if (binary) {
+          for (const skill of matched) {
+            const text = `### ${skill.name}\n${skill.description ?? ""}\n${skill.content}`;
+            const tokens = Math.round(text.length / 3.0);
+            recordObserveEvent(binary, cwd, {
+              kind: "injection",
+              name: skill.name,
+              category: "inject",
+              subtype: "skill",
+              tokens,
+            });
+          }
         }
       } catch {
         // Non-fatal

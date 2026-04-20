@@ -1,6 +1,7 @@
 package observe
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"testing"
@@ -66,6 +67,31 @@ func TestErrorCapture(t *testing.T) {
 	if sink.events[0].Error != "boom" {
 		t.Errorf("expected error captured, got %q", sink.events[0].Error)
 	}
+}
+
+func TestStartCtxAndFromContextEnrichSingleSpan(t *testing.T) {
+	sink := &captureSink{}
+	r := &Recorder{sink: sink}
+	ctx, span := r.StartCtx(context.Background(), "code_outline", KindToolCall)
+	span.Category("consume").Subtype("outline")
+
+	// Simulate a downstream handler enriching via the context.
+	FromContext(ctx).Tokens(900).Saved(500).FilePath("foo.go")
+
+	span.End()
+	if len(sink.events) != 1 {
+		t.Fatalf("expected 1 event from a single span, got %d", len(sink.events))
+	}
+	e := sink.events[0]
+	if e.Tokens != 900 || e.TokensSaved != 500 || e.FilePath != "foo.go" {
+		t.Errorf("handler enrichment did not reach the same span: %+v", e)
+	}
+}
+
+func TestFromContextWithoutSpanIsNoop(t *testing.T) {
+	// Calling setters on a context with no span must not panic.
+	FromContext(context.Background()).Tokens(123).Saved(456).End()
+	FromContext(nil).Attr("k", "v").End()
 }
 
 func TestRecordOneOffEvent(t *testing.T) {

@@ -2,6 +2,7 @@
 package observe
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -87,6 +88,38 @@ func (r *Recorder) Start(name string, kind Kind) *Span {
 
 // Start is a convenience using the default recorder.
 func Start(name string, kind Kind) *Span { return defaultRecorder.Start(name, kind) }
+
+type spanCtxKey struct{}
+
+// StartCtx opens a Span and attaches it to the returned context so downstream
+// callers can enrich it via FromContext without coordinating a skip list.
+// The middleware calls End via defer; handlers only call setters.
+func (r *Recorder) StartCtx(ctx context.Context, name string, kind Kind) (context.Context, *Span) {
+	span := r.Start(name, kind)
+	return context.WithValue(ctx, spanCtxKey{}, span), span
+}
+
+// StartCtx is a convenience using the default recorder.
+func StartCtx(ctx context.Context, name string, kind Kind) (context.Context, *Span) {
+	return defaultRecorder.StartCtx(ctx, name, kind)
+}
+
+// FromContext returns the active Span on the context, or a no-op Span when
+// none is present. Always non-nil so handlers can enrich without checking.
+func FromContext(ctx context.Context) *Span {
+	if ctx == nil {
+		return noopSpan()
+	}
+	if s, ok := ctx.Value(spanCtxKey{}).(*Span); ok {
+		return s
+	}
+	return noopSpan()
+}
+
+func noopSpan() *Span {
+	// Recorder with nil sink — End() is a no-op, setters are harmless.
+	return &Span{rec: &Recorder{}, start: time.Now()}
+}
 
 func (s *Span) Category(v string) *Span { s.event.Category = v; return s }
 func (s *Span) Subtype(v string) *Span  { s.event.Subtype = v; return s }
