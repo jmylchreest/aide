@@ -69,21 +69,28 @@ func tokenEventToObserve(t *memory.TokenEvent) *observe.Event {
 // observeToTokenEvent maps an observe.Event into the legacy TokenEvent shape
 // where it carries cost data the old token UI/CLI consumes. Returns nil for
 // events that have no equivalent (e.g., generic spans, hook lifecycle).
+//
+// EventType is category-aware: a tool_call's category becomes the event type
+// (modify/execute/search/network/coordinate) so the dashboard's TYPE column
+// distinguishes Edit ("modify") from Read ("read"). The well-known consume
+// subtypes (file/outline/symbol/avoided) keep their legacy names so existing
+// callers and the Stats aggregator continue to recognise them.
 func observeToTokenEvent(e *observe.Event) *memory.TokenEvent {
 	var eventType string
 	switch e.Kind {
 	case observe.KindToolCall:
-		switch e.Subtype {
-		case "outline":
+		switch {
+		case e.Category == "consume" && e.Subtype == "outline":
 			eventType = memory.TokenEventOutlineUsed
-		case "symbol":
+		case e.Category == "consume" && e.Subtype == "symbol":
 			eventType = memory.TokenEventSymbolRead
-		case "file":
+		case e.Category == "consume" && e.Subtype == "avoided":
+			eventType = memory.TokenEventReadAvoided
+		case e.Category == "consume" && e.Subtype == "file":
 			eventType = memory.TokenEventRead
+		case e.Category != "":
+			eventType = e.Category // modify, execute, search, network, coordinate
 		default:
-			if e.Tokens == 0 && e.TokensSaved == 0 {
-				return nil
-			}
 			return nil
 		}
 	case observe.KindInjection:

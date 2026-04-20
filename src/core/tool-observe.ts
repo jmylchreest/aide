@@ -52,8 +52,20 @@ const NATIVE_TOOL_TAXONOMY: Record<string, ToolTax> = {
   TodoWrite: { category: "coordinate", subtype: "todo" },
 };
 
-/** Tools whose tokens we estimate from file size on the recording side. */
+/** Tools whose tokens we estimate from on-disk file size (the Read path). */
 const FILE_SIZED_TOOLS = new Set(["Read"]);
+
+/**
+ * Tools whose token cost is the size of content the agent *writes* — the
+ * `new_string` for Edit, the `content` for Write. We track these so the
+ * "modify" category in per-tool efficiency surfaces something other than
+ * a flat zero.
+ */
+const CONTENT_WRITE_TOOLS: Record<string, string> = {
+  Edit: "new_string",
+  Write: "content",
+  NotebookEdit: "new_source",
+};
 
 export interface ToolObserveInput {
   toolName: string;
@@ -63,6 +75,13 @@ export interface ToolObserveInput {
     limit?: number;
     command?: string;
     pattern?: string;
+    new_string?: string;
+    content?: string;
+    new_source?: string;
+    [key: string]: unknown;
+  };
+  toolResult?: {
+    output?: string;
     [key: string]: unknown;
   };
   success?: boolean;
@@ -146,6 +165,14 @@ export function recordToolEvent(
     // re-reads can be flagged as candidates for code_outline/code_symbols.
     // No-op when AIDE_CODE_WATCH is unset.
     recordFileRead(binary, cwd, filePath);
+  } else if (CONTENT_WRITE_TOOLS[input.toolName]) {
+    // Modify tools: the cost is the new content the agent generates,
+    // not the existing file. Same chars/3 estimator the Read path uses.
+    const field = CONTENT_WRITE_TOOLS[input.toolName];
+    const content = input.toolInput?.[field];
+    if (typeof content === "string" && content.length > 0) {
+      tokens = Math.round(content.length / 3.0);
+    }
   }
 
   try {

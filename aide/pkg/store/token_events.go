@@ -115,6 +115,16 @@ func (s *BoltStore) TokenStats(sessionID string, since, until time.Time) (*memor
 			if e.Tool != "" {
 				stats.ByDelivery[e.Tool] += e.Tokens
 			}
+		default:
+			// Category-derived event types: modify (Edit/Write/NotebookEdit),
+			// execute (Bash), search (Grep/Glob), network (WebFetch/WebSearch).
+			// Tokens here represent content the agent generated or output we
+			// pulled in — count toward TotalWritten and the per-tool tally
+			// so the per-tool efficiency view has signal for these tools too.
+			if e.Tokens > 0 {
+				stats.TotalWritten += e.Tokens
+				stats.ByTool[e.Tool] += e.Tokens
+			}
 		}
 	}
 
