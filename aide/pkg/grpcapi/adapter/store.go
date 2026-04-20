@@ -528,14 +528,22 @@ func (g *StoreAdapter) TokenStats(sessionID string, since, until time.Time) (*me
 		for k, v := range resp.BySavingType {
 			bySaving[k] = int(v)
 		}
+		byDelivery := make(map[string]int, len(resp.ByDelivery))
+		for k, v := range resp.ByDelivery {
+			byDelivery[k] = int(v)
+		}
 		return &memory.TokenStats{
-			TotalRead:    int(resp.TotalRead),
-			TotalSaved:   int(resp.TotalSaved),
-			TotalWritten: int(resp.TotalWritten),
-			EventCount:   int(resp.EventCount),
-			ByTool:       byTool,
-			BySavingType: bySaving,
-			Sessions:     int(resp.Sessions),
+			TotalRead:      int(resp.TotalRead),
+			TotalSaved:     int(resp.TotalSaved),
+			TotalWritten:   int(resp.TotalWritten),
+			EventCount:     int(resp.EventCount),
+			ByTool:         byTool,
+			BySavingType:   bySaving,
+			ByDelivery:     byDelivery,
+			Sessions:       int(resp.Sessions),
+			ReadCount:      int(resp.ReadCount),
+			CodeToolCount:  int(resp.CodeToolCount),
+			TotalDelivered: int(resp.TotalDelivered),
 		}, nil
 	}
 

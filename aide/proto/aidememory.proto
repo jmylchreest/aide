@@ -992,6 +992,10 @@ message TokenStatsResponse {
   map<string, int32> by_tool = 5;
   map<string, int32> by_saving_type = 6;
   int32 sessions = 7;
+  int32 read_count = 8;                  // raw Read tool count
+  int32 code_tool_count = 9;             // outline + symbol_read tool count
+  int32 total_delivered = 10;            // estimated tokens proactively delivered (memories, decisions, skills, enrichment)
+  map<string, int32> by_delivery = 11;   // delivered tokens by source
 }
 
 message TokenEventListRequest {

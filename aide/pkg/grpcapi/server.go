@@ -1256,15 +1256,23 @@ func (s *tokenServiceImpl) GetTokenStats(ctx context.Context, req *TokenStatsReq
 	for k, v := range stats.BySavingType {
 		bySaving[k] = int32(v)
 	}
+	byDelivery := make(map[string]int32, len(stats.ByDelivery))
+	for k, v := range stats.ByDelivery {
+		byDelivery[k] = int32(v)
+	}
 
 	return &TokenStatsResponse{
-		TotalRead:    int32(stats.TotalRead),
-		TotalSaved:   int32(stats.TotalSaved),
-		TotalWritten: int32(stats.TotalWritten),
-		EventCount:   int32(stats.EventCount),
-		ByTool:       byTool,
-		BySavingType: bySaving,
-		Sessions:     int32(stats.Sessions),
+		TotalRead:      int32(stats.TotalRead),
+		TotalSaved:     int32(stats.TotalSaved),
+		TotalWritten:   int32(stats.TotalWritten),
+		EventCount:     int32(stats.EventCount),
+		ByTool:         byTool,
+		BySavingType:   bySaving,
+		Sessions:       int32(stats.Sessions),
+		ReadCount:      int32(stats.ReadCount),
+		CodeToolCount:  int32(stats.CodeToolCount),
+		TotalDelivered: int32(stats.TotalDelivered),
+		ByDelivery:     byDelivery,
 	}, nil
 }
 
