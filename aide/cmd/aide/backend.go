@@ -36,6 +36,10 @@ func NewBackend(dbPath string) (*Backend, error) {
 			defer cancel()
 			if err := client.Ping(ctx); err == nil {
 				b.grpcClient = client
+				// Backend.Store() must work in gRPC mode too: wrap the
+				// client in a StoreAdapter so callers can use the unified
+				// Store interface without caring about transport.
+				b.store = adapter.NewStoreAdapter(client)
 				b.useGRPC = true
 				return b, nil
 			}
