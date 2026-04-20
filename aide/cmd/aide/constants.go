@@ -14,6 +14,12 @@ const (
 	// whether the MCP server socket is alive.
 	DefaultPingTimeout = time.Second
 
+	// DeadCodeAnalysisRPCTimeout is the deadline for the dead-code analyzer
+	// RPC. The analyzer iterates every indexed symbol and issues a reference
+	// lookup per symbol, so its wall-clock can run into the tens of seconds
+	// on large indexes.
+	DeadCodeAnalysisRPCTimeout = 5 * time.Minute
+
 	// -------------------------------------------------------------------------
 	// Messages
 	// -------------------------------------------------------------------------

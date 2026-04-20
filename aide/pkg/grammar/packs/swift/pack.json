@@ -128,5 +128,12 @@
         "label": "SwiftUI root view"
       }
     ]
+  },
+  "deadcode": {
+    "suppression_patterns": [
+      "//\\s*swiftlint:disable\\b.*\\bunused\\b",
+      "//\\s*aide:keep\\b",
+      "@available\\s*\\([^)]*\\bdeprecated\\b"
+    ]
   }
 }

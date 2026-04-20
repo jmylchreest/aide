@@ -193,5 +193,13 @@
         "description": "java.util.Random is not cryptographically secure. Use java.security.SecureRandom for tokens and security-sensitive values."
       }
     ]
+  },
+  "deadcode": {
+    "suppression_patterns": [
+      "@SuppressWarnings\\s*\\([^)]*\\bunused\\b",
+      "//\\s*noinspection\\b.*\\bunused\\b",
+      "//\\s*aide:keep\\b",
+      "@Deprecated\\b"
+    ]
   }
 }

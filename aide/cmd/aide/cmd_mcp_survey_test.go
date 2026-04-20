@@ -472,6 +472,7 @@ func (m *mockCodeIndexStore) GetFileSymbols(filePath string) ([]*code.Symbol, er
 	return nil, nil
 }
 func (m *mockCodeIndexStore) GetFileInfo(path string) (*code.FileInfo, error) { return nil, nil }
+func (m *mockCodeIndexStore) ListAllFileInfo() ([]*code.FileInfo, error)      { return nil, nil }
 func (m *mockCodeIndexStore) SetFileInfo(info *code.FileInfo) error           { return nil }
 func (m *mockCodeIndexStore) ClearFile(filePath string) error                 { return nil }
 func (m *mockCodeIndexStore) AddReference(ref *code.Reference) error          { return nil }

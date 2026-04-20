@@ -415,6 +415,7 @@ service CodeService {
   rpc GetFileReferences(CodeGetFileReferencesRequest) returns (CodeSearchReferencesResponse);
   rpc GetContainingSymbol(CodeGetContainingSymbolRequest) returns (CodeGetContainingSymbolResponse);
   rpc ReadCheck(CodeReadCheckRequest) returns (CodeReadCheckResponse);
+  rpc RunDeadCodeAnalysis(CodeRunDeadCodeAnalysisRequest) returns (CodeRunDeadCodeAnalysisResponse);
 }
 
 message Symbol {
@@ -539,6 +540,17 @@ message CodeReadCheckResponse {
   int32 symbols = 3;             // Number of symbols indexed for this file
   bool outline_available = 4;    // Whether code_outline would return useful data
   int32 estimated_tokens = 5;    // Estimated token count for the full file
+}
+
+message CodeRunDeadCodeAnalysisRequest {
+  bool include_exported = 1;     // When true, do not skip symbols flagged as exported by the language pack
+}
+
+message CodeRunDeadCodeAnalysisResponse {
+  int32 symbols_checked = 1;     // Number of symbols inspected by the analyzer
+  int32 symbols_skipped = 2;     // Number of symbols excluded (entrypoints, exported methods, etc.)
+  int32 findings_count = 3;      // Number of unreferenced symbols recorded as findings
+  int64 duration_ms = 4;         // Analyzer wall-clock duration in milliseconds
 }
 
 // =============================================================================

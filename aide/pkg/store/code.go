@@ -660,6 +660,28 @@ func (s *CodeStore) GetFileInfo(path string) (*code.FileInfo, error) {
 	return &info, nil
 }
 
+// ListAllFileInfo returns the FileInfo entries for every file currently
+// tracked in the index. Used by reconcile passes that need to compare on-disk
+// state to the index (missing files, stale mtimes).
+func (s *CodeStore) ListAllFileInfo() ([]*code.FileInfo, error) {
+	var infos []*code.FileInfo
+	err := s.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket(BucketFileIndex)
+		return b.ForEach(func(_, v []byte) error {
+			var info code.FileInfo
+			if err := json.Unmarshal(v, &info); err != nil {
+				return nil
+			}
+			infos = append(infos, &info)
+			return nil
+		})
+	})
+	if err != nil {
+		return nil, err
+	}
+	return infos, nil
+}
+
 // SetFileInfo stores file tracking info.
 func (s *CodeStore) SetFileInfo(info *code.FileInfo) error {
 	return s.db.Update(func(tx *bolt.Tx) error {
@@ -884,18 +906,20 @@ func (s *CodeStore) TopReferencedSymbols(limit int, kind string) ([]*code.Symbol
 	return results, nil
 }
 
-// ListAllSymbols returns all symbols (up to limit).
+// ListAllSymbols returns all symbols. limit semantics follow the project
+// max-depth convention: 0 → default (1000), positive → cap, negative → unlimited.
 func (s *CodeStore) ListAllSymbols(limit int) ([]*code.Symbol, error) {
 	if limit == 0 {
 		limit = 1000
 	}
+	unlimited := limit < 0
 
 	var symbols []*code.Symbol
 	err := s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(BucketSymbols)
 		c := b.Cursor()
 		count := 0
-		for k, v := c.First(); k != nil && count < limit; k, v = c.Next() {
+		for k, v := c.First(); k != nil && (unlimited || count < limit); k, v = c.Next() {
 			var sym code.Symbol
 			if err := json.Unmarshal(v, &sym); err != nil {
 				continue

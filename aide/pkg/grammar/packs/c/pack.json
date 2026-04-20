@@ -159,5 +159,13 @@
         "description": "rand() is not cryptographically secure. Use getrandom(), /dev/urandom, or arc4random() for security-sensitive values."
       }
     ]
+  },
+  "deadcode": {
+    "suppression_patterns": [
+      "//\\s*NOLINT\\b",
+      "//\\s*cppcheck-suppress\\b",
+      "//\\s*aide:keep\\b",
+      "__attribute__\\s*\\(\\s*\\(\\s*unused\\b"
+    ]
   }
 }

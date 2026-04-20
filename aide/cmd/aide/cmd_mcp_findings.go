@@ -15,7 +15,7 @@ import (
 
 type FindingsSearchInput struct {
 	Query           string `json:"query" jsonschema:"Search query for finding titles and details. Supports Bleve query syntax."`
-	Analyzer        string `json:"analyzer,omitempty" jsonschema:"Filter by analyzer: complexity, coupling, secrets, clones, security, deadcode"`
+	Analyzer        string `json:"analyzer,omitempty" jsonschema:"Filter by analyzer: complexity, coupling, secrets, clones, security, deadcode, todos"`
 	Severity        string `json:"severity,omitempty" jsonschema:"Filter by severity: critical, warning, info"`
 	FilePath        string `json:"file,omitempty" jsonschema:"Filter by file path pattern (substring match)"`
 	Category        string `json:"category,omitempty" jsonschema:"Filter by category"`
@@ -24,7 +24,7 @@ type FindingsSearchInput struct {
 }
 
 type FindingsListInput struct {
-	Analyzer        string `json:"analyzer,omitempty" jsonschema:"Filter by analyzer: complexity, coupling, secrets, clones, security, deadcode"`
+	Analyzer        string `json:"analyzer,omitempty" jsonschema:"Filter by analyzer: complexity, coupling, secrets, clones, security, deadcode, todos"`
 	Severity        string `json:"severity,omitempty" jsonschema:"Filter by severity: critical, warning, info"`
 	FilePath        string `json:"file,omitempty" jsonschema:"Filter by file path pattern (substring match)"`
 	Category        string `json:"category,omitempty" jsonschema:"Filter by category"`
@@ -39,7 +39,7 @@ type FindingsStatsInput struct {
 type FindingsAcceptInput struct {
 	IDs      []string `json:"ids,omitempty" jsonschema:"List of finding IDs to accept"`
 	All      bool     `json:"all,omitempty" jsonschema:"Accept all findings (optionally filtered by analyzer, severity, file, category)"`
-	Analyzer string   `json:"analyzer,omitempty" jsonschema:"Filter by analyzer: complexity, coupling, secrets, clones, security, deadcode"`
+	Analyzer string   `json:"analyzer,omitempty" jsonschema:"Filter by analyzer: complexity, coupling, secrets, clones, security, deadcode, todos"`
 	Severity string   `json:"severity,omitempty" jsonschema:"Filter by severity: critical, warning, info"`
 	FilePath string   `json:"file,omitempty" jsonschema:"Filter by file path pattern (substring match)"`
 	Category string   `json:"category,omitempty" jsonschema:"Filter by category"`
@@ -64,7 +64,7 @@ about a specific function, pattern, or issue type by name.
 - "complexity" → finds high-complexity functions
 - "clone" → finds duplicated code regions
 
-Filter by analyzer (complexity, coupling, secrets, clones, security, deadcode),
+Filter by analyzer (complexity, coupling, secrets, clones, security, deadcode, todos),
 severity (critical, warning, info), file path, or category.
 
 **Tip:** Use findings_list instead when browsing by category without a specific keyword.
@@ -84,7 +84,7 @@ Does not require a search query — use this to browse or get all findings for a
 - "Any secrets in the codebase?" → filter by analyzer=secrets
 - "What's duplicated?" → filter by analyzer=clones
 
-**Analyzers:** complexity, coupling, secrets, clones, security, deadcode
+**Analyzers:** complexity, coupling, secrets, clones, security, deadcode, todos
 **Severities:** critical (act now), warning (should fix), info (consider)`,
 	}, s.handleFindingsList)
 

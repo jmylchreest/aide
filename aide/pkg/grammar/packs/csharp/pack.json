@@ -203,5 +203,12 @@
         "description": "File path from user input. Canonicalize with Path.GetFullPath() and validate against allowed directories."
       }
     ]
+  },
+  "deadcode": {
+    "suppression_patterns": [
+      "\\[SuppressMessage\\b",
+      "//\\s*aide:keep\\b",
+      "\\[Obsolete\\b"
+    ]
   }
 }

@@ -104,5 +104,16 @@
         "label": "Lua executable script"
       }
     ]
+  },
+  "deadcode": {
+    "exported_rule": "no_leading_underscore",
+    "suppression_patterns": [
+      "--\\s*luacheck:\\s*ignore\\b",
+      "--\\s*aide:keep\\b"
+    ]
+  },
+  "comments": {
+    "line": ["--"],
+    "block": [["--[[", "]]"]]
   }
 }

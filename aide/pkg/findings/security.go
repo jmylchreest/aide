@@ -197,7 +197,7 @@ func analyzeFileSecurity(_ context.Context, filePath string, content []byte) []*
 
 		// Skip comments (basic heuristic — not perfect, but avoids flagging
 		// commented-out code for most languages).
-		if isCommentLine(trimmed, lang) {
+		if grammar.IsCommentLine(trimmed, lang) {
 			continue
 		}
 
@@ -237,18 +237,3 @@ func analyzeFileSecurity(_ context.Context, filePath string, content []byte) []*
 
 // isCommentLine returns true if the line appears to be a comment.
 // This is a best-effort heuristic to avoid flagging code in comments.
-func isCommentLine(trimmed, lang string) bool {
-	switch lang {
-	case "python":
-		return strings.HasPrefix(trimmed, "#")
-	case "ruby":
-		return strings.HasPrefix(trimmed, "#")
-	case "bash":
-		return strings.HasPrefix(trimmed, "#")
-	case "elixir":
-		return strings.HasPrefix(trimmed, "#")
-	default:
-		// C-family languages, Go, Java, JS/TS, Rust, PHP, etc.
-		return strings.HasPrefix(trimmed, "//") || strings.HasPrefix(trimmed, "*") || strings.HasPrefix(trimmed, "/*")
-	}
-}

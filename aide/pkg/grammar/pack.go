@@ -57,6 +57,33 @@ type Pack struct {
 	Tokenisation  *PackTokenisation `json:"tokenisation,omitempty"`
 	Entrypoints   *PackEntrypoints  `json:"entrypoints,omitempty"`
 	Security      *PackSecurity     `json:"security,omitempty"`
+	Deadcode      *PackDeadcode     `json:"deadcode,omitempty"`
+	Comments      *PackComments     `json:"comments,omitempty"`
+}
+
+// PackComments declares a language's comment delimiters. Used by analyzers that
+// need to distinguish comment text from code (todos, security skip-comment heuristic).
+type PackComments struct {
+	// Line lists prefixes that start a single-line comment, e.g. ["//"], ["#"], ["--"].
+	Line []string `json:"line,omitempty"`
+	// Block lists [open, close] delimiter pairs for multi-line comments, e.g. [["/*","*/"]].
+	Block [][2]string `json:"block,omitempty"`
+}
+
+// PackDeadcode configures language-specific behaviour for the deadcode analyzer.
+type PackDeadcode struct {
+	// SuppressionPatterns are regexes matched against the line(s) immediately
+	// above a symbol's declaration. A match suppresses the deadcode finding for
+	// that symbol. Use this for `//nolint:unused`, `// aide:keep`, JSDoc
+	// `@public`, etc. Matched against the raw text of each preceding line.
+	SuppressionPatterns []string `json:"suppression_patterns,omitempty"`
+	// ExportedRule selects how exported-ness is determined from a symbol's name.
+	// Recognised values:
+	//   - "first_char_uppercase"  Go/Java/C# convention
+	//   - "no_leading_underscore" Python/Ruby convention
+	// Empty means the analyzer has no language hint and treats every symbol as
+	// non-exported (i.e. all are subject to dead-code analysis).
+	ExportedRule string `json:"exported_rule,omitempty"`
 }
 
 // HasParser reports whether this pack has a tree-sitter grammar binary (CSymbol != "").

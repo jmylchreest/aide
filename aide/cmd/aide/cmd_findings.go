@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/jmylchreest/aide/aide/pkg/aideignore"
-	"github.com/jmylchreest/aide/aide/pkg/code"
 	"github.com/jmylchreest/aide/aide/pkg/findings"
 	"github.com/jmylchreest/aide/aide/pkg/findings/clone"
 	"github.com/jmylchreest/aide/aide/pkg/grammar"
@@ -65,7 +64,7 @@ Subcommands:
 
 Options:
   run <analyser> [paths...]:
-    Analysers: complexity, coupling, secrets, clones, security, deadcode, all
+    Analysers: complexity, coupling, secrets, clones, security, deadcode, todos, all
     --threshold=N    Complexity threshold (default %d)
     --fan-out=N      Coupling fan-out threshold (default %d)
     --fan-in=N       Coupling fan-in threshold (default %d)
@@ -76,10 +75,13 @@ Options:
     --min-similarity=F  Clone minimum similarity ratio 0.0-1.0 (default %.1f)
     --min-severity=SEV  Clone minimum severity to emit: info, warning, critical
                         (default %s — info-level clones are dropped)
+    --include-exported  Deadcode: also analyse symbols flagged as exported by the
+                        language pack (default skips them; exported symbols are
+                        public API and can be referenced from outside the index)
     --no-validate       Secrets: skip live validation (default)
 
   search <query>:
-    --analyser=NAME     Filter by analyser (complexity, coupling, secrets, clones, security, deadcode)
+    --analyser=NAME     Filter by analyser (complexity, coupling, secrets, clones, security, deadcode, todos)
     --severity=LEVEL    Filter by severity (critical, warning, info)
     --file=PATH         Filter by file path pattern (substring)
     --category=CAT      Filter by category
@@ -192,6 +194,7 @@ func cmdFindingsRun(dbPath string, args []string) error {
 	if err != nil {
 		return err
 	}
+	includeExported := hasFlag(subargs, "--include-exported")
 
 	// Determine which analyzers to run.
 	analyzers := []string{analyzerName}
@@ -203,6 +206,7 @@ func cmdFindingsRun(dbPath string, args []string) error {
 			findings.AnalyzerClones,
 			findings.AnalyzerSecurity,
 			findings.AnalyzerDeadCode,
+			findings.AnalyzerTodos,
 		}
 	}
 
@@ -262,14 +266,21 @@ func cmdFindingsRun(dbPath string, args []string) error {
 			totalFindings += n
 
 		case findings.AnalyzerDeadCode:
-			n, err := runDeadCodeAnalyzer(backend, dbPath)
+			n, err := runDeadCodeAnalyzer(backend, includeExported)
 			if err != nil {
 				return fmt.Errorf("deadcode analyser failed: %w", err)
 			}
 			totalFindings += n
 
+		case findings.AnalyzerTodos:
+			n, err := runTodosAnalyzer(backend, paths, ignore, projectRoot)
+			if err != nil {
+				return fmt.Errorf("todos analyser failed: %w", err)
+			}
+			totalFindings += n
+
 		default:
-			return fmt.Errorf("unknown analyser: %s (valid: complexity, coupling, secrets, clones, security, deadcode, all)", name)
+			return fmt.Errorf("unknown analyser: %s (valid: complexity, coupling, secrets, clones, security, deadcode, todos, all)", name)
 		}
 	}
 
@@ -352,6 +363,30 @@ func runSecretsAnalyzer(backend *Backend, paths []string, ignore *aideignore.Mat
 		result.FilesScanned, result.FilesSkipped, result.RulesLoaded, result.FindingsCount, result.Duration.Round(1_000_000))
 
 	if err := backend.ReplaceFindingsForAnalyzer(findings.AnalyzerSecrets, ff); err != nil {
+		return 0, fmt.Errorf("failed to store findings: %w", err)
+	}
+
+	return len(ff), nil
+}
+
+func runTodosAnalyzer(backend *Backend, paths []string, ignore *aideignore.Matcher, root string) (int, error) {
+	fmt.Printf("Running todos analyser...\n")
+
+	cfg := findings.TodosConfig{
+		Paths:       paths,
+		ProjectRoot: root,
+		Ignore:      ignore,
+	}
+
+	ff, result, err := findings.AnalyzeTodos(cfg)
+	if err != nil {
+		return 0, err
+	}
+
+	fmt.Printf("  Analysed %d files (skipped %d), found %d todos (%s)\n",
+		result.FilesAnalyzed, result.FilesSkipped, result.FindingsCount, result.Duration.Round(1_000_000))
+
+	if err := backend.ReplaceFindingsForAnalyzer(findings.AnalyzerTodos, ff); err != nil {
 		return 0, fmt.Errorf("failed to store findings: %w", err)
 	}
 
@@ -720,53 +755,29 @@ func cmdFindingsClear(dbPath string, args []string) error {
 	return nil
 }
 
-func runDeadCodeAnalyzer(backend *Backend, dbPath string) (int, error) {
-	fmt.Printf("Running dead code analyser...\n")
-
-	codeStore, err := backend.openCodeStore()
-	if err != nil {
-		return 0, fmt.Errorf("code index required: %w", err)
-	}
-	defer codeStore.Close()
-
-	stats, err := codeStore.Stats()
-	if err != nil || stats.Symbols == 0 {
-		return 0, fmt.Errorf("code index is empty — run 'aide code index' first")
+func runDeadCodeAnalyzer(backend *Backend, includeExported bool) (int, error) {
+	if includeExported {
+		fmt.Printf("Running dead code analyser (including exported symbols)...\n")
+	} else {
+		fmt.Printf("Running dead code analyser...\n")
 	}
 
-	cfg := findings.DeadCodeConfig{
-		GetAllSymbols: func() ([]*code.Symbol, error) {
-			return codeStore.ListAllSymbols(-1)
-		},
-		GetRefCount: func(name string) (int, error) {
-			refs, err := codeStore.SearchReferences(code.ReferenceSearchOptions{
-				SymbolName: name,
-				Limit:      1,
-			})
-			if err != nil {
-				return 0, err
-			}
-			return len(refs), nil
-		},
-		ProjectRoot: projectRoot(dbPath),
-		ProgressFn: func(checked, found int) {
+	opts := DeadCodeAnalysisOptions{
+		IncludeExported: includeExported,
+		Progress: func(checked, found int) {
 			fmt.Printf("  checked %d symbols, %d unreferenced so far\n", checked, found)
 		},
 	}
 
-	ff, result, err := findings.AnalyzeDeadCode(cfg)
+	result, err := backend.RunDeadCodeAnalysis(opts)
 	if err != nil {
 		return 0, err
 	}
 
-	fmt.Printf("  Checked %d symbols (skipped %d), found %d unreferenced (%s)\n",
-		result.SymbolsChecked, result.SymbolsSkipped, result.FindingsCount, result.Duration.Round(1_000_000))
+	fmt.Printf("  Checked %d symbols (skipped %d), found %d unreferenced (%dms)\n",
+		result.SymbolsChecked, result.SymbolsSkipped, result.FindingsCount, result.DurationMs)
 
-	if err := backend.ReplaceFindingsForAnalyzer(findings.AnalyzerDeadCode, ff); err != nil {
-		return 0, fmt.Errorf("failed to store findings: %w", err)
-	}
-
-	return len(ff), nil
+	return result.FindingsCount, nil
 }
 
 // printFindingLine prints a human-readable single-line summary of a finding.

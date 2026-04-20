@@ -9,5 +9,8 @@
     "extensions": [
       ".toml"
     ]
+  },
+  "comments": {
+    "line": ["#"]
   }
 }

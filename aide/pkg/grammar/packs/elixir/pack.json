@@ -159,5 +159,16 @@
         "label": "Elixir OTP application"
       }
     ]
+  },
+  "deadcode": {
+    "exported_rule": "no_leading_underscore",
+    "suppression_patterns": [
+      "#\\s*credo:disable-for-next-line\\b",
+      "#\\s*aide:keep\\b",
+      "@deprecated\\b"
+    ]
+  },
+  "comments": {
+    "line": ["#"]
   }
 }

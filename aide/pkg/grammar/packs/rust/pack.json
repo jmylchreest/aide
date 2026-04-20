@@ -195,5 +195,13 @@
         "description": "Raw pointer usage. Ensure pointer validity and alignment before dereferencing."
       }
     ]
+  },
+  "deadcode": {
+    "suppression_patterns": [
+      "#\\[allow\\(\\s*dead_code\\b",
+      "#\\[allow\\(\\s*unused\\b",
+      "#\\[deprecated\\b",
+      "//\\s*aide:keep\\b"
+    ]
   }
 }

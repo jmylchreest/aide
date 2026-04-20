@@ -131,5 +131,12 @@
         "label": "Groovy main method"
       }
     ]
+  },
+  "deadcode": {
+    "suppression_patterns": [
+      "@SuppressWarnings\\s*\\([^)]*\\bunused\\b",
+      "//\\s*aide:keep\\b",
+      "@Deprecated\\b"
+    ]
   }
 }

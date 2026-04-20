@@ -4,6 +4,8 @@ import (
 	"context"
 	"path/filepath"
 	"testing"
+
+	"github.com/jmylchreest/aide/aide/pkg/grammar"
 )
 
 // =============================================================================
@@ -215,9 +217,9 @@ func TestIsCommentLine(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		got := isCommentLine(tt.line, tt.lang)
+		got := grammar.IsCommentLine(tt.line, tt.lang)
 		if got != tt.want {
-			t.Errorf("isCommentLine(%q, %q) = %v, want %v", tt.line, tt.lang, got, tt.want)
+			t.Errorf("IsCommentLine(%q, %q) = %v, want %v", tt.line, tt.lang, got, tt.want)
 		}
 	}
 }

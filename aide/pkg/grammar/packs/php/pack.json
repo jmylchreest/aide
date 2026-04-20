@@ -262,5 +262,14 @@
         "description": "MD5/SHA1 are not suitable for passwords. Use password_hash() with PASSWORD_BCRYPT or PASSWORD_ARGON2ID."
       }
     ]
+  },
+  "deadcode": {
+    "suppression_patterns": [
+      "@phpstan-ignore-next-line\\b",
+      "@psalm-suppress\\b",
+      "//\\s*phpcs:disable\\b",
+      "//\\s*aide:keep\\b",
+      "@deprecated\\b"
+    ]
   }
 }

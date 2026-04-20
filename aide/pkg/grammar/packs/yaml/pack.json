@@ -13,5 +13,8 @@
     "aliases": [
       "yml"
     ]
+  },
+  "comments": {
+    "line": ["#"]
   }
 }

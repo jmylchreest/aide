@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jmylchreest/aide/aide/pkg/aideignore"
 	"github.com/jmylchreest/aide/aide/pkg/code"
 	"github.com/jmylchreest/aide/aide/pkg/grammar"
 	"github.com/jmylchreest/aide/aide/pkg/store"
@@ -540,6 +541,71 @@ func (idx *Indexer) IndexFile(filePath string) (int, error) {
 	})
 
 	return len(symbols), nil
+}
+
+// ReconcileResult summarises an Indexer.Reconcile pass.
+type ReconcileResult struct {
+	Checked   int // Total entries inspected
+	Removed   int // Entries dropped because the file no longer exists on disk
+	Refreshed int // Entries re-indexed because mtime advanced
+	Errors    int // Stat / index failures (skipped, not fatal)
+}
+
+// Reconcile walks the file index and brings it back in sync with the working
+// tree: orphan entries (file deleted on disk) are removed, entries whose path
+// now matches an aideignore rule are removed, and stale entries (file mtime
+// newer than the indexed mtime) are re-indexed.
+func (idx *Indexer) Reconcile() (ReconcileResult, error) {
+	var res ReconcileResult
+
+	infos, err := idx.store.ListAllFileInfo()
+	if err != nil {
+		return res, fmt.Errorf("list file index: %w", err)
+	}
+
+	ignore, _ := aideignore.New(idx.rootDir)
+
+	for _, info := range infos {
+		res.Checked++
+
+		absPath := info.Path
+		if !filepath.IsAbs(absPath) {
+			absPath = filepath.Join(idx.rootDir, info.Path)
+		}
+
+		stat, statErr := os.Stat(absPath)
+		if statErr != nil {
+			if os.IsNotExist(statErr) {
+				if rmErr := idx.RemoveFile(absPath); rmErr == nil {
+					res.Removed++
+				} else {
+					res.Errors++
+				}
+				continue
+			}
+			res.Errors++
+			continue
+		}
+
+		if ignore != nil && ignore.ShouldIgnoreFile(info.Path) {
+			if rmErr := idx.RemoveFile(absPath); rmErr == nil {
+				res.Removed++
+			} else {
+				res.Errors++
+			}
+			continue
+		}
+
+		if !stat.ModTime().Equal(info.ModTime) {
+			if _, ixErr := idx.IndexFile(absPath); ixErr == nil {
+				res.Refreshed++
+			} else {
+				res.Errors++
+			}
+		}
+	}
+
+	return res, nil
 }
 
 // RemoveFile removes a file from the index, including its symbols, references,

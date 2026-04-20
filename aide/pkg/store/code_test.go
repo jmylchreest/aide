@@ -986,6 +986,40 @@ func TestListAllSymbols(t *testing.T) {
 	if len(limited) != 3 {
 		t.Errorf("expected 3 symbols with limit, got %d", len(limited))
 	}
+
+	// Negative limit means unlimited per the project max-depth convention.
+	unlimited, err := cs.ListAllSymbols(-1)
+	if err != nil {
+		t.Fatalf("ListAllSymbols(-1) failed: %v", err)
+	}
+	if len(unlimited) != 5 {
+		t.Errorf("expected 5 symbols with limit=-1 (unlimited), got %d", len(unlimited))
+	}
+}
+
+func TestListAllFileInfo(t *testing.T) {
+	cs, cleanup := setupTestCodeStore(t)
+	defer cleanup()
+
+	if all, err := cs.ListAllFileInfo(); err != nil {
+		t.Fatalf("ListAllFileInfo on empty store: %v", err)
+	} else if len(all) != 0 {
+		t.Errorf("expected 0 entries, got %d", len(all))
+	}
+
+	for _, p := range []string{"a.go", "b.go", "c.go"} {
+		if err := cs.SetFileInfo(&code.FileInfo{Path: p}); err != nil {
+			t.Fatalf("SetFileInfo %s: %v", p, err)
+		}
+	}
+
+	all, err := cs.ListAllFileInfo()
+	if err != nil {
+		t.Fatalf("ListAllFileInfo: %v", err)
+	}
+	if len(all) != 3 {
+		t.Errorf("expected 3 entries, got %d", len(all))
+	}
 }
 
 // =============================================================================

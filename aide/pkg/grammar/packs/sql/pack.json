@@ -12,5 +12,9 @@
   },
   "queries": {
     "tags": "(create_function_statement name: (identifier) @name) @definition.function\n(create_table_statement name: (identifier) @name) @definition.class"
+  },
+  "comments": {
+    "line": ["--"],
+    "block": [["/*", "*/"]]
   }
 }

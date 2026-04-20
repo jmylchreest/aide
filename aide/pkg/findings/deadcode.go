@@ -1,11 +1,17 @@
 package findings
 
 import (
+	"bufio"
 	"fmt"
+	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jmylchreest/aide/aide/pkg/code"
+	"github.com/jmylchreest/aide/aide/pkg/grammar"
 )
 
 // DeadCodeConfig configures the dead code analyzer.
@@ -18,6 +24,13 @@ type DeadCodeConfig struct {
 	ProjectRoot string
 	// ProgressFn is called periodically with progress updates. May be nil.
 	ProgressFn func(checked int, found int)
+	// PackProvider returns the grammar pack for a language; nil disables
+	// pack-driven exported and suppression checks (analyzer falls back to
+	// universal hardcoded skip rules only).
+	PackProvider func(language string) *grammar.Pack
+	// IncludeExported, when true, analyses exported symbols too. Default false
+	// because external consumers cannot be observed from the index.
+	IncludeExported bool
 }
 
 // DeadCodeResult holds the output of a dead code analysis run.
@@ -28,14 +41,18 @@ type DeadCodeResult struct {
 	Duration       time.Duration
 }
 
-// AnalyzeDeadCode finds symbols with zero references that are not entrypoints.
-//
-// A symbol is considered dead if:
-//   - It has zero call or type_ref references in the code index
-//   - It is not an entrypoint (main, init, TestXxx, BenchmarkXxx, etc.)
-//   - It is not an exported method (receiver types may be used via interfaces)
-//
-// This is a project-wide analyzer that requires the code index to be populated.
+// candidateFinding pairs a finding with its source symbol so the verification
+// pass can exclude the declaration's own body from text matches.
+type candidateFinding struct {
+	finding *Finding
+	symbol  *code.Symbol
+}
+
+// AnalyzeDeadCode finds symbols with zero references that are not entrypoints,
+// suppressed by a comment, exported public API, or whose name appears as a
+// literal token elsewhere in the codebase (text-grep verification catches
+// references the index misses: qualified method calls, JSX use sites, function
+// values passed by name).
 func AnalyzeDeadCode(cfg DeadCodeConfig) ([]*Finding, *DeadCodeResult, error) {
 	start := time.Now()
 	result := &DeadCodeResult{}
@@ -45,7 +62,10 @@ func AnalyzeDeadCode(cfg DeadCodeConfig) ([]*Finding, *DeadCodeResult, error) {
 		return nil, nil, fmt.Errorf("failed to get symbols: %w", err)
 	}
 
-	var findings []*Finding
+	rules := newDeadcodeRuleCache(cfg.PackProvider)
+	suppress := newSuppressionScanner(cfg.ProjectRoot, rules)
+
+	var candidates []candidateFinding
 
 	for _, sym := range symbols {
 		result.SymbolsChecked++
@@ -55,11 +75,20 @@ func AnalyzeDeadCode(cfg DeadCodeConfig) ([]*Finding, *DeadCodeResult, error) {
 			continue
 		}
 
+		if !cfg.IncludeExported && rules.isExported(sym) {
+			result.SymbolsSkipped++
+			continue
+		}
+
+		if suppress.isSuppressed(sym) {
+			result.SymbolsSkipped++
+			continue
+		}
+
 		count, err := cfg.GetRefCount(sym.Name)
 		if err != nil {
 			continue
 		}
-
 		if count > 0 {
 			continue
 		}
@@ -74,25 +103,44 @@ func AnalyzeDeadCode(cfg DeadCodeConfig) ([]*Finding, *DeadCodeResult, error) {
 			"code generation, or external consumers not in the index.",
 			sym.Name, sym.Kind, sym.FilePath, sym.StartLine)
 
-		findings = append(findings, &Finding{
-			Analyzer: AnalyzerDeadCode,
-			Severity: sev,
-			Category: sym.Kind,
-			FilePath: sym.FilePath,
-			Line:     sym.StartLine,
-			EndLine:  sym.EndLine,
-			Title:    fmt.Sprintf("Unreferenced %s: %s", sym.Kind, sym.Name),
-			Detail:   detail,
-			Metadata: map[string]string{
-				"symbol": sym.Name,
-				"kind":   sym.Kind,
-				"lang":   sym.Language,
+		candidates = append(candidates, candidateFinding{
+			symbol: sym,
+			finding: &Finding{
+				Analyzer: AnalyzerDeadCode,
+				Severity: sev,
+				Category: sym.Kind,
+				FilePath: sym.FilePath,
+				Line:     sym.StartLine,
+				EndLine:  sym.EndLine,
+				Title:    fmt.Sprintf("Unreferenced %s: %s", sym.Kind, sym.Name),
+				Detail:   detail,
+				Metadata: map[string]string{
+					"symbol": sym.Name,
+					"kind":   sym.Kind,
+					"lang":   sym.Language,
+				},
 			},
 		})
 
-		if cfg.ProgressFn != nil && len(findings)%50 == 0 {
-			cfg.ProgressFn(result.SymbolsChecked, len(findings))
+		if cfg.ProgressFn != nil && len(candidates)%50 == 0 {
+			cfg.ProgressFn(result.SymbolsChecked, len(candidates))
 		}
+	}
+
+	// Verification pass: drop candidates whose name appears as a literal token
+	// anywhere outside the declaring symbol's body. The reference indexer
+	// misses qualified call sites (`s.handleX`), JSX components (`<Foo />`),
+	// and function-as-value passes (`{Field: foo}`); a literal text scan
+	// catches all of these at the cost of accepting false negatives from
+	// occurrences inside string literals or comments.
+	verifier := newReferenceVerifier(cfg.ProjectRoot, symbols)
+	findings := make([]*Finding, 0, len(candidates))
+	for _, cand := range candidates {
+		if verifier.appearsElsewhere(cand.symbol) {
+			result.SymbolsSkipped++
+			continue
+		}
+		findings = append(findings, cand.finding)
 	}
 
 	result.FindingsCount = len(findings)
@@ -103,10 +151,10 @@ func AnalyzeDeadCode(cfg DeadCodeConfig) ([]*Finding, *DeadCodeResult, error) {
 
 // shouldSkipForDeadCode returns true if a symbol should be excluded from
 // dead code detection because it is a known entrypoint or framework hook.
+// These are universal sanity rules independent of the language pack.
 func shouldSkipForDeadCode(sym *code.Symbol) bool {
 	name := sym.Name
 
-	// Skip test files entirely
 	if strings.HasSuffix(sym.FilePath, "_test.go") ||
 		strings.HasSuffix(sym.FilePath, ".test.ts") ||
 		strings.HasSuffix(sym.FilePath, ".test.tsx") ||
@@ -119,24 +167,15 @@ func shouldSkipForDeadCode(sym *code.Symbol) bool {
 		return true
 	}
 
-	// Go entrypoints and lifecycle functions
 	if name == "main" || name == "init" {
 		return true
 	}
 
-	// Go test/benchmark/example/fuzz functions
 	if strings.HasPrefix(name, "Test") || strings.HasPrefix(name, "Benchmark") ||
 		strings.HasPrefix(name, "Example") || strings.HasPrefix(name, "Fuzz") {
 		return true
 	}
 
-	// Go exported interface implementations — methods starting with uppercase
-	// are often interface implementations accessed via interface types
-	if sym.Kind == code.KindMethod && len(name) > 0 && name[0] >= 'A' && name[0] <= 'Z' {
-		return true
-	}
-
-	// Common framework hooks and lifecycle methods
 	lowerName := strings.ToLower(name)
 	frameworkHooks := []string{
 		"setup", "teardown", "beforeall", "afterall", "beforeeach", "aftereach",
@@ -148,16 +187,299 @@ func shouldSkipForDeadCode(sym *code.Symbol) bool {
 		}
 	}
 
-	// Skip types/interfaces/classes — they're often used structurally or
-	// via reflection and the code index may not capture all type_ref usages
 	if sym.Kind == code.KindClass || sym.Kind == code.KindInterface || sym.Kind == code.KindType {
 		return true
 	}
 
-	// Skip constants and variables — often used in switch/case or as config
 	if sym.Kind == code.KindConstant || sym.Kind == code.KindVariable {
 		return true
 	}
 
 	return false
+}
+
+// deadcodeRuleCache resolves and caches per-language pack rules.
+type deadcodeRuleCache struct {
+	provider func(string) *grammar.Pack
+	mu       sync.Mutex
+	packs    map[string]*deadcodeLangRules
+}
+
+type deadcodeLangRules struct {
+	exportedRule string
+	suppression  []*regexp.Regexp
+}
+
+func newDeadcodeRuleCache(provider func(string) *grammar.Pack) *deadcodeRuleCache {
+	return &deadcodeRuleCache{
+		provider: provider,
+		packs:    make(map[string]*deadcodeLangRules),
+	}
+}
+
+func (c *deadcodeRuleCache) get(lang string) *deadcodeLangRules {
+	if c.provider == nil || lang == "" {
+		return nil
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if r, ok := c.packs[lang]; ok {
+		return r
+	}
+	pack := c.provider(lang)
+	if pack == nil || pack.Deadcode == nil {
+		c.packs[lang] = nil
+		return nil
+	}
+	r := &deadcodeLangRules{exportedRule: pack.Deadcode.ExportedRule}
+	for _, p := range pack.Deadcode.SuppressionPatterns {
+		re, err := regexp.Compile(p)
+		if err != nil {
+			continue
+		}
+		r.suppression = append(r.suppression, re)
+	}
+	c.packs[lang] = r
+	return r
+}
+
+func (c *deadcodeRuleCache) isExported(sym *code.Symbol) bool {
+	r := c.get(sym.Language)
+	if r == nil {
+		return false
+	}
+	return isExportedByRule(sym.Name, r.exportedRule)
+}
+
+func isExportedByRule(name, rule string) bool {
+	if name == "" {
+		return false
+	}
+	switch rule {
+	case "first_char_uppercase":
+		c := name[0]
+		return c >= 'A' && c <= 'Z'
+	case "no_leading_underscore":
+		return name[0] != '_'
+	default:
+		return false
+	}
+}
+
+// suppressionScanner reads file content (cached per file) and checks whether
+// the lines above a symbol's declaration contain a pack-defined suppression
+// pattern.
+type suppressionScanner struct {
+	root  string
+	rules *deadcodeRuleCache
+	mu    sync.Mutex
+	cache map[string][]string
+}
+
+func newSuppressionScanner(root string, rules *deadcodeRuleCache) *suppressionScanner {
+	return &suppressionScanner{root: root, rules: rules, cache: make(map[string][]string)}
+}
+
+// isSuppressed checks the immediately-preceding non-blank line for a pack
+// suppression pattern. Linter directives by convention attach to the next
+// declaration, so we walk past blank lines but stop at any other line.
+func (s *suppressionScanner) isSuppressed(sym *code.Symbol) bool {
+	r := s.rules.get(sym.Language)
+	if r == nil || len(r.suppression) == 0 {
+		return false
+	}
+	lines := s.lines(sym.FilePath)
+	if lines == nil {
+		return false
+	}
+
+	for i := sym.StartLine - 2; i >= 0 && i < len(lines); i-- {
+		if strings.TrimSpace(lines[i]) == "" {
+			continue
+		}
+		for _, re := range r.suppression {
+			if re.MatchString(lines[i]) {
+				return true
+			}
+		}
+		return false
+	}
+	return false
+}
+
+// referenceVerifier checks whether a symbol's bare name appears as a literal
+// token anywhere in the indexed file set, outside the symbol's own declaration
+// body. It catches references the tree-sitter index misses (qualified method
+// calls, JSX, function-as-value passes).
+type referenceVerifier struct {
+	root    string
+	files   []string
+	mu      sync.Mutex
+	content map[string][]byte
+}
+
+func newReferenceVerifier(root string, symbols []*code.Symbol) *referenceVerifier {
+	seen := make(map[string]struct{}, len(symbols))
+	for _, s := range symbols {
+		seen[s.FilePath] = struct{}{}
+	}
+	files := make([]string, 0, len(seen))
+	for p := range seen {
+		files = append(files, p)
+	}
+	return &referenceVerifier{root: root, files: files, content: make(map[string][]byte)}
+}
+
+func (v *referenceVerifier) appearsElsewhere(sym *code.Symbol) bool {
+	if sym.Name == "" {
+		return false
+	}
+	name := []byte(sym.Name)
+	for _, f := range v.files {
+		body := v.read(f)
+		if len(body) == 0 {
+			continue
+		}
+		if !containsToken(body, name) {
+			continue
+		}
+		if f != sym.FilePath {
+			return true
+		}
+		// Same file as the declaration: count occurrences outside the body lines.
+		if extraOccurrenceOutsideBody(body, name, sym) {
+			return true
+		}
+	}
+	return false
+}
+
+func (v *referenceVerifier) read(relPath string) []byte {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if c, ok := v.content[relPath]; ok {
+		return c
+	}
+	abs := relPath
+	if !filepath.IsAbs(abs) && v.root != "" {
+		abs = filepath.Join(v.root, relPath)
+	}
+	data, err := os.ReadFile(abs)
+	if err != nil {
+		v.content[relPath] = nil
+		return nil
+	}
+	v.content[relPath] = data
+	return data
+}
+
+// containsToken reports whether name appears in body with non-identifier
+// characters on both sides (a "word" match), so that searching for "Foo"
+// does not match inside "FooBar" or "MyFoo".
+func containsToken(body, name []byte) bool {
+	idx := 0
+	for {
+		rel := bytesIndex(body[idx:], name)
+		if rel < 0 {
+			return false
+		}
+		pos := idx + rel
+		if !isIdentChar(prevByte(body, pos)) && !isIdentChar(nextByte(body, pos+len(name))) {
+			return true
+		}
+		idx = pos + 1
+	}
+}
+
+// extraOccurrenceOutsideBody reports whether the name appears outside the
+// symbol's declaration range, line-by-line. EndLine may be 0 or smaller than
+// StartLine when the indexer didn't capture a body span; in that case the
+// body is treated as just the declaration line.
+func extraOccurrenceOutsideBody(body, name []byte, sym *code.Symbol) bool {
+	endLine := sym.EndLine
+	if endLine < sym.StartLine {
+		endLine = sym.StartLine
+	}
+	line := 1
+	lineStart := 0
+	for i := 0; i <= len(body); i++ {
+		if i == len(body) || (i < len(body) && body[i] == '\n') {
+			if line < sym.StartLine || line > endLine {
+				if containsToken(body[lineStart:i], name) {
+					return true
+				}
+			}
+			line++
+			lineStart = i + 1
+		}
+	}
+	return false
+}
+
+func bytesIndex(haystack, needle []byte) int {
+	if len(needle) == 0 || len(haystack) < len(needle) {
+		return -1
+	}
+	first := needle[0]
+	for i := 0; i+len(needle) <= len(haystack); i++ {
+		if haystack[i] != first {
+			continue
+		}
+		match := true
+		for j := 1; j < len(needle); j++ {
+			if haystack[i+j] != needle[j] {
+				match = false
+				break
+			}
+		}
+		if match {
+			return i
+		}
+	}
+	return -1
+}
+
+func prevByte(b []byte, pos int) byte {
+	if pos <= 0 {
+		return 0
+	}
+	return b[pos-1]
+}
+
+func nextByte(b []byte, pos int) byte {
+	if pos >= len(b) {
+		return 0
+	}
+	return b[pos]
+}
+
+func isIdentChar(c byte) bool {
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_'
+}
+
+func (s *suppressionScanner) lines(relPath string) []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if l, ok := s.cache[relPath]; ok {
+		return l
+	}
+	abs := relPath
+	if !filepath.IsAbs(abs) && s.root != "" {
+		abs = filepath.Join(s.root, relPath)
+	}
+	f, err := os.Open(abs)
+	if err != nil {
+		s.cache[relPath] = nil
+		return nil
+	}
+	defer f.Close()
+
+	var out []string
+	scanner := bufio.NewScanner(f)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	for scanner.Scan() {
+		out = append(out, scanner.Text())
+	}
+	s.cache[relPath] = out
+	return out
 }

@@ -116,5 +116,14 @@
         "label": "C++ main function"
       }
     ]
+  },
+  "deadcode": {
+    "suppression_patterns": [
+      "//\\s*NOLINT\\b",
+      "//\\s*cppcheck-suppress\\b",
+      "//\\s*aide:keep\\b",
+      "\\[\\[\\s*maybe_unused\\s*\\]\\]",
+      "\\[\\[\\s*deprecated\\b"
+    ]
   }
 }

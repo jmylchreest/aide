@@ -114,5 +114,16 @@
         "label": "OCaml top-level evaluation (entry point)"
       }
     ]
+  },
+  "deadcode": {
+    "exported_rule": "no_leading_underscore",
+    "suppression_patterns": [
+      "\\[@@@warning\\b",
+      "\\[@warning\\b",
+      "\\(\\*\\s*aide:keep\\s*\\*\\)"
+    ]
+  },
+  "comments": {
+    "block": [["(*", "*)"]]
   }
 }

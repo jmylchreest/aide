@@ -366,10 +366,17 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 		s.findingsRunner = findingsRunner
 		s.unifiedWatcherMu.Unlock()
 
-		// Expose watcher/runner to gRPC StatusService
+		// Expose watcher/runner/reconciler to gRPC services. The reconciler
+		// also lets the daemon's analyzer RPCs refresh the index before they
+		// run, so they don't operate on stale entries from before the daemon
+		// was started.
 		if s.grpcServer != nil {
 			s.grpcServer.SetWatcher(w)
 			s.grpcServer.SetFindingsRunner(findingsRunner)
+			s.grpcServer.SetCodeReconciler(func() (int, int, error) {
+				res, err := indexer.Reconcile()
+				return res.Removed, res.Refreshed, err
+			})
 		}
 
 		if len(watchPaths) > 0 {
@@ -377,6 +384,22 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 		} else {
 			mcpLog.Printf("unified watcher enabled for current directory (debounce: %v)", debounceDelay)
 		}
+
+		// Startup reconciliation: catch deletions and edits that landed while
+		// the daemon was offline. The watcher keeps the index in sync from
+		// here on, so this runs once. Gated implicitly: this whole goroutine
+		// only runs when the watcher is enabled (see early-return above).
+		go func() {
+			res, err := indexer.Reconcile()
+			if err != nil {
+				mcpLog.Printf("startup reconcile failed: %v", err)
+				return
+			}
+			if res.Removed > 0 || res.Refreshed > 0 || res.Errors > 0 {
+				mcpLog.Printf("startup reconcile: checked %d, removed %d, refreshed %d, errors %d",
+					res.Checked, res.Removed, res.Refreshed, res.Errors)
+			}
+		}()
 
 		// Startup re-scan: check for grammars that were installed but whose
 		// project re-scan didn't complete (e.g. process was killed mid-scan).

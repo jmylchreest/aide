@@ -216,5 +216,14 @@
         "description": "Print statements may leak sensitive data in production; use a logging framework"
       }
     ]
+  },
+  "deadcode": {
+    "exported_rule": "no_leading_underscore",
+    "suppression_patterns": [
+      "//\\s*ignore:\\s*(?:unused_element|dead_code)\\b",
+      "//\\s*aide:keep\\b",
+      "@deprecated\\b",
+      "@Deprecated\\b"
+    ]
   }
 }

@@ -309,5 +309,18 @@
         "description": "Credentials appear to be hardcoded. Use environment variables or a secrets manager."
       }
     ]
+  },
+  "deadcode": {
+    "exported_rule": "no_leading_underscore",
+    "suppression_patterns": [
+      "#\\s*noqa\\b",
+      "#\\s*pragma:\\s*no\\s*cover",
+      "#\\s*aide:keep\\b",
+      "#\\s*type:\\s*ignore\\b"
+    ]
+  },
+  "comments": {
+    "line": ["#"],
+    "block": [["\"\"\"", "\"\"\""], ["'''", "'''"]]
   }
 }

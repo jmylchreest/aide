@@ -2,12 +2,98 @@ package main
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/jmylchreest/aide/aide/pkg/code"
 	"github.com/jmylchreest/aide/aide/pkg/findings"
+	"github.com/jmylchreest/aide/aide/pkg/grammar"
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi"
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi/adapter"
 	"github.com/jmylchreest/aide/aide/pkg/store"
 )
+
+// DeadCodeAnalysisOptions controls behaviour of RunDeadCodeAnalysis.
+type DeadCodeAnalysisOptions struct {
+	IncludeExported bool
+	Progress        func(checked, found int)
+}
+
+// DeadCodeAnalysisResult is the CLI-facing result of a dead-code analyzer run.
+type DeadCodeAnalysisResult struct {
+	SymbolsChecked int
+	SymbolsSkipped int
+	FindingsCount  int
+	DurationMs     int64
+}
+
+// RunDeadCodeAnalysis runs the dead-code analyzer.
+func (b *Backend) RunDeadCodeAnalysis(opts DeadCodeAnalysisOptions) (*DeadCodeAnalysisResult, error) {
+	if b.useGRPC {
+		ctx, cancel := context.WithTimeout(context.Background(), DeadCodeAnalysisRPCTimeout)
+		defer cancel()
+
+		resp, err := b.grpcClient.Code.RunDeadCodeAnalysis(ctx, &grpcapi.CodeRunDeadCodeAnalysisRequest{
+			IncludeExported: opts.IncludeExported,
+		})
+		if err != nil {
+			return nil, err
+		}
+		return &DeadCodeAnalysisResult{
+			SymbolsChecked: int(resp.SymbolsChecked),
+			SymbolsSkipped: int(resp.SymbolsSkipped),
+			FindingsCount:  int(resp.FindingsCount),
+			DurationMs:     resp.DurationMs,
+		}, nil
+	}
+
+	codeStore, err := b.openCodeStore()
+	if err != nil {
+		return nil, fmt.Errorf("code index required: %w", err)
+	}
+	defer codeStore.Close()
+
+	stats, err := codeStore.Stats()
+	if err != nil || stats.Symbols == 0 {
+		return nil, fmt.Errorf("code index is empty — run 'aide code index' first")
+	}
+
+	registry := grammar.DefaultPackRegistry()
+	cfg := findings.DeadCodeConfig{
+		GetAllSymbols: func() ([]*code.Symbol, error) {
+			return codeStore.ListAllSymbols(-1)
+		},
+		GetRefCount: func(name string) (int, error) {
+			refs, err := codeStore.SearchReferences(code.ReferenceSearchOptions{
+				SymbolName: name,
+				Limit:      1,
+			})
+			if err != nil {
+				return 0, err
+			}
+			return len(refs), nil
+		},
+		ProjectRoot:     projectRoot(b.dbPath),
+		ProgressFn:      opts.Progress,
+		PackProvider:    registry.Get,
+		IncludeExported: opts.IncludeExported,
+	}
+
+	ff, result, err := findings.AnalyzeDeadCode(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := b.ReplaceFindingsForAnalyzer(findings.AnalyzerDeadCode, ff); err != nil {
+		return nil, fmt.Errorf("failed to store findings: %w", err)
+	}
+
+	return &DeadCodeAnalysisResult{
+		SymbolsChecked: result.SymbolsChecked,
+		SymbolsSkipped: result.SymbolsSkipped,
+		FindingsCount:  result.FindingsCount,
+		DurationMs:     result.Duration.Milliseconds(),
+	}, nil
+}
 
 // =============================================================================
 // Findings Backend Operations

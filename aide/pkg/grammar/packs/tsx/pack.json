@@ -154,5 +154,15 @@
         "label": "Next.js page route"
       }
     ]
+  },
+  "deadcode": {
+    "suppression_patterns": [
+      "//\\s*eslint-disable-next-line\\b.*\\bno-unused\\b",
+      "//\\s*eslint-disable-next-line\\b.*\\b@typescript-eslint/no-unused\\b",
+      "//\\s*aide:keep\\b",
+      "//\\s*@public\\b",
+      "//\\s*@internal\\b",
+      "/\\*\\*[\\s\\S]*?@(?:public|api|internal)\\b"
+    ]
   }
 }

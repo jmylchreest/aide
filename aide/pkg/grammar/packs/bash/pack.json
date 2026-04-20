@@ -77,5 +77,14 @@
         "label": "Installation script"
       }
     ]
+  },
+  "deadcode": {
+    "suppression_patterns": [
+      "#\\s*shellcheck\\s+disable=SC[0-9]+",
+      "#\\s*aide:keep\\b"
+    ]
+  },
+  "comments": {
+    "line": ["#"]
   }
 }

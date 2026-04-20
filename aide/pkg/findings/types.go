@@ -33,6 +33,7 @@ const (
 	AnalyzerClones     = "clones"
 	AnalyzerSecurity   = "security"
 	AnalyzerDeadCode   = "deadcode"
+	AnalyzerTodos      = "todos"
 )
 
 // Finding represents a single static analysis finding.

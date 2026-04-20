@@ -274,5 +274,14 @@
         "description": "File path constructed with user input. Validate resolved path stays within intended directory."
       }
     ]
+  },
+  "deadcode": {
+    "suppression_patterns": [
+      "//\\s*eslint-disable-next-line\\b.*\\bno-unused\\b",
+      "//\\s*aide:keep\\b",
+      "//\\s*@public\\b",
+      "//\\s*@internal\\b",
+      "/\\*\\*[\\s\\S]*?@(?:public|api|internal)\\b"
+    ]
   }
 }

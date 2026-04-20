@@ -92,6 +92,7 @@ type CodeIndexStore interface {
 	GetFileSymbols(filePath string) ([]*code.Symbol, error)
 	GetContainingSymbol(filePath string, line int) (*code.Symbol, error)
 	GetFileInfo(path string) (*code.FileInfo, error)
+	ListAllFileInfo() ([]*code.FileInfo, error)
 	SetFileInfo(info *code.FileInfo) error
 	ClearFile(filePath string) error
 	AddReference(ref *code.Reference) error

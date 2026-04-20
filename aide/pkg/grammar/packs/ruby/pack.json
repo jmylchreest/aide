@@ -253,5 +253,16 @@
         "description": "Mass assignment from params without strong parameters. Use params.require(:model).permit(:field1, :field2)."
       }
     ]
+  },
+  "deadcode": {
+    "exported_rule": "no_leading_underscore",
+    "suppression_patterns": [
+      "#\\s*rubocop:disable\\b.*\\b(?:Lint/UselessMethodDefinition|Lint/UnusedMethodArgument|Lint/UnusedBlockArgument)\\b",
+      "#\\s*aide:keep\\b"
+    ]
+  },
+  "comments": {
+    "line": ["#"],
+    "block": [["=begin", "=end"]]
   }
 }

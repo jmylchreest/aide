@@ -120,5 +120,13 @@
         "label": "Ktor/Spring application"
       }
     ]
+  },
+  "deadcode": {
+    "suppression_patterns": [
+      "@Suppress\\s*\\([^)]*\\bunused\\b",
+      "//\\s*noinspection\\b.*\\bunused\\b",
+      "//\\s*aide:keep\\b",
+      "@Deprecated\\b"
+    ]
   }
 }

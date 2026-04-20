@@ -61,6 +61,12 @@ type Server struct {
 	mcpTools       []*StatusMCPTool
 	toolCountFunc  func() map[string]int64
 	pprofURLFunc   func() string
+
+	// codeReconciler, when non-nil, is invoked before project-wide code
+	// analyzers run so the analyzer doesn't operate on stale index entries.
+	// Returns (removed, refreshed, err). Set by the daemon when the file
+	// watcher is enabled; nil otherwise.
+	codeReconciler func() (int, int, error)
 }
 
 // NewServer creates a new gRPC server.
@@ -128,6 +134,24 @@ func (s *Server) SetFindingsRunner(r *findings.Runner) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.findingsRunner = r
+}
+
+// SetCodeReconciler installs the reconcile callback used to refresh the code
+// index before project-wide analyzers run. Pass nil to disable.
+func (s *Server) SetCodeReconciler(fn func() (int, int, error)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.codeReconciler = fn
+}
+
+func (s *Server) reconcileCode() (int, int, error) {
+	s.mu.RLock()
+	fn := s.codeReconciler
+	s.mu.RUnlock()
+	if fn == nil {
+		return 0, 0, nil
+	}
+	return fn()
 }
 
 // SetMCPTools sets the list of registered MCP tools.
@@ -1117,6 +1141,66 @@ func (s *codeServiceImpl) ReadCheck(ctx context.Context, req *CodeReadCheckReque
 		Symbols:          symbolCount,
 		OutlineAvailable: symbolCount > 0,
 		EstimatedTokens:  tokens,
+	}, nil
+}
+
+func (s *codeServiceImpl) RunDeadCodeAnalysis(ctx context.Context, req *CodeRunDeadCodeAnalysisRequest) (*CodeRunDeadCodeAnalysisResponse, error) {
+	cs := s.server.GetCodeStore()
+	if cs == nil {
+		return nil, fmt.Errorf("code store not available")
+	}
+	fs := s.server.GetFindingsStore()
+	if fs == nil {
+		return nil, fmt.Errorf("findings store not available")
+	}
+
+	if removed, refreshed, err := s.server.reconcileCode(); err != nil {
+		return nil, fmt.Errorf("reconcile code index: %w", err)
+	} else if removed > 0 || refreshed > 0 {
+		fmt.Printf("reconcile before deadcode: removed %d, refreshed %d\n", removed, refreshed)
+	}
+
+	stats, err := cs.Stats()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read code stats: %w", err)
+	}
+	if stats.Symbols == 0 {
+		return nil, fmt.Errorf("code index is empty — run 'aide code index' first")
+	}
+
+	cfg := findings.DeadCodeConfig{
+		GetAllSymbols: func() ([]*code.Symbol, error) {
+			return cs.ListAllSymbols(-1)
+		},
+		GetRefCount: func(name string) (int, error) {
+			refs, err := cs.SearchReferences(code.ReferenceSearchOptions{
+				SymbolName: name,
+				Limit:      1,
+			})
+			if err != nil {
+				return 0, err
+			}
+			return len(refs), nil
+		},
+		ProjectRoot:     projectRoot(s.server.dbPath),
+		PackProvider:    grammar.DefaultPackRegistry().Get,
+		IncludeExported: req.IncludeExported,
+	}
+
+	ff, result, err := findings.AnalyzeDeadCode(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := fs.ReplaceFindingsForAnalyzer(findings.AnalyzerDeadCode, ff); err != nil {
+		return nil, fmt.Errorf("failed to store findings: %w", err)
+	}
+
+	return &CodeRunDeadCodeAnalysisResponse{
+		SymbolsChecked: int32(result.SymbolsChecked),
+		SymbolsSkipped: int32(result.SymbolsSkipped),
+		FindingsCount:  int32(result.FindingsCount),
+		DurationMs:     result.Duration.Milliseconds(),
 	}, nil
 }
 

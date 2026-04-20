@@ -110,5 +110,13 @@
         "label": "Scala 3 @main annotation"
       }
     ]
+  },
+  "deadcode": {
+    "suppression_patterns": [
+      "@unused\\b",
+      "@nowarn\\b",
+      "//\\s*aide:keep\\b",
+      "@deprecated\\b"
+    ]
   }
 }

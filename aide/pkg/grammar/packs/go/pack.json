@@ -259,5 +259,15 @@
         "description": "Error return value is discarded. Handle errors explicitly to avoid silent failures that may have security implications."
       }
     ]
+  },
+  "deadcode": {
+    "exported_rule": "first_char_uppercase",
+    "suppression_patterns": [
+      "//\\s*nolint:(?:[a-zA-Z0-9_,-]*\\b)?(?:unused|deadcode|all)\\b",
+      "//\\s*aide:keep\\b",
+      "//go:linkname\\b",
+      "//go:noinline\\b",
+      "//\\s*Deprecated:"
+    ]
   }
 }
