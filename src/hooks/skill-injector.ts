@@ -222,6 +222,7 @@ async function main(): Promise<void> {
               category: "inject",
               subtype: "skill",
               tokens,
+              file: SOURCE,
             });
           }
         }
