@@ -109,13 +109,21 @@ interface PerToolStat {
   avoided: number;
 }
 
+/**
+ * Tools that produce a meaningful "avoided" counterfactual: they pull a
+ * subset of a file the agent could otherwise have Read whole. Raw `Read`
+ * is consume but cannot claim avoided — it IS the expensive path, with
+ * nothing cheaper to compare against.
+ */
+const AVOIDED_CLAIM_TOOLS = new Set(["code_outline", "code_read_symbol"]);
+
 function PerToolEfficiency({ stats }: { stats: PerToolStat[] }) {
   if (stats.length === 0) return null;
   const max = Math.max(1, ...stats.map((s) => Math.max(s.spent, s.avoided)));
   return (
     <div className="space-y-2">
       {stats.map((s) => {
-        const avoidedClaimable = s.category === "consume";
+        const avoidedClaimable = AVOIDED_CLAIM_TOOLS.has(s.tool);
         const spentPct = (s.spent / max) * 100;
         const avoidedPct = (s.avoided / max) * 100;
         const totalCounterfactual = s.spent + s.avoided;
