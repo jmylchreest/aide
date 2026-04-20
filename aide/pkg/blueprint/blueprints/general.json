@@ -3,7 +3,7 @@
   "name": "general",
   "display_name": "General Best Practices",
   "description": "Universal software engineering practices applicable to any language or stack",
-  "version": "0.0.59",
+  "version": "0.0.61",
   "tags": [
     "general"
   ],
