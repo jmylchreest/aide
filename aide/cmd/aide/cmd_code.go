@@ -17,35 +17,15 @@ import (
 
 // cmdCodeDispatcher routes code subcommands.
 func cmdCodeDispatcher(dbPath string, args []string) error {
-	if len(args) < 1 {
-		printCodeUsage()
-		return nil
-	}
-
-	subcmd := args[0]
-	subargs := args[1:]
-
-	switch subcmd {
-	case "index":
-		return cmdCodeIndex(dbPath, subargs)
-	case "search":
-		return cmdCodeSearch(dbPath, subargs)
-	case "symbols":
-		return cmdCodeSymbols(dbPath, subargs)
-	case "references", "refs":
-		return cmdCodeReferences(dbPath, subargs)
-	case "read-check":
-		return cmdCodeReadCheck(dbPath, subargs)
-	case "clear":
-		return cmdCodeClear(dbPath)
-	case "stats":
-		return cmdCodeStats(dbPath)
-	case "help", "-h", "--help":
-		printCodeUsage()
-		return nil
-	default:
-		return fmt.Errorf("unknown code subcommand: %s", subcmd)
-	}
+	return dispatchSubcmd("code", args, printCodeUsage, []subcmd{
+		{name: "index", handler: func(a []string) error { return cmdCodeIndex(dbPath, a) }},
+		{name: "search", handler: func(a []string) error { return cmdCodeSearch(dbPath, a) }},
+		{name: "symbols", handler: func(a []string) error { return cmdCodeSymbols(dbPath, a) }},
+		{name: "references", aliases: []string{"refs"}, handler: func(a []string) error { return cmdCodeReferences(dbPath, a) }},
+		{name: "read-check", handler: func(a []string) error { return cmdCodeReadCheck(dbPath, a) }},
+		{name: "clear", handler: func(a []string) error { return cmdCodeClear(dbPath) }},
+		{name: "stats", handler: func(a []string) error { return cmdCodeStats(dbPath) }},
+	})
 }
 
 func printCodeUsage() {

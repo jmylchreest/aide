@@ -113,6 +113,42 @@ func hasFlag(args []string, flag string) bool {
 	return false
 }
 
+// subcmd is one entry in a CLI subcommand dispatch table.
+type subcmd struct {
+	name    string
+	aliases []string
+	handler func(args []string) error
+}
+
+// dispatchSubcmd routes a subcommand invocation against a table of subcmds.
+//
+// Empty args or "help"/"-h"/"--help" prints usage and returns nil.
+// Unknown subcommands return a typed error using groupName for the message.
+// Aliases match in addition to name; first match wins.
+func dispatchSubcmd(groupName string, args []string, usage func(), commands []subcmd) error {
+	if len(args) == 0 {
+		usage()
+		return nil
+	}
+	sub := args[0]
+	if sub == "help" || sub == "-h" || sub == "--help" {
+		usage()
+		return nil
+	}
+	rest := args[1:]
+	for _, c := range commands {
+		if c.name == sub {
+			return c.handler(rest)
+		}
+		for _, a := range c.aliases {
+			if a == sub {
+				return c.handler(rest)
+			}
+		}
+	}
+	return fmt.Errorf("unknown %s subcommand: %s", groupName, sub)
+}
+
 // titleCase capitalizes the first letter of each word.
 func titleCase(s string) string {
 	if s == "" {

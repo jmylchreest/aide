@@ -19,33 +19,14 @@ func getFindingsStorePath(dbPath string) string {
 
 // cmdFindingsDispatcher routes findings subcommands.
 func cmdFindingsDispatcher(dbPath string, args []string) error {
-	if len(args) < 1 {
-		printFindingsUsage()
-		return nil
-	}
-
-	subcmd := args[0]
-	subargs := args[1:]
-
-	switch subcmd {
-	case "run":
-		return cmdFindingsRun(dbPath, subargs)
-	case "search":
-		return cmdFindingsSearch(dbPath, subargs)
-	case "list":
-		return cmdFindingsList(dbPath, subargs)
-	case "stats":
-		return cmdFindingsStats(dbPath, subargs)
-	case "accept":
-		return cmdFindingsAccept(dbPath, subargs)
-	case "clear":
-		return cmdFindingsClear(dbPath, subargs)
-	case "help", "-h", "--help":
-		printFindingsUsage()
-		return nil
-	default:
-		return fmt.Errorf("unknown findings subcommand: %s", subcmd)
-	}
+	return dispatchSubcmd("findings", args, printFindingsUsage, []subcmd{
+		{name: "run", handler: func(a []string) error { return cmdFindingsRun(dbPath, a) }},
+		{name: "search", handler: func(a []string) error { return cmdFindingsSearch(dbPath, a) }},
+		{name: "list", handler: func(a []string) error { return cmdFindingsList(dbPath, a) }},
+		{name: "stats", handler: func(a []string) error { return cmdFindingsStats(dbPath, a) }},
+		{name: "accept", handler: func(a []string) error { return cmdFindingsAccept(dbPath, a) }},
+		{name: "clear", handler: func(a []string) error { return cmdFindingsClear(dbPath, a) }},
+	})
 }
 
 func printFindingsUsage() {

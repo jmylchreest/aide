@@ -11,14 +11,7 @@ import (
 )
 
 func cmdDecision(dbPath string, args []string) error {
-	if len(args) < 1 {
-		printDecisionUsage()
-		return nil
-	}
-
-	subcmd := args[0]
-
-	if subcmd == "help" || subcmd == "-h" || subcmd == "--help" {
+	if len(args) == 0 || args[0] == "help" || args[0] == "-h" || args[0] == "--help" {
 		printDecisionUsage()
 		return nil
 	}
@@ -29,24 +22,14 @@ func cmdDecision(dbPath string, args []string) error {
 	}
 	defer backend.Close()
 
-	subargs := args[1:]
-
-	switch subcmd {
-	case "set":
-		return decisionSet(backend, subargs)
-	case "get":
-		return decisionGet(backend, subargs)
-	case "list":
-		return decisionList(backend, subargs)
-	case "history":
-		return decisionHistory(backend, subargs)
-	case "delete":
-		return decisionDelete(backend, subargs)
-	case "clear":
-		return decisionClear(backend)
-	default:
-		return fmt.Errorf("unknown decision subcommand: %s", subcmd)
-	}
+	return dispatchSubcmd("decision", args, printDecisionUsage, []subcmd{
+		{name: "set", handler: func(a []string) error { return decisionSet(backend, a) }},
+		{name: "get", handler: func(a []string) error { return decisionGet(backend, a) }},
+		{name: "list", handler: func(a []string) error { return decisionList(backend, a) }},
+		{name: "history", handler: func(a []string) error { return decisionHistory(backend, a) }},
+		{name: "delete", handler: func(a []string) error { return decisionDelete(backend, a) }},
+		{name: "clear", handler: func(a []string) error { return decisionClear(backend) }},
+	})
 }
 
 func printDecisionUsage() {
