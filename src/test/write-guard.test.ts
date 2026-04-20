@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdirSync, writeFileSync, rmSync, existsSync } from "fs";
+import { mkdirSync, mkdtempSync, writeFileSync, rmSync, existsSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 import { checkWriteGuard } from "../core/write-guard.js";
@@ -14,8 +14,7 @@ describe("checkWriteGuard", () => {
   let testDir: string;
 
   beforeEach(() => {
-    testDir = join(tmpdir(), `aide-write-guard-${Date.now()}`);
-    mkdirSync(testDir, { recursive: true });
+    testDir = mkdtempSync(join(tmpdir(), "aide-write-guard-"));
   });
 
   afterEach(() => {

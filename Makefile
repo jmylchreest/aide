@@ -6,7 +6,7 @@
 #   make release-push                Auto-bump, commit, tag, and push
 #   make release-push VERSION=1.2.0  Bump to specific, commit, tag, and push
 
-.PHONY: release release-push build build-pprof build-web test test-ts test-go lint
+.PHONY: release release-push build build-pprof build-web test test-ts test-go lint check-version check-release-needed
 
 VERSION_FILES = package.json .claude-plugin/plugin.json .claude-plugin/marketplace.json packages/opencode-plugin/package.json
 
@@ -29,8 +29,26 @@ check-version:
 	@echo "$(VERSION)" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$$' || \
 		(echo "ERROR: VERSION must be semver (e.g., 1.2.3), got: $(VERSION)" && exit 1)
 
+# Refuse to release if HEAD is already at the latest tag or the tree is dirty
+check-release-needed:
+	@LAST_TAG=$$(git describe --tags --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' 2>/dev/null); \
+	if [ -n "$$LAST_TAG" ]; then \
+		TAG_SHA=$$(git rev-list -n 1 "$$LAST_TAG"); \
+		HEAD_SHA=$$(git rev-parse HEAD); \
+		if [ "$$TAG_SHA" = "$$HEAD_SHA" ]; then \
+			echo "ERROR: HEAD is already at $$LAST_TAG — nothing to release."; \
+			echo "Commit changes before running release."; \
+			exit 1; \
+		fi; \
+	fi
+	@if ! git diff --quiet || ! git diff --cached --quiet; then \
+		echo "ERROR: working tree has uncommitted changes. Commit or stash before releasing."; \
+		git status --short; \
+		exit 1; \
+	fi
+
 # Update version in all JSON manifests, bump changed blueprints, commit, and tag
-release: check-version test-ts
+release: check-version check-release-needed test-ts
 	@echo "Releasing v$(VERSION)..."
 	@for f in $(VERSION_FILES); do \
 		sed -i 's/"version": *"[^"]*"/"version": "$(VERSION)"/' $$f; \
@@ -91,7 +109,7 @@ test-go:
 	$(MAKE) -C aide test
 
 test-ts:
-	bunx vitest run --exclude='tests/memory-capture.test.ts'
+	bunx vitest run --exclude='tests/memory-capture.test.ts' --exclude='dist/**'
 
 build-web:
 	$(MAKE) -C aide-web build
