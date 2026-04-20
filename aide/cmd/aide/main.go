@@ -98,6 +98,8 @@ func runCommand(cmd, dbPath string, args []string) error {
 		return cmdState(dbPath, args)
 	case "token":
 		return cmdTokenDispatcher(dbPath, args)
+	case "observe":
+		return cmdObserveDispatcher(dbPath, args)
 	case "daemon":
 		return cmdDaemon(dbPath, args)
 	case "mcp":

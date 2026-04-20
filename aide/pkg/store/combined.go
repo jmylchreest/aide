@@ -51,6 +51,10 @@ func NewCombinedStore(dbPath string) (*CombinedStore, error) {
 	return cs, nil
 }
 
+// Bolt returns the underlying BoltStore. Used by code that needs direct
+// access to bbolt-only operations (observe sink, schema migrations).
+func (c *CombinedStore) Bolt() *BoltStore { return c.bolt }
+
 // ensureSearchMapping checks if the search index mapping has changed and rebuilds if needed.
 func (c *CombinedStore) ensureSearchMapping() error {
 	m, err := buildIndexMapping()

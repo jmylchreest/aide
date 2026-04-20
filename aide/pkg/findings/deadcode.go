@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -13,6 +14,7 @@ import (
 	"github.com/jmylchreest/aide/aide/pkg/aideignore"
 	"github.com/jmylchreest/aide/aide/pkg/code"
 	"github.com/jmylchreest/aide/aide/pkg/grammar"
+	"github.com/jmylchreest/aide/aide/pkg/observe"
 )
 
 // DeadCodeConfig configures the dead code analyzer.
@@ -60,6 +62,8 @@ type candidateFinding struct {
 // references the index misses: qualified method calls, JSX use sites, function
 // values passed by name).
 func AnalyzeDeadCode(cfg DeadCodeConfig) ([]*Finding, *DeadCodeResult, error) {
+	span := observe.Start("AnalyzeDeadCode", observe.KindSpan).Category("analyzer").Subtype("deadcode")
+	defer span.End()
 	start := time.Now()
 	result := &DeadCodeResult{}
 
@@ -151,6 +155,10 @@ func AnalyzeDeadCode(cfg DeadCodeConfig) ([]*Finding, *DeadCodeResult, error) {
 
 	result.FindingsCount = len(findings)
 	result.Duration = time.Since(start)
+
+	span.Attr("checked", strconv.Itoa(result.SymbolsChecked)).
+		Attr("skipped", strconv.Itoa(result.SymbolsSkipped)).
+		Attr("findings", strconv.Itoa(result.FindingsCount))
 
 	return findings, result, nil
 }

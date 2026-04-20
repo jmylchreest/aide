@@ -6,12 +6,14 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/jmylchreest/aide/aide/pkg/aideignore"
 	"github.com/jmylchreest/aide/aide/pkg/code"
 	"github.com/jmylchreest/aide/aide/pkg/grammar"
+	"github.com/jmylchreest/aide/aide/pkg/observe"
 )
 
 // todoKeywordSeverity maps the canonical TODO-style keyword to a severity.
@@ -52,6 +54,8 @@ type TodosResult struct {
 
 // AnalyzeTodos emits one Finding per TODO/FIXME-style comment found in source files.
 func AnalyzeTodos(cfg TodosConfig) ([]*Finding, *TodosResult, error) {
+	span := observe.Start("AnalyzeTodos", observe.KindSpan).Category("analyzer").Subtype("todos")
+	defer span.End()
 	if len(cfg.Paths) == 0 {
 		cfg.Paths = []string{"."}
 	}
@@ -117,6 +121,8 @@ func AnalyzeTodos(cfg TodosConfig) ([]*Finding, *TodosResult, error) {
 
 	result.FindingsCount = len(allFindings)
 	result.Duration = time.Since(start)
+	span.Attr("files", strconv.Itoa(result.FilesAnalyzed)).
+		Attr("findings", strconv.Itoa(result.FindingsCount))
 	return allFindings, result, nil
 }
 

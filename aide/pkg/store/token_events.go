@@ -2,9 +2,11 @@ package store
 
 import (
 	"encoding/json"
+	"sort"
 	"time"
 
 	"github.com/jmylchreest/aide/aide/pkg/memory"
+	"github.com/jmylchreest/aide/aide/pkg/observe"
 	"github.com/oklog/ulid/v2"
 	bolt "go.etcd.io/bbolt"
 )
@@ -27,41 +29,67 @@ func (s *BoltStore) AddTokenEvent(e *memory.TokenEvent) error {
 	})
 }
 
-// ListTokenEvents returns token events, optionally filtered by session ID and time range.
-// Results are returned in reverse chronological order (newest first).
-// If limit <= 0, all matching events are returned.
-// Zero-value since/until are ignored (no bound).
+// ListTokenEvents returns token events from BOTH the legacy token_events
+// bucket and the new observe_events bucket (translated). Results merged in
+// reverse chronological order (newest first). Zero-value since/until = no bound.
+// Limit <= 0 returns all matches.
 func (s *BoltStore) ListTokenEvents(sessionID string, limit int, since, until time.Time) ([]*memory.TokenEvent, error) {
 	var events []*memory.TokenEvent
+	keep := func(e *memory.TokenEvent) bool {
+		if !since.IsZero() && e.Timestamp.Before(since) {
+			return false
+		}
+		if !until.IsZero() && e.Timestamp.After(until) {
+			return false
+		}
+		if sessionID != "" && e.SessionID != sessionID {
+			return false
+		}
+		return true
+	}
 
 	err := s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(BucketTokenEvents)
 		c := b.Cursor()
-
-		// ULIDs are time-ordered, so iterate in reverse for newest-first.
 		for k, v := c.Last(); k != nil; k, v = c.Prev() {
 			var e memory.TokenEvent
 			if err := json.Unmarshal(v, &e); err != nil {
 				continue
 			}
 			if !since.IsZero() && e.Timestamp.Before(since) {
-				break // ULIDs are time-ordered; no older events will match
-			}
-			if !until.IsZero() && e.Timestamp.After(until) {
-				continue
-			}
-			if sessionID != "" && e.SessionID != sessionID {
-				continue
-			}
-			events = append(events, &e)
-			if limit > 0 && len(events) >= limit {
 				break
+			}
+			if keep(&e) {
+				events = append(events, &e)
+			}
+		}
+
+		ob := tx.Bucket(BucketObserveEvents)
+		oc := ob.Cursor()
+		for k, v := oc.Last(); k != nil; k, v = oc.Prev() {
+			var oe observe.Event
+			if err := json.Unmarshal(v, &oe); err != nil {
+				continue
+			}
+			if !since.IsZero() && oe.Timestamp.Before(since) {
+				break
+			}
+			te := observeToTokenEvent(&oe)
+			if te != nil && keep(te) {
+				events = append(events, te)
 			}
 		}
 		return nil
 	})
 	if err != nil {
 		return nil, err
+	}
+
+	sort.Slice(events, func(i, j int) bool {
+		return events[i].Timestamp.After(events[j].Timestamp)
+	})
+	if limit > 0 && len(events) > limit {
+		events = events[:limit]
 	}
 	return events, nil
 }
@@ -77,54 +105,74 @@ func (s *BoltStore) TokenStats(sessionID string, since, until time.Time) (*memor
 	}
 	sessions := make(map[string]bool)
 
+	tally := func(e *memory.TokenEvent) {
+		if !since.IsZero() && e.Timestamp.Before(since) {
+			return
+		}
+		if !until.IsZero() && e.Timestamp.After(until) {
+			return
+		}
+		if sessionID != "" && e.SessionID != sessionID {
+			return
+		}
+
+		stats.EventCount++
+		sessions[e.SessionID] = true
+
+		switch e.EventType {
+		case memory.TokenEventRead:
+			stats.TotalRead += e.Tokens
+			stats.ByTool[e.Tool] += e.Tokens
+			stats.ReadCount++
+		case memory.TokenEventOutlineUsed:
+			stats.TotalRead += e.Tokens
+			stats.TotalSaved += e.TokensSaved
+			stats.ByTool[e.Tool] += e.Tokens
+			stats.BySavingType["outline"] += e.TokensSaved
+			stats.CodeToolCount++
+		case memory.TokenEventSymbolRead:
+			stats.TotalRead += e.Tokens
+			stats.TotalSaved += e.TokensSaved
+			stats.ByTool[e.Tool] += e.Tokens
+			stats.BySavingType["symbol_read"] += e.TokensSaved
+			stats.CodeToolCount++
+		case memory.TokenEventReadAvoided:
+			stats.TotalSaved += e.TokensSaved
+			stats.BySavingType["read_avoided"] += e.TokensSaved
+		case memory.TokenEventContextInjected:
+			stats.TotalDelivered += e.Tokens
+			if e.Tool != "" {
+				stats.ByDelivery[e.Tool] += e.Tokens
+			}
+		}
+	}
+
 	err := s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(BucketTokenEvents)
 		c := b.Cursor()
-
-		// Iterate newest-first so we can break early on since bound.
 		for k, v := c.Last(); k != nil; k, v = c.Prev() {
 			var e memory.TokenEvent
 			if err := json.Unmarshal(v, &e); err != nil {
-				continue // skip malformed
+				continue
 			}
 			if !since.IsZero() && e.Timestamp.Before(since) {
-				break // ULIDs are time-ordered; everything older is out of range
+				break
 			}
-			if !until.IsZero() && e.Timestamp.After(until) {
+			tally(&e)
+		}
+
+		ob := tx.Bucket(BucketObserveEvents)
+		oc := ob.Cursor()
+		for k, v := oc.Last(); k != nil; k, v = oc.Prev() {
+			var oe observe.Event
+			if err := json.Unmarshal(v, &oe); err != nil {
 				continue
 			}
-			if sessionID != "" && e.SessionID != sessionID {
-				continue
+			if !since.IsZero() && oe.Timestamp.Before(since) {
+				break
 			}
-
-			stats.EventCount++
-			sessions[e.SessionID] = true
-
-			switch e.EventType {
-			case memory.TokenEventRead:
-				stats.TotalRead += e.Tokens
-				stats.ByTool[e.Tool] += e.Tokens
-				stats.ReadCount++
-			case memory.TokenEventOutlineUsed:
-				stats.TotalRead += e.Tokens
-				stats.TotalSaved += e.TokensSaved
-				stats.ByTool[e.Tool] += e.Tokens
-				stats.BySavingType["outline"] += e.TokensSaved
-				stats.CodeToolCount++
-			case memory.TokenEventSymbolRead:
-				stats.TotalRead += e.Tokens
-				stats.TotalSaved += e.TokensSaved
-				stats.ByTool[e.Tool] += e.Tokens
-				stats.BySavingType["symbol_read"] += e.TokensSaved
-				stats.CodeToolCount++
-			case memory.TokenEventReadAvoided:
-				stats.TotalSaved += e.TokensSaved
-				stats.BySavingType["read_avoided"] += e.TokensSaved
-			case memory.TokenEventContextInjected:
-				stats.TotalDelivered += e.Tokens
-				if e.Tool != "" {
-					stats.ByDelivery[e.Tool] += e.Tokens
-				}
+			if te := observeToTokenEvent(&oe); te != nil {
+				tally(te)
 			}
 		}
 		return nil

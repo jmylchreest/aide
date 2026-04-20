@@ -23,8 +23,9 @@ var (
 	BucketMessages    = []byte("messages")
 	BucketDecisions   = []byte("decisions")
 	BucketState       = []byte("state")
-	BucketTokenEvents = []byte("token_events")
-	BucketMeta        = []byte("meta")
+	BucketTokenEvents   = []byte("token_events")
+	BucketObserveEvents = []byte("observe_events")
+	BucketMeta          = []byte("meta")
 )
 
 // BoltStore implements storage using bbolt.
@@ -49,6 +50,7 @@ func NewBoltStore(path string) (*BoltStore, error) {
 			BucketDecisions,
 			BucketState,
 			BucketTokenEvents,
+			BucketObserveEvents,
 			BucketMeta,
 		}
 		for _, bucket := range buckets {

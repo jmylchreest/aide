@@ -22,6 +22,7 @@ import (
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi"
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi/adapter"
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi/registry"
+	"github.com/jmylchreest/aide/aide/pkg/observe"
 	"github.com/jmylchreest/aide/aide/pkg/store"
 	"github.com/jmylchreest/aide/aide/pkg/watcher"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -598,6 +599,12 @@ func cmdMCP(dbPath string, args []string) error {
 	}
 	defer st.Close()
 	mcpLog.Printf("database opened in %v (bolt + bleve search)", time.Since(storeStart))
+
+	// Wire the global observe recorder so any package that emits spans lands
+	// in the daemon's bolt store. Cleared on shutdown so callers post-defer
+	// don't retain a stale sink.
+	observe.SetDefault(store.NewObserveSink(st.Bolt()))
+	defer observe.SetDefault(nil)
 
 	mcpServer := &MCPServer{store: st, grammarLoader: grammarLoader, dbPath: dbPath}
 

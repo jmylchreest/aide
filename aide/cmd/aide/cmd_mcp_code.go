@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/jmylchreest/aide/aide/pkg/code"
-	"github.com/jmylchreest/aide/aide/pkg/memory"
+	"github.com/jmylchreest/aide/aide/pkg/observe"
 	"github.com/jmylchreest/aide/aide/pkg/store"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -225,6 +225,8 @@ or code_symbols over a full Read to save context window tokens.`,
 }
 
 func (s *MCPServer) handleCodeSearch(_ context.Context, _ *mcp.CallToolRequest, input CodeSearchInput) (*mcp.CallToolResult, any, error) {
+	span := observe.Start("code_search", observe.KindToolCall).Category("navigate").Subtype("sym_search").Attr("query", input.Query)
+	defer span.End()
 	mcpLog.Printf("tool: code_search query=%q kind=%s lang=%s", input.Query, input.Kind, input.Language)
 
 	codeStore := s.getCodeStore()
@@ -262,6 +264,8 @@ func (s *MCPServer) handleCodeSearch(_ context.Context, _ *mcp.CallToolRequest, 
 }
 
 func (s *MCPServer) handleCodeSymbols(_ context.Context, _ *mcp.CallToolRequest, input CodeSymbolsInput) (*mcp.CallToolResult, any, error) {
+	span := observe.Start("code_symbols", observe.KindToolCall).Category("navigate").Subtype("file_syms").FilePath(input.FilePath)
+	defer span.End()
 	mcpLog.Printf("tool: code_symbols file=%s", input.FilePath)
 
 	symbols, err := s.getFileSymbolsFresh(input.FilePath)
@@ -313,6 +317,8 @@ func (s *MCPServer) getFileSymbolsFresh(filePath string) ([]*code.Symbol, error)
 }
 
 func (s *MCPServer) handleCodeStats(_ context.Context, _ *mcp.CallToolRequest, _ CodeStatsInput) (*mcp.CallToolResult, any, error) {
+	span := observe.Start("code_stats", observe.KindToolCall).Category("navigate").Subtype("stats")
+	defer span.End()
 	mcpLog.Printf("tool: code_stats")
 
 	codeStore := s.getCodeStore()
@@ -331,6 +337,8 @@ func (s *MCPServer) handleCodeStats(_ context.Context, _ *mcp.CallToolRequest, _
 }
 
 func (s *MCPServer) handleCodeReferences(_ context.Context, _ *mcp.CallToolRequest, input CodeReferencesInput) (*mcp.CallToolResult, any, error) {
+	span := observe.Start("code_references", observe.KindToolCall).Category("navigate").Subtype("refs")
+	defer span.End()
 	// Resolve symbol names: batch mode takes precedence
 	names := input.SymbolNames
 	if len(names) == 0 && input.SymbolName != "" {
@@ -397,6 +405,8 @@ func (s *MCPServer) handleCodeReferences(_ context.Context, _ *mcp.CallToolReque
 }
 
 func (s *MCPServer) handleCodeTopReferences(_ context.Context, _ *mcp.CallToolRequest, input CodeTopReferencesInput) (*mcp.CallToolResult, any, error) {
+	span := observe.Start("code_top_references", observe.KindToolCall).Category("navigate").Subtype("top_refs")
+	defer span.End()
 	mcpLog.Printf("tool: code_top_references limit=%d kind=%s", input.Limit, input.Kind)
 
 	codeStore := s.getCodeStore()
@@ -438,6 +448,8 @@ func (s *MCPServer) handleCodeTopReferences(_ context.Context, _ *mcp.CallToolRe
 }
 
 func (s *MCPServer) handleCodeOutline(_ context.Context, _ *mcp.CallToolRequest, input CodeOutlineInput) (*mcp.CallToolResult, any, error) {
+	span := observe.Start("code_outline", observe.KindToolCall).Category("consume").Subtype("outline").FilePath(input.File)
+	defer span.End()
 	mcpLog.Printf("tool: code_outline file=%s keep_comments=%v", input.File, input.KeepComments)
 
 	if input.File == "" {
@@ -466,24 +478,20 @@ func (s *MCPServer) handleCodeOutline(_ context.Context, _ *mcp.CallToolRequest,
 	outline := buildOutline(fileContent, symbols, !input.KeepComments)
 	mcpLog.Printf("  outline: %d symbols, %d/%d lines", len(symbols), countLines(outline), countLines(string(fileContent)))
 
-	// Record token event: outline used instead of full file read
 	fullTokens := code.EstimateTokensFromSize(input.File, int64(len(fileContent)))
 	outlineTokens := code.EstimateTokens(input.File, len(outline))
 	saved := fullTokens - outlineTokens
-	if saved > 0 && s.store != nil {
-		s.store.AddTokenEvent(&memory.TokenEvent{
-			EventType:   memory.TokenEventOutlineUsed,
-			Tool:        "code_outline",
-			FilePath:    input.File,
-			Tokens:      outlineTokens,
-			TokensSaved: saved,
-		})
+	if saved < 0 {
+		saved = 0
 	}
+	span.Tokens(outlineTokens).Saved(saved)
 
 	return textResult(outline), nil, nil
 }
 
 func (s *MCPServer) handleCodeReadCheck(_ context.Context, _ *mcp.CallToolRequest, input CodeReadCheckInput) (*mcp.CallToolResult, any, error) {
+	span := observe.Start("code_read_check", observe.KindToolCall).Category("navigate").Subtype("read_check").FilePath(input.File)
+	defer span.End()
 	mcpLog.Printf("tool: code_read_check file=%s", input.File)
 
 	if input.File == "" {
@@ -537,6 +545,8 @@ func (s *MCPServer) handleCodeReadCheck(_ context.Context, _ *mcp.CallToolReques
 }
 
 func (s *MCPServer) handleCodeReadSymbol(_ context.Context, _ *mcp.CallToolRequest, input CodeReadSymbolInput) (*mcp.CallToolResult, any, error) {
+	span := observe.Start("code_read_symbol", observe.KindToolCall).Category("consume").Subtype("symbol")
+	defer span.End()
 	// Resolve symbol names: batch mode takes precedence
 	names := input.Symbols
 	if len(names) == 0 && input.Symbol != "" {
@@ -577,14 +587,17 @@ func (s *MCPServer) handleCodeReadSymbol(_ context.Context, _ *mcp.CallToolReque
 		totalTokens += symbolTokens
 		totalSaved += saved
 
-		if saved > 0 && s.store != nil {
-			s.store.AddTokenEvent(&memory.TokenEvent{
-				EventType:   memory.TokenEventSymbolRead,
-				Tool:        "code_read_symbol",
-				FilePath:    sym.FilePath,
-				Tokens:      symbolTokens,
-				TokensSaved: saved,
-			})
+	}
+
+	span.Tokens(totalTokens).Saved(totalSaved).Attr("symbols", fmt.Sprintf("%d/%d", found, len(names)))
+	if found == 1 {
+		// Single-symbol mode: surface the file path on the span.
+		// (Batch mode mixes files; we leave FilePath empty.)
+		for _, name := range names {
+			if sym, _, _, _ := s.readOneSymbol(s.getCodeStore(), projectRoot(s.dbPath), name, input.Kind); sym != nil {
+				span.FilePath(sym.FilePath)
+				break
+			}
 		}
 	}
 

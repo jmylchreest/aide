@@ -11,6 +11,7 @@ import (
 	"github.com/jmylchreest/aide/aide/pkg/aideignore"
 	"github.com/jmylchreest/aide/aide/pkg/code"
 	"github.com/jmylchreest/aide/aide/pkg/grammar"
+	"github.com/jmylchreest/aide/aide/pkg/observe"
 	"github.com/jmylchreest/aide/aide/pkg/store"
 )
 
@@ -486,6 +487,8 @@ func (idx *Indexer) Close() error {
 
 // IndexFile indexes a single file (symbols and references).
 func (idx *Indexer) IndexFile(filePath string) (int, error) {
+	span := observe.Start("Indexer.IndexFile", observe.KindSpan).Category("indexer").Subtype("index_file").FilePath(filePath)
+	defer span.End()
 	// Get relative path from project root
 	relPath := filePath
 	if abs, err := filepath.Abs(filePath); err == nil {
@@ -556,7 +559,14 @@ type ReconcileResult struct {
 // now matches an aideignore rule are removed, and stale entries (file mtime
 // newer than the indexed mtime) are re-indexed.
 func (idx *Indexer) Reconcile() (ReconcileResult, error) {
+	span := observe.Start("Indexer.Reconcile", observe.KindSpan).Category("indexer").Subtype("reconcile")
+	defer span.End()
 	var res ReconcileResult
+	defer func() {
+		span.Attr("checked", strconv.Itoa(res.Checked)).
+			Attr("removed", strconv.Itoa(res.Removed)).
+			Attr("refreshed", strconv.Itoa(res.Refreshed))
+	}()
 
 	infos, err := idx.store.ListAllFileInfo()
 	if err != nil {
