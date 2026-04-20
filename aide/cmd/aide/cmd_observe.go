@@ -14,27 +14,13 @@ import (
 )
 
 func cmdObserveDispatcher(dbPath string, args []string) error {
-	if len(args) < 1 {
-		printObserveUsage()
-		return nil
-	}
-	switch args[0] {
-	case "list":
-		return cmdObserveList(dbPath, args[1:])
-	case "summary":
-		return cmdObserveSummary(dbPath, args[1:])
-	case "efficiency":
-		return cmdObserveEfficiency(dbPath, args[1:])
-	case "record":
-		return cmdObserveRecord(dbPath, args[1:])
-	case "cleanup":
-		return cmdObserveCleanup(dbPath, args[1:])
-	case "--help", "-h":
-		printObserveUsage()
-		return nil
-	default:
-		return fmt.Errorf("unknown observe subcommand: %s", args[0])
-	}
+	return dispatchSubcmd("observe", args, printObserveUsage, []subcmd{
+		{name: "list", handler: func(a []string) error { return cmdObserveList(dbPath, a) }},
+		{name: "summary", handler: func(a []string) error { return cmdObserveSummary(dbPath, a) }},
+		{name: "efficiency", handler: func(a []string) error { return cmdObserveEfficiency(dbPath, a) }},
+		{name: "record", handler: func(a []string) error { return cmdObserveRecord(dbPath, a) }},
+		{name: "cleanup", handler: func(a []string) error { return cmdObserveCleanup(dbPath, a) }},
+	})
 }
 
 func printObserveUsage() {

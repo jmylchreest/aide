@@ -18,33 +18,14 @@ func getSurveyStorePath(dbPath string) string {
 
 // cmdSurveyDispatcher routes survey subcommands.
 func cmdSurveyDispatcher(dbPath string, args []string) error {
-	if len(args) < 1 {
-		printSurveyUsage()
-		return nil
-	}
-
-	subcmd := args[0]
-	subargs := args[1:]
-
-	switch subcmd {
-	case "search":
-		return cmdSurveySearch(dbPath, subargs)
-	case "list":
-		return cmdSurveyList(dbPath, subargs)
-	case "stats":
-		return cmdSurveyStats(dbPath, subargs)
-	case "run":
-		return cmdSurveyRun(dbPath, subargs)
-	case "graph":
-		return cmdSurveyGraph(dbPath, subargs)
-	case "clear":
-		return cmdSurveyClear(dbPath, subargs)
-	case "help", "-h", "--help":
-		printSurveyUsage()
-		return nil
-	default:
-		return fmt.Errorf("unknown survey subcommand: %s", subcmd)
-	}
+	return dispatchSubcmd("survey", args, printSurveyUsage, []subcmd{
+		{name: "search", handler: func(a []string) error { return cmdSurveySearch(dbPath, a) }},
+		{name: "list", handler: func(a []string) error { return cmdSurveyList(dbPath, a) }},
+		{name: "stats", handler: func(a []string) error { return cmdSurveyStats(dbPath, a) }},
+		{name: "run", handler: func(a []string) error { return cmdSurveyRun(dbPath, a) }},
+		{name: "graph", handler: func(a []string) error { return cmdSurveyGraph(dbPath, a) }},
+		{name: "clear", handler: func(a []string) error { return cmdSurveyClear(dbPath, a) }},
+	})
 }
 
 // cmdSurveySearch searches survey entries by query.

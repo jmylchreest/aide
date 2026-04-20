@@ -18,30 +18,16 @@ import (
 )
 
 func cmdBlueprint(dbPath string, args []string) error {
-	if len(args) == 0 || hasFlag(args, "--help") || hasFlag(args, "-h") {
-		printBlueprintUsage()
-		return nil
-	}
-
-	subcmd := args[0]
-	subargs := args[1:]
-
-	switch subcmd {
-	case "list":
-		return blueprintList()
-	case "show":
-		if len(subargs) < 1 {
-			return fmt.Errorf("usage: aide blueprint show <name>")
-		}
-		return blueprintShow(subargs[0], dbPath)
-	case "import":
-		return blueprintImport(dbPath, subargs)
-	case "help", "-h", "--help":
-		printBlueprintUsage()
-		return nil
-	default:
-		return fmt.Errorf("unknown blueprint subcommand: %s", subcmd)
-	}
+	return dispatchSubcmd("blueprint", args, printBlueprintUsage, []subcmd{
+		{name: "list", handler: func(a []string) error { return blueprintList() }},
+		{name: "show", handler: func(a []string) error {
+			if len(a) < 1 {
+				return fmt.Errorf("usage: aide blueprint show <name>")
+			}
+			return blueprintShow(a[0], dbPath)
+		}},
+		{name: "import", handler: func(a []string) error { return blueprintImport(dbPath, a) }},
+	})
 }
 
 func blueprintImport(dbPath string, args []string) error {

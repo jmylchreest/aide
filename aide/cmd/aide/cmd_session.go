@@ -48,24 +48,9 @@ type SessionDecision struct {
 }
 
 func cmdSession(dbPath string, args []string) error {
-	if len(args) < 1 {
-		printSessionUsage()
-		return nil
-	}
-
-	subcmd := args[0]
-
-	if subcmd == "help" || subcmd == "-h" || subcmd == "--help" {
-		printSessionUsage()
-		return nil
-	}
-
-	switch subcmd {
-	case "init":
-		return sessionInit(dbPath, args[1:])
-	default:
-		return fmt.Errorf("unknown session subcommand: %s", subcmd)
-	}
+	return dispatchSubcmd("session", args, printSessionUsage, []subcmd{
+		{name: "init", handler: func(a []string) error { return sessionInit(dbPath, a) }},
+	})
 }
 
 func printSessionUsage() {

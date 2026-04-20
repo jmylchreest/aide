@@ -9,14 +9,7 @@ import (
 )
 
 func cmdState(dbPath string, args []string) error {
-	if len(args) < 1 {
-		printStateUsage()
-		return nil
-	}
-
-	subcmd := args[0]
-
-	if subcmd == "help" || subcmd == "-h" || subcmd == "--help" {
+	if len(args) == 0 || args[0] == "help" || args[0] == "-h" || args[0] == "--help" {
 		printStateUsage()
 		return nil
 	}
@@ -27,24 +20,14 @@ func cmdState(dbPath string, args []string) error {
 	}
 	defer backend.Close()
 
-	subargs := args[1:]
-
-	switch subcmd {
-	case "set":
-		return stateSet(backend, subargs)
-	case "get":
-		return stateGet(backend, subargs)
-	case "delete":
-		return stateDelete(backend, subargs)
-	case "list":
-		return stateList(backend, subargs)
-	case "clear":
-		return stateClear(backend, subargs)
-	case "cleanup":
-		return stateCleanup(backend, subargs)
-	default:
-		return fmt.Errorf("unknown state subcommand: %s", subcmd)
-	}
+	return dispatchSubcmd("state", args, printStateUsage, []subcmd{
+		{name: "set", handler: func(a []string) error { return stateSet(backend, a) }},
+		{name: "get", handler: func(a []string) error { return stateGet(backend, a) }},
+		{name: "delete", handler: func(a []string) error { return stateDelete(backend, a) }},
+		{name: "list", handler: func(a []string) error { return stateList(backend, a) }},
+		{name: "clear", handler: func(a []string) error { return stateClear(backend, a) }},
+		{name: "cleanup", handler: func(a []string) error { return stateCleanup(backend, a) }},
+	})
 }
 
 func printStateUsage() {

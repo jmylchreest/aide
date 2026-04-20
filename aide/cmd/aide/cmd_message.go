@@ -6,14 +6,7 @@ import (
 )
 
 func cmdMessage(dbPath string, args []string) error {
-	if len(args) < 1 {
-		printMessageUsage()
-		return nil
-	}
-
-	subcmd := args[0]
-
-	if subcmd == "help" || subcmd == "-h" || subcmd == "--help" {
+	if len(args) == 0 || args[0] == "help" || args[0] == "-h" || args[0] == "--help" {
 		printMessageUsage()
 		return nil
 	}
@@ -24,22 +17,13 @@ func cmdMessage(dbPath string, args []string) error {
 	}
 	defer backend.Close()
 
-	subargs := args[1:]
-
-	switch subcmd {
-	case "send":
-		return messageSend(backend, subargs)
-	case "list":
-		return messageList(backend, subargs)
-	case "ack":
-		return messageAck(backend, subargs)
-	case "clear":
-		return messageClear(backend, dbPath, subargs)
-	case "prune":
-		return messagePrune(backend)
-	default:
-		return fmt.Errorf("unknown message subcommand: %s", subcmd)
-	}
+	return dispatchSubcmd("message", args, printMessageUsage, []subcmd{
+		{name: "send", handler: func(a []string) error { return messageSend(backend, a) }},
+		{name: "list", handler: func(a []string) error { return messageList(backend, a) }},
+		{name: "ack", handler: func(a []string) error { return messageAck(backend, a) }},
+		{name: "clear", handler: func(a []string) error { return messageClear(backend, dbPath, a) }},
+		{name: "prune", handler: func(a []string) error { return messagePrune(backend) }},
+	})
 }
 
 func printMessageUsage() {

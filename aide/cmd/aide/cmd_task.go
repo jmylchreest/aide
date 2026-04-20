@@ -5,14 +5,7 @@ import (
 )
 
 func cmdTask(dbPath string, args []string) error {
-	if len(args) < 1 {
-		printTaskUsage()
-		return nil
-	}
-
-	subcmd := args[0]
-
-	if subcmd == "help" || subcmd == "-h" || subcmd == "--help" {
+	if len(args) == 0 || args[0] == "help" || args[0] == "-h" || args[0] == "--help" {
 		printTaskUsage()
 		return nil
 	}
@@ -23,24 +16,14 @@ func cmdTask(dbPath string, args []string) error {
 	}
 	defer backend.Close()
 
-	subargs := args[1:]
-
-	switch subcmd {
-	case "create":
-		return taskCreate(backend, subargs)
-	case "claim":
-		return taskClaim(backend, subargs)
-	case "complete":
-		return taskComplete(backend, subargs)
-	case "list":
-		return taskList(backend, subargs)
-	case "clear":
-		return taskClear(backend, subargs)
-	case "delete":
-		return taskDelete(backend, subargs)
-	default:
-		return fmt.Errorf("unknown task subcommand: %s", subcmd)
-	}
+	return dispatchSubcmd("task", args, printTaskUsage, []subcmd{
+		{name: "create", handler: func(a []string) error { return taskCreate(backend, a) }},
+		{name: "claim", handler: func(a []string) error { return taskClaim(backend, a) }},
+		{name: "complete", handler: func(a []string) error { return taskComplete(backend, a) }},
+		{name: "list", handler: func(a []string) error { return taskList(backend, a) }},
+		{name: "clear", handler: func(a []string) error { return taskClear(backend, a) }},
+		{name: "delete", handler: func(a []string) error { return taskDelete(backend, a) }},
+	})
 }
 
 func printTaskUsage() {

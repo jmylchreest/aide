@@ -13,29 +13,12 @@ import (
 )
 
 func cmdTokenDispatcher(dbPath string, args []string) error {
-	if len(args) < 1 {
-		printTokenUsage()
-		return nil
-	}
-
-	subcmd := args[0]
-	subargs := args[1:]
-
-	switch subcmd {
-	case "record":
-		return cmdTokenRecord(dbPath, subargs)
-	case "summary":
-		return cmdTokenSummary(dbPath, subargs)
-	case "stats":
-		return cmdTokenStats(dbPath, subargs)
-	case "cleanup":
-		return cmdTokenCleanup(dbPath, subargs)
-	case "help", "-h", "--help":
-		printTokenUsage()
-		return nil
-	default:
-		return fmt.Errorf("unknown token subcommand: %s", subcmd)
-	}
+	return dispatchSubcmd("token", args, printTokenUsage, []subcmd{
+		{name: "record", handler: func(a []string) error { return cmdTokenRecord(dbPath, a) }},
+		{name: "summary", handler: func(a []string) error { return cmdTokenSummary(dbPath, a) }},
+		{name: "stats", handler: func(a []string) error { return cmdTokenStats(dbPath, a) }},
+		{name: "cleanup", handler: func(a []string) error { return cmdTokenCleanup(dbPath, a) }},
+	})
 }
 
 func printTokenUsage() {

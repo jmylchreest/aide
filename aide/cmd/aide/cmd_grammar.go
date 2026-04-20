@@ -16,29 +16,12 @@ import (
 
 // cmdGrammarDispatcher routes grammar subcommands.
 func cmdGrammarDispatcher(dbPath string, args []string) error {
-	if len(args) < 1 {
-		printGrammarUsage()
-		return nil
-	}
-
-	subcmd := args[0]
-	subargs := args[1:]
-
-	switch subcmd {
-	case "list", "ls":
-		return cmdGrammarList(dbPath, subargs)
-	case "install":
-		return cmdGrammarInstall(dbPath, subargs)
-	case "remove", "rm":
-		return cmdGrammarRemove(dbPath, subargs)
-	case "scan":
-		return cmdGrammarScan(dbPath, subargs)
-	case "help", "-h", "--help":
-		printGrammarUsage()
-		return nil
-	default:
-		return fmt.Errorf("unknown grammar subcommand: %s", subcmd)
-	}
+	return dispatchSubcmd("grammar", args, printGrammarUsage, []subcmd{
+		{name: "list", aliases: []string{"ls"}, handler: func(a []string) error { return cmdGrammarList(dbPath, a) }},
+		{name: "install", handler: func(a []string) error { return cmdGrammarInstall(dbPath, a) }},
+		{name: "remove", aliases: []string{"rm"}, handler: func(a []string) error { return cmdGrammarRemove(dbPath, a) }},
+		{name: "scan", handler: func(a []string) error { return cmdGrammarScan(dbPath, a) }},
+	})
 }
 
 func printGrammarUsage() {

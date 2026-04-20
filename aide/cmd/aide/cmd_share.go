@@ -32,25 +32,10 @@ var sanitizeFilenameRe = regexp.MustCompile(`[^a-zA-Z0-9_-]+`)
 
 // cmdShare dispatches share subcommands.
 func cmdShare(dbPath string, args []string) error {
-	if len(args) < 1 || hasFlag(args, "--help") || hasFlag(args, "-h") {
-		printShareUsage()
-		return nil
-	}
-
-	subcmd := args[0]
-	subargs := args[1:]
-
-	switch subcmd {
-	case "export":
-		return cmdShareExport(dbPath, subargs)
-	case "import":
-		return cmdShareImport(dbPath, subargs)
-	case "help", "-h", "--help":
-		printShareUsage()
-		return nil
-	default:
-		return fmt.Errorf("unknown share subcommand: %s", subcmd)
-	}
+	return dispatchSubcmd("share", args, printShareUsage, []subcmd{
+		{name: "export", handler: func(a []string) error { return cmdShareExport(dbPath, a) }},
+		{name: "import", handler: func(a []string) error { return cmdShareImport(dbPath, a) }},
+	})
 }
 
 func printShareUsage() {

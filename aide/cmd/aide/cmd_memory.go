@@ -13,41 +13,18 @@ import (
 
 // cmdMemoryDispatcher routes memory subcommands.
 func cmdMemoryDispatcher(dbPath string, args []string) error {
-	if len(args) < 1 {
-		printMemoryUsage()
-		return nil
-	}
-
-	subcmd := args[0]
-	subargs := args[1:]
-
-	switch subcmd {
-	case "add":
-		return cmdAdd(dbPath, subargs)
-	case "delete":
-		return cmdDelete(dbPath, subargs)
-	case "tag":
-		return cmdTag(dbPath, subargs)
-	case "search":
-		return cmdSearch(dbPath, subargs)
-	case "select":
-		return cmdSelect(dbPath, subargs)
-	case "list":
-		return cmdList(dbPath, subargs)
-	case "sessions":
-		return cmdSessions(dbPath, subargs)
-	case "export":
-		return cmdExport(dbPath, subargs)
-	case "clear":
-		return cmdClearMemories(dbPath)
-	case "reindex":
-		return cmdReindex(dbPath)
-	case "help", "-h", "--help":
-		printMemoryUsage()
-		return nil
-	default:
-		return fmt.Errorf("unknown memory subcommand: %s", subcmd)
-	}
+	return dispatchSubcmd("memory", args, printMemoryUsage, []subcmd{
+		{name: "add", handler: func(a []string) error { return cmdAdd(dbPath, a) }},
+		{name: "delete", handler: func(a []string) error { return cmdDelete(dbPath, a) }},
+		{name: "tag", handler: func(a []string) error { return cmdTag(dbPath, a) }},
+		{name: "search", handler: func(a []string) error { return cmdSearch(dbPath, a) }},
+		{name: "select", handler: func(a []string) error { return cmdSelect(dbPath, a) }},
+		{name: "list", handler: func(a []string) error { return cmdList(dbPath, a) }},
+		{name: "sessions", handler: func(a []string) error { return cmdSessions(dbPath, a) }},
+		{name: "export", handler: func(a []string) error { return cmdExport(dbPath, a) }},
+		{name: "clear", handler: func(a []string) error { return cmdClearMemories(dbPath) }},
+		{name: "reindex", handler: func(a []string) error { return cmdReindex(dbPath) }},
+	})
 }
 
 func printMemoryUsage() {
