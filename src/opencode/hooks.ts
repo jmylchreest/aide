@@ -51,7 +51,7 @@ import { checkPersistence, getActiveMode } from "../core/persistence-logic.js";
 import { checkWriteGuard } from "../core/write-guard.js";
 import { checkSmartReadHint } from "../core/context-guard.js";
 import { checkSearchEnrichment } from "../core/search-enrichment.js";
-import { recordFileRead } from "../core/read-tracking.js";
+import { recordToolEvent } from "../core/tool-observe.js";
 import {
   checkComments,
   getCheckableFilePath,
@@ -798,25 +798,27 @@ function createToolAfterHandler(
       debug(SOURCE, `Partial memory write failed (non-fatal): ${err}`);
     }
 
-    // Record file reads for smart-read-hint feature
+    // Record tool call as an observe event (mirror of MCP middleware on the
+    // Go side — together they give complete tool-call coverage). Also handles
+    // smart-read-hint state via recordFileRead inside the core module.
     try {
       const toolArgs = (_output.metadata?.args || {}) as Record<
         string,
         unknown
       >;
-      if (
-        input.tool.toLowerCase() === "read" &&
-        toolArgs.file_path &&
-        state.binary
-      ) {
-        recordFileRead(
-          state.binary,
-          state.cwd,
-          toolArgs.file_path as string,
-        );
-      }
+      recordToolEvent(state.binary, state.cwd, {
+        toolName: input.tool,
+        toolInput: toolArgs as {
+          file_path?: string;
+          offset?: number;
+          limit?: number;
+          command?: string;
+          pattern?: string;
+        },
+        sessionId: input.sessionID,
+      });
     } catch (err) {
-      debug(SOURCE, `Read tracking failed (non-fatal): ${err}`);
+      debug(SOURCE, `Tool observe recording failed (non-fatal): ${err}`);
     }
 
     // Context pruning: dedup/supersede/purge tool outputs

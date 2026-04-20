@@ -8,8 +8,6 @@
  * Output is written to .aide/state/hud.txt for the terminal to display.
  */
 
-import { statSync } from "fs";
-import { resolve, isAbsolute } from "path";
 import { Logger, debug } from "../lib/logger.js";
 import { readStdin } from "../lib/hook-utils.js";
 
@@ -17,7 +15,6 @@ const SOURCE = "hud-updater";
 import { findAideBinary } from "../core/aide-client.js";
 import { updateToolStats } from "../core/tool-tracking.js";
 import { storePartialMemory } from "../core/partial-memory.js";
-import { recordFileRead, recordTokenEvent, estimateTokensFromSize } from "../core/read-tracking.js"; // estimateTokensFromSize used for read events
 import {
   getAgentStates,
   loadHudConfig,
@@ -89,36 +86,6 @@ async function main(): Promise<void> {
           description: data.tool_input?.description,
           success: data.tool_result?.success,
         });
-
-        // Record file reads for smart-read-hint feature
-        if (
-          toolName === "Read" &&
-          data.tool_result?.success &&
-          data.tool_input?.file_path
-        ) {
-          const fp = data.tool_input.file_path as string;
-          recordFileRead(binary, cwd, fp);
-
-          // Record token event for the read
-          // If offset/limit were used, estimate only the portion actually read
-          try {
-            const abs = isAbsolute(fp) ? fp : resolve(cwd, fp);
-            const stat = statSync(abs);
-            const fullTokens = estimateTokensFromSize(stat.size);
-            const offset = data.tool_input?.offset as number | undefined;
-            const limit = data.tool_input?.limit as number | undefined;
-            let tokens = fullTokens;
-            if (limit !== undefined && limit > 0 && stat.size > 0) {
-              // Estimate average bytes per line, scale by lines actually read
-              const estTotalLines = Math.max(1, Math.round(stat.size / 35));
-              const linesRead = Math.min(limit, estTotalLines - (offset || 0));
-              tokens = Math.round(fullTokens * (linesRead / estTotalLines));
-            }
-            recordTokenEvent(binary, cwd, "read", "Read", fp, tokens);
-          } catch {
-            // stat failed — skip token recording
-          }
-        }
 
       }
       log.end("updateSessionState");

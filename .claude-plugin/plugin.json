@@ -48,6 +48,11 @@
         "hooks": [
           {
             "type": "command",
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}/src/hooks/tool-observe.ts\"",
+            "timeout": 3
+          },
+          {
+            "type": "command",
             "command": "bun \"${CLAUDE_PLUGIN_ROOT}/src/hooks/hud-updater.ts\"",
             "timeout": 3
           },
