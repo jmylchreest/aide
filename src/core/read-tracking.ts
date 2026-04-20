@@ -183,11 +183,3 @@ export function recordObserveEvent(
     debug(SOURCE, `Failed to record observe event: ${err}`);
   }
 }
-
-/**
- * Estimate tokens for a file by its size, using the default ratio.
- * This is a rough client-side estimate; the Go binary has per-language ratios.
- */
-export function estimateTokensFromSize(sizeBytes: number): number {
-  return Math.round(sizeBytes / 3.0);
-}
