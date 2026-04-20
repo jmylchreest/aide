@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"text/tabwriter"
@@ -39,7 +40,20 @@ func wantJSON(args []string) bool {
 }
 
 // printJSON marshals v as JSON and writes it to stdout.
+// Nil slices and maps are serialized as [] and {} respectively,
+// not null, for consistent JSON output.
 func printJSON(v any) error {
+	if v != nil {
+		rv := reflect.ValueOf(v)
+		if (rv.Kind() == reflect.Slice || rv.Kind() == reflect.Map) && rv.IsNil() {
+			if rv.Kind() == reflect.Slice {
+				_, err := fmt.Println("[]")
+				return err
+			}
+			_, err := fmt.Println("{}")
+			return err
+		}
+	}
 	data, err := json.Marshal(v)
 	if err != nil {
 		return fmt.Errorf("json encoding failed: %w", err)
