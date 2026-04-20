@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "consumer_formats": [
+    {
+      "extensions": [".astro"],
+      "label": "astro",
+      "description": "Astro component templating — references React/Vue/Svelte components by element name (<App />)"
+    },
+    {
+      "extensions": [".svelte"],
+      "label": "svelte",
+      "description": "Svelte single-file components — script imports + template element references"
+    },
+    {
+      "extensions": [".vue"],
+      "label": "vue",
+      "description": "Vue single-file components — script imports + template element references"
+    },
+    {
+      "extensions": [".html", ".htm"],
+      "label": "html",
+      "description": "HTML — embedded scripts and template element references"
+    },
+    {
+      "extensions": [".mdx"],
+      "label": "mdx",
+      "description": "MDX — Markdown with embedded JSX components"
+    },
+    {
+      "extensions": [
+        ".stories.ts",
+        ".stories.tsx",
+        ".stories.js",
+        ".stories.jsx",
+        ".stories.mdx"
+      ],
+      "label": "storybook",
+      "description": "Storybook stories — import components and render them by name"
+    }
+  ]
+}

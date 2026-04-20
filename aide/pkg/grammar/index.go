@@ -11,8 +11,26 @@ import (
 // It maps filesystem markers (files/directories) to grammar packs or standalone labels,
 // enabling data-driven project detection for both topology analysis and grammar scanning.
 type PackIndex struct {
-	SchemaVersion  int             `json:"schema_version"`
-	ProjectMarkers []ProjectMarker `json:"project_markers"`
+	SchemaVersion   int              `json:"schema_version"`
+	ProjectMarkers  []ProjectMarker  `json:"project_markers,omitempty"`
+	ConsumerFormats []ConsumerFormat `json:"consumer_formats,omitempty"`
+}
+
+// ConsumerFormat describes a file format that is not parsed by tree-sitter
+// (no grammar pack, no symbol extraction) but DOES consume code from other
+// files — typically templating or composition formats. Reference verifiers
+// scan these as plain text to catch use sites the index cannot capture.
+//
+// Examples: .astro/.svelte/.vue templates that reference React/Vue components
+// by name, .mdx files embedding JSX, .stories.* files importing components.
+type ConsumerFormat struct {
+	// Extensions list the file extensions this format applies to (".astro").
+	Extensions []string `json:"extensions"`
+	// Label is a short tag identifying the format (e.g. "astro", "svelte").
+	// Used as the merge/override key.
+	Label string `json:"label"`
+	// Description is human-readable context about what this format does.
+	Description string `json:"description,omitempty"`
 }
 
 // ProjectMarker maps a filesystem marker to a pack or standalone label.
@@ -91,11 +109,13 @@ func (m *ProjectMarker) ResolvedName() string {
 	return m.Label
 }
 
-// indexState holds the loaded project markers, protected by its own mutex
-// to avoid holding the main PackRegistry lock during index operations.
+// indexState holds the loaded project markers and consumer formats,
+// protected by its own mutex to avoid holding the main PackRegistry lock
+// during index operations.
 type indexState struct {
-	mu      sync.RWMutex
-	markers []ProjectMarker
+	mu        sync.RWMutex
+	markers   []ProjectMarker
+	consumers []ConsumerFormat
 }
 
 // LoadIndex parses a PackIndex from raw JSON and merges with existing markers.
@@ -125,6 +145,24 @@ func (r *PackRegistry) LoadIndex(data []byte) error {
 			existing[key] = len(r.idx.markers) - 1
 		}
 	}
+
+	// Consumer formats merge by Label (the unique tag).
+	existingConsumers := make(map[string]int, len(r.idx.consumers))
+	for i, c := range r.idx.consumers {
+		existingConsumers[c.Label] = i
+	}
+	for _, newConsumer := range idx.ConsumerFormats {
+		if newConsumer.Label == "" {
+			continue
+		}
+		if i, ok := existingConsumers[newConsumer.Label]; ok {
+			r.idx.consumers[i] = newConsumer
+		} else {
+			r.idx.consumers = append(r.idx.consumers, newConsumer)
+			existingConsumers[newConsumer.Label] = len(r.idx.consumers) - 1
+		}
+	}
+
 	return nil
 }
 
@@ -157,6 +195,28 @@ func (r *PackRegistry) MarkersForPack(packName string) []ProjectMarker {
 		}
 	}
 	return result
+}
+
+// ConsumerFormats returns a copy of all registered consumer formats.
+func (r *PackRegistry) ConsumerFormats() []ConsumerFormat {
+	r.idx.mu.RLock()
+	defer r.idx.mu.RUnlock()
+	result := make([]ConsumerFormat, len(r.idx.consumers))
+	copy(result, r.idx.consumers)
+	return result
+}
+
+// ConsumerExtensions returns a flat list of every extension declared by any
+// registered consumer format. Used by reference verifiers to walk additional
+// files beyond the parsed code-index set.
+func (r *PackRegistry) ConsumerExtensions() []string {
+	r.idx.mu.RLock()
+	defer r.idx.mu.RUnlock()
+	var out []string
+	for _, c := range r.idx.consumers {
+		out = append(out, c.Extensions...)
+	}
+	return out
 }
 
 // PackLinkedMarkers returns all project markers that link to any grammar pack

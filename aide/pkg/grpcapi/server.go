@@ -1182,9 +1182,10 @@ func (s *codeServiceImpl) RunDeadCodeAnalysis(ctx context.Context, req *CodeRunD
 			}
 			return len(refs), nil
 		},
-		ProjectRoot:     projectRoot(s.server.dbPath),
-		PackProvider:    grammar.DefaultPackRegistry().Get,
-		IncludeExported: req.IncludeExported,
+		ProjectRoot:        projectRoot(s.server.dbPath),
+		PackProvider:       grammar.DefaultPackRegistry().Get,
+		IncludeExported:    req.IncludeExported,
+		ConsumerExtensions: grammar.DefaultPackRegistry().ConsumerExtensions(),
 	}
 
 	ff, result, err := findings.AnalyzeDeadCode(cfg)

@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jmylchreest/aide/aide/pkg/aideignore"
 	"github.com/jmylchreest/aide/aide/pkg/code"
 	"github.com/jmylchreest/aide/aide/pkg/grammar"
 )
@@ -31,6 +32,11 @@ type DeadCodeConfig struct {
 	// IncludeExported, when true, analyses exported symbols too. Default false
 	// because external consumers cannot be observed from the index.
 	IncludeExported bool
+	// ConsumerExtensions are additional file extensions the verifier should
+	// scan for literal-token references (templating formats like .astro,
+	// .svelte, .vue that aren't parsed but consume code by name). Typically
+	// supplied as grammar.DefaultPackRegistry().ConsumerExtensions().
+	ConsumerExtensions []string
 }
 
 // DeadCodeResult holds the output of a dead code analysis run.
@@ -133,7 +139,7 @@ func AnalyzeDeadCode(cfg DeadCodeConfig) ([]*Finding, *DeadCodeResult, error) {
 	// and function-as-value passes (`{Field: foo}`); a literal text scan
 	// catches all of these at the cost of accepting false negatives from
 	// occurrences inside string literals or comments.
-	verifier := newReferenceVerifier(cfg.ProjectRoot, symbols)
+	verifier := newReferenceVerifier(cfg.ProjectRoot, symbols, cfg.ConsumerExtensions)
 	findings := make([]*Finding, 0, len(candidates))
 	for _, cand := range candidates {
 		if verifier.appearsElsewhere(cand.symbol) {
@@ -318,16 +324,73 @@ type referenceVerifier struct {
 	content map[string][]byte
 }
 
-func newReferenceVerifier(root string, symbols []*code.Symbol) *referenceVerifier {
+func newReferenceVerifier(root string, symbols []*code.Symbol, consumerExts []string) *referenceVerifier {
 	seen := make(map[string]struct{}, len(symbols))
 	for _, s := range symbols {
 		seen[s.FilePath] = struct{}{}
+	}
+	for _, p := range walkConsumerFiles(root, consumerExts) {
+		seen[p] = struct{}{}
 	}
 	files := make([]string, 0, len(seen))
 	for p := range seen {
 		files = append(files, p)
 	}
 	return &referenceVerifier{root: root, files: files, content: make(map[string][]byte)}
+}
+
+// walkConsumerFiles returns project-relative paths of files whose extension
+// matches one of the registered consumer formats. These files are not in the
+// code index but are scanned by the verifier as plain text.
+func walkConsumerFiles(root string, exts []string) []string {
+	if root == "" || len(exts) == 0 {
+		return nil
+	}
+	ignore, _ := aideignore.New(root)
+	if ignore == nil {
+		ignore = aideignore.NewFromDefaults()
+	}
+	shouldSkip := ignore.WalkFunc(root)
+
+	extSet := make(map[string]struct{}, len(exts))
+	for _, e := range exts {
+		extSet[strings.ToLower(e)] = struct{}{}
+	}
+
+	var out []string
+	_ = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		if skip, skipDir := shouldSkip(path, info); skip {
+			if skipDir {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if info.IsDir() {
+			return nil
+		}
+		if !matchesExt(strings.ToLower(path), extSet) {
+			return nil
+		}
+		if rel, err := filepath.Rel(root, path); err == nil {
+			out = append(out, rel)
+		} else {
+			out = append(out, path)
+		}
+		return nil
+	})
+	return out
+}
+
+func matchesExt(lowerPath string, extSet map[string]struct{}) bool {
+	for ext := range extSet {
+		if strings.HasSuffix(lowerPath, ext) {
+			return true
+		}
+	}
+	return false
 }
 
 func (v *referenceVerifier) appearsElsewhere(sym *code.Symbol) bool {

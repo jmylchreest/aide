@@ -165,3 +165,43 @@ func TestAnalyzeDeadCode_TextGrepVerification(t *testing.T) {
 		t.Errorf("trulyDead has no callers and should remain a finding; got %+v", got)
 	}
 }
+
+func TestAnalyzeDeadCode_ConsumerFormatsRescue(t *testing.T) {
+	tmp := t.TempDir()
+	// App.tsx defines a React component; index.astro consumes it via JSX.
+	// Without consumer-format scanning, App is flagged dead because .astro is
+	// not in the code index.
+	if err := os.WriteFile(filepath.Join(tmp, "App.tsx"),
+		[]byte("export function App() { return null }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, "index.astro"),
+		[]byte("---\nimport App from \"./App\"\n---\n<App client:only=\"react\" />\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	syms := []*code.Symbol{
+		{Name: "App", Kind: code.KindFunction, FilePath: "App.tsx", StartLine: 1, EndLine: 1, Language: "typescript"},
+	}
+
+	cfg := DeadCodeConfig{
+		GetAllSymbols:      func() ([]*code.Symbol, error) { return syms, nil },
+		GetRefCount:        func(string) (int, error) { return 0, nil },
+		ProjectRoot:        tmp,
+		ConsumerExtensions: []string{".astro"},
+	}
+	ff, _, err := AnalyzeDeadCode(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ff) != 0 {
+		t.Errorf("expected App to be rescued via consumer-format scan, got %d findings: %+v", len(ff), ff)
+	}
+
+	// Without ConsumerExtensions, App should still be flagged.
+	cfg.ConsumerExtensions = nil
+	ff2, _, _ := AnalyzeDeadCode(cfg)
+	if len(ff2) != 1 {
+		t.Errorf("control: expected App to be flagged when consumer scan disabled, got %d", len(ff2))
+	}
+}
