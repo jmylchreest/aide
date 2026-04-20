@@ -269,72 +269,83 @@ func cmdGrammarInstall(dbPath string, args []string) error {
 	installAll := hasFlag(args, "--all")
 	noLock := hasFlag(args, "--no-lock")
 
-	var names []string
-	if installAll {
-		names = loader.Available()
-		// Filter to only dynamic (not already builtin).
-		var dynamic []string
-		installed := make(map[string]bool)
-		for _, info := range loader.Installed() {
-			if info.BuiltIn {
-				installed[info.Name] = true
-			}
-		}
-		for _, name := range names {
-			if !installed[name] {
-				dynamic = append(dynamic, name)
-			}
-		}
-		names = dynamic
-	} else {
-		for _, arg := range args {
-			if strings.HasPrefix(arg, "--") {
-				continue
-			}
-			names = append(names, grammar.NormaliseLang(arg))
-		}
-	}
+	names := resolveGrammarInstallNames(loader, args, installAll)
 
 	// No explicit names and no --all: try installing from lock file.
 	if len(names) == 0 && !installAll {
-		lf, err := grammar.ReadLockFile(root)
-		if err != nil {
-			return fmt.Errorf("reading lock file: %w", err)
+		return installGrammarsFromLock(ctx, loader, root)
+	}
+
+	if err := installGrammarsList(ctx, loader, names); err != nil {
+		return err
+	}
+
+	if !noLock {
+		writeGrammarLockFile(loader, root)
+	}
+	return nil
+}
+
+// resolveGrammarInstallNames produces the list of grammars to install based on
+// CLI args. With --all it expands to every available dynamic grammar (skipping
+// those already shipped builtin); otherwise it normalises the positional args.
+func resolveGrammarInstallNames(loader *grammar.CompositeLoader, args []string, installAll bool) []string {
+	if installAll {
+		builtin := builtinGrammarSet(loader)
+		var names []string
+		for _, name := range loader.Available() {
+			if !builtin[name] {
+				names = append(names, name)
+			}
 		}
-		if lf != nil && len(lf.Grammars) > 0 {
-			fmt.Printf("Installing grammars from %s...\n", grammar.LockFileName)
-			installed, err := loader.InstallFromLock(ctx, lf)
-			for _, name := range installed {
-				fmt.Printf("  %s... done\n", name)
-			}
-			if err != nil {
-				return err
-			}
-			if len(installed) == 0 {
-				fmt.Println("All locked grammars already installed.")
-			}
-			return nil
+		return names
+	}
+	var names []string
+	for _, arg := range args {
+		if strings.HasPrefix(arg, "--") {
+			continue
 		}
+		names = append(names, grammar.NormaliseLang(arg))
+	}
+	return names
+}
+
+// installGrammarsFromLock handles the no-args / no --all case: if a lock file
+// exists, install everything it pins; otherwise print a usage hint.
+func installGrammarsFromLock(ctx context.Context, loader *grammar.CompositeLoader, root string) error {
+	lf, err := grammar.ReadLockFile(root)
+	if err != nil {
+		return fmt.Errorf("reading lock file: %w", err)
+	}
+	if lf == nil || len(lf.Grammars) == 0 {
 		fmt.Println("No grammars to install. Specify language names, use --all, or create a lock file.")
 		return nil
 	}
-
-	// Separate builtins from dynamic grammars so we can give clear feedback.
-	builtinSet := make(map[string]bool)
-	for _, info := range loader.Installed() {
-		if info.BuiltIn {
-			builtinSet[info.Name] = true
-		}
+	fmt.Printf("Installing grammars from %s...\n", grammar.LockFileName)
+	installed, err := loader.InstallFromLock(ctx, lf)
+	for _, name := range installed {
+		fmt.Printf("  %s... done\n", name)
 	}
+	if err != nil {
+		return err
+	}
+	if len(installed) == 0 {
+		fmt.Println("All locked grammars already installed.")
+	}
+	return nil
+}
 
+// installGrammarsList installs each named grammar, skipping builtins (already
+// available) and metadata-only packs (no tree-sitter parser to fetch).
+func installGrammarsList(ctx context.Context, loader *grammar.CompositeLoader, names []string) error {
+	builtin := builtinGrammarSet(loader)
 	sort.Strings(names)
-	var errors []string
+	var failed []string
 	for _, name := range names {
-		if builtinSet[name] {
+		if builtin[name] {
 			fmt.Printf("Skipping %s (builtin grammar, no install needed)\n", name)
 			continue
 		}
-		// Check if this is a metadata-only pack before trying to install.
 		if pack := grammar.DefaultPackRegistry().Get(name); pack != nil && !pack.HasParser() {
 			fmt.Printf("Skipping %s (metadata-only, no tree-sitter parser available)\n", name)
 			continue
@@ -342,27 +353,40 @@ func cmdGrammarInstall(dbPath string, args []string) error {
 		fmt.Printf("Installing %s... ", name)
 		if err := loader.Install(ctx, name); err != nil {
 			fmt.Printf("FAILED: %v\n", err)
-			errors = append(errors, name)
+			failed = append(failed, name)
 		} else {
 			fmt.Println("done")
 		}
 	}
-
-	if len(errors) > 0 {
-		return fmt.Errorf("failed to install: %s", strings.Join(errors, ", "))
+	if len(failed) > 0 {
+		return fmt.Errorf("failed to install: %s", strings.Join(failed, ", "))
 	}
+	return nil
+}
 
-	// Update the lock file unless --no-lock was specified.
-	if !noLock {
-		lf := loader.GenerateLockFile()
-		if len(lf.Grammars) > 0 {
-			if err := grammar.WriteLockFile(root, lf); err != nil {
-				fmt.Fprintf(os.Stderr, "warning: failed to update %s: %v\n", grammar.LockFileName, err)
-			}
+// builtinGrammarSet returns a set of grammar names that ship builtin and
+// therefore don't need (or accept) install/remove operations.
+func builtinGrammarSet(loader *grammar.CompositeLoader) map[string]bool {
+	set := make(map[string]bool)
+	for _, info := range loader.Installed() {
+		if info.BuiltIn {
+			set[info.Name] = true
 		}
 	}
+	return set
+}
 
-	return nil
+// writeGrammarLockFile persists the current installed grammar set to the lock
+// file. Failures are warned but non-fatal (lock-file maintenance shouldn't
+// fail an otherwise-successful install).
+func writeGrammarLockFile(loader *grammar.CompositeLoader, root string) {
+	lf := loader.GenerateLockFile()
+	if len(lf.Grammars) == 0 {
+		return
+	}
+	if err := grammar.WriteLockFile(root, lf); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: failed to update %s: %v\n", grammar.LockFileName, err)
+	}
 }
 
 // cmdGrammarRemove deletes downloaded grammar shared libraries.
