@@ -33,6 +33,15 @@ func TestBuiltinDefaults(t *testing.T) {
 		"api.pb.ts",
 		"api.pb.js",
 		"package-lock.lock",
+		"vendor/tabulator.min.js",
+		"static/site.min.css",
+		"src/app.bundle.js",
+		"dist/app.js.map",
+		"third_party/leveldb/db.go",
+		"web/static/vendor/jquery.js",
+		"public/lib/d3.js",
+		"src/assets/libs/charts.js",
+		"app/external/fetcher.go",
 	}
 	for _, f := range files {
 		if !m.ShouldIgnoreFile(f) {

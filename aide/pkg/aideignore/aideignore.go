@@ -119,6 +119,34 @@ var BuiltinDefaults = []string{
 	"*.pb.ts",
 	"*.pb.js",
 
+	// ── Minified / bundled assets (third-party, not human-edited) ────
+	"*.min.js",
+	"*.min.css",
+	"*.min.mjs",
+	"*.bundle.js",
+	"*.bundle.css",
+	"*.map",
+	"*.js.map",
+	"*.css.map",
+
+	// ── Vendored third-party dirs by convention ──────────────────────
+	"**/third_party/",
+	"**/third-party/",
+	"**/thirdparty/",
+	"**/external/",
+	"**/contrib/",
+
+	// ── Web-asset vendored subdirs (Django/Flask/Rails conventions) ──
+	"**/static/vendor/",
+	"**/static/lib/",
+	"**/static/libs/",
+	"**/public/vendor/",
+	"**/public/lib/",
+	"**/public/libs/",
+	"**/assets/vendor/",
+	"**/assets/lib/",
+	"**/assets/libs/",
+
 	// ── Test fixtures (embedded secrets, high-complexity samples) ────
 	"**/testdata/",
 	"**/fixtures/",
