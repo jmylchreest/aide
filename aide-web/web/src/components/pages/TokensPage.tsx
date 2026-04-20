@@ -143,6 +143,7 @@ function PerToolEfficiency({ stats }: { stats: PerToolStat[] }) {
     <div className="space-y-2">
       {stats.map((s) => {
         const avoidedClaimable = AVOIDED_CLAIM_TOOLS.has(s.tool);
+        const showAvoided = avoidedClaimable && s.avoided > 0;
         const spentPct = (s.spent / max) * 100;
         const avoidedPct = (s.avoided / max) * 100;
         const totalCounterfactual = s.spent + s.avoided;
@@ -150,7 +151,7 @@ function PerToolEfficiency({ stats }: { stats: PerToolStat[] }) {
         // surfacing — otherwise it always reads "0.0%" which is misleading
         // (the tool didn't fail; we just don't have data yet).
         const eff =
-          avoidedClaimable && s.avoided > 0 && totalCounterfactual > 0
+          showAvoided && totalCounterfactual > 0
             ? ((s.avoided / totalCounterfactual) * 100).toFixed(1) + "%"
             : null;
         return (
@@ -177,9 +178,9 @@ function PerToolEfficiency({ stats }: { stats: PerToolStat[] }) {
                   {eff} efficiency
                 </span>
               )}
-              {!avoidedClaimable && (
+              {!showAvoided && (
                 <span className="ml-auto text-[10px] text-aide-text-dim italic">
-                  indirect value — no avoided-read claim
+                  indirect value — no avoided claim
                 </span>
               )}
             </div>
@@ -195,7 +196,7 @@ function PerToolEfficiency({ stats }: { stats: PerToolStat[] }) {
                 {s.spent > 0 ? `~${formatTokens(s.spent)}` : "-"}
               </span>
             </div>
-            {avoidedClaimable && s.avoided > 0 && (
+            {showAvoided && (
               <div className="grid grid-cols-[60px_1fr_auto] gap-2 items-center text-[10px]">
                 <span className="text-aide-text-dim">avoided</span>
                 <div className="h-2 bg-aide-bg rounded-sm overflow-hidden">
@@ -334,13 +335,15 @@ export function TokensPage() {
       m.set(e.tool, b);
     }
     return Array.from(m.values()).sort((a, b) => {
-      // Consume tools first (they're the efficiency story), sorted by avoided desc.
-      // Then everything else sorted by activity (calls desc).
-      const aConsume = a.category === "consume" ? 1 : 0;
-      const bConsume = b.category === "consume" ? 1 : 0;
-      if (aConsume !== bConsume) return bConsume - aConsume;
-      if (aConsume) return b.avoided - a.avoided;
-      return b.calls - a.calls;
+      // Tools with a real avoided claim float to the top (the efficiency
+      // winners). Within each group, sort alphabetically so the order is
+      // stable across reloads regardless of which tool was hottest.
+      const aHasAvoided =
+        AVOIDED_CLAIM_TOOLS.has(a.tool) && a.avoided > 0 ? 1 : 0;
+      const bHasAvoided =
+        AVOIDED_CLAIM_TOOLS.has(b.tool) && b.avoided > 0 ? 1 : 0;
+      if (aHasAvoided !== bHasAvoided) return bHasAvoided - aHasAvoided;
+      return a.tool.localeCompare(b.tool);
     });
   }, [events]);
 
