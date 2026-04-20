@@ -182,6 +182,26 @@ func (s *MCPServer) toolObserveMiddleware() mcp.Middleware {
 			if err != nil {
 				span.Err(err)
 			}
+			// Backfill spent-token cost from the response text length when
+			// the handler didn't set it explicitly. Read-side tools
+			// (search/list/stats/get) all return text the model consumes —
+			// this gives the dashboard a real "spent" number for them
+			// without needing per-handler instrumentation. Handlers that
+			// compute richer figures (code_outline, code_read_symbol with
+			// savings) take precedence.
+			if result != nil {
+				if call, ok := result.(*mcp.CallToolResult); ok && call != nil {
+					total := 0
+					for _, c := range call.Content {
+						if tc, ok := c.(*mcp.TextContent); ok {
+							total += len(tc.Text)
+						}
+					}
+					if total > 0 {
+						span.TokensIfUnset((total + 2) / 3)
+					}
+				}
+			}
 			return result, err
 		}
 	}

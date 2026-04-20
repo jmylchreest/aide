@@ -146,8 +146,11 @@ function PerToolEfficiency({ stats }: { stats: PerToolStat[] }) {
         const spentPct = (s.spent / max) * 100;
         const avoidedPct = (s.avoided / max) * 100;
         const totalCounterfactual = s.spent + s.avoided;
+        // Only render the efficiency % when there's an avoided number worth
+        // surfacing — otherwise it always reads "0.0%" which is misleading
+        // (the tool didn't fail; we just don't have data yet).
         const eff =
-          avoidedClaimable && totalCounterfactual > 0
+          avoidedClaimable && s.avoided > 0 && totalCounterfactual > 0
             ? ((s.avoided / totalCounterfactual) * 100).toFixed(1) + "%"
             : null;
         return (
@@ -192,7 +195,7 @@ function PerToolEfficiency({ stats }: { stats: PerToolStat[] }) {
                 {s.spent > 0 ? `~${formatTokens(s.spent)}` : "-"}
               </span>
             </div>
-            {avoidedClaimable && (
+            {avoidedClaimable && s.avoided > 0 && (
               <div className="grid grid-cols-[60px_1fr_auto] gap-2 items-center text-[10px]">
                 <span className="text-aide-text-dim">avoided</span>
                 <div className="h-2 bg-aide-bg rounded-sm overflow-hidden">
@@ -202,7 +205,7 @@ function PerToolEfficiency({ stats }: { stats: PerToolStat[] }) {
                   />
                 </div>
                 <span className="font-mono text-green-500 w-16 text-right">
-                  {s.avoided > 0 ? `~${formatTokens(s.avoided)}` : "-"}
+                  ~{formatTokens(s.avoided)}
                 </span>
               </div>
             )}

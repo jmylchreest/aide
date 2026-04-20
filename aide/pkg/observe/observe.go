@@ -129,6 +129,18 @@ func (s *Span) Parent(v string) *Span   { s.event.Parent = v; return s }
 func (s *Span) Tokens(n int) *Span      { s.event.Tokens = n; return s }
 func (s *Span) Saved(n int) *Span       { s.event.TokensSaved = n; return s }
 
+// TokensIfUnset records n only when no handler has already set Tokens.
+// Used by the MCP middleware to backfill output-size cost for read-side
+// tools that don't compute their own (search/list/stats) without
+// stepping on handlers that compute a richer figure (code_outline,
+// code_read_symbol set tokens + savings explicitly).
+func (s *Span) TokensIfUnset(n int) *Span {
+	if s.event.Tokens == 0 {
+		s.event.Tokens = n
+	}
+	return s
+}
+
 func (s *Span) Attr(key, value string) *Span {
 	if s.event.Attrs == nil {
 		s.event.Attrs = make(map[string]string, 4)
