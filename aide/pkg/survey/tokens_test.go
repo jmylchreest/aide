@@ -128,10 +128,6 @@ func TestAnnotateEstTokensExcludesGeneratedAndLockfiles(t *testing.T) {
 	}
 
 	excluded := []string{
-		"aidememory.pb.go",
-		"aidememory_grpc.pb.go",
-		"api.pb.ts",
-		"api.pb.js",
 		"bundle.min.js",
 		"styles.min.css",
 		"package-lock.json",
@@ -151,7 +147,16 @@ func TestAnnotateEstTokensExcludesGeneratedAndLockfiles(t *testing.T) {
 	for _, rel := range excluded {
 		mustWrite(rel)
 	}
-	kept := []string{"pkg/thing.go", "src/index.ts"}
+	// Generated protobuf sources are deliberately NOT excluded — agents may
+	// need to read them when debugging wire format or field metadata.
+	kept := []string{
+		"pkg/thing.go",
+		"src/index.ts",
+		"aidememory.pb.go",
+		"aidememory_grpc.pb.go",
+		"api.pb.ts",
+		"api.pb.js",
+	}
 	for _, rel := range kept {
 		mustWrite(rel)
 	}

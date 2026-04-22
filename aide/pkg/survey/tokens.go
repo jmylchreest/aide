@@ -51,24 +51,16 @@ func AnnotateEstTokens(rootDir string, entries []*Entry) {
 }
 
 // isTokenCostExcluded reports whether a file should be skipped when computing
-// the "tokens an agent would have paid to read this" counterfactual. An agent
-// would essentially never choose to read these files even when chasing the
-// information they represent, so claiming savings against them inflates the
-// dashboard numbers without reflecting real avoided work.
-//
-// Covers: generated protobuf/gRPC stubs, dependency lockfiles, minified
-// bundles, and vendored dependency trees. The list is deliberately narrow
-// so we don't accidentally exclude hand-maintained files.
+// the "tokens an agent would have paid to read this" counterfactual. The list
+// is deliberately narrow: only files an agent could essentially never choose
+// to read usefully — dependency lockfiles, minified bundles, and vendored
+// dependency trees. Generated source (e.g. protobuf stubs) is NOT on the
+// list: agents do sometimes inspect generated output when debugging, and the
+// read cost is real when they do.
 func isTokenCostExcluded(filePath string) bool {
 	base := filepath.Base(filePath)
 	slashed := filepath.ToSlash(filePath)
 
-	if strings.HasSuffix(base, ".pb.go") ||
-		strings.HasSuffix(base, "_grpc.pb.go") ||
-		strings.HasSuffix(base, ".pb.ts") ||
-		strings.HasSuffix(base, ".pb.js") {
-		return true
-	}
 	if strings.HasSuffix(base, ".min.js") || strings.HasSuffix(base, ".min.css") {
 		return true
 	}
