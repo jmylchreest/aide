@@ -246,6 +246,34 @@ func TestStateSetAndGet(t *testing.T) {
 	}
 }
 
+func TestStatePreservesPresetUpdatedAt(t *testing.T) {
+	store, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	historic := time.Date(2026, 1, 15, 10, 30, 0, 0, time.UTC)
+	st := &memory.State{Key: "mode", Value: "eco", UpdatedAt: historic}
+	if err := store.SetState(st); err != nil {
+		t.Fatalf("SetState: %v", err)
+	}
+
+	got, err := store.GetState("mode")
+	if err != nil {
+		t.Fatalf("GetState: %v", err)
+	}
+	if !got.UpdatedAt.Equal(historic) {
+		t.Errorf("UpdatedAt: got %s, want %s (preset value should be preserved)", got.UpdatedAt, historic)
+	}
+
+	// Zero-value UpdatedAt should still get stamped with a non-zero time.
+	st2 := &memory.State{Key: "other", Value: "x"}
+	if err := store.SetState(st2); err != nil {
+		t.Fatalf("SetState zero: %v", err)
+	}
+	if st2.UpdatedAt.IsZero() {
+		t.Error("zero UpdatedAt should have been stamped with time.Now()")
+	}
+}
+
 func TestStateOverwrite(t *testing.T) {
 	store, cleanup := setupTestDB(t)
 	defer cleanup()
@@ -615,6 +643,30 @@ func TestDecisionOperations(t *testing.T) {
 			t.Errorf("expected at least 2 decisions, got %d", len(decisions))
 		}
 	})
+}
+
+func TestDecisionPreservesPresetCreatedAt(t *testing.T) {
+	store, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	historic := time.Date(2026, 2, 10, 8, 0, 0, 0, time.UTC)
+	d := &memory.Decision{
+		Topic:     "historic",
+		Decision:  "v1",
+		DecidedBy: "author",
+		CreatedAt: historic,
+	}
+	if err := store.SetDecision(d); err != nil {
+		t.Fatalf("SetDecision: %v", err)
+	}
+
+	got, err := store.GetDecision("historic")
+	if err != nil {
+		t.Fatalf("GetDecision: %v", err)
+	}
+	if !got.CreatedAt.Equal(historic) {
+		t.Errorf("CreatedAt: got %s, want %s (preset value should be preserved)", got.CreatedAt, historic)
+	}
 }
 
 func TestDeleteDecision(t *testing.T) {

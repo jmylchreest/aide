@@ -584,3 +584,251 @@ func TestProjectRootFromDB(t *testing.T) {
 		t.Errorf("projectRoot: got %q, want /home/user/myproject", got)
 	}
 }
+
+// =============================================================================
+// Memory Import Conflict Resolution
+// =============================================================================
+
+// writeSharedMemoriesFile writes a single-entry memories file for import tests.
+func writeSharedMemoriesFile(t *testing.T, tmpDir string, m *memory.Memory) string {
+	t.Helper()
+	dir := filepath.Join(tmpDir, ".aide", "shared", "memories")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, string(m.Category)+".md")
+	if err := writeMemoriesMarkdown(path, m.Category, []*memory.Memory{m}); err != nil {
+		t.Fatalf("writeMemoriesMarkdown: %v", err)
+	}
+	return filepath.Join(tmpDir, ".aide", "shared")
+}
+
+func TestShareImportMemoriesUpdateOnNewer(t *testing.T) {
+	b, tmpDir, cleanup := setupShareTest(t)
+	defer cleanup()
+
+	t0 := time.Date(2026, 1, 10, 12, 0, 0, 0, time.UTC)
+	local := &memory.Memory{
+		ID:        "MEMUPD01",
+		Category:  memory.CategoryLearning,
+		Content:   "Original content",
+		Tags:      []string{"project:test"},
+		CreatedAt: t0,
+		UpdatedAt: t0,
+	}
+	if err := b.Store().AddMemory(local); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	incoming := &memory.Memory{
+		ID:        "MEMUPD01",
+		Category:  memory.CategoryLearning,
+		Content:   "Updated content from teammate",
+		Tags:      []string{"project:test", "scope:global"},
+		CreatedAt: t0,
+		UpdatedAt: t0.Add(time.Hour),
+	}
+	sharedDir := writeSharedMemoriesFile(t, tmpDir, incoming)
+
+	imported, skipped, err := shareImportMemories(b, sharedDir, false)
+	if err != nil {
+		t.Fatalf("shareImportMemories: %v", err)
+	}
+	if imported != 1 {
+		t.Errorf("imported=%d, want 1 (newer incoming should update)", imported)
+	}
+	if skipped != 0 {
+		t.Errorf("skipped=%d, want 0", skipped)
+	}
+
+	got, err := b.GetMemory("MEMUPD01")
+	if err != nil {
+		t.Fatalf("GetMemory: %v", err)
+	}
+	if got.Content != "Updated content from teammate" {
+		t.Errorf("content not updated: got %q", got.Content)
+	}
+}
+
+func TestShareImportMemoriesSkipsOlderOrEqual(t *testing.T) {
+	b, tmpDir, cleanup := setupShareTest(t)
+	defer cleanup()
+
+	tLocal := time.Date(2026, 2, 1, 12, 0, 0, 0, time.UTC)
+	local := &memory.Memory{
+		ID:        "MEMUPD02",
+		Category:  memory.CategoryLearning,
+		Content:   "Local wins",
+		Tags:      []string{"project:test"},
+		CreatedAt: tLocal.Add(-time.Hour),
+		UpdatedAt: tLocal,
+	}
+	if err := b.Store().AddMemory(local); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	incoming := &memory.Memory{
+		ID:        "MEMUPD02",
+		Category:  memory.CategoryLearning,
+		Content:   "Should not replace",
+		Tags:      []string{"project:test"},
+		CreatedAt: tLocal.Add(-time.Hour),
+		UpdatedAt: tLocal.Add(-30 * time.Minute),
+	}
+	sharedDir := writeSharedMemoriesFile(t, tmpDir, incoming)
+
+	imported, skipped, err := shareImportMemories(b, sharedDir, false)
+	if err != nil {
+		t.Fatalf("shareImportMemories: %v", err)
+	}
+	if imported != 0 {
+		t.Errorf("imported=%d, want 0 (older incoming must not overwrite)", imported)
+	}
+	if skipped != 1 {
+		t.Errorf("skipped=%d, want 1", skipped)
+	}
+
+	got, err := b.GetMemory("MEMUPD02")
+	if err != nil {
+		t.Fatalf("GetMemory: %v", err)
+	}
+	if got.Content != "Local wins" {
+		t.Errorf("content overwritten: got %q", got.Content)
+	}
+}
+
+// Legacy shared files (exported before the `updated` field existed) must still
+// be treated as no-ops when the memory already exists — existing IDs skip,
+// new IDs are appended. This preserves backwards compatibility.
+func TestShareImportMemoriesLegacyWithoutUpdatedField(t *testing.T) {
+	b, tmpDir, cleanup := setupShareTest(t)
+	defer cleanup()
+
+	tLocal := time.Date(2026, 3, 1, 12, 0, 0, 0, time.UTC)
+	local := &memory.Memory{
+		ID:        "MEMUPD03",
+		Category:  memory.CategoryLearning,
+		Content:   "Local keeps",
+		Tags:      []string{"project:test"},
+		CreatedAt: tLocal.Add(-time.Hour),
+		UpdatedAt: tLocal,
+	}
+	if err := b.Store().AddMemory(local); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	// Simulate a legacy file: UpdatedAt zero and CreatedAt equals UpdatedAt
+	// so writeMemoriesMarkdown will not emit an `updated=` field.
+	incoming := &memory.Memory{
+		ID:        "MEMUPD03",
+		Category:  memory.CategoryLearning,
+		Content:   "Legacy payload",
+		Tags:      []string{"project:test"},
+		CreatedAt: tLocal.Add(-time.Hour),
+	}
+	sharedDir := writeSharedMemoriesFile(t, tmpDir, incoming)
+
+	imported, skipped, err := shareImportMemories(b, sharedDir, false)
+	if err != nil {
+		t.Fatalf("shareImportMemories: %v", err)
+	}
+	if imported != 0 {
+		t.Errorf("imported=%d, want 0", imported)
+	}
+	if skipped != 1 {
+		t.Errorf("skipped=%d, want 1", skipped)
+	}
+
+	got, err := b.GetMemory("MEMUPD03")
+	if err != nil {
+		t.Fatalf("GetMemory: %v", err)
+	}
+	if got.Content != "Local keeps" {
+		t.Errorf("content overwritten by legacy file: got %q", got.Content)
+	}
+}
+
+// When the local database has no record with the incoming ULID, share import
+// must preserve the incoming ULID and CreatedAt so that a later edit on the
+// publishing side (same ULID, newer UpdatedAt) lands as an update on every
+// clone instead of creating an orphan duplicate.
+func TestShareImportMemoriesPreservesULIDOnNewAdd(t *testing.T) {
+	b, tmpDir, cleanup := setupShareTest(t)
+	defer cleanup()
+
+	incoming := &memory.Memory{
+		ID:        "MEMADD01",
+		Category:  memory.CategoryLearning,
+		Content:   "New memory from teammate",
+		Tags:      []string{"project:test", "scope:global"},
+		CreatedAt: time.Date(2026, 4, 1, 9, 0, 0, 0, time.UTC),
+	}
+	sharedDir := writeSharedMemoriesFile(t, tmpDir, incoming)
+
+	imported, skipped, err := shareImportMemories(b, sharedDir, false)
+	if err != nil {
+		t.Fatalf("shareImportMemories: %v", err)
+	}
+	if imported != 1 || skipped != 0 {
+		t.Fatalf("counts: imported=%d skipped=%d, want 1/0", imported, skipped)
+	}
+
+	got, err := b.GetMemory("MEMADD01")
+	if err != nil {
+		t.Fatalf("GetMemory: %v (ULID was not preserved)", err)
+	}
+	if got.ID != "MEMADD01" {
+		t.Errorf("id: got %q, want MEMADD01", got.ID)
+	}
+	if !got.CreatedAt.Equal(incoming.CreatedAt) {
+		t.Errorf("CreatedAt: got %s, want %s", got.CreatedAt, incoming.CreatedAt)
+	}
+}
+
+// TestParseMemoriesMarkdownUpdatedAt verifies round-trip of the UpdatedAt
+// field via the `updated=` metadata token.
+func TestParseMemoriesMarkdownUpdatedAt(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "aide-share-updated-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	created := time.Date(2026, 1, 10, 0, 0, 0, 0, time.UTC)
+	updated := time.Date(2026, 1, 12, 9, 30, 0, 0, time.UTC)
+
+	originals := []*memory.Memory{
+		{
+			ID:        "UPD001",
+			Category:  memory.CategoryLearning,
+			Content:   "Edited memory",
+			Tags:      []string{"project:test"},
+			CreatedAt: created,
+			UpdatedAt: updated,
+		},
+	}
+
+	path := filepath.Join(tmpDir, "learning.md")
+	if err := writeMemoriesMarkdown(path, memory.CategoryLearning, originals); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(content), "updated=2026-01-12T09:30:00Z") {
+		t.Errorf("expected `updated=` in file, got:\n%s", string(content))
+	}
+
+	parsed, err := parseMemoriesMarkdown(path)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if len(parsed) != 1 {
+		t.Fatalf("got %d entries, want 1", len(parsed))
+	}
+	if !parsed[0].UpdatedAt.Equal(updated) {
+		t.Errorf("UpdatedAt: got %s, want %s", parsed[0].UpdatedAt, updated)
+	}
+}

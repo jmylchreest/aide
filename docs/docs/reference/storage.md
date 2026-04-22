@@ -92,6 +92,25 @@ Set `AIDE_SHARE_AUTO_IMPORT=1` to automatically import from `.aide/shared/` at s
 3. Team member B pulls and starts a session
 4. The decision is automatically imported into their local database
 
+### Import Conflict Resolution
+
+When an imported entry relates to an entity already in the local database, AIDE applies a per-type rule:
+
+| Type          | Key                  | Conflict rule                                                                                                          | Net effect                  |
+| ------------- | -------------------- | ---------------------------------------------------------------------------------------------------------------------- | --------------------------- |
+| **Decisions** | Topic + timestamp    | Identical text to the current latest is skipped; otherwise the incoming decision is **appended** to the topic thread.  | Append-only thread per topic |
+| **Memories**  | ULID                 | Same ULID + newer `UpdatedAt` → in-place update (ULID and `CreatedAt` preserved); otherwise skip. New ULID → appended. | Additive + edits             |
+
+**Design rationale.** Decisions are a thread, not a single value: each `SetDecision` adds a new record keyed by `topic:timestamp`, and `aide decision get <topic>` returns the latest entry while `aide decision history <topic>` returns the full thread. So when a teammate commits a different decision for the same topic, the incoming entry becomes the new latest — the old one is still visible in history. This matches how ADRs work in most teams: superseded, not overwritten. Memories are accretive by ULID: every teammate's new learnings accumulate; in-place updates to an existing ULID only land when the incoming `UpdatedAt` is newer, so a teammate's refined content propagates without silently clobbering someone else's edit.
+
+**Practical notes:**
+
+- Memories keep their original ULID and `CreatedAt` on import. The same memory on every teammate's clone shares the same ID, so later edits land as in-place updates instead of creating duplicates.
+- The `updated=<timestamp>` token inside a memory's `<!-- aide:... -->` comment is written only when the memory has been edited after creation. Legacy files without this token fall through to the additive path — existing IDs skip, new IDs are appended.
+- The `date=` token is written in RFC 3339 format for full-precision round-trip; files from older aide versions using `YYYY-MM-DD` still parse.
+- The PR merging the shared export is the review gate; there is no separate review-on-import step.
+- Use `aide share import --dry-run` to preview what would change before a real import.
+
 ### Export Format
 
 Exported files are plain markdown with YAML frontmatter:

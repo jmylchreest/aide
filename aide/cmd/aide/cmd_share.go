@@ -318,13 +318,22 @@ func writeMemoriesMarkdown(filename string, cat memory.Category, memories []*mem
 		}
 		fmt.Fprintf(f, "### %s\n\n", heading)
 
-		// Metadata comment (parseable but invisible in rendered markdown)
+		// Metadata comment (parseable but invisible in rendered markdown).
+		// `updated` is emitted only when the memory has been edited after creation
+		// so that import can resolve "same ID, newer content" conflicts.
 		tags := ""
 		if len(m.Tags) > 0 {
 			tags = " tags=" + strings.Join(m.Tags, ",")
 		}
-		fmt.Fprintf(f, "<!-- aide:id=%s%s date=%s -->\n\n",
-			m.ID, tags, m.CreatedAt.Format("2006-01-02"))
+		updated := ""
+		if !m.UpdatedAt.IsZero() && m.UpdatedAt.After(m.CreatedAt) {
+			updated = " updated=" + m.UpdatedAt.UTC().Format(time.RFC3339)
+		}
+		// `date` uses RFC3339 to round-trip with full precision. The parser
+		// still accepts the legacy `YYYY-MM-DD` form for files exported by
+		// older versions of aide.
+		fmt.Fprintf(f, "<!-- aide:id=%s%s date=%s%s -->\n\n",
+			m.ID, tags, m.CreatedAt.UTC().Format(time.RFC3339), updated)
 
 		// Full content
 		fmt.Fprintln(f, m.Content)
@@ -602,14 +611,32 @@ func shareImportMemories(b *Backend, inputDir string, dryRun bool) (imported, sk
 		}
 
 		for _, m := range memories {
-			// Check if memory already exists by ID
+			// Existing memory with same ID: resolve via UpdatedAt (newer wins).
+			// If incoming has no `updated` field (or is not newer), skip — keeping
+			// memory sync additive-by-default and only letting explicit edits propagate.
 			if m.ID != "" {
 				existing, getErr := b.GetMemory(m.ID)
 				if getErr == nil && existing != nil {
-					skipped++
-					if dryRun {
-						fmt.Printf("  skip memory: %s (exists)\n", truncate(m.Content, 50))
+					if m.UpdatedAt.IsZero() || !m.UpdatedAt.After(existing.UpdatedAt) {
+						skipped++
+						if dryRun {
+							fmt.Printf("  skip memory: %s (exists)\n", truncate(m.Content, 50))
+						}
+						continue
 					}
+					if dryRun {
+						fmt.Printf("  update memory: %s (incoming newer)\n", truncate(m.Content, 50))
+						imported++
+						continue
+					}
+					existing.Content = m.Content
+					existing.Category = m.Category
+					existing.Tags = m.Tags
+					existing.UpdatedAt = m.UpdatedAt
+					if err := b.Store().UpdateMemory(existing); err != nil {
+						return imported, skipped, fmt.Errorf("failed to update memory %s: %w", m.ID, err)
+					}
+					imported++
 					continue
 				}
 			}
@@ -620,8 +647,18 @@ func shareImportMemories(b *Backend, inputDir string, dryRun bool) (imported, sk
 				continue
 			}
 
-			_, err = b.AddMemory(m.Content, string(m.Category), m.Tags)
-			if err != nil {
+			// Use Store().AddMemory so the incoming ULID, CreatedAt and UpdatedAt
+			// are preserved — same-ULID-is-same-memory is the invariant that makes
+			// future updates land on the existing record on every teammate's clone.
+			newMem := &memory.Memory{
+				ID:        m.ID,
+				Content:   m.Content,
+				Category:  m.Category,
+				Tags:      m.Tags,
+				CreatedAt: m.CreatedAt,
+				UpdatedAt: m.UpdatedAt,
+			}
+			if err := b.Store().AddMemory(newMem); err != nil {
 				return imported, skipped, fmt.Errorf("failed to import memory: %w", err)
 			}
 			imported++
@@ -632,7 +669,9 @@ func shareImportMemories(b *Backend, inputDir string, dryRun bool) (imported, sk
 }
 
 // aideCommentRegex parses the <!-- aide:... --> metadata comments.
-var aideCommentRegex = regexp.MustCompile(`<!--\s*aide:id=(\S+)(?:\s+tags=(\S+))?(?:\s+date=(\S+))?\s*-->`)
+// `updated` is optional and only present when a memory was edited after creation;
+// it is used by share import to resolve same-ID conflicts (newer wins).
+var aideCommentRegex = regexp.MustCompile(`<!--\s*aide:id=(\S+)(?:\s+tags=(\S+))?(?:\s+date=(\S+))?(?:\s+updated=(\S+))?\s*-->`)
 
 // parseMemoriesMarkdown reads a memories markdown file and extracts individual memories.
 func parseMemoriesMarkdown(filename string) ([]*memory.Memory, error) {
@@ -701,8 +740,17 @@ func parseMemoriesMarkdown(filename string) ([]*memory.Memory, error) {
 					current.Tags = strings.Split(matches[2], ",")
 				}
 				if matches[3] != "" {
-					if t, err := time.Parse("2006-01-02", matches[3]); err == nil {
+					// RFC3339 is the modern format; fall back to day-precision
+					// `YYYY-MM-DD` for files written by older aide versions.
+					if t, err := time.Parse(time.RFC3339, matches[3]); err == nil {
 						current.CreatedAt = t
+					} else if t, err := time.Parse("2006-01-02", matches[3]); err == nil {
+						current.CreatedAt = t
+					}
+				}
+				if matches[4] != "" {
+					if t, err := time.Parse(time.RFC3339, matches[4]); err == nil {
+						current.UpdatedAt = t
 					}
 				}
 			}

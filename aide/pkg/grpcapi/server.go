@@ -258,9 +258,19 @@ type memoryServiceImpl struct {
 
 func (s *memoryServiceImpl) Add(ctx context.Context, req *MemoryAddRequest) (*MemoryAddResponse, error) {
 	mem := &memory.Memory{
+		ID:       req.Id,
 		Content:  req.Content,
 		Category: memory.Category(req.Category),
 		Tags:     req.Tags,
+	}
+	// Honour caller-supplied timestamps when present. BoltStore.AddMemory
+	// fills zero values with sensible defaults, so leaving them unset keeps
+	// the existing behaviour for non-identity-preserving callers.
+	if req.CreatedAt != nil {
+		mem.CreatedAt = req.CreatedAt.AsTime()
+	}
+	if req.UpdatedAt != nil {
+		mem.UpdatedAt = req.UpdatedAt.AsTime()
 	}
 
 	if err := s.store.AddMemory(mem); err != nil {
@@ -402,6 +412,9 @@ func (s *stateServiceImpl) Set(ctx context.Context, req *StateSetRequest) (*Stat
 		Value: req.Value,
 		Agent: req.AgentId,
 	}
+	if req.UpdatedAt != nil {
+		st.UpdatedAt = req.UpdatedAt.AsTime()
+	}
 
 	if err := s.store.SetState(st); err != nil {
 		return nil, err
@@ -485,7 +498,11 @@ func (s *decisionServiceImpl) Set(ctx context.Context, req *DecisionSetRequest) 
 		Details:    req.Details,
 		References: req.References,
 		DecidedBy:  req.DecidedBy,
-		CreatedAt:  time.Now(),
+	}
+	// Honour caller-supplied CreatedAt; BoltStore.SetDecision stamps time.Now()
+	// when zero, matching the existing default.
+	if req.CreatedAt != nil {
+		dec.CreatedAt = req.CreatedAt.AsTime()
 	}
 
 	if err := s.store.SetDecision(dec); err != nil {

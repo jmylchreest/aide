@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi"
 	"github.com/jmylchreest/aide/aide/pkg/memory"
 	"github.com/jmylchreest/aide/aide/pkg/observe"
@@ -49,11 +51,19 @@ func (g *StoreAdapter) Close() error {
 func (g *StoreAdapter) AddMemory(m *memory.Memory) error {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
-	resp, err := g.client.Memory.Add(ctx, &grpcapi.MemoryAddRequest{
+	req := &grpcapi.MemoryAddRequest{
 		Content:  m.Content,
 		Category: string(m.Category),
 		Tags:     m.Tags,
-	})
+		Id:       m.ID,
+	}
+	if !m.CreatedAt.IsZero() {
+		req.CreatedAt = timestamppb.New(m.CreatedAt)
+	}
+	if !m.UpdatedAt.IsZero() {
+		req.UpdatedAt = timestamppb.New(m.UpdatedAt)
+	}
+	resp, err := g.client.Memory.Add(ctx, req)
 	if err != nil {
 		return err
 	}
@@ -62,6 +72,9 @@ func (g *StoreAdapter) AddMemory(m *memory.Memory) error {
 	}
 	m.ID = resp.Memory.Id
 	m.CreatedAt = resp.Memory.CreatedAt.AsTime()
+	if resp.Memory.UpdatedAt != nil {
+		m.UpdatedAt = resp.Memory.UpdatedAt.AsTime()
+	}
 	return nil
 }
 
@@ -75,17 +88,30 @@ func (g *StoreAdapter) GetMemory(id string) (*memory.Memory, error) {
 	return ProtoToMemory(resp.Memory), nil
 }
 
+// UpdateMemory simulates an in-place update over the existing gRPC API surface
+// by deleting and re-adding. The ID and timestamps are sent through the
+// MemoryAddRequest so the resulting record keeps the same identity as the
+// original; a dedicated Update RPC would be cleaner and is a potential future
+// change.
 func (g *StoreAdapter) UpdateMemory(m *memory.Memory) error {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
 	if _, err := g.client.Memory.Delete(ctx, &grpcapi.MemoryDeleteRequest{Id: m.ID}); err != nil {
 		return err
 	}
-	_, err := g.client.Memory.Add(ctx, &grpcapi.MemoryAddRequest{
+	req := &grpcapi.MemoryAddRequest{
 		Content:  m.Content,
 		Category: string(m.Category),
 		Tags:     m.Tags,
-	})
+		Id:       m.ID,
+	}
+	if !m.CreatedAt.IsZero() {
+		req.CreatedAt = timestamppb.New(m.CreatedAt)
+	}
+	if !m.UpdatedAt.IsZero() {
+		req.UpdatedAt = timestamppb.New(m.UpdatedAt)
+	}
+	_, err := g.client.Memory.Add(ctx, req)
 	return err
 }
 
@@ -153,11 +179,15 @@ func (g *StoreAdapter) TouchMemory(ids []string) (int, error) {
 func (g *StoreAdapter) SetState(st *memory.State) error {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
-	_, err := g.client.State.Set(ctx, &grpcapi.StateSetRequest{
+	req := &grpcapi.StateSetRequest{
 		Key:     st.Key,
 		Value:   st.Value,
 		AgentId: st.Agent,
-	})
+	}
+	if !st.UpdatedAt.IsZero() {
+		req.UpdatedAt = timestamppb.New(st.UpdatedAt)
+	}
+	_, err := g.client.State.Set(ctx, req)
 	return err
 }
 
@@ -218,14 +248,18 @@ func (g *StoreAdapter) CleanupStaleState(maxAge time.Duration) (int, error) {
 func (g *StoreAdapter) SetDecision(d *memory.Decision) error {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
-	resp, err := g.client.Decision.Set(ctx, &grpcapi.DecisionSetRequest{
+	req := &grpcapi.DecisionSetRequest{
 		Topic:      d.Topic,
 		Decision:   d.Decision,
 		Rationale:  d.Rationale,
 		Details:    d.Details,
 		References: d.References,
 		DecidedBy:  d.DecidedBy,
-	})
+	}
+	if !d.CreatedAt.IsZero() {
+		req.CreatedAt = timestamppb.New(d.CreatedAt)
+	}
+	resp, err := g.client.Decision.Set(ctx, req)
 	if err != nil {
 		return err
 	}

@@ -39,6 +39,14 @@ message MemoryAddRequest {
   string content = 1;
   string category = 2;
   repeated string tags = 3;
+  // When set, the server preserves this ULID instead of generating one. Used
+  // by identity-preserving flows such as `aide share import`.
+  string id = 4;
+  // When set, the server preserves this timestamp instead of using time.Now().
+  google.protobuf.Timestamp created_at = 5;
+  // When set, the server preserves this timestamp instead of zeroing it. Used
+  // by share import when an incoming memory carries an edit timestamp.
+  google.protobuf.Timestamp updated_at = 6;
 }
 
 message MemoryAddResponse {
@@ -128,6 +136,10 @@ message StateSetRequest {
   string key = 1;
   string value = 2;
   string agent_id = 3;  // Optional: for per-agent state
+  // When set, the server preserves this timestamp instead of using time.Now().
+  // Used by recovery flows that restore historic state; callers that leave it
+  // unset get the default "now" behaviour.
+  google.protobuf.Timestamp updated_at = 4;
 }
 
 message StateSetResponse {
@@ -196,6 +208,9 @@ message DecisionSetRequest {
   string details = 4;              // Full content: schemas, code, specs
   repeated string references = 5;  // External links, docs, related files
   string decided_by = 6;
+  // When set, the server preserves this timestamp instead of using time.Now().
+  // Used by identity-preserving flows such as `aide share import`.
+  google.protobuf.Timestamp created_at = 7;
 }
 
 message DecisionSetResponse {

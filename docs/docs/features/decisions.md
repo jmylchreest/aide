@@ -31,9 +31,15 @@ aide share import                    # Import from .aide/shared/
 aide share import --dry-run          # Preview what would be imported
 ```
 
-Set `AIDE_SHARE_AUTO_IMPORT=1` for automatic import on session start.
-
 Exported files use YAML frontmatter + markdown body, so they work as LLM context even without AIDE installed.
+
+### Share decisions with your team
+
+1. Run `aide share export` and commit `.aide/shared/` to git.
+2. Teammates add `AIDE_SHARE_AUTO_IMPORT=1` to `.claude/settings.json` (also tracked in git).
+3. On the next session start, aide imports from `.aide/shared/` — new decisions arrive automatically; decisions whose text differs from the local latest are **appended** to the topic thread (incoming becomes the new latest); identical decisions are skipped.
+
+Decisions are append-only per topic — superseding, not overwriting. To change course, commit a new decision for the topic; it becomes the new latest on the next import, and the previous one stays visible via `aide decision history <topic>`. For the full conflict-resolution rules (including memories), see [Storage → Import Conflict Resolution](/docs/reference/storage#import-conflict-resolution).
 
 ## Blueprints
 

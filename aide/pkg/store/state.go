@@ -9,11 +9,15 @@ import (
 	bolt "go.etcd.io/bbolt"
 )
 
-// SetState stores a state key-value pair.
+// SetState stores a state key-value pair. Callers may preset UpdatedAt to
+// preserve a historic timestamp (recovery flows); zero-value is stamped with
+// time.Now().
 func (s *BoltStore) SetState(st *memory.State) error {
 	return s.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(BucketState)
-		st.UpdatedAt = time.Now()
+		if st.UpdatedAt.IsZero() {
+			st.UpdatedAt = time.Now()
+		}
 		data, err := json.Marshal(st)
 		if err != nil {
 			return err
