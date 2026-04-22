@@ -112,6 +112,70 @@ func TestAnnotateEstTokensWalksUpFromSubdir(t *testing.T) {
 	}
 }
 
+func TestAnnotateEstTokensExcludesGeneratedAndLockfiles(t *testing.T) {
+	tmp := t.TempDir()
+
+	// Write real files so we know any missing est_tokens is the exclusion,
+	// not a failed stat.
+	mustWrite := func(rel string) {
+		full := filepath.Join(tmp, rel)
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte("x = 1\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	excluded := []string{
+		"aidememory.pb.go",
+		"aidememory_grpc.pb.go",
+		"api.pb.ts",
+		"api.pb.js",
+		"bundle.min.js",
+		"styles.min.css",
+		"package-lock.json",
+		"yarn.lock",
+		"pnpm-lock.yaml",
+		"bun.lock",
+		"bun.lockb",
+		"Cargo.lock",
+		"go.sum",
+		"Gemfile.lock",
+		"composer.lock",
+		"poetry.lock",
+		"Pipfile.lock",
+		"vendor/some/pkg.go",
+		"node_modules/lib/index.js",
+	}
+	for _, rel := range excluded {
+		mustWrite(rel)
+	}
+	kept := []string{"pkg/thing.go", "src/index.ts"}
+	for _, rel := range kept {
+		mustWrite(rel)
+	}
+
+	all := append(append([]string{}, excluded...), kept...)
+	entries := make([]*Entry, len(all))
+	for i, rel := range all {
+		entries[i] = &Entry{FilePath: rel}
+	}
+	AnnotateEstTokens(tmp, entries)
+
+	for i, rel := range excluded {
+		if EstTokensFor(entries[i]) != 0 {
+			t.Errorf("%s should be excluded from est_tokens, got %d", rel, EstTokensFor(entries[i]))
+		}
+	}
+	for i, rel := range kept {
+		idx := len(excluded) + i
+		if EstTokensFor(entries[idx]) == 0 {
+			t.Errorf("%s should have est_tokens set", rel)
+		}
+	}
+}
+
 func TestEstTokensForMalformedReturnsZero(t *testing.T) {
 	cases := []*Entry{
 		nil,

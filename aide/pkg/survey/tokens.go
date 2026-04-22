@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/jmylchreest/aide/aide/pkg/code"
 )
@@ -27,6 +28,9 @@ func AnnotateEstTokens(rootDir string, entries []*Entry) {
 		if e == nil || e.FilePath == "" {
 			continue
 		}
+		if isTokenCostExcluded(e.FilePath) {
+			continue
+		}
 		abs := resolveEntryPath(rootDir, e.FilePath)
 		if abs == "" {
 			continue
@@ -44,6 +48,44 @@ func AnnotateEstTokens(rootDir string, entries []*Entry) {
 		}
 		e.Metadata[MetaEstTokens] = strconv.Itoa(tokens)
 	}
+}
+
+// isTokenCostExcluded reports whether a file should be skipped when computing
+// the "tokens an agent would have paid to read this" counterfactual. An agent
+// would essentially never choose to read these files even when chasing the
+// information they represent, so claiming savings against them inflates the
+// dashboard numbers without reflecting real avoided work.
+//
+// Covers: generated protobuf/gRPC stubs, dependency lockfiles, minified
+// bundles, and vendored dependency trees. The list is deliberately narrow
+// so we don't accidentally exclude hand-maintained files.
+func isTokenCostExcluded(filePath string) bool {
+	base := filepath.Base(filePath)
+	slashed := filepath.ToSlash(filePath)
+
+	if strings.HasSuffix(base, ".pb.go") ||
+		strings.HasSuffix(base, "_grpc.pb.go") ||
+		strings.HasSuffix(base, ".pb.ts") ||
+		strings.HasSuffix(base, ".pb.js") {
+		return true
+	}
+	if strings.HasSuffix(base, ".min.js") || strings.HasSuffix(base, ".min.css") {
+		return true
+	}
+	switch base {
+	case "package-lock.json", "yarn.lock", "pnpm-lock.yaml",
+		"bun.lock", "bun.lockb",
+		"Cargo.lock", "go.sum",
+		"Gemfile.lock", "composer.lock", "poetry.lock", "Pipfile.lock":
+		return true
+	}
+	if strings.Contains(slashed, "/vendor/") ||
+		strings.Contains(slashed, "/node_modules/") ||
+		strings.HasPrefix(slashed, "vendor/") ||
+		strings.HasPrefix(slashed, "node_modules/") {
+		return true
+	}
+	return false
 }
 
 // resolveEntryPath tries a handful of candidate locations to turn an entry's
