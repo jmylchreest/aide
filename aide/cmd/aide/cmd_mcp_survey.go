@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/jmylchreest/aide/aide/pkg/code"
+	"github.com/jmylchreest/aide/aide/pkg/observe"
 	"github.com/jmylchreest/aide/aide/pkg/store"
 	"github.com/jmylchreest/aide/aide/pkg/survey"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -163,8 +164,9 @@ Computed on demand — not stored. Results reflect the current code index state.
 // Survey MCP Tool Handlers
 // =============================================================================
 
-func (s *MCPServer) handleSurveySearch(_ context.Context, _ *mcp.CallToolRequest, input SurveySearchInput) (*mcp.CallToolResult, any, error) {
+func (s *MCPServer) handleSurveySearch(ctx context.Context, _ *mcp.CallToolRequest, input SurveySearchInput) (*mcp.CallToolResult, any, error) {
 	mcpLog.Printf("tool: survey_search query=%q analyzer=%s kind=%s", input.Query, input.Analyzer, input.Kind)
+	span := observe.FromContext(ctx)
 
 	if s.surveyStore == nil {
 		return errorResult("survey store not available"), nil, nil
@@ -188,15 +190,20 @@ func (s *MCPServer) handleSurveySearch(_ context.Context, _ *mcp.CallToolRequest
 
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "Found %d entries:\n\n", len(results))
+	counterfactual := 0
 	for _, r := range results {
 		sb.WriteString(formatSurveyEntryLine(r.Entry))
+		counterfactual += survey.EstTokensFor(r.Entry)
 	}
 
-	return textResult(sb.String()), nil, nil
+	respText := sb.String()
+	recordSurveySavings(span, respText, counterfactual)
+	return textResult(respText), nil, nil
 }
 
-func (s *MCPServer) handleSurveyList(_ context.Context, _ *mcp.CallToolRequest, input SurveyListInput) (*mcp.CallToolResult, any, error) {
+func (s *MCPServer) handleSurveyList(ctx context.Context, _ *mcp.CallToolRequest, input SurveyListInput) (*mcp.CallToolResult, any, error) {
 	mcpLog.Printf("tool: survey_list analyzer=%s kind=%s file=%s", input.Analyzer, input.Kind, input.FilePath)
+	span := observe.FromContext(ctx)
 
 	if s.surveyStore == nil {
 		return errorResult("survey store not available"), nil, nil
@@ -220,11 +227,15 @@ func (s *MCPServer) handleSurveyList(_ context.Context, _ *mcp.CallToolRequest, 
 
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "Found %d entries:\n\n", len(results))
+	counterfactual := 0
 	for _, e := range results {
 		sb.WriteString(formatSurveyEntryLine(e))
+		counterfactual += survey.EstTokensFor(e)
 	}
 
-	return textResult(sb.String()), nil, nil
+	respText := sb.String()
+	recordSurveySavings(span, respText, counterfactual)
+	return textResult(respText), nil, nil
 }
 
 func (s *MCPServer) handleSurveyStats(_ context.Context, _ *mcp.CallToolRequest, input SurveyStatsInput) (*mcp.CallToolResult, any, error) {
@@ -328,8 +339,9 @@ func (s *MCPServer) handleSurveyRun(_ context.Context, _ *mcp.CallToolRequest, i
 	return textResult(sb.String()), nil, nil
 }
 
-func (s *MCPServer) handleSurveyGraph(_ context.Context, _ *mcp.CallToolRequest, input SurveyGraphInput) (*mcp.CallToolResult, any, error) {
+func (s *MCPServer) handleSurveyGraph(ctx context.Context, _ *mcp.CallToolRequest, input SurveyGraphInput) (*mcp.CallToolResult, any, error) {
 	mcpLog.Printf("tool: survey_graph symbol=%q direction=%s depth=%d nodes=%d", input.Symbol, input.Direction, input.MaxDepth, input.MaxNodes)
+	span := observe.FromContext(ctx)
 
 	if input.Symbol == "" {
 		return errorResult("symbol name is required"), nil, nil
@@ -384,7 +396,63 @@ func (s *MCPServer) handleSurveyGraph(_ context.Context, _ *mcp.CallToolRequest,
 		sb.WriteString("No call relationships found.\n")
 	}
 
-	return textResult(sb.String()), nil, nil
+	// Counterfactual for a graph query: tokens the agent would have paid to
+	// trace this neighbourhood manually via code_references + file reads.
+	// Approximated by summing token estimates for distinct files appearing
+	// in the graph's nodes — that's the read workload the graph replaces.
+	counterfactual := graphCounterfactualTokens(projectRoot(s.dbPath), graph.Nodes)
+	respText := sb.String()
+	recordSurveySavings(span, respText, counterfactual)
+	return textResult(respText), nil, nil
+}
+
+// =============================================================================
+// Savings attribution for survey handlers
+// =============================================================================
+
+// recordSurveySavings stamps the span with response size (Tokens) and the
+// counterfactual delta (Saved) — mirroring the pattern established by
+// code_outline / code_read_symbol at cmd_mcp_code.go:477. Passing no file path
+// to EstimateTokens falls back to the default chars-per-token ratio, which is
+// appropriate for aide-generated response text.
+func recordSurveySavings(span *observe.Span, respText string, counterfactual int) {
+	respTokens := code.EstimateTokens("", len(respText))
+	saved := counterfactual - respTokens
+	if saved < 0 {
+		saved = 0
+	}
+	span.Tokens(respTokens).Saved(saved)
+}
+
+// graphCounterfactualTokens estimates the cost of deriving a call graph
+// manually — i.e. reading each distinct file the graph nodes reference.
+// Uses the survey package's file-size-based estimator so the number is
+// grounded in real bytes on disk, not a per-node fudge factor.
+func graphCounterfactualTokens(rootDir string, nodes []survey.GraphNode) int {
+	if len(nodes) == 0 {
+		return 0
+	}
+	// Collapse to distinct files so one file referenced by many nodes is
+	// only counted once (matches what an agent would actually read).
+	seen := make(map[string]struct{}, len(nodes))
+	placeholder := make([]*survey.Entry, 0, len(nodes))
+	for _, n := range nodes {
+		if n.FilePath == "" {
+			continue
+		}
+		if _, dup := seen[n.FilePath]; dup {
+			continue
+		}
+		seen[n.FilePath] = struct{}{}
+		placeholder = append(placeholder, &survey.Entry{FilePath: n.FilePath})
+	}
+	// Reuse the analyzer-side helper for the stat + estimate path.
+	survey.AnnotateEstTokens(rootDir, placeholder)
+	total := 0
+	for _, e := range placeholder {
+		total += survey.EstTokensFor(e)
+	}
+	return total
 }
 
 // =============================================================================

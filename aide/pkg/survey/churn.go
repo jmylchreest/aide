@@ -77,5 +77,6 @@ func RunChurn(rootDir string, maxCommits int, topN int) (*ChurnResult, error) {
 		}
 	}
 
+	AnnotateEstTokens(rootDir, result.Entries)
 	return result, nil
 }

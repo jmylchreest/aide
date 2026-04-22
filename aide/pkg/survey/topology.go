@@ -53,6 +53,7 @@ func RunTopologyWithRegistry(rootDir string, reg *grammar.PackRegistry) (*Topolo
 		}
 	}
 
+	AnnotateEstTokens(rootDir, result.Entries)
 	return result, nil
 }
 

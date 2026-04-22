@@ -44,6 +44,7 @@ func RunEntrypointsWithRegistry(rootDir string, codeSearcher CodeSearcher, reg *
 		}
 	}
 
+	AnnotateEstTokens(rootDir, result.Entries)
 	return result, nil
 }
 
