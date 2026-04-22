@@ -18,11 +18,11 @@ var (
 
 // Bucket names.
 var (
-	BucketMemories    = []byte("memories")
-	BucketTasks       = []byte("tasks")
-	BucketMessages    = []byte("messages")
-	BucketDecisions   = []byte("decisions")
-	BucketState       = []byte("state")
+	BucketMemories      = []byte("memories")
+	BucketTasks         = []byte("tasks")
+	BucketMessages      = []byte("messages")
+	BucketDecisions     = []byte("decisions")
+	BucketState         = []byte("state")
 	BucketTokenEvents   = []byte("token_events")
 	BucketObserveEvents = []byte("observe_events")
 	BucketMeta          = []byte("meta")

@@ -90,11 +90,11 @@ type State struct {
 
 // Token event type constants.
 const (
-	TokenEventRead            = "read"              // File was read (tokens = estimated file tokens)
-	TokenEventOutlineUsed     = "outline_used"      // code_outline used (saved = full - outline tokens)
-	TokenEventReadAvoided     = "read_avoided"      // Smart-read hint heeded (saved = file tokens)
-	TokenEventSymbolRead      = "symbol_read"       // code_read_symbol used (saved = full - symbol tokens)
-	TokenEventContextInjected = "context_injected"  // Proactive context delivery (memories, decisions, skills, enrichment)
+	TokenEventRead            = "read"             // File was read (tokens = estimated file tokens)
+	TokenEventOutlineUsed     = "outline_used"     // code_outline used (saved = full - outline tokens)
+	TokenEventReadAvoided     = "read_avoided"     // Smart-read hint heeded (saved = file tokens)
+	TokenEventSymbolRead      = "symbol_read"      // code_read_symbol used (saved = full - symbol tokens)
+	TokenEventContextInjected = "context_injected" // Proactive context delivery (memories, decisions, skills, enrichment)
 )
 
 // TokenEvent records an estimated token impact from a tool call.
@@ -122,7 +122,7 @@ type TokenStats struct {
 	TotalRead      int            `json:"total_read"`      // Estimated tokens consumed by reads
 	TotalSaved     int            `json:"total_saved"`     // Estimated tokens saved
 	TotalWritten   int            `json:"total_written"`   // Estimated tokens output
-	TotalDelivered int            `json:"total_delivered"`  // Tokens proactively delivered (injections, enrichment)
+	TotalDelivered int            `json:"total_delivered"` // Tokens proactively delivered (injections, enrichment)
 	EventCount     int            `json:"event_count"`     // Total events
 	ByTool         map[string]int `json:"by_tool"`         // Estimated tokens per tool
 	BySavingType   map[string]int `json:"by_saving_type"`  // Estimated saved tokens by category

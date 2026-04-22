@@ -573,7 +573,6 @@ func (s *MCPServer) handleCodeReadSymbol(ctx context.Context, _ *mcp.CallToolReq
 		found++
 		totalTokens += symbolTokens
 		totalSaved += saved
-
 	}
 
 	span.Tokens(totalTokens).Saved(totalSaved).Attr("symbols", fmt.Sprintf("%d/%d", found, len(names)))
@@ -665,4 +664,3 @@ func (s *MCPServer) readOneSymbol(codeStore store.CodeIndexStore, root, name, ki
 
 	return match, symbolTokens, saved, sb.String()
 }
-

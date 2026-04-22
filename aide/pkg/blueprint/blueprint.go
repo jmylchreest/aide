@@ -19,14 +19,14 @@ var embeddedBlueprints embed.FS
 
 // Blueprint is a portable bundle of best-practice decisions for a language or stack.
 type Blueprint struct {
-	SchemaVersion int                  `json:"schema_version"`
-	Name          string               `json:"name"`
-	DisplayName   string               `json:"display_name"`
-	Description   string               `json:"description"`
-	Version       string               `json:"version"`
-	Tags          []string             `json:"tags,omitempty"`
-	Includes      []string             `json:"includes,omitempty"`
-	Decisions     []BlueprintDecision  `json:"decisions"`
+	SchemaVersion int                 `json:"schema_version"`
+	Name          string              `json:"name"`
+	DisplayName   string              `json:"display_name"`
+	Description   string              `json:"description"`
+	Version       string              `json:"version"`
+	Tags          []string            `json:"tags,omitempty"`
+	Includes      []string            `json:"includes,omitempty"`
+	Decisions     []BlueprintDecision `json:"decisions"`
 }
 
 // BlueprintDecision is a single decision within a blueprint.
