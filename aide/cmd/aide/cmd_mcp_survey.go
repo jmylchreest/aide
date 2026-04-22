@@ -190,13 +190,14 @@ func (s *MCPServer) handleSurveySearch(ctx context.Context, _ *mcp.CallToolReque
 
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "Found %d entries:\n\n", len(results))
-	counterfactual := 0
+	entries := make([]*survey.Entry, 0, len(results))
 	for _, r := range results {
 		sb.WriteString(formatSurveyEntryLine(r.Entry))
-		counterfactual += survey.EstTokensFor(r.Entry)
+		entries = append(entries, r.Entry)
 	}
 
 	respText := sb.String()
+	counterfactual := survey.CounterfactualTokensForEntries(projectRoot(s.dbPath), entries)
 	recordSurveySavings(span, respText, counterfactual)
 	return textResult(respText), nil, nil
 }
@@ -227,13 +228,12 @@ func (s *MCPServer) handleSurveyList(ctx context.Context, _ *mcp.CallToolRequest
 
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "Found %d entries:\n\n", len(results))
-	counterfactual := 0
 	for _, e := range results {
 		sb.WriteString(formatSurveyEntryLine(e))
-		counterfactual += survey.EstTokensFor(e)
 	}
 
 	respText := sb.String()
+	counterfactual := survey.CounterfactualTokensForEntries(projectRoot(s.dbPath), results)
 	recordSurveySavings(span, respText, counterfactual)
 	return textResult(respText), nil, nil
 }
@@ -425,17 +425,16 @@ func recordSurveySavings(span *observe.Span, respText string, counterfactual int
 }
 
 // graphCounterfactualTokens estimates the cost of deriving a call graph
-// manually — i.e. reading each distinct file the graph nodes reference.
-// Uses the survey package's file-size-based estimator so the number is
-// grounded in real bytes on disk, not a per-node fudge factor.
+// manually — reading each distinct file the graph nodes reference. Graph
+// nodes come from the code index rather than the survey store, so they
+// never carry cached est_tokens; CounterfactualTokensForEntries falls back
+// to a live file-stat for each one.
 func graphCounterfactualTokens(rootDir string, nodes []survey.GraphNode) int {
 	if len(nodes) == 0 {
 		return 0
 	}
-	// Collapse to distinct files so one file referenced by many nodes is
-	// only counted once (matches what an agent would actually read).
 	seen := make(map[string]struct{}, len(nodes))
-	placeholder := make([]*survey.Entry, 0, len(nodes))
+	entries := make([]*survey.Entry, 0, len(nodes))
 	for _, n := range nodes {
 		if n.FilePath == "" {
 			continue
@@ -444,15 +443,9 @@ func graphCounterfactualTokens(rootDir string, nodes []survey.GraphNode) int {
 			continue
 		}
 		seen[n.FilePath] = struct{}{}
-		placeholder = append(placeholder, &survey.Entry{FilePath: n.FilePath})
+		entries = append(entries, &survey.Entry{FilePath: n.FilePath})
 	}
-	// Reuse the analyzer-side helper for the stat + estimate path.
-	survey.AnnotateEstTokens(rootDir, placeholder)
-	total := 0
-	for _, e := range placeholder {
-		total += survey.EstTokensFor(e)
-	}
-	return total
+	return survey.CounterfactualTokensForEntries(rootDir, entries)
 }
 
 // =============================================================================

@@ -4,7 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 
 	"github.com/jmylchreest/aide/aide/pkg/code"
 )
@@ -23,23 +22,18 @@ const MetaEstTokens = "est_tokens"
 // which may sit above the rootDir passed to this analyzer in a monorepo.
 // Directory, missing, or zero-length paths are left without an estimate;
 // aggregators treat absence as "no known cost".
+// AnnotateEstTokens is idempotent: entries that already carry an est_tokens
+// value keep it (survey-time snapshot wins, even if the file has since
+// changed on disk).
 func AnnotateEstTokens(rootDir string, entries []*Entry) {
 	for _, e := range entries {
 		if e == nil || e.FilePath == "" {
 			continue
 		}
-		if isTokenCostExcluded(e.FilePath) {
+		if _, already := e.Metadata[MetaEstTokens]; already {
 			continue
 		}
-		abs := resolveEntryPath(rootDir, e.FilePath)
-		if abs == "" {
-			continue
-		}
-		info, err := os.Stat(abs)
-		if err != nil || !info.Mode().IsRegular() {
-			continue
-		}
-		tokens := code.EstimateTokensFromSize(e.FilePath, info.Size())
+		tokens := estTokensOnDisk(rootDir, e.FilePath)
 		if tokens <= 0 {
 			continue
 		}
@@ -50,34 +44,44 @@ func AnnotateEstTokens(rootDir string, entries []*Entry) {
 	}
 }
 
-// isTokenCostExcluded reports whether a file should be skipped when computing
-// the "tokens an agent would have paid to read this" counterfactual. The list
-// is deliberately narrow: only files an agent could essentially never choose
-// to read usefully — dependency lockfiles, minified bundles, and vendored
-// dependency trees. Generated source (e.g. protobuf stubs) is NOT on the
-// list: agents do sometimes inspect generated output when debugging, and the
-// read cost is real when they do.
-func isTokenCostExcluded(filePath string) bool {
-	base := filepath.Base(filePath)
-	slashed := filepath.ToSlash(filePath)
+// estTokensOnDisk resolves a survey entry's FilePath (via the same walk-up
+// rules as resolveEntryPath) and returns the token estimate for the file's
+// current size. Returns 0 if the path can't be resolved or doesn't refer to
+// a regular file.
+func estTokensOnDisk(rootDir, filePath string) int {
+	abs := resolveEntryPath(rootDir, filePath)
+	if abs == "" {
+		return 0
+	}
+	info, err := os.Stat(abs)
+	if err != nil || !info.Mode().IsRegular() {
+		return 0
+	}
+	return code.EstimateTokensFromSize(filePath, info.Size())
+}
 
-	if strings.HasSuffix(base, ".min.js") || strings.HasSuffix(base, ".min.css") {
-		return true
+// CounterfactualTokensForEntries returns the estimated token cost an agent
+// would pay to read every file referenced by entries. Uses each entry's
+// cached metadata[est_tokens] when present (survey-time snapshot), falls
+// back to a live stat + per-language estimate when the metadata is missing.
+// Never mutates the input entries — safe to call with pointers returned
+// from the survey store.
+func CounterfactualTokensForEntries(rootDir string, entries []*Entry) int {
+	total := 0
+	for _, e := range entries {
+		if e == nil {
+			continue
+		}
+		if n := EstTokensFor(e); n > 0 {
+			total += n
+			continue
+		}
+		if e.FilePath == "" {
+			continue
+		}
+		total += estTokensOnDisk(rootDir, e.FilePath)
 	}
-	switch base {
-	case "package-lock.json", "yarn.lock", "pnpm-lock.yaml",
-		"bun.lock", "bun.lockb",
-		"Cargo.lock", "go.sum",
-		"Gemfile.lock", "composer.lock", "poetry.lock", "Pipfile.lock":
-		return true
-	}
-	if strings.Contains(slashed, "/vendor/") ||
-		strings.Contains(slashed, "/node_modules/") ||
-		strings.HasPrefix(slashed, "vendor/") ||
-		strings.HasPrefix(slashed, "node_modules/") {
-		return true
-	}
-	return false
+	return total
 }
 
 // resolveEntryPath tries a handful of candidate locations to turn an entry's

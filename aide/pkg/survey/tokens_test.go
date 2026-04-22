@@ -112,72 +112,51 @@ func TestAnnotateEstTokensWalksUpFromSubdir(t *testing.T) {
 	}
 }
 
-func TestAnnotateEstTokensExcludesGeneratedAndLockfiles(t *testing.T) {
+func TestAnnotateEstTokensIdempotent(t *testing.T) {
 	tmp := t.TempDir()
-
-	// Write real files so we know any missing est_tokens is the exclusion,
-	// not a failed stat.
-	mustWrite := func(rel string) {
-		full := filepath.Join(tmp, rel)
-		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(full, []byte("x = 1\n"), 0o644); err != nil {
-			t.Fatal(err)
-		}
+	path := filepath.Join(tmp, "x.go")
+	if err := os.WriteFile(path, []byte("package x\n"), 0o644); err != nil {
+		t.Fatal(err)
 	}
 
-	excluded := []string{
-		"bundle.min.js",
-		"styles.min.css",
-		"package-lock.json",
-		"yarn.lock",
-		"pnpm-lock.yaml",
-		"bun.lock",
-		"bun.lockb",
-		"Cargo.lock",
-		"go.sum",
-		"Gemfile.lock",
-		"composer.lock",
-		"poetry.lock",
-		"Pipfile.lock",
-		"vendor/some/pkg.go",
-		"node_modules/lib/index.js",
-	}
-	for _, rel := range excluded {
-		mustWrite(rel)
-	}
-	// Generated protobuf sources are deliberately NOT excluded — agents may
-	// need to read them when debugging wire format or field metadata.
-	kept := []string{
-		"pkg/thing.go",
-		"src/index.ts",
-		"aidememory.pb.go",
-		"aidememory_grpc.pb.go",
-		"api.pb.ts",
-		"api.pb.js",
-	}
-	for _, rel := range kept {
-		mustWrite(rel)
-	}
-
-	all := append(append([]string{}, excluded...), kept...)
-	entries := make([]*Entry, len(all))
-	for i, rel := range all {
-		entries[i] = &Entry{FilePath: rel}
-	}
+	entries := []*Entry{{
+		FilePath: "x.go",
+		Metadata: map[string]string{MetaEstTokens: "9999"},
+	}}
 	AnnotateEstTokens(tmp, entries)
 
-	for i, rel := range excluded {
-		if EstTokensFor(entries[i]) != 0 {
-			t.Errorf("%s should be excluded from est_tokens, got %d", rel, EstTokensFor(entries[i]))
+	// Pre-existing value must survive. Survey-time snapshot wins even when
+	// it diverges from current disk state; repeat calls become cheap no-ops.
+	if got := EstTokensFor(entries[0]); got != 9999 {
+		t.Errorf("pre-existing est_tokens overwritten: got %d, want 9999", got)
+	}
+}
+
+func TestCounterfactualTokensForEntriesFallsBackToDisk(t *testing.T) {
+	tmp := t.TempDir()
+	cached := filepath.Join(tmp, "cached.go")
+	live := filepath.Join(tmp, "live.go")
+	for _, p := range []string{cached, live} {
+		if err := os.WriteFile(p, []byte("package x; var a = 1\n"), 0o644); err != nil {
+			t.Fatal(err)
 		}
 	}
-	for i, rel := range kept {
-		idx := len(excluded) + i
-		if EstTokensFor(entries[idx]) == 0 {
-			t.Errorf("%s should have est_tokens set", rel)
-		}
+
+	entries := []*Entry{
+		{FilePath: "cached.go", Metadata: map[string]string{MetaEstTokens: "250"}},
+		{FilePath: "live.go"}, // no metadata — must resolve from disk
+		{FilePath: "missing.go"},
+		{FilePath: ""},
+		nil,
+	}
+	total := CounterfactualTokensForEntries(tmp, entries)
+	if total <= 250 {
+		t.Errorf("total %d does not include a live-stat contribution for live.go", total)
+	}
+
+	// Non-mutating: entry[1] must not have gained metadata.
+	if _, ok := entries[1].Metadata[MetaEstTokens]; ok {
+		t.Error("CounterfactualTokensForEntries mutated input entries")
 	}
 }
 
