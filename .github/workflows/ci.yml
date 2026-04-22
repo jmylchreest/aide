@@ -101,6 +101,27 @@ jobs:
           version: latest
           working-directory: aide
 
+  proto:
+    name: Proto (buf lint + breaking)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: bufbuild/buf-setup-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: buf lint
+        working-directory: aide
+        run: buf lint
+
+      # Fail the build on wire-incompatible proto changes. Only runs on PRs so the
+      # baseline is the target branch; pushes to main have no sensible baseline.
+      - name: buf breaking (vs target branch)
+        if: github.event_name == 'pull_request'
+        working-directory: aide
+        run: buf breaking --against "https://github.com/${{ github.repository }}.git#branch=${{ github.base_ref }},subdir=aide"
+
   build:
     name: Build
     runs-on: ubuntu-latest

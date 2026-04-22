@@ -68,6 +68,19 @@ Help me decide on the auth strategy and database schema for this project.
 
 Blueprints cover language idioms, tooling, CI/CD, and common pitfalls. The decide skill handles project-specific architectural choices. Both persist across every future session. [Full guide](docs/docs/getting-started/new-project.md)
 
+### Share decisions with your team:
+
+Export decisions and memories to git-friendly markdown, then commit them:
+
+```bash
+aide share export      # writes to .aide/shared/
+git add .aide/shared && git commit -m "share: team decisions"
+```
+
+Teammates who add `AIDE_SHARE_AUTO_IMPORT=1` to `.claude/settings.json` get them imported automatically at session start. Decisions are append-only per topic (new ones supersede, history kept); memories merge by ULID (newer edits win).
+
+**Teammates without AIDE can still use the folder.** Each `.aide/shared/decisions/*.md` and `.aide/shared/memories/*.md` is self-contained markdown with structured frontmatter — any AI assistant can ingest them as context. A short `DECISIONS.md` / `MEMORIES.md` explainer is written alongside the exports to document the format. [Full guide](docs/docs/reference/storage.md#import-conflict-resolution)
+
 ## Skills
 
 Skills are markdown workflows triggered by keywords. Type naturally — trigger matching is fuzzy.

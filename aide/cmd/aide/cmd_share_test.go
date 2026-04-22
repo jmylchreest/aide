@@ -785,6 +785,101 @@ func TestShareImportMemoriesPreservesULIDOnNewAdd(t *testing.T) {
 	}
 }
 
+// The export must write a static DECISIONS.md explainer when the folder has
+// content, and the importer must skip it rather than trying to parse it as a
+// decision. If all decisions are deleted and the folder is re-exported, the
+// explainer disappears too.
+func TestShareExportWritesDecisionsReadme(t *testing.T) {
+	b, tmpDir, cleanup := setupShareTest(t)
+	defer cleanup()
+
+	if _, err := b.SetDecision("topic-a", "value-a", "", "", "", nil); err != nil {
+		t.Fatalf("SetDecision: %v", err)
+	}
+
+	sharedDir := filepath.Join(tmpDir, ".aide", "shared")
+	if _, err := shareExportDecisions(b, sharedDir); err != nil {
+		t.Fatalf("export: %v", err)
+	}
+
+	readmePath := filepath.Join(sharedDir, "decisions", "DECISIONS.md")
+	data, err := os.ReadFile(readmePath)
+	if err != nil {
+		t.Fatalf("DECISIONS.md not written: %v", err)
+	}
+	if !strings.Contains(string(data), "Team Decisions") {
+		t.Errorf("DECISIONS.md missing expected header, got:\n%s", string(data))
+	}
+
+	imported, skipped, err := shareImportDecisions(b, sharedDir, false)
+	if err != nil {
+		t.Fatalf("import: %v", err)
+	}
+	if imported != 0 || skipped != 1 {
+		t.Errorf("import counts: imported=%d skipped=%d, want 0/1 (topic-a skipped as unchanged, DECISIONS.md ignored)", imported, skipped)
+	}
+
+	if _, err := b.ClearDecisions(); err != nil {
+		t.Fatalf("ClearDecisions: %v", err)
+	}
+	if _, err := shareExportDecisions(b, sharedDir); err != nil {
+		t.Fatalf("re-export: %v", err)
+	}
+	if _, err := os.Stat(readmePath); !os.IsNotExist(err) {
+		t.Errorf("DECISIONS.md should be removed when folder is empty, got err=%v", err)
+	}
+}
+
+func TestShareExportWritesMemoriesReadme(t *testing.T) {
+	b, tmpDir, cleanup := setupShareTest(t)
+	defer cleanup()
+
+	// Seed a shareable memory (pattern category always exports).
+	m := &memory.Memory{
+		ID:        "MEMRDM01",
+		Category:  "pattern",
+		Content:   "Use Vitest",
+		Tags:      []string{"project:test"},
+		CreatedAt: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+	}
+	if err := b.Store().AddMemory(m); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	sharedDir := filepath.Join(tmpDir, ".aide", "shared")
+	if _, err := shareExportMemories(b, sharedDir, false); err != nil {
+		t.Fatalf("export: %v", err)
+	}
+
+	readmePath := filepath.Join(sharedDir, "memories", "MEMORIES.md")
+	data, err := os.ReadFile(readmePath)
+	if err != nil {
+		t.Fatalf("MEMORIES.md not written: %v", err)
+	}
+	if !strings.Contains(string(data), "Team Memories") {
+		t.Errorf("MEMORIES.md missing expected header, got:\n%s", string(data))
+	}
+
+	imported, skipped, err := shareImportMemories(b, sharedDir, false)
+	if err != nil {
+		t.Fatalf("import: %v", err)
+	}
+	// Existing memory round-trips (skipped), and MEMORIES.md is not counted.
+	if imported != 0 || skipped != 1 {
+		t.Errorf("import counts: imported=%d skipped=%d, want 0/1", imported, skipped)
+	}
+
+	if err := b.Store().DeleteMemory("MEMRDM01"); err != nil {
+		t.Fatalf("DeleteMemory: %v", err)
+	}
+	if _, err := shareExportMemories(b, sharedDir, false); err != nil {
+		t.Fatalf("re-export: %v", err)
+	}
+	if _, err := os.Stat(readmePath); !os.IsNotExist(err) {
+		t.Errorf("MEMORIES.md should be removed when folder is empty, got err=%v", err)
+	}
+}
+
 // TestParseMemoriesMarkdownUpdatedAt verifies round-trip of the UpdatedAt
 // field via the `updated=` metadata token.
 func TestParseMemoriesMarkdownUpdatedAt(t *testing.T) {

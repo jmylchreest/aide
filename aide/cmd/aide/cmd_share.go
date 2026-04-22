@@ -30,6 +30,19 @@ import (
 // sanitizeFilenameRe is compiled once for sanitizeFilename.
 var sanitizeFilenameRe = regexp.MustCompile(`[^a-zA-Z0-9_-]+`)
 
+// reservedShareFiles are the explainer markdowns written alongside exports.
+// They must be skipped by the import parsers and preserved by removeStaleFiles.
+var reservedShareFiles = map[string]bool{
+	"DECISIONS.md": true,
+	"MEMORIES.md":  true,
+}
+
+// isReservedShareFile reports whether name is one of the reserved explainer
+// files written by the export command and must be skipped by importers.
+func isReservedShareFile(name string) bool {
+	return reservedShareFiles[name]
+}
+
 // cmdShare dispatches share subcommands.
 func cmdShare(dbPath string, args []string) error {
 	return dispatchSubcmd("share", args, printShareUsage, []subcmd{
@@ -175,12 +188,49 @@ func shareExportDecisions(b *Backend, outputDir string) (int, error) {
 		count++
 	}
 
+	// Write an explainer DECISIONS.md only when the folder has content; exempt
+	// it from stale-file cleanup. If count is zero, fall through so
+	// removeStaleFiles wipes any orphaned DECISIONS.md too.
+	if count > 0 {
+		expectedFiles["DECISIONS.md"] = true
+		if err := writeDecisionsReadme(filepath.Join(dir, "DECISIONS.md")); err != nil {
+			return count, fmt.Errorf("failed to write DECISIONS.md: %w", err)
+		}
+	}
+
 	// Remove stale decision files (deleted decisions)
 	if err := removeStaleFiles(dir, expectedFiles); err != nil {
 		return count, fmt.Errorf("failed to clean stale decisions: %w", err)
 	}
 
 	return count, nil
+}
+
+// decisionsReadmeContent is the static explainer written to .aide/shared/decisions/DECISIONS.md.
+// Covers both aide users (import) and non-aide users (folder as LLM context).
+const decisionsReadmeContent = `# Team Decisions
+
+This folder contains team architectural decisions, one markdown file per topic.
+Each file has YAML frontmatter with structured fields and a markdown body.
+
+## With aide
+
+Decisions import automatically at session start when ` + "`AIDE_SHARE_AUTO_IMPORT=1`" + ` is
+set in ` + "`.claude/settings.json`" + `. Manually:
+
+    aide share import --decisions
+
+Decisions are append-only per topic: committing a different decision for an existing
+topic supersedes the old one, and ` + "`aide decision history <topic>`" + ` shows the thread.
+
+## Without aide
+
+Each ` + "`.md`" + ` file is a self-contained decision record. Point your AI assistant at this
+folder as context — the frontmatter answers *what* was decided, the body answers *why*.
+`
+
+func writeDecisionsReadme(path string) error {
+	return os.WriteFile(path, []byte(decisionsReadmeContent), 0o644)
 }
 
 func writeDecisionMarkdown(filename string, d *memory.Decision) error {
@@ -285,12 +335,51 @@ func shareExportMemories(b *Backend, outputDir string, includeAll bool) (int, er
 		total += len(mems)
 	}
 
+	// Write an explainer MEMORIES.md only when the folder has content; exempt
+	// it from stale-file cleanup. If total is zero, fall through so
+	// removeStaleFiles wipes any orphaned MEMORIES.md too.
+	if total > 0 {
+		expectedFiles["MEMORIES.md"] = true
+		if err := writeMemoriesReadme(filepath.Join(dir, "MEMORIES.md")); err != nil {
+			return total, fmt.Errorf("failed to write MEMORIES.md: %w", err)
+		}
+	}
+
 	// Remove stale category files (categories with no more shareable memories)
 	if err := removeStaleFiles(dir, expectedFiles); err != nil {
 		return total, fmt.Errorf("failed to clean stale memories: %w", err)
 	}
 
 	return total, nil
+}
+
+// memoriesReadmeContent is the static explainer written to .aide/shared/memories/MEMORIES.md.
+// Covers both aide users (import) and non-aide users (folder as LLM context).
+const memoriesReadmeContent = `# Team Memories
+
+This folder contains team project memories — patterns, gotchas, and learnings —
+grouped into one markdown file per category.
+
+## With aide
+
+Memories import automatically at session start when ` + "`AIDE_SHARE_AUTO_IMPORT=1`" + ` is
+set in ` + "`.claude/settings.json`" + `. Manually:
+
+    aide share import --memories
+
+Each memory is keyed by a ULID (in the ` + "`<!-- aide:id=... -->`" + ` metadata comment) so
+teammate edits with a newer ` + "`updated=`" + ` timestamp land as in-place updates instead of
+duplicates.
+
+## Without aide
+
+Each entry inside a category file is a self-contained memory with a short metadata
+comment and a free-text body. Point your AI assistant at this folder as context —
+the category headings group related notes.
+`
+
+func writeMemoriesReadme(path string) error {
+	return os.WriteFile(path, []byte(memoriesReadmeContent), 0o644)
 }
 
 func writeMemoriesMarkdown(filename string, cat memory.Category, memories []*memory.Memory) error {
@@ -449,6 +538,9 @@ func shareImportDecisions(b *Backend, inputDir string, dryRun bool) (imported, s
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
 			continue
 		}
+		if isReservedShareFile(entry.Name()) {
+			continue
+		}
 
 		d, err := parseDecisionMarkdown(filepath.Join(dir, entry.Name()))
 		if err != nil {
@@ -601,6 +693,9 @@ func shareImportMemories(b *Backend, inputDir string, dryRun bool) (imported, sk
 
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
+			continue
+		}
+		if isReservedShareFile(entry.Name()) {
 			continue
 		}
 

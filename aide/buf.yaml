@@ -3,7 +3,17 @@ modules:
   - path: proto
 lint:
   use:
-    - DEFAULT
+    - STANDARD
+  # Exempt rules that would require a wire-breaking rename of the existing
+  # schema. Dropping these keeps the remaining STANDARD rules live so new
+  # proto edits still get style feedback, without blocking CI on historical
+  # naming choices we have no intent to churn.
+  except:
+    - PACKAGE_DIRECTORY_MATCH
+    - PACKAGE_VERSION_SUFFIX
+    - RPC_REQUEST_STANDARD_NAME
+    - RPC_RESPONSE_STANDARD_NAME
+    - RPC_REQUEST_RESPONSE_UNIQUE
 breaking:
   use:
     - FILE
