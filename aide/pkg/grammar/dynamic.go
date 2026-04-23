@@ -121,7 +121,12 @@ func (dl *DynamicLoader) Download(ctx context.Context, name string, pack *Pack) 
 	}
 
 	// Evict from in-memory cache so the new library gets loaded fresh.
-	// Close the existing handle first to avoid leaking it.
+	// TODO: closeLibrary here is unsafe when other goroutines still hold
+	// the TSLanguage pointer (e.g. an in-flight parse from the Parser
+	// cache). This is protected against concurrent auto-installs by the
+	// singleflight in CompositeLoader, but a stale re-download triggered
+	// by an aide version bump mid-daemon would still race. Consider
+	// reference-counting handles or leaking the handle on reload.
 	if handle, ok := dl.handles[name]; ok {
 		_ = closeLibrary(handle)
 	}
@@ -161,6 +166,27 @@ func (dl *DynamicLoader) Download(ctx context.Context, name string, pack *Pack) 
 	dl.manifest.setAideVersion(dl.version)
 
 	return dl.manifest.save()
+}
+
+// isInstalledFresh reports whether the grammar is present in the manifest
+// and matches the loader's current version (or versioning is disabled /
+// snapshot, in which case any installed entry is considered fresh).
+// Used by CompositeLoader.Install to short-circuit redundant downloads.
+func (dl *DynamicLoader) isInstalledFresh(name string) bool {
+	dl.mu.RLock()
+	defer dl.mu.RUnlock()
+
+	entry := dl.manifest.get(name)
+	if entry == nil {
+		return false
+	}
+	if dl.version == "" || dl.version == "snapshot" {
+		return true
+	}
+	if entry.Version == "" || entry.Version == "snapshot" {
+		return true
+	}
+	return entry.Version == dl.version
 }
 
 // Installed returns info about all locally installed dynamic grammars.

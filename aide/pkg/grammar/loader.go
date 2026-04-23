@@ -18,6 +18,7 @@ import (
 	"unsafe"
 
 	tree_sitter "github.com/tree-sitter/go-tree-sitter"
+	"golang.org/x/sync/singleflight"
 )
 
 const (
@@ -176,6 +177,13 @@ type CompositeLoader struct {
 	cache           map[string]*tree_sitter.Language // Loaded language cache
 	failedDownloads map[string]*downloadFailure      // Negative cache for failed downloads
 
+	// installGroup collapses concurrent Install(name) calls for the same
+	// grammar into a single download. Without this, two watcher events for
+	// the same new language could each trigger Download, and the second
+	// Download would dlclose the handle the first one just handed out —
+	// SEGV'ing any in-flight parse. See cmd_mcp.go:rescanForGrammar.
+	installGroup singleflight.Group
+
 	onInstall func(name string) // Callback fired after a grammar is newly installed
 }
 
@@ -319,7 +327,13 @@ func (cl *CompositeLoader) Load(ctx context.Context, name string) (*tree_sitter.
 				return nil, failure.lastErr
 			}
 
-			if err := cl.Install(ctx, name); err != nil {
+			// Coalesce concurrent installs for the same name. All waiters
+			// observe the same error (or nil) from the one goroutine that
+			// actually runs the download.
+			_, installErr, _ := cl.installGroup.Do(name, func() (interface{}, error) {
+				return nil, cl.Install(ctx, name)
+			})
+			if installErr != nil {
 				// Record failure for negative caching with backoff.
 				cl.mu.Lock()
 				prev := cl.failedDownloads[name]
@@ -330,11 +344,11 @@ func (cl *CompositeLoader) Load(ctx context.Context, name string) (*tree_sitter.
 				cl.failedDownloads[name] = &downloadFailure{
 					lastAttempt: time.Now(),
 					attempts:    attempts,
-					lastErr:     err,
+					lastErr:     installErr,
 				}
 				cl.mu.Unlock()
-				cl.logf("grammar %q download failed (attempt %d): %v", name, attempts, err)
-				return nil, err
+				cl.logf("grammar %q download failed (attempt %d): %v", name, attempts, installErr)
+				return nil, installErr
 			}
 
 			// Download succeeded — clear any negative cache entry.
@@ -415,6 +429,8 @@ func (cl *CompositeLoader) Installed() []GrammarInfo {
 
 // Install downloads a grammar to the local cache.
 // On success, fires the onInstall callback if set.
+// If the grammar is already installed and matches the current version,
+// Install is a no-op and does not fire the callback.
 func (cl *CompositeLoader) Install(ctx context.Context, name string) error {
 	// Don't download built-in grammars
 	if cl.builtin.Has(name) {
@@ -427,6 +443,13 @@ func (cl *CompositeLoader) Install(ctx context.Context, name string) error {
 	}
 	if !pack.HasParser() {
 		return &GrammarMetadataOnlyError{Name: name}
+	}
+
+	// Idempotency: skip re-download if the grammar is already installed at
+	// the current version. Stale entries still fall through to Download so
+	// they get refreshed.
+	if cl.dynamic.isInstalledFresh(name) {
+		return nil
 	}
 
 	if err := cl.dynamic.Download(ctx, name, pack); err != nil {

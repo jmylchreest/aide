@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -1551,5 +1552,95 @@ func TestIntegrationMarkRescanCompleteSurvivesReload(t *testing.T) {
 	got := cl2.GrammarsNeedingRescan()
 	if len(got) != 0 {
 		t.Errorf("expected 0 grammars needing rescan after reload, got %v", got)
+	}
+}
+
+// TestIntegrationConcurrentLoadSingleflight is a regression test for the
+// SIGSEGV observed on 2026-04-22 where two concurrent Parse calls for a
+// not-yet-installed grammar each triggered Download, and the second
+// Download's closeLibrary() dlclosed the handle the first install had
+// just handed out — SEGV'ing the in-flight parse.
+//
+// With singleflight coalescing on Install, N concurrent Load() calls for
+// the same missing grammar must produce exactly ONE HTTP request.
+func TestIntegrationConcurrentLoadSingleflight(t *testing.T) {
+	// Slow handler so all goroutines reach the Install call before the first
+	// one finishes — maximises the race window the bug relied on.
+	body := []byte("not-a-real-shared-library")
+	archive := makeGrammarArchive(t, "bash", body)
+	var count atomic.Int64
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		count.Add(1)
+		time.Sleep(50 * time.Millisecond)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(archive)
+	}))
+	t.Cleanup(srv.Close)
+
+	dir := t.TempDir()
+	cl := NewCompositeLoader(
+		WithGrammarDir(dir),
+		WithBaseURL(srv.URL+"/{version}/{asset}"),
+		WithVersion("v0.1.0"),
+		WithAutoDownload(true),
+	)
+
+	const parallel = 8
+	var wg sync.WaitGroup
+	start := make(chan struct{})
+	wg.Add(parallel)
+	for i := 0; i < parallel; i++ {
+		go func() {
+			defer wg.Done()
+			<-start
+			// Load will fail at Dlopen (fake .so), but Download must have run.
+			_, _ = cl.Load(context.Background(), "bash")
+		}()
+	}
+	close(start)
+	wg.Wait()
+
+	if got := count.Load(); got != 1 {
+		t.Errorf("expected exactly 1 HTTP download under singleflight, got %d", got)
+	}
+}
+
+// TestIntegrationInstallIdempotent verifies that a second Install on a
+// grammar that is already installed at the current version is a no-op —
+// no HTTP request, no onInstall callback fire.
+func TestIntegrationInstallIdempotent(t *testing.T) {
+	body := []byte("grammar-lib")
+	srv, reqCount := newTestArchiveServer(t, body)
+
+	var installCallbacks atomic.Int64
+	dir := t.TempDir()
+	cl := NewCompositeLoader(
+		WithGrammarDir(dir),
+		WithBaseURL(srv.URL+"/{version}/{asset}"),
+		WithVersion("v0.1.0"),
+		WithAutoDownload(false),
+		WithOnInstall(func(string) { installCallbacks.Add(1) }),
+	)
+
+	if err := cl.Install(context.Background(), "ruby"); err != nil {
+		t.Fatalf("first Install: %v", err)
+	}
+	if got := reqCount.Load(); got != 1 {
+		t.Fatalf("first Install requests = %d; want 1", got)
+	}
+	if got := installCallbacks.Load(); got != 1 {
+		t.Fatalf("first Install callbacks = %d; want 1", got)
+	}
+
+	// Second Install — manifest already has ruby at v0.1.0, should be no-op.
+	if err := cl.Install(context.Background(), "ruby"); err != nil {
+		t.Fatalf("second Install: %v", err)
+	}
+	if got := reqCount.Load(); got != 1 {
+		t.Errorf("second Install triggered HTTP request; count = %d, want 1", got)
+	}
+	if got := installCallbacks.Load(); got != 1 {
+		t.Errorf("second Install fired callback; count = %d, want 1", got)
 	}
 }
