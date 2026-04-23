@@ -326,41 +326,47 @@ func TestResolve(t *testing.T) {
 func TestResolveWithIncludes(t *testing.T) {
 	t.Parallel()
 
-	t.Run("go includes general", func(t *testing.T) {
+	t.Run("go transitively includes general and documentation-core", func(t *testing.T) {
 		t.Parallel()
 		blueprints, err := ResolveWithIncludes("go", "", nil)
 		if err != nil {
 			t.Fatalf("ResolveWithIncludes: %v", err)
 		}
-		if len(blueprints) != 2 {
-			t.Fatalf("expected 2 blueprints (general + go), got %d", len(blueprints))
+		if len(blueprints) != 3 {
+			t.Fatalf("expected 3 blueprints (documentation-core + general + go), got %d", len(blueprints))
 		}
-		// Topological: includes first
-		if blueprints[0].Name != "general" {
-			t.Errorf("expected first blueprint to be 'general', got %q", blueprints[0].Name)
+		// Topological: deepest includes first
+		if blueprints[0].Name != "documentation-core" {
+			t.Errorf("expected first blueprint to be 'documentation-core', got %q", blueprints[0].Name)
 		}
-		if blueprints[1].Name != "go" {
-			t.Errorf("expected second blueprint to be 'go', got %q", blueprints[1].Name)
+		if blueprints[1].Name != "general" {
+			t.Errorf("expected second blueprint to be 'general', got %q", blueprints[1].Name)
+		}
+		if blueprints[2].Name != "go" {
+			t.Errorf("expected third blueprint to be 'go', got %q", blueprints[2].Name)
 		}
 	})
 
-	t.Run("go-github-actions includes github-actions includes general", func(t *testing.T) {
+	t.Run("go-github-actions transitively includes github-actions, general, documentation-core", func(t *testing.T) {
 		t.Parallel()
 		blueprints, err := ResolveWithIncludes("go-github-actions", "", nil)
 		if err != nil {
 			t.Fatalf("ResolveWithIncludes: %v", err)
 		}
-		if len(blueprints) != 3 {
-			t.Fatalf("expected 3 blueprints, got %d", len(blueprints))
+		if len(blueprints) != 4 {
+			t.Fatalf("expected 4 blueprints, got %d", len(blueprints))
 		}
-		if blueprints[0].Name != "general" {
-			t.Errorf("expected first to be 'general', got %q", blueprints[0].Name)
+		if blueprints[0].Name != "documentation-core" {
+			t.Errorf("expected first to be 'documentation-core', got %q", blueprints[0].Name)
 		}
-		if blueprints[1].Name != "github-actions" {
-			t.Errorf("expected second to be 'github-actions', got %q", blueprints[1].Name)
+		if blueprints[1].Name != "general" {
+			t.Errorf("expected second to be 'general', got %q", blueprints[1].Name)
 		}
-		if blueprints[2].Name != "go-github-actions" {
-			t.Errorf("expected third to be 'go-github-actions', got %q", blueprints[2].Name)
+		if blueprints[2].Name != "github-actions" {
+			t.Errorf("expected third to be 'github-actions', got %q", blueprints[2].Name)
+		}
+		if blueprints[3].Name != "go-github-actions" {
+			t.Errorf("expected fourth to be 'go-github-actions', got %q", blueprints[3].Name)
 		}
 	})
 

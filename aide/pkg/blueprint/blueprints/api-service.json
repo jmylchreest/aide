@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "name": "api-service",
+  "display_name": "API Service",
+  "description": "Composition for projects delivering an API or service to developers. Today bundles documentation practices; room for observability, integration testing, and deployment leaves to be added.",
+  "version": "0.0.62",
+  "tags": [
+    "composition",
+    "api",
+    "backend"
+  ],
+  "includes": [
+    "documentation-core",
+    "documentation-api"
+  ],
+  "decisions": []
+}

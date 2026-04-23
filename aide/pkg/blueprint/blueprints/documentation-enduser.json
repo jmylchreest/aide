@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "name": "documentation-enduser",
+  "display_name": "End-User Documentation",
+  "description": "Practices for user-facing documentation: structure, onboarding, screenshots, search, and hosting",
+  "version": "0.0.62",
+  "tags": [
+    "documentation",
+    "enduser"
+  ],
+  "includes": [],
+  "decisions": [
+    {
+      "topic": "enduser-docs-structure",
+      "decision": "Organise user documentation by reader intent (Diátaxis: tutorial, how-to, reference, explanation), not by code structure",
+      "rationale": "Users arrive with a question, not a file path. A structure that maps to why someone is reading (learning, doing, looking up, understanding) gets them to the answer faster than one that mirrors the engineering team's module boundaries.",
+      "details": "Tutorials walk a beginner through a first successful outcome. How-to guides solve specific tasks for users who already know the basics. Reference is dense, complete, and looked-up not read. Explanation covers background, trade-offs, and why the product is the way it is. Keep each section focused on its quadrant; mixing them is the most common cause of docs that feel bloated yet incomplete.",
+      "references": [
+        "https://diataxis.fr/"
+      ]
+    },
+    {
+      "topic": "enduser-getting-started",
+      "decision": "The first-run page gets a new user to a working result in under ten minutes, with no prior product knowledge assumed",
+      "rationale": "New users decide whether to keep going in the first few minutes. A getting-started guide that assumes context, buries prerequisites, or ends without a visible result converts readers into bounces.",
+      "details": "Start with install or access, then the smallest possible end-to-end flow that produces something the user can see. Link deeper topics from the end, do not scatter them through the path. Test the guide on someone who has not used the product before — if they stall, fix the guide not the reader.",
+      "references": []
+    },
+    {
+      "topic": "enduser-screenshots",
+      "decision": "If the product has a visual surface, screenshots or short recordings live in the repo next to the docs that reference them",
+      "rationale": "External-hosted images rot, get re-encoded, or 403 without warning. Committed media stays in sync with the docs it illustrates and moves with the project under version control.",
+      "details": "Commit optimised images (PNG / WebP / AVIF) or short recordings (MP4 / WebM / animated SVG) next to the Markdown that references them. Automated capture (Playwright screenshot tests, Percy / Chromatic visual regression, platform-native tools like xcrun or adb for mobile) is encouraged but not required — the rule is about where the media lives, not how it was produced. Prefer system-agnostic framing (avoid OS window chrome that dates quickly) and annotate with descriptive alt text for accessibility and search.",
+      "references": []
+    },
+    {
+      "topic": "enduser-docs-search",
+      "decision": "A user-facing docs site provides full-text search over all published versions of the docs",
+      "rationale": "Users often know what they want to find but not where it lives. Search turns a docs site from a tree that has to be navigated into an answer engine.",
+      "details": "Most modern docs frameworks (Docusaurus, Starlight, MkDocs-Material, VitePress, Read the Docs) ship search built-in or as a one-line configuration. Choose what fits the team — the decision is that search exists and covers every published version, not which tool provides it. For versioned docs, the search must make clear which version a result belongs to.",
+      "references": []
+    },
+    {
+      "topic": "enduser-docs-hosting",
+      "decision": "User documentation is served from a stable URL the project controls — an owned domain or CNAME'd hosting — not a provider-branded URL that can change",
+      "rationale": "A project's docs URL shows up in bookmarks, forum answers, blog posts, search indexes, and LLM training data. Serving from provider-default URLs (github.io subpath, readthedocs subdomain, vendor preview URL) means every rehost, migration, or account change breaks every inbound link that was ever written.",
+      "details": "Register a project domain (or a subdomain under an organisation domain) and point it at the docs host via CNAME. Redirect provider-default URLs to the canonical one. Keep the docs URL path scheme stable across migrations — /docs/<version>/<path> stays /docs/<version>/<path> whether the backend is GitHub Pages, Cloudflare Pages, Vercel, or a container.",
+      "references": []
+    }
+  ]
+}

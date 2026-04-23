@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "name": "documentation-api",
+  "display_name": "API Documentation",
+  "description": "Practices for developer / API documentation: contracts, generated reference, examples, and deprecation policy",
+  "version": "0.0.62",
+  "tags": [
+    "documentation",
+    "api"
+  ],
+  "includes": [],
+  "decisions": [
+    {
+      "topic": "api-contract-first",
+      "decision": "The API is defined by a schema document (OpenAPI for REST, AsyncAPI for events, GraphQL SDL, protobuf for gRPC) before the implementation, and the schema is the source of truth",
+      "rationale": "A schema defined after the code documents what happened to ship. A schema defined first is a contract that clients, servers, and tooling all agree on — and catches design problems before they are load-bearing.",
+      "details": "Keep the schema in the repo, review it in PRs, and generate clients, servers, validation, and docs from it. Hand-written schemas drift less than hand-written documentation prose. For events, AsyncAPI plays the same role as OpenAPI for requests. Choose hand-authored or code-generated schema depending on team workflow — but pick one side as source of truth, not both.",
+      "references": [
+        "https://www.openapis.org/",
+        "https://www.asyncapi.com/"
+      ]
+    },
+    {
+      "topic": "api-reference-generated",
+      "decision": "Reference documentation is generated from the schema and in-code documentation comments — never hand-written and maintained in parallel",
+      "rationale": "Hand-maintained reference docs diverge from the code within weeks. Generated reference stays accurate by construction because the build breaks if it does not.",
+      "details": "For OpenAPI / AsyncAPI schemas, render with Redoc, Swagger UI, Scalar, or Stoplight Elements. For code-level APIs, use the language's native tooling: godoc, rustdoc, typedoc, pdoc, dartdoc, javadoc. Publish the rendered reference alongside end-user docs. Humans write guides, tutorials, and conceptual docs — machines generate the reference.",
+      "references": []
+    },
+    {
+      "topic": "api-examples-tested",
+      "decision": "API examples shown in documentation are executable — doctests, integration-test-backed snippets, or runnable sandboxes — so they cannot silently rot",
+      "rationale": "An API example that no test exercises is a hostage to the next refactor. Once broken it stays broken until the next bug report, and every bug report costs more than wiring up the test once.",
+      "details": "Use the language's native doctest mechanism where it exists (Rust doctests, Python doctest, Go testable examples). For prose guides, extract the example code into a tested fixture and inject it into the docs at build time, or link the guide to the integration test that exercises the same flow. Interactive sandboxes (e.g. embedded playgrounds) are a strong alternative when the API is stateless.",
+      "references": []
+    },
+    {
+      "topic": "api-deprecation-policy",
+      "decision": "The project publishes an explicit deprecation policy: notice period, migration path, sunset date, and how it is communicated",
+      "rationale": "Consumers of an API plan around stability. An unannounced removal — or a 'deprecated since forever' notice that never becomes a removal — both damage trust. A written policy lets consumers estimate their own work.",
+      "details": "Cover: how deprecations are announced (CHANGELOG, release notes, in-response headers, runtime warnings), the minimum notice period before removal, what a migration guide must contain, and how the project signals 'deprecated' in the schema (OpenAPI deprecated flag, GraphQL @deprecated directive, protobuf reserved fields). Ship a migration guide alongside each deprecation, not at removal time.",
+      "references": []
+    },
+    {
+      "topic": "api-changelog",
+      "decision": "API-surface changes are recorded in an API-specific changelog distinct from the user changelog — with breaking changes, schema diffs, and migration notes",
+      "rationale": "A user reading 'what's new' wants feature highlights. An API consumer reading 'what changed in the API' wants a mechanical diff of endpoints, fields, and behaviours. One document cannot serve both audiences well.",
+      "details": "Keep an API changelog scoped to the API surface: added / changed / removed endpoints or events, field changes, breaking behaviour, and migration steps. For machine-readable diffs, tools like oasdiff, openapi-diff, or graphql-inspector can generate schema deltas between versions that the changelog cites. Version the API changelog alongside the API itself.",
+      "references": []
+    }
+  ]
+}

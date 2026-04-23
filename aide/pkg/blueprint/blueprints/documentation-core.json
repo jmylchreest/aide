@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "name": "documentation-core",
+  "display_name": "Documentation Core",
+  "description": "Universal documentation storage and maintenance practices, inherited by every project via general",
+  "version": "0.0.62",
+  "tags": [
+    "documentation"
+  ],
+  "includes": [],
+  "decisions": [
+    {
+      "topic": "code-documentation",
+      "decision": "Code should be self-documenting; write docs for WHY, not WHAT",
+      "rationale": "Comments that restate what code does become stale and misleading. Documentation that explains intent, constraints, and non-obvious decisions remains valuable as code evolves.",
+      "details": "Name things clearly. Document: public API contracts, non-obvious design decisions, performance constraints, security boundaries. Use ADRs for cross-cutting architectural decisions.",
+      "references": []
+    },
+    {
+      "topic": "docs-as-code",
+      "decision": "Documentation lives in the repo, is reviewed in the same PR as the change it describes, and breaks CI when broken",
+      "rationale": "Docs that live outside the repo or ship separately from code inevitably drift. Treating docs as code — same review, same CI, same merge — keeps them honest because a broken doc fails the same gate a broken build does.",
+      "details": "Keep documentation sources in the repository (Markdown, reStructuredText, AsciiDoc, schema files, diagram DSL). Run link-check, spell-check, and build verification in CI. Docs changes block a PR just like code changes — no 'I'll update the docs later' branch.",
+      "references": []
+    },
+    {
+      "topic": "docs-co-location",
+      "decision": "Place documentation as close to what it describes as possible: symbol-level comments for APIs, package READMEs for modules, top-level docs/ only for cross-cutting topics",
+      "rationale": "Proximity defeats rot. Documentation adjacent to its subject is far more likely to be updated when the subject changes than a central docs directory a contributor never opens.",
+      "details": "Doc comments on exported symbols (godoc, rustdoc, typedoc, etc.) describe the API. A README next to a package explains that package's purpose and entry points. A top-level docs/ tree is reserved for concerns that genuinely span packages — architecture, release process, onboarding. Avoid mirroring the whole source tree under docs/; that is a dead-letter office.",
+      "references": []
+    },
+    {
+      "topic": "docs-versioning",
+      "decision": "Documentation is versioned alongside the code it describes — tag, branch, or a version selector — never a single 'latest' view of a multi-version project",
+      "rationale": "A user on version 1.x reading documentation for 2.x is one of the most common — and avoidable — sources of support load. Tying docs to the shipped version removes the guesswork.",
+      "details": "For libraries and APIs with multiple supported versions, publish a docs site with a version selector, or serve docs from the release tag. For single-version products (internal tools, latest-only CLIs), tagging the repo is sufficient — but still avoid a 'docs/' folder that mixes versions. Landing pages should make the version the reader is viewing unambiguous.",
+      "references": []
+    },
+    {
+      "topic": "changelog-discipline",
+      "decision": "Maintain a user-visible CHANGELOG as the canonical record of what changed per release, grouped by release and type",
+      "rationale": "Release notes in a blog, GitHub Releases, or a Slack channel scatter and get lost. A CHANGELOG in the repo is discoverable, diffable, and survives tool migrations.",
+      "details": "Follow Keep a Changelog conventions (Added / Changed / Deprecated / Removed / Fixed / Security) or generate from Conventional Commits (git-cliff, release-please, release-plz, semantic-release). The entry answers 'what changed for the user?' — not 'which commits landed.' Breaking changes get their own section with a migration note.",
+      "references": [
+        "https://keepachangelog.com/"
+      ]
+    },
+    {
+      "topic": "diagrams-as-code",
+      "decision": "Store diagrams as text-based DSL source under version control, reviewed in PRs like code",
+      "rationale": "Text-format diagrams are diffable, searchable, and evolve with the code they describe. Binary exports from a drag-and-drop drawing tool drift within weeks and cannot be reviewed for correctness.",
+      "details": "Pick a text DSL that fits the diagram type and team familiarity — Mermaid, PlantUML, D2, and Structurizr are common choices. Rendering is a project-level choice this decision does not prescribe: commit an SVG next to the source, render on-demand locally, wire up a CI renderer, or render nothing at all are all acceptable. The one rule: the source lives in the repo next to what it documents.",
+      "references": []
+    }
+  ]
+}
