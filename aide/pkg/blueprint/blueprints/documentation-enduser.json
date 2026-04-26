@@ -3,7 +3,7 @@
   "name": "documentation-enduser",
   "display_name": "End-User Documentation",
   "description": "Practices for user-facing documentation: structure, onboarding, screenshots, search, and hosting",
-  "version": "0.0.62",
+  "version": "0.0.63",
   "tags": [
     "documentation",
     "enduser"

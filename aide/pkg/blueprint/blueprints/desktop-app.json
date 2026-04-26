@@ -3,7 +3,7 @@
   "name": "desktop-app",
   "display_name": "Desktop Application",
   "description": "Composition for projects delivering a desktop application to end users. Today bundles documentation practices; room for platform-specific packaging, testing, and auto-update leaves to be added.",
-  "version": "0.0.62",
+  "version": "0.0.63",
   "tags": [
     "composition",
     "desktop"

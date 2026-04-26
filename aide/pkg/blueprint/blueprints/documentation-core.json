@@ -3,7 +3,7 @@
   "name": "documentation-core",
   "display_name": "Documentation Core",
   "description": "Universal documentation storage and maintenance practices, inherited by every project via general",
-  "version": "0.0.62",
+  "version": "0.0.63",
   "tags": [
     "documentation"
   ],

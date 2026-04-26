@@ -3,7 +3,7 @@
   "name": "api-service",
   "display_name": "API Service",
   "description": "Composition for projects delivering an API or service to developers. Today bundles documentation practices; room for observability, integration testing, and deployment leaves to be added.",
-  "version": "0.0.62",
+  "version": "0.0.63",
   "tags": [
     "composition",
     "api",

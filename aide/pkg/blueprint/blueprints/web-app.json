@@ -3,7 +3,7 @@
   "name": "web-app",
   "display_name": "Web Application",
   "description": "Composition for projects delivering a web application to end users. Today bundles documentation practices; room for framework, testing, and deployment leaves to be added.",
-  "version": "0.0.62",
+  "version": "0.0.63",
   "tags": [
     "composition",
     "web"

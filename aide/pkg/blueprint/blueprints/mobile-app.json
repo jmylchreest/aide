@@ -3,7 +3,7 @@
   "name": "mobile-app",
   "display_name": "Mobile Application",
   "description": "Composition for projects delivering a mobile application to end users. Today bundles documentation practices; room for app store metadata, device testing, and platform permission leaves to be added.",
-  "version": "0.0.62",
+  "version": "0.0.63",
   "tags": [
     "composition",
     "mobile"

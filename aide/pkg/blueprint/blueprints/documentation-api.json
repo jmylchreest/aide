@@ -3,7 +3,7 @@
   "name": "documentation-api",
   "display_name": "API Documentation",
   "description": "Practices for developer / API documentation: contracts, generated reference, examples, and deprecation policy",
-  "version": "0.0.62",
+  "version": "0.0.63",
   "tags": [
     "documentation",
     "api"
