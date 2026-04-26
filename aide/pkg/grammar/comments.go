@@ -56,14 +56,14 @@ func extractWithPack(line string, c *PackComments) string {
 		}
 	}
 	for _, b := range c.Block {
-		open, close := b[0], b[1]
+		open, closeTok := b[0], b[1]
 		if open == "" {
 			continue
 		}
 		if i := strings.Index(line, open); i >= 0 {
 			rest := line[i+len(open):]
-			if close != "" {
-				if j := strings.Index(rest, close); j >= 0 {
+			if closeTok != "" {
+				if j := strings.Index(rest, closeTok); j >= 0 {
 					rest = rest[:j]
 				}
 			}

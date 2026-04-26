@@ -212,7 +212,11 @@ func (r *PackRegistry) ConsumerFormats() []ConsumerFormat {
 func (r *PackRegistry) ConsumerExtensions() []string {
 	r.idx.mu.RLock()
 	defer r.idx.mu.RUnlock()
-	var out []string
+	total := 0
+	for _, c := range r.idx.consumers {
+		total += len(c.Extensions)
+	}
+	out := make([]string, 0, total)
 	for _, c := range r.idx.consumers {
 		out = append(out, c.Extensions...)
 	}

@@ -112,6 +112,54 @@ Examples:
 		findings.DefaultSearchLimit, findings.DefaultListLimit)
 }
 
+// findingsRunOpts groups parsed CLI options for cmdFindingsRun.
+type findingsRunOpts struct {
+	threshold       int
+	fanOut, fanIn   int
+	windowSize      int
+	minCloneLines   int
+	minMatchCount   int
+	maxBucket       int
+	minSimilarity   float64
+	minSeverity     string
+	includeExported bool
+}
+
+func parseFindingsRunOpts(subargs []string, cfg findingsConfig) (findingsRunOpts, error) {
+	var o findingsRunOpts
+	var err error
+	if o.threshold, err = resolveIntOpt(subargs, "--threshold=", cfg.Complexity.Threshold, findings.DefaultComplexityThreshold); err != nil {
+		return o, err
+	}
+	if o.fanOut, err = resolveIntOpt(subargs, "--fan-out=", cfg.Coupling.FanOut, findings.DefaultFanOutThreshold); err != nil {
+		return o, err
+	}
+	if o.fanIn, err = resolveIntOpt(subargs, "--fan-in=", cfg.Coupling.FanIn, findings.DefaultFanInThreshold); err != nil {
+		return o, err
+	}
+	if o.windowSize, err = resolveIntOpt(subargs, "--window=", cfg.Clones.WindowSize, clone.DefaultWindowSize); err != nil {
+		return o, err
+	}
+	if o.minCloneLines, err = resolveIntOpt(subargs, "--min-lines=", cfg.Clones.MinLines, clone.DefaultMinCloneLines); err != nil {
+		return o, err
+	}
+	// 0 fallback → clone.Config.defaults() resolves zero → default at runtime.
+	if o.minMatchCount, err = resolveIntOpt(subargs, "--min-match-count=", cfg.Clones.MinMatchCount, 0); err != nil {
+		return o, err
+	}
+	if o.maxBucket, err = resolveIntOpt(subargs, "--max-bucket=", cfg.Clones.MaxBucketSize, 0); err != nil {
+		return o, err
+	}
+	if o.minSimilarity, err = resolveFloatOpt(subargs, "--min-similarity=", cfg.Clones.MinSimilarity, 0.0); err != nil {
+		return o, err
+	}
+	if o.minSeverity, err = resolveSeverityOpt(subargs, "--min-severity=", cfg.Clones.MinSeverity, clone.DefaultMinSeverity); err != nil {
+		return o, err
+	}
+	o.includeExported = hasFlag(subargs, "--include-exported")
+	return o, nil
+}
+
 // cmdFindingsRun runs one or more static analyzers and stores findings.
 func cmdFindingsRun(dbPath string, args []string) error {
 	if len(args) < 1 {
@@ -132,50 +180,15 @@ func cmdFindingsRun(dbPath string, args []string) error {
 		paths = []string{"."}
 	}
 
-	// Parse common options.
 	// Defaults come from .aide/config/aide.json, falling back to hardcoded values.
 	// CLI flags override everything.
 	projectRoot := projectRoot(dbPath)
 	cfg := loadFindingsConfig(projectRoot)
 
-	threshold, err := resolveIntOpt(subargs, "--threshold=", cfg.Complexity.Threshold, findings.DefaultComplexityThreshold)
+	opts, err := parseFindingsRunOpts(subargs, cfg)
 	if err != nil {
 		return err
 	}
-	fanOut, err := resolveIntOpt(subargs, "--fan-out=", cfg.Coupling.FanOut, findings.DefaultFanOutThreshold)
-	if err != nil {
-		return err
-	}
-	fanIn, err := resolveIntOpt(subargs, "--fan-in=", cfg.Coupling.FanIn, findings.DefaultFanInThreshold)
-	if err != nil {
-		return err
-	}
-	windowSize, err := resolveIntOpt(subargs, "--window=", cfg.Clones.WindowSize, clone.DefaultWindowSize)
-	if err != nil {
-		return err
-	}
-	minCloneLines, err := resolveIntOpt(subargs, "--min-lines=", cfg.Clones.MinLines, clone.DefaultMinCloneLines)
-	if err != nil {
-		return err
-	}
-	// 0 fallback → clone.Config.defaults() resolves zero → default at runtime.
-	minMatchCount, err := resolveIntOpt(subargs, "--min-match-count=", cfg.Clones.MinMatchCount, 0)
-	if err != nil {
-		return err
-	}
-	maxBucket, err := resolveIntOpt(subargs, "--max-bucket=", cfg.Clones.MaxBucketSize, 0)
-	if err != nil {
-		return err
-	}
-	minSimilarity, err := resolveFloatOpt(subargs, "--min-similarity=", cfg.Clones.MinSimilarity, 0.0)
-	if err != nil {
-		return err
-	}
-	minSeverity, err := resolveSeverityOpt(subargs, "--min-severity=", cfg.Clones.MinSeverity, clone.DefaultMinSeverity)
-	if err != nil {
-		return err
-	}
-	includeExported := hasFlag(subargs, "--include-exported")
 
 	// Determine which analyzers to run.
 	analyzers := []string{analyzerName}
@@ -212,14 +225,14 @@ func cmdFindingsRun(dbPath string, args []string) error {
 	for _, name := range analyzers {
 		switch name {
 		case findings.AnalyzerComplexity:
-			n, err := runComplexityAnalyzer(backend, paths, threshold, ignore, loader, projectRoot)
+			n, err := runComplexityAnalyzer(backend, paths, opts.threshold, ignore, loader, projectRoot)
 			if err != nil {
 				return fmt.Errorf("complexity analyser failed: %w", err)
 			}
 			totalFindings += n
 
 		case findings.AnalyzerCoupling:
-			n, err := runCouplingAnalyzer(backend, paths, fanOut, fanIn, ignore, projectRoot)
+			n, err := runCouplingAnalyzer(backend, paths, opts.fanOut, opts.fanIn, ignore, projectRoot)
 			if err != nil {
 				return fmt.Errorf("coupling analyser failed: %w", err)
 			}
@@ -233,7 +246,7 @@ func cmdFindingsRun(dbPath string, args []string) error {
 			totalFindings += n
 
 		case findings.AnalyzerClones:
-			n, err := runClonesAnalyzer(backend, paths, windowSize, minCloneLines, minMatchCount, maxBucket, minSimilarity, minSeverity, ignore, loader)
+			n, err := runClonesAnalyzer(backend, paths, opts.windowSize, opts.minCloneLines, opts.minMatchCount, opts.maxBucket, opts.minSimilarity, opts.minSeverity, ignore, loader)
 			if err != nil {
 				return fmt.Errorf("clones analyser failed: %w", err)
 			}
@@ -247,7 +260,7 @@ func cmdFindingsRun(dbPath string, args []string) error {
 			totalFindings += n
 
 		case findings.AnalyzerDeadCode:
-			n, err := runDeadCodeAnalyzer(backend, includeExported)
+			n, err := runDeadCodeAnalyzer(backend, opts.includeExported)
 			if err != nil {
 				return fmt.Errorf("deadcode analyser failed: %w", err)
 			}

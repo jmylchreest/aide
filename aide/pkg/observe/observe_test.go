@@ -91,7 +91,9 @@ func TestStartCtxAndFromContextEnrichSingleSpan(t *testing.T) {
 func TestFromContextWithoutSpanIsNoop(t *testing.T) {
 	// Calling setters on a context with no span must not panic.
 	FromContext(context.Background()).Tokens(123).Saved(456).End()
-	FromContext(nil).Attr("k", "v").End()
+	// Exercise the nil-context branch in FromContext directly.
+	var nilCtx context.Context
+	FromContext(nilCtx).Attr("k", "v").End()
 }
 
 func TestRecordOneOffEvent(t *testing.T) {
