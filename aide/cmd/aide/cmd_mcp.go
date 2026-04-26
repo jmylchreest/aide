@@ -353,6 +353,12 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 		return
 	}
 
+	projRoot := projectRoot(dbPath)
+	if !isVCSRoot(projRoot) && os.Getenv("AIDE_INDEX_NON_VCS") != "1" {
+		mcpLog.Printf("WARNING: code watcher disabled — project root %q has no VCS marker (.git/.hg/.svn/.bzr/.fossil). Set AIDE_INDEX_NON_VCS=1 to allow watching/indexing in non-version-controlled directories.", projRoot)
+		return
+	}
+
 	go func() {
 		if cfg.codeStoreLazy {
 			for i := 0; i < DefaultMCPPollCount; i++ {
@@ -862,6 +868,7 @@ Environment Variables:
   AIDE_CODE_WATCH=1         Enable file watching
   AIDE_CODE_WATCH_PATHS     Comma-separated paths to watch
   AIDE_CODE_WATCH_DELAY     Debounce delay (default: 30s)
+  AIDE_INDEX_NON_VCS=1      Allow watcher in non-VCS dirs (default: refuse)
   AIDE_CODE_STORE_DISABLE=1 Disable code store entirely
   AIDE_CODE_STORE_SYNC=1    Force synchronous code store init (default: lazy)
   AIDE_PPROF_ENABLE=1       Enable pprof profiling (requires -tags pprof build)

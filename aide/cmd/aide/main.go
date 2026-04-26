@@ -160,6 +160,7 @@ Environment:
   AIDE_CODE_WATCH=1       Enable file watching for code index updates
   AIDE_CODE_WATCH_PATHS   Comma-separated paths to watch (default: cwd)
   AIDE_CODE_WATCH_DELAY   Debounce delay for watcher (default: 30s)
+  AIDE_INDEX_NON_VCS=1    Allow watcher/indexing in non-VCS dirs (default: refuse)
   AIDE_CODE_STORE_DISABLE=1  Disable code store entirely
   AIDE_CODE_STORE_SYNC=1  Force synchronous code store init (default: lazy)
   AIDE_PPROF_ENABLE=1     Enable pprof profiling server
@@ -250,6 +251,19 @@ func findProjectRoot() (string, bool) {
 		}
 		dir = parent
 	}
+}
+
+// isVCSRoot reports whether dir is the root of a version-controlled
+// repository. Used to gate proactive indexing/watching: an arbitrary
+// directory backed only by .aide/ (e.g. $HOME) shouldn't have the file
+// watcher walk and re-index everything beneath it.
+func isVCSRoot(dir string) bool {
+	for _, marker := range []string{".git", ".hg", ".svn", ".bzr", ".fossil"} {
+		if _, err := os.Stat(filepath.Join(dir, marker)); err == nil {
+			return true
+		}
+	}
+	return false
 }
 
 // resolveWorktreeRoot reads a .git file (worktree marker) and resolves the
