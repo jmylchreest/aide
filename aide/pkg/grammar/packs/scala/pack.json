@@ -6,14 +6,21 @@
   "source_repo": "tree-sitter/tree-sitter-scala",
   "source_tag": "latest",
   "meta": {
-    "extensions": [".scala", ".sc"],
-    "shebangs": ["scala"]
+    "extensions": [
+      ".scala",
+      ".sc"
+    ],
+    "shebangs": [
+      "scala"
+    ]
   },
   "queries": {
     "tags": "(function_definition name: (identifier) @name) @definition.function\n(class_definition name: (identifier) @name) @definition.class\n(object_definition name: (identifier) @name) @definition.class\n(trait_definition name: (identifier) @name) @definition.interface"
   },
   "complexity": {
-    "func_node_types": ["function_definition"],
+    "func_node_types": [
+      "function_definition"
+    ],
     "branch_types": [
       "if_expression",
       "for_expression",
@@ -33,7 +40,9 @@
     ]
   },
   "tokenisation": {
-    "identifier_types": ["identifier"],
+    "identifier_types": [
+      "identifier"
+    ],
     "literal_types": [
       "boolean_literal",
       "integer_literal",
@@ -117,6 +126,19 @@
       "@nowarn\\b",
       "//\\s*aide:keep\\b",
       "@deprecated\\b"
+    ],
+    "test_file_patterns": [
+      "**/*Spec.scala",
+      "**/*Test.scala",
+      "**/*Suite.scala",
+      "**/src/test/**/*.scala"
+    ],
+    "framework_hook_names": [
+      "beforeAll",
+      "afterAll",
+      "beforeEach",
+      "afterEach",
+      "main"
     ]
   }
 }

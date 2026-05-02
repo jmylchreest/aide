@@ -270,6 +270,20 @@
       "//\\s*phpcs:disable\\b",
       "//\\s*aide:keep\\b",
       "@deprecated\\b"
+    ],
+    "test_file_patterns": [
+      "**/*Test.php",
+      "**/tests/**/*.php",
+      "**/Tests/**/*.php"
+    ],
+    "test_function_prefixes": [
+      "test"
+    ],
+    "framework_hook_names": [
+      "setUp",
+      "tearDown",
+      "setUpBeforeClass",
+      "tearDownAfterClass"
     ]
   }
 }

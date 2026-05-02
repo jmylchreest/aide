@@ -6,8 +6,12 @@
   "source_repo": "tree-sitter-grammars/tree-sitter-lua",
   "source_tag": "latest",
   "meta": {
-    "extensions": [".lua"],
-    "shebangs": ["lua"]
+    "extensions": [
+      ".lua"
+    ],
+    "shebangs": [
+      "lua"
+    ]
   },
   "queries": {
     "tags": "(function_declaration name: (identifier) @name) @definition.function\n(function_declaration name: (dot_index_expression field: (identifier) @name)) @definition.method\n(assignment_statement (variable_list name: (identifier) @name) (expression_list value: (function_definition))) @definition.function"
@@ -42,8 +46,13 @@
     ]
   },
   "tokenisation": {
-    "identifier_types": ["identifier"],
-    "literal_types": ["string", "number"],
+    "identifier_types": [
+      "identifier"
+    ],
+    "literal_types": [
+      "string",
+      "number"
+    ],
     "keyword_types": [
       "require",
       "function",
@@ -96,7 +105,11 @@
         "type": "module_entry",
         "label": "Lua module entry point"
       },
-      { "file_match": "main.lua", "type": "main", "label": "Lua main script" },
+      {
+        "file_match": "main.lua",
+        "type": "main",
+        "label": "Lua main script"
+      },
       {
         "file_match": "*.lua",
         "content": "^#!/usr/bin/env lua",
@@ -110,10 +123,31 @@
     "suppression_patterns": [
       "--\\s*luacheck:\\s*ignore\\b",
       "--\\s*aide:keep\\b"
+    ],
+    "test_file_patterns": [
+      "**/*_spec.lua",
+      "**/*_test.lua",
+      "**/spec/**/*.lua",
+      "**/tests/**/*.lua"
+    ],
+    "framework_hook_names": [
+      "setup",
+      "teardown",
+      "before_each",
+      "after_each",
+      "describe",
+      "it"
     ]
   },
   "comments": {
-    "line": ["--"],
-    "block": [["--[[", "]]"]]
+    "line": [
+      "--"
+    ],
+    "block": [
+      [
+        "--[[",
+        "]]"
+      ]
+    ]
   }
 }

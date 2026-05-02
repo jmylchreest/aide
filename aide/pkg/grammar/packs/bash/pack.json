@@ -6,7 +6,11 @@
   "source_repo": "tree-sitter/tree-sitter-bash",
   "source_tag": "latest",
   "meta": {
-    "extensions": [".sh", ".bash", ".zsh"],
+    "extensions": [
+      ".sh",
+      ".bash",
+      ".zsh"
+    ],
     "filenames": [
       ".bashrc",
       ".bash_profile",
@@ -15,14 +19,23 @@
       ".zshrc",
       ".zprofile"
     ],
-    "shebangs": ["bash", "sh", "zsh"],
-    "aliases": ["sh", "shell"]
+    "shebangs": [
+      "bash",
+      "sh",
+      "zsh"
+    ],
+    "aliases": [
+      "sh",
+      "shell"
+    ]
   },
   "queries": {
     "tags": "(function_definition name: (word) @name) @definition.function"
   },
   "complexity": {
-    "func_node_types": ["function_definition"],
+    "func_node_types": [
+      "function_definition"
+    ],
     "branch_types": [
       "if_statement",
       "elif_clause",
@@ -34,9 +47,23 @@
     "name_field": "name"
   },
   "tokenisation": {
-    "identifier_types": ["word", "variable_reference"],
-    "literal_types": ["string", "raw_string", "number"],
-    "keyword_types": ["if", "else", "for", "while", "case", "function"]
+    "identifier_types": [
+      "word",
+      "variable_reference"
+    ],
+    "literal_types": [
+      "string",
+      "raw_string",
+      "number"
+    ],
+    "keyword_types": [
+      "if",
+      "else",
+      "for",
+      "while",
+      "case",
+      "function"
+    ]
   },
   "entrypoints": {
     "symbols": [
@@ -82,9 +109,26 @@
     "suppression_patterns": [
       "#\\s*shellcheck\\s+disable=SC[0-9]+",
       "#\\s*aide:keep\\b"
+    ],
+    "test_file_patterns": [
+      "**/*_test.sh",
+      "**/test_*.sh",
+      "**/*.bats",
+      "**/tests/**/*.sh"
+    ],
+    "test_function_prefixes": [
+      "test_"
+    ],
+    "framework_hook_names": [
+      "setUp",
+      "tearDown",
+      "oneTimeSetUp",
+      "oneTimeTearDown"
     ]
   },
   "comments": {
-    "line": ["#"]
+    "line": [
+      "#"
+    ]
   }
 }

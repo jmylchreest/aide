@@ -6,14 +6,18 @@
   "source_repo": "elm-tooling/tree-sitter-elm",
   "source_tag": "latest",
   "meta": {
-    "extensions": [".elm"]
+    "extensions": [
+      ".elm"
+    ]
   },
   "queries": {
     "tags": "(value_declaration (function_declaration_left (lower_case_identifier) @name)) @definition.function\n(type_alias_declaration name: (upper_case_identifier) @name) @definition.type\n(type_declaration name: (upper_case_identifier) @name) @definition.type",
     "refs": "(value_expr (value_qid (lower_case_identifier) @name)) @reference.call\n(upper_case_qid (upper_case_identifier) @name) @reference.type"
   },
   "complexity": {
-    "func_node_types": ["value_declaration"],
+    "func_node_types": [
+      "value_declaration"
+    ],
     "branch_types": [
       "if_else_expr",
       "case_of_expr",
@@ -23,7 +27,10 @@
     "name_field": "pattern"
   },
   "tokenisation": {
-    "identifier_types": ["lower_case_identifier", "upper_case_identifier"],
+    "identifier_types": [
+      "lower_case_identifier",
+      "upper_case_identifier"
+    ],
     "literal_types": [
       "string_constant_expr",
       "number_constant_expr",
@@ -100,13 +107,22 @@
       }
     ],
     "file_patterns": [
-      { "file_match": "Main.elm", "type": "main", "label": "Elm Main module" },
+      {
+        "file_match": "Main.elm",
+        "type": "main",
+        "label": "Elm Main module"
+      },
       {
         "file_match": "*.elm",
         "content": "^main\\s*=",
         "type": "main",
         "label": "Elm main definition"
       }
+    ]
+  },
+  "deadcode": {
+    "test_file_patterns": [
+      "**/tests/**/*.elm"
     ]
   }
 }

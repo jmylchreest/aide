@@ -209,6 +209,28 @@
       "\\[SuppressMessage\\b",
       "//\\s*aide:keep\\b",
       "\\[Obsolete\\b"
+    ],
+    "test_file_patterns": [
+      "**/*Tests.cs",
+      "**/*Test.cs",
+      "**/Tests/**/*.cs"
+    ],
+    "framework_hook_names": [
+      "Setup",
+      "TearDown",
+      "OneTimeSetUp",
+      "OneTimeTearDown",
+      "TestInitialize",
+      "TestCleanup",
+      "ClassInitialize",
+      "ClassCleanup",
+      "Main"
+    ]
+  },
+  "files": {
+    "generated_file_patterns": [
+      "**/*.designer.cs",
+      "**/*.g.cs"
     ]
   }
 }

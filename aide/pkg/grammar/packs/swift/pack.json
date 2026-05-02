@@ -6,14 +6,20 @@
   "source_repo": "alex-pinkus/tree-sitter-swift",
   "source_tag": "latest",
   "meta": {
-    "extensions": [".swift"],
-    "shebangs": ["swift"]
+    "extensions": [
+      ".swift"
+    ],
+    "shebangs": [
+      "swift"
+    ]
   },
   "queries": {
     "tags": "(function_declaration name: (simple_identifier) @name) @definition.function\n(class_declaration name: (type_identifier) @name) @definition.class\n(struct_declaration name: (type_identifier) @name) @definition.class\n(protocol_declaration name: (type_identifier) @name) @definition.interface\n(enum_declaration name: (type_identifier) @name) @definition.class"
   },
   "complexity": {
-    "func_node_types": ["function_declaration"],
+    "func_node_types": [
+      "function_declaration"
+    ],
     "branch_types": [
       "if_statement",
       "for_statement",
@@ -36,7 +42,10 @@
     ]
   },
   "tokenisation": {
-    "identifier_types": ["simple_identifier", "type_identifier"],
+    "identifier_types": [
+      "simple_identifier",
+      "type_identifier"
+    ],
     "literal_types": [
       "integer_literal",
       "multi_line_string_literal",
@@ -134,6 +143,21 @@
       "//\\s*swiftlint:disable\\b.*\\bunused\\b",
       "//\\s*aide:keep\\b",
       "@available\\s*\\([^)]*\\bdeprecated\\b"
+    ],
+    "test_file_patterns": [
+      "**/*Tests.swift",
+      "**/*Test.swift",
+      "**/Tests/**/*.swift"
+    ],
+    "test_function_prefixes": [
+      "test"
+    ],
+    "framework_hook_names": [
+      "setUp",
+      "tearDown",
+      "setUpWithError",
+      "tearDownWithError",
+      "main"
     ]
   }
 }

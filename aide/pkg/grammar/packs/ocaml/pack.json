@@ -7,15 +7,23 @@
   "source_tag": "latest",
   "source_src_dir": "grammars/ocaml/src",
   "meta": {
-    "extensions": [".ml", ".mli"],
-    "aliases": ["ml"]
+    "extensions": [
+      ".ml",
+      ".mli"
+    ],
+    "aliases": [
+      "ml"
+    ]
   },
   "queries": {
     "tags": "(value_definition (let_binding pattern: (value_name) @name)) @definition.function\n(type_definition (type_binding name: (type_constructor) @name)) @definition.type\n(module_definition (module_binding name: (module_name) @name)) @definition.module",
     "refs": "(value_path (value_name) @name) @reference.call\n(type_constructor_path (type_constructor) @name) @reference.type"
   },
   "complexity": {
-    "func_node_types": ["let_binding", "value_definition"],
+    "func_node_types": [
+      "let_binding",
+      "value_definition"
+    ],
     "branch_types": [
       "if_expression",
       "match_expression",
@@ -42,7 +50,13 @@
       "module_name",
       "field_name"
     ],
-    "literal_types": ["string", "character", "number", "boolean", "unit"],
+    "literal_types": [
+      "string",
+      "character",
+      "number",
+      "boolean",
+      "unit"
+    ],
     "keyword_types": [
       "let",
       "in",
@@ -106,7 +120,11 @@
       }
     ],
     "file_patterns": [
-      { "file_match": "main.ml", "type": "main", "label": "OCaml main module" },
+      {
+        "file_match": "main.ml",
+        "type": "main",
+        "label": "OCaml main module"
+      },
       {
         "file_match": "*.ml",
         "content": "let\\s*\\(\\)\\s*=",
@@ -121,9 +139,25 @@
       "\\[@@@warning\\b",
       "\\[@warning\\b",
       "\\(\\*\\s*aide:keep\\s*\\*\\)"
+    ],
+    "test_file_patterns": [
+      "**/test_*.ml",
+      "**/*_test.ml",
+      "**/tests/**/*.ml"
+    ],
+    "test_function_prefixes": [
+      "test_"
+    ],
+    "framework_hook_names": [
+      "main"
     ]
   },
   "comments": {
-    "block": [["(*", "*)"]]
+    "block": [
+      [
+        "(*",
+        "*)"
+      ]
+    ]
   }
 }

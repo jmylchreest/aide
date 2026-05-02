@@ -4,15 +4,26 @@
   "version": "0.23.4",
   "c_symbol": "tree_sitter_cpp",
   "meta": {
-    "extensions": [".cpp", ".cc", ".cxx", ".hpp", ".hh", ".hxx"],
-    "aliases": ["c++"]
+    "extensions": [
+      ".cpp",
+      ".cc",
+      ".cxx",
+      ".hpp",
+      ".hh",
+      ".hxx"
+    ],
+    "aliases": [
+      "c++"
+    ]
   },
   "queries": {
     "tags": "(function_definition declarator: (function_declarator declarator: (identifier) @name)) @definition.function\n(function_definition declarator: (function_declarator declarator: (qualified_identifier name: (identifier) @name))) @definition.method\n(class_specifier name: (type_identifier) @name) @definition.class\n(struct_specifier name: (type_identifier) @name) @definition.class\n(enum_specifier name: (type_identifier) @name) @definition.class",
     "refs": "(call_expression function: (identifier) @name) @reference.call\n(call_expression function: (field_expression field: (field_identifier) @name)) @reference.call\n(type_identifier) @name @reference.type"
   },
   "complexity": {
-    "func_node_types": ["function_definition"],
+    "func_node_types": [
+      "function_definition"
+    ],
     "branch_types": [
       "if_statement",
       "for_statement",
@@ -124,6 +135,33 @@
       "//\\s*aide:keep\\b",
       "\\[\\[\\s*maybe_unused\\s*\\]\\]",
       "\\[\\[\\s*deprecated\\b"
+    ],
+    "test_file_patterns": [
+      "**/test_*.cpp",
+      "**/*_test.cpp",
+      "**/*Test.cpp",
+      "**/tests/**/*.cpp",
+      "**/*_test.cc",
+      "**/*Test.cc"
+    ],
+    "test_function_prefixes": [
+      "TEST_"
+    ],
+    "framework_hook_names": [
+      "SetUp",
+      "TearDown",
+      "SetUpTestSuite",
+      "TearDownTestSuite",
+      "SetUpTestCase",
+      "TearDownTestCase",
+      "main"
+    ]
+  },
+  "files": {
+    "generated_file_patterns": [
+      "**/*.pb.cc",
+      "**/*.pb.h",
+      "**/moc_*.cpp"
     ]
   }
 }

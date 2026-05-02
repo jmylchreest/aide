@@ -6,9 +6,16 @@
   "source_repo": "amaanq/tree-sitter-groovy",
   "source_tag": "latest",
   "meta": {
-    "extensions": [".groovy", ".gradle"],
-    "filenames": ["Jenkinsfile"],
-    "shebangs": ["groovy"]
+    "extensions": [
+      ".groovy",
+      ".gradle"
+    ],
+    "filenames": [
+      "Jenkinsfile"
+    ],
+    "shebangs": [
+      "groovy"
+    ]
   },
   "queries": {
     "tags": "(method_declaration name: (identifier) @name) @definition.method\n(class_declaration name: (identifier) @name) @definition.class",
@@ -35,7 +42,10 @@
     "name_field": "name"
   },
   "tokenisation": {
-    "identifier_types": ["identifier", "type_identifier"],
+    "identifier_types": [
+      "identifier",
+      "type_identifier"
+    ],
     "literal_types": [
       "string_literal",
       "number_literal",
@@ -137,6 +147,17 @@
       "@SuppressWarnings\\s*\\([^)]*\\bunused\\b",
       "//\\s*aide:keep\\b",
       "@Deprecated\\b"
+    ],
+    "test_file_patterns": [
+      "**/*Spec.groovy",
+      "**/*Test.groovy",
+      "**/src/test/**/*.groovy"
+    ],
+    "framework_hook_names": [
+      "setup",
+      "cleanup",
+      "setupSpec",
+      "cleanupSpec"
     ]
   }
 }

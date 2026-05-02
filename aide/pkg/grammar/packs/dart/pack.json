@@ -6,8 +6,12 @@
   "source_repo": "UserNobody14/tree-sitter-dart",
   "source_tag": "latest",
   "meta": {
-    "extensions": [".dart"],
-    "aliases": ["flutter"]
+    "extensions": [
+      ".dart"
+    ],
+    "aliases": [
+      "flutter"
+    ]
   },
   "queries": {
     "tags": "(class_definition name: (identifier) @name) @definition.class\n(mixin_declaration name: (identifier) @name) @definition.class\n(enum_declaration name: (identifier) @name) @definition.class\n(extension_declaration name: (identifier) @name) @definition.class\n(function_signature name: (identifier) @name) @definition.function\n(method_signature name: (identifier) @name) @definition.method\n(getter_signature name: (identifier) @name) @definition.method\n(setter_signature name: (identifier) @name) @definition.method\n(constructor_signature name: (identifier) @name) @definition.method\n(type_alias name: (type_identifier) @name) @definition.type"
@@ -46,7 +50,10 @@
     ]
   },
   "tokenisation": {
-    "identifier_types": ["identifier", "type_identifier"],
+    "identifier_types": [
+      "identifier",
+      "type_identifier"
+    ],
     "literal_types": [
       "string_literal",
       "integer_literal",
@@ -224,6 +231,26 @@
       "//\\s*aide:keep\\b",
       "@deprecated\\b",
       "@Deprecated\\b"
+    ],
+    "test_file_patterns": [
+      "**/*_test.dart",
+      "**/test/**/*.dart",
+      "**/integration_test/**/*.dart"
+    ],
+    "framework_hook_names": [
+      "setUp",
+      "tearDown",
+      "setUpAll",
+      "tearDownAll",
+      "main"
+    ]
+  },
+  "files": {
+    "generated_file_patterns": [
+      "**/*.g.dart",
+      "**/*.freezed.dart",
+      "**/*.gr.dart",
+      "**/*.mocks.dart"
     ]
   }
 }

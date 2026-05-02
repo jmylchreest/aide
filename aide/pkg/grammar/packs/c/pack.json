@@ -166,6 +166,25 @@
       "//\\s*cppcheck-suppress\\b",
       "//\\s*aide:keep\\b",
       "__attribute__\\s*\\(\\s*\\(\\s*unused\\b"
+    ],
+    "test_file_patterns": [
+      "**/test_*.c",
+      "**/*_test.c",
+      "**/tests/**/*.c"
+    ],
+    "test_function_prefixes": [
+      "test_"
+    ],
+    "framework_hook_names": [
+      "setUp",
+      "tearDown",
+      "main"
+    ]
+  },
+  "files": {
+    "generated_file_patterns": [
+      "**/*.pb.c",
+      "**/moc_*.cpp"
     ]
   }
 }
