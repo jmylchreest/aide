@@ -935,3 +935,38 @@ func (s *CodeStore) ListAllSymbols(limit int) ([]*code.Symbol, error) {
 
 	return symbols, nil
 }
+
+// ListAllReferences returns every reference in the index. Used by Reconcile
+// to find orphan references whose file has been ignored or deleted but whose
+// fileinfo entry was already cleared (so the fileinfo-driven pass misses
+// them). Pass limit < 0 for unbounded iteration.
+func (s *CodeStore) ListAllReferences(limit int) ([]*code.Reference, error) {
+	if limit == 0 {
+		limit = 1000
+	}
+	unlimited := limit < 0
+
+	var refs []*code.Reference
+	err := s.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket(BucketReferences)
+		if b == nil {
+			return nil
+		}
+		c := b.Cursor()
+		count := 0
+		for k, v := c.First(); k != nil && (unlimited || count < limit); k, v = c.Next() {
+			var ref code.Reference
+			if err := json.Unmarshal(v, &ref); err != nil {
+				continue
+			}
+			refs = append(refs, &ref)
+			count++
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return refs, nil
+}

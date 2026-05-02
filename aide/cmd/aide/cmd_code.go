@@ -566,7 +566,9 @@ type ReconcileResult struct {
 // Reconcile walks the file index and brings it back in sync with the working
 // tree: orphan entries (file deleted on disk) are removed, entries whose path
 // now matches an aideignore rule are removed, and stale entries (file mtime
-// newer than the indexed mtime) are re-indexed.
+// newer than the indexed mtime) are re-indexed. Then a second sweep walks
+// every symbol and reference bucket entry to catch orphan rows whose fileinfo
+// was already cleared but whose symbol/reference rows survived.
 func (idx *Indexer) Reconcile() (ReconcileResult, error) {
 	span := observe.Start("Indexer.Reconcile", observe.KindSpan).Category("indexer").Subtype("reconcile")
 	defer span.End()
@@ -583,8 +585,13 @@ func (idx *Indexer) Reconcile() (ReconcileResult, error) {
 	}
 
 	ignore, _ := aideignore.New(idx.rootDir)
+	if ignore == nil {
+		ignore = aideignore.NewFromDefaults()
+	}
 
+	knownPaths := make(map[string]struct{}, len(infos))
 	for _, info := range infos {
+		knownPaths[info.Path] = struct{}{}
 		res.Checked++
 
 		absPath := info.Path
@@ -606,7 +613,7 @@ func (idx *Indexer) Reconcile() (ReconcileResult, error) {
 			continue
 		}
 
-		if ignore != nil && ignore.ShouldIgnoreFile(info.Path) {
+		if ignore.ShouldIgnoreFile(info.Path) {
 			if rmErr := idx.RemoveFile(absPath); rmErr == nil {
 				res.Removed++
 			} else {
@@ -621,6 +628,52 @@ func (idx *Indexer) Reconcile() (ReconcileResult, error) {
 			} else {
 				res.Errors++
 			}
+		}
+	}
+
+	// Orphan sweep: collect every distinct path appearing in the symbol or
+	// reference buckets and drop those that match an aideignore rule (or
+	// whose file no longer exists on disk). The fileinfo-driven pass above
+	// can't see these because their fileinfo entry was already cleared at
+	// some earlier point — typical when an old index pre-dates the current
+	// ignore rules.
+	orphanPaths := map[string]struct{}{}
+	if syms, err := idx.store.ListAllSymbols(-1); err == nil {
+		for _, s := range syms {
+			if _, seen := knownPaths[s.FilePath]; seen {
+				continue
+			}
+			orphanPaths[s.FilePath] = struct{}{}
+		}
+	}
+	if refs, err := idx.store.ListAllReferences(-1); err == nil {
+		for _, r := range refs {
+			if _, seen := knownPaths[r.FilePath]; seen {
+				continue
+			}
+			orphanPaths[r.FilePath] = struct{}{}
+		}
+	}
+	for p := range orphanPaths {
+		res.Checked++
+		shouldDrop := ignore.ShouldIgnoreFile(p)
+		if !shouldDrop {
+			abs := p
+			if !filepath.IsAbs(abs) {
+				abs = filepath.Join(idx.rootDir, p)
+			}
+			if _, statErr := os.Stat(abs); os.IsNotExist(statErr) {
+				shouldDrop = true
+			}
+		}
+		if !shouldDrop {
+			continue
+		}
+		if err := idx.store.ClearFile(p); err == nil {
+			_ = idx.store.ClearFileReferences(p)
+			res.Removed++
+		} else {
+			res.Errors++
 		}
 	}
 
