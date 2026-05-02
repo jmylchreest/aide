@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/jmylchreest/aide/aide/internal/version"
+	"github.com/jmylchreest/aide/aide/pkg/config"
 	"github.com/jmylchreest/aide/aide/pkg/findings"
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi"
 	"github.com/jmylchreest/aide/aide/pkg/store"
@@ -129,7 +130,7 @@ func cmdStatus(dbPath string, args []string) error {
 
 	status := StatusOutput{
 		Version:   version.String(),
-		Mode:      os.Getenv("AIDE_MODE"),
+		Mode:      config.Get().Mode,
 		Project:   root,
 		Timestamp: time.Now(),
 		Env:       getAideEnvVars(),

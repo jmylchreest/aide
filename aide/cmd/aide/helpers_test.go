@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/jmylchreest/aide/aide/internal/version"
+	"github.com/jmylchreest/aide/aide/pkg/config"
 )
 
 // =============================================================================
@@ -140,6 +141,7 @@ func TestLoadGrammarsConfigEnvURL(t *testing.T) {
 
 	// Set env var to override URL.
 	t.Setenv("AIDE_GRAMMAR_URL", "https://custom.example.com/{version}/{asset}")
+	config.Load(tmpDir)
 
 	got := loadGrammarsConfig(tmpDir)
 	if got.URL != "https://custom.example.com/{version}/{asset}" {
@@ -157,6 +159,7 @@ func TestLoadGrammarsConfigEnvURLOverridesFile(t *testing.T) {
 	os.WriteFile(filepath.Join(configDir, "aide.json"), data, 0o644)
 
 	t.Setenv("AIDE_GRAMMAR_URL", "https://from-env.example.com/{asset}")
+	config.Load(tmpDir)
 
 	got := loadGrammarsConfig(tmpDir)
 	if got.URL != "https://from-env.example.com/{asset}" {
@@ -183,6 +186,7 @@ func TestLoadGrammarsConfigEnvAutoDownloadDisable(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.envVal, func(t *testing.T) {
 			t.Setenv("AIDE_GRAMMAR_AUTO_DOWNLOAD", tt.envVal)
+			config.Load(tmpDir)
 
 			got := loadGrammarsConfig(tmpDir)
 			if got.AutoDownload == nil {
@@ -200,6 +204,7 @@ func TestLoadGrammarsConfigNoEnv(t *testing.T) {
 	// Ensure env vars are unset.
 	t.Setenv("AIDE_GRAMMAR_URL", "")
 	t.Setenv("AIDE_GRAMMAR_AUTO_DOWNLOAD", "")
+	config.Load(tmpDir)
 
 	got := loadGrammarsConfig(tmpDir)
 	// With empty env vars: URL empty string should not override (getenv returns ""),

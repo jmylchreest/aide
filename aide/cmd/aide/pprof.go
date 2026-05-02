@@ -8,15 +8,16 @@ import (
 	"net"
 	"net/http"
 	_ "net/http/pprof"
-	"os"
 	"strconv"
+
+	"github.com/jmylchreest/aide/aide/pkg/config"
 )
 
 var pprofServer *http.Server
 var pprofBoundAddr string // actual address the server bound to
 
 func initPprof() {
-	pprofAddr := os.Getenv("AIDE_PPROF_ADDR")
+	pprofAddr := config.Get().Pprof.Addr
 	if pprofAddr == "" {
 		pprofAddr = "localhost:6060"
 	}

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/jmylchreest/aide/aide/internal/version"
+	"github.com/jmylchreest/aide/aide/pkg/config"
 )
 
 const (
@@ -58,7 +59,10 @@ func main() {
 
 	// Determine database path from project root (walks up to .aide or .git).
 	projectRoot, hasMarker := findProjectRoot()
-	forceInit := os.Getenv("AIDE_FORCE_INIT") != ""
+	if _, err := config.Load(projectRoot); err != nil {
+		fmt.Fprintf(os.Stderr, "aide: warning: config load failed: %v\n", err)
+	}
+	forceInit := config.Get().ForceInit
 
 	if !hasMarker && !forceInit {
 		// No .aide/ or .git/ marker found and AIDE_FORCE_INIT is not set.

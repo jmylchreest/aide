@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jmylchreest/aide/aide/internal/version"
+	"github.com/jmylchreest/aide/aide/pkg/config"
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
@@ -57,7 +58,7 @@ func (s *MCPServer) handleInstanceInfo(_ context.Context, _ *mcp.CallToolRequest
 		Version:     version.GetInfo(),
 		DBPath:      s.dbPath,
 		SocketPath:  grpcapi.SocketPathFromDB(s.dbPath),
-		Mode:        os.Getenv("AIDE_MODE"),
+		Mode:        config.Get().Mode,
 		PID:         os.Getpid(),
 		PprofURL:    pprofURL(),
 	}

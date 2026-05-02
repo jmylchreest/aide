@@ -16,6 +16,7 @@ import (
 	"github.com/jmylchreest/aide/aide/internal/version"
 	"github.com/jmylchreest/aide/aide/pkg/aideignore"
 	"github.com/jmylchreest/aide/aide/pkg/code"
+	"github.com/jmylchreest/aide/aide/pkg/config"
 	"github.com/jmylchreest/aide/aide/pkg/findings"
 	"github.com/jmylchreest/aide/aide/pkg/findings/clone"
 	"github.com/jmylchreest/aide/aide/pkg/grammar"
@@ -228,18 +229,19 @@ func parseMCPArgs(args []string) (*mcpConfig, error) {
 		}
 	}
 
+	c := config.Get().Code
 	cfg := &mcpConfig{
-		codeWatch:         hasFlag(args, "--code-watch") || os.Getenv("AIDE_CODE_WATCH") == "1",
+		codeWatch:         hasFlag(args, "--code-watch") || c.Watch,
 		codeWatchPath:     parseFlag(args, "--code-watch="),
 		codeWatchDelayStr: parseFlag(args, "--code-watch-delay="),
-		codeStoreDisabled: os.Getenv("AIDE_CODE_STORE_DISABLE") == "1",
-		codeStoreLazy:     os.Getenv("AIDE_CODE_STORE_SYNC") != "1",
+		codeStoreDisabled: c.StoreDisable,
+		codeStoreLazy:     !c.StoreSync,
 	}
 	if cfg.codeWatchPath == "" {
-		cfg.codeWatchPath = os.Getenv("AIDE_CODE_WATCH_PATHS")
+		cfg.codeWatchPath = c.WatchPaths
 	}
 	if cfg.codeWatchDelayStr == "" {
-		cfg.codeWatchDelayStr = os.Getenv("AIDE_CODE_WATCH_DELAY")
+		cfg.codeWatchDelayStr = c.WatchDelay
 	}
 	return cfg, nil
 }
@@ -354,7 +356,7 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 	}
 
 	projRoot := projectRoot(dbPath)
-	if !isVCSRoot(projRoot) && os.Getenv("AIDE_INDEX_NON_VCS") != "1" {
+	if !isVCSRoot(projRoot) && !config.Get().IndexNonVCS {
 		mcpLog.Printf("WARNING: code watcher disabled — project root %q has no VCS marker (.git/.hg/.svn/.bzr/.fossil). Set AIDE_INDEX_NON_VCS=1 to allow watching/indexing in non-version-controlled directories.", projRoot)
 		return
 	}
@@ -665,7 +667,7 @@ func cmdMCP(dbPath string, args []string) error {
 
 	startTime := time.Now()
 
-	if os.Getenv("AIDE_PPROF_ENABLE") == "1" {
+	if config.Get().Pprof.Enable {
 		initPprof()
 		defer stopPprof()
 	}

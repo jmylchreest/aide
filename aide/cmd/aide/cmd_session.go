@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jmylchreest/aide/aide/pkg/config"
 	"github.com/jmylchreest/aide/aide/pkg/memory"
 )
 
@@ -134,7 +135,7 @@ func sessionInit(dbPath string, args []string) error {
 	}
 
 	// 3. Auto-import shared data if enabled
-	shareImport := hasFlag(args, "--share-import") || os.Getenv("AIDE_SHARE_AUTO_IMPORT") == "1"
+	shareImport := hasFlag(args, "--share-import") || config.Get().Share.AutoImport
 	if shareImport {
 		projectRoot := projectRoot(dbPath)
 		sharedDir := filepath.Join(projectRoot, ".aide", "shared")
@@ -235,12 +236,9 @@ func sessionFetchContext(backend *Backend, project string, sessionLimit int, res
 // memoryScoringConfig builds a ScoringConfig from defaults and env vars.
 func memoryScoringConfig() memory.ScoringConfig {
 	cfg := memory.DefaultScoringConfig()
-	if os.Getenv(EnvMemoryScoringDisabled) == "1" {
-		cfg.ScoringDisabled = true
-	}
-	if os.Getenv(EnvMemoryDecayDisabled) == "1" {
-		cfg.DecayDisabled = true
-	}
+	mc := config.Get().Memory
+	cfg.ScoringDisabled = mc.ScoringDisabled
+	cfg.DecayDisabled = mc.DecayDisabled
 	return cfg
 }
 

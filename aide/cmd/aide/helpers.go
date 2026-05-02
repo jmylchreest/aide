@@ -12,6 +12,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/jmylchreest/aide/aide/internal/version"
+	"github.com/jmylchreest/aide/aide/pkg/config"
 	"github.com/jmylchreest/aide/aide/pkg/grammar"
 )
 
@@ -214,12 +215,12 @@ func loadFindingsConfig(projectRoot string) findingsConfig {
 //   - AIDE_GRAMMAR_AUTO_DOWNLOAD overrides auto-download ("0"/"false" to disable).
 func loadGrammarsConfig(projectRoot string) grammarsConfig {
 	cfg := loadAideConfig(projectRoot)
-	// Environment variable overrides config file.
-	if envURL := os.Getenv("AIDE_GRAMMAR_URL"); envURL != "" {
-		cfg.Grammars.URL = envURL
+	gc := config.Get().Grammar
+	if gc.URL != "" {
+		cfg.Grammars.URL = gc.URL
 	}
-	if envAuto := os.Getenv("AIDE_GRAMMAR_AUTO_DOWNLOAD"); envAuto != "" {
-		disabled := envAuto == "0" || strings.EqualFold(envAuto, "false")
+	if gc.AutoDownload != "" {
+		disabled := gc.AutoDownload == "0" || strings.EqualFold(gc.AutoDownload, "false")
 		val := !disabled
 		cfg.Grammars.AutoDownload = &val
 	}
