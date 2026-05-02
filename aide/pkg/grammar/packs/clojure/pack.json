@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "name": "clojure",
+  "version": "0.0.13",
+  "c_symbol": "tree_sitter_clojure",
+  "source_repo": "sogaiu/tree-sitter-clojure",
+  "source_tag": "v0.0.13",
+  "notes": "Lisp homoiconicity: there is no function_definition node. Every form is a list_lit; defn/if/when/cond etc. are head symbols. Tags use #match? predicates against sym_name to identify defining forms. Queries hand-derived from node-types.json — upstream ships only highlights.scm.",
+  "meta": {
+    "extensions": [".clj", ".cljs", ".cljc", ".edn"],
+    "aliases": ["clj", "cljs"]
+  },
+  "queries": {
+    "tags": "((list_lit . (sym_lit) @_def . (sym_lit (sym_name) @name)) @definition.function (#match? @_def \"^(defn|defn-|defmacro|defmethod|defmulti|definline)$\"))\n((list_lit . (sym_lit) @_def . (sym_lit (sym_name) @name)) @definition.class (#match? @_def \"^(defrecord|deftype|defprotocol|definterface|defstruct)$\"))\n((list_lit . (sym_lit) @_def . (sym_lit (sym_name) @name)) @definition.constant (#match? @_def \"^(def|defonce|defconst)$\"))\n((list_lit . (sym_lit) @_def . (sym_lit (sym_name) @name)) @definition.module (#eq? @_def \"ns\"))",
+    "refs": "((list_lit . (sym_lit (sym_name) @name)) @reference.call)\n((sym_lit (sym_ns) @name) @reference.module)"
+  },
+  "complexity": {
+    "func_node_types": ["list_lit", "anon_fn_lit"],
+    "branch_types": ["list_lit"],
+    "name_field": "name"
+  },
+  "comments": {
+    "line": [";", ";;", ";;;"]
+  },
+  "deadcode": {
+    "test_file_patterns": [
+      "**/*_test.clj", "**/*_test.cljs", "**/*_test.cljc",
+      "**/test/**/*.clj", "**/test/**/*.cljs", "**/test/**/*.cljc"
+    ],
+    "framework_hook_names": [
+      "deftest", "deftest-", "is", "testing", "use-fixtures", "are", "with-test",
+      "fact", "facts", "against-background"
+    ]
+  }
+}

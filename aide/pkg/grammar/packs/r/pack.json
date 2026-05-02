@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "name": "r",
+  "version": "1.2.0",
+  "c_symbol": "tree_sitter_r",
+  "source_repo": "r-lib/tree-sitter-r",
+  "source_tag": "v1.2.0",
+  "notes": "R has no dedicated function-declaration node — function definitions are binary_operator nodes whose rhs is a function_definition. Both <- and = are valid assignment ops; both must be matched. Tags/refs queries are verbatim from upstream queries/tags.scm.",
+  "meta": {
+    "extensions": [".R", ".r", ".Rmd", ".rmd"],
+    "aliases": ["rscript"]
+  },
+  "queries": {
+    "tags": "(binary_operator lhs: (identifier) @name operator: \"<-\" rhs: (function_definition)) @definition.function\n(binary_operator lhs: (identifier) @name operator: \"=\" rhs: (function_definition)) @definition.function\n(binary_operator lhs: (string) @name operator: \"<-\" rhs: (function_definition)) @definition.function\n(binary_operator lhs: (string) @name operator: \"=\" rhs: (function_definition)) @definition.function",
+    "refs": "(call function: (identifier) @name) @reference.call\n(call function: (namespace_operator rhs: (identifier) @name)) @reference.call"
+  },
+  "complexity": {
+    "func_node_types": ["function_definition"],
+    "branch_types": ["if_statement", "for_statement", "while_statement", "repeat_statement", "binary_operator"],
+    "name_field": "name"
+  },
+  "comments": {
+    "line": ["#"]
+  },
+  "deadcode": {
+    "test_file_patterns": [
+      "**/tests/testthat/test-*.R", "**/tests/testthat/test-*.r",
+      "**/tests/testthat/helper-*.R", "**/tests/testthat/setup-*.R",
+      "**/inst/tinytest/test_*.R"
+    ],
+    "framework_hook_names": [
+      "test_that", "describe", "it",
+      "setup", "teardown", "local_edition",
+      "skip_on_cran", "skip_if_not_installed",
+      "defineTestSuite", "runTestSuite"
+    ]
+  }
+}

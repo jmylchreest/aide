@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "name": "erlang",
+  "version": "0.16",
+  "c_symbol": "tree_sitter_erlang",
+  "source_repo": "WhatsApp/tree-sitter-erlang",
+  "source_tag": "0.16",
+  "notes": "Functions are split between fun_decl (multi-clause container) and function_clause (each `name(args) -> body;` clause). cr_clause is shared between case and receive expressions. Queries hand-derived from grammar.js + node-types.json — upstream ships only highlights.scm.",
+  "meta": {
+    "extensions": [".erl", ".hrl"],
+    "aliases": []
+  },
+  "queries": {
+    "tags": "(fun_decl (function_clause name: (atom) @name)) @definition.function\n(module_attribute name: (atom) @name) @definition.module\n(record_decl name: (atom) @name) @definition.class\n(type_alias (type_name name: (atom) @name)) @definition.type\n(opaque (type_name name: (atom) @name)) @definition.type\n(spec fun: (atom) @name) @definition.interface\n(callback fun: (atom) @name) @definition.interface",
+    "refs": "(call expr: (atom) @name) @reference.call\n(remote fun: (atom) @name) @reference.call\n(record_name name: (atom) @name) @reference.type\n(macro_call_expr name: (_) @name) @reference.call\n(import_attribute module: (atom) @name) @reference.import\n(behaviour_attribute name: (atom) @name) @reference.import"
+  },
+  "complexity": {
+    "func_node_types": ["fun_decl", "function_clause", "anonymous_fun"],
+    "branch_types": ["if_expr", "case_expr", "try_expr", "receive_expr", "maybe_expr", "cr_clause", "if_clause", "catch_clause"],
+    "name_field": "name"
+  },
+  "comments": {
+    "line": ["%", "%%", "%%%"]
+  },
+  "deadcode": {
+    "test_file_patterns": [
+      "**/test/**/*.erl", "**/tests/**/*.erl",
+      "**/*_SUITE.erl", "**/*_tests.erl"
+    ],
+    "framework_hook_names": [
+      "all", "groups", "suite",
+      "init_per_suite", "end_per_suite",
+      "init_per_group", "end_per_group",
+      "init_per_testcase", "end_per_testcase",
+      "setup", "cleanup", "instantiator", "setup_test", "foreach"
+    ]
+  }
+}

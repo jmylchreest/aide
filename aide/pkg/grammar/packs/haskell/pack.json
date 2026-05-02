@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "name": "haskell",
+  "version": "0.23.1",
+  "c_symbol": "tree_sitter_haskell",
+  "source_repo": "tree-sitter/tree-sitter-haskell",
+  "source_tag": "v0.23.1",
+  "notes": "Tags/refs queries hand-authored against tree-sitter-haskell v0.23.1 node-types — upstream does not publish a tags.scm. Type-alias node is named `type_synomym` (sic) in the grammar.",
+  "meta": {
+    "extensions": [".hs", ".lhs"],
+    "aliases": ["hs"]
+  },
+  "queries": {
+    "tags": "(function name: (variable) @name) @definition.function\n(signature name: (variable) @name) @definition.function\n(data_type name: (name) @name) @definition.type\n(newtype name: (name) @name) @definition.type\n(type_synomym name: (name) @name) @definition.type\n(data_family name: (name) @name) @definition.type\n(class name: (name) @name) @definition.class\n(instance name: (name) @name) @definition.class\n(header module: (module (module_id) @name)) @definition.module",
+    "refs": "(apply function: (variable) @name) @reference.call\n(name) @name @reference.type\n(import module: (module (module_id) @name)) @reference.import"
+  },
+  "complexity": {
+    "func_node_types": ["function", "lambda", "lambda_case"],
+    "branch_types": ["conditional", "case", "alternative", "guards", "guard", "pattern_guard", "multi_way_if", "match"],
+    "name_field": "name"
+  },
+  "comments": {
+    "line": ["--"],
+    "block": [["{-", "-}"]]
+  },
+  "deadcode": {
+    "exported_rule": "first_char_uppercase",
+    "test_file_patterns": ["**/*Spec.hs", "**/*Test.hs", "**/test/**/*.hs", "**/tests/**/*.hs", "**/spec/**/*.hs"],
+    "test_function_prefixes": ["test_", "prop_", "unitTest_", "spec_"],
+    "framework_hook_names": [
+      "hspec", "hspecWith", "main",
+      "describe", "context", "it", "specify",
+      "before", "beforeAll", "beforeWith", "after", "afterAll",
+      "around", "aroundAll", "aroundWith",
+      "parallel", "sequential", "runIO",
+      "xit", "xdescribe",
+      "defaultMain", "testGroup", "testCase", "testProperty",
+      "quickCheck", "quickCheckWith", "property", "forAll",
+      "htfMain"
+    ]
+  }
+}

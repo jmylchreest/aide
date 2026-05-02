@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "name": "solidity",
+  "version": "1.2.13",
+  "c_symbol": "tree_sitter_solidity",
+  "source_repo": "JoranHonig/tree-sitter-solidity",
+  "source_tag": "v1.2.13",
+  "notes": "library_declaration is intentionally tagged as definition.interface (libraries behave more like interfaces semantically). call_expression wraps the callee in an extra `expression` parent. Queries are verbatim from upstream queries/tags.scm.",
+  "meta": {
+    "extensions": [".sol"],
+    "aliases": []
+  },
+  "queries": {
+    "tags": "(contract_declaration (_ (function_definition name: (identifier) @name) @definition.method))\n(source_file (function_definition name: (identifier) @name) @definition.function)\n(contract_declaration name: (identifier) @name) @definition.class\n(interface_declaration name: (identifier) @name) @definition.interface\n(library_declaration name: (identifier) @name) @definition.interface\n(struct_declaration name: (identifier) @name) @definition.class\n(enum_declaration name: (identifier) @name) @definition.class\n(event_definition name: (identifier) @name) @definition.class",
+    "refs": "(call_expression (expression (identifier)) @name) @reference.call\n(call_expression (expression (member_expression property: (_) @name))) @reference.call\n(emit_statement name: (_) @name) @reference.class\n(inheritance_specifier ancestor: (user_defined_type (_) @name . )) @reference.class\n(import_directive import_name: (_) @name) @reference.import"
+  },
+  "complexity": {
+    "func_node_types": ["function_definition", "modifier_definition", "constructor_definition", "fallback_receive_definition"],
+    "branch_types": ["if_statement", "for_statement", "while_statement", "do_while_statement", "try_statement", "catch_clause"],
+    "name_field": "name"
+  },
+  "comments": {
+    "line": ["//", "///"],
+    "block": [["/*", "*/"], ["/**", "*/"]]
+  },
+  "deadcode": {
+    "test_file_patterns": [
+      "**/test/**/*.sol", "**/tests/**/*.sol",
+      "**/*.t.sol", "**/*.test.sol", "**/*Test.sol", "**/*.spec.sol"
+    ],
+    "test_function_prefixes": ["test", "testFuzz", "testFork", "testFail", "invariant", "statefulFuzz"],
+    "framework_hook_names": [
+      "setUp", "setUpAll", "beforeTestSetup", "afterInvariant",
+      "assertEq", "assertTrue", "assertFalse", "assertEqDecimal"
+    ]
+  }
+}

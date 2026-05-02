@@ -11,10 +11,10 @@ import (
 var allExpectedLanguages = []string{
 	// 10 embedded (built-in)
 	"c", "cpp", "go", "java", "javascript", "python", "rust", "tsx", "typescript", "zig",
-	// 20 dynamic
-	"bash", "csharp", "css", "dart", "elixir", "elm", "groovy", "hcl", "html",
-	"kotlin", "lua", "ocaml", "php", "protobuf", "ruby", "scala", "sql",
-	"swift", "toml", "yaml",
+	// 25 dynamic
+	"bash", "clojure", "csharp", "css", "dart", "elixir", "elm", "erlang", "groovy",
+	"haskell", "hcl", "html", "kotlin", "lua", "ocaml", "php", "protobuf", "r", "ruby",
+	"scala", "solidity", "sql", "swift", "toml", "yaml",
 	// 3 meta-only (no grammar, just file detection)
 	"dockerfile", "json", "markdown",
 }

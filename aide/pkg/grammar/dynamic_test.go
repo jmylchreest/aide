@@ -59,9 +59,9 @@ func TestDynamicLoaderRemoveNonexistent(t *testing.T) {
 
 func TestDynamicPacksMap(t *testing.T) {
 	expected := []string{
-		"bash", "csharp", "css", "dart", "elixir", "elm", "groovy", "hcl",
-		"html", "kotlin", "lua", "ocaml", "php", "protobuf", "ruby",
-		"scala", "sql", "swift", "toml", "yaml",
+		"bash", "clojure", "csharp", "css", "dart", "elixir", "elm", "erlang", "groovy",
+		"haskell", "hcl", "html", "kotlin", "lua", "ocaml", "php", "protobuf", "r",
+		"ruby", "scala", "solidity", "sql", "swift", "toml", "yaml",
 	}
 
 	dynPacks := DefaultPackRegistry().DynamicPacks()
