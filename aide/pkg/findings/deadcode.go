@@ -220,8 +220,9 @@ type deadcodeRuleCache struct {
 }
 
 type deadcodeLangRules struct {
-	exportedRule string
-	suppression  []*regexp.Regexp
+	exportedRule  string
+	suppression   []*regexp.Regexp
+	blockSuppress []*regexp.Regexp
 }
 
 func newDeadcodeRuleCache(provider func(string) *grammar.Pack) *deadcodeRuleCache {
@@ -253,6 +254,13 @@ func (c *deadcodeRuleCache) get(lang string) *deadcodeLangRules {
 		}
 		r.suppression = append(r.suppression, re)
 	}
+	for _, p := range pack.Deadcode.BlockSuppressionPatterns {
+		re, err := regexp.Compile(p)
+		if err != nil {
+			continue
+		}
+		r.blockSuppress = append(r.blockSuppress, re)
+	}
 	c.packs[lang] = r
 	return r
 }
@@ -282,28 +290,53 @@ func isExportedByRule(name, rule string) bool {
 
 // suppressionScanner reads file content (cached per file) and checks whether
 // the lines above a symbol's declaration contain a pack-defined suppression
-// pattern.
+// pattern, or whether the symbol falls inside a block-suppressed range.
 type suppressionScanner struct {
-	root  string
-	rules *deadcodeRuleCache
-	mu    sync.Mutex
-	cache map[string][]string
+	root       string
+	rules      *deadcodeRuleCache
+	mu         sync.Mutex
+	cache      map[string][]string
+	blockCache map[string][]lineRange
+}
+
+type lineRange struct {
+	start int // 1-indexed inclusive
+	end   int // 1-indexed inclusive
 }
 
 func newSuppressionScanner(root string, rules *deadcodeRuleCache) *suppressionScanner {
-	return &suppressionScanner{root: root, rules: rules, cache: make(map[string][]string)}
+	return &suppressionScanner{
+		root:       root,
+		rules:      rules,
+		cache:      make(map[string][]string),
+		blockCache: make(map[string][]lineRange),
+	}
 }
 
 // isSuppressed checks the immediately-preceding non-blank line for a pack
-// suppression pattern. Linter directives by convention attach to the next
-// declaration, so we walk past blank lines but stop at any other line.
+// suppression pattern, and whether the symbol falls inside a block-suppressed
+// range (e.g. a `#[cfg(test)] mod tests { ... }` body). Linter directives by
+// convention attach to the next declaration, so we walk past blank lines but
+// stop at any other line for the line-level check.
 func (s *suppressionScanner) isSuppressed(sym *code.Symbol) bool {
 	r := s.rules.get(sym.Language)
-	if r == nil || len(r.suppression) == 0 {
+	if r == nil || (len(r.suppression) == 0 && len(r.blockSuppress) == 0) {
 		return false
 	}
 	lines := s.lines(sym.FilePath)
 	if lines == nil {
+		return false
+	}
+
+	if len(r.blockSuppress) > 0 {
+		for _, rng := range s.blocks(sym.FilePath, lines, r.blockSuppress) {
+			if sym.StartLine >= rng.start && sym.StartLine <= rng.end {
+				return true
+			}
+		}
+	}
+
+	if len(r.suppression) == 0 {
 		return false
 	}
 
@@ -319,6 +352,84 @@ func (s *suppressionScanner) isSuppressed(sym *code.Symbol) bool {
 		return false
 	}
 	return false
+}
+
+// blocks returns cached line ranges for the file where any block_suppression
+// pattern matched. Each range covers the body of the next braced block opened
+// after the matching attribute line.
+func (s *suppressionScanner) blocks(relPath string, lines []string, rules []*regexp.Regexp) []lineRange {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if cached, ok := s.blockCache[relPath]; ok {
+		return cached
+	}
+	ranges := computeBlockRanges(lines, rules)
+	s.blockCache[relPath] = ranges
+	return ranges
+}
+
+// computeBlockRanges scans the file for lines matching any of the given
+// patterns, then for each match locates the nearest opening `{` on or after
+// that line and follows brace depth forward to find the matching `}`. The
+// returned ranges are 1-indexed inclusive and cover the lines from the
+// attribute through the closing brace, so any symbol declared inside the
+// block is included. Comments and string literals are not parsed — the
+// scanner counts braces naively, which is good enough for Rust attribute
+// blocks where braces inside strings are rare and cause at worst an
+// over-broad suppression range.
+func computeBlockRanges(lines []string, rules []*regexp.Regexp) []lineRange {
+	var ranges []lineRange
+	for i, line := range lines {
+		matched := false
+		for _, re := range rules {
+			if re.MatchString(line) {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			continue
+		}
+		openLine := findOpeningBrace(lines, i)
+		if openLine < 0 {
+			continue
+		}
+		closeLine := findMatchingClose(lines, openLine)
+		if closeLine < 0 {
+			continue
+		}
+		ranges = append(ranges, lineRange{start: i + 1, end: closeLine + 1})
+	}
+	return ranges
+}
+
+func findOpeningBrace(lines []string, from int) int {
+	for i := from; i < len(lines); i++ {
+		if strings.Contains(lines[i], "{") {
+			return i
+		}
+	}
+	return -1
+}
+
+func findMatchingClose(lines []string, openLine int) int {
+	depth := 0
+	started := false
+	for i := openLine; i < len(lines); i++ {
+		for _, ch := range lines[i] {
+			switch ch {
+			case '{':
+				depth++
+				started = true
+			case '}':
+				depth--
+				if started && depth == 0 {
+					return i
+				}
+			}
+		}
+	}
+	return -1
 }
 
 // referenceVerifier checks whether a symbol's bare name appears as a literal

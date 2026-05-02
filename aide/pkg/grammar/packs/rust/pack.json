@@ -201,7 +201,30 @@
       "#\\[allow\\(\\s*dead_code\\b",
       "#\\[allow\\(\\s*unused\\b",
       "#\\[deprecated\\b",
-      "//\\s*aide:keep\\b"
+      "//\\s*aide:keep\\b",
+      "#\\[test\\]",
+      "#\\[\\w+::test\\b",
+      "#\\[cfg\\s*\\(\\s*test\\b",
+      "#\\[bench\\]",
+      "#\\[should_panic\\b",
+      "#\\[ignore\\b",
+      "#\\[test_case\\b",
+      "#\\[rstest\\b",
+      "#\\[plugin_fn\\b",
+      "#\\[no_mangle\\]",
+      "#\\[export_name\\b",
+      "#\\[wasm_bindgen\\b",
+      "#\\[pyfunction\\b"
+    ],
+    "block_suppression_patterns": [
+      "#\\[cfg\\s*\\(\\s*test\\b",
+      "#\\[zbus::interface\\b",
+      "#\\[zbus::dbus_interface\\b",
+      "#\\[interface\\]",
+      "#\\[interface\\(",
+      "#\\[dbus_interface\\b",
+      "#\\[pymethods\\]",
+      "#\\[wasm_bindgen\\b"
     ]
   }
 }

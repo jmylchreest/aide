@@ -121,6 +121,91 @@ func notSuppressed() {}
 	}
 }
 
+func TestAnalyzeDeadCode_RustTestAttributes(t *testing.T) {
+	tmp := t.TempDir()
+	src := `// rosec-style test module
+pub fn real_helper() {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn basic_test() {
+        assert_eq!(1, 1);
+    }
+
+    #[tokio::test]
+    async fn async_test() {}
+
+    #[test]
+    #[should_panic]
+    fn panics_test() { panic!() }
+
+    #[test]
+    #[ignore = "slow"]
+    fn slow_test() {}
+
+    fn untagged_helper_inside_tests() {}
+}
+
+#[zbus::interface(name = "org.example.Foo")]
+impl FooService {
+    fn dispatched_via_dbus(&self) -> u32 { 0 }
+    async fn another_dbus_method(&self) {}
+}
+
+#[plugin_fn]
+pub fn extism_entry_point() -> i32 { 0 }
+`
+	if err := os.WriteFile(filepath.Join(tmp, "lib.rs"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	syms := []*code.Symbol{
+		{Name: "real_helper", Kind: code.KindFunction, FilePath: "lib.rs", StartLine: 2, Language: "rust"},
+		{Name: "tests", Kind: code.KindType, FilePath: "lib.rs", StartLine: 5, EndLine: 26, Language: "rust"},
+		{Name: "basic_test", Kind: code.KindFunction, FilePath: "lib.rs", StartLine: 9, Language: "rust"},
+		{Name: "async_test", Kind: code.KindFunction, FilePath: "lib.rs", StartLine: 14, Language: "rust"},
+		{Name: "panics_test", Kind: code.KindFunction, FilePath: "lib.rs", StartLine: 18, Language: "rust"},
+		{Name: "slow_test", Kind: code.KindFunction, FilePath: "lib.rs", StartLine: 22, Language: "rust"},
+		{Name: "untagged_helper_inside_tests", Kind: code.KindFunction, FilePath: "lib.rs", StartLine: 24, Language: "rust"},
+		{Name: "dispatched_via_dbus", Kind: code.KindFunction, FilePath: "lib.rs", StartLine: 29, Language: "rust"},
+		{Name: "another_dbus_method", Kind: code.KindFunction, FilePath: "lib.rs", StartLine: 30, Language: "rust"},
+		{Name: "extism_entry_point", Kind: code.KindFunction, FilePath: "lib.rs", StartLine: 34, Language: "rust"},
+	}
+
+	registry := grammar.DefaultPackRegistry()
+	cfg := DeadCodeConfig{
+		GetAllSymbols: func() ([]*code.Symbol, error) { return syms, nil },
+		GetRefCount:   func(string) (int, error) { return 0, nil },
+		ProjectRoot:   tmp,
+		PackProvider:  registry.Get,
+	}
+	ff, _, err := AnalyzeDeadCode(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	flagged := make(map[string]bool, len(ff))
+	for _, f := range ff {
+		flagged[f.Metadata["symbol"]] = true
+	}
+
+	mustSuppress := []string{
+		"basic_test", "async_test", "panics_test", "slow_test",
+		"untagged_helper_inside_tests",
+		"dispatched_via_dbus", "another_dbus_method",
+		"extism_entry_point",
+		"tests",
+	}
+	for _, name := range mustSuppress {
+		if flagged[name] {
+			t.Errorf("symbol %q should be suppressed but was flagged", name)
+		}
+	}
+}
+
 func TestAnalyzeDeadCode_TextGrepVerification(t *testing.T) {
 	tmp := t.TempDir()
 	// Two files: foo.go declares handleX; bar.go calls s.handleX (qualified

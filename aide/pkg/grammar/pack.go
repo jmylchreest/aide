@@ -78,6 +78,14 @@ type PackDeadcode struct {
 	// that symbol. Use this for `//nolint:unused`, `// aide:keep`, JSDoc
 	// `@public`, etc. Matched against the raw text of each preceding line.
 	SuppressionPatterns []string `json:"suppression_patterns,omitempty"`
+	// BlockSuppressionPatterns are regexes that, when matched on a line, mark
+	// the entire braced block that opens after that line as suppressed. Any
+	// symbol whose declaration line falls within that block is excluded from
+	// dead-code findings. Use this for `#[cfg(test)] mod tests { ... }`,
+	// `#[zbus::interface] impl Foo { ... }`, `#[pymethods] impl Foo { ... }`,
+	// etc. — attributes on a mod/impl/fn whose contents are reflective entry
+	// points.
+	BlockSuppressionPatterns []string `json:"block_suppression_patterns,omitempty"`
 	// ExportedRule selects how exported-ness is determined from a symbol's name.
 	// Recognised values:
 	//   - "first_char_uppercase"  Go/Java/C# convention
