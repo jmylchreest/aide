@@ -21,8 +21,20 @@ func main() {
 		os.Exit(1)
 	}
 
-	cmd := os.Args[1]
-	args := os.Args[2:]
+	// --project <path> may appear before or after the subcommand; strip it
+	// from the full arg list and stash the value in AIDE_PROJECT_ROOT so
+	// downstream subcommands and findProjectRoot pick it up uniformly.
+	rawArgs := os.Args[1:]
+	if override, rest, ok := extractProjectFlag(rawArgs); ok {
+		_ = os.Setenv("AIDE_PROJECT_ROOT", override)
+		rawArgs = rest
+	}
+	if len(rawArgs) == 0 {
+		printUsage()
+		os.Exit(1)
+	}
+	cmd := rawArgs[0]
+	args := rawArgs[1:]
 
 	// Fast path: commands that don't need a database.
 	switch cmd {
@@ -196,6 +208,25 @@ Examples:
 `, version.Short())
 }
 
+// extractProjectFlag pulls a top-level --project=<path> or --project <path>
+// flag out of args, returning the value, the args without the flag, and a
+// found-flag indicator. Subcommands handle their own arguments, so we only
+// strip this one before dispatch to keep the override invisible to them.
+func extractProjectFlag(args []string) (string, []string, bool) {
+	for i, a := range args {
+		if a == "--project" {
+			if i+1 >= len(args) {
+				return "", args, false
+			}
+			return args[i+1], append(append([]string{}, args[:i]...), args[i+2:]...), true
+		}
+		if strings.HasPrefix(a, "--project=") {
+			return a[len("--project="):], append(append([]string{}, args[:i]...), args[i+1:]...), true
+		}
+	}
+	return "", args, false
+}
+
 // findProjectRoot walks up directories looking for .aide or .git markers.
 // This avoids spawning a git subprocess on every invocation.
 // For git worktrees, .git is a file pointing to the main repo; we follow it
@@ -205,10 +236,24 @@ Examples:
 // TypeScript layer for global skills/MCP config) is skipped as a project
 // marker unless cwd is exactly $HOME (user intentionally working from home).
 //
+// AIDE_PROJECT_ROOT short-circuits the walk: when set to an existing
+// directory it is returned as-is (with hasMarker=true), so users can run
+// aide commands against any project from any cwd.
+//
 // Returns the resolved project root and a boolean indicating whether a
 // .aide/ or .git/ marker was actually found. When no marker is found,
 // the current working directory is returned.
 func findProjectRoot() (string, bool) {
+	if override := os.Getenv("AIDE_PROJECT_ROOT"); override != "" {
+		abs, err := filepath.Abs(override)
+		if err == nil {
+			if info, err := os.Stat(abs); err == nil && info.IsDir() {
+				return abs, true
+			}
+		}
+		fmt.Fprintf(os.Stderr, "aide: AIDE_PROJECT_ROOT=%q is not a directory; falling back to walk-up\n", override)
+	}
+
 	cwd, err := os.Getwd()
 	if err != nil {
 		return ".", false
