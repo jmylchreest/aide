@@ -696,15 +696,37 @@ func (s *CodeStore) SetFileInfo(info *code.FileInfo) error {
 
 // ClearFile removes all symbols for a file and its tracking info.
 func (s *CodeStore) ClearFile(filePath string) error {
-	// Get existing file info to find symbol IDs
+	// Fast path: FileInfo tracks SymbolIDs for files indexed normally.
 	info, err := s.GetFileInfo(filePath)
 	if err != nil && err != ErrNotFound {
 		return err
 	}
 
-	// Delete symbols
-	if info != nil {
+	if info != nil && len(info.SymbolIDs) > 0 {
 		for _, id := range info.SymbolIDs {
+			s.DeleteSymbol(id)
+		}
+	} else {
+		// Fallback: orphan symbols whose FileInfo was already cleared (or
+		// whose SymbolIDs list is empty for any reason). Scan the symbols
+		// bucket and delete entries whose FilePath matches. Required so
+		// Reconcile's orphan sweep can drop pre-existing index entries
+		// added before .aideignore was respected.
+		var orphanIDs []string
+		_ = s.db.View(func(tx *bolt.Tx) error {
+			b := tx.Bucket(BucketSymbols)
+			return b.ForEach(func(k, v []byte) error {
+				var sym code.Symbol
+				if err := json.Unmarshal(v, &sym); err != nil {
+					return nil
+				}
+				if sym.FilePath == filePath {
+					orphanIDs = append(orphanIDs, string(k))
+				}
+				return nil
+			})
+		})
+		for _, id := range orphanIDs {
 			s.DeleteSymbol(id)
 		}
 	}
