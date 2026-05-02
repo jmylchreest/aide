@@ -348,6 +348,59 @@ func (s *MCPServer) initMCPSurveyStore(dbPath string, grpcServer *grpcapi.Server
 	return func() { ss.Close() }
 }
 
+// startCodeReconciler runs Indexer.Reconcile once at daemon startup and wires
+// the gRPC code-reconciler callback so analyzer RPCs (deadcode, etc.) refresh
+// the index before producing findings. Unlike startCodeWatcher this runs
+// unconditionally — it's how upgrades from older versions auto-heal stale
+// index entries (orphan paths, in-file orphans, paths now matching
+// .aideignore) without requiring users to know about `aide code reconcile`.
+func (s *MCPServer) startCodeReconciler(dbPath string) {
+	projRoot := projectRoot(dbPath)
+	if !isVCSRoot(projRoot) && !config.Get().IndexNonVCS {
+		// Same VCS guard as startCodeWatcher — don't touch arbitrary dirs.
+		return
+	}
+
+	go func() {
+		// Wait for the lazy-loaded code store to be ready.
+		for i := 0; i < DefaultMCPPollCount; i++ {
+			if s.codeStoreReady.Load() {
+				break
+			}
+			time.Sleep(DefaultMCPPollInterval)
+		}
+
+		var indexer *Indexer
+		if cs := s.getCodeStore(); cs != nil {
+			indexer = NewIndexerFromStore(cs, s.grammarLoader, projRoot)
+		} else {
+			var err error
+			indexer, err = NewIndexer(dbPath)
+			if err != nil {
+				mcpLog.Printf("WARNING: failed to create code indexer for reconcile: %v", err)
+				return
+			}
+		}
+
+		if s.grpcServer != nil {
+			s.grpcServer.SetCodeReconciler(func() (int, int, error) {
+				res, err := indexer.Reconcile()
+				return res.Removed, res.Refreshed, err
+			})
+		}
+
+		res, err := indexer.Reconcile()
+		if err != nil {
+			mcpLog.Printf("startup reconcile failed: %v", err)
+			return
+		}
+		if res.Removed > 0 || res.Refreshed > 0 || res.Errors > 0 {
+			mcpLog.Printf("startup reconcile: checked %d, removed %d, refreshed %d, errors %d",
+				res.Checked, res.Removed, res.Refreshed, res.Errors)
+		}
+	}()
+}
+
 // startCodeWatcher launches the file watcher in the background.
 // It reuses the MCPServer's existing code store to avoid double-opening bolt/bleve.
 func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
@@ -482,17 +535,11 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 		s.findingsRunner = findingsRunner
 		s.unifiedWatcherMu.Unlock()
 
-		// Expose watcher/runner/reconciler to gRPC services. The reconciler
-		// also lets the daemon's analyzer RPCs refresh the index before they
-		// run, so they don't operate on stale entries from before the daemon
-		// was started.
+		// Expose watcher/runner to gRPC services. The reconciler is wired
+		// separately by startCodeReconciler so it runs unconditionally.
 		if s.grpcServer != nil {
 			s.grpcServer.SetWatcher(w)
 			s.grpcServer.SetFindingsRunner(findingsRunner)
-			s.grpcServer.SetCodeReconciler(func() (int, int, error) {
-				res, err := indexer.Reconcile()
-				return res.Removed, res.Refreshed, err
-			})
 		}
 
 		if len(watchPaths) > 0 {
@@ -500,22 +547,6 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 		} else {
 			mcpLog.Printf("unified watcher enabled for current directory (debounce: %v)", debounceDelay)
 		}
-
-		// Startup reconciliation: catch deletions and edits that landed while
-		// the daemon was offline. The watcher keeps the index in sync from
-		// here on, so this runs once. Gated implicitly: this whole goroutine
-		// only runs when the watcher is enabled (see early-return above).
-		go func() {
-			res, err := indexer.Reconcile()
-			if err != nil {
-				mcpLog.Printf("startup reconcile failed: %v", err)
-				return
-			}
-			if res.Removed > 0 || res.Refreshed > 0 || res.Errors > 0 {
-				mcpLog.Printf("startup reconcile: checked %d, removed %d, refreshed %d, errors %d",
-					res.Checked, res.Removed, res.Refreshed, res.Errors)
-			}
-		}()
 
 		// Startup re-scan: check for grammars that were installed but whose
 		// project re-scan didn't complete (e.g. process was killed mid-scan).
@@ -767,6 +798,7 @@ func cmdMCP(dbPath string, args []string) error {
 		}()
 	}
 
+	mcpServer.startCodeReconciler(dbPath)
 	mcpServer.startCodeWatcher(dbPath, cfg)
 	defer mcpServer.stopCodeWatcher()
 
