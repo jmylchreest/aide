@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bmatcuk/doublestar/v4"
 	"github.com/jmylchreest/aide/aide/pkg/aideignore"
 	"github.com/jmylchreest/aide/aide/pkg/code"
 	"github.com/jmylchreest/aide/aide/pkg/grammar"
@@ -80,7 +81,7 @@ func AnalyzeDeadCode(cfg DeadCodeConfig) ([]*Finding, *DeadCodeResult, error) {
 	for _, sym := range symbols {
 		result.SymbolsChecked++
 
-		if shouldSkipForDeadCode(sym) {
+		if shouldSkipForDeadCode(sym, cfg.PackProvider) {
 			result.SymbolsSkipped++
 			continue
 		}
@@ -164,9 +165,11 @@ func AnalyzeDeadCode(cfg DeadCodeConfig) ([]*Finding, *DeadCodeResult, error) {
 }
 
 // shouldSkipForDeadCode returns true if a symbol should be excluded from
-// dead code detection because it is a known entrypoint or framework hook.
-// These are universal sanity rules independent of the language pack.
-func shouldSkipForDeadCode(sym *code.Symbol) bool {
+// dead code detection because it is a known entrypoint, test target, or
+// framework hook. Per-language conventions (test file globs, test function
+// prefixes, framework hook names) are sourced from the symbol's grammar
+// pack via packProvider; symbol-kind and corrupt-row guards are universal.
+func shouldSkipForDeadCode(sym *code.Symbol, packProvider func(string) *grammar.Pack) bool {
 	name := sym.Name
 
 	// Corrupt or orphan symbol rows (empty FilePath, no language, line 0)
@@ -178,44 +181,33 @@ func shouldSkipForDeadCode(sym *code.Symbol) bool {
 		return true
 	}
 
-	if strings.HasSuffix(sym.FilePath, "_test.go") ||
-		strings.HasSuffix(sym.FilePath, ".test.ts") ||
-		strings.HasSuffix(sym.FilePath, ".test.tsx") ||
-		strings.HasSuffix(sym.FilePath, ".test.js") ||
-		strings.HasSuffix(sym.FilePath, ".spec.ts") ||
-		strings.HasSuffix(sym.FilePath, ".spec.tsx") ||
-		strings.HasSuffix(sym.FilePath, ".spec.js") ||
-		strings.Contains(sym.FilePath, "__tests__/") ||
-		strings.Contains(sym.FilePath, "__test__/") {
-		return true
-	}
-
-	if name == "main" || name == "init" {
-		return true
-	}
-
-	if strings.HasPrefix(name, "Test") || strings.HasPrefix(name, "Benchmark") ||
-		strings.HasPrefix(name, "Example") || strings.HasPrefix(name, "Fuzz") {
-		return true
-	}
-
-	lowerName := strings.ToLower(name)
-	frameworkHooks := []string{
-		"setup", "teardown", "beforeall", "afterall", "beforeeach", "aftereach",
-		"run", "execute", "handle", "serve", "listen",
-	}
-	for _, hook := range frameworkHooks {
-		if lowerName == hook {
-			return true
-		}
-	}
-
 	if sym.Kind == code.KindClass || sym.Kind == code.KindInterface || sym.Kind == code.KindType {
 		return true
 	}
-
 	if sym.Kind == code.KindConstant || sym.Kind == code.KindVariable {
 		return true
+	}
+
+	if packProvider != nil && sym.Language != "" {
+		if pack := packProvider(sym.Language); pack != nil && pack.Deadcode != nil {
+			d := pack.Deadcode
+			for _, p := range d.TestFilePatterns {
+				if matched, _ := doublestar.PathMatch(p, sym.FilePath); matched {
+					return true
+				}
+			}
+			for _, prefix := range d.TestFunctionPrefixes {
+				if strings.HasPrefix(name, prefix) {
+					return true
+				}
+			}
+			lowerName := strings.ToLower(name)
+			for _, hook := range d.FrameworkHookNames {
+				if strings.EqualFold(name, hook) || lowerName == strings.ToLower(hook) {
+					return true
+				}
+			}
+		}
 	}
 
 	return false

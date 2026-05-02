@@ -4,7 +4,9 @@
   "version": "0.23.2",
   "c_symbol": "tree_sitter_tsx",
   "meta": {
-    "extensions": [".tsx"],
+    "extensions": [
+      ".tsx"
+    ],
     "aliases": []
   },
   "queries": {
@@ -38,7 +40,10 @@
         "regex": "(?:import|export)\\s+.*from\\s+['\"]([^'\"]+)['\"]",
         "group": 1
       },
-      { "regex": "require\\s*\\(\\s*['\"]([^'\"]+)['\"]", "group": 1 }
+      {
+        "regex": "require\\s*\\(\\s*['\"]([^'\"]+)['\"]",
+        "group": 1
+      }
     ]
   },
   "tokenisation": {
@@ -163,6 +168,25 @@
       "//\\s*@public\\b",
       "//\\s*@internal\\b",
       "/\\*\\*[\\s\\S]*?@(?:public|api|internal)\\b"
+    ],
+    "test_file_patterns": [
+      "**/*.test.tsx",
+      "**/*.spec.tsx",
+      "**/*.test.ts",
+      "**/*.spec.ts",
+      "**/__tests__/**",
+      "**/__test__/**"
+    ],
+    "framework_hook_names": [
+      "beforeAll",
+      "afterAll",
+      "beforeEach",
+      "afterEach",
+      "setUp",
+      "tearDown",
+      "describe",
+      "it",
+      "test"
     ]
   }
 }

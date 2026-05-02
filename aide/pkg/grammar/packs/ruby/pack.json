@@ -259,10 +259,33 @@
     "suppression_patterns": [
       "#\\s*rubocop:disable\\b.*\\b(?:Lint/UselessMethodDefinition|Lint/UnusedMethodArgument|Lint/UnusedBlockArgument)\\b",
       "#\\s*aide:keep\\b"
+    ],
+    "test_file_patterns": [
+      "**/spec/**/*_spec.rb",
+      "**/test/**/*_test.rb",
+      "**/*_spec.rb",
+      "**/*_test.rb"
+    ],
+    "test_function_prefixes": [
+      "test_"
+    ],
+    "framework_hook_names": [
+      "setup",
+      "teardown",
+      "before",
+      "after",
+      "initialize"
     ]
   },
   "comments": {
-    "line": ["#"],
-    "block": [["=begin", "=end"]]
+    "line": [
+      "#"
+    ],
+    "block": [
+      [
+        "=begin",
+        "=end"
+      ]
+    ]
   }
 }

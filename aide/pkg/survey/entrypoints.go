@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/bmatcuk/doublestar/v4"
 	"github.com/jmylchreest/aide/aide/pkg/aideignore"
 	"github.com/jmylchreest/aide/aide/pkg/grammar"
 )
@@ -98,7 +99,7 @@ func (r *EntrypointsResult) processSymbols(pack *grammar.Pack, cs CodeSearcher) 
 				}
 			}
 			// Universal safety-net filters: always exclude test and generated files.
-			if isTestFile(hit.FilePath) || isGeneratedFile(hit.FilePath) {
+			if isTestFile(pack, hit.FilePath) || isGeneratedFile(pack, hit.FilePath) {
 				continue
 			}
 			// Exclude filter (pack-specific patterns).
@@ -183,7 +184,7 @@ func (r *EntrypointsResult) processRefs(pack *grammar.Pack, cs CodeSearcher) {
 			}
 
 			// Universal safety-net filters: always exclude test and generated files.
-			if isTestFile(hit.FilePath) || isGeneratedFile(hit.FilePath) {
+			if isTestFile(pack, hit.FilePath) || isGeneratedFile(pack, hit.FilePath) {
 				continue
 			}
 
@@ -297,7 +298,7 @@ func (r *EntrypointsResult) processFilePatterns(rootDir string, pack *grammar.Pa
 			}
 
 			// Exclude test and generated files.
-			if isTestFile(relPath) || isGeneratedFile(relPath) {
+			if isTestFile(pack, relPath) || isGeneratedFile(pack, relPath) {
 				return nil
 			}
 
@@ -383,26 +384,37 @@ func (r *EntrypointsResult) scanFileForPattern(relPath, absPath, language string
 // Helper functions
 // =============================================================================
 
-// isGeneratedFile returns true if the path looks like a generated file.
-func isGeneratedFile(path string) bool {
-	return strings.HasSuffix(path, ".pb.go") ||
-		strings.HasSuffix(path, ".pb.gw.go") ||
-		strings.HasSuffix(path, "_generated.go") ||
-		strings.HasSuffix(path, "_gen.go") ||
-		strings.Contains(path, "generated") ||
-		strings.Contains(path, "vendor/")
+// isGeneratedFile returns true when the path matches a pack-declared
+// generated-file glob, or a universal heuristic ("generated" path component,
+// "vendor/" tree). Pack is optional — when nil only the universals fire.
+func isGeneratedFile(pack *grammar.Pack, path string) bool {
+	if pack != nil && pack.Files != nil {
+		for _, p := range pack.Files.GeneratedFilePatterns {
+			if matched, _ := doublestar.PathMatch(p, path); matched {
+				return true
+			}
+		}
+	}
+	if strings.Contains(path, "generated") || strings.Contains(path, "vendor/") {
+		return true
+	}
+	return false
 }
 
-// isTestFile returns true if the path looks like a test file.
-func isTestFile(path string) bool {
-	if strings.HasSuffix(path, "_test.go") ||
-		strings.HasSuffix(path, "_test.rs") ||
-		strings.HasSuffix(path, "_test.py") {
-		return true
+// isTestFile returns true when the path matches a pack-declared test-file
+// glob, or sits under a universal testdata/ component. Pack is optional —
+// when nil only the universal fallback fires.
+func isTestFile(pack *grammar.Pack, path string) bool {
+	if pack != nil && pack.Deadcode != nil {
+		for _, p := range pack.Deadcode.TestFilePatterns {
+			if matched, _ := doublestar.PathMatch(p, path); matched {
+				return true
+			}
+		}
 	}
 	parts := strings.Split(path, "/")
 	for _, p := range parts {
-		if p == "testdata" || p == "test" || p == "tests" {
+		if p == "testdata" {
 			return true
 		}
 	}

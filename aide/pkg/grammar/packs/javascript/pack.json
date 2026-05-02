@@ -282,6 +282,32 @@
       "//\\s*@public\\b",
       "//\\s*@internal\\b",
       "/\\*\\*[\\s\\S]*?@(?:public|api|internal)\\b"
+    ],
+    "test_file_patterns": [
+      "**/*.test.js",
+      "**/*.spec.js",
+      "**/*.test.mjs",
+      "**/*.spec.mjs",
+      "**/__tests__/**",
+      "**/__test__/**"
+    ],
+    "framework_hook_names": [
+      "beforeAll",
+      "afterAll",
+      "beforeEach",
+      "afterEach",
+      "setUp",
+      "tearDown",
+      "describe",
+      "it",
+      "test"
+    ]
+  },
+  "files": {
+    "generated_file_patterns": [
+      "**/*.pb.js",
+      "**/*.gen.js",
+      "**/*_generated.js"
     ]
   }
 }

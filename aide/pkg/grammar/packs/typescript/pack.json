@@ -300,6 +300,33 @@
       "//\\s*@public\\b",
       "//\\s*@internal\\b",
       "/\\*\\*[\\s\\S]*?@(?:public|api|internal)\\b"
+    ],
+    "test_file_patterns": [
+      "**/*.test.ts",
+      "**/*.spec.ts",
+      "**/__tests__/**",
+      "**/__test__/**"
+    ],
+    "test_function_prefixes": [
+      "test_"
+    ],
+    "framework_hook_names": [
+      "beforeAll",
+      "afterAll",
+      "beforeEach",
+      "afterEach",
+      "setUp",
+      "tearDown",
+      "describe",
+      "it",
+      "test"
+    ]
+  },
+  "files": {
+    "generated_file_patterns": [
+      "**/*.pb.ts",
+      "**/*.gen.ts",
+      "**/*_generated.ts"
     ]
   }
 }

@@ -60,6 +60,7 @@ type Pack struct {
 	Security      *PackSecurity     `json:"security,omitempty"`
 	Deadcode      *PackDeadcode     `json:"deadcode,omitempty"`
 	Comments      *PackComments     `json:"comments,omitempty"`
+	Files         *PackFiles        `json:"files,omitempty"`
 }
 
 // PackComments declares a language's comment delimiters. Used by analyzers that
@@ -93,6 +94,33 @@ type PackDeadcode struct {
 	// Empty means the analyzer has no language hint and treats every symbol as
 	// non-exported (i.e. all are subject to dead-code analysis).
 	ExportedRule string `json:"exported_rule,omitempty"`
+	// TestFilePatterns are doublestar-style globs (matched against the
+	// symbol's project-relative FilePath) that mark a file as a test file.
+	// Symbols in test files are skipped by the deadcode analyzer because
+	// their callers are typically the test harness, not other source code.
+	TestFilePatterns []string `json:"test_file_patterns,omitempty"`
+	// TestFunctionPrefixes are case-sensitive name prefixes that mark a
+	// function as a test/benchmark/example/fuzz target invoked by tooling
+	// rather than by other code (Go's "Test", "Benchmark", "Example",
+	// "Fuzz"; Python's "test_"; etc.).
+	TestFunctionPrefixes []string `json:"test_function_prefixes,omitempty"`
+	// FrameworkHookNames are case-insensitive symbol names that act as
+	// framework lifecycle hooks (setup, teardown, beforeEach, ...) or
+	// language-level entry points (main, init). They're called by the
+	// runtime/framework, not by user code, so the deadcode analyzer
+	// shouldn't flag them as unreferenced.
+	FrameworkHookNames []string `json:"framework_hook_names,omitempty"`
+}
+
+// PackFiles groups per-language file-classification patterns shared across
+// analyzers. Currently used by survey's entrypoints walker; can be consumed
+// elsewhere as needs arise.
+type PackFiles struct {
+	// GeneratedFilePatterns are doublestar-style globs marking files that
+	// were emitted by code generators (protobuf stubs, gRPC gateways, etc.)
+	// and should be excluded from analyses where signal-from-author-intent
+	// is what's wanted (entrypoints, deadcode, complexity, ...).
+	GeneratedFilePatterns []string `json:"generated_file_patterns,omitempty"`
 }
 
 // HasParser reports whether this pack has a tree-sitter grammar binary (CSymbol != "").

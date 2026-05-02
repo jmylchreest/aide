@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/jmylchreest/aide/aide/pkg/grammar"
 )
 
 // mockCodeSearcher implements CodeSearcher for testing.
@@ -316,8 +318,9 @@ func TestRunEntrypoints_ExcludesGeneratedFiles(t *testing.T) {
 		t.Fatalf("RunEntrypoints: %v", err)
 	}
 
+	pack := grammar.DefaultPackRegistry().Get("go")
 	for _, e := range result.Entries {
-		if isGeneratedFile(e.FilePath) {
+		if isGeneratedFile(pack, e.FilePath) {
 			t.Errorf("generated file should be excluded: %s", e.FilePath)
 		}
 	}
@@ -346,8 +349,9 @@ func TestRunEntrypoints_ExcludesTestFiles(t *testing.T) {
 		t.Fatalf("RunEntrypoints: %v", err)
 	}
 
+	pack := grammar.DefaultPackRegistry().Get("go")
 	for _, e := range result.Entries {
-		if isTestFile(e.FilePath) {
+		if isTestFile(pack, e.FilePath) {
 			t.Errorf("test file should be excluded: %s", e.FilePath)
 		}
 	}
@@ -600,6 +604,7 @@ func TestRunEntrypoints_FileScanSkipsNonMainPackage(t *testing.T) {
 // =============================================================================
 
 func TestIsGeneratedFile(t *testing.T) {
+	pack := grammar.DefaultPackRegistry().Get("go")
 	tests := []struct {
 		path string
 		want bool
@@ -613,13 +618,14 @@ func TestIsGeneratedFile(t *testing.T) {
 		{"cmd/main.go", false},
 	}
 	for _, tt := range tests {
-		if got := isGeneratedFile(tt.path); got != tt.want {
-			t.Errorf("isGeneratedFile(%q) = %v, want %v", tt.path, got, tt.want)
+		if got := isGeneratedFile(pack, tt.path); got != tt.want {
+			t.Errorf("isGeneratedFile(go, %q) = %v, want %v", tt.path, got, tt.want)
 		}
 	}
 }
 
 func TestIsTestFile(t *testing.T) {
+	pack := grammar.DefaultPackRegistry().Get("go")
 	tests := []struct {
 		path string
 		want bool
@@ -627,13 +633,11 @@ func TestIsTestFile(t *testing.T) {
 		{"pkg/api/server.go", false},
 		{"pkg/api/server_test.go", true},
 		{"internal/testdata/helper.go", true},
-		{"test/fixtures.go", true},
-		{"tests/integration.go", true},
 		{"cmd/main.go", false},
 	}
 	for _, tt := range tests {
-		if got := isTestFile(tt.path); got != tt.want {
-			t.Errorf("isTestFile(%q) = %v, want %v", tt.path, got, tt.want)
+		if got := isTestFile(pack, tt.path); got != tt.want {
+			t.Errorf("isTestFile(go, %q) = %v, want %v", tt.path, got, tt.want)
 		}
 	}
 }

@@ -225,6 +225,8 @@
       "#\\[dbus_interface\\b",
       "#\\[pymethods\\]",
       "#\\[wasm_bindgen\\b"
-    ]
+    ],
+    "test_file_patterns": ["**/tests/**/*.rs", "**/benches/**/*.rs", "**/examples/**/*.rs"],
+    "framework_hook_names": ["main"]
   }
 }

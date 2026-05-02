@@ -317,10 +317,37 @@
       "#\\s*pragma:\\s*no\\s*cover",
       "#\\s*aide:keep\\b",
       "#\\s*type:\\s*ignore\\b"
+    ],
+    "test_file_patterns": [
+      "**/test_*.py",
+      "**/*_test.py",
+      "**/tests/**/*.py"
+    ],
+    "test_function_prefixes": [
+      "test_"
+    ],
+    "framework_hook_names": [
+      "setUp",
+      "tearDown",
+      "setUpClass",
+      "tearDownClass",
+      "setUpModule",
+      "tearDownModule"
     ]
   },
   "comments": {
-    "line": ["#"],
-    "block": [["\"\"\"", "\"\"\""], ["'''", "'''"]]
+    "line": [
+      "#"
+    ],
+    "block": [
+      [
+        "\"\"\"",
+        "\"\"\""
+      ],
+      [
+        "'''",
+        "'''"
+      ]
+    ]
   }
 }
