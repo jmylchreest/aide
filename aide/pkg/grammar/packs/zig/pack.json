@@ -4,10 +4,15 @@
   "version": "1.1.2",
   "c_symbol": "tree_sitter_zig",
   "meta": {
-    "extensions": [".zig"]
+    "extensions": [
+      ".zig"
+    ]
   },
   "complexity": {
-    "func_node_types": ["FnDecl", "TestDecl"],
+    "func_node_types": [
+      "FnDecl",
+      "TestDecl"
+    ],
     "branch_types": [
       "IfExpr",
       "IfStatement",
@@ -18,7 +23,10 @@
     "name_field": "name"
   },
   "tokenisation": {
-    "identifier_types": ["IDENTIFIER", "BUILTINIDENTIFIER"],
+    "identifier_types": [
+      "IDENTIFIER",
+      "BUILTINIDENTIFIER"
+    ],
     "literal_types": [
       "INTEGER",
       "FLOAT",
@@ -64,5 +72,6 @@
         "label": "Zig build script"
       }
     ]
-  }
+  },
+  "notes": "Test blocks (`test \"name\" { ... }`) are tree-sitter detected via TestDecl in the complexity section. No name-based test prefix or framework hook convention applies."
 }

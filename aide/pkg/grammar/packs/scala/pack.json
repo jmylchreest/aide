@@ -138,7 +138,8 @@
       "afterAll",
       "beforeEach",
       "afterEach",
-      "main"
+      "before",
+      "after"
     ]
   }
 }

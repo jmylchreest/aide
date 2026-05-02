@@ -156,8 +156,7 @@
       "setUp",
       "tearDown",
       "setUpWithError",
-      "tearDownWithError",
-      "main"
+      "tearDownWithError"
     ]
   }
 }

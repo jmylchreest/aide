@@ -15,6 +15,9 @@
     ]
   },
   "comments": {
-    "line": ["#"]
-  }
+    "line": [
+      "#"
+    ]
+  },
+  "notes": "Data format. No test/framework conventions; deadcode and files sections deliberately empty."
 }

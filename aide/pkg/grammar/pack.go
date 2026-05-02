@@ -44,23 +44,29 @@ func DefaultPackRegistry() *PackRegistry {
 // Pack is the in-memory representation of a pack.json file.
 // It contains all per-language metadata aide needs for analysis.
 type Pack struct {
-	SchemaVersion int               `json:"schema_version"`
-	Name          string            `json:"name"`
-	Version       string            `json:"version,omitempty"`
-	CSymbol       string            `json:"c_symbol,omitempty"`
-	SourceRepo    string            `json:"source_repo,omitempty"`
-	SourceTag     string            `json:"source_tag,omitempty"`
-	SourceSrcDir  string            `json:"source_src_dir,omitempty"`
-	Meta          PackMeta          `json:"meta"`
-	Queries       PackQueries       `json:"queries,omitempty"`
-	Complexity    *PackComplexity   `json:"complexity,omitempty"`
-	Imports       *PackImports      `json:"imports,omitempty"`
-	Tokenisation  *PackTokenisation `json:"tokenisation,omitempty"`
-	Entrypoints   *PackEntrypoints  `json:"entrypoints,omitempty"`
-	Security      *PackSecurity     `json:"security,omitempty"`
-	Deadcode      *PackDeadcode     `json:"deadcode,omitempty"`
-	Comments      *PackComments     `json:"comments,omitempty"`
-	Files         *PackFiles        `json:"files,omitempty"`
+	SchemaVersion int    `json:"schema_version"`
+	Name          string `json:"name"`
+	Version       string `json:"version,omitempty"`
+	CSymbol       string `json:"c_symbol,omitempty"`
+	SourceRepo    string `json:"source_repo,omitempty"`
+	SourceTag     string `json:"source_tag,omitempty"`
+	SourceSrcDir  string `json:"source_src_dir,omitempty"`
+	// Notes is a free-form human-readable description of the pack's
+	// applicability and any intentional gaps in the schema. Used to
+	// document, for example, that a markup pack deliberately omits
+	// test/framework conventions because none exist for that language.
+	Notes string `json:"notes,omitempty"`
+
+	Meta         PackMeta          `json:"meta"`
+	Queries      PackQueries       `json:"queries,omitempty"`
+	Complexity   *PackComplexity   `json:"complexity,omitempty"`
+	Imports      *PackImports      `json:"imports,omitempty"`
+	Tokenisation *PackTokenisation `json:"tokenisation,omitempty"`
+	Entrypoints  *PackEntrypoints  `json:"entrypoints,omitempty"`
+	Security     *PackSecurity     `json:"security,omitempty"`
+	Deadcode     *PackDeadcode     `json:"deadcode,omitempty"`
+	Comments     *PackComments     `json:"comments,omitempty"`
+	Files        *PackFiles        `json:"files,omitempty"`
 }
 
 // PackComments declares a language's comment delimiters. Used by analyzers that

@@ -272,9 +272,15 @@
     "framework_hook_names": [
       "setup",
       "teardown",
+      "startup",
+      "shutdown",
+      "before_setup",
+      "after_setup",
+      "before_teardown",
+      "after_teardown",
       "before",
       "after",
-      "initialize"
+      "around"
     ]
   },
   "comments": {

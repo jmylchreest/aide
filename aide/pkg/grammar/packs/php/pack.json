@@ -283,7 +283,10 @@
       "setUp",
       "tearDown",
       "setUpBeforeClass",
-      "tearDownAfterClass"
+      "tearDownAfterClass",
+      "assertPreConditions",
+      "assertPostConditions",
+      "onNotSuccessfulTest"
     ]
   }
 }

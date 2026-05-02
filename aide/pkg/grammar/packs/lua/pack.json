@@ -135,6 +135,14 @@
       "teardown",
       "before_each",
       "after_each",
+      "lazy_setup",
+      "lazy_teardown",
+      "strict_setup",
+      "strict_teardown",
+      "setUp",
+      "tearDown",
+      "setUpClass",
+      "tearDownClass",
       "describe",
       "it"
     ]

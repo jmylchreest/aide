@@ -307,16 +307,14 @@
       "**/__tests__/**",
       "**/__test__/**"
     ],
-    "test_function_prefixes": [
-      "test_"
-    ],
+    "test_function_prefixes": [],
     "framework_hook_names": [
       "beforeAll",
       "afterAll",
       "beforeEach",
       "afterEach",
-      "setUp",
-      "tearDown",
+      "before",
+      "after",
       "describe",
       "it",
       "test"

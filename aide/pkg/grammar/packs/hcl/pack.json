@@ -6,10 +6,18 @@
   "source_repo": "tree-sitter-grammars/tree-sitter-hcl",
   "source_tag": "latest",
   "meta": {
-    "extensions": [".hcl", ".tf", ".tfvars"],
-    "aliases": ["tf", "terraform"]
+    "extensions": [
+      ".hcl",
+      ".tf",
+      ".tfvars"
+    ],
+    "aliases": [
+      "tf",
+      "terraform"
+    ]
   },
   "queries": {
     "tags": "(block (identifier) @type (string_lit) @name) @definition.type"
-  }
+  },
+  "notes": "Configuration language. No test/framework conventions; deadcode and files sections deliberately empty."
 }

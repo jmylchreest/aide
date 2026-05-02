@@ -182,11 +182,12 @@
       "afterAll",
       "beforeEach",
       "afterEach",
-      "setUp",
-      "tearDown",
+      "before",
+      "after",
       "describe",
       "it",
       "test"
-    ]
+    ],
+    "test_function_prefixes": []
   }
 }

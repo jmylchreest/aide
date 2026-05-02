@@ -296,12 +296,13 @@
       "afterAll",
       "beforeEach",
       "afterEach",
-      "setUp",
-      "tearDown",
+      "before",
+      "after",
       "describe",
       "it",
       "test"
-    ]
+    ],
+    "test_function_prefixes": []
   },
   "files": {
     "generated_file_patterns": [

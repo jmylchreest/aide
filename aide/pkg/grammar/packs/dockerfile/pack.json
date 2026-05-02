@@ -3,9 +3,15 @@
   "name": "dockerfile",
   "version": "",
   "meta": {
-    "extensions": [".dockerfile"],
-    "filenames": ["Dockerfile"],
-    "aliases": ["docker"]
+    "extensions": [
+      ".dockerfile"
+    ],
+    "filenames": [
+      "Dockerfile"
+    ],
+    "aliases": [
+      "docker"
+    ]
   },
   "entrypoints": {
     "file_patterns": [
@@ -16,5 +22,6 @@
         "label": "Docker ENTRYPOINT/CMD directive"
       }
     ]
-  }
+  },
+  "notes": "Build instruction format. No test/framework conventions; deadcode and files sections deliberately empty."
 }

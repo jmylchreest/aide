@@ -332,7 +332,15 @@
       "setUpClass",
       "tearDownClass",
       "setUpModule",
-      "tearDownModule"
+      "tearDownModule",
+      "setup_method",
+      "teardown_method",
+      "setup_function",
+      "teardown_function",
+      "setup_class",
+      "teardown_class",
+      "setup_module",
+      "teardown_module"
     ]
   },
   "comments": {

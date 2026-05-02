@@ -146,12 +146,16 @@
       "**/src/test/**/*.kt"
     ],
     "framework_hook_names": [
-      "setUp",
-      "tearDown",
-      "beforeAll",
-      "afterAll",
+      "beforeTest",
+      "afterTest",
+      "beforeSpec",
+      "afterSpec",
       "beforeEach",
       "afterEach",
+      "beforeAll",
+      "afterAll",
+      "beforeContainer",
+      "afterContainer",
       "main"
     ]
   }

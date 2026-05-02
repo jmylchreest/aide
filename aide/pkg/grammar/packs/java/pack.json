@@ -207,17 +207,8 @@
       "**/*Tests.java",
       "**/*TestCase.java"
     ],
-    "test_function_prefixes": [
-      "test"
-    ],
-    "framework_hook_names": [
-      "setUp",
-      "tearDown",
-      "beforeAll",
-      "afterAll",
-      "beforeEach",
-      "afterEach",
-      "main"
-    ]
-  }
+    "test_function_prefixes": [],
+    "framework_hook_names": []
+  },
+  "notes": "Modern JUnit (4/5) and TestNG are annotation-driven (`@Test`, `@BeforeAll`, etc.); test method names are arbitrary so no name-based test prefix or hook list is encoded. Skip relies on file patterns alone."
 }

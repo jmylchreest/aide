@@ -3,7 +3,13 @@
   "name": "markdown",
   "version": "",
   "meta": {
-    "extensions": [".md", ".markdown", ".mdx", ".mdown", ".mkd"],
+    "extensions": [
+      ".md",
+      ".markdown",
+      ".mdx",
+      ".mdown",
+      ".mkd"
+    ],
     "filenames": [
       "README",
       "CHANGELOG",
@@ -11,7 +17,10 @@
       "LICENSE.md",
       "CODE_OF_CONDUCT.md"
     ],
-    "aliases": ["md", "mdx"]
+    "aliases": [
+      "md",
+      "mdx"
+    ]
   },
   "entrypoints": {
     "file_patterns": [
@@ -28,6 +37,12 @@
     ]
   },
   "comments": {
-    "block": [["<!--", "-->"]]
-  }
+    "block": [
+      [
+        "<!--",
+        "-->"
+      ]
+    ]
+  },
+  "notes": "Documentation format. No test/framework conventions; deadcode and files sections deliberately empty."
 }

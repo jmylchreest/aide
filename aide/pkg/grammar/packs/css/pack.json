@@ -9,5 +9,6 @@
     "extensions": [
       ".css"
     ]
-  }
+  },
+  "notes": "Markup-only language. No test/framework conventions; deadcode and files sections deliberately empty."
 }

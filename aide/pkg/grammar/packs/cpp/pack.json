@@ -144,9 +144,7 @@
       "**/*_test.cc",
       "**/*Test.cc"
     ],
-    "test_function_prefixes": [
-      "TEST_"
-    ],
+    "test_function_prefixes": [],
     "framework_hook_names": [
       "SetUp",
       "TearDown",

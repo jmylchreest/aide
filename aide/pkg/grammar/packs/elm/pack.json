@@ -124,5 +124,6 @@
     "test_file_patterns": [
       "**/tests/**/*.elm"
     ]
-  }
+  },
+  "notes": "Tests in `tests/` directory using elm-test DSL (`describe`, `test`, `fuzz`). No name-based hooks; framework calls are by reference, not identifier match."
 }

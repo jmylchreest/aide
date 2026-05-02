@@ -3,7 +3,11 @@
   "name": "json",
   "version": "",
   "meta": {
-    "extensions": [".json", ".jsonc"]
+    "extensions": [
+      ".json",
+      ".jsonc"
+    ]
   },
-  "comments": {}
+  "comments": {},
+  "notes": "Data format. No test/framework conventions; deadcode and files sections deliberately empty."
 }

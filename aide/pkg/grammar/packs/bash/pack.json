@@ -120,10 +120,20 @@
       "test_"
     ],
     "framework_hook_names": [
+      "setup",
+      "teardown",
+      "setup_file",
+      "teardown_file",
+      "setup_suite",
+      "teardown_suite",
       "setUp",
       "tearDown",
       "oneTimeSetUp",
-      "oneTimeTearDown"
+      "oneTimeTearDown",
+      "set_up",
+      "tear_down",
+      "set_up_before_script",
+      "tear_down_after_script"
     ]
   },
   "comments": {

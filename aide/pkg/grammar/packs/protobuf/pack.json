@@ -15,5 +15,6 @@
   },
   "queries": {
     "tags": "(message name: (message_name) @name) @definition.class\n(enum name: (enum_name) @name) @definition.class\n(service name: (service_name) @name) @definition.interface\n(rpc name: (rpc_name) @name) @definition.method"
-  }
+  },
+  "notes": "Schema language. Generated outputs (.pb.go, .pb.cc, etc.) are flagged in their consumer-language packs; this pack stays minimal."
 }

@@ -223,14 +223,15 @@
       "TestInitialize",
       "TestCleanup",
       "ClassInitialize",
-      "ClassCleanup",
-      "Main"
-    ]
+      "ClassCleanup"
+    ],
+    "test_function_prefixes": []
   },
   "files": {
     "generated_file_patterns": [
       "**/*.designer.cs",
       "**/*.g.cs"
     ]
-  }
+  },
+  "notes": "NUnit/MSTest/xUnit are attribute-driven (`[Test]`, `[Fact]`, `[SetUp]`); test method names are arbitrary. Hook names listed are NUnit/MSTest convention defaults but not required by the framework."
 }
