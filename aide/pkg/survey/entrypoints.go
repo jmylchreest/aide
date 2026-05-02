@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/jmylchreest/aide/aide/pkg/aideignore"
 	"github.com/jmylchreest/aide/aide/pkg/grammar"
 )
 
@@ -250,7 +251,15 @@ func (r *EntrypointsResult) processRefs(pack *grammar.Pack, cs CodeSearcher) {
 
 // processFilePatterns walks the filesystem for entry point patterns when no code index
 // is available. Each pack's FilePatterns define glob matches and optional content regexes.
+// Directory pruning is delegated to aideignore (which loads .aideignore plus
+// BuiltinDefaults, covering vendor, node_modules, target, etc.) plus a hidden-dir guard.
 func (r *EntrypointsResult) processFilePatterns(rootDir string, pack *grammar.Pack) {
+	ignore, _ := aideignore.New(rootDir)
+	if ignore == nil {
+		ignore = aideignore.NewFromDefaults()
+	}
+	shouldSkip := ignore.WalkFunc(rootDir)
+
 	for _, fp := range pack.Entrypoints.FilePatterns {
 		// Compile content regex if present.
 		var contentRe *regexp.Regexp
@@ -268,12 +277,15 @@ func (r *EntrypointsResult) processFilePatterns(rootDir string, pack *grammar.Pa
 			if err != nil {
 				return nil
 			}
+			if skip, skipDir := shouldSkip(path, info); skip {
+				if skipDir {
+					return filepath.SkipDir
+				}
+				return nil
+			}
 			if info.IsDir() {
 				base := info.Name()
 				if base != "." && strings.HasPrefix(base, ".") {
-					return filepath.SkipDir
-				}
-				if base == "vendor" || base == "node_modules" || base == "testdata" || base == "__pycache__" || base == "target" {
 					return filepath.SkipDir
 				}
 				return nil

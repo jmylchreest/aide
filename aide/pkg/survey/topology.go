@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/jmylchreest/aide/aide/pkg/aideignore"
 	"github.com/jmylchreest/aide/aide/pkg/grammar"
 )
 
@@ -241,10 +242,16 @@ func capitalise(s string) string {
 }
 
 // walkForFile walks the directory tree up to maxDepth levels looking for files
-// with the given name. Skips hidden directories, common vendor dirs, and any
-// directories in the skipSet.
+// with the given name. Directory pruning is delegated to aideignore (which
+// loads .aideignore plus BuiltinDefaults, covering node_modules, vendor,
+// target, etc.) plus a hidden-dir guard plus per-marker skipSet entries.
 // maxDepth: 0 = root only, positive = limit, -1 = unlimited.
 func walkForFile(rootDir, fileName string, maxDepth int, skipSet map[string]bool, fn func(path string)) {
+	ignore, _ := aideignore.New(rootDir)
+	if ignore == nil {
+		ignore = aideignore.NewFromDefaults()
+	}
+
 	_ = filepath.WalkDir(rootDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil
@@ -267,7 +274,7 @@ func walkForFile(rootDir, fileName string, maxDepth int, skipSet map[string]bool
 			if base != "." && strings.HasPrefix(base, ".") {
 				return filepath.SkipDir
 			}
-			if base == "node_modules" || base == "vendor" || base == "__pycache__" || base == "target" {
+			if rel != "." && ignore.ShouldIgnoreDir(rel) {
 				return filepath.SkipDir
 			}
 			if skipSet[base] {
