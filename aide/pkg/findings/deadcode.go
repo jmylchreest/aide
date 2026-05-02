@@ -169,6 +169,15 @@ func AnalyzeDeadCode(cfg DeadCodeConfig) ([]*Finding, *DeadCodeResult, error) {
 func shouldSkipForDeadCode(sym *code.Symbol) bool {
 	name := sym.Name
 
+	// Corrupt or orphan symbol rows (empty FilePath, no language, line 0)
+	// can't be reasoned about — drop them silently rather than producing
+	// findings that point to a phantom location. Reconcile cleans them up
+	// from the index but the analyzer still needs a guard for cases where
+	// reconcile hasn't run yet.
+	if sym.FilePath == "" || sym.StartLine == 0 {
+		return true
+	}
+
 	if strings.HasSuffix(sym.FilePath, "_test.go") ||
 		strings.HasSuffix(sym.FilePath, ".test.ts") ||
 		strings.HasSuffix(sym.FilePath, ".test.tsx") ||

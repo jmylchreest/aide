@@ -638,8 +638,13 @@ func (idx *Indexer) Reconcile() (ReconcileResult, error) {
 	// some earlier point — typical when an old index pre-dates the current
 	// ignore rules.
 	orphanPaths := map[string]struct{}{}
+	corruptSymIDs := map[string]struct{}{}
 	if syms, err := idx.store.ListAllSymbols(-1); err == nil {
 		for _, s := range syms {
+			if s.FilePath == "" {
+				corruptSymIDs[s.ID] = struct{}{}
+				continue
+			}
 			if _, seen := knownPaths[s.FilePath]; seen {
 				continue
 			}
@@ -648,10 +653,21 @@ func (idx *Indexer) Reconcile() (ReconcileResult, error) {
 	}
 	if refs, err := idx.store.ListAllReferences(-1); err == nil {
 		for _, r := range refs {
+			if r.FilePath == "" {
+				continue
+			}
 			if _, seen := knownPaths[r.FilePath]; seen {
 				continue
 			}
 			orphanPaths[r.FilePath] = struct{}{}
+		}
+	}
+	for id := range corruptSymIDs {
+		res.Checked++
+		if err := idx.store.DeleteSymbol(id); err == nil {
+			res.Removed++
+		} else {
+			res.Errors++
 		}
 	}
 	for p := range orphanPaths {

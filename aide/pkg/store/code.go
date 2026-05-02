@@ -696,42 +696,29 @@ func (s *CodeStore) SetFileInfo(info *code.FileInfo) error {
 
 // ClearFile removes all symbols for a file and its tracking info.
 func (s *CodeStore) ClearFile(filePath string) error {
-	// Fast path: FileInfo tracks SymbolIDs for files indexed normally.
-	info, err := s.GetFileInfo(filePath)
-	if err != nil && err != ErrNotFound {
-		return err
-	}
-
-	if info != nil && len(info.SymbolIDs) > 0 {
-		for _, id := range info.SymbolIDs {
-			s.DeleteSymbol(id)
-		}
-	} else {
-		// Fallback: orphan symbols whose FileInfo was already cleared (or
-		// whose SymbolIDs list is empty for any reason). Scan the symbols
-		// bucket and delete entries whose FilePath matches. Required so
-		// Reconcile's orphan sweep can drop pre-existing index entries
-		// added before .aideignore was respected.
-		var orphanIDs []string
-		_ = s.db.View(func(tx *bolt.Tx) error {
-			b := tx.Bucket(BucketSymbols)
-			return b.ForEach(func(k, v []byte) error {
-				var sym code.Symbol
-				if err := json.Unmarshal(v, &sym); err != nil {
-					return nil
-				}
-				if sym.FilePath == filePath {
-					orphanIDs = append(orphanIDs, string(k))
-				}
+	// Always scan the symbol bucket by FilePath. The FileInfo.SymbolIDs
+	// list cannot be trusted to be complete — historical bugs (and crash-
+	// during-write scenarios) have left in-file orphan rows that survive
+	// re-indexing forever when ClearFile only deletes the IDs listed in
+	// FileInfo. Bucket scan is O(symbols) but cheap relative to a parse.
+	var matchingIDs []string
+	_ = s.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket(BucketSymbols)
+		return b.ForEach(func(k, v []byte) error {
+			var sym code.Symbol
+			if err := json.Unmarshal(v, &sym); err != nil {
 				return nil
-			})
+			}
+			if sym.FilePath == filePath {
+				matchingIDs = append(matchingIDs, string(k))
+			}
+			return nil
 		})
-		for _, id := range orphanIDs {
-			s.DeleteSymbol(id)
-		}
+	})
+	for _, id := range matchingIDs {
+		s.DeleteSymbol(id)
 	}
 
-	// Delete file info
 	return s.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(BucketFileIndex)
 		return b.Delete([]byte(filePath))
