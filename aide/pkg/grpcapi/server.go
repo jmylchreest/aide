@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/jmylchreest/aide/aide/internal/version"
+	"github.com/jmylchreest/aide/aide/pkg/aideignore"
 	"github.com/jmylchreest/aide/aide/pkg/code"
 	"github.com/jmylchreest/aide/aide/pkg/findings"
 	"github.com/jmylchreest/aide/aide/pkg/grammar"
@@ -904,6 +905,12 @@ func (s *codeServiceImpl) Index(ctx context.Context, req *CodeIndexRequest) (*Co
 		}
 	}
 
+	ignore, err := aideignore.New(projRoot)
+	if err != nil {
+		ignore = aideignore.NewFromDefaults()
+	}
+	shouldSkip := ignore.WalkFunc(projRoot)
+
 	var filesIndexed, symbolsIndexed, filesSkipped int32
 
 	for _, root := range paths {
@@ -912,14 +919,14 @@ func (s *codeServiceImpl) Index(ctx context.Context, req *CodeIndexRequest) (*Co
 				return nil // Skip files with errors
 			}
 
-			// Skip directories
-			if info.IsDir() {
-				name := info.Name()
-				if name == "node_modules" || name == ".git" || name == "vendor" ||
-					name == "__pycache__" || name == ".venv" || name == "dist" ||
-					name == "build" || name == ".aide" {
+			if skip, skipDir := shouldSkip(path, info); skip {
+				if skipDir {
 					return filepath.SkipDir
 				}
+				return nil
+			}
+
+			if info.IsDir() {
 				return nil
 			}
 

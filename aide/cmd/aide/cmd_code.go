@@ -25,7 +25,35 @@ func cmdCodeDispatcher(dbPath string, args []string) error {
 		{name: "read-check", handler: func(a []string) error { return cmdCodeReadCheck(dbPath, a) }},
 		{name: "clear", handler: func(a []string) error { return cmdCodeClear(dbPath) }},
 		{name: "stats", handler: func(a []string) error { return cmdCodeStats(dbPath) }},
+		{name: "reconcile", handler: func(a []string) error { return cmdCodeReconcile(dbPath) }},
 	})
+}
+
+func cmdCodeReconcile(dbPath string) error {
+	backend, err := NewBackend(dbPath)
+	if err != nil {
+		return fmt.Errorf("failed to create backend: %w", err)
+	}
+	defer backend.Close()
+
+	if backend.UsingGRPC() {
+		return fmt.Errorf("a daemon is currently holding the code index; stop the MCP server first, then run `aide code reconcile` (or run `aide code clear && aide code index` for a full rebuild)")
+	}
+
+	cs, err := backend.openCodeStore()
+	if err != nil {
+		return fmt.Errorf("failed to open code store: %w", err)
+	}
+	defer cs.Close()
+
+	idx := NewIndexerFromStore(cs, newGrammarLoader(dbPath, nil), projectRoot(dbPath))
+	res, err := idx.Reconcile()
+	if err != nil {
+		return fmt.Errorf("reconcile failed: %w", err)
+	}
+	fmt.Printf("Reconciled: checked %d, removed %d, refreshed %d, errors %d\n",
+		res.Checked, res.Removed, res.Refreshed, res.Errors)
+	return nil
 }
 
 func printCodeUsage() {
@@ -42,6 +70,7 @@ Subcommands:
   read-check Check if a file is indexed and unchanged
   clear      Clear the code index
   stats      Show indexing statistics
+  reconcile  Drop stale index entries (deleted files, newly-ignored paths) and refresh modified ones
 
 Options:
   index [paths...]:

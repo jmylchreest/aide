@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/jmylchreest/aide/aide/pkg/aideignore"
 	"github.com/jmylchreest/aide/aide/pkg/code"
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi"
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi/adapter"
@@ -203,6 +204,13 @@ func (b *Backend) IndexCodeWithProgress(paths []string, force bool, progress fun
 		paths = []string{"."}
 	}
 
+	projRoot := projectRoot(b.dbPath)
+	ignore, err := aideignore.New(projRoot)
+	if err != nil {
+		ignore = aideignore.NewFromDefaults()
+	}
+	shouldSkip := ignore.WalkFunc(projRoot)
+
 	result := &CodeIndexResult{}
 
 	for _, root := range paths {
@@ -211,13 +219,14 @@ func (b *Backend) IndexCodeWithProgress(paths []string, force bool, progress fun
 				return nil
 			}
 
-			if info.IsDir() {
-				name := info.Name()
-				if name == "node_modules" || name == ".git" || name == "vendor" ||
-					name == "__pycache__" || name == ".venv" || name == "dist" ||
-					name == "build" || name == ".aide" {
+			if skip, skipDir := shouldSkip(path, info); skip {
+				if skipDir {
 					return filepath.SkipDir
 				}
+				return nil
+			}
+
+			if info.IsDir() {
 				return nil
 			}
 
