@@ -237,8 +237,8 @@ func sessionFetchContext(backend *Backend, project string, sessionLimit int, res
 func memoryScoringConfig() memory.ScoringConfig {
 	cfg := memory.DefaultScoringConfig()
 	mc := config.Get().Memory
-	cfg.ScoringDisabled = mc.ScoringDisabled
-	cfg.DecayDisabled = mc.DecayDisabled
+	cfg.ScoringEnabled = mc.ScoringEnabled
+	cfg.DecayEnabled = mc.DecayEnabled
 	return cfg
 }
 
@@ -254,7 +254,7 @@ func scoreAndSort(mems []*memory.Memory, now time.Time, cfg memory.ScoringConfig
 			Score:  memory.ScoreMemory(m, now, cfg),
 		}
 	}
-	if !cfg.ScoringDisabled {
+	if cfg.ScoringEnabled {
 		sort.SliceStable(scored, func(i, j int) bool {
 			return scored[i].Score > scored[j].Score
 		})

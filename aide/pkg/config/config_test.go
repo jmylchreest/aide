@@ -47,7 +47,7 @@ func TestLoad_FromEnv(t *testing.T) {
 	t.Setenv("AIDE_PPROF_ADDR", ":6060")
 	t.Setenv("AIDE_INDEX_NON_VCS", "1")
 	t.Setenv("AIDE_GRAMMAR_AUTO_DOWNLOAD", "yes")
-	t.Setenv("AIDE_MEMORY_SCORING_DISABLED", "1")
+	t.Setenv("AIDE_MEMORY_SCORING_ENABLED", "0")
 
 	cfg, err := Load("")
 	if err != nil {
@@ -83,8 +83,53 @@ func TestLoad_FromEnv(t *testing.T) {
 	if cfg.Grammar.AutoDownload != "yes" {
 		t.Errorf("Grammar.AutoDownload = %q", cfg.Grammar.AutoDownload)
 	}
-	if !cfg.Memory.ScoringDisabled {
-		t.Error("Memory.ScoringDisabled not set")
+	if cfg.Memory.ScoringEnabled {
+		t.Error("AIDE_MEMORY_SCORING_ENABLED=0 should produce ScoringEnabled=false")
+	}
+}
+
+func TestLoad_LegacyDisabledEnvVarsInvert(t *testing.T) {
+	t.Setenv("AIDE_MEMORY_SCORING_DISABLED", "1")
+	t.Setenv("AIDE_MEMORY_DECAY_DISABLED", "1")
+	t.Setenv("AIDE_CODE_STORE_DISABLE", "1")
+
+	cfg, err := Load("")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.Memory.ScoringEnabled {
+		t.Error("AIDE_MEMORY_SCORING_DISABLED=1 should leave ScoringEnabled=false")
+	}
+	if cfg.Memory.DecayEnabled {
+		t.Error("AIDE_MEMORY_DECAY_DISABLED=1 should leave DecayEnabled=false")
+	}
+	if cfg.Code.StoreEnabled {
+		t.Error("AIDE_CODE_STORE_DISABLE=1 should leave StoreEnabled=false")
+	}
+}
+
+func TestLoad_DefaultsAreOn(t *testing.T) {
+	// Clear every disable/enable variant so defaults can show through.
+	for _, name := range []string{
+		"AIDE_MEMORY_SCORING_ENABLED", "AIDE_MEMORY_SCORING_DISABLED",
+		"AIDE_MEMORY_DECAY_ENABLED", "AIDE_MEMORY_DECAY_DISABLED",
+		"AIDE_CODE_STORE_ENABLED", "AIDE_CODE_STORE_DISABLE",
+	} {
+		t.Setenv(name, "")
+	}
+
+	cfg, err := Load("")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if !cfg.Memory.ScoringEnabled {
+		t.Error("Memory.ScoringEnabled should default to true")
+	}
+	if !cfg.Memory.DecayEnabled {
+		t.Error("Memory.DecayEnabled should default to true")
+	}
+	if !cfg.Code.StoreEnabled {
+		t.Error("Code.StoreEnabled should default to true")
 	}
 }
 

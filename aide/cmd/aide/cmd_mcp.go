@@ -213,7 +213,7 @@ type mcpConfig struct {
 	codeWatch         bool
 	codeWatchPath     string
 	codeWatchDelayStr string
-	codeStoreDisabled bool
+	codeStoreEnabled  bool
 	codeStoreLazy     bool
 }
 
@@ -234,7 +234,7 @@ func parseMCPArgs(args []string) (*mcpConfig, error) {
 		codeWatch:         hasFlag(args, "--code-watch") || c.Watch,
 		codeWatchPath:     parseFlag(args, "--code-watch="),
 		codeWatchDelayStr: parseFlag(args, "--code-watch-delay="),
-		codeStoreDisabled: c.StoreDisable,
+		codeStoreEnabled:  c.StoreEnabled,
 		codeStoreLazy:     !c.StoreSync,
 	}
 	if cfg.codeWatchPath == "" {
@@ -265,7 +265,7 @@ func validateMCPFlag(arg string) error {
 
 // initMCPCodeStore sets up the code store (lazy or sync) and returns a cleanup function.
 func (s *MCPServer) initMCPCodeStore(dbPath string, cfg *mcpConfig, grpcServer *grpcapi.Server) func() {
-	if cfg.codeStoreDisabled {
+	if !cfg.codeStoreEnabled {
 		mcpLog.Printf("code store: disabled")
 		return nil
 	}

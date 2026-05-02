@@ -446,7 +446,7 @@ func cmdList(dbPath string, args []string) error {
 		for i, m := range memories {
 			entries[i] = scoredEntry{mem: m, breakdown: memory.ScoreMemoryDetailed(m, now, cfg)}
 		}
-		if !cfg.ScoringDisabled {
+		if cfg.ScoringEnabled {
 			sort.SliceStable(entries, func(i, j int) bool {
 				return entries[i].breakdown.Total > entries[j].breakdown.Total
 			})
@@ -468,7 +468,7 @@ func cmdList(dbPath string, args []string) error {
 					padString(string(m.Category), 10), m.ID, truncate(m.Content, 50))
 			}
 		}
-		if cfg.ScoringDisabled {
+		if !cfg.ScoringEnabled {
 			fmt.Println("\n(scoring disabled — showing chronological order with computed scores)")
 		}
 	default:

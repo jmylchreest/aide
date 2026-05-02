@@ -166,9 +166,9 @@ func TestScoreMemory_RecencyDecay(t *testing.T) {
 	}
 }
 
-func TestScoreMemory_DecayDisabled(t *testing.T) {
+func TestScoreMemory_WithDecayOff(t *testing.T) {
 	cfg := DefaultScoringConfig()
-	cfg.DecayDisabled = true
+	cfg.DecayEnabled = false
 	now := time.Now()
 
 	recent := &Memory{Category: CategoryLearning, CreatedAt: now}
@@ -229,9 +229,9 @@ func TestRecencyFactor_Values(t *testing.T) {
 	}
 }
 
-func TestRecencyFactor_DecayDisabled(t *testing.T) {
+func TestRecencyFactor_WithDecayOff(t *testing.T) {
 	cfg := DefaultScoringConfig()
-	cfg.DecayDisabled = true
+	cfg.DecayEnabled = false
 	now := time.Now()
 
 	old := now.Add(-365 * 24 * time.Hour)

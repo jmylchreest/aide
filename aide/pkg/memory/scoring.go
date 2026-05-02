@@ -41,20 +41,26 @@ type ScoringConfig struct {
 	// factor = min(1.0, log(accessCount+1) / log(base)).
 	AccessLogBase float64
 
-	// ScoringDisabled is the master kill-switch. When true, ScoreMemory
-	// is not called and session init uses chronological ULID order.
-	// Set via AIDE_MEMORY_SCORING_DISABLED=1.
-	ScoringDisabled bool
+	// ScoringEnabled is the master kill-switch. Default true. When false,
+	// ScoreMemory is not called and session init uses chronological ULID
+	// order. Toggled via AIDE_MEMORY_SCORING_ENABLED (or the legacy
+	// AIDE_MEMORY_SCORING_DISABLED, which the config loader inverts).
+	ScoringEnabled bool
 
-	// DecayDisabled disables time-based recency decay only.
-	// Scoring still runs but recency factor is always 1.0.
-	// Set via AIDE_MEMORY_DECAY_DISABLED=1.
-	DecayDisabled bool
+	// DecayEnabled controls time-based recency decay. Default true. When
+	// false, recency factor is always 1.0 (scoring still runs but doesn't
+	// favour newer memories). Toggled via AIDE_MEMORY_DECAY_ENABLED (or
+	// the legacy AIDE_MEMORY_DECAY_DISABLED, inverted).
+	DecayEnabled bool
 }
 
-// DefaultScoringConfig returns the default scoring configuration.
+// DefaultScoringConfig returns the default scoring configuration with
+// scoring and decay both enabled.
 func DefaultScoringConfig() ScoringConfig {
 	return ScoringConfig{
+		ScoringEnabled: true,
+		DecayEnabled:   true,
+
 		WeightCategory:   0.50,
 		WeightProvenance: 0.15,
 		WeightRecency:    0.25,
@@ -198,9 +204,9 @@ func provenanceBoost(tags []string, cfg ScoringConfig) float64 {
 
 // recencyFactor computes exponential time decay.
 // Returns 1.0 for brand-new memories, 0.5 at half-life, approaching 0 for very old.
-// When DecayDisabled is true, always returns 1.0.
+// When DecayEnabled is false, always returns 1.0 (recency contributes nothing).
 func recencyFactor(created time.Time, now time.Time, cfg ScoringConfig) float64 {
-	if cfg.DecayDisabled {
+	if !cfg.DecayEnabled {
 		return 1.0
 	}
 

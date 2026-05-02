@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/knadh/koanf/parsers/json"
+	"github.com/knadh/koanf/providers/confmap"
 	"github.com/knadh/koanf/providers/env/v2"
 	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/v2"
@@ -44,11 +45,16 @@ type Config struct {
 
 // CodeConfig groups indexer / watcher tunables (AIDE_CODE_*).
 type CodeConfig struct {
-	Watch        bool   `koanf:"watch"`
-	WatchPaths   string `koanf:"watch_paths"`
-	WatchDelay   string `koanf:"watch_delay"`
-	StoreDisable bool   `koanf:"store_disable"`
-	StoreSync    bool   `koanf:"store_sync"`
+	Watch      bool   `koanf:"watch"`
+	WatchPaths string `koanf:"watch_paths"`
+	WatchDelay string `koanf:"watch_delay"`
+	// StoreEnabled defaults to true. Set AIDE_CODE_STORE_ENABLED=0 (or
+	// the legacy AIDE_CODE_STORE_DISABLE=1, which the loader inverts) to
+	// keep the daemon from opening a code store.
+	StoreEnabled bool `koanf:"store_enabled"`
+	// StoreSync makes code-store opening synchronous (default false =
+	// lazy-init in the background). AIDE_CODE_STORE_SYNC=1.
+	StoreSync bool `koanf:"store_sync"`
 }
 
 // PprofConfig groups pprof http server tunables (AIDE_PPROF_*).
@@ -70,8 +76,14 @@ type ShareConfig struct {
 
 // MemoryConfig groups memory-scoring tunables (AIDE_MEMORY_*).
 type MemoryConfig struct {
-	ScoringDisabled bool `koanf:"scoring_disabled"`
-	DecayDisabled   bool `koanf:"decay_disabled"`
+	// ScoringEnabled defaults to true. AIDE_MEMORY_SCORING_ENABLED=0 (or
+	// the legacy AIDE_MEMORY_SCORING_DISABLED=1, inverted) kills scoring
+	// and falls back to chronological ULID order.
+	ScoringEnabled bool `koanf:"scoring_enabled"`
+	// DecayEnabled defaults to true. AIDE_MEMORY_DECAY_ENABLED=0 (or
+	// the legacy AIDE_MEMORY_DECAY_DISABLED=1, inverted) leaves scoring
+	// running but pins the recency factor at 1.0 regardless of age.
+	DecayEnabled bool `koanf:"decay_enabled"`
 }
 
 // WatchPathList parses Code.WatchPaths as a comma-separated list, returning
@@ -115,6 +127,39 @@ var envSections = map[string]struct{}{
 	"memory":  {},
 }
 
+// defaults are loaded as the lowest-precedence koanf source so that
+// boolean fields whose semantic default is "on" (scoring, decay,
+// store) keep that meaning when neither the file nor the env overrides
+// them. Without this, Go's zero-value bool (false) would silently
+// disable features users expect on by default.
+var defaults = map[string]any{
+	"code.store_enabled":     true,
+	"memory.scoring_enabled": true,
+	"memory.decay_enabled":   true,
+}
+
+// legacyDisabledVars maps each AIDE_*_DISABLED / AIDE_CODE_STORE_DISABLE
+// env var (the names callers set before the rename) to its inverted
+// koanf key. When the loader sees the legacy var, it negates the value
+// and stores it under the new positive key. New names like
+// AIDE_MEMORY_SCORING_ENABLED still flow through the normal envToKey
+// path and override the legacy entry if both are set (env order).
+var legacyDisabledVars = map[string]string{
+	"AIDE_MEMORY_SCORING_DISABLED": "memory.scoring_enabled",
+	"AIDE_MEMORY_DECAY_DISABLED":   "memory.decay_enabled",
+	"AIDE_CODE_STORE_DISABLE":      "code.store_enabled",
+}
+
+// truthy reports whether an env-var value should be treated as "on".
+// Matches what every other AIDE_*=1 var has historically accepted.
+func truthy(v string) bool {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "1", "true", "yes", "on":
+		return true
+	}
+	return false
+}
+
 // envToKey converts a raw environment variable name into the dot-path koanf
 // uses internally. The mapping preserves backwards compatibility with the
 // pre-koanf env-var names so users don't see any behaviour change.
@@ -144,12 +189,18 @@ var (
 	cached *Config
 )
 
-// Load reads configuration from the optional file at <projectRoot>/.aide/config/aide.json
-// (if present) and from AIDE_* environment variables, and stores the result
-// for retrieval via Get. Calling Load again replaces the previous value —
-// useful in tests; production callers invoke it once at startup.
+// Load reads configuration in this precedence order (each source overrides
+// the previous): hard-coded defaults → optional .aide/config/aide.json →
+// AIDE_* environment variables. The result is unmarshalled into a typed
+// Config and stashed for retrieval via Get. Calling Load again replaces
+// the previous value — useful in tests; production callers invoke it once
+// at startup.
 func Load(projectRoot string) (*Config, error) {
 	k := koanf.New(".")
+
+	if err := k.Load(confmap.Provider(defaults, "."), nil); err != nil {
+		return nil, fmt.Errorf("loading defaults: %w", err)
+	}
 
 	if projectRoot != "" {
 		path := projectRoot + "/.aide/config/aide.json"
@@ -164,6 +215,12 @@ func Load(projectRoot string) (*Config, error) {
 	if err := k.Load(env.Provider(".", env.Opt{
 		Prefix: EnvPrefix,
 		TransformFunc: func(name, value string) (string, any) {
+			// Legacy AIDE_*_DISABLED vars are negated into the new
+			// positive AIDE_*_ENABLED keys. The new env-var names map
+			// through the normal path below.
+			if key, ok := legacyDisabledVars[name]; ok {
+				return key, !truthy(value)
+			}
 			key := envToKey(name)
 			if key == "" {
 				return "", nil
