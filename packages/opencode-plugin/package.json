@@ -1,6 +1,6 @@
 {
   "name": "@jmylchreest/aide-plugin",
-  "version": "0.0.63",
+  "version": "0.0.64",
   "description": "aide plugin for OpenCode and Codex CLI — multi-agent orchestration, memory, skills, and persistence",
   "type": "module",
   "main": "./src/opencode/index.ts",
