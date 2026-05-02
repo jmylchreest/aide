@@ -589,9 +589,7 @@ func (idx *Indexer) Reconcile() (ReconcileResult, error) {
 		ignore = aideignore.NewFromDefaults()
 	}
 
-	knownPaths := make(map[string]struct{}, len(infos))
 	for _, info := range infos {
-		knownPaths[info.Path] = struct{}{}
 		res.Checked++
 
 		absPath := info.Path
@@ -631,38 +629,36 @@ func (idx *Indexer) Reconcile() (ReconcileResult, error) {
 		}
 	}
 
-	// Orphan sweep: collect every distinct path appearing in the symbol or
-	// reference buckets and drop those that match an aideignore rule (or
-	// whose file no longer exists on disk). The fileinfo-driven pass above
-	// can't see these because their fileinfo entry was already cleared at
-	// some earlier point — typical when an old index pre-dates the current
-	// ignore rules.
-	orphanPaths := map[string]struct{}{}
-	corruptSymIDs := map[string]struct{}{}
-	if syms, err := idx.store.ListAllSymbols(-1); err == nil {
-		for _, s := range syms {
-			if s.FilePath == "" {
-				corruptSymIDs[s.ID] = struct{}{}
-				continue
-			}
-			if _, seen := knownPaths[s.FilePath]; seen {
-				continue
-			}
-			orphanPaths[s.FilePath] = struct{}{}
+	idx.sweepOrphans(infos, ignore, &res)
+	return res, nil
+}
+
+// sweepOrphans handles the post-fileinfo cleanup pass: corrupt rows (empty
+// FilePath), in-file orphans (rows whose FilePath matches a tracked file
+// but whose ID is missing from that file's SymbolIDs), and orphan-path rows
+// (FilePath has no FileInfo entry). The pass is split out from Reconcile
+// to keep complexity reasonable.
+func (idx *Indexer) sweepOrphans(infos []*code.FileInfo, ignore *aideignore.Matcher, res *ReconcileResult) {
+	expectedByPath := make(map[string]map[string]struct{}, len(infos))
+	for _, info := range infos {
+		ids := make(map[string]struct{}, len(info.SymbolIDs))
+		for _, id := range info.SymbolIDs {
+			ids[id] = struct{}{}
 		}
+		expectedByPath[info.Path] = ids
 	}
-	if refs, err := idx.store.ListAllReferences(-1); err == nil {
-		for _, r := range refs {
-			if r.FilePath == "" {
-				continue
-			}
-			if _, seen := knownPaths[r.FilePath]; seen {
-				continue
-			}
-			orphanPaths[r.FilePath] = struct{}{}
-		}
-	}
+
+	corruptSymIDs, inFileOrphanIDs, orphanPaths := idx.classifyOrphans(expectedByPath)
+
 	for id := range corruptSymIDs {
+		res.Checked++
+		if err := idx.store.DeleteSymbol(id); err == nil {
+			res.Removed++
+		} else {
+			res.Errors++
+		}
+	}
+	for id := range inFileOrphanIDs {
 		res.Checked++
 		if err := idx.store.DeleteSymbol(id); err == nil {
 			res.Removed++
@@ -672,17 +668,7 @@ func (idx *Indexer) Reconcile() (ReconcileResult, error) {
 	}
 	for p := range orphanPaths {
 		res.Checked++
-		shouldDrop := ignore.ShouldIgnoreFile(p)
-		if !shouldDrop {
-			abs := p
-			if !filepath.IsAbs(abs) {
-				abs = filepath.Join(idx.rootDir, p)
-			}
-			if _, statErr := os.Stat(abs); os.IsNotExist(statErr) {
-				shouldDrop = true
-			}
-		}
-		if !shouldDrop {
+		if !idx.shouldDropPath(p, ignore) {
 			continue
 		}
 		if err := idx.store.ClearFile(p); err == nil {
@@ -692,8 +678,57 @@ func (idx *Indexer) Reconcile() (ReconcileResult, error) {
 			res.Errors++
 		}
 	}
+}
 
-	return res, nil
+// classifyOrphans partitions symbol/reference rows into three buckets:
+// corrupt (empty FilePath), in-file orphan (path tracked but ID not listed
+// in FileInfo), and orphan-path (path not tracked at all).
+func (idx *Indexer) classifyOrphans(expectedByPath map[string]map[string]struct{}) (corrupt, inFile, paths map[string]struct{}) {
+	corrupt = map[string]struct{}{}
+	inFile = map[string]struct{}{}
+	paths = map[string]struct{}{}
+
+	if syms, err := idx.store.ListAllSymbols(-1); err == nil {
+		for _, s := range syms {
+			if s.FilePath == "" {
+				corrupt[s.ID] = struct{}{}
+				continue
+			}
+			if expected, seen := expectedByPath[s.FilePath]; seen {
+				if _, listed := expected[s.ID]; !listed {
+					inFile[s.ID] = struct{}{}
+				}
+				continue
+			}
+			paths[s.FilePath] = struct{}{}
+		}
+	}
+	if refs, err := idx.store.ListAllReferences(-1); err == nil {
+		for _, r := range refs {
+			if r.FilePath == "" {
+				continue
+			}
+			if _, seen := expectedByPath[r.FilePath]; seen {
+				continue
+			}
+			paths[r.FilePath] = struct{}{}
+		}
+	}
+	return corrupt, inFile, paths
+}
+
+// shouldDropPath reports whether an orphan path should be cleared from the
+// index: matches an aideignore rule, or doesn't exist on disk anymore.
+func (idx *Indexer) shouldDropPath(p string, ignore *aideignore.Matcher) bool {
+	if ignore.ShouldIgnoreFile(p) {
+		return true
+	}
+	abs := p
+	if !filepath.IsAbs(abs) {
+		abs = filepath.Join(idx.rootDir, p)
+	}
+	_, err := os.Stat(abs)
+	return os.IsNotExist(err)
 }
 
 // RemoveFile removes a file from the index, including its symbols, references,
