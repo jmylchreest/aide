@@ -10,12 +10,15 @@ Fast symbol search using [tree-sitter](https://tree-sitter.github.io/). Supports
 
 ```bash
 aide code index              # Index codebase (incremental)
+aide code index --force      # Re-index every file regardless of mtime
 aide code search "getUser"   # Search symbols
 aide code symbols src/auth.ts  # List file symbols
 aide code references getUser   # Find call sites
 aide code stats              # Index statistics
 aide code clear              # Clear index
 ```
+
+`aide code index` streams per-file progress (path + symbol count) to stderr and prints a final summary on completion. Progress works whether the daemon is running or not; on large repos the run can take minutes, and the live updates double as a heartbeat that keeps the gRPC stream alive.
 
 ## MCP Tools
 

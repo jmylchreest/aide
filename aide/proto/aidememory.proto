@@ -423,7 +423,7 @@ service CodeService {
   rpc Search(CodeSearchRequest) returns (CodeSearchResponse);
   rpc Symbols(CodeSymbolsRequest) returns (CodeSymbolsResponse);
   rpc Stats(CodeStatsRequest) returns (CodeStatsResponse);
-  rpc Index(CodeIndexRequest) returns (CodeIndexResponse);
+  rpc Index(CodeIndexRequest) returns (stream CodeIndexEvent);
   rpc Clear(CodeClearRequest) returns (CodeClearResponse);
   rpc TopReferences(CodeTopReferencesRequest) returns (CodeTopReferencesResponse);
   rpc SearchReferences(CodeSearchReferencesRequest) returns (CodeSearchReferencesResponse);
@@ -483,6 +483,25 @@ message CodeIndexResponse {
   int32 files_indexed = 1;
   int32 symbols_indexed = 2;
   int32 files_skipped = 3;
+}
+
+// CodeIndexProgress is emitted once per indexed (or skipped) file so the
+// client can render progress and the server can heartbeat the stream.
+message CodeIndexProgress {
+  string path = 1;            // relative path of the file just processed
+  int32 symbols = 2;          // symbols extracted from this file
+  int32 files_done = 3;       // running count of files indexed so far
+  int32 files_skipped = 4;    // running count of files skipped (unchanged)
+  bool skipped = 5;           // true when this file was skipped (mtime match)
+}
+
+// CodeIndexEvent is the stream payload for CodeService.Index.
+// One progress event per file, then exactly one summary event at the end.
+message CodeIndexEvent {
+  oneof event {
+    CodeIndexProgress progress = 1;
+    CodeIndexResponse summary = 2;
+  }
 }
 
 message CodeClearRequest {}
