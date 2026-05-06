@@ -19,7 +19,7 @@ var SchemaVersion uint64 = 1
 
 // CodeSchemaVersion is the current schema version for the code store.
 // Increment this when adding new migrations to the codeMigrations slice.
-var CodeSchemaVersion uint64 = 1
+var CodeSchemaVersion uint64 = 2
 
 // FindingsSchemaVersion is the current schema version for the findings store.
 // Increment this when adding new migrations to the findingsMigrations slice.
@@ -44,6 +44,103 @@ var migrations = []migration{
 // codeMigrations is the ordered list of all code store schema migrations.
 var codeMigrations = []migration{
 	{version: 1, description: "baseline code schema stamp", migrate: func(tx *bolt.Tx) error { return nil }},
+	{version: 2, description: "backfill BucketSymbolsByFile / BucketReferencesByFile and convert BucketRefIndex to composite keys", migrate: migrateCodeV2},
+}
+
+// migrateCodeV2 backfills the file-keyed secondary indexes from existing
+// symbol/reference rows and rewrites BucketRefIndex from the v1 JSON-slice
+// format into the v2 composite-key (`<name>\x00<refID>`) format.
+//
+// Runs inside the migration framework's existing tx, so all mutations
+// commit atomically — either the schema fully upgrades or it stays at v1
+// and is retried on next open.
+func migrateCodeV2(tx *bolt.Tx) error {
+	for _, name := range [][]byte{BucketSymbolsByFile, BucketReferencesByFile} {
+		if _, err := tx.CreateBucketIfNotExists(name); err != nil {
+			return fmt.Errorf("create bucket %q: %w", string(name), err)
+		}
+	}
+
+	// Backfill BucketSymbolsByFile from BucketSymbols.
+	symBucket := tx.Bucket(BucketSymbols)
+	byFileSyms := tx.Bucket(BucketSymbolsByFile)
+	if symBucket != nil {
+		if err := symBucket.ForEach(func(k, v []byte) error {
+			var sym struct {
+				FilePath string `json:"FilePath"`
+			}
+			if err := json.Unmarshal(v, &sym); err != nil {
+				return nil
+			}
+			if sym.FilePath == "" {
+				return nil
+			}
+			key := append([]byte(sym.FilePath), 0x00)
+			key = append(key, k...)
+			return byFileSyms.Put(key, nil)
+		}); err != nil {
+			return fmt.Errorf("backfill symbols_by_file: %w", err)
+		}
+	}
+
+	// Backfill BucketReferencesByFile from BucketReferences and prepare new
+	// BucketRefIndex composite-key entries from the same scan.
+	refBucket := tx.Bucket(BucketReferences)
+	byFileRefs := tx.Bucket(BucketReferencesByFile)
+	type refKey struct {
+		name, id []byte
+	}
+	var newIndexEntries []refKey
+	if refBucket != nil {
+		if err := refBucket.ForEach(func(k, v []byte) error {
+			var ref struct {
+				FilePath, SymbolName string
+			}
+			if err := json.Unmarshal(v, &ref); err != nil {
+				return nil
+			}
+			if ref.FilePath != "" {
+				key := append([]byte(ref.FilePath), 0x00)
+				key = append(key, k...)
+				if err := byFileRefs.Put(key, []byte(ref.SymbolName)); err != nil {
+					return err
+				}
+			}
+			if ref.SymbolName != "" {
+				newIndexEntries = append(newIndexEntries, refKey{
+					name: []byte(ref.SymbolName),
+					id:   append([]byte(nil), k...),
+				})
+			}
+			return nil
+		}); err != nil {
+			return fmt.Errorf("backfill references_by_file: %w", err)
+		}
+	}
+
+	// Wipe v1 BucketRefIndex (JSON-slice format) and rewrite from scratch in
+	// composite-key form. Cleaner than trying to detect mixed state.
+	refIdx := tx.Bucket(BucketRefIndex)
+	if refIdx != nil {
+		var oldKeys [][]byte
+		_ = refIdx.ForEach(func(k, _ []byte) error {
+			oldKeys = append(oldKeys, append([]byte(nil), k...))
+			return nil
+		})
+		for _, k := range oldKeys {
+			if err := refIdx.Delete(k); err != nil {
+				return fmt.Errorf("clear v1 refindex entry: %w", err)
+			}
+		}
+		for _, e := range newIndexEntries {
+			key := append(e.name, 0x00)
+			key = append(key, e.id...)
+			if err := refIdx.Put(key, nil); err != nil {
+				return fmt.Errorf("write v2 refindex entry: %w", err)
+			}
+		}
+	}
+	return nil
 }
 
 // findingsMigrations is the ordered list of all findings store schema migrations.

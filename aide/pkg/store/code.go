@@ -3,6 +3,7 @@
 package store
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -29,8 +30,21 @@ var (
 	BucketSymbols    = []byte("symbols")
 	BucketReferences = []byte("references")
 	BucketFileIndex  = []byte("fileindex")
-	BucketRefIndex   = []byte("refindex") // symbol name -> reference IDs
-	BucketCodeMeta   = []byte("code_meta")
+	// BucketSymbolsByFile is keyed by composeFileKey(filePath, symbolID) with
+	// nil value. Lets ClearFile range-scan the prefix in O(per-file) instead
+	// of ForEach-scanning the full BucketSymbols.
+	BucketSymbolsByFile = []byte("symbols_by_file")
+	// BucketReferencesByFile is keyed by composeFileKey(filePath, refID) with
+	// the reference's SymbolName as the value, so ClearFileReferences can find
+	// every per-file ref in O(per-file) and resolve its reverse-index entry
+	// without re-fetching the reference body.
+	BucketReferencesByFile = []byte("references_by_file")
+	// BucketRefIndex stores composeNameRefKey(symbolName, refID) keys with nil
+	// values — a reverse index keyed by the called symbol's name. Range-scan
+	// the symbolName prefix to enumerate every reference to that name.
+	// Replaces the previous JSON-slice format from schema v1.
+	BucketRefIndex = []byte("refindex")
+	BucketCodeMeta = []byte("code_meta")
 )
 
 // CodeStore provides symbol storage and search.
@@ -65,7 +79,7 @@ func NewCodeStore(dbPath, searchPath string) (*CodeStore, error) {
 
 	// Initialize buckets
 	err = db.Update(func(tx *bolt.Tx) error {
-		buckets := [][]byte{BucketSymbols, BucketReferences, BucketFileIndex, BucketRefIndex, BucketCodeMeta}
+		buckets := [][]byte{BucketSymbols, BucketReferences, BucketFileIndex, BucketRefIndex, BucketSymbolsByFile, BucketReferencesByFile, BucketCodeMeta}
 		for _, bucket := range buckets {
 			if _, err := tx.CreateBucketIfNotExists(bucket); err != nil {
 				return err
@@ -312,6 +326,47 @@ func (s *CodeStore) Close() error {
 }
 
 // AddSymbol stores a symbol and indexes it for search.
+// composeFileKey builds a composite bbolt key for the by-file secondary
+// indexes — `<filePath>\x00<id>`. The NUL separator gives a fixed-width
+// boundary for prefix range scans, and is illegal in both file paths and
+// ULIDs so it can never appear inside the components.
+func composeFileKey(filePath, id string) []byte {
+	key := make([]byte, 0, len(filePath)+1+len(id))
+	key = append(key, filePath...)
+	key = append(key, 0x00)
+	key = append(key, id...)
+	return key
+}
+
+// composeNameRefKey builds a composite bbolt key for the reference reverse
+// index — `<symbolName>\x00<refID>`. Range-scan the symbolName prefix to
+// enumerate every reference to that symbol.
+func composeNameRefKey(symbolName, refID string) []byte {
+	key := make([]byte, 0, len(symbolName)+1+len(refID))
+	key = append(key, symbolName...)
+	key = append(key, 0x00)
+	key = append(key, refID...)
+	return key
+}
+
+// fileKeyPrefix returns the prefix used to range-scan all entries for
+// filePath in a by-file bucket: `<filePath>\x00`.
+func fileKeyPrefix(filePath string) []byte {
+	prefix := make([]byte, 0, len(filePath)+1)
+	prefix = append(prefix, filePath...)
+	prefix = append(prefix, 0x00)
+	return prefix
+}
+
+// nameRefKeyPrefix returns the prefix used to range-scan all references for
+// symbolName in BucketRefIndex: `<symbolName>\x00`.
+func nameRefKeyPrefix(symbolName string) []byte {
+	prefix := make([]byte, 0, len(symbolName)+1)
+	prefix = append(prefix, symbolName...)
+	prefix = append(prefix, 0x00)
+	return prefix
+}
+
 // buildSymbolBleveDoc returns the Bleve document for a symbol. Shared between
 // per-record AddSymbol and the bulk IndexFileBatch path so search indexing
 // stays consistent across both.
@@ -327,9 +382,10 @@ func buildSymbolBleveDoc(sym *code.Symbol) map[string]interface{} {
 	}
 }
 
-// addSymbolTx writes a symbol to BucketSymbols inside an existing tx. The
-// caller is responsible for indexing the symbol into the Bleve search index
-// (or for accumulating it into a Bleve batch); this helper only touches bbolt.
+// addSymbolTx writes a symbol to BucketSymbols and records its file-keyed
+// secondary-index entry inside an existing tx. The caller is responsible for
+// indexing the symbol into the Bleve search index (or for accumulating it
+// into a Bleve batch); this helper only touches bbolt.
 func (s *CodeStore) addSymbolTx(tx *bolt.Tx, sym *code.Symbol) error {
 	if sym.ID == "" {
 		sym.ID = ulid.Make().String()
@@ -343,7 +399,11 @@ func (s *CodeStore) addSymbolTx(tx *bolt.Tx, sym *code.Symbol) error {
 	if err != nil {
 		return err
 	}
-	return b.Put([]byte(sym.ID), data)
+	if err := b.Put([]byte(sym.ID), data); err != nil {
+		return err
+	}
+	// File-keyed secondary index: empty value, the key carries everything.
+	return tx.Bucket(BucketSymbolsByFile).Put(composeFileKey(sym.FilePath, sym.ID), nil)
 }
 
 // AddSymbol stores a symbol and indexes it for search. Each call opens its
@@ -380,11 +440,23 @@ func (s *CodeStore) GetSymbol(id string) (*code.Symbol, error) {
 	return &sym, nil
 }
 
-// DeleteSymbol removes a symbol by ID.
+// DeleteSymbol removes a symbol by ID from both the primary bucket and the
+// file-keyed secondary index, then drops it from the Bleve search index.
 func (s *CodeStore) DeleteSymbol(id string) error {
 	err := s.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(BucketSymbols)
-		return b.Delete([]byte(id))
+		data := b.Get([]byte(id))
+		if data == nil {
+			return ErrNotFound
+		}
+		var sym code.Symbol
+		if err := json.Unmarshal(data, &sym); err != nil {
+			return err
+		}
+		if err := b.Delete([]byte(id)); err != nil {
+			return err
+		}
+		return tx.Bucket(BucketSymbolsByFile).Delete(composeFileKey(sym.FilePath, id))
 	})
 	if err != nil {
 		return err
@@ -459,11 +531,17 @@ func (s *CodeStore) SearchSymbols(query string, opts code.SearchOptions) ([]*Cod
 	return results, nil
 }
 
-// addReferenceTx writes a reference and updates the reverse index inside an
-// existing tx. The reverse index currently stores a JSON-encoded slice of
-// reference IDs keyed by symbol name, which is O(n) per add — see Tier 1.2
-// for the planned composite-key replacement. Until then this helper preserves
-// the existing on-disk format.
+// addReferenceTx writes a reference and updates two secondary indexes inside
+// an existing tx:
+//
+//   - BucketReferencesByFile (keyed by `<filePath>\x00<refID>`, value =
+//     symbolName) lets ClearFileReferences enumerate per-file refs and
+//     resolve their reverse-index entries in O(per-file) without touching
+//     the main reference bucket.
+//   - BucketRefIndex (keyed by `<symbolName>\x00<refID>`) is the reverse
+//     index used by SearchReferences; one row per (name, ref) pair, range-
+//     scanned by the symbolName prefix. The previous JSON-slice format was
+//     O(n) per add and read.
 func (s *CodeStore) addReferenceTx(tx *bolt.Tx, ref *code.Reference) error {
 	if ref.ID == "" {
 		ref.ID = ulid.Make().String()
@@ -480,19 +558,10 @@ func (s *CodeStore) addReferenceTx(tx *bolt.Tx, ref *code.Reference) error {
 	if err := b.Put([]byte(ref.ID), data); err != nil {
 		return err
 	}
-
-	refIdx := tx.Bucket(BucketRefIndex)
-	key := []byte(ref.SymbolName)
-	ids := make([]string, 0, 1)
-	if existing := refIdx.Get(key); existing != nil {
-		json.Unmarshal(existing, &ids)
-	}
-	ids = append(ids, ref.ID)
-	idsData, err := json.Marshal(ids)
-	if err != nil {
+	if err := tx.Bucket(BucketReferencesByFile).Put(composeFileKey(ref.FilePath, ref.ID), []byte(ref.SymbolName)); err != nil {
 		return err
 	}
-	return refIdx.Put(key, idsData)
+	return tx.Bucket(BucketRefIndex).Put(composeNameRefKey(ref.SymbolName, ref.ID), nil)
 }
 
 // AddReference stores a reference. Indexer hot paths should use
@@ -524,7 +593,9 @@ func (s *CodeStore) GetReference(id string) (*code.Reference, error) {
 	return &ref, nil
 }
 
-// SearchReferences finds all references to a symbol by name.
+// SearchReferences finds all references to a symbol by name. Range-scans
+// BucketRefIndex by the symbolName prefix; each composite key carries the
+// reference ID directly so we never reload a slice or count entries upfront.
 func (s *CodeStore) SearchReferences(opts code.ReferenceSearchOptions) ([]*code.Reference, error) {
 	limit := opts.Limit
 	if limit <= 0 {
@@ -537,42 +608,27 @@ func (s *CodeStore) SearchReferences(opts code.ReferenceSearchOptions) ([]*code.
 		refIdx := tx.Bucket(BucketRefIndex)
 		refBucket := tx.Bucket(BucketReferences)
 
-		// Get reference IDs for this symbol
-		key := []byte(opts.SymbolName)
-		data := refIdx.Get(key)
-		if data == nil {
-			return nil // No references found
-		}
-
-		var ids []string
-		if err := json.Unmarshal(data, &ids); err != nil {
-			return err
-		}
-
-		// Fetch each reference and apply filters
-		for _, id := range ids {
+		prefix := nameRefKeyPrefix(opts.SymbolName)
+		c := refIdx.Cursor()
+		for k, _ := c.Seek(prefix); k != nil && bytes.HasPrefix(k, prefix); k, _ = c.Next() {
 			if len(refs) >= limit {
 				break
 			}
-
-			refData := refBucket.Get([]byte(id))
+			refID := k[len(prefix):]
+			refData := refBucket.Get(refID)
 			if refData == nil {
 				continue
 			}
-
 			var ref code.Reference
 			if err := json.Unmarshal(refData, &ref); err != nil {
 				continue
 			}
-
-			// Apply filters
 			if opts.Kind != "" && ref.Kind != opts.Kind {
 				continue
 			}
 			if opts.FilePath != "" && !strings.Contains(ref.FilePath, opts.FilePath) {
 				continue
 			}
-
 			refs = append(refs, &ref)
 		}
 
@@ -586,21 +642,27 @@ func (s *CodeStore) SearchReferences(opts code.ReferenceSearchOptions) ([]*code.
 	return refs, nil
 }
 
-// GetFileReferences returns all references in a given file.
+// GetFileReferences returns all references in a given file. Range-scans
+// BucketReferencesByFile by the filePath prefix in O(per-file).
 func (s *CodeStore) GetFileReferences(filePath string) ([]*code.Reference, error) {
 	var refs []*code.Reference
 
 	err := s.db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket(BucketReferences)
-		c := b.Cursor()
-		for k, v := c.First(); k != nil; k, v = c.Next() {
-			var ref code.Reference
-			if err := json.Unmarshal(v, &ref); err != nil {
+		byFile := tx.Bucket(BucketReferencesByFile)
+		refBucket := tx.Bucket(BucketReferences)
+		prefix := fileKeyPrefix(filePath)
+		c := byFile.Cursor()
+		for k, _ := c.Seek(prefix); k != nil && bytes.HasPrefix(k, prefix); k, _ = c.Next() {
+			refID := k[len(prefix):]
+			data := refBucket.Get(refID)
+			if data == nil {
 				continue
 			}
-			if ref.FilePath == filePath {
-				refs = append(refs, &ref)
+			var ref code.Reference
+			if err := json.Unmarshal(data, &ref); err != nil {
+				continue
 			}
+			refs = append(refs, &ref)
 		}
 		return nil
 	})
@@ -612,46 +674,38 @@ func (s *CodeStore) GetFileReferences(filePath string) ([]*code.Reference, error
 }
 
 // clearFileReferencesTx removes every reference whose FilePath equals
-// filePath, and trims the reverse index correspondingly. Runs inside an
-// existing tx. Bucket scan is O(total_references) — see Tier 1.1 for the
-// file-keyed secondary index that replaces this with O(per-file).
+// filePath plus its corresponding reverse-index entry, inside an existing tx.
+//
+// Range-scans BucketReferencesByFile by the filePath prefix to enumerate
+// per-file refs in O(per-file). Each by-file row carries the reference's
+// SymbolName as its value, which lets us compute the BucketRefIndex
+// composite key directly without re-fetching the reference from
+// BucketReferences.
 func (s *CodeStore) clearFileReferencesTx(tx *bolt.Tx, filePath string) error {
+	prefix := fileKeyPrefix(filePath)
+	byFile := tx.Bucket(BucketReferencesByFile)
 	refBucket := tx.Bucket(BucketReferences)
 	refIdx := tx.Bucket(BucketRefIndex)
+	c := byFile.Cursor()
 
-	c := refBucket.Cursor()
-	var toDelete [][]byte
-	for k, v := c.First(); k != nil; k, v = c.Next() {
-		var ref code.Reference
-		if err := json.Unmarshal(v, &ref); err != nil {
-			continue
-		}
-		if ref.FilePath != filePath {
-			continue
-		}
-		toDelete = append(toDelete, append([]byte(nil), k...))
-
-		indexKey := []byte(ref.SymbolName)
-		if data := refIdx.Get(indexKey); data != nil {
-			var ids []string
-			json.Unmarshal(data, &ids)
-			newIds := make([]string, 0, len(ids))
-			for _, id := range ids {
-				if id != string(k) {
-					newIds = append(newIds, id)
-				}
-			}
-			if len(newIds) > 0 {
-				newData, _ := json.Marshal(newIds)
-				refIdx.Put(indexKey, newData)
-			} else {
-				refIdx.Delete(indexKey)
-			}
-		}
+	var refIDs []string
+	var byFileKeys [][]byte
+	var refIdxKeys [][]byte
+	for k, v := c.Seek(prefix); k != nil && bytes.HasPrefix(k, prefix); k, v = c.Next() {
+		refID := string(k[len(prefix):])
+		refIDs = append(refIDs, refID)
+		byFileKeys = append(byFileKeys, append([]byte(nil), k...))
+		refIdxKeys = append(refIdxKeys, composeNameRefKey(string(v), refID))
 	}
 
-	for _, k := range toDelete {
-		if err := refBucket.Delete(k); err != nil {
+	for i, refID := range refIDs {
+		if err := refBucket.Delete([]byte(refID)); err != nil {
+			return err
+		}
+		if err := byFile.Delete(byFileKeys[i]); err != nil {
+			return err
+		}
+		if err := refIdx.Delete(refIdxKeys[i]); err != nil {
 			return err
 		}
 	}
@@ -721,33 +775,37 @@ func (s *CodeStore) SetFileInfo(info *code.FileInfo) error {
 	})
 }
 
-// clearFileTx removes all symbols whose FilePath matches filePath plus the
-// FileInfo entry for that path, and returns the symbol IDs removed so the
-// caller can drop them from the Bleve search index.
+// clearFileTx removes all symbols owned by filePath plus the FileInfo entry
+// for that path, and returns the symbol IDs removed so the caller can drop
+// them from the Bleve search index.
 //
-// Always scans BucketSymbols by FilePath rather than trusting
-// FileInfo.SymbolIDs — historical bugs and crash-during-write scenarios
-// have left in-file orphan rows that survive re-indexing forever when
-// ClearFile only deletes the IDs listed in FileInfo. Bucket scan is
-// O(total_symbols) — see Tier 1.1 for the file-keyed secondary index
-// that replaces this with O(per-file).
+// Uses the file-keyed secondary index BucketSymbolsByFile to enumerate
+// per-file symbols in O(per-file). Without this index the previous
+// implementation had to ForEach the entire BucketSymbols and JSON-decode
+// every row, which was O(total_symbols) per call and dominated wall-clock
+// on large repositories.
+//
+// In-file orphan rows from a crashed prior write that exist in BucketSymbols
+// but not in BucketSymbolsByFile are caught by the daemon's startup
+// reconcile pass — the existing safety net for that class of failure.
 func (s *CodeStore) clearFileTx(tx *bolt.Tx, filePath string) ([]string, error) {
-	b := tx.Bucket(BucketSymbols)
+	prefix := fileKeyPrefix(filePath)
+	byFile := tx.Bucket(BucketSymbolsByFile)
+	c := byFile.Cursor()
+
 	var matchingIDs []string
-	if err := b.ForEach(func(k, v []byte) error {
-		var sym code.Symbol
-		if err := json.Unmarshal(v, &sym); err != nil {
-			return nil
-		}
-		if sym.FilePath == filePath {
-			matchingIDs = append(matchingIDs, string(k))
-		}
-		return nil
-	}); err != nil {
-		return nil, err
+	var byFileKeys [][]byte
+	for k, _ := c.Seek(prefix); k != nil && bytes.HasPrefix(k, prefix); k, _ = c.Next() {
+		matchingIDs = append(matchingIDs, string(k[len(prefix):]))
+		byFileKeys = append(byFileKeys, append([]byte(nil), k...))
 	}
-	for _, id := range matchingIDs {
-		if err := b.Delete([]byte(id)); err != nil {
+
+	symBucket := tx.Bucket(BucketSymbols)
+	for i, id := range matchingIDs {
+		if err := symBucket.Delete([]byte(id)); err != nil {
+			return nil, err
+		}
+		if err := byFile.Delete(byFileKeys[i]); err != nil {
 			return nil, err
 		}
 	}
@@ -869,7 +927,7 @@ func (s *CodeStore) IndexFileBatch(
 func (s *CodeStore) Clear() error {
 	// Clear BBolt buckets
 	err := s.db.Update(func(tx *bolt.Tx) error {
-		for _, bucket := range [][]byte{BucketSymbols, BucketReferences, BucketFileIndex, BucketRefIndex} {
+		for _, bucket := range [][]byte{BucketSymbols, BucketReferences, BucketFileIndex, BucketRefIndex, BucketSymbolsByFile, BucketReferencesByFile} {
 			b := tx.Bucket(bucket)
 			c := b.Cursor()
 			for k, _ := c.First(); k != nil; k, _ = c.Next() {
@@ -1003,17 +1061,31 @@ func (s *CodeStore) TopReferencedSymbols(limit int, kind string) ([]*code.Symbol
 	var entries []entry
 
 	err := s.db.View(func(tx *bolt.Tx) error {
+		// Composite keys are `<name>\x00<refID>`; bbolt iterates in key order
+		// so all entries for a given name appear consecutively. Count by
+		// walking the cursor and emitting an entry on each name boundary.
 		refIdx := tx.Bucket(BucketRefIndex)
 		c := refIdx.Cursor()
-		for k, v := c.First(); k != nil; k, v = c.Next() {
-			var ids []string
-			if err := json.Unmarshal(v, &ids); err != nil {
+		var currentName string
+		var currentCount int
+		for k, _ := c.First(); k != nil; k, _ = c.Next() {
+			sep := bytes.IndexByte(k, 0x00)
+			if sep < 0 {
 				continue
 			}
-			if len(ids) == 0 {
-				continue
+			name := string(k[:sep])
+			if name != currentName {
+				if currentName != "" && currentCount > 0 {
+					entries = append(entries, entry{name: currentName, count: currentCount})
+				}
+				currentName = name
+				currentCount = 1
+			} else {
+				currentCount++
 			}
-			entries = append(entries, entry{name: string(k), count: len(ids)})
+		}
+		if currentName != "" && currentCount > 0 {
+			entries = append(entries, entry{name: currentName, count: currentCount})
 		}
 		return nil
 	})

@@ -809,6 +809,97 @@ func TestRunSurveyMigrations_AppliesPending(t *testing.T) {
 	}
 }
 
+// TestRunCodeMigrations_V2BackfillsByFileAndCompositeRefIndex verifies that
+// upgrading from v1 to v2 correctly populates BucketSymbolsByFile,
+// BucketReferencesByFile, and the new composite-key BucketRefIndex from
+// existing symbol/reference rows.
+func TestRunCodeMigrations_V2BackfillsByFileAndCompositeRefIndex(t *testing.T) {
+	db, cleanup := setupCodeMigrateTestDB(t)
+	defer cleanup()
+
+	writeCodeSchemaVersion(t, db, 1)
+
+	// Seed v1 data: two symbols in two different files, two references with a
+	// shared SymbolName, and a v1-format BucketRefIndex JSON-slice entry.
+	err := db.Update(func(tx *bolt.Tx) error {
+		symPayload := func(filePath string) []byte {
+			b, _ := json.Marshal(map[string]string{"FilePath": filePath, "Name": "x", "Kind": "function"})
+			return b
+		}
+		if err := tx.Bucket(BucketSymbols).Put([]byte("sym-A"), symPayload("a.go")); err != nil {
+			return err
+		}
+		if err := tx.Bucket(BucketSymbols).Put([]byte("sym-B"), symPayload("b.go")); err != nil {
+			return err
+		}
+
+		refPayload := func(filePath, name string) []byte {
+			b, _ := json.Marshal(map[string]string{"FilePath": filePath, "SymbolName": name})
+			return b
+		}
+		if err := tx.Bucket(BucketReferences).Put([]byte("ref-1"), refPayload("a.go", "doThing")); err != nil {
+			return err
+		}
+		if err := tx.Bucket(BucketReferences).Put([]byte("ref-2"), refPayload("b.go", "doThing")); err != nil {
+			return err
+		}
+
+		// v1 reverse index: name -> JSON slice of refIDs.
+		v1Index, _ := json.Marshal([]string{"ref-1", "ref-2"})
+		return tx.Bucket(BucketRefIndex).Put([]byte("doThing"), v1Index)
+	})
+	if err != nil {
+		t.Fatalf("seed v1 data: %v", err)
+	}
+
+	if err := RunCodeMigrations(db); err != nil {
+		t.Fatalf("RunCodeMigrations: %v", err)
+	}
+
+	// Schema stamp at v2.
+	if v, err := GetCodeSchemaVersion(db); err != nil || v != CodeSchemaVersion {
+		t.Fatalf("expected code schema version %d, got %d (err=%v)", CodeSchemaVersion, v, err)
+	}
+
+	err = db.View(func(tx *bolt.Tx) error {
+		// Symbols-by-file: one entry per (filePath, symID).
+		gotByFile := map[string]bool{}
+		_ = tx.Bucket(BucketSymbolsByFile).ForEach(func(k, _ []byte) error {
+			gotByFile[string(k)] = true
+			return nil
+		})
+		for _, want := range []string{"a.go\x00sym-A", "b.go\x00sym-B"} {
+			if !gotByFile[want] {
+				return fmt.Errorf("symbols_by_file missing key %q", want)
+			}
+		}
+
+		// References-by-file: value carries SymbolName for ClearFileReferences.
+		if got := tx.Bucket(BucketReferencesByFile).Get([]byte("a.go\x00ref-1")); string(got) != "doThing" {
+			return fmt.Errorf("references_by_file[a.go\\0ref-1] = %q, want doThing", got)
+		}
+		if got := tx.Bucket(BucketReferencesByFile).Get([]byte("b.go\x00ref-2")); string(got) != "doThing" {
+			return fmt.Errorf("references_by_file[b.go\\0ref-2] = %q, want doThing", got)
+		}
+
+		// Reverse index: composite-key, one row per ref.
+		refIdx := tx.Bucket(BucketRefIndex)
+		for _, key := range []string{"doThing\x00ref-1", "doThing\x00ref-2"} {
+			if refIdx.Get([]byte(key)) == nil {
+				return fmt.Errorf("refindex missing composite key %q", key)
+			}
+		}
+		// Old JSON-slice key must be gone.
+		if v := refIdx.Get([]byte("doThing")); v != nil {
+			return fmt.Errorf("v1 refindex slice key still present: %q", v)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("verify v2 layout: %v", err)
+	}
+}
+
 func TestSurveyStoreRunsMigrationsOnOpen(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "aide-survey-migrate-open-*")
 	if err != nil {
