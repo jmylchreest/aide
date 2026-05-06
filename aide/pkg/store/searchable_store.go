@@ -82,8 +82,7 @@ func newSearchableStore[T any](cfg searchableStoreConfig[T]) (*searchableStore[T
 		}
 	}
 
-	// Open BBolt database.
-	db, err := bolt.Open(dbPath, 0o600, &bolt.Options{Timeout: 1 * time.Second})
+	db, err := bolt.Open(dbPath, 0o600, indexerBoltOptions(1*time.Second))
 	if err != nil {
 		return nil, fmt.Errorf("failed to open %s db: %w", cfg.StoreName, err)
 	}

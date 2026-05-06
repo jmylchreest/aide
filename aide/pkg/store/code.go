@@ -58,8 +58,7 @@ func NewCodeStore(dbPath, searchPath string) (*CodeStore, error) {
 		return nil, fmt.Errorf("failed to create search directory: %w", err)
 	}
 
-	// Open BBolt database
-	db, err := bolt.Open(dbPath, 0o600, &bolt.Options{Timeout: 1 * time.Second})
+	db, err := bolt.Open(dbPath, 0o600, indexerBoltOptions(1*time.Second))
 	if err != nil {
 		return nil, fmt.Errorf("failed to open code db: %w", err)
 	}

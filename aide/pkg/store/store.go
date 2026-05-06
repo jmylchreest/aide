@@ -36,7 +36,7 @@ type BoltStore struct {
 // NewBoltStore creates a new bbolt-backed store.
 func NewBoltStore(path string) (*BoltStore, error) {
 	// Increase timeout to handle concurrent CLI access from skills/bash commands
-	db, err := bolt.Open(path, 0o600, &bolt.Options{Timeout: 10 * time.Second})
+	db, err := bolt.Open(path, 0o600, indexerBoltOptions(10*time.Second))
 	if err != nil {
 		return nil, err
 	}
