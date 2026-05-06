@@ -3,7 +3,7 @@
   "name": "rust",
   "display_name": "Rust Best Practices",
   "description": "Idiomatic Rust conventions, error handling, testing, async, and tooling for production code",
-  "version": "0.0.59",
+  "version": "0.0.65",
   "tags": [
     "language",
     "rust"

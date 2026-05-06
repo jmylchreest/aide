@@ -3,7 +3,7 @@
   "name": "i18n",
   "display_name": "Internationalisation (i18n) and Localisation (l10n)",
   "description": "Decisions for projects that ship to users speaking different languages, in different regions, or under different cultural conventions. Opt-in: include explicitly when the project commits to serving more than one locale.",
-  "version": "0.0.64",
+  "version": "0.0.65",
   "tags": [
     "i18n",
     "l10n",
