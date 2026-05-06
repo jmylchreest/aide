@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -95,15 +96,25 @@ func (h *Handler) APIRunCodeIndex(ctx context.Context, input *struct {
 	if client == nil {
 		return nil, huma.Error503ServiceUnavailable("instance not connected")
 	}
-	resp, err := client.Code.Index(ctx, &grpcapi.CodeIndexRequest{})
+	stream, err := client.Code.Index(ctx, &grpcapi.CodeIndexRequest{})
 	if err != nil {
 		return nil, huma.Error500InternalServerError(fmt.Sprintf("index failed: %v", err))
 	}
 	out := &CodeIndexOutput{}
-	out.Body.FilesIndexed = resp.FilesIndexed
-	out.Body.SymbolsIndexed = resp.SymbolsIndexed
-	out.Body.FilesSkipped = resp.FilesSkipped
-	return out, nil
+	for {
+		ev, err := stream.Recv()
+		if err == io.EOF {
+			return out, nil
+		}
+		if err != nil {
+			return nil, huma.Error500InternalServerError(fmt.Sprintf("index failed: %v", err))
+		}
+		if s, ok := ev.Event.(*grpcapi.CodeIndexEvent_Summary); ok {
+			out.Body.FilesIndexed = s.Summary.FilesIndexed
+			out.Body.SymbolsIndexed = s.Summary.SymbolsIndexed
+			out.Body.FilesSkipped = s.Summary.FilesSkipped
+		}
+	}
 }
 
 // ReadFileOutput is the response body for APIReadFile.

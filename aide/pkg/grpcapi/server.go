@@ -881,11 +881,13 @@ func (s *codeServiceImpl) Stats(ctx context.Context, req *CodeStatsRequest) (*Co
 	}, nil
 }
 
-func (s *codeServiceImpl) Index(ctx context.Context, req *CodeIndexRequest) (*CodeIndexResponse, error) {
+func (s *codeServiceImpl) Index(req *CodeIndexRequest, stream grpc.ServerStreamingServer[CodeIndexEvent]) error {
 	cs := s.server.GetCodeStore()
 	if cs == nil {
-		return nil, fmt.Errorf("code store not available")
+		return fmt.Errorf("code store not available")
 	}
+
+	ctx := stream.Context()
 
 	paths := req.Paths
 	if len(paths) == 0 {
@@ -898,10 +900,10 @@ func (s *codeServiceImpl) Index(ctx context.Context, req *CodeIndexRequest) (*Co
 	for _, p := range paths {
 		abs, err := filepath.Abs(p)
 		if err != nil {
-			return nil, fmt.Errorf("invalid path %q: %w", p, err)
+			return fmt.Errorf("invalid path %q: %w", p, err)
 		}
 		if abs != projRoot && !strings.HasPrefix(abs, rootPrefix) {
-			return nil, fmt.Errorf("path %q is outside the project directory", p)
+			return fmt.Errorf("path %q is outside the project directory", p)
 		}
 	}
 
@@ -915,6 +917,12 @@ func (s *codeServiceImpl) Index(ctx context.Context, req *CodeIndexRequest) (*Co
 
 	for _, root := range paths {
 		err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+			// Cancel cooperatively. filepath.Walk has no native ctx support, so we
+			// check at the top of every callback — the caller's deadline / Ctrl-C
+			// stops us within one file rather than running to completion.
+			if cerr := ctx.Err(); cerr != nil {
+				return cerr
+			}
 			if err != nil {
 				return nil // Skip files with errors
 			}
@@ -946,7 +954,12 @@ func (s *codeServiceImpl) Index(ctx context.Context, req *CodeIndexRequest) (*Co
 				fileInfo, err := cs.GetFileInfo(relPath)
 				if err == nil && fileInfo.ModTime.Equal(info.ModTime()) {
 					filesSkipped++
-					return nil
+					return sendProgress(stream, &CodeIndexProgress{
+						Path:         relPath,
+						FilesDone:    filesIndexed,
+						FilesSkipped: filesSkipped,
+						Skipped:      true,
+					})
 				}
 			}
 
@@ -966,6 +979,7 @@ func (s *codeServiceImpl) Index(ctx context.Context, req *CodeIndexRequest) (*Co
 
 			// Store symbols
 			var symbolIDs []string
+			fileSymbols := int32(0)
 			for _, sym := range symbols {
 				sym.FilePath = relPath
 				if err := cs.AddSymbol(sym); err != nil {
@@ -973,6 +987,7 @@ func (s *codeServiceImpl) Index(ctx context.Context, req *CodeIndexRequest) (*Co
 				}
 				symbolIDs = append(symbolIDs, sym.ID)
 				symbolsIndexed++
+				fileSymbols++
 			}
 
 			// Store references
@@ -991,18 +1006,31 @@ func (s *codeServiceImpl) Index(ctx context.Context, req *CodeIndexRequest) (*Co
 			})
 
 			filesIndexed++
-			return nil
+			return sendProgress(stream, &CodeIndexProgress{
+				Path:         relPath,
+				Symbols:      fileSymbols,
+				FilesDone:    filesIndexed,
+				FilesSkipped: filesSkipped,
+			})
 		})
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 
-	return &CodeIndexResponse{
-		FilesIndexed:   filesIndexed,
-		SymbolsIndexed: symbolsIndexed,
-		FilesSkipped:   filesSkipped,
-	}, nil
+	return stream.Send(&CodeIndexEvent{
+		Event: &CodeIndexEvent_Summary{Summary: &CodeIndexResponse{
+			FilesIndexed:   filesIndexed,
+			SymbolsIndexed: symbolsIndexed,
+			FilesSkipped:   filesSkipped,
+		}},
+	})
+}
+
+// sendProgress wraps a CodeIndexProgress in the event envelope and writes it
+// to the stream. Returned errors abort the walk.
+func sendProgress(stream grpc.ServerStreamingServer[CodeIndexEvent], p *CodeIndexProgress) error {
+	return stream.Send(&CodeIndexEvent{Event: &CodeIndexEvent_Progress{Progress: p}})
 }
 
 func (s *codeServiceImpl) Clear(ctx context.Context, req *CodeClearRequest) (*CodeClearResponse, error) {

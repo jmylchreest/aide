@@ -134,20 +134,15 @@ func cmdCodeIndex(dbPath string, args []string) error {
 	}
 	defer backend.Close()
 
-	// Progress callback - only works in direct mode (not gRPC)
-	var progress func(path string, symbols int)
-	showSpinner := !backend.UsingGRPC()
-	if showSpinner {
-		spinChars := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
-		spinIdx := 0
-		progress = func(path string, symbols int) {
-			displayPath := path
-			if len(displayPath) > 60 {
-				displayPath = "..." + displayPath[len(displayPath)-57:]
-			}
-			fmt.Fprintf(os.Stderr, "\r%s %s (%d symbols)    ", spinChars[spinIdx], displayPath, symbols)
-			spinIdx = (spinIdx + 1) % len(spinChars)
+	spinChars := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+	spinIdx := 0
+	progress := func(path string, symbols int) {
+		displayPath := path
+		if len(displayPath) > 60 {
+			displayPath = "..." + displayPath[len(displayPath)-57:]
 		}
+		fmt.Fprintf(os.Stderr, "\r%s %s (%d symbols)    ", spinChars[spinIdx], displayPath, symbols)
+		spinIdx = (spinIdx + 1) % len(spinChars)
 	}
 
 	result, err := backend.IndexCodeWithProgress(paths, force, progress)
@@ -155,10 +150,7 @@ func cmdCodeIndex(dbPath string, args []string) error {
 		return fmt.Errorf("failed to index code: %w", err)
 	}
 
-	// Clear the spinner line
-	if showSpinner {
-		fmt.Fprintf(os.Stderr, "\r%s\r", strings.Repeat(" ", 80))
-	}
+	fmt.Fprintf(os.Stderr, "\r%s\r", strings.Repeat(" ", 80))
 
 	// Print summary
 	if result.FilesSkipped > 0 {

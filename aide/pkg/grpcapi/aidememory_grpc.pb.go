@@ -1537,7 +1537,7 @@ type CodeServiceClient interface {
 	Search(ctx context.Context, in *CodeSearchRequest, opts ...grpc.CallOption) (*CodeSearchResponse, error)
 	Symbols(ctx context.Context, in *CodeSymbolsRequest, opts ...grpc.CallOption) (*CodeSymbolsResponse, error)
 	Stats(ctx context.Context, in *CodeStatsRequest, opts ...grpc.CallOption) (*CodeStatsResponse, error)
-	Index(ctx context.Context, in *CodeIndexRequest, opts ...grpc.CallOption) (*CodeIndexResponse, error)
+	Index(ctx context.Context, in *CodeIndexRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[CodeIndexEvent], error)
 	Clear(ctx context.Context, in *CodeClearRequest, opts ...grpc.CallOption) (*CodeClearResponse, error)
 	TopReferences(ctx context.Context, in *CodeTopReferencesRequest, opts ...grpc.CallOption) (*CodeTopReferencesResponse, error)
 	SearchReferences(ctx context.Context, in *CodeSearchReferencesRequest, opts ...grpc.CallOption) (*CodeSearchReferencesResponse, error)
@@ -1585,15 +1585,24 @@ func (c *codeServiceClient) Stats(ctx context.Context, in *CodeStatsRequest, opt
 	return out, nil
 }
 
-func (c *codeServiceClient) Index(ctx context.Context, in *CodeIndexRequest, opts ...grpc.CallOption) (*CodeIndexResponse, error) {
+func (c *codeServiceClient) Index(ctx context.Context, in *CodeIndexRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[CodeIndexEvent], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(CodeIndexResponse)
-	err := c.cc.Invoke(ctx, CodeService_Index_FullMethodName, in, out, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &CodeService_ServiceDesc.Streams[0], CodeService_Index_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	x := &grpc.GenericClientStream[CodeIndexRequest, CodeIndexEvent]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
 }
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type CodeService_IndexClient = grpc.ServerStreamingClient[CodeIndexEvent]
 
 func (c *codeServiceClient) Clear(ctx context.Context, in *CodeClearRequest, opts ...grpc.CallOption) (*CodeClearResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
@@ -1672,7 +1681,7 @@ type CodeServiceServer interface {
 	Search(context.Context, *CodeSearchRequest) (*CodeSearchResponse, error)
 	Symbols(context.Context, *CodeSymbolsRequest) (*CodeSymbolsResponse, error)
 	Stats(context.Context, *CodeStatsRequest) (*CodeStatsResponse, error)
-	Index(context.Context, *CodeIndexRequest) (*CodeIndexResponse, error)
+	Index(*CodeIndexRequest, grpc.ServerStreamingServer[CodeIndexEvent]) error
 	Clear(context.Context, *CodeClearRequest) (*CodeClearResponse, error)
 	TopReferences(context.Context, *CodeTopReferencesRequest) (*CodeTopReferencesResponse, error)
 	SearchReferences(context.Context, *CodeSearchReferencesRequest) (*CodeSearchReferencesResponse, error)
@@ -1699,8 +1708,8 @@ func (UnimplementedCodeServiceServer) Symbols(context.Context, *CodeSymbolsReque
 func (UnimplementedCodeServiceServer) Stats(context.Context, *CodeStatsRequest) (*CodeStatsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Stats not implemented")
 }
-func (UnimplementedCodeServiceServer) Index(context.Context, *CodeIndexRequest) (*CodeIndexResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method Index not implemented")
+func (UnimplementedCodeServiceServer) Index(*CodeIndexRequest, grpc.ServerStreamingServer[CodeIndexEvent]) error {
+	return status.Error(codes.Unimplemented, "method Index not implemented")
 }
 func (UnimplementedCodeServiceServer) Clear(context.Context, *CodeClearRequest) (*CodeClearResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Clear not implemented")
@@ -1798,23 +1807,16 @@ func _CodeService_Stats_Handler(srv interface{}, ctx context.Context, dec func(i
 	return interceptor(ctx, in, info, handler)
 }
 
-func _CodeService_Index_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CodeIndexRequest)
-	if err := dec(in); err != nil {
-		return nil, err
+func _CodeService_Index_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(CodeIndexRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
 	}
-	if interceptor == nil {
-		return srv.(CodeServiceServer).Index(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: CodeService_Index_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(CodeServiceServer).Index(ctx, req.(*CodeIndexRequest))
-	}
-	return interceptor(ctx, in, info, handler)
+	return srv.(CodeServiceServer).Index(m, &grpc.GenericServerStream[CodeIndexRequest, CodeIndexEvent]{ServerStream: stream})
 }
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type CodeService_IndexServer = grpc.ServerStreamingServer[CodeIndexEvent]
 
 func _CodeService_Clear_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(CodeClearRequest)
@@ -1962,10 +1964,6 @@ var CodeService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _CodeService_Stats_Handler,
 		},
 		{
-			MethodName: "Index",
-			Handler:    _CodeService_Index_Handler,
-		},
-		{
 			MethodName: "Clear",
 			Handler:    _CodeService_Clear_Handler,
 		},
@@ -1994,7 +1992,13 @@ var CodeService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _CodeService_RunDeadCodeAnalysis_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "Index",
+			Handler:       _CodeService_Index_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "aidememory.proto",
 }
 

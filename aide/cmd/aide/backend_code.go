@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -174,23 +175,41 @@ func (b *Backend) IndexCode(paths []string, force bool) (*CodeIndexResult, error
 }
 
 // IndexCodeWithProgress indexes code with an optional progress callback.
+//
+// In daemon (gRPC) mode the index runs server-side and emits one progress
+// event per file plus a final summary. The whole-RPC deadline is unbounded
+// (server activity keeps the stream alive); cancel via the context returned
+// by signal handling if needed. The legacy 10s adapter.RPCTimeout previously
+// applied here was the cause of "DeadlineExceeded" failures on large repos.
 func (b *Backend) IndexCodeWithProgress(paths []string, force bool, progress func(path string, symbols int)) (*CodeIndexResult, error) {
-	ctx, cancel := b.rpcCtx()
-	defer cancel()
-
 	if b.useGRPC {
-		resp, err := b.grpcClient.Code.Index(ctx, &grpcapi.CodeIndexRequest{
+		stream, err := b.grpcClient.Code.Index(context.Background(), &grpcapi.CodeIndexRequest{
 			Paths: paths,
 			Force: force,
 		})
 		if err != nil {
 			return nil, err
 		}
-		return &CodeIndexResult{
-			FilesIndexed:   int(resp.FilesIndexed),
-			SymbolsIndexed: int(resp.SymbolsIndexed),
-			FilesSkipped:   int(resp.FilesSkipped),
-		}, nil
+		var result CodeIndexResult
+		for {
+			ev, err := stream.Recv()
+			if err == io.EOF {
+				return &result, nil
+			}
+			if err != nil {
+				return nil, err
+			}
+			switch e := ev.Event.(type) {
+			case *grpcapi.CodeIndexEvent_Progress:
+				if progress != nil && !e.Progress.Skipped {
+					progress(e.Progress.Path, int(e.Progress.Symbols))
+				}
+			case *grpcapi.CodeIndexEvent_Summary:
+				result.FilesIndexed = int(e.Summary.FilesIndexed)
+				result.SymbolsIndexed = int(e.Summary.SymbolsIndexed)
+				result.FilesSkipped = int(e.Summary.FilesSkipped)
+			}
+		}
 	}
 
 	codeStore, err := b.openCodeStore()
