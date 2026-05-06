@@ -949,18 +949,19 @@ func (s *codeServiceImpl) Index(req *CodeIndexRequest, stream grpc.ServerStreami
 				relPath = rel
 			}
 
-			// Check if file needs reindexing
-			if !req.Force {
-				fileInfo, err := cs.GetFileInfo(relPath)
-				if err == nil && fileInfo.ModTime.Equal(info.ModTime()) {
-					filesSkipped++
-					return sendProgress(stream, &CodeIndexProgress{
-						Path:         relPath,
-						FilesDone:    filesIndexed,
-						FilesSkipped: filesSkipped,
-						Skipped:      true,
-					})
-				}
+			// One lookup serves both the incremental-skip check and the
+			// "is this file already in the index?" decision below.
+			existing, _ := cs.GetFileInfo(relPath)
+
+			// Incremental mode: skip if mtime matches the indexed version.
+			if !req.Force && existing != nil && existing.ModTime.Equal(info.ModTime()) {
+				filesSkipped++
+				return sendProgress(stream, &CodeIndexProgress{
+					Path:         relPath,
+					FilesDone:    filesIndexed,
+					FilesSkipped: filesSkipped,
+					Skipped:      true,
+				})
 			}
 
 			// Parse file for symbols and references. References are required
@@ -973,9 +974,16 @@ func (s *codeServiceImpl) Index(req *CodeIndexRequest, stream grpc.ServerStreami
 			}
 			refs, _ := s.parser.ParseFileReferences(path)
 
-			// Clear existing symbols AND references before re-adding.
-			cs.ClearFile(relPath)
-			cs.ClearFileReferences(relPath)
+			// Only clear when the file is already in the index. ClearFile and
+			// ClearFileReferences scan the entire Symbols/References buckets
+			// linearly to find rows for this path; on a first-time index of
+			// a never-seen file there is nothing to clear and the scans are
+			// pure overhead. Orphans from a crashed prior write are cleaned
+			// by the daemon's startup reconcile pass, not by this fast path.
+			if existing != nil {
+				cs.ClearFile(relPath)
+				cs.ClearFileReferences(relPath)
+			}
 
 			// Store symbols
 			var symbolIDs []string
