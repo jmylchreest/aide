@@ -175,7 +175,7 @@ func (b *Backend) IndexCode(paths []string, force bool) (*CodeIndexResult, error
 
 // IndexCodeWithProgress indexes code with an optional progress callback.
 func (b *Backend) IndexCodeWithProgress(paths []string, force bool, progress func(path string, symbols int)) (*CodeIndexResult, error) {
-	ctx, cancel := b.rpcCtx()
+	ctx, cancel := context.WithTimeout(context.Background(), CodeIndexRPCTimeout)
 	defer cancel()
 
 	if b.useGRPC {

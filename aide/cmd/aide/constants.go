@@ -20,6 +20,13 @@ const (
 	// on large indexes.
 	DeadCodeAnalysisRPCTimeout = 5 * time.Minute
 
+	// CodeIndexRPCTimeout is the deadline for the code-index RPC. Indexing
+	// walks every source file under the requested paths, parses each via
+	// tree-sitter, and writes symbols to Bolt + Bleve. On large repos this
+	// runs well past the default 10s adapter.RPCTimeout, so it gets its
+	// own much larger budget.
+	CodeIndexRPCTimeout = 30 * time.Minute
+
 	// -------------------------------------------------------------------------
 	// Messages
 	// -------------------------------------------------------------------------
