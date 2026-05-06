@@ -20,6 +20,18 @@ aide code clear              # Clear index
 
 `aide code index` streams per-file progress (path + symbol count) to stderr and prints a final summary on completion. Progress works whether the daemon is running or not; on large repos the run can take minutes, and the live updates double as a heartbeat that keeps the gRPC stream alive.
 
+## Parallel parsing
+
+Tree-sitter parsing is the dominant cost on large repositories, so the indexer fans parsing out across worker goroutines while keeping the bbolt write transaction and Bleve batch on a single writer goroutine (both are exclusive by design). Defaults to one worker per CPU core, capped at 32.
+
+Override with `AIDE_INDEX_WORKERS=N`:
+
+- unset or `0` → `runtime.NumCPU()` (recommended default)
+- positive `N` → that count, clamped at 32
+- `1` → effectively single-threaded (useful for benchmarking or debugging)
+
+Progress events arrive in completion order rather than walk order — small files finish first; large files trickle. That tracks real progress more accurately and is the documented contract for the streaming RPC.
+
 ## MCP Tools
 
 8 code-related MCP tools are available to the AI:

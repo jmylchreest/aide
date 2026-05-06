@@ -226,6 +226,7 @@ The database path is automatically derived from the project root (`.aide/memory/
 | `AIDE_CODE_WATCH`         | unset   | Set to `1` to enable file watcher for auto-reindex |
 | `AIDE_CODE_WATCH_DELAY`   | `30s`   | Debounce delay before re-indexing after changes    |
 | `AIDE_INDEX_NON_VCS`      | unset   | Set to `1` to allow watcher in non-VCS dirs        |
+| `AIDE_INDEX_WORKERS`      | unset   | Parallel parser workers for code indexing (default: NumCPU, capped at 32) |
 | `AIDE_CODE_STORE_DISABLE` | unset   | Set to `1` to disable code store                   |
 | `AIDE_CODE_STORE_SYNC`    | unset   | Set to `1` for synchronous code store init         |
 

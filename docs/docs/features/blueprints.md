@@ -64,12 +64,13 @@ These blueprints ship with every AIDE release:
 
 | Blueprint | Decisions | Includes | Description |
 |-----------|-----------|----------|-------------|
-| `general` | 5 | — | Universal practices: commits, PRs, dependencies, secrets, documentation |
+| `general` | 7 | documentation-core | Universal practices: commits, PRs, dependencies, secrets, text/time foundations, aide memory & decision persistence |
 | `go` | 18 | general | Idiomatic Go: error handling, context, testing, slog, huma, golangci-lint v2 |
 | `rust` | 12 | general | Idiomatic Rust: error handling, testing, async, and tooling |
 | `c` | 12 | general | Modern C: safety hardening, memory management, testing |
 | `cpp` | 12 | general | Modern C++ (C++20/23): Core Guidelines, RAII, smart pointers |
 | `zig` | 12 | general | Idiomatic Zig: allocator patterns, comptime, error handling |
+| `i18n` | 10 | — | Internationalisation & localisation: BCP 47 scope, ICU plurals, CLDR locale data, IANA time zones, Unicode handling, RTL layout, pseudo-localisation, translation workflow, HTTP API negotiation. Opt-in: include explicitly when serving more than one locale |
 | `github-actions` | 7 | general | Workflow security: SHA pinning, permissions, OIDC, branch protection |
 | `go-github-actions` | 5 | github-actions | Go CI/CD: golangci-lint, matrix builds, cross-compilation, releases |
 | `rust-github-actions` | 7 | github-actions | Rust CI/CD: clippy, cargo-nextest, cargo-deny, sanitizers, coverage |

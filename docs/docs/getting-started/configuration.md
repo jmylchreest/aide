@@ -14,6 +14,8 @@ AIDE is configured through environment variables. All variables are optional.
 | `AIDE_FORCE_INIT=1`              | Force initialization in non-git directories      |
 | `AIDE_CODE_WATCH=1`              | Enable file watching for auto-reindex            |
 | `AIDE_CODE_WATCH_DELAY=30s`      | Delay before re-indexing after file changes      |
+| `AIDE_INDEX_NON_VCS=1`           | Allow watcher/indexing in non-VCS dirs (default: refuse) |
+| `AIDE_INDEX_WORKERS=N`           | Parallel parser workers for code indexing (default: NumCPU, capped at 32) |
 | `AIDE_MEMORY_INJECT=0`           | Disable memory injection                         |
 | `AIDE_MEMORY_SCORING_DISABLED=1` | Disable memory scoring (use chronological order) |
 | `AIDE_MEMORY_DECAY_DISABLED=1`   | Disable recency decay in memory scoring          |
