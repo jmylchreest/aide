@@ -141,7 +141,7 @@ func cmdCodeIndex(dbPath string, args []string) error {
 		if len(displayPath) > 60 {
 			displayPath = "..." + displayPath[len(displayPath)-57:]
 		}
-		fmt.Fprintf(os.Stderr, "\r%s %s (%d symbols)    ", spinChars[spinIdx], displayPath, symbols)
+		fmt.Fprintf(os.Stderr, "\r\033[K%s %s (%d symbols)", spinChars[spinIdx], displayPath, symbols)
 		spinIdx = (spinIdx + 1) % len(spinChars)
 	}
 
@@ -150,7 +150,7 @@ func cmdCodeIndex(dbPath string, args []string) error {
 		return fmt.Errorf("failed to index code: %w", err)
 	}
 
-	fmt.Fprintf(os.Stderr, "\r%s\r", strings.Repeat(" ", 80))
+	fmt.Fprint(os.Stderr, "\r\033[K")
 
 	// Print summary
 	if result.FilesSkipped > 0 {
