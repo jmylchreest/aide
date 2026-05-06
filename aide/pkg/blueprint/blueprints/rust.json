@@ -88,11 +88,12 @@
     },
     {
       "topic": "rust-documentation",
-      "decision": "All public API items must have doc comments with examples; use deny(missing_docs) in library crates",
-      "rationale": "Rust doc comments are runnable tests — they serve as both documentation and regression tests. The Rust API Guidelines require documentation with examples for all public items.",
-      "details": "Structure: summary, explanation, # Examples (runnable), # Errors, # Panics, # Safety. Use /// for items, //! for modules. Examples use ? not unwrap(). Review with cargo doc --no-deps --open. Set #![deny(missing_docs)] in lib crate roots. Run cargo test --doc.",
+      "decision": "Use rustdoc sparingly and with intent: write succinct, accurate /// annotations on the public items external consumers see on docs.rs / crates.io",
+      "rationale": "rustdoc renders the public face of a crate, so well-chosen doc comments on the API surface pay back many times over for downstream users. Concentrating effort on the items consumers actually depend on understanding keeps every rendered doc block worth reading and the published API approachable.",
+      "details": "Focus rustdoc on the items external consumers depend on: the crate root (//!) explaining what the crate does and how to start, the main types and their invariants, public functions whose contract is not obvious from the signature, and anything with # Errors / # Panics / # Safety obligations the caller must respect. Structure each doc block as a one-line summary, optional explanation, then the # Examples / # Errors / # Panics / # Safety sections that genuinely apply — include only the sections that carry information. Examples use ? rather than unwrap() so they read like real consumer code, and cargo test --doc keeps them honest. Prefer pub(crate) for items that do not need to ship in the public API; a smaller, well-documented surface is more valuable than a wide one. Review the rendered output with cargo doc --no-deps --open before publishing.",
       "references": [
-        "https://rust-lang.github.io/api-guidelines/documentation.html"
+        "https://rust-lang.github.io/api-guidelines/documentation.html",
+        "https://doc.rust-lang.org/rustdoc/what-is-rustdoc.html"
       ]
     },
     {

@@ -42,6 +42,16 @@
       "references": []
     },
     {
+      "topic": "text-and-time-foundations",
+      "decision": "Adopt UTF-8 end-to-end, time-zone-aware datetime types, locale-aware formatters, and ISO 8601 transport from day one — even on projects that will never localise",
+      "rationale": "These are the cheapest decisions to make at the start of a project and the most expensive to retrofit later. UTF-8 everywhere costs nothing and keeps text encoding correct from byte to glyph. Time-zone-aware datetime types catch a class of bug that is invisible in the developer's home zone. Locale-aware formatters render numbers and dates correctly the moment a non-default locale appears — through a user, a browser, or a downstream system. Building these foundations keeps the door open to localisation at zero cost, and produces correct behaviour regardless of whether localisation is ever in scope.",
+      "details": "Source files, configuration, database storage, API payloads, and templates use UTF-8. Datetime values use time-zone-aware types (time.Time, chrono::DateTime<Utc>, java.time.OffsetDateTime, Python aware datetime, JS Temporal); times are stored and transported in UTC with offset using ISO 8601, and rendered in the viewer's IANA zone (\"Europe/London\", not \"BST\"). Represent moments in time (a flight departure) and wall-clock dates (a birthday) with separate types so each is stored in the representation that matches its meaning. Numbers, dates, and currencies use the platform's locale-aware formatter (Intl.NumberFormat, golang.org/x/text/message, ICU, java.text.NumberFormat, .NET CultureInfo) with an explicit locale tag passed in. Assemble user-visible sentences as whole templates with parameter substitution, since the order and shape of a sentence varies between languages.",
+      "references": [
+        "https://www.utf8everywhere.org/",
+        "https://en.wikipedia.org/wiki/ISO_8601"
+      ]
+    },
+    {
       "topic": "aide-memory-persistence",
       "decision": "Store learnings, gotchas, patterns, and session context via aide memory, not local assistant memory",
       "rationale": "Local assistant memory (e.g. Claude Code MEMORY.md, OpenCode memory) is scoped to a single assistant and invisible to other agents, swarm workers, or different AI tools working on the same project. aide memories are shared across all sessions, agents, and assistant implementations, and are injected at session start with scoring and decay.",

@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "name": "i18n",
+  "display_name": "Internationalisation (i18n) and Localisation (l10n)",
+  "description": "Decisions for projects that ship to users speaking different languages, in different regions, or under different cultural conventions. Opt-in: include explicitly when the project commits to serving more than one locale.",
+  "version": "0.0.64",
+  "tags": [
+    "i18n",
+    "l10n",
+    "internationalisation"
+  ],
+  "includes": [],
+  "decisions": [
+    {
+      "topic": "i18n-scope",
+      "decision": "Be explicit about which surfaces are localised and which locales are supported, recorded as a list of BCP 47 tags and an in-scope surface inventory",
+      "rationale": "Localisation is a stack of independent commitments — UI strings, dates and numbers, currency, time-zone display, RTL layout, error messages, emails, push notifications, documentation, marketing site. A clear scope statement sets a shared contract for the team, the translators, and the users, so every surface that ships in a given locale ships completely. Foundations that apply whether or not the project localises (UTF-8, time-zone-aware datetime types, locale-aware formatters) are covered in the general blueprint's text-and-time-foundations decision; this blueprint adds the decisions needed once the project commits to serving multiple locales.",
+      "details": "Maintain a short i18n manifest (in README, ADR, or a project document) listing: the canonical source locale (BCP 47, e.g. en-US or en-GB); the supported target locales (e.g. fr, ja, ar, zh-Hans-CN); the surfaces in scope (UI strings, in-app dates and numbers, currency, error messages, transactional emails, push notifications, marketing site, documentation); and the surfaces explicitly out of scope. Re-evaluate when adding a locale or expanding the surface set. The remainder of this blueprint applies to surfaces declared in scope.",
+      "references": [
+        "https://www.rfc-editor.org/rfc/rfc5646"
+      ]
+    },
+    {
+      "topic": "i18n-string-externalisation",
+      "decision": "Hold every user-visible string in a resource file keyed by ID, in a format the platform's standard tooling reads",
+      "rationale": "Externalised strings let translators work without touching source code, allow translation memory and quality tooling to operate on a stable corpus, and turn 'what does the user see?' into a single grep-able catalogue. Keying by ID rather than by source text means revising the source-language wording does not invalidate translations whose meaning is unchanged.",
+      "details": "Pick the resource format that the platform's native or dominant tooling supports: gettext .po (Python, Go, C, GNU ecosystem), Fluent .ftl (Mozilla, Rust), ICU MessageFormat (.json or .properties), .strings and .stringsdict (Apple), strings.xml (Android), .resx (.NET), ARB (Flutter), JSON-based catalogues (i18next, FormatJS for web). One format per project. Keys are stable identifiers describing meaning (checkout.button.confirm, error.network.timeout) rather than the source-language text itself. Each key carries a translator-facing comment giving usage context — what surface it appears in, which variables substitute, what tone the copy should land on.",
+      "references": [
+        "https://unicode-org.github.io/icu/userguide/format_parse/messages/",
+        "https://projectfluent.org/"
+      ]
+    },
+    {
+      "topic": "i18n-pluralisation-and-select",
+      "decision": "Use ICU MessageFormat (or the equivalent native primitive: stringsdict, plurals.xml, Fluent select) for plurals and category-based variant selection, governed by CLDR plural rules",
+      "rationale": "CLDR defines up to six plural categories per locale (zero, one, two, few, many, other), and several languages depend on more than two of them — Russian uses one/few/many/other, Arabic uses all six. ICU MessageFormat encodes the full set, lets each locale's translation choose the categories that apply, and keeps the source code free of locale-specific branching. The same primitive cleanly handles non-plural variant selection such as gender or item type, so grammar choices stay inside the resource file rather than leaking into application code.",
+      "details": "Express plural-sensitive strings with the ICU plural form (or the platform's CLDR-resolving equivalent): { count, plural, one {1 file} other {# files} }. Translators add the categories their language requires. Use the select form for non-plural variants such as gender or item type: { gender, select, female {she} male {he} other {they} }. Pass the source value (count, gender, type) as a parameter; the rendering layer resolves the right variant per active locale.",
+      "references": [
+        "https://cldr.unicode.org/index/cldr-spec/plural-rules"
+      ]
+    },
+    {
+      "topic": "i18n-locale-data",
+      "decision": "Format numbers, dates, currencies, and lists through the platform's CLDR-backed locale services; carry currency as a separate attribute alongside the value",
+      "rationale": "CLDR is the canonical source of locale data — number separators, date patterns, currency symbol position, list joiners, calendar systems — and platform locale APIs (Intl in browsers and Node, ICU in C/C++/Java, golang.org/x/text, Foundation on Apple, java.text on JVM, .NET CultureInfo) consume it directly. Routing formatting through these services means each locale's output matches its CLDR data (currency symbol position, 12h vs 24h time, comma vs space thousands separator) without project code needing to track these conventions per locale. Currency is independent of locale because a German user may pay in USD, so the currency code travels with the monetary value rather than being inferred from the active locale.",
+      "details": "Use Intl.NumberFormat / Intl.DateTimeFormat / Intl.ListFormat / Intl.RelativeTimeFormat in JS and TS; golang.org/x/text/{number,message,currency} in Go; the standard locale APIs in each language elsewhere. Pass an explicit locale tag (the active user locale) to every formatter call. Store monetary values as an amount paired with an ISO 4217 currency code, and format with a currency-aware formatter that takes both. Compose user-visible lists (\"a, b, and c\") through a list formatter rather than by string concatenation, since the joiner varies by locale.",
+      "references": [
+        "https://cldr.unicode.org/",
+        "https://tc39.es/ecma402/"
+      ]
+    },
+    {
+      "topic": "i18n-time-and-zones",
+      "decision": "Store and transport instants in UTC using ISO 8601 with offset, render in the viewer's IANA time zone, and represent wall-clock dates as a separate type from instants",
+      "rationale": "An instant in time and a wall-clock date are different kinds of value. A flight departure is an instant — the same moment for everyone, rendered in different local times. A birthday is a wall-clock date — the same calendar day for the person, regardless of where they read it. Splitting the two at the type level keeps each one stored in the representation that matches its meaning, so a birthday stays the same calendar day across travel and an instant stays the same moment across viewers.",
+      "details": "Use a typed datetime that carries zone information at every layer that matters (ISO 8601 strings on the wire; time.Time / OffsetDateTime / Temporal.Instant / chrono::DateTime<Utc> in code). Reference IANA zone identifiers (Europe/London, America/New_York) rather than abbreviations such as BST or EST, which can resolve to different offsets across history. Render with the viewer's locale and zone at the edge; do not bake a zone into stored data. For wall-clock dates and times, use the platform's date-only or local-time type (java.time.LocalDate, Temporal.PlainDate, equivalent) and keep them out of zone conversions entirely.",
+      "references": [
+        "https://www.iana.org/time-zones",
+        "https://en.wikipedia.org/wiki/ISO_8601"
+      ]
+    },
+    {
+      "topic": "i18n-character-handling",
+      "decision": "Treat text as Unicode throughout: UTF-8 on the wire and at rest, NFC normalisation for storage and equality, grapheme-cluster boundaries for user-visible operations, locale-aware collation for sorting",
+      "rationale": "Users perceive a character as a grapheme cluster — a unit that may span multiple code points (accented letters, emoji with skin-tone modifiers, complex scripts). Matching the user's perception requires operating on grapheme clusters for any visible operation. Unicode normalisation (NFC) gives equality a stable definition by collapsing canonically equivalent encodings, so two byte sequences that the user reads as the same string compare equal. Locale-aware collation produces the order users expect from their language's sorting rules — Swedish sorts ÿ after z, German treats ß as ss in some contexts, Chinese sorts by stroke or pinyin depending on the variant.",
+      "details": "Store and transport text as UTF-8. Normalise to NFC at storage and comparison boundaries (unicode-segmentation, idna, java.text.Normalizer, ICU NormalizationService, or platform-equivalent). For user-visible operations such as truncation, cursor movement, length display, or reverse, iterate by grapheme cluster rather than indexing into the code-unit or code-point array. Sort user-visible lists with the platform's collator configured to the active locale (Intl.Collator, java.text.Collator, ICU UCollator, golang.org/x/text/collate); reserve byte-order or code-point-order sorting for internal keys where stability across locales matters more than cultural correctness.",
+      "references": [
+        "https://unicode.org/reports/tr15/",
+        "https://unicode.org/reports/tr29/"
+      ]
+    },
+    {
+      "topic": "i18n-bidi-and-layout",
+      "decision": "Build layouts that mirror cleanly between left-to-right and right-to-left scripts using direction-agnostic primitives, and verify the result against at least one RTL locale",
+      "rationale": "Right-to-left scripts (Arabic, Hebrew, Persian, Urdu, Pashto) flow in the opposite direction from Latin scripts, so layout primitives that name physical sides cannot serve both. Direction-agnostic primitives — CSS logical properties, dir-aware containers, mirrored asset variants — let one design serve both reading orders correctly: buttons land in the right place for the reader, direction-implying icons (chevrons, arrows, progress bars) align with the reading order, and bidirectional runs within a paragraph render naturally.",
+      "details": "Use CSS logical properties (margin-inline-start, padding-inline-end, border-inline-start, inset-inline) instead of physical left and right equivalents. Set the dir attribute on the document root from the active locale and let the platform handle bidirectional runs within text. Provide mirrored versions of icons whose meaning depends on direction (back / forward arrows, undo / redo, threaded reply indicators); leave direction-neutral icons (gear, search, close) as a single asset. On Apple, Android, and other native UI frameworks, use the leading / trailing primitives the platform provides. Include at least one RTL locale in the CI screenshot suite or in a manual review pass before each release.",
+      "references": [
+        "https://www.w3.org/International/articles/inline-bidi-markup/",
+        "https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_logical_properties_and_values"
+      ]
+    },
+    {
+      "topic": "i18n-pseudolocalisation",
+      "decision": "Add a pseudo-locale to the build (for example en-XA accented mock and ar-XB mirrored mock) and run the application or a key set of screens under it in CI",
+      "rationale": "A pseudo-locale catches three classes of i18n defect before any human translator is involved: strings hardcoded in source rather than externalised (they appear unchanged), layouts that overflow when text expands by 30–50% (typical for German, French, Russian renderings of English UI), and bidi or RTL layout assumptions. Running the application under a pseudo-locale on every PR keeps the project translation-ready without paying for translator time during development.",
+      "details": "Generate the pseudo-locale automatically from the source-language resource file at build time: en-XA wraps each string with accented characters and pads it (\"Ḣéļļō ŵōŕļḋ! 你好！\"), ar-XB reverses the string and applies RTL markers. Run the application's smoke tests and a screenshot suite under both pseudo-locales as part of CI. Treat pseudo-locale failures as blocking on the PRs that introduce them, since hardcoded strings discovered after release are far more expensive to fix.",
+      "references": [
+        "https://en.wikipedia.org/wiki/Pseudolocalization",
+        "https://www.w3.org/International/articles/pseudo-localization/"
+      ]
+    },
+    {
+      "topic": "i18n-translation-workflow",
+      "decision": "Source-language resources are canonical; translations of application strings flow through a TMS or controlled handoff edited only by target-language speakers; translated documentation is a separate commitment, treated as a per-language fork pinned to a source version",
+      "rationale": "Application strings and long-form documentation are translated under different constraints. Application strings are short, repeat across screens, benefit from translation memory, and fit a TMS workflow (Crowdin, Lokalise, Weblate, Pontoon, Transifex) where translators see source changes and respond to them. Documentation is long-form prose where each paragraph drifts independently and currency matters more — a reader following six-month-old translated install instructions hits failures the source-language reader does not. Both surfaces share one principle: developers and reviewers edit only the source language, and translation work is done by speakers of the target language.",
+      "details": "Application strings — Developers and reviewers edit the source-language resource file only; the TMS detects changes and surfaces them with context to translators. New keys land in the source file with a translator comment explaining context. Translators submit completed locales back to the repository (PR or automated sync). Review of translated strings is by a speaker of the target language. Where a TMS is too heavy for the project, batch handoffs (export, translate, re-import) are acceptable; the principle that no one paraphrases translations during code review still applies.\n\nDocumentation — Decide explicitly whether the project commits to translating docs and which languages it will sustain. Translated docs live in a parallel directory tree per locale (Docusaurus i18n, docs/<lang>/, or the framework's equivalent), and each translated page records the source version or commit it was translated against. Where the translation has fallen behind the source, surface that to readers (badge, banner, or transparent fall-through to the source language). Where the project does not commit to docs translation, ship source-language only; community translations may be linked but flagged as community-maintained.",
+      "references": [
+        "https://docusaurus.io/docs/i18n/introduction"
+      ]
+    },
+    {
+      "topic": "i18n-api-surface",
+      "decision": "Web and HTTP APIs accept Accept-Language, return a stable machine-readable code alongside any translated message, document the supported locale set, and fall back to the source locale when a requested locale is unavailable",
+      "rationale": "Returning a stable machine-readable code alongside any translated message gives clients a reliable handle for branching and error handling that survives rephrasing of the human-readable text. Honouring Accept-Language lets clients delegate locale choice to the user agent or specify it explicitly per request, while documenting the supported locale set keeps client expectations honest. Field names and enum values stay in the source language because they are part of the API contract; only the human-readable strings translate.",
+      "details": "Negotiate locale per request from the Accept-Language header (RFC 4647 best-fit lookup), with an optional explicit override via query parameter or header. Response shape includes a machine-readable code (\"INSUFFICIENT_FUNDS\", \"VALIDATION.EMAIL.INVALID\") that is part of the API contract and never translated, plus a translated message in the negotiated locale. Field names and enum values stay in the source language. Document the supported locale list as part of the API specification (OpenAPI, GraphQL schema description). On request for an unsupported locale, fall back to the closest supported one (en-AU → en-GB → en, fr-CA → fr) and return the locale actually served in a Content-Language header.",
+      "references": [
+        "https://datatracker.ietf.org/doc/html/rfc4647",
+        "https://datatracker.ietf.org/doc/html/rfc7231#section-5.3.5"
+      ]
+    }
+  ]
+}

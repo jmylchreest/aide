@@ -11,9 +11,9 @@
   "decisions": [
     {
       "topic": "code-documentation",
-      "decision": "Code should be self-documenting; write docs for WHY, not WHAT",
-      "rationale": "Comments that restate what code does become stale and misleading. Documentation that explains intent, constraints, and non-obvious decisions remains valuable as code evolves.",
-      "details": "Name things clearly. Document: public API contracts, non-obvious design decisions, performance constraints, security boundaries. Use ADRs for cross-cutting architectural decisions.",
+      "decision": "Let code carry the WHAT through clear names and structure; reserve comments for high-value WHY — the decisions, invariants, and constraints a careful reader could not recover from the source",
+      "rationale": "Well-named identifiers and clear control flow already convey what the code does. What a reader cannot recover from the source is the surrounding context: the invariant being preserved, the constraint that forced this shape, the alternative that was rejected, the spec or incident that motivated the design. Concentrating comments on that context keeps every comment worth reading and ensures the ones that exist carry real signal.",
+      "details": "Default to no comment. Add one when its absence would lose information a careful reader could not reconstruct from the code itself. Worthwhile comments explain: invariants and what enforces them, non-obvious preconditions and postconditions, the reasoning behind a chosen approach where the alternative was plausible, performance or concurrency constraints that shaped the implementation, security boundaries, and references to a spec, RFC, or incident that motivated the current shape. Document public API contracts using the language's doc-comment convention (godoc, rustdoc, typedoc, JSDoc, etc.) so consumers see them rendered. Use ADRs for cross-cutting architectural decisions whose context spans many files.",
       "references": []
     },
     {
