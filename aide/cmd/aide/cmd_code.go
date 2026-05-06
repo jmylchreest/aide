@@ -498,36 +498,12 @@ func (idx *Indexer) IndexFile(filePath string) (int, error) {
 		}
 	}
 
-	// Parse file for symbols
 	symbols, err := idx.parser.ParseFile(filePath)
 	if err != nil {
 		return 0, err
 	}
-
-	// Parse file for references
 	refs, _ := idx.parser.ParseFileReferences(filePath)
 
-	// Clear existing symbols and references
-	idx.store.ClearFile(relPath)
-	idx.store.ClearFileReferences(relPath)
-
-	// Store symbols
-	symbolIDs := make([]string, 0, len(symbols))
-	for _, sym := range symbols {
-		sym.FilePath = relPath
-		if err := idx.store.AddSymbol(sym); err != nil {
-			continue
-		}
-		symbolIDs = append(symbolIDs, sym.ID)
-	}
-
-	// Store references
-	for _, ref := range refs {
-		ref.FilePath = relPath
-		idx.store.AddReference(ref)
-	}
-
-	// Update file info with token estimate
 	info, _ := os.Stat(filePath)
 	modTime := time.Now()
 	var sizeBytes int64
@@ -536,14 +512,9 @@ func (idx *Indexer) IndexFile(filePath string) (int, error) {
 		sizeBytes = info.Size()
 	}
 
-	idx.store.SetFileInfo(&code.FileInfo{
-		Path:      relPath,
-		ModTime:   modTime,
-		SymbolIDs: symbolIDs,
-		Tokens:    code.EstimateTokensFromSize(relPath, sizeBytes),
-		SizeBytes: sizeBytes,
-	})
-
+	if err := idx.store.IndexFileBatch(relPath, symbols, refs, modTime, sizeBytes); err != nil {
+		return 0, err
+	}
 	return len(symbols), nil
 }
 

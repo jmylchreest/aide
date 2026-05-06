@@ -93,8 +93,16 @@ type Store interface {
 }
 
 // CodeIndexStore provides code symbol indexing and search.
+//
+// IndexFileBatch is the only path interface consumers should use to write
+// new symbols / references / file metadata — it commits all of a file's
+// records in a single bbolt tx and a single Bleve batch. The per-record
+// AddSymbol / AddReference / SetFileInfo methods remain on the concrete
+// *CodeStore (for in-package tests with direct access) but are intentionally
+// NOT part of the interface contract: every callable interface consumer was
+// migrated to IndexFileBatch, and exposing the per-record API would invite
+// regressions back to the per-record-fsync hot path.
 type CodeIndexStore interface {
-	AddSymbol(sym *code.Symbol) error
 	GetSymbol(id string) (*code.Symbol, error)
 	DeleteSymbol(id string) error
 	SearchSymbols(query string, opts code.SearchOptions) ([]*CodeSearchResult, error)
@@ -102,10 +110,8 @@ type CodeIndexStore interface {
 	GetContainingSymbol(filePath string, line int) (*code.Symbol, error)
 	GetFileInfo(path string) (*code.FileInfo, error)
 	ListAllFileInfo() ([]*code.FileInfo, error)
-	SetFileInfo(info *code.FileInfo) error
 	ClearFile(filePath string) error
 	IndexFileBatch(filePath string, symbols []*code.Symbol, refs []*code.Reference, mtime time.Time, sizeBytes int64) error
-	AddReference(ref *code.Reference) error
 	SearchReferences(opts code.ReferenceSearchOptions) ([]*code.Reference, error)
 	GetFileReferences(filePath string) ([]*code.Reference, error)
 	ClearFileReferences(filePath string) error

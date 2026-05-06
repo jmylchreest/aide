@@ -270,34 +270,14 @@ func (b *Backend) IndexCodeWithProgress(paths []string, force bool, progress fun
 			if err != nil {
 				return nil
 			}
-
 			refs, _ := parser.ParseFileReferences(path)
 
-			codeStore.ClearFile(relPath)
-			codeStore.ClearFileReferences(relPath)
-
-			var symbolIDs []string
-			for _, sym := range symbols {
-				sym.FilePath = relPath
-				if err := codeStore.AddSymbol(sym); err != nil {
-					continue
-				}
-				symbolIDs = append(symbolIDs, sym.ID)
-				result.SymbolsIndexed++
+			if err := codeStore.IndexFileBatch(relPath, symbols, refs, info.ModTime(), info.Size()); err != nil {
+				return nil
 			}
-
-			for _, ref := range refs {
-				ref.FilePath = relPath
-				codeStore.AddReference(ref)
-			}
-
-			codeStore.SetFileInfo(&code.FileInfo{
-				Path:      relPath,
-				ModTime:   info.ModTime(),
-				SymbolIDs: symbolIDs,
-			})
 
 			result.FilesIndexed++
+			result.SymbolsIndexed += len(symbols)
 
 			if progress != nil {
 				progress(relPath, len(symbols))
