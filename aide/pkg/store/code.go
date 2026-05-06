@@ -312,30 +312,11 @@ func (s *CodeStore) Close() error {
 }
 
 // AddSymbol stores a symbol and indexes it for search.
-func (s *CodeStore) AddSymbol(sym *code.Symbol) error {
-	// Generate ID if not set
-	if sym.ID == "" {
-		sym.ID = ulid.Make().String()
-	}
-	if sym.CreatedAt.IsZero() {
-		sym.CreatedAt = time.Now()
-	}
-
-	// Store in BBolt
-	err := s.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket(BucketSymbols)
-		data, err := json.Marshal(sym)
-		if err != nil {
-			return err
-		}
-		return b.Put([]byte(sym.ID), data)
-	})
-	if err != nil {
-		return fmt.Errorf("failed to store symbol: %w", err)
-	}
-
-	// Index for search
-	doc := map[string]interface{}{
+// buildSymbolBleveDoc returns the Bleve document for a symbol. Shared between
+// per-record AddSymbol and the bulk IndexFileBatch path so search indexing
+// stays consistent across both.
+func buildSymbolBleveDoc(sym *code.Symbol) map[string]interface{} {
+	return map[string]interface{}{
 		"name":      sym.Name,
 		"name_edge": sym.Name,
 		"signature": sym.Signature,
@@ -344,10 +325,41 @@ func (s *CodeStore) AddSymbol(sym *code.Symbol) error {
 		"lang":      sym.Language,
 		"file":      sym.FilePath,
 	}
-	if err := s.search.Index(sym.ID, doc); err != nil {
-		return fmt.Errorf("failed to index symbol: %w", err)
+}
+
+// addSymbolTx writes a symbol to BucketSymbols inside an existing tx. The
+// caller is responsible for indexing the symbol into the Bleve search index
+// (or for accumulating it into a Bleve batch); this helper only touches bbolt.
+func (s *CodeStore) addSymbolTx(tx *bolt.Tx, sym *code.Symbol) error {
+	if sym.ID == "" {
+		sym.ID = ulid.Make().String()
+	}
+	if sym.CreatedAt.IsZero() {
+		sym.CreatedAt = time.Now()
 	}
 
+	b := tx.Bucket(BucketSymbols)
+	data, err := json.Marshal(sym)
+	if err != nil {
+		return err
+	}
+	return b.Put([]byte(sym.ID), data)
+}
+
+// AddSymbol stores a symbol and indexes it for search. Each call opens its
+// own bbolt transaction and a single Bleve Index call — fine for ad-hoc
+// callers (CLI helpers, tests) but inefficient for indexer hot paths, which
+// should use IndexFileBatch instead.
+func (s *CodeStore) AddSymbol(sym *code.Symbol) error {
+	err := s.db.Update(func(tx *bolt.Tx) error {
+		return s.addSymbolTx(tx, sym)
+	})
+	if err != nil {
+		return fmt.Errorf("failed to store symbol: %w", err)
+	}
+	if err := s.search.Index(sym.ID, buildSymbolBleveDoc(sym)); err != nil {
+		return fmt.Errorf("failed to index symbol: %w", err)
+	}
 	return nil
 }
 
@@ -447,9 +459,12 @@ func (s *CodeStore) SearchSymbols(query string, opts code.SearchOptions) ([]*Cod
 	return results, nil
 }
 
-// AddReference stores a reference.
-func (s *CodeStore) AddReference(ref *code.Reference) error {
-	// Generate ID if not set
+// addReferenceTx writes a reference and updates the reverse index inside an
+// existing tx. The reverse index currently stores a JSON-encoded slice of
+// reference IDs keyed by symbol name, which is O(n) per add — see Tier 1.2
+// for the planned composite-key replacement. Until then this helper preserves
+// the existing on-disk format.
+func (s *CodeStore) addReferenceTx(tx *bolt.Tx, ref *code.Reference) error {
 	if ref.ID == "" {
 		ref.ID = ulid.Make().String()
 	}
@@ -457,36 +472,38 @@ func (s *CodeStore) AddReference(ref *code.Reference) error {
 		ref.CreatedAt = time.Now()
 	}
 
-	// Store in BBolt
-	err := s.db.Update(func(tx *bolt.Tx) error {
-		// Store reference
-		b := tx.Bucket(BucketReferences)
-		data, err := json.Marshal(ref)
-		if err != nil {
-			return err
-		}
-		if err := b.Put([]byte(ref.ID), data); err != nil {
-			return err
-		}
+	b := tx.Bucket(BucketReferences)
+	data, err := json.Marshal(ref)
+	if err != nil {
+		return err
+	}
+	if err := b.Put([]byte(ref.ID), data); err != nil {
+		return err
+	}
 
-		// Update reference index (symbol name -> reference IDs)
-		refIdx := tx.Bucket(BucketRefIndex)
-		key := []byte(ref.SymbolName)
-		ids := make([]string, 0, 1)
-		if existing := refIdx.Get(key); existing != nil {
-			json.Unmarshal(existing, &ids)
-		}
-		ids = append(ids, ref.ID)
-		idsData, err := json.Marshal(ids)
-		if err != nil {
-			return err
-		}
-		return refIdx.Put(key, idsData)
+	refIdx := tx.Bucket(BucketRefIndex)
+	key := []byte(ref.SymbolName)
+	ids := make([]string, 0, 1)
+	if existing := refIdx.Get(key); existing != nil {
+		json.Unmarshal(existing, &ids)
+	}
+	ids = append(ids, ref.ID)
+	idsData, err := json.Marshal(ids)
+	if err != nil {
+		return err
+	}
+	return refIdx.Put(key, idsData)
+}
+
+// AddReference stores a reference. Indexer hot paths should use
+// IndexFileBatch instead so all of a file's references commit in one tx.
+func (s *CodeStore) AddReference(ref *code.Reference) error {
+	err := s.db.Update(func(tx *bolt.Tx) error {
+		return s.addReferenceTx(tx, ref)
 	})
 	if err != nil {
 		return fmt.Errorf("failed to store reference: %w", err)
 	}
-
 	return nil
 }
 
@@ -594,51 +611,57 @@ func (s *CodeStore) GetFileReferences(filePath string) ([]*code.Reference, error
 	return refs, nil
 }
 
+// clearFileReferencesTx removes every reference whose FilePath equals
+// filePath, and trims the reverse index correspondingly. Runs inside an
+// existing tx. Bucket scan is O(total_references) — see Tier 1.1 for the
+// file-keyed secondary index that replaces this with O(per-file).
+func (s *CodeStore) clearFileReferencesTx(tx *bolt.Tx, filePath string) error {
+	refBucket := tx.Bucket(BucketReferences)
+	refIdx := tx.Bucket(BucketRefIndex)
+
+	c := refBucket.Cursor()
+	var toDelete [][]byte
+	for k, v := c.First(); k != nil; k, v = c.Next() {
+		var ref code.Reference
+		if err := json.Unmarshal(v, &ref); err != nil {
+			continue
+		}
+		if ref.FilePath != filePath {
+			continue
+		}
+		toDelete = append(toDelete, append([]byte(nil), k...))
+
+		indexKey := []byte(ref.SymbolName)
+		if data := refIdx.Get(indexKey); data != nil {
+			var ids []string
+			json.Unmarshal(data, &ids)
+			newIds := make([]string, 0, len(ids))
+			for _, id := range ids {
+				if id != string(k) {
+					newIds = append(newIds, id)
+				}
+			}
+			if len(newIds) > 0 {
+				newData, _ := json.Marshal(newIds)
+				refIdx.Put(indexKey, newData)
+			} else {
+				refIdx.Delete(indexKey)
+			}
+		}
+	}
+
+	for _, k := range toDelete {
+		if err := refBucket.Delete(k); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // ClearFileReferences removes all references from a file.
 func (s *CodeStore) ClearFileReferences(filePath string) error {
 	return s.db.Update(func(tx *bolt.Tx) error {
-		refBucket := tx.Bucket(BucketReferences)
-		refIdx := tx.Bucket(BucketRefIndex)
-
-		// Find all references in this file and remove them
-		c := refBucket.Cursor()
-		var toDelete [][]byte
-
-		for k, v := c.First(); k != nil; k, v = c.Next() {
-			var ref code.Reference
-			if err := json.Unmarshal(v, &ref); err != nil {
-				continue
-			}
-			if ref.FilePath == filePath {
-				toDelete = append(toDelete, k)
-
-				// Also remove from index
-				indexKey := []byte(ref.SymbolName)
-				if data := refIdx.Get(indexKey); data != nil {
-					var ids []string
-					json.Unmarshal(data, &ids)
-					// Remove this ID from the list
-					newIds := make([]string, 0, len(ids)-1)
-					for _, id := range ids {
-						if id != string(k) {
-							newIds = append(newIds, id)
-						}
-					}
-					if len(newIds) > 0 {
-						newData, _ := json.Marshal(newIds)
-						refIdx.Put(indexKey, newData)
-					} else {
-						refIdx.Delete(indexKey)
-					}
-				}
-			}
-		}
-
-		for _, k := range toDelete {
-			refBucket.Delete(k)
-		}
-
-		return nil
+		return s.clearFileReferencesTx(tx, filePath)
 	})
 }
 
@@ -681,47 +704,165 @@ func (s *CodeStore) ListAllFileInfo() ([]*code.FileInfo, error) {
 	return infos, nil
 }
 
+// setFileInfoTx writes FileInfo for a path inside an existing tx.
+func (s *CodeStore) setFileInfoTx(tx *bolt.Tx, info *code.FileInfo) error {
+	b := tx.Bucket(BucketFileIndex)
+	data, err := json.Marshal(info)
+	if err != nil {
+		return err
+	}
+	return b.Put([]byte(info.Path), data)
+}
+
 // SetFileInfo stores file tracking info.
 func (s *CodeStore) SetFileInfo(info *code.FileInfo) error {
 	return s.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket(BucketFileIndex)
-		data, err := json.Marshal(info)
-		if err != nil {
-			return err
-		}
-		return b.Put([]byte(info.Path), data)
+		return s.setFileInfoTx(tx, info)
 	})
 }
 
-// ClearFile removes all symbols for a file and its tracking info.
-func (s *CodeStore) ClearFile(filePath string) error {
-	// Always scan the symbol bucket by FilePath. The FileInfo.SymbolIDs
-	// list cannot be trusted to be complete — historical bugs (and crash-
-	// during-write scenarios) have left in-file orphan rows that survive
-	// re-indexing forever when ClearFile only deletes the IDs listed in
-	// FileInfo. Bucket scan is O(symbols) but cheap relative to a parse.
+// clearFileTx removes all symbols whose FilePath matches filePath plus the
+// FileInfo entry for that path, and returns the symbol IDs removed so the
+// caller can drop them from the Bleve search index.
+//
+// Always scans BucketSymbols by FilePath rather than trusting
+// FileInfo.SymbolIDs — historical bugs and crash-during-write scenarios
+// have left in-file orphan rows that survive re-indexing forever when
+// ClearFile only deletes the IDs listed in FileInfo. Bucket scan is
+// O(total_symbols) — see Tier 1.1 for the file-keyed secondary index
+// that replaces this with O(per-file).
+func (s *CodeStore) clearFileTx(tx *bolt.Tx, filePath string) ([]string, error) {
+	b := tx.Bucket(BucketSymbols)
 	var matchingIDs []string
-	_ = s.db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket(BucketSymbols)
-		return b.ForEach(func(k, v []byte) error {
-			var sym code.Symbol
-			if err := json.Unmarshal(v, &sym); err != nil {
-				return nil
-			}
-			if sym.FilePath == filePath {
-				matchingIDs = append(matchingIDs, string(k))
-			}
+	if err := b.ForEach(func(k, v []byte) error {
+		var sym code.Symbol
+		if err := json.Unmarshal(v, &sym); err != nil {
 			return nil
+		}
+		if sym.FilePath == filePath {
+			matchingIDs = append(matchingIDs, string(k))
+		}
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	for _, id := range matchingIDs {
+		if err := b.Delete([]byte(id)); err != nil {
+			return nil, err
+		}
+	}
+	if err := tx.Bucket(BucketFileIndex).Delete([]byte(filePath)); err != nil {
+		return nil, err
+	}
+	return matchingIDs, nil
+}
+
+// ClearFile removes all symbols for a file (in bbolt and Bleve) and its
+// FileInfo entry.
+func (s *CodeStore) ClearFile(filePath string) error {
+	var clearedIDs []string
+	err := s.db.Update(func(tx *bolt.Tx) error {
+		ids, err := s.clearFileTx(tx, filePath)
+		clearedIDs = ids
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	if s.search != nil && len(clearedIDs) > 0 {
+		batch := s.search.NewBatch()
+		for _, id := range clearedIDs {
+			batch.Delete(id)
+		}
+		if err := s.search.Batch(batch); err != nil {
+			return fmt.Errorf("failed to delete cleared symbols from search: %w", err)
+		}
+	}
+	return nil
+}
+
+// IndexFileBatch performs all the per-file write work — optional clear,
+// symbol writes, reference writes, FileInfo update — inside a single bbolt
+// transaction, and applies the corresponding Bleve search updates as a
+// single batch after the bbolt commit.
+//
+// Why this exists: the per-record AddSymbol/AddReference/SetFileInfo path
+// opens its own transaction (and pays bbolt's two fdatasyncs per commit) for
+// every record. On the indexer hot path with hundreds of symbols and
+// thousands of references per file, that fsync amplification dominated
+// wall-clock time. IndexFileBatch collapses everything into one commit per
+// file regardless of record count, and lets Bleve apply many doc updates
+// in one batch (which Bleve documents as the bulk-load fast path).
+//
+// bbolt and Bleve are independent stores; the bbolt commit happens first,
+// the Bleve batch second. If the Bleve apply fails after the bbolt commit
+// the search index will be temporarily out of sync — the daemon's startup
+// reconcile is the safety net for that case, the same one that handles
+// in-file orphans from prior crashed writes.
+func (s *CodeStore) IndexFileBatch(
+	filePath string,
+	symbols []*code.Symbol,
+	refs []*code.Reference,
+	mtime time.Time,
+	sizeBytes int64,
+) error {
+	var clearedIDs []string
+	var symbolIDs []string
+
+	err := s.db.Update(func(tx *bolt.Tx) error {
+		// Skip the clear pass when the file has never been indexed before;
+		// there is nothing to clear and the bucket scan is pure overhead.
+		// Orphans from a prior crashed write are caught by startup reconcile.
+		if tx.Bucket(BucketFileIndex).Get([]byte(filePath)) != nil {
+			ids, err := s.clearFileTx(tx, filePath)
+			if err != nil {
+				return err
+			}
+			clearedIDs = ids
+			if err := s.clearFileReferencesTx(tx, filePath); err != nil {
+				return err
+			}
+		}
+
+		for _, sym := range symbols {
+			sym.FilePath = filePath
+			if err := s.addSymbolTx(tx, sym); err != nil {
+				return err
+			}
+			symbolIDs = append(symbolIDs, sym.ID)
+		}
+		for _, ref := range refs {
+			ref.FilePath = filePath
+			if err := s.addReferenceTx(tx, ref); err != nil {
+				return err
+			}
+		}
+		return s.setFileInfoTx(tx, &code.FileInfo{
+			Path:      filePath,
+			ModTime:   mtime,
+			SymbolIDs: symbolIDs,
+			Tokens:    code.EstimateTokensFromSize(filePath, sizeBytes),
+			SizeBytes: sizeBytes,
 		})
 	})
-	for _, id := range matchingIDs {
-		s.DeleteSymbol(id)
+	if err != nil {
+		return fmt.Errorf("failed to index file %q: %w", filePath, err)
 	}
 
-	return s.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket(BucketFileIndex)
-		return b.Delete([]byte(filePath))
-	})
+	if s.search == nil || (len(clearedIDs) == 0 && len(symbols) == 0) {
+		return nil
+	}
+	batch := s.search.NewBatch()
+	for _, id := range clearedIDs {
+		batch.Delete(id)
+	}
+	for _, sym := range symbols {
+		batch.Index(sym.ID, buildSymbolBleveDoc(sym))
+	}
+	if err := s.search.Batch(batch); err != nil {
+		return fmt.Errorf("failed to apply bleve batch for %q: %w", filePath, err)
+	}
+	return nil
 }
 
 // Clear removes all symbols, references, and file tracking data.

@@ -949,19 +949,17 @@ func (s *codeServiceImpl) Index(req *CodeIndexRequest, stream grpc.ServerStreami
 				relPath = rel
 			}
 
-			// One lookup serves both the incremental-skip check and the
-			// "is this file already in the index?" decision below.
-			existing, _ := cs.GetFileInfo(relPath)
-
 			// Incremental mode: skip if mtime matches the indexed version.
-			if !req.Force && existing != nil && existing.ModTime.Equal(info.ModTime()) {
-				filesSkipped++
-				return sendProgress(stream, &CodeIndexProgress{
-					Path:         relPath,
-					FilesDone:    filesIndexed,
-					FilesSkipped: filesSkipped,
-					Skipped:      true,
-				})
+			if !req.Force {
+				if existing, err := cs.GetFileInfo(relPath); err == nil && existing.ModTime.Equal(info.ModTime()) {
+					filesSkipped++
+					return sendProgress(stream, &CodeIndexProgress{
+						Path:         relPath,
+						FilesDone:    filesIndexed,
+						FilesSkipped: filesSkipped,
+						Skipped:      true,
+					})
+				}
 			}
 
 			// Parse file for symbols and references. References are required
@@ -974,46 +972,18 @@ func (s *codeServiceImpl) Index(req *CodeIndexRequest, stream grpc.ServerStreami
 			}
 			refs, _ := s.parser.ParseFileReferences(path)
 
-			// Only clear when the file is already in the index. ClearFile and
-			// ClearFileReferences scan the entire Symbols/References buckets
-			// linearly to find rows for this path; on a first-time index of
-			// a never-seen file there is nothing to clear and the scans are
-			// pure overhead. Orphans from a crashed prior write are cleaned
-			// by the daemon's startup reconcile pass, not by this fast path.
-			if existing != nil {
-				cs.ClearFile(relPath)
-				cs.ClearFileReferences(relPath)
+			// Single bbolt transaction + single Bleve batch for the whole
+			// file. IndexFileBatch internally skips the clear pass for files
+			// not already in the index. On error we drop the file and keep
+			// walking — the alternative (aborting the walk on any per-file
+			// failure) would lose the rest of the indexer run.
+			if err := cs.IndexFileBatch(relPath, symbols, refs, info.ModTime(), info.Size()); err != nil {
+				return nil
 			}
-
-			// Store symbols
-			var symbolIDs []string
-			fileSymbols := int32(0)
-			for _, sym := range symbols {
-				sym.FilePath = relPath
-				if err := cs.AddSymbol(sym); err != nil {
-					continue
-				}
-				symbolIDs = append(symbolIDs, sym.ID)
-				symbolsIndexed++
-				fileSymbols++
-			}
-
-			// Store references
-			for _, ref := range refs {
-				ref.FilePath = relPath
-				cs.AddReference(ref)
-			}
-
-			// Update file info with token estimate
-			cs.SetFileInfo(&code.FileInfo{
-				Path:      relPath,
-				ModTime:   info.ModTime(),
-				SymbolIDs: symbolIDs,
-				Tokens:    code.EstimateTokensFromSize(relPath, info.Size()),
-				SizeBytes: info.Size(),
-			})
 
 			filesIndexed++
+			fileSymbols := int32(len(symbols))
+			symbolsIndexed += fileSymbols
 			return sendProgress(stream, &CodeIndexProgress{
 				Path:         relPath,
 				Symbols:      fileSymbols,

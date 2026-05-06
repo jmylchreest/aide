@@ -475,6 +475,9 @@ func (m *mockCodeIndexStore) GetFileInfo(path string) (*code.FileInfo, error) { 
 func (m *mockCodeIndexStore) ListAllFileInfo() ([]*code.FileInfo, error)      { return nil, nil }
 func (m *mockCodeIndexStore) SetFileInfo(info *code.FileInfo) error           { return nil }
 func (m *mockCodeIndexStore) ClearFile(filePath string) error                 { return nil }
+func (m *mockCodeIndexStore) IndexFileBatch(filePath string, symbols []*code.Symbol, refs []*code.Reference, mtime time.Time, sizeBytes int64) error {
+	return nil
+}
 func (m *mockCodeIndexStore) AddReference(ref *code.Reference) error          { return nil }
 func (m *mockCodeIndexStore) ClearFileReferences(filePath string) error       { return nil }
 func (m *mockCodeIndexStore) Stats() (*code.IndexStats, error)                { return nil, nil }

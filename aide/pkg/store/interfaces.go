@@ -104,6 +104,7 @@ type CodeIndexStore interface {
 	ListAllFileInfo() ([]*code.FileInfo, error)
 	SetFileInfo(info *code.FileInfo) error
 	ClearFile(filePath string) error
+	IndexFileBatch(filePath string, symbols []*code.Symbol, refs []*code.Reference, mtime time.Time, sizeBytes int64) error
 	AddReference(ref *code.Reference) error
 	SearchReferences(opts code.ReferenceSearchOptions) ([]*code.Reference, error)
 	GetFileReferences(filePath string) ([]*code.Reference, error)
