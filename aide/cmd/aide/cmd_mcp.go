@@ -903,6 +903,7 @@ Environment Variables:
   AIDE_CODE_WATCH_PATHS     Comma-separated paths to watch
   AIDE_CODE_WATCH_DELAY     Debounce delay (default: 30s)
   AIDE_INDEX_NON_VCS=1      Allow watcher in non-VCS dirs (default: refuse)
+  AIDE_INDEX_WORKERS=N      Parallel parser workers for code indexing (default: NumCPU, max 32)
   AIDE_CODE_STORE_DISABLE=1 Disable code store entirely
   AIDE_CODE_STORE_SYNC=1    Force synchronous code store init (default: lazy)
   AIDE_PPROF_ENABLE=1       Enable pprof profiling (requires -tags pprof build)

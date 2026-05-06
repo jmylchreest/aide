@@ -10,6 +10,7 @@ package config
 
 import (
 	"fmt"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -35,6 +36,11 @@ type Config struct {
 	// IndexNonVCS is kept top-level so the legacy AIDE_INDEX_NON_VCS env var
 	// (no AIDE_CODE_ prefix) still maps without bespoke rewrites.
 	IndexNonVCS bool `koanf:"index_non_vcs"`
+	// IndexWorkers caps the number of parallel tree-sitter parser
+	// goroutines the Index handler spawns. Zero or unset => runtime.NumCPU().
+	// Negative values are treated as zero. Values above 32 are clamped.
+	// Use IndexWorkerCount() to read the resolved value.
+	IndexWorkers int `koanf:"index_workers"`
 
 	Code    CodeConfig    `koanf:"code"`
 	Pprof   PprofConfig   `koanf:"pprof"`
@@ -88,6 +94,23 @@ type MemoryConfig struct {
 
 // WatchPathList parses Code.WatchPaths as a comma-separated list, returning
 // an empty slice when the value is unset. Trims whitespace around entries.
+// IndexWorkerCount resolves Config.IndexWorkers into a positive worker
+// count: zero or negative falls back to runtime.NumCPU(); values above
+// the upper bound clamp down. Past ~16-32 the indexer is bottlenecked
+// elsewhere (single bbolt write tx, Bleve batch apply) so larger
+// settings just consume more memory for no throughput gain.
+func (c *Config) IndexWorkerCount() int {
+	const maxWorkers = 32
+	n := c.IndexWorkers
+	if n <= 0 {
+		n = runtime.NumCPU()
+	}
+	if n > maxWorkers {
+		n = maxWorkers
+	}
+	return n
+}
+
 func (c CodeConfig) WatchPathList() []string {
 	if c.WatchPaths == "" {
 		return nil

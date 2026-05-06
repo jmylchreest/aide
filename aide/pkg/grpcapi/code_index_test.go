@@ -3,11 +3,13 @@ package grpcapi
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/jmylchreest/aide/aide/pkg/code"
+	"github.com/jmylchreest/aide/aide/pkg/config"
 	"github.com/jmylchreest/aide/aide/pkg/grammar"
 	"github.com/jmylchreest/aide/aide/pkg/store"
 	"google.golang.org/grpc"
@@ -193,5 +195,66 @@ func TestCodeIndex_RejectsPathsOutsideProject(t *testing.T) {
 	err := svc.Index(&CodeIndexRequest{Paths: []string{other}}, stream)
 	if err == nil {
 		t.Fatal("expected error for path outside project")
+	}
+}
+
+// TestCodeIndex_WorkerPoolMatchesSerial verifies that running the worker-pool
+// path against a multi-file walk produces the same FilesIndexed total and
+// per-file progress event count as the workers=1 baseline. Symbol counts must
+// also match — parallelism is not allowed to change the indexed result, only
+// the time it takes to produce it.
+func TestCodeIndex_WorkerPoolMatchesSerial(t *testing.T) {
+	// Not parallel: mutates the global config cache via config.Set.
+	const fileCount = 20
+
+	run := func(t *testing.T, workers int) (filesIndexed, progressEvents int32, summarySymbols int32) {
+		t.Helper()
+		config.Set(&config.Config{IndexWorkers: workers})
+		t.Cleanup(func() { config.Set(&config.Config{}) })
+
+		tmp := t.TempDir()
+		for i := 0; i < fileCount; i++ {
+			body := fmt.Sprintf("package p\nfunc F%d() {}\n", i)
+			writeGoFile(t, filepath.Join(tmp, fmt.Sprintf("f%02d.go", i)), body)
+		}
+
+		svc := newCodeServiceFixture(t, tmp)
+		stream := &fakeIndexStream{ctx: context.Background()}
+		if err := svc.Index(&CodeIndexRequest{Paths: []string{tmp}, Force: true}, stream); err != nil {
+			t.Fatalf("Index: %v", err)
+		}
+
+		var summary *CodeIndexResponse
+		for _, ev := range stream.events {
+			switch e := ev.Event.(type) {
+			case *CodeIndexEvent_Progress:
+				progressEvents++
+			case *CodeIndexEvent_Summary:
+				summary = e.Summary
+			}
+		}
+		if summary == nil {
+			t.Fatal("expected summary event")
+		}
+		return summary.FilesIndexed, progressEvents, summary.SymbolsIndexed
+	}
+
+	serialFiles, serialEvents, serialSyms := run(t, 1)
+	parallelFiles, parallelEvents, parallelSyms := run(t, 4)
+
+	if serialFiles != int32(fileCount) {
+		t.Errorf("workers=1 FilesIndexed: got %d want %d", serialFiles, fileCount)
+	}
+	if serialEvents != int32(fileCount) {
+		t.Errorf("workers=1 progress events: got %d want %d", serialEvents, fileCount)
+	}
+	if parallelFiles != serialFiles {
+		t.Errorf("workers=4 FilesIndexed (%d) differs from workers=1 (%d)", parallelFiles, serialFiles)
+	}
+	if parallelEvents != serialEvents {
+		t.Errorf("workers=4 progress events (%d) differs from workers=1 (%d)", parallelEvents, serialEvents)
+	}
+	if parallelSyms != serialSyms {
+		t.Errorf("workers=4 SymbolsIndexed (%d) differs from workers=1 (%d)", parallelSyms, serialSyms)
 	}
 }

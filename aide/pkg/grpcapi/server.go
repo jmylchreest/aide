@@ -14,6 +14,7 @@ import (
 	"github.com/jmylchreest/aide/aide/internal/version"
 	"github.com/jmylchreest/aide/aide/pkg/aideignore"
 	"github.com/jmylchreest/aide/aide/pkg/code"
+	"github.com/jmylchreest/aide/aide/pkg/config"
 	"github.com/jmylchreest/aide/aide/pkg/findings"
 	"github.com/jmylchreest/aide/aide/pkg/grammar"
 	"github.com/jmylchreest/aide/aide/pkg/memory"
@@ -881,20 +882,61 @@ func (s *codeServiceImpl) Stats(ctx context.Context, req *CodeStatsRequest) (*Co
 	}, nil
 }
 
+// indexParseWork is what the walker hands to a parser worker — the absolute
+// path to read, the project-relative path to record, and the FileInfo (carries
+// mtime + size) so the parser doesn't re-stat.
+type indexParseWork struct {
+	abs  string
+	rel  string
+	info os.FileInfo
+}
+
+// indexResult travels from a producer (walker for skipped files; parser
+// worker for parsed files) to the single writer goroutine. The writer is the
+// only thing allowed to touch the gRPC stream and the bbolt write tx, so all
+// emit-and-persist work funnels through it in result-arrival order.
+type indexResult struct {
+	rel       string
+	skipped   bool
+	symbols   []*code.Symbol
+	refs      []*code.Reference
+	mtime     time.Time
+	sizeBytes int64
+}
+
+// Index walks the requested paths and indexes every file the supported-files
+// filter accepts. Tree-sitter parsing is the hot CPU cost (per pprof on the
+// Linux kernel) and is pure & per-file, so we fan it out across N parser
+// workers (N = AIDE_INDEX_WORKERS, defaulting to runtime.NumCPU()). The
+// bbolt write tx is exclusive by design, so a single writer goroutine
+// serialises IndexFileBatch and stream.Send.
+//
+// Pipeline shape:
+//
+//	walker ──► parseQueue ──► N parsers ──► resultQueue ──► writer ──► stream
+//
+// Cancellation: a derived ctx is cancelled by the writer on stream-send error
+// so the walker and parsers stop pushing into now-orphaned channels; ctx is
+// also tripped by stream.Context() (Ctrl-C / client disconnect / deadline).
+//
+// Progress event ordering changes vs the old single-threaded path: events
+// arrive in completion order (small files first) rather than walk order.
+// That tracks real progress more accurately and is the documented contract
+// for the streaming RPC.
 func (s *codeServiceImpl) Index(req *CodeIndexRequest, stream grpc.ServerStreamingServer[CodeIndexEvent]) error {
 	cs := s.server.GetCodeStore()
 	if cs == nil {
 		return fmt.Errorf("code store not available")
 	}
 
-	ctx := stream.Context()
+	ctx, cancel := context.WithCancel(stream.Context())
+	defer cancel()
 
 	paths := req.Paths
 	if len(paths) == 0 {
 		paths = []string{"."}
 	}
 
-	// Validate that all requested paths are within the project directory.
 	projRoot := projectRoot(s.server.dbPath)
 	rootPrefix := projRoot + string(filepath.Separator)
 	for _, p := range paths {
@@ -913,87 +955,163 @@ func (s *codeServiceImpl) Index(req *CodeIndexRequest, stream grpc.ServerStreami
 	}
 	shouldSkip := ignore.WalkFunc(projRoot)
 
-	var filesIndexed, symbolsIndexed, filesSkipped int32
+	workers := config.Get().IndexWorkerCount()
+	parseQueue := make(chan indexParseWork, workers*2)
+	resultQueue := make(chan indexResult, workers*2)
 
+	// Parser workers: pull work off parseQueue, run tree-sitter in parallel,
+	// push results to the writer.
+	var parserWG sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		parserWG.Add(1)
+		go func() {
+			defer parserWG.Done()
+			for w := range parseQueue {
+				if ctx.Err() != nil {
+					return
+				}
+				symbols, err := s.parser.ParseFile(w.abs)
+				if err != nil {
+					continue
+				}
+				refs, _ := s.parser.ParseFileReferences(w.abs)
+				select {
+				case resultQueue <- indexResult{
+					rel:       w.rel,
+					symbols:   symbols,
+					refs:      refs,
+					mtime:     w.info.ModTime(),
+					sizeBytes: w.info.Size(),
+				}:
+				case <-ctx.Done():
+					return
+				}
+			}
+		}()
+	}
+
+	// Close resultQueue once every parser has finished draining parseQueue.
+	go func() {
+		parserWG.Wait()
+		close(resultQueue)
+	}()
+
+	// Writer: the only goroutine that calls stream.Send or IndexFileBatch.
+	// Per-file bbolt commit + Bleve batch happen here; counters stay
+	// goroutine-local so atomics aren't needed.
+	var (
+		filesIndexed, symbolsIndexed, filesSkipped int32
+		writerErr                                  error
+	)
+	writerDone := make(chan struct{})
+	go func() {
+		defer close(writerDone)
+		for r := range resultQueue {
+			if ctx.Err() != nil {
+				continue // drain queue but stop emitting
+			}
+			if r.skipped {
+				filesSkipped++
+				if err := sendProgress(stream, &CodeIndexProgress{
+					Path:         r.rel,
+					FilesDone:    filesIndexed,
+					FilesSkipped: filesSkipped,
+					Skipped:      true,
+				}); err != nil {
+					writerErr = err
+					cancel()
+					continue
+				}
+				continue
+			}
+			if err := cs.IndexFileBatch(r.rel, r.symbols, r.refs, r.mtime, r.sizeBytes); err != nil {
+				continue
+			}
+			filesIndexed++
+			fileSymbols := int32(len(r.symbols))
+			symbolsIndexed += fileSymbols
+			if err := sendProgress(stream, &CodeIndexProgress{
+				Path:         r.rel,
+				Symbols:      fileSymbols,
+				FilesDone:    filesIndexed,
+				FilesSkipped: filesSkipped,
+			}); err != nil {
+				writerErr = err
+				cancel()
+				continue
+			}
+		}
+	}()
+
+	// Walker: enumerate files, decide skip-vs-parse, push to either
+	// resultQueue (skipped) or parseQueue (needs parsing). Runs in this
+	// goroutine because filepath.Walk is fundamentally serial.
+	var walkErr error
 	for _, root := range paths {
 		err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-			// Cancel cooperatively. filepath.Walk has no native ctx support, so we
-			// check at the top of every callback — the caller's deadline / Ctrl-C
-			// stops us within one file rather than running to completion.
 			if cerr := ctx.Err(); cerr != nil {
 				return cerr
 			}
 			if err != nil {
-				return nil // Skip files with errors
+				return nil
 			}
-
 			if skip, skipDir := shouldSkip(path, info); skip {
 				if skipDir {
 					return filepath.SkipDir
 				}
 				return nil
 			}
-
 			if info.IsDir() {
 				return nil
 			}
-
-			// Check if file is supported (extension or known filename)
 			if !code.SupportedFile(path) {
 				return nil
 			}
-
-			// Get relative path
 			relPath := path
 			if rel, err := filepath.Rel(projRoot, path); err == nil {
 				relPath = rel
 			}
 
 			// Incremental mode: skip if mtime matches the indexed version.
+			// Done in the walker (one cheap bbolt View) so the parsers
+			// don't waste cycles on tree-sitter for unchanged files.
 			if !req.Force {
 				if existing, err := cs.GetFileInfo(relPath); err == nil && existing.ModTime.Equal(info.ModTime()) {
-					filesSkipped++
-					return sendProgress(stream, &CodeIndexProgress{
-						Path:         relPath,
-						FilesDone:    filesIndexed,
-						FilesSkipped: filesSkipped,
-						Skipped:      true,
-					})
+					select {
+					case resultQueue <- indexResult{rel: relPath, skipped: true}:
+					case <-ctx.Done():
+						return ctx.Err()
+					}
+					return nil
 				}
 			}
 
-			// Parse file for symbols and references. References are required
-			// by the deadcode analyzer (refcount check) and every code_references
-			// query — omitting them silently leaves the index missing all call
-			// sites and type usages from the re-indexed file.
-			symbols, err := s.parser.ParseFile(path)
-			if err != nil {
-				return nil
+			select {
+			case parseQueue <- indexParseWork{abs: path, rel: relPath, info: info}:
+			case <-ctx.Done():
+				return ctx.Err()
 			}
-			refs, _ := s.parser.ParseFileReferences(path)
-
-			// Single bbolt transaction + single Bleve batch for the whole
-			// file. IndexFileBatch internally skips the clear pass for files
-			// not already in the index. On error we drop the file and keep
-			// walking — the alternative (aborting the walk on any per-file
-			// failure) would lose the rest of the indexer run.
-			if err := cs.IndexFileBatch(relPath, symbols, refs, info.ModTime(), info.Size()); err != nil {
-				return nil
-			}
-
-			filesIndexed++
-			fileSymbols := int32(len(symbols))
-			symbolsIndexed += fileSymbols
-			return sendProgress(stream, &CodeIndexProgress{
-				Path:         relPath,
-				Symbols:      fileSymbols,
-				FilesDone:    filesIndexed,
-				FilesSkipped: filesSkipped,
-			})
+			return nil
 		})
 		if err != nil {
-			return err
+			if ctx.Err() == nil {
+				walkErr = err
+			}
+			break
 		}
+	}
+	close(parseQueue)
+
+	<-writerDone
+
+	if walkErr != nil {
+		return walkErr
+	}
+	if writerErr != nil {
+		return writerErr
+	}
+	if cerr := stream.Context().Err(); cerr != nil {
+		return cerr
 	}
 
 	return stream.Send(&CodeIndexEvent{
