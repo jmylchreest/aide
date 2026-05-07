@@ -1,0 +1,28 @@
+name: 'Install Zig (from artifact)'
+description: 'Consume the Zig toolchain produced by the install-zig job and add it to PATH'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Download Zig artifact
+      uses: actions/download-artifact@v6
+      with:
+        name: zig-toolchain
+        path: ${{ runner.temp }}/zig
+
+    - name: Extract and add to PATH
+      shell: bash
+      run: |
+        set -euo pipefail
+        cd "${RUNNER_TEMP}/zig"
+        TARBALL=$(ls zig-x86_64-linux-*.tar.xz | head -1)
+        if [ -z "${TARBALL}" ]; then
+          echo "::error::No Zig tarball found in artifact"
+          ls -la
+          exit 1
+        fi
+        tar -xJf "${TARBALL}"
+        ZIGDIR=$(ls -d zig-x86_64-linux-*/ | head -1 | sed 's,/$,,')
+        echo "${RUNNER_TEMP}/zig/${ZIGDIR}" >> "${GITHUB_PATH}"
+        echo "Zig installed at ${RUNNER_TEMP}/zig/${ZIGDIR}"
+        "${RUNNER_TEMP}/zig/${ZIGDIR}/zig" version
