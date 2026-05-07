@@ -133,7 +133,9 @@ func migrateCodeV2(tx *bolt.Tx) error {
 			}
 		}
 		for _, e := range newIndexEntries {
-			key := append(e.name, 0x00)
+			key := make([]byte, 0, len(e.name)+1+len(e.id))
+			key = append(key, e.name...)
+			key = append(key, 0x00)
 			key = append(key, e.id...)
 			if err := refIdx.Put(key, nil); err != nil {
 				return fmt.Errorf("write v2 refindex entry: %w", err)

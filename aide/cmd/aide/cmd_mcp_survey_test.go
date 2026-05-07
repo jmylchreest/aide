@@ -476,10 +476,10 @@ func (m *mockCodeIndexStore) ClearFile(filePath string) error                 { 
 func (m *mockCodeIndexStore) IndexFileBatch(filePath string, symbols []*code.Symbol, refs []*code.Reference, mtime time.Time, sizeBytes int64) error {
 	return nil
 }
-func (m *mockCodeIndexStore) ClearFileReferences(filePath string) error       { return nil }
-func (m *mockCodeIndexStore) Stats() (*code.IndexStats, error)                { return nil, nil }
-func (m *mockCodeIndexStore) Clear() error                                    { return nil }
-func (m *mockCodeIndexStore) Close() error                                    { return nil }
+func (m *mockCodeIndexStore) ClearFileReferences(filePath string) error { return nil }
+func (m *mockCodeIndexStore) Stats() (*code.IndexStats, error)          { return nil, nil }
+func (m *mockCodeIndexStore) Clear() error                              { return nil }
+func (m *mockCodeIndexStore) Close() error                              { return nil }
 
 func (m *mockCodeIndexStore) SearchSymbols(query string, opts code.SearchOptions) ([]*store.CodeSearchResult, error) {
 	if m.searchSymErr != nil {

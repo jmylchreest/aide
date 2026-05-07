@@ -923,6 +923,8 @@ type indexResult struct {
 // arrive in completion order (small files first) rather than walk order.
 // That tracks real progress more accurately and is the documented contract
 // for the streaming RPC.
+//
+//nolint:gocyclo // pipeline orchestration: path validation, walker, parser fan-out, writer, and three cancellation paths all live here by design.
 func (s *codeServiceImpl) Index(req *CodeIndexRequest, stream grpc.ServerStreamingServer[CodeIndexEvent]) error {
 	cs := s.server.GetCodeStore()
 	if cs == nil {

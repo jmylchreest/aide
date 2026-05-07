@@ -92,8 +92,6 @@ type MemoryConfig struct {
 	DecayEnabled bool `koanf:"decay_enabled"`
 }
 
-// WatchPathList parses Code.WatchPaths as a comma-separated list, returning
-// an empty slice when the value is unset. Trims whitespace around entries.
 // IndexWorkerCount resolves Config.IndexWorkers into a positive worker
 // count: zero or negative falls back to runtime.NumCPU(); values above
 // the upper bound clamp down. Past ~16-32 the indexer is bottlenecked
