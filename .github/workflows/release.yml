@@ -199,12 +199,24 @@ jobs:
           SHUFFLED=$(echo "${MIRRORS}" | grep -v '^[[:space:]]*$' | sort -R)
           CANDIDATES="${SHUFFLED}"$'\n'"https://ziglang.org/builds"
 
+          # Per-attempt budget:
+          #   --connect-timeout 8   bail on dead hosts in <10s
+          #   --speed-time 15       if avg speed drops below…
+          #   --speed-limit 250000  …250 KB/s for 15s straight, abort
+          #   --max-time 60         hard ceiling — a healthy mirror
+          #                         delivers a 50MB tarball in well under this
+          # Combined: a slow/stalled mirror is dropped in ~25s, a dead one
+          # in ~8s; only a genuinely working mirror gets the full 60s.
           DOWNLOADED=""
           while IFS= read -r MIRROR; do
             [ -z "${MIRROR}" ] && continue
             URL="${MIRROR%/}/${TARBALL}?source=github-jmylchreest-aide"
             echo "Trying: ${URL}"
-            if curl -fsSL --max-time 120 --retry 1 "${URL}" -o "${TARBALL}.tmp"; then
+            if curl -fsSL \
+                --connect-timeout 8 \
+                --speed-time 15 --speed-limit 250000 \
+                --max-time 60 \
+                "${URL}" -o "${TARBALL}.tmp"; then
               # Reject tiny responses (mirror returned an HTML error page).
               SIZE=$(stat -c %s "${TARBALL}.tmp" 2>/dev/null || echo 0)
               if [ "${SIZE}" -gt 1000000 ]; then
@@ -216,6 +228,8 @@ jobs:
                 echo "Response too small (${SIZE} bytes), trying next mirror"
                 rm -f "${TARBALL}.tmp"
               fi
+            else
+              rm -f "${TARBALL}.tmp"
             fi
           done <<< "${CANDIDATES}"
 
