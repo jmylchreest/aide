@@ -26,10 +26,12 @@ import { homedir } from "os";
 import { Logger, debug, setDebugCwd } from "../lib/logger.js";
 import { readStdin, detectPlatform } from "../lib/hook-utils.js";
 import { findAideBinary, ensureAideBinary } from "../lib/aide-downloader.js";
+import { findProjectRoot } from "../lib/project-root.js";
 import { recordTokenEvent } from "../core/read-tracking.js";
 import {
   ensureDirectories as coreEnsureDirectories,
   loadConfig as coreLoadConfig,
+  loadGlobalConfig as coreLoadGlobalConfig,
   initializeSession as coreInitializeSession,
   cleanupStaleStateFiles as coreCleanupStaleStateFiles,
   resetHudState as coreResetHudState,
@@ -340,13 +342,35 @@ async function main(): Promise<void> {
     }
 
     const data: HookInput = JSON.parse(input);
-    const cwd = data.cwd || process.cwd();
+    const launchedCwd = data.cwd || process.cwd();
     const sessionId = data.session_id || "unknown";
+
+    // Resolve the project root so we never plant a sibling .aide/ in a
+    // subdirectory of a git repo. Mirrors the Go binary's findProjectRoot().
+    const { root: resolvedRoot, hasMarker } = findProjectRoot(launchedCwd);
+    if (!hasMarker) {
+      const requireGit = coreLoadGlobalConfig().requireGit ?? true;
+      if (requireGit) {
+        process.stderr.write(
+          `[aide] No .git/ or .aide/ found walking up from ${launchedCwd}. ` +
+            `Set \`requireGit\`: false in ~/.aide/config/aide.json to allow ` +
+            `init in arbitrary directories. Skipping AIDE bootstrap.\n`,
+        );
+        console.log(JSON.stringify({ continue: true }));
+        return;
+      }
+      process.stderr.write(
+        `[aide] No project root found, falling back to ${launchedCwd} (requireGit=false).\n`,
+      );
+    }
+    const cwd = hasMarker ? resolvedRoot : launchedCwd;
 
     // Switch debug logging to project-local logs
     setDebugCwd(cwd);
 
-    debugLog(`Parsed input: cwd=${cwd}, sessionId=${sessionId.slice(0, 8)}`);
+    debugLog(
+      `Parsed input: cwd=${cwd}, launchedCwd=${launchedCwd}, sessionId=${sessionId.slice(0, 8)}`,
+    );
 
     // Initialize logger
     log = new Logger("session-start", cwd);

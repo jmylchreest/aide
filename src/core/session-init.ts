@@ -186,23 +186,39 @@ export function getProjectName(cwd: string): string {
 }
 
 /**
- * Load config from .aide/config/aide.json (if it exists).
- * Returns DEFAULT_CONFIG if no config file exists or it can't be parsed.
+ * Load config from ~/.aide/config/aide.json (global).
+ * Used before a project root has been resolved (e.g. by the SessionStart
+ * hook deciding whether to honour `requireGit`).
+ */
+export function loadGlobalConfig(): AideConfig {
+  const configPath = join(homedir(), ".aide", "config", "aide.json");
+  if (!existsSync(configPath)) return DEFAULT_CONFIG;
+  try {
+    return { ...DEFAULT_CONFIG, ...JSON.parse(readFileSync(configPath, "utf-8")) };
+  } catch {
+    return DEFAULT_CONFIG;
+  }
+}
+
+/**
+ * Load config layered as: defaults → global (~/.aide/config/aide.json) →
+ * project (`<cwd>/.aide/config/aide.json`). Project values override global.
  * Does NOT create a default config file — only user-set values are persisted.
  */
 export function loadConfig(cwd: string): AideConfig {
-  const configPath = join(cwd, ".aide", "config", "aide.json");
+  const global = loadGlobalConfig();
+  const projectPath = join(cwd, ".aide", "config", "aide.json");
 
-  if (existsSync(configPath)) {
+  if (existsSync(projectPath)) {
     try {
-      const content = readFileSync(configPath, "utf-8");
-      return { ...DEFAULT_CONFIG, ...JSON.parse(content) };
+      const project = JSON.parse(readFileSync(projectPath, "utf-8"));
+      return { ...DEFAULT_CONFIG, ...global, ...project };
     } catch {
-      return DEFAULT_CONFIG;
+      return global;
     }
   }
 
-  return DEFAULT_CONFIG;
+  return global;
 }
 
 /**

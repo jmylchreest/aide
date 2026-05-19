@@ -36,11 +36,11 @@
  * ```
  */
 
-import { basename, dirname, join, resolve } from "path";
+import { dirname, join, resolve } from "path";
 import { fileURLToPath } from "url";
-import { existsSync, readFileSync, statSync } from "fs";
 import { createHooks } from "./hooks.js";
 import { isDebugEnabled } from "../lib/logger.js";
+import { walkUpForProjectRoot } from "../lib/project-root.js";
 import type { Plugin, PluginInput, Hooks } from "./types.js";
 
 // Resolve the plugin package root so we can find bundled skills.
@@ -119,84 +119,6 @@ function resolveProjectRoot(ctx: PluginInput): {
   }
 
   return { root: directory || "/", hasProjectRoot: false };
-}
-
-/**
- * Walk up from `startDir` looking for .aide/ or .git/ directories.
- * Returns the project root path, or null if none found.
- *
- * For git worktrees, .git is a file containing "gitdir: <path>".
- * We follow it to the main repo root, matching the Go binary's
- * resolveWorktreeRoot() behavior.
- */
-function walkUpForProjectRoot(startDir: string): string | null {
-  let dir = resolve(startDir);
-  for (;;) {
-    if (existsSync(join(dir, ".aide"))) {
-      return dir;
-    }
-    const gitPath = join(dir, ".git");
-    if (existsSync(gitPath)) {
-      try {
-        const stat = statSync(gitPath);
-        if (stat.isDirectory()) {
-          // Normal git repo
-          return dir;
-        }
-        if (stat.isFile()) {
-          // Worktree: .git is a file containing "gitdir: <path>"
-          // Follow it to the main repo root.
-          const mainRoot = resolveWorktreeGitFile(gitPath);
-          if (mainRoot) return mainRoot;
-          // Fallback to current dir if resolution fails
-          return dir;
-        }
-      } catch {
-        return dir;
-      }
-    }
-    const parent = resolve(dir, "..");
-    if (parent === dir) {
-      return null;
-    }
-    dir = parent;
-  }
-}
-
-/**
- * Read a .git worktree file and resolve to the main repository root.
- * Mirrors the Go binary's resolveWorktreeRoot() in main.go.
- *
- * The file contains "gitdir: /path/to/repo/.git/worktrees/<name>".
- * We walk up from that gitdir path to find the .git directory,
- * then return its parent.
- */
-function resolveWorktreeGitFile(gitFilePath: string): string | null {
-  try {
-    const content = readFileSync(gitFilePath, "utf-8").trim();
-    if (!content.startsWith("gitdir:")) return null;
-
-    let gitdir = content.slice("gitdir:".length).trim();
-    // Make absolute if relative
-    if (!gitdir.startsWith("/")) {
-      gitdir = resolve(dirname(gitFilePath), gitdir);
-    }
-
-    // Walk up from .git/worktrees/<name> to find the .git directory,
-    // then return its parent as the repo root.
-    let candidate = gitdir;
-    for (;;) {
-      const parent = dirname(candidate);
-      if (parent === candidate) break;
-      if (basename(candidate) === ".git") {
-        return parent;
-      }
-      candidate = parent;
-    }
-    return null;
-  } catch {
-    return null;
-  }
 }
 
 export const AidePlugin: Plugin = async (ctx: PluginInput): Promise<Hooks> => {

@@ -9,6 +9,16 @@
 // =============================================================================
 
 export interface AideConfig {
+  /**
+   * When true (default), AIDE refuses to bootstrap if no `.git/` or `.aide/`
+   * marker is found walking up from the launched cwd. This prevents the hook
+   * from planting an orphan `.aide/` folder in an arbitrary subdirectory of a
+   * git repo when `claude` is launched there. Set to false in
+   * `~/.aide/config/aide.json` to allow init in non-git directories.
+   * Only the global-config value is consulted (the project layer is moot
+   * because, if a project root was found, the gate has already passed).
+   */
+  requireGit?: boolean;
   share?: {
     /** Auto-import shared data from .aide/shared/ on session start (default: false) */
     autoImport?: boolean;

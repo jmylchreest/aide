@@ -28,6 +28,8 @@ import { Readable, Transform } from "stream";
 import { pipeline } from "stream/promises";
 // Canonical binary finder — import for local use, re-export for backward compat
 import { findAideBinary } from "./hook-utils.js";
+import { findProjectRoot } from "./project-root.js";
+import { loadGlobalConfig } from "../core/session-init.js";
 export { findAideBinary };
 
 export interface DownloadResult {
@@ -544,8 +546,24 @@ Downloads the aide binary from GitHub releases.
     }
     destDir = join(pluginRoot, "bin");
   } else if (!destDir) {
-    // Default to current directory's .aide/bin
-    destDir = join(process.cwd(), ".aide", "bin");
+    // Default: resolve to the project root rather than blindly using cwd.
+    // Matches the SessionStart hook so the CLI fallback never plants an
+    // orphan .aide/bin/ in a subdirectory of a git repo.
+    const { root, hasMarker } = findProjectRoot(process.cwd());
+    if (!hasMarker) {
+      const requireGit = loadGlobalConfig().requireGit ?? true;
+      if (requireGit) {
+        console.error(
+          `[aide] No .git/ or .aide/ found walking up from ${process.cwd()}. ` +
+            `Set \`requireGit\`: false in ~/.aide/config/aide.json or pass --cwd / --dest to install anyway.`,
+        );
+        process.exit(1);
+      }
+      console.error(
+        `[aide] No project root found, installing into ${process.cwd()} (requireGit=false).`,
+      );
+    }
+    destDir = join(hasMarker ? root : process.cwd(), ".aide", "bin");
   }
 
   const result = await downloadAideBinary(destDir, { force, quiet: false });
