@@ -52,12 +52,14 @@ import { checkWriteGuard } from "../core/write-guard.js";
 import { checkSmartReadHint } from "../core/context-guard.js";
 import { checkSearchEnrichment } from "../core/search-enrichment.js";
 import { recordToolEvent } from "../core/tool-observe.js";
+import { recordObserveEvent, previewContent } from "../core/read-tracking.js";
 import {
   checkComments,
   getCheckableFilePath,
   getContentToCheck,
 } from "../core/comment-checker.js";
 import { getState, setState } from "../core/aide-client.js";
+import { isFalsy, reflectEnabled } from "../lib/hook-utils.js";
 import { saveStateSnapshot } from "../core/pre-compact-logic.js";
 import { cleanupSession } from "../core/cleanup.js";
 import {
@@ -337,8 +339,8 @@ function initializeAide(state: AideState): void {
 
     // Sync MCP server configs across assistants (FS only, fast).
     // Opt-out via AIDE_MCP_SYNC=0 (defaults to enabled).
-    if (process.env.AIDE_MCP_SYNC === "0") {
-      debug(SOURCE, "MCP sync disabled (AIDE_MCP_SYNC=0)");
+    if (isFalsy(process.env.AIDE_MCP_SYNC)) {
+      debug(SOURCE, "MCP sync disabled (AIDE_MCP_SYNC falsy)");
     } else {
       try {
         syncMcpServers("opencode", state.cwd);
@@ -597,6 +599,22 @@ async function handleSessionIdle(
       cleanupPartials(state.binary, state.cwd, sessionId);
     }
   }
+
+  // Reflect (extract instinct proposals). The CLI itself checks env +
+  // .aide/config/aide.json reflect.enabled and no-ops when disabled, so
+  // invoke unconditionally. Mirrors the Claude Code Stop hook.
+  if (state.binary) {
+    try {
+      execFileSync(state.binary, ["reflect", "run", `--session=${sessionId}`], {
+        cwd: state.cwd,
+        timeout: 10000,
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+      debug(SOURCE, `reflect run session=${sessionId.slice(0, 8)} ok`);
+    } catch (err) {
+      debug(SOURCE, `reflect run failed (non-fatal): ${err}`);
+    }
+  }
 }
 
 async function handleSessionDeleted(
@@ -651,6 +669,23 @@ async function handleMessagePartUpdated(
   // Store latest user prompt so system transform can match skills even if
   // this event fires after the transform (defensive against ordering).
   state.lastUserPrompt = prompt;
+
+  // Emit a user-prompt observe event so the convergence detector can find
+  // corrective markers near edit sequences. Gated behind AIDE_REFLECT,
+  // mirroring src/hooks/skill-injector.ts for cross-harness parity.
+  if (state.binary && reflectEnabled(state.cwd)) {
+    try {
+      recordObserveEvent(state.binary, state.cwd, {
+        kind: "hook",
+        name: "user_prompt",
+        category: "input",
+        tokens: Math.round(prompt.length / 3.0),
+        attrs: { text: previewContent(prompt, 2000) },
+      });
+    } catch {
+      // Non-fatal
+    }
+  }
 
   const skills = discoverSkills(state.cwd, state.pluginRoot ?? undefined);
   const matched = matchSkills(prompt, skills, 3, "opencode");

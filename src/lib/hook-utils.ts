@@ -93,6 +93,9 @@ export function detectPlatform(): "claude-code" | "codex" {
   return "claude-code";
 }
 
+import { existsSync, readFileSync } from "fs";
+import { join } from "path";
+
 const TRUTHY = new Set(["1", "true", "on", "yes"]);
 const FALSY = new Set(["0", "false", "off", "no"]);
 
@@ -114,6 +117,39 @@ export function isTruthy(v: string | undefined): boolean {
 export function isFalsy(v: string | undefined): boolean {
   if (!v) return false;
   return FALSY.has(v.trim().toLowerCase());
+}
+
+/**
+ * reflectEnabled mirrors the Go-side config.ResolveReflectEnabled precedence
+ * so TS hooks that need to gate on the reflect setting see the same answer
+ * as `aide reflect run`. Precedence:
+ *
+ *   1. AIDE_REFLECT env (recognised truthy/falsy values win)
+ *   2. .aide/config/aide.json `reflect.enabled` (project-local config)
+ *   3. default false
+ *
+ * Used by skill-injector.ts and opencode/hooks.ts to gate the user_prompt
+ * observe-event emit that convergence detection depends on.
+ */
+export function reflectEnabled(cwd: string): boolean {
+  const env = process.env.AIDE_REFLECT;
+  if (env !== undefined && env !== "") {
+    const norm = env.trim().toLowerCase();
+    if (TRUTHY.has(norm)) return true;
+    if (FALSY.has(norm)) return false;
+  }
+  try {
+    const cfgPath = join(cwd, ".aide", "config", "aide.json");
+    if (existsSync(cfgPath)) {
+      const cfg = JSON.parse(readFileSync(cfgPath, "utf-8")) as {
+        reflect?: { enabled?: boolean };
+      };
+      return cfg?.reflect?.enabled === true;
+    }
+  } catch {
+    // Unreadable / malformed config — treat as unset.
+  }
+  return false;
 }
 
 /**

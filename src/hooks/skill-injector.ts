@@ -27,6 +27,7 @@ import {
 import type { Skill } from "../core/types.js";
 import { findAideBinary } from "../core/aide-client.js";
 import { recordObserveEvent, previewContent } from "../core/read-tracking.js";
+import { reflectEnabled } from "../lib/hook-utils.js";
 
 const SOURCE = "skill-injector";
 
@@ -174,6 +175,26 @@ async function main(): Promise<void> {
     ensureDirectories(cwd);
     log.end("ensureDirectories");
     debugLog(`ensureDirectories complete (${Date.now() - hookStart}ms)`);
+
+    // Emit a user-prompt observe event so the convergence detector can find
+    // corrective markers near edit sequences. Gated behind AIDE_REFLECT so
+    // sessions that aren't running reflect don't accrue extra events.
+    if (prompt && reflectEnabled(cwd)) {
+      try {
+        const binary = findAideBinary({ cwd });
+        if (binary) {
+          recordObserveEvent(binary, cwd, {
+            kind: "hook",
+            name: "user_prompt",
+            category: "input",
+            tokens: Math.round(prompt.length / 3.0),
+            attrs: { text: previewContent(prompt, 2000) },
+          });
+        }
+      } catch {
+        // Non-fatal
+      }
+    }
 
     if (!prompt) {
       debugLog("No prompt provided, exiting");

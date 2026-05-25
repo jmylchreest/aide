@@ -13,7 +13,8 @@
       "args": ["${CLAUDE_PLUGIN_ROOT}/bin/aide-wrapper.ts", "mcp"],
       "env": {
         "AIDE_CODE_WATCH": "1",
-        "AIDE_CODE_WATCH_DELAY": "30s"
+        "AIDE_CODE_WATCH_DELAY": "30s",
+        "AIDE_REFLECT": "1"
       }
     }
   },
@@ -111,6 +112,11 @@
             "type": "command",
             "command": "bun \"${CLAUDE_PLUGIN_ROOT}/src/hooks/agent-cleanup.ts\"",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}/src/hooks/reflect.ts\"",
+            "timeout": 15
           }
         ]
       }
