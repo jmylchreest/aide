@@ -14,6 +14,7 @@ import { readStdin } from "../lib/hook-utils.js";
 import { debug } from "../lib/logger.js";
 import { evaluateToolUse } from "../core/tool-enforcement.js";
 import { findAideBinary, getState } from "../core/aide-client.js";
+import { emitInjectionEvent } from "../core/read-tracking.js";
 
 const SOURCE = "pre-tool-enforcer";
 
@@ -49,17 +50,19 @@ async function main(): Promise<void> {
     const toolName = data.tool_name || "";
     const agentName = data.agent_name || "";
     const cwd = data.cwd || process.cwd();
+    const sessionId = data.session_id || "";
 
     // Resolve active mode from aide binary (source of truth: BBolt store)
     let activeMode: string | null = null;
+    let aideBinary: string | null = null;
     try {
-      const binary = findAideBinary({
+      aideBinary = findAideBinary({
         cwd,
         pluginRoot:
           process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT,
       });
-      if (binary) {
-        activeMode = getState(binary, cwd, "mode");
+      if (aideBinary) {
+        activeMode = getState(aideBinary, cwd, "mode");
       }
     } catch (err) {
       debug(SOURCE, `Failed to resolve active mode (non-fatal): ${err}`);
@@ -81,6 +84,23 @@ async function main(): Promise<void> {
     }
 
     if (result.reminder) {
+      if (aideBinary) {
+        try {
+          emitInjectionEvent(aideBinary, cwd, {
+            source: SOURCE,
+            subtype: "guard",
+            content: result.reminder,
+            sessionId,
+            attrs: {
+              tool: toolName,
+              ...(agentName ? { agent: agentName } : {}),
+              ...(activeMode ? { mode: activeMode } : {}),
+            },
+          });
+        } catch {
+          // Non-fatal — telemetry must not block tool use
+        }
+      }
       const output: HookOutput = {
         continue: true,
         hookSpecificOutput: {

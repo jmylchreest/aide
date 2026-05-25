@@ -21,6 +21,8 @@ import type { ToolRecord } from "../core/context-pruning/types.js";
 import { tmpdir } from "os";
 import { join } from "path";
 import { existsSync, readFileSync, writeFileSync } from "fs";
+import { findAideBinary } from "../core/aide-client.js";
+import { emitInjectionEvent } from "../core/read-tracking.js";
 
 const SOURCE = "context-pruning";
 
@@ -182,6 +184,31 @@ async function main(): Promise<void> {
         explained = true;
         // Persist the flag
         saveHistory(sessionId, tracker.getHistory(), explained);
+      }
+
+      try {
+        const binary = findAideBinary({
+          cwd,
+          pluginRoot:
+            process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT,
+        });
+        const injected = output.hookSpecificOutput?.additionalContext;
+        if (binary && injected) {
+          emitInjectionEvent(binary, cwd, {
+            source: SOURCE,
+            subtype: "pruning",
+            name: result.strategy || "prune",
+            content: injected,
+            sessionId,
+            attrs: {
+              tool: toolName,
+              strategy: result.strategy ?? "",
+              bytes_saved: String(result.bytesSaved ?? 0),
+            },
+          });
+        }
+      } catch {
+        // Non-fatal
       }
 
       console.log(JSON.stringify(output));

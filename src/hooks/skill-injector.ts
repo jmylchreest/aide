@@ -27,7 +27,11 @@ import {
 } from "../core/skill-matcher.js";
 import type { Skill } from "../core/types.js";
 import { findAideBinary } from "../core/aide-client.js";
-import { recordObserveEvent, previewContent } from "../core/read-tracking.js";
+import {
+  recordObserveEvent,
+  previewContent,
+  emitInjectionEvent,
+} from "../core/read-tracking.js";
 import { reflectEnabled } from "../lib/hook-utils.js";
 
 const SOURCE = "skill-injector";
@@ -161,6 +165,7 @@ async function main(): Promise<void> {
     const data: HookInput = JSON.parse(input);
     const prompt = data.prompt || "";
     const cwd = data.cwd || process.cwd();
+    const sessionId = data.session_id || "";
 
     // Switch debug logging to project-local logs
     setDebugCwd(cwd);
@@ -192,6 +197,7 @@ async function main(): Promise<void> {
             name: "user_prompt",
             category: "input",
             tokens: Math.round(prompt.length / 3.0),
+            session: sessionId,
             attrs: { text: previewContent(prompt, 2000) },
           });
         }
@@ -240,19 +246,12 @@ async function main(): Promise<void> {
         if (binary) {
           for (const skill of matched) {
             const text = `### ${skill.name}\n${skill.description ?? ""}\n${skill.content}`;
-            const tokens = Math.round(text.length / 3.0);
-            recordObserveEvent(binary, cwd, {
-              kind: "injection",
-              name: skill.name,
-              category: "inject",
+            emitInjectionEvent(binary, cwd, {
+              source: SOURCE,
               subtype: "skill",
-              tokens,
-              file: SOURCE,
-              attrs: {
-                source_id: skill.name,
-                source_kind: "skill",
-                content_preview: previewContent(text),
-              },
+              name: skill.name,
+              content: text,
+              sessionId,
             });
           }
         }

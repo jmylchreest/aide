@@ -19,6 +19,7 @@ import { basename } from "path";
 import { Logger } from "../lib/logger.js";
 import { readStdin, setMemoryState, isFalsy } from "../lib/hook-utils.js";
 import { findAideBinary } from "../core/aide-client.js";
+import { emitInjectionEvent } from "../core/read-tracking.js";
 import { refreshHud } from "../lib/hud.js";
 
 // Global logger instance
@@ -410,6 +411,31 @@ async function main(): Promise<void> {
         hookEventName: "SubagentStart",
         additionalContext,
       };
+      try {
+        const binary = findAideBinary({
+          cwd,
+          pluginRoot:
+            process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT,
+        });
+        if (binary) {
+          const startData = data as SubagentStartInput;
+          emitInjectionEvent(binary, cwd, {
+            source: "subagent-tracker",
+            subtype: "signal",
+            name: "subagent-priming",
+            content: additionalContext,
+            sessionId: startData.session_id,
+            attrs: {
+              ...(startData.agent_id ? { agent_id: startData.agent_id } : {}),
+              ...(startData.agent_type
+                ? { agent_type: startData.agent_type }
+                : {}),
+            },
+          });
+        }
+      } catch {
+        // Non-fatal
+      }
     }
 
     console.log(JSON.stringify(output));

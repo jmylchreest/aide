@@ -15,7 +15,7 @@ import { readStdin } from "../lib/hook-utils.js";
 import { debug } from "../lib/logger.js";
 import { checkSearchEnrichment } from "../core/search-enrichment.js";
 import { findAideBinary } from "../core/aide-client.js";
-import { recordTokenEvent } from "../core/read-tracking.js";
+import { emitInjectionEvent } from "../core/read-tracking.js";
 
 const SOURCE = "search-enrichment";
 
@@ -50,6 +50,7 @@ async function main(): Promise<void> {
     const toolName = data.tool_name || "";
     const toolInput = data.tool_input || {};
     const cwd = data.cwd || process.cwd();
+    const sessionId = data.session_id || "";
 
     const binary = findAideBinary({
       cwd,
@@ -62,11 +63,18 @@ async function main(): Promise<void> {
     if (result.shouldEnrich && result.enrichment) {
       debug(SOURCE, `Enriching grep with code index context`);
 
-      // Record token event for search enrichment
       if (binary) {
         try {
-          const tokens = Math.round(result.enrichment.length / 3.0);
-          recordTokenEvent(binary, cwd, "context_injected", "enrichment", "search-enrichment", tokens);
+          // `name: "enrichment"` is load-bearing: the TokensPage by_delivery
+          // rollup keys on Event.Name via observeToTokenEvent.
+          emitInjectionEvent(binary, cwd, {
+            source: SOURCE,
+            subtype: "enrichment",
+            name: "enrichment",
+            content: result.enrichment,
+            sessionId,
+            attrs: { tool: toolName },
+          });
         } catch {
           // Non-fatal
         }

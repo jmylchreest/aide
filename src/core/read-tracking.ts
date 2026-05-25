@@ -114,35 +114,6 @@ export function checkFileReadFreshness(
   }
 }
 
-/**
- * Record a token event via `aide token record`.
- * Fire-and-forget — errors are logged but not propagated.
- */
-export function recordTokenEvent(
-  binary: string,
-  cwd: string,
-  eventType: string,
-  tool: string,
-  filePath: string,
-  tokens: number,
-  tokensSaved: number = 0,
-): void {
-  try {
-    const args = ["token", "record", eventType, tool, filePath, String(tokens)];
-    if (tokensSaved > 0) {
-      args.push(String(tokensSaved));
-    }
-    execFileSync(binary, args, {
-      cwd,
-      timeout: 3000,
-      stdio: ["pipe", "pipe", "pipe"],
-    });
-    debug(SOURCE, `Token event: ${eventType} ${tool} ${filePath} tokens=${tokens} saved=${tokensSaved}`);
-  } catch (err) {
-    debug(SOURCE, `Failed to record token event: ${err}`);
-  }
-}
-
 export function previewContent(text: string, maxChars = 300): string {
   const collapsed = text.replace(/\s+/g, " ").trim();
   if (collapsed.length <= maxChars) return collapsed;
@@ -151,8 +122,9 @@ export function previewContent(text: string, maxChars = 300): string {
 
 /**
  * Record an arbitrary observe event via `aide observe record`.
- * Use when you need richer fields than recordTokenEvent (per-skill name with
- * a stable subtype, attrs, etc.). Fire-and-forget.
+ * Prefer `emitInjectionEvent` for `kind=injection` callers — this raw
+ * recorder is reserved for non-injection kinds (e.g. `hook` user_prompt
+ * events). Fire-and-forget.
  */
 export function recordObserveEvent(
   binary: string,
@@ -189,4 +161,48 @@ export function recordObserveEvent(
   } catch (err) {
     debug(SOURCE, `Failed to record observe event: ${err}`);
   }
+}
+
+/**
+ * Emit a `kind=injection` observe event for any hook that pushes
+ * `additionalContext` back to the harness. Centralises field naming so the
+ * Injections page can group/colour consistently.
+ *
+ * `subtype` should come from a small fixed taxonomy:
+ *   memory | decision | session_memory | skill | enrichment | guard |
+ *   signal | pruning
+ *
+ * `source` is the emitting hook name (e.g. "search-enrichment"); it lands in
+ * both `file` and `name` so the UI can show "who injected this" without
+ * forcing every caller to invent a unique `name`.
+ *
+ * Fire-and-forget; failures are logged at debug level and never thrown.
+ */
+export function emitInjectionEvent(
+  binary: string,
+  cwd: string,
+  opts: {
+    source: string;
+    subtype: string;
+    content: string;
+    sessionId?: string;
+    name?: string;
+    attrs?: Record<string, string>;
+  },
+): void {
+  const baseAttrs: Record<string, string> = {
+    source_id: opts.source,
+    source_kind: opts.subtype,
+    content_preview: previewContent(opts.content, 2000),
+  };
+  recordObserveEvent(binary, cwd, {
+    kind: "injection",
+    name: opts.name ?? opts.source,
+    category: "inject",
+    subtype: opts.subtype,
+    tokens: Math.round(opts.content.length / 3.0),
+    file: opts.source,
+    session: opts.sessionId,
+    attrs: { ...baseAttrs, ...(opts.attrs ?? {}) },
+  });
 }

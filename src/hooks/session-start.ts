@@ -27,7 +27,7 @@ import { Logger, debug, setDebugCwd } from "../lib/logger.js";
 import { readStdin, detectPlatform, isFalsy } from "../lib/hook-utils.js";
 import { findAideBinary, ensureAideBinary } from "../lib/aide-downloader.js";
 import { findProjectRoot } from "../lib/project-root.js";
-import { recordObserveEvent, previewContent } from "../core/read-tracking.js";
+import { emitInjectionEvent } from "../core/read-tracking.js";
 import {
   ensureDirectories as coreEnsureDirectories,
   loadConfig as coreLoadConfig,
@@ -493,12 +493,7 @@ async function main(): Promise<void> {
       const binary = findAideBinary(cwd);
       if (binary && context && memories.sources) {
         for (const src of memories.sources) {
-          const attrs: Record<string, string> = {
-            source_id: src.id,
-            source_kind: src.kind,
-            scope: src.scope,
-            content_preview: previewContent(src.content),
-          };
+          const attrs: Record<string, string> = { scope: src.scope };
           if (src.category) attrs.category = src.category;
           if (src.tags && src.tags.length > 0) attrs.tags = src.tags.join(",");
           if (src.sessionId) attrs.source_session_id = src.sessionId;
@@ -506,14 +501,13 @@ async function main(): Promise<void> {
             attrs.score_at_injection = src.score.toFixed(2);
           }
 
-          recordObserveEvent(binary, cwd, {
-            kind: "injection",
-            name: src.name,
-            category: "inject",
+          emitInjectionEvent(binary, cwd, {
+            source: SOURCE,
             subtype: src.kind,
-            tokens: Math.round(src.content.length / 3.0),
-            file: "session-start",
-            attrs,
+            name: src.name,
+            content: src.content,
+            sessionId,
+            attrs: { ...attrs, source_id: src.id },
           });
         }
       }

@@ -12,6 +12,8 @@
 import { readStdin } from "../lib/hook-utils.js";
 import { debug } from "../lib/logger.js";
 import { checkWriteGuard } from "../core/write-guard.js";
+import { findAideBinary } from "../core/aide-client.js";
+import { emitInjectionEvent } from "../core/read-tracking.js";
 
 const SOURCE = "write-guard";
 
@@ -48,14 +50,35 @@ async function main(): Promise<void> {
     const toolName = data.tool_name || "";
     const toolInput = data.tool_input || {};
     const cwd = data.cwd || process.cwd();
+    const sessionId = data.session_id || "";
 
     const result = checkWriteGuard(toolName, toolInput, cwd);
 
     if (!result.allowed) {
-      debug(
-        SOURCE,
-        `Advisory: Write to existing file: ${toolInput.file_path || toolInput.filePath || toolInput.path}`,
-      );
+      const filePath =
+        (toolInput.file_path as string) ||
+        (toolInput.filePath as string) ||
+        (toolInput.path as string) ||
+        "";
+      debug(SOURCE, `Advisory: Write to existing file: ${filePath}`);
+      try {
+        const binary = findAideBinary({
+          cwd,
+          pluginRoot:
+            process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT,
+        });
+        if (binary && result.message) {
+          emitInjectionEvent(binary, cwd, {
+            source: SOURCE,
+            subtype: "guard",
+            content: result.message,
+            sessionId,
+            attrs: { tool: toolName, ...(filePath ? { file: filePath } : {}) },
+          });
+        }
+      } catch {
+        // Non-fatal
+      }
       const output: HookOutput = {
         continue: true,
         hookSpecificOutput: {

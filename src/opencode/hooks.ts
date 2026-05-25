@@ -680,6 +680,7 @@ async function handleMessagePartUpdated(
         name: "user_prompt",
         category: "input",
         tokens: Math.round(prompt.length / 3.0),
+        session: extractSessionId(event),
         attrs: { text: previewContent(prompt, 2000) },
       });
     } catch {

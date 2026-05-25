@@ -15,6 +15,9 @@ import { execFileSync } from "child_process";
 import { Logger } from "../lib/logger.js";
 import { readStdin } from "../lib/hook-utils.js";
 import { findAideBinary } from "../core/aide-client.js";
+import { emitInjectionEvent } from "../core/read-tracking.js";
+
+const SOURCE = "agent-signals";
 
 interface PreToolUseInput {
   hook_event_name: "PreToolUse";
@@ -205,7 +208,25 @@ async function main(): Promise<void> {
     }
 
     if (parts.length > 0) {
-      injectContext(parts.join("\n"));
+      const ctx = parts.join("\n");
+      try {
+        emitInjectionEvent(binary, cwd, {
+          source: SOURCE,
+          subtype: "signal",
+          content: ctx,
+          sessionId: data.session_id,
+          attrs: {
+            tool: data.tool_name,
+            ...(sig.deadline ? { deadline: sig.deadline } : {}),
+            high_priority_messages: String(
+              sig.high_priority_messages?.length ?? 0,
+            ),
+          },
+        });
+      } catch {
+        // Non-fatal
+      }
+      injectContext(ctx);
       return;
     }
 

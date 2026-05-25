@@ -15,6 +15,7 @@ import { readStdin } from "../lib/hook-utils.js";
 import { debug } from "../lib/logger.js";
 import { checkContextGuard, checkSmartReadHint } from "../core/context-guard.js";
 import { findAideBinary } from "../core/aide-client.js";
+import { emitInjectionEvent } from "../core/read-tracking.js";
 
 const SOURCE = "context-guard";
 
@@ -54,9 +55,28 @@ async function main(): Promise<void> {
     const sessionId = data.session_id || "unknown";
 
     const result = checkContextGuard(toolName, toolInput, cwd, sessionId);
+    const binary = findAideBinary({
+      cwd,
+      pluginRoot:
+        process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT,
+    });
 
     if (result.shouldAdvise && result.advisory) {
       debug(SOURCE, `Advising on large file read`);
+      if (binary) {
+        try {
+          emitInjectionEvent(binary, cwd, {
+            source: SOURCE,
+            subtype: "guard",
+            name: "large-file-advisory",
+            content: result.advisory,
+            sessionId,
+            attrs: { tool: toolName },
+          });
+        } catch {
+          // Non-fatal
+        }
+      }
       const output: HookOutput = {
         continue: true,
         hookSpecificOutput: {
@@ -67,14 +87,23 @@ async function main(): Promise<void> {
       console.log(JSON.stringify(output));
     } else {
       // Smart read hint: suggest code index for re-reads of unchanged files
-      const binary = findAideBinary({
-        cwd,
-        pluginRoot:
-          process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT,
-      });
       const hintResult = checkSmartReadHint(toolName, toolInput, cwd, binary);
       if (hintResult.shouldHint && hintResult.hint) {
         debug(SOURCE, `Smart read hint triggered`);
+        if (binary) {
+          try {
+            emitInjectionEvent(binary, cwd, {
+              source: SOURCE,
+              subtype: "guard",
+              name: "smart-read-hint",
+              content: hintResult.hint,
+              sessionId,
+              attrs: { tool: toolName },
+            });
+          } catch {
+            // Non-fatal
+          }
+        }
         const output: HookOutput = {
           continue: true,
           hookSpecificOutput: {

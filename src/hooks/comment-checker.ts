@@ -16,6 +16,8 @@ import {
   getCheckableFilePath,
   getContentToCheck,
 } from "../core/comment-checker.js";
+import { findAideBinary } from "../core/aide-client.js";
+import { emitInjectionEvent } from "../core/read-tracking.js";
 
 const SOURCE = "comment-checker";
 
@@ -53,6 +55,8 @@ async function main(): Promise<void> {
     const data: HookInput = JSON.parse(input);
     const toolName = data.tool_name || "";
     const toolInput = data.tool_input || {};
+    const cwd = data.cwd || process.cwd();
+    const sessionId = data.session_id || "";
 
     // Only check Write/Edit/MultiEdit tool calls
     const filePath = getCheckableFilePath(toolName, toolInput);
@@ -76,6 +80,28 @@ async function main(): Promise<void> {
         SOURCE,
         `Detected ${result.suspiciousCount} suspicious comments in ${filePath}`,
       );
+      try {
+        const binary = findAideBinary({
+          cwd,
+          pluginRoot:
+            process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT,
+        });
+        if (binary && result.warning) {
+          emitInjectionEvent(binary, cwd, {
+            source: SOURCE,
+            subtype: "guard",
+            content: result.warning,
+            sessionId,
+            attrs: {
+              tool: toolName,
+              file: filePath,
+              suspicious_count: String(result.suspiciousCount),
+            },
+          });
+        }
+      } catch {
+        // Non-fatal
+      }
       const output: HookOutput = {
         continue: true,
         hookSpecificOutput: {
