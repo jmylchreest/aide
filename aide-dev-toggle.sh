@@ -214,8 +214,13 @@ cfg_path = '$cfg'
 dev_plugin = '$DEV_PLUGIN'
 dev_mcp = '$DEV_MCP_CMD'
 
-with open(cfg_path, 'r') as f:
-    cfg = json.load(f)
+try:
+    with open(cfg_path, 'r') as f:
+        cfg = json.load(f)
+except json.JSONDecodeError as e:
+    import sys
+    print(f'error: {cfg_path} is not valid JSON (line {e.lineno} col {e.colno}): {e.msg}', file=sys.stderr)
+    sys.exit(1)
 
 # Plugin: replace any @jmylchreest/aide-plugin or old local path with new dev path
 if 'plugin' in cfg:
@@ -241,8 +246,13 @@ import json
 cfg_path = '$cfg'
 npm_pkg = '$NPM_PACKAGE'
 
-with open(cfg_path, 'r') as f:
-    cfg = json.load(f)
+try:
+    with open(cfg_path, 'r') as f:
+        cfg = json.load(f)
+except json.JSONDecodeError as e:
+    import sys
+    print(f'error: {cfg_path} is not valid JSON (line {e.lineno} col {e.colno}): {e.msg}', file=sys.stderr)
+    sys.exit(1)
 
 # Plugin: replace any local path with npm package
 if 'plugin' in cfg:
@@ -306,8 +316,13 @@ installed_path = '$CC_INSTALLED'
 plugin_key = '$CC_PLUGIN_KEY'
 dev_path = '$REPO_ROOT'
 
-with open(installed_path, 'r') as f:
-    d = json.load(f)
+try:
+    with open(installed_path, 'r') as f:
+        d = json.load(f)
+except json.JSONDecodeError as e:
+    import sys
+    print(f'error: {installed_path} is not valid JSON (line {e.lineno} col {e.colno}): {e.msg}', file=sys.stderr)
+    sys.exit(1)
 
 entries = d.get('plugins', {}).get(plugin_key, [])
 if entries:
@@ -378,8 +393,13 @@ installed_path = '$CC_INSTALLED'
 plugin_key = '$CC_PLUGIN_KEY'
 prod_path = '$prod_path'
 
-with open(installed_path, 'r') as f:
-    d = json.load(f)
+try:
+    with open(installed_path, 'r') as f:
+        d = json.load(f)
+except json.JSONDecodeError as e:
+    import sys
+    print(f'error: {installed_path} is not valid JSON (line {e.lineno} col {e.colno}): {e.msg}', file=sys.stderr)
+    sys.exit(1)
 
 entries = d.get('plugins', {}).get(plugin_key, [])
 if entries:
@@ -439,8 +459,13 @@ import json
 mcp_path = '$CC_MCP_JSON'
 dev_cmd = '$DEV_MCP_CMD'
 
-with open(mcp_path, 'r') as f:
-    cfg = json.load(f)
+try:
+    with open(mcp_path, 'r') as f:
+        cfg = json.load(f)
+except json.JSONDecodeError as e:
+    import sys
+    print(f'error: {mcp_path} is not valid JSON (line {e.lineno} col {e.colno}): {e.msg}', file=sys.stderr)
+    sys.exit(1)
 
 aide = cfg.get('mcpServers', {}).get('aide', {})
 if aide:
@@ -462,8 +487,13 @@ import json, os
 
 mcp_path = '$CC_MCP_JSON'
 
-with open(mcp_path, 'r') as f:
-    cfg = json.load(f)
+try:
+    with open(mcp_path, 'r') as f:
+        cfg = json.load(f)
+except json.JSONDecodeError as e:
+    import sys
+    print(f'error: {mcp_path} is not valid JSON (line {e.lineno} col {e.colno}): {e.msg}', file=sys.stderr)
+    sys.exit(1)
 
 servers = cfg.get('mcpServers', {})
 servers.pop('aide', None)
