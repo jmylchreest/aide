@@ -162,6 +162,27 @@ export function ObservePage({ fixedKind, title }: ObservePageProps = {}) {
                       {ev.subtype ? `/${ev.subtype}` : ""}
                     </span>
                   )}
+                  {ev.session_id && (
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      className="text-[0.6rem] text-aide-text-dim font-mono shrink-0 hover:text-aide-accent hover:underline cursor-pointer"
+                      title={`Filter to session ${ev.session_id} — click to apply`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSessionFilter(ev.session_id);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setSessionFilter(ev.session_id);
+                        }
+                      }}
+                    >
+                      {ev.session_id.slice(0, 8)}
+                    </span>
+                  )}
                   <span className="text-xs text-aide-text font-mono truncate flex-1">
                     {ev.name || <em className="text-aide-text-dim">(unnamed)</em>}
                   </span>
