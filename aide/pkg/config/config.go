@@ -62,6 +62,7 @@ type CleanupConfig struct {
 	StateMaxAge   string `koanf:"state_max_age"`   // default "168h" (7d) — agent-specific state only
 	ObserveMaxAge string `koanf:"observe_max_age"` // default "168h" (7d)
 	TaskMaxAge    string `koanf:"task_max_age"`    // default "168h" (7d) — done tasks only; pending/claimed/blocked never pruned
+	TokenMaxAge   string `koanf:"token_max_age"`   // default "2160h" (90d) — token events back the token-intelligence page
 }
 
 // IntervalDuration returns the tick interval with a default fallback.
@@ -82,6 +83,13 @@ func (c CleanupConfig) ObserveMaxAgeDuration() time.Duration {
 // TaskMaxAgeDuration returns the done-task TTL with a default fallback.
 func (c CleanupConfig) TaskMaxAgeDuration() time.Duration {
 	return parseDur(c.TaskMaxAge, 7*24*time.Hour)
+}
+
+// TokenMaxAgeDuration returns the token-event TTL with a default fallback.
+// Longer default (90d) than other buckets — token events power the
+// "Last 30 / 60 / 90 days" trend filters on the token intelligence page.
+func (c CleanupConfig) TokenMaxAgeDuration() time.Duration {
+	return parseDur(c.TokenMaxAge, 90*24*time.Hour)
 }
 
 func parseDur(s string, fallback time.Duration) time.Duration {

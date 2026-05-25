@@ -33,7 +33,8 @@ func runCleanupLoop(ctx context.Context, st store.Store) {
 	stateAge := cfg.StateMaxAgeDuration()
 	observeAge := cfg.ObserveMaxAgeDuration()
 	taskAge := cfg.TaskMaxAgeDuration()
-	fmt.Printf("cleanup loop: every %s — state>%s, observe>%s, done-tasks>%s\n", interval, stateAge, observeAge, taskAge)
+	tokenAge := cfg.TokenMaxAgeDuration()
+	fmt.Printf("cleanup loop: every %s — state>%s, observe>%s, done-tasks>%s, token-events>%s\n", interval, stateAge, observeAge, taskAge, tokenAge)
 
 	// Stagger the first run by a few seconds so daemon startup logs stay
 	// readable. After that, tick on the configured interval.
@@ -69,6 +70,12 @@ func runCleanupLoop(ctx context.Context, st store.Store) {
 			fmt.Printf("cleanup: task error: %v\n", err)
 		} else if n > 0 {
 			fmt.Printf("cleanup: pruned %d completed tasks\n", n)
+		}
+
+		if n, err := st.CleanupTokenEvents(tokenAge); err != nil {
+			fmt.Printf("cleanup: token error: %v\n", err)
+		} else if n > 0 {
+			fmt.Printf("cleanup: pruned %d token events\n", n)
 		}
 
 		timer.Reset(interval)
