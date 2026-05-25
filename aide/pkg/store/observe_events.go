@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/jmylchreest/aide/aide/pkg/eventbus"
 	"github.com/jmylchreest/aide/aide/pkg/memory"
 	"github.com/jmylchreest/aide/aide/pkg/observe"
 	"github.com/oklog/ulid/v2"
@@ -301,10 +302,20 @@ func (s *BoltStore) MigrateTokenEventsToObserve() (int, error) {
 // never break the hot path.
 type ObserveSink struct {
 	store *BoltStore
+	bus   *eventbus.Broadcaster[*observe.Event]
 }
 
 func NewObserveSink(s *BoltStore) *ObserveSink { return &ObserveSink{store: s} }
 
+func (s *ObserveSink) SetBus(b *eventbus.Broadcaster[*observe.Event]) {
+	s.bus = b
+}
+
 func (s *ObserveSink) Emit(e *observe.Event) {
-	_ = s.store.AddObserveEvent(e)
+	if err := s.store.AddObserveEvent(e); err != nil {
+		return
+	}
+	if s.bus != nil {
+		s.bus.Publish(e)
+	}
 }

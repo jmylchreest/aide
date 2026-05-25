@@ -15,6 +15,7 @@ import (
 	"github.com/jmylchreest/aide/aide/pkg/aideignore"
 	"github.com/jmylchreest/aide/aide/pkg/code"
 	"github.com/jmylchreest/aide/aide/pkg/config"
+	"github.com/jmylchreest/aide/aide/pkg/eventbus"
 	"github.com/jmylchreest/aide/aide/pkg/findings"
 	"github.com/jmylchreest/aide/aide/pkg/grammar"
 	"github.com/jmylchreest/aide/aide/pkg/memory"
@@ -22,7 +23,10 @@ import (
 	"github.com/jmylchreest/aide/aide/pkg/store"
 	"github.com/jmylchreest/aide/aide/pkg/survey"
 	"github.com/jmylchreest/aide/aide/pkg/watcher"
+	"github.com/oklog/ulid/v2"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -47,6 +51,7 @@ type Server struct {
 	codeStore     store.CodeIndexStore
 	findingsStore store.FindingsStore
 	surveyStore   store.SurveyStore
+	observeBus    *eventbus.Broadcaster[*observe.Event]
 	dbPath        string
 	grpcServer    *grpc.Server
 	socketPath    string
@@ -76,6 +81,7 @@ type Server struct {
 func NewServer(st store.Store, dbPath, socketPath string, loader grammar.Loader) *Server {
 	return &Server{
 		store:         st,
+		observeBus:    eventbus.New[*observe.Event](256),
 		dbPath:        dbPath,
 		socketPath:    socketPath,
 		startTime:     time.Now(),
@@ -109,6 +115,12 @@ func (s *Server) GetFindingsStore() store.FindingsStore {
 	s.storeMu.RLock()
 	defer s.storeMu.RUnlock()
 	return s.findingsStore
+}
+
+// ObserveBus returns the broadcaster used by WatchEvents. Always non-nil
+// for a server constructed via NewServer.
+func (s *Server) ObserveBus() *eventbus.Broadcaster[*observe.Event] {
+	return s.observeBus
 }
 
 // SetSurveyStore sets the survey store for survey services.
@@ -210,7 +222,7 @@ func (s *Server) Start() error {
 	RegisterFindingsServiceServer(s.grpcServer, &findingsServiceImpl{server: s})
 	RegisterSurveyServiceServer(s.grpcServer, &surveyServiceImpl{server: s})
 	RegisterTokenServiceServer(s.grpcServer, &tokenServiceImpl{store: s.store})
-	RegisterObserveServiceServer(s.grpcServer, &observeServiceImpl{store: s.store})
+	RegisterObserveServiceServer(s.grpcServer, &observeServiceImpl{store: s.store, bus: s.observeBus})
 	RegisterHealthServiceServer(s.grpcServer, &healthServiceImpl{dbPath: s.dbPath})
 	RegisterStatusServiceServer(s.grpcServer, &statusServiceImpl{server: s})
 
@@ -2331,6 +2343,7 @@ func taskToProto(t *memory.Task) *Task {
 type observeServiceImpl struct {
 	UnimplementedObserveServiceServer
 	store store.Store
+	bus   *eventbus.Broadcaster[*observe.Event]
 }
 
 func (s *observeServiceImpl) RecordEvent(ctx context.Context, req *ObserveRecordRequest) (*ObserveRecordResponse, error) {
@@ -2350,6 +2363,9 @@ func (s *observeServiceImpl) RecordEvent(ctx context.Context, req *ObserveRecord
 	}
 	if err := s.store.AddObserveEvent(e); err != nil {
 		return nil, err
+	}
+	if s.bus != nil {
+		s.bus.Publish(e)
 	}
 	return &ObserveRecordResponse{Id: e.ID}, nil
 }
@@ -2374,22 +2390,102 @@ func (s *observeServiceImpl) ListEvents(ctx context.Context, req *ObserveListReq
 	}
 	out := make([]*ObserveEvent, 0, len(events))
 	for _, e := range events {
-		out = append(out, &ObserveEvent{
-			Id:          e.ID,
-			Timestamp:   timestamppb.New(e.Timestamp),
-			Kind:        string(e.Kind),
-			Name:        e.Name,
-			Category:    e.Category,
-			Subtype:     e.Subtype,
-			DurationMs:  e.DurationMs,
-			Tokens:      int32(e.Tokens),
-			TokensSaved: int32(e.TokensSaved),
-			FilePath:    e.FilePath,
-			Parent:      e.Parent,
-			SessionId:   e.SessionID,
-			Error:       e.Error,
-			Attrs:       e.Attrs,
-		})
+		out = append(out, observeEventToProto(e))
 	}
 	return &ObserveListResponse{Events: out}, nil
+}
+
+func observeEventToProto(e *observe.Event) *ObserveEvent {
+	return &ObserveEvent{
+		Id:          e.ID,
+		Timestamp:   timestamppb.New(e.Timestamp),
+		Kind:        string(e.Kind),
+		Name:        e.Name,
+		Category:    e.Category,
+		Subtype:     e.Subtype,
+		DurationMs:  e.DurationMs,
+		Tokens:      int32(e.Tokens),
+		TokensSaved: int32(e.TokensSaved),
+		FilePath:    e.FilePath,
+		Parent:      e.Parent,
+		SessionId:   e.SessionID,
+		Error:       e.Error,
+		Attrs:       e.Attrs,
+	}
+}
+
+func (s *observeServiceImpl) WatchEvents(req *ObserveWatchRequest, stream ObserveService_WatchEventsServer) error {
+	ctx := stream.Context()
+
+	matches := func(e *observe.Event) bool {
+		if req.Kind != "" && string(e.Kind) != req.Kind {
+			return false
+		}
+		if req.Name != "" && e.Name != req.Name {
+			return false
+		}
+		if req.Category != "" && e.Category != req.Category {
+			return false
+		}
+		if req.SessionId != "" && e.SessionID != req.SessionId {
+			return false
+		}
+		return true
+	}
+
+	// Subscribe before backfill so live writes during backfill aren't lost.
+	if s.bus == nil {
+		return status.Error(codes.FailedPrecondition, "observe broadcaster not configured")
+	}
+	sub, unsub := s.bus.Subscribe(ctx, matches)
+	defer unsub()
+
+	var maxBackfillID string
+	if req.SinceId != "" {
+		id, err := ulid.Parse(req.SinceId)
+		if err != nil {
+			return status.Errorf(codes.InvalidArgument, "invalid since_id: %v", err)
+		}
+		f := store.ObserveFilter{
+			Kind:      observe.Kind(req.Kind),
+			Name:      req.Name,
+			Category:  req.Category,
+			SessionID: req.SessionId,
+			Since:     time.UnixMilli(int64(id.Time())),
+		}
+		events, err := s.store.ListObserveEvents(f)
+		if err != nil {
+			return err
+		}
+		// List returns newest-first; reverse to send chronologically.
+		for i := len(events) - 1; i >= 0; i-- {
+			e := events[i]
+			if e.ID <= req.SinceId {
+				continue
+			}
+			if err := stream.Send(observeEventToProto(e)); err != nil {
+				return err
+			}
+			if e.ID > maxBackfillID {
+				maxBackfillID = e.ID
+			}
+		}
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case e, ok := <-sub:
+			if !ok {
+				return nil
+			}
+			if maxBackfillID != "" && e.ID <= maxBackfillID {
+				continue
+			}
+			if err := stream.Send(observeEventToProto(e)); err != nil {
+				return err
+			}
+		}
+	}
 }

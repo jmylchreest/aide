@@ -949,6 +949,7 @@ service TokenService {
 service ObserveService {
   rpc RecordEvent(ObserveRecordRequest) returns (ObserveRecordResponse);
   rpc ListEvents(ObserveListRequest) returns (ObserveListResponse);
+  rpc WatchEvents(ObserveWatchRequest) returns (stream ObserveEvent);
 }
 
 message ObserveRecordRequest {
@@ -999,6 +1000,15 @@ message ObserveEvent {
 
 message ObserveListResponse {
   repeated ObserveEvent events = 1;
+}
+
+message ObserveWatchRequest {
+  string kind = 1;
+  string name = 2;
+  string category = 3;
+  string session_id = 4;
+  // Backfill events with ULID > since_id before switching to live.
+  string since_id = 5;
 }
 
 message TokenEventRequest {

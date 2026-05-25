@@ -746,10 +746,8 @@ func cmdMCP(dbPath string, args []string) error {
 	defer st.Close()
 	mcpLog.Printf("database opened in %v (bolt + bleve search)", time.Since(storeStart))
 
-	// Wire the global observe recorder so any package that emits spans lands
-	// in the daemon's bolt store. Cleared on shutdown so callers post-defer
-	// don't retain a stale sink.
-	observe.SetDefault(store.NewObserveSink(st.Bolt()))
+	observeSink := store.NewObserveSink(st.Bolt())
+	observe.SetDefault(observeSink)
 	defer observe.SetDefault(nil)
 
 	if migrated, err := st.Bolt().MigrateTokenEventsToObserve(); err != nil {
@@ -761,6 +759,7 @@ func cmdMCP(dbPath string, args []string) error {
 	mcpServer := &MCPServer{store: st, grammarLoader: grammarLoader, dbPath: dbPath}
 
 	grpcServer := grpcapi.NewServer(st, dbPath, socketPath, grammarLoader)
+	observeSink.SetBus(grpcServer.ObserveBus())
 	mcpServer.grpcServer = grpcServer
 	mcpLog.Printf("gRPC socket: %s", socketPath)
 
