@@ -67,7 +67,7 @@ Examples:
 
 func messageSend(b *Backend, args []string) error {
 	if len(args) < 1 {
-		return fmt.Errorf("usage: aide message send CONTENT --from=AGENT [--to=AGENT] [--type=TYPE] [--ttl=SECONDS]")
+		return fmt.Errorf("usage: aide message send CONTENT --from=AGENT [--to=AGENT] [--type=TYPE] [--ttl=SECONDS] [--priority=high] [--parent-session=ID]")
 	}
 
 	content := args[0]
@@ -75,6 +75,8 @@ func messageSend(b *Backend, args []string) error {
 	to := parseFlag(args[1:], "--to=")
 	msgType := parseFlag(args[1:], "--type=")
 	ttlStr := parseFlag(args[1:], "--ttl=")
+	priority := parseFlag(args[1:], "--priority=")
+	parentSession := parseFlag(args[1:], "--parent-session=")
 
 	if from == "" {
 		return fmt.Errorf("--from is required")
@@ -89,7 +91,10 @@ func messageSend(b *Backend, args []string) error {
 		ttlSeconds = n
 	}
 
-	msg, err := b.SendMessage(from, to, content, msgType, ttlSeconds)
+	msg, err := b.SendMessageWithOpts(from, to, content, msgType, ttlSeconds, MessageSendOpts{
+		Priority:        priority,
+		ParentSessionID: parentSession,
+	})
 	if err != nil {
 		return fmt.Errorf("failed to send message: %w", err)
 	}
@@ -104,8 +109,9 @@ func messageSend(b *Backend, args []string) error {
 
 func messageList(b *Backend, args []string) error {
 	agentID := parseFlag(args, "--agent=")
+	parentSession := parseFlag(args, "--parent-session=")
 
-	messages, err := b.ListMessages(agentID)
+	messages, err := b.ListMessagesFiltered(agentID, parentSession)
 	if err != nil {
 		return fmt.Errorf("failed to list messages: %w", err)
 	}

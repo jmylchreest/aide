@@ -201,3 +201,48 @@ export interface InstinctProposalItem {
   evidence: InstinctEvidence;
   proposed_instinct: InstinctProposedMemory;
 }
+
+export interface SwarmAgentItem {
+  agent: string;
+  parent_session?: string;
+  namespace?: string;
+  status?: string;
+  type?: string;
+  started_at?: string;
+  halt?: boolean;
+  halt_reason?: string;
+  paused?: boolean;
+  deadline?: string;
+}
+
+export interface SwarmTaskUpdate {
+  id: string;
+  title: string;
+  status: string;
+  claimed_by?: string;
+  parent_session_id?: string;
+  worktree?: string;
+  result?: string;
+  created_at?: string;
+  claimed_at?: string;
+  completed_at?: string;
+}
+
+export interface SwarmMessageUpdate {
+  id: number;
+  from: string;
+  to?: string;
+  content: string;
+  type?: string;
+  priority?: string;
+  parent_session_id?: string;
+  created_at?: string;
+}
+
+export interface SwarmStateUpdate {
+  key: string;
+  value?: string;
+  agent?: string;
+  change: "set" | "delete";
+  updated_at?: string;
+}

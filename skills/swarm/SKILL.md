@@ -6,6 +6,10 @@ triggers:
   - parallel agents
   - spawn agents
   - multi-agent
+  - halt agent
+  - pause swarm
+  - stop agent
+  - resume agent
 ---
 
 # Swarm Mode
@@ -221,7 +225,28 @@ When all 5 stages are complete:
 });
 ```
 
-### 4. Monitor Progress
+### Mid-flight control
+
+Once stories are launched, you can intervene without killing/restarting agents.
+All control writes go through `aide agent` and reach the subagent on its
+**next tool call** (worst case ≈ duration of an in-flight Bash/Edit). The
+signal hook (`src/hooks/agent-signals.ts`) gates on a subagent's
+`parent_session` being set — orchestrator/solo sessions see zero overhead.
+
+- **Inspect**: `./.aide/bin/aide agent list --parent=$(./.aide/bin/aide reflect current-session) --json`
+- **Halt cleanly**: `./.aide/bin/aide agent halt <agent-id> --reason="repeated rustdoc — see new instinct"`
+  Next tool call is blocked with the reason surfaced to the model.
+- **Pause / resume**: `./.aide/bin/aide agent pause <agent-id>` then `./.aide/bin/aide agent resume <agent-id>`.
+  Paused agents can only call `message_send`/`message_list`/`message_ack`/`state_get`.
+- **Mid-flight instruction**: `./.aide/bin/aide message send --from=orchestrator --to=<agent-id> --priority=high "scope drifted — focus on auth.ts only"`.
+  Surfaced as `additionalContext` on the subagent's next tool call.
+- **Soft deadline**: `./.aide/bin/aide agent deadline <agent-id> 30m` — warns at < 5min remaining; halts at 0.
+
+When to intervene vs. let it run: prefer letting agents finish a stage and
+review at the next checkpoint. Use mid-flight halt only for clearly-wrong
+directions (infinite loops, scope drift, depleted budget with no progress).
+
+### Monitor Progress
 
 Use TaskList to see all story progress:
 

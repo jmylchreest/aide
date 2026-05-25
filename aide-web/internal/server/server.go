@@ -74,6 +74,8 @@ func (s *Server) setupRouter() {
 	huma.Get(api, "/api/instances/{project}/instincts/{id}", h.APIGetInstinctProposal)
 	huma.Post(api, "/api/instances/{project}/instincts/{id}/accept", h.APIAcceptInstinctProposal)
 	huma.Post(api, "/api/instances/{project}/instincts/{id}/reject", h.APIRejectInstinctProposal)
+	huma.Get(api, "/api/instances/{project}/swarm/agents", h.APIListSwarmAgents)
+	huma.Post(api, "/api/instances/{project}/swarm/agent/control", h.APIAgentControl)
 	huma.Get(api, "/api/search", h.APISearch)
 	huma.Post(api, "/api/instances/{project}/code/index", h.APIRunCodeIndex)
 	huma.Get(api, "/api/instances/{project}/code/file", h.APIReadFile)
@@ -81,6 +83,9 @@ func (s *Server) setupRouter() {
 	// Streaming endpoints — raw chi (huma's request/response shape is unary).
 	r.Get("/api/instances/{project}/observe/watch", h.APIWatchObserveEvents)
 	r.Get("/api/instances/{project}/instincts/watch", h.APIWatchInstinctProposals)
+	r.Get("/api/instances/{project}/swarm/tasks/watch", h.APIWatchSwarmTasks)
+	r.Get("/api/instances/{project}/swarm/messages/watch", h.APIWatchSwarmMessages)
+	r.Get("/api/instances/{project}/swarm/state/watch", h.APIWatchSwarmState)
 
 	// Legacy JSON endpoints used by the code search page
 	r.Get("/instances/{project}/code/search.json", h.CodeSearchJSON)

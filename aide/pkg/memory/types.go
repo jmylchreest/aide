@@ -45,28 +45,31 @@ const (
 
 // Task represents a swarm task that can be claimed by agents.
 type Task struct {
-	ID          string     `json:"id"`
-	Title       string     `json:"title"`
-	Description string     `json:"description,omitempty"`
-	Status      TaskStatus `json:"status"`
-	ClaimedBy   string     `json:"claimedBy,omitempty"`
-	ClaimedAt   time.Time  `json:"claimedAt,omitempty"`
-	CompletedAt time.Time  `json:"completedAt,omitempty"`
-	Worktree    string     `json:"worktree,omitempty"`
-	Result      string     `json:"result,omitempty"`
-	CreatedAt   time.Time  `json:"createdAt"`
+	ID              string     `json:"id"`
+	Title           string     `json:"title"`
+	Description     string     `json:"description,omitempty"`
+	Status          TaskStatus `json:"status"`
+	ClaimedBy       string     `json:"claimedBy,omitempty"`
+	ClaimedAt       time.Time  `json:"claimedAt,omitempty"`
+	CompletedAt     time.Time  `json:"completedAt,omitempty"`
+	Worktree        string     `json:"worktree,omitempty"`
+	Result          string     `json:"result,omitempty"`
+	ParentSessionID string     `json:"parentSessionId,omitempty"` // Orchestrator session that owns the swarm; empty = solo/project-root
+	CreatedAt       time.Time  `json:"createdAt"`
 }
 
 // Message represents inter-agent communication.
 type Message struct {
-	ID        uint64    `json:"id"`
-	From      string    `json:"from"`
-	To        string    `json:"to,omitempty"` // Empty = broadcast
-	Content   string    `json:"content"`
-	Type      string    `json:"type,omitempty"` // Optional: info, warning, error, etc.
-	ReadBy    []string  `json:"readBy,omitempty"`
-	CreatedAt time.Time `json:"createdAt"`
-	ExpiresAt time.Time `json:"expiresAt,omitempty"` // TTL - auto-prune after this time
+	ID              uint64    `json:"id"`
+	From            string    `json:"from"`
+	To              string    `json:"to,omitempty"` // Empty = broadcast
+	Content         string    `json:"content"`
+	Type            string    `json:"type,omitempty"`     // Optional: info, warning, error, halt, pause, resume
+	Priority        string    `json:"priority,omitempty"` // "high" | "" (normal); high msgs are surfaced mid-flight by the signal hook
+	ParentSessionID string    `json:"parentSessionId,omitempty"`
+	ReadBy          []string  `json:"readBy,omitempty"`
+	CreatedAt       time.Time `json:"createdAt"`
+	ExpiresAt       time.Time `json:"expiresAt,omitempty"` // TTL - auto-prune after this time
 }
 
 // Decision represents a shared architectural decision with full context.

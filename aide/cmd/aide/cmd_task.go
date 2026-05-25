@@ -68,13 +68,14 @@ Examples:
 
 func taskCreate(b *Backend, args []string) error {
 	if len(args) < 1 {
-		return fmt.Errorf("usage: aide task create TITLE [--description=DESC]")
+		return fmt.Errorf("usage: aide task create TITLE [--description=DESC] [--parent-session=ID]")
 	}
 
 	title := args[0]
 	desc := parseFlag(args[1:], "--description=")
+	parentSession := parseFlag(args[1:], "--parent-session=")
 
-	t, err := b.CreateTask(title, desc)
+	t, err := b.CreateTaskWithParent(title, desc, parentSession)
 	if err != nil {
 		return fmt.Errorf("failed to create task: %w", err)
 	}
@@ -122,8 +123,9 @@ func taskComplete(b *Backend, args []string) error {
 
 func taskList(b *Backend, args []string) error {
 	status := parseFlag(args, "--status=")
+	parentSession := parseFlag(args, "--parent-session=")
 
-	tasks, err := b.ListTasks(status)
+	tasks, err := b.ListTasksFiltered(status, parentSession)
 	if err != nil {
 		return fmt.Errorf("failed to list tasks: %w", err)
 	}

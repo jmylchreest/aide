@@ -314,6 +314,11 @@ async function processSubagentStart(
   setAgentState(cwd, agent_id, "type", type);
   setAgentState(cwd, agent_id, "startedAt", new Date().toISOString());
   setAgentState(cwd, agent_id, "session", session_id); // Track which session owns this agent
+  // Parent linkage for swarm queries: the orchestrator (session_id) spawned
+  // this subagent (agent_id). Watch filters key off parent_session.
+  // namespace stamps swarm-scoped memories the subagent creates.
+  setAgentState(cwd, agent_id, "parent_session", session_id);
+  setAgentState(cwd, agent_id, "namespace", `swarm:${session_id}`);
   log?.end("registerAgent");
 
   // Refresh HUD to show the new running agent

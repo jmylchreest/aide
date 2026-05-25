@@ -14,6 +14,7 @@ import {
   Radio,
   Inbox,
   Sparkles,
+  Network,
 } from "lucide-react";
 
 const navItems = [
@@ -30,6 +31,7 @@ const navItems = [
   { to: "observe", label: "Observe", icon: Radio },
   { to: "injections", label: "Injections", icon: Inbox },
   { to: "instincts", label: "Instincts", icon: Sparkles },
+  { to: "swarm", label: "Swarm", icon: Network },
 ];
 
 interface SidebarProps {

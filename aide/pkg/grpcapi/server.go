@@ -55,6 +55,9 @@ type Server struct {
 	surveyStore   store.SurveyStore
 	observeBus    *eventbus.Broadcaster[*observe.Event]
 	instinctBus   *eventbus.Broadcaster[*instinct.Proposal]
+	taskBus       *eventbus.Broadcaster[*memory.Task]
+	messageBus    *eventbus.Broadcaster[*memory.Message]
+	stateBus      *eventbus.Broadcaster[*StateChange]
 	dbPath        string
 	grpcServer    *grpc.Server
 	socketPath    string
@@ -86,12 +89,24 @@ func NewServer(st store.Store, dbPath, socketPath string, loader grammar.Loader)
 		store:         st,
 		observeBus:    eventbus.New[*observe.Event](256),
 		instinctBus:   eventbus.New[*instinct.Proposal](64),
+		taskBus:       eventbus.New[*memory.Task](64),
+		messageBus:    eventbus.New[*memory.Message](128),
+		stateBus:      eventbus.New[*StateChange](128),
 		dbPath:        dbPath,
 		socketPath:    socketPath,
 		startTime:     time.Now(),
 		grammarLoader: loader,
 	}
 }
+
+// TaskBus, MessageBus, StateBus expose the swarm broadcasters for live
+// streaming. Used by SwarmService.Watch* and by service handlers that
+// publish on writes.
+func (s *Server) TaskBus() *eventbus.Broadcaster[*memory.Task] { return s.taskBus }
+func (s *Server) MessageBus() *eventbus.Broadcaster[*memory.Message] {
+	return s.messageBus
+}
+func (s *Server) StateBus() *eventbus.Broadcaster[*StateChange] { return s.stateBus }
 
 // SetInstinctStore attaches the instinct proposal store. Without it the
 // InstinctService returns FailedPrecondition.
@@ -238,16 +253,17 @@ func (s *Server) Start() error {
 
 	// Register all services with separate implementations
 	RegisterMemoryServiceServer(s.grpcServer, &memoryServiceImpl{store: s.store})
-	RegisterStateServiceServer(s.grpcServer, &stateServiceImpl{store: s.store})
+	RegisterStateServiceServer(s.grpcServer, &stateServiceImpl{store: s.store, server: s})
 	RegisterDecisionServiceServer(s.grpcServer, &decisionServiceImpl{store: s.store})
-	RegisterMessageServiceServer(s.grpcServer, &messageServiceImpl{store: s.store})
-	RegisterTaskServiceServer(s.grpcServer, &taskServiceImpl{store: s.store})
+	RegisterMessageServiceServer(s.grpcServer, &messageServiceImpl{store: s.store, server: s})
+	RegisterTaskServiceServer(s.grpcServer, &taskServiceImpl{store: s.store, server: s})
 	RegisterCodeServiceServer(s.grpcServer, &codeServiceImpl{server: s, parser: code.NewParser(s.grammarLoader)})
 	RegisterFindingsServiceServer(s.grpcServer, &findingsServiceImpl{server: s})
 	RegisterSurveyServiceServer(s.grpcServer, &surveyServiceImpl{server: s})
 	RegisterTokenServiceServer(s.grpcServer, &tokenServiceImpl{store: s.store})
 	RegisterObserveServiceServer(s.grpcServer, &observeServiceImpl{store: s.store, bus: s.observeBus})
 	RegisterInstinctServiceServer(s.grpcServer, &instinctServiceImpl{server: s})
+	RegisterSwarmServiceServer(s.grpcServer, &swarmServiceImpl{server: s})
 	RegisterHealthServiceServer(s.grpcServer, &healthServiceImpl{dbPath: s.dbPath})
 	RegisterStatusServiceServer(s.grpcServer, &statusServiceImpl{server: s})
 
@@ -417,7 +433,17 @@ func (s *memoryServiceImpl) Touch(ctx context.Context, req *MemoryTouchRequest) 
 
 type stateServiceImpl struct {
 	UnimplementedStateServiceServer
-	store store.StateStore
+	store  store.StateStore
+	server *Server
+}
+
+func (s *stateServiceImpl) publish(st *memory.State, change string) {
+	if s.server == nil {
+		return
+	}
+	if bus := s.server.StateBus(); bus != nil {
+		bus.Publish(&StateChange{State: stateToProto(st), Change: change})
+	}
 }
 
 func (s *stateServiceImpl) Get(ctx context.Context, req *StateGetRequest) (*StateGetResponse, error) {
@@ -459,6 +485,8 @@ func (s *stateServiceImpl) Set(ctx context.Context, req *StateSetRequest) (*Stat
 		return nil, err
 	}
 
+	s.publish(st, "set")
+
 	return &StateSetResponse{
 		State: stateToProto(st),
 	}, nil
@@ -484,6 +512,8 @@ func (s *stateServiceImpl) Delete(ctx context.Context, req *StateDeleteRequest) 
 	if err := s.store.DeleteState(req.Key); err != nil {
 		return nil, err
 	}
+
+	s.publish(&memory.State{Key: req.Key}, "delete")
 
 	return &StateDeleteResponse{
 		Success: true,
@@ -628,7 +658,8 @@ func (s *decisionServiceImpl) Clear(ctx context.Context, req *DecisionClearReque
 
 type messageServiceImpl struct {
 	UnimplementedMessageServiceServer
-	store store.MessageStore
+	store  store.MessageStore
+	server *Server
 }
 
 func (s *messageServiceImpl) Send(ctx context.Context, req *MessageSendRequest) (*MessageSendResponse, error) {
@@ -638,16 +669,24 @@ func (s *messageServiceImpl) Send(ctx context.Context, req *MessageSendRequest) 
 	}
 
 	msg := &memory.Message{
-		From:      req.From,
-		To:        req.To,
-		Content:   req.Content,
-		Type:      req.Type,
-		CreatedAt: time.Now(),
-		ExpiresAt: time.Now().Add(time.Duration(ttl) * time.Second),
+		From:            req.From,
+		To:              req.To,
+		Content:         req.Content,
+		Type:            req.Type,
+		Priority:        req.Priority,
+		ParentSessionID: req.ParentSessionId,
+		CreatedAt:       time.Now(),
+		ExpiresAt:       time.Now().Add(time.Duration(ttl) * time.Second),
 	}
 
 	if err := s.store.AddMessage(msg); err != nil {
 		return nil, err
+	}
+
+	if s.server != nil {
+		if bus := s.server.MessageBus(); bus != nil {
+			bus.Publish(msg)
+		}
 	}
 
 	return &MessageSendResponse{
@@ -659,6 +698,16 @@ func (s *messageServiceImpl) List(ctx context.Context, req *MessageListRequest) 
 	messages, err := s.store.GetMessages(req.AgentId)
 	if err != nil {
 		return nil, err
+	}
+
+	if req.ParentSessionId != "" {
+		filtered := messages[:0]
+		for _, m := range messages {
+			if m.ParentSessionID == req.ParentSessionId {
+				filtered = append(filtered, m)
+			}
+		}
+		messages = filtered
 	}
 
 	protoMessages := make([]*Message, len(messages))
@@ -698,19 +747,32 @@ func (s *messageServiceImpl) Prune(ctx context.Context, req *MessagePruneRequest
 
 type taskServiceImpl struct {
 	UnimplementedTaskServiceServer
-	store store.TaskStore
+	store  store.TaskStore
+	server *Server
+}
+
+func (s *taskServiceImpl) publishTask(t *memory.Task) {
+	if s.server == nil || t == nil {
+		return
+	}
+	if bus := s.server.TaskBus(); bus != nil {
+		bus.Publish(t)
+	}
 }
 
 func (s *taskServiceImpl) Create(ctx context.Context, req *TaskCreateRequest) (*TaskCreateResponse, error) {
 	task := &memory.Task{
-		Title:       req.Title,
-		Description: req.Description,
-		Status:      memory.TaskStatusPending,
+		Title:           req.Title,
+		Description:     req.Description,
+		ParentSessionID: req.ParentSessionId,
+		Status:          memory.TaskStatusPending,
 	}
 
 	if err := s.store.CreateTask(task); err != nil {
 		return nil, err
 	}
+
+	s.publishTask(task)
 
 	return &TaskCreateResponse{
 		Task: taskToProto(task),
@@ -736,6 +798,16 @@ func (s *taskServiceImpl) List(ctx context.Context, req *TaskListRequest) (*Task
 	tasks, err := s.store.ListTasks(memory.TaskStatus(req.Status))
 	if err != nil {
 		return nil, err
+	}
+
+	if req.ParentSessionId != "" {
+		filtered := tasks[:0]
+		for _, t := range tasks {
+			if t.ParentSessionID == req.ParentSessionId {
+				filtered = append(filtered, t)
+			}
+		}
+		tasks = filtered
 	}
 
 	protoTasks := make([]*Task, len(tasks))
@@ -768,6 +840,8 @@ func (s *taskServiceImpl) Claim(ctx context.Context, req *TaskClaimRequest) (*Ta
 		}
 	}
 
+	s.publishTask(task)
+
 	return &TaskClaimResponse{
 		Task:    taskToProto(task),
 		Success: true,
@@ -786,6 +860,7 @@ func (s *taskServiceImpl) Complete(ctx context.Context, req *TaskCompleteRequest
 			Success: true,
 		}, nil
 	}
+	s.publishTask(task)
 	return &TaskCompleteResponse{
 		Task:    taskToProto(task),
 		Success: true,
@@ -812,6 +887,8 @@ func (s *taskServiceImpl) Update(ctx context.Context, req *TaskUpdateRequest) (*
 		return nil, fmt.Errorf("update task: %w", err)
 	}
 
+	s.publishTask(task)
+
 	return &TaskUpdateResponse{
 		Task:    taskToProto(task),
 		Success: true,
@@ -831,6 +908,169 @@ func (s *taskServiceImpl) Clear(ctx context.Context, req *TaskClearRequest) (*Ta
 		return nil, err
 	}
 	return &TaskClearResponse{Count: int32(count)}, nil
+}
+
+// =============================================================================
+// Swarm Service Implementation
+// =============================================================================
+
+type swarmServiceImpl struct {
+	UnimplementedSwarmServiceServer
+	server *Server
+}
+
+func (s *swarmServiceImpl) WatchTasks(req *SwarmWatchTasksRequest, stream SwarmService_WatchTasksServer) error {
+	bus := s.server.TaskBus()
+	if bus == nil {
+		return status.Error(codes.FailedPrecondition, "task broadcaster not configured")
+	}
+	ctx := stream.Context()
+
+	matches := func(t *memory.Task) bool {
+		if t == nil {
+			return false
+		}
+		if req.ParentSessionId != "" && t.ParentSessionID != req.ParentSessionId {
+			return false
+		}
+		if req.Status != "" && string(t.Status) != req.Status {
+			return false
+		}
+		return true
+	}
+
+	sub, unsub := bus.Subscribe(ctx, matches)
+	defer unsub()
+
+	if tasks, err := s.server.store.ListTasks(memory.TaskStatus(req.Status)); err == nil {
+		for _, t := range tasks {
+			if !matches(t) {
+				continue
+			}
+			if err := stream.Send(taskToProto(t)); err != nil {
+				return err
+			}
+		}
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case t, ok := <-sub:
+			if !ok {
+				return nil
+			}
+			if err := stream.Send(taskToProto(t)); err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func (s *swarmServiceImpl) WatchMessages(req *SwarmWatchMessagesRequest, stream SwarmService_WatchMessagesServer) error {
+	bus := s.server.MessageBus()
+	if bus == nil {
+		return status.Error(codes.FailedPrecondition, "message broadcaster not configured")
+	}
+	ctx := stream.Context()
+
+	matches := func(m *memory.Message) bool {
+		if m == nil {
+			return false
+		}
+		if req.ParentSessionId != "" && m.ParentSessionID != req.ParentSessionId {
+			return false
+		}
+		if req.AgentId != "" && m.To != req.AgentId && m.From != req.AgentId {
+			return false
+		}
+		if req.Priority != "" && !strings.EqualFold(m.Priority, req.Priority) {
+			return false
+		}
+		return true
+	}
+
+	sub, unsub := bus.Subscribe(ctx, matches)
+	defer unsub()
+
+	// Backfill recent messages addressed to the agent (if any).
+	if msgs, err := s.server.store.GetMessages(req.AgentId); err == nil {
+		for _, m := range msgs {
+			if !matches(m) {
+				continue
+			}
+			if err := stream.Send(messageToProto(m)); err != nil {
+				return err
+			}
+		}
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case m, ok := <-sub:
+			if !ok {
+				return nil
+			}
+			if err := stream.Send(messageToProto(m)); err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func (s *swarmServiceImpl) WatchState(req *SwarmWatchStateRequest, stream SwarmService_WatchStateServer) error {
+	bus := s.server.StateBus()
+	if bus == nil {
+		return status.Error(codes.FailedPrecondition, "state broadcaster not configured")
+	}
+	ctx := stream.Context()
+
+	matches := func(c *StateChange) bool {
+		if c == nil || c.State == nil {
+			return false
+		}
+		if req.AgentId != "" && c.State.Agent != req.AgentId {
+			return false
+		}
+		if req.KeyPrefix != "" && !strings.HasPrefix(c.State.Key, req.KeyPrefix) {
+			return false
+		}
+		return true
+	}
+
+	sub, unsub := bus.Subscribe(ctx, matches)
+	defer unsub()
+
+	// Backfill: list current state for the agent so the client renders
+	// initial values, then transition to live.
+	if states, err := s.server.store.ListState(req.AgentId); err == nil {
+		for _, st := range states {
+			change := &StateChange{State: stateToProto(st), Change: "set"}
+			if !matches(change) {
+				continue
+			}
+			if err := stream.Send(change); err != nil {
+				return err
+			}
+		}
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case c, ok := <-sub:
+			if !ok {
+				return nil
+			}
+			if err := stream.Send(c); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 // =============================================================================
@@ -2332,14 +2572,16 @@ func messageToProto(m *memory.Message) *Message {
 		return nil
 	}
 	return &Message{
-		Id:        m.ID,
-		From:      m.From,
-		To:        m.To,
-		Content:   m.Content,
-		Type:      m.Type,
-		ReadBy:    m.ReadBy,
-		CreatedAt: timestamppb.New(m.CreatedAt),
-		ExpiresAt: timestamppb.New(m.ExpiresAt),
+		Id:              m.ID,
+		From:            m.From,
+		To:              m.To,
+		Content:         m.Content,
+		Type:            m.Type,
+		Priority:        m.Priority,
+		ParentSessionId: m.ParentSessionID,
+		ReadBy:          m.ReadBy,
+		CreatedAt:       timestamppb.New(m.CreatedAt),
+		ExpiresAt:       timestamppb.New(m.ExpiresAt),
 	}
 }
 
@@ -2348,16 +2590,17 @@ func taskToProto(t *memory.Task) *Task {
 		return nil
 	}
 	return &Task{
-		Id:          t.ID,
-		Title:       t.Title,
-		Description: t.Description,
-		Status:      string(t.Status),
-		ClaimedBy:   t.ClaimedBy,
-		Worktree:    t.Worktree,
-		Result:      t.Result,
-		CreatedAt:   timestamppb.New(t.CreatedAt),
-		ClaimedAt:   timestamppb.New(t.ClaimedAt),
-		CompletedAt: timestamppb.New(t.CompletedAt),
+		Id:              t.ID,
+		Title:           t.Title,
+		Description:     t.Description,
+		Status:          string(t.Status),
+		ClaimedBy:       t.ClaimedBy,
+		Worktree:        t.Worktree,
+		Result:          t.Result,
+		ParentSessionId: t.ParentSessionID,
+		CreatedAt:       timestamppb.New(t.CreatedAt),
+		ClaimedAt:       timestamppb.New(t.ClaimedAt),
+		CompletedAt:     timestamppb.New(t.CompletedAt),
 	}
 }
 

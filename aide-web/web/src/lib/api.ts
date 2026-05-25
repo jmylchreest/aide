@@ -14,6 +14,7 @@ import type {
   ObserveEventItem,
   InstinctProposalItem,
   InstinctStatus,
+  SwarmAgentItem,
 } from "./types";
 
 const BASE = "/api";
@@ -271,5 +272,62 @@ export const api = {
   runCodeIndex: (project: string) =>
     postJson<{ files_indexed: number; symbols_indexed: number; files_skipped: number }>(
       `${BASE}/instances/${encodeURIComponent(project)}/code/index`
+    ),
+
+  listSwarmAgents: (project: string, parentSession?: string) =>
+    get<{ agents: SwarmAgentItem[] }>(
+      `${BASE}/instances/${encodeURIComponent(project)}/swarm/agents`,
+      parentSession ? { parent_session: parentSession } : undefined,
+    ).then((r) => r.agents ?? []),
+
+  swarmTasksWatchUrl: (
+    project: string,
+    filters: { parent_session?: string; status?: string } = {},
+  ) => {
+    const url = new URL(
+      `${BASE}/instances/${encodeURIComponent(project)}/swarm/tasks/watch`,
+      window.location.origin,
+    );
+    Object.entries(filters).forEach(([k, v]) => {
+      if (v) url.searchParams.set(k, v);
+    });
+    return url.toString();
+  },
+
+  swarmMessagesWatchUrl: (
+    project: string,
+    filters: { parent_session?: string; agent?: string; priority?: string } = {},
+  ) => {
+    const url = new URL(
+      `${BASE}/instances/${encodeURIComponent(project)}/swarm/messages/watch`,
+      window.location.origin,
+    );
+    Object.entries(filters).forEach(([k, v]) => {
+      if (v) url.searchParams.set(k, v);
+    });
+    return url.toString();
+  },
+
+  swarmStateWatchUrl: (
+    project: string,
+    filters: { agent?: string; key_prefix?: string } = {},
+  ) => {
+    const url = new URL(
+      `${BASE}/instances/${encodeURIComponent(project)}/swarm/state/watch`,
+      window.location.origin,
+    );
+    Object.entries(filters).forEach(([k, v]) => {
+      if (v) url.searchParams.set(k, v);
+    });
+    return url.toString();
+  },
+
+  agentControl: (
+    project: string,
+    body: { agent: string; action: "halt" | "pause" | "resume" | "deadline"; reason?: string; duration?: string },
+  ) =>
+    post(
+      `${BASE}/instances/${encodeURIComponent(project)}/swarm/agent/control`,
+      body,
     ),
 };

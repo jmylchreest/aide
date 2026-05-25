@@ -25,6 +25,7 @@ type Client struct {
 	Token    TokenServiceClient
 	Observe  ObserveServiceClient
 	Instinct InstinctServiceClient
+	Swarm    SwarmServiceClient
 	Health   HealthServiceClient
 	Status   StatusServiceClient
 }
@@ -70,6 +71,7 @@ func NewClientWithSocket(socketPath string) (*Client, error) {
 		Token:    NewTokenServiceClient(conn),
 		Observe:  NewObserveServiceClient(conn),
 		Instinct: NewInstinctServiceClient(conn),
+		Swarm:    NewSwarmServiceClient(conn),
 		Health:   NewHealthServiceClient(conn),
 		Status:   NewStatusServiceClient(conn),
 	}

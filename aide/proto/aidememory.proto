@@ -274,6 +274,8 @@ message Message {
   repeated string read_by = 6;
   google.protobuf.Timestamp created_at = 7;
   google.protobuf.Timestamp expires_at = 8;
+  string priority = 9;            // "high" | "" (normal)
+  string parent_session_id = 10;  // Orchestrator session for swarm filtering
 }
 
 message MessageSendRequest {
@@ -282,6 +284,8 @@ message MessageSendRequest {
   string content = 3;
   string type = 4;
   int32 ttl_seconds = 5;  // Time-to-live, default 3600
+  string priority = 6;
+  string parent_session_id = 7;
 }
 
 message MessageSendResponse {
@@ -291,6 +295,7 @@ message MessageSendResponse {
 message MessageListRequest {
   string agent_id = 1;
   bool include_read = 2;
+  string parent_session_id = 3;  // Optional: filter to swarm scope
 }
 
 message MessageListResponse {
@@ -338,11 +343,13 @@ message Task {
   google.protobuf.Timestamp created_at = 8;
   google.protobuf.Timestamp claimed_at = 9;
   google.protobuf.Timestamp completed_at = 10;
+  string parent_session_id = 11;  // Orchestrator session for swarm filtering
 }
 
 message TaskCreateRequest {
   string title = 1;
   string description = 2;
+  string parent_session_id = 3;
 }
 
 message TaskCreateResponse {
@@ -359,7 +366,8 @@ message TaskGetResponse {
 }
 
 message TaskListRequest {
-  string status = 1;  // Optional: filter by status
+  string status = 1;             // Optional: filter by status
+  string parent_session_id = 2;  // Optional: filter to swarm scope
 }
 
 message TaskListResponse {
@@ -1148,4 +1156,35 @@ message TokenEventItem {
   string file_path = 6;
   int32 tokens = 7;
   int32 tokens_saved = 8;
+}
+
+// =============================================================================
+// Swarm Service (live coordination — server-streams over existing buckets)
+// =============================================================================
+
+service SwarmService {
+  rpc WatchTasks(SwarmWatchTasksRequest) returns (stream Task);
+  rpc WatchMessages(SwarmWatchMessagesRequest) returns (stream Message);
+  rpc WatchState(SwarmWatchStateRequest) returns (stream StateChange);
+}
+
+message SwarmWatchTasksRequest {
+  string parent_session_id = 1;  // empty = all
+  string status = 2;             // empty = any
+}
+
+message SwarmWatchMessagesRequest {
+  string parent_session_id = 1;  // empty = all
+  string agent_id = 2;           // empty = all (matches from/to)
+  string priority = 3;           // empty = any
+}
+
+message SwarmWatchStateRequest {
+  string agent_id = 1;           // empty = all
+  string key_prefix = 2;         // empty = all keys
+}
+
+message StateChange {
+  State state = 1;
+  string change = 2;             // "set" | "delete"
 }

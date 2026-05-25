@@ -507,17 +507,29 @@ func (b *Backend) ClearDecisions() (int, error) {
 // Message Operations
 // =============================================================================
 
+// MessageSendOpts carries the new optional fields without churning every call site.
+type MessageSendOpts struct {
+	Priority        string
+	ParentSessionID string
+}
+
 func (b *Backend) SendMessage(from, to, content, msgType string, ttlSeconds int) (*memory.Message, error) {
+	return b.SendMessageWithOpts(from, to, content, msgType, ttlSeconds, MessageSendOpts{})
+}
+
+func (b *Backend) SendMessageWithOpts(from, to, content, msgType string, ttlSeconds int, opts MessageSendOpts) (*memory.Message, error) {
 	ctx, cancel := b.rpcCtx()
 	defer cancel()
 
 	if b.useGRPC {
 		resp, err := b.grpcClient.Message.Send(ctx, &grpcapi.MessageSendRequest{
-			From:       from,
-			To:         to,
-			Content:    content,
-			Type:       msgType,
-			TtlSeconds: int32(ttlSeconds),
+			From:            from,
+			To:              to,
+			Content:         content,
+			Type:            msgType,
+			TtlSeconds:      int32(ttlSeconds),
+			Priority:        opts.Priority,
+			ParentSessionId: opts.ParentSessionID,
 		})
 		if err != nil {
 			return nil, err
@@ -529,12 +541,14 @@ func (b *Backend) SendMessage(from, to, content, msgType string, ttlSeconds int)
 		ttlSeconds = DefaultMessageTTLSeconds
 	}
 	msg := &memory.Message{
-		From:      from,
-		To:        to,
-		Content:   content,
-		Type:      msgType,
-		CreatedAt: time.Now(),
-		ExpiresAt: time.Now().Add(time.Duration(ttlSeconds) * time.Second),
+		From:            from,
+		To:              to,
+		Content:         content,
+		Type:            msgType,
+		Priority:        opts.Priority,
+		ParentSessionID: opts.ParentSessionID,
+		CreatedAt:       time.Now(),
+		ExpiresAt:       time.Now().Add(time.Duration(ttlSeconds) * time.Second),
 	}
 	if err := b.store.AddMessage(msg); err != nil {
 		return nil, err
@@ -543,18 +557,38 @@ func (b *Backend) SendMessage(from, to, content, msgType string, ttlSeconds int)
 }
 
 func (b *Backend) ListMessages(agentID string) ([]*memory.Message, error) {
+	return b.ListMessagesFiltered(agentID, "")
+}
+
+func (b *Backend) ListMessagesFiltered(agentID, parentSessionID string) ([]*memory.Message, error) {
 	ctx, cancel := b.rpcCtx()
 	defer cancel()
 
 	if b.useGRPC {
-		resp, err := b.grpcClient.Message.List(ctx, &grpcapi.MessageListRequest{AgentId: agentID})
+		resp, err := b.grpcClient.Message.List(ctx, &grpcapi.MessageListRequest{
+			AgentId:         agentID,
+			ParentSessionId: parentSessionID,
+		})
 		if err != nil {
 			return nil, err
 		}
 		return adapter.ProtoToMessages(resp.Messages), nil
 	}
 
-	return b.store.GetMessages(agentID)
+	msgs, err := b.store.GetMessages(agentID)
+	if err != nil {
+		return nil, err
+	}
+	if parentSessionID == "" {
+		return msgs, nil
+	}
+	filtered := msgs[:0]
+	for _, m := range msgs {
+		if m.ParentSessionID == parentSessionID {
+			filtered = append(filtered, m)
+		}
+	}
+	return filtered, nil
 }
 
 func (b *Backend) AckMessage(messageID uint64, agentID string) error {
@@ -592,13 +626,18 @@ func (b *Backend) PruneMessages() (int, error) {
 // =============================================================================
 
 func (b *Backend) CreateTask(title, description string) (*memory.Task, error) {
+	return b.CreateTaskWithParent(title, description, "")
+}
+
+func (b *Backend) CreateTaskWithParent(title, description, parentSessionID string) (*memory.Task, error) {
 	ctx, cancel := b.rpcCtx()
 	defer cancel()
 
 	if b.useGRPC {
 		resp, err := b.grpcClient.Task.Create(ctx, &grpcapi.TaskCreateRequest{
-			Title:       title,
-			Description: description,
+			Title:           title,
+			Description:     description,
+			ParentSessionId: parentSessionID,
 		})
 		if err != nil {
 			return nil, err
@@ -607,9 +646,10 @@ func (b *Backend) CreateTask(title, description string) (*memory.Task, error) {
 	}
 
 	task := &memory.Task{
-		Title:       title,
-		Description: description,
-		Status:      memory.TaskStatusPending,
+		Title:           title,
+		Description:     description,
+		ParentSessionID: parentSessionID,
+		Status:          memory.TaskStatusPending,
 	}
 	if err := b.store.CreateTask(task); err != nil {
 		return nil, err
@@ -633,6 +673,23 @@ func (b *Backend) GetTask(id string) (*memory.Task, error) {
 	}
 
 	return b.store.GetTask(id)
+}
+
+func (b *Backend) ListTasksFiltered(status, parentSessionID string) ([]*memory.Task, error) {
+	tasks, err := b.ListTasks(status)
+	if err != nil {
+		return nil, err
+	}
+	if parentSessionID == "" {
+		return tasks, nil
+	}
+	filtered := tasks[:0]
+	for _, t := range tasks {
+		if t.ParentSessionID == parentSessionID {
+			filtered = append(filtered, t)
+		}
+	}
+	return filtered, nil
 }
 
 func (b *Backend) ListTasks(status string) ([]*memory.Task, error) {

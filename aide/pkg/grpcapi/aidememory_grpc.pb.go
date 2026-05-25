@@ -3719,3 +3719,190 @@ var InstinctService_ServiceDesc = grpc.ServiceDesc{
 	},
 	Metadata: "aidememory.proto",
 }
+
+const (
+	SwarmService_WatchTasks_FullMethodName    = "/aidememory.SwarmService/WatchTasks"
+	SwarmService_WatchMessages_FullMethodName = "/aidememory.SwarmService/WatchMessages"
+	SwarmService_WatchState_FullMethodName    = "/aidememory.SwarmService/WatchState"
+)
+
+// SwarmServiceClient is the client API for SwarmService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type SwarmServiceClient interface {
+	WatchTasks(ctx context.Context, in *SwarmWatchTasksRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Task], error)
+	WatchMessages(ctx context.Context, in *SwarmWatchMessagesRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Message], error)
+	WatchState(ctx context.Context, in *SwarmWatchStateRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[StateChange], error)
+}
+
+type swarmServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewSwarmServiceClient(cc grpc.ClientConnInterface) SwarmServiceClient {
+	return &swarmServiceClient{cc}
+}
+
+func (c *swarmServiceClient) WatchTasks(ctx context.Context, in *SwarmWatchTasksRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Task], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &SwarmService_ServiceDesc.Streams[0], SwarmService_WatchTasks_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[SwarmWatchTasksRequest, Task]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type SwarmService_WatchTasksClient = grpc.ServerStreamingClient[Task]
+
+func (c *swarmServiceClient) WatchMessages(ctx context.Context, in *SwarmWatchMessagesRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Message], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &SwarmService_ServiceDesc.Streams[1], SwarmService_WatchMessages_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[SwarmWatchMessagesRequest, Message]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type SwarmService_WatchMessagesClient = grpc.ServerStreamingClient[Message]
+
+func (c *swarmServiceClient) WatchState(ctx context.Context, in *SwarmWatchStateRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[StateChange], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &SwarmService_ServiceDesc.Streams[2], SwarmService_WatchState_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[SwarmWatchStateRequest, StateChange]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type SwarmService_WatchStateClient = grpc.ServerStreamingClient[StateChange]
+
+// SwarmServiceServer is the server API for SwarmService service.
+// All implementations must embed UnimplementedSwarmServiceServer
+// for forward compatibility.
+type SwarmServiceServer interface {
+	WatchTasks(*SwarmWatchTasksRequest, grpc.ServerStreamingServer[Task]) error
+	WatchMessages(*SwarmWatchMessagesRequest, grpc.ServerStreamingServer[Message]) error
+	WatchState(*SwarmWatchStateRequest, grpc.ServerStreamingServer[StateChange]) error
+	mustEmbedUnimplementedSwarmServiceServer()
+}
+
+// UnimplementedSwarmServiceServer must be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedSwarmServiceServer struct{}
+
+func (UnimplementedSwarmServiceServer) WatchTasks(*SwarmWatchTasksRequest, grpc.ServerStreamingServer[Task]) error {
+	return status.Error(codes.Unimplemented, "method WatchTasks not implemented")
+}
+func (UnimplementedSwarmServiceServer) WatchMessages(*SwarmWatchMessagesRequest, grpc.ServerStreamingServer[Message]) error {
+	return status.Error(codes.Unimplemented, "method WatchMessages not implemented")
+}
+func (UnimplementedSwarmServiceServer) WatchState(*SwarmWatchStateRequest, grpc.ServerStreamingServer[StateChange]) error {
+	return status.Error(codes.Unimplemented, "method WatchState not implemented")
+}
+func (UnimplementedSwarmServiceServer) mustEmbedUnimplementedSwarmServiceServer() {}
+func (UnimplementedSwarmServiceServer) testEmbeddedByValue()                      {}
+
+// UnsafeSwarmServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to SwarmServiceServer will
+// result in compilation errors.
+type UnsafeSwarmServiceServer interface {
+	mustEmbedUnimplementedSwarmServiceServer()
+}
+
+func RegisterSwarmServiceServer(s grpc.ServiceRegistrar, srv SwarmServiceServer) {
+	// If the following call panics, it indicates UnimplementedSwarmServiceServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&SwarmService_ServiceDesc, srv)
+}
+
+func _SwarmService_WatchTasks_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(SwarmWatchTasksRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(SwarmServiceServer).WatchTasks(m, &grpc.GenericServerStream[SwarmWatchTasksRequest, Task]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type SwarmService_WatchTasksServer = grpc.ServerStreamingServer[Task]
+
+func _SwarmService_WatchMessages_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(SwarmWatchMessagesRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(SwarmServiceServer).WatchMessages(m, &grpc.GenericServerStream[SwarmWatchMessagesRequest, Message]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type SwarmService_WatchMessagesServer = grpc.ServerStreamingServer[Message]
+
+func _SwarmService_WatchState_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(SwarmWatchStateRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(SwarmServiceServer).WatchState(m, &grpc.GenericServerStream[SwarmWatchStateRequest, StateChange]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type SwarmService_WatchStateServer = grpc.ServerStreamingServer[StateChange]
+
+// SwarmService_ServiceDesc is the grpc.ServiceDesc for SwarmService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var SwarmService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "aidememory.SwarmService",
+	HandlerType: (*SwarmServiceServer)(nil),
+	Methods:     []grpc.MethodDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "WatchTasks",
+			Handler:       _SwarmService_WatchTasks_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "WatchMessages",
+			Handler:       _SwarmService_WatchMessages_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "WatchState",
+			Handler:       _SwarmService_WatchState_Handler,
+			ServerStreams: true,
+		},
+	},
+	Metadata: "aidememory.proto",
+}

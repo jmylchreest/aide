@@ -100,14 +100,16 @@ func ProtoToMessage(p *grpcapi.Message) *memory.Message {
 		return nil
 	}
 	return &memory.Message{
-		ID:        p.Id,
-		From:      p.From,
-		To:        p.To,
-		Content:   p.Content,
-		Type:      p.Type,
-		ReadBy:    p.ReadBy,
-		CreatedAt: p.CreatedAt.AsTime(),
-		ExpiresAt: p.ExpiresAt.AsTime(),
+		ID:              p.Id,
+		From:            p.From,
+		To:              p.To,
+		Content:         p.Content,
+		Type:            p.Type,
+		Priority:        p.Priority,
+		ParentSessionID: p.ParentSessionId,
+		ReadBy:          p.ReadBy,
+		CreatedAt:       p.CreatedAt.AsTime(),
+		ExpiresAt:       p.ExpiresAt.AsTime(),
 	}
 }
 
@@ -126,16 +128,17 @@ func ProtoToTask(p *grpcapi.Task) *memory.Task {
 		return nil
 	}
 	return &memory.Task{
-		ID:          p.Id,
-		Title:       p.Title,
-		Description: p.Description,
-		Status:      memory.TaskStatus(p.Status),
-		ClaimedBy:   p.ClaimedBy,
-		Worktree:    p.Worktree,
-		Result:      p.Result,
-		CreatedAt:   p.CreatedAt.AsTime(),
-		ClaimedAt:   p.ClaimedAt.AsTime(),
-		CompletedAt: p.CompletedAt.AsTime(),
+		ID:              p.Id,
+		Title:           p.Title,
+		Description:     p.Description,
+		Status:          memory.TaskStatus(p.Status),
+		ClaimedBy:       p.ClaimedBy,
+		Worktree:        p.Worktree,
+		Result:          p.Result,
+		ParentSessionID: p.ParentSessionId,
+		CreatedAt:       p.CreatedAt.AsTime(),
+		ClaimedAt:       p.ClaimedAt.AsTime(),
+		CompletedAt:     p.CompletedAt.AsTime(),
 	}
 }
 

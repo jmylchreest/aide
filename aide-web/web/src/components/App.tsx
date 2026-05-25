@@ -15,6 +15,7 @@ import { TokensPage } from "./pages/TokensPage";
 import { ObservePage } from "./pages/ObservePage";
 import { InjectionLogPage } from "./pages/InjectionLogPage";
 import { InstinctsPage } from "./pages/InstinctsPage";
+import { SwarmPage } from "./pages/SwarmPage";
 import { SearchPage } from "./pages/SearchPage";
 
 export default function App() {
@@ -39,6 +40,7 @@ export default function App() {
             <Route path="observe" element={<ObservePage />} />
             <Route path="injections" element={<InjectionLogPage />} />
             <Route path="instincts" element={<InstinctsPage />} />
+            <Route path="swarm" element={<SwarmPage />} />
           </Route>
         </Route>
       </Routes>
