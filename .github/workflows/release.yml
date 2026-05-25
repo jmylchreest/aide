@@ -805,6 +805,9 @@ jobs:
           node-version: 20
           registry-url: https://registry.npmjs.org
 
+      - name: Upgrade npm CLI
+        run: npm install -g npm@latest
+
       - name: Download npm tarball
         uses: actions/download-artifact@v8
         with:
