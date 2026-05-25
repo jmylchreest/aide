@@ -93,6 +93,29 @@ export function detectPlatform(): "claude-code" | "codex" {
   return "claude-code";
 }
 
+const TRUTHY = new Set(["1", "true", "on", "yes"]);
+const FALSY = new Set(["0", "false", "off", "no"]);
+
+/**
+ * isTruthy reports whether an env-var value should be treated as "on".
+ * Accepts the same set as the Go config helper: 1/true/on/yes
+ * (case-insensitive, whitespace-trimmed). Use for opt-in flags.
+ */
+export function isTruthy(v: string | undefined): boolean {
+  if (!v) return false;
+  return TRUTHY.has(v.trim().toLowerCase());
+}
+
+/**
+ * isFalsy reports whether an env-var value was explicitly set to disable.
+ * Accepts 0/false/off/no. Unset/empty/unknown values return false so the
+ * caller's default-on behaviour wins. Use for opt-out flags.
+ */
+export function isFalsy(v: string | undefined): boolean {
+  if (!v) return false;
+  return FALSY.has(v.trim().toLowerCase());
+}
+
 /**
  * Get the plugin root directory from environment variables.
  */

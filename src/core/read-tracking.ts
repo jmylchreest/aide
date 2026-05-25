@@ -13,6 +13,7 @@ import { execFileSync } from "child_process";
 import { isAbsolute, relative, resolve } from "path";
 import { setState, getState } from "./aide-client.js";
 import { debug } from "../lib/logger.js";
+import { isTruthy } from "../lib/hook-utils.js";
 
 const SOURCE = "read-tracking";
 
@@ -50,7 +51,7 @@ export function recordFileRead(
   cwd: string,
   filePath: string,
 ): void {
-  if (process.env.AIDE_CODE_WATCH !== "1") return;
+  if (!isTruthy(process.env.AIDE_CODE_WATCH)) return;
 
   try {
     const relPath = toRelativePath(cwd, filePath);
@@ -73,7 +74,7 @@ export function getPreviousRead(
   cwd: string,
   filePath: string,
 ): string | null {
-  if (process.env.AIDE_CODE_WATCH !== "1") return null;
+  if (!isTruthy(process.env.AIDE_CODE_WATCH)) return null;
 
   try {
     const relPath = toRelativePath(cwd, filePath);

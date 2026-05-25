@@ -24,7 +24,7 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { homedir } from "os";
 import { Logger, debug, setDebugCwd } from "../lib/logger.js";
-import { readStdin, detectPlatform } from "../lib/hook-utils.js";
+import { readStdin, detectPlatform, isFalsy } from "../lib/hook-utils.js";
 import { findAideBinary, ensureAideBinary } from "../lib/aide-downloader.js";
 import { findProjectRoot } from "../lib/project-root.js";
 import { recordObserveEvent, previewContent } from "../core/read-tracking.js";
@@ -391,9 +391,9 @@ async function main(): Promise<void> {
 
     // Sync MCP server configs across assistants (FS only, fast).
     // Opt-out via AIDE_MCP_SYNC=0 (defaults to enabled).
-    if (process.env.AIDE_MCP_SYNC === "0") {
-      debugLog("mcpSync disabled via AIDE_MCP_SYNC=0");
-      log.info("MCP sync disabled (AIDE_MCP_SYNC=0)");
+    if (isFalsy(process.env.AIDE_MCP_SYNC)) {
+      debugLog("mcpSync disabled via AIDE_MCP_SYNC");
+      log.info("MCP sync disabled (AIDE_MCP_SYNC falsy)");
     } else {
       debugLog("mcpSync starting...");
       log.start("mcpSync");

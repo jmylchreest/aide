@@ -27,6 +27,7 @@ import type {
   StartupNotices,
 } from "./types.js";
 import { DEFAULT_CONFIG } from "./types.js";
+import { isTruthy, isFalsy } from "../lib/hook-utils.js";
 
 /**
  * Ensure all .aide directories exist
@@ -320,7 +321,7 @@ export function runSessionInit(
     dynamic: { sessions: [] },
   };
 
-  if (process.env.AIDE_MEMORY_INJECT === "0") {
+  if (isFalsy(process.env.AIDE_MEMORY_INJECT)) {
     return result;
   }
 
@@ -335,7 +336,7 @@ export function runSessionInit(
     // Add --share-import if configured or env var set
     if (
       config?.share?.autoImport ||
-      process.env.AIDE_SHARE_AUTO_IMPORT === "1"
+      isTruthy(process.env.AIDE_SHARE_AUTO_IMPORT)
     ) {
       args.push("--share-import");
     }
@@ -350,7 +351,7 @@ export function runSessionInit(
 
     const data: SessionInitResult = JSON.parse(output);
 
-    if (process.env.AIDE_MEMORY_INJECT === "0") {
+    if (isFalsy(process.env.AIDE_MEMORY_INJECT)) {
       return result;
     }
 

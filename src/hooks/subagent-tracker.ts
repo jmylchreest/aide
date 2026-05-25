@@ -17,7 +17,7 @@
 import { execFileSync } from "child_process";
 import { basename } from "path";
 import { Logger } from "../lib/logger.js";
-import { readStdin, setMemoryState } from "../lib/hook-utils.js";
+import { readStdin, setMemoryState, isFalsy } from "../lib/hook-utils.js";
 import { findAideBinary } from "../core/aide-client.js";
 import { refreshHud } from "../lib/hud.js";
 
@@ -112,8 +112,7 @@ function fetchSubagentMemories(cwd: string): {
     decisions: [] as string[],
   };
 
-  // Check for disable flag
-  if (process.env.AIDE_MEMORY_INJECT === "0") {
+  if (isFalsy(process.env.AIDE_MEMORY_INJECT)) {
     return result;
   }
 

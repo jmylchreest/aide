@@ -21,6 +21,7 @@
 
 import { execFileSync } from "child_process";
 import { debug } from "../lib/logger.js";
+import { isTruthy } from "../lib/hook-utils.js";
 
 const SOURCE = "search-enrichment";
 
@@ -73,7 +74,7 @@ export function checkSearchEnrichment(
   }
 
   // Require code watcher to be enabled (implies code index exists)
-  if (process.env.AIDE_CODE_WATCH !== "1") {
+  if (!isTruthy(process.env.AIDE_CODE_WATCH)) {
     return { shouldEnrich: false };
   }
 

@@ -19,6 +19,7 @@ import { resolve, isAbsolute, normalize, extname } from "path";
 import { tmpdir } from "os";
 import { join } from "path";
 import { debug } from "../lib/logger.js";
+import { isTruthy } from "../lib/hook-utils.js";
 import { getPreviousRead, checkFileReadFreshness } from "./read-tracking.js";
 
 const SOURCE = "context-guard";
@@ -248,7 +249,7 @@ export function checkSmartReadHint(
   }
 
   // Require code watcher to be enabled
-  if (process.env.AIDE_CODE_WATCH !== "1") {
+  if (!isTruthy(process.env.AIDE_CODE_WATCH)) {
     return { shouldHint: false };
   }
 
