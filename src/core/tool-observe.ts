@@ -269,6 +269,18 @@ export function recordToolEvent(
     if (input.sessionId) args.push(`--session=${input.sessionId}`);
     if (startLine !== undefined) args.push(`--attr=start_line=${startLine}`);
     if (endLine !== undefined) args.push(`--attr=end_line=${endLine}`);
+    // Capture the command (Bash) or pattern (Grep) text so the repetition
+    // detector can group calls by canonical signature instead of lumping
+    // every Bash invocation under a single "Bash" bucket. Truncated to keep
+    // the attr cheap; the normaliser only uses the first token anyway.
+    const cmd = input.toolInput?.command;
+    if (typeof cmd === "string" && cmd.length > 0) {
+      args.push(`--attr=command=${cmd.slice(0, 500)}`);
+    }
+    const pattern = input.toolInput?.pattern;
+    if (typeof pattern === "string" && pattern.length > 0) {
+      args.push(`--attr=pattern=${pattern.slice(0, 200)}`);
+    }
     execFileSync(binary, args, {
       cwd,
       timeout: 3000,
