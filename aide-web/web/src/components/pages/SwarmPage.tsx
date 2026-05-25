@@ -75,17 +75,42 @@ export function SwarmPage() {
     [tasks, selectedAgent],
   );
 
-  // Group agents by parent_session for the tree view.
+  // Group agents by parent_session for the tree view. Chronological order
+  // (newest startedAt first) inside each group; sessions ordered by their
+  // most-recent agent. Server returns the same order, this re-sort is just
+  // defensive.
   const tree = useMemo(() => {
     const byParent: Record<string, SwarmAgentItem[]> = {};
     for (const a of agents ?? []) {
       const key = a.parent_session || "(orchestrator / solo)";
       (byParent[key] ??= []).push(a);
     }
+    for (const k of Object.keys(byParent)) {
+      byParent[k].sort((a, b) => {
+        const ta = a.started_at ? Date.parse(a.started_at) : 0;
+        const tb = b.started_at ? Date.parse(b.started_at) : 0;
+        if (ta !== tb) return tb - ta;
+        return a.agent.localeCompare(b.agent);
+      });
+    }
     return byParent;
   }, [agents]);
 
-  const sessions = useMemo(() => Object.keys(tree).sort(), [tree]);
+  const sessions = useMemo(() => {
+    const keys = Object.keys(tree);
+    keys.sort((a, b) => {
+      const newest = (k: string) =>
+        tree[k].reduce(
+          (max, x) => Math.max(max, x.started_at ? Date.parse(x.started_at) : 0),
+          0,
+        );
+      const ta = newest(a);
+      const tb = newest(b);
+      if (ta !== tb) return tb - ta;
+      return a.localeCompare(b);
+    });
+    return keys;
+  }, [tree]);
 
   const sendControl = async (
     action: "halt" | "pause" | "resume" | "deadline",

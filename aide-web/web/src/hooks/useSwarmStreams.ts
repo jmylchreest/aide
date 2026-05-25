@@ -190,6 +190,12 @@ export function useWatchSwarmState({
     enabled: enabled && !!project,
     onEvent,
   });
-  const entries = useMemo(() => Array.from(byKey.values()), [byKey]);
+  // Sort by key so the State pane is stable across SSE arrival order
+  // (Map preserves insertion order, which is non-deterministic from the
+  // stream backfill).
+  const entries = useMemo(
+    () => Array.from(byKey.values()).sort((a, b) => a.key.localeCompare(b.key)),
+    [byKey],
+  );
   return { entries, status };
 }

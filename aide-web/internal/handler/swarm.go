@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"sort"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -145,6 +146,17 @@ func (h *Handler) APIListSwarmAgents(ctx context.Context, input *struct {
 		}
 		out.Body.Agents = append(out.Body.Agents, *r)
 	}
+	// Chronological order, newest first by startedAt — most active agents
+	// surface at the top. Missing/unparseable startedAt sinks to the bottom
+	// (those are stale/malformed records anyway). AgentID is the tiebreaker.
+	sort.Slice(out.Body.Agents, func(i, j int) bool {
+		ti := parseAgentTime(out.Body.Agents[i].StartedAt)
+		tj := parseAgentTime(out.Body.Agents[j].StartedAt)
+		if !ti.Equal(tj) {
+			return ti.After(tj)
+		}
+		return out.Body.Agents[i].AgentID < out.Body.Agents[j].AgentID
+	})
 	return out, nil
 }
 
@@ -171,6 +183,19 @@ func isTruthyValue(v string) bool {
 		return true
 	}
 	return false
+}
+
+// parseAgentTime tolerates empty / malformed timestamps by returning the
+// zero time (which sorts last under After()).
+func parseAgentTime(s string) time.Time {
+	if s == "" {
+		return time.Time{}
+	}
+	t, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		return time.Time{}
+	}
+	return t
 }
 
 // isStaleAgent: completed agents whose endedAt is past the cutoff. If the
