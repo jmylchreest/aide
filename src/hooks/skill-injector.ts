@@ -19,6 +19,7 @@ import { existsSync, mkdirSync } from "fs";
 import { join } from "path";
 import { Logger, debug, setDebugCwd } from "../lib/logger.js";
 import { readStdin, detectPlatform } from "../lib/hook-utils.js";
+import { findProjectRoot } from "../lib/project-root.js";
 import {
   discoverSkills as coreDiscoverSkills,
   matchSkills as coreMatchSkills,
@@ -58,12 +59,15 @@ let log: Logger | null = null;
  * Ensure .aide directories exist (minimal version for skill-injector)
  */
 function ensureDirectories(cwd: string): void {
+  // Resolve to the canonical project root so we don't plant a stray .aide/
+  // in a subdir the harness happened to launch from. See lib/project-root.ts.
+  const { root } = findProjectRoot(cwd);
   const dirs = [
-    join(cwd, ".aide"),
-    join(cwd, ".aide", "skills"),
-    join(cwd, ".aide", "config"),
-    join(cwd, ".aide", "state"),
-    join(cwd, ".aide", "memory"),
+    join(root, ".aide"),
+    join(root, ".aide", "skills"),
+    join(root, ".aide", "config"),
+    join(root, ".aide", "state"),
+    join(root, ".aide", "memory"),
   ];
 
   for (const dir of dirs) {

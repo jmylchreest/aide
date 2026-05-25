@@ -270,41 +270,89 @@ func findProjectRoot() (string, bool) {
 
 	homeDir, _ := os.UserHomeDir()
 
+	// Walk the full ancestry collecting candidates. We prefer roots that
+	// have BOTH .aide/ and a VCS marker, then VCS-only, then .aide/-only.
+	// This avoids latching onto a stray child .aide/ (created by an
+	// accidental CLI invocation from a subdir) when the real project root
+	// is one or more levels up.
+	type cand struct {
+		dir         string
+		hasAide     bool
+		hasVCS      bool
+		vcsResolved string // worktree-resolved root for .git files; empty otherwise
+	}
+	var path []cand
 	dir := cwd
 	for {
+		c := cand{dir: dir}
 		aidePath := filepath.Join(dir, ".aide")
 		if _, err := os.Stat(aidePath); err == nil {
-			// Skip ~/.aide/ unless cwd is $HOME itself.
-			// ~/.aide/ is created by the TS layer for global config and
-			// should not be treated as a project marker for other directories.
-			if homeDir != "" && dir == homeDir && cwd != homeDir {
-				// Fall through to check .git instead
+			// Skip ~/.aide/ as a project marker unless cwd is $HOME itself.
+			// ~/.aide/ is the TS layer's global config dir, not a project.
+			if !(homeDir != "" && dir == homeDir && cwd != homeDir) {
+				c.hasAide = true
+			}
+		}
+		if vcsDir, resolved, ok := vcsMarker(dir); ok {
+			c.hasVCS = true
+			if resolved != "" {
+				c.vcsResolved = resolved
 			} else {
-				return dir, true
+				c.vcsResolved = vcsDir
 			}
 		}
-
-		gitPath := filepath.Join(dir, ".git")
-		info, err := os.Stat(gitPath)
-		if err == nil {
-			if info.IsDir() {
-				// Normal git repo
-				return dir, true
-			}
-			// Worktree: .git is a file containing "gitdir: <path>"
-			// Follow it to the main repo root.
-			if root := resolveWorktreeRoot(gitPath); root != "" {
-				return root, true
-			}
-			return dir, true
+		if c.hasAide || c.hasVCS {
+			path = append(path, c)
 		}
-
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			return cwd, false
+			break
 		}
 		dir = parent
 	}
+
+	// Priority: closest ancestor with both markers wins.
+	for _, c := range path {
+		if c.hasAide && c.hasVCS {
+			return c.vcsResolved, true
+		}
+	}
+	// Then closest VCS root (even without .aide/) — .aide/ will be created there.
+	for _, c := range path {
+		if c.hasVCS {
+			return c.vcsResolved, true
+		}
+	}
+	// Then closest .aide/-only (standalone projects with no VCS).
+	for _, c := range path {
+		if c.hasAide {
+			return c.dir, true
+		}
+	}
+	return cwd, false
+}
+
+// vcsMarker reports whether dir contains a VCS marker, and for .git files
+// (worktrees) returns the resolved main-repo root. Empty resolved string
+// for normal .git directories means "use dir itself".
+func vcsMarker(dir string) (vcsDir string, resolved string, ok bool) {
+	gitPath := filepath.Join(dir, ".git")
+	if info, err := os.Stat(gitPath); err == nil {
+		if info.IsDir() {
+			return dir, "", true
+		}
+		// Worktree: .git is a file containing "gitdir: <path>"
+		if root := resolveWorktreeRoot(gitPath); root != "" {
+			return dir, root, true
+		}
+		return dir, "", true
+	}
+	for _, marker := range []string{".hg", ".svn", ".bzr", ".fossil"} {
+		if _, err := os.Stat(filepath.Join(dir, marker)); err == nil {
+			return dir, "", true
+		}
+	}
+	return "", "", false
 }
 
 // isVCSRoot reports whether dir is the root of a version-controlled

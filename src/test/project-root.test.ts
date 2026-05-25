@@ -145,6 +145,25 @@ describe("findProjectRoot", () => {
     expect(result.hasMarker).toBe(true);
     expect(result.root).toBe(tmp);
   });
+
+  it("prefers the parent .git+.aide root over a stray child .aide/", async () => {
+    // Regression: an accidental CLI invocation from a subdir of a git repo
+    // can plant a sibling .aide/. The walk must NOT latch onto that ghost —
+    // the real root has both markers and should win.
+    const { findProjectRoot } = await import("../lib/project-root.js");
+    mkdirSync(join(tmp, ".git"), { recursive: true });
+    mkdirSync(join(tmp, ".aide"), { recursive: true });
+
+    const inner = join(tmp, "module");
+    mkdirSync(join(inner, ".aide"), { recursive: true });
+    const deep = join(inner, "pkg", "deep");
+    mkdirSync(deep, { recursive: true });
+
+    const result = findProjectRoot(deep);
+
+    expect(result.hasMarker).toBe(true);
+    expect(result.root).toBe(tmp);
+  });
 });
 
 describe("walkUpForProjectRoot", () => {

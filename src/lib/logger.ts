@@ -21,6 +21,7 @@
 
 import { existsSync, mkdirSync, appendFileSync } from "fs";
 import { join } from "path";
+import { findProjectRoot } from "./project-root.js";
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
@@ -51,10 +52,14 @@ export class Logger {
   constructor(source: string, cwd?: string) {
     this.source = source;
     this.cwd = cwd || process.cwd();
-    // Set debugLogCwd so isDebugEnabled() can check the sentinel file
-    if (cwd) setDebugCwd(cwd);
+    // Resolve to the canonical project root so logs land alongside the
+    // real .aide/ store, not in a stray subdir the harness launched from.
+    const { root } = findProjectRoot(this.cwd);
+    // Set debugLogCwd so isDebugEnabled() can check the sentinel file at
+    // the resolved root.
+    setDebugCwd(root);
     this.enabled = isDebugEnabled();
-    this.logDir = join(this.cwd, ".aide", "_logs");
+    this.logDir = join(root, ".aide", "_logs");
     this.logFile = join(this.logDir, "startup.log");
     this.sessionStart = Date.now();
 
@@ -288,11 +293,13 @@ export function isDebugEnabled(): boolean {
   const debugEnv = process.env.AIDE_DEBUG || "";
   if (debugEnv === "1" || debugEnv === "true") return true;
 
-  // Check sentinel file (cached per cwd)
+  // Check sentinel file (cached per cwd). Resolve to project root so the
+  // sentinel works regardless of which subdir the hook fired from.
   if (debugLogCwd !== debugSentinelCwd) {
     debugSentinelCwd = debugLogCwd;
     try {
-      debugSentinelResult = existsSync(join(debugLogCwd, ".aide", ".debug"));
+      const { root } = findProjectRoot(debugLogCwd);
+      debugSentinelResult = existsSync(join(root, ".aide", ".debug"));
     } catch {
       debugSentinelResult = false;
     }
@@ -303,6 +310,10 @@ export function isDebugEnabled(): boolean {
 /**
  * Set the working directory for debug logging.
  * Call this after parsing stdin to use project-local logs.
+ *
+ * Note: callers may pass either the raw cwd or an already-resolved project
+ * root. Logger's constructor resolves cwd → root before calling this; bare
+ * callers of debug() may pass cwd and we'll resolve at use-time.
  */
 export function setDebugCwd(cwd: string): void {
   debugLogCwd = cwd;
@@ -326,7 +337,8 @@ export function setDebugCwd(cwd: string): void {
 export function debug(source: string, msg: string): void {
   if (!isDebugEnabled()) return;
 
-  const logDir = join(debugLogCwd, ".aide", "_logs");
+  const { root } = findProjectRoot(debugLogCwd);
+  const logDir = join(root, ".aide", "_logs");
   try {
     if (!existsSync(logDir)) {
       mkdirSync(logDir, { recursive: true });

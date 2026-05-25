@@ -27,9 +27,40 @@ const T0 = performance.now();
 console.log(JSON.stringify({ continue: true }));
 
 const { spawn, execFileSync } = require("child_process") as typeof import("child_process");
-const { existsSync, realpathSync, appendFileSync, mkdirSync, readFileSync } = require("fs") as typeof import("fs");
-const { join } = require("path") as typeof import("path");
+const { existsSync, realpathSync, appendFileSync, mkdirSync, readFileSync, statSync } = require("fs") as typeof import("fs");
+const { join, dirname } = require("path") as typeof import("path");
 const whichSync = (require("which") as typeof import("which")).sync;
+
+/**
+ * Inline walk-up for project root — mirrors lib/project-root.ts logic
+ * (priority: both markers > VCS > .aide/-only > cwd). Inlined here to keep
+ * this hook's startup cheap (no extra ES imports).
+ */
+function resolveRoot(cwd: string): string {
+  const override = process.env.AIDE_PROJECT_ROOT;
+  if (override) {
+    try {
+      if (statSync(override).isDirectory()) return override;
+    } catch { /* fall through */ }
+  }
+  const candidates: { dir: string; hasAide: boolean; hasVCS: boolean }[] = [];
+  let dir = cwd;
+  for (;;) {
+    const hasAide = existsSync(join(dir, ".aide"));
+    let hasVCS = false;
+    for (const m of [".git", ".hg", ".svn", ".bzr", ".fossil"]) {
+      if (existsSync(join(dir, m))) { hasVCS = true; break; }
+    }
+    if (hasAide || hasVCS) candidates.push({ dir, hasAide, hasVCS });
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  for (const c of candidates) if (c.hasAide && c.hasVCS) return c.dir;
+  for (const c of candidates) if (c.hasVCS) return c.dir;
+  for (const c of candidates) if (c.hasAide) return c.dir;
+  return cwd;
+}
 
 const SESSION_ID_RE = /^[a-zA-Z0-9_-]{1,128}$/;
 
@@ -44,7 +75,7 @@ function ms(): string {
  */
 function log(cwd: string, msg: string): void {
   try {
-    const logDir = join(cwd, ".aide", "_logs");
+    const logDir = join(resolveRoot(cwd), ".aide", "_logs");
     if (!existsSync(logDir)) mkdirSync(logDir, { recursive: true });
     const line = `[${new Date().toISOString()}] [session-end] ${ms()} ${msg}\n`;
     appendFileSync(join(logDir, "session-end.log"), line);
@@ -61,7 +92,7 @@ function findBinary(cwd?: string): string | null {
     if (existsSync(p)) return p;
   }
   if (cwd) {
-    const p = join(cwd, ".aide", "bin", "aide");
+    const p = join(resolveRoot(cwd), ".aide", "bin", "aide");
     if (existsSync(p)) return p;
   }
   try {

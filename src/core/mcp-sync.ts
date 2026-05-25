@@ -26,6 +26,7 @@ import {
 import { join, dirname } from "path";
 import { homedir } from "os";
 import * as TOML from "smol-toml";
+import { findProjectRoot } from "../lib/project-root.js";
 
 // =============================================================================
 // Types
@@ -178,11 +179,13 @@ function aideUserMcpPath(): string {
 }
 
 function aideProjectMcpPath(cwd: string): string {
-  return join(cwd, ".aide", "config", "mcp.json");
+  const { root } = findProjectRoot(cwd);
+  return join(root, ".aide", "config", "mcp.json");
 }
 
 function journalPath(cwd: string): string {
-  return join(cwd, ".aide", "config", "mcp-sync.journal.json");
+  const { root } = findProjectRoot(cwd);
+  return join(root, ".aide", "config", "mcp-sync.journal.json");
 }
 
 function userJournalPath(): string {

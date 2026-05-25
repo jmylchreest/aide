@@ -28,6 +28,7 @@ import type {
 } from "./types.js";
 import { DEFAULT_CONFIG } from "./types.js";
 import { isTruthy, isFalsy } from "../lib/hook-utils.js";
+import { findProjectRoot } from "../lib/project-root.js";
 
 /**
  * Ensure all .aide directories exist
@@ -36,14 +37,19 @@ export function ensureDirectories(cwd: string): {
   created: number;
   existed: number;
 } {
+  // Resolve to the canonical project root so we don't plant a stray .aide/
+  // in a subdirectory the harness happened to launch from. When no marker
+  // is found, fall back to cwd (caller's hasMarker gate elsewhere refuses
+  // bootstrap unless AIDE_FORCE_INIT is set).
+  const { root } = findProjectRoot(cwd);
   const dirs = [
-    join(cwd, ".aide"),
-    join(cwd, ".aide", "skills"),
-    join(cwd, ".aide", "config"),
-    join(cwd, ".aide", "state"),
-    join(cwd, ".aide", "memory"),
-    join(cwd, ".aide", "worktrees"),
-    join(cwd, ".aide", "_logs"),
+    join(root, ".aide"),
+    join(root, ".aide", "skills"),
+    join(root, ".aide", "config"),
+    join(root, ".aide", "state"),
+    join(root, ".aide", "memory"),
+    join(root, ".aide", "worktrees"),
+    join(root, ".aide", "_logs"),
     join(homedir(), ".aide"),
     join(homedir(), ".aide", "skills"),
     join(homedir(), ".aide", "config"),
@@ -68,7 +74,7 @@ export function ensureDirectories(cwd: string): {
   // Ensure .gitignore exists in .aide directory.
   // Structure: exclude all local-only runtime data, allow shared/ and config/.
   // shared/ contains git-friendly markdown exports (decisions, memories).
-  const gitignorePath = join(cwd, ".aide", ".gitignore");
+  const gitignorePath = join(root, ".aide", ".gitignore");
   const requiredGitignoreContent = `# AIDE local runtime files - do not commit
 # These are machine-specific and/or binary (non-mergeable)
 _logs/
@@ -209,7 +215,8 @@ export function loadGlobalConfig(): AideConfig {
  */
 export function loadConfig(cwd: string): AideConfig {
   const global = loadGlobalConfig();
-  const projectPath = join(cwd, ".aide", "config", "aide.json");
+  const { root } = findProjectRoot(cwd);
+  const projectPath = join(root, ".aide", "config", "aide.json");
 
   if (existsSync(projectPath)) {
     try {
@@ -254,7 +261,8 @@ export function cleanupStaleStateFiles(cwd: string): {
   scanned: number;
   deleted: number;
 } {
-  const stateDir = join(cwd, ".aide", "state");
+  const { root } = findProjectRoot(cwd);
+  const stateDir = join(root, ".aide", "state");
   if (!existsSync(stateDir)) {
     return { scanned: 0, deleted: 0 };
   }
@@ -293,7 +301,8 @@ export function cleanupStaleStateFiles(cwd: string): {
  * Reset HUD state file for clean session start
  */
 export function resetHudState(cwd: string): void {
-  const hudPath = join(cwd, ".aide", "state", "hud.txt");
+  const { root } = findProjectRoot(cwd);
+  const hudPath = join(root, ".aide", "state", "hud.txt");
   try {
     if (existsSync(hudPath)) {
       writeFileSync(hudPath, "mode:idle");

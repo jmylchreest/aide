@@ -95,6 +95,7 @@ export function detectPlatform(): "claude-code" | "codex" {
 
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
+import { findProjectRoot } from "./project-root.js";
 
 const TRUTHY = new Set(["1", "true", "on", "yes"]);
 const FALSY = new Set(["0", "false", "off", "no"]);
@@ -125,7 +126,9 @@ export function isFalsy(v: string | undefined): boolean {
  * as `aide reflect run`. Precedence:
  *
  *   1. AIDE_REFLECT env (recognised truthy/falsy values win)
- *   2. .aide/config/aide.json `reflect.enabled` (project-local config)
+ *   2. .aide/config/aide.json `reflect.enabled` at the resolved project
+ *      root (walks up from cwd via findProjectRoot — does NOT just look
+ *      at cwd/.aide/)
  *   3. default false
  *
  * Used by skill-injector.ts and opencode/hooks.ts to gate the user_prompt
@@ -139,7 +142,8 @@ export function reflectEnabled(cwd: string): boolean {
     if (FALSY.has(norm)) return false;
   }
   try {
-    const cfgPath = join(cwd, ".aide", "config", "aide.json");
+    const { root } = findProjectRoot(cwd);
+    const cfgPath = join(root, ".aide", "config", "aide.json");
     if (existsSync(cfgPath)) {
       const cfg = JSON.parse(readFileSync(cfgPath, "utf-8")) as {
         reflect?: { enabled?: boolean };

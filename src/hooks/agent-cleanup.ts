@@ -14,6 +14,7 @@ import { readStdin } from "../lib/hook-utils.js";
 import { findAideBinary } from "../core/aide-client.js";
 import { cleanupAgent } from "../core/cleanup.js";
 import { debug } from "../lib/logger.js";
+import { findProjectRoot } from "../lib/project-root.js";
 
 const SOURCE = "agent-cleanup";
 
@@ -48,7 +49,8 @@ async function main(): Promise<void> {
       if (binary) {
         const cleared = cleanupAgent(binary, cwd, agentId);
         if (cleared) {
-          const logDir = join(cwd, ".aide", "_logs");
+          const { root } = findProjectRoot(cwd);
+          const logDir = join(root, ".aide", "_logs");
           if (existsSync(logDir)) {
             const logPath = join(logDir, "agent-cleanup.log");
             const timestamp = new Date().toISOString();

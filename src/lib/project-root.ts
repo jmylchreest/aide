@@ -9,11 +9,22 @@
  *
  * Resolution order, matching main.go:findProjectRoot:
  *   1. AIDE_PROJECT_ROOT env override (must be an existing directory).
- *   2. Walk up from cwd. At each level:
- *      a. .aide/ — return this dir. Skip ~/.aide/ unless cwd === $HOME.
- *      b. .git/ directory — return this dir.
- *      c. .git/ file (worktree pointer) — resolve to the main repo root.
+ *   2. Walk the full ancestry from cwd to /, collecting candidates, then
+ *      prefer:
+ *        a. Closest ancestor with BOTH .aide/ and a VCS marker
+ *           (.git/.hg/.svn/.bzr/.fossil) — handles the common case where
+ *           the canonical root sits at the git repo root.
+ *        b. Closest ancestor with a VCS marker only — .aide/ will be
+ *           created there if needed.
+ *        c. Closest ancestor with .aide/ only — standalone projects with
+ *           no VCS.
+ *      ~/.aide/ is skipped as a project marker unless cwd is $HOME.
  *   3. No marker found: return { root: cwd, hasMarker: false }.
+ *
+ * The "both markers wins" priority is what stops a stray child .aide/ from
+ * shadowing the real project root: a sibling .aide/ created by an
+ * accidental CLI invocation lives in a subdir with no .git/, so the walk
+ * keeps going until it finds the parent that has both.
  */
 
 import { basename, dirname, join, resolve } from "path";
@@ -53,42 +64,68 @@ export function findProjectRoot(cwd: string): ProjectRootResult {
   const startCwd = resolve(cwd);
   const home = homedir();
 
+  interface Candidate {
+    dir: string;
+    hasAide: boolean;
+    hasVCS: boolean;
+    vcsResolved: string;
+  }
+  const path: Candidate[] = [];
+
   let dir = startCwd;
   for (;;) {
-    const aidePath = join(dir, ".aide");
-    if (existsSync(aidePath)) {
-      // Skip ~/.aide/ unless cwd is $HOME itself. ~/.aide/ is the global
-      // config dir, not a project marker.
-      if (!(home && dir === home && startCwd !== home)) {
-        return { root: dir, hasMarker: true };
-      }
+    const cand: Candidate = { dir, hasAide: false, hasVCS: false, vcsResolved: "" };
+
+    if (existsSync(join(dir, ".aide"))) {
+      // Skip ~/.aide/ unless cwd is $HOME itself.
+      const isHomeAide = home && dir === home && startCwd !== home;
+      if (!isHomeAide) cand.hasAide = true;
     }
 
-    const gitPath = join(dir, ".git");
-    if (existsSync(gitPath)) {
-      try {
-        const stat = statSync(gitPath);
-        if (stat.isDirectory()) {
-          return { root: dir, hasMarker: true };
-        }
-        if (stat.isFile()) {
-          const mainRoot = resolveWorktreeGitFile(gitPath);
-          if (mainRoot) {
-            return { root: mainRoot, hasMarker: true };
-          }
-          return { root: dir, hasMarker: true };
-        }
-      } catch {
-        return { root: dir, hasMarker: true };
-      }
+    const vcs = vcsMarkerAt(dir);
+    if (vcs.ok) {
+      cand.hasVCS = true;
+      cand.vcsResolved = vcs.resolved || dir;
     }
+
+    if (cand.hasAide || cand.hasVCS) path.push(cand);
 
     const parent = dirname(dir);
-    if (parent === dir) {
-      return { root: startCwd, hasMarker: false };
-    }
+    if (parent === dir) break;
     dir = parent;
   }
+
+  for (const c of path) {
+    if (c.hasAide && c.hasVCS) return { root: c.vcsResolved, hasMarker: true };
+  }
+  for (const c of path) {
+    if (c.hasVCS) return { root: c.vcsResolved, hasMarker: true };
+  }
+  for (const c of path) {
+    if (c.hasAide) return { root: c.dir, hasMarker: true };
+  }
+  return { root: startCwd, hasMarker: false };
+}
+
+function vcsMarkerAt(dir: string): { ok: boolean; resolved: string } {
+  const gitPath = join(dir, ".git");
+  if (existsSync(gitPath)) {
+    try {
+      const st = statSync(gitPath);
+      if (st.isDirectory()) return { ok: true, resolved: dir };
+      if (st.isFile()) {
+        const mainRoot = resolveWorktreeGitFile(gitPath);
+        return { ok: true, resolved: mainRoot || dir };
+      }
+      return { ok: true, resolved: dir };
+    } catch {
+      return { ok: true, resolved: dir };
+    }
+  }
+  for (const marker of [".hg", ".svn", ".bzr", ".fossil"]) {
+    if (existsSync(join(dir, marker))) return { ok: true, resolved: dir };
+  }
+  return { ok: false, resolved: "" };
 }
 
 /**

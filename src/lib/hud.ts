@@ -9,6 +9,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
 import { execFileSync } from "child_process";
 import { runAide, findAideBinary } from "./hook-utils.js";
+import { findProjectRoot } from "./project-root.js";
 
 // Cache the aide version for the session (won't change)
 let aideVersionCache: string | null = null;
@@ -149,7 +150,8 @@ export function getAgentStates(cwd: string): AgentState[] {
  * Load HUD configuration
  */
 export function loadHudConfig(cwd: string): HudConfig {
-  const configPath = join(cwd, ".aide", "config", "hud.json");
+  const { root } = findProjectRoot(cwd);
+  const configPath = join(root, ".aide", "config", "hud.json");
 
   if (existsSync(configPath)) {
     try {
@@ -444,7 +446,8 @@ export function formatHud(
  * Write HUD output to state file
  */
 export function writeHudOutput(cwd: string, output: string): void {
-  const stateDir = join(cwd, ".aide", "state");
+  const { root } = findProjectRoot(cwd);
+  const stateDir = join(root, ".aide", "state");
   if (!existsSync(stateDir)) {
     try {
       mkdirSync(stateDir, { recursive: true });
