@@ -23,6 +23,7 @@ import type {
   SessionState,
   SessionInitResult,
   MemoryInjection,
+  InjectedSource,
   StartupNotices,
 } from "./types.js";
 import { DEFAULT_CONFIG } from "./types.js";
@@ -369,6 +370,55 @@ export function runSessionInit(
         .join("\n");
       result.dynamic.sessions.push(`${header}:\n${memories}`);
     }
+
+    const sources: InjectedSource[] = [];
+    for (const m of data.global_memories) {
+      sources.push({
+        kind: "memory",
+        scope: "global",
+        id: m.id,
+        name: m.tags?.[0] ?? m.category ?? "memory",
+        content: m.content,
+        category: m.category,
+        tags: m.tags,
+        score: m.score,
+      });
+    }
+    for (const m of data.project_memories) {
+      sources.push({
+        kind: "memory",
+        scope: "project",
+        id: m.id,
+        name: m.tags?.[0] ?? m.category ?? "memory",
+        content: m.content,
+        category: m.category,
+        tags: m.tags,
+        score: m.score,
+      });
+    }
+    for (const d of data.decisions) {
+      sources.push({
+        kind: "decision",
+        scope: "project",
+        id: d.topic,
+        name: d.topic,
+        content: `${d.value}${d.rationale ? ` (${d.rationale})` : ""}`,
+      });
+    }
+    for (const sess of data.recent_sessions) {
+      for (const m of sess.memories) {
+        sources.push({
+          kind: "session_memory",
+          scope: "session",
+          id: `${sess.session_id}:${m.content.slice(0, 32)}`,
+          name: m.category || "session",
+          content: m.content,
+          category: m.category,
+          sessionId: sess.session_id,
+        });
+      }
+    }
+    result.sources = sources;
   } catch {
     // Best effort
   }

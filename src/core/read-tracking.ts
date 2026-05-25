@@ -142,6 +142,12 @@ export function recordTokenEvent(
   }
 }
 
+export function previewContent(text: string, maxChars = 300): string {
+  const collapsed = text.replace(/\s+/g, " ").trim();
+  if (collapsed.length <= maxChars) return collapsed;
+  return collapsed.slice(0, maxChars - 1) + "…";
+}
+
 /**
  * Record an arbitrary observe event via `aide observe record`.
  * Use when you need richer fields than recordTokenEvent (per-skill name with

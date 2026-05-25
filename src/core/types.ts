@@ -70,12 +70,14 @@ export interface SessionInitResult {
     content: string;
     category: string;
     tags: string[];
+    score?: number;
   }>;
   project_memories: Array<{
     id: string;
     content: string;
     category: string;
     tags: string[];
+    score?: number;
   }>;
   project_memory_overflow?: boolean;
   decisions: Array<{ topic: string; value: string; rationale?: string }>;
@@ -90,6 +92,18 @@ export interface SessionInitResult {
 // Memory Injection
 // =============================================================================
 
+export interface InjectedSource {
+  kind: "memory" | "decision" | "session_memory";
+  scope: "global" | "project" | "session";
+  id: string;
+  name: string;
+  content: string;
+  category?: string;
+  tags?: string[];
+  sessionId?: string;
+  score?: number;
+}
+
 export interface MemoryInjection {
   static: {
     global: string[];
@@ -100,6 +114,7 @@ export interface MemoryInjection {
   dynamic: {
     sessions: string[];
   };
+  sources?: InjectedSource[];
 }
 
 // =============================================================================

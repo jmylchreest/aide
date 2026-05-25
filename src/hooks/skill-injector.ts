@@ -26,7 +26,7 @@ import {
 } from "../core/skill-matcher.js";
 import type { Skill } from "../core/types.js";
 import { findAideBinary } from "../core/aide-client.js";
-import { recordObserveEvent } from "../core/read-tracking.js";
+import { recordObserveEvent, previewContent } from "../core/read-tracking.js";
 
 const SOURCE = "skill-injector";
 
@@ -223,6 +223,11 @@ async function main(): Promise<void> {
               subtype: "skill",
               tokens,
               file: SOURCE,
+              attrs: {
+                source_id: skill.name,
+                source_kind: "skill",
+                content_preview: previewContent(text),
+              },
             });
           }
         }

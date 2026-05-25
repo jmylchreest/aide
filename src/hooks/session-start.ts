@@ -27,7 +27,7 @@ import { Logger, debug, setDebugCwd } from "../lib/logger.js";
 import { readStdin, detectPlatform } from "../lib/hook-utils.js";
 import { findAideBinary, ensureAideBinary } from "../lib/aide-downloader.js";
 import { findProjectRoot } from "../lib/project-root.js";
-import { recordTokenEvent } from "../core/read-tracking.js";
+import { recordObserveEvent, previewContent } from "../core/read-tracking.js";
 import {
   ensureDirectories as coreEnsureDirectories,
   loadConfig as coreLoadConfig,
@@ -389,32 +389,38 @@ async function main(): Promise<void> {
     installHudWrapper(log);
     debugLog(`installHudWrapper complete (${Date.now() - hookStart}ms)`);
 
-    // Sync MCP server configs across assistants (FS only, fast)
-    debugLog("mcpSync starting...");
-    log.start("mcpSync");
-    try {
-      const mcpResult = syncMcpServers(detectPlatform(), cwd);
-      const totalImported =
-        mcpResult.user.imported + mcpResult.project.imported;
-      const totalWritten =
-        mcpResult.user.serversWritten + mcpResult.project.serversWritten;
-      const totalSkipped = mcpResult.user.skipped + mcpResult.project.skipped;
-      log.end("mcpSync", {
-        userServers: mcpResult.user.serversWritten,
-        projectServers: mcpResult.project.serversWritten,
-        imported: totalImported,
-        skipped: totalSkipped,
-      });
-      if (totalImported > 0) {
-        debugLog(
-          `mcp-sync: imported ${totalImported} server(s), ${totalWritten} total`,
-        );
+    // Sync MCP server configs across assistants (FS only, fast).
+    // Opt-out via AIDE_MCP_SYNC=0 (defaults to enabled).
+    if (process.env.AIDE_MCP_SYNC === "0") {
+      debugLog("mcpSync disabled via AIDE_MCP_SYNC=0");
+      log.info("MCP sync disabled (AIDE_MCP_SYNC=0)");
+    } else {
+      debugLog("mcpSync starting...");
+      log.start("mcpSync");
+      try {
+        const mcpResult = syncMcpServers(detectPlatform(), cwd);
+        const totalImported =
+          mcpResult.user.imported + mcpResult.project.imported;
+        const totalWritten =
+          mcpResult.user.serversWritten + mcpResult.project.serversWritten;
+        const totalSkipped = mcpResult.user.skipped + mcpResult.project.skipped;
+        log.end("mcpSync", {
+          userServers: mcpResult.user.serversWritten,
+          projectServers: mcpResult.project.serversWritten,
+          imported: totalImported,
+          skipped: totalSkipped,
+        });
+        if (totalImported > 0) {
+          debugLog(
+            `mcp-sync: imported ${totalImported} server(s), ${totalWritten} total`,
+          );
+        }
+      } catch (err) {
+        log.warn("MCP sync failed (non-fatal)", err);
+        log.end("mcpSync", { success: false, error: String(err) });
       }
-    } catch (err) {
-      log.warn("MCP sync failed (non-fatal)", err);
-      log.end("mcpSync", { success: false, error: String(err) });
+      debugLog(`mcpSync complete (${Date.now() - hookStart}ms)`);
     }
-    debugLog(`mcpSync complete (${Date.now() - hookStart}ms)`);
 
     // Check that aide binary is available (auto-downloads if missing/outdated)
     debugLog("checkAideBinary starting...");
@@ -483,26 +489,36 @@ async function main(): Promise<void> {
     log.end("buildWelcomeContext");
     debugLog(`buildWelcomeContext complete (${Date.now() - hookStart}ms)`);
 
-    // Record token events for context injection
     try {
       const binary = findAideBinary(cwd);
-      if (binary && context) {
-        const memoryTokens = Math.round(
-          ([...memories.static.global, ...memories.static.project, ...memories.dynamic.sessions]
-            .join("").length) / 3.0
-        );
-        const decisionTokens = Math.round(
-          memories.static.decisions.join("").length / 3.0
-        );
-        if (memoryTokens > 0) {
-          recordTokenEvent(binary, cwd, "context_injected", "memory", "session-start", memoryTokens);
-        }
-        if (decisionTokens > 0) {
-          recordTokenEvent(binary, cwd, "context_injected", "decision", "session-start", decisionTokens);
+      if (binary && context && memories.sources) {
+        for (const src of memories.sources) {
+          const attrs: Record<string, string> = {
+            source_id: src.id,
+            source_kind: src.kind,
+            scope: src.scope,
+            content_preview: previewContent(src.content),
+          };
+          if (src.category) attrs.category = src.category;
+          if (src.tags && src.tags.length > 0) attrs.tags = src.tags.join(",");
+          if (src.sessionId) attrs.source_session_id = src.sessionId;
+          if (typeof src.score === "number") {
+            attrs.score_at_injection = src.score.toFixed(2);
+          }
+
+          recordObserveEvent(binary, cwd, {
+            kind: "injection",
+            name: src.name,
+            category: "inject",
+            subtype: src.kind,
+            tokens: Math.round(src.content.length / 3.0),
+            file: "session-start",
+            attrs,
+          });
         }
       }
     } catch {
-      // Non-fatal — don't break session start for token tracking
+      // Non-fatal — don't break session start for telemetry
     }
 
     log.end("total");

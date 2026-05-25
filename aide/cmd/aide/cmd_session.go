@@ -38,6 +38,7 @@ type SessionMemory struct {
 	Content   string   `json:"content"`
 	Tags      []string `json:"tags"`
 	CreatedAt string   `json:"created_at"`
+	Score     float64  `json:"score"`
 }
 
 // SessionDecision is a decision entry for JSON output.
@@ -181,7 +182,7 @@ func sessionFetchContext(backend *Backend, project string, sessionLimit int, res
 		}
 		sorted := scoreAndSort(filtered, now, cfg)
 		for _, sm := range sorted {
-			result.GlobalMemories = append(result.GlobalMemories, memoryToSession(sm.Memory))
+			result.GlobalMemories = append(result.GlobalMemories, memoryToSession(sm.Memory, sm.Score))
 		}
 	}
 
@@ -203,7 +204,7 @@ func sessionFetchContext(backend *Backend, project string, sessionLimit int, res
 				result.ProjectMemoryOverflow = true
 			}
 			for _, sm := range sorted {
-				result.ProjectMemories = append(result.ProjectMemories, memoryToSession(sm.Memory))
+				result.ProjectMemories = append(result.ProjectMemories, memoryToSession(sm.Memory, sm.Score))
 			}
 		}
 	}
@@ -403,7 +404,7 @@ func sessionInitDefaults(result *SessionInitResult) {
 	}
 }
 
-func memoryToSession(m *memory.Memory) SessionMemory {
+func memoryToSession(m *memory.Memory, score float64) SessionMemory {
 	tags := m.Tags
 	if tags == nil {
 		tags = []string{}
@@ -414,5 +415,6 @@ func memoryToSession(m *memory.Memory) SessionMemory {
 		Content:   m.Content,
 		Tags:      tags,
 		CreatedAt: m.CreatedAt.Format(time.RFC3339),
+		Score:     score,
 	}
 }
