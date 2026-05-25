@@ -55,15 +55,23 @@ function groupInjections(events: ObserveEventItem[]): InjectionGroup[] {
 const SOURCE_OPTIONS = [
   { value: "memory", label: "memory" },
   { value: "decision", label: "decision" },
+  { value: "session_memory", label: "session_memory" },
   { value: "skill", label: "skill" },
   { value: "enrichment", label: "enrichment" },
+  { value: "guard", label: "guard" },
+  { value: "signal", label: "signal" },
+  { value: "pruning", label: "pruning" },
 ];
 
 const SOURCE_COLOURS: Record<string, string> = {
   memory: "bg-sky-500/10 text-sky-400",
   decision: "bg-violet-500/10 text-violet-400",
+  session_memory: "bg-cyan-500/10 text-cyan-400",
   skill: "bg-emerald-500/10 text-emerald-400",
   enrichment: "bg-amber-500/10 text-amber-400",
+  guard: "bg-rose-500/10 text-rose-400",
+  signal: "bg-orange-500/10 text-orange-400",
+  pruning: "bg-slate-500/10 text-slate-400",
 };
 
 const NEXT_CALLS_WINDOW = 10;
@@ -196,8 +204,21 @@ export function InjectionLogPage() {
                     </span>
                     {group.sessionId && (
                       <span
-                        className="text-[0.6rem] text-aide-text-dim font-mono shrink-0"
-                        title={group.sessionId}
+                        role="button"
+                        tabIndex={0}
+                        className="text-[0.6rem] text-aide-text-dim font-mono shrink-0 hover:text-aide-accent hover:underline cursor-pointer"
+                        title={`Filter to session ${group.sessionId} — click to apply`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSessionFilter(group.sessionId ?? "");
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setSessionFilter(group.sessionId ?? "");
+                          }
+                        }}
                       >
                         {group.sessionId.slice(0, 8)}
                       </span>
@@ -261,7 +282,7 @@ export function InjectionLogPage() {
           </div>
 
           {selected && project && (
-            <div className="sticky top-2 max-h-[calc(100vh-6rem)] overflow-auto">
+            <div className="sticky top-16 max-h-[calc(100vh-5rem)] overflow-auto">
               <InjectionDetail
                 event={selected}
                 project={project}
