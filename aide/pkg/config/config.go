@@ -49,6 +49,43 @@ type Config struct {
 	Share   ShareConfig   `koanf:"share"`
 	Memory  MemoryConfig  `koanf:"memory"`
 	Reflect ReflectConfig `koanf:"reflect"`
+	Cleanup CleanupConfig `koanf:"cleanup"`
+}
+
+// CleanupConfig controls the daemon's background bucket-pruning loop.
+// All durations are Go duration strings ("15m", "168h"). Empty values fall
+// back to the defaults in the accessor methods. Disable the whole loop with
+// AIDE_CLEANUP_ENABLED=0 or cleanup.enabled=false.
+type CleanupConfig struct {
+	Enabled       bool   `koanf:"enabled"`         // default true; AIDE_CLEANUP_ENABLED=0 to disable
+	Interval      string `koanf:"interval"`        // default "15m"
+	StateMaxAge   string `koanf:"state_max_age"`   // default "168h" (7d) — agent-specific state only
+	ObserveMaxAge string `koanf:"observe_max_age"` // default "168h" (7d)
+}
+
+// IntervalDuration returns the tick interval with a default fallback.
+func (c CleanupConfig) IntervalDuration() time.Duration {
+	return parseDur(c.Interval, 15*time.Minute)
+}
+
+// StateMaxAgeDuration returns the state TTL with a default fallback.
+func (c CleanupConfig) StateMaxAgeDuration() time.Duration {
+	return parseDur(c.StateMaxAge, 7*24*time.Hour)
+}
+
+// ObserveMaxAgeDuration returns the observe-event TTL with a default fallback.
+func (c CleanupConfig) ObserveMaxAgeDuration() time.Duration {
+	return parseDur(c.ObserveMaxAge, 7*24*time.Hour)
+}
+
+func parseDur(s string, fallback time.Duration) time.Duration {
+	if s == "" {
+		return fallback
+	}
+	if d, err := time.ParseDuration(s); err == nil {
+		return d
+	}
+	return fallback
 }
 
 // ReflectConfig groups instinct-extraction (reflect) tunables. The env var
@@ -191,6 +228,7 @@ var envSections = map[string]struct{}{
 	"share":   {},
 	"memory":  {},
 	"reflect": {},
+	"cleanup": {},
 }
 
 // envBareKey maps AIDE_<NAME> (no underscore tail) to a non-default koanf
@@ -209,6 +247,7 @@ var defaults = map[string]any{
 	"code.store_enabled":     true,
 	"memory.scoring_enabled": true,
 	"memory.decay_enabled":   true,
+	"cleanup.enabled":        true,
 }
 
 // legacyDisabledVars maps each AIDE_*_DISABLED / AIDE_CODE_STORE_DISABLE

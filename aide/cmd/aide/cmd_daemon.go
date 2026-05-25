@@ -2,15 +2,71 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
+	"github.com/jmylchreest/aide/aide/pkg/config"
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi"
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi/registry"
 	"github.com/jmylchreest/aide/aide/pkg/store"
 )
+
+// runCleanupLoop prunes stale entries from buckets that don't self-clean:
+// agent-specific state (cleared via SubagentStop but lingers when sessions
+// crash) and observe events (high-volume, no per-write TTL). Messages
+// already self-prune on read.
+//
+// Returns when ctx is cancelled. Errors are logged but never fatal — a
+// daemon should never die from a cleanup hiccup.
+func runCleanupLoop(ctx context.Context, st store.Store) {
+	cfg := config.Get().Cleanup
+	if !cfg.Enabled {
+		fmt.Println("cleanup loop disabled (cleanup.enabled=false)")
+		return
+	}
+
+	interval := cfg.IntervalDuration()
+	stateAge := cfg.StateMaxAgeDuration()
+	observeAge := cfg.ObserveMaxAgeDuration()
+	fmt.Printf("cleanup loop: every %s — state>%s, observe>%s\n", interval, stateAge, observeAge)
+
+	// Stagger the first run by a few seconds so daemon startup logs stay
+	// readable. After that, tick on the configured interval.
+	timer := time.NewTimer(5 * time.Second)
+	defer timer.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-timer.C:
+		}
+
+		if n, err := st.CleanupStaleState(stateAge); err != nil {
+			fmt.Printf("cleanup: state error: %v\n", err)
+		} else if n > 0 {
+			fmt.Printf("cleanup: pruned %d stale state entries\n", n)
+		}
+
+		if n, err := st.CleanupObserveEvents(observeAge); err != nil {
+			fmt.Printf("cleanup: observe error: %v\n", err)
+		} else if n > 0 {
+			fmt.Printf("cleanup: pruned %d stale observe events\n", n)
+		}
+
+		if n, err := st.PruneMessages(); err != nil {
+			fmt.Printf("cleanup: message error: %v\n", err)
+		} else if n > 0 {
+			fmt.Printf("cleanup: pruned %d expired messages\n", n)
+		}
+
+		timer.Reset(interval)
+	}
+}
 
 // cmdDaemon starts the gRPC daemon.
 func cmdDaemon(dbPath string, args []string) error {
@@ -94,11 +150,19 @@ func cmdDaemon(dbPath string, args []string) error {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	go func() {
 		<-sigChan
 		fmt.Println("\nShutting down...")
+		cancel()
 		server.Stop()
 	}()
+
+	// Background bucket-prune loop. Survives the daemon's lifetime;
+	// stopped via ctx on shutdown.
+	go runCleanupLoop(ctx, st)
 
 	// Register instance for discovery by aide-web
 	projRoot := projectRoot(dbPath)
