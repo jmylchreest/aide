@@ -351,8 +351,9 @@ with open(installed_path, 'w') as f:
             done
             ok "Synced plugin.json -> plugin caches"
 
-            # Sync hook source files — Claude Code resolves CLAUDE_PLUGIN_ROOT
-            # to the cache dir, not installPath, so hooks run from the cache.
+            # Sync hook source files AND top-level skills/ — Claude Code resolves
+            # CLAUDE_PLUGIN_ROOT to the cache dir, not installPath, so hooks
+            # and skills are both read from the cache.
             local cache_dir
             for cache_dir in \
                 "$CC_PLUGINS_DIR/marketplaces/aide" \
@@ -368,9 +369,17 @@ with open(installed_path, 'w') as f:
                             rsync -a --delete "$REPO_ROOT/src/$subdir/" "$cache_dir/src/$subdir/"
                         fi
                     done
+                    # Skills live at the plugin root (skills/), not under src/.
+                    if [[ -d "$REPO_ROOT/skills" ]]; then
+                        if [[ -d "$cache_dir/skills" && ! -d "$cache_dir/skills.prod-bak" ]]; then
+                            cp -a "$cache_dir/skills" "$cache_dir/skills.prod-bak"
+                        fi
+                        mkdir -p "$cache_dir/skills"
+                        rsync -a --delete "$REPO_ROOT/skills/" "$cache_dir/skills/"
+                    fi
                 fi
             done
-            ok "Synced hook sources -> plugin caches"
+            ok "Synced hook sources + skills -> plugin caches"
         fi
     else
         # Restore original prod path
@@ -423,7 +432,7 @@ with open(installed_path, 'w') as f:
         done
         ok "Restored plugin.json in plugin caches"
 
-        # Restore original hook sources from backups
+        # Restore original hook sources AND skills/ from backups
         local cache_dir
         for cache_dir in \
             "$CC_PLUGINS_DIR/marketplaces/aide" \
@@ -435,9 +444,13 @@ with open(installed_path, 'w') as f:
                         mv "$cache_dir/src/${subdir}.prod-bak" "$cache_dir/src/$subdir"
                     fi
                 done
+                if [[ -d "$cache_dir/skills.prod-bak" ]]; then
+                    rm -rf "$cache_dir/skills"
+                    mv "$cache_dir/skills.prod-bak" "$cache_dir/skills"
+                fi
             fi
         done
-        ok "Restored hook sources in plugin caches"
+        ok "Restored hook sources + skills in plugin caches"
     fi
 }
 
