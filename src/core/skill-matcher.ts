@@ -229,40 +229,36 @@ export function loadSkill(path: string): Skill | null {
 export function discoverSkills(cwd: string, pluginRoot?: string): Skill[] {
   const skills: Skill[] = [];
   const seenPaths = new Set<string>();
+  // Dedupe by skill name too — the same skill (same `name:` frontmatter)
+  // is often present in both repo/skills/ and the plugin-install
+  // skills/ dir under different file paths. Without this, matchSkills
+  // returns the same skill twice and injects it twice.
+  const seenNames = new Set<string>();
+
+  const add = (file: string) => {
+    if (seenPaths.has(file)) return;
+    seenPaths.add(file);
+    const skill = loadSkill(file);
+    if (!skill) return;
+    if (seenNames.has(skill.name)) return;
+    seenNames.add(skill.name);
+    skills.push(skill);
+  };
 
   // Project-local skills (higher priority)
   for (const location of SKILL_LOCATIONS) {
     const dir = join(cwd, location);
-    const files = findSkillFiles(dir);
-    for (const file of files) {
-      if (seenPaths.has(file)) continue;
-      seenPaths.add(file);
-      const skill = loadSkill(file);
-      if (skill) skills.push(skill);
-    }
+    for (const file of findSkillFiles(dir)) add(file);
   }
 
   // Plugin-bundled skills (if pluginRoot provided)
   if (pluginRoot) {
-    const pluginSkillDir = join(pluginRoot, "skills");
-    const files = findSkillFiles(pluginSkillDir);
-    for (const file of files) {
-      if (seenPaths.has(file)) continue;
-      seenPaths.add(file);
-      const skill = loadSkill(file);
-      if (skill) skills.push(skill);
-    }
+    for (const file of findSkillFiles(join(pluginRoot, "skills"))) add(file);
   }
 
   // Global skills (lower priority)
   for (const dir of GLOBAL_SKILL_LOCATIONS) {
-    const files = findSkillFiles(dir);
-    for (const file of files) {
-      if (seenPaths.has(file)) continue;
-      seenPaths.add(file);
-      const skill = loadSkill(file);
-      if (skill) skills.push(skill);
-    }
+    for (const file of findSkillFiles(dir)) add(file);
   }
 
   return skills;
