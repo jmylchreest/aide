@@ -22,11 +22,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	// --project <path> may appear before or after the subcommand; strip it
-	// from the full arg list and stash the value in AIDE_PROJECT_ROOT so
-	// downstream subcommands and findProjectRoot pick it up uniformly.
+	// --project-root <path> may appear before or after the subcommand; strip
+	// it from the full arg list and stash the value in AIDE_PROJECT_ROOT so
+	// downstream subcommands and findProjectRoot pick it up uniformly. The
+	// flag name is deliberately distinct from `--project` (which several
+	// subcommands use as a project *name* / memory-scope tag).
 	rawArgs := os.Args[1:]
-	if override, rest, ok := extractProjectFlag(rawArgs); ok {
+	if override, rest, ok := extractProjectRootFlag(rawArgs); ok {
 		_ = os.Setenv("AIDE_PROJECT_ROOT", override)
 		rawArgs = rest
 	}
@@ -217,20 +219,26 @@ Examples:
 `, version.Short())
 }
 
-// extractProjectFlag pulls a top-level --project=<path> or --project <path>
-// flag out of args, returning the value, the args without the flag, and a
-// found-flag indicator. Subcommands handle their own arguments, so we only
-// strip this one before dispatch to keep the override invisible to them.
-func extractProjectFlag(args []string) (string, []string, bool) {
+// extractProjectRootFlag pulls a top-level --project-root=<path> or
+// --project-root <path> flag out of args, returning the value, the args
+// without the flag, and a found-flag indicator. Subcommands handle their own
+// arguments, so we only strip this one before dispatch to keep the override
+// invisible to them.
+//
+// This is intentionally distinct from `--project=<name>`, which several
+// subcommands (`session init`, `memory sessions`, …) accept as a project
+// *name* used as a memory-scope tag. Treating those as filesystem paths would
+// — and historically did — silently break memory injection.
+func extractProjectRootFlag(args []string) (string, []string, bool) {
 	for i, a := range args {
-		if a == "--project" {
+		if a == "--project-root" {
 			if i+1 >= len(args) {
 				return "", args, false
 			}
 			return args[i+1], append(append([]string{}, args[:i]...), args[i+2:]...), true
 		}
-		if strings.HasPrefix(a, "--project=") {
-			return a[len("--project="):], append(append([]string{}, args[:i]...), args[i+1:]...), true
+		if strings.HasPrefix(a, "--project-root=") {
+			return a[len("--project-root="):], append(append([]string{}, args[:i]...), args[i+1:]...), true
 		}
 	}
 	return "", args, false

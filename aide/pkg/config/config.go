@@ -1,8 +1,8 @@
 // Package config centralizes runtime configuration for the aide CLI and
 // daemon. Values flow from (in increasing precedence): defaults → optional
 // .aide/config/aide.json → AIDE_* environment variables → top-level CLI
-// overrides written back into the env (e.g. --project sets AIDE_PROJECT_ROOT
-// before Load is called).
+// overrides written back into the env (e.g. --project-root sets
+// AIDE_PROJECT_ROOT before Load is called).
 //
 // Callers ask for the singleton via Get(); the bootstrap path in main.go is
 // responsible for invoking Load() exactly once at startup.
