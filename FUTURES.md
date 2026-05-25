@@ -186,3 +186,44 @@ option-1 resolution for the languages it covers (start with Go + Rust),
 fall back to current name-matching elsewhere with a documented caveat,
 and progressively replace fallbacks as resolvers land. Don't gate either
 feature on full multi-language resolution.
+
+---
+
+## Reflect / instinct backlog
+
+Substrate (proposal store, broadcaster, MCP tools, CLI, aide-web page,
+Stop hook) is live. Two ship-first parsers (`repetition`, `convergence`)
+are in `pkg/instinct/`. The original design called for four; these
+three small follow-ups close out the catalogue and surface:
+
+1. **`same-question` parser.** UserPromptSubmit text Jaccard-similar
+   (shingled token n-grams, no embeddings) to N earlier prompts across
+   distinct sessions. Defaults: `n_propose=3`, `jaccard_threshold=0.4`,
+   `min_distinct_sessions=3`, `shingle_size=3`, `min_prompt_tokens=5`.
+   Pure structural matching; no per-language reasoning.
+
+2. **`tool-flailing` parser.** Window of N consecutive read-only tool
+   calls (`code_search`, `Grep`, `Read`, MCP code tools) with token
+   overlap on their query strings, ending without an Edit. Defaults:
+   `window_size=5`, `flail_tolerance=3`, `reset_on_edit=true`,
+   `n_propose=3`. Promotion suggests a known entry point for the
+   recurring cluster of terms.
+
+3. **Session-start instinct nudge.** Extend `src/hooks/session-start.ts`
+   so that if there are open proposals, the injected context carries a
+   one-line line: *"N instinct proposals waiting — run `/recall instincts`,
+   open the aide-web Instincts page, or call `instinct_proposals_list`."*
+   Bounded; must never block start.
+
+Each is small (parser ~150 LOC + config struct + tests; nudge is a
+~20-line addition to session-start). The deferred parsers from the
+original design (`revert`, `friction`) stay deferred — they need a diff
+comparator or a corrective-marker model that's high-false-positive.
+
+## Watch RPCs for findings + decisions
+
+`design/event-streaming.md` listed `WatchFindings` and `WatchDecisions`
+in its per-domain table but neither shipped because no page needs them
+yet. They're cheap (broadcaster instance + RPC + handler + bus call on
+each write — ~80 LOC each) and unblock live updates on the Findings and
+Decisions pages whenever those grow a live-tail toggle.
