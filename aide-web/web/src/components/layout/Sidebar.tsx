@@ -13,6 +13,7 @@ import {
   Coins,
   Radio,
   Inbox,
+  Sparkles,
 } from "lucide-react";
 
 const navItems = [
@@ -28,6 +29,7 @@ const navItems = [
   { to: "tokens", label: "Tokens", icon: Coins },
   { to: "observe", label: "Observe", icon: Radio },
   { to: "injections", label: "Injections", icon: Inbox },
+  { to: "instincts", label: "Instincts", icon: Sparkles },
 ];
 
 interface SidebarProps {

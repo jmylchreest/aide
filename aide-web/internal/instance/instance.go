@@ -31,6 +31,7 @@ type Instance struct {
 	store       store.Store
 	findings    store.FindingsStore
 	survey      store.SurveyStore
+	instinct    store.InstinctProposalStore
 	lastSeen    time.Time
 }
 
@@ -118,6 +119,13 @@ func (i *Instance) SurveyStore() store.SurveyStore {
 	return i.survey
 }
 
+// InstinctStore returns the instinct proposal adapter, or nil if disconnected.
+func (i *Instance) InstinctStore() store.InstinctProposalStore {
+	i.mu.RLock()
+	defer i.mu.RUnlock()
+	return i.instinct
+}
+
 // UpdateMeta updates the mutable metadata fields under the lock.
 func (i *Instance) UpdateMeta(socketPath, dbPath, version string) {
 	i.mu.Lock()
@@ -154,6 +162,7 @@ func (i *Instance) Connect() error {
 	i.store = adapter.NewStoreAdapter(client)
 	i.findings = adapter.NewFindingsAdapter(client)
 	i.survey = adapter.NewSurveyAdapter(client)
+	i.instinct = adapter.NewInstinctAdapter(client)
 	i.status = StatusConnected
 	i.lastSeen = time.Now()
 	return nil

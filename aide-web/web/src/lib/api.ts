@@ -12,6 +12,8 @@ import type {
   TokenEventItem,
   TokenStats,
   ObserveEventItem,
+  InstinctProposalItem,
+  InstinctStatus,
 } from "./types";
 
 const BASE = "/api";
@@ -202,6 +204,51 @@ export const api = {
   ) => {
     const url = new URL(
       `${BASE}/instances/${encodeURIComponent(project)}/observe/watch`,
+      window.location.origin,
+    );
+    Object.entries(filters).forEach(([k, v]) => {
+      if (v) url.searchParams.set(k, v);
+    });
+    return url.toString();
+  },
+
+  listInstinctProposals: (
+    project: string,
+    filters: { status?: InstinctStatus | ""; shape?: string; session?: string; limit?: number } = {},
+  ) =>
+    get<{ proposals: InstinctProposalItem[] }>(
+      `${BASE}/instances/${encodeURIComponent(project)}/instincts`,
+      {
+        ...(filters.status && { status: filters.status }),
+        ...(filters.shape && { shape: filters.shape }),
+        ...(filters.session && { session: filters.session }),
+        ...(filters.limit && { limit: String(filters.limit) }),
+      },
+    ).then((r) => r.proposals ?? []),
+
+  getInstinctProposal: (project: string, id: string) =>
+    get<InstinctProposalItem>(
+      `${BASE}/instances/${encodeURIComponent(project)}/instincts/${encodeURIComponent(id)}`,
+    ),
+
+  acceptInstinctProposal: (project: string, id: string, contentOverride?: string) =>
+    postJson<{ proposal_id: string; memory_id?: string; status: string }>(
+      `${BASE}/instances/${encodeURIComponent(project)}/instincts/${encodeURIComponent(id)}/accept`,
+      contentOverride ? { content_override: contentOverride } : {},
+    ),
+
+  rejectInstinctProposal: (project: string, id: string, reason?: string) =>
+    postJson<{ proposal_id: string; status: string; rejection_count: number }>(
+      `${BASE}/instances/${encodeURIComponent(project)}/instincts/${encodeURIComponent(id)}/reject`,
+      reason ? { reason } : {},
+    ),
+
+  instinctWatchUrl: (
+    project: string,
+    filters: { status?: InstinctStatus | ""; shape?: string; session?: string; since_id?: string } = {},
+  ) => {
+    const url = new URL(
+      `${BASE}/instances/${encodeURIComponent(project)}/instincts/watch`,
       window.location.origin,
     );
     Object.entries(filters).forEach(([k, v]) => {

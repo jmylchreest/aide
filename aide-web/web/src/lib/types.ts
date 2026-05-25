@@ -170,3 +170,34 @@ export interface DetailedStatus {
     built_in: boolean;
   }>;
 }
+
+export interface InstinctProposedMemory {
+  category: string;
+  content: string;
+  tags?: string[];
+  priority?: number;
+}
+
+export interface InstinctEvidence {
+  observe_event_ids?: string[];
+  cross_session_ids?: string[];
+  snapshot?: ObserveEventItem[];
+}
+
+export type InstinctStatus = "open" | "accepted" | "rejected" | "expired";
+
+export interface InstinctProposalItem {
+  id: string;
+  shape: string;
+  session_id?: string;
+  proposed_at: string;
+  summary: string;
+  status: InstinctStatus;
+  rejection_count?: number;
+  rejection_reason?: string;
+  accepted_memory_id?: string;
+  last_reproposal_at?: string;
+  expires_at?: string;
+  evidence: InstinctEvidence;
+  proposed_instinct: InstinctProposedMemory;
+}
