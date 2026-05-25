@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { useEventStream, type EventStreamStatus } from "./useEventStream";
 import type {
@@ -30,14 +30,21 @@ export function useWatchSwarmTasks({
 }: WatchTasksOptions): WatchTasksResult {
   const [tasks, setTasks] = useState<Map<string, SwarmTaskUpdate>>(new Map());
 
+  // Reset the accumulator when filters change — otherwise stale rows from
+  // the previous filter linger. Same pattern as useObserveEvents.
+  const lastFilterRef = useRef("");
+  const filterKey = `${parentSession ?? ""}|${status ?? ""}`;
+  if (lastFilterRef.current !== filterKey) {
+    lastFilterRef.current = filterKey;
+    if (tasks.size > 0) setTasks(new Map());
+  }
+
   const onEvent = useCallback(
     (t: SwarmTaskUpdate) => {
       setTasks((prev) => {
         const next = new Map(prev);
         next.set(t.id, t);
         if (next.size > maxItems) {
-          // Drop the oldest insertion (Map preserves insertion order; we
-          // re-insert on update so an "old" entry hasn't been touched).
           const firstKey = next.keys().next().value;
           if (firstKey) next.delete(firstKey);
         }
@@ -90,6 +97,12 @@ export function useWatchSwarmMessages({
   maxItems = 500,
 }: WatchMessagesOptions): WatchMessagesResult {
   const [messages, setMessages] = useState<SwarmMessageUpdate[]>([]);
+  const lastFilterRef = useRef("");
+  const filterKey = `${parentSession ?? ""}|${agent ?? ""}|${priority ?? ""}`;
+  if (lastFilterRef.current !== filterKey) {
+    lastFilterRef.current = filterKey;
+    if (messages.length > 0) setMessages([]);
+  }
   const onEvent = useCallback(
     (m: SwarmMessageUpdate) => {
       setMessages((prev) => {
@@ -139,6 +152,12 @@ export function useWatchSwarmState({
   maxItems = 500,
 }: WatchStateOptions): WatchStateResult {
   const [byKey, setByKey] = useState<Map<string, SwarmStateUpdate>>(new Map());
+  const lastFilterRef = useRef("");
+  const filterKey = `${agent ?? ""}|${keyPrefix ?? ""}`;
+  if (lastFilterRef.current !== filterKey) {
+    lastFilterRef.current = filterKey;
+    if (byKey.size > 0) setByKey(new Map());
+  }
   const onEvent = useCallback(
     (u: SwarmStateUpdate) => {
       setByKey((prev) => {

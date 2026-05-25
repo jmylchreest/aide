@@ -18,23 +18,24 @@ import {
   RefreshCw,
 } from "lucide-react";
 
-type Pane = "tasks" | "messages" | "state" | "agents";
+type Pane = "tasks" | "messages" | "state";
 
 const PANE_LABEL: Record<Pane, string> = {
   tasks: "Tasks",
   messages: "Messages",
   state: "State",
-  agents: "Agents",
 };
 
 export function SwarmPage() {
   const { project } = useParams<{ project: string }>();
-  const [pane, setPane] = useState<Pane>("agents");
+  const [pane, setPane] = useState<Pane>("tasks");
+  // Selection is a single state: clicking a parent header selects the
+  // whole swarm; clicking an agent narrows further. Either being empty
+  // means "everything for this project".
   const [parentSession, setParentSession] = useState<string>("");
   const [selectedAgent, setSelectedAgent] = useState<string>("");
+  const [includeStale, setIncludeStale] = useState(false);
 
-  // Initial agent list (unary) — used to populate the tree + parent-session
-  // chooser. The live state stream below refreshes per-agent halt/pause flags.
   const {
     data: agents,
     loading,
@@ -42,13 +43,11 @@ export function SwarmPage() {
   } = useApi<SwarmAgentItem[]>(
     () =>
       project
-        ? api.listSwarmAgents(project, parentSession || undefined)
+        ? api.listSwarmAgents(project, undefined, includeStale)
         : Promise.resolve([]),
-    [project, parentSession],
+    [project, includeStale],
   );
 
-  // Live streams. Tasks/Messages filter by parent_session when set. State
-  // filters by agent so the selected node updates in place.
   const { tasks, status: tasksStatus } = useWatchSwarmTasks({
     project,
     parentSession: parentSession || undefined,
@@ -57,6 +56,7 @@ export function SwarmPage() {
   const { messages, status: messagesStatus } = useWatchSwarmMessages({
     project,
     parentSession: parentSession || undefined,
+    agent: selectedAgent || undefined,
     enabled: pane === "messages",
   });
   const { entries: stateEntries, status: stateStatus } = useWatchSwarmState({
@@ -64,6 +64,16 @@ export function SwarmPage() {
     agent: selectedAgent || undefined,
     enabled: pane === "state",
   });
+
+  // Tasks filter client-side by selected agent's claim, since WatchTasks
+  // server filter only supports parent_session + status today.
+  const visibleTasks = useMemo(
+    () =>
+      selectedAgent
+        ? tasks.filter((t) => t.claimed_by === selectedAgent)
+        : tasks,
+    [tasks, selectedAgent],
+  );
 
   // Group agents by parent_session for the tree view.
   const tree = useMemo(() => {
@@ -108,14 +118,29 @@ export function SwarmPage() {
             <RefreshCw className="w-3.5 h-3.5" />
           </button>
         </div>
-        <div className="mb-3">
-          <input
-            type="text"
-            placeholder="Filter by parent session…"
-            value={parentSession}
-            onChange={(e) => setParentSession(e.target.value)}
-            className="w-full px-2 py-1 text-xs bg-aide-bg-elevated border border-aide-border rounded"
-          />
+        <div className="mb-2 flex items-center justify-between text-xs">
+          <button
+            onClick={() => {
+              setParentSession("");
+              setSelectedAgent("");
+            }}
+            className={`px-2 py-0.5 rounded ${
+              !parentSession && !selectedAgent
+                ? "bg-aide-accent/10 text-aide-accent font-semibold"
+                : "text-aide-text-muted hover:text-aide-text"
+            }`}
+          >
+            All
+          </button>
+          <label className="flex items-center gap-1 text-aide-text-muted">
+            <input
+              type="checkbox"
+              checked={includeStale}
+              onChange={(e) => setIncludeStale(e.target.checked)}
+              className="w-3 h-3"
+            />
+            stale
+          </label>
         </div>
         {loading && <p className="text-xs text-aide-text-muted">loading…</p>}
         {!loading && sessions.length === 0 && (
@@ -126,9 +151,21 @@ export function SwarmPage() {
         <ul className="space-y-3 text-xs">
           {sessions.map((sid) => (
             <li key={sid}>
-              <div className="text-aide-text-muted truncate" title={sid}>
+              <button
+                className={`w-full text-left truncate px-1 py-0.5 rounded ${
+                  parentSession === sid && !selectedAgent
+                    ? "bg-aide-accent/10 text-aide-accent font-semibold"
+                    : "text-aide-text-muted hover:text-aide-text"
+                }`}
+                title={sid}
+                onClick={() => {
+                  setParentSession(sid === "(orchestrator / solo)" ? "" : sid);
+                  setSelectedAgent("");
+                }}
+              >
                 {sid.length > 24 ? `${sid.slice(0, 8)}…${sid.slice(-8)}` : sid}
-              </div>
+                <span className="ml-1 opacity-60">({tree[sid].length})</span>
+              </button>
               <ul className="ml-3 mt-1 space-y-1">
                 {tree[sid].map((a) => (
                   <li
@@ -138,7 +175,10 @@ export function SwarmPage() {
                         ? "bg-aide-accent/10 text-aide-accent"
                         : "hover:bg-aide-bg-elevated"
                     }`}
-                    onClick={() => setSelectedAgent(a.agent)}
+                    onClick={() => {
+                      setSelectedAgent(a.agent);
+                      if (a.parent_session) setParentSession(a.parent_session);
+                    }}
                   >
                     <span className="truncate flex-1" title={a.agent}>
                       {a.agent.length > 16
@@ -218,11 +258,19 @@ export function SwarmPage() {
           )}
         </div>
 
-        {pane === "agents" && (
-          <AgentsPane agents={agents ?? []} />
-        )}
+        <div className="mb-2 text-xs text-aide-text-muted">
+          Filter:{" "}
+          {selectedAgent ? (
+            <>agent <code>{selectedAgent.slice(0, 12)}…</code></>
+          ) : parentSession ? (
+            <>swarm <code>{parentSession.slice(0, 12)}…</code></>
+          ) : (
+            <>all (no filter)</>
+          )}
+        </div>
+
         {pane === "tasks" && (
-          <TasksPane tasks={tasks} status={tasksStatus} />
+          <TasksPane tasks={visibleTasks} status={tasksStatus} />
         )}
         {pane === "messages" && (
           <MessagesPane messages={messages} status={messagesStatus} />
@@ -232,51 +280,6 @@ export function SwarmPage() {
         )}
       </div>
     </div>
-  );
-}
-
-function AgentsPane({ agents }: { agents: SwarmAgentItem[] }) {
-  if (agents.length === 0)
-    return <p className="text-xs text-aide-text-muted">No agents to show.</p>;
-  return (
-    <table className="w-full text-xs">
-      <thead className="text-aide-text-muted">
-        <tr className="border-b border-aide-border">
-          <th className="text-left py-1">Agent</th>
-          <th className="text-left py-1">Parent</th>
-          <th className="text-left py-1">Status</th>
-          <th className="text-left py-1">Flags</th>
-          <th className="text-left py-1">Deadline</th>
-        </tr>
-      </thead>
-      <tbody>
-        {agents.map((a) => (
-          <tr key={a.agent} className="border-b border-aide-border/50">
-            <td className="py-1 font-mono">{a.agent}</td>
-            <td className="py-1 font-mono text-aide-text-muted">
-              {a.parent_session?.slice(0, 12) ?? "—"}
-            </td>
-            <td className="py-1">{a.status ?? "—"}</td>
-            <td className="py-1">
-              {a.halt && (
-                <span
-                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-500/10 text-red-400"
-                  title={a.halt_reason}
-                >
-                  halt
-                </span>
-              )}
-              {a.paused && (
-                <span className="ml-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">
-                  paused
-                </span>
-              )}
-            </td>
-            <td className="py-1 text-aide-text-muted">{a.deadline ?? "—"}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
   );
 }
 

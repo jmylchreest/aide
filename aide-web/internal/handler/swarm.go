@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/go-chi/chi/v5"
@@ -19,11 +20,17 @@ type SwarmAgentItem struct {
 	Status        string `json:"status,omitempty"`
 	Type          string `json:"type,omitempty"`
 	StartedAt     string `json:"started_at,omitempty"`
+	EndedAt       string `json:"ended_at,omitempty"`
 	Halt          bool   `json:"halt,omitempty"`
 	HaltReason    string `json:"halt_reason,omitempty"`
 	Paused        bool   `json:"paused,omitempty"`
 	Deadline      string `json:"deadline,omitempty"`
 }
+
+// staleAgentAge: a completed agent older than this is hidden by default.
+// Read-time filter only — data stays in the state bucket for forensics.
+// Override with ?include_stale=1 to see everything.
+const staleAgentAge = 24 * time.Hour
 
 // ListSwarmAgentsOutput is the response body for APIListSwarmAgents.
 type ListSwarmAgentsOutput struct {
@@ -68,10 +75,13 @@ type SwarmStateUpdate struct {
 }
 
 // APIListSwarmAgents walks the State bucket and groups per-agent fields
-// into one row per agent, optionally filtered by parent_session.
+// into one row per agent, optionally filtered by parent_session. By default
+// hides agents marked status=completed with endedAt older than staleAgentAge
+// — set include_stale=1 to see all.
 func (h *Handler) APIListSwarmAgents(ctx context.Context, input *struct {
 	Project       string `path:"project"`
 	ParentSession string `query:"parent_session" doc:"Filter to one swarm"`
+	IncludeStale  bool   `query:"include_stale" doc:"Include completed agents whose endedAt is > 24h ago"`
 }) (*ListSwarmAgentsOutput, error) {
 	inst := h.findInstance(input.Project)
 	if inst == nil {
@@ -112,6 +122,8 @@ func (h *Handler) APIListSwarmAgents(ctx context.Context, input *struct {
 			row.Type = st.Value
 		case "startedAt":
 			row.StartedAt = st.Value
+		case "endedAt":
+			row.EndedAt = st.Value
 		case "halt":
 			row.Halt = isTruthyValue(st.Value)
 		case "halt_reason":
@@ -123,8 +135,12 @@ func (h *Handler) APIListSwarmAgents(ctx context.Context, input *struct {
 		}
 	}
 	out := &ListSwarmAgentsOutput{}
+	staleCutoff := time.Now().Add(-staleAgentAge)
 	for _, r := range by {
 		if input.ParentSession != "" && r.ParentSession != input.ParentSession {
+			continue
+		}
+		if !input.IncludeStale && isStaleAgent(r, staleCutoff) {
 			continue
 		}
 		out.Body.Agents = append(out.Body.Agents, *r)
@@ -153,6 +169,31 @@ func isTruthyValue(v string) bool {
 	switch v {
 	case "1", "true", "on", "yes", "True", "TRUE":
 		return true
+	}
+	return false
+}
+
+// isStaleAgent: completed agents whose endedAt is past the cutoff. If the
+// agent has no endedAt but its startedAt is old AND it's not running, also
+// treat as stale (catches sessions that crashed without firing SubagentStop).
+func isStaleAgent(a *SwarmAgentItem, cutoff time.Time) bool {
+	if a.Status == "completed" {
+		if a.EndedAt != "" {
+			if t, err := time.Parse(time.RFC3339, a.EndedAt); err == nil {
+				return t.Before(cutoff)
+			}
+		}
+		if a.StartedAt != "" {
+			if t, err := time.Parse(time.RFC3339, a.StartedAt); err == nil {
+				return t.Before(cutoff)
+			}
+		}
+		return true
+	}
+	if a.Status != "running" && a.StartedAt != "" {
+		if t, err := time.Parse(time.RFC3339, a.StartedAt); err == nil {
+			return t.Before(cutoff)
+		}
 	}
 	return false
 }
