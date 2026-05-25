@@ -66,9 +66,10 @@ type TaskStore interface {
 	PruneCompletedTasks(maxAge time.Duration) (int, error)
 }
 
-// TokenEventStore provides token event recording and aggregation.
+// TokenEventStore provides a TokenEvent-shaped read view over observe events.
+// The write surface (AddTokenEvent) was retired — callers should record
+// observe events directly via ObserveEventStore.AddObserveEvent.
 type TokenEventStore interface {
-	AddTokenEvent(e *memory.TokenEvent) error
 	ListTokenEvents(sessionID string, limit int, since, until time.Time) ([]*memory.TokenEvent, error)
 	TokenStats(sessionID string, since, until time.Time) (*memory.TokenStats, error)
 	CleanupTokenEvents(maxAge time.Duration) (int, error)

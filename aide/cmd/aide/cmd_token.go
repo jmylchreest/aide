@@ -8,13 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jmylchreest/aide/aide/pkg/memory"
 	"github.com/jmylchreest/aide/aide/pkg/store"
 )
 
 func cmdTokenDispatcher(dbPath string, args []string) error {
 	return dispatchSubcmd("token", args, printTokenUsage, []subcmd{
-		{name: "record", handler: func(a []string) error { return cmdTokenRecord(dbPath, a) }},
 		{name: "summary", handler: func(a []string) error { return cmdTokenSummary(dbPath, a) }},
 		{name: "stats", handler: func(a []string) error { return cmdTokenStats(dbPath, a) }},
 		{name: "cleanup", handler: func(a []string) error { return cmdTokenCleanup(dbPath, a) }},
@@ -28,15 +26,11 @@ Usage:
   aide token <subcommand> [arguments]
 
 Subcommands:
-  record     Record a token event (used by hooks)
   summary    Show estimated token summary for a session
   stats      Show estimated all-time token statistics
   cleanup    Remove old token events
 
 Options:
-  record <event_type> <tool> <file> <tokens> [saved]:
-    Event types: read, outline_used, read_avoided, write, edit
-
   summary:
     --session=ID     Specific session (default: all)
     --last=N         Last N sessions
@@ -50,10 +44,10 @@ Options:
     --max-age=DURATION  Max age (default: 720h = 30 days)
 
 Note: All token counts are estimates based on calibrated per-language ratios.
+Token events are recorded automatically by hooks via the observe stream
+(kind=injection / kind=tool_call); there is no manual record subcommand.
 
 Examples:
-  aide token record read Read src/auth.ts 1200
-  aide token record outline_used code_outline src/auth.ts 150 1050
   aide token stats
   aide token summary --last=5
   aide token cleanup --max-age=168h`)
@@ -70,40 +64,6 @@ func getStoreOrFail(dbPath string) (*Backend, store.Store, error) {
 		return nil, nil, fmt.Errorf("store not available (MCP server may need restart)")
 	}
 	return backend, st, nil
-}
-
-// cmdTokenRecord records a single token event. Called by TS hooks.
-func cmdTokenRecord(dbPath string, args []string) error {
-	if len(args) < 4 {
-		return fmt.Errorf("usage: aide token record <event_type> <tool> <file> <tokens> [saved]")
-	}
-
-	eventType := args[0]
-	tool := args[1]
-	filePath := args[2]
-
-	var tokens, saved int
-	fmt.Sscanf(args[3], "%d", &tokens)
-	if len(args) > 4 {
-		fmt.Sscanf(args[4], "%d", &saved)
-	}
-
-	sessionID := parseFlag(args, "--session=")
-
-	backend, st, err := getStoreOrFail(dbPath)
-	if err != nil {
-		return err
-	}
-	defer backend.Close()
-
-	return st.AddTokenEvent(&memory.TokenEvent{
-		SessionID:   sessionID,
-		EventType:   eventType,
-		Tool:        tool,
-		FilePath:    filePath,
-		Tokens:      tokens,
-		TokensSaved: saved,
-	})
 }
 
 // cmdTokenSummary shows token event summary.

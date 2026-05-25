@@ -32,6 +32,8 @@ type TokenStatsItem struct {
 	TotalDelivered int            `json:"total_delivered"`
 	EventCount     int            `json:"event_count"`
 	ByTool         map[string]int `json:"by_tool"`
+	CallsByTool    map[string]int `json:"calls_by_tool"`
+	SavedByTool    map[string]int `json:"saved_by_tool"`
 	BySavingType   map[string]int `json:"by_saving_type"`
 	ByDelivery     map[string]int `json:"by_delivery"`
 	Sessions       int            `json:"sessions"`
@@ -130,6 +132,8 @@ func (h *Handler) APIGetTokenStats(ctx context.Context, input *struct {
 		TotalDelivered: stats.TotalDelivered,
 		EventCount:     stats.EventCount,
 		ByTool:         stats.ByTool,
+		CallsByTool:    stats.CallsByTool,
+		SavedByTool:    stats.SavedByTool,
 		BySavingType:   stats.BySavingType,
 		ByDelivery:     stats.ByDelivery,
 		Sessions:       stats.Sessions,

@@ -128,7 +128,9 @@ type TokenStats struct {
 	TotalWritten   int            `json:"total_written"`   // Estimated tokens output
 	TotalDelivered int            `json:"total_delivered"` // Tokens proactively delivered (injections, enrichment)
 	EventCount     int            `json:"event_count"`     // Total events
-	ByTool         map[string]int `json:"by_tool"`         // Estimated tokens per tool
+	ByTool         map[string]int `json:"by_tool"`         // Estimated tokens per tool (spent)
+	CallsByTool    map[string]int `json:"calls_by_tool"`   // Call counts per tool — used by per-tool efficiency chart
+	SavedByTool    map[string]int `json:"saved_by_tool"`   // Estimated saved tokens per tool
 	BySavingType   map[string]int `json:"by_saving_type"`  // Estimated saved tokens by category
 	ByDelivery     map[string]int `json:"by_delivery"`     // Tokens delivered by source (memory, decision, skill, enrichment)
 	Sessions       int            `json:"sessions"`        // Unique session count

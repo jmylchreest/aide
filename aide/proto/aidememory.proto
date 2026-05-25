@@ -946,7 +946,9 @@ message StatusGrammar {
 // =============================================================================
 
 service TokenService {
-  rpc RecordTokenEvent(TokenEventRequest) returns (TokenEventResponse);
+  // RecordTokenEvent was retired — record observe events directly via
+  // ObserveService.RecordEvent (kind=injection or kind=tool_call). The read
+  // RPCs below continue to serve a TokenEvent-shaped view over observe data.
   rpc GetTokenStats(TokenStatsRequest) returns (TokenStatsResponse);
   rpc ListTokenEvents(TokenEventListRequest) returns (TokenEventListResponse);
 }
@@ -1107,21 +1109,10 @@ message ObserveWatchRequest {
   string since_id = 5;
 }
 
-message TokenEventRequest {
-  string session_id = 1;
-  string event_type = 2;     // read, outline_used, read_avoided, write, edit
-  string tool = 3;           // Read, code_outline, code_symbols, Edit, Write
-  string file_path = 4;
-  int32 tokens = 5;          // estimated tokens
-  int32 tokens_saved = 6;    // estimated tokens saved
-}
-
-message TokenEventResponse {
-  string id = 1;
-}
-
 message TokenStatsRequest {
-  string session_id = 1;     // optional: filter by session (empty = all)
+  string session_id = 1;                  // optional: filter by session (empty = all)
+  google.protobuf.Timestamp since = 2;    // optional: lower time bound (inclusive)
+  google.protobuf.Timestamp until = 3;    // optional: upper time bound (inclusive)
 }
 
 message TokenStatsResponse {
@@ -1136,6 +1127,8 @@ message TokenStatsResponse {
   int32 code_tool_count = 9;             // outline + symbol_read tool count
   int32 total_delivered = 10;            // estimated tokens proactively delivered (memories, decisions, skills, enrichment)
   map<string, int32> by_delivery = 11;   // delivered tokens by source
+  map<string, int32> calls_by_tool = 12; // call counts per tool — feeds per-tool efficiency chart
+  map<string, int32> saved_by_tool = 13; // estimated saved tokens per tool
 }
 
 message TokenEventListRequest {

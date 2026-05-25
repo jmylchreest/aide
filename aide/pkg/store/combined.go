@@ -355,9 +355,8 @@ func (c *CombinedStore) ClearTasks(status memory.TaskStatus) (int, error) {
 	return c.bolt.ClearTasks(status)
 }
 
-// --- Token Event Operations (delegated to BoltStore) ---
+// --- Token Event Operations (read-only view, delegated to BoltStore) ---
 
-func (c *CombinedStore) AddTokenEvent(e *memory.TokenEvent) error { return c.bolt.AddTokenEvent(e) }
 func (c *CombinedStore) ListTokenEvents(sessionID string, limit int, since, until time.Time) ([]*memory.TokenEvent, error) {
 	return c.bolt.ListTokenEvents(sessionID, limit, since, until)
 }

@@ -277,67 +277,75 @@ export function TokensPage() {
   }, [events]);
 
   const perToolStats = useMemo<PerToolStat[]>(() => {
-    if (!events) return [];
+    if (!stats) return [];
 
-    // Build a session-keyed timeline of Grep events so we can do an O(N)
-    // walk over code_search calls and binary-search the next Grep per
-    // session. Events come back newest-first from the API; we want oldest
-    // first for forward-looking counterfactual checks.
-    const ordered = [...events].sort(
-      (a, b) =>
-        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
-    );
-    const grepBySession = new Map<string, number[]>();
-    for (const e of ordered) {
-      if (e.tool === "Grep") {
-        const arr = grepBySession.get(e.session_id) ?? [];
-        arr.push(new Date(e.timestamp).getTime());
-        grepBySession.set(e.session_id, arr);
+    // Base rows come from server-aggregated stats — every event in the
+    // time window contributes, regardless of the 200-event list cap.
+    // Without this, the chart only saw the most-recent 200 events and
+    // tools like code_outline/code_symbols (lower-frequency than
+    // Bash/Edit/Read) fell off the tail entirely.
+    const tools = new Set<string>([
+      ...Object.keys(stats.calls_by_tool ?? {}),
+      ...Object.keys(stats.by_tool ?? {}),
+      ...Object.keys(stats.saved_by_tool ?? {}),
+    ]);
+
+    // code_search counterfactual: requires per-event timing (was a Grep
+    // run within 60s in the same session?). Computed from `events` —
+    // partial if the 200-event cap clips the window, but it's a bonus on
+    // top of the saved_by_tool[code_search] base.
+    let csSatisfied = 0;
+    let csAvoidedExtra = 0;
+    if (events && events.length > 0) {
+      const ordered = [...events].sort(
+        (a, b) =>
+          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+      );
+      const grepBySession = new Map<string, number[]>();
+      for (const e of ordered) {
+        if (e.tool === "Grep") {
+          const arr = grepBySession.get(e.session_id) ?? [];
+          arr.push(new Date(e.timestamp).getTime());
+          grepBySession.set(e.session_id, arr);
+        }
+      }
+      const followedByGrep = (e: TokenEventItem): boolean => {
+        const greps = grepBySession.get(e.session_id);
+        if (!greps) return false;
+        const t = new Date(e.timestamp).getTime();
+        for (const gt of greps) {
+          if (gt > t && gt - t <= CODE_SEARCH_FOLLOWUP_WINDOW_MS) return true;
+          if (gt > t) break;
+        }
+        return false;
+      };
+      for (const e of ordered) {
+        if (e.tool === "code_search" && !followedByGrep(e)) {
+          csSatisfied += 1;
+          csAvoidedExtra += (e.tokens || 0) * 3;
+        }
       }
     }
-    function followedByGrep(e: TokenEventItem): boolean {
-      const greps = grepBySession.get(e.session_id);
-      if (!greps) return false;
-      const t = new Date(e.timestamp).getTime();
-      // Linear scan is fine — typical sessions have few Greps. If this
-      // becomes hot, swap in a binary search.
-      for (const gt of greps) {
-        if (gt > t && gt - t <= CODE_SEARCH_FOLLOWUP_WINDOW_MS) return true;
-        if (gt > t) break;
+
+    const rows: PerToolStat[] = [];
+    for (const tool of tools) {
+      const calls = stats.calls_by_tool?.[tool] ?? 0;
+      if (calls === 0) continue;
+      const row: PerToolStat = {
+        tool,
+        category: TOOL_CATEGORIES[tool] ?? "other",
+        calls,
+        spent: stats.by_tool?.[tool] ?? 0,
+        avoided: stats.saved_by_tool?.[tool] ?? 0,
+      };
+      if (tool === "code_search") {
+        row.avoided += csAvoidedExtra;
+        row.satisfied = csSatisfied || undefined;
       }
-      return false;
+      rows.push(row);
     }
 
-    const m = new Map<string, PerToolStat>();
-    for (const e of ordered) {
-      if (!e.tool) continue;
-      // Injection events use the Tool field as the source name (memory /
-      // decision / skill / enrichment) — those belong in the delivered
-      // section, not the per-tool efficiency chart. Filter them out.
-      if (e.event_type === "context_injected") continue;
-      const category = TOOL_CATEGORIES[e.tool] ?? "other";
-      const b =
-        m.get(e.tool) ??
-        ({ tool: e.tool, category, calls: 0, spent: 0, avoided: 0 } as PerToolStat);
-      b.calls += 1;
-      b.spent += e.tokens || 0;
-      b.avoided += e.tokens_saved || 0;
-
-      // code_search counterfactual: if this call wasn't followed by a Grep
-      // in the same session within the window, treat it as "satisfied" —
-      // the index answered the question. Avoided estimate = 3× spent
-      // (conservative; a Grep on the same project usually returns several
-      // times the bytes a focused symbol search does).
-      if (e.tool === "code_search" && !followedByGrep(e)) {
-        b.satisfied = (b.satisfied ?? 0) + 1;
-        b.avoided += (e.tokens || 0) * 3;
-      }
-      m.set(e.tool, b);
-    }
-    return Array.from(m.values()).sort((a, b) => {
-      // Tools with a real avoided claim float to the top (the efficiency
-      // winners). Within each group, sort alphabetically so the order is
-      // stable across reloads regardless of which tool was hottest.
+    return rows.sort((a, b) => {
       const aHasAvoided =
         AVOIDED_CLAIM_TOOLS.has(a.tool) && a.avoided > 0 ? 1 : 0;
       const bHasAvoided =
@@ -345,7 +353,7 @@ export function TokensPage() {
       if (aHasAvoided !== bHasAvoided) return bHasAvoided - aHasAvoided;
       return a.tool.localeCompare(b.tool);
     });
-  }, [events]);
+  }, [stats, events]);
 
   const savingsPct =
     stats && stats.total_read + stats.total_saved > 0

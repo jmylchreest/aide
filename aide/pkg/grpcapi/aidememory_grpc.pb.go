@@ -3095,16 +3095,17 @@ var StatusService_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
-	TokenService_RecordTokenEvent_FullMethodName = "/aidememory.TokenService/RecordTokenEvent"
-	TokenService_GetTokenStats_FullMethodName    = "/aidememory.TokenService/GetTokenStats"
-	TokenService_ListTokenEvents_FullMethodName  = "/aidememory.TokenService/ListTokenEvents"
+	TokenService_GetTokenStats_FullMethodName   = "/aidememory.TokenService/GetTokenStats"
+	TokenService_ListTokenEvents_FullMethodName = "/aidememory.TokenService/ListTokenEvents"
 )
 
 // TokenServiceClient is the client API for TokenService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type TokenServiceClient interface {
-	RecordTokenEvent(ctx context.Context, in *TokenEventRequest, opts ...grpc.CallOption) (*TokenEventResponse, error)
+	// RecordTokenEvent was retired — record observe events directly via
+	// ObserveService.RecordEvent (kind=injection or kind=tool_call). The read
+	// RPCs below continue to serve a TokenEvent-shaped view over observe data.
 	GetTokenStats(ctx context.Context, in *TokenStatsRequest, opts ...grpc.CallOption) (*TokenStatsResponse, error)
 	ListTokenEvents(ctx context.Context, in *TokenEventListRequest, opts ...grpc.CallOption) (*TokenEventListResponse, error)
 }
@@ -3115,16 +3116,6 @@ type tokenServiceClient struct {
 
 func NewTokenServiceClient(cc grpc.ClientConnInterface) TokenServiceClient {
 	return &tokenServiceClient{cc}
-}
-
-func (c *tokenServiceClient) RecordTokenEvent(ctx context.Context, in *TokenEventRequest, opts ...grpc.CallOption) (*TokenEventResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(TokenEventResponse)
-	err := c.cc.Invoke(ctx, TokenService_RecordTokenEvent_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
 }
 
 func (c *tokenServiceClient) GetTokenStats(ctx context.Context, in *TokenStatsRequest, opts ...grpc.CallOption) (*TokenStatsResponse, error) {
@@ -3151,7 +3142,9 @@ func (c *tokenServiceClient) ListTokenEvents(ctx context.Context, in *TokenEvent
 // All implementations must embed UnimplementedTokenServiceServer
 // for forward compatibility.
 type TokenServiceServer interface {
-	RecordTokenEvent(context.Context, *TokenEventRequest) (*TokenEventResponse, error)
+	// RecordTokenEvent was retired — record observe events directly via
+	// ObserveService.RecordEvent (kind=injection or kind=tool_call). The read
+	// RPCs below continue to serve a TokenEvent-shaped view over observe data.
 	GetTokenStats(context.Context, *TokenStatsRequest) (*TokenStatsResponse, error)
 	ListTokenEvents(context.Context, *TokenEventListRequest) (*TokenEventListResponse, error)
 	mustEmbedUnimplementedTokenServiceServer()
@@ -3164,9 +3157,6 @@ type TokenServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedTokenServiceServer struct{}
 
-func (UnimplementedTokenServiceServer) RecordTokenEvent(context.Context, *TokenEventRequest) (*TokenEventResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method RecordTokenEvent not implemented")
-}
 func (UnimplementedTokenServiceServer) GetTokenStats(context.Context, *TokenStatsRequest) (*TokenStatsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetTokenStats not implemented")
 }
@@ -3192,24 +3182,6 @@ func RegisterTokenServiceServer(s grpc.ServiceRegistrar, srv TokenServiceServer)
 		t.testEmbeddedByValue()
 	}
 	s.RegisterService(&TokenService_ServiceDesc, srv)
-}
-
-func _TokenService_RecordTokenEvent_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(TokenEventRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(TokenServiceServer).RecordTokenEvent(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: TokenService_RecordTokenEvent_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TokenServiceServer).RecordTokenEvent(ctx, req.(*TokenEventRequest))
-	}
-	return interceptor(ctx, in, info, handler)
 }
 
 func _TokenService_GetTokenStats_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -3255,10 +3227,6 @@ var TokenService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "aidememory.TokenService",
 	HandlerType: (*TokenServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
-		{
-			MethodName: "RecordTokenEvent",
-			Handler:    _TokenService_RecordTokenEvent_Handler,
-		},
 		{
 			MethodName: "GetTokenStats",
 			Handler:    _TokenService_GetTokenStats_Handler,

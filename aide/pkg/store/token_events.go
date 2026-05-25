@@ -6,27 +6,8 @@ import (
 
 	"github.com/jmylchreest/aide/aide/pkg/memory"
 	"github.com/jmylchreest/aide/aide/pkg/observe"
-	"github.com/oklog/ulid/v2"
 	bolt "go.etcd.io/bbolt"
 )
-
-// AddTokenEvent records a token event. Routes through the unified observe
-// store — the legacy token_events bucket is no longer written. The
-// translation is the inverse of observeToTokenEvent, so subsequent reads via
-// ListTokenEvents/TokenStats see this entry unchanged.
-func (s *BoltStore) AddTokenEvent(e *memory.TokenEvent) error {
-	if e.ID == "" {
-		e.ID = ulid.Make().String()
-	}
-	if e.Timestamp.IsZero() {
-		e.Timestamp = time.Now()
-	}
-	ev := tokenEventToObserve(e)
-	if ev == nil {
-		return nil
-	}
-	return s.AddObserveEvent(ev)
-}
 
 // ListTokenEvents returns events from observe_events translated into the
 // legacy TokenEvent shape. The legacy token_events bucket is migrated into
@@ -71,6 +52,8 @@ func (s *BoltStore) ListTokenEvents(sessionID string, limit int, since, until ti
 func (s *BoltStore) TokenStats(sessionID string, since, until time.Time) (*memory.TokenStats, error) {
 	stats := &memory.TokenStats{
 		ByTool:       make(map[string]int),
+		CallsByTool:  make(map[string]int),
+		SavedByTool:  make(map[string]int),
 		BySavingType: make(map[string]int),
 		ByDelivery:   make(map[string]int),
 	}
@@ -89,6 +72,15 @@ func (s *BoltStore) TokenStats(sessionID string, since, until time.Time) (*memor
 
 		stats.EventCount++
 		sessions[e.SessionID] = true
+
+		// Every event with a tool counts as one call. Injection events
+		// reuse Tool for the source name; the chart filters those out.
+		if e.Tool != "" && e.EventType != memory.TokenEventContextInjected {
+			stats.CallsByTool[e.Tool]++
+			if e.TokensSaved > 0 {
+				stats.SavedByTool[e.Tool] += e.TokensSaved
+			}
+		}
 
 		switch e.EventType {
 		case memory.TokenEventRead:
@@ -116,11 +108,6 @@ func (s *BoltStore) TokenStats(sessionID string, since, until time.Time) (*memor
 				stats.ByDelivery[e.Tool] += e.Tokens
 			}
 		default:
-			// Category-derived event types: modify (Edit/Write/NotebookEdit),
-			// execute (Bash), search (Grep/Glob), network (WebFetch/WebSearch).
-			// Tokens here represent content the agent generated or output we
-			// pulled in — count toward TotalWritten and the per-tool tally
-			// so the per-tool efficiency view has signal for these tools too.
 			if e.Tokens > 0 {
 				stats.TotalWritten += e.Tokens
 				stats.ByTool[e.Tool] += e.Tokens

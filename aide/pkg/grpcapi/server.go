@@ -1654,23 +1654,15 @@ type tokenServiceImpl struct {
 	store store.Store
 }
 
-func (s *tokenServiceImpl) RecordTokenEvent(ctx context.Context, req *TokenEventRequest) (*TokenEventResponse, error) {
-	e := &memory.TokenEvent{
-		SessionID:   req.SessionId,
-		EventType:   req.EventType,
-		Tool:        req.Tool,
-		FilePath:    req.FilePath,
-		Tokens:      int(req.Tokens),
-		TokensSaved: int(req.TokensSaved),
-	}
-	if err := s.store.AddTokenEvent(e); err != nil {
-		return nil, err
-	}
-	return &TokenEventResponse{Id: e.ID}, nil
-}
-
 func (s *tokenServiceImpl) GetTokenStats(ctx context.Context, req *TokenStatsRequest) (*TokenStatsResponse, error) {
-	stats, err := s.store.TokenStats(req.SessionId, time.Time{}, time.Time{})
+	var since, until time.Time
+	if req.Since != nil {
+		since = req.Since.AsTime()
+	}
+	if req.Until != nil {
+		until = req.Until.AsTime()
+	}
+	stats, err := s.store.TokenStats(req.SessionId, since, until)
 	if err != nil {
 		return nil, err
 	}
@@ -1687,6 +1679,14 @@ func (s *tokenServiceImpl) GetTokenStats(ctx context.Context, req *TokenStatsReq
 	for k, v := range stats.ByDelivery {
 		byDelivery[k] = int32(v)
 	}
+	callsByTool := make(map[string]int32, len(stats.CallsByTool))
+	for k, v := range stats.CallsByTool {
+		callsByTool[k] = int32(v)
+	}
+	savedByTool := make(map[string]int32, len(stats.SavedByTool))
+	for k, v := range stats.SavedByTool {
+		savedByTool[k] = int32(v)
+	}
 
 	return &TokenStatsResponse{
 		TotalRead:      int32(stats.TotalRead),
@@ -1694,6 +1694,8 @@ func (s *tokenServiceImpl) GetTokenStats(ctx context.Context, req *TokenStatsReq
 		TotalWritten:   int32(stats.TotalWritten),
 		EventCount:     int32(stats.EventCount),
 		ByTool:         byTool,
+		CallsByTool:    callsByTool,
+		SavedByTool:    savedByTool,
 		BySavingType:   bySaving,
 		Sessions:       int32(stats.Sessions),
 		ReadCount:      int32(stats.ReadCount),
@@ -1704,9 +1706,15 @@ func (s *tokenServiceImpl) GetTokenStats(ctx context.Context, req *TokenStatsReq
 }
 
 func (s *tokenServiceImpl) ListTokenEvents(ctx context.Context, req *TokenEventListRequest) (*TokenEventListResponse, error) {
+	// Honour the store contract: limit <= 0 means "all". Callers like
+	// StoreAdapter.TokenStats deliberately pass 0 when they need a full
+	// scan to aggregate over a time window (the proto doesn't carry
+	// since/until yet, so client-side filter requires every event).
+	// Cap at a safety upper bound so a malicious/buggy caller can't OOM us.
 	limit := int(req.Limit)
-	if limit <= 0 {
-		limit = 100
+	const maxLimit = 100000
+	if limit <= 0 || limit > maxLimit {
+		limit = maxLimit
 	}
 
 	events, err := s.store.ListTokenEvents(req.SessionId, limit, time.Time{}, time.Time{})

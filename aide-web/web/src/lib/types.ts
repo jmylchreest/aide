@@ -114,6 +114,8 @@ export interface TokenStats {
   total_delivered: number;
   event_count: number;
   by_tool: Record<string, number>;
+  calls_by_tool: Record<string, number>;
+  saved_by_tool: Record<string, number>;
   by_saving_type: Record<string, number>;
   by_delivery: Record<string, number>;
   sessions: number;
