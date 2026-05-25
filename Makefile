@@ -78,7 +78,7 @@ release: check-version check-release-needed test-ts
 		echo "No blueprint files changed since $${LAST_TAG:-the beginning}"; \
 	fi
 	@echo "Snapshotting docs for v$(VERSION)..."
-	@cd docs && bun run docusaurus docs:version $(VERSION)
+	@cd docs && bun install --frozen-lockfile && bun run docusaurus docs:version $(VERSION)
 	@echo "Syncing bun.lock..."
 	@bun install
 	@echo ""
