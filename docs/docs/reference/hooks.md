@@ -32,7 +32,7 @@ Fires once at the beginning of every conversation. Responsible for:
 2. **Injecting memories** — Global memories (`scope:global`), project memories (`project:<name>`), recent session summaries
 3. **Injecting decisions** — All current project decisions
 4. **Setting initial state** — Mode, session ID, agent tracking
-5. **MCP sync** — Synchronize server configurations across assistants
+5. **MCP sync** — Synchronize server configurations across assistants (opt-out with `AIDE_MCP_SYNC=0`)
 
 ### UserPromptSubmit
 

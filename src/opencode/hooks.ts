@@ -335,11 +335,16 @@ function initializeAide(state: AideState): void {
 
     ensureDirectories(state.cwd);
 
-    // Sync MCP server configs across assistants (FS only, fast)
-    try {
-      syncMcpServers("opencode", state.cwd);
-    } catch (err) {
-      debug(SOURCE, `MCP sync failed (non-fatal): ${err}`);
+    // Sync MCP server configs across assistants (FS only, fast).
+    // Opt-out via AIDE_MCP_SYNC=0 (defaults to enabled).
+    if (process.env.AIDE_MCP_SYNC === "0") {
+      debug(SOURCE, "MCP sync disabled (AIDE_MCP_SYNC=0)");
+    } else {
+      try {
+        syncMcpServers("opencode", state.cwd);
+      } catch (err) {
+        debug(SOURCE, `MCP sync failed (non-fatal): ${err}`);
+      }
     }
 
     const config = loadConfig(state.cwd);

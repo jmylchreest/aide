@@ -89,6 +89,8 @@ MCP server configurations are automatically synchronized across assistants. When
 
 A journal (`.aide/config/mcp-sync.journal.json`) tracks intentional deletions so removed servers aren't re-imported on the next sync.
 
+MCP sync is enabled by default and can be opted out by setting `AIDE_MCP_SYNC=0` in the environment before launching the assistant. Any other value (including unset) leaves sync enabled. When disabled, the session-start hook skips the sync step entirely; existing assistant config files are left untouched.
+
 ## The aide Binary
 
 The Go binary (`aide`) provides the heavy-lifting backend:

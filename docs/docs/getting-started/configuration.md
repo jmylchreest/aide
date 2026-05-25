@@ -17,6 +17,7 @@ AIDE is configured through environment variables. All variables are optional.
 | `AIDE_INDEX_NON_VCS=1`           | Allow watcher/indexing in non-VCS dirs (default: refuse) |
 | `AIDE_INDEX_WORKERS=N`           | Parallel parser workers for code indexing (default: NumCPU, capped at 32) |
 | `AIDE_MEMORY_INJECT=0`           | Disable memory injection                         |
+| `AIDE_MCP_SYNC=0`                | Disable cross-assistant MCP server sync (default: enabled) |
 | `AIDE_MEMORY_SCORING_DISABLED=1` | Disable memory scoring (use chronological order) |
 | `AIDE_MEMORY_DECAY_DISABLED=1`   | Disable recency decay in memory scoring          |
 | `AIDE_SHARE_AUTO_IMPORT=1`       | Auto-import shared decisions/memories on start   |
