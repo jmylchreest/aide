@@ -22,18 +22,39 @@ func DefaultRepetitionConfig() RepetitionConfig {
 	return RepetitionConfig{
 		MinCount:      4,
 		WindowMinutes: 30,
+		// Shell utilities where high repetition is normal and conveys no
+		// "the agent forgot the answer" signal: navigation, output, and
+		// trivial test-scaffolding. Note `cat` is deliberately NOT here —
+		// re-reading the same file repeatedly IS the canonical pattern
+		// this detector should catch.
 		IgnoreCommands: []string{
 			"git status",
+			"git add",
 			"ls",
 			"pwd",
+			"cd",
+			"echo",
+			"printf",
+			"true",
+			"false",
 		},
 	}
 }
 
-type Repetition struct{}
+// Repetition optionally carries a Config that overrides the package defaults.
+// Zero-value (Repetition{}) keeps using DefaultRepetitionConfig() — existing
+// callers don't need to change.
+type Repetition struct {
+	Config RepetitionConfig
+}
 
-func (Repetition) Name() string             { return ShapeRepetition }
-func (Repetition) DefaultConfig() any        { return DefaultRepetitionConfig() }
+func (Repetition) Name() string { return ShapeRepetition }
+func (r Repetition) DefaultConfig() any {
+	if r.Config.MinCount <= 0 {
+		return DefaultRepetitionConfig()
+	}
+	return r.Config
+}
 func (Repetition) Capabilities() Capabilities { return Capabilities{RequiresLLM: false} }
 
 // Detect counts how many times each normalised Bash command was issued in

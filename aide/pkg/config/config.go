@@ -55,7 +55,25 @@ type Config struct {
 // AIDE_REFLECT (truthy values: 1/true/on/yes) takes precedence over the
 // file-set value at read time — see ResolveReflectEnabled.
 type ReflectConfig struct {
-	Enabled bool `koanf:"enabled"`
+	Enabled    bool                    `koanf:"enabled"`
+	Repetition ReflectRepetitionConfig `koanf:"repetition"`
+}
+
+// ReflectRepetitionConfig is the user-tunable subset of the repetition
+// detector. Empty / zero-value fields fall back to package defaults
+// (see instinct.DefaultRepetitionConfig); set fields override entirely.
+type ReflectRepetitionConfig struct {
+	// MinCount fires a proposal when a command's signature appears at
+	// least this many times. Zero → default (4).
+	MinCount int `koanf:"min_count"`
+	// WindowMinutes constrains the densest run to this span. Zero → default (30).
+	WindowMinutes int `koanf:"window_minutes"`
+	// IgnoreCommands is a full replacement of the default ignore list
+	// (`git status`, `git add`, `ls`, `pwd`). Nil → defaults; non-nil →
+	// exactly this list. Signatures match what instinct.normaliseBash
+	// produces — for git/docker/etc, the subcommand is kept
+	// (e.g. "git status" not "git").
+	IgnoreCommands []string `koanf:"ignore_commands"`
 }
 
 // ResolveReflectEnabled returns the effective reflect-enabled state given

@@ -28,6 +28,29 @@ func cmdReflect(dbPath string, args []string) error {
 	})
 }
 
+// repetitionConfigFromUser merges user-supplied reflect.repetition.* settings
+// over the package defaults. Zero-valued numeric fields keep the default;
+// a non-nil IgnoreCommands fully replaces the default list (callers wanting
+// to extend should pass the defaults plus their additions).
+func repetitionConfigFromUser() instinct.RepetitionConfig {
+	def := instinct.DefaultRepetitionConfig()
+	cfg := config.Get()
+	if cfg == nil {
+		return def
+	}
+	out := def
+	if cfg.Reflect.Repetition.MinCount > 0 {
+		out.MinCount = cfg.Reflect.Repetition.MinCount
+	}
+	if cfg.Reflect.Repetition.WindowMinutes > 0 {
+		out.WindowMinutes = cfg.Reflect.Repetition.WindowMinutes
+	}
+	if cfg.Reflect.Repetition.IgnoreCommands != nil {
+		out.IgnoreCommands = cfg.Reflect.Repetition.IgnoreCommands
+	}
+	return out
+}
+
 // resolveSessionID returns the explicit --session value when set, otherwise
 // the AIDE_SESSION_ID env var, otherwise the session_id of the most recent
 // observe event. Empty string only if no observe events exist at all.
@@ -194,7 +217,7 @@ func reflectRun(dbPath string, args []string) error {
 		mode = instinct.RunWithLLM
 	}
 
-	runner := instinct.NewRunner(instinct.Repetition{}, instinct.Convergence{})
+	runner := instinct.NewRunner(instinct.Repetition{Config: repetitionConfigFromUser()}, instinct.Convergence{})
 	newProps := runner.Run(sessionID, events, nil, relevant, instinct.RunOpts{
 		Mode:            mode,
 		Classifications: classifications,
