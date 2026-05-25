@@ -158,6 +158,52 @@ func (s *BoltStore) DeleteTask(id string) error {
 	})
 }
 
+// PruneCompletedTasks removes done tasks whose CompletedAt is older than
+// maxAge. Pending/claimed/blocked tasks are never pruned — they may still
+// be wanted regardless of age. Returns count deleted.
+func (s *BoltStore) PruneCompletedTasks(maxAge time.Duration) (int, error) {
+	cutoff := time.Now().Add(-maxAge)
+	var deleted int
+	var keysToDelete [][]byte
+
+	err := s.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket(BucketTasks)
+		return b.ForEach(func(k, v []byte) error {
+			var t memory.Task
+			if err := json.Unmarshal(v, &t); err != nil {
+				log.Printf("store: skipping malformed task entry: %v", err)
+				return nil
+			}
+			if t.Status != memory.TaskStatusDone {
+				return nil
+			}
+			// Defensive: a done task missing CompletedAt is treated as
+			// "old enough" — better to prune than to leak indefinitely.
+			if t.CompletedAt.IsZero() || t.CompletedAt.Before(cutoff) {
+				keysToDelete = append(keysToDelete, k)
+			}
+			return nil
+		})
+	})
+	if err != nil {
+		return 0, err
+	}
+	if len(keysToDelete) == 0 {
+		return 0, nil
+	}
+	err = s.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket(BucketTasks)
+		for _, k := range keysToDelete {
+			if err := b.Delete(k); err != nil {
+				return err
+			}
+			deleted++
+		}
+		return nil
+	})
+	return deleted, err
+}
+
 // ClearTasks removes tasks matching the given status.
 // If status is empty, removes all tasks.
 func (s *BoltStore) ClearTasks(status memory.TaskStatus) (int, error) {

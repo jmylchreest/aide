@@ -711,3 +711,7 @@ func (g *StoreAdapter) ListObserveEvents(f store.ObserveFilter) ([]*observe.Even
 func (g *StoreAdapter) CleanupObserveEvents(maxAge time.Duration) (int, error) {
 	return 0, fmt.Errorf("observe event cleanup not supported via gRPC")
 }
+
+func (g *StoreAdapter) PruneCompletedTasks(maxAge time.Duration) (int, error) {
+	return 0, fmt.Errorf("task prune not supported via gRPC (daemon runs it directly)")
+}

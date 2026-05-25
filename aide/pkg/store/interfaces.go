@@ -63,6 +63,7 @@ type TaskStore interface {
 	UpdateTask(t *memory.Task) error
 	DeleteTask(id string) error
 	ClearTasks(status memory.TaskStatus) (int, error)
+	PruneCompletedTasks(maxAge time.Duration) (int, error)
 }
 
 // TokenEventStore provides token event recording and aggregation.

@@ -304,6 +304,9 @@ func (c *CombinedStore) ClearState(agentID string) (int, error) { return c.bolt.
 func (c *CombinedStore) CleanupStaleState(maxAge time.Duration) (int, error) {
 	return c.bolt.CleanupStaleState(maxAge)
 }
+func (c *CombinedStore) PruneCompletedTasks(maxAge time.Duration) (int, error) {
+	return c.bolt.PruneCompletedTasks(maxAge)
+}
 
 // --- Decision Operations (delegated to BoltStore) ---
 

@@ -61,6 +61,7 @@ type CleanupConfig struct {
 	Interval      string `koanf:"interval"`        // default "15m"
 	StateMaxAge   string `koanf:"state_max_age"`   // default "168h" (7d) — agent-specific state only
 	ObserveMaxAge string `koanf:"observe_max_age"` // default "168h" (7d)
+	TaskMaxAge    string `koanf:"task_max_age"`    // default "168h" (7d) — done tasks only; pending/claimed/blocked never pruned
 }
 
 // IntervalDuration returns the tick interval with a default fallback.
@@ -76,6 +77,11 @@ func (c CleanupConfig) StateMaxAgeDuration() time.Duration {
 // ObserveMaxAgeDuration returns the observe-event TTL with a default fallback.
 func (c CleanupConfig) ObserveMaxAgeDuration() time.Duration {
 	return parseDur(c.ObserveMaxAge, 7*24*time.Hour)
+}
+
+// TaskMaxAgeDuration returns the done-task TTL with a default fallback.
+func (c CleanupConfig) TaskMaxAgeDuration() time.Duration {
+	return parseDur(c.TaskMaxAge, 7*24*time.Hour)
 }
 
 func parseDur(s string, fallback time.Duration) time.Duration {
