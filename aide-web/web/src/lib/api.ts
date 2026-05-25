@@ -11,6 +11,7 @@ import type {
   DetailedStatus,
   TokenEventItem,
   TokenStats,
+  ObserveEventItem,
 } from "./types";
 
 const BASE = "/api";
@@ -164,6 +165,50 @@ export const api = {
       `${BASE}/instances/${encodeURIComponent(project)}/tokens/events`,
       { ...(session && { session }), ...(limit && { limit: String(limit) }), ...(since && { since }), ...(until && { until }) },
     ).then((r) => r.events ?? []),
+
+  listObserveEvents: (
+    project: string,
+    filters: {
+      kind?: string;
+      name?: string;
+      category?: string;
+      session?: string;
+      limit?: number;
+      since?: string;
+      until?: string;
+    } = {},
+  ) =>
+    get<{ events: ObserveEventItem[] }>(
+      `${BASE}/instances/${encodeURIComponent(project)}/observe/events`,
+      {
+        ...(filters.kind && { kind: filters.kind }),
+        ...(filters.name && { name: filters.name }),
+        ...(filters.category && { category: filters.category }),
+        ...(filters.session && { session: filters.session }),
+        ...(filters.limit && { limit: String(filters.limit) }),
+        ...(filters.since && { since: filters.since }),
+        ...(filters.until && { until: filters.until }),
+      },
+    ).then((r) => r.events ?? []),
+
+  observeWatchUrl: (
+    project: string,
+    filters: {
+      kind?: string;
+      category?: string;
+      session?: string;
+      since_id?: string;
+    } = {},
+  ) => {
+    const url = new URL(
+      `${BASE}/instances/${encodeURIComponent(project)}/observe/watch`,
+      window.location.origin,
+    );
+    Object.entries(filters).forEach(([k, v]) => {
+      if (v) url.searchParams.set(k, v);
+    });
+    return url.toString();
+  },
 
   search: (query: string) =>
     get<{ results: SearchResult[] }>(`${BASE}/search`, { q: query }).then(

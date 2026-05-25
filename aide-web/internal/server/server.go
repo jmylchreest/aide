@@ -69,9 +69,13 @@ func (s *Server) setupRouter() {
 	huma.Get(api, "/api/instances/{project}/survey", h.APIListSurvey)
 	huma.Get(api, "/api/instances/{project}/tokens/stats", h.APIGetTokenStats)
 	huma.Get(api, "/api/instances/{project}/tokens/events", h.APIListTokenEvents)
+	huma.Get(api, "/api/instances/{project}/observe/events", h.APIListObserveEvents)
 	huma.Get(api, "/api/search", h.APISearch)
 	huma.Post(api, "/api/instances/{project}/code/index", h.APIRunCodeIndex)
 	huma.Get(api, "/api/instances/{project}/code/file", h.APIReadFile)
+
+	// Streaming endpoints — raw chi (huma's request/response shape is unary).
+	r.Get("/api/instances/{project}/observe/watch", h.APIWatchObserveEvents)
 
 	// Legacy JSON endpoints used by the code search page
 	r.Get("/instances/{project}/code/search.json", h.CodeSearchJSON)

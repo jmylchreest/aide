@@ -11,6 +11,8 @@ import {
   AlertTriangle,
   Map,
   Coins,
+  Radio,
+  Inbox,
 } from "lucide-react";
 
 const navItems = [
@@ -24,6 +26,8 @@ const navItems = [
   { to: "findings", label: "Findings", icon: AlertTriangle },
   { to: "survey", label: "Survey", icon: Map },
   { to: "tokens", label: "Tokens", icon: Coins },
+  { to: "observe", label: "Observe", icon: Radio },
+  { to: "injections", label: "Injections", icon: Inbox },
 ];
 
 interface SidebarProps {

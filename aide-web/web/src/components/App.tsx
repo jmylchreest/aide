@@ -12,6 +12,8 @@ import { CodePage } from "./pages/CodePage";
 import { FindingsPage } from "./pages/FindingsPage";
 import { SurveyPage } from "./pages/SurveyPage";
 import { TokensPage } from "./pages/TokensPage";
+import { ObservePage } from "./pages/ObservePage";
+import { InjectionLogPage } from "./pages/InjectionLogPage";
 import { SearchPage } from "./pages/SearchPage";
 
 export default function App() {
@@ -33,6 +35,8 @@ export default function App() {
             <Route path="findings" element={<FindingsPage />} />
             <Route path="survey" element={<SurveyPage />} />
             <Route path="tokens" element={<TokensPage />} />
+            <Route path="observe" element={<ObservePage />} />
+            <Route path="injections" element={<InjectionLogPage />} />
           </Route>
         </Route>
       </Routes>

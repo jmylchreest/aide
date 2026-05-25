@@ -90,6 +90,23 @@ export interface TokenEventItem {
   end_line?: number;
 }
 
+export interface ObserveEventItem {
+  id: string;
+  timestamp: string;
+  kind: string;
+  name: string;
+  category?: string;
+  subtype?: string;
+  duration_ms?: number;
+  tokens?: number;
+  tokens_saved?: number;
+  file_path?: string;
+  parent?: string;
+  session_id?: string;
+  error?: string;
+  attrs?: Record<string, string>;
+}
+
 export interface TokenStats {
   total_read: number;
   total_saved: number;
