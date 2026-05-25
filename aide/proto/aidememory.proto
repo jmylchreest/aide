@@ -1002,6 +1002,94 @@ message ObserveListResponse {
   repeated ObserveEvent events = 1;
 }
 
+// =============================================================================
+// Instinct Service (proposal CRUD + live watch)
+// =============================================================================
+
+service InstinctService {
+  rpc List(InstinctListRequest) returns (InstinctListResponse);
+  rpc Get(InstinctGetRequest) returns (InstinctGetResponse);
+  rpc Add(InstinctAddRequest) returns (InstinctAddResponse);
+  rpc UpdateStatus(InstinctUpdateStatusRequest) returns (InstinctUpdateStatusResponse);
+  rpc Watch(InstinctWatchRequest) returns (stream InstinctProposal);
+}
+
+message InstinctEvidence {
+  repeated string observe_event_ids = 1;
+  repeated string cross_session_ids = 2;
+  repeated ObserveEvent snapshot = 3;
+}
+
+message InstinctProposedMemory {
+  string category = 1;
+  string content = 2;
+  repeated string tags = 3;
+  float priority = 4;
+}
+
+message InstinctProposal {
+  string id = 1;
+  string shape = 2;
+  string session_id = 3;
+  google.protobuf.Timestamp proposed_at = 4;
+  string summary = 5;
+  InstinctEvidence evidence = 6;
+  InstinctProposedMemory proposed_instinct = 7;
+  string status = 8;
+  int32 rejection_count = 9;
+  string rejection_reason = 10;
+  google.protobuf.Timestamp last_reproposal_at = 11;
+  string accepted_memory_id = 12;
+  google.protobuf.Timestamp expires_at = 13;
+}
+
+message InstinctListRequest {
+  string status = 1;
+  string shape = 2;
+  string session_id = 3;
+  int32 limit = 4;
+}
+
+message InstinctListResponse {
+  repeated InstinctProposal proposals = 1;
+}
+
+message InstinctGetRequest {
+  string id = 1;
+}
+
+message InstinctGetResponse {
+  InstinctProposal proposal = 1;
+  bool found = 2;
+}
+
+message InstinctAddRequest {
+  InstinctProposal proposal = 1;
+}
+
+message InstinctAddResponse {
+  InstinctProposal proposal = 1;
+}
+
+message InstinctUpdateStatusRequest {
+  string id = 1;
+  string status = 2;
+  string reason = 3;
+  string accepted_memory_id = 4;
+}
+
+message InstinctUpdateStatusResponse {
+  InstinctProposal proposal = 1;
+}
+
+message InstinctWatchRequest {
+  string status = 1;
+  string shape = 2;
+  string session_id = 3;
+  // Backfill proposals with ULID > since_id before switching to live.
+  string since_id = 4;
+}
+
 message ObserveWatchRequest {
   string kind = 1;
   string name = 2;

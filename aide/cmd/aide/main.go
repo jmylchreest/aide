@@ -116,6 +116,8 @@ func runCommand(cmd, dbPath string, args []string) error {
 		return cmdTokenDispatcher(dbPath, args)
 	case "observe":
 		return cmdObserveDispatcher(dbPath, args)
+	case "reflect":
+		return cmdReflect(dbPath, args)
 	case "daemon":
 		return cmdDaemon(dbPath, args)
 	case "mcp":

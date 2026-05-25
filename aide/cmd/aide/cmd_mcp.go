@@ -38,6 +38,7 @@ type MCPServer struct {
 	codeStore      store.CodeIndexStore
 	findingsStore  store.FindingsStore
 	surveyStore    store.SurveyStore
+	instinctStore  store.InstinctProposalStore
 	codeStoreMu    sync.RWMutex
 	codeStoreReady atomic.Bool
 	codeInitWg     sync.WaitGroup
@@ -722,7 +723,8 @@ func cmdMCP(dbPath string, args []string) error {
 				storeAdapter := adapter.NewStoreAdapter(client)
 				findingsAdapter := adapter.NewFindingsAdapter(client)
 				surveyAdapter := adapter.NewSurveyAdapter(client)
-				mcpServer := &MCPServer{store: storeAdapter, findingsStore: findingsAdapter, surveyStore: surveyAdapter, grammarLoader: grammarLoader, dbPath: dbPath}
+				instinctAdapter := adapter.NewInstinctAdapter(client)
+				mcpServer := &MCPServer{store: storeAdapter, findingsStore: findingsAdapter, surveyStore: surveyAdapter, instinctStore: instinctAdapter, grammarLoader: grammarLoader, dbPath: dbPath}
 				mcpLog.Printf("MCP server ready in %v (client mode), listening on stdio", time.Since(startTime))
 				return mcpServer.Run()
 			}
@@ -756,10 +758,11 @@ func cmdMCP(dbPath string, args []string) error {
 		mcpLog.Printf("migrated %d legacy token events into observe store", migrated)
 	}
 
-	mcpServer := &MCPServer{store: st, grammarLoader: grammarLoader, dbPath: dbPath}
+	mcpServer := &MCPServer{store: st, instinctStore: st, grammarLoader: grammarLoader, dbPath: dbPath}
 
 	grpcServer := grpcapi.NewServer(st, dbPath, socketPath, grammarLoader)
 	observeSink.SetBus(grpcServer.ObserveBus())
+	grpcServer.SetInstinctStore(st)
 	mcpServer.grpcServer = grpcServer
 	mcpLog.Printf("gRPC socket: %s", socketPath)
 
@@ -829,6 +832,7 @@ func (s *MCPServer) Run() error {
 	s.registerCodeTools()         // Code indexing and search
 	s.registerFindingsTools()     // Findings search and stats
 	s.registerSurveyTools()       // Survey search, list, stats, run
+	s.registerInstinctTools()     // Instinct proposals (reflect output) list/accept/reject
 	s.registerInstanceInfoTools() // Instance identity: project root, version, paths
 	s.registerTokenTools()        // Token intelligence and statistics
 

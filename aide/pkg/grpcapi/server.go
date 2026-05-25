@@ -18,6 +18,7 @@ import (
 	"github.com/jmylchreest/aide/aide/pkg/eventbus"
 	"github.com/jmylchreest/aide/aide/pkg/findings"
 	"github.com/jmylchreest/aide/aide/pkg/grammar"
+	"github.com/jmylchreest/aide/aide/pkg/instinct"
 	"github.com/jmylchreest/aide/aide/pkg/memory"
 	"github.com/jmylchreest/aide/aide/pkg/observe"
 	"github.com/jmylchreest/aide/aide/pkg/store"
@@ -48,10 +49,12 @@ func projectRoot(dbPath string) string {
 // Server manages the gRPC server and all service implementations.
 type Server struct {
 	store         store.Store
+	instinctStore store.InstinctProposalStore
 	codeStore     store.CodeIndexStore
 	findingsStore store.FindingsStore
 	surveyStore   store.SurveyStore
 	observeBus    *eventbus.Broadcaster[*observe.Event]
+	instinctBus   *eventbus.Broadcaster[*instinct.Proposal]
 	dbPath        string
 	grpcServer    *grpc.Server
 	socketPath    string
@@ -82,11 +85,32 @@ func NewServer(st store.Store, dbPath, socketPath string, loader grammar.Loader)
 	return &Server{
 		store:         st,
 		observeBus:    eventbus.New[*observe.Event](256),
+		instinctBus:   eventbus.New[*instinct.Proposal](64),
 		dbPath:        dbPath,
 		socketPath:    socketPath,
 		startTime:     time.Now(),
 		grammarLoader: loader,
 	}
+}
+
+// SetInstinctStore attaches the instinct proposal store. Without it the
+// InstinctService returns FailedPrecondition.
+func (s *Server) SetInstinctStore(ps store.InstinctProposalStore) {
+	s.storeMu.Lock()
+	defer s.storeMu.Unlock()
+	s.instinctStore = ps
+}
+
+// GetInstinctStore returns the current instinct proposal store.
+func (s *Server) GetInstinctStore() store.InstinctProposalStore {
+	s.storeMu.RLock()
+	defer s.storeMu.RUnlock()
+	return s.instinctStore
+}
+
+// InstinctBus exposes the proposal broadcaster.
+func (s *Server) InstinctBus() *eventbus.Broadcaster[*instinct.Proposal] {
+	return s.instinctBus
 }
 
 // SetCodeStore sets the code store for code indexing services.
@@ -223,6 +247,7 @@ func (s *Server) Start() error {
 	RegisterSurveyServiceServer(s.grpcServer, &surveyServiceImpl{server: s})
 	RegisterTokenServiceServer(s.grpcServer, &tokenServiceImpl{store: s.store})
 	RegisterObserveServiceServer(s.grpcServer, &observeServiceImpl{store: s.store, bus: s.observeBus})
+	RegisterInstinctServiceServer(s.grpcServer, &instinctServiceImpl{server: s})
 	RegisterHealthServiceServer(s.grpcServer, &healthServiceImpl{dbPath: s.dbPath})
 	RegisterStatusServiceServer(s.grpcServer, &statusServiceImpl{server: s})
 
@@ -2488,4 +2513,260 @@ func (s *observeServiceImpl) WatchEvents(req *ObserveWatchRequest, stream Observ
 			}
 		}
 	}
+}
+
+// =============================================================================
+// Instinct Service Implementation
+// =============================================================================
+
+type instinctServiceImpl struct {
+	UnimplementedInstinctServiceServer
+	server *Server
+}
+
+func (s *instinctServiceImpl) requireStore() (store.InstinctProposalStore, error) {
+	if ps := s.server.GetInstinctStore(); ps != nil {
+		return ps, nil
+	}
+	return nil, status.Error(codes.FailedPrecondition, "instinct proposal store not configured")
+}
+
+func (s *instinctServiceImpl) List(ctx context.Context, req *InstinctListRequest) (*InstinctListResponse, error) {
+	ps, err := s.requireStore()
+	if err != nil {
+		return nil, err
+	}
+	f := store.InstinctFilter{
+		Status:    instinct.Status(req.Status),
+		Shape:     req.Shape,
+		SessionID: req.SessionId,
+		Limit:     int(req.Limit),
+	}
+	props, err := ps.ListInstinctProposals(f)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]*InstinctProposal, 0, len(props))
+	for _, p := range props {
+		out = append(out, instinctProposalToProto(p))
+	}
+	return &InstinctListResponse{Proposals: out}, nil
+}
+
+func (s *instinctServiceImpl) Get(ctx context.Context, req *InstinctGetRequest) (*InstinctGetResponse, error) {
+	ps, err := s.requireStore()
+	if err != nil {
+		return nil, err
+	}
+	p, err := ps.GetInstinctProposal(req.Id)
+	if err != nil {
+		return nil, err
+	}
+	if p == nil {
+		return &InstinctGetResponse{Found: false}, nil
+	}
+	return &InstinctGetResponse{Proposal: instinctProposalToProto(p), Found: true}, nil
+}
+
+func (s *instinctServiceImpl) Add(ctx context.Context, req *InstinctAddRequest) (*InstinctAddResponse, error) {
+	ps, err := s.requireStore()
+	if err != nil {
+		return nil, err
+	}
+	if req.Proposal == nil {
+		return nil, status.Error(codes.InvalidArgument, "proposal required")
+	}
+	p := protoToInstinctProposal(req.Proposal)
+	if err := ps.AddInstinctProposal(p); err != nil {
+		return nil, err
+	}
+	if bus := s.server.InstinctBus(); bus != nil {
+		bus.Publish(p)
+	}
+	return &InstinctAddResponse{Proposal: instinctProposalToProto(p)}, nil
+}
+
+func (s *instinctServiceImpl) UpdateStatus(ctx context.Context, req *InstinctUpdateStatusRequest) (*InstinctUpdateStatusResponse, error) {
+	ps, err := s.requireStore()
+	if err != nil {
+		return nil, err
+	}
+	p, err := ps.UpdateInstinctProposalStatus(req.Id, instinct.Status(req.Status), req.Reason, req.AcceptedMemoryId)
+	if err != nil {
+		return nil, err
+	}
+	if p == nil {
+		return nil, status.Error(codes.NotFound, "proposal not found")
+	}
+	if bus := s.server.InstinctBus(); bus != nil {
+		bus.Publish(p)
+	}
+	return &InstinctUpdateStatusResponse{Proposal: instinctProposalToProto(p)}, nil
+}
+
+func (s *instinctServiceImpl) Watch(req *InstinctWatchRequest, stream InstinctService_WatchServer) error {
+	ps, err := s.requireStore()
+	if err != nil {
+		return err
+	}
+	ctx := stream.Context()
+	bus := s.server.InstinctBus()
+	if bus == nil {
+		return status.Error(codes.FailedPrecondition, "instinct broadcaster not configured")
+	}
+
+	matches := func(p *instinct.Proposal) bool {
+		if req.Status != "" && string(p.Status) != req.Status {
+			return false
+		}
+		if req.Shape != "" && p.Shape != req.Shape {
+			return false
+		}
+		if req.SessionId != "" && p.SessionID != req.SessionId {
+			return false
+		}
+		return true
+	}
+	sub, unsub := bus.Subscribe(ctx, matches)
+	defer unsub()
+
+	var maxBackfillID string
+	if req.SinceId != "" {
+		if _, perr := ulid.Parse(req.SinceId); perr != nil {
+			return status.Errorf(codes.InvalidArgument, "invalid since_id: %v", perr)
+		}
+		props, err := ps.ListInstinctProposals(store.InstinctFilter{
+			Status:    instinct.Status(req.Status),
+			Shape:     req.Shape,
+			SessionID: req.SessionId,
+		})
+		if err != nil {
+			return err
+		}
+		for i := len(props) - 1; i >= 0; i-- {
+			p := props[i]
+			if p.ID <= req.SinceId {
+				continue
+			}
+			if err := stream.Send(instinctProposalToProto(p)); err != nil {
+				return err
+			}
+			if p.ID > maxBackfillID {
+				maxBackfillID = p.ID
+			}
+		}
+	}
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case p, ok := <-sub:
+			if !ok {
+				return nil
+			}
+			if maxBackfillID != "" && p.ID <= maxBackfillID {
+				continue
+			}
+			if err := stream.Send(instinctProposalToProto(p)); err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func instinctProposalToProto(p *instinct.Proposal) *InstinctProposal {
+	if p == nil {
+		return nil
+	}
+	out := &InstinctProposal{
+		Id:               p.ID,
+		Shape:            p.Shape,
+		SessionId:        p.SessionID,
+		Summary:          p.Summary,
+		Status:           string(p.Status),
+		RejectionCount:   int32(p.RejectionCount),
+		RejectionReason:  p.RejectionReason,
+		AcceptedMemoryId: p.AcceptedMemoryID,
+	}
+	if !p.ProposedAt.IsZero() {
+		out.ProposedAt = timestamppb.New(p.ProposedAt)
+	}
+	if !p.LastReproposalAt.IsZero() {
+		out.LastReproposalAt = timestamppb.New(p.LastReproposalAt)
+	}
+	if !p.ExpiresAt.IsZero() {
+		out.ExpiresAt = timestamppb.New(p.ExpiresAt)
+	}
+	out.Evidence = &InstinctEvidence{
+		ObserveEventIds: p.Evidence.ObserveEventIDs,
+		CrossSessionIds: p.Evidence.CrossSessionIDs,
+	}
+	for _, e := range p.Evidence.Snapshot {
+		out.Evidence.Snapshot = append(out.Evidence.Snapshot, observeEventToProto(e))
+	}
+	out.ProposedInstinct = &InstinctProposedMemory{
+		Category: p.ProposedInstinct.Category,
+		Content:  p.ProposedInstinct.Content,
+		Tags:     p.ProposedInstinct.Tags,
+		Priority: p.ProposedInstinct.Priority,
+	}
+	return out
+}
+
+func protoToInstinctProposal(p *InstinctProposal) *instinct.Proposal {
+	if p == nil {
+		return nil
+	}
+	out := &instinct.Proposal{
+		ID:               p.Id,
+		Shape:            p.Shape,
+		SessionID:        p.SessionId,
+		Summary:          p.Summary,
+		Status:           instinct.Status(p.Status),
+		RejectionCount:   int(p.RejectionCount),
+		RejectionReason:  p.RejectionReason,
+		AcceptedMemoryID: p.AcceptedMemoryId,
+	}
+	if p.ProposedAt != nil {
+		out.ProposedAt = p.ProposedAt.AsTime()
+	}
+	if p.LastReproposalAt != nil {
+		out.LastReproposalAt = p.LastReproposalAt.AsTime()
+	}
+	if p.ExpiresAt != nil {
+		out.ExpiresAt = p.ExpiresAt.AsTime()
+	}
+	if p.Evidence != nil {
+		out.Evidence.ObserveEventIDs = p.Evidence.ObserveEventIds
+		out.Evidence.CrossSessionIDs = p.Evidence.CrossSessionIds
+		for _, e := range p.Evidence.Snapshot {
+			ev := &observe.Event{
+				ID:          e.Id,
+				Kind:        observe.Kind(e.Kind),
+				Name:        e.Name,
+				Category:    e.Category,
+				Subtype:     e.Subtype,
+				DurationMs:  e.DurationMs,
+				Tokens:      int(e.Tokens),
+				TokensSaved: int(e.TokensSaved),
+				FilePath:    e.FilePath,
+				Parent:      e.Parent,
+				SessionID:   e.SessionId,
+				Error:       e.Error,
+				Attrs:       e.Attrs,
+			}
+			if e.Timestamp != nil {
+				ev.Timestamp = e.Timestamp.AsTime()
+			}
+			out.Evidence.Snapshot = append(out.Evidence.Snapshot, ev)
+		}
+	}
+	if p.ProposedInstinct != nil {
+		out.ProposedInstinct.Category = p.ProposedInstinct.Category
+		out.ProposedInstinct.Content = p.ProposedInstinct.Content
+		out.ProposedInstinct.Tags = p.ProposedInstinct.Tags
+		out.ProposedInstinct.Priority = p.ProposedInstinct.Priority
+	}
+	return out
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/jmylchreest/aide/aide/pkg/code"
 	"github.com/jmylchreest/aide/aide/pkg/findings"
+	"github.com/jmylchreest/aide/aide/pkg/instinct"
 	"github.com/jmylchreest/aide/aide/pkg/memory"
 	"github.com/jmylchreest/aide/aide/pkg/observe"
 	"github.com/jmylchreest/aide/aide/pkg/survey"
@@ -77,6 +78,17 @@ type ObserveEventStore interface {
 	AddObserveEvent(e *observe.Event) error
 	ListObserveEvents(f ObserveFilter) ([]*observe.Event, error)
 	CleanupObserveEvents(maxAge time.Duration) (int, error)
+}
+
+// InstinctProposalStore is a standalone interface (not part of Store) so
+// the gRPC StoreAdapter can stay free of instinct-only RPCs. Code that
+// needs proposal access takes this interface explicitly.
+type InstinctProposalStore interface {
+	AddInstinctProposal(p *instinct.Proposal) error
+	GetInstinctProposal(id string) (*instinct.Proposal, error)
+	ListInstinctProposals(f InstinctFilter) ([]*instinct.Proposal, error)
+	UpdateInstinctProposalStatus(id string, status instinct.Status, reason string, acceptedMemoryID string) (*instinct.Proposal, error)
+	CleanupInstinctProposals(rejectedTTL time.Duration) (int, int, error)
 }
 
 // Store combines all domain-specific store interfaces.

@@ -79,6 +79,19 @@ func (b *Backend) Store() store.Store {
 	return b.store
 }
 
+// InstinctStore returns the proposal store, routed via gRPC when the daemon
+// is up, or via direct BoltStore otherwise. Separate from Store() because
+// InstinctProposalStore isn't on the Store interface (see interfaces.go).
+func (b *Backend) InstinctStore() store.InstinctProposalStore {
+	if b.useGRPC && b.grpcClient != nil {
+		return adapter.NewInstinctAdapter(b.grpcClient)
+	}
+	if b.combined != nil {
+		return b.combined
+	}
+	return nil
+}
+
 // rpcCtx returns a context with a 10-second deadline for gRPC calls.
 // This matches the timeout used by grpcStoreAdapter.rpcCtx.
 func (b *Backend) rpcCtx() (context.Context, context.CancelFunc) {

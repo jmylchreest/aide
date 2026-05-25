@@ -10,6 +10,7 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"runtime"
 	"strings"
 	"sync"
@@ -47,6 +48,31 @@ type Config struct {
 	Grammar GrammarConfig `koanf:"grammar"`
 	Share   ShareConfig   `koanf:"share"`
 	Memory  MemoryConfig  `koanf:"memory"`
+	Reflect ReflectConfig `koanf:"reflect"`
+}
+
+// ReflectConfig groups instinct-extraction (reflect) tunables. The env var
+// AIDE_REFLECT (truthy values: 1/true/on/yes) takes precedence over the
+// file-set value at read time — see ResolveReflectEnabled.
+type ReflectConfig struct {
+	Enabled bool `koanf:"enabled"`
+}
+
+// ResolveReflectEnabled returns the effective reflect-enabled state given
+// the loaded config. Precedence: env (truthy/falsy) overrides config.
+// When env is unset or unrecognised, the config value wins (default false).
+func ResolveReflectEnabled(cfg *Config) bool {
+	v := strings.ToLower(strings.TrimSpace(os.Getenv("AIDE_REFLECT")))
+	switch v {
+	case "1", "true", "yes", "on":
+		return true
+	case "0", "false", "no", "off":
+		return false
+	}
+	if cfg == nil {
+		return false
+	}
+	return cfg.Reflect.Enabled
 }
 
 // CodeConfig groups indexer / watcher tunables (AIDE_CODE_*).
@@ -146,6 +172,14 @@ var envSections = map[string]struct{}{
 	"grammar": {},
 	"share":   {},
 	"memory":  {},
+	"reflect": {},
+}
+
+// envBareKey maps AIDE_<NAME> (no underscore tail) to a non-default koanf
+// key when the section name on its own should pin a specific scalar field.
+// Used for ergonomic shortcuts: AIDE_REFLECT=1 means reflect.enabled=true.
+var envBareKey = map[string]string{
+	"reflect": "reflect.enabled",
 }
 
 // defaults are loaded as the lowest-precedence koanf source so that
@@ -196,6 +230,9 @@ func envToKey(name string) string {
 		return ""
 	}
 	tail := strings.ToLower(strings.TrimPrefix(name, EnvPrefix))
+	if mapped, ok := envBareKey[tail]; ok {
+		return mapped
+	}
 	parts := strings.SplitN(tail, "_", 2)
 	if len(parts) == 2 {
 		if _, ok := envSections[parts[0]]; ok {

@@ -8,6 +8,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/jmylchreest/aide/aide/pkg/instinct"
 	"github.com/jmylchreest/aide/aide/pkg/memory"
 	"github.com/jmylchreest/aide/aide/pkg/observe"
 )
@@ -66,6 +67,24 @@ func (c *CombinedStore) ListObserveEvents(f ObserveFilter) ([]*observe.Event, er
 }
 func (c *CombinedStore) CleanupObserveEvents(maxAge time.Duration) (int, error) {
 	return c.bolt.CleanupObserveEvents(maxAge)
+}
+
+// --- Instinct Proposal Operations (delegated to BoltStore) ---
+
+func (c *CombinedStore) AddInstinctProposal(p *instinct.Proposal) error {
+	return c.bolt.AddInstinctProposal(p)
+}
+func (c *CombinedStore) GetInstinctProposal(id string) (*instinct.Proposal, error) {
+	return c.bolt.GetInstinctProposal(id)
+}
+func (c *CombinedStore) ListInstinctProposals(f InstinctFilter) ([]*instinct.Proposal, error) {
+	return c.bolt.ListInstinctProposals(f)
+}
+func (c *CombinedStore) UpdateInstinctProposalStatus(id string, status instinct.Status, reason string, acceptedMemoryID string) (*instinct.Proposal, error) {
+	return c.bolt.UpdateInstinctProposalStatus(id, status, reason, acceptedMemoryID)
+}
+func (c *CombinedStore) CleanupInstinctProposals(rejectedTTL time.Duration) (int, int, error) {
+	return c.bolt.CleanupInstinctProposals(rejectedTTL)
 }
 
 // ensureSearchMapping checks if the search index mapping has changed and rebuilds if needed.

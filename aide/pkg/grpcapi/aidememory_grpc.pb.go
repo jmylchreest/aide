@@ -3461,3 +3461,261 @@ var ObserveService_ServiceDesc = grpc.ServiceDesc{
 	},
 	Metadata: "aidememory.proto",
 }
+
+const (
+	InstinctService_List_FullMethodName         = "/aidememory.InstinctService/List"
+	InstinctService_Get_FullMethodName          = "/aidememory.InstinctService/Get"
+	InstinctService_Add_FullMethodName          = "/aidememory.InstinctService/Add"
+	InstinctService_UpdateStatus_FullMethodName = "/aidememory.InstinctService/UpdateStatus"
+	InstinctService_Watch_FullMethodName        = "/aidememory.InstinctService/Watch"
+)
+
+// InstinctServiceClient is the client API for InstinctService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type InstinctServiceClient interface {
+	List(ctx context.Context, in *InstinctListRequest, opts ...grpc.CallOption) (*InstinctListResponse, error)
+	Get(ctx context.Context, in *InstinctGetRequest, opts ...grpc.CallOption) (*InstinctGetResponse, error)
+	Add(ctx context.Context, in *InstinctAddRequest, opts ...grpc.CallOption) (*InstinctAddResponse, error)
+	UpdateStatus(ctx context.Context, in *InstinctUpdateStatusRequest, opts ...grpc.CallOption) (*InstinctUpdateStatusResponse, error)
+	Watch(ctx context.Context, in *InstinctWatchRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[InstinctProposal], error)
+}
+
+type instinctServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewInstinctServiceClient(cc grpc.ClientConnInterface) InstinctServiceClient {
+	return &instinctServiceClient{cc}
+}
+
+func (c *instinctServiceClient) List(ctx context.Context, in *InstinctListRequest, opts ...grpc.CallOption) (*InstinctListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(InstinctListResponse)
+	err := c.cc.Invoke(ctx, InstinctService_List_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *instinctServiceClient) Get(ctx context.Context, in *InstinctGetRequest, opts ...grpc.CallOption) (*InstinctGetResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(InstinctGetResponse)
+	err := c.cc.Invoke(ctx, InstinctService_Get_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *instinctServiceClient) Add(ctx context.Context, in *InstinctAddRequest, opts ...grpc.CallOption) (*InstinctAddResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(InstinctAddResponse)
+	err := c.cc.Invoke(ctx, InstinctService_Add_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *instinctServiceClient) UpdateStatus(ctx context.Context, in *InstinctUpdateStatusRequest, opts ...grpc.CallOption) (*InstinctUpdateStatusResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(InstinctUpdateStatusResponse)
+	err := c.cc.Invoke(ctx, InstinctService_UpdateStatus_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *instinctServiceClient) Watch(ctx context.Context, in *InstinctWatchRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[InstinctProposal], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &InstinctService_ServiceDesc.Streams[0], InstinctService_Watch_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[InstinctWatchRequest, InstinctProposal]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type InstinctService_WatchClient = grpc.ServerStreamingClient[InstinctProposal]
+
+// InstinctServiceServer is the server API for InstinctService service.
+// All implementations must embed UnimplementedInstinctServiceServer
+// for forward compatibility.
+type InstinctServiceServer interface {
+	List(context.Context, *InstinctListRequest) (*InstinctListResponse, error)
+	Get(context.Context, *InstinctGetRequest) (*InstinctGetResponse, error)
+	Add(context.Context, *InstinctAddRequest) (*InstinctAddResponse, error)
+	UpdateStatus(context.Context, *InstinctUpdateStatusRequest) (*InstinctUpdateStatusResponse, error)
+	Watch(*InstinctWatchRequest, grpc.ServerStreamingServer[InstinctProposal]) error
+	mustEmbedUnimplementedInstinctServiceServer()
+}
+
+// UnimplementedInstinctServiceServer must be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedInstinctServiceServer struct{}
+
+func (UnimplementedInstinctServiceServer) List(context.Context, *InstinctListRequest) (*InstinctListResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method List not implemented")
+}
+func (UnimplementedInstinctServiceServer) Get(context.Context, *InstinctGetRequest) (*InstinctGetResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Get not implemented")
+}
+func (UnimplementedInstinctServiceServer) Add(context.Context, *InstinctAddRequest) (*InstinctAddResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Add not implemented")
+}
+func (UnimplementedInstinctServiceServer) UpdateStatus(context.Context, *InstinctUpdateStatusRequest) (*InstinctUpdateStatusResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateStatus not implemented")
+}
+func (UnimplementedInstinctServiceServer) Watch(*InstinctWatchRequest, grpc.ServerStreamingServer[InstinctProposal]) error {
+	return status.Error(codes.Unimplemented, "method Watch not implemented")
+}
+func (UnimplementedInstinctServiceServer) mustEmbedUnimplementedInstinctServiceServer() {}
+func (UnimplementedInstinctServiceServer) testEmbeddedByValue()                         {}
+
+// UnsafeInstinctServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to InstinctServiceServer will
+// result in compilation errors.
+type UnsafeInstinctServiceServer interface {
+	mustEmbedUnimplementedInstinctServiceServer()
+}
+
+func RegisterInstinctServiceServer(s grpc.ServiceRegistrar, srv InstinctServiceServer) {
+	// If the following call panics, it indicates UnimplementedInstinctServiceServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&InstinctService_ServiceDesc, srv)
+}
+
+func _InstinctService_List_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(InstinctListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(InstinctServiceServer).List(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: InstinctService_List_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(InstinctServiceServer).List(ctx, req.(*InstinctListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _InstinctService_Get_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(InstinctGetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(InstinctServiceServer).Get(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: InstinctService_Get_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(InstinctServiceServer).Get(ctx, req.(*InstinctGetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _InstinctService_Add_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(InstinctAddRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(InstinctServiceServer).Add(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: InstinctService_Add_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(InstinctServiceServer).Add(ctx, req.(*InstinctAddRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _InstinctService_UpdateStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(InstinctUpdateStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(InstinctServiceServer).UpdateStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: InstinctService_UpdateStatus_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(InstinctServiceServer).UpdateStatus(ctx, req.(*InstinctUpdateStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _InstinctService_Watch_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(InstinctWatchRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(InstinctServiceServer).Watch(m, &grpc.GenericServerStream[InstinctWatchRequest, InstinctProposal]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type InstinctService_WatchServer = grpc.ServerStreamingServer[InstinctProposal]
+
+// InstinctService_ServiceDesc is the grpc.ServiceDesc for InstinctService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var InstinctService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "aidememory.InstinctService",
+	HandlerType: (*InstinctServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "List",
+			Handler:    _InstinctService_List_Handler,
+		},
+		{
+			MethodName: "Get",
+			Handler:    _InstinctService_Get_Handler,
+		},
+		{
+			MethodName: "Add",
+			Handler:    _InstinctService_Add_Handler,
+		},
+		{
+			MethodName: "UpdateStatus",
+			Handler:    _InstinctService_UpdateStatus_Handler,
+		},
+	},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "Watch",
+			Handler:       _InstinctService_Watch_Handler,
+			ServerStreams: true,
+		},
+	},
+	Metadata: "aidememory.proto",
+}
