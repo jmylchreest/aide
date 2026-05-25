@@ -3,5 +3,8 @@
     "complexity": {
       "threshold": 15
     }
+  },
+  "reflect": {
+    "enabled": true
   }
 }

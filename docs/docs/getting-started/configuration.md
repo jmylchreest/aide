@@ -21,6 +21,81 @@ AIDE is configured through environment variables. All variables are optional.
 | `AIDE_MEMORY_SCORING_DISABLED=1` | Disable memory scoring (use chronological order) |
 | `AIDE_MEMORY_DECAY_DISABLED=1`   | Disable recency decay in memory scoring          |
 | `AIDE_SHARE_AUTO_IMPORT=1`       | Auto-import shared decisions/memories on start   |
+| `AIDE_REFLECT=1`                 | Enable the reflect Stop hook (extracts instinct proposals from session observe events). Accepts any truthy value: `1`/`true`/`on`/`yes`. Equivalent to `reflect.enabled=true` in `.aide/config/aide.json`. Env wins when set; otherwise the config file value wins; otherwise default off. |
+
+## Where env vars are read from
+
+aide is invoked from three surfaces, each with a different env scope. Setting
+an `AIDE_*` var in the wrong place is a common gotcha — this table maps each
+var to where it actually needs to live:
+
+| Variable               | Read by              | Set where                                           |
+| ---------------------- | -------------------- | --------------------------------------------------- |
+| `AIDE_CODE_WATCH`      | hooks + CLI + daemon | shell that launches the harness, **or** MCP env block |
+| `AIDE_CODE_WATCH_DELAY`| daemon               | MCP env block (used at daemon startup)              |
+| `AIDE_DEBUG`           | hooks + CLI          | shell that launches the harness                     |
+| `AIDE_FORCE_INIT`      | CLI                  | shell at CLI invocation time                        |
+| `AIDE_INDEX_NON_VCS`   | daemon               | MCP env block                                       |
+| `AIDE_MCP_SYNC`        | session-start hook   | shell that launches the harness                     |
+| `AIDE_MEMORY_INJECT`   | hooks                | shell that launches the harness                     |
+| `AIDE_MEMORY_SCORING_DISABLED` | daemon       | MCP env block                                       |
+| `AIDE_MEMORY_DECAY_DISABLED`   | daemon       | MCP env block                                       |
+| `AIDE_PROJECT_ROOT`    | CLI                  | shell at CLI invocation                             |
+| `AIDE_REFLECT`         | hooks + CLI          | **either** shell **or** `reflect.enabled` in `.aide/config/aide.json` |
+| `AIDE_SHARE_AUTO_IMPORT` | session-start hook | shell that launches the harness                     |
+
+**MCP env block** = the `env` (Claude Code) or `environment` (OpenCode)
+mapping under the aide MCP server in the harness's config. This block only
+propagates to the MCP daemon subprocess — **not to hooks**.
+
+**Shell env at harness launch** = what's exported in your shell when you run
+`claude` / `opencode`. The harness's process env (and therefore its spawned
+hooks) inherits these.
+
+### Claude Code
+
+To set an env var visible to both hooks and the MCP daemon, the cleanest
+place is the user-level `~/.claude/settings.json`:
+
+```json
+{
+  "env": {
+    "AIDE_REFLECT": "1",
+    "AIDE_CODE_WATCH": "1"
+  }
+}
+```
+
+Or in your shell rc (`~/.zshrc` / `~/.bashrc`):
+
+```bash
+export AIDE_REFLECT=1
+export AIDE_CODE_WATCH=1
+```
+
+Either works — Claude Code's process env inherits both.
+
+### OpenCode
+
+OpenCode reads env from the launching shell. Same `export` pattern in your
+shell rc. The aide plugin's `environment` block in `opencode.json` only
+propagates to the aide MCP daemon, not to OpenCode's own process or its
+spawned hooks.
+
+### `.aide/config/aide.json` for project-local settings
+
+For settings that should travel with the project (not the developer):
+
+```json
+{
+  "reflect": { "enabled": true },
+  "memory":  { "scoring_enabled": true, "decay_enabled": true }
+}
+```
+
+The Go-side config layer reads this file. The TS-side `reflect.enabled`
+check (used by `skill-injector.ts` for the convergence user-prompt emit)
+also reads this file directly. Env vars take precedence over file values.
 
 ## Project Configuration
 
