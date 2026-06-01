@@ -19,7 +19,7 @@ import { basename } from "path";
 import { Logger } from "../lib/logger.js";
 import { readStdin, setMemoryState, isFalsy } from "../lib/hook-utils.js";
 import { findAideBinary } from "../core/aide-client.js";
-import { emitInjectionEvent } from "../core/read-tracking.js";
+import { emitInjectionEvent, recordObserveEvent } from "../core/read-tracking.js";
 import { refreshHud } from "../lib/hud.js";
 
 // Global logger instance
@@ -341,6 +341,20 @@ async function processSubagentStart(
   log?.info(
     `Injecting context for subagent: ${memories.global.length} preferences, ${memories.project.length} project, ${memories.decisions.length} decisions`,
   );
+
+  // Emit session observe event so SubagentStart is traceable in the dashboard
+  const binary = findAideBinary({ cwd, pluginRoot: process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT });
+  if (binary) {
+    recordObserveEvent(binary, cwd, {
+      kind: "session",
+      name: "subagent-start",
+      category: "lifecycle",
+      subtype: type,
+      session: session_id,
+      attrs: { agent_id, agent_type: type },
+    });
+  }
+
   return context;
 }
 
@@ -364,6 +378,18 @@ async function processSubagentStop(data: SubagentStopInput): Promise<void> {
   log?.start("refreshHud");
   refreshHud(cwd, session_id);
   log?.end("refreshHud");
+
+  // Emit session observe event so SubagentStop is traceable in the dashboard
+  const binary = findAideBinary({ cwd, pluginRoot: process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT });
+  if (binary) {
+    recordObserveEvent(binary, cwd, {
+      kind: "session",
+      name: "subagent-stop",
+      category: "lifecycle",
+      session: session_id,
+      attrs: { agent_id, agent_type: data.agent_type ?? "" },
+    });
+  }
 
   log?.debug(`SubagentStop: agent ${agent_id} marked as completed`);
 }
