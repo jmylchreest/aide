@@ -62,6 +62,7 @@ interface HookInput {
 
 interface HookOutput {
   continue: boolean;
+  suppressOutput?: boolean;
   hookSpecificOutput?: {
     hookEventName: string;
     additionalContext?: string;
@@ -523,6 +524,7 @@ async function main(): Promise<void> {
 
     const output: HookOutput = {
       continue: true,
+      ...(process.env.AIDE_DEBUG ? {} : { suppressOutput: true }),
       hookSpecificOutput: {
         hookEventName: "SessionStart",
         additionalContext: context,
