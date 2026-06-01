@@ -128,8 +128,13 @@ export class DedupStrategy implements PruneStrategy {
   ): PruneResult {
     const normalized = toolName.toLowerCase();
 
-    // Only apply to safe tools
-    if (!SAFE_DEDUP_TOOLS.has(normalized)) {
+    // Only apply to safe tools. Try exact match first, then suffix fallback so
+    // harness-prefixed MCP names (mcp__plugin_aide_aide__code_outline,
+    // mcp__aide__code_outline) all resolve via the bare suffix entry.
+    const isSafe =
+      SAFE_DEDUP_TOOLS.has(normalized) ||
+      SAFE_DEDUP_TOOLS.has(normalized.split("__").pop() ?? "");
+    if (!isSafe) {
       return { output, modified: false, bytesSaved: 0 };
     }
 
