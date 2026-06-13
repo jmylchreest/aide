@@ -41,6 +41,22 @@ func (f Filter) Match(tokens []string) bool {
 	return false
 }
 
+// FirstExcludeMatch reports the first exclude glob (in Exclude order) that
+// matches any of the record's tokens, mirroring the exclude-wins loop in Match.
+// It attributes a rejected record to a single pattern so callers (e.g. the share
+// preview) can tally exclusions per pattern. The boolean is false when no
+// exclude glob matches — i.e. the record is not rejected by the exclude list.
+func (f Filter) FirstExcludeMatch(tokens []string) (string, bool) {
+	for _, pat := range f.Exclude {
+		for _, tok := range tokens {
+			if globMatch(pat, tok) {
+				return pat, true
+			}
+		}
+	}
+	return "", false
+}
+
 // includeMatchesAll reports whether an include list means "match everything":
 // an empty list, or any "*" entry.
 func includeMatchesAll(include []string) bool {

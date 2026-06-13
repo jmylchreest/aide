@@ -58,6 +58,7 @@ func cmdShare(dbPath string, args []string) error {
 	return dispatchSubcmd("share", args, printShareUsage, []subcmd{
 		{name: "export", handler: func(a []string) error { return cmdShareExport(dbPath, a) }},
 		{name: "import", handler: func(a []string) error { return cmdShareImport(dbPath, a) }},
+		{name: "show", handler: func(a []string) error { return cmdShareShow(dbPath, a) }},
 	})
 }
 
@@ -77,6 +78,7 @@ Usage:
 Subcommands:
   export     Export decisions and memories to .aide/shared/
   import     Import decisions and memories from .aide/shared/
+  show       Show the resolved policy and preview what would be published
 
 Options:
   export:
@@ -93,11 +95,16 @@ Options:
     --dry-run            Show what would be imported without changing anything
     --force              Import even when the export manifest is missing or stale
 
+  show:
+    --json               Machine-readable policy + preview counts (read-only)
+
 Examples:
   aide share export                          # Export per policy (decisions by default)
   aide share export --decisions              # Decisions only
   aide share import                          # Import per policy
-  aide share import --dry-run                # Preview import`)
+  aide share import --dry-run                # Preview import
+  aide share show                            # Resolved policy + export preview
+  aide share show --json                     # Same, machine-readable`)
 }
 
 // --- Export ---

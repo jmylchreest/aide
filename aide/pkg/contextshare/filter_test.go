@@ -130,6 +130,60 @@ func TestFilterMatch(t *testing.T) {
 	}
 }
 
+func TestFirstExcludeMatch(t *testing.T) {
+	tests := []struct {
+		name    string
+		filter  Filter
+		tokens  []string
+		want    string
+		wantHit bool
+	}{
+		{
+			name:    "no exclude list, no hit",
+			filter:  Filter{},
+			tokens:  []string{"scope:global"},
+			want:    "",
+			wantHit: false,
+		},
+		{
+			name:    "single exclude matches",
+			filter:  Filter{Exclude: []string{"scope:global"}},
+			tokens:  []string{"scope:global", "category:learning"},
+			want:    "scope:global",
+			wantHit: true,
+		},
+		{
+			name:    "first matching pattern wins over later one",
+			filter:  Filter{Exclude: []string{"scope:global", "session:*"}},
+			tokens:  []string{"session:abc", "scope:global"},
+			want:    "scope:global",
+			wantHit: true,
+		},
+		{
+			name:    "second pattern matches when first does not",
+			filter:  Filter{Exclude: []string{"scope:global", "session:*"}},
+			tokens:  []string{"project:foo", "session:abc"},
+			want:    "session:*",
+			wantHit: true,
+		},
+		{
+			name:    "no exclude pattern matches",
+			filter:  Filter{Exclude: []string{"scope:global", "session:*"}},
+			tokens:  []string{"project:foo", "category:pattern"},
+			want:    "",
+			wantHit: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, hit := tt.filter.FirstExcludeMatch(tt.tokens)
+			if got != tt.want || hit != tt.wantHit {
+				t.Errorf("FirstExcludeMatch(%v) = (%q, %v), want (%q, %v)", tt.tokens, got, hit, tt.want, tt.wantHit)
+			}
+		})
+	}
+}
+
 func TestMemoryTokens(t *testing.T) {
 	m := &memory.Memory{
 		Category: memory.Category("gotcha"),
