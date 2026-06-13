@@ -11,6 +11,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"reflect"
 	"runtime"
 	"strings"
 	"sync"
@@ -434,13 +435,27 @@ var (
 	cached *Config
 )
 
-// Load reads configuration in this precedence order (each source overrides
-// the previous): hard-coded defaults → optional .aide/config/aide.json →
-// AIDE_* environment variables. The result is unmarshalled into a typed
-// Config and stashed for retrieval via Get. Calling Load again replaces
-// the previous value — useful in tests; production callers invoke it once
-// at startup.
-func Load(projectRoot string) (*Config, error) {
+// ConfigFileName is the project-relative path of the JSON config file the
+// loader reads and the `aide config` command writes. Exported so the cmd layer
+// can derive the same path without re-hardcoding it.
+const ConfigFileName = ".aide/config/aide.json"
+
+// FilePath returns the absolute path of the config file for a project root.
+// An empty projectRoot yields the bare relative path.
+func FilePath(projectRoot string) string {
+	if projectRoot == "" {
+		return ConfigFileName
+	}
+	return projectRoot + "/" + ConfigFileName
+}
+
+// buildKoanf layers the three configuration sources (hard-coded defaults →
+// optional .aide/config/aide.json → AIDE_* environment variables) into a koanf
+// instance in the order that gives each source precedence over the previous.
+// Both Load (which unmarshals into a typed Config and caches it) and the
+// read-only `aide config` command resolve values through this single helper so
+// the two never drift apart.
+func buildKoanf(projectRoot string) (*koanf.Koanf, error) {
 	k := koanf.New(".")
 
 	if err := k.Load(confmap.Provider(defaults, "."), nil); err != nil {
@@ -448,7 +463,7 @@ func Load(projectRoot string) (*Config, error) {
 	}
 
 	if projectRoot != "" {
-		path := projectRoot + "/.aide/config/aide.json"
+		path := FilePath(projectRoot)
 		if err := k.Load(file.Provider(path), json.Parser()); err != nil {
 			// Missing file is fine; only surface real parse errors.
 			if !strings.Contains(err.Error(), "no such file") {
@@ -476,6 +491,21 @@ func Load(projectRoot string) (*Config, error) {
 		return nil, fmt.Errorf("loading env vars: %w", err)
 	}
 
+	return k, nil
+}
+
+// Load reads configuration in this precedence order (each source overrides
+// the previous): hard-coded defaults → optional .aide/config/aide.json →
+// AIDE_* environment variables. The result is unmarshalled into a typed
+// Config and stashed for retrieval via Get. Calling Load again replaces
+// the previous value — useful in tests; production callers invoke it once
+// at startup.
+func Load(projectRoot string) (*Config, error) {
+	k, err := buildKoanf(projectRoot)
+	if err != nil {
+		return nil, err
+	}
+
 	cfg := &Config{}
 	if err := k.Unmarshal("", cfg); err != nil {
 		return nil, fmt.Errorf("unmarshal config: %w", err)
@@ -485,6 +515,121 @@ func Load(projectRoot string) (*Config, error) {
 	cached = cfg
 	mu.Unlock()
 	return cfg, nil
+}
+
+// Resolve layers the same three sources as Load (defaults → file → env) and
+// returns the resulting koanf tree without caching or mutating package state.
+// The `aide config` command uses it to read resolved values and enumerate keys
+// for `show` without disturbing the singleton that the rest of the process
+// relies on.
+func Resolve(projectRoot string) (*koanf.Koanf, error) {
+	return buildKoanf(projectRoot)
+}
+
+// FieldKind classifies a config leaf field by the Go type the JSON writer must
+// coerce a string argument to. It is the bridge between the dotted koanf keys a
+// user types and the typed values stored in aide.json.
+type FieldKind int
+
+const (
+	// KindBool is a plain bool leaf (e.g. cleanup.enabled).
+	KindBool FieldKind = iota
+	// KindPtrBool is a *bool leaf whose nil distinguishes "unset" from an
+	// explicit false (e.g. share.decisions.export).
+	KindPtrBool
+	// KindString is a string leaf (e.g. mode, cleanup.observe_max_age).
+	KindString
+	// KindInt is an int leaf (e.g. index_workers).
+	KindInt
+	// KindStringSlice is a []string leaf (e.g. share.memories.export_filter.exclude).
+	KindStringSlice
+)
+
+// String renders a FieldKind for help and error messages.
+func (k FieldKind) String() string {
+	switch k {
+	case KindBool:
+		return "bool"
+	case KindPtrBool:
+		return "bool"
+	case KindString:
+		return "string"
+	case KindInt:
+		return "int"
+	case KindStringSlice:
+		return "list"
+	default:
+		return "unknown"
+	}
+}
+
+// FieldInfo describes one settable leaf in the Config tree: the koanf dot-path
+// a user types and the Go kind the value coerces to.
+type FieldInfo struct {
+	Key  string
+	Kind FieldKind
+}
+
+// Schema walks the Config struct via reflection and returns every settable leaf
+// as a FieldInfo keyed by its koanf dot-path. It recurses into nested structs,
+// composing parent keys with ".", and treats bool / *bool / string / int /
+// []string as leaves. Fields without a koanf tag (or tagged "-") are skipped.
+// This single source of truth powers `config set` coercion, unknown-key
+// validation, and `config show --all`.
+func Schema() []FieldInfo {
+	var out []FieldInfo
+	walkSchema(reflect.TypeOf(Config{}), "", &out)
+	return out
+}
+
+// walkSchema appends the leaves of t (prefixed by prefix) to out. Leaf kinds are
+// recognised exactly; any other kind (including unhandled nested non-struct
+// types) is skipped rather than guessed at, so adding an exotic field can never
+// silently produce a wrong coercion.
+func walkSchema(t reflect.Type, prefix string, out *[]FieldInfo) {
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
+		tag := f.Tag.Get("koanf")
+		if tag == "" || tag == "-" {
+			continue
+		}
+		key := tag
+		if prefix != "" {
+			key = prefix + "." + tag
+		}
+
+		ft := f.Type
+		switch ft.Kind() {
+		case reflect.Bool:
+			*out = append(*out, FieldInfo{Key: key, Kind: KindBool})
+		case reflect.String:
+			*out = append(*out, FieldInfo{Key: key, Kind: KindString})
+		case reflect.Int:
+			*out = append(*out, FieldInfo{Key: key, Kind: KindInt})
+		case reflect.Ptr:
+			if ft.Elem().Kind() == reflect.Bool {
+				*out = append(*out, FieldInfo{Key: key, Kind: KindPtrBool})
+			}
+		case reflect.Slice:
+			if ft.Elem().Kind() == reflect.String {
+				*out = append(*out, FieldInfo{Key: key, Kind: KindStringSlice})
+			}
+		case reflect.Struct:
+			walkSchema(ft, key, out)
+		}
+	}
+}
+
+// Lookup returns the FieldInfo for a dotted key, or false when the key is not a
+// known settable leaf. Callers use this to validate user-supplied keys and pick
+// the right coercion.
+func Lookup(key string) (FieldInfo, bool) {
+	for _, fi := range Schema() {
+		if fi.Key == key {
+			return fi, true
+		}
+	}
+	return FieldInfo{}, false
 }
 
 // Get returns the loaded Config. If Load hasn't been called yet, it returns
