@@ -827,6 +827,60 @@ message SurveyClearResponse {
 }
 
 // =============================================================================
+// Tombstone Service
+// =============================================================================
+//
+// Exposes the tombstone store over gRPC so share export/import work in daemon
+// mode (the daemon holds the single-writer BoltDB, so CLI commands route here
+// instead of opening the DB directly).
+
+service TombstoneService {
+  rpc Add(TombstoneAddRequest) returns (TombstoneAddResponse);
+  rpc Get(TombstoneGetRequest) returns (TombstoneGetResponse);
+  rpc List(TombstoneListRequest) returns (TombstoneListResponse);
+  rpc Delete(TombstoneDeleteRequest) returns (TombstoneDeleteResponse);
+}
+
+message Tombstone {
+  string id = 1;   // Memory ULID or decision topic
+  string kind = 2; // "memory" or "decision-topic"
+  google.protobuf.Timestamp deleted_at = 3;
+}
+
+message TombstoneAddRequest {
+  Tombstone tombstone = 1;
+}
+
+message TombstoneAddResponse {
+  Tombstone tombstone = 1;
+}
+
+message TombstoneGetRequest {
+  string kind = 1;
+  string id = 2;
+}
+
+message TombstoneGetResponse {
+  Tombstone tombstone = 1;
+  bool found = 2;
+}
+
+message TombstoneListRequest {}
+
+message TombstoneListResponse {
+  repeated Tombstone tombstones = 1;
+}
+
+message TombstoneDeleteRequest {
+  string kind = 1;
+  string id = 2;
+}
+
+message TombstoneDeleteResponse {
+  bool success = 1;
+}
+
+// =============================================================================
 // Health Service
 // =============================================================================
 

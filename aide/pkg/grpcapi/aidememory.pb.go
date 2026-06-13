@@ -7194,6 +7194,434 @@ func (x *SurveyClearResponse) GetSuccess() bool {
 	return false
 }
 
+type Tombstone struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`     // Memory ULID or decision topic
+	Kind          string                 `protobuf:"bytes,2,opt,name=kind,proto3" json:"kind,omitempty"` // "memory" or "decision-topic"
+	DeletedAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=deleted_at,json=deletedAt,proto3" json:"deleted_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Tombstone) Reset() {
+	*x = Tombstone{}
+	mi := &file_aidememory_proto_msgTypes[130]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Tombstone) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Tombstone) ProtoMessage() {}
+
+func (x *Tombstone) ProtoReflect() protoreflect.Message {
+	mi := &file_aidememory_proto_msgTypes[130]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Tombstone.ProtoReflect.Descriptor instead.
+func (*Tombstone) Descriptor() ([]byte, []int) {
+	return file_aidememory_proto_rawDescGZIP(), []int{130}
+}
+
+func (x *Tombstone) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *Tombstone) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *Tombstone) GetDeletedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DeletedAt
+	}
+	return nil
+}
+
+type TombstoneAddRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Tombstone     *Tombstone             `protobuf:"bytes,1,opt,name=tombstone,proto3" json:"tombstone,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TombstoneAddRequest) Reset() {
+	*x = TombstoneAddRequest{}
+	mi := &file_aidememory_proto_msgTypes[131]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TombstoneAddRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TombstoneAddRequest) ProtoMessage() {}
+
+func (x *TombstoneAddRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_aidememory_proto_msgTypes[131]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TombstoneAddRequest.ProtoReflect.Descriptor instead.
+func (*TombstoneAddRequest) Descriptor() ([]byte, []int) {
+	return file_aidememory_proto_rawDescGZIP(), []int{131}
+}
+
+func (x *TombstoneAddRequest) GetTombstone() *Tombstone {
+	if x != nil {
+		return x.Tombstone
+	}
+	return nil
+}
+
+type TombstoneAddResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Tombstone     *Tombstone             `protobuf:"bytes,1,opt,name=tombstone,proto3" json:"tombstone,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TombstoneAddResponse) Reset() {
+	*x = TombstoneAddResponse{}
+	mi := &file_aidememory_proto_msgTypes[132]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TombstoneAddResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TombstoneAddResponse) ProtoMessage() {}
+
+func (x *TombstoneAddResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_aidememory_proto_msgTypes[132]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TombstoneAddResponse.ProtoReflect.Descriptor instead.
+func (*TombstoneAddResponse) Descriptor() ([]byte, []int) {
+	return file_aidememory_proto_rawDescGZIP(), []int{132}
+}
+
+func (x *TombstoneAddResponse) GetTombstone() *Tombstone {
+	if x != nil {
+		return x.Tombstone
+	}
+	return nil
+}
+
+type TombstoneGetRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Kind          string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	Id            string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TombstoneGetRequest) Reset() {
+	*x = TombstoneGetRequest{}
+	mi := &file_aidememory_proto_msgTypes[133]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TombstoneGetRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TombstoneGetRequest) ProtoMessage() {}
+
+func (x *TombstoneGetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_aidememory_proto_msgTypes[133]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TombstoneGetRequest.ProtoReflect.Descriptor instead.
+func (*TombstoneGetRequest) Descriptor() ([]byte, []int) {
+	return file_aidememory_proto_rawDescGZIP(), []int{133}
+}
+
+func (x *TombstoneGetRequest) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *TombstoneGetRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type TombstoneGetResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Tombstone     *Tombstone             `protobuf:"bytes,1,opt,name=tombstone,proto3" json:"tombstone,omitempty"`
+	Found         bool                   `protobuf:"varint,2,opt,name=found,proto3" json:"found,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TombstoneGetResponse) Reset() {
+	*x = TombstoneGetResponse{}
+	mi := &file_aidememory_proto_msgTypes[134]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TombstoneGetResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TombstoneGetResponse) ProtoMessage() {}
+
+func (x *TombstoneGetResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_aidememory_proto_msgTypes[134]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TombstoneGetResponse.ProtoReflect.Descriptor instead.
+func (*TombstoneGetResponse) Descriptor() ([]byte, []int) {
+	return file_aidememory_proto_rawDescGZIP(), []int{134}
+}
+
+func (x *TombstoneGetResponse) GetTombstone() *Tombstone {
+	if x != nil {
+		return x.Tombstone
+	}
+	return nil
+}
+
+func (x *TombstoneGetResponse) GetFound() bool {
+	if x != nil {
+		return x.Found
+	}
+	return false
+}
+
+type TombstoneListRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TombstoneListRequest) Reset() {
+	*x = TombstoneListRequest{}
+	mi := &file_aidememory_proto_msgTypes[135]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TombstoneListRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TombstoneListRequest) ProtoMessage() {}
+
+func (x *TombstoneListRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_aidememory_proto_msgTypes[135]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TombstoneListRequest.ProtoReflect.Descriptor instead.
+func (*TombstoneListRequest) Descriptor() ([]byte, []int) {
+	return file_aidememory_proto_rawDescGZIP(), []int{135}
+}
+
+type TombstoneListResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Tombstones    []*Tombstone           `protobuf:"bytes,1,rep,name=tombstones,proto3" json:"tombstones,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TombstoneListResponse) Reset() {
+	*x = TombstoneListResponse{}
+	mi := &file_aidememory_proto_msgTypes[136]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TombstoneListResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TombstoneListResponse) ProtoMessage() {}
+
+func (x *TombstoneListResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_aidememory_proto_msgTypes[136]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TombstoneListResponse.ProtoReflect.Descriptor instead.
+func (*TombstoneListResponse) Descriptor() ([]byte, []int) {
+	return file_aidememory_proto_rawDescGZIP(), []int{136}
+}
+
+func (x *TombstoneListResponse) GetTombstones() []*Tombstone {
+	if x != nil {
+		return x.Tombstones
+	}
+	return nil
+}
+
+type TombstoneDeleteRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Kind          string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	Id            string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TombstoneDeleteRequest) Reset() {
+	*x = TombstoneDeleteRequest{}
+	mi := &file_aidememory_proto_msgTypes[137]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TombstoneDeleteRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TombstoneDeleteRequest) ProtoMessage() {}
+
+func (x *TombstoneDeleteRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_aidememory_proto_msgTypes[137]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TombstoneDeleteRequest.ProtoReflect.Descriptor instead.
+func (*TombstoneDeleteRequest) Descriptor() ([]byte, []int) {
+	return file_aidememory_proto_rawDescGZIP(), []int{137}
+}
+
+func (x *TombstoneDeleteRequest) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *TombstoneDeleteRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+type TombstoneDeleteResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TombstoneDeleteResponse) Reset() {
+	*x = TombstoneDeleteResponse{}
+	mi := &file_aidememory_proto_msgTypes[138]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TombstoneDeleteResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TombstoneDeleteResponse) ProtoMessage() {}
+
+func (x *TombstoneDeleteResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_aidememory_proto_msgTypes[138]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TombstoneDeleteResponse.ProtoReflect.Descriptor instead.
+func (*TombstoneDeleteResponse) Descriptor() ([]byte, []int) {
+	return file_aidememory_proto_rawDescGZIP(), []int{138}
+}
+
+func (x *TombstoneDeleteResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
 type HealthCheckRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -7202,7 +7630,7 @@ type HealthCheckRequest struct {
 
 func (x *HealthCheckRequest) Reset() {
 	*x = HealthCheckRequest{}
-	mi := &file_aidememory_proto_msgTypes[130]
+	mi := &file_aidememory_proto_msgTypes[139]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7214,7 +7642,7 @@ func (x *HealthCheckRequest) String() string {
 func (*HealthCheckRequest) ProtoMessage() {}
 
 func (x *HealthCheckRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[130]
+	mi := &file_aidememory_proto_msgTypes[139]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7227,7 +7655,7 @@ func (x *HealthCheckRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthCheckRequest.ProtoReflect.Descriptor instead.
 func (*HealthCheckRequest) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{130}
+	return file_aidememory_proto_rawDescGZIP(), []int{139}
 }
 
 type HealthCheckResponse struct {
@@ -7241,7 +7669,7 @@ type HealthCheckResponse struct {
 
 func (x *HealthCheckResponse) Reset() {
 	*x = HealthCheckResponse{}
-	mi := &file_aidememory_proto_msgTypes[131]
+	mi := &file_aidememory_proto_msgTypes[140]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7253,7 +7681,7 @@ func (x *HealthCheckResponse) String() string {
 func (*HealthCheckResponse) ProtoMessage() {}
 
 func (x *HealthCheckResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[131]
+	mi := &file_aidememory_proto_msgTypes[140]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7266,7 +7694,7 @@ func (x *HealthCheckResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthCheckResponse.ProtoReflect.Descriptor instead.
 func (*HealthCheckResponse) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{131}
+	return file_aidememory_proto_rawDescGZIP(), []int{140}
 }
 
 func (x *HealthCheckResponse) GetHealthy() bool {
@@ -7298,7 +7726,7 @@ type StatusRequest struct {
 
 func (x *StatusRequest) Reset() {
 	*x = StatusRequest{}
-	mi := &file_aidememory_proto_msgTypes[132]
+	mi := &file_aidememory_proto_msgTypes[141]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7310,7 +7738,7 @@ func (x *StatusRequest) String() string {
 func (*StatusRequest) ProtoMessage() {}
 
 func (x *StatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[132]
+	mi := &file_aidememory_proto_msgTypes[141]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7323,7 +7751,7 @@ func (x *StatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatusRequest.ProtoReflect.Descriptor instead.
 func (*StatusRequest) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{132}
+	return file_aidememory_proto_rawDescGZIP(), []int{141}
 }
 
 type StatusResponse struct {
@@ -7354,7 +7782,7 @@ type StatusResponse struct {
 
 func (x *StatusResponse) Reset() {
 	*x = StatusResponse{}
-	mi := &file_aidememory_proto_msgTypes[133]
+	mi := &file_aidememory_proto_msgTypes[142]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7366,7 +7794,7 @@ func (x *StatusResponse) String() string {
 func (*StatusResponse) ProtoMessage() {}
 
 func (x *StatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[133]
+	mi := &file_aidememory_proto_msgTypes[142]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7379,7 +7807,7 @@ func (x *StatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatusResponse.ProtoReflect.Descriptor instead.
 func (*StatusResponse) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{133}
+	return file_aidememory_proto_rawDescGZIP(), []int{142}
 }
 
 func (x *StatusResponse) GetVersion() string {
@@ -7473,7 +7901,7 @@ type StatusWatcher struct {
 
 func (x *StatusWatcher) Reset() {
 	*x = StatusWatcher{}
-	mi := &file_aidememory_proto_msgTypes[134]
+	mi := &file_aidememory_proto_msgTypes[143]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7485,7 +7913,7 @@ func (x *StatusWatcher) String() string {
 func (*StatusWatcher) ProtoMessage() {}
 
 func (x *StatusWatcher) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[134]
+	mi := &file_aidememory_proto_msgTypes[143]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7498,7 +7926,7 @@ func (x *StatusWatcher) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatusWatcher.ProtoReflect.Descriptor instead.
 func (*StatusWatcher) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{134}
+	return file_aidememory_proto_rawDescGZIP(), []int{143}
 }
 
 func (x *StatusWatcher) GetEnabled() bool {
@@ -7556,7 +7984,7 @@ type StatusCodeIndexer struct {
 
 func (x *StatusCodeIndexer) Reset() {
 	*x = StatusCodeIndexer{}
-	mi := &file_aidememory_proto_msgTypes[135]
+	mi := &file_aidememory_proto_msgTypes[144]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7568,7 +7996,7 @@ func (x *StatusCodeIndexer) String() string {
 func (*StatusCodeIndexer) ProtoMessage() {}
 
 func (x *StatusCodeIndexer) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[135]
+	mi := &file_aidememory_proto_msgTypes[144]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7581,7 +8009,7 @@ func (x *StatusCodeIndexer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatusCodeIndexer.ProtoReflect.Descriptor instead.
 func (*StatusCodeIndexer) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{135}
+	return file_aidememory_proto_rawDescGZIP(), []int{144}
 }
 
 func (x *StatusCodeIndexer) GetAvailable() bool {
@@ -7632,7 +8060,7 @@ type StatusFindings struct {
 
 func (x *StatusFindings) Reset() {
 	*x = StatusFindings{}
-	mi := &file_aidememory_proto_msgTypes[136]
+	mi := &file_aidememory_proto_msgTypes[145]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7644,7 +8072,7 @@ func (x *StatusFindings) String() string {
 func (*StatusFindings) ProtoMessage() {}
 
 func (x *StatusFindings) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[136]
+	mi := &file_aidememory_proto_msgTypes[145]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7657,7 +8085,7 @@ func (x *StatusFindings) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatusFindings.ProtoReflect.Descriptor instead.
 func (*StatusFindings) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{136}
+	return file_aidememory_proto_rawDescGZIP(), []int{145}
 }
 
 func (x *StatusFindings) GetAvailable() bool {
@@ -7708,7 +8136,7 @@ type StatusAnalyzer struct {
 
 func (x *StatusAnalyzer) Reset() {
 	*x = StatusAnalyzer{}
-	mi := &file_aidememory_proto_msgTypes[137]
+	mi := &file_aidememory_proto_msgTypes[146]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7720,7 +8148,7 @@ func (x *StatusAnalyzer) String() string {
 func (*StatusAnalyzer) ProtoMessage() {}
 
 func (x *StatusAnalyzer) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[137]
+	mi := &file_aidememory_proto_msgTypes[146]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7733,7 +8161,7 @@ func (x *StatusAnalyzer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatusAnalyzer.ProtoReflect.Descriptor instead.
 func (*StatusAnalyzer) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{137}
+	return file_aidememory_proto_rawDescGZIP(), []int{146}
 }
 
 func (x *StatusAnalyzer) GetStatus() string {
@@ -7782,7 +8210,7 @@ type StatusMCPTool struct {
 
 func (x *StatusMCPTool) Reset() {
 	*x = StatusMCPTool{}
-	mi := &file_aidememory_proto_msgTypes[138]
+	mi := &file_aidememory_proto_msgTypes[147]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7794,7 +8222,7 @@ func (x *StatusMCPTool) String() string {
 func (*StatusMCPTool) ProtoMessage() {}
 
 func (x *StatusMCPTool) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[138]
+	mi := &file_aidememory_proto_msgTypes[147]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7807,7 +8235,7 @@ func (x *StatusMCPTool) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatusMCPTool.ProtoReflect.Descriptor instead.
 func (*StatusMCPTool) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{138}
+	return file_aidememory_proto_rawDescGZIP(), []int{147}
 }
 
 func (x *StatusMCPTool) GetName() string {
@@ -7843,7 +8271,7 @@ type StatusSurvey struct {
 
 func (x *StatusSurvey) Reset() {
 	*x = StatusSurvey{}
-	mi := &file_aidememory_proto_msgTypes[139]
+	mi := &file_aidememory_proto_msgTypes[148]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7855,7 +8283,7 @@ func (x *StatusSurvey) String() string {
 func (*StatusSurvey) ProtoMessage() {}
 
 func (x *StatusSurvey) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[139]
+	mi := &file_aidememory_proto_msgTypes[148]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7868,7 +8296,7 @@ func (x *StatusSurvey) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatusSurvey.ProtoReflect.Descriptor instead.
 func (*StatusSurvey) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{139}
+	return file_aidememory_proto_rawDescGZIP(), []int{148}
 }
 
 func (x *StatusSurvey) GetAvailable() bool {
@@ -7910,7 +8338,7 @@ type StatusStore struct {
 
 func (x *StatusStore) Reset() {
 	*x = StatusStore{}
-	mi := &file_aidememory_proto_msgTypes[140]
+	mi := &file_aidememory_proto_msgTypes[149]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7922,7 +8350,7 @@ func (x *StatusStore) String() string {
 func (*StatusStore) ProtoMessage() {}
 
 func (x *StatusStore) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[140]
+	mi := &file_aidememory_proto_msgTypes[149]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7935,7 +8363,7 @@ func (x *StatusStore) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatusStore.ProtoReflect.Descriptor instead.
 func (*StatusStore) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{140}
+	return file_aidememory_proto_rawDescGZIP(), []int{149}
 }
 
 func (x *StatusStore) GetName() string {
@@ -7970,7 +8398,7 @@ type StatusGrammar struct {
 
 func (x *StatusGrammar) Reset() {
 	*x = StatusGrammar{}
-	mi := &file_aidememory_proto_msgTypes[141]
+	mi := &file_aidememory_proto_msgTypes[150]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7982,7 +8410,7 @@ func (x *StatusGrammar) String() string {
 func (*StatusGrammar) ProtoMessage() {}
 
 func (x *StatusGrammar) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[141]
+	mi := &file_aidememory_proto_msgTypes[150]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7995,7 +8423,7 @@ func (x *StatusGrammar) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StatusGrammar.ProtoReflect.Descriptor instead.
 func (*StatusGrammar) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{141}
+	return file_aidememory_proto_rawDescGZIP(), []int{150}
 }
 
 func (x *StatusGrammar) GetName() string {
@@ -8039,7 +8467,7 @@ type ObserveRecordRequest struct {
 
 func (x *ObserveRecordRequest) Reset() {
 	*x = ObserveRecordRequest{}
-	mi := &file_aidememory_proto_msgTypes[142]
+	mi := &file_aidememory_proto_msgTypes[151]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8051,7 +8479,7 @@ func (x *ObserveRecordRequest) String() string {
 func (*ObserveRecordRequest) ProtoMessage() {}
 
 func (x *ObserveRecordRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[142]
+	mi := &file_aidememory_proto_msgTypes[151]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8064,7 +8492,7 @@ func (x *ObserveRecordRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ObserveRecordRequest.ProtoReflect.Descriptor instead.
 func (*ObserveRecordRequest) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{142}
+	return file_aidememory_proto_rawDescGZIP(), []int{151}
 }
 
 func (x *ObserveRecordRequest) GetKind() string {
@@ -8160,7 +8588,7 @@ type ObserveRecordResponse struct {
 
 func (x *ObserveRecordResponse) Reset() {
 	*x = ObserveRecordResponse{}
-	mi := &file_aidememory_proto_msgTypes[143]
+	mi := &file_aidememory_proto_msgTypes[152]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8172,7 +8600,7 @@ func (x *ObserveRecordResponse) String() string {
 func (*ObserveRecordResponse) ProtoMessage() {}
 
 func (x *ObserveRecordResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[143]
+	mi := &file_aidememory_proto_msgTypes[152]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8185,7 +8613,7 @@ func (x *ObserveRecordResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ObserveRecordResponse.ProtoReflect.Descriptor instead.
 func (*ObserveRecordResponse) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{143}
+	return file_aidememory_proto_rawDescGZIP(), []int{152}
 }
 
 func (x *ObserveRecordResponse) GetId() string {
@@ -8210,7 +8638,7 @@ type ObserveListRequest struct {
 
 func (x *ObserveListRequest) Reset() {
 	*x = ObserveListRequest{}
-	mi := &file_aidememory_proto_msgTypes[144]
+	mi := &file_aidememory_proto_msgTypes[153]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8222,7 +8650,7 @@ func (x *ObserveListRequest) String() string {
 func (*ObserveListRequest) ProtoMessage() {}
 
 func (x *ObserveListRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[144]
+	mi := &file_aidememory_proto_msgTypes[153]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8235,7 +8663,7 @@ func (x *ObserveListRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ObserveListRequest.ProtoReflect.Descriptor instead.
 func (*ObserveListRequest) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{144}
+	return file_aidememory_proto_rawDescGZIP(), []int{153}
 }
 
 func (x *ObserveListRequest) GetKind() string {
@@ -8309,7 +8737,7 @@ type ObserveEvent struct {
 
 func (x *ObserveEvent) Reset() {
 	*x = ObserveEvent{}
-	mi := &file_aidememory_proto_msgTypes[145]
+	mi := &file_aidememory_proto_msgTypes[154]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8321,7 +8749,7 @@ func (x *ObserveEvent) String() string {
 func (*ObserveEvent) ProtoMessage() {}
 
 func (x *ObserveEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[145]
+	mi := &file_aidememory_proto_msgTypes[154]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8334,7 +8762,7 @@ func (x *ObserveEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ObserveEvent.ProtoReflect.Descriptor instead.
 func (*ObserveEvent) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{145}
+	return file_aidememory_proto_rawDescGZIP(), []int{154}
 }
 
 func (x *ObserveEvent) GetId() string {
@@ -8444,7 +8872,7 @@ type ObserveListResponse struct {
 
 func (x *ObserveListResponse) Reset() {
 	*x = ObserveListResponse{}
-	mi := &file_aidememory_proto_msgTypes[146]
+	mi := &file_aidememory_proto_msgTypes[155]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8456,7 +8884,7 @@ func (x *ObserveListResponse) String() string {
 func (*ObserveListResponse) ProtoMessage() {}
 
 func (x *ObserveListResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[146]
+	mi := &file_aidememory_proto_msgTypes[155]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8469,7 +8897,7 @@ func (x *ObserveListResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ObserveListResponse.ProtoReflect.Descriptor instead.
 func (*ObserveListResponse) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{146}
+	return file_aidememory_proto_rawDescGZIP(), []int{155}
 }
 
 func (x *ObserveListResponse) GetEvents() []*ObserveEvent {
@@ -8490,7 +8918,7 @@ type InstinctEvidence struct {
 
 func (x *InstinctEvidence) Reset() {
 	*x = InstinctEvidence{}
-	mi := &file_aidememory_proto_msgTypes[147]
+	mi := &file_aidememory_proto_msgTypes[156]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8502,7 +8930,7 @@ func (x *InstinctEvidence) String() string {
 func (*InstinctEvidence) ProtoMessage() {}
 
 func (x *InstinctEvidence) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[147]
+	mi := &file_aidememory_proto_msgTypes[156]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8515,7 +8943,7 @@ func (x *InstinctEvidence) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InstinctEvidence.ProtoReflect.Descriptor instead.
 func (*InstinctEvidence) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{147}
+	return file_aidememory_proto_rawDescGZIP(), []int{156}
 }
 
 func (x *InstinctEvidence) GetObserveEventIds() []string {
@@ -8551,7 +8979,7 @@ type InstinctProposedMemory struct {
 
 func (x *InstinctProposedMemory) Reset() {
 	*x = InstinctProposedMemory{}
-	mi := &file_aidememory_proto_msgTypes[148]
+	mi := &file_aidememory_proto_msgTypes[157]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8563,7 +8991,7 @@ func (x *InstinctProposedMemory) String() string {
 func (*InstinctProposedMemory) ProtoMessage() {}
 
 func (x *InstinctProposedMemory) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[148]
+	mi := &file_aidememory_proto_msgTypes[157]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8576,7 +9004,7 @@ func (x *InstinctProposedMemory) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InstinctProposedMemory.ProtoReflect.Descriptor instead.
 func (*InstinctProposedMemory) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{148}
+	return file_aidememory_proto_rawDescGZIP(), []int{157}
 }
 
 func (x *InstinctProposedMemory) GetCategory() string {
@@ -8628,7 +9056,7 @@ type InstinctProposal struct {
 
 func (x *InstinctProposal) Reset() {
 	*x = InstinctProposal{}
-	mi := &file_aidememory_proto_msgTypes[149]
+	mi := &file_aidememory_proto_msgTypes[158]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8640,7 +9068,7 @@ func (x *InstinctProposal) String() string {
 func (*InstinctProposal) ProtoMessage() {}
 
 func (x *InstinctProposal) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[149]
+	mi := &file_aidememory_proto_msgTypes[158]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8653,7 +9081,7 @@ func (x *InstinctProposal) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InstinctProposal.ProtoReflect.Descriptor instead.
 func (*InstinctProposal) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{149}
+	return file_aidememory_proto_rawDescGZIP(), []int{158}
 }
 
 func (x *InstinctProposal) GetId() string {
@@ -8759,7 +9187,7 @@ type InstinctListRequest struct {
 
 func (x *InstinctListRequest) Reset() {
 	*x = InstinctListRequest{}
-	mi := &file_aidememory_proto_msgTypes[150]
+	mi := &file_aidememory_proto_msgTypes[159]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8771,7 +9199,7 @@ func (x *InstinctListRequest) String() string {
 func (*InstinctListRequest) ProtoMessage() {}
 
 func (x *InstinctListRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[150]
+	mi := &file_aidememory_proto_msgTypes[159]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8784,7 +9212,7 @@ func (x *InstinctListRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InstinctListRequest.ProtoReflect.Descriptor instead.
 func (*InstinctListRequest) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{150}
+	return file_aidememory_proto_rawDescGZIP(), []int{159}
 }
 
 func (x *InstinctListRequest) GetStatus() string {
@@ -8824,7 +9252,7 @@ type InstinctListResponse struct {
 
 func (x *InstinctListResponse) Reset() {
 	*x = InstinctListResponse{}
-	mi := &file_aidememory_proto_msgTypes[151]
+	mi := &file_aidememory_proto_msgTypes[160]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8836,7 +9264,7 @@ func (x *InstinctListResponse) String() string {
 func (*InstinctListResponse) ProtoMessage() {}
 
 func (x *InstinctListResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[151]
+	mi := &file_aidememory_proto_msgTypes[160]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8849,7 +9277,7 @@ func (x *InstinctListResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InstinctListResponse.ProtoReflect.Descriptor instead.
 func (*InstinctListResponse) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{151}
+	return file_aidememory_proto_rawDescGZIP(), []int{160}
 }
 
 func (x *InstinctListResponse) GetProposals() []*InstinctProposal {
@@ -8868,7 +9296,7 @@ type InstinctGetRequest struct {
 
 func (x *InstinctGetRequest) Reset() {
 	*x = InstinctGetRequest{}
-	mi := &file_aidememory_proto_msgTypes[152]
+	mi := &file_aidememory_proto_msgTypes[161]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8880,7 +9308,7 @@ func (x *InstinctGetRequest) String() string {
 func (*InstinctGetRequest) ProtoMessage() {}
 
 func (x *InstinctGetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[152]
+	mi := &file_aidememory_proto_msgTypes[161]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8893,7 +9321,7 @@ func (x *InstinctGetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InstinctGetRequest.ProtoReflect.Descriptor instead.
 func (*InstinctGetRequest) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{152}
+	return file_aidememory_proto_rawDescGZIP(), []int{161}
 }
 
 func (x *InstinctGetRequest) GetId() string {
@@ -8913,7 +9341,7 @@ type InstinctGetResponse struct {
 
 func (x *InstinctGetResponse) Reset() {
 	*x = InstinctGetResponse{}
-	mi := &file_aidememory_proto_msgTypes[153]
+	mi := &file_aidememory_proto_msgTypes[162]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8925,7 +9353,7 @@ func (x *InstinctGetResponse) String() string {
 func (*InstinctGetResponse) ProtoMessage() {}
 
 func (x *InstinctGetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[153]
+	mi := &file_aidememory_proto_msgTypes[162]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8938,7 +9366,7 @@ func (x *InstinctGetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InstinctGetResponse.ProtoReflect.Descriptor instead.
 func (*InstinctGetResponse) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{153}
+	return file_aidememory_proto_rawDescGZIP(), []int{162}
 }
 
 func (x *InstinctGetResponse) GetProposal() *InstinctProposal {
@@ -8964,7 +9392,7 @@ type InstinctAddRequest struct {
 
 func (x *InstinctAddRequest) Reset() {
 	*x = InstinctAddRequest{}
-	mi := &file_aidememory_proto_msgTypes[154]
+	mi := &file_aidememory_proto_msgTypes[163]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8976,7 +9404,7 @@ func (x *InstinctAddRequest) String() string {
 func (*InstinctAddRequest) ProtoMessage() {}
 
 func (x *InstinctAddRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[154]
+	mi := &file_aidememory_proto_msgTypes[163]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8989,7 +9417,7 @@ func (x *InstinctAddRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InstinctAddRequest.ProtoReflect.Descriptor instead.
 func (*InstinctAddRequest) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{154}
+	return file_aidememory_proto_rawDescGZIP(), []int{163}
 }
 
 func (x *InstinctAddRequest) GetProposal() *InstinctProposal {
@@ -9008,7 +9436,7 @@ type InstinctAddResponse struct {
 
 func (x *InstinctAddResponse) Reset() {
 	*x = InstinctAddResponse{}
-	mi := &file_aidememory_proto_msgTypes[155]
+	mi := &file_aidememory_proto_msgTypes[164]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9020,7 +9448,7 @@ func (x *InstinctAddResponse) String() string {
 func (*InstinctAddResponse) ProtoMessage() {}
 
 func (x *InstinctAddResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[155]
+	mi := &file_aidememory_proto_msgTypes[164]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9033,7 +9461,7 @@ func (x *InstinctAddResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InstinctAddResponse.ProtoReflect.Descriptor instead.
 func (*InstinctAddResponse) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{155}
+	return file_aidememory_proto_rawDescGZIP(), []int{164}
 }
 
 func (x *InstinctAddResponse) GetProposal() *InstinctProposal {
@@ -9055,7 +9483,7 @@ type InstinctUpdateStatusRequest struct {
 
 func (x *InstinctUpdateStatusRequest) Reset() {
 	*x = InstinctUpdateStatusRequest{}
-	mi := &file_aidememory_proto_msgTypes[156]
+	mi := &file_aidememory_proto_msgTypes[165]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9067,7 +9495,7 @@ func (x *InstinctUpdateStatusRequest) String() string {
 func (*InstinctUpdateStatusRequest) ProtoMessage() {}
 
 func (x *InstinctUpdateStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[156]
+	mi := &file_aidememory_proto_msgTypes[165]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9080,7 +9508,7 @@ func (x *InstinctUpdateStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InstinctUpdateStatusRequest.ProtoReflect.Descriptor instead.
 func (*InstinctUpdateStatusRequest) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{156}
+	return file_aidememory_proto_rawDescGZIP(), []int{165}
 }
 
 func (x *InstinctUpdateStatusRequest) GetId() string {
@@ -9120,7 +9548,7 @@ type InstinctUpdateStatusResponse struct {
 
 func (x *InstinctUpdateStatusResponse) Reset() {
 	*x = InstinctUpdateStatusResponse{}
-	mi := &file_aidememory_proto_msgTypes[157]
+	mi := &file_aidememory_proto_msgTypes[166]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9132,7 +9560,7 @@ func (x *InstinctUpdateStatusResponse) String() string {
 func (*InstinctUpdateStatusResponse) ProtoMessage() {}
 
 func (x *InstinctUpdateStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[157]
+	mi := &file_aidememory_proto_msgTypes[166]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9145,7 +9573,7 @@ func (x *InstinctUpdateStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InstinctUpdateStatusResponse.ProtoReflect.Descriptor instead.
 func (*InstinctUpdateStatusResponse) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{157}
+	return file_aidememory_proto_rawDescGZIP(), []int{166}
 }
 
 func (x *InstinctUpdateStatusResponse) GetProposal() *InstinctProposal {
@@ -9168,7 +9596,7 @@ type InstinctWatchRequest struct {
 
 func (x *InstinctWatchRequest) Reset() {
 	*x = InstinctWatchRequest{}
-	mi := &file_aidememory_proto_msgTypes[158]
+	mi := &file_aidememory_proto_msgTypes[167]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9180,7 +9608,7 @@ func (x *InstinctWatchRequest) String() string {
 func (*InstinctWatchRequest) ProtoMessage() {}
 
 func (x *InstinctWatchRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[158]
+	mi := &file_aidememory_proto_msgTypes[167]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9193,7 +9621,7 @@ func (x *InstinctWatchRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InstinctWatchRequest.ProtoReflect.Descriptor instead.
 func (*InstinctWatchRequest) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{158}
+	return file_aidememory_proto_rawDescGZIP(), []int{167}
 }
 
 func (x *InstinctWatchRequest) GetStatus() string {
@@ -9238,7 +9666,7 @@ type ObserveWatchRequest struct {
 
 func (x *ObserveWatchRequest) Reset() {
 	*x = ObserveWatchRequest{}
-	mi := &file_aidememory_proto_msgTypes[159]
+	mi := &file_aidememory_proto_msgTypes[168]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9250,7 +9678,7 @@ func (x *ObserveWatchRequest) String() string {
 func (*ObserveWatchRequest) ProtoMessage() {}
 
 func (x *ObserveWatchRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[159]
+	mi := &file_aidememory_proto_msgTypes[168]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9263,7 +9691,7 @@ func (x *ObserveWatchRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ObserveWatchRequest.ProtoReflect.Descriptor instead.
 func (*ObserveWatchRequest) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{159}
+	return file_aidememory_proto_rawDescGZIP(), []int{168}
 }
 
 func (x *ObserveWatchRequest) GetKind() string {
@@ -9312,7 +9740,7 @@ type TokenStatsRequest struct {
 
 func (x *TokenStatsRequest) Reset() {
 	*x = TokenStatsRequest{}
-	mi := &file_aidememory_proto_msgTypes[160]
+	mi := &file_aidememory_proto_msgTypes[169]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9324,7 +9752,7 @@ func (x *TokenStatsRequest) String() string {
 func (*TokenStatsRequest) ProtoMessage() {}
 
 func (x *TokenStatsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[160]
+	mi := &file_aidememory_proto_msgTypes[169]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9337,7 +9765,7 @@ func (x *TokenStatsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TokenStatsRequest.ProtoReflect.Descriptor instead.
 func (*TokenStatsRequest) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{160}
+	return file_aidememory_proto_rawDescGZIP(), []int{169}
 }
 
 func (x *TokenStatsRequest) GetSessionId() string {
@@ -9382,7 +9810,7 @@ type TokenStatsResponse struct {
 
 func (x *TokenStatsResponse) Reset() {
 	*x = TokenStatsResponse{}
-	mi := &file_aidememory_proto_msgTypes[161]
+	mi := &file_aidememory_proto_msgTypes[170]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9394,7 +9822,7 @@ func (x *TokenStatsResponse) String() string {
 func (*TokenStatsResponse) ProtoMessage() {}
 
 func (x *TokenStatsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[161]
+	mi := &file_aidememory_proto_msgTypes[170]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9407,7 +9835,7 @@ func (x *TokenStatsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TokenStatsResponse.ProtoReflect.Descriptor instead.
 func (*TokenStatsResponse) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{161}
+	return file_aidememory_proto_rawDescGZIP(), []int{170}
 }
 
 func (x *TokenStatsResponse) GetTotalRead() int32 {
@@ -9511,7 +9939,7 @@ type TokenEventListRequest struct {
 
 func (x *TokenEventListRequest) Reset() {
 	*x = TokenEventListRequest{}
-	mi := &file_aidememory_proto_msgTypes[162]
+	mi := &file_aidememory_proto_msgTypes[171]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9523,7 +9951,7 @@ func (x *TokenEventListRequest) String() string {
 func (*TokenEventListRequest) ProtoMessage() {}
 
 func (x *TokenEventListRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[162]
+	mi := &file_aidememory_proto_msgTypes[171]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9536,7 +9964,7 @@ func (x *TokenEventListRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TokenEventListRequest.ProtoReflect.Descriptor instead.
 func (*TokenEventListRequest) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{162}
+	return file_aidememory_proto_rawDescGZIP(), []int{171}
 }
 
 func (x *TokenEventListRequest) GetSessionId() string {
@@ -9562,7 +9990,7 @@ type TokenEventListResponse struct {
 
 func (x *TokenEventListResponse) Reset() {
 	*x = TokenEventListResponse{}
-	mi := &file_aidememory_proto_msgTypes[163]
+	mi := &file_aidememory_proto_msgTypes[172]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9574,7 +10002,7 @@ func (x *TokenEventListResponse) String() string {
 func (*TokenEventListResponse) ProtoMessage() {}
 
 func (x *TokenEventListResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[163]
+	mi := &file_aidememory_proto_msgTypes[172]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9587,7 +10015,7 @@ func (x *TokenEventListResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TokenEventListResponse.ProtoReflect.Descriptor instead.
 func (*TokenEventListResponse) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{163}
+	return file_aidememory_proto_rawDescGZIP(), []int{172}
 }
 
 func (x *TokenEventListResponse) GetEvents() []*TokenEventItem {
@@ -9613,7 +10041,7 @@ type TokenEventItem struct {
 
 func (x *TokenEventItem) Reset() {
 	*x = TokenEventItem{}
-	mi := &file_aidememory_proto_msgTypes[164]
+	mi := &file_aidememory_proto_msgTypes[173]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9625,7 +10053,7 @@ func (x *TokenEventItem) String() string {
 func (*TokenEventItem) ProtoMessage() {}
 
 func (x *TokenEventItem) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[164]
+	mi := &file_aidememory_proto_msgTypes[173]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9638,7 +10066,7 @@ func (x *TokenEventItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TokenEventItem.ProtoReflect.Descriptor instead.
 func (*TokenEventItem) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{164}
+	return file_aidememory_proto_rawDescGZIP(), []int{173}
 }
 
 func (x *TokenEventItem) GetId() string {
@@ -9707,7 +10135,7 @@ type SwarmWatchTasksRequest struct {
 
 func (x *SwarmWatchTasksRequest) Reset() {
 	*x = SwarmWatchTasksRequest{}
-	mi := &file_aidememory_proto_msgTypes[165]
+	mi := &file_aidememory_proto_msgTypes[174]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9719,7 +10147,7 @@ func (x *SwarmWatchTasksRequest) String() string {
 func (*SwarmWatchTasksRequest) ProtoMessage() {}
 
 func (x *SwarmWatchTasksRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[165]
+	mi := &file_aidememory_proto_msgTypes[174]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9732,7 +10160,7 @@ func (x *SwarmWatchTasksRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SwarmWatchTasksRequest.ProtoReflect.Descriptor instead.
 func (*SwarmWatchTasksRequest) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{165}
+	return file_aidememory_proto_rawDescGZIP(), []int{174}
 }
 
 func (x *SwarmWatchTasksRequest) GetParentSessionId() string {
@@ -9760,7 +10188,7 @@ type SwarmWatchMessagesRequest struct {
 
 func (x *SwarmWatchMessagesRequest) Reset() {
 	*x = SwarmWatchMessagesRequest{}
-	mi := &file_aidememory_proto_msgTypes[166]
+	mi := &file_aidememory_proto_msgTypes[175]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9772,7 +10200,7 @@ func (x *SwarmWatchMessagesRequest) String() string {
 func (*SwarmWatchMessagesRequest) ProtoMessage() {}
 
 func (x *SwarmWatchMessagesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[166]
+	mi := &file_aidememory_proto_msgTypes[175]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9785,7 +10213,7 @@ func (x *SwarmWatchMessagesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SwarmWatchMessagesRequest.ProtoReflect.Descriptor instead.
 func (*SwarmWatchMessagesRequest) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{166}
+	return file_aidememory_proto_rawDescGZIP(), []int{175}
 }
 
 func (x *SwarmWatchMessagesRequest) GetParentSessionId() string {
@@ -9819,7 +10247,7 @@ type SwarmWatchStateRequest struct {
 
 func (x *SwarmWatchStateRequest) Reset() {
 	*x = SwarmWatchStateRequest{}
-	mi := &file_aidememory_proto_msgTypes[167]
+	mi := &file_aidememory_proto_msgTypes[176]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9831,7 +10259,7 @@ func (x *SwarmWatchStateRequest) String() string {
 func (*SwarmWatchStateRequest) ProtoMessage() {}
 
 func (x *SwarmWatchStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[167]
+	mi := &file_aidememory_proto_msgTypes[176]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9844,7 +10272,7 @@ func (x *SwarmWatchStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SwarmWatchStateRequest.ProtoReflect.Descriptor instead.
 func (*SwarmWatchStateRequest) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{167}
+	return file_aidememory_proto_rawDescGZIP(), []int{176}
 }
 
 func (x *SwarmWatchStateRequest) GetAgentId() string {
@@ -9871,7 +10299,7 @@ type StateChange struct {
 
 func (x *StateChange) Reset() {
 	*x = StateChange{}
-	mi := &file_aidememory_proto_msgTypes[168]
+	mi := &file_aidememory_proto_msgTypes[177]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9883,7 +10311,7 @@ func (x *StateChange) String() string {
 func (*StateChange) ProtoMessage() {}
 
 func (x *StateChange) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[168]
+	mi := &file_aidememory_proto_msgTypes[177]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9896,7 +10324,7 @@ func (x *StateChange) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StateChange.ProtoReflect.Descriptor instead.
 func (*StateChange) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{168}
+	return file_aidememory_proto_rawDescGZIP(), []int{177}
 }
 
 func (x *StateChange) GetState() *State {
@@ -10422,6 +10850,31 @@ const file_aidememory_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\x05R\x05value:\x028\x01\"\x14\n" +
 	"\x12SurveyClearRequest\"/\n" +
 	"\x13SurveyClearResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\"j\n" +
+	"\tTombstone\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04kind\x18\x02 \x01(\tR\x04kind\x129\n" +
+	"\n" +
+	"deleted_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tdeletedAt\"J\n" +
+	"\x13TombstoneAddRequest\x123\n" +
+	"\ttombstone\x18\x01 \x01(\v2\x15.aidememory.TombstoneR\ttombstone\"K\n" +
+	"\x14TombstoneAddResponse\x123\n" +
+	"\ttombstone\x18\x01 \x01(\v2\x15.aidememory.TombstoneR\ttombstone\"9\n" +
+	"\x13TombstoneGetRequest\x12\x12\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\"a\n" +
+	"\x14TombstoneGetResponse\x123\n" +
+	"\ttombstone\x18\x01 \x01(\v2\x15.aidememory.TombstoneR\ttombstone\x12\x14\n" +
+	"\x05found\x18\x02 \x01(\bR\x05found\"\x16\n" +
+	"\x14TombstoneListRequest\"N\n" +
+	"\x15TombstoneListResponse\x125\n" +
+	"\n" +
+	"tombstones\x18\x01 \x03(\v2\x15.aidememory.TombstoneR\n" +
+	"tombstones\"<\n" +
+	"\x16TombstoneDeleteRequest\x12\x12\n" +
+	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\"3\n" +
+	"\x17TombstoneDeleteResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\"\x14\n" +
 	"\x12HealthCheckRequest\"b\n" +
 	"\x13HealthCheckResponse\x12\x18\n" +
@@ -10763,7 +11216,12 @@ const file_aidememory_proto_rawDesc = "" +
 	"\x0eGetFileEntries\x12\x1d.aidememory.SurveyFileRequest\x1a .aidememory.SurveySearchResponse\x12`\n" +
 	"\rClearAnalyzer\x12&.aidememory.SurveyClearAnalyzerRequest\x1a'.aidememory.SurveyClearAnalyzerResponse\x12H\n" +
 	"\x05Stats\x12\x1e.aidememory.SurveyStatsRequest\x1a\x1f.aidememory.SurveyStatsResponse\x12H\n" +
-	"\x05Clear\x12\x1e.aidememory.SurveyClearRequest\x1a\x1f.aidememory.SurveyClearResponse2Y\n" +
+	"\x05Clear\x12\x1e.aidememory.SurveyClearRequest\x1a\x1f.aidememory.SurveyClearResponse2\xc6\x02\n" +
+	"\x10TombstoneService\x12H\n" +
+	"\x03Add\x12\x1f.aidememory.TombstoneAddRequest\x1a .aidememory.TombstoneAddResponse\x12H\n" +
+	"\x03Get\x12\x1f.aidememory.TombstoneGetRequest\x1a .aidememory.TombstoneGetResponse\x12K\n" +
+	"\x04List\x12 .aidememory.TombstoneListRequest\x1a!.aidememory.TombstoneListResponse\x12Q\n" +
+	"\x06Delete\x12\".aidememory.TombstoneDeleteRequest\x1a#.aidememory.TombstoneDeleteResponse2Y\n" +
 	"\rHealthService\x12H\n" +
 	"\x05Check\x12\x1e.aidememory.HealthCheckRequest\x1a\x1f.aidememory.HealthCheckResponse2S\n" +
 	"\rStatusService\x12B\n" +
@@ -10801,7 +11259,7 @@ func file_aidememory_proto_rawDescGZIP() []byte {
 	return file_aidememory_proto_rawDescData
 }
 
-var file_aidememory_proto_msgTypes = make([]protoimpl.MessageInfo, 189)
+var file_aidememory_proto_msgTypes = make([]protoimpl.MessageInfo, 198)
 var file_aidememory_proto_goTypes = []any{
 	(*Memory)(nil),                          // 0: aidememory.Memory
 	(*MemoryAddRequest)(nil),                // 1: aidememory.MemoryAddRequest
@@ -10933,323 +11391,345 @@ var file_aidememory_proto_goTypes = []any{
 	(*SurveyStatsResponse)(nil),             // 127: aidememory.SurveyStatsResponse
 	(*SurveyClearRequest)(nil),              // 128: aidememory.SurveyClearRequest
 	(*SurveyClearResponse)(nil),             // 129: aidememory.SurveyClearResponse
-	(*HealthCheckRequest)(nil),              // 130: aidememory.HealthCheckRequest
-	(*HealthCheckResponse)(nil),             // 131: aidememory.HealthCheckResponse
-	(*StatusRequest)(nil),                   // 132: aidememory.StatusRequest
-	(*StatusResponse)(nil),                  // 133: aidememory.StatusResponse
-	(*StatusWatcher)(nil),                   // 134: aidememory.StatusWatcher
-	(*StatusCodeIndexer)(nil),               // 135: aidememory.StatusCodeIndexer
-	(*StatusFindings)(nil),                  // 136: aidememory.StatusFindings
-	(*StatusAnalyzer)(nil),                  // 137: aidememory.StatusAnalyzer
-	(*StatusMCPTool)(nil),                   // 138: aidememory.StatusMCPTool
-	(*StatusSurvey)(nil),                    // 139: aidememory.StatusSurvey
-	(*StatusStore)(nil),                     // 140: aidememory.StatusStore
-	(*StatusGrammar)(nil),                   // 141: aidememory.StatusGrammar
-	(*ObserveRecordRequest)(nil),            // 142: aidememory.ObserveRecordRequest
-	(*ObserveRecordResponse)(nil),           // 143: aidememory.ObserveRecordResponse
-	(*ObserveListRequest)(nil),              // 144: aidememory.ObserveListRequest
-	(*ObserveEvent)(nil),                    // 145: aidememory.ObserveEvent
-	(*ObserveListResponse)(nil),             // 146: aidememory.ObserveListResponse
-	(*InstinctEvidence)(nil),                // 147: aidememory.InstinctEvidence
-	(*InstinctProposedMemory)(nil),          // 148: aidememory.InstinctProposedMemory
-	(*InstinctProposal)(nil),                // 149: aidememory.InstinctProposal
-	(*InstinctListRequest)(nil),             // 150: aidememory.InstinctListRequest
-	(*InstinctListResponse)(nil),            // 151: aidememory.InstinctListResponse
-	(*InstinctGetRequest)(nil),              // 152: aidememory.InstinctGetRequest
-	(*InstinctGetResponse)(nil),             // 153: aidememory.InstinctGetResponse
-	(*InstinctAddRequest)(nil),              // 154: aidememory.InstinctAddRequest
-	(*InstinctAddResponse)(nil),             // 155: aidememory.InstinctAddResponse
-	(*InstinctUpdateStatusRequest)(nil),     // 156: aidememory.InstinctUpdateStatusRequest
-	(*InstinctUpdateStatusResponse)(nil),    // 157: aidememory.InstinctUpdateStatusResponse
-	(*InstinctWatchRequest)(nil),            // 158: aidememory.InstinctWatchRequest
-	(*ObserveWatchRequest)(nil),             // 159: aidememory.ObserveWatchRequest
-	(*TokenStatsRequest)(nil),               // 160: aidememory.TokenStatsRequest
-	(*TokenStatsResponse)(nil),              // 161: aidememory.TokenStatsResponse
-	(*TokenEventListRequest)(nil),           // 162: aidememory.TokenEventListRequest
-	(*TokenEventListResponse)(nil),          // 163: aidememory.TokenEventListResponse
-	(*TokenEventItem)(nil),                  // 164: aidememory.TokenEventItem
-	(*SwarmWatchTasksRequest)(nil),          // 165: aidememory.SwarmWatchTasksRequest
-	(*SwarmWatchMessagesRequest)(nil),       // 166: aidememory.SwarmWatchMessagesRequest
-	(*SwarmWatchStateRequest)(nil),          // 167: aidememory.SwarmWatchStateRequest
-	(*StateChange)(nil),                     // 168: aidememory.StateChange
-	nil,                                     // 169: aidememory.Finding.MetadataEntry
-	nil,                                     // 170: aidememory.FindingAddRequest.MetadataEntry
-	nil,                                     // 171: aidememory.FindingStatsResponse.ByAnalyzerEntry
-	nil,                                     // 172: aidememory.FindingStatsResponse.BySeverityEntry
-	nil,                                     // 173: aidememory.SurveyEntry.MetadataEntry
-	nil,                                     // 174: aidememory.SurveyAddRequest.MetadataEntry
-	nil,                                     // 175: aidememory.SurveyStatsResponse.ByAnalyzerEntry
-	nil,                                     // 176: aidememory.SurveyStatsResponse.ByKindEntry
-	nil,                                     // 177: aidememory.StatusFindings.ByAnalyzerEntry
-	nil,                                     // 178: aidememory.StatusFindings.BySeverityEntry
-	nil,                                     // 179: aidememory.StatusFindings.AnalyzersEntry
-	nil,                                     // 180: aidememory.StatusSurvey.ByAnalyzerEntry
-	nil,                                     // 181: aidememory.StatusSurvey.ByKindEntry
-	nil,                                     // 182: aidememory.ObserveRecordRequest.AttrsEntry
-	nil,                                     // 183: aidememory.ObserveEvent.AttrsEntry
-	nil,                                     // 184: aidememory.TokenStatsResponse.ByToolEntry
-	nil,                                     // 185: aidememory.TokenStatsResponse.BySavingTypeEntry
-	nil,                                     // 186: aidememory.TokenStatsResponse.ByDeliveryEntry
-	nil,                                     // 187: aidememory.TokenStatsResponse.CallsByToolEntry
-	nil,                                     // 188: aidememory.TokenStatsResponse.SavedByToolEntry
-	(*timestamppb.Timestamp)(nil),           // 189: google.protobuf.Timestamp
+	(*Tombstone)(nil),                       // 130: aidememory.Tombstone
+	(*TombstoneAddRequest)(nil),             // 131: aidememory.TombstoneAddRequest
+	(*TombstoneAddResponse)(nil),            // 132: aidememory.TombstoneAddResponse
+	(*TombstoneGetRequest)(nil),             // 133: aidememory.TombstoneGetRequest
+	(*TombstoneGetResponse)(nil),            // 134: aidememory.TombstoneGetResponse
+	(*TombstoneListRequest)(nil),            // 135: aidememory.TombstoneListRequest
+	(*TombstoneListResponse)(nil),           // 136: aidememory.TombstoneListResponse
+	(*TombstoneDeleteRequest)(nil),          // 137: aidememory.TombstoneDeleteRequest
+	(*TombstoneDeleteResponse)(nil),         // 138: aidememory.TombstoneDeleteResponse
+	(*HealthCheckRequest)(nil),              // 139: aidememory.HealthCheckRequest
+	(*HealthCheckResponse)(nil),             // 140: aidememory.HealthCheckResponse
+	(*StatusRequest)(nil),                   // 141: aidememory.StatusRequest
+	(*StatusResponse)(nil),                  // 142: aidememory.StatusResponse
+	(*StatusWatcher)(nil),                   // 143: aidememory.StatusWatcher
+	(*StatusCodeIndexer)(nil),               // 144: aidememory.StatusCodeIndexer
+	(*StatusFindings)(nil),                  // 145: aidememory.StatusFindings
+	(*StatusAnalyzer)(nil),                  // 146: aidememory.StatusAnalyzer
+	(*StatusMCPTool)(nil),                   // 147: aidememory.StatusMCPTool
+	(*StatusSurvey)(nil),                    // 148: aidememory.StatusSurvey
+	(*StatusStore)(nil),                     // 149: aidememory.StatusStore
+	(*StatusGrammar)(nil),                   // 150: aidememory.StatusGrammar
+	(*ObserveRecordRequest)(nil),            // 151: aidememory.ObserveRecordRequest
+	(*ObserveRecordResponse)(nil),           // 152: aidememory.ObserveRecordResponse
+	(*ObserveListRequest)(nil),              // 153: aidememory.ObserveListRequest
+	(*ObserveEvent)(nil),                    // 154: aidememory.ObserveEvent
+	(*ObserveListResponse)(nil),             // 155: aidememory.ObserveListResponse
+	(*InstinctEvidence)(nil),                // 156: aidememory.InstinctEvidence
+	(*InstinctProposedMemory)(nil),          // 157: aidememory.InstinctProposedMemory
+	(*InstinctProposal)(nil),                // 158: aidememory.InstinctProposal
+	(*InstinctListRequest)(nil),             // 159: aidememory.InstinctListRequest
+	(*InstinctListResponse)(nil),            // 160: aidememory.InstinctListResponse
+	(*InstinctGetRequest)(nil),              // 161: aidememory.InstinctGetRequest
+	(*InstinctGetResponse)(nil),             // 162: aidememory.InstinctGetResponse
+	(*InstinctAddRequest)(nil),              // 163: aidememory.InstinctAddRequest
+	(*InstinctAddResponse)(nil),             // 164: aidememory.InstinctAddResponse
+	(*InstinctUpdateStatusRequest)(nil),     // 165: aidememory.InstinctUpdateStatusRequest
+	(*InstinctUpdateStatusResponse)(nil),    // 166: aidememory.InstinctUpdateStatusResponse
+	(*InstinctWatchRequest)(nil),            // 167: aidememory.InstinctWatchRequest
+	(*ObserveWatchRequest)(nil),             // 168: aidememory.ObserveWatchRequest
+	(*TokenStatsRequest)(nil),               // 169: aidememory.TokenStatsRequest
+	(*TokenStatsResponse)(nil),              // 170: aidememory.TokenStatsResponse
+	(*TokenEventListRequest)(nil),           // 171: aidememory.TokenEventListRequest
+	(*TokenEventListResponse)(nil),          // 172: aidememory.TokenEventListResponse
+	(*TokenEventItem)(nil),                  // 173: aidememory.TokenEventItem
+	(*SwarmWatchTasksRequest)(nil),          // 174: aidememory.SwarmWatchTasksRequest
+	(*SwarmWatchMessagesRequest)(nil),       // 175: aidememory.SwarmWatchMessagesRequest
+	(*SwarmWatchStateRequest)(nil),          // 176: aidememory.SwarmWatchStateRequest
+	(*StateChange)(nil),                     // 177: aidememory.StateChange
+	nil,                                     // 178: aidememory.Finding.MetadataEntry
+	nil,                                     // 179: aidememory.FindingAddRequest.MetadataEntry
+	nil,                                     // 180: aidememory.FindingStatsResponse.ByAnalyzerEntry
+	nil,                                     // 181: aidememory.FindingStatsResponse.BySeverityEntry
+	nil,                                     // 182: aidememory.SurveyEntry.MetadataEntry
+	nil,                                     // 183: aidememory.SurveyAddRequest.MetadataEntry
+	nil,                                     // 184: aidememory.SurveyStatsResponse.ByAnalyzerEntry
+	nil,                                     // 185: aidememory.SurveyStatsResponse.ByKindEntry
+	nil,                                     // 186: aidememory.StatusFindings.ByAnalyzerEntry
+	nil,                                     // 187: aidememory.StatusFindings.BySeverityEntry
+	nil,                                     // 188: aidememory.StatusFindings.AnalyzersEntry
+	nil,                                     // 189: aidememory.StatusSurvey.ByAnalyzerEntry
+	nil,                                     // 190: aidememory.StatusSurvey.ByKindEntry
+	nil,                                     // 191: aidememory.ObserveRecordRequest.AttrsEntry
+	nil,                                     // 192: aidememory.ObserveEvent.AttrsEntry
+	nil,                                     // 193: aidememory.TokenStatsResponse.ByToolEntry
+	nil,                                     // 194: aidememory.TokenStatsResponse.BySavingTypeEntry
+	nil,                                     // 195: aidememory.TokenStatsResponse.ByDeliveryEntry
+	nil,                                     // 196: aidememory.TokenStatsResponse.CallsByToolEntry
+	nil,                                     // 197: aidememory.TokenStatsResponse.SavedByToolEntry
+	(*timestamppb.Timestamp)(nil),           // 198: google.protobuf.Timestamp
 }
 var file_aidememory_proto_depIdxs = []int32{
-	189, // 0: aidememory.Memory.created_at:type_name -> google.protobuf.Timestamp
-	189, // 1: aidememory.Memory.updated_at:type_name -> google.protobuf.Timestamp
-	189, // 2: aidememory.Memory.last_accessed:type_name -> google.protobuf.Timestamp
-	189, // 3: aidememory.MemoryAddRequest.created_at:type_name -> google.protobuf.Timestamp
-	189, // 4: aidememory.MemoryAddRequest.updated_at:type_name -> google.protobuf.Timestamp
+	198, // 0: aidememory.Memory.created_at:type_name -> google.protobuf.Timestamp
+	198, // 1: aidememory.Memory.updated_at:type_name -> google.protobuf.Timestamp
+	198, // 2: aidememory.Memory.last_accessed:type_name -> google.protobuf.Timestamp
+	198, // 3: aidememory.MemoryAddRequest.created_at:type_name -> google.protobuf.Timestamp
+	198, // 4: aidememory.MemoryAddRequest.updated_at:type_name -> google.protobuf.Timestamp
 	0,   // 5: aidememory.MemoryAddResponse.memory:type_name -> aidememory.Memory
 	0,   // 6: aidememory.MemoryGetResponse.memory:type_name -> aidememory.Memory
 	0,   // 7: aidememory.MemorySearchResponse.memories:type_name -> aidememory.Memory
 	0,   // 8: aidememory.MemoryListResponse.memories:type_name -> aidememory.Memory
-	189, // 9: aidememory.State.updated_at:type_name -> google.protobuf.Timestamp
+	198, // 9: aidememory.State.updated_at:type_name -> google.protobuf.Timestamp
 	15,  // 10: aidememory.StateGetResponse.state:type_name -> aidememory.State
-	189, // 11: aidememory.StateSetRequest.updated_at:type_name -> google.protobuf.Timestamp
+	198, // 11: aidememory.StateSetRequest.updated_at:type_name -> google.protobuf.Timestamp
 	15,  // 12: aidememory.StateSetResponse.state:type_name -> aidememory.State
 	15,  // 13: aidememory.StateListResponse.states:type_name -> aidememory.State
-	189, // 14: aidememory.Decision.created_at:type_name -> google.protobuf.Timestamp
-	189, // 15: aidememory.DecisionSetRequest.created_at:type_name -> google.protobuf.Timestamp
+	198, // 14: aidememory.Decision.created_at:type_name -> google.protobuf.Timestamp
+	198, // 15: aidememory.DecisionSetRequest.created_at:type_name -> google.protobuf.Timestamp
 	28,  // 16: aidememory.DecisionSetResponse.decision:type_name -> aidememory.Decision
 	28,  // 17: aidememory.DecisionGetResponse.decision:type_name -> aidememory.Decision
 	28,  // 18: aidememory.DecisionListResponse.decisions:type_name -> aidememory.Decision
 	28,  // 19: aidememory.DecisionHistoryResponse.decisions:type_name -> aidememory.Decision
-	189, // 20: aidememory.Message.created_at:type_name -> google.protobuf.Timestamp
-	189, // 21: aidememory.Message.expires_at:type_name -> google.protobuf.Timestamp
+	198, // 20: aidememory.Message.created_at:type_name -> google.protobuf.Timestamp
+	198, // 21: aidememory.Message.expires_at:type_name -> google.protobuf.Timestamp
 	41,  // 22: aidememory.MessageSendResponse.message:type_name -> aidememory.Message
 	41,  // 23: aidememory.MessageListResponse.messages:type_name -> aidememory.Message
-	189, // 24: aidememory.Task.created_at:type_name -> google.protobuf.Timestamp
-	189, // 25: aidememory.Task.claimed_at:type_name -> google.protobuf.Timestamp
-	189, // 26: aidememory.Task.completed_at:type_name -> google.protobuf.Timestamp
+	198, // 24: aidememory.Task.created_at:type_name -> google.protobuf.Timestamp
+	198, // 25: aidememory.Task.claimed_at:type_name -> google.protobuf.Timestamp
+	198, // 26: aidememory.Task.completed_at:type_name -> google.protobuf.Timestamp
 	50,  // 27: aidememory.TaskCreateResponse.task:type_name -> aidememory.Task
 	50,  // 28: aidememory.TaskGetResponse.task:type_name -> aidememory.Task
 	50,  // 29: aidememory.TaskListResponse.tasks:type_name -> aidememory.Task
 	50,  // 30: aidememory.TaskClaimResponse.task:type_name -> aidememory.Task
 	50,  // 31: aidememory.TaskCompleteResponse.task:type_name -> aidememory.Task
 	50,  // 32: aidememory.TaskUpdateResponse.task:type_name -> aidememory.Task
-	189, // 33: aidememory.Symbol.created_at:type_name -> google.protobuf.Timestamp
+	198, // 33: aidememory.Symbol.created_at:type_name -> google.protobuf.Timestamp
 	67,  // 34: aidememory.CodeSearchResponse.symbols:type_name -> aidememory.Symbol
 	67,  // 35: aidememory.CodeSymbolsResponse.symbols:type_name -> aidememory.Symbol
 	76,  // 36: aidememory.CodeIndexEvent.progress:type_name -> aidememory.CodeIndexProgress
 	75,  // 37: aidememory.CodeIndexEvent.summary:type_name -> aidememory.CodeIndexResponse
 	82,  // 38: aidememory.CodeTopReferencesResponse.symbols:type_name -> aidememory.SymbolRefCount
-	189, // 39: aidememory.CodeReference.created_at:type_name -> google.protobuf.Timestamp
+	198, // 39: aidememory.CodeReference.created_at:type_name -> google.protobuf.Timestamp
 	83,  // 40: aidememory.CodeSearchReferencesResponse.references:type_name -> aidememory.CodeReference
 	67,  // 41: aidememory.CodeGetContainingSymbolResponse.symbol:type_name -> aidememory.Symbol
-	169, // 42: aidememory.Finding.metadata:type_name -> aidememory.Finding.MetadataEntry
-	189, // 43: aidememory.Finding.created_at:type_name -> google.protobuf.Timestamp
-	170, // 44: aidememory.FindingAddRequest.metadata:type_name -> aidememory.FindingAddRequest.MetadataEntry
+	178, // 42: aidememory.Finding.metadata:type_name -> aidememory.Finding.MetadataEntry
+	198, // 43: aidememory.Finding.created_at:type_name -> google.protobuf.Timestamp
+	179, // 44: aidememory.FindingAddRequest.metadata:type_name -> aidememory.FindingAddRequest.MetadataEntry
 	93,  // 45: aidememory.FindingAddResponse.finding:type_name -> aidememory.Finding
 	93,  // 46: aidememory.FindingGetResponse.finding:type_name -> aidememory.Finding
 	93,  // 47: aidememory.FindingSearchResponse.findings:type_name -> aidememory.Finding
-	171, // 48: aidememory.FindingStatsResponse.by_analyzer:type_name -> aidememory.FindingStatsResponse.ByAnalyzerEntry
-	172, // 49: aidememory.FindingStatsResponse.by_severity:type_name -> aidememory.FindingStatsResponse.BySeverityEntry
-	173, // 50: aidememory.SurveyEntry.metadata:type_name -> aidememory.SurveyEntry.MetadataEntry
-	189, // 51: aidememory.SurveyEntry.created_at:type_name -> google.protobuf.Timestamp
-	174, // 52: aidememory.SurveyAddRequest.metadata:type_name -> aidememory.SurveyAddRequest.MetadataEntry
+	180, // 48: aidememory.FindingStatsResponse.by_analyzer:type_name -> aidememory.FindingStatsResponse.ByAnalyzerEntry
+	181, // 49: aidememory.FindingStatsResponse.by_severity:type_name -> aidememory.FindingStatsResponse.BySeverityEntry
+	182, // 50: aidememory.SurveyEntry.metadata:type_name -> aidememory.SurveyEntry.MetadataEntry
+	198, // 51: aidememory.SurveyEntry.created_at:type_name -> google.protobuf.Timestamp
+	183, // 52: aidememory.SurveyAddRequest.metadata:type_name -> aidememory.SurveyAddRequest.MetadataEntry
 	113, // 53: aidememory.SurveyAddResponse.entry:type_name -> aidememory.SurveyEntry
 	113, // 54: aidememory.SurveyGetResponse.entry:type_name -> aidememory.SurveyEntry
 	113, // 55: aidememory.SurveySearchResponse.entries:type_name -> aidememory.SurveyEntry
-	175, // 56: aidememory.SurveyStatsResponse.by_analyzer:type_name -> aidememory.SurveyStatsResponse.ByAnalyzerEntry
-	176, // 57: aidememory.SurveyStatsResponse.by_kind:type_name -> aidememory.SurveyStatsResponse.ByKindEntry
-	134, // 58: aidememory.StatusResponse.watcher:type_name -> aidememory.StatusWatcher
-	135, // 59: aidememory.StatusResponse.code_indexer:type_name -> aidememory.StatusCodeIndexer
-	136, // 60: aidememory.StatusResponse.findings:type_name -> aidememory.StatusFindings
-	138, // 61: aidememory.StatusResponse.mcp_tools:type_name -> aidememory.StatusMCPTool
-	139, // 62: aidememory.StatusResponse.survey:type_name -> aidememory.StatusSurvey
-	140, // 63: aidememory.StatusResponse.stores:type_name -> aidememory.StatusStore
-	141, // 64: aidememory.StatusResponse.grammars:type_name -> aidememory.StatusGrammar
-	177, // 65: aidememory.StatusFindings.by_analyzer:type_name -> aidememory.StatusFindings.ByAnalyzerEntry
-	178, // 66: aidememory.StatusFindings.by_severity:type_name -> aidememory.StatusFindings.BySeverityEntry
-	179, // 67: aidememory.StatusFindings.analyzers:type_name -> aidememory.StatusFindings.AnalyzersEntry
-	180, // 68: aidememory.StatusSurvey.by_analyzer:type_name -> aidememory.StatusSurvey.ByAnalyzerEntry
-	181, // 69: aidememory.StatusSurvey.by_kind:type_name -> aidememory.StatusSurvey.ByKindEntry
-	182, // 70: aidememory.ObserveRecordRequest.attrs:type_name -> aidememory.ObserveRecordRequest.AttrsEntry
-	189, // 71: aidememory.ObserveEvent.timestamp:type_name -> google.protobuf.Timestamp
-	183, // 72: aidememory.ObserveEvent.attrs:type_name -> aidememory.ObserveEvent.AttrsEntry
-	145, // 73: aidememory.ObserveListResponse.events:type_name -> aidememory.ObserveEvent
-	145, // 74: aidememory.InstinctEvidence.snapshot:type_name -> aidememory.ObserveEvent
-	189, // 75: aidememory.InstinctProposal.proposed_at:type_name -> google.protobuf.Timestamp
-	147, // 76: aidememory.InstinctProposal.evidence:type_name -> aidememory.InstinctEvidence
-	148, // 77: aidememory.InstinctProposal.proposed_instinct:type_name -> aidememory.InstinctProposedMemory
-	189, // 78: aidememory.InstinctProposal.last_reproposal_at:type_name -> google.protobuf.Timestamp
-	189, // 79: aidememory.InstinctProposal.expires_at:type_name -> google.protobuf.Timestamp
-	149, // 80: aidememory.InstinctListResponse.proposals:type_name -> aidememory.InstinctProposal
-	149, // 81: aidememory.InstinctGetResponse.proposal:type_name -> aidememory.InstinctProposal
-	149, // 82: aidememory.InstinctAddRequest.proposal:type_name -> aidememory.InstinctProposal
-	149, // 83: aidememory.InstinctAddResponse.proposal:type_name -> aidememory.InstinctProposal
-	149, // 84: aidememory.InstinctUpdateStatusResponse.proposal:type_name -> aidememory.InstinctProposal
-	189, // 85: aidememory.TokenStatsRequest.since:type_name -> google.protobuf.Timestamp
-	189, // 86: aidememory.TokenStatsRequest.until:type_name -> google.protobuf.Timestamp
-	184, // 87: aidememory.TokenStatsResponse.by_tool:type_name -> aidememory.TokenStatsResponse.ByToolEntry
-	185, // 88: aidememory.TokenStatsResponse.by_saving_type:type_name -> aidememory.TokenStatsResponse.BySavingTypeEntry
-	186, // 89: aidememory.TokenStatsResponse.by_delivery:type_name -> aidememory.TokenStatsResponse.ByDeliveryEntry
-	187, // 90: aidememory.TokenStatsResponse.calls_by_tool:type_name -> aidememory.TokenStatsResponse.CallsByToolEntry
-	188, // 91: aidememory.TokenStatsResponse.saved_by_tool:type_name -> aidememory.TokenStatsResponse.SavedByToolEntry
-	164, // 92: aidememory.TokenEventListResponse.events:type_name -> aidememory.TokenEventItem
-	189, // 93: aidememory.TokenEventItem.timestamp:type_name -> google.protobuf.Timestamp
-	15,  // 94: aidememory.StateChange.state:type_name -> aidememory.State
-	137, // 95: aidememory.StatusFindings.AnalyzersEntry.value:type_name -> aidememory.StatusAnalyzer
-	1,   // 96: aidememory.MemoryService.Add:input_type -> aidememory.MemoryAddRequest
-	3,   // 97: aidememory.MemoryService.Get:input_type -> aidememory.MemoryGetRequest
-	5,   // 98: aidememory.MemoryService.Search:input_type -> aidememory.MemorySearchRequest
-	7,   // 99: aidememory.MemoryService.List:input_type -> aidememory.MemoryListRequest
-	9,   // 100: aidememory.MemoryService.Delete:input_type -> aidememory.MemoryDeleteRequest
-	11,  // 101: aidememory.MemoryService.Clear:input_type -> aidememory.MemoryClearRequest
-	13,  // 102: aidememory.MemoryService.Touch:input_type -> aidememory.MemoryTouchRequest
-	16,  // 103: aidememory.StateService.Get:input_type -> aidememory.StateGetRequest
-	18,  // 104: aidememory.StateService.Set:input_type -> aidememory.StateSetRequest
-	20,  // 105: aidememory.StateService.List:input_type -> aidememory.StateListRequest
-	22,  // 106: aidememory.StateService.Delete:input_type -> aidememory.StateDeleteRequest
-	24,  // 107: aidememory.StateService.Clear:input_type -> aidememory.StateClearRequest
-	26,  // 108: aidememory.StateService.Cleanup:input_type -> aidememory.StateCleanupRequest
-	29,  // 109: aidememory.DecisionService.Set:input_type -> aidememory.DecisionSetRequest
-	31,  // 110: aidememory.DecisionService.Get:input_type -> aidememory.DecisionGetRequest
-	33,  // 111: aidememory.DecisionService.List:input_type -> aidememory.DecisionListRequest
-	35,  // 112: aidememory.DecisionService.History:input_type -> aidememory.DecisionHistoryRequest
-	37,  // 113: aidememory.DecisionService.Delete:input_type -> aidememory.DecisionDeleteRequest
-	39,  // 114: aidememory.DecisionService.Clear:input_type -> aidememory.DecisionClearRequest
-	42,  // 115: aidememory.MessageService.Send:input_type -> aidememory.MessageSendRequest
-	44,  // 116: aidememory.MessageService.List:input_type -> aidememory.MessageListRequest
-	46,  // 117: aidememory.MessageService.Ack:input_type -> aidememory.MessageAckRequest
-	48,  // 118: aidememory.MessageService.Prune:input_type -> aidememory.MessagePruneRequest
-	51,  // 119: aidememory.TaskService.Create:input_type -> aidememory.TaskCreateRequest
-	53,  // 120: aidememory.TaskService.Get:input_type -> aidememory.TaskGetRequest
-	55,  // 121: aidememory.TaskService.List:input_type -> aidememory.TaskListRequest
-	57,  // 122: aidememory.TaskService.Claim:input_type -> aidememory.TaskClaimRequest
-	59,  // 123: aidememory.TaskService.Complete:input_type -> aidememory.TaskCompleteRequest
-	61,  // 124: aidememory.TaskService.Update:input_type -> aidememory.TaskUpdateRequest
-	63,  // 125: aidememory.TaskService.Delete:input_type -> aidememory.TaskDeleteRequest
-	65,  // 126: aidememory.TaskService.Clear:input_type -> aidememory.TaskClearRequest
-	68,  // 127: aidememory.CodeService.Search:input_type -> aidememory.CodeSearchRequest
-	70,  // 128: aidememory.CodeService.Symbols:input_type -> aidememory.CodeSymbolsRequest
-	72,  // 129: aidememory.CodeService.Stats:input_type -> aidememory.CodeStatsRequest
-	74,  // 130: aidememory.CodeService.Index:input_type -> aidememory.CodeIndexRequest
-	78,  // 131: aidememory.CodeService.Clear:input_type -> aidememory.CodeClearRequest
-	80,  // 132: aidememory.CodeService.TopReferences:input_type -> aidememory.CodeTopReferencesRequest
-	84,  // 133: aidememory.CodeService.SearchReferences:input_type -> aidememory.CodeSearchReferencesRequest
-	86,  // 134: aidememory.CodeService.GetFileReferences:input_type -> aidememory.CodeGetFileReferencesRequest
-	87,  // 135: aidememory.CodeService.GetContainingSymbol:input_type -> aidememory.CodeGetContainingSymbolRequest
-	89,  // 136: aidememory.CodeService.ReadCheck:input_type -> aidememory.CodeReadCheckRequest
-	91,  // 137: aidememory.CodeService.RunDeadCodeAnalysis:input_type -> aidememory.CodeRunDeadCodeAnalysisRequest
-	94,  // 138: aidememory.FindingsService.Add:input_type -> aidememory.FindingAddRequest
-	96,  // 139: aidememory.FindingsService.Get:input_type -> aidememory.FindingGetRequest
-	98,  // 140: aidememory.FindingsService.Delete:input_type -> aidememory.FindingDeleteRequest
-	100, // 141: aidememory.FindingsService.Search:input_type -> aidememory.FindingSearchRequest
-	102, // 142: aidememory.FindingsService.List:input_type -> aidememory.FindingListRequest
-	103, // 143: aidememory.FindingsService.GetFileFindings:input_type -> aidememory.FindingFileRequest
-	104, // 144: aidememory.FindingsService.ClearAnalyzer:input_type -> aidememory.FindingClearAnalyzerRequest
-	106, // 145: aidememory.FindingsService.Stats:input_type -> aidememory.FindingStatsRequest
-	108, // 146: aidememory.FindingsService.Clear:input_type -> aidememory.FindingClearRequest
-	110, // 147: aidememory.FindingsService.Accept:input_type -> aidememory.FindingAcceptRequest
-	111, // 148: aidememory.FindingsService.AcceptByFilter:input_type -> aidememory.FindingAcceptByFilterRequest
-	114, // 149: aidememory.SurveyService.Add:input_type -> aidememory.SurveyAddRequest
-	116, // 150: aidememory.SurveyService.Get:input_type -> aidememory.SurveyGetRequest
-	118, // 151: aidememory.SurveyService.Delete:input_type -> aidememory.SurveyDeleteRequest
-	120, // 152: aidememory.SurveyService.Search:input_type -> aidememory.SurveySearchRequest
-	122, // 153: aidememory.SurveyService.List:input_type -> aidememory.SurveyListRequest
-	123, // 154: aidememory.SurveyService.GetFileEntries:input_type -> aidememory.SurveyFileRequest
-	124, // 155: aidememory.SurveyService.ClearAnalyzer:input_type -> aidememory.SurveyClearAnalyzerRequest
-	126, // 156: aidememory.SurveyService.Stats:input_type -> aidememory.SurveyStatsRequest
-	128, // 157: aidememory.SurveyService.Clear:input_type -> aidememory.SurveyClearRequest
-	130, // 158: aidememory.HealthService.Check:input_type -> aidememory.HealthCheckRequest
-	132, // 159: aidememory.StatusService.GetStatus:input_type -> aidememory.StatusRequest
-	160, // 160: aidememory.TokenService.GetTokenStats:input_type -> aidememory.TokenStatsRequest
-	162, // 161: aidememory.TokenService.ListTokenEvents:input_type -> aidememory.TokenEventListRequest
-	142, // 162: aidememory.ObserveService.RecordEvent:input_type -> aidememory.ObserveRecordRequest
-	144, // 163: aidememory.ObserveService.ListEvents:input_type -> aidememory.ObserveListRequest
-	159, // 164: aidememory.ObserveService.WatchEvents:input_type -> aidememory.ObserveWatchRequest
-	150, // 165: aidememory.InstinctService.List:input_type -> aidememory.InstinctListRequest
-	152, // 166: aidememory.InstinctService.Get:input_type -> aidememory.InstinctGetRequest
-	154, // 167: aidememory.InstinctService.Add:input_type -> aidememory.InstinctAddRequest
-	156, // 168: aidememory.InstinctService.UpdateStatus:input_type -> aidememory.InstinctUpdateStatusRequest
-	158, // 169: aidememory.InstinctService.Watch:input_type -> aidememory.InstinctWatchRequest
-	165, // 170: aidememory.SwarmService.WatchTasks:input_type -> aidememory.SwarmWatchTasksRequest
-	166, // 171: aidememory.SwarmService.WatchMessages:input_type -> aidememory.SwarmWatchMessagesRequest
-	167, // 172: aidememory.SwarmService.WatchState:input_type -> aidememory.SwarmWatchStateRequest
-	2,   // 173: aidememory.MemoryService.Add:output_type -> aidememory.MemoryAddResponse
-	4,   // 174: aidememory.MemoryService.Get:output_type -> aidememory.MemoryGetResponse
-	6,   // 175: aidememory.MemoryService.Search:output_type -> aidememory.MemorySearchResponse
-	8,   // 176: aidememory.MemoryService.List:output_type -> aidememory.MemoryListResponse
-	10,  // 177: aidememory.MemoryService.Delete:output_type -> aidememory.MemoryDeleteResponse
-	12,  // 178: aidememory.MemoryService.Clear:output_type -> aidememory.MemoryClearResponse
-	14,  // 179: aidememory.MemoryService.Touch:output_type -> aidememory.MemoryTouchResponse
-	17,  // 180: aidememory.StateService.Get:output_type -> aidememory.StateGetResponse
-	19,  // 181: aidememory.StateService.Set:output_type -> aidememory.StateSetResponse
-	21,  // 182: aidememory.StateService.List:output_type -> aidememory.StateListResponse
-	23,  // 183: aidememory.StateService.Delete:output_type -> aidememory.StateDeleteResponse
-	25,  // 184: aidememory.StateService.Clear:output_type -> aidememory.StateClearResponse
-	27,  // 185: aidememory.StateService.Cleanup:output_type -> aidememory.StateCleanupResponse
-	30,  // 186: aidememory.DecisionService.Set:output_type -> aidememory.DecisionSetResponse
-	32,  // 187: aidememory.DecisionService.Get:output_type -> aidememory.DecisionGetResponse
-	34,  // 188: aidememory.DecisionService.List:output_type -> aidememory.DecisionListResponse
-	36,  // 189: aidememory.DecisionService.History:output_type -> aidememory.DecisionHistoryResponse
-	38,  // 190: aidememory.DecisionService.Delete:output_type -> aidememory.DecisionDeleteResponse
-	40,  // 191: aidememory.DecisionService.Clear:output_type -> aidememory.DecisionClearResponse
-	43,  // 192: aidememory.MessageService.Send:output_type -> aidememory.MessageSendResponse
-	45,  // 193: aidememory.MessageService.List:output_type -> aidememory.MessageListResponse
-	47,  // 194: aidememory.MessageService.Ack:output_type -> aidememory.MessageAckResponse
-	49,  // 195: aidememory.MessageService.Prune:output_type -> aidememory.MessagePruneResponse
-	52,  // 196: aidememory.TaskService.Create:output_type -> aidememory.TaskCreateResponse
-	54,  // 197: aidememory.TaskService.Get:output_type -> aidememory.TaskGetResponse
-	56,  // 198: aidememory.TaskService.List:output_type -> aidememory.TaskListResponse
-	58,  // 199: aidememory.TaskService.Claim:output_type -> aidememory.TaskClaimResponse
-	60,  // 200: aidememory.TaskService.Complete:output_type -> aidememory.TaskCompleteResponse
-	62,  // 201: aidememory.TaskService.Update:output_type -> aidememory.TaskUpdateResponse
-	64,  // 202: aidememory.TaskService.Delete:output_type -> aidememory.TaskDeleteResponse
-	66,  // 203: aidememory.TaskService.Clear:output_type -> aidememory.TaskClearResponse
-	69,  // 204: aidememory.CodeService.Search:output_type -> aidememory.CodeSearchResponse
-	71,  // 205: aidememory.CodeService.Symbols:output_type -> aidememory.CodeSymbolsResponse
-	73,  // 206: aidememory.CodeService.Stats:output_type -> aidememory.CodeStatsResponse
-	77,  // 207: aidememory.CodeService.Index:output_type -> aidememory.CodeIndexEvent
-	79,  // 208: aidememory.CodeService.Clear:output_type -> aidememory.CodeClearResponse
-	81,  // 209: aidememory.CodeService.TopReferences:output_type -> aidememory.CodeTopReferencesResponse
-	85,  // 210: aidememory.CodeService.SearchReferences:output_type -> aidememory.CodeSearchReferencesResponse
-	85,  // 211: aidememory.CodeService.GetFileReferences:output_type -> aidememory.CodeSearchReferencesResponse
-	88,  // 212: aidememory.CodeService.GetContainingSymbol:output_type -> aidememory.CodeGetContainingSymbolResponse
-	90,  // 213: aidememory.CodeService.ReadCheck:output_type -> aidememory.CodeReadCheckResponse
-	92,  // 214: aidememory.CodeService.RunDeadCodeAnalysis:output_type -> aidememory.CodeRunDeadCodeAnalysisResponse
-	95,  // 215: aidememory.FindingsService.Add:output_type -> aidememory.FindingAddResponse
-	97,  // 216: aidememory.FindingsService.Get:output_type -> aidememory.FindingGetResponse
-	99,  // 217: aidememory.FindingsService.Delete:output_type -> aidememory.FindingDeleteResponse
-	101, // 218: aidememory.FindingsService.Search:output_type -> aidememory.FindingSearchResponse
-	101, // 219: aidememory.FindingsService.List:output_type -> aidememory.FindingSearchResponse
-	101, // 220: aidememory.FindingsService.GetFileFindings:output_type -> aidememory.FindingSearchResponse
-	105, // 221: aidememory.FindingsService.ClearAnalyzer:output_type -> aidememory.FindingClearAnalyzerResponse
-	107, // 222: aidememory.FindingsService.Stats:output_type -> aidememory.FindingStatsResponse
-	109, // 223: aidememory.FindingsService.Clear:output_type -> aidememory.FindingClearResponse
-	112, // 224: aidememory.FindingsService.Accept:output_type -> aidememory.FindingAcceptResponse
-	112, // 225: aidememory.FindingsService.AcceptByFilter:output_type -> aidememory.FindingAcceptResponse
-	115, // 226: aidememory.SurveyService.Add:output_type -> aidememory.SurveyAddResponse
-	117, // 227: aidememory.SurveyService.Get:output_type -> aidememory.SurveyGetResponse
-	119, // 228: aidememory.SurveyService.Delete:output_type -> aidememory.SurveyDeleteResponse
-	121, // 229: aidememory.SurveyService.Search:output_type -> aidememory.SurveySearchResponse
-	121, // 230: aidememory.SurveyService.List:output_type -> aidememory.SurveySearchResponse
-	121, // 231: aidememory.SurveyService.GetFileEntries:output_type -> aidememory.SurveySearchResponse
-	125, // 232: aidememory.SurveyService.ClearAnalyzer:output_type -> aidememory.SurveyClearAnalyzerResponse
-	127, // 233: aidememory.SurveyService.Stats:output_type -> aidememory.SurveyStatsResponse
-	129, // 234: aidememory.SurveyService.Clear:output_type -> aidememory.SurveyClearResponse
-	131, // 235: aidememory.HealthService.Check:output_type -> aidememory.HealthCheckResponse
-	133, // 236: aidememory.StatusService.GetStatus:output_type -> aidememory.StatusResponse
-	161, // 237: aidememory.TokenService.GetTokenStats:output_type -> aidememory.TokenStatsResponse
-	163, // 238: aidememory.TokenService.ListTokenEvents:output_type -> aidememory.TokenEventListResponse
-	143, // 239: aidememory.ObserveService.RecordEvent:output_type -> aidememory.ObserveRecordResponse
-	146, // 240: aidememory.ObserveService.ListEvents:output_type -> aidememory.ObserveListResponse
-	145, // 241: aidememory.ObserveService.WatchEvents:output_type -> aidememory.ObserveEvent
-	151, // 242: aidememory.InstinctService.List:output_type -> aidememory.InstinctListResponse
-	153, // 243: aidememory.InstinctService.Get:output_type -> aidememory.InstinctGetResponse
-	155, // 244: aidememory.InstinctService.Add:output_type -> aidememory.InstinctAddResponse
-	157, // 245: aidememory.InstinctService.UpdateStatus:output_type -> aidememory.InstinctUpdateStatusResponse
-	149, // 246: aidememory.InstinctService.Watch:output_type -> aidememory.InstinctProposal
-	50,  // 247: aidememory.SwarmService.WatchTasks:output_type -> aidememory.Task
-	41,  // 248: aidememory.SwarmService.WatchMessages:output_type -> aidememory.Message
-	168, // 249: aidememory.SwarmService.WatchState:output_type -> aidememory.StateChange
-	173, // [173:250] is the sub-list for method output_type
-	96,  // [96:173] is the sub-list for method input_type
-	96,  // [96:96] is the sub-list for extension type_name
-	96,  // [96:96] is the sub-list for extension extendee
-	0,   // [0:96] is the sub-list for field type_name
+	184, // 56: aidememory.SurveyStatsResponse.by_analyzer:type_name -> aidememory.SurveyStatsResponse.ByAnalyzerEntry
+	185, // 57: aidememory.SurveyStatsResponse.by_kind:type_name -> aidememory.SurveyStatsResponse.ByKindEntry
+	198, // 58: aidememory.Tombstone.deleted_at:type_name -> google.protobuf.Timestamp
+	130, // 59: aidememory.TombstoneAddRequest.tombstone:type_name -> aidememory.Tombstone
+	130, // 60: aidememory.TombstoneAddResponse.tombstone:type_name -> aidememory.Tombstone
+	130, // 61: aidememory.TombstoneGetResponse.tombstone:type_name -> aidememory.Tombstone
+	130, // 62: aidememory.TombstoneListResponse.tombstones:type_name -> aidememory.Tombstone
+	143, // 63: aidememory.StatusResponse.watcher:type_name -> aidememory.StatusWatcher
+	144, // 64: aidememory.StatusResponse.code_indexer:type_name -> aidememory.StatusCodeIndexer
+	145, // 65: aidememory.StatusResponse.findings:type_name -> aidememory.StatusFindings
+	147, // 66: aidememory.StatusResponse.mcp_tools:type_name -> aidememory.StatusMCPTool
+	148, // 67: aidememory.StatusResponse.survey:type_name -> aidememory.StatusSurvey
+	149, // 68: aidememory.StatusResponse.stores:type_name -> aidememory.StatusStore
+	150, // 69: aidememory.StatusResponse.grammars:type_name -> aidememory.StatusGrammar
+	186, // 70: aidememory.StatusFindings.by_analyzer:type_name -> aidememory.StatusFindings.ByAnalyzerEntry
+	187, // 71: aidememory.StatusFindings.by_severity:type_name -> aidememory.StatusFindings.BySeverityEntry
+	188, // 72: aidememory.StatusFindings.analyzers:type_name -> aidememory.StatusFindings.AnalyzersEntry
+	189, // 73: aidememory.StatusSurvey.by_analyzer:type_name -> aidememory.StatusSurvey.ByAnalyzerEntry
+	190, // 74: aidememory.StatusSurvey.by_kind:type_name -> aidememory.StatusSurvey.ByKindEntry
+	191, // 75: aidememory.ObserveRecordRequest.attrs:type_name -> aidememory.ObserveRecordRequest.AttrsEntry
+	198, // 76: aidememory.ObserveEvent.timestamp:type_name -> google.protobuf.Timestamp
+	192, // 77: aidememory.ObserveEvent.attrs:type_name -> aidememory.ObserveEvent.AttrsEntry
+	154, // 78: aidememory.ObserveListResponse.events:type_name -> aidememory.ObserveEvent
+	154, // 79: aidememory.InstinctEvidence.snapshot:type_name -> aidememory.ObserveEvent
+	198, // 80: aidememory.InstinctProposal.proposed_at:type_name -> google.protobuf.Timestamp
+	156, // 81: aidememory.InstinctProposal.evidence:type_name -> aidememory.InstinctEvidence
+	157, // 82: aidememory.InstinctProposal.proposed_instinct:type_name -> aidememory.InstinctProposedMemory
+	198, // 83: aidememory.InstinctProposal.last_reproposal_at:type_name -> google.protobuf.Timestamp
+	198, // 84: aidememory.InstinctProposal.expires_at:type_name -> google.protobuf.Timestamp
+	158, // 85: aidememory.InstinctListResponse.proposals:type_name -> aidememory.InstinctProposal
+	158, // 86: aidememory.InstinctGetResponse.proposal:type_name -> aidememory.InstinctProposal
+	158, // 87: aidememory.InstinctAddRequest.proposal:type_name -> aidememory.InstinctProposal
+	158, // 88: aidememory.InstinctAddResponse.proposal:type_name -> aidememory.InstinctProposal
+	158, // 89: aidememory.InstinctUpdateStatusResponse.proposal:type_name -> aidememory.InstinctProposal
+	198, // 90: aidememory.TokenStatsRequest.since:type_name -> google.protobuf.Timestamp
+	198, // 91: aidememory.TokenStatsRequest.until:type_name -> google.protobuf.Timestamp
+	193, // 92: aidememory.TokenStatsResponse.by_tool:type_name -> aidememory.TokenStatsResponse.ByToolEntry
+	194, // 93: aidememory.TokenStatsResponse.by_saving_type:type_name -> aidememory.TokenStatsResponse.BySavingTypeEntry
+	195, // 94: aidememory.TokenStatsResponse.by_delivery:type_name -> aidememory.TokenStatsResponse.ByDeliveryEntry
+	196, // 95: aidememory.TokenStatsResponse.calls_by_tool:type_name -> aidememory.TokenStatsResponse.CallsByToolEntry
+	197, // 96: aidememory.TokenStatsResponse.saved_by_tool:type_name -> aidememory.TokenStatsResponse.SavedByToolEntry
+	173, // 97: aidememory.TokenEventListResponse.events:type_name -> aidememory.TokenEventItem
+	198, // 98: aidememory.TokenEventItem.timestamp:type_name -> google.protobuf.Timestamp
+	15,  // 99: aidememory.StateChange.state:type_name -> aidememory.State
+	146, // 100: aidememory.StatusFindings.AnalyzersEntry.value:type_name -> aidememory.StatusAnalyzer
+	1,   // 101: aidememory.MemoryService.Add:input_type -> aidememory.MemoryAddRequest
+	3,   // 102: aidememory.MemoryService.Get:input_type -> aidememory.MemoryGetRequest
+	5,   // 103: aidememory.MemoryService.Search:input_type -> aidememory.MemorySearchRequest
+	7,   // 104: aidememory.MemoryService.List:input_type -> aidememory.MemoryListRequest
+	9,   // 105: aidememory.MemoryService.Delete:input_type -> aidememory.MemoryDeleteRequest
+	11,  // 106: aidememory.MemoryService.Clear:input_type -> aidememory.MemoryClearRequest
+	13,  // 107: aidememory.MemoryService.Touch:input_type -> aidememory.MemoryTouchRequest
+	16,  // 108: aidememory.StateService.Get:input_type -> aidememory.StateGetRequest
+	18,  // 109: aidememory.StateService.Set:input_type -> aidememory.StateSetRequest
+	20,  // 110: aidememory.StateService.List:input_type -> aidememory.StateListRequest
+	22,  // 111: aidememory.StateService.Delete:input_type -> aidememory.StateDeleteRequest
+	24,  // 112: aidememory.StateService.Clear:input_type -> aidememory.StateClearRequest
+	26,  // 113: aidememory.StateService.Cleanup:input_type -> aidememory.StateCleanupRequest
+	29,  // 114: aidememory.DecisionService.Set:input_type -> aidememory.DecisionSetRequest
+	31,  // 115: aidememory.DecisionService.Get:input_type -> aidememory.DecisionGetRequest
+	33,  // 116: aidememory.DecisionService.List:input_type -> aidememory.DecisionListRequest
+	35,  // 117: aidememory.DecisionService.History:input_type -> aidememory.DecisionHistoryRequest
+	37,  // 118: aidememory.DecisionService.Delete:input_type -> aidememory.DecisionDeleteRequest
+	39,  // 119: aidememory.DecisionService.Clear:input_type -> aidememory.DecisionClearRequest
+	42,  // 120: aidememory.MessageService.Send:input_type -> aidememory.MessageSendRequest
+	44,  // 121: aidememory.MessageService.List:input_type -> aidememory.MessageListRequest
+	46,  // 122: aidememory.MessageService.Ack:input_type -> aidememory.MessageAckRequest
+	48,  // 123: aidememory.MessageService.Prune:input_type -> aidememory.MessagePruneRequest
+	51,  // 124: aidememory.TaskService.Create:input_type -> aidememory.TaskCreateRequest
+	53,  // 125: aidememory.TaskService.Get:input_type -> aidememory.TaskGetRequest
+	55,  // 126: aidememory.TaskService.List:input_type -> aidememory.TaskListRequest
+	57,  // 127: aidememory.TaskService.Claim:input_type -> aidememory.TaskClaimRequest
+	59,  // 128: aidememory.TaskService.Complete:input_type -> aidememory.TaskCompleteRequest
+	61,  // 129: aidememory.TaskService.Update:input_type -> aidememory.TaskUpdateRequest
+	63,  // 130: aidememory.TaskService.Delete:input_type -> aidememory.TaskDeleteRequest
+	65,  // 131: aidememory.TaskService.Clear:input_type -> aidememory.TaskClearRequest
+	68,  // 132: aidememory.CodeService.Search:input_type -> aidememory.CodeSearchRequest
+	70,  // 133: aidememory.CodeService.Symbols:input_type -> aidememory.CodeSymbolsRequest
+	72,  // 134: aidememory.CodeService.Stats:input_type -> aidememory.CodeStatsRequest
+	74,  // 135: aidememory.CodeService.Index:input_type -> aidememory.CodeIndexRequest
+	78,  // 136: aidememory.CodeService.Clear:input_type -> aidememory.CodeClearRequest
+	80,  // 137: aidememory.CodeService.TopReferences:input_type -> aidememory.CodeTopReferencesRequest
+	84,  // 138: aidememory.CodeService.SearchReferences:input_type -> aidememory.CodeSearchReferencesRequest
+	86,  // 139: aidememory.CodeService.GetFileReferences:input_type -> aidememory.CodeGetFileReferencesRequest
+	87,  // 140: aidememory.CodeService.GetContainingSymbol:input_type -> aidememory.CodeGetContainingSymbolRequest
+	89,  // 141: aidememory.CodeService.ReadCheck:input_type -> aidememory.CodeReadCheckRequest
+	91,  // 142: aidememory.CodeService.RunDeadCodeAnalysis:input_type -> aidememory.CodeRunDeadCodeAnalysisRequest
+	94,  // 143: aidememory.FindingsService.Add:input_type -> aidememory.FindingAddRequest
+	96,  // 144: aidememory.FindingsService.Get:input_type -> aidememory.FindingGetRequest
+	98,  // 145: aidememory.FindingsService.Delete:input_type -> aidememory.FindingDeleteRequest
+	100, // 146: aidememory.FindingsService.Search:input_type -> aidememory.FindingSearchRequest
+	102, // 147: aidememory.FindingsService.List:input_type -> aidememory.FindingListRequest
+	103, // 148: aidememory.FindingsService.GetFileFindings:input_type -> aidememory.FindingFileRequest
+	104, // 149: aidememory.FindingsService.ClearAnalyzer:input_type -> aidememory.FindingClearAnalyzerRequest
+	106, // 150: aidememory.FindingsService.Stats:input_type -> aidememory.FindingStatsRequest
+	108, // 151: aidememory.FindingsService.Clear:input_type -> aidememory.FindingClearRequest
+	110, // 152: aidememory.FindingsService.Accept:input_type -> aidememory.FindingAcceptRequest
+	111, // 153: aidememory.FindingsService.AcceptByFilter:input_type -> aidememory.FindingAcceptByFilterRequest
+	114, // 154: aidememory.SurveyService.Add:input_type -> aidememory.SurveyAddRequest
+	116, // 155: aidememory.SurveyService.Get:input_type -> aidememory.SurveyGetRequest
+	118, // 156: aidememory.SurveyService.Delete:input_type -> aidememory.SurveyDeleteRequest
+	120, // 157: aidememory.SurveyService.Search:input_type -> aidememory.SurveySearchRequest
+	122, // 158: aidememory.SurveyService.List:input_type -> aidememory.SurveyListRequest
+	123, // 159: aidememory.SurveyService.GetFileEntries:input_type -> aidememory.SurveyFileRequest
+	124, // 160: aidememory.SurveyService.ClearAnalyzer:input_type -> aidememory.SurveyClearAnalyzerRequest
+	126, // 161: aidememory.SurveyService.Stats:input_type -> aidememory.SurveyStatsRequest
+	128, // 162: aidememory.SurveyService.Clear:input_type -> aidememory.SurveyClearRequest
+	131, // 163: aidememory.TombstoneService.Add:input_type -> aidememory.TombstoneAddRequest
+	133, // 164: aidememory.TombstoneService.Get:input_type -> aidememory.TombstoneGetRequest
+	135, // 165: aidememory.TombstoneService.List:input_type -> aidememory.TombstoneListRequest
+	137, // 166: aidememory.TombstoneService.Delete:input_type -> aidememory.TombstoneDeleteRequest
+	139, // 167: aidememory.HealthService.Check:input_type -> aidememory.HealthCheckRequest
+	141, // 168: aidememory.StatusService.GetStatus:input_type -> aidememory.StatusRequest
+	169, // 169: aidememory.TokenService.GetTokenStats:input_type -> aidememory.TokenStatsRequest
+	171, // 170: aidememory.TokenService.ListTokenEvents:input_type -> aidememory.TokenEventListRequest
+	151, // 171: aidememory.ObserveService.RecordEvent:input_type -> aidememory.ObserveRecordRequest
+	153, // 172: aidememory.ObserveService.ListEvents:input_type -> aidememory.ObserveListRequest
+	168, // 173: aidememory.ObserveService.WatchEvents:input_type -> aidememory.ObserveWatchRequest
+	159, // 174: aidememory.InstinctService.List:input_type -> aidememory.InstinctListRequest
+	161, // 175: aidememory.InstinctService.Get:input_type -> aidememory.InstinctGetRequest
+	163, // 176: aidememory.InstinctService.Add:input_type -> aidememory.InstinctAddRequest
+	165, // 177: aidememory.InstinctService.UpdateStatus:input_type -> aidememory.InstinctUpdateStatusRequest
+	167, // 178: aidememory.InstinctService.Watch:input_type -> aidememory.InstinctWatchRequest
+	174, // 179: aidememory.SwarmService.WatchTasks:input_type -> aidememory.SwarmWatchTasksRequest
+	175, // 180: aidememory.SwarmService.WatchMessages:input_type -> aidememory.SwarmWatchMessagesRequest
+	176, // 181: aidememory.SwarmService.WatchState:input_type -> aidememory.SwarmWatchStateRequest
+	2,   // 182: aidememory.MemoryService.Add:output_type -> aidememory.MemoryAddResponse
+	4,   // 183: aidememory.MemoryService.Get:output_type -> aidememory.MemoryGetResponse
+	6,   // 184: aidememory.MemoryService.Search:output_type -> aidememory.MemorySearchResponse
+	8,   // 185: aidememory.MemoryService.List:output_type -> aidememory.MemoryListResponse
+	10,  // 186: aidememory.MemoryService.Delete:output_type -> aidememory.MemoryDeleteResponse
+	12,  // 187: aidememory.MemoryService.Clear:output_type -> aidememory.MemoryClearResponse
+	14,  // 188: aidememory.MemoryService.Touch:output_type -> aidememory.MemoryTouchResponse
+	17,  // 189: aidememory.StateService.Get:output_type -> aidememory.StateGetResponse
+	19,  // 190: aidememory.StateService.Set:output_type -> aidememory.StateSetResponse
+	21,  // 191: aidememory.StateService.List:output_type -> aidememory.StateListResponse
+	23,  // 192: aidememory.StateService.Delete:output_type -> aidememory.StateDeleteResponse
+	25,  // 193: aidememory.StateService.Clear:output_type -> aidememory.StateClearResponse
+	27,  // 194: aidememory.StateService.Cleanup:output_type -> aidememory.StateCleanupResponse
+	30,  // 195: aidememory.DecisionService.Set:output_type -> aidememory.DecisionSetResponse
+	32,  // 196: aidememory.DecisionService.Get:output_type -> aidememory.DecisionGetResponse
+	34,  // 197: aidememory.DecisionService.List:output_type -> aidememory.DecisionListResponse
+	36,  // 198: aidememory.DecisionService.History:output_type -> aidememory.DecisionHistoryResponse
+	38,  // 199: aidememory.DecisionService.Delete:output_type -> aidememory.DecisionDeleteResponse
+	40,  // 200: aidememory.DecisionService.Clear:output_type -> aidememory.DecisionClearResponse
+	43,  // 201: aidememory.MessageService.Send:output_type -> aidememory.MessageSendResponse
+	45,  // 202: aidememory.MessageService.List:output_type -> aidememory.MessageListResponse
+	47,  // 203: aidememory.MessageService.Ack:output_type -> aidememory.MessageAckResponse
+	49,  // 204: aidememory.MessageService.Prune:output_type -> aidememory.MessagePruneResponse
+	52,  // 205: aidememory.TaskService.Create:output_type -> aidememory.TaskCreateResponse
+	54,  // 206: aidememory.TaskService.Get:output_type -> aidememory.TaskGetResponse
+	56,  // 207: aidememory.TaskService.List:output_type -> aidememory.TaskListResponse
+	58,  // 208: aidememory.TaskService.Claim:output_type -> aidememory.TaskClaimResponse
+	60,  // 209: aidememory.TaskService.Complete:output_type -> aidememory.TaskCompleteResponse
+	62,  // 210: aidememory.TaskService.Update:output_type -> aidememory.TaskUpdateResponse
+	64,  // 211: aidememory.TaskService.Delete:output_type -> aidememory.TaskDeleteResponse
+	66,  // 212: aidememory.TaskService.Clear:output_type -> aidememory.TaskClearResponse
+	69,  // 213: aidememory.CodeService.Search:output_type -> aidememory.CodeSearchResponse
+	71,  // 214: aidememory.CodeService.Symbols:output_type -> aidememory.CodeSymbolsResponse
+	73,  // 215: aidememory.CodeService.Stats:output_type -> aidememory.CodeStatsResponse
+	77,  // 216: aidememory.CodeService.Index:output_type -> aidememory.CodeIndexEvent
+	79,  // 217: aidememory.CodeService.Clear:output_type -> aidememory.CodeClearResponse
+	81,  // 218: aidememory.CodeService.TopReferences:output_type -> aidememory.CodeTopReferencesResponse
+	85,  // 219: aidememory.CodeService.SearchReferences:output_type -> aidememory.CodeSearchReferencesResponse
+	85,  // 220: aidememory.CodeService.GetFileReferences:output_type -> aidememory.CodeSearchReferencesResponse
+	88,  // 221: aidememory.CodeService.GetContainingSymbol:output_type -> aidememory.CodeGetContainingSymbolResponse
+	90,  // 222: aidememory.CodeService.ReadCheck:output_type -> aidememory.CodeReadCheckResponse
+	92,  // 223: aidememory.CodeService.RunDeadCodeAnalysis:output_type -> aidememory.CodeRunDeadCodeAnalysisResponse
+	95,  // 224: aidememory.FindingsService.Add:output_type -> aidememory.FindingAddResponse
+	97,  // 225: aidememory.FindingsService.Get:output_type -> aidememory.FindingGetResponse
+	99,  // 226: aidememory.FindingsService.Delete:output_type -> aidememory.FindingDeleteResponse
+	101, // 227: aidememory.FindingsService.Search:output_type -> aidememory.FindingSearchResponse
+	101, // 228: aidememory.FindingsService.List:output_type -> aidememory.FindingSearchResponse
+	101, // 229: aidememory.FindingsService.GetFileFindings:output_type -> aidememory.FindingSearchResponse
+	105, // 230: aidememory.FindingsService.ClearAnalyzer:output_type -> aidememory.FindingClearAnalyzerResponse
+	107, // 231: aidememory.FindingsService.Stats:output_type -> aidememory.FindingStatsResponse
+	109, // 232: aidememory.FindingsService.Clear:output_type -> aidememory.FindingClearResponse
+	112, // 233: aidememory.FindingsService.Accept:output_type -> aidememory.FindingAcceptResponse
+	112, // 234: aidememory.FindingsService.AcceptByFilter:output_type -> aidememory.FindingAcceptResponse
+	115, // 235: aidememory.SurveyService.Add:output_type -> aidememory.SurveyAddResponse
+	117, // 236: aidememory.SurveyService.Get:output_type -> aidememory.SurveyGetResponse
+	119, // 237: aidememory.SurveyService.Delete:output_type -> aidememory.SurveyDeleteResponse
+	121, // 238: aidememory.SurveyService.Search:output_type -> aidememory.SurveySearchResponse
+	121, // 239: aidememory.SurveyService.List:output_type -> aidememory.SurveySearchResponse
+	121, // 240: aidememory.SurveyService.GetFileEntries:output_type -> aidememory.SurveySearchResponse
+	125, // 241: aidememory.SurveyService.ClearAnalyzer:output_type -> aidememory.SurveyClearAnalyzerResponse
+	127, // 242: aidememory.SurveyService.Stats:output_type -> aidememory.SurveyStatsResponse
+	129, // 243: aidememory.SurveyService.Clear:output_type -> aidememory.SurveyClearResponse
+	132, // 244: aidememory.TombstoneService.Add:output_type -> aidememory.TombstoneAddResponse
+	134, // 245: aidememory.TombstoneService.Get:output_type -> aidememory.TombstoneGetResponse
+	136, // 246: aidememory.TombstoneService.List:output_type -> aidememory.TombstoneListResponse
+	138, // 247: aidememory.TombstoneService.Delete:output_type -> aidememory.TombstoneDeleteResponse
+	140, // 248: aidememory.HealthService.Check:output_type -> aidememory.HealthCheckResponse
+	142, // 249: aidememory.StatusService.GetStatus:output_type -> aidememory.StatusResponse
+	170, // 250: aidememory.TokenService.GetTokenStats:output_type -> aidememory.TokenStatsResponse
+	172, // 251: aidememory.TokenService.ListTokenEvents:output_type -> aidememory.TokenEventListResponse
+	152, // 252: aidememory.ObserveService.RecordEvent:output_type -> aidememory.ObserveRecordResponse
+	155, // 253: aidememory.ObserveService.ListEvents:output_type -> aidememory.ObserveListResponse
+	154, // 254: aidememory.ObserveService.WatchEvents:output_type -> aidememory.ObserveEvent
+	160, // 255: aidememory.InstinctService.List:output_type -> aidememory.InstinctListResponse
+	162, // 256: aidememory.InstinctService.Get:output_type -> aidememory.InstinctGetResponse
+	164, // 257: aidememory.InstinctService.Add:output_type -> aidememory.InstinctAddResponse
+	166, // 258: aidememory.InstinctService.UpdateStatus:output_type -> aidememory.InstinctUpdateStatusResponse
+	158, // 259: aidememory.InstinctService.Watch:output_type -> aidememory.InstinctProposal
+	50,  // 260: aidememory.SwarmService.WatchTasks:output_type -> aidememory.Task
+	41,  // 261: aidememory.SwarmService.WatchMessages:output_type -> aidememory.Message
+	177, // 262: aidememory.SwarmService.WatchState:output_type -> aidememory.StateChange
+	182, // [182:263] is the sub-list for method output_type
+	101, // [101:182] is the sub-list for method input_type
+	101, // [101:101] is the sub-list for extension type_name
+	101, // [101:101] is the sub-list for extension extendee
+	0,   // [0:101] is the sub-list for field type_name
 }
 
 func init() { file_aidememory_proto_init() }
@@ -11267,9 +11747,9 @@ func file_aidememory_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_aidememory_proto_rawDesc), len(file_aidememory_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   189,
+			NumMessages:   198,
 			NumExtensions: 0,
-			NumServices:   14,
+			NumServices:   15,
 		},
 		GoTypes:           file_aidememory_proto_goTypes,
 		DependencyIndexes: file_aidememory_proto_depIdxs,

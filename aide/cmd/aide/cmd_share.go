@@ -177,7 +177,7 @@ func cmdShareExport(dbPath string, args []string) error {
 		}
 		fmt.Printf("  tombstones: %d\n", stats.Tombstones)
 		if backend.TombstoneStore() == nil {
-			fmt.Fprintln(os.Stderr, "warning: daemon is running; deletions recorded in the daemon's store were not materialised as tombstones")
+			fmt.Fprintln(os.Stderr, "warning: no tombstone store available; deletions were not materialised as tombstones")
 		}
 		return nil
 	}
@@ -806,7 +806,7 @@ func cmdShareImport(dbPath string, args []string) error {
 		fmt.Printf("  tombstones: %d recorded, %d local records deleted, %d ignored\n",
 			stats.TombstonesRecorded, stats.RecordsDeleted, stats.TombstonesIgnored)
 		if backend.TombstoneStore() == nil {
-			fmt.Fprintln(os.Stderr, "warning: daemon is running; incoming deletions were applied, but tombstones could not be recorded locally with their original timestamps")
+			fmt.Fprintln(os.Stderr, "warning: no tombstone store available; incoming deletions were applied, but tombstones could not be recorded locally with their original timestamps")
 		}
 	}
 

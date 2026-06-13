@@ -2891,6 +2891,222 @@ var SurveyService_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
+	TombstoneService_Add_FullMethodName    = "/aidememory.TombstoneService/Add"
+	TombstoneService_Get_FullMethodName    = "/aidememory.TombstoneService/Get"
+	TombstoneService_List_FullMethodName   = "/aidememory.TombstoneService/List"
+	TombstoneService_Delete_FullMethodName = "/aidememory.TombstoneService/Delete"
+)
+
+// TombstoneServiceClient is the client API for TombstoneService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
+type TombstoneServiceClient interface {
+	Add(ctx context.Context, in *TombstoneAddRequest, opts ...grpc.CallOption) (*TombstoneAddResponse, error)
+	Get(ctx context.Context, in *TombstoneGetRequest, opts ...grpc.CallOption) (*TombstoneGetResponse, error)
+	List(ctx context.Context, in *TombstoneListRequest, opts ...grpc.CallOption) (*TombstoneListResponse, error)
+	Delete(ctx context.Context, in *TombstoneDeleteRequest, opts ...grpc.CallOption) (*TombstoneDeleteResponse, error)
+}
+
+type tombstoneServiceClient struct {
+	cc grpc.ClientConnInterface
+}
+
+func NewTombstoneServiceClient(cc grpc.ClientConnInterface) TombstoneServiceClient {
+	return &tombstoneServiceClient{cc}
+}
+
+func (c *tombstoneServiceClient) Add(ctx context.Context, in *TombstoneAddRequest, opts ...grpc.CallOption) (*TombstoneAddResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(TombstoneAddResponse)
+	err := c.cc.Invoke(ctx, TombstoneService_Add_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tombstoneServiceClient) Get(ctx context.Context, in *TombstoneGetRequest, opts ...grpc.CallOption) (*TombstoneGetResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(TombstoneGetResponse)
+	err := c.cc.Invoke(ctx, TombstoneService_Get_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tombstoneServiceClient) List(ctx context.Context, in *TombstoneListRequest, opts ...grpc.CallOption) (*TombstoneListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(TombstoneListResponse)
+	err := c.cc.Invoke(ctx, TombstoneService_List_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tombstoneServiceClient) Delete(ctx context.Context, in *TombstoneDeleteRequest, opts ...grpc.CallOption) (*TombstoneDeleteResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(TombstoneDeleteResponse)
+	err := c.cc.Invoke(ctx, TombstoneService_Delete_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// TombstoneServiceServer is the server API for TombstoneService service.
+// All implementations must embed UnimplementedTombstoneServiceServer
+// for forward compatibility.
+type TombstoneServiceServer interface {
+	Add(context.Context, *TombstoneAddRequest) (*TombstoneAddResponse, error)
+	Get(context.Context, *TombstoneGetRequest) (*TombstoneGetResponse, error)
+	List(context.Context, *TombstoneListRequest) (*TombstoneListResponse, error)
+	Delete(context.Context, *TombstoneDeleteRequest) (*TombstoneDeleteResponse, error)
+	mustEmbedUnimplementedTombstoneServiceServer()
+}
+
+// UnimplementedTombstoneServiceServer must be embedded to have
+// forward compatible implementations.
+//
+// NOTE: this should be embedded by value instead of pointer to avoid a nil
+// pointer dereference when methods are called.
+type UnimplementedTombstoneServiceServer struct{}
+
+func (UnimplementedTombstoneServiceServer) Add(context.Context, *TombstoneAddRequest) (*TombstoneAddResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Add not implemented")
+}
+func (UnimplementedTombstoneServiceServer) Get(context.Context, *TombstoneGetRequest) (*TombstoneGetResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Get not implemented")
+}
+func (UnimplementedTombstoneServiceServer) List(context.Context, *TombstoneListRequest) (*TombstoneListResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method List not implemented")
+}
+func (UnimplementedTombstoneServiceServer) Delete(context.Context, *TombstoneDeleteRequest) (*TombstoneDeleteResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Delete not implemented")
+}
+func (UnimplementedTombstoneServiceServer) mustEmbedUnimplementedTombstoneServiceServer() {}
+func (UnimplementedTombstoneServiceServer) testEmbeddedByValue()                          {}
+
+// UnsafeTombstoneServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to TombstoneServiceServer will
+// result in compilation errors.
+type UnsafeTombstoneServiceServer interface {
+	mustEmbedUnimplementedTombstoneServiceServer()
+}
+
+func RegisterTombstoneServiceServer(s grpc.ServiceRegistrar, srv TombstoneServiceServer) {
+	// If the following call panics, it indicates UnimplementedTombstoneServiceServer was
+	// embedded by pointer and is nil.  This will cause panics if an
+	// unimplemented method is ever invoked, so we test this at initialization
+	// time to prevent it from happening at runtime later due to I/O.
+	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
+		t.testEmbeddedByValue()
+	}
+	s.RegisterService(&TombstoneService_ServiceDesc, srv)
+}
+
+func _TombstoneService_Add_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TombstoneAddRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TombstoneServiceServer).Add(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TombstoneService_Add_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TombstoneServiceServer).Add(ctx, req.(*TombstoneAddRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TombstoneService_Get_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TombstoneGetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TombstoneServiceServer).Get(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TombstoneService_Get_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TombstoneServiceServer).Get(ctx, req.(*TombstoneGetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TombstoneService_List_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TombstoneListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TombstoneServiceServer).List(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TombstoneService_List_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TombstoneServiceServer).List(ctx, req.(*TombstoneListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TombstoneService_Delete_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TombstoneDeleteRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TombstoneServiceServer).Delete(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TombstoneService_Delete_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TombstoneServiceServer).Delete(ctx, req.(*TombstoneDeleteRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+// TombstoneService_ServiceDesc is the grpc.ServiceDesc for TombstoneService service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var TombstoneService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "aidememory.TombstoneService",
+	HandlerType: (*TombstoneServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "Add",
+			Handler:    _TombstoneService_Add_Handler,
+		},
+		{
+			MethodName: "Get",
+			Handler:    _TombstoneService_Get_Handler,
+		},
+		{
+			MethodName: "List",
+			Handler:    _TombstoneService_List_Handler,
+		},
+		{
+			MethodName: "Delete",
+			Handler:    _TombstoneService_Delete_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "aidememory.proto",
+}
+
+const (
 	HealthService_Check_FullMethodName = "/aidememory.HealthService/Check"
 )
 

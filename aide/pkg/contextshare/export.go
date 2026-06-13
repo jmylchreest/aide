@@ -20,9 +20,10 @@ type Source interface {
 }
 
 // TombstoneAccess mirrors store.TombstoneStore. A nil value means tombstones
-// are unavailable (gRPC mode has no tombstone RPCs); export then skips
-// materialising DB tombstones and import skips local tombstone bookkeeping,
-// degrading to the pre-tombstone behaviour rather than failing.
+// are unavailable (no store at all); export then skips materialising DB
+// tombstones and import skips local tombstone bookkeeping, degrading to the
+// pre-tombstone behaviour rather than failing. In daemon mode the access is
+// served over gRPC (see grpcapi adapter.TombstoneAdapter), so this is non-nil.
 type TombstoneAccess interface {
 	AddTombstone(t *memory.Tombstone) error
 	GetTombstone(kind, id string) (*memory.Tombstone, error)

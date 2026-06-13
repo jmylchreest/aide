@@ -176,6 +176,16 @@ func (s *Server) GetSurveyStore() store.SurveyStore {
 	return s.surveyStore
 }
 
+// GetTombstoneStore returns the tombstone surface backed by the main store.
+// Unlike findings/survey there is no separate setter: tombstones live in the
+// same BoltDB as memories/decisions (CombinedStore and BoltStore both satisfy
+// store.TombstoneStore), so we type-assert s.store. Returns nil if the store
+// somehow does not implement the interface.
+func (s *Server) GetTombstoneStore() store.TombstoneStore {
+	ts, _ := s.store.(store.TombstoneStore)
+	return ts
+}
+
 // SetWatcher sets the watcher for status reporting.
 func (s *Server) SetWatcher(w *watcher.Watcher) {
 	s.mu.Lock()
@@ -260,6 +270,7 @@ func (s *Server) Start() error {
 	RegisterCodeServiceServer(s.grpcServer, &codeServiceImpl{server: s, parser: code.NewParser(s.grammarLoader)})
 	RegisterFindingsServiceServer(s.grpcServer, &findingsServiceImpl{server: s})
 	RegisterSurveyServiceServer(s.grpcServer, &surveyServiceImpl{server: s})
+	RegisterTombstoneServiceServer(s.grpcServer, &tombstoneServiceImpl{server: s})
 	RegisterTokenServiceServer(s.grpcServer, &tokenServiceImpl{store: s.store})
 	RegisterObserveServiceServer(s.grpcServer, &observeServiceImpl{store: s.store, bus: s.observeBus})
 	RegisterInstinctServiceServer(s.grpcServer, &instinctServiceImpl{server: s})
@@ -2165,6 +2176,85 @@ func (s *surveyServiceImpl) Clear(ctx context.Context, req *SurveyClearRequest) 
 }
 
 // =============================================================================
+// Tombstone Service Implementation
+// =============================================================================
+
+type tombstoneServiceImpl struct {
+	UnimplementedTombstoneServiceServer
+	server *Server
+}
+
+func (s *tombstoneServiceImpl) Add(ctx context.Context, req *TombstoneAddRequest) (*TombstoneAddResponse, error) {
+	ts := s.server.GetTombstoneStore()
+	if ts == nil {
+		return nil, fmt.Errorf("tombstone store not available")
+	}
+
+	t := protoToTombstone(req.Tombstone)
+	if t == nil {
+		return nil, fmt.Errorf("tombstone is required")
+	}
+
+	if err := ts.AddTombstone(t); err != nil {
+		return nil, err
+	}
+
+	// AddTombstone may stamp DeletedAt when zero; echo the stored value back.
+	return &TombstoneAddResponse{Tombstone: tombstoneToProto(t)}, nil
+}
+
+func (s *tombstoneServiceImpl) Get(ctx context.Context, req *TombstoneGetRequest) (*TombstoneGetResponse, error) {
+	ts := s.server.GetTombstoneStore()
+	if ts == nil {
+		return nil, fmt.Errorf("tombstone store not available")
+	}
+
+	t, err := ts.GetTombstone(req.Kind, req.Id)
+	if err != nil {
+		if err == store.ErrNotFound {
+			return &TombstoneGetResponse{Found: false}, nil
+		}
+		return nil, err
+	}
+
+	return &TombstoneGetResponse{
+		Tombstone: tombstoneToProto(t),
+		Found:     true,
+	}, nil
+}
+
+func (s *tombstoneServiceImpl) List(ctx context.Context, req *TombstoneListRequest) (*TombstoneListResponse, error) {
+	ts := s.server.GetTombstoneStore()
+	if ts == nil {
+		return nil, fmt.Errorf("tombstone store not available")
+	}
+
+	tombstones, err := ts.ListTombstones()
+	if err != nil {
+		return nil, err
+	}
+
+	protoTombstones := make([]*Tombstone, len(tombstones))
+	for i, t := range tombstones {
+		protoTombstones[i] = tombstoneToProto(t)
+	}
+	return &TombstoneListResponse{Tombstones: protoTombstones}, nil
+}
+
+func (s *tombstoneServiceImpl) Delete(ctx context.Context, req *TombstoneDeleteRequest) (*TombstoneDeleteResponse, error) {
+	ts := s.server.GetTombstoneStore()
+	if ts == nil {
+		return nil, fmt.Errorf("tombstone store not available")
+	}
+
+	if err := ts.DeleteTombstone(req.Kind, req.Id); err != nil {
+		return nil, err
+	}
+
+	return &TombstoneDeleteResponse{Success: true}, nil
+}
+
+// =============================================================================
 // Status Service Implementation
 // =============================================================================
 
@@ -2487,6 +2577,32 @@ func surveyEntryToProto(e *survey.Entry) *SurveyEntry {
 		Detail:    e.Detail,
 		Metadata:  e.Metadata,
 		CreatedAt: timestamppb.New(e.CreatedAt),
+	}
+}
+
+func tombstoneToProto(t *memory.Tombstone) *Tombstone {
+	if t == nil {
+		return nil
+	}
+	return &Tombstone{
+		Id:        t.ID,
+		Kind:      t.Kind,
+		DeletedAt: timestamppb.New(t.DeletedAt),
+	}
+}
+
+func protoToTombstone(pt *Tombstone) *memory.Tombstone {
+	if pt == nil {
+		return nil
+	}
+	var deletedAt time.Time
+	if pt.DeletedAt != nil {
+		deletedAt = pt.DeletedAt.AsTime()
+	}
+	return &memory.Tombstone{
+		ID:        pt.Id,
+		Kind:      pt.Kind,
+		DeletedAt: deletedAt,
 	}
 }
 

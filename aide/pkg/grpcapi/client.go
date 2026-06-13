@@ -13,21 +13,22 @@ import (
 
 // Client wraps gRPC service clients for aide.
 type Client struct {
-	conn     *grpc.ClientConn
-	Memory   MemoryServiceClient
-	State    StateServiceClient
-	Decision DecisionServiceClient
-	Message  MessageServiceClient
-	Task     TaskServiceClient
-	Code     CodeServiceClient
-	Findings FindingsServiceClient
-	Survey   SurveyServiceClient
-	Token    TokenServiceClient
-	Observe  ObserveServiceClient
-	Instinct InstinctServiceClient
-	Swarm    SwarmServiceClient
-	Health   HealthServiceClient
-	Status   StatusServiceClient
+	conn      *grpc.ClientConn
+	Memory    MemoryServiceClient
+	State     StateServiceClient
+	Decision  DecisionServiceClient
+	Message   MessageServiceClient
+	Task      TaskServiceClient
+	Code      CodeServiceClient
+	Findings  FindingsServiceClient
+	Survey    SurveyServiceClient
+	Tombstone TombstoneServiceClient
+	Token     TokenServiceClient
+	Observe   ObserveServiceClient
+	Instinct  InstinctServiceClient
+	Swarm     SwarmServiceClient
+	Health    HealthServiceClient
+	Status    StatusServiceClient
 }
 
 // SocketExistsForDB checks if the gRPC socket is available for the given database path.
@@ -59,21 +60,22 @@ func NewClientWithSocket(socketPath string) (*Client, error) {
 	}
 
 	c := &Client{
-		conn:     conn,
-		Memory:   NewMemoryServiceClient(conn),
-		State:    NewStateServiceClient(conn),
-		Decision: NewDecisionServiceClient(conn),
-		Message:  NewMessageServiceClient(conn),
-		Task:     NewTaskServiceClient(conn),
-		Code:     NewCodeServiceClient(conn),
-		Findings: NewFindingsServiceClient(conn),
-		Survey:   NewSurveyServiceClient(conn),
-		Token:    NewTokenServiceClient(conn),
-		Observe:  NewObserveServiceClient(conn),
-		Instinct: NewInstinctServiceClient(conn),
-		Swarm:    NewSwarmServiceClient(conn),
-		Health:   NewHealthServiceClient(conn),
-		Status:   NewStatusServiceClient(conn),
+		conn:      conn,
+		Memory:    NewMemoryServiceClient(conn),
+		State:     NewStateServiceClient(conn),
+		Decision:  NewDecisionServiceClient(conn),
+		Message:   NewMessageServiceClient(conn),
+		Task:      NewTaskServiceClient(conn),
+		Code:      NewCodeServiceClient(conn),
+		Findings:  NewFindingsServiceClient(conn),
+		Survey:    NewSurveyServiceClient(conn),
+		Tombstone: NewTombstoneServiceClient(conn),
+		Token:     NewTokenServiceClient(conn),
+		Observe:   NewObserveServiceClient(conn),
+		Instinct:  NewInstinctServiceClient(conn),
+		Swarm:     NewSwarmServiceClient(conn),
+		Health:    NewHealthServiceClient(conn),
+		Status:    NewStatusServiceClient(conn),
 	}
 
 	// Verify connectivity with a health-check RPC.

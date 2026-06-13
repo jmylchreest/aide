@@ -92,11 +92,14 @@ func (b *Backend) InstinctStore() store.InstinctProposalStore {
 	return nil
 }
 
-// TombstoneStore returns the tombstone surface when the backend has direct
-// DB access. There are no tombstone RPCs, so in gRPC mode this returns nil
-// and callers degrade gracefully (deletes still record tombstones server-side
-// because capture lives in the store's DeleteMemory/DeleteDecision).
+// TombstoneStore returns the tombstone surface, routed via gRPC when the daemon
+// is up (so share export/import can list and record tombstones mid-session), or
+// via the direct CombinedStore otherwise. Returns nil only when neither a gRPC
+// client nor a direct DB handle is available.
 func (b *Backend) TombstoneStore() store.TombstoneStore {
+	if b.useGRPC && b.grpcClient != nil {
+		return adapter.NewTombstoneAdapter(b.grpcClient)
+	}
 	if b.combined != nil {
 		return b.combined
 	}
