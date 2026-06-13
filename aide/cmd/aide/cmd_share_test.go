@@ -343,63 +343,6 @@ func TestRemoveStaleFilesNonexistentDir(t *testing.T) {
 }
 
 // =============================================================================
-// Shareable Memory Filter
-// =============================================================================
-
-func TestIsShareableMemory(t *testing.T) {
-	tests := []struct {
-		name     string
-		memory   *memory.Memory
-		expected bool
-	}{
-		{
-			name:     "scope:global tag",
-			memory:   &memory.Memory{Category: memory.CategoryLearning, Tags: []string{"scope:global"}},
-			expected: true,
-		},
-		{
-			name:     "project tag",
-			memory:   &memory.Memory{Category: memory.CategoryLearning, Tags: []string{"project:myapp"}},
-			expected: true,
-		},
-		{
-			name:     "gotcha category always shared",
-			memory:   &memory.Memory{Category: "gotcha"},
-			expected: true,
-		},
-		{
-			name:     "pattern category always shared",
-			memory:   &memory.Memory{Category: "pattern"},
-			expected: true,
-		},
-		{
-			name:     "decision category always shared",
-			memory:   &memory.Memory{Category: "decision"},
-			expected: true,
-		},
-		{
-			name:     "session-only learning not shared",
-			memory:   &memory.Memory{Category: memory.CategoryLearning, Tags: []string{"session:abc123"}},
-			expected: false,
-		},
-		{
-			name:     "no tags learning not shared",
-			memory:   &memory.Memory{Category: memory.CategoryLearning},
-			expected: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := isShareableMemory(tt.memory)
-			if got != tt.expected {
-				t.Errorf("isShareableMemory = %v, want %v", got, tt.expected)
-			}
-		})
-	}
-}
-
-// =============================================================================
 // Full Export/Import Round-Trip
 // =============================================================================
 

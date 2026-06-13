@@ -108,39 +108,44 @@ func (s *BoltStore) ListDecisions() ([]*memory.Decision, error) {
 	return decisions, err
 }
 
-// DeleteDecision removes all decisions for a topic.
+// DeleteDecision removes all decisions for a topic. When at least one
+// decision existed, a decision-topic tombstone is recorded in the same
+// transaction so the deletion propagates through share export/import.
+// Collecting, deleting and tombstoning all happen in one write transaction
+// so a concurrent write can never slip between the scan and the delete.
 func (s *BoltStore) DeleteDecision(topic string) (int, error) {
 	var count int
-	var keysToDelete [][]byte
-	prefix := topic + ":"
+	prefix := []byte(topic + ":")
 
-	err := s.db.View(func(tx *bolt.Tx) error {
+	err := s.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(BucketDecisions)
 		c := b.Cursor()
 
-		for k, _ := c.Seek([]byte(prefix)); k != nil && strings.HasPrefix(string(k), prefix); k, _ = c.Next() {
-			keysToDelete = append(keysToDelete, k)
+		// Collect first (copying keys: cursor memory is invalidated by
+		// mutation), then delete, all inside the same write transaction.
+		var keysToDelete [][]byte
+		for k, _ := c.Seek(prefix); k != nil && strings.HasPrefix(string(k), string(prefix)); k, _ = c.Next() {
+			keysToDelete = append(keysToDelete, append([]byte(nil), k...))
 		}
-		return nil
+		for _, k := range keysToDelete {
+			if err := b.Delete(k); err != nil {
+				return err
+			}
+			count++
+		}
+		if count == 0 {
+			return nil
+		}
+		return putTombstone(tx, &memory.Tombstone{
+			ID:        topic,
+			Kind:      memory.TombstoneKindDecisionTopic,
+			DeletedAt: time.Now(),
+		})
 	})
 	if err != nil {
 		return 0, err
 	}
-
-	if len(keysToDelete) > 0 {
-		err = s.db.Update(func(tx *bolt.Tx) error {
-			b := tx.Bucket(BucketDecisions)
-			for _, k := range keysToDelete {
-				if err := b.Delete(k); err != nil {
-					return err
-				}
-				count++
-			}
-			return nil
-		})
-	}
-
-	return count, err
+	return count, nil
 }
 
 // ClearDecisions removes all decisions.

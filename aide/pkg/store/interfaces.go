@@ -93,6 +93,17 @@ type InstinctProposalStore interface {
 	CleanupInstinctProposals(rejectedTTL time.Duration) (int, int, error)
 }
 
+// TombstoneStore is a standalone interface (not part of Store) so the gRPC
+// StoreAdapter is not forced to grow tombstone RPCs. Tombstones are recorded
+// server-side by DeleteMemory/DeleteDecision, so capture works over gRPC;
+// direct read/write access is only available with a local DB handle.
+type TombstoneStore interface {
+	AddTombstone(t *memory.Tombstone) error
+	GetTombstone(kind, id string) (*memory.Tombstone, error)
+	ListTombstones() ([]*memory.Tombstone, error)
+	DeleteTombstone(kind, id string) error
+}
+
 // Store combines all domain-specific store interfaces.
 // Implementations must satisfy all sub-interfaces.
 type Store interface {
@@ -139,6 +150,12 @@ type CodeIndexStore interface {
 
 // Verify BoltStore implements Store at compile time.
 var _ Store = (*BoltStore)(nil)
+
+// Verify both local stores implement TombstoneStore at compile time.
+var (
+	_ TombstoneStore = (*BoltStore)(nil)
+	_ TombstoneStore = (*CombinedStore)(nil)
+)
 
 // Verify CodeStore implements CodeIndexStore at compile time.
 var _ CodeIndexStore = (*CodeStore)(nil)

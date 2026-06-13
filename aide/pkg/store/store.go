@@ -18,15 +18,16 @@ var (
 
 // Bucket names.
 var (
-	BucketMemories           = []byte("memories")
-	BucketTasks              = []byte("tasks")
-	BucketMessages           = []byte("messages")
-	BucketDecisions          = []byte("decisions")
-	BucketState              = []byte("state")
-	BucketTokenEvents        = []byte("token_events")
-	BucketObserveEvents      = []byte("observe_events")
-	BucketInstinctProposals  = []byte("instinct_proposals")
-	BucketMeta               = []byte("meta")
+	BucketMemories          = []byte("memories")
+	BucketTasks             = []byte("tasks")
+	BucketMessages          = []byte("messages")
+	BucketDecisions         = []byte("decisions")
+	BucketState             = []byte("state")
+	BucketTokenEvents       = []byte("token_events")
+	BucketObserveEvents     = []byte("observe_events")
+	BucketInstinctProposals = []byte("instinct_proposals")
+	BucketTombstones        = []byte("tombstones")
+	BucketMeta              = []byte("meta")
 )
 
 // BoltStore implements storage using bbolt.
@@ -53,6 +54,7 @@ func NewBoltStore(path string) (*BoltStore, error) {
 			BucketTokenEvents,
 			BucketObserveEvents,
 			BucketInstinctProposals,
+			BucketTombstones,
 			BucketMeta,
 		}
 		for _, bucket := range buckets {

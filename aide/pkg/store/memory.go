@@ -62,11 +62,24 @@ func (s *BoltStore) UpdateMemory(m *memory.Memory) error {
 	})
 }
 
-// DeleteMemory removes a memory by ID.
+// DeleteMemory removes a memory by ID. When the memory existed, a tombstone
+// is recorded in the same transaction so the deletion propagates through
+// share export/import instead of the record resurrecting.
 func (s *BoltStore) DeleteMemory(id string) error {
 	return s.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(BucketMemories)
-		return b.Delete([]byte(id))
+		existed := b.Get([]byte(id)) != nil
+		if err := b.Delete([]byte(id)); err != nil {
+			return err
+		}
+		if !existed {
+			return nil
+		}
+		return putTombstone(tx, &memory.Tombstone{
+			ID:        id,
+			Kind:      memory.TombstoneKindMemory,
+			DeletedAt: time.Now(),
+		})
 	})
 }
 

@@ -84,6 +84,20 @@ type Decision struct {
 	CreatedAt  time.Time `json:"createdAt"`
 }
 
+// Tombstone kinds for deleted shareable records.
+const (
+	TombstoneKindMemory        = "memory"         // ID is a memory ULID
+	TombstoneKindDecisionTopic = "decision-topic" // ID is a decision topic
+)
+
+// Tombstone records the deletion of a shareable record so the deletion
+// propagates through share export/import instead of the record resurrecting.
+type Tombstone struct {
+	ID        string    `json:"id"`   // Memory ULID or decision topic
+	Kind      string    `json:"kind"` // TombstoneKindMemory or TombstoneKindDecisionTopic
+	DeletedAt time.Time `json:"deletedAt"`
+}
+
 // State represents session/agent state (mode, model, etc.)
 type State struct {
 	Key       string    `json:"key"`             // Unique key (e.g., "mode", "modelTier", "agent:abc:mode")

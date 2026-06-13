@@ -92,6 +92,17 @@ func (b *Backend) InstinctStore() store.InstinctProposalStore {
 	return nil
 }
 
+// TombstoneStore returns the tombstone surface when the backend has direct
+// DB access. There are no tombstone RPCs, so in gRPC mode this returns nil
+// and callers degrade gracefully (deletes still record tombstones server-side
+// because capture lives in the store's DeleteMemory/DeleteDecision).
+func (b *Backend) TombstoneStore() store.TombstoneStore {
+	if b.combined != nil {
+		return b.combined
+	}
+	return nil
+}
+
 // rpcCtx returns a context with a 10-second deadline for gRPC calls.
 // This matches the timeout used by grpcStoreAdapter.rpcCtx.
 func (b *Backend) rpcCtx() (context.Context, context.CancelFunc) {

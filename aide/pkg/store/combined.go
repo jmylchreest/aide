@@ -323,6 +323,19 @@ func (c *CombinedStore) DeleteDecision(topic string) (int, error) {
 }
 func (c *CombinedStore) ClearDecisions() (int, error) { return c.bolt.ClearDecisions() }
 
+// --- Tombstone Operations (delegated to BoltStore) ---
+
+func (c *CombinedStore) AddTombstone(t *memory.Tombstone) error { return c.bolt.AddTombstone(t) }
+func (c *CombinedStore) GetTombstone(kind, id string) (*memory.Tombstone, error) {
+	return c.bolt.GetTombstone(kind, id)
+}
+func (c *CombinedStore) ListTombstones() ([]*memory.Tombstone, error) {
+	return c.bolt.ListTombstones()
+}
+func (c *CombinedStore) DeleteTombstone(kind, id string) error {
+	return c.bolt.DeleteTombstone(kind, id)
+}
+
 // --- Message Operations (delegated to BoltStore) ---
 
 func (c *CombinedStore) AddMessage(m *memory.Message) error { return c.bolt.AddMessage(m) }

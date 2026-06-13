@@ -1,14 +1,15 @@
 // Package main provides the share command for exporting/importing aide data
 // as git-friendly markdown files with YAML frontmatter.
 //
-// Shared files live in .aide/shared/ and are designed to be committed to git.
-// Each file is self-contained and usable as LLM context without aide.
-//
-// Layout:
+// New exports write the file-per-record context layout (.aide/context/, see
+// pkg/contextshare): write-once decision version files, one file per
+// shareable memory, tombstones for deletions, and a manifest watermark.
+// The legacy aggregate layout (.aide/shared/) remains importable for
+// back-compat and exportable behind --legacy for teams mid-migration:
 //
 //	.aide/shared/
 //	  decisions/
-//	    <topic>.md          # One file per decision topic
+//	    <topic>.md          # One file per decision topic (latest only)
 //	  memories/
 //	    <category>.md       # One file per category (learning, pattern, gotcha, etc.)
 package main
@@ -24,6 +25,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jmylchreest/aide/aide/pkg/contextshare"
 	"github.com/jmylchreest/aide/aide/pkg/memory"
 )
 
@@ -54,28 +56,33 @@ func cmdShare(dbPath string, args []string) error {
 func printShareUsage() {
 	fmt.Println(`aide share - Export/import aide data as git-friendly markdown
 
-Shared files are written to .aide/shared/ and designed to be committed to git.
-They use YAML frontmatter + markdown body, so they work as LLM context without aide.
+Shared files are written to .aide/context/ and designed to be committed to git.
+One file per record (decision version, memory, tombstone), so re-exports of
+unchanged content are byte-identical and deletions propagate via tombstones.
+The legacy aggregate layout (.aide/shared/) remains importable, and exportable
+via --legacy for teams mid-migration.
 
 Usage:
   aide share <subcommand> [arguments]
 
 Subcommands:
-  export     Export decisions and memories to .aide/shared/
-  import     Import decisions and memories from .aide/shared/
+  export     Export decisions and memories to .aide/context/
+  import     Import decisions and memories from .aide/context/ (or .aide/shared/)
 
 Options:
   export:
     --decisions          Export decisions only
-    --memories           Export memories only (project-scoped by default)
-    --all-memories       Export all memories (including session-specific)
-    --output=DIR         Output directory (default: .aide/shared)
+    --memories           Export memories only (shareable subset)
+    --output=DIR         Output directory (default: .aide/context)
+    --legacy             Write the legacy .aide/shared/ aggregate layout
+    --all-memories       Export all memories (legacy layout only)
 
   import:
     --decisions          Import decisions only
     --memories           Import memories only
-    --input=DIR          Input directory (default: .aide/shared)
+    --input=DIR          Input directory (default: .aide/context, falling back to .aide/shared)
     --dry-run            Show what would be imported without changing anything
+    --force              Import even when the export manifest is missing or stale
 
 Examples:
   aide share export                          # Export everything
@@ -88,15 +95,15 @@ Examples:
 
 func cmdShareExport(dbPath string, args []string) error {
 	projectRoot := projectRoot(dbPath)
-	outputDir := filepath.Join(projectRoot, ".aide", "shared")
-
-	if o := parseFlag(args, "--output="); o != "" {
-		outputDir = o
-	}
+	legacy := hasFlag(args, "--legacy")
 
 	decisionsOnly := hasFlag(args, "--decisions")
 	memoriesOnly := hasFlag(args, "--memories")
 	allMemories := hasFlag(args, "--all-memories")
+
+	if allMemories && !legacy {
+		return fmt.Errorf("--all-memories exports non-shareable memories and is only supported with --legacy; the context layout shares the shareable subset only")
+	}
 
 	// Default: export both
 	exportDecisions := !memoriesOnly
@@ -107,6 +114,37 @@ func cmdShareExport(dbPath string, args []string) error {
 		return fmt.Errorf("failed to connect: %w", err)
 	}
 	defer backend.Close()
+
+	if !legacy {
+		outputDir := filepath.Join(projectRoot, ".aide", "context")
+		if o := parseFlag(args, "--output="); o != "" {
+			outputDir = o
+		}
+		stats, err := contextshare.Export(backend.Store(), backend.TombstoneStore(), outputDir, contextshare.ExportOptions{
+			SkipDecisions: !exportDecisions,
+			SkipMemories:  !exportMemories,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to export: %w", err)
+		}
+		fmt.Printf("Exported to %s\n", outputDir)
+		if exportDecisions {
+			fmt.Printf("  decisions:  %d\n", stats.Decisions)
+		}
+		if exportMemories {
+			fmt.Printf("  memories:   %d\n", stats.Memories)
+		}
+		fmt.Printf("  tombstones: %d\n", stats.Tombstones)
+		if backend.TombstoneStore() == nil {
+			fmt.Fprintln(os.Stderr, "warning: daemon is running; deletions recorded in the daemon's store were not materialised as tombstones")
+		}
+		return nil
+	}
+
+	outputDir := filepath.Join(projectRoot, ".aide", "shared")
+	if o := parseFlag(args, "--output="); o != "" {
+		outputDir = o
+	}
 
 	var decisionsExported, memoriesExported int
 
@@ -305,7 +343,7 @@ func shareExportMemories(b *Backend, outputDir string, includeAll bool) (int, er
 		shareable = memories
 	} else {
 		for _, m := range memories {
-			if isShareableMemory(m) {
+			if contextshare.IsShareableMemory(m) {
 				shareable = append(shareable, m)
 			}
 		}
@@ -434,44 +472,72 @@ func writeMemoriesMarkdown(filename string, cat memory.Category, memories []*mem
 	return nil
 }
 
-// isShareableMemory determines if a memory is worth sharing via git.
-// Memories with scope:global, project:*, or certain categories are shareable.
-// Session-specific memories (session:*) without project scope are excluded.
-func isShareableMemory(m *memory.Memory) bool {
-	// Always share gotchas, patterns, and decisions.
-	// Other categories (learning, issue, discovery, blocker) require explicit tags.
-	switch m.Category {
-	case "gotcha", "pattern":
-		return true
-	case memory.CategoryDecision:
-		return true
-	case memory.CategoryLearning, memory.CategoryIssue, memory.CategoryDiscovery, memory.CategoryBlocker:
-		// Fall through to tag-based checks below
-	case memory.CategoryAbandoned:
-		// Abandoned memories are not shareable by default
-	}
+// --- Import ---
 
-	// Check tags for sharing signals
-	for _, tag := range m.Tags {
-		if tag == "scope:global" {
-			return true
-		}
-		if strings.HasPrefix(tag, "project:") {
+// isContextLayout reports whether dir holds the file-per-record context
+// layout rather than the legacy aggregate layout. A manifest is the
+// definitive marker; a tombstones dir or decision topic subdirectories
+// identify a context tree whose manifest was lost (the import stale guard
+// will then ask for a fresh export).
+func isContextLayout(dir string) bool {
+	if _, err := os.Stat(filepath.Join(dir, contextshare.ManifestName)); err == nil {
+		return true
+	}
+	if _, err := os.Stat(filepath.Join(dir, "tombstones")); err == nil {
+		return true
+	}
+	entries, err := os.ReadDir(filepath.Join(dir, "decisions"))
+	if err != nil {
+		return false
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
 			return true
 		}
 	}
-
 	return false
 }
 
-// --- Import ---
+// hasLegacyRecords reports whether dir contains files the legacy aggregate
+// importer would read: flat .md files directly under decisions/ or memories/.
+// An explicitly passed --input directory with no such files is treated as a
+// context tree, so an empty or manifest-less directory surfaces the stale
+// guard's clear error instead of a silent legacy import of nothing.
+func hasLegacyRecords(dir string) bool {
+	for _, sub := range []string{"decisions", "memories"} {
+		entries, err := os.ReadDir(filepath.Join(dir, sub))
+		if err != nil {
+			continue
+		}
+		for _, entry := range entries {
+			if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".md") {
+				return true
+			}
+		}
+	}
+	return false
+}
 
 func cmdShareImport(dbPath string, args []string) error {
 	projectRoot := projectRoot(dbPath)
-	inputDir := filepath.Join(projectRoot, ".aide", "shared")
 
-	if i := parseFlag(args, "--input="); i != "" {
-		inputDir = i
+	inputDir := parseFlag(args, "--input=")
+	// useContext records when the directory is a context tree by construction:
+	// the default .aide/context/ location, or an explicit --input that holds no
+	// legacy records. Both must hit the context importer even when empty or
+	// manifest-less, so the stale guard produces its clear error instead of
+	// the legacy path silently importing nothing.
+	useContext := false
+	if inputDir == "" {
+		contextDir := filepath.Join(projectRoot, ".aide", "context")
+		if _, err := os.Stat(contextDir); err == nil {
+			inputDir = contextDir
+			useContext = true
+		} else {
+			inputDir = filepath.Join(projectRoot, ".aide", "shared")
+		}
+	} else if !hasLegacyRecords(inputDir) {
+		useContext = true
 	}
 
 	decisionsOnly := hasFlag(args, "--decisions")
@@ -486,6 +552,35 @@ func cmdShareImport(dbPath string, args []string) error {
 		return fmt.Errorf("failed to connect: %w", err)
 	}
 	defer backend.Close()
+
+	if useContext || isContextLayout(inputDir) {
+		stats, err := contextshare.Import(backend.Store(), backend.TombstoneStore(), inputDir, contextshare.ImportOptions{
+			Force:         hasFlag(args, "--force"),
+			DryRun:        dryRun,
+			SkipDecisions: !importDecisions,
+			SkipMemories:  !importMemories,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to import: %w", err)
+		}
+		action := "Imported from"
+		if dryRun {
+			action = "Dry run from"
+		}
+		fmt.Printf("%s %s\n", action, inputDir)
+		if importDecisions {
+			fmt.Printf("  decisions:  %d imported, %d skipped (already exist)\n", stats.DecisionsImported, stats.DecisionsSkipped)
+		}
+		if importMemories {
+			fmt.Printf("  memories:   %d imported, %d skipped (already exist)\n", stats.MemoriesImported, stats.MemoriesSkipped)
+		}
+		fmt.Printf("  tombstones: %d recorded, %d local records deleted, %d ignored\n",
+			stats.TombstonesRecorded, stats.RecordsDeleted, stats.TombstonesIgnored)
+		if backend.TombstoneStore() == nil {
+			fmt.Fprintln(os.Stderr, "warning: daemon is running; incoming deletions were applied, but tombstones could not be recorded locally with their original timestamps")
+		}
+		return nil
+	}
 
 	var decisionsImported, memoriesImported, decisionsSkipped, memoriesSkipped int
 

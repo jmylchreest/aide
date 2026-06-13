@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/jmylchreest/aide/aide/pkg/config"
+	"github.com/jmylchreest/aide/aide/pkg/contextshare"
 	"github.com/jmylchreest/aide/aide/pkg/memory"
 )
 
@@ -135,12 +136,21 @@ func sessionInit(dbPath string, args []string) error {
 		result.StaleAgentsCleaned = cleaned
 	}
 
-	// 3. Auto-import shared data if enabled
+	// 3. Auto-import shared data if enabled. Prefer the file-per-record
+	// context layout; fall back to the legacy shared/ aggregate layout.
 	shareImport := hasFlag(args, "--share-import") || config.Get().Share.AutoImport
 	if shareImport {
 		projectRoot := projectRoot(dbPath)
+		contextDir := filepath.Join(projectRoot, ".aide", "context")
 		sharedDir := filepath.Join(projectRoot, ".aide", "shared")
-		if _, statErr := os.Stat(sharedDir); statErr == nil {
+		if _, statErr := os.Stat(contextDir); statErr == nil {
+			stats, err := contextshare.Import(backend.Store(), backend.TombstoneStore(), contextDir, contextshare.ImportOptions{})
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "warning: context auto-import skipped: %v\n", err)
+			} else {
+				result.SharedImported = stats.DecisionsImported + stats.MemoriesImported
+			}
+		} else if _, statErr := os.Stat(sharedDir); statErr == nil {
 			imported, _, _ := shareImportDecisions(backend, sharedDir, false)
 			memImported, _, _ := shareImportMemories(backend, sharedDir, false)
 			result.SharedImported = imported + memImported
