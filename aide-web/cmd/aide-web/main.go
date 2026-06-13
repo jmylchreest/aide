@@ -40,15 +40,18 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	url := displayURL(cfg.Addr, cfg.Port)
 	go func() {
-		log.Printf("aide-web listening on %s", httpServer.Addr)
+		// Print the full scheme+host+port so the line is click-to-open in most
+		// terminals.
+		log.Printf("aide-web listening on %s", url)
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("server error: %v", err)
 		}
 	}()
 
 	if cfg.Open {
-		openBrowser(fmt.Sprintf("http://localhost:%d", cfg.Port))
+		openBrowser(url)
 	}
 
 	<-ctx.Done()
@@ -84,4 +87,16 @@ func openBrowser(url string) {
 			return
 		}
 	}
+}
+
+// displayURL builds a clickable http URL from the listen address and port.
+// Wildcard binds (0.0.0.0, ::) and an empty address are shown as localhost so
+// the printed link is openable when clicked; an explicit host is kept as-is.
+func displayURL(addr string, port int) string {
+	host := addr
+	switch host {
+	case "", "0.0.0.0", "::", "[::]":
+		host = "localhost"
+	}
+	return fmt.Sprintf("http://%s:%d", host, port)
 }

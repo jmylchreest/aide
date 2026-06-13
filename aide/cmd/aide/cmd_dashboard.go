@@ -57,8 +57,10 @@ func dashboardRun(args []string) error {
 		}
 	}
 
-	// Execute aide-web with the provided arguments.
-	cmd := exec.Command(webPath, args...)
+	// Execute aide-web with the provided arguments. `aide dashboard` opens the
+	// browser by default; --open is prepended so a later explicit --open=false
+	// in the user's args still wins (flag parsing is last-write).
+	cmd := exec.Command(webPath, append([]string{"--open"}, args...)...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -334,12 +336,13 @@ Commands:
 Run options (passed through to aide-web):
   --port PORT    Port to listen on (default: 8080)
   --addr ADDR    Address to bind to (default: 127.0.0.1)
-  --open         Open browser automatically
+  --open[=false] Open browser on startup (default: true for 'aide dashboard')
   --dev          Enable development mode
 
 Examples:
-  aide dashboard                     # Start the dashboard
+  aide dashboard                     # Start the dashboard and open a browser
   aide dashboard run --port 3000     # Start on a specific port
+  aide dashboard run --open=false    # Start without opening a browser
   aide dashboard download            # Download aide-web
   aide dashboard download v0.0.50    # Download a specific version
   aide dashboard upgrade             # Upgrade to latest version
