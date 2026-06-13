@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jmylchreest/aide/aide/pkg/config"
 	"github.com/jmylchreest/aide/aide/pkg/store"
 )
 
@@ -41,7 +42,7 @@ Options:
     --json           Output as JSON
 
   cleanup:
-    --max-age=DURATION  Max age (default: 720h = 30 days)
+    --max-age=DURATION  Max age (default: cleanup.token_max_age, 365d; 0 = keep all)
 
 Note: All token counts are estimates based on calibrated per-language ratios.
 Token events are recorded automatically by hooks via the observe stream
@@ -186,7 +187,7 @@ func cmdTokenStats(dbPath string, args []string) error {
 
 // cmdTokenCleanup removes old token events.
 func cmdTokenCleanup(dbPath string, args []string) error {
-	maxAge := 30 * 24 * time.Hour // 30 days default
+	maxAge := config.Get().Cleanup.TokenMaxAgeDuration()
 
 	if d := parseFlag(args, "--max-age="); d != "" {
 		parsed, err := time.ParseDuration(d)
@@ -194,6 +195,11 @@ func cmdTokenCleanup(dbPath string, args []string) error {
 			return fmt.Errorf("invalid --max-age duration: %w", err)
 		}
 		maxAge = parsed
+	}
+
+	if maxAge <= 0 {
+		fmt.Println("Token retention is disabled (max-age 0): no token events pruned.")
+		return nil
 	}
 
 	backend, st, err := getStoreOrFail(dbPath)

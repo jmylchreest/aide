@@ -162,6 +162,9 @@ func (s *BoltStore) DeleteTask(id string) error {
 // maxAge. Pending/claimed/blocked tasks are never pruned — they may still
 // be wanted regardless of age. Returns count deleted.
 func (s *BoltStore) PruneCompletedTasks(maxAge time.Duration) (int, error) {
+	if maxAge <= 0 {
+		return 0, nil // 0 (or less) disables pruning: retain done tasks forever
+	}
 	cutoff := time.Now().Add(-maxAge)
 	var deleted int
 	var keysToDelete [][]byte

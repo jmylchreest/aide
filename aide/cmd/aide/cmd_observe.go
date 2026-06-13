@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jmylchreest/aide/aide/pkg/config"
 	"github.com/jmylchreest/aide/aide/pkg/observe"
 	"github.com/jmylchreest/aide/aide/pkg/store"
 )
@@ -34,7 +35,7 @@ Subcommands:
   summary     Aggregate counts by kind / category
   efficiency  Token efficiency: counterfactual vs actual reads
   record      Record a one-off event (used by hooks / scripts)
-  cleanup     Remove events older than --age (default 30d)
+  cleanup     Remove events older than --age (default: cleanup.observe_max_age; 0 = keep all)
 
 record options:
   --kind=K         tool_call | span | hook | injection | session   (required)
@@ -57,7 +58,7 @@ Options for list / summary:
   --json           Machine-readable output
 
 cleanup options:
-  --age=DUR        Delete events older than DUR (default 720h / 30d)`)
+  --age=DUR        Delete events older than DUR (default: cleanup.observe_max_age, 365d; --age=0 keeps all)`)
 }
 
 func cmdObserveList(dbPath string, args []string) error {
@@ -400,13 +401,17 @@ func fmtInt(n int) string {
 }
 
 func cmdObserveCleanup(dbPath string, args []string) error {
-	age := 30 * 24 * time.Hour
+	age := config.Get().Cleanup.ObserveMaxAgeDuration()
 	if v := parseFlag(args, "--age="); v != "" {
 		dur, err := parseDurationDays(v)
 		if err != nil {
 			return fmt.Errorf("invalid --age: %w", err)
 		}
 		age = dur
+	}
+	if age <= 0 {
+		fmt.Println("Observe retention is disabled (age 0): no events pruned.")
+		return nil
 	}
 	backend, err := NewBackend(dbPath)
 	if err != nil {

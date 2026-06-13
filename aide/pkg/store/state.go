@@ -118,6 +118,9 @@ func (s *BoltStore) ClearState(agentID string) (int, error) {
 // CleanupStaleState removes agent-specific state entries older than maxAge.
 // Global state (no agent) is preserved.
 func (s *BoltStore) CleanupStaleState(maxAge time.Duration) (int, error) {
+	if maxAge <= 0 {
+		return 0, nil // 0 (or less) disables pruning: retain state forever
+	}
 	var count int
 	var keysToDelete [][]byte
 	cutoff := time.Now().Add(-maxAge)

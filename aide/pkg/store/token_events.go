@@ -142,6 +142,9 @@ func (s *BoltStore) TokenStats(sessionID string, since, until time.Time) (*memor
 
 // CleanupTokenEvents removes events older than maxAge. Returns the count of deleted events.
 func (s *BoltStore) CleanupTokenEvents(maxAge time.Duration) (int, error) {
+	if maxAge <= 0 {
+		return 0, nil // 0 (or less) disables pruning: retain token events forever
+	}
 	cutoff := time.Now().Add(-maxAge)
 	var keysToDelete [][]byte
 

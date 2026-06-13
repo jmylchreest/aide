@@ -199,6 +199,9 @@ func (s *BoltStore) ListObserveEvents(f ObserveFilter) ([]*observe.Event, error)
 // CleanupObserveEvents removes events older than maxAge. Returns the count
 // deleted. Run periodically to keep the bucket bounded.
 func (s *BoltStore) CleanupObserveEvents(maxAge time.Duration) (int, error) {
+	if maxAge <= 0 {
+		return 0, nil // 0 (or less) disables pruning: retain events forever
+	}
 	cutoff := time.Now().Add(-maxAge)
 	var keys [][]byte
 	err := s.db.View(func(tx *bolt.Tx) error {
