@@ -4,17 +4,36 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/jmylchreest/aide/aide/pkg/config"
 )
 
+// isolateHome points HOME (and USERPROFILE on Windows) at a fresh temp dir so a
+// test that triggers a config load sees an empty global ~/.aide/config/aide.json
+// rather than the developer's real one. buildKoanf reads the global file on
+// every Load/Resolve, so without this any such test would be non-hermetic.
+// Returns the temp home so tests can write a global config into it.
+func isolateHome(t *testing.T) string {
+	t.Helper()
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	if runtime.GOOS == "windows" {
+		t.Setenv("USERPROFILE", home)
+	}
+	return home
+}
+
 // newConfigProject returns a dbPath whose derived project root is an empty temp
 // dir. The config subcommands never open the database — they read/write only
-// .aide/config/aide.json — so no backend or memory.db is created here.
+// .aide/config/aide.json — so no backend or memory.db is created here. It also
+// isolates HOME so the resolved config never reads the developer's real global
+// file (buildKoanf layers ~/.aide/config/aide.json on every load).
 func newConfigProject(t *testing.T) (dbPath, root string) {
 	t.Helper()
+	isolateHome(t)
 	root = t.TempDir()
 	// projectRoot(dbPath) strips three path segments, so this dbPath maps back
 	// to root: <root>/.aide/memory/memory.db.
@@ -314,6 +333,147 @@ func TestConfigSetEnvOverrideNote(t *testing.T) {
 	if !strings.Contains(out, "overridden by env AIDE_MODE") {
 		t.Errorf("set output should note the env override, got %q", out)
 	}
+}
+
+// readGlobalConfig returns the parsed global ~/.aide/config/aide.json (under the
+// isolated HOME), or nil when it is absent.
+func readGlobalConfig(t *testing.T) map[string]any {
+	t.Helper()
+	path := config.GlobalFilePath()
+	if path == "" {
+		t.Fatal("GlobalFilePath() empty; isolateHome must run first")
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		t.Fatalf("reading global config: %v", err)
+	}
+	var m map[string]any
+	if err := json.Unmarshal(data, &m); err != nil {
+		t.Fatalf("parsing global config: %v", err)
+	}
+	return m
+}
+
+func TestConfigSetGlobalWritesGlobalNotProject(t *testing.T) {
+	dbPath, root := newConfigProject(t)
+
+	if err := cmdConfigSet(dbPath, []string{"--global", "mode", "plan"}); err != nil {
+		t.Fatalf("set --global: %v", err)
+	}
+
+	// The global file carries the value...
+	gm := readGlobalConfig(t)
+	if gm == nil || gm["mode"] != "plan" {
+		t.Fatalf("global mode = %#v, want plan", gm["mode"])
+	}
+	// ...and the project file is untouched (never created).
+	if _, err := os.Stat(config.FilePath(root)); !os.IsNotExist(err) {
+		t.Errorf("project config should not exist after set --global, stat err = %v", err)
+	}
+
+	// Resolved Load reflects the global value (no project override, no env).
+	cfg, err := config.Load(root)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.Mode != "plan" {
+		t.Errorf("resolved mode = %q, want plan from global", cfg.Mode)
+	}
+}
+
+func TestConfigUnsetGlobalRemovesFromGlobal(t *testing.T) {
+	dbPath, _ := newConfigProject(t)
+
+	if err := cmdConfigSet(dbPath, []string{"--global", "mode", "plan"}); err != nil {
+		t.Fatalf("set --global: %v", err)
+	}
+	if err := cmdConfigUnset(dbPath, []string{"--global", "mode"}); err != nil {
+		t.Fatalf("unset --global: %v", err)
+	}
+
+	gm := readGlobalConfig(t)
+	if gm != nil {
+		if _, ok := gm["mode"]; ok {
+			t.Errorf("mode should be removed from global file, got %#v", gm)
+		}
+	}
+}
+
+func TestConfigPathGlobalPrintsGlobal(t *testing.T) {
+	dbPath, root := newConfigProject(t)
+
+	// Without --global: project path.
+	projOut := captureStdout(t, func() {
+		if err := cmdConfigPath(dbPath, nil); err != nil {
+			t.Fatalf("path: %v", err)
+		}
+	})
+	if got, want := strings.TrimSpace(projOut), config.FilePath(root); got != want {
+		t.Errorf("path = %q, want project path %q", got, want)
+	}
+
+	// With --global: global path.
+	globOut := captureStdout(t, func() {
+		if err := cmdConfigPath(dbPath, []string{"--global"}); err != nil {
+			t.Fatalf("path --global: %v", err)
+		}
+	})
+	if got, want := strings.TrimSpace(globOut), config.GlobalFilePath(); got != want {
+		t.Errorf("path --global = %q, want global path %q", got, want)
+	}
+}
+
+// TestConfigShowAllSourceLayers exercises the four source labels in their
+// resolution-precedence order: env > project file > global file > default.
+func TestConfigShowAllSourceLayers(t *testing.T) {
+	dbPath, root := newConfigProject(t)
+
+	// global-only key: cleanup.interval set in the global file.
+	if err := cmdConfigSet(dbPath, []string{"--global", "cleanup.interval", "30m"}); err != nil {
+		t.Fatalf("set --global cleanup.interval: %v", err)
+	}
+	// project-file key: mode set in the project file.
+	if err := cmdConfigSet(dbPath, []string{"mode", "plan"}); err != nil {
+		t.Fatalf("set mode: %v", err)
+	}
+	// env key: cleanup.enabled overridden by env.
+	t.Setenv("AIDE_CLEANUP_ENABLED", "0")
+
+	views, err := buildConfigKeyViews(root, mustLoad(t, root))
+	if err != nil {
+		t.Fatalf("buildConfigKeyViews: %v", err)
+	}
+	src := map[string]string{}
+	for _, v := range views {
+		src[v.Key] = v.Source
+	}
+
+	if got := src["cleanup.interval"]; got != "global" {
+		t.Errorf("cleanup.interval source = %q, want global", got)
+	}
+	if got := src["mode"]; got != "file" {
+		t.Errorf("mode source = %q, want file", got)
+	}
+	if got := src["cleanup.enabled"]; !strings.HasPrefix(got, "env") {
+		t.Errorf("cleanup.enabled source = %q, want env (...)", got)
+	}
+	// A key set in no source at all reports default.
+	if got := src["index_workers"]; got != "default" {
+		t.Errorf("index_workers source = %q, want default", got)
+	}
+}
+
+// mustLoad loads the resolved config for root or fails the test.
+func mustLoad(t *testing.T, root string) *config.Config {
+	t.Helper()
+	cfg, err := config.Load(root)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	return cfg
 }
 
 // dig walks a parsed JSON map down a chain of map keys, failing the test if any

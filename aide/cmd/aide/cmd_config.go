@@ -2,15 +2,17 @@
 // resolved aide configuration.
 //
 // Configuration flows from (in increasing precedence) hard-coded defaults →
-// .aide/config/aide.json → AIDE_* environment variables (see pkg/config). The
-// read-only subcommands (show, get, path) resolve values through the exact same
-// layering as the daemon via config.Resolve, so what you see is what the rest of
-// aide sees. The write subcommands (set, unset) deliberately edit only
-// .aide/config/aide.json — they never touch env or any other file — and store
-// values with their real JSON type (bool / number / array, not a string) so the
-// koanf loader round-trips them. The set of settable keys, and the Go type each
-// coerces to, comes entirely from config.Schema() so the CLI and the loader can
-// never disagree about what exists.
+// ~/.aide/config/aide.json global file → project .aide/config/aide.json →
+// AIDE_* environment variables (see pkg/config). The read-only subcommands
+// (show, get) resolve values through the exact same layering as the daemon via
+// config.Resolve, so what you see is what the rest of aide sees. The write
+// subcommands (set, unset) edit only the project .aide/config/aide.json by
+// default, or the global ~/.aide/config/aide.json with --global — they never
+// touch env or any other file — and store values with their real JSON type
+// (bool / number / array, not a string) so the koanf loader round-trips them.
+// path prints the project file, or the global file with --global. The set of
+// settable keys, and the Go type each coerces to, comes entirely from
+// config.Schema() so the CLI and the loader can never disagree about what exists.
 package main
 
 import (
@@ -39,24 +41,28 @@ func cmdConfig(dbPath string, args []string) error {
 func printConfigUsage() {
 	fmt.Println(`aide config - Inspect and edit aide configuration
 
-Configuration resolves from defaults → .aide/config/aide.json → AIDE_* env vars
-(later sources win). Keys are koanf dot-paths, e.g. share.decisions.export or
-cleanup.observe_max_age. set/unset edit only .aide/config/aide.json; env-var
-overrides are reported but never written.
+Configuration resolves from defaults → ~/.aide/config/aide.json (global) →
+project .aide/config/aide.json → AIDE_* env vars (later sources win). Keys are
+koanf dot-paths, e.g. share.decisions.export or cleanup.observe_max_age. set,
+unset and path act on the project file by default, or the global file with
+--global; env-var overrides are reported but never written.
 
 Usage:
   aide config <subcommand> [arguments]
 
 Subcommands:
   show [--all] [--json]   Show the resolved config (grouped). --all lists every
-                          key with its value, default and source; --json emits
-                          machine-readable output.
+                          key with its value, default and source (env/file/
+                          global/default); --json emits machine-readable output.
   get <key>               Print one resolved value.
-  set <key> <value...>    Set a value in aide.json. List keys take multiple args
-                          or a single comma-joined arg; set with no values clears
-                          a list to [].
-  unset <key>             Remove a key from aide.json (reverts to default/env).
-  path                    Print the path to aide.json.
+  set [--global] <key> <value...>
+                          Set a value in aide.json (--global writes the global
+                          file). List keys take multiple args or a single
+                          comma-joined arg; set with no values clears a list to [].
+  unset [--global] <key>  Remove a key from aide.json (reverts to default/env);
+                          --global edits the global file.
+  path [--global]         Print the path to aide.json; --global prints the
+                          global file path.
 
 Examples:
   aide config show
@@ -64,17 +70,48 @@ Examples:
   aide config show --json
   aide config get share.decisions.export
   aide config set share.decisions.export false
+  aide config set --global cleanup.observe_max_age 720h
   aide config set share.memories.export_filter.exclude scope:global session:*
   aide config set share.memories.export_filter.exclude scope:global,session:*
   aide config unset share.decisions.export
-  aide config path`)
+  aide config unset --global cleanup.observe_max_age
+  aide config path
+  aide config path --global`)
 }
 
 // --- path ---
 
-func cmdConfigPath(dbPath string, _ []string) error {
+func cmdConfigPath(dbPath string, args []string) error {
+	if hasFlag(args, "--global") {
+		path := config.GlobalFilePath()
+		if path == "" {
+			return errNoGlobalHome
+		}
+		fmt.Println(path)
+		return nil
+	}
 	fmt.Println(config.FilePath(projectRoot(dbPath)))
 	return nil
+}
+
+// errNoGlobalHome is returned by the --global write/path paths when the user's
+// home directory cannot be resolved, so the global config file location is
+// unknown. Without a home there is nowhere to read or write the global file.
+var errNoGlobalHome = fmt.Errorf("cannot resolve --global config path: home directory is unknown")
+
+// targetConfigPath returns the file path the write subcommands (set, unset)
+// should edit: the global ~/.aide/config/aide.json when --global is present,
+// else the project file. It errors when --global is asked for but the home
+// directory cannot be resolved.
+func targetConfigPath(dbPath string, args []string) (string, error) {
+	if hasFlag(args, "--global") {
+		path := config.GlobalFilePath()
+		if path == "" {
+			return "", errNoGlobalHome
+		}
+		return path, nil
+	}
+	return config.FilePath(projectRoot(dbPath)), nil
 }
 
 // --- get ---
@@ -109,7 +146,7 @@ type configKeyView struct {
 	Key     string `json:"key"`
 	Value   any    `json:"value"`
 	Default any    `json:"default"`
-	Source  string `json:"source"` // file | env | default
+	Source  string `json:"source"` // env | file | global | default
 }
 
 func cmdConfigShow(dbPath string, args []string) error {
@@ -149,7 +186,8 @@ func buildConfigKeyViews(root string, cfg *config.Config) ([]configKeyView, erro
 	if err != nil {
 		return nil, err
 	}
-	fileKeys := fileKeySet(root)
+	fileKeys := fileKeySet(config.FilePath(root))
+	globalKeys := fileKeySet(config.GlobalFilePath())
 	defCfg := defaultConfig()
 	defK := defaultKoanf()
 
@@ -160,7 +198,7 @@ func buildConfigKeyViews(root string, cfg *config.Config) ([]configKeyView, erro
 			Key:     fi.Key,
 			Value:   resolveValue(k, cfg, fi),
 			Default: resolveValue(defK, defCfg, fi),
-			Source:  keySource(fi.Key, fileKeys),
+			Source:  keySource(fi.Key, fileKeys, globalKeys),
 		})
 	}
 	return views, nil
@@ -259,8 +297,10 @@ func cmdConfigSet(dbPath string, args []string) error {
 		return err
 	}
 
-	root := projectRoot(dbPath)
-	path := config.FilePath(root)
+	path, err := targetConfigPath(dbPath, args)
+	if err != nil {
+		return err
+	}
 	m, err := readConfigMap(path)
 	if err != nil {
 		return err
@@ -345,8 +385,10 @@ func cmdConfigUnset(dbPath string, args []string) error {
 		return unknownKeyError(key)
 	}
 
-	root := projectRoot(dbPath)
-	path := config.FilePath(root)
+	path, err := targetConfigPath(dbPath, args)
+	if err != nil {
+		return err
+	}
 	m, err := readConfigMap(path)
 	if err != nil {
 		return err
@@ -518,11 +560,16 @@ func emptyDash(s string) string {
 
 // --- source detection ---
 
-// fileKeySet parses aide.json (if present) and returns the set of dotted leaf
-// paths it explicitly contains. Used to report a key's source as `file`.
-func fileKeySet(root string) map[string]bool {
+// fileKeySet parses the aide.json at path (if present) and returns the set of
+// dotted leaf paths it explicitly contains. Used to report a key's source as
+// `file` (project path) or `global` (~/.aide path). An empty path — e.g. when
+// the global path can't be resolved — yields the empty set.
+func fileKeySet(path string) map[string]bool {
 	out := map[string]bool{}
-	data, err := os.ReadFile(config.FilePath(root))
+	if path == "" {
+		return out
+	}
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return out
 	}
@@ -549,17 +596,22 @@ func collectLeafKeys(m map[string]any, prefix string, out map[string]bool) {
 	}
 }
 
-// keySource reports where a resolved key's value came from: `file` when the
-// dotted path is present in aide.json, `env` when a mapped AIDE_* var is set,
-// else `default`. File wins over env in the label only when the file actually
-// carries the key; otherwise an env override is reported even though it sits at
-// higher precedence, because that is the value the user sees.
-func keySource(key string, fileKeys map[string]bool) string {
+// keySource reports where a resolved key's value came from, in resolution-
+// precedence order: `env` when a mapped AIDE_* var is set, then `file` when the
+// dotted path is present in the project aide.json, then `global` when it is
+// present in the ~/.aide global aide.json, else `default`. An env override is
+// reported first because it sits at the top of precedence and is the value the
+// user actually sees; below that, the project file shadows the global file just
+// as buildKoanf layers them.
+func keySource(key string, fileKeys, globalKeys map[string]bool) string {
 	if name, ok := envOverride(key); ok {
 		return "env (" + name + ")"
 	}
 	if fileKeys[key] {
 		return "file"
+	}
+	if globalKeys[key] {
+		return "global"
 	}
 	return "default"
 }

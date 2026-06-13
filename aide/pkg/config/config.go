@@ -1,8 +1,9 @@
 // Package config centralizes runtime configuration for the aide CLI and
 // daemon. Values flow from (in increasing precedence): defaults → optional
-// .aide/config/aide.json → AIDE_* environment variables → top-level CLI
-// overrides written back into the env (e.g. --project-root sets
-// AIDE_PROJECT_ROOT before Load is called).
+// ~/.aide/config/aide.json global file → optional project .aide/config/aide.json
+// → AIDE_* environment variables → top-level CLI overrides written back into the
+// env (e.g. --project-root sets AIDE_PROJECT_ROOT before Load is called). The
+// global file is config only; data and the database stay project-scoped.
 //
 // Callers ask for the singleton via Get(); the bootstrap path in main.go is
 // responsible for invoking Load() exactly once at startup.
@@ -11,6 +12,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"reflect"
 	"runtime"
 	"strings"
@@ -449,12 +451,40 @@ func FilePath(projectRoot string) string {
 	return projectRoot + "/" + ConfigFileName
 }
 
-// buildKoanf layers the three configuration sources (hard-coded defaults →
-// optional .aide/config/aide.json → AIDE_* environment variables) into a koanf
-// instance in the order that gives each source precedence over the previous.
-// Both Load (which unmarshals into a typed Config and caches it) and the
-// read-only `aide config` command resolve values through this single helper so
-// the two never drift apart.
+// GlobalFilePath returns the absolute path of the user-global config file,
+// ~/.aide/config/aide.json. This is config only — never data or a database. It
+// sits between the hard-coded defaults and the per-project file in precedence,
+// so a value set here applies to every project unless that project overrides it.
+// Returns "" when the home directory cannot be resolved, in which case the
+// loader simply skips the global layer. The leaf name is taken from
+// ConfigFileName so the global and project files always share a basename.
+func GlobalFilePath() string {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return ""
+	}
+	return filepath.Join(home, ".aide", "config", filepath.Base(ConfigFileName))
+}
+
+// loadJSONFile merges a JSON config file into k. A missing file is tolerated
+// (config files are optional at every layer); only real parse errors surface.
+func loadJSONFile(k *koanf.Koanf, path string) error {
+	if err := k.Load(file.Provider(path), json.Parser()); err != nil {
+		// Missing file is fine; only surface real parse errors.
+		if !strings.Contains(err.Error(), "no such file") {
+			return fmt.Errorf("loading %s: %w", path, err)
+		}
+	}
+	return nil
+}
+
+// buildKoanf layers the four configuration sources (hard-coded defaults →
+// optional ~/.aide/config/aide.json global file → optional project
+// .aide/config/aide.json → AIDE_* environment variables) into a koanf instance
+// in the order that gives each source precedence over the previous. Both Load
+// (which unmarshals into a typed Config and caches it) and the read-only
+// `aide config` command resolve values through this single helper so the two
+// never drift apart.
 func buildKoanf(projectRoot string) (*koanf.Koanf, error) {
 	k := koanf.New(".")
 
@@ -462,13 +492,17 @@ func buildKoanf(projectRoot string) (*koanf.Koanf, error) {
 		return nil, fmt.Errorf("loading defaults: %w", err)
 	}
 
+	// Global user config sits above the defaults and below the project file, so
+	// a user-wide preference applies everywhere unless a project overrides it.
+	if global := GlobalFilePath(); global != "" {
+		if err := loadJSONFile(k, global); err != nil {
+			return nil, err
+		}
+	}
+
 	if projectRoot != "" {
-		path := FilePath(projectRoot)
-		if err := k.Load(file.Provider(path), json.Parser()); err != nil {
-			// Missing file is fine; only surface real parse errors.
-			if !strings.Contains(err.Error(), "no such file") {
-				return nil, fmt.Errorf("loading %s: %w", path, err)
-			}
+		if err := loadJSONFile(k, FilePath(projectRoot)); err != nil {
+			return nil, err
 		}
 	}
 
@@ -494,12 +528,12 @@ func buildKoanf(projectRoot string) (*koanf.Koanf, error) {
 	return k, nil
 }
 
-// Load reads configuration in this precedence order (each source overrides
-// the previous): hard-coded defaults → optional .aide/config/aide.json →
-// AIDE_* environment variables. The result is unmarshalled into a typed
-// Config and stashed for retrieval via Get. Calling Load again replaces
-// the previous value — useful in tests; production callers invoke it once
-// at startup.
+// Load reads configuration in this precedence order (each source overrides the
+// previous): hard-coded defaults → optional ~/.aide/config/aide.json global file
+// → optional project .aide/config/aide.json → AIDE_* environment variables. The
+// result is unmarshalled into a typed Config and stashed for retrieval via Get.
+// Calling Load again replaces the previous value — useful in tests; production
+// callers invoke it once at startup.
 func Load(projectRoot string) (*Config, error) {
 	k, err := buildKoanf(projectRoot)
 	if err != nil {
@@ -517,8 +551,9 @@ func Load(projectRoot string) (*Config, error) {
 	return cfg, nil
 }
 
-// Resolve layers the same three sources as Load (defaults → file → env) and
-// returns the resulting koanf tree without caching or mutating package state.
+// Resolve layers the same sources as Load (defaults → global file → project
+// file → env) and returns the resulting koanf tree without caching or mutating
+// package state.
 // The `aide config` command uses it to read resolved values and enumerate keys
 // for `show` without disturbing the singleton that the rest of the process
 // relies on.

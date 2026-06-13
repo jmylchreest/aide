@@ -3,8 +3,24 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
+
+// isolateHome points HOME (and USERPROFILE on Windows) at a fresh temp dir so a
+// test that triggers a config load sees an empty global ~/.aide/config/aide.json
+// rather than the developer's real one. buildKoanf reads the global file on
+// every Load/Resolve, so without this any such test would be non-hermetic.
+// t.Setenv restores the previous value at test end.
+func isolateHome(t *testing.T) string {
+	t.Helper()
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	if runtime.GOOS == "windows" {
+		t.Setenv("USERPROFILE", home)
+	}
+	return home
+}
 
 func TestEnvToKey(t *testing.T) {
 	cases := []struct {
@@ -37,6 +53,7 @@ func TestEnvToKey(t *testing.T) {
 }
 
 func TestLoad_FromEnv(t *testing.T) {
+	isolateHome(t)
 	t.Setenv("AIDE_FORCE_INIT", "1")
 	t.Setenv("AIDE_PROJECT_ROOT", "/some/path")
 	t.Setenv("AIDE_MODE", "autopilot")
@@ -89,6 +106,7 @@ func TestLoad_FromEnv(t *testing.T) {
 }
 
 func TestLoad_LegacyDisabledEnvVarsInvert(t *testing.T) {
+	isolateHome(t)
 	t.Setenv("AIDE_MEMORY_SCORING_DISABLED", "1")
 	t.Setenv("AIDE_MEMORY_DECAY_DISABLED", "1")
 	t.Setenv("AIDE_CODE_STORE_DISABLE", "1")
@@ -109,6 +127,7 @@ func TestLoad_LegacyDisabledEnvVarsInvert(t *testing.T) {
 }
 
 func TestLoad_DefaultsAreOn(t *testing.T) {
+	isolateHome(t)
 	// Clear every disable/enable variant so defaults can show through.
 	for _, name := range []string{
 		"AIDE_MEMORY_SCORING_ENABLED", "AIDE_MEMORY_SCORING_DISABLED",
@@ -134,6 +153,7 @@ func TestLoad_DefaultsAreOn(t *testing.T) {
 }
 
 func TestLoad_FileOverriddenByEnv(t *testing.T) {
+	isolateHome(t)
 	dir := t.TempDir()
 	cfgDir := filepath.Join(dir, ".aide", "config")
 	if err := os.MkdirAll(cfgDir, 0o755); err != nil {
@@ -247,6 +267,7 @@ func TestShareConfigUnmarshalsBoolPointers(t *testing.T) {
 	// koanf must leave an absent *bool as nil (so the type default applies) and
 	// populate an explicit one. A file sets decisions.export=false; memories is
 	// untouched.
+	isolateHome(t)
 	dir := t.TempDir()
 	cfgDir := filepath.Join(dir, ".aide", "config")
 	if err := os.MkdirAll(cfgDir, 0o755); err != nil {
@@ -290,6 +311,7 @@ func TestShareConfigExplicitEmptyExcludeClearsDefault(t *testing.T) {
 	// inherits the default. This relies on koanf/mapstructure unmarshalling an
 	// absent slice to nil but an explicit "[]" to a non-nil empty slice; guard
 	// that contract here so a parser change can't silently break the override.
+	isolateHome(t)
 	dir := t.TempDir()
 	cfgDir := filepath.Join(dir, ".aide", "config")
 	if err := os.MkdirAll(cfgDir, 0o755); err != nil {
@@ -320,5 +342,80 @@ func TestGet_BeforeLoad(t *testing.T) {
 	}
 	if c.Mode != "" {
 		t.Errorf("zero-value Config should have empty Mode, got %q", c.Mode)
+	}
+}
+
+// writeGlobalConfig writes raw JSON into the isolated HOME's
+// ~/.aide/config/aide.json. Call isolateHome(t) first so this lands in a temp
+// dir, never the developer's real global file.
+func writeGlobalConfig(t *testing.T, contents string) {
+	t.Helper()
+	path := GlobalFilePath()
+	if path == "" {
+		t.Fatal("GlobalFilePath() empty; isolateHome must set HOME first")
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// writeProjectConfig writes raw JSON into root/.aide/config/aide.json.
+func writeProjectConfig(t *testing.T, root, contents string) {
+	t.Helper()
+	path := FilePath(root)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(contents), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGlobalFilePathShape(t *testing.T) {
+	home := isolateHome(t)
+	want := filepath.Join(home, ".aide", "config", "aide.json")
+	if got := GlobalFilePath(); got != want {
+		t.Errorf("GlobalFilePath() = %q, want %q", got, want)
+	}
+}
+
+// TestLoad_GlobalLayerPrecedence walks the full precedence chain for a single
+// key: a value set only in the global file is reflected; a project file value
+// shadows it; an AIDE_* env var shadows both.
+func TestLoad_GlobalLayerPrecedence(t *testing.T) {
+	isolateHome(t)
+	root := t.TempDir()
+
+	// 1. Global only — global value wins over the (empty) default.
+	writeGlobalConfig(t, `{"mode":"global-mode"}`)
+	cfg, err := Load(root)
+	if err != nil {
+		t.Fatalf("Load (global only): %v", err)
+	}
+	if cfg.Mode != "global-mode" {
+		t.Errorf("global only: Mode = %q, want global-mode", cfg.Mode)
+	}
+
+	// 2. Project file set to a different value — project shadows global.
+	writeProjectConfig(t, root, `{"mode":"project-mode"}`)
+	cfg, err = Load(root)
+	if err != nil {
+		t.Fatalf("Load (project over global): %v", err)
+	}
+	if cfg.Mode != "project-mode" {
+		t.Errorf("project over global: Mode = %q, want project-mode", cfg.Mode)
+	}
+
+	// 3. Env var set — env shadows both file layers.
+	t.Setenv("AIDE_MODE", "env-mode")
+	cfg, err = Load(root)
+	if err != nil {
+		t.Fatalf("Load (env over files): %v", err)
+	}
+	if cfg.Mode != "env-mode" {
+		t.Errorf("env over files: Mode = %q, want env-mode", cfg.Mode)
 	}
 }

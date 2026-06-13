@@ -83,6 +83,7 @@ func TestLookup(t *testing.T) {
 func TestResolveSharesBuildKoanf(t *testing.T) {
 	// Resolve must layer the same sources as Load: an env override wins over the
 	// defaults confmap, confirming both paths share buildKoanf.
+	isolateHome(t)
 	t.Setenv("AIDE_MODE", "autopilot")
 	k, err := Resolve("")
 	if err != nil {

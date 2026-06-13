@@ -215,6 +215,7 @@ func TestLoadAideConfigInvalidJSON(t *testing.T) {
 // =============================================================================
 
 func TestLoadGrammarsConfigEnvURL(t *testing.T) {
+	isolateHome(t)
 	tmpDir := t.TempDir()
 
 	// Set env var to override URL.
@@ -228,6 +229,7 @@ func TestLoadGrammarsConfigEnvURL(t *testing.T) {
 }
 
 func TestLoadGrammarsConfigEnvURLOverridesFile(t *testing.T) {
+	isolateHome(t)
 	tmpDir := t.TempDir()
 	configDir := filepath.Join(tmpDir, ".aide", "config")
 	os.MkdirAll(configDir, 0o755)
@@ -246,6 +248,7 @@ func TestLoadGrammarsConfigEnvURLOverridesFile(t *testing.T) {
 }
 
 func TestLoadGrammarsConfigEnvAutoDownloadDisable(t *testing.T) {
+	isolateHome(t)
 	tmpDir := t.TempDir()
 
 	tests := []struct {
@@ -278,6 +281,7 @@ func TestLoadGrammarsConfigEnvAutoDownloadDisable(t *testing.T) {
 }
 
 func TestLoadGrammarsConfigNoEnv(t *testing.T) {
+	isolateHome(t)
 	tmpDir := t.TempDir()
 	// Ensure env vars are unset.
 	t.Setenv("AIDE_GRAMMAR_URL", "")
