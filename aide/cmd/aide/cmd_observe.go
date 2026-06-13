@@ -70,13 +70,11 @@ func cmdObserveList(dbPath string, args []string) error {
 		SessionID: parseFlag(args, "--session="),
 		Limit:     50,
 	}
-	if v := parseFlag(args, "--limit="); v != "" {
-		n, err := strconv.Atoi(v)
-		if err != nil {
-			return fmt.Errorf("invalid --limit: %w", err)
-		}
-		filter.Limit = n
+	limit, err := parseIntFlag(args, "--limit=", filter.Limit)
+	if err != nil {
+		return err
 	}
+	filter.Limit = limit
 	if v := parseFlag(args, "--since="); v != "" {
 		dur, err := parseDurationDays(v)
 		if err != nil {
@@ -228,20 +226,16 @@ func cmdObserveRecord(dbPath string, args []string) error {
 		FilePath:  parseFlag(args, "--file="),
 		SessionID: parseFlag(args, "--session="),
 	}
-	if v := parseFlag(args, "--tokens="); v != "" {
-		n, err := strconv.Atoi(v)
-		if err != nil {
-			return fmt.Errorf("invalid --tokens: %w", err)
-		}
-		ev.Tokens = n
+	tokens, err := parseIntFlag(args, "--tokens=", ev.Tokens)
+	if err != nil {
+		return err
 	}
-	if v := parseFlag(args, "--saved="); v != "" {
-		n, err := strconv.Atoi(v)
-		if err != nil {
-			return fmt.Errorf("invalid --saved: %w", err)
-		}
-		ev.TokensSaved = n
+	ev.Tokens = tokens
+	saved, err := parseIntFlag(args, "--saved=", ev.TokensSaved)
+	if err != nil {
+		return err
 	}
+	ev.TokensSaved = saved
 	for _, a := range args {
 		if !strings.HasPrefix(a, "--attr=") {
 			continue

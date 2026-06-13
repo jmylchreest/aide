@@ -183,13 +183,9 @@ func cmdCodeSearch(dbPath string, args []string) error {
 	kind := parseFlag(args, "--kind=")
 	language := parseFlag(args, "--lang=")
 	filePath := parseFlag(args, "--file=")
-	limit := 20
-	if l := parseFlag(args, "--limit="); l != "" {
-		n, err := strconv.Atoi(l)
-		if err != nil {
-			return fmt.Errorf("invalid --limit= value %q: %w", l, err)
-		}
-		limit = n
+	limit, err := parseIntFlag(args, "--limit=", 20)
+	if err != nil {
+		return err
 	}
 	jsonOutput := hasFlag(args, "--json")
 
@@ -309,13 +305,9 @@ func cmdCodeReferences(dbPath string, args []string) error {
 	// Parse options
 	kind := parseFlag(args, "--kind=")
 	filePath := parseFlag(args, "--file=")
-	limit := 50
-	if l := parseFlag(args, "--limit="); l != "" {
-		n, err := strconv.Atoi(l)
-		if err != nil {
-			return fmt.Errorf("invalid --limit= value %q: %w", l, err)
-		}
-		limit = n
+	limit, err := parseIntFlag(args, "--limit=", 50)
+	if err != nil {
+		return err
 	}
 	jsonOutput := hasFlag(args, "--json")
 
