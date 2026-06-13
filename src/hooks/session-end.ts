@@ -143,6 +143,23 @@ function main(): void {
       return;
     }
 
+    // Emit a lifecycle trigger so SessionEnd is traceable in the dashboard,
+    // symmetric with session-start and subagent-start/stop. Inlined (no ES
+    // import) to keep this hook's startup cheap. Fire-and-forget.
+    try {
+      execFileSync(
+        binary,
+        [
+          "observe", "record",
+          "--kind=session", "--name=session-end",
+          "--category=lifecycle", `--session=${sessionId}`,
+        ],
+        { cwd, timeout: 3000, stdio: ["pipe", "pipe", "pipe"] },
+      );
+    } catch {
+      // Non-fatal telemetry — never block session end.
+    }
+
     // Mode guard: skip cleanup if autopilot is active (session is continuing,
     // not ending). This matters when Codex CLI invokes session-end from Stop
     // hook since there's no separate SessionEnd event.

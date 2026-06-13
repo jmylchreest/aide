@@ -23,6 +23,7 @@ import {
   buildSummaryFromPartials,
 } from "../core/partial-memory.js";
 import { debug } from "../lib/logger.js";
+import { recordObserveEvent } from "../core/read-tracking.js";
 
 const SOURCE = "pre-compact";
 
@@ -52,6 +53,16 @@ async function main(): Promise<void> {
         process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT,
     });
     if (binary) {
+      // Emit a lifecycle trigger so PreCompact is traceable in the dashboard,
+      // symmetric with session-start and subagent-start/stop.
+      recordObserveEvent(binary, cwd, {
+        kind: "session",
+        name: "pre-compact",
+        category: "lifecycle",
+        subtype: (data as { trigger?: string }).trigger || "compact",
+        session: sessionId,
+      });
+
       coreSaveStateSnapshot(binary, cwd, sessionId);
 
       // Persist a session summary as a memory before context is compacted.

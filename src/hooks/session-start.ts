@@ -27,7 +27,7 @@ import { Logger, debug, setDebugCwd } from "../lib/logger.js";
 import { readStdin, detectPlatform, isFalsy } from "../lib/hook-utils.js";
 import { findAideBinary, ensureAideBinary } from "../lib/aide-downloader.js";
 import { findProjectRoot } from "../lib/project-root.js";
-import { emitInjectionEvent } from "../core/read-tracking.js";
+import { emitInjectionEvent, recordObserveEvent } from "../core/read-tracking.js";
 import {
   ensureDirectories as coreEnsureDirectories,
   loadConfig as coreLoadConfig,
@@ -58,6 +58,8 @@ interface HookInput {
   cwd: string;
   transcript_path?: string;
   permission_mode?: string;
+  /** How the session began: startup | resume | clear | compact */
+  source?: string;
 }
 
 interface HookOutput {
@@ -492,6 +494,18 @@ async function main(): Promise<void> {
 
     try {
       const binary = findAideBinary(cwd);
+      if (binary) {
+        // Emit a lifecycle trigger so SessionStart is traceable in the
+        // dashboard, symmetric with subagent-start/stop. Fires regardless of
+        // whether any memories were injected.
+        recordObserveEvent(binary, cwd, {
+          kind: "session",
+          name: "session-start",
+          category: "lifecycle",
+          subtype: data.source || "startup",
+          session: sessionId,
+        });
+      }
       if (binary && context && memories.sources) {
         for (const src of memories.sources) {
           const attrs: Record<string, string> = { scope: src.scope };
