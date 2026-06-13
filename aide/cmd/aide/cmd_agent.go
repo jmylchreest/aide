@@ -197,8 +197,8 @@ func agentList(b *Backend, args []string) error {
 	}
 
 	type rec struct {
-		AgentID  string            `json:"agent"`
-		Fields   map[string]string `json:"fields"`
+		AgentID string            `json:"agent"`
+		Fields  map[string]string `json:"fields"`
 	}
 	byAgent := map[string]*rec{}
 	for _, st := range all {

@@ -71,8 +71,8 @@ func (Repetition) Detect(events []*observe.Event, cfgAny any, _ ParserContext) [
 	}
 
 	type occ struct {
-		cmd       string
-		evidence  []*observe.Event
+		cmd      string
+		evidence []*observe.Event
 	}
 	bySig := make(map[string]*occ)
 	for _, e := range events {
@@ -182,14 +182,14 @@ func normaliseBash(cmd string) string {
 // knownMultiWord lists commands whose first arg is a subcommand we want to
 // keep in the signature so `git status` and `git log` aren't lumped.
 var knownMultiWord = map[string]bool{
-	"git":  true,
-	"docker": true,
+	"git":     true,
+	"docker":  true,
 	"kubectl": true,
-	"npm":  true,
-	"bun":  true,
-	"go":   true,
-	"make": true,
-	"cargo": true,
+	"npm":     true,
+	"bun":     true,
+	"go":      true,
+	"make":    true,
+	"cargo":   true,
 }
 
 // commandFromEvent extracts the raw command from a Bash tool_call event.

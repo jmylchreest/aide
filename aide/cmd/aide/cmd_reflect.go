@@ -230,9 +230,9 @@ func reflectRun(dbPath string, args []string) error {
 	}
 
 	type runResult struct {
-		SessionID        string `json:"session_id"`
-		EventsConsidered int    `json:"events_considered"`
-		ProposalsWritten int    `json:"proposals_written"`
+		SessionID        string         `json:"session_id"`
+		EventsConsidered int            `json:"events_considered"`
+		ProposalsWritten int            `json:"proposals_written"`
 		Shapes           map[string]int `json:"shapes,omitempty"`
 	}
 	result := runResult{
@@ -314,12 +314,12 @@ func reflectCandidates(dbPath string, args []string) error {
 	}
 
 	type candidate struct {
-		ID             string `json:"id"`
-		Timestamp      string `json:"timestamp"`
-		Text           string `json:"text"`
-		PrecedingEdit  string `json:"preceding_edit,omitempty"`
-		FollowingEdit  string `json:"following_edit,omitempty"`
-		FilePath       string `json:"file_path,omitempty"`
+		ID            string `json:"id"`
+		Timestamp     string `json:"timestamp"`
+		Text          string `json:"text"`
+		PrecedingEdit string `json:"preceding_edit,omitempty"`
+		FollowingEdit string `json:"following_edit,omitempty"`
+		FilePath      string `json:"file_path,omitempty"`
 	}
 
 	out := struct {

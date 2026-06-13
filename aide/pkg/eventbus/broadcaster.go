@@ -23,9 +23,9 @@ type Broadcaster[T any] struct {
 }
 
 type subscription[T any] struct {
-	ch     chan T
-	filter func(T) bool
-	closed atomic.Bool
+	ch      chan T
+	filter  func(T) bool
+	closed  atomic.Bool
 	dropped atomic.Uint64
 }
 

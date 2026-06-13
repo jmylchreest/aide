@@ -23,19 +23,19 @@ const (
 // Proposal is a candidate instinct emitted by a Parser. It carries enough
 // evidence to be inspected even after the source observe events are pruned.
 type Proposal struct {
-	ID                string         `json:"id"`
-	Shape             string         `json:"shape"`
-	SessionID         string         `json:"session_id,omitempty"`
-	ProposedAt        time.Time      `json:"proposed_at"`
-	Summary           string         `json:"summary"`
-	Evidence          Evidence       `json:"evidence,omitzero"`
-	ProposedInstinct  ProposedMemory `json:"proposed_instinct,omitzero"`
-	Status            Status         `json:"status"`
-	RejectionCount    int            `json:"rejection_count,omitempty"`
-	RejectionReason   string         `json:"rejection_reason,omitempty"`
-	LastReproposalAt  time.Time      `json:"last_reproposal_at,omitempty"`
-	AcceptedMemoryID  string         `json:"accepted_memory_id,omitempty"`
-	ExpiresAt         time.Time      `json:"expires_at,omitempty"`
+	ID               string         `json:"id"`
+	Shape            string         `json:"shape"`
+	SessionID        string         `json:"session_id,omitempty"`
+	ProposedAt       time.Time      `json:"proposed_at"`
+	Summary          string         `json:"summary"`
+	Evidence         Evidence       `json:"evidence,omitzero"`
+	ProposedInstinct ProposedMemory `json:"proposed_instinct,omitzero"`
+	Status           Status         `json:"status"`
+	RejectionCount   int            `json:"rejection_count,omitempty"`
+	RejectionReason  string         `json:"rejection_reason,omitempty"`
+	LastReproposalAt time.Time      `json:"last_reproposal_at,omitempty"`
+	AcceptedMemoryID string         `json:"accepted_memory_id,omitempty"`
+	ExpiresAt        time.Time      `json:"expires_at,omitempty"`
 }
 
 // Evidence captures the observe events that triggered a proposal. The

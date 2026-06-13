@@ -33,8 +33,8 @@ func DefaultConvergenceConfig() ConvergenceConfig {
 
 type Convergence struct{}
 
-func (Convergence) Name() string             { return ShapeConvergence }
-func (Convergence) DefaultConfig() any        { return DefaultConvergenceConfig() }
+func (Convergence) Name() string       { return ShapeConvergence }
+func (Convergence) DefaultConfig() any { return DefaultConvergenceConfig() }
 func (Convergence) Capabilities() Capabilities {
 	// Has a marker-based fallback, so works without an LLM. RequiresLLM=false
 	// so the Stop-hook deterministic mode still runs it. When ParserContext
