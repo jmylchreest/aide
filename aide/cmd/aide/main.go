@@ -132,6 +132,8 @@ func runCommand(cmd, dbPath string, args []string) error {
 		return cmdShare(dbPath, args)
 	case "config":
 		return cmdConfig(dbPath, args)
+	case "maintenance":
+		return cmdMaintenance(dbPath, args)
 	case "status":
 		return cmdStatus(dbPath, args)
 	case "grammar":
@@ -170,6 +172,7 @@ Commands:
   blueprint  Manage and import best-practice decision blueprints
   share      Export/import decisions & memories as git-friendly markdown
   config     Inspect and edit aide configuration (show, get, set, unset, path)
+  maintenance Compact bolt stores to reclaim disk (compact)
   daemon     Start gRPC daemon (Unix socket for IPC)
   mcp        Start MCP server (for Claude Code plugin integration)
   grammar    Manage tree-sitter language grammars (list, install, remove, scan)

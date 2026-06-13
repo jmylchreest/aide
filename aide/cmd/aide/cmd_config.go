@@ -260,6 +260,9 @@ func printResolvedConfig(cfg *config.Config) {
 	fmt.Printf("  task_max_age    %s\n", emptyDash(cfg.Cleanup.TaskMaxAge))
 	fmt.Printf("  token_max_age   %s\n", emptyDash(cfg.Cleanup.TokenMaxAge))
 
+	fmt.Println("\nmaintenance")
+	fmt.Printf("  compact_on_exit %v\n", cfg.Maintenance.CompactOnExit)
+
 	fmt.Println("\nshare")
 	fmt.Printf("  auto_import     %v\n", cfg.Share.AutoImport)
 	printShareTypePolicy("decisions",

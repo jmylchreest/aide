@@ -740,6 +740,9 @@ func cmdMCP(dbPath string, args []string) error {
 
 	// Primary mode: open CombinedStore (bolt + bleve) directly and serve gRPC for other instances
 	mcpLog.Printf("primary mode: opening database directly")
+	// Registered first so it runs last — after every store Close below has run,
+	// leaving the bolt files unlocked for compaction. No-op unless enabled.
+	defer compactStoresOnExit(dbPath)
 	storeStart := time.Now()
 	st, err := store.NewCombinedStore(dbPath)
 	if err != nil {

@@ -108,6 +108,10 @@ func cmdDaemon(dbPath string, args []string) error {
 		os.Remove(socketPath)
 	}
 
+	// Registered first so it runs last — after every store Close below has run,
+	// leaving the bolt files unlocked for compaction. No-op unless enabled.
+	defer compactStoresOnExit(dbPath)
+
 	// Open the store
 	st, err := store.NewBoltStore(dbPath)
 	if err != nil {

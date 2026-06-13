@@ -46,13 +46,23 @@ type Config struct {
 	// Use IndexWorkerCount() to read the resolved value.
 	IndexWorkers int `koanf:"index_workers"`
 
-	Code    CodeConfig    `koanf:"code"`
-	Pprof   PprofConfig   `koanf:"pprof"`
-	Grammar GrammarConfig `koanf:"grammar"`
-	Share   ShareConfig   `koanf:"share"`
-	Memory  MemoryConfig  `koanf:"memory"`
-	Reflect ReflectConfig `koanf:"reflect"`
-	Cleanup CleanupConfig `koanf:"cleanup"`
+	Code        CodeConfig        `koanf:"code"`
+	Pprof       PprofConfig       `koanf:"pprof"`
+	Grammar     GrammarConfig     `koanf:"grammar"`
+	Share       ShareConfig       `koanf:"share"`
+	Memory      MemoryConfig      `koanf:"memory"`
+	Reflect     ReflectConfig     `koanf:"reflect"`
+	Cleanup     CleanupConfig     `koanf:"cleanup"`
+	Maintenance MaintenanceConfig `koanf:"maintenance"`
+}
+
+// MaintenanceConfig controls on-disk upkeep of the bolt stores. bbolt never
+// returns freed pages to the OS, so a store file only shrinks when rewritten;
+// CompactOnExit does that rewrite when a long-lived store owner (the daemon or
+// the MCP server) shuts down. Default true; disable with
+// maintenance.compact_on_exit=false or AIDE_MAINTENANCE_COMPACT_ON_EXIT=0.
+type MaintenanceConfig struct {
+	CompactOnExit bool `koanf:"compact_on_exit"`
 }
 
 // CleanupConfig controls the daemon's background bucket-pruning loop.
@@ -355,13 +365,14 @@ func (c CodeConfig) WatchDelayDuration(fallback time.Duration) time.Duration {
 // double-underscore-bearing env-var section. AIDE_<SECTION>_<rest> is
 // rewritten as <section>.<rest_with_underscores_kept>.
 var envSections = map[string]struct{}{
-	"code":    {},
-	"pprof":   {},
-	"grammar": {},
-	"share":   {},
-	"memory":  {},
-	"reflect": {},
-	"cleanup": {},
+	"code":        {},
+	"pprof":       {},
+	"grammar":     {},
+	"share":       {},
+	"memory":      {},
+	"reflect":     {},
+	"cleanup":     {},
+	"maintenance": {},
 }
 
 // envBareKey maps AIDE_<NAME> (no underscore tail) to a non-default koanf
@@ -377,10 +388,11 @@ var envBareKey = map[string]string{
 // them. Without this, Go's zero-value bool (false) would silently
 // disable features users expect on by default.
 var defaults = map[string]any{
-	"code.store_enabled":     true,
-	"memory.scoring_enabled": true,
-	"memory.decay_enabled":   true,
-	"cleanup.enabled":        true,
+	"code.store_enabled":          true,
+	"memory.scoring_enabled":      true,
+	"memory.decay_enabled":        true,
+	"cleanup.enabled":             true,
+	"maintenance.compact_on_exit": true,
 }
 
 // legacyDisabledVars maps each AIDE_*_DISABLED / AIDE_CODE_STORE_DISABLE
