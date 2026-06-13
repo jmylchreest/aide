@@ -21,6 +21,7 @@ AIDE is configured through environment variables. All variables are optional.
 | `AIDE_MEMORY_SCORING_DISABLED=1` | Disable memory scoring (use chronological order) |
 | `AIDE_MEMORY_DECAY_DISABLED=1`   | Disable recency decay in memory scoring          |
 | `AIDE_SHARE_AUTO_IMPORT=1`       | Auto-import shared decisions/memories on start   |
+| `AIDE_MAINTENANCE_COMPACT_ON_EXIT=0` | Disable automatic bolt-store compaction when the daemon/MCP server exits (default: on) |
 | `AIDE_REFLECT=1`                 | Enable the reflect Stop hook (extracts instinct proposals from session observe events). Accepts any truthy value: `1`/`true`/`on`/`yes`. Equivalent to `reflect.enabled=true` in `.aide/config/aide.json`. Env wins when set; otherwise the config file value wins; otherwise default off. |
 
 ## Where env vars are read from
@@ -127,7 +128,34 @@ Project-level settings can be stored in `.aide/config/aide.json`:
 | `findings.clones.windowSize`    | 50      | Sliding window size in tokens for detection  |
 | `findings.clones.minLines`      | 6       | Minimum clone size in lines to report        |
 
+| `cleanup.enabled`               | true    | Master switch for the daemon's background bucket-pruning loop |
+| `cleanup.observe_max_age`       | 8760h   | TTL for observe/telemetry events (`0` = keep forever) |
+| `cleanup.task_max_age`          | 8760h   | TTL for completed tasks (pending/claimed are never pruned) |
+| `cleanup.state_max_age`         | 8760h   | TTL for per-agent session state |
+| `maintenance.compact_on_exit`   | true    | Rewrite bolt stores to reclaim free pages when the daemon/MCP server exits |
+
 Values in `aide.json` serve as project-level defaults. CLI flags override config file values. If neither is set, the built-in defaults apply.
+
+## Managing Configuration from the CLI
+
+Rather than editing `aide.json` by hand, use the `aide config` command family. It
+reads and writes the same `.aide/config/aide.json` file (or the user-global file
+with `--global`), and reports where each value comes from.
+
+```bash
+aide config show                              # Print effective config + each value's source
+aide config get cleanup.observe_max_age       # Read one value
+aide config set maintenance.compact_on_exit false   # Write a project value
+aide config set memory.scoring_enabled true   # Booleans, strings, numbers
+aide config unset cleanup.observe_max_age     # Remove a project override
+aide config path                              # Show the config file path
+```
+
+Precedence (lowest to highest): built-in defaults → user-global
+`~/.aide/config/aide.json` → project `.aide/config/aide.json` → `AIDE_*`
+environment variables. Use `aide config set --global <key> <value>` to write the
+user-global file, which applies to every project unless that project overrides
+it. The global file is **config only** — never data or a database.
 
 ## File Exclusions
 

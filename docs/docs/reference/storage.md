@@ -18,9 +18,12 @@ All AIDE data is stored in `.aide/` at the project root. A `.aide/.gitignore` is
 │   ├── code/
 │   │   ├── index.db           # Code symbol database
 │   │   └── search.bleve/      # Code symbol search index
-│   └── findings/
-│       ├── findings.db        # Static analysis findings
-│       └── search.bleve/      # Findings search index
+│   ├── findings/
+│   │   ├── findings.db        # Static analysis findings
+│   │   └── search.bleve/      # Findings search index
+│   └── survey/
+│       ├── survey.db          # Codebase survey entries
+│       └── search.bleve/      # Survey search index
 ├── state/                     # Runtime state (HUD, session info, worktrees)
 ├── bin/                       # Downloaded aide binary
 ├── worktrees/                 # Git worktree directories (swarm mode)
@@ -163,3 +166,31 @@ aide memory reindex     # Rebuild memory search index
 aide code clear         # Clear and rebuild code index
 aide findings clear     # Clear and re-run findings
 ```
+
+### Compaction
+
+BBolt never returns freed pages to the operating system. When records are
+deleted or rewritten (observe events ageing out, findings re-scanned, the code
+index rebuilt), the freed pages are reused for future writes but the `.db` file
+itself does not shrink — so a busy store's file can grow several times larger
+than the data it holds.
+
+Compaction rewrites a store into a fresh, defragmented file and atomically swaps
+it in, returning the slack to the OS. It runs **automatically when a long-lived
+store owner shuts down cleanly** — the MCP server (the process the editor
+integration runs) or the `aide daemon`. A store is only rewritten when its free
+space is worth reclaiming (at least 1 MiB and 20% of the file), so tight files
+are left untouched.
+
+Disable the automatic pass with `maintenance.compact_on_exit=false` in
+`.aide/config/aide.json`, or `AIDE_MAINTENANCE_COMPACT_ON_EXIT=0`.
+
+To compact on demand:
+
+```bash
+aide maintenance compact
+```
+
+This reports per-store results. A store currently held open by a running aide
+process (daemon or MCP server) cannot be compacted while locked — stop that
+process first, or rely on the automatic on-exit pass.
