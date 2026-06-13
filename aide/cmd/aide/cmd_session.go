@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jmylchreest/aide/aide/pkg/code"
 	"github.com/jmylchreest/aide/aide/pkg/config"
 	"github.com/jmylchreest/aide/aide/pkg/contextshare"
 	"github.com/jmylchreest/aide/aide/pkg/memory"
@@ -218,6 +219,15 @@ func sessionFetchContext(backend *Backend, project string, sessionLimit int, res
 	now := time.Now()
 	cfg := memoryScoringConfig()
 
+	// Shared token budget across global + project injected memories. Highest-
+	// scored first; once the budget is exhausted, remaining (lower-ranked)
+	// memories are dropped whole. 0 disables the budget. Global goes first
+	// because user preferences carry the top category weight. budgetState
+	// carries the running remaining-tokens and whether anything has been kept
+	// yet (the single top-scored memory is always kept — see takeWithinBudget).
+	bs := &budgetState{budget: config.Get().Memory.InjectionTokenBudget}
+	bs.remaining = bs.budget
+
 	// Global memories (scope:global tag) — exclude forgotten and partials
 	globalMems, err := backend.ListMemories("global", 100, nil)
 	if err == nil {
@@ -229,6 +239,9 @@ func sessionFetchContext(backend *Backend, project string, sessionLimit int, res
 		}
 		sorted := scoreAndSort(filtered, now, cfg)
 		for _, sm := range sorted {
+			if !bs.take(sm.Memory.Content) {
+				break // budget exhausted — drop this and all lower-ranked
+			}
 			result.GlobalMemories = append(result.GlobalMemories, memoryToSession(sm.Memory, sm.Score))
 		}
 	}
@@ -251,6 +264,12 @@ func sessionFetchContext(backend *Backend, project string, sessionLimit int, res
 				result.ProjectMemoryOverflow = true
 			}
 			for _, sm := range sorted {
+				if !bs.take(sm.Memory.Content) {
+					// Budget exhausted: drop this and all lower-ranked project
+					// memories, and flag the overflow so the plugin hints at it.
+					result.ProjectMemoryOverflow = true
+					break
+				}
 				result.ProjectMemories = append(result.ProjectMemories, memoryToSession(sm.Memory, sm.Score))
 			}
 		}
@@ -288,6 +307,35 @@ func memoryScoringConfig() memory.ScoringConfig {
 	cfg.ScoringEnabled = mc.ScoringEnabled
 	cfg.DecayEnabled = mc.DecayEnabled
 	return cfg
+}
+
+// budgetState tracks a shared token budget consumed across the injected
+// memory buckets (global first, then project), in score order.
+type budgetState struct {
+	budget    int  // configured ceiling; <= 0 disables the budget
+	remaining int  // tokens left
+	anyTaken  bool // whether any memory has been kept yet
+}
+
+// take reports whether a memory of the given content fits the remaining
+// budget and accounts for it. When the budget is disabled (<= 0) it always
+// returns true. The single highest-scored memory across the whole injection
+// is always kept even if it alone exceeds the budget — an over-budget top hit
+// is still more useful than injecting nothing.
+func (b *budgetState) take(content string) bool {
+	if b.budget <= 0 {
+		return true
+	}
+	cost := code.EstimateTokensForText(content)
+	if cost > b.remaining && b.anyTaken {
+		return false
+	}
+	b.remaining -= cost
+	if b.remaining < 0 {
+		b.remaining = 0
+	}
+	b.anyTaken = true
+	return true
 }
 
 // scoreAndSort scores a slice of memories and returns them sorted by score

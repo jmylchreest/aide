@@ -73,6 +73,16 @@ func EstimateTokens(filePath string, contentLen int) int {
 	return int(float64(contentLen)/ratio + 0.5)
 }
 
+// EstimateTokensForText estimates the token count of free-form text that has
+// no associated file or language (e.g. memory content, prompts, summaries).
+// Uses the language-agnostic DefaultCharsPerToken ratio.
+func EstimateTokensForText(text string) int {
+	if len(text) == 0 || DefaultCharsPerToken <= 0 {
+		return 0
+	}
+	return int(float64(len(text))/DefaultCharsPerToken + 0.5)
+}
+
 // EstimateTokensFromSize estimates token count from file size in bytes.
 // Slightly less accurate than char-based since multi-byte chars exist,
 // but avoids reading the file. For ASCII-dominated source code the
