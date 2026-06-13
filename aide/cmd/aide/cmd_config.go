@@ -413,35 +413,33 @@ func cmdConfigUnset(dbPath string, args []string) error {
 // readConfigMap reads aide.json into a generic map. A missing file yields an
 // empty map so the first `set` can create it; a present-but-unparseable file is
 // a hard error rather than a silent overwrite.
-func readConfigMap(path string) (map[string]any, error) {
+func readConfigMap(path string) (*orderedMap, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return map[string]any{}, nil
+			return newOrderedMap(), nil
 		}
 		return nil, fmt.Errorf("reading %s: %w", path, err)
 	}
 	if len(strings.TrimSpace(string(data))) == 0 {
-		return map[string]any{}, nil
+		return newOrderedMap(), nil
 	}
-	var m map[string]any
-	if err := json.Unmarshal(data, &m); err != nil {
+	m, err := decodeOrderedJSON(data)
+	if err != nil {
 		return nil, fmt.Errorf("parsing %s: %w", path, err)
-	}
-	if m == nil {
-		m = map[string]any{}
 	}
 	return m, nil
 }
 
-// writeConfigMap writes the map back as 2-space-indented JSON, creating the
-// .aide/config/ directory on first write. An empty map is written as `{}` so the
-// file always remains valid JSON the loader can read.
-func writeConfigMap(path string, m map[string]any) error {
+// writeConfigMap writes the map back as 2-space-indented JSON, preserving the
+// existing key order so only the edited key changes (the file may be co-managed
+// by other tools). It creates the .aide/config/ directory on first write. An
+// empty map is written as `{}` so the file always remains valid JSON.
+func writeConfigMap(path string, m *orderedMap) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return fmt.Errorf("creating config dir: %w", err)
 	}
-	data, err := json.MarshalIndent(m, "", "  ")
+	data, err := encodeOrderedJSON(m)
 	if err != nil {
 		return fmt.Errorf("encoding config: %w", err)
 	}
@@ -455,33 +453,35 @@ func writeConfigMap(path string, m map[string]any) error {
 // setNested walks (creating as needed) the parent maps for a dotted key and
 // stores value at the leaf. A non-map sitting where a parent map should be is
 // replaced so a re-typed key can't wedge the file.
-func setNested(m map[string]any, parts []string, value any) {
+func setNested(m *orderedMap, parts []string, value any) {
 	for i := 0; i < len(parts)-1; i++ {
-		child, ok := m[parts[i]].(map[string]any)
-		if !ok {
-			child = map[string]any{}
-			m[parts[i]] = child
+		child, ok := m.get(parts[i])
+		cm, isMap := child.(*orderedMap)
+		if !ok || !isMap {
+			cm = newOrderedMap()
+			m.set(parts[i], cm)
 		}
-		m = child
+		m = cm
 	}
-	m[parts[len(parts)-1]] = value
+	m.set(parts[len(parts)-1], value)
 }
 
 // deleteNested removes the leaf for a dotted key and prunes any parent maps it
 // leaves empty, so unsetting the last key under a section doesn't strand an
 // empty `{}` object in the file.
-func deleteNested(m map[string]any, parts []string) {
+func deleteNested(m *orderedMap, parts []string) {
 	if len(parts) == 1 {
-		delete(m, parts[0])
+		m.delete(parts[0])
 		return
 	}
-	child, ok := m[parts[0]].(map[string]any)
-	if !ok {
+	child, ok := m.get(parts[0])
+	cm, isMap := child.(*orderedMap)
+	if !ok || !isMap {
 		return
 	}
-	deleteNested(child, parts[1:])
-	if len(child) == 0 {
-		delete(m, parts[0])
+	deleteNested(cm, parts[1:])
+	if cm.len() == 0 {
+		m.delete(parts[0])
 	}
 }
 
