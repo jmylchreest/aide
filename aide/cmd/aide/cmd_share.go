@@ -152,7 +152,7 @@ func cmdShareExport(dbPath string, args []string) error {
 			outputDir = o
 		}
 
-		if err := migrateLegacyAggregates(backend, outputDir); err != nil {
+		if err := migrateLegacyAggregates(backend, outputDir, exportDecisions, exportMemories); err != nil {
 			return fmt.Errorf("failed to migrate legacy share files: %w", err)
 		}
 
@@ -229,27 +229,25 @@ func cmdShareExport(dbPath string, args []string) error {
 // ambiguous on name alone (memories/<ulid>.md vs memories/<category>.md), so a
 // flat memory file is treated as a legacy aggregate only when its frontmatter
 // is the aggregate "type: memories" form rather than a per-record "id:" record.
-func legacyAggregateFiles(outputDir string) []string {
+func legacyAggregateFiles(outputDir, sub string) []string {
 	var files []string
-	for _, sub := range []string{"decisions", "memories"} {
-		dir := filepath.Join(outputDir, sub)
-		entries, err := os.ReadDir(dir)
-		if err != nil {
+	dir := filepath.Join(outputDir, sub)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil
+	}
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
 			continue
 		}
-		for _, entry := range entries {
-			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
-				continue
-			}
-			if isReservedShareFile(entry.Name()) {
-				continue
-			}
-			path := filepath.Join(dir, entry.Name())
-			if sub == "memories" && !isLegacyMemoryAggregate(path) {
-				continue
-			}
-			files = append(files, path)
+		if isReservedShareFile(entry.Name()) {
+			continue
 		}
+		path := filepath.Join(dir, entry.Name())
+		if sub == "memories" && !isLegacyMemoryAggregate(path) {
+			continue
+		}
+		files = append(files, path)
 	}
 	return files
 }
@@ -281,42 +279,69 @@ func isLegacyMemoryAggregate(path string) bool {
 	return false
 }
 
-// migrateLegacyAggregates performs the one-shot legacy → per-record migration
-// on first per-record export. When legacy aggregate files are present, it first
-// imports them into the store (reusing the legacy parsers so nothing a teammate
-// published is lost), then deletes the legacy aggregate files plus their stale
-// DECISIONS.md / MEMORIES.md explainers, so the subsequent per-record export
-// re-materialises the migrated records in the new format. Idempotent: after the
-// first export the legacy files are gone and this step is skipped.
-func migrateLegacyAggregates(backend *Backend, outputDir string) error {
-	legacy := legacyAggregateFiles(outputDir)
-	if len(legacy) == 0 {
-		return nil
-	}
-
-	if _, _, err := shareImportDecisions(backend, outputDir, false); err != nil {
-		return fmt.Errorf("failed to import legacy decisions: %w", err)
-	}
-	if _, _, err := shareImportMemories(backend, outputDir, false); err != nil {
-		return fmt.Errorf("failed to import legacy memories: %w", err)
-	}
-
-	// Remove the migrated aggregate files and the now-stale explainer files; the
-	// per-record export writes fresh DECISIONS.md / MEMORIES.md afterwards.
-	toRemove := append([]string{}, legacy...)
-	for _, sub := range []string{"decisions", "memories"} {
-		for name := range reservedShareFiles {
-			toRemove = append(toRemove, filepath.Join(outputDir, sub, name))
+// migrateLegacyAggregates performs the one-shot legacy → per-record migration on
+// first per-record export. It only migrates the record types whose export is
+// enabled (migrateDecisions / migrateMemories): for an enabled type with legacy
+// aggregates present it imports them into the store (reusing the legacy parsers
+// so nothing a teammate published is lost), then deletes those aggregate files
+// and the type's explainer so the subsequent per-record export re-materialises
+// them. A type whose export is OFF keeps its committed legacy files untouched —
+// an upgrade never silently deletes shared data the policy isn't republishing.
+// Idempotent: once a type's legacy files are gone the step is skipped.
+func migrateLegacyAggregates(backend *Backend, outputDir string, migrateDecisions, migrateMemories bool) error {
+	migrated := 0
+	if migrateDecisions {
+		n, err := migrateLegacyType(backend, outputDir, "decisions", func() error {
+			_, _, err := shareImportDecisions(backend, outputDir, false)
+			return err
+		})
+		if err != nil {
+			return err
 		}
+		migrated += n
+	}
+	if migrateMemories {
+		n, err := migrateLegacyType(backend, outputDir, "memories", func() error {
+			_, _, err := shareImportMemories(backend, outputDir, false)
+			return err
+		})
+		if err != nil {
+			return err
+		}
+		migrated += n
+	}
+
+	if migrated > 0 {
+		fmt.Fprintf(os.Stderr, "notice: migrated %d legacy aggregate share file(s) in %s to per-record format\n", migrated, outputDir)
+	}
+	return nil
+}
+
+// migrateLegacyType imports and removes the legacy aggregate files for one record
+// type's subdirectory, plus that subdirectory's stale explainer. Returns the
+// number of aggregate files migrated (0 when there are none, so the caller emits
+// no notice).
+func migrateLegacyType(backend *Backend, outputDir, sub string, importFn func() error) (int, error) {
+	files := legacyAggregateFiles(outputDir, sub)
+	if len(files) == 0 {
+		return 0, nil
+	}
+	if err := importFn(); err != nil {
+		return 0, fmt.Errorf("failed to import legacy %s: %w", sub, err)
+	}
+
+	// Remove the migrated aggregate files and this subdirectory's stale explainer;
+	// the per-record export writes a fresh explainer afterwards.
+	toRemove := append([]string{}, files...)
+	for name := range reservedShareFiles {
+		toRemove = append(toRemove, filepath.Join(outputDir, sub, name))
 	}
 	for _, path := range toRemove {
 		if err := os.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
-			return fmt.Errorf("failed to remove legacy file %s: %w", path, err)
+			return 0, fmt.Errorf("failed to remove legacy file %s: %w", path, err)
 		}
 	}
-
-	fmt.Fprintf(os.Stderr, "notice: migrated %d legacy aggregate share file(s) in %s to per-record format\n", len(legacy), outputDir)
-	return nil
+	return len(files), nil
 }
 
 // writeShareExplainers (re)writes the DECISIONS.md / MEMORIES.md human-readable
@@ -700,7 +725,7 @@ func hasPerRecordLayout(dir string) bool {
 // legacyAggregateFiles, so the import path and the migration path agree on what
 // "legacy" means.
 func hasLegacyRecords(dir string) bool {
-	return len(legacyAggregateFiles(dir)) > 0
+	return len(legacyAggregateFiles(dir, "decisions")) > 0 || len(legacyAggregateFiles(dir, "memories")) > 0
 }
 
 func cmdShareImport(dbPath string, args []string) error {

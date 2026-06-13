@@ -272,6 +272,62 @@ func TestCmdShareImportExplicitLegacyInput(t *testing.T) {
 // The first per-record export migrates legacy aggregate files: it imports them
 // into the store, deletes the flat aggregates, and re-materialises them as
 // per-record files. A re-import yields the same records (nothing lost).
+func TestCmdShareExportConservativeMigration(t *testing.T) {
+	// Default policy: decisions export ON, memories export OFF. Migration must
+	// migrate the legacy DECISION aggregate but leave the legacy MEMORY aggregate
+	// untouched — an upgrade never deletes shared data the policy isn't
+	// republishing.
+	prev := config.Get()
+	config.Set(&config.Config{})
+	t.Cleanup(func() { config.Set(prev) })
+
+	dbA, tmpA := newShareProject(t)
+	sharedDir := filepath.Join(tmpA, ".aide", "shared")
+	legacyDecision := filepath.Join(sharedDir, "decisions", "auth.md")
+	legacyMemory := filepath.Join(sharedDir, "memories", "pattern.md")
+	if err := os.MkdirAll(filepath.Dir(legacyDecision), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(legacyMemory), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	created := time.Date(2026, 3, 1, 12, 0, 0, 0, time.UTC)
+	if err := writeDecisionMarkdown(legacyDecision, &memory.Decision{
+		Topic: "auth", Decision: "JWT", Rationale: "stateless", CreatedAt: created,
+	}); err != nil {
+		t.Fatalf("writeDecisionMarkdown: %v", err)
+	}
+	if err := writeMemoriesMarkdown(legacyMemory, "pattern", []*memory.Memory{{
+		ID: "01ARZ3NDEKTSV4RRFFQ69G5FAV", Category: "pattern",
+		Content: "Use table-driven tests", Tags: []string{"project:test"}, CreatedAt: created,
+	}}); err != nil {
+		t.Fatalf("writeMemoriesMarkdown: %v", err)
+	}
+
+	if err := cmdShareExport(dbA, nil); err != nil {
+		t.Fatalf("cmdShareExport: %v", err)
+	}
+
+	// Decision migrated: legacy file removed, per-record dir present.
+	if _, err := os.Stat(legacyDecision); !os.IsNotExist(err) {
+		t.Errorf("legacy decision should have been migrated/removed, stat err = %v", err)
+	}
+	topicDir := filepath.Join(sharedDir, "decisions", contextshare.TopicName("auth"))
+	if entries, err := os.ReadDir(topicDir); err != nil || len(entries) == 0 {
+		t.Errorf("per-record decision dir empty/missing: %v (%d entries)", err, len(entries))
+	}
+
+	// Memory export OFF: the legacy memory aggregate must REMAIN untouched, and no
+	// per-record memory file is written.
+	if _, err := os.Stat(legacyMemory); err != nil {
+		t.Errorf("legacy memory aggregate must be left untouched when memory export is off, stat err = %v", err)
+	}
+	if _, err := os.Stat(contextshare.MemoryPath(sharedDir, "01ARZ3NDEKTSV4RRFFQ69G5FAV")); !os.IsNotExist(err) {
+		t.Errorf("no per-record memory should be written when memory export is off, stat err = %v", err)
+	}
+}
+
 func TestCmdShareExportMigratesLegacyAggregates(t *testing.T) {
 	withMemorySharingOn(t)
 	dbA, tmpA := newShareProject(t)
