@@ -16,6 +16,8 @@
 
 import { execFileSync } from "child_process";
 import { debug } from "../lib/logger.js";
+import { listMemoriesJson, type MemoryEntry } from "./memory-query.js";
+import { categorizePartials, renderBulletSection } from "./session-text.js";
 
 const SOURCE = "partial-memory";
 
@@ -152,55 +154,25 @@ export function storePartialMemory(
   }
 }
 
-/** Shape returned by `aide memory list --format=json`. */
-interface PartialMemoryEntry {
-  id: string;
-  tags: string[];
-  content: string;
-}
-
 /**
  * Query session partials and map to a caller-chosen type.
  *
- * Runs `aide memory list --tags=partial --format=json`, filters to the
- * given session, and maps each match through `mapFn`.
+ * Lists all `partial`-tagged memories, filters to the given session, and maps
+ * each match through `mapFn`.
  */
 function querySessionPartials<T>(
   binary: string,
   cwd: string,
   sessionId: string,
-  mapFn: (m: PartialMemoryEntry) => T,
-  label: string,
+  mapFn: (m: MemoryEntry) => T,
 ): T[] {
-  try {
-    const sessionTag = `session:${sessionId}`;
-
-    const output = execFileSync(
-      binary,
-      [
-        "memory",
-        "list",
-        "--tags=partial",
-        "--all", // Include even if tagged forget (shouldn't be, but defensive)
-        "--format=json",
-        "--limit=500",
-      ],
-      {
-        cwd,
-        encoding: "utf-8",
-        stdio: ["pipe", "pipe", "pipe"],
-        timeout: 5000,
-      },
-    ).trim();
-
-    if (!output || output === "[]") return [];
-
-    const memories: PartialMemoryEntry[] = JSON.parse(output);
-    return memories.filter((m) => m.tags?.includes(sessionTag)).map(mapFn);
-  } catch (err) {
-    debug(SOURCE, `Failed to gather ${label}: ${err}`);
-    return [];
-  }
+  const sessionTag = `session:${sessionId}`;
+  const memories = listMemoriesJson(binary, cwd, {
+    tags: "partial",
+    all: true, // Include even if tagged forget (shouldn't be, but defensive)
+    limit: 500,
+  });
+  return memories.filter((m) => m.tags?.includes(sessionTag)).map(mapFn);
 }
 
 /**
@@ -214,13 +186,7 @@ export function gatherPartials(
   cwd: string,
   sessionId: string,
 ): string[] {
-  return querySessionPartials(
-    binary,
-    cwd,
-    sessionId,
-    (m) => m.content,
-    "partials",
-  );
+  return querySessionPartials(binary, cwd, sessionId, (m) => m.content);
 }
 
 /**
@@ -231,13 +197,7 @@ export function gatherPartialIds(
   cwd: string,
   sessionId: string,
 ): string[] {
-  return querySessionPartials(
-    binary,
-    cwd,
-    sessionId,
-    (m) => m.id,
-    "partial IDs",
-  );
+  return querySessionPartials(binary, cwd, sessionId, (m) => m.id);
 }
 
 /**
@@ -287,58 +247,16 @@ export function buildSummaryFromPartials(
   gitCommits: string[],
   gitFiles: string[],
 ): string | null {
-  const summaryParts: string[] = [];
+  const { files, commands, tasks } = categorizePartials(partials);
+  // Merge file changes from partials and git, preserving order, de-duped.
+  const allFiles = Array.from(new Set([...files, ...gitFiles]));
 
-  // Deduplicate and categorise partials
-  const fileChanges = new Set<string>();
-  const commands: string[] = [];
-  const tasks: string[] = [];
-  const other: string[] = [];
-
-  for (const p of partials) {
-    if (p.startsWith("Created file: ") || p.startsWith("Edited file: ")) {
-      fileChanges.add(p.replace(/^(Created|Edited) file: /, ""));
-    } else if (p.startsWith("Ran command: ")) {
-      commands.push(p.replace("Ran command: ", ""));
-    } else if (p.startsWith("Completed task: ")) {
-      tasks.push(p.replace("Completed task: ", ""));
-    } else {
-      other.push(p);
-    }
-  }
-
-  if (tasks.length > 0) {
-    summaryParts.push(
-      `## Tasks\n${tasks
-        .slice(0, 5)
-        .map((t) => `- ${t}`)
-        .join("\n")}`,
-    );
-  }
-
-  if (gitCommits.length > 0) {
-    summaryParts.push(
-      `## Commits\n${gitCommits.map((c) => `- ${c}`).join("\n")}`,
-    );
-  }
-
-  // Merge file changes from partials and git
-  const allFiles = new Set([...fileChanges, ...gitFiles]);
-  if (allFiles.size > 0) {
-    const files = Array.from(allFiles).slice(0, 15);
-    summaryParts.push(
-      `## Files Modified\n${files.map((f) => `- ${f}`).join("\n")}`,
-    );
-  }
-
-  if (commands.length > 0) {
-    summaryParts.push(
-      `## Commands\n${commands
-        .slice(0, 10)
-        .map((c) => `- ${c}`)
-        .join("\n")}`,
-    );
-  }
+  const summaryParts = [
+    renderBulletSection("Tasks", tasks, 5),
+    renderBulletSection("Commits", gitCommits),
+    renderBulletSection("Files Modified", allFiles, 15),
+    renderBulletSection("Commands", commands, 10),
+  ].filter((s): s is string => s !== null);
 
   const summary = summaryParts.join("\n\n");
   return summary.length >= 50 ? summary : null;

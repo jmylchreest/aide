@@ -7,6 +7,7 @@
 
 import { execFileSync } from "child_process";
 import { readFileSync, existsSync } from "fs";
+import { renderBulletSection } from "./session-text.js";
 
 /**
  * Get git commits made during this session.
@@ -84,8 +85,7 @@ function parseTranscript(lines: string[]): TranscriptData {
   const userMessages: string[] = [];
 
   for (const entry of entries) {
-    const contentObj =
-      typeof entry.content === "object" ? entry.content : null;
+    const contentObj = typeof entry.content === "object" ? entry.content : null;
     if (
       entry.type === "tool_use" ||
       (entry.type === "assistant" && contentObj?.tool_use)
@@ -145,33 +145,15 @@ export function buildSessionSummary(
       return null;
     }
 
-    const summaryParts: string[] = [];
-
-    if (userMessages.length > 0) {
-      summaryParts.push(
-        `## Tasks\n${userMessages
-          .slice(0, 3)
-          .map((m) => `- ${m}`)
-          .join("\n")}`,
-      );
-    }
-
-    if (filesModified.size > 0) {
-      const files = Array.from(filesModified).slice(0, 10);
-      summaryParts.push(
-        `## Files Modified\n${files.map((f) => `- ${f}`).join("\n")}`,
-      );
-    }
-
-    if (commits.length > 0) {
-      summaryParts.push(
-        `## Commits\n${commits.map((c) => `- ${c}`).join("\n")}`,
-      );
-    }
-
-    if (toolsUsed.size > 0) {
-      summaryParts.push(`## Tools Used\n${Array.from(toolsUsed).join(", ")}`);
-    }
+    const summaryParts = [
+      renderBulletSection("Tasks", userMessages, 3),
+      renderBulletSection("Files Modified", Array.from(filesModified), 10),
+      renderBulletSection("Commits", commits),
+      // Tools Used is a comma-joined line, not a bullet list.
+      toolsUsed.size > 0
+        ? `## Tools Used\n${Array.from(toolsUsed).join(", ")}`
+        : null,
+    ].filter((s): s is string => s !== null);
 
     const summary = summaryParts.join("\n\n");
     return summary.length >= 50 ? summary : null;
@@ -193,9 +175,8 @@ export function buildSessionSummaryFromState(
 
   const summaryParts: string[] = [];
 
-  if (commits.length > 0) {
-    summaryParts.push(`## Commits\n${commits.map((c) => `- ${c}`).join("\n")}`);
-  }
+  const commitsSection = renderBulletSection("Commits", commits);
+  if (commitsSection) summaryParts.push(commitsSection);
 
   // Check for modified files via git
   try {
@@ -211,15 +192,9 @@ export function buildSessionSummaryFromState(
     ).trim();
 
     if (diff) {
-      const files = diff
-        .split("\n")
-        .filter((f) => f.trim())
-        .slice(0, 10);
-      if (files.length > 0) {
-        summaryParts.push(
-          `## Files Modified\n${files.map((f) => `- ${f}`).join("\n")}`,
-        );
-      }
+      const files = diff.split("\n").filter((f) => f.trim());
+      const filesSection = renderBulletSection("Files Modified", files, 10);
+      if (filesSection) summaryParts.push(filesSection);
     }
   } catch {
     // Ignore
