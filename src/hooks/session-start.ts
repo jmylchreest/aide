@@ -28,6 +28,7 @@ import { readStdin, detectPlatform, isFalsy } from "../lib/hook-utils.js";
 import { findAideBinary, ensureAideBinary } from "../lib/aide-downloader.js";
 import { findProjectRoot } from "../lib/project-root.js";
 import { emitInjectionEvent, recordObserveEvent } from "../core/read-tracking.js";
+import { buildResumeContext } from "../core/session-resume-logic.js";
 import {
   ensureDirectories as coreEnsureDirectories,
   loadConfig as coreLoadConfig,
@@ -488,9 +489,37 @@ async function main(): Promise<void> {
     // Build welcome context with injected memories
     debugLog("buildWelcomeContext starting...");
     log.start("buildWelcomeContext");
-    const context = buildWelcomeContext(state, memories, notices);
+    let context = buildWelcomeContext(state, memories, notices);
     log.end("buildWelcomeContext");
     debugLog(`buildWelcomeContext complete (${Date.now() - hookStart}ms)`);
+
+    // On resume/compact, re-inject the last session checkpoint so the agent
+    // rebuilds working context instead of relearning it (MiMo-style context
+    // reconstruction, done at the SessionStart boundary).
+    try {
+      const resumeBinary = findAideBinary(cwd);
+      if (resumeBinary) {
+        const resume = buildResumeContext(
+          resumeBinary,
+          cwd,
+          sessionId,
+          data.source,
+        );
+        if (resume) {
+          context = `${context}\n\n${resume}`;
+          debugLog(`Injected resume checkpoint (source=${data.source})`);
+          recordObserveEvent(resumeBinary, cwd, {
+            kind: "injection",
+            name: "resume-checkpoint",
+            category: "resume",
+            subtype: data.source || "resume",
+            session: sessionId,
+          });
+        }
+      }
+    } catch (err) {
+      debugLog(`Resume checkpoint injection failed (non-fatal): ${err}`);
+    }
 
     try {
       const binary = findAideBinary(cwd);
