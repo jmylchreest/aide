@@ -22,6 +22,11 @@ import {
   gatherPartials,
   buildSummaryFromPartials,
 } from "../core/partial-memory.js";
+import {
+  buildSessionCheckpoint,
+  getTaskTree,
+  getGitLiveState,
+} from "../core/session-checkpoint-logic.js";
 import { debug } from "../lib/logger.js";
 import { recordObserveEvent } from "../core/read-tracking.js";
 
@@ -70,16 +75,33 @@ async function main(): Promise<void> {
       // Uses partials (if available) for a richer summary, falling back to git-only.
       try {
         const partials = gatherPartials(binary, cwd, sessionId);
+        const commits = getSessionCommits(cwd);
         let summary: string | null = null;
+        // `checkpoint` tag marks the richest, structured snapshot so the
+        // session-start resume path can find it; `partial` keeps it out of
+        // normal recall and lets the session-end summary supersede it.
+        let tags = `partial,session-summary,session:${sessionId}`;
 
         if (partials.length > 0) {
-          // Build from partials + git data
-          const commits = getSessionCommits(cwd);
-          summary = buildSummaryFromPartials(partials, commits, []);
-          debug(
-            SOURCE,
-            `Built pre-compact summary from ${partials.length} partials`,
-          );
+          // Structured checkpoint: pulls task tree + live git state from aide's
+          // own stores in addition to the partial roll-up. No LLM needed.
+          summary = buildSessionCheckpoint({
+            sessionId,
+            partials,
+            commits,
+            taskTree: getTaskTree(binary, cwd),
+            liveState: getGitLiveState(cwd),
+          });
+          if (summary) {
+            tags = `partial,checkpoint,session-summary,session:${sessionId}`;
+            debug(
+              SOURCE,
+              `Built structured checkpoint from ${partials.length} partials`,
+            );
+          } else {
+            // Defensive: partials present but checkpoint empty — fall back.
+            summary = buildSummaryFromPartials(partials, commits, []);
+          }
         }
 
         // Fall back to state-only summary if no partials
@@ -88,8 +110,6 @@ async function main(): Promise<void> {
         }
 
         if (summary) {
-          // Tag as partial so the session-end summary supersedes it
-          const tags = `partial,session-summary,session:${sessionId}`;
           (await import("child_process")).execFileSync(
             binary,
             ["memory", "add", "--category=session", `--tags=${tags}`, summary],
@@ -97,7 +117,7 @@ async function main(): Promise<void> {
           );
           debug(
             SOURCE,
-            `Saved pre-compaction partial session summary for ${sessionId.slice(0, 8)}`,
+            `Saved pre-compaction checkpoint for ${sessionId.slice(0, 8)}`,
           );
         }
       } catch (err) {
