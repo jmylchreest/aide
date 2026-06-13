@@ -314,6 +314,12 @@ type MemoryConfig struct {
 	// the legacy AIDE_MEMORY_DECAY_DISABLED=1, inverted) leaves scoring
 	// running but pins the recency factor at 1.0 regardless of age.
 	DecayEnabled bool `koanf:"decay_enabled"`
+	// InjectionTokenBudget caps the estimated tokens of memory content
+	// injected at session start. Memories are taken in score order (highest
+	// first) until the budget is reached; lower-ranked memories beyond it are
+	// dropped whole — never truncated mid-memory. 0 disables the budget (inject
+	// all, prior behaviour). Set via AIDE_MEMORY_INJECTION_TOKEN_BUDGET.
+	InjectionTokenBudget int `koanf:"injection_token_budget"`
 }
 
 // IndexWorkerCount resolves Config.IndexWorkers into a positive worker
@@ -388,11 +394,12 @@ var envBareKey = map[string]string{
 // them. Without this, Go's zero-value bool (false) would silently
 // disable features users expect on by default.
 var defaults = map[string]any{
-	"code.store_enabled":          true,
-	"memory.scoring_enabled":      true,
-	"memory.decay_enabled":        true,
-	"cleanup.enabled":             true,
-	"maintenance.compact_on_exit": true,
+	"code.store_enabled":            true,
+	"memory.scoring_enabled":        true,
+	"memory.decay_enabled":          true,
+	"memory.injection_token_budget": 8000,
+	"cleanup.enabled":               true,
+	"maintenance.compact_on_exit":   true,
 }
 
 // legacyDisabledVars maps each AIDE_*_DISABLED / AIDE_CODE_STORE_DISABLE
