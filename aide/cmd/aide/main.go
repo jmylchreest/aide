@@ -248,6 +248,9 @@ func extractProjectRootFlag(args []string) (string, []string, bool) {
 // This avoids spawning a git subprocess on every invocation.
 // For git worktrees, .git is a file pointing to the main repo; we follow it
 // to find the actual repository root so all worktrees share the same store.
+// Submodules also use a .git file but are distinct repositories: a checkout
+// inside a submodule anchors the submodule's own .aide/ store, not the
+// superproject's — where you start (cwd) decides which project you're in.
 //
 // To prevent cross-project memory contamination, ~/.aide/ (created by the
 // TypeScript layer for global skills/MCP config) is skipped as a project
@@ -278,11 +281,12 @@ func findProjectRoot() (string, bool) {
 
 	homeDir, _ := os.UserHomeDir()
 
-	// Walk the full ancestry collecting candidates. We prefer roots that
-	// have BOTH .aide/ and a VCS marker, then VCS-only, then .aide/-only.
-	// This avoids latching onto a stray child .aide/ (created by an
-	// accidental CLI invocation from a subdir) when the real project root
-	// is one or more levels up.
+	// Walk the full ancestry collecting candidates. The closest VCS root
+	// wins, then .aide/-only candidates as a fallback for VCS-less
+	// projects. This avoids latching onto a stray child .aide/ (created by
+	// an accidental CLI invocation from a subdir) when the real project
+	// root is one or more levels up: a stray .aide/ has no VCS marker, so
+	// any real repository above it takes priority.
 	type cand struct {
 		dir         string
 		hasAide     bool
@@ -319,13 +323,14 @@ func findProjectRoot() (string, bool) {
 		dir = parent
 	}
 
-	// Priority: closest ancestor with both markers wins.
-	for _, c := range path {
-		if c.hasAide && c.hasVCS {
-			return c.vcsResolved, true
-		}
-	}
-	// Then closest VCS root (even without .aide/) — .aide/ will be created there.
+	// Priority: closest VCS root wins. A VCS boundary — including a
+	// submodule, which is its own repository with its own history and
+	// often its own team — is the project boundary, regardless of whether
+	// an ancestor also carries .aide/. Starting inside a submodule anchors
+	// the submodule; starting in the superproject anchors the superproject.
+	// A stray child .aide/ without VCS still can't shadow the real root:
+	// .aide/-only candidates are considered only when no VCS marker exists
+	// anywhere in the ancestry.
 	for _, c := range path {
 		if c.hasVCS {
 			return c.vcsResolved, true
@@ -376,8 +381,23 @@ func isVCSRoot(dir string) bool {
 	return false
 }
 
+// isSubmoduleGitdir reports whether a resolved gitdir path points into a
+// superproject's .git/modules/ tree, i.e. the .git file belongs to a
+// submodule checkout rather than a linked worktree.
+func isSubmoduleGitdir(gitdir string) bool {
+	parts := strings.Split(filepath.ToSlash(gitdir), "/")
+	for i := 0; i < len(parts)-1; i++ {
+		if parts[i] == ".git" && parts[i+1] == "modules" {
+			return true
+		}
+	}
+	return false
+}
+
 // resolveWorktreeRoot reads a .git file (worktree marker) and resolves the
 // main repository root. The file contains "gitdir: /path/to/repo/.git/worktrees/<name>".
+// Submodule .git files (gitdir under .git/modules/) resolve to "" so the
+// submodule directory itself becomes the root.
 func resolveWorktreeRoot(gitFilePath string) string {
 	data, err := os.ReadFile(gitFilePath)
 	if err != nil {
@@ -392,6 +412,16 @@ func resolveWorktreeRoot(gitFilePath string) string {
 	// Make absolute if relative
 	if !filepath.IsAbs(gitdir) {
 		gitdir = filepath.Join(filepath.Dir(gitFilePath), gitdir)
+	}
+
+	// Submodules also use a .git file, with gitdir pointing into the
+	// superproject's .git/modules/ tree. A submodule is a distinct
+	// repository, so it anchors its own .aide/ store rather than sharing
+	// the superproject's. Returning "" makes vcsMarker fall back to the
+	// submodule directory itself. (A worktree OF a submodule also lands
+	// here and anchors at the worktree directory — known limitation.)
+	if isSubmoduleGitdir(gitdir) {
+		return ""
 	}
 
 	// Walk up from .git/worktrees/<name> to find the .git directory

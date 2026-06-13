@@ -86,6 +86,55 @@ describe("findProjectRoot", () => {
     expect(result.root).toBe(mainRepo);
   });
 
+  it("anchors a submodule checkout at the submodule, not the superproject", async () => {
+    const { findProjectRoot } = await import("../lib/project-root.js");
+
+    // Superproject at <tmp>/super with .git/modules/lib/ and .aide/
+    const superRepo = join(tmp, "super");
+    mkdirSync(join(superRepo, ".git", "modules", "lib"), { recursive: true });
+    mkdirSync(join(superRepo, ".aide"), { recursive: true });
+
+    // Submodule at <tmp>/super/vendor/lib with .git as a file pointing
+    // into the superproject's .git/modules/ tree (no .aide/ of its own yet).
+    const submodule = join(superRepo, "vendor", "lib");
+    mkdirSync(join(submodule, "src"), { recursive: true });
+    writeFileSync(
+      join(submodule, ".git"),
+      `gitdir: ${join(superRepo, ".git", "modules", "lib")}\n`,
+    );
+
+    // Starting inside the submodule anchors the submodule.
+    const fromSub = findProjectRoot(join(submodule, "src"));
+    expect(fromSub.hasMarker).toBe(true);
+    expect(fromSub.root).toBe(submodule);
+
+    // Starting in the superproject anchors the superproject.
+    const fromSuper = findProjectRoot(superRepo);
+    expect(fromSuper.hasMarker).toBe(true);
+    expect(fromSuper.root).toBe(superRepo);
+  });
+
+  it("resolves a submodule's relative gitdir and nested modules paths", async () => {
+    const { findProjectRoot } = await import("../lib/project-root.js");
+
+    const superRepo = join(tmp, "super2");
+    mkdirSync(join(superRepo, ".git", "modules", "a", "modules", "b"), {
+      recursive: true,
+    });
+
+    // Nested submodule with a RELATIVE gitdir, as git writes it.
+    const inner = join(superRepo, "vendor", "a", "deps", "b");
+    mkdirSync(inner, { recursive: true });
+    writeFileSync(
+      join(inner, ".git"),
+      "gitdir: ../../../../.git/modules/a/modules/b\n",
+    );
+
+    const result = findProjectRoot(inner);
+    expect(result.hasMarker).toBe(true);
+    expect(result.root).toBe(inner);
+  });
+
   it("skips ~/.aide/ when cwd is not $HOME", async () => {
     const { findProjectRoot } = await import("../lib/project-root.js");
     // ~/.aide/ exists but cwd is an unrelated dir under tempHome

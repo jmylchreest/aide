@@ -11,23 +11,24 @@
  *   1. AIDE_PROJECT_ROOT env override (must be an existing directory).
  *   2. Walk the full ancestry from cwd to /, collecting candidates, then
  *      prefer:
- *        a. Closest ancestor with BOTH .aide/ and a VCS marker
- *           (.git/.hg/.svn/.bzr/.fossil) — handles the common case where
- *           the canonical root sits at the git repo root.
- *        b. Closest ancestor with a VCS marker only — .aide/ will be
- *           created there if needed.
- *        c. Closest ancestor with .aide/ only — standalone projects with
+ *        a. Closest ancestor with a VCS marker (.git/.hg/.svn/.bzr/.fossil).
+ *           A VCS boundary — including a submodule, which is its own
+ *           repository — is the project boundary: starting inside a
+ *           submodule anchors the submodule, starting in the superproject
+ *           anchors the superproject. Worktree .git files resolve to the
+ *           main repo root (worktrees share one store); submodule .git
+ *           files anchor the submodule directory itself.
+ *        b. Closest ancestor with .aide/ only — standalone projects with
  *           no VCS.
  *      ~/.aide/ is skipped as a project marker unless cwd is $HOME.
  *   3. No marker found: return { root: cwd, hasMarker: false }.
  *
- * The "both markers wins" priority is what stops a stray child .aide/ from
- * shadowing the real project root: a sibling .aide/ created by an
- * accidental CLI invocation lives in a subdir with no .git/, so the walk
- * keeps going until it finds the parent that has both.
+ * A stray child .aide/ (created by an accidental CLI invocation from a
+ * subdir) cannot shadow the real project root: it has no VCS marker, so
+ * any real repository above it takes priority.
  */
 
-import { basename, dirname, join, resolve } from "path";
+import { basename, dirname, isAbsolute, join, resolve } from "path";
 import { existsSync, readFileSync, statSync } from "fs";
 import { homedir } from "os";
 
@@ -96,9 +97,6 @@ export function findProjectRoot(cwd: string): ProjectRootResult {
   }
 
   for (const c of path) {
-    if (c.hasAide && c.hasVCS) return { root: c.vcsResolved, hasMarker: true };
-  }
-  for (const c of path) {
     if (c.hasVCS) return { root: c.vcsResolved, hasMarker: true };
   }
   for (const c of path) {
@@ -142,11 +140,26 @@ export function walkUpForProjectRoot(startDir: string): string | null {
 }
 
 /**
+ * Reports whether a resolved gitdir path points into a superproject's
+ * .git/modules/ tree, i.e. the .git file belongs to a submodule checkout
+ * rather than a linked worktree.
+ */
+function isSubmoduleGitdir(gitdir: string): boolean {
+  const parts = gitdir.split(/[\\/]+/);
+  for (let i = 0; i < parts.length - 1; i++) {
+    if (parts[i] === ".git" && parts[i + 1] === "modules") return true;
+  }
+  return false;
+}
+
+/**
  * Read a .git worktree file ("gitdir: <path>") and return the main repo root.
  *
  * Mirrors aide/cmd/aide/main.go:resolveWorktreeRoot(). The file's gitdir
  * normally points at "<main>/.git/worktrees/<name>"; we walk up that path
  * until we find a component named ".git" and return its parent.
+ * Submodule .git files (gitdir under .git/modules/) return null so the
+ * submodule directory itself becomes the root.
  */
 export function resolveWorktreeGitFile(gitFilePath: string): string | null {
   try {
@@ -154,9 +167,11 @@ export function resolveWorktreeGitFile(gitFilePath: string): string | null {
     if (!content.startsWith("gitdir:")) return null;
 
     let gitdir = content.slice("gitdir:".length).trim();
-    if (!gitdir.startsWith("/")) {
+    if (!isAbsolute(gitdir)) {
       gitdir = resolve(dirname(gitFilePath), gitdir);
     }
+
+    if (isSubmoduleGitdir(gitdir)) return null;
 
     let candidate = gitdir;
     for (;;) {

@@ -47,6 +47,84 @@ func TestProjectRoot(t *testing.T) {
 	}
 }
 
+func TestIsSubmoduleGitdir(t *testing.T) {
+	tests := []struct {
+		gitdir string
+		want   bool
+	}{
+		{"/super/.git/modules/lib", true},
+		{"/super/.git/modules/a/modules/b", true},
+		{"/main/.git/worktrees/wt", false},
+		{"/main/.git", false},
+		{"/elsewhere/bare-git-dir", false},
+	}
+	for _, tt := range tests {
+		if got := isSubmoduleGitdir(tt.gitdir); got != tt.want {
+			t.Errorf("isSubmoduleGitdir(%q) = %v, want %v", tt.gitdir, got, tt.want)
+		}
+	}
+}
+
+func TestFindProjectRootSubmodule(t *testing.T) {
+	tmp, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Superproject with .git/modules/lib/ and its own .aide/.
+	superRepo := filepath.Join(tmp, "super")
+	mustMkdir := func(p string) {
+		t.Helper()
+		if err := os.MkdirAll(p, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	mustMkdir(filepath.Join(superRepo, ".git", "modules", "lib"))
+	mustMkdir(filepath.Join(superRepo, ".aide"))
+
+	// Submodule checkout with .git as a file pointing into .git/modules/.
+	submodule := filepath.Join(superRepo, "vendor", "lib")
+	mustMkdir(filepath.Join(submodule, "src"))
+	gitFile := "gitdir: " + filepath.Join(superRepo, ".git", "modules", "lib") + "\n"
+	if err := os.WriteFile(filepath.Join(submodule, ".git"), []byte(gitFile), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Worktree of the superproject: .git file pointing into .git/worktrees/.
+	mustMkdir(filepath.Join(superRepo, ".git", "worktrees", "wt"))
+	worktree := filepath.Join(tmp, "wt")
+	mustMkdir(filepath.Join(worktree, "sub"))
+	wtGitFile := "gitdir: " + filepath.Join(superRepo, ".git", "worktrees", "wt") + "\n"
+	if err := os.WriteFile(filepath.Join(worktree, ".git"), []byte(wtGitFile), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("AIDE_PROJECT_ROOT", "")
+	os.Unsetenv("AIDE_PROJECT_ROOT")
+
+	tests := []struct {
+		name string
+		cwd  string
+		want string
+	}{
+		{"inside submodule anchors submodule", filepath.Join(submodule, "src"), submodule},
+		{"superproject root anchors superproject", superRepo, superRepo},
+		{"worktree resolves to main repo", filepath.Join(worktree, "sub"), superRepo},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Chdir(tt.cwd)
+			got, hasMarker := findProjectRoot()
+			if !hasMarker {
+				t.Fatalf("findProjectRoot() hasMarker = false, want true")
+			}
+			if got != tt.want {
+				t.Errorf("findProjectRoot() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestGrammarDir(t *testing.T) {
 	dbPath := "/home/user/myproject/.aide/memory/memory.db"
 	want := "/home/user/myproject/.aide/grammars"
