@@ -24,10 +24,19 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { homedir } from "os";
 import { Logger, debug, setDebugCwd } from "../lib/logger.js";
-import { readStdin, detectPlatform, isFalsy } from "../lib/hook-utils.js";
+import {
+  readStdin,
+  detectPlatform,
+  isFalsy,
+  emitHookResult,
+  installHookSafetyNet,
+} from "../lib/hook-utils.js";
 import { findAideBinary, ensureAideBinary } from "../lib/aide-downloader.js";
 import { findProjectRoot } from "../lib/project-root.js";
-import { emitInjectionEvent, recordObserveEvent } from "../core/read-tracking.js";
+import {
+  emitInjectionEvent,
+  recordObserveEvent,
+} from "../core/read-tracking.js";
 import { buildResumeContext } from "../core/session-resume-logic.js";
 import {
   ensureDirectories as coreEnsureDirectories,
@@ -193,7 +202,11 @@ function installHudWrapper(log: Logger): void {
 
     // Copy wrapper script
     copyFileSync(wrapperSrc, wrapperDest);
-    try { chmodSync(wrapperDest, 0o755); } catch { /* no-op on Windows */ }
+    try {
+      chmodSync(wrapperDest, 0o755);
+    } catch {
+      /* no-op on Windows */
+    }
 
     log.info(`Installed HUD wrapper to ${wrapperDest}`);
     log.end("installHudWrapper", { success: true, path: wrapperDest });
@@ -305,28 +318,8 @@ function debugLog(msg: string): void {
   debug(SOURCE, msg);
 }
 
-// Ensure we always output valid JSON, even on catastrophic errors
-function outputContinue(): void {
-  try {
-    console.log(JSON.stringify({ continue: true }));
-  } catch {
-    // Last resort - raw JSON string
-    console.log('{"continue":true}');
-  }
-}
-
 // Global error handlers to prevent hook crashes without JSON output
-process.on("uncaughtException", (err) => {
-  debugLog(`UNCAUGHT EXCEPTION: ${err}`);
-  outputContinue();
-  process.exit(0);
-});
-
-process.on("unhandledRejection", (reason) => {
-  debugLog(`UNHANDLED REJECTION: ${reason}`);
-  outputContinue();
-  process.exit(0);
-});
+installHookSafetyNet(SOURCE);
 
 async function main(): Promise<void> {
   let log: Logger | null = null;
@@ -341,7 +334,7 @@ async function main(): Promise<void> {
 
     if (!input.trim()) {
       debugLog("Empty input, exiting");
-      console.log(JSON.stringify({ continue: true }));
+      emitHookResult();
       return;
     }
 
@@ -360,7 +353,7 @@ async function main(): Promise<void> {
             `Set \`requireGit\`: false in ~/.aide/config/aide.json to allow ` +
             `init in arbitrary directories. Skipping AIDE bootstrap.\n`,
         );
-        console.log(JSON.stringify({ continue: true }));
+        emitHookResult();
         return;
       }
       process.stderr.write(
@@ -574,7 +567,7 @@ async function main(): Promise<void> {
       },
     };
 
-    console.log(JSON.stringify(output));
+    emitHookResult(output);
   } catch (error) {
     debugLog(`ERROR: ${error}`);
     // Log error if logger is available
@@ -583,7 +576,7 @@ async function main(): Promise<void> {
       log.flush();
     }
     // On error, allow continuation without context
-    console.log(JSON.stringify({ continue: true }));
+    emitHookResult();
   }
 }
 

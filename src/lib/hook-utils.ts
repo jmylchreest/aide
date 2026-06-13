@@ -16,8 +16,56 @@ import {
   sanitizeForLog,
   shellEscape,
 } from "../core/aide-client.js";
+import { debug } from "./logger.js";
 
 export { sanitizeForLog, shellEscape };
+
+/**
+ * A hook's JSON result object (printed to stdout for the harness). Typed as
+ * `object` rather than `Record<string, unknown>` so callers can pass their own
+ * named result interfaces (interfaces lack the implicit index signature
+ * `Record` requires).
+ */
+export type HookResult = object;
+
+/**
+ * Serialise and print a hook result as exactly one JSON line on stdout, with a
+ * raw-string fallback if serialisation itself throws. Defaults to
+ * `{continue:true}` — the fail-open result a hook emits when it has nothing
+ * specific to say. Callers needing a different shape (e.g. `{}` or a permission
+ * decision) pass it explicitly: the output decision stays with the caller, this
+ * helper only guarantees a single, always-valid line.
+ */
+export function emitHookResult(result: HookResult = { continue: true }): void {
+  try {
+    console.log(JSON.stringify(result));
+  } catch {
+    console.log('{"continue":true}');
+  }
+}
+
+/**
+ * Register process-level last-resort handlers so an uncaught error or rejection
+ * still emits a valid hook result (fail-open) instead of crashing with no
+ * output. `fallback` is the result emitted on crash (default `{continue:true}`).
+ * Replaces the identical uncaughtException/unhandledRejection block that was
+ * copy-pasted across every hook.
+ */
+export function installHookSafetyNet(
+  source: string,
+  fallback: HookResult = { continue: true },
+): void {
+  process.on("uncaughtException", (err) => {
+    debug(source, `UNCAUGHT EXCEPTION: ${err}`);
+    emitHookResult(fallback);
+    process.exit(0);
+  });
+  process.on("unhandledRejection", (reason) => {
+    debug(source, `UNHANDLED REJECTION: ${reason}`);
+    emitHookResult(fallback);
+    process.exit(0);
+  });
+}
 
 /** Maximum stdin payload size: 50 MiB. Prevents unbounded memory allocation. */
 const MAX_STDIN_BYTES = 50 * 1024 * 1024;
