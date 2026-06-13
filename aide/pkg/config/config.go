@@ -178,9 +178,117 @@ type GrammarConfig struct {
 	AutoDownload string `koanf:"auto_download"`
 }
 
-// ShareConfig groups memory share-import tunables (AIDE_SHARE_*).
+// ShareConfig groups the symmetric export/import sharing policy. AutoImport is
+// the AIDE_SHARE_AUTO_IMPORT toggle that opts a session into importing shared
+// data at init; Decisions and Memories carry per-type export/import gates and
+// include/exclude filters. The per-type *bool fields distinguish "unset"
+// (apply the type default) from an explicit false — see the resolved accessors.
 type ShareConfig struct {
-	AutoImport bool `koanf:"auto_import"`
+	AutoImport bool            `koanf:"auto_import"`
+	Decisions  ShareTypePolicy `koanf:"decisions"`
+	Memories   ShareTypePolicy `koanf:"memories"`
+}
+
+// ShareTypePolicy is the export/import policy for one record type (decisions or
+// memories). Export and Import are *bool so an unset value (nil) falls back to
+// the type default rather than to Go's zero-value false — decisions default to
+// export AND import on, which a plain bool could not express.
+type ShareTypePolicy struct {
+	Export       *bool       `koanf:"export"` // nil = type default
+	Import       *bool       `koanf:"import"` // nil = type default
+	ExportFilter ShareFilter `koanf:"export_filter"`
+	ImportFilter ShareFilter `koanf:"import_filter"`
+}
+
+// ShareFilter is a generic include/exclude glob filter over a record's tokens.
+// It mirrors contextshare.Filter but lives here so config stays self-contained;
+// the cmd layer maps one onto the other.
+type ShareFilter struct {
+	Include []string `koanf:"include"`
+	Exclude []string `koanf:"exclude"`
+}
+
+// shareTypeDefaults captures the type defaults applied when a policy leaves a
+// field unset: decisions flow both ways with no filtering, memories are opt-in
+// both ways and exclude personal/ephemeral records by default.
+type shareTypeDefaults struct {
+	export        bool
+	importEnabled bool
+	exclude       []string
+}
+
+var (
+	decisionDefaults = shareTypeDefaults{export: true, importEnabled: true, exclude: nil}
+	memoryDefaults   = shareTypeDefaults{export: false, importEnabled: false, exclude: []string{"scope:global", "session:*"}}
+)
+
+// resolveBool returns *p when set, otherwise def.
+func resolveBool(p *bool, def bool) bool {
+	if p != nil {
+		return *p
+	}
+	return def
+}
+
+// resolveFilter normalises a configured filter against its type default: an
+// empty Include means ["*"] (match all); an unset (nil) Exclude inherits the
+// type's default exclude list. koanf/mapstructure unmarshal an absent key to a
+// nil slice but an explicit JSON "[]" to a non-nil empty slice, so a user can
+// clear the default memory exclusions (publish scope:global / session:* too) by
+// setting "exclude": [] explicitly; only a fully unset Exclude inherits the
+// default. This matches the design's stated defaults.
+func resolveFilter(f ShareFilter, def shareTypeDefaults) ShareFilter {
+	include := f.Include
+	if len(include) == 0 {
+		include = []string{"*"}
+	}
+	exclude := f.Exclude
+	if exclude == nil {
+		exclude = def.exclude
+	}
+	return ShareFilter{Include: include, Exclude: exclude}
+}
+
+// DecisionExportEnabled reports whether decisions are published (default true).
+func (c ShareConfig) DecisionExportEnabled() bool {
+	return resolveBool(c.Decisions.Export, decisionDefaults.export)
+}
+
+// DecisionImportEnabled reports whether decisions are consumed (default true).
+func (c ShareConfig) DecisionImportEnabled() bool {
+	return resolveBool(c.Decisions.Import, decisionDefaults.importEnabled)
+}
+
+// MemoryExportEnabled reports whether memories are published (default false).
+func (c ShareConfig) MemoryExportEnabled() bool {
+	return resolveBool(c.Memories.Export, memoryDefaults.export)
+}
+
+// MemoryImportEnabled reports whether memories are consumed (default false).
+func (c ShareConfig) MemoryImportEnabled() bool {
+	return resolveBool(c.Memories.Import, memoryDefaults.importEnabled)
+}
+
+// DecisionExportFilter resolves the decision export filter with defaults.
+func (c ShareConfig) DecisionExportFilter() ShareFilter {
+	return resolveFilter(c.Decisions.ExportFilter, decisionDefaults)
+}
+
+// DecisionImportFilter resolves the decision import filter with defaults.
+func (c ShareConfig) DecisionImportFilter() ShareFilter {
+	return resolveFilter(c.Decisions.ImportFilter, decisionDefaults)
+}
+
+// MemoryExportFilter resolves the memory export filter with defaults
+// (default exclude: scope:global, session:*).
+func (c ShareConfig) MemoryExportFilter() ShareFilter {
+	return resolveFilter(c.Memories.ExportFilter, memoryDefaults)
+}
+
+// MemoryImportFilter resolves the memory import filter with defaults
+// (default exclude: scope:global, session:*).
+func (c ShareConfig) MemoryImportFilter() ShareFilter {
+	return resolveFilter(c.Memories.ImportFilter, memoryDefaults)
 }
 
 // MemoryConfig groups memory-scoring tunables (AIDE_MEMORY_*).

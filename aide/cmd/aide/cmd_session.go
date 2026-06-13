@@ -136,24 +136,16 @@ func sessionInit(dbPath string, args []string) error {
 		result.StaleAgentsCleaned = cleaned
 	}
 
-	// 3. Auto-import shared data if enabled. Prefer the file-per-record
-	// context layout; fall back to the legacy shared/ aggregate layout.
+	// 3. Auto-import shared data if enabled. The per-record and legacy layouts
+	// share .aide/shared/. Import is governed by the share.{decisions,memories}
+	// .import policy and filters (decisions on, memories off by default), so the
+	// documented behaviour change applies here too: teammate memories no longer
+	// auto-import unless opted in. Share errors never fail session init.
 	shareImport := hasFlag(args, "--share-import") || config.Get().Share.AutoImport
 	if shareImport {
-		projectRoot := projectRoot(dbPath)
-		contextDir := filepath.Join(projectRoot, ".aide", "context")
-		sharedDir := filepath.Join(projectRoot, ".aide", "shared")
-		if _, statErr := os.Stat(contextDir); statErr == nil {
-			stats, err := contextshare.Import(backend.Store(), backend.TombstoneStore(), contextDir, contextshare.ImportOptions{})
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "warning: context auto-import skipped: %v\n", err)
-			} else {
-				result.SharedImported = stats.DecisionsImported + stats.MemoriesImported
-			}
-		} else if _, statErr := os.Stat(sharedDir); statErr == nil {
-			imported, _, _ := shareImportDecisions(backend, sharedDir, false)
-			memImported, _, _ := shareImportMemories(backend, sharedDir, false)
-			result.SharedImported = imported + memImported
+		sharedDir := filepath.Join(projectRoot(dbPath), ".aide", "shared")
+		if _, statErr := os.Stat(sharedDir); statErr == nil {
+			result.SharedImported = autoImportShared(backend, sharedDir)
 		}
 	}
 
@@ -171,6 +163,51 @@ func sessionInit(dbPath string, args []string) error {
 	}
 	fmt.Println(string(out))
 	return nil
+}
+
+// autoImportShared imports shared data from sharedDir at session init under the
+// share.{decisions,memories}.import policy. It runs the per-record importer when
+// that layout is present and the legacy importer when flat aggregate files
+// remain. All errors are warnings on stderr — session init must never fail on a
+// share error. Returns the number of records imported.
+func autoImportShared(backend *Backend, sharedDir string) int {
+	share := config.Get().Share
+	importDecisions := share.DecisionImportEnabled()
+	importMemories := share.MemoryImportEnabled()
+
+	imported := 0
+	if hasPerRecordLayout(sharedDir) {
+		stats, err := contextshare.Import(backend.Store(), backend.TombstoneStore(), sharedDir, contextshare.ImportOptions{
+			Decisions:      importDecisions,
+			Memories:       importMemories,
+			DecisionFilter: toFilter(share.DecisionImportFilter()),
+			MemoryFilter:   toFilter(share.MemoryImportFilter()),
+		})
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "warning: shared auto-import skipped: %v\n", err)
+		} else {
+			imported += stats.DecisionsImported + stats.MemoriesImported
+		}
+	}
+	if hasLegacyRecords(sharedDir) {
+		if importDecisions {
+			n, _, err := shareImportDecisions(backend, sharedDir, false)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "warning: legacy decision auto-import skipped: %v\n", err)
+			} else {
+				imported += n
+			}
+		}
+		if importMemories {
+			n, _, err := shareImportMemories(backend, sharedDir, false)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "warning: legacy memory auto-import skipped: %v\n", err)
+			} else {
+				imported += n
+			}
+		}
+	}
+	return imported
 }
 
 // sessionFetchContext gathers memories, decisions, and recent sessions.

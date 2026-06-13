@@ -29,15 +29,22 @@ type Target interface {
 	DeleteMemory(id string) error
 }
 
-// ImportOptions configures Import. The zero value imports everything with
-// the default TTL at the current time.
+// ImportOptions configures Import.
+//
+// Decisions and Memories are the per-type consume gates: when false, that type
+// is skipped entirely. DecisionFilter and MemoryFilter then select which
+// incoming records of an enabled type are ingested, globbing over each record's
+// token set. Tombstones are always processed regardless of the type gates so
+// deletions still propagate and resurrection is prevented.
 type ImportOptions struct {
-	Now           time.Time     // TTL reference; zero = time.Now()
-	TombstoneTTL  time.Duration // Zero = DefaultTombstoneTTL
-	Force         bool          // Bypass the stale-export guard
-	DryRun        bool          // Report what would change without writing
-	SkipDecisions bool
-	SkipMemories  bool
+	Now            time.Time     // TTL reference; zero = time.Now()
+	TombstoneTTL   time.Duration // Zero = DefaultTombstoneTTL
+	Force          bool          // Bypass the stale-export guard
+	DryRun         bool          // Report what would change without writing
+	Decisions      bool          // Import decisions when true
+	Memories       bool          // Import memories when true
+	DecisionFilter Filter        // Applied to each incoming decision's token set
+	MemoryFilter   Filter        // Applied to each incoming memory's token set
 }
 
 // ImportStats reports what an import changed. Tombstone effects are counted
@@ -83,13 +90,13 @@ func Import(tgt Target, tombs TombstoneAccess, root string, opts ImportOptions) 
 	if err := importTombstones(tgt, tombs, root, now, ttl, opts.DryRun, stats); err != nil {
 		return nil, err
 	}
-	if !opts.SkipDecisions {
-		if err := importDecisions(tgt, tombs, root, now, ttl, opts.DryRun, stats); err != nil {
+	if opts.Decisions {
+		if err := importDecisions(tgt, tombs, root, now, ttl, opts.DryRun, opts.DecisionFilter, stats); err != nil {
 			return nil, err
 		}
 	}
-	if !opts.SkipMemories {
-		if err := importMemories(tgt, tombs, root, now, ttl, opts.DryRun, stats); err != nil {
+	if opts.Memories {
+		if err := importMemories(tgt, tombs, root, now, ttl, opts.DryRun, opts.MemoryFilter, stats); err != nil {
 			return nil, err
 		}
 	}
@@ -206,7 +213,7 @@ func allDecisionsBefore(history []*memory.Decision, cutoff time.Time) bool {
 // importDecisions inserts every decision version not already present
 // locally, preserving its original CreatedAt so lineage and "latest"
 // survive the wire regardless of import order.
-func importDecisions(tgt Target, tombs TombstoneAccess, root string, now time.Time, ttl time.Duration, dryRun bool, stats *ImportStats) error {
+func importDecisions(tgt Target, tombs TombstoneAccess, root string, now time.Time, ttl time.Duration, dryRun bool, filter Filter, stats *ImportStats) error {
 	dir := filepath.Join(root, decisionsDir)
 	topics, err := os.ReadDir(dir)
 	if err != nil {
@@ -226,6 +233,10 @@ func importDecisions(tgt Target, tombs TombstoneAccess, root string, now time.Ti
 		}
 
 		for _, d := range records {
+			if !filter.Match(DecisionTokens(d)) {
+				stats.DecisionsSkipped++
+				continue
+			}
 			if blockedByLocalTombstone(tombs, memory.TombstoneKindDecisionTopic, d.Topic, d.CreatedAt, now, ttl) {
 				stats.DecisionsSkipped++
 				continue
@@ -255,13 +266,17 @@ func importDecisions(tgt Target, tombs TombstoneAccess, root string, now time.Ti
 // their original timestamps, known ULIDs are last-write-wins by UpdatedAt,
 // and the forget tag is monotonic — a newer incoming version never strips a
 // local forget.
-func importMemories(tgt Target, tombs TombstoneAccess, root string, now time.Time, ttl time.Duration, dryRun bool, stats *ImportStats) error {
+func importMemories(tgt Target, tombs TombstoneAccess, root string, now time.Time, ttl time.Duration, dryRun bool, filter Filter, stats *ImportStats) error {
 	records, err := readRecordDir[memory.Memory](filepath.Join(root, memoriesDir), ParseMemory)
 	if err != nil {
 		return err
 	}
 
 	for _, m := range records {
+		if !filter.Match(MemoryTokens(m)) {
+			stats.MemoriesSkipped++
+			continue
+		}
 		if blockedByLocalTombstone(tombs, memory.TombstoneKindMemory, m.ID, recordTimeMemory(m), now, ttl) {
 			stats.MemoriesSkipped++
 			continue

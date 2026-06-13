@@ -1,14 +1,22 @@
-// Package contextshare implements the .aide/context/ replication surface:
+// Package contextshare implements the .aide/shared/ replication surface:
 // a deterministic, file-per-record projection of the shareable subset of the
 // store (decisions, memories, tombstones), designed to be committed to git.
 //
 // Layout:
 //
-//	.aide/context/
+//	.aide/shared/
 //	  decisions/<sanitized-topic>-<hash8>/<created-at-unixnano>.md  # one file per decision version, write-once
 //	  memories/<ulid>.md                                            # one file per shareable memory
 //	  tombstones/<ulid-or-topic-name>.md                            # deletions, TTL'd
 //	  manifest.json                                                 # export watermark (the only non-deterministic byte)
+//
+// The per-record format coexists with the legacy aggregate layout in the same
+// directory without name collisions: a legacy decision is a file
+// (decisions/<topic>.md), a per-record decision is a directory
+// (decisions/<topic>-<hash>/<ts>.md); a legacy memory is a multi-entry
+// category file (memories/<category>.md), a per-record memory is a single-entry
+// ULID file (memories/<ulid>.md). The first per-record export migrates any
+// legacy aggregates into the store and deletes them (see the cmd layer).
 //
 // Record files are named by their identity (ULID / version timestamp), so
 // re-exports of unchanged content are byte-identical and concurrent

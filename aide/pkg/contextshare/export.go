@@ -30,13 +30,22 @@ type TombstoneAccess interface {
 	DeleteTombstone(kind, id string) error
 }
 
-// ExportOptions configures Export. The zero value exports everything with
-// the default TTL at the current time.
+// ExportOptions configures Export.
+//
+// Decisions and Memories are the per-type publish gates: when false, no records
+// of that type are written. Tombstones are always materialised and expired
+// regardless of these gates — deletions propagate independently of the type
+// policy, so a disabled type still has its pending deletions recorded.
+// DecisionFilter and MemoryFilter then select which records of an enabled type
+// ship, globbing over each record's token set (see DecisionTokens/MemoryTokens).
+// The cmd layer maps user config into these; contextshare just applies them.
 type ExportOptions struct {
-	Now           time.Time     // Watermark and TTL reference; zero = time.Now()
-	TombstoneTTL  time.Duration // Zero = DefaultTombstoneTTL
-	SkipDecisions bool
-	SkipMemories  bool
+	Now            time.Time     // Watermark and TTL reference; zero = time.Now()
+	TombstoneTTL   time.Duration // Zero = DefaultTombstoneTTL
+	Decisions      bool          // Export decisions when true
+	Memories       bool          // Export memories when true
+	DecisionFilter Filter        // Applied to each decision's token set
+	MemoryFilter   Filter        // Applied to each memory's token set
 }
 
 // ExportStats reports what an export wrote.
@@ -90,16 +99,16 @@ func Export(src Source, tombs TombstoneAccess, root string, opts ExportOptions) 
 		stats.Tombstones++
 	}
 
-	if !opts.SkipDecisions {
-		n, err := exportDecisions(src, root, live)
+	if opts.Decisions {
+		n, err := exportDecisions(src, root, live, opts.DecisionFilter)
 		if err != nil {
 			return nil, err
 		}
 		stats.Decisions = n
 	}
 
-	if !opts.SkipMemories {
-		n, err := exportMemories(src, root, live)
+	if opts.Memories {
+		n, err := exportMemories(src, root, live, opts.MemoryFilter)
 		if err != nil {
 			return nil, err
 		}
@@ -192,8 +201,9 @@ func removeShadowedRecord(root string, t *memory.Tombstone) error {
 	return nil
 }
 
-// exportDecisions writes one write-once file per decision version.
-func exportDecisions(src Source, root string, live map[string]*memory.Tombstone) (int, error) {
+// exportDecisions writes one write-once file per decision version that passes
+// the filter.
+func exportDecisions(src Source, root string, live map[string]*memory.Tombstone, filter Filter) (int, error) {
 	decisions, err := src.ListDecisions()
 	if err != nil {
 		return 0, err
@@ -201,6 +211,9 @@ func exportDecisions(src Source, root string, live map[string]*memory.Tombstone)
 
 	count := 0
 	for _, d := range decisions {
+		if !filter.Match(DecisionTokens(d)) {
+			continue
+		}
 		if shadowed(live, memory.TombstoneKindDecisionTopic, d.Topic, recordTimeDecision(d)) {
 			continue
 		}
@@ -221,12 +234,14 @@ func exportDecisions(src Source, root string, live map[string]*memory.Tombstone)
 	return count, nil
 }
 
-// exportMemories writes one file per shareable memory. Soft-deleted memories
-// (forget tag) are included as data: the updated record carries its forget
-// tag and newer UpdatedAt, so peers that imported an earlier version — or
-// never had the memory at all — converge to the forgotten state instead of
-// keeping (or resurrecting) an unforgotten copy from a stale tree file.
-func exportMemories(src Source, root string, live map[string]*memory.Tombstone) (int, error) {
+// exportMemories writes one file per memory that passes the filter.
+// Soft-deleted memories (forget tag) that still pass the filter are included
+// as data: the updated record carries its forget tag and newer UpdatedAt, so
+// peers that imported an earlier version — or never had the memory at all —
+// converge to the forgotten state instead of keeping (or resurrecting) an
+// unforgotten copy from a stale tree file. Filtering by tokens, not by the old
+// IsShareableMemory gate, is what makes the export policy user-configurable.
+func exportMemories(src Source, root string, live map[string]*memory.Tombstone, filter Filter) (int, error) {
 	memories, err := src.ListMemories(memory.SearchOptions{IncludeAll: true})
 	if err != nil {
 		return 0, err
@@ -234,7 +249,7 @@ func exportMemories(src Source, root string, live map[string]*memory.Tombstone) 
 
 	count := 0
 	for _, m := range memories {
-		if !IsShareableMemory(m) {
+		if !filter.Match(MemoryTokens(m)) {
 			continue
 		}
 		if shadowed(live, memory.TombstoneKindMemory, m.ID, recordTimeMemory(m)) {

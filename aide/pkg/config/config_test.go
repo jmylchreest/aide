@@ -159,6 +159,159 @@ func TestLoad_FileOverriddenByEnv(t *testing.T) {
 	}
 }
 
+func TestShareConfigDefaults(t *testing.T) {
+	// A zero-value ShareConfig (every *bool nil, every filter empty) must
+	// resolve to the documented type defaults.
+	var sc ShareConfig
+
+	if !sc.DecisionExportEnabled() {
+		t.Error("decisions should default to export ON")
+	}
+	if !sc.DecisionImportEnabled() {
+		t.Error("decisions should default to import ON")
+	}
+	if sc.MemoryExportEnabled() {
+		t.Error("memories should default to export OFF")
+	}
+	if sc.MemoryImportEnabled() {
+		t.Error("memories should default to import OFF")
+	}
+
+	if df := sc.DecisionExportFilter(); len(df.Include) != 1 || df.Include[0] != "*" || len(df.Exclude) != 0 {
+		t.Errorf("decision export filter default = %+v, want include [*] exclude []", df)
+	}
+	mf := sc.MemoryExportFilter()
+	if len(mf.Include) != 1 || mf.Include[0] != "*" {
+		t.Errorf("memory export filter include default = %v, want [*]", mf.Include)
+	}
+	wantExclude := []string{"scope:global", "session:*"}
+	if len(mf.Exclude) != len(wantExclude) {
+		t.Fatalf("memory export filter exclude default = %v, want %v", mf.Exclude, wantExclude)
+	}
+	for i := range wantExclude {
+		if mf.Exclude[i] != wantExclude[i] {
+			t.Errorf("memory export exclude[%d] = %q, want %q", i, mf.Exclude[i], wantExclude[i])
+		}
+	}
+	if mif := sc.MemoryImportFilter(); len(mif.Exclude) != len(wantExclude) {
+		t.Errorf("memory import filter exclude default = %v, want %v", mif.Exclude, wantExclude)
+	}
+}
+
+func TestShareConfigExplicitFalseOverridesDefault(t *testing.T) {
+	no := false
+	yes := true
+	sc := ShareConfig{
+		Decisions: ShareTypePolicy{Export: &no},  // override the true default
+		Memories:  ShareTypePolicy{Import: &yes}, // override the false default
+	}
+	if sc.DecisionExportEnabled() {
+		t.Error("explicit export=false should override the decision default of true")
+	}
+	if !sc.DecisionImportEnabled() {
+		t.Error("decision import left unset should stay at its true default")
+	}
+	if !sc.MemoryImportEnabled() {
+		t.Error("explicit memory import=true should override the default of false")
+	}
+	if sc.MemoryExportEnabled() {
+		t.Error("memory export left unset should stay at its false default")
+	}
+}
+
+func TestShareFilterEmptyIncludeMatchesAll(t *testing.T) {
+	// An explicitly empty include must resolve to ["*"] (match all), while a
+	// user-set include is preserved verbatim.
+	sc := ShareConfig{
+		Decisions: ShareTypePolicy{
+			ExportFilter: ShareFilter{Include: nil, Exclude: []string{"decided_by:blueprint:*"}},
+		},
+	}
+	df := sc.DecisionExportFilter()
+	if len(df.Include) != 1 || df.Include[0] != "*" {
+		t.Errorf("empty include should resolve to [*], got %v", df.Include)
+	}
+	if len(df.Exclude) != 1 || df.Exclude[0] != "decided_by:blueprint:*" {
+		t.Errorf("explicit exclude should be preserved, got %v", df.Exclude)
+	}
+
+	custom := ShareConfig{
+		Memories: ShareTypePolicy{ImportFilter: ShareFilter{Include: []string{"team:*"}}},
+	}
+	if got := custom.MemoryImportFilter().Include; len(got) != 1 || got[0] != "team:*" {
+		t.Errorf("explicit include should be preserved, got %v", got)
+	}
+}
+
+func TestShareConfigUnmarshalsBoolPointers(t *testing.T) {
+	// koanf must leave an absent *bool as nil (so the type default applies) and
+	// populate an explicit one. A file sets decisions.export=false; memories is
+	// untouched.
+	dir := t.TempDir()
+	cfgDir := filepath.Join(dir, ".aide", "config")
+	if err := os.MkdirAll(cfgDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	contents := []byte(`{"share":{"decisions":{"export":false},"memories":{"export":true}}}`)
+	if err := os.WriteFile(filepath.Join(cfgDir, "aide.json"), contents, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.Share.Decisions.Export == nil {
+		t.Fatal("decisions.export should unmarshal to a non-nil *bool")
+	}
+	if *cfg.Share.Decisions.Export {
+		t.Error("decisions.export=false should unmarshal to false")
+	}
+	if cfg.Share.Decisions.Import != nil {
+		t.Error("absent decisions.import should stay nil so the default applies")
+	}
+	if !cfg.Share.DecisionImportEnabled() {
+		t.Error("absent decisions.import should resolve to the true default")
+	}
+	if cfg.Share.Decisions.Export != nil && cfg.Share.DecisionExportEnabled() {
+		t.Error("decisions.export=false should make DecisionExportEnabled() false")
+	}
+	if cfg.Share.Memories.Export == nil || !*cfg.Share.Memories.Export {
+		t.Error("memories.export=true should unmarshal to true")
+	}
+	if !cfg.Share.MemoryExportEnabled() {
+		t.Error("memories.export=true should make MemoryExportEnabled() true")
+	}
+}
+
+func TestShareConfigExplicitEmptyExcludeClearsDefault(t *testing.T) {
+	// An explicit JSON "[]" must clear the default memory exclusions (so a team
+	// can opt to share scope:global / session:* too), while an absent key still
+	// inherits the default. This relies on koanf/mapstructure unmarshalling an
+	// absent slice to nil but an explicit "[]" to a non-nil empty slice; guard
+	// that contract here so a parser change can't silently break the override.
+	dir := t.TempDir()
+	cfgDir := filepath.Join(dir, ".aide", "config")
+	if err := os.MkdirAll(cfgDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	contents := []byte(`{"share":{"memories":{"export":true,"export_filter":{"exclude":[]}}}}`)
+	if err := os.WriteFile(filepath.Join(cfgDir, "aide.json"), contents, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load(dir)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if ex := cfg.Share.MemoryExportFilter().Exclude; len(ex) != 0 {
+		t.Errorf("explicit exclude:[] should clear the default, got %v", ex)
+	}
+	// Import filter was left absent, so it must still inherit the default.
+	if ex := cfg.Share.MemoryImportFilter().Exclude; len(ex) != 2 {
+		t.Errorf("absent import exclude should inherit the 2-entry default, got %v", ex)
+	}
+}
+
 func TestGet_BeforeLoad(t *testing.T) {
 	Set(nil)
 	c := Get()

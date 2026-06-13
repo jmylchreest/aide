@@ -29,8 +29,25 @@ func newTestStore(t *testing.T) *store.BoltStore {
 	return s
 }
 
+// matchAll is the include-everything, exclude-nothing filter the merge-surface
+// tests use unless they exercise filtering explicitly.
+var matchAll = Filter{Include: []string{"*"}}
+
+// mustExport exports both record types with match-all filters by default, so
+// the merge-surface tests (which predate the configurable policy) keep their
+// "export everything shareable" semantics. Tests that need a narrower policy
+// set Decisions/Memories/filters on opts before calling Export directly.
 func mustExport(t *testing.T, s *store.BoltStore, root string, opts ExportOptions) *ExportStats {
 	t.Helper()
+	if !opts.Decisions && !opts.Memories {
+		opts.Decisions, opts.Memories = true, true
+	}
+	if len(opts.DecisionFilter.Include) == 0 {
+		opts.DecisionFilter = matchAll
+	}
+	if len(opts.MemoryFilter.Include) == 0 {
+		opts.MemoryFilter = matchAll
+	}
 	stats, err := Export(s, s, root, opts)
 	if err != nil {
 		t.Fatalf("Export: %v", err)
@@ -38,8 +55,18 @@ func mustExport(t *testing.T, s *store.BoltStore, root string, opts ExportOption
 	return stats
 }
 
+// mustImport mirrors mustExport: both types, match-all filters by default.
 func mustImport(t *testing.T, s *store.BoltStore, root string, opts ImportOptions) *ImportStats {
 	t.Helper()
+	if !opts.Decisions && !opts.Memories {
+		opts.Decisions, opts.Memories = true, true
+	}
+	if len(opts.DecisionFilter.Include) == 0 {
+		opts.DecisionFilter = matchAll
+	}
+	if len(opts.MemoryFilter.Include) == 0 {
+		opts.MemoryFilter = matchAll
+	}
 	stats, err := Import(s, s, root, opts)
 	if err != nil {
 		t.Fatalf("Import: %v", err)

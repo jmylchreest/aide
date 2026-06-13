@@ -1,17 +1,16 @@
 // Package main provides the share command for exporting/importing aide data
 // as git-friendly markdown files with YAML frontmatter.
 //
-// New exports write the file-per-record context layout (.aide/context/, see
-// pkg/contextshare): write-once decision version files, one file per
-// shareable memory, tombstones for deletions, and a manifest watermark.
-// The legacy aggregate layout (.aide/shared/) remains importable for
-// back-compat and exportable behind --legacy for teams mid-migration:
-//
-//	.aide/shared/
-//	  decisions/
-//	    <topic>.md          # One file per decision topic (latest only)
-//	  memories/
-//	    <category>.md       # One file per category (learning, pattern, gotcha, etc.)
+// Exports write the file-per-record format under .aide/shared/ (see
+// pkg/contextshare): write-once decision version files, one file per memory
+// that passes the share filter, tombstones for deletions, and a manifest
+// watermark. The legacy aggregate layout shares the same .aide/shared/
+// directory without colliding (legacy decisions are files decisions/<topic>.md,
+// per-record decisions are directories decisions/<topic>-<hash>/<ts>.md; legacy
+// memories are multi-entry files memories/<category>.md, per-record memories
+// are single-entry files memories/<ulid>.md). The legacy layout remains
+// importable and is exportable behind --legacy; the first per-record export
+// migrates any legacy aggregates into the store and removes them.
 package main
 
 import (
@@ -25,9 +24,18 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jmylchreest/aide/aide/pkg/config"
 	"github.com/jmylchreest/aide/aide/pkg/contextshare"
 	"github.com/jmylchreest/aide/aide/pkg/memory"
 )
+
+// toFilter maps a config.ShareFilter (already resolved with defaults by the
+// config accessors) onto the config-agnostic contextshare.Filter the engine
+// applies. Keeping the conversion in the cmd layer is what lets contextshare
+// avoid importing pkg/config.
+func toFilter(f config.ShareFilter) contextshare.Filter {
+	return contextshare.Filter{Include: f.Include, Exclude: f.Exclude}
+}
 
 // sanitizeFilenameRe is compiled once for sanitizeFilename.
 var sanitizeFilenameRe = regexp.MustCompile(`[^a-zA-Z0-9_-]+`)
@@ -56,38 +64,39 @@ func cmdShare(dbPath string, args []string) error {
 func printShareUsage() {
 	fmt.Println(`aide share - Export/import aide data as git-friendly markdown
 
-Shared files are written to .aide/context/ and designed to be committed to git.
+Shared files are written to .aide/shared/ and designed to be committed to git.
 One file per record (decision version, memory, tombstone), so re-exports of
 unchanged content are byte-identical and deletions propagate via tombstones.
-The legacy aggregate layout (.aide/shared/) remains importable, and exportable
-via --legacy for teams mid-migration.
+Which records ship is governed by the share.{decisions,memories} policy in
+.aide/config/aide.json (decisions export+import on by default, memories off).
+The first per-record export migrates any legacy aggregate files in place.
 
 Usage:
   aide share <subcommand> [arguments]
 
 Subcommands:
-  export     Export decisions and memories to .aide/context/
-  import     Import decisions and memories from .aide/context/ (or .aide/shared/)
+  export     Export decisions and memories to .aide/shared/
+  import     Import decisions and memories from .aide/shared/
 
 Options:
   export:
     --decisions          Export decisions only
-    --memories           Export memories only (shareable subset)
-    --output=DIR         Output directory (default: .aide/context)
+    --memories           Export memories only (forces memory export on)
+    --all-memories       Export all memories (include ["*"], no exclude)
+    --output=DIR         Output directory (default: .aide/shared)
     --legacy             Write the legacy .aide/shared/ aggregate layout
-    --all-memories       Export all memories (legacy layout only)
 
   import:
     --decisions          Import decisions only
-    --memories           Import memories only
-    --input=DIR          Input directory (default: .aide/context, falling back to .aide/shared)
+    --memories           Import memories only (forces memory import on)
+    --input=DIR          Input directory (default: .aide/shared)
     --dry-run            Show what would be imported without changing anything
     --force              Import even when the export manifest is missing or stale
 
 Examples:
-  aide share export                          # Export everything
+  aide share export                          # Export per policy (decisions by default)
   aide share export --decisions              # Decisions only
-  aide share import                          # Import everything
+  aide share import                          # Import per policy
   aide share import --dry-run                # Preview import`)
 }
 
@@ -101,14 +110,6 @@ func cmdShareExport(dbPath string, args []string) error {
 	memoriesOnly := hasFlag(args, "--memories")
 	allMemories := hasFlag(args, "--all-memories")
 
-	if allMemories && !legacy {
-		return fmt.Errorf("--all-memories exports non-shareable memories and is only supported with --legacy; the context layout shares the shareable subset only")
-	}
-
-	// Default: export both
-	exportDecisions := !memoriesOnly
-	exportMemories := !decisionsOnly
-
 	backend, err := NewBackend(dbPath)
 	if err != nil {
 		return fmt.Errorf("failed to connect: %w", err)
@@ -116,16 +117,49 @@ func cmdShareExport(dbPath string, args []string) error {
 	defer backend.Close()
 
 	if !legacy {
-		outputDir := filepath.Join(projectRoot, ".aide", "context")
+		share := config.Get().Share
+
+		// Start from the config policy, then apply CLI overrides. --decisions and
+		// --memories scope the run to a single type; --memories and --all-memories
+		// force memory export on (the latter with the broadest filter).
+		exportDecisions := share.DecisionExportEnabled()
+		exportMemories := share.MemoryExportEnabled()
+		decisionFilter := toFilter(share.DecisionExportFilter())
+		memoryFilter := toFilter(share.MemoryExportFilter())
+
+		if decisionsOnly {
+			exportDecisions = true
+			exportMemories = false
+		}
+		if memoriesOnly {
+			exportDecisions = false
+			exportMemories = true
+		}
+		if allMemories {
+			exportMemories = true
+			memoryFilter = contextshare.Filter{Include: []string{"*"}, Exclude: nil}
+		}
+
+		outputDir := filepath.Join(projectRoot, ".aide", "shared")
 		if o := parseFlag(args, "--output="); o != "" {
 			outputDir = o
 		}
+
+		if err := migrateLegacyAggregates(backend, outputDir); err != nil {
+			return fmt.Errorf("failed to migrate legacy share files: %w", err)
+		}
+
 		stats, err := contextshare.Export(backend.Store(), backend.TombstoneStore(), outputDir, contextshare.ExportOptions{
-			SkipDecisions: !exportDecisions,
-			SkipMemories:  !exportMemories,
+			Decisions:      exportDecisions,
+			Memories:       exportMemories,
+			DecisionFilter: decisionFilter,
+			MemoryFilter:   memoryFilter,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to export: %w", err)
+		}
+		if err := writeShareExplainers(outputDir); err != nil {
+			return fmt.Errorf("failed to write explainer files: %w", err)
 		}
 		fmt.Printf("Exported to %s\n", outputDir)
 		if exportDecisions {
@@ -140,6 +174,10 @@ func cmdShareExport(dbPath string, args []string) error {
 		}
 		return nil
 	}
+
+	// Legacy aggregate export still honours the type-scoping CLI flags.
+	exportDecisions := !memoriesOnly
+	exportMemories := !decisionsOnly
 
 	outputDir := filepath.Join(projectRoot, ".aide", "shared")
 	if o := parseFlag(args, "--output="); o != "" {
@@ -172,6 +210,155 @@ func cmdShareExport(dbPath string, args []string) error {
 		fmt.Printf("  memories:  %d\n", memoriesExported)
 	}
 	return nil
+}
+
+// legacyAggregateFiles returns the flat legacy aggregate .md files under
+// outputDir's decisions/ and memories/ subdirectories (skipping the
+// DECISIONS.md / MEMORIES.md explainers and any per-record directories). The
+// presence of any such file means a first per-record export must migrate.
+//
+// Decision aggregates are unambiguous — per-record decisions live in topic
+// subdirectories, so any flat decisions/<name>.md is legacy. Memory files are
+// ambiguous on name alone (memories/<ulid>.md vs memories/<category>.md), so a
+// flat memory file is treated as a legacy aggregate only when its frontmatter
+// is the aggregate "type: memories" form rather than a per-record "id:" record.
+func legacyAggregateFiles(outputDir string) []string {
+	var files []string
+	for _, sub := range []string{"decisions", "memories"} {
+		dir := filepath.Join(outputDir, sub)
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			continue
+		}
+		for _, entry := range entries {
+			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
+				continue
+			}
+			if isReservedShareFile(entry.Name()) {
+				continue
+			}
+			path := filepath.Join(dir, entry.Name())
+			if sub == "memories" && !isLegacyMemoryAggregate(path) {
+				continue
+			}
+			files = append(files, path)
+		}
+	}
+	return files
+}
+
+// isLegacyMemoryAggregate reports whether a flat memories/*.md file is a legacy
+// multi-entry aggregate (frontmatter "type: memories") rather than a per-record
+// single-memory file (frontmatter "id:"). Unreadable files are not treated as
+// legacy, so a transient read error never triggers a destructive migration.
+func isLegacyMemoryAggregate(path string) bool {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "---" {
+			continue
+		}
+		if line == "" {
+			break // end of frontmatter region
+		}
+		if strings.HasPrefix(line, "id:") {
+			return false
+		}
+		if strings.HasPrefix(line, "type:") && strings.TrimSpace(strings.TrimPrefix(line, "type:")) == "memories" {
+			return true
+		}
+	}
+	return false
+}
+
+// migrateLegacyAggregates performs the one-shot legacy → per-record migration
+// on first per-record export. When legacy aggregate files are present, it first
+// imports them into the store (reusing the legacy parsers so nothing a teammate
+// published is lost), then deletes the legacy aggregate files plus their stale
+// DECISIONS.md / MEMORIES.md explainers, so the subsequent per-record export
+// re-materialises the migrated records in the new format. Idempotent: after the
+// first export the legacy files are gone and this step is skipped.
+func migrateLegacyAggregates(backend *Backend, outputDir string) error {
+	legacy := legacyAggregateFiles(outputDir)
+	if len(legacy) == 0 {
+		return nil
+	}
+
+	if _, _, err := shareImportDecisions(backend, outputDir, false); err != nil {
+		return fmt.Errorf("failed to import legacy decisions: %w", err)
+	}
+	if _, _, err := shareImportMemories(backend, outputDir, false); err != nil {
+		return fmt.Errorf("failed to import legacy memories: %w", err)
+	}
+
+	// Remove the migrated aggregate files and the now-stale explainer files; the
+	// per-record export writes fresh DECISIONS.md / MEMORIES.md afterwards.
+	toRemove := append([]string{}, legacy...)
+	for _, sub := range []string{"decisions", "memories"} {
+		for name := range reservedShareFiles {
+			toRemove = append(toRemove, filepath.Join(outputDir, sub, name))
+		}
+	}
+	for _, path := range toRemove {
+		if err := os.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return fmt.Errorf("failed to remove legacy file %s: %w", path, err)
+		}
+	}
+
+	fmt.Fprintf(os.Stderr, "notice: migrated %d legacy aggregate share file(s) in %s to per-record format\n", len(legacy), outputDir)
+	return nil
+}
+
+// writeShareExplainers (re)writes the DECISIONS.md / MEMORIES.md human-readable
+// explainers in the per-record tree. Each is written only when its subdirectory
+// holds records (a per-record directory or .md file other than the explainer
+// itself), and removed when the subdirectory has emptied out, so the explainer
+// never lingers next to an empty folder.
+func writeShareExplainers(outputDir string) error {
+	type explainer struct {
+		sub     string
+		name    string
+		content string
+	}
+	for _, e := range []explainer{
+		{"decisions", "DECISIONS.md", decisionsReadmeContent},
+		{"memories", "MEMORIES.md", memoriesReadmeContent},
+	} {
+		dir := filepath.Join(outputDir, e.sub)
+		path := filepath.Join(dir, e.name)
+		if shareDirHasRecords(dir, e.name) {
+			if err := os.WriteFile(path, []byte(e.content), 0o644); err != nil {
+				return err
+			}
+			continue
+		}
+		if err := os.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return err
+		}
+	}
+	return nil
+}
+
+// shareDirHasRecords reports whether dir holds any record (a subdirectory or a
+// .md file other than the named explainer). Used to decide whether the explainer
+// is warranted.
+func shareDirHasRecords(dir, explainer string) bool {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return false
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			return true
+		}
+		if strings.HasSuffix(entry.Name(), ".md") && entry.Name() != explainer {
+			return true
+		}
+	}
+	return false
 }
 
 // shareExportDecisions writes each decision topic as a separate markdown file.
@@ -474,43 +661,24 @@ func writeMemoriesMarkdown(filename string, cat memory.Category, memories []*mem
 
 // --- Import ---
 
-// isContextLayout reports whether dir holds the file-per-record context
-// layout rather than the legacy aggregate layout. A manifest is the
-// definitive marker; a tombstones dir or decision topic subdirectories
-// identify a context tree whose manifest was lost (the import stale guard
-// will then ask for a fresh export).
-func isContextLayout(dir string) bool {
+// hasPerRecordLayout reports whether dir holds the file-per-record format,
+// which now coexists with the legacy aggregate layout in the same .aide/shared/
+// directory. A manifest is the definitive marker; a tombstones dir or decision
+// topic subdirectories identify a per-record tree whose manifest was lost (the
+// import stale guard then asks for a fresh export). Per-record memory files
+// (memories/<ulid>.md) are intentionally not used as a marker — they share the
+// flat-.md shape of legacy category files (memories/<category>.md), and every
+// real per-record export writes a manifest anyway.
+func hasPerRecordLayout(dir string) bool {
 	if _, err := os.Stat(filepath.Join(dir, contextshare.ManifestName)); err == nil {
 		return true
 	}
 	if _, err := os.Stat(filepath.Join(dir, "tombstones")); err == nil {
 		return true
 	}
-	entries, err := os.ReadDir(filepath.Join(dir, "decisions"))
-	if err != nil {
-		return false
-	}
-	for _, entry := range entries {
-		if entry.IsDir() {
-			return true
-		}
-	}
-	return false
-}
-
-// hasLegacyRecords reports whether dir contains files the legacy aggregate
-// importer would read: flat .md files directly under decisions/ or memories/.
-// An explicitly passed --input directory with no such files is treated as a
-// context tree, so an empty or manifest-less directory surfaces the stale
-// guard's clear error instead of a silent legacy import of nothing.
-func hasLegacyRecords(dir string) bool {
-	for _, sub := range []string{"decisions", "memories"} {
-		entries, err := os.ReadDir(filepath.Join(dir, sub))
-		if err != nil {
-			continue
-		}
+	if entries, err := os.ReadDir(filepath.Join(dir, "decisions")); err == nil {
 		for _, entry := range entries {
-			if !entry.IsDir() && strings.HasSuffix(entry.Name(), ".md") {
+			if entry.IsDir() {
 				return true
 			}
 		}
@@ -518,34 +686,46 @@ func hasLegacyRecords(dir string) bool {
 	return false
 }
 
+// hasLegacyRecords reports whether dir holds any legacy aggregate file the
+// legacy importer should read — a flat decisions/<topic>.md or a flat
+// memories/<category>.md (the "type: memories" form), excluding the explainer
+// files and per-record memory files. It is the same classification as
+// legacyAggregateFiles, so the import path and the migration path agree on what
+// "legacy" means.
+func hasLegacyRecords(dir string) bool {
+	return len(legacyAggregateFiles(dir)) > 0
+}
+
 func cmdShareImport(dbPath string, args []string) error {
 	projectRoot := projectRoot(dbPath)
 
 	inputDir := parseFlag(args, "--input=")
-	// useContext records when the directory is a context tree by construction:
-	// the default .aide/context/ location, or an explicit --input that holds no
-	// legacy records. Both must hit the context importer even when empty or
-	// manifest-less, so the stale guard produces its clear error instead of
-	// the legacy path silently importing nothing.
-	useContext := false
 	if inputDir == "" {
-		contextDir := filepath.Join(projectRoot, ".aide", "context")
-		if _, err := os.Stat(contextDir); err == nil {
-			inputDir = contextDir
-			useContext = true
-		} else {
-			inputDir = filepath.Join(projectRoot, ".aide", "shared")
-		}
-	} else if !hasLegacyRecords(inputDir) {
-		useContext = true
+		inputDir = filepath.Join(projectRoot, ".aide", "shared")
 	}
 
 	decisionsOnly := hasFlag(args, "--decisions")
 	memoriesOnly := hasFlag(args, "--memories")
 	dryRun := hasFlag(args, "--dry-run")
 
-	importDecisions := !memoriesOnly
-	importMemories := !decisionsOnly
+	share := config.Get().Share
+
+	// Start from the config policy, then apply CLI overrides. --decisions and
+	// --memories scope the run to a single type; --memories also forces memory
+	// import on (a teammate can pull memories on demand without flipping config).
+	importDecisions := share.DecisionImportEnabled()
+	importMemories := share.MemoryImportEnabled()
+	decisionFilter := toFilter(share.DecisionImportFilter())
+	memoryFilter := toFilter(share.MemoryImportFilter())
+
+	if decisionsOnly {
+		importDecisions = true
+		importMemories = false
+	}
+	if memoriesOnly {
+		importDecisions = false
+		importMemories = true
+	}
 
 	backend, err := NewBackend(dbPath)
 	if err != nil {
@@ -553,21 +733,38 @@ func cmdShareImport(dbPath string, args []string) error {
 	}
 	defer backend.Close()
 
-	if useContext || isContextLayout(inputDir) {
+	// The per-record and legacy layouts now share .aide/shared/. Run the
+	// per-record importer when that layout is present (or when --input points at
+	// a tree we should treat as per-record), then run the legacy importer when
+	// flat aggregate files remain. The two parsers are orthogonal: per-record
+	// parsing skips flat legacy files and legacy parsing skips per-record dirs.
+	perRecord := hasPerRecordLayout(inputDir)
+	legacy := hasLegacyRecords(inputDir)
+	// An explicit --input with neither layout still hits the per-record importer
+	// so the stale guard surfaces its clear error rather than silently doing
+	// nothing.
+	if !perRecord && !legacy {
+		perRecord = true
+	}
+
+	action := "Imported from"
+	if dryRun {
+		action = "Dry run from"
+	}
+	fmt.Printf("%s %s\n", action, inputDir)
+
+	if perRecord {
 		stats, err := contextshare.Import(backend.Store(), backend.TombstoneStore(), inputDir, contextshare.ImportOptions{
-			Force:         hasFlag(args, "--force"),
-			DryRun:        dryRun,
-			SkipDecisions: !importDecisions,
-			SkipMemories:  !importMemories,
+			Force:          hasFlag(args, "--force"),
+			DryRun:         dryRun,
+			Decisions:      importDecisions,
+			Memories:       importMemories,
+			DecisionFilter: decisionFilter,
+			MemoryFilter:   memoryFilter,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to import: %w", err)
 		}
-		action := "Imported from"
-		if dryRun {
-			action = "Dry run from"
-		}
-		fmt.Printf("%s %s\n", action, inputDir)
 		if importDecisions {
 			fmt.Printf("  decisions:  %d imported, %d skipped (already exist)\n", stats.DecisionsImported, stats.DecisionsSkipped)
 		}
@@ -579,6 +776,9 @@ func cmdShareImport(dbPath string, args []string) error {
 		if backend.TombstoneStore() == nil {
 			fmt.Fprintln(os.Stderr, "warning: daemon is running; incoming deletions were applied, but tombstones could not be recorded locally with their original timestamps")
 		}
+	}
+
+	if !legacy {
 		return nil
 	}
 
@@ -602,11 +802,9 @@ func cmdShareImport(dbPath string, args []string) error {
 		memoriesSkipped = skipped
 	}
 
-	action := "Imported from"
-	if dryRun {
-		action = "Dry run from"
+	if perRecord {
+		fmt.Println("  legacy aggregate files:")
 	}
-	fmt.Printf("%s %s\n", action, inputDir)
 	if importDecisions {
 		fmt.Printf("  decisions: %d imported, %d skipped (already exist)\n", decisionsImported, decisionsSkipped)
 	}
