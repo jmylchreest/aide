@@ -1,0 +1,176 @@
+{
+  "schema_version": 1,
+  "name": "csharp-unity",
+  "display_name": "Unity (C#) Best Practices",
+  "description": "Idiomatic Unity C#: thin MonoBehaviours, ScriptableObject architecture, allocation-free hot paths, coroutines/Awaitable, the Input System, the Job System, Unity Test Framework, Addressables, and IL2CPP/AOT",
+  "version": "0.1.1",
+  "tags": ["language", "csharp", "unity", "gamedev"],
+  "includes": ["general"],
+  "decisions": [
+    {
+      "topic": "unity-runtime-and-versioning",
+      "decision": "Pin one Unity LTS editor for the whole team via ProjectVersion.txt, target the .NET Standard 2.1 API compatibility level, and ship release builds on IL2CPP while iterating on Mono.",
+      "rationale": "A single pinned editor (ProjectSettings/ProjectVersion.txt) keeps importers, serialisation, and shader compilation byte-identical across the team, so .meta and asset diffs stay clean. .NET Standard 2.1 is Unity's default level: smallest players, widest platform reach, and unsupported APIs caught at compile time. Mono's JIT gives the fastest Editor/desktop iteration; IL2CPP's AOT output delivers faster startup and the platform compliance iOS, WebGL, and consoles require. This is the Unity form — a pinned editor over SDK-style multi-target csproj, and AOT for shipping.",
+      "details": "Commit Assets/, Packages/ (manifest.json + packages-lock.json), all of ProjectSettings/ including ProjectVersion.txt, and every .meta; set Editor > Version Control to Visible Meta Files and Asset Serialization to Force Text so diffs stay readable. Pin the exact LTS in ProjectVersion.txt (e.g. m_EditorVersion: 6000.x.yf1); upgrades land as explicit reviewed commits the whole team adopts together. Set Api Compatibility Level to .NET Standard 2.1 (Player > Other Settings); choose .NET Framework only when a dependency needs the 4.8 surface. Keep Mono for fast Edit-mode/desktop iteration; build every release target on IL2CPP and gate an IL2CPP build in CI so AOT issues surface early. Under High stripping, preserve reflection/JSON/DI types with link.xml or [Preserve].",
+      "references": [
+        "https://docs.unity3d.com/Manual/dotnet-profile-support.html",
+        "https://docs.unity3d.com/Manual/scripting-backends-intro.html",
+        "https://docs.unity3d.com/Manual/managed-code-stripping.html"
+      ]
+    },
+    {
+      "topic": "unity-assembly-definitions",
+      "decision": "Partition code into named assembly definition (.asmdef) files — runtime, editor, and test — so each compiles independently and dependencies flow one direction.",
+      "rationale": "Loose scripts land in the monolithic Assembly-CSharp, so every edit recompiles everything and any class can reach any other. Splitting on .asmdef boundaries shrinks recompiles to the changed assembly plus its dependents and turns layering into a compiler-enforced rule. This is Unity's equivalent of csproj boundaries, with one positive divergence: you reference assemblies by name in the .asmdef and let Unity regenerate the .csproj and solution, rather than hand-authoring SDK-style csproj.",
+      "details": "Use reverse-DNS names matching folders: Runtime/Company.Feature.asmdef, Editor/Company.Feature.Editor.asmdef, Tests/Company.Feature.Tests.asmdef. Dependencies flow one way — editor and tests reference runtime; runtime stays standalone and engine-only. Reference by name with Use GUIDs on so renames stay safe; set a Root Namespace per assembly. Editor assemblies: Platforms = Editor only. Leaf, editor, and test assemblies opt out of Auto Referenced to stay isolated from Assembly-CSharp. Create tests via Assets > Create > Testing > Test Assembly Folder (the generated .asmdef references nunit.framework.dll, UnityEngine.TestRunner, UnityEditor.TestRunner and carries the UNITY_INCLUDE_TESTS constraint). Prefer Define Constraints and Version Defines over per-line #if.",
+      "references": [
+        "https://docs.unity3d.com/Manual/assembly-definition-files.html",
+        "https://docs.unity3d.com/Manual/class-AssemblyDefinitionImporter.html",
+        "https://docs.unity3d.com/Packages/com.unity.test-framework@1.4/manual/workflow-create-test-assembly.html"
+      ]
+    },
+    {
+      "topic": "unity-monobehaviour-design",
+      "decision": "Keep MonoBehaviours as thin sealed adapters that wire the engine to plain testable C# classes, and drive each lifecycle callback by its intended cadence.",
+      "rationale": "MonoBehaviours are constructed by the engine, so logic kept inside them is reachable only through play-mode scenes. Extracting the rules into plain sealed classes (the Humble Object pattern) makes them EditMode-testable with no scene while the MonoBehaviour stays a thin Inspector-and-lifecycle adapter. Caching own components in Awake and resolving cross-object references in Start keeps initialisation deterministic, since Start runs only after every Awake completes.",
+      "details": "Put rules in sealed plain C# classes; the MonoBehaviour holds a reference and forwards calls. Lifecycle by purpose: Awake() self-init and cache own components via GetComponent; OnEnable()/OnDisable() symmetric subscribe/unsubscribe (events, Input System actions); Start() resolve cross-object references (all Awakes have run); Update() per-frame input/UI, LateUpdate() camera/follow after movement, FixedUpdate() Rigidbody physics. Expose tuning via [SerializeField] private fields; guard dependencies with [RequireComponent(typeof(...))] and [DisallowMultipleComponent]; seal types not designed for inheritance. Unity divergences: wire dependencies through [SerializeField] Inspector references rather than a runtime DI container, and test the extracted plain classes with the Unity Test Framework in EditMode.",
+      "references": [
+        "https://docs.unity3d.com/ScriptReference/MonoBehaviour.Awake.html",
+        "https://docs.unity3d.com/ScriptReference/SerializeField.html",
+        "https://unity.com/blog/technology/unit-testing-part-2-unit-testing-monobehaviours"
+      ]
+    },
+    {
+      "topic": "unity-object-lifetime-and-equality",
+      "decision": "Test UnityEngine.Object lifetime with == null / != null (the Unity overload, in place of the server-style is null pattern), prefer TryGetComponent over GetComponent, and use Destroy at runtime while reserving DestroyImmediate for Edit-mode tooling.",
+      "rationale": "UnityEngine.Object overloads == so a destroyed wrapper (native peer gone) and the editor's 'fake null' fields both compare equal to null — the one check that reflects true object lifetime, which is why Unity's own examples all use == null. The C# is null pattern, ?? / ?., and Object.ReferenceEquals see only the live managed reference and report a destroyed object as alive, so the Unity form is correct here even though it inverts the modern server-side habit. GetComponent allocates in the editor when the component is absent, and DestroyImmediate is rejected during engine callbacks.",
+      "details": "Lifetime checks: write if (target == null) / if (target != null); the overload tests both the managed reference and the native pointer, catching destroyed and fake-null objects. Reach for this in place of is null, is not null, ??, and ?., which bypass the overload; keep Object.ReferenceEquals only for genuine reference identity. The overload is main-thread-only and mildly costlier, so cache the result rather than re-polling each frame. Component access: if (TryGetComponent(out Renderer r)) stays allocation-free when the component is missing; cache hits in Awake. Runtime removal: Destroy(gameObject) defers teardown to end of frame — clear held references afterward. Keep DestroyImmediate to [ExecuteInEditMode] and editor tooling; it errors inside physics, animation, rendering callbacks, and OnValidate.",
+      "references": [
+        "https://docs.unity3d.com/ScriptReference/Object-operator_eq.html",
+        "https://docs.unity3d.com/Manual/null-reference-exception.html",
+        "https://docs.unity3d.com/ScriptReference/Component.TryGetComponent.html"
+      ]
+    },
+    {
+      "topic": "unity-serialisation-and-scriptableobjects",
+      "decision": "Drive Inspector data through Unity's field-based serialiser using [SerializeField] private fields, and externalise shared, designer-editable config into ScriptableObject assets.",
+      "rationale": "Unity authors the Inspector, prefabs, and scenes through its own serialiser, which acts on fields (not properties) and only on non-static, non-const, non-readonly fields of supported types. Knowing exactly what it serialises keeps inspector data intact and decouples what designers edit from your public API. [SerializeField] private exposes a field while keeping it encapsulated. ScriptableObjects store one shared copy of data as a project asset (a flyweight), letting designers tune values without touching code. This is the Unity-correct path — target Unity's serialiser rather than .NET serialisation (System.Text.Json, BinaryFormatter).",
+      "details": "Expose tunable state as [SerializeField] private fields. Unity serialises a field that is public or [SerializeField], non-static/const/readonly, of a supported type: primitives, string, enums, Unity types (Vector2/3, Color, AnimationCurve), UnityEngine.Object references, arrays, List<T>, and your [Serializable] structs/classes. Auto-properties stay unserialised — back Inspector data with explicit fields; for Dictionary or nested/jagged containers, serialise a List<T> of a [Serializable] pair and rebuild at runtime. Use [SerializeReference] for polymorphic/interface fields and shared/cyclic graphs. For shared config, derive sealed types from ScriptableObject with [CreateAssetMenu(...)] and reference the asset; Instantiate(so) for a per-instance runtime copy, EditorUtility.SetDirty after deliberate Edit-mode edits. Polish with [Header], [Tooltip], [Range], [Min].",
+      "references": [
+        "https://docs.unity3d.com/Manual/script-serialization-rules.html",
+        "https://docs.unity3d.com/ScriptReference/SerializeReference.html",
+        "https://docs.unity3d.com/Manual/class-ScriptableObject.html"
+      ]
+    },
+    {
+      "topic": "unity-update-loop-performance",
+      "decision": "Treat Update/LateUpdate/FixedUpdate as zero-allocation hot paths: resolve every reference once during initialisation and reuse non-allocating, garbage-free APIs each frame.",
+      "rationale": "Per-frame code runs many times a second, so each lookup, allocation, or boxing multiplies into GC spikes and frame-time stalls the profiler attributes to your scripts. Resolving references once and keeping the frame heap-free yields smooth, deterministic frames. This is the deliberate Unity divergence from general 'LINQ-everywhere' guidance: in the runtime hot path the Unity-correct choice favours predictable, allocation-free execution over expressiveness.",
+      "details": "Resolve once, reuse every frame: cache GetComponent/TryGetComponent results and the Transform into fields in Awake; cache Camera.main once (its access has GetComponent-level cost); replace GameObject.Find/FindWithTag/FindObjectsByType with references wired in Awake/OnEnable or the Inspector. Keep the frame garbage-free: use CompareTag (ideally the TagHandle overload cached via TagHandle.GetExistingTag in OnEnable); reuse a results buffer with RaycastNonAlloc/OverlapSphereNonAlloc, or batch with RaycastCommand + NativeArray on the job system; cache WaitForSeconds and reuse it (yield return null is allocation-free); build per-frame text with a cached StringBuilder; keep LINQ, closures, and boxing out of the hot path. Favour thin MonoBehaviours delegating to sealed plain classes, and centralise ticking in one update manager or Burst/ECS jobs when many objects update.",
+      "references": [
+        "https://docs.unity3d.com/Manual/programming-best-practices.html",
+        "https://docs.unity3d.com/Manual/performance-optimizing-code-managed-memory.html",
+        "https://docs.unity3d.com/ScriptReference/Component.CompareTag.html"
+      ]
+    },
+    {
+      "topic": "unity-memory-and-gc",
+      "decision": "Drive per-frame managed allocations toward zero in hot paths by pooling objects with UnityEngine.Pool, reusing collections and buffers, and keeping incremental GC on as a safety net.",
+      "rationale": "Unity's garbage collector is Boehm-Demers-Weiser running incrementally by default — non-generational, unlike a server-side generational GC, so even small frequent temporaries are costly and eventually force a collection that hitches a frame. The Unity-correct discipline is ~0 bytes per frame in Update/physics/render code, because reusing memory is far cheaper than collecting it. Pooling and buffer reuse remove the churn no GC mode can fully hide.",
+      "details": "Profile with the Memory and CPU Profilers, then target ~0 B/frame in hot paths. Reuse GameObjects via UnityEngine.Pool.ObjectPool<T> (actionOnGet/Release/Create/Destroy, collectionCheck, maxSize) or LinkedPool<T> — favour Get/Release over Instantiate/Destroy and reset state in the callbacks. Pool transient collections with ListPool<T>/HashSetPool<T>/DictionaryPool<T> (using (ListPool<int>.Get(out var list)) auto-releases); main-thread only. Cache and reuse arrays/Lists and use buffer-filling non-alloc APIs (Physics.RaycastNonAlloc, GetComponents(List<T>)); batch many queries with RaycastCommand + the Job System. Reach for structs for transient data; keep boxing, LINQ, closures, and string concatenation out of hot loops. For unmanaged buffers use Unity.Collections NativeArray<T> with the right Allocator and Dispose deterministically. Leave Incremental GC enabled; reserve GarbageCollector.GCMode disable for short alloc-free critical sections.",
+      "references": [
+        "https://docs.unity3d.com/Manual/performance-optimizing-code-managed-memory.html",
+        "https://docs.unity3d.com/Manual/performance-reusable-code.html",
+        "https://docs.unity3d.com/Manual/performance-incremental-garbage-collection.html"
+      ]
+    },
+    {
+      "topic": "unity-async-coroutines-awaitable",
+      "decision": "Pick the frame-aware primitive by job: coroutines for frame-sequenced gameplay, and Awaitable (Unity 2023.1+) or UniTask for allocation-light async/await that stays on the main player loop, always tying cancellation to destroyCancellationToken.",
+      "rationale": "Engine APIs are main-thread-only, so the goal is frame-aware concurrency rather than server-style thread offloading. Awaitable is pooled, allocates almost nothing, and resumes continuations on the player loop in the same frame completion fires, where Task defers and allocates. Coroutines remain the clearest expression of 'do this across frames.' This supersedes the server-side Task-everywhere + ConfigureAwait(false) model: in Unity you stay ON the main thread, which is exactly what you want.",
+      "details": "Use coroutines (IEnumerator + StartCoroutine/StopCoroutine) for frame-sequenced flow; cache reusable WaitForSeconds/WaitForFixedUpdate, keep WaitUntil/WaitWhile lambda-free, fold steady per-frame logic into Update. For async/await reach for UnityEngine.Awaitable methods (NextFrameAsync, WaitForSecondsAsync, EndOfFrameAsync) which keep you on the main loop; hop to a worker with BackgroundThreadAsync for pure CPU work, then MainThreadAsync back before touching engine APIs. Await an Awaitable instance exactly once (they're pooled). Thread this.destroyCancellationToken through awaits so they throw OperationCanceledException on destroy; cache the token before teardown. Choose UniTask (Cysharp) for WhenAll, struct zero-alloc, or WebGL; await AsyncOperation directly. Keep continuations on the main thread (skip ConfigureAwait(false)) so resumed code can safely touch the engine.",
+      "references": [
+        "https://docs.unity3d.com/Manual/async-awaitable-introduction.html",
+        "https://docs.unity3d.com/ScriptReference/Awaitable.html",
+        "https://docs.unity3d.com/Manual/Coroutines.html"
+      ]
+    },
+    {
+      "topic": "unity-physics-and-timing",
+      "decision": "Drive all Rigidbody motion and force in FixedUpdate scaled by Time.fixedDeltaTime, sample input and non-physics motion in Update scaled by Time.deltaTime, and enable Rigidbody interpolation on the body the camera follows.",
+      "rationale": "Unity steps physics on a fixed clock (default 0.02s, 50Hz) decoupled from the variable render rate, so FixedUpdate runs zero, one, or many times per rendered frame. Driving Rigidbodies there keeps the simulation deterministic and frame-rate independent, while reading input in Update captures every event. Interpolation smooths the visible transform between fixed steps so camera-followed motion stays jitter-free. This is the Unity form: a fixed engine clock and main-thread execution replace the thread-pool model of server-side C#.",
+      "details": "Apply force/torque (AddForce, AddTorque) and kinematic moves (MovePosition, MoveRotation) in FixedUpdate, scaling per-step terms by Time.fixedDeltaTime. Set Rigidbody.linearVelocity/angularVelocity directly only for instantaneous changes like a jump (velocity is renamed linearVelocity in Unity 6); let AddForce handle continuous motion. Read input via the Input System in Update and cache intent; scale non-physics Transform motion by Time.deltaTime. Let the Rigidbody own its transform via physics APIs, and follow any direct transform write with Physics.SyncTransforms(). Set Rigidbody.interpolation = Interpolate on the camera-followed body and keep others None; choose Extrapolate for constant-velocity bodies. Keep Physics Simulation Mode = Fixed Update. Delegate movement math to a plain sealed class the MonoBehaviour calls from FixedUpdate so it stays unit-testable.",
+      "references": [
+        "https://docs.unity3d.com/ScriptReference/MonoBehaviour.FixedUpdate.html",
+        "https://docs.unity3d.com/ScriptReference/Rigidbody-interpolation.html",
+        "https://docs.unity3d.com/ScriptReference/Rigidbody-linearVelocity.html"
+      ]
+    },
+    {
+      "topic": "unity-input-system",
+      "decision": "Build input on the Input System package, driving gameplay from an Input Action Asset (project-wide actions by default) and reading actions through Update polling for continuous values plus phase callbacks for discrete events.",
+      "rationale": "Action-based input expresses intent (Jump, Move) independently of physical controls, so runtime rebinding, multiple control schemes, and keyboard/gamepad/touch/XR support all flow from one asset. Unity 6 ships the Input System as the modern path and auto-creates a project-wide InputSystem_Actions asset reachable via InputSystem.actions. Funnelling the input edge into a thin MonoBehaviour that forwards to plain C# keeps device handling in one testable place. Reading input on the main thread inside Update each frame is the natural Unity pattern.",
+      "details": "Enable com.unity.inputsystem and set Player > Active Input Handling to Input System Package (Both while migrating). Start from the project-wide asset (InputSystem_Actions): organise Action Maps (Gameplay, UI), value/button actions, and Control Schemes. Read continuous value actions by caching the reference in Start via InputSystem.actions.FindAction(...) and calling action.ReadValue<Vector2>() each Update (the recommended default, fully main-thread). Handle discrete events through action.started/performed/canceled with InputAction.CallbackContext. For type safety enable Generate C# Class: instantiate the wrapper, Enable/Disable maps in OnEnable/OnDisable, route via map.SetCallbacks(this). For local multiplayer add PlayerInput + PlayerInputManager for device pairing. Rebind live with action.PerformInteractiveRebinding() and persist via SaveBindingOverridesAsJson. Forward values/contexts into sealed plain C# classes.",
+      "references": [
+        "https://docs.unity3d.com/Packages/com.unity.inputsystem@1.14/manual/Workflows.html",
+        "https://docs.unity3d.com/Packages/com.unity.inputsystem@1.14/manual/ActionAssets.html",
+        "https://docs.unity3d.com/Packages/com.unity.inputsystem@1.14/manual/ActionBindings.html"
+      ]
+    },
+    {
+      "topic": "unity-architecture-and-di",
+      "decision": "Compose thin MonoBehaviours over plain, sealed, testable C# classes, and wire dependencies explicitly through ScriptableObject assets (event channels + shared data) or a Unity DI container such as VContainer.",
+      "rationale": "Pushing game logic into plain sealed C# classes lets you construct and unit-test it with new outside the player loop (the Humble Object pattern), while the MonoBehaviour stays a thin adapter for engine messages. Wiring through inspectable ScriptableObject channels and a DI scope keeps every dependency explicit, swappable, and visible. This is the Unity-correct shape — asset-wired or container-injected references designers can see and tests can substitute, where server-side C# would reach for an ambient static service locator. Event-channel assets are global yet inspectable and persist across scene loads, filling the role a static Instance singleton would otherwise take.",
+      "details": "Keep MonoBehaviours thin: read input, forward Unity messages, delegate to plain sealed C# classes you can new in a test. Wire two complementary ways: (1) ScriptableObject architecture — model decoupled events as event-channel SOs (a [CreateAssetMenu] asset exposing an Action plus a RaiseEvent method); listeners subscribe in OnEnable, unsubscribe in OnDisable; use runtime-set and shared-variable SOs for cross-scene state in place of singletons. (2) DI container (VContainer; GC-free): subclass LifetimeScope, register in Configure(IContainerBuilder) with explicit Lifetime.Singleton/Scoped/Transient plus RegisterComponentInHierarchy<T>() and RegisterInstance(soAsset); drive non-MonoBehaviour logic via RegisterEntryPoint<T>() (IStartable/ITickable). Favour constructor injection for plain classes; use [Inject] for MonoBehaviours, which lack constructors. Register interface-to-implementation so tests inject fakes.",
+      "references": [
+        "https://unity.com/how-to/scriptableobjects-event-channels-game-code",
+        "https://unity.com/blog/technology/unit-testing-part-2-unit-testing-monobehaviours",
+        "https://github.com/hadashiA/VContainer"
+      ]
+    },
+    {
+      "topic": "unity-jobs-and-burst",
+      "decision": "Push measured, parallelisable CPU hot work onto the C# Job System as small Burst-compiled job structs over NativeArray, scheduling early and completing late within the frame.",
+      "rationale": "Burst LLVM-compiles tight struct-based jobs to vectorised native code, and the Job System spreads them safely across worker cores, reclaiming main-thread budget that serial Update loops spend. The job-safety system statically catches data races, so parallelism stays correct without hand-rolled locking. This is the Unity-native compute path — prefer it over server-style Task.Run for CPU work, keeping continuations on the main thread. Reserved for profiled hot paths, it earns back the data-marshalling cost.",
+      "details": "Add com.unity.burst and com.unity.collections. Author a [BurstCompile] struct implementing IJob or IJobParallelFor (Execute(int index)) that a thin MonoBehaviour delegates to. Keep every field blittable: pass data via NativeArray<T>/NativeSlice<T>; mark inputs [ReadOnly], outputs [WriteOnly]. Use Unity.Mathematics (float3, math.*) and [BurstCompile(FloatMode = FloatMode.Fast)] for SIMD. Schedule(length, innerloopBatchCount) (start ~32-64, tune by profiling); chain via the dependency JobHandle and JobHandle.CombineDependencies. Schedule as soon as inputs are ready, Complete() in LateUpdate to give workers the whole frame. Choose Allocator.TempJob or Persistent; free with Dispose() or Dispose(JobHandle). Keep the Jobs Debugger and Burst safety checks on while developing; watch the WaitForJobGroupID profiler marker for main-thread stalls. For tens of thousands of entities, graduate to ECS/DOTS (com.unity.entities) with IJobEntity + ScheduleParallel.",
+      "references": [
+        "https://docs.unity3d.com/Manual/job-system-creating-jobs.html",
+        "https://docs.unity3d.com/Manual/job-system-parallel-for-jobs.html",
+        "https://docs.unity3d.com/Packages/com.unity.burst@1.8/manual/compilation-burstcompile.html"
+      ]
+    },
+    {
+      "topic": "unity-testing",
+      "decision": "Test with the Unity Test Framework: fast NUnit EditMode tests for the plain C# logic you extract from MonoBehaviours, and [UnityTest] PlayMode tests for genuine runtime, lifecycle, and physics behaviour, each scoped by its own asmdef test assembly.",
+      "rationale": "The Unity Test Framework (com.unity.test-framework) is the engine-integrated NUnit runner that ships as a core package, so a Unity project standardises on it rather than a standalone xUnit/NUnit harness. EditMode tests run inside the editor's update loop and stay near-instant, while PlayMode tests exercise the real game loop, physics, and component lifecycle. Keeping behaviour in thin, seam-friendly plain classes lets the bulk of coverage live in fast EditMode tests and reserves slower PlayMode runs for code that genuinely needs the engine.",
+      "details": "Create test folders via the Test Runner window or Assets > Create > Testing > Test Assembly Folder; the generated asmdef references nunit.framework.dll, UnityEngine.TestRunner, and UnityEditor.TestRunner. EditMode asmdef: Platforms = Editor only, keep all three references plus your code asmdefs. PlayMode asmdef: Any Platform, reference UnityEngine.TestRunner (omit UnityEditor.TestRunner) so it also runs in built Players. Default to [Test] with NUnit Assert over sealed plain classes; use [UnityTest] returning IEnumerator (yield return null, WaitForFixedUpdate) for frame/physics behaviour; [SetUp]/[TearDown] or [UnitySetUp]/[UnityTearDown]. Async Task tests are awaited on Unity's main thread, so keep ConfigureAwait off (the Unity form). Wire CI with com.unity.testtools.codecoverage: -batchmode -runTests -testPlatform editmode|playmode -enableCodeCoverage.",
+      "references": [
+        "https://docs.unity3d.com/Manual/test-framework/edit-mode-vs-play-mode-tests.html",
+        "https://docs.unity3d.com/Manual/test-framework/reference-async-tests.html",
+        "https://docs.unity3d.com/Packages/com.unity.testtools.codecoverage@1.2/manual/CoverageBatchmode.html"
+      ]
+    },
+    {
+      "topic": "unity-assets-and-addressables",
+      "decision": "Deliver production content through the Addressables package, loading async by address/label/AssetReference and releasing every handle, while reserving Resources for the few tiny always-loaded essentials.",
+      "rationale": "Addressables loads asynchronously so disk and network fetches never stall the frame loop, reference-counts every load so memory stays bounded, and decouples a logical address from its physical location so the same code serves assets locally or from a CDN and ships incremental patches without a full rebuild. Unity's manual names Addressables the recommended production path and advises keeping Resources limited because bulk content inflates build size and startup. The async-first, main-thread-affine model is the deliberate Unity form here.",
+      "details": "Add com.unity.addressables. Mark assets Addressable; reference by string address, a serialised AssetReference (set in the Inspector), or a label for batch loads. Call InitializeAsync once at startup. Load with var h = Addressables.LoadAssetAsync<T>(key); read h.Result after completion. Await via await h.Task on standalone/mobile; on WebGL yield return h in a coroutine or subscribe h.Completed (await/WaitForCompletion throw on WebGL). On Unity 6 prefer Awaitable or UniTask to await handles on the main thread. Use LoadAssetsAsync(label, cb) for sets, InstantiateAsync for prefabs, LoadSceneAsync for scenes. Every load increments a ref-count — mirror with Addressables.Release(h)/ReleaseInstance(go). Own handles in a thin sealed loader that releases in Dispose/OnDestroy. Organise Groups (local vs remote), apply Labels, configure Profiles with a RemoteLoadPath for CDN delivery, and ship patches via ContentUpdate.",
+      "references": [
+        "https://docs.unity3d.com/Packages/com.unity.addressables@2.6/manual/load-addressable-assets.html",
+        "https://docs.unity3d.com/Packages/com.unity.addressables@2.6/manual/MemoryManagement.html",
+        "https://docs.unity3d.com/Manual/LoadingResourcesatRuntime.html"
+      ]
+    },
+    {
+      "topic": "unity-build-il2cpp-aot",
+      "decision": "Ship release builds on IL2CPP and design AOT-first: keep reflection and serialisation usage statically visible, preserve linker-invisible types with [Preserve]/link.xml, and prefer reflection-light serialisation so trimming stays safe on every device.",
+      "rationale": "IL2CPP compiles managed code ahead of time, so it cannot JIT: System.Reflection.Emit and dynamic require runtime codegen and are unavailable. This is the Unity-correct stance and differs from server-side C#, where JIT and reflection-heavy serialisers come for free. Generic AOT is largely solved on current LTS thanks to Full Generic Sharing (Unity 2022.1+), so favour discipline over fear. Managed code stripping defaults to Minimal under IL2CPP; raising the level to shrink builds is where you must prove reachability. Designing AOT-first keeps iOS, console, and WebGL builds predictable.",
+      "details": "Player > Configuration: Scripting Backend = IL2CPP. Keep Il2CppCodeGeneration = OptimizeSpeed for shipping; switch to OptimizeSize (full generic sharing) when build size or iteration matters. Keep usage statically visible — call types at real call sites rather than via Reflection.Emit/dynamic; for runtime-closed generics reference each needed instance from a never-called UsedOnlyForAOTCodeGeneration() helper, or add where T : class/struct so reference sharing covers them. Preserve reflection- or serialisation-only members with [Preserve] (UnityEngine.Scripting), [AlwaysLinkAssembly] + [RuntimeInitializeOnLoadMethod] for package assemblies, or an Assets/link.xml. Serialise via JsonUtility, ScriptableObject/[Serializable] types, or source-generated paths and register types explicitly. Set Managed Stripping Level deliberately (Minimal is the IL2CPP default; raise toward High to shrink builds, adding [Preserve]/link.xml as needed) and verify on device.",
+      "references": [
+        "https://docs.unity3d.com/Manual/scripting-restrictions.html",
+        "https://docs.unity3d.com/Manual/managed-code-stripping.html",
+        "https://unity.com/blog/engine-platform/il2cpp-full-generic-sharing-in-unity-2022-1-beta"
+      ]
+    }
+  ]
+}

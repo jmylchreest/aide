@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "name": "csharp-github-actions",
+  "display_name": "C# / .NET CI/CD with GitHub Actions",
+  "description": "C#-specific GitHub Actions patterns: setup-dotnet, locked restore, warnings-as-errors gates, NuGet audit, coverage, cross-platform matrix, and releases",
+  "version": "0.1.1",
+  "tags": ["ci", "github-actions", "csharp", "dotnet"],
+  "includes": ["github-actions"],
+  "decisions": [
+    {
+      "topic": "csharp-ci-workflow",
+      "decision": "Run every PR through GitHub Actions that pins the SDK via global.json, restores in locked mode, builds Release with warnings-as-errors, tests the built output, and verifies formatting with dotnet format --verify-no-changes.",
+      "rationale": "Pinning the exact SDK in global.json and restoring against a committed packages.lock.json makes builds reproducible across machines and over time, so CI reproduces what developers see locally. Promoting warnings to errors and gating on dotnet format keeps every merge to main arriving already clean and consistently styled. Sequencing restore then build then test so each step reuses the previous output keeps runs fast and surfaces failures at the earliest, most diagnosable stage.",
+      "details": "Load the SDK with actions/setup-dotnet@v5 via global-json-file, plus cache: true and cache-dependency-path: '**/packages.lock.json'. Opt in with RestorePackagesWithLockFile=true and commit packages.lock.json. Promote warnings to errors in CI via the build switch rather than <TreatWarningsAsErrors>true everywhere, so an SDK or analyser bump never blocks local work. Steps: dotnet restore --locked-mode; dotnet build -c Release -warnaserror --no-restore; dotnet test -c Release --no-build --logger trx (or --report-trx under the .NET 10 Microsoft.Testing.Platform runner); dotnet format --verify-no-changes (non-zero exit on drift). Trigger on pull_request; run ubuntu-latest, adding an os matrix for cross-platform code.",
+      "references": [
+        "https://learn.microsoft.com/en-us/dotnet/core/tools/global-json",
+        "https://learn.microsoft.com/en-us/nuget/consume-packages/package-references-in-project-files",
+        "https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-format"
+      ]
+    },
+    {
+      "topic": "csharp-ci-caching",
+      "decision": "Cache the NuGet global-packages folder using actions/setup-dotnet's built-in cache keyed on committed packages.lock.json files, and restore in locked mode.",
+      "rationale": "Lock files give NuGet restore a deterministic, hashable input, so the cache key changes only when dependencies actually change, which maximises hit rate. setup-dotnet's integrated cache wraps actions/cache around the global-packages folder and computes the key from packages.lock.json for you, so there is less to maintain than hand-rolled cache steps. Locked mode then guarantees every run restores the exact recorded closure.",
+      "details": "Enable lock files repo-wide in Directory.Build.props (<RestorePackagesWithLockFile>true), commit every packages.lock.json, and restore with dotnet restore --locked-mode. In the workflow use actions/setup-dotnet@v5 with cache: true; it auto-discovers root packages.lock.json and errors if none exists. Add cache-dependency-path: '**/packages.lock.json' when lock files live in subdirectories. Set NUGET_PACKAGES to a workspace path to keep cache size predictable. A hand-rolled alternative also works: key actions/cache on hashFiles('**/packages.lock.json') with a stable restore-keys prefix over the global-packages folder.",
+      "references": [
+        "https://github.com/actions/setup-dotnet",
+        "https://learn.microsoft.com/en-us/nuget/consume-packages/package-references-in-project-files"
+      ]
+    },
+    {
+      "topic": "csharp-ci-quality",
+      "decision": "Codify .NET code quality as hard CI gates: build with warnings-as-errors, enforce analysers and code style in-build, and run dotnet format --verify-no-changes as a separate gate.",
+      "rationale": "Hard CI gates keep the quality bar high because every violation must be resolved before merge. The SDK ships Roslyn quality (CAxxxx) analysers enabled by default for .NET 5+; enabling code-style enforcement plus warnings-as-errors promotes advisory diagnostics to build failures, and a separate dotnet format check catches whitespace and layout drift that does not surface as an IDExxxx or compiler warning. Centralising the switches in Directory.Build.props gives uniform, reproducible enforcement everywhere.",
+      "details": "In Directory.Build.props set <EnforceCodeStyleInBuild>true and <AnalysisLevel>latest-recommended. Escalate code-style rules in .editorconfig (e.g. dotnet_diagnostic.IDE0005.severity = warning). Exempt specific CS warnings via WarningsNotAsErrors; keep CA warnings advisory under warnaserror with CodeAnalysisTreatWarningsAsErrors=false. In CI run dotnet build -warnaserror (the switch covers every MSBuild task, unlike the property which scopes only the C# compiler), then dotnet format --verify-no-changes --verbosity normal as its own failing step. To decouple rule updates from the SDK, reference Microsoft.CodeAnalysis.NetAnalyzers.",
+      "references": [
+        "https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/overview",
+        "https://learn.microsoft.com/en-us/dotnet/core/project-sdk/msbuild-props",
+        "https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-format"
+      ]
+    },
+    {
+      "topic": "csharp-ci-security",
+      "decision": "Fail CI on vulnerable NuGet packages by enabling restore-time NuGet Audit and promoting its high/critical (optionally moderate) warnings to errors, then layer CodeQL and Dependabot/dependency-review for defence in depth.",
+      "rationale": "NuGet Audit ships inside dotnet restore (.NET 8 SDK) and checks the GitHub Advisory Database directly, so it is the native, zero-extra-tooling way to detect vulnerable direct and transitive packages. Promoting its warnings to errors fails the pipeline deterministically the moment a vulnerable package enters the graph. CodeQL adds SAST over first-party C# code and Dependabot keeps packages patched, giving combined supply-chain plus first-party coverage.",
+      "details": "In Directory.Build.props set NuGetAudit=true, NuGetAuditMode=all (already the net10+ default; set it so pre-net10 targets also audit transitive packages), NuGetAuditLevel=moderate. Fail builds via <WarningsAsErrors>$(WarningsAsErrors);NU1902;NU1903;NU1904</WarningsAsErrors> (moderate/high/critical; NU1901/low stays a warning). Gate errors to CI only with a Condition on a property passed via dotnet restore -p:AuditPipeline=true. Accept a reviewed advisory with <NuGetAuditSuppress Include='https://github.com/advisories/GHSA-...' />. CodeQL: github/codeql-action/init@v4 + analyze@v4, language csharp, build-mode: none. Add actions/dependency-review-action@v4 (fail-on-severity: high) on PRs and a dependabot.yml with package-ecosystem: nuget.",
+      "references": [
+        "https://learn.microsoft.com/en-us/nuget/concepts/auditing-packages",
+        "https://devblogs.microsoft.com/dotnet/nugetaudit-2-0-elevating-security-and-trust-in-package-management/",
+        "https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/codeql-code-scanning-for-compiled-languages"
+      ]
+    },
+    {
+      "topic": "csharp-ci-matrix",
+      "decision": "Run CI as a matrix across ubuntu-latest, windows-latest, and macos-latest with fail-fast: false, and for multi-targeted code add a TFM axis so each target framework is built and tested in its own leg.",
+      "rationale": "Modern .NET is genuinely cross-platform, so platform-specific API behaviour, path and case handling, and runtime quirks surface only when the same code is built and tested on each OS. fail-fast: false keeps every leg running after one fails, producing a complete failure map in a single run. A per-TFM axis gives isolated builds and clean per-framework failure attribution.",
+      "details": "Set strategy: { fail-fast: false, matrix: { os: [ubuntu-latest, windows-latest, macos-latest] } } and runs-on: ${{ matrix.os }}. Use actions/setup-dotnet@v5 fed via global-json-file: so SDK selection matches global.json; add cache: true once packages.lock.json exists. Run dotnet restore, dotnet build --no-restore -c Release, dotnet test --no-build -c Release. For multi-targeted code (<TargetFrameworks>net10.0;netstandard2.0</TargetFrameworks>) give the test project matching TFMs, add a tfm axis, and pass -f ${{ matrix.tfm }} to scope each leg; use matrix.include/exclude to keep each OS to the TFMs it ships.",
+      "references": [
+        "https://docs.github.com/en/actions/using-jobs/using-a-matrix-for-your-jobs",
+        "https://github.com/actions/setup-dotnet",
+        "https://learn.microsoft.com/en-us/dotnet/standard/library-guidance/cross-platform-targeting"
+      ]
+    },
+    {
+      "topic": "csharp-ci-test-coverage",
+      "decision": "Run dotnet test in CI to emit a TRX report plus Cobertura coverage, publish both as artefacts, and gate the build on a meaningful coverage threshold in a dedicated step.",
+      "rationale": "TRX gives CI a machine-readable test report and Cobertura is the lingua franca every coverage UI ingests, so no bespoke tooling is needed. Pinning the collector behaviour in a checked-in .runsettings keeps coverage deterministic and reviewable. Because the cross-platform collectors deliberately omit threshold validation, gating belongs in a separate, explicit step that turns coverage from a vanity number into an enforced quality bar.",
+      "details": "VSTest mode (current dotnet test default): keep coverlet.collector and run dotnet test --logger trx --results-directory ./TestResults --collect:'XPlat Code Coverage' --settings coverlet.runsettings. In the XPlat Code Coverage <Configuration> set <Format>cobertura</Format>, <Exclude>, and <ExcludeByAttribute> (e.g. GeneratedCodeAttribute). MTP mode (the forward path; opt in via global.json test.runner): use --report-trx plus --coverage --coverage-output-format cobertura. Publish **/coverage.cobertura.xml and *.trx. Since the collectors skip threshold validation, gate in a follow-on step with ReportGenerator (--minimumCoverageThresholds:lineCoverage=80) or coverlet.msbuild (/p:Threshold=80 /p:ThresholdType=line,branch), which fails the run below target.",
+      "references": [
+        "https://learn.microsoft.com/en-us/dotnet/core/testing/unit-testing-code-coverage",
+        "https://learn.microsoft.com/en-us/dotnet/core/testing/microsoft-testing-platform-code-coverage",
+        "https://learn.microsoft.com/en-us/dotnet/core/testing/unit-testing-with-dotnet-test"
+      ]
+    },
+    {
+      "topic": "csharp-release",
+      "decision": "Drive releases from git tags: build deterministically in CI, push libraries to NuGet.org via OIDC Trusted Publishing, and publish self-contained apps as GitHub release assets.",
+      "rationale": "Tag-derived versioning (MinVer or Nerdbank.GitVersioning) makes the build the single source of truth, so the same commit always yields the same package version with no hand-edited numbers. OIDC Trusted Publishing issues short-lived, single-use credentials per run, keeping publishing keyless. Deterministic CI builds plus Source Link and snupkg symbol packages give consumers reproducible binaries and step-into debugging. Native AOT or single-file/trimmed publishing produces compact, dependency-free app artefacts.",
+      "details": "Version: add MinVer or Nerdbank.GitVersioning (PrivateAssets=all); with MinVer set <MinVerTagPrefix>v</MinVerTagPrefix>, tag SemVer (v1.2.3), and checkout with fetch-depth: 0 so tags resolve. Libraries: set Deterministic, ContinuousIntegrationBuild=true (CI only), EmbedUntrackedSources, add Microsoft.SourceLink.GitHub, IncludeSymbols=true with SymbolPackageFormat=snupkg; run dotnet pack -c Release. Publish with job permissions: id-token: write: run NuGet/login@v1 immediately before push, then dotnet nuget push *.nupkg --api-key ${{steps.login.outputs.NUGET_API_KEY}} --source https://api.nuget.org/v3/index.json. Apps: dotnet publish -c Release -r <rid> with PublishAot=true (or PublishSingleFile + PublishTrimmed), then gh release create \"$TAG\" --generate-notes ./artefacts/*.",
+      "references": [
+        "https://learn.microsoft.com/en-us/nuget/nuget-org/trusted-publishing",
+        "https://learn.microsoft.com/en-us/dotnet/standard/library-guidance/sourcelink",
+        "https://github.com/adamralph/minver"
+      ]
+    }
+  ]
+}

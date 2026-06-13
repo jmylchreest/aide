@@ -204,6 +204,38 @@
       "pack": "zig",
       "kind": "module",
       "metadata": { "language": "zig", "marker": "build.zig" }
+    },
+    {
+      "file": "global.json",
+      "check": "file",
+      "max_depth": 3,
+      "pack": "csharp",
+      "kind": "tech_stack",
+      "metadata": { "language": "csharp", "marker": "global.json" }
+    },
+    {
+      "file": "Directory.Build.props",
+      "check": "file",
+      "max_depth": 3,
+      "pack": "csharp",
+      "kind": "tech_stack",
+      "metadata": { "language": "csharp", "marker": "Directory.Build.props" }
+    },
+    {
+      "file": "Directory.Packages.props",
+      "check": "file",
+      "max_depth": 3,
+      "pack": "csharp",
+      "kind": "tech_stack",
+      "metadata": { "language": "csharp", "marker": "Directory.Packages.props" }
+    },
+    {
+      "file": "ProjectVersion.txt",
+      "check": "file",
+      "max_depth": 3,
+      "label": "csharp-unity",
+      "kind": "tech_stack",
+      "metadata": { "language": "csharp", "engine": "unity", "marker": "ProjectSettings/ProjectVersion.txt" }
     }
   ]
 }

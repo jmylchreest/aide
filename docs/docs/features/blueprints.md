@@ -74,6 +74,9 @@ These blueprints ship with every AIDE release:
 | `github-actions` | 7 | general | Workflow security: SHA pinning, permissions, OIDC, branch protection |
 | `go-github-actions` | 5 | github-actions | Go CI/CD: golangci-lint, matrix builds, cross-compilation, releases |
 | `rust-github-actions` | 7 | github-actions | Rust CI/CD: clippy, cargo-nextest, cargo-deny, sanitizers, coverage |
+| `csharp` | 20 | general | Idiomatic modern C# / .NET: nullable reference types, records, async, DI, System.Text.Json, analysers, tooling |
+| `csharp-github-actions` | 7 | github-actions | C# CI/CD: setup-dotnet, locked restore, warnings-as-errors, NuGet audit, coverage, releases |
+| `csharp-unity` | 15 | general | Unity (C#): thin MonoBehaviours, ScriptableObject architecture, zero-alloc hot paths, Input System, Job System, Addressables, IL2CPP |
 
 ### Go Blueprint Decisions
 
@@ -97,6 +100,61 @@ The `go` blueprint covers:
 - **go-third-party** — Justified library choices: chi, cobra, pgx, sqlc
 - **go-tooling** — gofmt, golangci-lint v2, govulncheck
 - **go-import-grouping** — Three groups: stdlib, third-party, internal
+
+### C# Blueprint Decisions
+
+The `csharp` blueprint covers:
+
+- **csharp-language-and-runtime-version** — Current LTS TFM as source of truth; LangVersion tracks it; pin the SDK via global.json
+- **csharp-project-layout** — Lean SDK-style csproj; centralise in Directory.Build.props / Directory.Packages.props
+- **csharp-nullable-reference-types** — Enable nullable reference types solution-wide; model nullability in the type system
+- **csharp-type-design** — Seal types not designed for extension; records for data; small immutable structs; flat types
+- **csharp-immutability-and-records** — Records with init-only members; read-only collection surfaces; with-expressions
+- **csharp-pattern-matching** — Switch expressions and recursive patterns; compiler-enforced exhaustiveness
+- **csharp-async-await** — Async all the way; flow CancellationToken; ConfigureAwait(false) in libraries
+- **csharp-error-handling** — Precise exceptions + throw-helpers; expected failures via Try-patterns/nullable returns
+- **csharp-collections-and-linq** — LINQ for transforms; read-only abstractions; Span/pooling on measured hot paths
+- **csharp-naming-conventions** — PascalCase/camelCase/_camelCase, I- and T- prefixes, Async suffix
+- **csharp-comments-and-docs** — XML doc comments on the public API; inline // reserved for the why
+- **csharp-dependency-injection** — Constructor injection via Microsoft.Extensions.DependencyInjection; matched lifetimes
+- **csharp-configuration-and-options** — Options pattern bound to sealed POCOs; validate eagerly at startup
+- **csharp-logging** — Microsoft.Extensions.Logging; structured templates; [LoggerMessage] for hot paths
+- **csharp-json-serialisation** — System.Text.Json; source-generated context for AOT/perf; cached options
+- **csharp-testing** — xUnit or NUnit, Arrange-Act-Assert, table-driven cases, NSubstitute/Moq, TimeProvider
+- **csharp-resource-management** — IDisposable/IAsyncDisposable in sealed owners; using / await using
+- **csharp-web-api** — ASP.NET Core Minimal APIs/controllers; TypedResults; OpenAPI; ProblemDetails
+- **csharp-analysers-and-format** — .NET analysers + .editorconfig + dotnet format; warnings as errors in CI
+- **csharp-dependency-management** — Central Package Management (multi-project); lock files; NuGet audit
+
+The `csharp-github-actions` blueprint covers:
+
+- **csharp-ci-workflow** — setup-dotnet via global.json; locked restore; build/test; format check
+- **csharp-ci-caching** — NuGet cache keyed on packages.lock.json; locked mode
+- **csharp-ci-quality** — Warnings-as-errors in CI, analysers/code-style in build, dotnet format gate
+- **csharp-ci-security** — NuGet Audit promoted to errors; CodeQL; Dependabot/dependency-review
+- **csharp-ci-matrix** — ubuntu/windows/macos matrix (fail-fast: false); TFM axis for multi-targeting
+- **csharp-ci-test-coverage** — TRX + Cobertura, published, with a threshold gate
+- **csharp-release** — Tag-driven; MinVer/Nerdbank.GitVersioning; NuGet OIDC Trusted Publishing; self-contained app assets
+
+### Unity Blueprint Decisions
+
+The `csharp-unity` blueprint is **self-contained** (includes only `general`, not `csharp`) because Unity idioms supersede the mainstream ones — `== null` over `is null`, coroutines/Awaitable over Task-everywhere, the Unity Test Framework over xUnit, `.asmdef` over SDK-style csproj, and zero-allocation hot paths. It covers:
+
+- **unity-runtime-and-versioning** — Pin the Unity LTS via ProjectVersion.txt; .NET Standard 2.1; IL2CPP for release
+- **unity-assembly-definitions** — Partition with .asmdef (runtime/editor/test); one-way dependencies
+- **unity-monobehaviour-design** — Thin sealed adapters delegating to plain testable classes; lifecycle by cadence
+- **unity-object-lifetime-and-equality** — The `== null` overload; TryGetComponent; Destroy vs DestroyImmediate
+- **unity-serialisation-and-scriptableobjects** — [SerializeField] private fields; ScriptableObject config
+- **unity-update-loop-performance** — Zero-allocation hot paths; cache references; non-alloc APIs
+- **unity-memory-and-gc** — Pool with UnityEngine.Pool; reuse buffers; keep incremental GC on
+- **unity-async-coroutines-awaitable** — Coroutines / Awaitable / UniTask on the main loop; destroyCancellationToken
+- **unity-physics-and-timing** — Rigidbody motion in FixedUpdate; input in Update; interpolation
+- **unity-input-system** — The Input System package; Input Action Assets; polling + phase callbacks
+- **unity-architecture-and-di** — Composition; ScriptableObject event channels or a DI container (VContainer)
+- **unity-jobs-and-burst** — The Job System + Burst over NativeArray for measured CPU hot work
+- **unity-testing** — Unity Test Framework: EditMode (NUnit) + PlayMode ([UnityTest])
+- **unity-assets-and-addressables** — Addressables over Resources; async load + release handles
+- **unity-build-il2cpp-aot** — IL2CPP/AOT-first; preserve stripped types with [Preserve]/link.xml
 
 ## Resolution Order
 

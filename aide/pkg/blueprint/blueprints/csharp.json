@@ -1,0 +1,231 @@
+{
+  "schema_version": 1,
+  "name": "csharp",
+  "display_name": "C# / .NET Best Practices",
+  "description": "Idiomatic modern C# on cross-platform .NET: nullable reference types, records, async, DI, System.Text.Json, analysers, and tooling for production code",
+  "version": "0.1.1",
+  "tags": ["language", "csharp", "dotnet"],
+  "includes": ["general"],
+  "decisions": [
+    {
+      "topic": "csharp-language-and-runtime-version",
+      "decision": "Target the current LTS .NET via a single <TargetFramework>; let LangVersion track the TFM; pin the SDK with a committed global.json.",
+      "rationale": "The TFM is the single source of truth — the compiler selects the matching C# version (net10.0 enables C# 14), so language, runtime, and library support stay aligned without manual coordination. LTS gives three years of support versus two for STS, the right default for production. A committed global.json makes every developer and CI agent build with a known toolchain, keeping builds reproducible.",
+      "details": "Set one <TargetFramework> (current LTS, e.g. net10.0) in Directory.Build.props. Leave <LangVersion> unset so it tracks the TFM (default/latestMajor); use preview only to opt into unreleased features. Choose an STS (e.g. net9.0) when you want a feature a year early and accept ~2-year support. Commit global.json so every developer and CI agent builds with a known SDK. Keep <Nullable>enable and <ImplicitUsings>enable (the SDK defaults).",
+      "references": [
+        "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/configure-language-version",
+        "https://learn.microsoft.com/en-us/dotnet/core/tools/global-json",
+        "https://learn.microsoft.com/en-us/dotnet/core/releases-and-support"
+      ]
+    },
+    {
+      "topic": "csharp-project-layout",
+      "decision": "Keep every csproj a lean SDK-style file; hoist shared build, analyser, and package-version settings into repo-root Directory.Build.props and Directory.Packages.props.",
+      "rationale": "The SDK auto-globs *.cs and supplies implicit imports and global usings, so a csproj should declare only what is project-specific. Directory.Build.props is imported early (walking up from Microsoft.Common.props), so centralising TargetFramework, language, nullable, and analyser policy there gives one enforced source of truth that any project can still override. File-scoped namespaces and one public type per file keep names and types carrying the story.",
+      "details": "Root Directory.Build.props: <TargetFramework> (current LTS), <Nullable>enable, <ImplicitUsings>enable, <AnalysisLevel>latest-recommended, <EnforceCodeStyleInBuild>true (runs IDExxxx rules in build/CI). CA analysers are on by default for net5.0+; set <EnableNETAnalyzers>true only to opt older TFMs in. Treat warnings as errors in CI (dotnet build -warnaserror) rather than blanket-on in every local build, so an SDK or analyser bump never blocks local work. Enable Central Package Management in Directory.Packages.props (<ManagePackageVersionsCentrally>true with <PackageVersion .../>); csproj then uses bare <PackageReference Include=...>. Per file: file-scoped namespace, usings above it, one public type. Keep Program.cs to top-level statements that wire up Host/WebApplication. Drive style from a repo-root .editorconfig.",
+      "references": [
+        "https://learn.microsoft.com/en-us/visualstudio/msbuild/customize-by-directory",
+        "https://learn.microsoft.com/en-us/nuget/consume-packages/central-package-management",
+        "https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/coding-style/coding-conventions"
+      ]
+    },
+    {
+      "topic": "csharp-nullable-reference-types",
+      "decision": "Enable nullable reference types solution-wide and model every reference's nullability in the type system so null-state analysis proves dereference correctness at compile time.",
+      "rationale": "With the feature on, reference types are non-nullable by default, making absence a first-class, compiler-checked contract callers can rely on. The annotation is compile-time only (string and string? are the same System.String, zero runtime cost). Flow analysis and annotated APIs surface dereference and assignment mismatches at the call site, and consumers like EF Core read the annotations to infer required versus optional members.",
+      "details": "Set <Nullable>enable in Directory.Build.props so every project inherits it; promote nullability diagnostics to build failures with <WarningsAsErrors>Nullable</WarningsAsErrors> (the documented shorthand for the CS86xx set). Append ? only where null is a valid state. Validate public entry points with ArgumentNullException.ThrowIfNull(arg), omitting paramName so CallerArgumentExpression fills it. Guarantee non-nullable members via the required modifier or constructor parameters. Narrow with is null / is not null; reserve ! for cases the compiler cannot see, each paired with a brief why. Express richer contracts with the System.Diagnostics.CodeAnalysis nullability attributes (e.g. [NotNullWhen] on Try* methods, [DoesNotReturn] on throw helpers); constrain generics with where T : notnull.",
+      "references": [
+        "https://learn.microsoft.com/en-us/dotnet/csharp/nullable-references",
+        "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/attributes/nullable-analysis",
+        "https://learn.microsoft.com/en-us/dotnet/api/system.argumentnullexception.throwifnull"
+      ]
+    },
+    {
+      "topic": "csharp-type-design",
+      "decision": "Pick the narrowest type kind for each concept — seal types not designed for extension, use records when data is the identity, keep structs small and immutable — and hold types flat with the smallest viable public surface.",
+      "rationale": "The type kind fixes equality, mutability, and copy semantics at declaration, so the right pick removes boilerplate and prevents bugs. The Framework Design Guidelines hold that most types should be classes, reserving structs for value-like data; records synthesise value equality, ToString, Deconstruct, and with-expressions for free. Sealing types you don't intend to be subclassed keeps inheritance a deliberate, explicit choice and lets the JIT devirtualise. Flat composition keeps the public contract small and intentional.",
+      "details": "Seal classes that aren't designed for extension (the common case); mark a base abstract and add virtual members only when you design deliberately for derivation. Choose record (reference) when identity is the data and instances stay immutable — positional record Foo(...) synthesises init props, Equals/GetHashCode/ToString/Deconstruct, a copy constructor, and with. Reach for readonly record struct for small immutable single values (~16 bytes is the conservative bar; copies stay cheap up to ~64 bytes) and keep them unboxed. Model EF Core entities as classes so reference identity holds. Favour composition; lift helpers to file scope or use file-scoped types rather than public nested types; trim surface with internal, required, init, and primary constructors.",
+      "references": [
+        "https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/types/",
+        "https://learn.microsoft.com/en-us/dotnet/standard/design-guidelines/choosing-between-class-and-struct",
+        "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/record"
+      ]
+    },
+    {
+      "topic": "csharp-immutability-and-records",
+      "decision": "Model data as records with init-only members, expose read-only collection surfaces, and evolve instances through with-expressions.",
+      "rationale": "One record declaration synthesises value equality, a readable ToString, a copy constructor, and Deconstruct, so the data shape stays the single source of truth. Init-only and readonly members keep instances stable — safe to share across threads and reliable as dictionary keys. with-expressions give cheap non-destructive copies, and read-only public surfaces let callers consume data while you retain ownership of the storage.",
+      "details": "Reference DTO/domain data: public sealed record Person(string First, string Last) — positional props are init-only; mark non-positional ones required { get; init; }. Small single values: readonly record struct Point(double X, double Y) gives value equality without ValueType reflection and inline allocation. Choose a non-readonly record struct only when setters are required (serialiser/interop round-trips). Copy with x with { Prop = v }; compute derived values via expression-bodied props so with recomputes them. Public collections: expose IReadOnlyList<T>/IReadOnlyDictionary<,> or ImmutableArray<T>; reach for FrozenDictionary/FrozenSet (System.Collections.Frozen, .NET 8+) for build-once/read-many lookups. Keep EF Core entities as plain classes.",
+      "references": [
+        "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/builtin-types/record",
+        "https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/types/records",
+        "https://learn.microsoft.com/en-us/dotnet/api/system.collections.frozen.frozendictionary-2"
+      ]
+    },
+    {
+      "topic": "csharp-pattern-matching",
+      "decision": "Branch on shape and runtime type with switch expressions and recursive patterns, letting the compiler enforce exhaustiveness.",
+      "rationale": "A switch expression returns the value of the first matching arm in text order, reading as a total function from input to result rather than a sequence of mutating branches. Patterns (type, declaration, constant, relational, logical, property, positional, list) test type and structure in one place and bind the converted value, so one arm replaces an is/cast pair. Exhaustiveness analysis surfaces a missed case as a CS8509 build warning rather than a runtime SwitchExpressionException.",
+      "details": "Convert if (x is T t) cascades to x switch { T t => ..., ... }. Compose relational (< 0, >= 10), logical (and/or/not), property ({ Length: >= 5 }, extended { Start.Y: 0 }), positional ((0, 0)), and list/slice ([1, .., var last]) patterns; add a when guard for what patterns can't express. For closed type, enum, or union inputs omit the discard _ so CS8509/CS8524 flags any new case; add _ only when the input is genuinely open (note list-pattern inputs don't raise the warning). Promote CS8509 via <WarningsAsErrors>, enable IDE0066 to modernise switch statements, and prefer is not null for null checks.",
+      "references": [
+        "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/patterns",
+        "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/switch-expression",
+        "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/compiler-messages/pattern-matching-warnings"
+      ]
+    },
+    {
+      "topic": "csharp-async-await",
+      "decision": "Go async all the way: return Task/Task<T> (or ValueTask in hot paths), await results, flow CancellationToken through public APIs, and call ConfigureAwait(false) in library code.",
+      "rationale": "Keeping the whole call stack async preserves thread-pool throughput, since a synchronous bridge over async work (.Result, .Wait(), .GetAwaiter().GetResult()) ties up a pool thread and risks deadlocks. Returning Task surfaces exceptions to callers and keeps methods awaitable and testable, where async void escapes structured exception handling. Flowing CancellationToken keeps work cooperatively cancellable; dropping the captured context with ConfigureAwait(false) keeps library code fast and host-agnostic.",
+      "details": "Return Task/Task<T> by default; choose ValueTask for hot paths that usually complete synchronously, and consume each exactly once (CA2012). Suffix awaitable methods with Async; keep async void for event handlers only. Prefer await over blocking; use Task.WhenAll/WhenAny for fan-out and Task.Delay for time-based waits. Accept a CancellationToken on public async methods and pass it down. In library code append .ConfigureAwait(false) to every await; in ASP.NET Core app code (no SynchronizationContext) you may omit it. Create TaskCompletionSource with RunContinuationsAsynchronously. Reserve Task.Run for CPU-bound work; when a legacy synchronous boundary forces a bridge, isolate it and prefer GetAwaiter().GetResult().",
+      "references": [
+        "https://github.com/davidfowl/AspNetCoreDiagnosticScenarios/blob/master/AsyncGuidance.md",
+        "https://learn.microsoft.com/en-us/dotnet/csharp/asynchronous-programming/async-scenarios",
+        "https://devblogs.microsoft.com/dotnet/configureawait-faq/"
+      ]
+    },
+    {
+      "topic": "csharp-error-handling",
+      "decision": "Throw precise exception types for genuinely exceptional conditions and express expected failures in the return shape with Try-patterns or nullable returns, using throw-helpers, throw expressions, exception filters, and bare throw; to keep diagnostics intact.",
+      "rationale": "Exceptions model the unexpected; routing routine outcomes through them is slow and hides intent, so anticipated results belong in the method signature. Throw-helpers and bare re-throws preserve accurate stack traces and parameter names that logs and callers rely on, and shrink call sites enough to keep small methods inlinable. A when filter is evaluated before the stack unwinds, so the original throw site and locals stay available for diagnosis.",
+      "details": "Validate inputs with the throw-helpers — ArgumentNullException.ThrowIfNull, ArgumentException.ThrowIfNullOrEmpty/ThrowIfNullOrWhiteSpace, the ArgumentOutOfRangeException.ThrowIf* family, ObjectDisposedException.ThrowIf — omitting paramName so CallerArgumentExpression fills it. Use throw expressions inline (x ?? throw ...). In task-returning methods validate synchronously before the first await. Throw precise predefined types (InvalidOperationException for bad state, the ArgumentException family for inputs). Re-throw with bare throw; across boundaries use ExceptionDispatchInfo.Capture/Throw. Filter via catch (X e) when (cond). Express expected failure with Try* (bool + out) or nullable returns; a result type is a fine option where a domain warrants it, though .NET leans on exceptions more than Go or Rust do.",
+      "references": [
+        "https://learn.microsoft.com/en-us/dotnet/standard/exceptions/best-practices-for-exceptions",
+        "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/statements/exception-handling-statements",
+        "https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca1510"
+      ]
+    },
+    {
+      "topic": "csharp-collections-and-linq",
+      "decision": "Express transforms declaratively with LINQ, return read-only collection abstractions from public APIs, construct with collection expressions, and reach for Span<T>/pooling on measured hot paths.",
+      "rationale": "LINQ keeps data transforms intention-revealing and composable. Returning read-only abstractions decouples callers from your storage and protects internal state from outside mutation. Collection expressions let the compiler pick the most efficient construction (Array.Empty<T>, stackalloc, or a builder) for the target type. Span/Memory and pooling deliver allocation savings on hot paths in exchange for lifetime constraints, so they pay off where a profiler shows pressure.",
+      "details": "Public APIs return IReadOnlyList<T>/IReadOnlyCollection<T>, or IEnumerable<T> for forward-only sequences; keep List<T>/T[]/Dictionary<,> as internal storage. Return [] for empty results so callers stay null-free. Materialise lazy LINQ once with ToArray()/ToList() before enumerating twice; size eagerly when TryGetNonEnumeratedCount succeeds. Construct with collection expressions ([], [a, b, ..existing]). Compose with GroupBy/Join/ToLookup/ToDictionary. On measured hot paths, drop allocations with Span<T>/stackalloc for small buffers and ArrayPool<T>.Shared (Rent then Return in a finally) for large ones, renting once and reusing; CollectionsMarshal and Dictionary alternate-key lookups remove further allocations where a profiler shows pressure.",
+      "references": [
+        "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/collection-expressions",
+        "https://learn.microsoft.com/en-us/dotnet/standard/design-guidelines/guidelines-for-collections",
+        "https://learn.microsoft.com/en-us/dotnet/api/system.collections.generic.dictionary-2.getalternatelookup"
+      ]
+    },
+    {
+      "topic": "csharp-naming-conventions",
+      "decision": "Name identifiers PascalCase for types/namespaces/members, camelCase for locals and parameters, _camelCase for private fields, I-prefix interfaces, T-prefix generic parameters, and an Async suffix on awaitable-returning methods.",
+      "rationale": "Casing that matches the BCL makes your types read like the framework, so any .NET developer infers visibility and intent from the name alone (typing _ lists fields in completion; an Async suffix flags awaitables at the call site). These are the exact conventions the dotnet/runtime and dotnet/docs teams ship, so analysers and reviewers stay aligned. Encoding them in .editorconfig makes the rules self-enforcing.",
+      "details": "PascalCase: classes, structs, records, enums, delegates, namespaces, methods, properties, events, constants, enum members. camelCase: locals, parameters, and class/struct primary-constructor parameters (record positional params stay PascalCase — they become public properties). _camelCase private/internal instance fields. Interfaces start with I; generic params prefixed T (TKey, TSession), bare T for a single param. Suffix awaitable methods with Async, attributes with Attribute. Two-letter acronyms all-caps (IOStream), three-plus PascalCased (HtmlParser). Enforce casing/prefix/suffix via .editorconfig naming rules and dotnet format; enable CA1715 to police the I and T prefixes.",
+      "references": [
+        "https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/coding-style/identifier-names",
+        "https://learn.microsoft.com/en-us/dotnet/standard/asynchronous-programming-patterns/task-based-asynchronous-pattern-tap",
+        "https://learn.microsoft.com/en-us/dotnet/standard/design-guidelines/capitalization-conventions"
+      ]
+    },
+    {
+      "topic": "csharp-comments-and-docs",
+      "decision": "Write /// XML doc comments on the public API surface consumers depend on — especially in shipped libraries — to capture intent and non-obvious contracts, enable <GenerateDocumentationFile>true so the compiler validates them, and reserve inline // for the WHY.",
+      "rationale": "XML doc comments are the single source IntelliSense, the NuGet package's .xml, and doc generators all consume — the contract external consumers read before your code. With the documentation file enabled, the compiler verifies <param>, <typeparam>, and every cref against the real signature and raises CS1591 on undocumented public members, making docs a checked artefact rather than rot-prone prose. Reserving inline // for the WHY keeps names and types as the narrative.",
+      "details": "On libraries set <GenerateDocumentationFile>true (ships the .xml beside the assembly; CS1591 flags gaps in the public surface); on application code, document the non-obvious public surface rather than every member. For each documented member: a <summary> of one or two complete sentences stating intent, plus <param>/<typeparam>/<returns> where the contract is non-obvious. Use <exception cref> for exceptions a caller must handle and <value> where a property's value needs describing. Link with <see cref>, <paramref>, <see langword>; push depth into <remarks>; carry overrides and interface impls with <inheritdoc/>. Show usage with <c>/<code>/<example>. Scope noise suppression narrowly with #pragma warning disable CS1591.",
+      "references": [
+        "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/xmldoc/",
+        "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/xmldoc/recommended-tags",
+        "https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/coding-style/coding-conventions"
+      ]
+    },
+    {
+      "topic": "csharp-dependency-injection",
+      "decision": "Inject abstractions through one unambiguous public constructor, register each service with the lifetime that matches its state, and let Microsoft.Extensions.DependencyInjection own creation and disposal.",
+      "rationale": "Constructor injection makes dependencies explicit, immutable, and trivially testable, while depending on interfaces decouples consumers from concrete types. Matching lifetimes to state prevents captive dependencies and accidental shared mutable state, and letting the container resolve and dispose the whole graph keeps lifetime management in one place. Resolving from the provider at runtime hides dependencies and bypasses scope-validation safety.",
+      "details": "Capture abstractions via a primary constructor into private readonly fields; keep the type sealed with one public DI-resolvable constructor. Register in IServiceCollection: AddSingleton for stateless/expensive shared services, AddScoped for per-request/unit-of-work work (EF Core DbContext via AddDbContext), AddTransient for lightweight stateless ones; prefer interface overloads (AddScoped<IFoo, Foo>) and open generics. Keep singletons depending only on singletons; for scoped work inside a singleton or BackgroundService inject IServiceScopeFactory, CreateScope(), then GetRequiredService<T>. Register without BuildServiceProvider and let the container Dispose. Keep ValidateScopes/ValidateOnBuild on (enabled in Development) to surface captive dependencies early.",
+      "references": [
+        "https://learn.microsoft.com/en-us/dotnet/core/extensions/dependency-injection-guidelines",
+        "https://learn.microsoft.com/en-us/dotnet/core/extensions/dependency-injection",
+        "https://learn.microsoft.com/en-us/dotnet/core/compatibility/aspnet-core/9.0/hostbuilder-validation"
+      ]
+    },
+    {
+      "topic": "csharp-configuration-and-options",
+      "decision": "Bind each related config section to a sealed POCO via the Options pattern, validate it eagerly at startup, and inject the narrowest options accessor a consumer needs.",
+      "rationale": "Strongly-typed options give each component only the settings it uses and replace hand-rolled string parsing with one validated, centrally bound object. Validating on start turns a misconfiguration into an immediate, clear startup failure rather than a deferred runtime surprise. Choosing the matching accessor interface keeps lifetimes correct and reads the freshly reloaded value rather than a stale or wrongly-scoped one.",
+      "details": "Register via services.AddOptions<TOptions>().BindConfiguration('Section').ValidateOnStart() (or AddOptionsWithValidateOnStart). Prefer BindConfiguration so reloads flow to IOptionsMonitor/IOptionsSnapshot. Mark the POCO sealed with required/init properties. Inject IOptions<T> for fixed values read once (singleton-safe); IOptionsSnapshot<T> only when per-request reload is genuinely needed (scoped); IOptionsMonitor<T>.CurrentValue (+ OnChange) inside singletons. Validate with [Required], [Range], and [ValidateObjectMembers]/[ValidateEnumeratedItems] for nesting. For AOT-friendly, reflection-free validation add an [OptionsValidator] partial class implementing IValidateOptions<T>. Store secrets in dotnet user-secrets (Development), environment variables (Section__Key), or Azure Key Vault.",
+      "references": [
+        "https://learn.microsoft.com/en-us/dotnet/core/extensions/options",
+        "https://learn.microsoft.com/en-us/dotnet/core/extensions/options-validation-generator",
+        "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/configuration/options"
+      ]
+    },
+    {
+      "topic": "csharp-logging",
+      "decision": "Log through Microsoft.Extensions.Logging using constant structured message templates, reach for the [LoggerMessage] source generator on hot or high-volume log sites, group correlated work with BeginScope, and let configured providers own the sinks.",
+      "rationale": "ILogger with named-placeholder templates emits machine-queryable structured events whose fields backends index, rather than pre-flattened strings. The [LoggerMessage] source generator turns each call site into strongly-typed cached code that eliminates boxing, temporary allocations, and runtime template parsing, and skips all work when the level is disabled — Microsoft documents it as the preferred alternative to LogInformation-style calls. Routing to console, OTLP, or files stays a provider concern, so call sites remain portable.",
+      "details": "Inject ILogger<T> from DI so the category is the type's full name. For hot or high-volume events use a source-generated partial method: [LoggerMessage(EventId = 1001, Level = LogLevel.Information, Message = 'Read {Id} in {Elapsed}ms')] public partial void LogRead(int id, long elapsed); plain ILogger.LogInformation-style calls with a constant template are fine elsewhere. Use PascalCase named placeholders and keep the template a constant (CA2254); pass an Exception as a parameter without a placeholder. Enrich correlated logs with using logger.BeginScope(...) and enable IncludeScopes. Configure levels via the appsettings Logging section; register providers (AddConsole, AddOpenTelemetry/AddOtlpExporter) on builder.Logging.",
+      "references": [
+        "https://learn.microsoft.com/en-us/dotnet/core/extensions/logging/source-generation",
+        "https://learn.microsoft.com/en-us/dotnet/core/extensions/logging",
+        "https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/quality-rules/ca2254"
+      ]
+    },
+    {
+      "topic": "csharp-json-serialisation",
+      "decision": "Serialise with System.Text.Json by default, reach for a source-generated JsonSerializerContext on AOT/trimmed or perf-sensitive paths, and reuse one cached JsonSerializerOptions for every call.",
+      "rationale": "System.Text.Json is the in-box, high-throughput serialiser shipped with the runtime, so new code tracks platform performance and trimming improvements automatically. A source-generated JsonSerializerContext collects metadata at compile time, reducing startup and memory, eliminating runtime reflection, and staying trim-safe and Native AOT compatible. JsonSerializerOptions caches metadata and becomes immutable after first use, so a single shared instance keeps throughput high (CA1869).",
+      "details": "Reflection-based System.Text.Json is fine for most apps; for AOT/trimmed or hot paths declare a partial context: [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)] [JsonSerializable(typeof(Order))] internal sealed partial class AppJsonContext : JsonSerializerContext;, then serialise via the strongly-typed JsonSerializer.Serialize(order, AppJsonContext.Default.Order) or set options.TypeInfoResolver = AppJsonContext.Default. Cache options in a static readonly JsonSerializerOptions; use JsonSerializerOptions.Default or .Web when stock settings suffice. In ASP.NET Core, AddJsonOptions(o => o.JsonSerializerOptions.TypeInfoResolverChain.Add(AppJsonContext.Default)). Serialise enums as strings with JsonStringEnumConverter<TEnum>. Set RespectRequiredConstructorParameters and RespectNullableAnnotations for stricter deserialisation; for AOT add <JsonSerializerIsReflectionEnabledByDefault>false.",
+      "references": [
+        "https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/source-generation",
+        "https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/reflection-vs-source-generation",
+        "https://learn.microsoft.com/en-us/dotnet/standard/serialization/system-text-json/configure-options"
+      ]
+    },
+    {
+      "topic": "csharp-testing",
+      "decision": "Write deterministic, parallel-safe unit tests with xUnit or NUnit, structured Arrange-Act-Assert, table-driven cases, and collaborators faked behind interfaces with NSubstitute or Moq.",
+      "rationale": "xUnit (the framework the .NET team itself uses) and NUnit are both solid choices; xUnit's one-collection-per-class model parallelises across classes while keeping each test isolated, fast, and repeatable. AAA structure with Method_Scenario_ExpectedBehavior names turns tests into executable documentation that pinpoints the failing case. Faking collaborators behind interfaces and injecting an abstract TimeProvider keeps tests free of clock, IO, and network dependencies.",
+      "details": "Reference xunit.v3 (runs on Microsoft Testing Platform via dotnet test); add Microsoft.NET.Test.Sdk + xunit.runner.visualstudio for the VSTest path. Name tests Method_Scenario_ExpectedBehavior with one Act each. Collapse duplicated cases into xUnit [Theory]+[InlineData]/[MemberData] (NUnit: [TestCase]/[TestCaseSource]). Substitute interfaces with NSubstitute or Moq; assert via the framework's Assert or Shouldly (note FluentAssertions v8+ requires a paid commercial licence). Inject System.TimeProvider and drive time with FakeTimeProvider instead of DateTime.Now. Share costly setup via IClassFixture<T>/ICollectionFixture<T>; keep test classes stateless so default cross-class parallelisation stays safe. Favour constructor/helper setup and IDisposable over Setup/Teardown.",
+      "references": [
+        "https://learn.microsoft.com/en-us/dotnet/core/testing/unit-testing-best-practices",
+        "https://xunit.net/docs/getting-started/v3/getting-started",
+        "https://learn.microsoft.com/en-us/dotnet/standard/datetime/timeprovider-overview"
+      ]
+    },
+    {
+      "topic": "csharp-resource-management",
+      "decision": "Own each disposable or unmanaged resource in exactly one sealed type that implements IDisposable (and IAsyncDisposable when cleanup is async), and consume every owned resource through a using or await using declaration.",
+      "rationale": "using and await using lower to try/finally, so Dispose/DisposeAsync runs deterministically even on exception or early return — the CLR analog of Rust's scope-bound drop. Single, sealed ownership keeps the disposal graph a clear tree: the owner cascades disposal to what it created, and a sealed type needs no virtual override hooks. Wrapping native handles in a SafeHandle hands finalisation to the runtime, keeping finalisers out of your own types.",
+      "details": "For a sealed type owning only managed disposables, write one public void Dispose() that cascades to each owned field idempotently — no Dispose(bool), no finaliser, no GC.SuppressFinalize. For async cleanup (DbConnection, streams, channels) add IAsyncDisposable: return a single child's DisposeAsync() directly, or await each child's DisposeAsync().ConfigureAwait(false). Implement both interfaces when either consumption path is reachable, since IAsyncDisposable alone leaks if a caller invokes Dispose. Own native handles by deriving from SafeHandleZeroOrMinusOneIsInvalid and overriding ReleaseHandle. Consume with using var x = ...; / await using var x = ...;. Keep the protected-virtual Dispose(bool) + finaliser + GC.SuppressFinalize shape only for unsealed bases meant for inheritance.",
+      "references": [
+        "https://learn.microsoft.com/en-us/dotnet/standard/garbage-collection/implementing-dispose",
+        "https://learn.microsoft.com/en-us/dotnet/standard/garbage-collection/implementing-disposeasync",
+        "https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/statements/using"
+      ]
+    },
+    {
+      "topic": "csharp-web-api",
+      "decision": "Build HTTP APIs on ASP.NET Core — Minimal APIs for small/focused services, controllers when you need conventions or rich model binding — returning Results<...>/TypedResults, emitting OpenAPI via Microsoft.AspNetCore.OpenApi, and reporting errors as RFC 9457 ProblemDetails.",
+      "rationale": "Minimal APIs are the recommended, lowest-overhead, AOT-friendly path for new focused services, while controllers earn their weight for MVC conventions, filters, and richer binding. Returning the Results<T1,...,Tn> union of TypedResults gives compile-time-checked responses that auto-populate OpenAPI metadata, so the contract and the code stay in lockstep. A single ProblemDetails shape keeps errors machine-readable and consistent for every consumer.",
+      "details": "Bootstrap with WebApplication.CreateBuilder; use CreateSlimBuilder (+ JsonSerializerContext) for trimmed/Native AOT. Group routes with MapGroup; tag with WithTags/WithName. Declare async Task<Results<Ok<T>, NotFound, ValidationProblem>> built with TypedResults.Ok/Created/NotFound/Problem; the union auto-emits OpenAPI metadata, so reserve .Produces for extra status codes. OpenAPI: AddOpenApi() + MapOpenApi() (3.1); serve UI separately (Scalar/Swagger UI). Errors: AddProblemDetails(), UseExceptionHandler(), UseStatusCodePages(); register typed handlers via AddExceptionHandler<T>() (IExceptionHandler). Validation (.NET 10): AddValidation() with DataAnnotations/[ValidatableType] yields a 400 ValidationProblem.",
+      "references": [
+        "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis/responses",
+        "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/openapi/aspnetcore-openapi",
+        "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/error-handling-api"
+      ]
+    },
+    {
+      "topic": "csharp-analysers-and-format",
+      "decision": "Enforce the SDK's built-in Roslyn quality and style analysers in every build, drive all style from one checked-in root .editorconfig, and treat warnings as errors in CI.",
+      "rationale": "The .NET SDK ships the Roslyn CA (quality) and IDE (style) analysers — the CA set is on for .NET 5+ and one switch turns on style enforcement too, giving clippy/go-vet-grade gates with zero extra packages and identical results on every machine and in CI. A single repo-root .editorconfig is the one source of truth the compiler and editors both honour, so IDE hints and build gates stay aligned. Treating warnings as errors in CI makes advisory diagnostics hard contracts without breaking local builds when an SDK or analyser bump introduces new ones.",
+      "details": "In repo-root Directory.Build.props set <EnforceCodeStyleInBuild>true (runs IDExxxx in-build; off by default) and <AnalysisLevel>latest-recommended (compound form; takes precedence over AnalysisMode, so set only one); add <EnableNETAnalyzers>true for non-SDK or .NET Framework/Standard targets. Keep one .editorconfig with root = true, [*.cs] style options, and per-rule dotnet_diagnostic.IDExxxx.severity. Promote warnings to errors in CI with dotnet build -warnaserror (the switch covers every MSBuild task) rather than <TreatWarningsAsErrors>true everywhere, so local builds keep flowing across SDK/analyser bumps. Gate CI with dotnet format --verify-no-changes and apply fixes with dotnet format; keep specific warnings non-fatal via WarningsNotAsErrors.",
+      "references": [
+        "https://learn.microsoft.com/en-us/dotnet/fundamentals/code-analysis/overview",
+        "https://learn.microsoft.com/en-us/dotnet/core/project-sdk/msbuild-props",
+        "https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-format"
+      ]
+    },
+    {
+      "topic": "csharp-dependency-management",
+      "decision": "In multi-project repos, centralise NuGet versions in Directory.Packages.props; lock the graph with a committed packages.lock.json restored in locked mode; and fail CI on known vulnerabilities via NuGet Audit plus dotnet package list --vulnerable.",
+      "rationale": "One central source of truth for versions eliminates drift across projects and turns an upgrade into a one-line change. A committed lock file persists content hashes that restore verifies, so CI reproduces the exact, tamper-evident graph developers tested. Restore-time auditing plus the CLI scan surface known advisories in direct and transitive packages early, and keeping a small set of narrow, actively maintained dependencies holds upgrade burden and attack surface low.",
+      "details": "For repos with more than one project, enable CPM (dotnet new packagesprops): <ManagePackageVersionsCentrally>true, <PackageVersion Include='X' Version='N'/> centrally, bare <PackageReference Include='X'/> in projects; <GlobalPackageReference> for repo-wide build/dev tools; VersionOverride or CentralPackageTransitivePinningEnabled to pin a vulnerable transitive. Reproducible restore: <RestorePackagesWithLockFile>true, commit packages.lock.json, run dotnet restore --locked-mode in CI. Scan and gate: NuGetAudit is on by default (NuGetAuditMode=all on net10+); promote NU1901-NU1904 via <WarningsAsErrors> (scope to NU1903;NU1904 for high/critical only). Add dotnet package list --vulnerable --include-transitive --deprecated as a CI step; trace with dotnet nuget why; remediate with dotnet package update --vulnerable.",
+      "references": [
+        "https://learn.microsoft.com/en-us/nuget/consume-packages/central-package-management",
+        "https://learn.microsoft.com/en-us/nuget/concepts/auditing-packages",
+        "https://devblogs.microsoft.com/dotnet/enable-repeatable-package-restores-using-a-lock-file/"
+      ]
+    }
+  ]
+}
