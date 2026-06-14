@@ -3,6 +3,7 @@ package instinct
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/jmylchreest/aide/aide/pkg/observe"
 	"github.com/oklog/ulid/v2"
@@ -16,6 +17,11 @@ type ConvergenceConfig struct {
 	// MaxTurnsBetween bounds how many events can sit between A → user
 	// correction → B before the sequence is no longer considered linked.
 	MaxTurnsBetween int
+	// MaxMinutesBetween bounds the wall-clock span of the whole
+	// A → correction → B sequence. Without it, an edit and a much later
+	// correction (next morning, different task) could be linked just because
+	// few events fell between them. 0 disables the time bound.
+	MaxMinutesBetween int
 }
 
 func DefaultConvergenceConfig() ConvergenceConfig {
@@ -27,7 +33,8 @@ func DefaultConvergenceConfig() ConvergenceConfig {
 		PositiveMarkers: []string{
 			"perfect", "ship it", "lgtm", "yes", "exactly", "great",
 		},
-		MaxTurnsBetween: 6,
+		MaxTurnsBetween:   6,
+		MaxMinutesBetween: 30,
 	}
 }
 
@@ -36,10 +43,12 @@ type Convergence struct{}
 func (Convergence) Name() string       { return ShapeConvergence }
 func (Convergence) DefaultConfig() any { return DefaultConvergenceConfig() }
 func (Convergence) Capabilities() Capabilities {
-	// Has a marker-based fallback, so works without an LLM. RequiresLLM=false
-	// so the Stop-hook deterministic mode still runs it. When ParserContext
-	// provides Classifications, Detect prefers those over markers — see below.
-	return Capabilities{RequiresLLM: false}
+	// LLM tier. The bare-marker fallback is too imprecise to auto-fire in the
+	// Stop hook: "no"/"yes" match plenty of non-corrective prompts, and real
+	// corrections often use none of the markers. So convergence runs only in
+	// the reviewed reflect pass, where the agent's intent classifications drive
+	// it (markers remain as a same-pass fallback for unclassified prompts).
+	return Capabilities{RequiresLLM: true}
 }
 
 // Detect scans for the sequence: Edit/Write (A) → user prompt containing a
@@ -72,6 +81,15 @@ func (Convergence) Detect(events []*observe.Event, cfgAny any, ctx ParserContext
 		nextEditIdx := findMutationAhead(events, correctionIdx, cfg.MaxTurnsBetween, e.FilePath)
 		if nextEditIdx < 0 {
 			continue
+		}
+		// Time bound: the whole A → correction → B sequence must fit within
+		// MaxMinutesBetween, so a stale edit and a much later correction aren't
+		// linked just because few events fell between them.
+		if cfg.MaxMinutesBetween > 0 {
+			span := events[nextEditIdx].Timestamp.Sub(e.Timestamp)
+			if span > time.Duration(cfg.MaxMinutesBetween)*time.Minute {
+				continue
+			}
 		}
 		// Optional: check whether anything positive followed.
 		positiveSignal := findPositiveAhead(events, nextEditIdx, cfg.MaxTurnsBetween, positives, ctx.Classifications)

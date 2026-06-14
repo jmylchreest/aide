@@ -139,18 +139,24 @@ Build a JSON array:
 ### 3. Run with classifications
 
 ```bash
-./.aide/bin/aide reflect run \
+./.aide/bin/aide reflect run --llm \
   --classifications-json='[{"id":"01JF...A","intent":"corrective"}]'
 ```
 
 Returns a JSON summary: `{"proposals_written": N, "shapes": {...}}`.
 
-### 4. (Deterministic fallback) Run without classifications
+The `--llm` flag puts the runner in LLM mode, which runs the `RequiresLLM`
+detectors (convergence, friction) in addition to repetition. The Stop hook
+never passes it, so those detectors only ever surface in this reviewed pass.
 
-If step 1 returned no candidates, just run deterministically:
+### 4. Run in LLM mode without classifications
+
+If step 1 returned no candidates, still run with `--llm` (not bare) so
+friction and the marker-based convergence pass fire — only the LLM-graded
+convergence intent is skipped:
 
 ```bash
-./.aide/bin/aide reflect run
+./.aide/bin/aide reflect run --llm
 ```
 
 ### 5. List proposals and summarise for the user
@@ -283,7 +289,17 @@ gated by the env var.
 - **convergence** — `Edit A` → user corrective marker → `Edit B` on the same
   file → optional positive signal. Marker-based by default, upgrades to
   LLM-classified when intent labels are provided via step 3.
+- **friction** — the same tool failing repeatedly on the same target (a Bash
+  command that keeps erroring, an Edit that won't apply to a file). Gathered
+  from the observe `Error` field; the lesson worth keeping is usually the
+  *fix*, which you supply by reading the evidence. `RequiresLLM` — never
+  auto-fires in the Stop hook.
 
-Detectors declare a `RequiresLLM` capability. The CLI Stop hook
-(`aide reflect run`) runs only `RequiresLLM=false` detectors automatically;
-LLM-required detectors are skipped unless this skill provides classifications.
+Detectors declare a `RequiresLLM` capability — two tiers:
+
+- **Deterministic tier** (`RequiresLLM=false`: repetition) runs automatically
+  in the Stop hook. Must be high-precision; nothing reviews it before it lands
+  as a proposal.
+- **LLM tier** (`RequiresLLM=true`: convergence, friction) runs only in this
+  reviewed pass, when the skill passes `--llm` (step 3/4). Higher recall is
+  fine — you judge each proposal before anything is promoted.

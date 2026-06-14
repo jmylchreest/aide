@@ -21,7 +21,7 @@ func cmdReflect(dbPath string, args []string) error {
 		{name: "run", handler: func(a []string) error { return reflectRun(dbPath, a) }},
 		{name: "list", handler: func(a []string) error { return reflectList(dbPath, a) }},
 		{name: "candidates", handler: func(a []string) error { return reflectCandidates(dbPath, a) }},
-		{name: "test", handler: func(a []string) error { return reflectTest(a) }},
+		{name: "test", handler: reflectTest},
 		{name: "current-session", handler: func(a []string) error { return reflectCurrentSession(dbPath) }},
 		{name: "accept", handler: func(a []string) error { return reflectAccept(dbPath, a) }},
 		{name: "reject", handler: func(a []string) error { return reflectReject(dbPath, a) }},
@@ -123,8 +123,12 @@ Options:
   run:
     --session=ID                 Session ID (optional; see resolution above)
     --limit=N                    Max observe events to consider (default 5000)
+    --llm                        Force LLM mode (run RequiresLLM parsers:
+                                 convergence, friction) even with no
+                                 classifications. The reflect skill passes this;
+                                 the Stop hook does not.
     --classifications-json=JSON  Optional JSON array of {id, intent} entries
-                                 from an LLM judgement pass. Switches the
+                                 from an LLM judgement pass. Also switches the
                                  runner to LLM mode (runs RequiresLLM parsers).
     --classifications-file=PATH  Same, but read JSON from a file.
   list:
@@ -133,8 +137,8 @@ Options:
   candidates:
     --session=ID                 Session ID (optional; see resolution above)
   test:
-    --pattern=NAME               Pattern to exercise: repetition | convergence
-                                 (default: run all). Synthesises a canonical
+    --pattern=NAME               Pattern to exercise: repetition | convergence |
+                                 friction (default: run all). Synthesises a canonical
                                  event sequence in memory, runs the detector,
                                  prints the proposals it would emit. Does NOT
                                  touch the proposal store — pure dry-run.
@@ -149,9 +153,10 @@ Examples:
   aide reflect candidates --session=abc123
   aide reflect run --session=abc123 \
     --classifications-json='[{"id":"01ABC","intent":"corrective"}]'
+  aide reflect run --session=abc123 --llm   # also runs friction + convergence
   aide reflect list --status=open
   aide reflect test --pattern=repetition
-  aide reflect test --pattern=convergence`)
+  aide reflect test --pattern=friction`)
 }
 
 func reflectRun(dbPath string, args []string) error {
@@ -208,12 +213,20 @@ func reflectRun(dbPath string, args []string) error {
 		}
 	}
 
+	// LLM-tier parsers (RequiresLLM) run when classifications are supplied OR
+	// when --llm forces it. The reflect skill always passes --llm so friction
+	// (and convergence) surface even in sessions with no convergence prompts to
+	// classify; the Stop hook passes neither flag and stays deterministic.
 	mode := instinct.RunDeterministic
-	if len(classifications) > 0 {
+	if hasFlag(args, "--llm") || len(classifications) > 0 {
 		mode = instinct.RunWithLLM
 	}
 
-	runner := instinct.NewRunner(instinct.Repetition{Config: repetitionConfigFromUser()}, instinct.Convergence{})
+	runner := instinct.NewRunner(
+		instinct.Repetition{Config: repetitionConfigFromUser()},
+		instinct.Convergence{},
+		instinct.Friction{},
+	)
 	newProps := runner.Run(sessionID, events, nil, relevant, instinct.RunOpts{
 		Mode:            mode,
 		Classifications: classifications,
@@ -390,7 +403,7 @@ func reflectCandidates(dbPath string, args []string) error {
 // documentation of what canonical triggers look like.
 func reflectTest(args []string) error {
 	pattern := parseFlag(args, "--pattern=")
-	patterns := []string{"repetition", "convergence"}
+	patterns := []string{"repetition", "convergence", "friction"}
 	if pattern != "" {
 		patterns = []string{pattern}
 	}
@@ -410,9 +423,16 @@ func reflectTest(args []string) error {
 			Events: synthRepetition(),
 		},
 		"convergence": {
-			Name:   "convergence (Edit → corrective prompt → Edit on same file)",
-			Parser: instinct.Convergence{},
-			Events: synthConvergence(),
+			Name:    "convergence (Edit → corrective prompt → Edit on same file)",
+			Parser:  instinct.Convergence{},
+			Events:  synthConvergence(),
+			WithLLM: true, // RequiresLLM detector — marker fallback fires in LLM mode
+		},
+		"friction": {
+			Name:    "friction (same Bash command failing 3×)",
+			Parser:  instinct.Friction{},
+			Events:  synthFriction(),
+			WithLLM: true, // RequiresLLM detector — only runs in LLM mode
 		},
 	}
 
@@ -425,9 +445,14 @@ func reflectTest(args []string) error {
 		fmt.Printf("=== %s ===\n", f.Name)
 		fmt.Printf("Synthesised %d events for session test-%s\n\n", len(f.Events), p)
 
+		mode := instinct.RunDeterministic
+		if f.WithLLM {
+			mode = instinct.RunWithLLM
+		}
 		runner := instinct.NewRunner(f.Parser)
 		props := runner.Run("test-"+p, f.Events, nil, nil, instinct.RunOpts{
-			Mode: instinct.RunDeterministic,
+			Mode:            mode,
+			Classifications: f.Classify,
 		})
 
 		if len(props) == 0 {
@@ -505,6 +530,27 @@ func synthConvergence() []*observe.Event {
 	}
 }
 
+// synthFriction emits 3 failing Bash calls of the same command — a minimal
+// trigger for the friction detector (default MinCount=2). Each carries an
+// Error, the signal friction groups on.
+func synthFriction() []*observe.Event {
+	now := time.Now()
+	out := make([]*observe.Event, 0, 3)
+	for i := 0; i < 3; i++ {
+		out = append(out, &observe.Event{
+			ID:        ulid.Make().String(),
+			Timestamp: now.Add(time.Duration(i) * 20 * time.Second),
+			Kind:      "tool_call",
+			Name:      "Bash",
+			Category:  "execute",
+			SessionID: "test-friction",
+			Attrs:     map[string]string{"command": "go test ./..."},
+			Error:     "exit status 1: build failed",
+		})
+	}
+	return out
+}
+
 // reflectAccept promotes a proposal to a memory (category=instinct) and marks
 // the proposal accepted. ID is taken from the first non-flag positional arg.
 func reflectAccept(dbPath string, args []string) error {
@@ -557,10 +603,7 @@ func reflectAccept(dbPath string, args []string) error {
 	if err != nil {
 		return fmt.Errorf("search prior instincts: %w", err)
 	}
-	superseded, err := unionSuperseded(backend.Store(), structuralSet, manualSupersedes)
-	if err != nil {
-		return fmt.Errorf("resolve manual supersedes: %w", err)
-	}
+	superseded := unionSuperseded(backend.Store(), structuralSet, manualSupersedes)
 
 	newTags := append([]string(nil), prop.ProposedInstinct.Tags...)
 	if len(superseded) > 0 {
@@ -648,7 +691,7 @@ func findSupersededInstincts(st store.Store, newTags []string) ([]*memory.Memory
 // IDs from --supersedes, dedupes, and fetches any manual records not already
 // in the structural set. Manual IDs that don't resolve are returned as
 // (best-effort) — missing IDs are silently dropped after a stderr warning.
-func unionSuperseded(st store.Store, structural []*memory.Memory, manualIDs []string) ([]*memory.Memory, error) {
+func unionSuperseded(st store.Store, structural []*memory.Memory, manualIDs []string) []*memory.Memory {
 	seen := make(map[string]struct{}, len(structural)+len(manualIDs))
 	out := make([]*memory.Memory, 0, len(structural)+len(manualIDs))
 	for _, m := range structural {
@@ -667,7 +710,7 @@ func unionSuperseded(st store.Store, structural []*memory.Memory, manualIDs []st
 		seen[id] = struct{}{}
 		out = append(out, m)
 	}
-	return out, nil
+	return out
 }
 
 // splitCSV parses a comma-separated list, trimming whitespace and skipping
