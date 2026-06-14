@@ -3,9 +3,16 @@
   "name": "csharp-github-actions",
   "display_name": "C# / .NET CI/CD with GitHub Actions",
   "description": "C#-specific GitHub Actions patterns: setup-dotnet, locked restore, warnings-as-errors gates, NuGet audit, coverage, cross-platform matrix, and releases",
-  "version": "0.1.1",
-  "tags": ["ci", "github-actions", "csharp", "dotnet"],
-  "includes": ["github-actions"],
+  "version": "0.1.2",
+  "tags": [
+    "ci",
+    "github-actions",
+    "csharp",
+    "dotnet"
+  ],
+  "includes": [
+    "github-actions"
+  ],
   "decisions": [
     {
       "topic": "csharp-ci-workflow",

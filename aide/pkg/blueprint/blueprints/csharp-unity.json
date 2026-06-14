@@ -3,9 +3,16 @@
   "name": "csharp-unity",
   "display_name": "Unity (C#) Best Practices",
   "description": "Idiomatic Unity C#: thin MonoBehaviours, ScriptableObject architecture, allocation-free hot paths, coroutines/Awaitable, the Input System, the Job System, Unity Test Framework, Addressables, and IL2CPP/AOT",
-  "version": "0.1.1",
-  "tags": ["language", "csharp", "unity", "gamedev"],
-  "includes": ["general"],
+  "version": "0.1.2",
+  "tags": [
+    "language",
+    "csharp",
+    "unity",
+    "gamedev"
+  ],
+  "includes": [
+    "general"
+  ],
   "decisions": [
     {
       "topic": "unity-runtime-and-versioning",

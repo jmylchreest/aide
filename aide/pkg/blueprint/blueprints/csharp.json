@@ -3,9 +3,15 @@
   "name": "csharp",
   "display_name": "C# / .NET Best Practices",
   "description": "Idiomatic modern C# on cross-platform .NET: nullable reference types, records, async, DI, System.Text.Json, analysers, and tooling for production code",
-  "version": "0.1.1",
-  "tags": ["language", "csharp", "dotnet"],
-  "includes": ["general"],
+  "version": "0.1.2",
+  "tags": [
+    "language",
+    "csharp",
+    "dotnet"
+  ],
+  "includes": [
+    "general"
+  ],
   "decisions": [
     {
       "topic": "csharp-language-and-runtime-version",
