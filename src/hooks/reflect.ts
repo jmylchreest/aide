@@ -9,7 +9,11 @@
  */
 
 import { execFileSync } from "child_process";
-import { readStdin } from "../lib/hook-utils.js";
+import {
+  readStdin,
+  emitHookResult,
+  installHookSafetyNet,
+} from "../lib/hook-utils.js";
 import { findAideBinary } from "../core/aide-client.js";
 import { debug } from "../lib/logger.js";
 
@@ -30,7 +34,7 @@ async function main(): Promise<void> {
 
     const input = await readStdin();
     if (!input.trim()) {
-      console.log(JSON.stringify({}));
+      emitHookResult({});
       return;
     }
 
@@ -38,13 +42,13 @@ async function main(): Promise<void> {
     const cwd = data.cwd || process.cwd();
     const sessionID = data.session_id;
     if (!sessionID) {
-      console.log(JSON.stringify({}));
+      emitHookResult({});
       return;
     }
 
     const binary = findAideBinary({ cwd });
     if (!binary) {
-      console.log(JSON.stringify({}));
+      emitHookResult({});
       return;
     }
 
@@ -59,11 +63,14 @@ async function main(): Promise<void> {
       debug(SOURCE, `reflect run failed (non-fatal): ${err}`);
     }
 
-    console.log(JSON.stringify({}));
+    emitHookResult({});
   } catch (err) {
     debug(SOURCE, `error: ${err}`);
-    console.log(JSON.stringify({}));
+    emitHookResult({});
   }
 }
+
+// This Stop hook emits {} (not {continue:true}) as its neutral result.
+installHookSafetyNet(SOURCE, {});
 
 void main();

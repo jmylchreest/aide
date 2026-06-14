@@ -9,7 +9,11 @@
  * Core logic is in src/core/write-guard.ts for cross-platform reuse.
  */
 
-import { readStdin } from "../lib/hook-utils.js";
+import {
+  readStdin,
+  emitHookResult,
+  installHookSafetyNet,
+} from "../lib/hook-utils.js";
 import { debug } from "../lib/logger.js";
 import { checkWriteGuard } from "../core/write-guard.js";
 import { findAideBinary } from "../core/aide-client.js";
@@ -42,7 +46,7 @@ async function main(): Promise<void> {
   try {
     const input = await readStdin();
     if (!input.trim()) {
-      console.log(JSON.stringify({ continue: true }));
+      emitHookResult({ continue: true });
       return;
     }
 
@@ -86,33 +90,16 @@ async function main(): Promise<void> {
           additionalContext: result.message,
         },
       };
-      console.log(JSON.stringify(output));
+      emitHookResult(output);
     } else {
-      console.log(JSON.stringify({ continue: true }));
+      emitHookResult({ continue: true });
     }
   } catch (error) {
     debug(SOURCE, `Hook error: ${error}`);
-    console.log(JSON.stringify({ continue: true }));
+    emitHookResult({ continue: true });
   }
 }
 
-process.on("uncaughtException", (err) => {
-  debug(SOURCE, `UNCAUGHT EXCEPTION: ${err}`);
-  try {
-    console.log(JSON.stringify({ continue: true }));
-  } catch {
-    console.log('{"continue":true}');
-  }
-  process.exit(0);
-});
-process.on("unhandledRejection", (reason) => {
-  debug(SOURCE, `UNHANDLED REJECTION: ${reason}`);
-  try {
-    console.log(JSON.stringify({ continue: true }));
-  } catch {
-    console.log('{"continue":true}');
-  }
-  process.exit(0);
-});
+installHookSafetyNet(SOURCE);
 
 main();

@@ -18,7 +18,12 @@
 import { existsSync, mkdirSync } from "fs";
 import { join } from "path";
 import { Logger, debug, setDebugCwd } from "../lib/logger.js";
-import { readStdin, detectPlatform } from "../lib/hook-utils.js";
+import {
+  readStdin,
+  detectPlatform,
+  emitHookResult,
+  installHookSafetyNet,
+} from "../lib/hook-utils.js";
 import { findProjectRoot } from "../lib/project-root.js";
 import {
   discoverSkills as coreDiscoverSkills,
@@ -124,28 +129,8 @@ function debugLog(msg: string): void {
   debug(SOURCE, msg);
 }
 
-// Ensure we always output valid JSON, even on catastrophic errors
-function outputContinue(): void {
-  try {
-    console.log(JSON.stringify({ continue: true }));
-  } catch {
-    // Last resort - raw JSON string
-    console.log('{"continue":true}');
-  }
-}
-
 // Global error handlers to prevent hook crashes without JSON output
-process.on("uncaughtException", (err) => {
-  debugLog(`UNCAUGHT EXCEPTION: ${err}`);
-  outputContinue();
-  process.exit(0);
-});
-
-process.on("unhandledRejection", (reason) => {
-  debugLog(`UNHANDLED REJECTION: ${reason}`);
-  outputContinue();
-  process.exit(0);
-});
+installHookSafetyNet(SOURCE);
 
 async function main(): Promise<void> {
   const hookStart = Date.now();
@@ -158,7 +143,7 @@ async function main(): Promise<void> {
 
     if (!input.trim()) {
       debugLog("Empty input, exiting");
-      console.log(JSON.stringify({ continue: true }));
+      emitHookResult({ continue: true });
       return;
     }
 
@@ -211,7 +196,7 @@ async function main(): Promise<void> {
       log.info("No prompt provided");
       log.end("total");
       log.flush();
-      console.log(JSON.stringify({ continue: true }));
+      emitHookResult({ continue: true });
       return;
     }
 
@@ -270,13 +255,13 @@ async function main(): Promise<void> {
           additionalContext: skillContext,
         },
       };
-      console.log(JSON.stringify(output));
+      emitHookResult(output);
     } else {
       log.info("No matching skills");
       debugLog(`Flushing logs...`);
       log.flush();
       debugLog(`Hook complete (${Date.now() - hookStart}ms total)`);
-      console.log(JSON.stringify({ continue: true }));
+      emitHookResult({ continue: true });
     }
   } catch (error) {
     debugLog(`ERROR: ${error}`);
@@ -286,7 +271,7 @@ async function main(): Promise<void> {
       log.flush();
     }
     // On error, allow continuation
-    console.log(JSON.stringify({ continue: true }));
+    emitHookResult({ continue: true });
   }
 }
 

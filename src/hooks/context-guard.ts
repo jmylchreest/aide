@@ -11,9 +11,16 @@
  * Core logic is in src/core/context-guard.ts for cross-platform reuse.
  */
 
-import { readStdin } from "../lib/hook-utils.js";
+import {
+  readStdin,
+  emitHookResult,
+  installHookSafetyNet,
+} from "../lib/hook-utils.js";
 import { debug } from "../lib/logger.js";
-import { checkContextGuard, checkSmartReadHint } from "../core/context-guard.js";
+import {
+  checkContextGuard,
+  checkSmartReadHint,
+} from "../core/context-guard.js";
 import { findAideBinary } from "../core/aide-client.js";
 import { emitInjectionEvent } from "../core/read-tracking.js";
 
@@ -44,7 +51,7 @@ async function main(): Promise<void> {
   try {
     const input = await readStdin();
     if (!input.trim()) {
-      console.log(JSON.stringify({ continue: true }));
+      emitHookResult({ continue: true });
       return;
     }
 
@@ -84,7 +91,7 @@ async function main(): Promise<void> {
           additionalContext: result.advisory,
         },
       };
-      console.log(JSON.stringify(output));
+      emitHookResult(output);
     } else {
       // Smart read hint: suggest code index for re-reads of unchanged files
       const hintResult = checkSmartReadHint(toolName, toolInput, cwd, binary);
@@ -111,34 +118,17 @@ async function main(): Promise<void> {
             additionalContext: hintResult.hint,
           },
         };
-        console.log(JSON.stringify(output));
+        emitHookResult(output);
       } else {
-        console.log(JSON.stringify({ continue: true }));
+        emitHookResult({ continue: true });
       }
     }
   } catch (error) {
     debug(SOURCE, `Hook error: ${error}`);
-    console.log(JSON.stringify({ continue: true }));
+    emitHookResult({ continue: true });
   }
 }
 
-process.on("uncaughtException", (err) => {
-  debug(SOURCE, `UNCAUGHT EXCEPTION: ${err}`);
-  try {
-    console.log(JSON.stringify({ continue: true }));
-  } catch {
-    console.log('{"continue":true}');
-  }
-  process.exit(0);
-});
-process.on("unhandledRejection", (reason) => {
-  debug(SOURCE, `UNHANDLED REJECTION: ${reason}`);
-  try {
-    console.log(JSON.stringify({ continue: true }));
-  } catch {
-    console.log('{"continue":true}');
-  }
-  process.exit(0);
-});
+installHookSafetyNet(SOURCE);
 
 main();

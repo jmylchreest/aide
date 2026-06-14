@@ -17,9 +17,18 @@
 import { execFileSync } from "child_process";
 import { basename } from "path";
 import { Logger } from "../lib/logger.js";
-import { readStdin, setMemoryState, isFalsy } from "../lib/hook-utils.js";
+import {
+  readStdin,
+  setMemoryState,
+  isFalsy,
+  emitHookResult,
+  installHookSafetyNet,
+} from "../lib/hook-utils.js";
 import { findAideBinary } from "../core/aide-client.js";
-import { emitInjectionEvent, recordObserveEvent } from "../core/read-tracking.js";
+import {
+  emitInjectionEvent,
+  recordObserveEvent,
+} from "../core/read-tracking.js";
 import { refreshHud } from "../lib/hud.js";
 
 // Global logger instance
@@ -343,7 +352,10 @@ async function processSubagentStart(
   );
 
   // Emit session observe event so SubagentStart is traceable in the dashboard
-  const binary = findAideBinary({ cwd, pluginRoot: process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT });
+  const binary = findAideBinary({
+    cwd,
+    pluginRoot: process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT,
+  });
   if (binary) {
     recordObserveEvent(binary, cwd, {
       kind: "session",
@@ -380,7 +392,10 @@ async function processSubagentStop(data: SubagentStopInput): Promise<void> {
   log?.end("refreshHud");
 
   // Emit session observe event so SubagentStop is traceable in the dashboard
-  const binary = findAideBinary({ cwd, pluginRoot: process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT });
+  const binary = findAideBinary({
+    cwd,
+    pluginRoot: process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT,
+  });
   if (binary) {
     recordObserveEvent(binary, cwd, {
       kind: "session",
@@ -398,7 +413,7 @@ async function main(): Promise<void> {
   try {
     const input = await readStdin();
     if (!input.trim()) {
-      console.log(JSON.stringify({ continue: true }));
+      emitHookResult({ continue: true });
       return;
     }
 
@@ -464,40 +479,17 @@ async function main(): Promise<void> {
       }
     }
 
-    console.log(JSON.stringify(output));
+    emitHookResult(output);
   } catch (error) {
     // Log error but don't block
     if (log) {
       log.error("Subagent tracker failed", error);
       log.flush();
     }
-    console.log(JSON.stringify({ continue: true }));
+    emitHookResult({ continue: true });
   }
 }
 
-process.on("uncaughtException", (err) => {
-  if (log) {
-    log.error(`UNCAUGHT EXCEPTION: ${err}`);
-    log.flush();
-  }
-  try {
-    console.log(JSON.stringify({ continue: true }));
-  } catch {
-    console.log('{"continue":true}');
-  }
-  process.exit(0);
-});
-process.on("unhandledRejection", (reason) => {
-  if (log) {
-    log.error(`UNHANDLED REJECTION: ${reason}`);
-    log.flush();
-  }
-  try {
-    console.log(JSON.stringify({ continue: true }));
-  } catch {
-    console.log('{"continue":true}');
-  }
-  process.exit(0);
-});
+installHookSafetyNet("subagent-tracker");
 
 main();
