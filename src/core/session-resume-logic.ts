@@ -11,20 +11,10 @@
  * the main agent reconcile it against the (authoritative) live conversation.
  */
 
-import { execFileSync } from "child_process";
-import { debug } from "../lib/logger.js";
-
-const SOURCE = "session-resume";
+import { listMemoriesJson, type MemoryEntry } from "./memory-query.js";
 
 /** SessionStart `source` values for which a resume injection is warranted. */
 const RESUME_SOURCES = new Set(["resume", "compact"]);
-
-interface CheckpointMemory {
-  id: string;
-  content: string;
-  tags?: string[];
-  createdAt?: string;
-}
 
 /**
  * Query the newest checkpoint memory for this session.
@@ -53,39 +43,24 @@ function queryNewest(
   sessionId: string,
   tag: string,
 ): string | null {
-  try {
-    const output = execFileSync(
-      binary,
-      [
-        "memory",
-        "list",
-        `--tags=${tag}`,
-        "--all", // checkpoints are tagged `partial`, excluded from normal recall
-        "--format=json",
-        "--limit=200",
-      ],
-      { cwd, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"], timeout: 5000 },
-    ).trim();
+  // checkpoints are tagged `partial`, so --all is required to see them.
+  const memories = listMemoriesJson(binary, cwd, {
+    tags: tag,
+    all: true,
+    limit: 200,
+  });
+  if (memories.length === 0) return null;
 
-    if (!output || output === "[]" || output === "null") return null;
+  const byTime = (a: MemoryEntry, b: MemoryEntry) =>
+    (b.createdAt ?? "").localeCompare(a.createdAt ?? "");
 
-    const memories: CheckpointMemory[] = JSON.parse(output);
-    if (!Array.isArray(memories) || memories.length === 0) return null;
+  const sessionTag = `session:${sessionId}`;
+  const scoped = memories
+    .filter((m) => m.tags?.includes(sessionTag))
+    .sort(byTime);
+  const newest = (scoped.length > 0 ? scoped : [...memories].sort(byTime))[0];
 
-    const byTime = (a: CheckpointMemory, b: CheckpointMemory) =>
-      (b.createdAt ?? "").localeCompare(a.createdAt ?? "");
-
-    const sessionTag = `session:${sessionId}`;
-    const scoped = memories
-      .filter((m) => m.tags?.includes(sessionTag))
-      .sort(byTime);
-    const newest = (scoped.length > 0 ? scoped : [...memories].sort(byTime))[0];
-
-    return newest?.content?.trim() || null;
-  } catch (err) {
-    debug(SOURCE, `Failed to query ${tag} checkpoint (non-fatal): ${err}`);
-    return null;
-  }
+  return newest?.content?.trim() || null;
 }
 
 /**

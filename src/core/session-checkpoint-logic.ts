@@ -18,6 +18,7 @@
 
 import { execFileSync } from "child_process";
 import { debug } from "../lib/logger.js";
+import { categorizePartials, renderBulletSection } from "./session-text.js";
 
 const SOURCE = "session-checkpoint";
 
@@ -99,11 +100,12 @@ export function getTaskTree(binary: string, cwd: string): string[] {
  */
 export function getGitLiveState(cwd: string): string | undefined {
   try {
-    const branch = execFileSync(
-      "git",
-      ["rev-parse", "--abbrev-ref", "HEAD"],
-      { cwd, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"], timeout: 3000 },
-    ).trim();
+    const branch = execFileSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], {
+      cwd,
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "pipe"],
+      timeout: 3000,
+    }).trim();
 
     const porcelain = execFileSync("git", ["status", "--porcelain"], {
       cwd,
@@ -112,7 +114,9 @@ export function getGitLiveState(cwd: string): string | undefined {
       timeout: 3000,
     }).trim();
 
-    const dirtyCount = porcelain ? porcelain.split("\n").filter((l) => l.trim()).length : 0;
+    const dirtyCount = porcelain
+      ? porcelain.split("\n").filter((l) => l.trim()).length
+      : 0;
     const parts: string[] = [];
     if (branch) parts.push(`branch ${branch}`);
     parts.push(`${dirtyCount} uncommitted file(s)`);
@@ -130,58 +134,29 @@ export function getGitLiveState(cwd: string): string | undefined {
  * content (mirrors the >=50-char guard used elsewhere).
  */
 export function buildSessionCheckpoint(input: CheckpointInput): string | null {
-  // Categorise partials into files / commands / completed tasks.
-  const fileChanges = new Set<string>();
-  const commands: string[] = [];
-  const completed: string[] = [];
-  const other: string[] = [];
-
-  for (const p of input.partials) {
-    if (p.startsWith("Created file: ") || p.startsWith("Edited file: ")) {
-      fileChanges.add(p.replace(/^(Created|Edited) file: /, ""));
-    } else if (p.startsWith("Ran command: ")) {
-      commands.push(p.replace("Ran command: ", ""));
-    } else if (p.startsWith("Completed task: ")) {
-      completed.push(p.replace("Completed task: ", ""));
-    } else {
-      other.push(p);
-    }
-  }
+  const {
+    files,
+    commands,
+    tasks: completed,
+    other,
+  } = categorizePartials(input.partials);
 
   const sections: string[] = [
     "# Session checkpoint",
     "_Structured snapshot written before context compaction. Use it to resume work; the verbatim conversation is the ground truth where they disagree._",
   ];
 
-  if (input.taskTree && input.taskTree.length > 0) {
-    sections.push(`## Task state\n${input.taskTree.map((t) => `- ${t}`).join("\n")}`);
-  }
+  const contentSections = [
+    renderBulletSection("Task state", input.taskTree ?? []),
+    renderBulletSection("Work completed", completed, 10),
+    renderBulletSection("Commits", input.commits),
+    renderBulletSection("Files touched", files, 15),
+    renderBulletSection("Commands run", commands, 10),
+    renderBulletSection("Other", other, 10),
+  ].filter((s): s is string => s !== null);
+  sections.push(...contentSections);
 
-  if (completed.length > 0) {
-    sections.push(
-      `## Work completed\n${completed.slice(0, 10).map((t) => `- ${t}`).join("\n")}`,
-    );
-  }
-
-  if (input.commits.length > 0) {
-    sections.push(`## Commits\n${input.commits.map((c) => `- ${c}`).join("\n")}`);
-  }
-
-  if (fileChanges.size > 0) {
-    const files = Array.from(fileChanges).slice(0, 15);
-    sections.push(`## Files touched\n${files.map((f) => `- ${f}`).join("\n")}`);
-  }
-
-  if (commands.length > 0) {
-    sections.push(
-      `## Commands run\n${commands.slice(0, 10).map((c) => `- ${c}`).join("\n")}`,
-    );
-  }
-
-  if (other.length > 0) {
-    sections.push(`## Other\n${other.slice(0, 10).map((o) => `- ${o}`).join("\n")}`);
-  }
-
+  // Live resources is a single line, not a bullet list.
   if (input.liveState) {
     sections.push(`## Live resources\n${input.liveState}`);
   }
