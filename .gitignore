@@ -4,6 +4,7 @@ node_modules/
 # Build outputs
 bin/*
 !bin/aide-wrapper.ts
+!bin/preflight.mjs
 dist/
 
 # IDE/Editor

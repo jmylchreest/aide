@@ -99,9 +99,9 @@ func NewServer(st store.Store, dbPath, socketPath string, loader grammar.Loader)
 	}
 }
 
-// TaskBus, MessageBus, StateBus expose the swarm broadcasters for live
-// streaming. Used by SwarmService.Watch* and by service handlers that
-// publish on writes.
+// TaskBus returns the swarm task broadcaster for live streaming. It, with
+// MessageBus and StateBus, is used by SwarmService.Watch* and by service
+// handlers that publish on writes.
 func (s *Server) TaskBus() *eventbus.Broadcaster[*memory.Task] { return s.taskBus }
 func (s *Server) MessageBus() *eventbus.Broadcaster[*memory.Message] {
 	return s.messageBus

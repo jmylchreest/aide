@@ -33,20 +33,17 @@ func newTestStore(t *testing.T) *store.BoltStore {
 // tests use unless they exercise filtering explicitly.
 var matchAll = Filter{Include: []string{"*"}}
 
-// mustExport exports both record types with match-all filters by default, so
-// the merge-surface tests (which predate the configurable policy) keep their
+// mustExport exports both record types with match-all filters, so the
+// merge-surface tests (which predate the configurable policy) keep their
 // "export everything shareable" semantics. Tests that need a narrower policy
-// set Decisions/Memories/filters on opts before calling Export directly.
-func mustExport(t *testing.T, s *store.BoltStore, root string, opts ExportOptions) *ExportStats {
+// call Export directly with their own ExportOptions.
+func mustExport(t *testing.T, s *store.BoltStore, root string) *ExportStats {
 	t.Helper()
-	if !opts.Decisions && !opts.Memories {
-		opts.Decisions, opts.Memories = true, true
-	}
-	if len(opts.DecisionFilter.Include) == 0 {
-		opts.DecisionFilter = matchAll
-	}
-	if len(opts.MemoryFilter.Include) == 0 {
-		opts.MemoryFilter = matchAll
+	opts := ExportOptions{
+		Decisions:      true,
+		Memories:       true,
+		DecisionFilter: matchAll,
+		MemoryFilter:   matchAll,
 	}
 	stats, err := Export(s, s, root, opts)
 	if err != nil {
@@ -55,17 +52,14 @@ func mustExport(t *testing.T, s *store.BoltStore, root string, opts ExportOption
 	return stats
 }
 
-// mustImport mirrors mustExport: both types, match-all filters by default.
-func mustImport(t *testing.T, s *store.BoltStore, root string, opts ImportOptions) *ImportStats {
+// mustImport mirrors mustExport: both types, match-all filters.
+func mustImport(t *testing.T, s *store.BoltStore, root string) *ImportStats {
 	t.Helper()
-	if !opts.Decisions && !opts.Memories {
-		opts.Decisions, opts.Memories = true, true
-	}
-	if len(opts.DecisionFilter.Include) == 0 {
-		opts.DecisionFilter = matchAll
-	}
-	if len(opts.MemoryFilter.Include) == 0 {
-		opts.MemoryFilter = matchAll
+	opts := ImportOptions{
+		Decisions:      true,
+		Memories:       true,
+		DecisionFilter: matchAll,
+		MemoryFilter:   matchAll,
 	}
 	stats, err := Import(s, s, root, opts)
 	if err != nil {
@@ -371,8 +365,8 @@ func TestExportDeterminism(t *testing.T) {
 
 	dir1 := filepath.Join(t.TempDir(), "context")
 	dir2 := filepath.Join(t.TempDir(), "context")
-	mustExport(t, s, dir1, ExportOptions{})
-	mustExport(t, s, dir2, ExportOptions{})
+	mustExport(t, s, dir1)
+	mustExport(t, s, dir2)
 
 	snap1 := treeSnapshot(t, dir1)
 	snap2 := treeSnapshot(t, dir2)
@@ -384,7 +378,7 @@ func TestExportDeterminism(t *testing.T) {
 	}
 
 	// Re-export over an existing tree: still byte-identical.
-	mustExport(t, s, dir1, ExportOptions{})
+	mustExport(t, s, dir1)
 	if again := treeSnapshot(t, dir1); !reflect.DeepEqual(again, snap2) {
 		t.Errorf("re-export changed record files:\n%v\nvs\n%v", again, snap2)
 	}
@@ -428,7 +422,7 @@ func TestExportTombstoneGC(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	stats := mustExport(t, s, root, ExportOptions{})
+	stats := mustExport(t, s, root)
 	if stats.Tombstones != 1 {
 		t.Errorf("live tombstones: got %d, want 1", stats.Tombstones)
 	}
@@ -461,9 +455,9 @@ func TestDecisionLineagePreservation(t *testing.T) {
 	seedDecision(t, a, "testing", "v2: vitest + playwright", t2)
 
 	rootA := filepath.Join(t.TempDir(), "context")
-	mustExport(t, a, rootA, ExportOptions{})
+	mustExport(t, a, rootA)
 
-	stats := mustImport(t, b, rootA, ImportOptions{})
+	stats := mustImport(t, b, rootA)
 	if stats.DecisionsImported != 2 {
 		t.Fatalf("imported %d decisions, want 2", stats.DecisionsImported)
 	}
@@ -492,9 +486,9 @@ func TestDecisionLineagePreservation(t *testing.T) {
 	stale := newTestStore(t)
 	seedDecision(t, stale, "testing", "v1: vitest", t1)
 	rootStale := filepath.Join(t.TempDir(), "context")
-	mustExport(t, stale, rootStale, ExportOptions{})
+	mustExport(t, stale, rootStale)
 
-	stats = mustImport(t, b, rootStale, ImportOptions{})
+	stats = mustImport(t, b, rootStale)
 	if stats.DecisionsImported != 0 || stats.DecisionsSkipped != 1 {
 		t.Errorf("stale import counts: imported=%d skipped=%d, want 0/1", stats.DecisionsImported, stats.DecisionsSkipped)
 	}
@@ -524,7 +518,7 @@ func TestDecisionTopicSanitizationCollision(t *testing.T) {
 	seedDecision(t, a, topicDashed, "decision for dashed topic", t1)
 
 	root := filepath.Join(t.TempDir(), "context")
-	stats := mustExport(t, a, root, ExportOptions{})
+	stats := mustExport(t, a, root)
 	if stats.Decisions != 2 {
 		t.Fatalf("exported %d decisions, want 2", stats.Decisions)
 	}
@@ -540,7 +534,7 @@ func TestDecisionTopicSanitizationCollision(t *testing.T) {
 	}
 
 	// Both topics survive the wire with raw identity from frontmatter.
-	mustImport(t, b, root, ImportOptions{})
+	mustImport(t, b, root)
 	for topic, want := range map[string]string{
 		topicSpaced: "decision for spaced topic",
 		topicDashed: "decision for dashed topic",
@@ -561,7 +555,7 @@ func TestDecisionTopicSanitizationCollision(t *testing.T) {
 			t.Fatalf("DeleteDecision(%q): %v", topic, err)
 		}
 	}
-	mustExport(t, a, root, ExportOptions{})
+	mustExport(t, a, root)
 	tsSpaced := TombstonePath(root, &memory.Tombstone{ID: topicSpaced, Kind: memory.TombstoneKindDecisionTopic})
 	tsDashed := TombstonePath(root, &memory.Tombstone{ID: topicDashed, Kind: memory.TombstoneKindDecisionTopic})
 	if tsSpaced == tsDashed {
@@ -573,7 +567,7 @@ func TestDecisionTopicSanitizationCollision(t *testing.T) {
 		}
 	}
 
-	mustImport(t, b, root, ImportOptions{})
+	mustImport(t, b, root)
 	for _, topic := range []string{topicSpaced, topicDashed} {
 		if _, err := b.GetDecision(topic); !errors.Is(err, store.ErrNotFound) {
 			t.Errorf("topic %q should be deleted on B, err=%v", topic, err)
@@ -601,12 +595,12 @@ func TestNoResurrection(t *testing.T) {
 	}
 
 	rootA := filepath.Join(t.TempDir(), "context")
-	mustExport(t, a, rootA, ExportOptions{})
+	mustExport(t, a, rootA)
 	if _, err := os.Stat(MemoryPath(rootA, id)); !errors.Is(err, fs.ErrNotExist) {
 		t.Fatalf("deleted memory must not be exported, stat err=%v", err)
 	}
 
-	stats := mustImport(t, b, rootA, ImportOptions{})
+	stats := mustImport(t, b, rootA)
 	if stats.RecordsDeleted != 1 {
 		t.Errorf("records deleted: got %d, want 1", stats.RecordsDeleted)
 	}
@@ -618,12 +612,12 @@ func TestNoResurrection(t *testing.T) {
 	}
 
 	rootB := filepath.Join(t.TempDir(), "context")
-	mustExport(t, b, rootB, ExportOptions{})
+	mustExport(t, b, rootB)
 	if _, err := os.Stat(MemoryPath(rootB, id)); !errors.Is(err, fs.ErrNotExist) {
 		t.Fatalf("B's export must not contain the deleted memory, stat err=%v", err)
 	}
 
-	mustImport(t, a, rootB, ImportOptions{})
+	mustImport(t, a, rootB)
 	if _, err := a.GetMemory(id); !errors.Is(err, store.ErrNotFound) {
 		t.Errorf("memory resurrected in A, got err=%v", err)
 	}
@@ -642,12 +636,12 @@ func TestImportBlockedByLocalTombstone(t *testing.T) {
 
 	// B publishes while still holding the record; A deletes it locally.
 	rootB := filepath.Join(t.TempDir(), "context")
-	mustExport(t, b, rootB, ExportOptions{})
+	mustExport(t, b, rootB)
 	if err := a.DeleteMemory(id); err != nil {
 		t.Fatalf("DeleteMemory: %v", err)
 	}
 
-	stats := mustImport(t, a, rootB, ImportOptions{})
+	stats := mustImport(t, a, rootB)
 	if stats.MemoriesImported != 0 {
 		t.Errorf("imported %d memories, want 0", stats.MemoriesImported)
 	}
@@ -675,7 +669,7 @@ func TestImportIgnoresExpiredTombstone(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	stats := mustImport(t, b, root, ImportOptions{})
+	stats := mustImport(t, b, root)
 	if stats.RecordsDeleted != 0 || stats.TombstonesRecorded != 0 || stats.TombstonesIgnored != 1 {
 		t.Errorf("counts: deleted=%d recorded=%d ignored=%d, want 0/0/1",
 			stats.RecordsDeleted, stats.TombstonesRecorded, stats.TombstonesIgnored)
@@ -747,9 +741,9 @@ func TestImportKeepsLocalForgetOnNewerIncoming(t *testing.T) {
 	seedMemory(t, b, id, "original content", []string{"project:test", "forget"}, created, created)
 
 	rootA := filepath.Join(t.TempDir(), "context")
-	mustExport(t, a, rootA, ExportOptions{})
+	mustExport(t, a, rootA)
 
-	stats := mustImport(t, b, rootA, ImportOptions{})
+	stats := mustImport(t, b, rootA)
 	if stats.MemoriesImported != 1 {
 		t.Fatalf("imported %d memories, want 1 (newer incoming should update)", stats.MemoriesImported)
 	}
@@ -779,7 +773,7 @@ func TestForgetTaggedMemoryPropagates(t *testing.T) {
 	seedMemory(t, a, id, "rule of thumb that aged badly", []string{"project:test", "forget"}, created, forgotten)
 
 	rootA := filepath.Join(t.TempDir(), "context")
-	mustExport(t, a, rootA, ExportOptions{})
+	mustExport(t, a, rootA)
 
 	data, err := os.ReadFile(MemoryPath(rootA, id))
 	if err != nil {
@@ -796,7 +790,7 @@ func TestForgetTaggedMemoryPropagates(t *testing.T) {
 		t.Errorf("exported UpdatedAt: got %s, want %s", rec.UpdatedAt, forgotten)
 	}
 
-	stats := mustImport(t, b, rootA, ImportOptions{})
+	stats := mustImport(t, b, rootA)
 	if stats.MemoriesImported != 1 {
 		t.Fatalf("imported %d memories, want 1", stats.MemoriesImported)
 	}
@@ -864,8 +858,8 @@ func TestTwoCloneConvergence(t *testing.T) {
 
 	sync := func(t *testing.T, from, to *store.BoltStore) {
 		root := filepath.Join(t.TempDir(), "context")
-		mustExport(t, from, root, ExportOptions{})
-		mustImport(t, to, root, ImportOptions{})
+		mustExport(t, from, root)
+		mustImport(t, to, root)
 	}
 
 	// Order 1: A→B, then B→A.

@@ -670,6 +670,8 @@ func walkSchema(t reflect.Type, prefix string, out *[]FieldInfo) {
 			}
 		case reflect.Struct:
 			walkSchema(ft, key, out)
+		default:
+			// Other kinds are not settable config leaves; skip them.
 		}
 	}
 }
