@@ -8,7 +8,17 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jmylchreest/aide/aide-web/internal/instance"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
+
+// isUnimplemented reports whether err is a gRPC Unimplemented status — i.e. the
+// connected daemon is too old to expose the requested service. Version skew
+// between a newer aide-web and an older `aide` daemon surfaces this way; callers
+// turn it into a clear "upgrade that instance" message instead of an opaque 500.
+func isUnimplemented(err error) bool {
+	return status.Code(err) == codes.Unimplemented
+}
 
 // Build-time version injected via ldflags:
 //
@@ -45,12 +55,25 @@ func (h *Handler) APIGetVersion(ctx context.Context, input *struct{}) (*VersionO
 	return out, nil
 }
 
-// findInstance looks up an instance by project name or base directory name.
+// findInstance resolves the {project} route param to an instance. The slug
+// (ProjectName + short root hash) is the primary key and is always unique. A
+// bare project name / base-dir name still resolves for convenience and old
+// bookmarks — but ONLY when it matches exactly one instance, so two repos that
+// share a base name never silently resolve to whichever was discovered first.
 func (h *Handler) findInstance(project string) *instance.Instance {
+	var nameMatch *instance.Instance
+	nameMatches := 0
 	for _, inst := range h.manager.Instances() {
-		if inst.ProjectName() == project || filepath.Base(inst.ProjectRoot()) == project {
+		if inst.Slug() == project {
 			return inst
 		}
+		if inst.ProjectName() == project || filepath.Base(inst.ProjectRoot()) == project {
+			nameMatch = inst
+			nameMatches++
+		}
+	}
+	if nameMatches == 1 {
+		return nameMatch
 	}
 	return nil
 }

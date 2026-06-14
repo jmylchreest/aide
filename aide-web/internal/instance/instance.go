@@ -1,6 +1,8 @@
 package instance
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"sync"
 	"time"
 
@@ -8,6 +10,22 @@ import (
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi/adapter"
 	"github.com/jmylchreest/aide/aide/pkg/store"
 )
+
+// slugHashLen is how many hex chars of the project-root hash to append to a
+// slug. 7 (git-short-SHA length) gives 28 bits — ample to disambiguate the
+// handful of instances a machine ever runs while keeping the URL short.
+const slugHashLen = 7
+
+// Slug builds a stable, URL-safe identifier that stays unique even when two
+// projects share a base name (e.g. .../jmylchreest and .../jmylchreest/jmylchreest
+// both have ProjectName "jmylchreest"). It is the readable name plus a short
+// hash of the project root — the root is the instance's true identity (the
+// manager keys its map by it), so the hash guarantees uniqueness and stays
+// stable across restarts. ProjectName remains the display label.
+func Slug(projectName, projectRoot string) string {
+	sum := sha256.Sum256([]byte(projectRoot))
+	return projectName + "-" + hex.EncodeToString(sum[:])[:slugHashLen]
+}
 
 // Status represents the connection state of an instance.
 type Status string
@@ -57,6 +75,14 @@ func (i *Instance) ProjectName() string {
 	i.mu.RLock()
 	defer i.mu.RUnlock()
 	return i.projectName
+}
+
+// Slug returns the disambiguated routing identifier for this instance
+// (ProjectName + short project-root hash). See the package-level Slug.
+func (i *Instance) Slug() string {
+	i.mu.RLock()
+	defer i.mu.RUnlock()
+	return Slug(i.projectName, i.projectRoot)
 }
 
 func (i *Instance) SocketPath() string {

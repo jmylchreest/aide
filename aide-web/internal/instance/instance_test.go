@@ -1,6 +1,32 @@
 package instance
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
+
+func TestSlugDisambiguatesSharedBaseNames(t *testing.T) {
+	// The collision that motivated slugs: two repos whose base dir is the same
+	// name. They must NOT share a routing identifier.
+	a := NewInstance("/home/johnm/src/github.com/jmylchreest", "jmylchreest", "/a.sock", "/a.db", "1.0.0")
+	b := NewInstance("/home/johnm/src/github.com/jmylchreest/jmylchreest", "jmylchreest", "/b.sock", "/b.db", "1.0.0")
+
+	if a.Slug() == b.Slug() {
+		t.Fatalf("colliding base names produced identical slugs: %q", a.Slug())
+	}
+	// The readable name stays the prefix (display value is unchanged).
+	if !strings.HasPrefix(a.Slug(), "jmylchreest-") {
+		t.Errorf("Slug() = %q, want prefix %q", a.Slug(), "jmylchreest-")
+	}
+	// Deterministic: same root → same slug (stable across restarts/bookmarks).
+	if got := Slug("jmylchreest", "/home/johnm/src/github.com/jmylchreest"); got != a.Slug() {
+		t.Errorf("Slug not deterministic: %q vs %q", got, a.Slug())
+	}
+	// The hash suffix is the configured length.
+	if suffix := a.Slug()[len("jmylchreest-"):]; len(suffix) != slugHashLen {
+		t.Errorf("hash suffix %q len = %d, want %d", suffix, len(suffix), slugHashLen)
+	}
+}
 
 func TestNewInstance(t *testing.T) {
 	inst := NewInstance("/home/user/project", "my-project", "/tmp/aide.sock", "/home/user/project/.aide/memory/memory.db", "1.0.0")

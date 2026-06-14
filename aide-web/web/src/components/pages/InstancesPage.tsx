@@ -53,7 +53,7 @@ function makeColumns(onRemove: (project: string) => void): Column<InstanceInfo>[
           <div className="flex items-center gap-2 justify-end">
             {isOnline ? (
               <Link
-                to={`/instances/${encodeURIComponent(row.project_name)}/status`}
+                to={`/instances/${encodeURIComponent(row.slug)}/status`}
                 className="w-[72px] text-center border border-aide-accent text-aide-accent px-3 py-0.5 rounded-sm text-xs font-semibold hover:bg-aide-accent hover:text-aide-bg transition-all"
               >
                 Open
@@ -66,7 +66,7 @@ function makeColumns(onRemove: (project: string) => void): Column<InstanceInfo>[
             <button
               onClick={() => {
                 if (!isOnline && confirm(`Remove ${row.project_name} from the instance list?`)) {
-                  onRemove(row.project_name);
+                  onRemove(row.slug);
                 }
               }}
               disabled={isOnline}
@@ -113,7 +113,7 @@ export function InstancesPage() {
         <SortableTable
           data={instances}
           columns={columns}
-          keyFn={(row) => row.project_name}
+          keyFn={(row) => row.slug}
           defaultSortKey="project_name"
           emptyMessage="No aide instances discovered. Start aide in a project to see it here. Instances register automatically when aide starts."
         />

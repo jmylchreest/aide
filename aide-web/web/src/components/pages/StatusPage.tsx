@@ -52,7 +52,7 @@ export function StatusPage() {
   );
 
   const instance = instances?.find(
-    (i: InstanceInfo) => i.project_name === project
+    (i: InstanceInfo) => i.slug === project || i.project_name === project
   );
 
   if (loading) {

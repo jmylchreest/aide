@@ -47,11 +47,14 @@ export function Header() {
 
         <div className="flex items-center gap-0.5">
           {instances.map((inst) => {
-            const isActive = activeProject === inst.project_name;
+            const isActive =
+              activeProject === inst.slug ||
+              activeProject === inst.project_name;
             return (
               <Link
-                key={inst.project_name}
-                to={`/instances/${encodeURIComponent(inst.project_name)}/status`}
+                key={inst.slug}
+                to={`/instances/${encodeURIComponent(inst.slug)}/status`}
+                title={inst.project_root}
                 className={`
                   inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-sm
                   text-xs font-medium transition-all

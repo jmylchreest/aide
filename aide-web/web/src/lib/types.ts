@@ -1,6 +1,8 @@
 export type InstanceStatus = "connected" | "disconnected" | "connecting";
 
 export interface InstanceInfo {
+  /** Disambiguated routing id (project_name + short root hash). Use for links/keys. */
+  slug: string;
   project_root: string;
   project_name: string;
   socket_path: string;

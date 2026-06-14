@@ -9,6 +9,10 @@ import (
 
 // InstanceInfo is the JSON representation of an instance.
 type InstanceInfo struct {
+	// Slug is the disambiguated routing identifier (ProjectName + short
+	// project-root hash). Use it for links/keys; ProjectName is display-only
+	// and may collide across repos that share a base name.
+	Slug        string          `json:"slug"`
 	ProjectRoot string          `json:"project_root"`
 	ProjectName string          `json:"project_name"`
 	SocketPath  string          `json:"socket_path"`
@@ -45,6 +49,7 @@ func (h *Handler) APIListInstances(ctx context.Context, input *struct{}) (*ListI
 	out := &ListInstancesOutput{}
 	for _, inst := range h.manager.Instances() {
 		out.Body.Instances = append(out.Body.Instances, InstanceInfo{
+			Slug:        inst.Slug(),
 			ProjectRoot: inst.ProjectRoot(),
 			ProjectName: inst.ProjectName(),
 			SocketPath:  inst.SocketPath(),

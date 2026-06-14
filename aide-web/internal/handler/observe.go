@@ -71,6 +71,9 @@ func (h *Handler) APIListObserveEvents(ctx context.Context, input *struct {
 	}
 	events, err := st.ListObserveEvents(filter)
 	if err != nil {
+		if isUnimplemented(err) {
+			return nil, huma.Error501NotImplemented("this instance's aide daemon predates observe support — upgrade aide in that project")
+		}
 		return nil, err
 	}
 
@@ -113,6 +116,10 @@ func (h *Handler) APIWatchObserveEvents(w http.ResponseWriter, r *http.Request) 
 
 	stream, err := client.Observe.WatchEvents(r.Context(), req)
 	if err != nil {
+		if isUnimplemented(err) {
+			http.Error(w, "instance daemon predates observe support — upgrade aide in that project", http.StatusNotImplemented)
+			return
+		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
