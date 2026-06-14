@@ -64,3 +64,6 @@ aide-web/internal/webdist/build/
 docs/.docusaurus/
 docs/build/
 docs/node_modules/
+
+# Local-only design notes — never committed
+design/
