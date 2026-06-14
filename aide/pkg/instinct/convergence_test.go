@@ -10,7 +10,8 @@ import (
 // convSeq builds an Edit → user-prompt → Edit sequence on one file, with the
 // second edit `gap` after the first and a fixed prompt id so classifications
 // can target it.
-func convSeq(file, promptText, promptID string, gap time.Duration) []*observe.Event {
+func convSeq(promptText string, gap time.Duration) []*observe.Event {
+	const file, promptID = "src/a.ts", "p1"
 	base := time.Date(2026, 1, 1, 9, 0, 0, 0, time.UTC)
 	return []*observe.Event{
 		{ID: "edit-a", Timestamp: base, Kind: observe.KindToolCall, Name: "Edit", FilePath: file, SessionID: "t"},
@@ -27,7 +28,7 @@ func TestConvergence_RequiresLLM(t *testing.T) {
 	if !(Convergence{}).Capabilities().RequiresLLM {
 		t.Fatal("Convergence should be LLM-tier (RequiresLLM=true)")
 	}
-	events := convSeq("src/a.ts", "no, keep it sync", "p1", time.Minute)
+	events := convSeq("no, keep it sync", time.Minute)
 	runner := NewRunner(Convergence{})
 	if got := runner.Run("t", events, nil, nil, RunOpts{Mode: RunDeterministic}); len(got) != 0 {
 		t.Errorf("deterministic runner should skip convergence, got %d", len(got))
@@ -39,7 +40,7 @@ func TestConvergence_RequiresLLM(t *testing.T) {
 
 // Within the time bound, a corrective marker fires.
 func TestConvergence_WithinTimeBoundFires(t *testing.T) {
-	events := convSeq("src/a.ts", "no, keep it sync", "p1", 10*time.Minute)
+	events := convSeq("no, keep it sync", 10*time.Minute)
 	if props := detectConvergence(events, nil); len(props) != 1 {
 		t.Fatalf("expected 1 proposal within the time bound, got %d", len(props))
 	}
@@ -48,7 +49,7 @@ func TestConvergence_WithinTimeBoundFires(t *testing.T) {
 // Beyond MaxMinutesBetween (default 30m), the same sequence does NOT fire even
 // though only one event sits between the edits.
 func TestConvergence_TimeBoundSuppresses(t *testing.T) {
-	events := convSeq("src/a.ts", "no, keep it sync", "p1", 90*time.Minute)
+	events := convSeq("no, keep it sync", 90*time.Minute)
 	if props := detectConvergence(events, nil); len(props) != 0 {
 		t.Fatalf("expected no proposal beyond the time bound, got %d", len(props))
 	}
@@ -57,13 +58,13 @@ func TestConvergence_TimeBoundSuppresses(t *testing.T) {
 // An LLM classification overrides the marker heuristic: a prompt with a
 // corrective marker but classified neutral is NOT treated as a correction.
 func TestConvergence_ClassificationOverridesMarker(t *testing.T) {
-	events := convSeq("src/a.ts", "no, keep it sync", "p1", time.Minute)
+	events := convSeq("no, keep it sync", time.Minute)
 	cls := map[string]Classification{"p1": {Intent: "neutral"}}
 	if props := detectConvergence(events, cls); len(props) != 0 {
 		t.Fatalf("neutral classification should suppress, got %d proposals", len(props))
 	}
 	// And a corrective classification on a marker-free prompt still fires.
-	events2 := convSeq("src/a.ts", "let's try the other approach", "p1", time.Minute)
+	events2 := convSeq("let's try the other approach", time.Minute)
 	cls2 := map[string]Classification{"p1": {Intent: "corrective"}}
 	if props := detectConvergence(events2, cls2); len(props) != 1 {
 		t.Fatalf("corrective classification should fire on a marker-free prompt, got %d", len(props))

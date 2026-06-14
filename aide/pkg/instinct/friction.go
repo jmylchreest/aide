@@ -39,9 +39,10 @@ func (f Friction) DefaultConfig() any {
 	return f.Config
 }
 
-// RequiresLLM: deciding whether a cluster of failures is durable friction worth
-// remembering (vs. a flaky one-off or a typo immediately corrected) needs the
-// agent's judgement over the evidence. So it runs only in the skill pass.
+// Capabilities marks friction as LLM-tier: deciding whether a cluster of
+// failures is durable friction worth remembering (vs. a flaky one-off or a typo
+// immediately corrected) needs the agent's judgement over the evidence, so it
+// runs only in the skill pass.
 func (Friction) Capabilities() Capabilities { return Capabilities{RequiresLLM: true} }
 
 func (Friction) Detect(events []*observe.Event, cfgAny any, _ ParserContext) []Proposal {

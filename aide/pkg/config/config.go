@@ -660,7 +660,7 @@ func walkSchema(t reflect.Type, prefix string, out *[]FieldInfo) {
 			*out = append(*out, FieldInfo{Key: key, Kind: KindString})
 		case reflect.Int:
 			*out = append(*out, FieldInfo{Key: key, Kind: KindInt})
-		case reflect.Ptr:
+		case reflect.Pointer:
 			if ft.Elem().Kind() == reflect.Bool {
 				*out = append(*out, FieldInfo{Key: key, Kind: KindPtrBool})
 			}

@@ -295,10 +295,10 @@ func displayPath(p string) string {
 	return p
 }
 
-func trimText(s string, max int) string {
+func trimText(s string, maxLen int) string {
 	s = strings.TrimSpace(s)
-	if len(s) <= max {
+	if len(s) <= maxLen {
 		return s
 	}
-	return s[:max] + "…"
+	return s[:maxLen] + "…"
 }

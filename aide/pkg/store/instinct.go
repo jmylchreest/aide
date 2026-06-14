@@ -113,6 +113,9 @@ func (s *BoltStore) UpdateInstinctProposalStatus(id string, status instinct.Stat
 			p.RejectionCount++
 			p.RejectionReason = reason
 			p.LastReproposalAt = time.Now()
+		default:
+			// StatusOpen / StatusExpired carry no extra fields — p.Status
+			// was already set above.
 		}
 		out, err := json.Marshal(&p)
 		if err != nil {
