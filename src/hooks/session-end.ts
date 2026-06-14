@@ -26,8 +26,16 @@ const T0 = performance.now();
 // Output continue IMMEDIATELY — before require(), before anything.
 console.log(JSON.stringify({ continue: true }));
 
-const { spawn, execFileSync } = require("child_process") as typeof import("child_process");
-const { existsSync, realpathSync, appendFileSync, mkdirSync, readFileSync, statSync } = require("fs") as typeof import("fs");
+const { spawn, execFileSync } =
+  require("child_process") as typeof import("child_process");
+const {
+  existsSync,
+  realpathSync,
+  appendFileSync,
+  mkdirSync,
+  readFileSync,
+  statSync,
+} = require("fs") as typeof import("fs");
 const { join, dirname } = require("path") as typeof import("path");
 const whichSync = (require("which") as typeof import("which")).sync;
 
@@ -41,7 +49,9 @@ function resolveRoot(cwd: string): string {
   if (override) {
     try {
       if (statSync(override).isDirectory()) return override;
-    } catch { /* fall through */ }
+    } catch {
+      /* fall through */
+    }
   }
   const candidates: { dir: string; hasAide: boolean; hasVCS: boolean }[] = [];
   let dir = cwd;
@@ -49,7 +59,10 @@ function resolveRoot(cwd: string): string {
     const hasAide = existsSync(join(dir, ".aide"));
     let hasVCS = false;
     for (const m of [".git", ".hg", ".svn", ".bzr", ".fossil"]) {
-      if (existsSync(join(dir, m))) { hasVCS = true; break; }
+      if (existsSync(join(dir, m))) {
+        hasVCS = true;
+        break;
+      }
     }
     if (hasAide || hasVCS) candidates.push({ dir, hasAide, hasVCS });
     const parent = dirname(dir);
@@ -79,15 +92,22 @@ function log(cwd: string, msg: string): void {
     if (!existsSync(logDir)) mkdirSync(logDir, { recursive: true });
     const line = `[${new Date().toISOString()}] [session-end] ${ms()} ${msg}\n`;
     appendFileSync(join(logDir, "session-end.log"), line);
-  } catch { /* best effort */ }
+  } catch {
+    /* best effort */
+  }
 }
 
 /** Find aide binary — inline, no external module imports. */
 function findBinary(cwd?: string): string | null {
-  const pluginRoot = process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT;
+  const pluginRoot =
+    process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT;
   let resolvedRoot = pluginRoot;
   if (resolvedRoot) {
-    try { resolvedRoot = realpathSync(resolvedRoot); } catch { /* symlink may not resolve */ }
+    try {
+      resolvedRoot = realpathSync(resolvedRoot);
+    } catch {
+      /* symlink may not resolve */
+    }
     const p = join(resolvedRoot, "bin", "aide");
     if (existsSync(p)) return p;
   }
@@ -97,7 +117,9 @@ function findBinary(cwd?: string): string | null {
   }
   try {
     return whichSync("aide", { nothrow: true });
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 function main(): void {
@@ -150,9 +172,12 @@ function main(): void {
       execFileSync(
         binary,
         [
-          "observe", "record",
-          "--kind=session", "--name=session-end",
-          "--category=lifecycle", `--session=${sessionId}`,
+          "observe",
+          "record",
+          "--kind=session",
+          "--name=session-end",
+          "--category=lifecycle",
+          `--session=${sessionId}`,
         ],
         { cwd, timeout: 3000, stdio: ["pipe", "pipe", "pipe"] },
       );
@@ -165,10 +190,15 @@ function main(): void {
     // hook since there's no separate SessionEnd event.
     try {
       const mode = execFileSync(binary, ["state", "get", "mode"], {
-        cwd, timeout: 500, encoding: "utf-8",
+        cwd,
+        timeout: 500,
+        encoding: "utf-8",
       }).trim();
       if (mode === "autopilot") {
-        log(cwd, "autopilot mode active, skipping cleanup (session continuing)");
+        log(
+          cwd,
+          "autopilot mode active, skipping cleanup (session continuing)",
+        );
         return;
       }
     } catch {
@@ -177,7 +207,9 @@ function main(): void {
 
     log(cwd, `spawning cleanup: session end --session=${sessionId}`);
     const child = spawn(binary, ["session", "end", `--session=${sessionId}`], {
-      cwd, detached: true, stdio: "ignore",
+      cwd,
+      detached: true,
+      stdio: "ignore",
     });
     child.unref();
     log(cwd, "cleanup spawned (detached)");

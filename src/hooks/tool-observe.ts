@@ -11,7 +11,11 @@
  * reuse the same logic.
  */
 
-import { readStdin } from "../lib/hook-utils.js";
+import {
+  readStdin,
+  emitHookResult,
+  installHookSafetyNet,
+} from "../lib/hook-utils.js";
 import { findAideBinary } from "../core/aide-client.js";
 import { recordToolEvent } from "../core/tool-observe.js";
 import { debug } from "../lib/logger.js";
@@ -30,26 +34,18 @@ interface HookInput {
   tool_response?: unknown;
 }
 
-function outputContinue(): void {
-  try {
-    console.log(JSON.stringify({ continue: true }));
-  } catch {
-    console.log('{"continue":true}');
-  }
-}
-
 async function main(): Promise<void> {
   try {
     const input = await readStdin();
     if (!input.trim()) {
-      outputContinue();
+      emitHookResult();
       return;
     }
     const data: HookInput = JSON.parse(input);
     const cwd = data.cwd || process.cwd();
     const toolName = data.tool_name;
     if (!toolName) {
-      outputContinue();
+      emitHookResult();
       return;
     }
     const binary = findAideBinary({
@@ -58,7 +54,7 @@ async function main(): Promise<void> {
         process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT,
     });
     if (!binary) {
-      outputContinue();
+      emitHookResult();
       return;
     }
     recordToolEvent(binary, cwd, {
@@ -71,7 +67,7 @@ async function main(): Promise<void> {
   } catch (err) {
     debug(SOURCE, `Hook error: ${err}`);
   }
-  outputContinue();
+  emitHookResult();
 }
 
 type ToolInput = {
@@ -82,16 +78,6 @@ type ToolInput = {
   pattern?: string;
 };
 
-process.on("uncaughtException", (err) => {
-  debug(SOURCE, `UNCAUGHT EXCEPTION: ${err}`);
-  outputContinue();
-  process.exit(0);
-});
-
-process.on("unhandledRejection", (reason) => {
-  debug(SOURCE, `UNHANDLED REJECTION: ${reason}`);
-  outputContinue();
-  process.exit(0);
-});
+installHookSafetyNet(SOURCE);
 
 main();

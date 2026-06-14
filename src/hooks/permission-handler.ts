@@ -20,7 +20,13 @@
  * - { continue: true } to show normal permission prompt
  */
 
-import { readStdin, findAideBinary, runAide } from "../lib/hook-utils.js";
+import {
+  readStdin,
+  findAideBinary,
+  runAide,
+  emitHookResult,
+  installHookSafetyNet,
+} from "../lib/hook-utils.js";
 import { sanitizeForLog } from "../core/aide-client.js";
 import { debug } from "../lib/logger.js";
 
@@ -106,7 +112,7 @@ async function main(): Promise<void> {
   try {
     const input = await readStdin();
     if (!input.trim()) {
-      console.log(JSON.stringify({ continue: true }));
+      emitHookResult({ continue: true });
       return;
     }
 
@@ -114,7 +120,7 @@ async function main(): Promise<void> {
 
     // Only handle Bash permissions
     if (data.tool_name !== "Bash" || !data.tool_input?.command) {
-      console.log(JSON.stringify({ continue: true }));
+      emitHookResult({ continue: true });
       return;
     }
 
@@ -129,7 +135,7 @@ async function main(): Promise<void> {
         reason:
           "This command has been blocked for safety. It matches a dangerous pattern.",
       };
-      console.log(JSON.stringify(response));
+      emitHookResult(response);
       return;
     }
 
@@ -139,35 +145,18 @@ async function main(): Promise<void> {
       const response: PermissionResponse = {
         allow: true,
       };
-      console.log(JSON.stringify(response));
+      emitHookResult(response);
       return;
     }
 
     // Default: show normal permission prompt
-    console.log(JSON.stringify({ continue: true }));
+    emitHookResult({ continue: true });
   } catch (error) {
     debug(SOURCE, `Hook error: ${error}`);
-    console.log(JSON.stringify({ continue: true }));
+    emitHookResult({ continue: true });
   }
 }
 
-process.on("uncaughtException", (err) => {
-  debug(SOURCE, `UNCAUGHT EXCEPTION: ${err}`);
-  try {
-    console.log(JSON.stringify({ continue: true }));
-  } catch {
-    console.log('{"continue":true}');
-  }
-  process.exit(0);
-});
-process.on("unhandledRejection", (reason) => {
-  debug(SOURCE, `UNHANDLED REJECTION: ${reason}`);
-  try {
-    console.log(JSON.stringify({ continue: true }));
-  } catch {
-    console.log('{"continue":true}');
-  }
-  process.exit(0);
-});
+installHookSafetyNet(SOURCE);
 
 main();

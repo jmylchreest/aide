@@ -9,7 +9,11 @@
  */
 
 import { Logger, debug } from "../lib/logger.js";
-import { readStdin } from "../lib/hook-utils.js";
+import {
+  readStdin,
+  emitHookResult,
+  installHookSafetyNet,
+} from "../lib/hook-utils.js";
 
 const SOURCE = "hud-updater";
 import { findAideBinary } from "../core/aide-client.js";
@@ -49,7 +53,7 @@ async function main(): Promise<void> {
   try {
     const input = await readStdin();
     if (!input.trim()) {
-      console.log(JSON.stringify({ continue: true }));
+      emitHookResult({ continue: true });
       return;
     }
 
@@ -86,7 +90,6 @@ async function main(): Promise<void> {
           description: data.tool_input?.description,
           success: data.tool_result?.success,
         });
-
       }
       log.end("updateSessionState");
     }
@@ -125,33 +128,16 @@ async function main(): Promise<void> {
     log.flush();
 
     // Always continue
-    console.log(JSON.stringify({ continue: true }));
+    emitHookResult({ continue: true });
   } catch (error) {
     if (log) {
       log.error("HUD update failed", error);
       log.flush();
     }
-    console.log(JSON.stringify({ continue: true }));
+    emitHookResult({ continue: true });
   }
 }
 
-process.on("uncaughtException", (err) => {
-  debug(SOURCE, `UNCAUGHT EXCEPTION: ${err}`);
-  try {
-    console.log(JSON.stringify({ continue: true }));
-  } catch {
-    console.log('{"continue":true}');
-  }
-  process.exit(0);
-});
-process.on("unhandledRejection", (reason) => {
-  debug(SOURCE, `UNHANDLED REJECTION: ${reason}`);
-  try {
-    console.log(JSON.stringify({ continue: true }));
-  } catch {
-    console.log('{"continue":true}');
-  }
-  process.exit(0);
-});
+installHookSafetyNet(SOURCE);
 
 main();

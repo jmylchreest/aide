@@ -6,7 +6,11 @@
  * Checks for active modes (autopilot) via aide-memory state.
  */
 
-import { readStdin } from "../lib/hook-utils.js";
+import {
+  readStdin,
+  emitHookResult,
+  installHookSafetyNet,
+} from "../lib/hook-utils.js";
 import { findAideBinary } from "../core/aide-client.js";
 import { checkPersistence } from "../core/persistence-logic.js";
 import { debug } from "../lib/logger.js";
@@ -31,7 +35,7 @@ async function main(): Promise<void> {
   try {
     const input = await readStdin();
     if (!input.trim()) {
-      console.log(JSON.stringify({}));
+      emitHookResult({});
       return;
     }
 
@@ -39,7 +43,7 @@ async function main(): Promise<void> {
     const cwd = data.cwd || process.cwd();
 
     if (data.stop_hook_active) {
-      console.log(JSON.stringify({}));
+      emitHookResult({});
       return;
     }
 
@@ -49,13 +53,13 @@ async function main(): Promise<void> {
         process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT,
     });
     if (!binary) {
-      console.log(JSON.stringify({}));
+      emitHookResult({});
       return;
     }
 
     const result = checkPersistence(binary, cwd, data.session_id);
     if (!result) {
-      console.log(JSON.stringify({}));
+      emitHookResult({});
       return;
     }
 
@@ -64,30 +68,14 @@ async function main(): Promise<void> {
       reason: result.reason,
     };
 
-    console.log(JSON.stringify(output));
+    emitHookResult(output);
   } catch (err) {
     debug(SOURCE, `Hook error: ${err}`);
-    console.log(JSON.stringify({}));
+    emitHookResult({});
   }
 }
 
-process.on("uncaughtException", (err) => {
-  debug(SOURCE, `UNCAUGHT EXCEPTION: ${err}`);
-  try {
-    console.log(JSON.stringify({}));
-  } catch {
-    console.log("{}");
-  }
-  process.exit(0);
-});
-process.on("unhandledRejection", (reason) => {
-  debug(SOURCE, `UNHANDLED REJECTION: ${reason}`);
-  try {
-    console.log(JSON.stringify({}));
-  } catch {
-    console.log("{}");
-  }
-  process.exit(0);
-});
+// This Stop hook emits {} (not {continue:true}) as its neutral result.
+installHookSafetyNet(SOURCE, {});
 
 main();

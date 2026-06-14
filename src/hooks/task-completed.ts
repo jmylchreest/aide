@@ -26,7 +26,11 @@ import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import which from "which";
 import { debug, setDebugCwd } from "../lib/logger.js";
-import { readStdin } from "../lib/hook-utils.js";
+import {
+  readStdin,
+  emitHookResult,
+  installHookSafetyNet,
+} from "../lib/hook-utils.js";
 
 const SOURCE = "task-completed";
 
@@ -416,13 +420,6 @@ async function main(): Promise<void> {
   }
 }
 
-process.on("uncaughtException", (err) => {
-  debug(SOURCE, `UNCAUGHT EXCEPTION: ${err}`);
-  process.exit(0);
-});
-process.on("unhandledRejection", (reason) => {
-  debug(SOURCE, `UNHANDLED REJECTION: ${reason}`);
-  process.exit(0);
-});
+installHookSafetyNet(SOURCE);
 
 main();

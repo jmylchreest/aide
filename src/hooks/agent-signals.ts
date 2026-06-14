@@ -13,7 +13,11 @@
 
 import { execFileSync } from "child_process";
 import { Logger } from "../lib/logger.js";
-import { readStdin } from "../lib/hook-utils.js";
+import {
+  readStdin,
+  emitHookResult,
+  installHookSafetyNet,
+} from "../lib/hook-utils.js";
 import { findAideBinary } from "../core/aide-client.js";
 import { emitInjectionEvent } from "../core/read-tracking.js";
 
@@ -53,12 +57,12 @@ interface SignalsResponse {
 let log: Logger | null = null;
 
 function passThrough(): void {
-  console.log(JSON.stringify({ continue: true }));
+  emitHookResult({ continue: true });
 }
 
 function block(message: string): void {
   const out: HookOutput = { continue: false, message };
-  console.log(JSON.stringify(out));
+  emitHookResult(out);
 }
 
 function injectContext(context: string): void {
@@ -69,7 +73,7 @@ function injectContext(context: string): void {
       additionalContext: context,
     },
   };
-  console.log(JSON.stringify(out));
+  emitHookResult(out);
 }
 
 function runAide(binary: string, cwd: string, args: string[]): string | null {
@@ -237,13 +241,6 @@ async function main(): Promise<void> {
   }
 }
 
-process.on("uncaughtException", () => {
-  passThrough();
-  process.exit(0);
-});
-process.on("unhandledRejection", () => {
-  passThrough();
-  process.exit(0);
-});
+installHookSafetyNet(SOURCE);
 
 main();

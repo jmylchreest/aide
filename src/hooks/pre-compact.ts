@@ -10,7 +10,11 @@
  * - summary_prompt (the prompt used for summarization)
  */
 
-import { readStdin } from "../lib/hook-utils.js";
+import {
+  readStdin,
+  emitHookResult,
+  installHookSafetyNet,
+} from "../lib/hook-utils.js";
 import { findAideBinary } from "../core/aide-client.js";
 import { saveStateSnapshot as coreSaveStateSnapshot } from "../core/pre-compact-logic.js";
 import {
@@ -43,7 +47,7 @@ async function main(): Promise<void> {
   try {
     const input = await readStdin();
     if (!input.trim()) {
-      console.log(JSON.stringify({ continue: true }));
+      emitHookResult();
       return;
     }
 
@@ -129,30 +133,13 @@ async function main(): Promise<void> {
     }
 
     // Always allow compaction to continue
-    console.log(JSON.stringify({ continue: true }));
+    emitHookResult();
   } catch (error) {
     debug(SOURCE, `Hook error: ${error}`);
-    console.log(JSON.stringify({ continue: true }));
+    emitHookResult();
   }
 }
 
-process.on("uncaughtException", (err) => {
-  debug(SOURCE, `UNCAUGHT EXCEPTION: ${err}`);
-  try {
-    console.log(JSON.stringify({ continue: true }));
-  } catch {
-    console.log('{"continue":true}');
-  }
-  process.exit(0);
-});
-process.on("unhandledRejection", (reason) => {
-  debug(SOURCE, `UNHANDLED REJECTION: ${reason}`);
-  try {
-    console.log(JSON.stringify({ continue: true }));
-  } catch {
-    console.log('{"continue":true}');
-  }
-  process.exit(0);
-});
+installHookSafetyNet(SOURCE);
 
 main();
