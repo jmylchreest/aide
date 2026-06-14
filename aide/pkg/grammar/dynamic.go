@@ -21,6 +21,14 @@ type DynamicLoader struct {
 	manifest *manifestStore
 	loaded   map[string]*tree_sitter.Language // Cache of loaded languages
 	handles  map[string]uintptr               // Open library handles
+	// retired holds library handles evicted by a reload (Download) or Remove
+	// while a TSLanguage pointer derived from them may still be in use by an
+	// in-flight parse. dlclose-ing one of those immediately is a use-after-free
+	// (the parser dereferences the unmapped TSLanguage). We defer the close to
+	// Close(), which the caller only invokes at shutdown — a teardown barrier
+	// where no parses are in flight. Bounded: at most one handle per reload,
+	// all reclaimed at Close().
+	retired []uintptr
 }
 
 // NewDynamicLoader creates a loader for the given grammar directory.
@@ -121,14 +129,15 @@ func (dl *DynamicLoader) Download(ctx context.Context, name string, pack *Pack) 
 	}
 
 	// Evict from in-memory cache so the new library gets loaded fresh.
-	// TODO: closeLibrary here is unsafe when other goroutines still hold
-	// the TSLanguage pointer (e.g. an in-flight parse from the Parser
-	// cache). This is protected against concurrent auto-installs by the
-	// singleflight in CompositeLoader, but a stale re-download triggered
-	// by an aide version bump mid-daemon would still race. Consider
-	// reference-counting handles or leaking the handle on reload.
+	// Do NOT close the old handle here: another goroutine may still hold its
+	// TSLanguage pointer (e.g. an in-flight parse from the Parser cache), and
+	// dlclose-ing it would unmap memory the parser is still reading. Retire it
+	// instead — Close() reclaims it at shutdown. Concurrent auto-installs are
+	// already serialised by the singleflight in CompositeLoader; this also
+	// covers the stale re-download triggered by an aide version bump
+	// mid-daemon, which that singleflight does not.
 	if handle, ok := dl.handles[name]; ok {
-		_ = closeLibrary(handle)
+		dl.retired = append(dl.retired, handle)
 	}
 	delete(dl.loaded, name)
 	delete(dl.handles, name)
@@ -221,8 +230,16 @@ func (dl *DynamicLoader) Close() error {
 			firstErr = fmt.Errorf("closing grammar %q: %w", name, err)
 		}
 	}
+	// Reclaim handles retired by mid-life reloads/removes. Safe now: Close is a
+	// shutdown barrier, so no parse is still holding their TSLanguage pointers.
+	for _, handle := range dl.retired {
+		if err := closeLibrary(handle); err != nil && firstErr == nil {
+			firstErr = fmt.Errorf("closing retired grammar handle: %w", err)
+		}
+	}
 	dl.loaded = make(map[string]*tree_sitter.Language)
 	dl.handles = make(map[string]uintptr)
+	dl.retired = nil
 	return firstErr
 }
 
@@ -231,9 +248,11 @@ func (dl *DynamicLoader) Remove(name string) error {
 	dl.mu.Lock()
 	defer dl.mu.Unlock()
 
-	// Close the library handle if loaded.
+	// Retire (don't close) the library handle if loaded: an in-flight parse
+	// may still hold its TSLanguage pointer even though we're removing the
+	// grammar from disk. Close() reclaims it at shutdown.
 	if handle, ok := dl.handles[name]; ok {
-		_ = closeLibrary(handle) // Best-effort: we're removing anyway.
+		dl.retired = append(dl.retired, handle)
 	}
 	delete(dl.loaded, name)
 	delete(dl.handles, name)
