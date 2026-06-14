@@ -247,12 +247,9 @@ func cmdSearch(dbPath string, args []string) error {
 	latestOnly := hasFlag(args[1:], "--latest")
 	excludeOpts := parseExcludeOpts(args[1:])
 
-	if l := parseFlag(args[1:], "--limit="); l != "" {
-		n, err := strconv.Atoi(l)
-		if err != nil {
-			return fmt.Errorf("invalid --limit= value %q: %w", l, err)
-		}
-		limit = n
+	limit, err := parseIntFlag(args[1:], "--limit=", limit)
+	if err != nil {
+		return err
 	}
 	if s := parseFlag(args[1:], "--min-score="); s != "" {
 		f, err := strconv.ParseFloat(s, 64)
@@ -324,17 +321,13 @@ func cmdSelect(dbPath string, args []string) error {
 		return fmt.Errorf("usage: aide memory select QUERY [--limit=N] [--latest]")
 	}
 
-	limit := 100
 	latestOnly := hasFlag(args[1:], "--latest")
 	showFull := hasFlag(args[1:], "--full")
 	excludeOpts := parseExcludeOpts(args[1:])
 
-	if l := parseFlag(args[1:], "--limit="); l != "" {
-		n, err := strconv.Atoi(l)
-		if err != nil {
-			return fmt.Errorf("invalid --limit= value %q: %w", l, err)
-		}
-		limit = n
+	limit, err := parseIntFlag(args[1:], "--limit=", 100)
+	if err != nil {
+		return err
 	}
 
 	backend, err := NewBackend(dbPath)
@@ -394,12 +387,9 @@ func cmdList(dbPath string, args []string) error {
 	if t := parseFlag(args, "--tags="); t != "" {
 		tagsFilter = strings.Split(t, ",")
 	}
-	if l := parseFlag(args, "--limit="); l != "" {
-		n, err := strconv.Atoi(l)
-		if err != nil {
-			return fmt.Errorf("invalid --limit= value %q: %w", l, err)
-		}
-		limit = n
+	limit, err := parseIntFlag(args, "--limit=", limit)
+	if err != nil {
+		return err
 	}
 	formatJSON = wantJSON(args)
 
@@ -493,15 +483,11 @@ func cmdSessions(dbPath string, args []string) error {
 		return fmt.Errorf("usage: aide memory sessions --project=NAME [--limit=N] [--format=json]")
 	}
 
-	limit := 3
 	formatJSON := wantJSON(args)
 
-	if l := parseFlag(args, "--limit="); l != "" {
-		n, err := strconv.Atoi(l)
-		if err != nil {
-			return fmt.Errorf("invalid --limit= value %q: %w", l, err)
-		}
-		limit = n
+	limit, err := parseIntFlag(args, "--limit=", 3)
+	if err != nil {
+		return err
 	}
 
 	backend, err := NewBackend(dbPath)

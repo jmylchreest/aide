@@ -163,13 +163,9 @@ func reflectRun(dbPath string, args []string) error {
 		return nil
 	}
 
-	limit := 5000
-	if l := parseFlag(args, "--limit="); l != "" {
-		n, err := strconv.Atoi(l)
-		if err != nil {
-			return fmt.Errorf("invalid --limit value %q: %w", l, err)
-		}
-		limit = n
+	limit, err := parseIntFlag(args, "--limit=", 5000)
+	if err != nil {
+		return err
 	}
 
 	classifications, err := loadClassifications(args)

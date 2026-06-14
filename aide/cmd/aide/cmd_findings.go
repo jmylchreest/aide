@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/jmylchreest/aide/aide/pkg/aideignore"
@@ -493,13 +492,9 @@ func cmdFindingsSearch(dbPath string, args []string) error {
 	severity := parseFlag(args, "--severity=")
 	filePath := parseFlag(args, "--file=")
 	category := parseFlag(args, "--category=")
-	limit := findings.DefaultSearchLimit
-	if l := parseFlag(args, "--limit="); l != "" {
-		n, err := strconv.Atoi(l)
-		if err != nil {
-			return fmt.Errorf("invalid --limit= value %q: %w", l, err)
-		}
-		limit = n
+	limit, err := parseIntFlag(args, "--limit=", findings.DefaultSearchLimit)
+	if err != nil {
+		return err
 	}
 	jsonOutput := hasFlag(args, "--json")
 	includeAccepted := hasFlag(args, "--include-accepted")
@@ -567,13 +562,9 @@ func cmdFindingsList(dbPath string, args []string) error {
 	severity := parseFlag(args, "--severity=")
 	filePath := parseFlag(args, "--file=")
 	category := parseFlag(args, "--category=")
-	limit := findings.DefaultListLimit
-	if l := parseFlag(args, "--limit="); l != "" {
-		n, err := strconv.Atoi(l)
-		if err != nil {
-			return fmt.Errorf("invalid --limit= value %q: %w", l, err)
-		}
-		limit = n
+	limit, err := parseIntFlag(args, "--limit=", findings.DefaultListLimit)
+	if err != nil {
+		return err
 	}
 	jsonOutput := hasFlag(args, "--json")
 	includeAccepted := hasFlag(args, "--include-accepted")

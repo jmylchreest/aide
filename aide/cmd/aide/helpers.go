@@ -114,6 +114,22 @@ func hasFlag(args []string, flag string) bool {
 	return false
 }
 
+// parseIntFlag extracts an integer flag (e.g. "--limit="). Returns def when the
+// flag is absent or empty, and an error wrapping the offending value when the
+// flag is present but not a valid integer. Replaces the parseFlag + strconv.Atoi
+// + fmt.Errorf block that was copy-pasted across the command handlers.
+func parseIntFlag(args []string, prefix string, def int) (int, error) {
+	v := parseFlag(args, prefix)
+	if v == "" {
+		return def, nil
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil {
+		return def, fmt.Errorf("invalid %s value %q: %w", prefix, v, err)
+	}
+	return n, nil
+}
+
 // subcmd is one entry in a CLI subcommand dispatch table.
 type subcmd struct {
 	name    string

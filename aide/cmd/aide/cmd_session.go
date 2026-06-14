@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -93,19 +92,15 @@ Examples:
 func sessionInit(dbPath string, args []string) error {
 	project := parseFlag(args, "--project=")
 	cleanupAge := DefaultSessionCleanupAge
-	sessionLimit := DefaultSessionLimit
 
 	if dur := parseFlag(args, "--cleanup-age="); dur != "" {
 		if d, err := time.ParseDuration(dur); err == nil {
 			cleanupAge = d
 		}
 	}
-	if l := parseFlag(args, "--session-limit="); l != "" {
-		n, err := strconv.Atoi(l)
-		if err != nil {
-			return fmt.Errorf("invalid --session-limit= value %q: %w", l, err)
-		}
-		sessionLimit = n
+	sessionLimit, err := parseIntFlag(args, "--session-limit=", DefaultSessionLimit)
+	if err != nil {
+		return err
 	}
 
 	backend, err := NewBackend(dbPath)

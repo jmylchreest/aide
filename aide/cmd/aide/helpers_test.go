@@ -485,6 +485,27 @@ func TestHasFlag(t *testing.T) {
 	}
 }
 
+func TestParseIntFlag(t *testing.T) {
+	args := []string{"--limit=42", "--bad=abc"}
+
+	// Present and valid.
+	if n, err := parseIntFlag(args, "--limit=", 10); err != nil || n != 42 {
+		t.Errorf("parseIntFlag(--limit=) = %d, %v; want 42, nil", n, err)
+	}
+	// Absent → default.
+	if n, err := parseIntFlag(args, "--missing=", 10); err != nil || n != 10 {
+		t.Errorf("parseIntFlag(--missing=) = %d, %v; want 10, nil", n, err)
+	}
+	// Present but invalid → error, and default returned.
+	n, err := parseIntFlag(args, "--bad=", 10)
+	if err == nil {
+		t.Error("parseIntFlag(--bad=) expected an error for non-integer value")
+	}
+	if n != 10 {
+		t.Errorf("parseIntFlag(--bad=) value = %d; want default 10", n)
+	}
+}
+
 func TestTitleCase(t *testing.T) {
 	tests := []struct {
 		input string
