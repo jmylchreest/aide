@@ -4,15 +4,16 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
-	"os/exec"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"github.com/jmylchreest/aide/aide-web/internal/instance"
 	"github.com/jmylchreest/aide/aide-web/internal/server"
+	"github.com/pkg/browser"
 )
 
 func main() {
@@ -51,7 +52,14 @@ func main() {
 	}()
 
 	if cfg.Open {
-		openBrowser(url)
+		// Best-effort: open the dashboard in the user's browser. pkg/browser
+		// dispatches per-OS via build tags (xdg-open / open / rundll32), so this
+		// works on Linux, macOS and Windows. Run it detached and ignore the
+		// error — a missing/failed launcher (headless, SSH, no browser) must
+		// never block or fail dashboard startup. Discard launcher output so it
+		// doesn't clutter the server log.
+		browser.Stdout, browser.Stderr = io.Discard, io.Discard
+		go func() { _ = browser.OpenURL(url) }()
 	}
 
 	<-ctx.Done()
@@ -79,14 +87,6 @@ func parseFlags() config {
 	flag.BoolVar(&cfg.Open, "open", false, "Open browser on startup")
 	flag.Parse()
 	return cfg
-}
-
-func openBrowser(url string) {
-	for _, name := range []string{"xdg-open", "open", "start"} {
-		if err := exec.Command(name, url).Start(); err == nil {
-			return
-		}
-	}
 }
 
 // displayURL builds a clickable http URL from the listen address and port.
