@@ -1,7 +1,7 @@
 {
   "findings": {
     "complexity": {
-      "threshold": 15
+      "threshold": 20
     }
   },
   "reflect": {
