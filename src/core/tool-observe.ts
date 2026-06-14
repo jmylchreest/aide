@@ -118,6 +118,41 @@ function extractOutputText(payload: unknown): string {
   return "";
 }
 
+/**
+ * Decide whether a tool call failed and, if so, return the error text to
+ * attach to the observe event (drives the friction detector). Returns "" when
+ * the call succeeded.
+ *
+ * The meaningful friction signal is a *tool-level* failure — an Edit whose
+ * target string wasn't found, a Read of a missing file, a command the shell
+ * couldn't run — not every non-zero shell exit (a failing test mid-TDD is
+ * expected, not friction). We treat as failed: an explicit success===false,
+ * or a tool_response carrying an is_error / error / failed marker (how Claude
+ * Code flags tool-level errors). When failed but no text is recoverable, a
+ * generic marker still lets the detector count the recurrence.
+ */
+export function toolFailureText(
+  success: boolean | undefined,
+  toolResponse: unknown,
+): string {
+  let failed = success === false;
+  let errorField = "";
+  if (toolResponse && typeof toolResponse === "object") {
+    const r = toolResponse as Record<string, unknown>;
+    if (r.is_error === true || r.isError === true) failed = true;
+    if (r.status === "error" || r.status === "failed") failed = true;
+    if (typeof r.error === "string" && r.error.length > 0) {
+      failed = true;
+      errorField = r.error;
+    }
+  }
+  if (!failed) return "";
+  // Prefer an explicit error field, then any rendered output, then a marker so
+  // the detector can still count the recurrence even with no text.
+  const text = errorField || extractOutputText(toolResponse);
+  return (text || "tool reported failure").slice(0, 500);
+}
+
 export interface ToolObserveInput {
   toolName: string;
   toolInput?: {
@@ -266,6 +301,13 @@ export function recordToolEvent(
     const pattern = input.toolInput?.pattern;
     if (typeof pattern === "string" && pattern.length > 0) {
       args.push(`--attr=pattern=${pattern.slice(0, 200)}`);
+    }
+    // Mark tool-level failures so the friction detector can spot a recurring
+    // obstacle (the same tool failing on the same target). Empty when the call
+    // succeeded, so successful calls are recorded exactly as before.
+    const errText = toolFailureText(input.success, input.toolResponse);
+    if (errText) {
+      args.push(`--error=${errText}`);
     }
     execFileSync(binary, args, {
       cwd,

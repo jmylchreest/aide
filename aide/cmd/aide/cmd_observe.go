@@ -46,6 +46,7 @@ record options:
   --saved=N        Counterfactual tokens avoided
   --file=PATH      Associated file
   --session=ID     Session identifier
+  --error=TEXT     Error message — marks a failed tool call (drives the friction detector)
   --attr=K=V       Repeatable extra metadata
 
 Options for list / summary:
@@ -225,6 +226,7 @@ func cmdObserveRecord(dbPath string, args []string) error {
 		Subtype:   parseFlag(args, "--subtype="),
 		FilePath:  parseFlag(args, "--file="),
 		SessionID: parseFlag(args, "--session="),
+		Error:     parseFlag(args, "--error="),
 	}
 	tokens, err := parseIntFlag(args, "--tokens=", ev.Tokens)
 	if err != nil {
