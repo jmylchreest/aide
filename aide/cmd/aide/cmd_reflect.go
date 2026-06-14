@@ -445,8 +445,11 @@ func reflectTest(args []string) error {
 	return nil
 }
 
-// synthRepetition emits 5 Bash `cat` calls at 30-second intervals — a stable
-// minimum input that exceeds Repetition's default MinCount=4.
+// synthRepetition emits 5 identical Bash `cat` calls at 30-second intervals —
+// a stable minimum input that exceeds Repetition's default MinCount=4. The
+// command is identical each time on purpose: the detector groups by the full
+// normalised command (args included), so genuine repetition means re-running
+// the SAME command, not the same tool on different files.
 func synthRepetition() []*observe.Event {
 	now := time.Now()
 	out := make([]*observe.Event, 0, 5)
@@ -458,7 +461,7 @@ func synthRepetition() []*observe.Event {
 			Name:      "Bash",
 			Category:  "execute",
 			SessionID: "test-repetition",
-			Attrs:     map[string]string{"command": fmt.Sprintf("cat file%d.txt", i)},
+			Attrs:     map[string]string{"command": "cat README.md"},
 		})
 	}
 	return out

@@ -65,9 +65,11 @@ func (Repetition) Detect(events []*observe.Event, cfgAny any, _ ParserContext) [
 	if cfg.MinCount <= 0 {
 		cfg = DefaultRepetitionConfig()
 	}
-	ignore := make(map[string]struct{}, len(cfg.IgnoreCommands))
+	ignore := make([]string, 0, len(cfg.IgnoreCommands))
 	for _, c := range cfg.IgnoreCommands {
-		ignore[normaliseBash(c)] = struct{}{}
+		if n := normaliseBash(c); n != "" {
+			ignore = append(ignore, n)
+		}
 	}
 
 	type occ struct {
@@ -83,7 +85,7 @@ func (Repetition) Detect(events []*observe.Event, cfgAny any, _ ParserContext) [
 		if sig == "" {
 			continue
 		}
-		if _, skip := ignore[sig]; skip {
+		if isIgnored(sig, ignore) {
 			continue
 		}
 		if v, ok := bySig[sig]; ok {
@@ -151,45 +153,87 @@ func (Repetition) Detect(events []*observe.Event, cfgAny any, _ ParserContext) [
 	return out
 }
 
-// normaliseBash strips arguments, paths, env prefixes, and redirects to
-// produce a stable signature for grouping. Conservative: just first token.
+// normaliseBash reduces a Bash command to a stable signature for grouping
+// repeated invocations. It is pipeline-aware and argument-preserving: every
+// pipeline stage contributes its executable (path-stripped) plus its
+// arguments, with leading env assignments and redirections removed and
+// whitespace collapsed.
+//
+// Arguments are kept deliberately. Repetition means "the agent ran the SAME
+// command again" (it forgot it already had the answer), NOT "the agent used
+// the same tool on different inputs". So `sed -n 1,20p a.go` and
+// `sed -n 90,110p b.go` must produce DIFFERENT signatures — they were two
+// distinct lookups, not a repeat. Likewise a pipeline keeps all of its
+// stages, so `cat x | jq .a` no longer collapses to a bare `cat`.
 func normaliseBash(cmd string) string {
 	cmd = strings.TrimSpace(cmd)
 	if cmd == "" {
 		return ""
 	}
-	// Drop env vars: KEY=value KEY2=value cmd ...
-	parts := strings.Fields(cmd)
-	first := 0
-	for first < len(parts) && strings.Contains(parts[first], "=") && !strings.HasPrefix(parts[first], "-") {
-		first++
+	stages := strings.Split(cmd, "|")
+	out := make([]string, 0, len(stages))
+	for _, stage := range stages {
+		if sig := normaliseStage(stage); sig != "" {
+			out = append(out, sig)
+		}
 	}
-	if first >= len(parts) {
+	return strings.Join(out, " | ")
+}
+
+// normaliseStage normalises one pipeline stage: drop leading `KEY=value`
+// environment assignments, strip the executable's path, drop redirections
+// and their targets, and collapse whitespace. Returns "" for an empty or
+// all-environment stage.
+func normaliseStage(stage string) string {
+	parts := strings.Fields(stage)
+	i := 0
+	for i < len(parts) && isEnvAssignment(parts[i]) {
+		i++
+	}
+	if i >= len(parts) {
 		return ""
 	}
-	exe := parts[first]
-	// Strip path components: /usr/bin/git → git
+	exe := parts[i]
 	if idx := strings.LastIndex(exe, "/"); idx >= 0 {
 		exe = exe[idx+1:]
 	}
-	// For very common multi-word commands, keep the subcommand too.
-	if first+1 < len(parts) && knownMultiWord[exe] {
-		return exe + " " + parts[first+1]
+	tokens := []string{exe}
+	for j := i + 1; j < len(parts); j++ {
+		tok := parts[j]
+		switch tok {
+		case ">", ">>", "<", "2>", "2>>", "&>", "&>>":
+			j++ // standalone operator: also skip its target token
+			continue
+		}
+		// Attached forms: 2>/dev/null, &>out, >out, >>file.
+		if strings.HasPrefix(tok, "2>") || strings.HasPrefix(tok, "&>") ||
+			(strings.HasPrefix(tok, ">") && len(tok) > 1) {
+			continue
+		}
+		tokens = append(tokens, tok)
 	}
-	return exe
+	return strings.Join(tokens, " ")
 }
 
-// knownMultiWord lists commands whose first arg is a subcommand we want to
-// keep in the signature so `git status` and `git log` aren't lumped.
-var knownMultiWord = map[string]bool{
-	"git":     true,
-	"docker":  true,
-	"kubectl": true,
-	"npm":     true,
-	"bun":     true,
-	"go":      true,
-	"make":    true,
-	"cargo":   true,
+// isEnvAssignment reports whether tok is a leading `KEY=value` shell
+// assignment (not a flag like `--opt=val`).
+func isEnvAssignment(tok string) bool {
+	if strings.HasPrefix(tok, "-") {
+		return false
+	}
+	return strings.IndexByte(tok, '=') > 0
+}
+
+// isIgnored reports whether sig matches an ignore entry exactly or as a
+// command prefix, so `ls` ignores `ls -la /foo` and `git status` ignores
+// `git status -s`. Entries are pre-normalised by the caller.
+func isIgnored(sig string, ignore []string) bool {
+	for _, ig := range ignore {
+		if sig == ig || strings.HasPrefix(sig, ig+" ") {
+			return true
+		}
+	}
+	return false
 }
 
 // commandFromEvent extracts the raw command from a Bash tool_call event.
