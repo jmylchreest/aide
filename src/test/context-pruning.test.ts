@@ -701,22 +701,6 @@ describe("ContextPruningTracker", () => {
     expect(stats.estimatedContextBytes).toBeGreaterThan(0);
   });
 
-  it("should compute context pressure", () => {
-    // Start with no calls — pressure should be 0
-    expect(tracker.getContextPressure()).toBe(0);
-
-    // Add some calls
-    tracker.process(
-      "call-1",
-      "Read",
-      { filePath: "/src/foo.ts" },
-      "x".repeat(1000),
-    );
-    const pressure = tracker.getContextPressure();
-    expect(pressure).toBeGreaterThan(0);
-    expect(pressure).toBeLessThan(1);
-  });
-
   it("should reset clears history and stats", () => {
     tracker.process("call-1", "Read", { filePath: "/src/foo.ts" }, "content");
     tracker.process("call-2", "Bash", { command: "ls" }, "output");

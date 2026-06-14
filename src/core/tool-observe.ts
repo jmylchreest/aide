@@ -162,20 +162,6 @@ function lookupTool(name: string): ToolTax | null {
 }
 
 /**
- * Resolve to the canonical tool name (Edit/Read/Write/...) so observe
- * events from different harnesses aggregate into the same bucket on the
- * dashboard. Falls back to the original name when no alias matches.
- */
-function canonicalToolName(name: string): string {
-  if (NATIVE_TOOL_TAXONOMY[name]) return name;
-  const lower = name.toLowerCase();
-  for (const k of Object.keys(NATIVE_TOOL_TAXONOMY)) {
-    if (k.toLowerCase() === lower) return k;
-  }
-  return TOOL_ALIASES[lower] ?? name;
-}
-
-/**
  * Estimate tokens for the Read tool. If offset/limit are present, scale by
  * the portion actually read. Returns 0 on stat failure (caller still records
  * the event so the call shows up in the timeline).

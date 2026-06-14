@@ -143,29 +143,6 @@ export class ContextPruningTracker {
     return { ...this.stats };
   }
 
-  /**
-   * Get a context pressure value (0.0 - 1.0).
-   * This is a heuristic based on estimated context bytes and pruning ratio.
-   * Higher values mean more context pressure.
-   */
-  getContextPressure(): number {
-    // Use 128K tokens ≈ 512KB as a rough "full context" estimate
-    const estimatedCapacity = 512 * 1024;
-    const usageRatio = Math.min(
-      1.0,
-      this.stats.estimatedContextBytes / estimatedCapacity,
-    );
-
-    // If we're pruning a lot, that's also a pressure signal
-    const pruneRatio =
-      this.stats.totalCalls > 0
-        ? this.stats.prunedCalls / this.stats.totalCalls
-        : 0;
-
-    // Weighted: 70% usage, 30% prune ratio
-    return Math.min(1.0, usageRatio * 0.7 + pruneRatio * 0.3);
-  }
-
   /** Clear history (e.g., on compaction). */
   reset(): void {
     this.history = [];
