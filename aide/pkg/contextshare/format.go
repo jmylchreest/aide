@@ -138,6 +138,8 @@ func IsShareableMemory(m *memory.Memory) bool {
 		// Fall through to tag-based checks below
 	case memory.CategoryAbandoned:
 		// Abandoned memories are not shareable by default
+	default:
+		// Instinct and any future categories: tag-gated, fall through below.
 	}
 
 	// Check tags for sharing signals

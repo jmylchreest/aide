@@ -15,15 +15,13 @@ import (
 // test that triggers a config load sees an empty global ~/.aide/config/aide.json
 // rather than the developer's real one. buildKoanf reads the global file on
 // every Load/Resolve, so without this any such test would be non-hermetic.
-// Returns the temp home so tests can write a global config into it.
-func isolateHome(t *testing.T) string {
+func isolateHome(t *testing.T) {
 	t.Helper()
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	if runtime.GOOS == "windows" {
 		t.Setenv("USERPROFILE", home)
 	}
-	return home
 }
 
 // newConfigProject returns a dbPath whose derived project root is an empty temp

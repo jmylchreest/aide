@@ -291,7 +291,7 @@ func isLegacyMemoryAggregate(path string) bool {
 func migrateLegacyAggregates(backend *Backend, outputDir string, migrateDecisions, migrateMemories bool) error {
 	migrated := 0
 	if migrateDecisions {
-		n, err := migrateLegacyType(backend, outputDir, "decisions", func() error {
+		n, err := migrateLegacyType(outputDir, "decisions", func() error {
 			_, _, err := shareImportDecisions(backend, outputDir, false)
 			return err
 		})
@@ -301,7 +301,7 @@ func migrateLegacyAggregates(backend *Backend, outputDir string, migrateDecision
 		migrated += n
 	}
 	if migrateMemories {
-		n, err := migrateLegacyType(backend, outputDir, "memories", func() error {
+		n, err := migrateLegacyType(outputDir, "memories", func() error {
 			_, _, err := shareImportMemories(backend, outputDir, false)
 			return err
 		})
@@ -321,7 +321,7 @@ func migrateLegacyAggregates(backend *Backend, outputDir string, migrateDecision
 // type's subdirectory, plus that subdirectory's stale explainer. Returns the
 // number of aggregate files migrated (0 when there are none, so the caller emits
 // no notice).
-func migrateLegacyType(backend *Backend, outputDir, sub string, importFn func() error) (int, error) {
+func migrateLegacyType(outputDir, sub string, importFn func() error) (int, error) {
 	files := legacyAggregateFiles(outputDir, sub)
 	if len(files) == 0 {
 		return 0, nil

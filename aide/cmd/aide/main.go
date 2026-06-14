@@ -307,7 +307,7 @@ func findProjectRoot() (string, bool) {
 		if _, err := os.Stat(aidePath); err == nil {
 			// Skip ~/.aide/ as a project marker unless cwd is $HOME itself.
 			// ~/.aide/ is the TS layer's global config dir, not a project.
-			if !(homeDir != "" && dir == homeDir && cwd != homeDir) {
+			if homeDir == "" || dir != homeDir || cwd == homeDir {
 				c.hasAide = true
 			}
 		}

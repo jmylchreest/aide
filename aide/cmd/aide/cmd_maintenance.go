@@ -8,7 +8,7 @@ import (
 
 	"github.com/jmylchreest/aide/aide/pkg/config"
 	"github.com/jmylchreest/aide/aide/pkg/store"
-	bolt "go.etcd.io/bbolt"
+	berrors "go.etcd.io/bbolt/errors"
 )
 
 // storeCompactPaths returns the bolt files backing every store, derived
@@ -79,7 +79,7 @@ func cmdMaintenanceCompact(dbPath string, _ []string) error {
 		name := filepath.Base(p)
 		res, err := store.CompactClosedDB(p)
 		switch {
-		case errors.Is(err, bolt.ErrTimeout):
+		case errors.Is(err, berrors.ErrTimeout):
 			anyLocked = true
 			fmt.Printf("  %-14s in use — skipped\n", name+":")
 		case err != nil:
