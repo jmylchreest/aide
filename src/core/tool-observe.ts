@@ -173,6 +173,14 @@ export interface ToolObserveInput {
    */
   toolResponse?: unknown;
   success?: boolean;
+  /**
+   * Explicit error text from a harness failure event (Claude Code's
+   * PostToolUseFailure, OpenCode tool errors). When set, it's used verbatim as
+   * the event's error rather than inferring failure from toolResponse — the
+   * harness already told us it failed. Empty/undefined means "use the
+   * heuristic in toolFailureText".
+   */
+  errorText?: string;
   sessionId?: string;
 }
 
@@ -303,9 +311,12 @@ export function recordToolEvent(
       args.push(`--attr=pattern=${pattern.slice(0, 200)}`);
     }
     // Mark tool-level failures so the friction detector can spot a recurring
-    // obstacle (the same tool failing on the same target). Empty when the call
-    // succeeded, so successful calls are recorded exactly as before.
-    const errText = toolFailureText(input.success, input.toolResponse);
+    // obstacle (the same tool failing on the same target). An explicit
+    // errorText from a harness failure event wins; otherwise we infer from the
+    // response. Empty when the call succeeded, so successes record as before.
+    const errText =
+      (input.errorText && input.errorText.slice(0, 500)) ||
+      toolFailureText(input.success, input.toolResponse);
     if (errText) {
       args.push(`--error=${errText}`);
     }

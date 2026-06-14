@@ -218,6 +218,21 @@ function generateHooksJson(hookPrefix: string): CodexHooksJson {
           ],
         },
       ],
+      // Failed tool calls arrive on a separate event (PostToolUse fires on
+      // success only); route them to tool-observe so the friction detector
+      // sees the failure. Same script — it reads the top-level error fields.
+      PostToolUseFailure: [
+        {
+          matcher: "*",
+          hooks: [
+            {
+              type: "command",
+              command: `${hookPrefix} tool-observe`,
+              timeout: 3,
+            },
+          ],
+        },
+      ],
       Stop: [
         {
           matcher: "*",

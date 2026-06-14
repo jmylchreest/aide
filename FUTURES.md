@@ -227,3 +227,22 @@ in its per-domain table but neither shipped because no page needs them
 yet. They're cheap (broadcaster instance + RPC + handler + bus call on
 each write — ~80 LOC each) and unblock live updates on the Findings and
 Decisions pages whenever those grow a live-tail toggle.
+
+---
+
+## Friction detection in OpenCode (blocked on upstream)
+
+The friction instinct detector reads `observe.Event.Error`, populated when a
+tool call fails. On Claude Code this works via the `PostToolUseFailure` hook,
+and Codex mirrors that registration. **OpenCode has no equivalent**: its plugin
+API exposes only `tool.execute.after`, which fires on success — when a native
+tool throws, no hook runs, so the failure is invisible to aide.
+
+There is an open OpenCode feature request to add a `tool.execute.error` hook
+(anomalyco/opencode#10027). Until it lands, native-tool friction is uncapturable
+under OpenCode. (MCP-tool failures are unaffected — the Go MCP middleware sets
+`Error` directly, independent of the harness.)
+
+When the upstream hook ships: register it in `src/opencode/hooks.ts` and route
+its error payload through `recordToolEvent({ errorText })`, mirroring the
+Claude Code `PostToolUseFailure` handler in `src/hooks/tool-observe.ts`.
