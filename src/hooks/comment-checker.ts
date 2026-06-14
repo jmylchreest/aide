@@ -13,6 +13,7 @@ import {
   readStdin,
   emitHookResult,
   installHookSafetyNet,
+  findAideBinary,
 } from "../lib/hook-utils.js";
 import { debug } from "../lib/logger.js";
 import {
@@ -20,7 +21,6 @@ import {
   getCheckableFilePath,
   getContentToCheck,
 } from "../core/comment-checker.js";
-import { findAideBinary } from "../core/aide-client.js";
 import { emitInjectionEvent } from "../core/read-tracking.js";
 
 const SOURCE = "comment-checker";
@@ -85,11 +85,7 @@ async function main(): Promise<void> {
         `Detected ${result.suspiciousCount} suspicious comments in ${filePath}`,
       );
       try {
-        const binary = findAideBinary({
-          cwd,
-          pluginRoot:
-            process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT,
-        });
+        const binary = findAideBinary(cwd);
         if (binary && result.warning) {
           emitInjectionEvent(binary, cwd, {
             source: SOURCE,

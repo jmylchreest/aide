@@ -18,6 +18,7 @@ import {
   readStdin,
   emitHookResult,
   installHookSafetyNet,
+  findAideBinary,
 } from "../lib/hook-utils.js";
 import { debug } from "../lib/logger.js";
 import { ContextPruningTracker } from "../core/context-pruning/index.js";
@@ -25,7 +26,6 @@ import type { ToolRecord } from "../core/context-pruning/types.js";
 import { tmpdir } from "os";
 import { join } from "path";
 import { existsSync, readFileSync, writeFileSync } from "fs";
-import { findAideBinary } from "../core/aide-client.js";
 import { emitInjectionEvent } from "../core/read-tracking.js";
 
 const SOURCE = "context-pruning";
@@ -191,11 +191,7 @@ async function main(): Promise<void> {
       }
 
       try {
-        const binary = findAideBinary({
-          cwd,
-          pluginRoot:
-            process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT,
-        });
+        const binary = findAideBinary(cwd);
         const injected = output.hookSpecificOutput?.additionalContext;
         if (binary && injected) {
           emitInjectionEvent(binary, cwd, {

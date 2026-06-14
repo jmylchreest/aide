@@ -15,8 +15,8 @@ import {
   readStdin,
   emitHookResult,
   installHookSafetyNet,
+  findAideBinary,
 } from "../lib/hook-utils.js";
-import { findAideBinary } from "../core/aide-client.js";
 import { recordToolEvent } from "../core/tool-observe.js";
 import { debug } from "../lib/logger.js";
 
@@ -48,11 +48,7 @@ async function main(): Promise<void> {
       emitHookResult();
       return;
     }
-    const binary = findAideBinary({
-      cwd,
-      pluginRoot:
-        process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT,
-    });
+    const binary = findAideBinary(cwd);
     if (!binary) {
       emitHookResult();
       return;

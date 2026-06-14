@@ -14,8 +14,8 @@ import {
   readStdin,
   emitHookResult,
   installHookSafetyNet,
+  findAideBinary,
 } from "../lib/hook-utils.js";
-import { findAideBinary } from "../core/aide-client.js";
 import { saveStateSnapshot as coreSaveStateSnapshot } from "../core/pre-compact-logic.js";
 import {
   buildSessionSummaryFromState,
@@ -56,11 +56,7 @@ async function main(): Promise<void> {
     const sessionId = data.session_id || "unknown";
 
     // Save state snapshot before compaction — delegates to core
-    const binary = findAideBinary({
-      cwd,
-      pluginRoot:
-        process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT,
-    });
+    const binary = findAideBinary(cwd);
     if (binary) {
       // Emit a lifecycle trigger so PreCompact is traceable in the dashboard,
       // symmetric with session-start and subagent-start/stop.

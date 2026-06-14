@@ -23,8 +23,8 @@ import {
   isFalsy,
   emitHookResult,
   installHookSafetyNet,
+  findAideBinary,
 } from "../lib/hook-utils.js";
-import { findAideBinary } from "../core/aide-client.js";
 import {
   emitInjectionEvent,
   recordObserveEvent,
@@ -126,10 +126,7 @@ function fetchSubagentMemories(cwd: string): {
     return result;
   }
 
-  const binary = findAideBinary({
-    cwd,
-    pluginRoot: process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT,
-  });
+  const binary = findAideBinary(cwd);
   if (!binary) {
     return result;
   }
@@ -352,10 +349,7 @@ async function processSubagentStart(
   );
 
   // Emit session observe event so SubagentStart is traceable in the dashboard
-  const binary = findAideBinary({
-    cwd,
-    pluginRoot: process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT,
-  });
+  const binary = findAideBinary(cwd);
   if (binary) {
     recordObserveEvent(binary, cwd, {
       kind: "session",
@@ -392,10 +386,7 @@ async function processSubagentStop(data: SubagentStopInput): Promise<void> {
   log?.end("refreshHud");
 
   // Emit session observe event so SubagentStop is traceable in the dashboard
-  const binary = findAideBinary({
-    cwd,
-    pluginRoot: process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT,
-  });
+  const binary = findAideBinary(cwd);
   if (binary) {
     recordObserveEvent(binary, cwd, {
       kind: "session",
@@ -453,11 +444,7 @@ async function main(): Promise<void> {
         additionalContext,
       };
       try {
-        const binary = findAideBinary({
-          cwd,
-          pluginRoot:
-            process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT,
-        });
+        const binary = findAideBinary(cwd);
         if (binary) {
           const startData = data as SubagentStartInput;
           emitInjectionEvent(binary, cwd, {

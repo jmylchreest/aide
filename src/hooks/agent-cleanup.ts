@@ -14,8 +14,8 @@ import {
   readStdin,
   emitHookResult,
   installHookSafetyNet,
+  findAideBinary,
 } from "../lib/hook-utils.js";
-import { findAideBinary } from "../core/aide-client.js";
 import { cleanupAgent } from "../core/cleanup.js";
 import { debug } from "../lib/logger.js";
 import { findProjectRoot } from "../lib/project-root.js";
@@ -45,11 +45,7 @@ async function main(): Promise<void> {
 
     // Clean up agent-specific state — delegates to core
     if (agentId) {
-      const binary = findAideBinary({
-        cwd,
-        pluginRoot:
-          process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT,
-      });
+      const binary = findAideBinary(cwd);
       if (binary) {
         const cleared = cleanupAgent(binary, cwd, agentId);
         if (cleared) {
