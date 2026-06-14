@@ -10,9 +10,9 @@ import {
   readStdin,
   emitHookResult,
   installHookSafetyNet,
+  findAideBinary,
 } from "../lib/hook-utils.js";
 import { trackToolUse, formatToolDescription } from "../core/tool-tracking.js";
-import { findAideBinary } from "../core/aide-client.js";
 import { debug } from "../lib/logger.js";
 
 const SOURCE = "tool-tracker";
@@ -49,11 +49,7 @@ async function main(): Promise<void> {
     const toolName = data.tool_name || "";
 
     if (agentId && toolName) {
-      const binary = findAideBinary({
-        cwd,
-        pluginRoot:
-          process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT,
-      });
+      const binary = findAideBinary(cwd);
 
       if (binary) {
         trackToolUse(binary, cwd, {

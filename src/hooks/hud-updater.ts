@@ -13,10 +13,10 @@ import {
   readStdin,
   emitHookResult,
   installHookSafetyNet,
+  findAideBinary,
 } from "../lib/hook-utils.js";
 
 const SOURCE = "hud-updater";
-import { findAideBinary } from "../core/aide-client.js";
 import { updateToolStats } from "../core/tool-tracking.js";
 import { storePartialMemory } from "../core/partial-memory.js";
 import {
@@ -73,11 +73,7 @@ async function main(): Promise<void> {
     // Update session state (per-agent tracking) — delegates to core
     if (toolName) {
       log.start("updateSessionState");
-      const binary = findAideBinary({
-        cwd,
-        pluginRoot:
-          process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT,
-      });
+      const binary = findAideBinary(cwd);
       if (binary) {
         updateToolStats(binary, cwd, toolName, agentId);
 

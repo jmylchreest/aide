@@ -14,8 +14,8 @@ import {
   readStdin,
   emitHookResult,
   installHookSafetyNet,
+  findAideBinary,
 } from "../lib/hook-utils.js";
-import { findAideBinary } from "../core/aide-client.js";
 import {
   buildSessionSummary,
   getSessionCommits,
@@ -49,10 +49,7 @@ function captureSessionSummary(
   sessionId: string,
   transcriptPath: string,
 ): boolean {
-  const binary = findAideBinary({
-    cwd,
-    pluginRoot: process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT,
-  });
+  const binary = findAideBinary(cwd);
   if (!binary) {
     debug(SOURCE, "aide binary not found, cannot capture session summary");
     return false;

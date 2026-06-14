@@ -23,6 +23,7 @@ import {
   detectPlatform,
   emitHookResult,
   installHookSafetyNet,
+  findAideBinary,
 } from "../lib/hook-utils.js";
 import { findProjectRoot } from "../lib/project-root.js";
 import {
@@ -31,7 +32,6 @@ import {
   formatSkillsContext as coreFormatSkillsContext,
 } from "../core/skill-matcher.js";
 import type { Skill } from "../core/types.js";
-import { findAideBinary } from "../core/aide-client.js";
 import {
   recordObserveEvent,
   previewContent,
@@ -175,7 +175,7 @@ async function main(): Promise<void> {
     // sessions that aren't running reflect don't accrue extra events.
     if (prompt && reflectEnabled(cwd)) {
       try {
-        const binary = findAideBinary({ cwd });
+        const binary = findAideBinary(cwd);
         if (binary) {
           recordObserveEvent(binary, cwd, {
             kind: "hook",
@@ -227,7 +227,7 @@ async function main(): Promise<void> {
       // single "skill-injector" aggregate). Subtype="skill" keeps the
       // category roll-up; Name carries the per-skill identifier.
       try {
-        const binary = findAideBinary({ cwd });
+        const binary = findAideBinary(cwd);
         if (binary) {
           for (const skill of matched) {
             const text = `### ${skill.name}\n${skill.description ?? ""}\n${skill.content}`;

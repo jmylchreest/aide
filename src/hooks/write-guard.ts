@@ -13,10 +13,10 @@ import {
   readStdin,
   emitHookResult,
   installHookSafetyNet,
+  findAideBinary,
 } from "../lib/hook-utils.js";
 import { debug } from "../lib/logger.js";
 import { checkWriteGuard } from "../core/write-guard.js";
-import { findAideBinary } from "../core/aide-client.js";
 import { emitInjectionEvent } from "../core/read-tracking.js";
 
 const SOURCE = "write-guard";
@@ -66,11 +66,7 @@ async function main(): Promise<void> {
         "";
       debug(SOURCE, `Advisory: Write to existing file: ${filePath}`);
       try {
-        const binary = findAideBinary({
-          cwd,
-          pluginRoot:
-            process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT,
-        });
+        const binary = findAideBinary(cwd);
         if (binary && result.message) {
           emitInjectionEvent(binary, cwd, {
             source: SOURCE,

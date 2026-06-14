@@ -17,8 +17,8 @@ import {
   readStdin,
   emitHookResult,
   installHookSafetyNet,
+  findAideBinary,
 } from "../lib/hook-utils.js";
-import { findAideBinary } from "../core/aide-client.js";
 import { emitInjectionEvent } from "../core/read-tracking.js";
 
 const SOURCE = "agent-signals";
@@ -109,11 +109,7 @@ async function main(): Promise<void> {
     const cwd = data.cwd || process.cwd();
     log = new Logger("agent-signals", cwd);
 
-    const binary = findAideBinary({
-      cwd,
-      pluginRoot:
-        process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT,
-    });
+    const binary = findAideBinary(cwd);
     if (!binary) {
       passThrough();
       return;

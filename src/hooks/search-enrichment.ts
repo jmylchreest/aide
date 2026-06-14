@@ -15,10 +15,10 @@ import {
   readStdin,
   emitHookResult,
   installHookSafetyNet,
+  findAideBinary,
 } from "../lib/hook-utils.js";
 import { debug } from "../lib/logger.js";
 import { checkSearchEnrichment } from "../core/search-enrichment.js";
-import { findAideBinary } from "../core/aide-client.js";
 import { emitInjectionEvent } from "../core/read-tracking.js";
 
 const SOURCE = "search-enrichment";
@@ -56,11 +56,7 @@ async function main(): Promise<void> {
     const cwd = data.cwd || process.cwd();
     const sessionId = data.session_id || "";
 
-    const binary = findAideBinary({
-      cwd,
-      pluginRoot:
-        process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT,
-    });
+    const binary = findAideBinary(cwd);
 
     const result = checkSearchEnrichment(toolName, toolInput, cwd, binary);
 

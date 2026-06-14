@@ -14,10 +14,11 @@ import {
   readStdin,
   emitHookResult,
   installHookSafetyNet,
+  findAideBinary,
 } from "../lib/hook-utils.js";
 import { debug } from "../lib/logger.js";
 import { evaluateToolUse } from "../core/tool-enforcement.js";
-import { findAideBinary, getState } from "../core/aide-client.js";
+import { getState } from "../core/aide-client.js";
 import { emitInjectionEvent } from "../core/read-tracking.js";
 
 const SOURCE = "pre-tool-enforcer";
@@ -60,11 +61,7 @@ async function main(): Promise<void> {
     let activeMode: string | null = null;
     let aideBinary: string | null = null;
     try {
-      aideBinary = findAideBinary({
-        cwd,
-        pluginRoot:
-          process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT,
-      });
+      aideBinary = findAideBinary(cwd);
       if (aideBinary) {
         activeMode = getState(aideBinary, cwd, "mode");
       }

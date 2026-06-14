@@ -15,13 +15,13 @@ import {
   readStdin,
   emitHookResult,
   installHookSafetyNet,
+  findAideBinary,
 } from "../lib/hook-utils.js";
 import { debug } from "../lib/logger.js";
 import {
   checkContextGuard,
   checkSmartReadHint,
 } from "../core/context-guard.js";
-import { findAideBinary } from "../core/aide-client.js";
 import { emitInjectionEvent } from "../core/read-tracking.js";
 
 const SOURCE = "context-guard";
@@ -62,11 +62,7 @@ async function main(): Promise<void> {
     const sessionId = data.session_id || "unknown";
 
     const result = checkContextGuard(toolName, toolInput, cwd, sessionId);
-    const binary = findAideBinary({
-      cwd,
-      pluginRoot:
-        process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT,
-    });
+    const binary = findAideBinary(cwd);
 
     if (result.shouldAdvise && result.advisory) {
       debug(SOURCE, `Advising on large file read`);

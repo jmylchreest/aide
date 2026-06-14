@@ -13,8 +13,8 @@ import {
   readStdin,
   emitHookResult,
   installHookSafetyNet,
+  findAideBinary,
 } from "../lib/hook-utils.js";
-import { findAideBinary } from "../core/aide-client.js";
 import { debug } from "../lib/logger.js";
 
 const SOURCE = "reflect";
@@ -46,7 +46,7 @@ async function main(): Promise<void> {
       return;
     }
 
-    const binary = findAideBinary({ cwd });
+    const binary = findAideBinary(cwd);
     if (!binary) {
       emitHookResult({});
       return;
