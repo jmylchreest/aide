@@ -437,6 +437,7 @@ service CodeService {
   rpc SearchReferences(CodeSearchReferencesRequest) returns (CodeSearchReferencesResponse);
   rpc GetFileReferences(CodeGetFileReferencesRequest) returns (CodeSearchReferencesResponse);
   rpc GetContainingSymbol(CodeGetContainingSymbolRequest) returns (CodeGetContainingSymbolResponse);
+  rpc GetFileInfo(CodeGetFileInfoRequest) returns (CodeGetFileInfoResponse);
   rpc ReadCheck(CodeReadCheckRequest) returns (CodeReadCheckResponse);
   rpc RunDeadCodeAnalysis(CodeRunDeadCodeAnalysisRequest) returns (CodeRunDeadCodeAnalysisResponse);
 }
@@ -570,6 +571,18 @@ message CodeGetContainingSymbolRequest {
 message CodeGetContainingSymbolResponse {
   Symbol symbol = 1;       // The narrowest containing symbol, or nil if none
   bool found = 2;          // Whether a containing symbol was found
+}
+
+message CodeGetFileInfoRequest {
+  string path = 1;         // Project-relative file path
+}
+
+message CodeGetFileInfoResponse {
+  bool found = 1;
+  google.protobuf.Timestamp mod_time = 2;  // File mtime at index time (freshness checks)
+  repeated string symbol_ids = 3;
+  int32 tokens = 4;
+  int64 size_bytes = 5;
 }
 
 message CodeReadCheckRequest {

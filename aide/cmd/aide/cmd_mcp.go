@@ -726,6 +726,10 @@ func cmdMCP(dbPath string, args []string) error {
 				surveyAdapter := adapter.NewSurveyAdapter(client)
 				instinctAdapter := adapter.NewInstinctAdapter(client)
 				mcpServer := &MCPServer{store: storeAdapter, findingsStore: findingsAdapter, surveyStore: surveyAdapter, instinctStore: instinctAdapter, grammarLoader: grammarLoader, dbPath: dbPath, grpcClient: client}
+				// Code tools read the daemon's index over gRPC; without this the
+				// whole code_* family (and survey_graph) is dead in client mode.
+				mcpServer.codeStore = adapter.NewCodeAdapter(client)
+				mcpServer.codeStoreReady.Store(true)
 				mcpLog.Printf("MCP server ready in %v (client mode), listening on stdio", time.Since(startTime))
 				return mcpServer.Run()
 			}

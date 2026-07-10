@@ -1159,6 +1159,24 @@ func (s *codeServiceImpl) Symbols(ctx context.Context, req *CodeSymbolsRequest) 
 	}, nil
 }
 
+func (s *codeServiceImpl) GetFileInfo(ctx context.Context, req *CodeGetFileInfoRequest) (*CodeGetFileInfoResponse, error) {
+	cs := s.server.GetCodeStore()
+	if cs == nil {
+		return nil, fmt.Errorf("code store not available")
+	}
+	fi, err := cs.GetFileInfo(req.Path)
+	if err != nil || fi == nil {
+		return &CodeGetFileInfoResponse{Found: false}, nil
+	}
+	return &CodeGetFileInfoResponse{
+		Found:     true,
+		ModTime:   timestamppb.New(fi.ModTime),
+		SymbolIds: fi.SymbolIDs,
+		Tokens:    int32(fi.Tokens),
+		SizeBytes: fi.SizeBytes,
+	}, nil
+}
+
 func (s *codeServiceImpl) Stats(ctx context.Context, req *CodeStatsRequest) (*CodeStatsResponse, error) {
 	cs := s.server.GetCodeStore()
 	if cs == nil {

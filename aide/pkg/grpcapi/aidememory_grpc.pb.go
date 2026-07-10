@@ -8,7 +8,6 @@ package grpcapi
 
 import (
 	context "context"
-
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -1527,6 +1526,7 @@ const (
 	CodeService_SearchReferences_FullMethodName    = "/aidememory.CodeService/SearchReferences"
 	CodeService_GetFileReferences_FullMethodName   = "/aidememory.CodeService/GetFileReferences"
 	CodeService_GetContainingSymbol_FullMethodName = "/aidememory.CodeService/GetContainingSymbol"
+	CodeService_GetFileInfo_FullMethodName         = "/aidememory.CodeService/GetFileInfo"
 	CodeService_ReadCheck_FullMethodName           = "/aidememory.CodeService/ReadCheck"
 	CodeService_RunDeadCodeAnalysis_FullMethodName = "/aidememory.CodeService/RunDeadCodeAnalysis"
 )
@@ -1544,6 +1544,7 @@ type CodeServiceClient interface {
 	SearchReferences(ctx context.Context, in *CodeSearchReferencesRequest, opts ...grpc.CallOption) (*CodeSearchReferencesResponse, error)
 	GetFileReferences(ctx context.Context, in *CodeGetFileReferencesRequest, opts ...grpc.CallOption) (*CodeSearchReferencesResponse, error)
 	GetContainingSymbol(ctx context.Context, in *CodeGetContainingSymbolRequest, opts ...grpc.CallOption) (*CodeGetContainingSymbolResponse, error)
+	GetFileInfo(ctx context.Context, in *CodeGetFileInfoRequest, opts ...grpc.CallOption) (*CodeGetFileInfoResponse, error)
 	ReadCheck(ctx context.Context, in *CodeReadCheckRequest, opts ...grpc.CallOption) (*CodeReadCheckResponse, error)
 	RunDeadCodeAnalysis(ctx context.Context, in *CodeRunDeadCodeAnalysisRequest, opts ...grpc.CallOption) (*CodeRunDeadCodeAnalysisResponse, error)
 }
@@ -1655,6 +1656,16 @@ func (c *codeServiceClient) GetContainingSymbol(ctx context.Context, in *CodeGet
 	return out, nil
 }
 
+func (c *codeServiceClient) GetFileInfo(ctx context.Context, in *CodeGetFileInfoRequest, opts ...grpc.CallOption) (*CodeGetFileInfoResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CodeGetFileInfoResponse)
+	err := c.cc.Invoke(ctx, CodeService_GetFileInfo_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *codeServiceClient) ReadCheck(ctx context.Context, in *CodeReadCheckRequest, opts ...grpc.CallOption) (*CodeReadCheckResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(CodeReadCheckResponse)
@@ -1688,6 +1699,7 @@ type CodeServiceServer interface {
 	SearchReferences(context.Context, *CodeSearchReferencesRequest) (*CodeSearchReferencesResponse, error)
 	GetFileReferences(context.Context, *CodeGetFileReferencesRequest) (*CodeSearchReferencesResponse, error)
 	GetContainingSymbol(context.Context, *CodeGetContainingSymbolRequest) (*CodeGetContainingSymbolResponse, error)
+	GetFileInfo(context.Context, *CodeGetFileInfoRequest) (*CodeGetFileInfoResponse, error)
 	ReadCheck(context.Context, *CodeReadCheckRequest) (*CodeReadCheckResponse, error)
 	RunDeadCodeAnalysis(context.Context, *CodeRunDeadCodeAnalysisRequest) (*CodeRunDeadCodeAnalysisResponse, error)
 	mustEmbedUnimplementedCodeServiceServer()
@@ -1726,6 +1738,9 @@ func (UnimplementedCodeServiceServer) GetFileReferences(context.Context, *CodeGe
 }
 func (UnimplementedCodeServiceServer) GetContainingSymbol(context.Context, *CodeGetContainingSymbolRequest) (*CodeGetContainingSymbolResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetContainingSymbol not implemented")
+}
+func (UnimplementedCodeServiceServer) GetFileInfo(context.Context, *CodeGetFileInfoRequest) (*CodeGetFileInfoResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetFileInfo not implemented")
 }
 func (UnimplementedCodeServiceServer) ReadCheck(context.Context, *CodeReadCheckRequest) (*CodeReadCheckResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ReadCheck not implemented")
@@ -1909,6 +1924,24 @@ func _CodeService_GetContainingSymbol_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _CodeService_GetFileInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CodeGetFileInfoRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CodeServiceServer).GetFileInfo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CodeService_GetFileInfo_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CodeServiceServer).GetFileInfo(ctx, req.(*CodeGetFileInfoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _CodeService_ReadCheck_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(CodeReadCheckRequest)
 	if err := dec(in); err != nil {
@@ -1983,6 +2016,10 @@ var CodeService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetContainingSymbol",
 			Handler:    _CodeService_GetContainingSymbol_Handler,
+		},
+		{
+			MethodName: "GetFileInfo",
+			Handler:    _CodeService_GetFileInfo_Handler,
 		},
 		{
 			MethodName: "ReadCheck",
