@@ -213,39 +213,41 @@ func (m *Manager) healthCheckAll() {
 				}(inst)
 			}
 		case StatusDisconnected:
-			// A registration whose socket file is gone is a dead daemon —
-			// prune it rather than dialing a path that cannot answer.
+			// A registration whose socket file is gone is a stopped daemon —
+			// park it as idle (still listed, no longer dialed) rather than
+			// dialing a path that cannot answer. It wakes when the daemon
+			// re-registers (the registry watcher fires addOrUpdate).
 			if _, err := os.Stat(inst.SocketPath()); err != nil {
-				log.Printf("instance %s: socket gone, pruning stale registration", inst.ProjectName())
-				if err := m.RemoveInstance(inst.ProjectRoot()); err != nil {
-					log.Printf("instance %s: prune failed: %v", inst.ProjectName(), err)
-				}
+				log.Printf("instance %s: socket gone, parking as idle", inst.ProjectName())
+				inst.SetIdle()
+				m.clearDialFailures(inst.ProjectRoot())
 				continue
 			}
 			// Connect() checks status and returns immediately if already connecting
 			go func(i *Instance) {
 				if err := i.Connect(); err != nil {
 					// A socket that exists but repeatedly refuses connections
-					// is left over from a crashed daemon: prune after three
+					// is left over from a crashed daemon: park after three
 					// consecutive failures (~15s) instead of dialing forever.
-					if m.recordDialFailure(i.ProjectRoot()) >= stalePruneFailures {
-						log.Printf("instance %s: unreachable, pruning stale registration", i.ProjectName())
-						if rerr := m.RemoveInstance(i.ProjectRoot()); rerr != nil {
-							log.Printf("instance %s: prune failed: %v", i.ProjectName(), rerr)
-						}
+					if m.recordDialFailure(i.ProjectRoot()) >= staleParkFailures {
+						log.Printf("instance %s: unreachable, parking as idle", i.ProjectName())
+						i.SetIdle()
+						m.clearDialFailures(i.ProjectRoot())
 					}
 				} else {
 					m.clearDialFailures(i.ProjectRoot())
 					log.Printf("instance %s: reconnected", i.ProjectName())
 				}
 			}(inst)
+		case StatusIdle:
+			// Parked: nothing to do until its registry entry is rewritten.
 		}
 	}
 }
 
-// stalePruneFailures is how many consecutive failed dials to an existing
-// socket file mark a registration as stale.
-const stalePruneFailures = 3
+// staleParkFailures is how many consecutive failed dials to an existing
+// socket file park a registration as idle.
+const staleParkFailures = 3
 
 func (m *Manager) recordDialFailure(projectRoot string) int {
 	m.mu.Lock()

@@ -1,4 +1,4 @@
-export type InstanceStatus = "connected" | "disconnected" | "connecting";
+export type InstanceStatus = "connected" | "disconnected" | "connecting" | "idle";
 
 export interface InstanceInfo {
   /** Disambiguated routing id (project_name + short root hash). Use for links/keys. */

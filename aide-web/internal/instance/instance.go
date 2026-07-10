@@ -34,6 +34,11 @@ const (
 	StatusConnected    Status = "connected"
 	StatusDisconnected Status = "disconnected"
 	StatusConnecting   Status = "connecting"
+	// StatusIdle marks a known project whose daemon is not running. Idle
+	// instances stay listed (the instances page is a directory of known
+	// projects) but are not dialed until their registry entry is rewritten
+	// by a daemon starting up.
+	StatusIdle Status = "idle"
 )
 
 // Instance represents a single aide daemon connection.
@@ -102,6 +107,15 @@ func (i *Instance) Version() string {
 	i.mu.RLock()
 	defer i.mu.RUnlock()
 	return i.version
+}
+
+// SetIdle parks a disconnected instance: still listed, no longer dialed.
+func (i *Instance) SetIdle() {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	if i.status == StatusDisconnected {
+		i.status = StatusIdle
+	}
 }
 
 // Status returns the current connection status.
