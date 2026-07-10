@@ -736,6 +736,24 @@ service SurveyService {
   rpc ClearAnalyzer(SurveyClearAnalyzerRequest) returns (SurveyClearAnalyzerResponse);
   rpc Stats(SurveyStatsRequest) returns (SurveyStatsResponse);
   rpc Clear(SurveyClearRequest) returns (SurveyClearResponse);
+  // Run executes analyzers ON the daemon, where the stores live — gRPC
+  // clients cannot open the BoltDB stores directly.
+  rpc Run(SurveyRunRequest) returns (SurveyRunResponse);
+}
+
+message SurveyRunRequest {
+  string analyzer = 1; // empty = run all analyzers
+}
+
+message SurveyRunResult {
+  string analyzer = 1;
+  int32 entries = 2;
+  string error = 3;   // non-empty when this analyzer failed
+  string summary = 4; // formatted detail: counts, diff suffix, map changes
+}
+
+message SurveyRunResponse {
+  repeated SurveyRunResult results = 1;
 }
 
 message SurveyEntry {
@@ -894,6 +912,12 @@ message HealthCheckResponse {
   bool healthy = 1;
   string version = 2;
   string db_path = 3;
+  // Daemon identity, so a client can report which process it is attached
+  // to and detect version skew after an upgrade.
+  string commit = 4;
+  string build_date = 5;
+  int64 pid = 6;
+  int64 started_at_unix = 7;
 }
 
 // =============================================================================

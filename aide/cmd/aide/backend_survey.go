@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"time"
 
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi"
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi/adapter"
 	"github.com/jmylchreest/aide/aide/pkg/store"
 	"github.com/jmylchreest/aide/aide/pkg/survey"
+	"github.com/jmylchreest/aide/aide/pkg/surveyrun"
 )
 
 // =============================================================================
@@ -149,6 +151,43 @@ func (b *Backend) ClearSurveyAnalyzer(analyzer string) (int, error) {
 	defer ss.Close()
 
 	return ss.ClearAnalyzer(analyzer)
+}
+
+// SurveyRun executes survey analyzers. In gRPC mode the run is delegated to
+// the daemon (analyzers must execute where the stores live); in direct mode
+// it runs locally with best-effort code index access.
+func (b *Backend) SurveyRun(analyzer string) ([]surveyrun.Result, error) {
+	if b.useGRPC {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		defer cancel()
+		resp, err := b.grpcClient.Survey.Run(ctx, &grpcapi.SurveyRunRequest{Analyzer: analyzer})
+		if err != nil {
+			return nil, err
+		}
+		results := make([]surveyrun.Result, 0, len(resp.Results))
+		for _, r := range resp.Results {
+			results = append(results, surveyrun.Result{Analyzer: r.Analyzer, Entries: int(r.Entries), Err: r.Error, Summary: r.Summary})
+		}
+		return results, nil
+	}
+
+	ss, err := b.openSurveyStore()
+	if err != nil {
+		return nil, err
+	}
+	defer ss.Close()
+
+	var codeStore store.CodeIndexStore
+	if cs, cerr := b.openCodeStore(); cerr == nil {
+		codeStore = cs
+		defer cs.Close()
+	}
+
+	var analyzers []string
+	if analyzer != "" {
+		analyzers = []string{analyzer}
+	}
+	return surveyrun.Run(projectRoot(b.dbPath), analyzers, ss, codeStore), nil
 }
 
 func (b *Backend) ReplaceSurveyForAnalyzer(analyzer string, entries []*survey.Entry) error {

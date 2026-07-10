@@ -46,6 +46,11 @@ type languageResolver interface {
 	// resolve maps a normalized import string in fromFile to a
 	// project-relative unit, or "" for external/unresolvable.
 	resolve(fromFile, importStr string) string
+	// resolveFiles maps a normalized import string to the source files it
+	// lands on — the file-level view used for module clustering, where a
+	// unit that spans files (Go package, C# namespace, JVM wildcard) fans
+	// out to its members. Empty for external/unresolvable.
+	resolveFiles(fromFile, importStr string) []string
 	// unitOf returns the unit a source file itself belongs to.
 	unitOf(file string) string
 }
@@ -81,6 +86,12 @@ var skipDirs = map[string]bool{
 // skipped, and a project with no manifests still resolves layout-derivable
 // imports (relative TS specifiers, root-anchored Python modules).
 func New(rootDir string) *Resolver {
+	// A symlinked root (common: ~/src trees pointing at a data volume)
+	// breaks filepath.WalkDir, which lstats the root — resolve it first so
+	// manifest discovery sees the real directory.
+	if resolved, err := filepath.EvalSymlinks(rootDir); err == nil {
+		rootDir = resolved
+	}
 	pfs := newProjectFS(rootDir)
 	resolvers := newLanguageResolvers(pfs)
 
@@ -150,6 +161,22 @@ func (r *Resolver) ResolveUnit(lang, fromFile, importStr string) string {
 		return ""
 	}
 	return lr.resolve(fromFile, imp)
+}
+
+// ResolveFiles maps an import string to the project-relative source files
+// it lands on: the single target file for file-unit languages, the member
+// files for units that span several (Go packages, C# namespaces, JVM
+// wildcard imports). Empty for external/unresolvable imports.
+func (r *Resolver) ResolveFiles(lang, fromFile, importStr string) []string {
+	lr, ok := r.byLang[lang]
+	if !ok {
+		return nil
+	}
+	imp := normalizeImport(importStr)
+	if imp == "" {
+		return nil
+	}
+	return lr.resolveFiles(fromFile, imp)
 }
 
 // UnitOf returns the unit a source file itself belongs to: its package

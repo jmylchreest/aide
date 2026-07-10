@@ -8,6 +8,7 @@ package grpcapi
 
 import (
 	context "context"
+
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -2494,6 +2495,7 @@ const (
 	SurveyService_ClearAnalyzer_FullMethodName  = "/aidememory.SurveyService/ClearAnalyzer"
 	SurveyService_Stats_FullMethodName          = "/aidememory.SurveyService/Stats"
 	SurveyService_Clear_FullMethodName          = "/aidememory.SurveyService/Clear"
+	SurveyService_Run_FullMethodName            = "/aidememory.SurveyService/Run"
 )
 
 // SurveyServiceClient is the client API for SurveyService service.
@@ -2509,6 +2511,9 @@ type SurveyServiceClient interface {
 	ClearAnalyzer(ctx context.Context, in *SurveyClearAnalyzerRequest, opts ...grpc.CallOption) (*SurveyClearAnalyzerResponse, error)
 	Stats(ctx context.Context, in *SurveyStatsRequest, opts ...grpc.CallOption) (*SurveyStatsResponse, error)
 	Clear(ctx context.Context, in *SurveyClearRequest, opts ...grpc.CallOption) (*SurveyClearResponse, error)
+	// Run executes analyzers ON the daemon, where the stores live — gRPC
+	// clients cannot open the BoltDB stores directly.
+	Run(ctx context.Context, in *SurveyRunRequest, opts ...grpc.CallOption) (*SurveyRunResponse, error)
 }
 
 type surveyServiceClient struct {
@@ -2609,6 +2614,16 @@ func (c *surveyServiceClient) Clear(ctx context.Context, in *SurveyClearRequest,
 	return out, nil
 }
 
+func (c *surveyServiceClient) Run(ctx context.Context, in *SurveyRunRequest, opts ...grpc.CallOption) (*SurveyRunResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SurveyRunResponse)
+	err := c.cc.Invoke(ctx, SurveyService_Run_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SurveyServiceServer is the server API for SurveyService service.
 // All implementations must embed UnimplementedSurveyServiceServer
 // for forward compatibility.
@@ -2622,6 +2637,9 @@ type SurveyServiceServer interface {
 	ClearAnalyzer(context.Context, *SurveyClearAnalyzerRequest) (*SurveyClearAnalyzerResponse, error)
 	Stats(context.Context, *SurveyStatsRequest) (*SurveyStatsResponse, error)
 	Clear(context.Context, *SurveyClearRequest) (*SurveyClearResponse, error)
+	// Run executes analyzers ON the daemon, where the stores live — gRPC
+	// clients cannot open the BoltDB stores directly.
+	Run(context.Context, *SurveyRunRequest) (*SurveyRunResponse, error)
 	mustEmbedUnimplementedSurveyServiceServer()
 }
 
@@ -2658,6 +2676,9 @@ func (UnimplementedSurveyServiceServer) Stats(context.Context, *SurveyStatsReque
 }
 func (UnimplementedSurveyServiceServer) Clear(context.Context, *SurveyClearRequest) (*SurveyClearResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Clear not implemented")
+}
+func (UnimplementedSurveyServiceServer) Run(context.Context, *SurveyRunRequest) (*SurveyRunResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Run not implemented")
 }
 func (UnimplementedSurveyServiceServer) mustEmbedUnimplementedSurveyServiceServer() {}
 func (UnimplementedSurveyServiceServer) testEmbeddedByValue()                       {}
@@ -2842,6 +2863,24 @@ func _SurveyService_Clear_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SurveyService_Run_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SurveyRunRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SurveyServiceServer).Run(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SurveyService_Run_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SurveyServiceServer).Run(ctx, req.(*SurveyRunRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SurveyService_ServiceDesc is the grpc.ServiceDesc for SurveyService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -2884,6 +2923,10 @@ var SurveyService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Clear",
 			Handler:    _SurveyService_Clear_Handler,
+		},
+		{
+			MethodName: "Run",
+			Handler:    _SurveyService_Run_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

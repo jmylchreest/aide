@@ -3,12 +3,12 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/jmylchreest/aide/aide/pkg/survey"
+	"github.com/jmylchreest/aide/aide/pkg/surveyrun"
 )
 
 // getSurveyStorePath returns the directory for survey data.
@@ -312,11 +312,11 @@ func cmdSurveyGraph(dbPath string, args []string) error {
 	return nil
 }
 
-// cmdSurveyRun runs survey analyzers from the CLI.
+// cmdSurveyRun runs survey analyzers from the CLI. Execution is delegated
+// to the shared surveyrun package (or the daemon over gRPC) so every entry
+// point produces identical results.
 func cmdSurveyRun(dbPath string, args []string) error {
 	analyzer := parseFlag(args, "--analyzer=")
-
-	rootDir := projectRoot(dbPath)
 
 	b, err := NewBackend(dbPath)
 	if err != nil {
@@ -324,116 +324,11 @@ func cmdSurveyRun(dbPath string, args []string) error {
 	}
 	defer b.Close()
 
-	headCommit := survey.HeadCommit(rootDir)
-
-	// storeResult stamps the run commit, replaces the analyzer's entries via
-	// the backend, and returns the change-summary display suffix.
-	storeResult := func(name string, entries []*survey.Entry) (string, error) {
-		oldEntries, err := b.ListSurvey(survey.SearchOptions{Analyzer: name, Limit: surveyDiffListLimit})
-		if err != nil {
-			oldEntries = nil // diff is best-effort; storing still proceeds
-		}
-		survey.StampRunCommit(entries, headCommit)
-		if err := b.ReplaceSurveyForAnalyzer(name, entries); err != nil {
-			return "", err
-		}
-		return surveyRunSuffix(oldEntries, entries, headCommit), nil
+	results, err := b.SurveyRun(analyzer)
+	if err != nil {
+		return fmt.Errorf("survey run failed: %w", err)
 	}
-
-	analyzers := []string{analyzer}
-	if analyzer == "" {
-		analyzers = []string{survey.AnalyzerTopology, survey.AnalyzerEntrypoints, survey.AnalyzerChurn, survey.AnalyzerModules}
-	}
-
-	for _, name := range analyzers {
-		switch name {
-		case survey.AnalyzerModules:
-			if b.useGRPC {
-				fmt.Fprintln(os.Stderr, "modules: needs direct code-index access; the running daemon will produce it via the survey_run MCP tool instead")
-				continue
-			}
-			codeStore, err := b.openCodeStore()
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "modules: code index not available (%v) — run 'aide code index' first\n", err)
-				continue
-			}
-			prevEntries, _ := b.ListSurvey(survey.SearchOptions{Analyzer: survey.AnalyzerModules, Limit: surveyDiffListLimit})
-			result, err := survey.RunModules(survey.ModulesConfig{
-				RootDir:  rootDir,
-				Source:   &modulesSourceAdapter{store: codeStore},
-				Previous: survey.PreviousAssignmentFromEntries(prevEntries),
-			})
-			codeStore.Close()
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "modules: error: %v\n", err)
-				continue
-			}
-			suffix, err := storeResult(survey.AnalyzerModules, result.Entries)
-			if err != nil {
-				return fmt.Errorf("modules: store error: %w", err)
-			}
-			fmt.Printf("modules: %d modules from %d files (%d unclustered, imports resolved %d/%d)%s\n",
-				result.Communities, result.Files, result.Singletons, result.ImportsResolved, result.ImportsTotal, suffix)
-			if diff := survey.DiffModules(prevEntries, result.Entries).Summary(); diff != "" {
-				fmt.Printf("  map changes: %s\n", diff)
-			}
-		case survey.AnalyzerTopology:
-			result, err := survey.RunTopology(rootDir)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "topology: error: %v\n", err)
-				continue
-			}
-			suffix, err := storeResult(survey.AnalyzerTopology, result.Entries)
-			if err != nil {
-				return fmt.Errorf("topology: store error: %w", err)
-			}
-			fmt.Printf("topology: %d entries%s\n", len(result.Entries), suffix)
-
-		case survey.AnalyzerEntrypoints:
-			// Try to get a code searcher for richer entrypoint detection.
-			// Uses gRPC when MCP server is running, direct DB otherwise.
-			// Falls back gracefully to nil if the code index doesn't exist yet
-			// (e.g., user hasn't run 'aide code index').
-			var cs survey.CodeSearcher
-			searcher, cleanup, codeErr := b.CodeSearcher()
-			if codeErr != nil {
-				fmt.Fprintf(os.Stderr, "entrypoints: code index not available, running with limited detection: %v\n", codeErr)
-			} else {
-				cs = searcher
-				defer cleanup()
-			}
-			result, err := survey.RunEntrypoints(rootDir, cs)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "entrypoints: error: %v\n", err)
-				continue
-			}
-			suffix, err := storeResult(survey.AnalyzerEntrypoints, result.Entries)
-			if err != nil {
-				return fmt.Errorf("entrypoints: store error: %w", err)
-			}
-			if cs != nil {
-				fmt.Printf("entrypoints: %d entries%s\n", len(result.Entries), suffix)
-			} else {
-				fmt.Printf("entrypoints: %d entries%s (code index not available)\n", len(result.Entries), suffix)
-			}
-
-		case survey.AnalyzerChurn:
-			result, err := survey.RunChurn(rootDir, 0, 0)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "churn: error: %v\n", err)
-				continue
-			}
-			suffix, err := storeResult(survey.AnalyzerChurn, result.Entries)
-			if err != nil {
-				return fmt.Errorf("churn: store error: %w", err)
-			}
-			fmt.Printf("churn: %d entries%s\n", len(result.Entries), suffix)
-
-		default:
-			fmt.Fprintf(os.Stderr, "unknown analyzer: %s\n", name)
-		}
-	}
-
+	fmt.Print(surveyrun.FormatResults(results))
 	return nil
 }
 

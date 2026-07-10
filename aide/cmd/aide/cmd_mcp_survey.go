@@ -5,11 +5,14 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/jmylchreest/aide/aide/pkg/code"
+	"github.com/jmylchreest/aide/aide/pkg/grpcapi"
 	"github.com/jmylchreest/aide/aide/pkg/observe"
 	"github.com/jmylchreest/aide/aide/pkg/store"
 	"github.com/jmylchreest/aide/aide/pkg/survey"
+	"github.com/jmylchreest/aide/aide/pkg/surveyrun"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -326,136 +329,34 @@ func surveyFreshnessLines(rootDir string, byAnalyzer map[string]int, listOne fun
 	return lines
 }
 
-func (s *MCPServer) handleSurveyRun(_ context.Context, _ *mcp.CallToolRequest, input SurveyRunInput) (*mcp.CallToolResult, any, error) {
+func (s *MCPServer) handleSurveyRun(ctx context.Context, _ *mcp.CallToolRequest, input SurveyRunInput) (*mcp.CallToolResult, any, error) {
 	mcpLog.Printf("tool: survey_run analyzer=%s", input.Analyzer)
+
+	// Client mode: analyzers must execute on the daemon, where the stores
+	// live — delegate over gRPC.
+	if s.grpcClient != nil {
+		runCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+		defer cancel()
+		resp, err := s.grpcClient.Survey.Run(runCtx, &grpcapi.SurveyRunRequest{Analyzer: input.Analyzer})
+		if err != nil {
+			return errorResult(fmt.Sprintf("survey run on daemon failed: %v", err)), nil, nil
+		}
+		results := make([]surveyrun.Result, 0, len(resp.Results))
+		for _, r := range resp.Results {
+			results = append(results, surveyrun.Result{Analyzer: r.Analyzer, Entries: int(r.Entries), Err: r.Error, Summary: r.Summary})
+		}
+		return textResult(surveyrun.FormatResults(results)), nil, nil
+	}
 
 	if s.surveyStore == nil {
 		return errorResult("survey store not available"), nil, nil
 	}
-
-	rootDir := projectRoot(s.dbPath)
-	headCommit := survey.HeadCommit(rootDir)
-
-	var sb strings.Builder
-	analyzers := []string{input.Analyzer}
-	if input.Analyzer == "" {
-		analyzers = []string{survey.AnalyzerTopology, survey.AnalyzerEntrypoints, survey.AnalyzerChurn, survey.AnalyzerModules}
+	var analyzers []string
+	if input.Analyzer != "" {
+		analyzers = []string{input.Analyzer}
 	}
-
-	for _, name := range analyzers {
-		switch name {
-		case survey.AnalyzerModules:
-			codeStore := s.getCodeStore()
-			if codeStore == nil {
-				sb.WriteString("modules: code index not available — run 'aide code index' first\n")
-				continue
-			}
-			prevEntries, _ := s.surveyStore.ListEntries(survey.SearchOptions{Analyzer: survey.AnalyzerModules, Limit: surveyDiffListLimit})
-			result, err := survey.RunModules(survey.ModulesConfig{
-				RootDir:  rootDir,
-				Source:   &modulesSourceAdapter{store: codeStore},
-				Previous: survey.PreviousAssignmentFromEntries(prevEntries),
-			})
-			if err != nil {
-				fmt.Fprintf(&sb, "modules: error: %v\n", err)
-				continue
-			}
-			suffix, err := s.storeSurveyResult(survey.AnalyzerModules, headCommit, result.Entries)
-			if err != nil {
-				fmt.Fprintf(&sb, "modules: store error: %v\n", err)
-				continue
-			}
-			fmt.Fprintf(&sb, "modules: %d modules from %d files (%d unclustered, imports resolved %d/%d)%s\n",
-				result.Communities, result.Files, result.Singletons, result.ImportsResolved, result.ImportsTotal, suffix)
-			if diff := survey.DiffModules(prevEntries, result.Entries).Summary(); diff != "" {
-				fmt.Fprintf(&sb, "  map changes: %s\n", diff)
-			}
-		case survey.AnalyzerTopology:
-			result, err := survey.RunTopology(rootDir)
-			if err != nil {
-				fmt.Fprintf(&sb, "topology: error: %v\n", err)
-				continue
-			}
-			suffix, err := s.storeSurveyResult(survey.AnalyzerTopology, headCommit, result.Entries)
-			if err != nil {
-				fmt.Fprintf(&sb, "topology: store error: %v\n", err)
-				continue
-			}
-			fmt.Fprintf(&sb, "topology: %d entries%s\n", len(result.Entries), suffix)
-
-		case survey.AnalyzerEntrypoints:
-			var cs survey.CodeSearcher
-			if codeStore := s.getCodeStore(); codeStore != nil {
-				cs = &codeSearcherAdapter{store: codeStore}
-			}
-			result, err := survey.RunEntrypoints(rootDir, cs)
-			if err != nil {
-				fmt.Fprintf(&sb, "entrypoints: error: %v\n", err)
-				continue
-			}
-			suffix, err := s.storeSurveyResult(survey.AnalyzerEntrypoints, headCommit, result.Entries)
-			if err != nil {
-				fmt.Fprintf(&sb, "entrypoints: store error: %v\n", err)
-				continue
-			}
-			fmt.Fprintf(&sb, "entrypoints: %d entries%s\n", len(result.Entries), suffix)
-			if cs == nil {
-				sb.WriteString("  (code index not available — entrypoint detection limited)\n")
-			}
-
-		case survey.AnalyzerChurn:
-			result, err := survey.RunChurn(rootDir, 0, 0)
-			if err != nil {
-				fmt.Fprintf(&sb, "churn: error: %v\n", err)
-				continue
-			}
-			suffix, err := s.storeSurveyResult(survey.AnalyzerChurn, headCommit, result.Entries)
-			if err != nil {
-				fmt.Fprintf(&sb, "churn: store error: %v\n", err)
-				continue
-			}
-			fmt.Fprintf(&sb, "churn: %d entries%s\n", len(result.Entries), suffix)
-
-		default:
-			fmt.Fprintf(&sb, "unknown analyzer: %s\n", name)
-		}
-	}
-
-	return textResult(sb.String()), nil, nil
-}
-
-// storeSurveyResult stamps entries with the run commit, replaces the
-// analyzer's stored entries, and returns a display suffix describing the
-// change ("(+2, -1) @ a1b2c3d4"). Listing the old entries first is what makes
-// the added/removed diff possible — replace is wholesale.
-func (s *MCPServer) storeSurveyResult(analyzer, headCommit string, entries []*survey.Entry) (string, error) {
-	oldEntries, err := s.surveyStore.ListEntries(survey.SearchOptions{Analyzer: analyzer, Limit: surveyDiffListLimit})
-	if err != nil {
-		oldEntries = nil // diff is best-effort; storing still proceeds
-	}
-	survey.StampRunCommit(entries, headCommit)
-	if err := s.surveyStore.ReplaceEntriesForAnalyzer(analyzer, entries); err != nil {
-		return "", err
-	}
-	return surveyRunSuffix(oldEntries, entries, headCommit), nil
-}
-
-// surveyDiffListLimit bounds how many stored entries are fetched to diff a
-// re-run against. Well above any real analyzer output; exists so a corrupt
-// store can't balloon the fetch.
-const surveyDiffListLimit = 100000
-
-// surveyRunSuffix renders the change summary appended to an analyzer's run
-// output line. Empty diff and no git repo → empty string.
-func surveyRunSuffix(oldEntries, newEntries []*survey.Entry, headCommit string) string {
-	suffix := ""
-	if d := survey.DiffEntries(oldEntries, newEntries); d.Added > 0 || d.Removed > 0 {
-		suffix = fmt.Sprintf(" (+%d, -%d)", d.Added, d.Removed)
-	}
-	if headCommit != "" {
-		suffix += fmt.Sprintf(" @ %.8s", headCommit)
-	}
-	return suffix
+	results := surveyrun.Run(projectRoot(s.dbPath), analyzers, s.surveyStore, s.getCodeStore())
+	return textResult(surveyrun.FormatResults(results)), nil, nil
 }
 
 func (s *MCPServer) handleSurveyGraph(ctx context.Context, _ *mcp.CallToolRequest, input SurveyGraphInput) (*mcp.CallToolResult, any, error) {
@@ -565,76 +466,6 @@ func graphCounterfactualTokens(rootDir string, nodes []survey.GraphNode) int {
 		entries = append(entries, &survey.Entry{FilePath: n.FilePath})
 	}
 	return survey.CounterfactualTokensForEntries(rootDir, entries)
-}
-
-// =============================================================================
-// ModulesSource Adapter — bridges store.CodeIndexStore to survey.ModulesSource
-// =============================================================================
-
-// modulesSourceAdapter feeds the modules analyzer from the code index. The
-// symbol->files map is built once from ListAllSymbols rather than issuing a
-// search per referenced name — the analyzer asks about thousands of names.
-type modulesSourceAdapter struct {
-	store    store.CodeIndexStore
-	symFiles map[string][]string
-}
-
-func (a *modulesSourceAdapter) ListSourceFiles() ([]survey.ModuleFile, error) {
-	infos, err := a.store.ListAllFileInfo()
-	if err != nil {
-		return nil, err
-	}
-	files := make([]survey.ModuleFile, 0, len(infos))
-	for _, fi := range infos {
-		lang := code.DetectLanguage(fi.Path, nil)
-		if lang == "" {
-			continue
-		}
-		files = append(files, survey.ModuleFile{Path: fi.Path, Language: lang})
-	}
-	return files, nil
-}
-
-func (a *modulesSourceAdapter) FileReferences(filePath string) ([]survey.ReferenceHit, error) {
-	refs, err := a.store.GetFileReferences(filePath)
-	if err != nil {
-		return nil, err
-	}
-	hits := make([]survey.ReferenceHit, 0, len(refs))
-	for _, r := range refs {
-		hits = append(hits, survey.ReferenceHit{
-			Symbol:   r.SymbolName,
-			Kind:     r.Kind,
-			FilePath: r.FilePath,
-			Line:     r.Line,
-		})
-	}
-	return hits, nil
-}
-
-func (a *modulesSourceAdapter) DefiningFiles(symbolName string) ([]string, error) {
-	if a.symFiles == nil {
-		a.symFiles = make(map[string][]string)
-		syms, err := a.store.ListAllSymbols(1 << 22)
-		if err != nil {
-			return nil, err
-		}
-		for _, s := range syms {
-			existing := a.symFiles[s.Name]
-			dup := false
-			for _, f := range existing {
-				if f == s.FilePath {
-					dup = true
-					break
-				}
-			}
-			// One extra beyond the ambiguity cap is enough to disqualify.
-			if !dup && len(existing) <= survey.MaxSymbolDefiners {
-				a.symFiles[s.Name] = append(existing, s.FilePath)
-			}
-		}
-	}
-	return a.symFiles[symbolName], nil
 }
 
 // =============================================================================

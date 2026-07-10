@@ -115,6 +115,13 @@ func (t *tsResolver) resolve(fromFile, imp string) string {
 
 func (t *tsResolver) unitOf(file string) string { return file }
 
+func (t *tsResolver) resolveFiles(fromFile, imp string) []string {
+	if f := t.resolve(fromFile, imp); f != "" {
+		return []string{f}
+	}
+	return nil
+}
+
 // splitBareSpecifier separates a bare import into package name and subpath.
 // Scoped packages (@scope/name/sub) keep two segments in the name.
 func splitBareSpecifier(imp string) (name, sub string) {

@@ -23,6 +23,7 @@ import (
 	"github.com/jmylchreest/aide/aide/pkg/observe"
 	"github.com/jmylchreest/aide/aide/pkg/store"
 	"github.com/jmylchreest/aide/aide/pkg/survey"
+	"github.com/jmylchreest/aide/aide/pkg/surveyrun"
 	"github.com/jmylchreest/aide/aide/pkg/watcher"
 	"github.com/oklog/ulid/v2"
 	"google.golang.org/grpc"
@@ -275,7 +276,7 @@ func (s *Server) Start() error {
 	RegisterObserveServiceServer(s.grpcServer, &observeServiceImpl{store: s.store, bus: s.observeBus})
 	RegisterInstinctServiceServer(s.grpcServer, &instinctServiceImpl{server: s})
 	RegisterSwarmServiceServer(s.grpcServer, &swarmServiceImpl{server: s})
-	RegisterHealthServiceServer(s.grpcServer, &healthServiceImpl{dbPath: s.dbPath})
+	RegisterHealthServiceServer(s.grpcServer, &healthServiceImpl{dbPath: s.dbPath, startTime: s.startTime})
 	RegisterStatusServiceServer(s.grpcServer, &statusServiceImpl{server: s})
 
 	// Start serving
@@ -302,14 +303,20 @@ func (s *Server) SocketPath() string {
 
 type healthServiceImpl struct {
 	UnimplementedHealthServiceServer
-	dbPath string
+	dbPath    string
+	startTime time.Time
 }
 
 func (s *healthServiceImpl) Check(ctx context.Context, req *HealthCheckRequest) (*HealthCheckResponse, error) {
+	info := version.GetInfo()
 	return &HealthCheckResponse{
-		Healthy: true,
-		Version: version.Short(),
-		DbPath:  s.dbPath,
+		Healthy:       true,
+		Version:       info.Version,
+		DbPath:        s.dbPath,
+		Commit:        info.Commit,
+		BuildDate:     info.Date,
+		Pid:           int64(os.Getpid()),
+		StartedAtUnix: s.startTime.Unix(),
 	}, nil
 }
 
@@ -1990,6 +1997,32 @@ func (s *findingsServiceImpl) AcceptByFilter(ctx context.Context, req *FindingAc
 type surveyServiceImpl struct {
 	UnimplementedSurveyServiceServer
 	server *Server
+}
+
+// Run executes survey analyzers on the daemon, where the stores live.
+// gRPC clients (MCP in client mode, CLI in daemon mode) delegate here
+// because they cannot open the BoltDB stores directly.
+func (s *surveyServiceImpl) Run(ctx context.Context, req *SurveyRunRequest) (*SurveyRunResponse, error) {
+	surveyStore := s.server.surveyStore
+	if surveyStore == nil {
+		return nil, status.Error(codes.Unavailable, "survey store not available")
+	}
+	var analyzers []string
+	if req.Analyzer != "" {
+		analyzers = []string{req.Analyzer}
+	}
+	results := surveyrun.Run(projectRoot(s.server.dbPath), analyzers, surveyStore, s.server.GetCodeStore())
+
+	resp := &SurveyRunResponse{}
+	for _, r := range results {
+		resp.Results = append(resp.Results, &SurveyRunResult{
+			Analyzer: r.Analyzer,
+			Entries:  int32(r.Entries),
+			Error:    r.Err,
+			Summary:  r.Summary,
+		})
+	}
+	return resp, nil
 }
 
 func (s *surveyServiceImpl) Add(ctx context.Context, req *SurveyAddRequest) (*SurveyAddResponse, error) {

@@ -76,6 +76,21 @@ func (g *goResolver) unitOf(file string) string {
 	return path.Dir(file)
 }
 
+// resolveFiles fans a package import out to the package's non-test .go files.
+func (g *goResolver) resolveFiles(fromFile, imp string) []string {
+	pkgDir := g.resolve(fromFile, imp)
+	if pkgDir == "" {
+		return nil
+	}
+	var files []string
+	for _, name := range g.fs.listFiles(pkgDir) {
+		if strings.HasSuffix(name, ".go") && !strings.HasSuffix(name, "_test.go") {
+			files = append(files, path.Join(pkgDir, name))
+		}
+	}
+	return files
+}
+
 // dirHasGoFiles reports whether rel contains at least one non-test .go file —
 // the check that a longest-prefix match actually landed on a real package.
 func (g *goResolver) dirHasGoFiles(rel string) bool {

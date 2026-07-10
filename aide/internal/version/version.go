@@ -15,7 +15,13 @@ import (
 	"runtime"
 	"runtime/debug"
 	"strings"
+	"time"
 )
+
+// StartTime is when this process started, recorded at package init. Used by
+// instance identity reporting (instance_info, health) — the .aide directory
+// mtime it replaces said nothing about the process.
+var StartTime = time.Now()
 
 // Build-time variables injected via ldflags.
 var (

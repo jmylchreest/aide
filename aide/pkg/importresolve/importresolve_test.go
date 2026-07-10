@@ -129,3 +129,15 @@ func TestResolveUnknownLanguage(t *testing.T) {
 		t.Errorf("unknown language resolved to %q, want empty", got)
 	}
 }
+
+func TestNewResolvesSymlinkedRoot(t *testing.T) {
+	realRoot := fixtureProject(t)
+	link := filepath.Join(t.TempDir(), "linked-root")
+	if err := os.Symlink(realRoot, link); err != nil {
+		t.Skipf("symlink not supported: %v", err)
+	}
+	r := New(link)
+	if got := r.ResolveUnit("go", "main.go", "example.com/proj/pkg/store"); got != "pkg/store" {
+		t.Errorf("resolution through symlinked root = %q, want %q (manifest scan missed go.mod)", got, "pkg/store")
+	}
+}

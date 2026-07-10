@@ -44,6 +44,7 @@ type MCPServer struct {
 	codeInitWg     sync.WaitGroup
 	server         *mcp.Server
 	grpcServer     *grpcapi.Server
+	grpcClient     *grpcapi.Client // non-nil in client mode: attached to another process's daemon
 	grammarLoader  *grammar.CompositeLoader
 	dbPath         string // path to the memory database; used to derive project root
 
@@ -724,7 +725,7 @@ func cmdMCP(dbPath string, args []string) error {
 				findingsAdapter := adapter.NewFindingsAdapter(client)
 				surveyAdapter := adapter.NewSurveyAdapter(client)
 				instinctAdapter := adapter.NewInstinctAdapter(client)
-				mcpServer := &MCPServer{store: storeAdapter, findingsStore: findingsAdapter, surveyStore: surveyAdapter, instinctStore: instinctAdapter, grammarLoader: grammarLoader, dbPath: dbPath}
+				mcpServer := &MCPServer{store: storeAdapter, findingsStore: findingsAdapter, surveyStore: surveyAdapter, instinctStore: instinctAdapter, grammarLoader: grammarLoader, dbPath: dbPath, grpcClient: client}
 				mcpLog.Printf("MCP server ready in %v (client mode), listening on stdio", time.Since(startTime))
 				return mcpServer.Run()
 			}

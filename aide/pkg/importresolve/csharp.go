@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -25,13 +26,19 @@ const csHeaderReadCap = 8 * 1024
 // Framework namespaces (System.*, third-party) appear in no scanned file
 // and resolve to "".
 type csResolver struct {
-	fs     *projectFS
-	nsSeen map[string]bool   // namespaces declared somewhere in the project
-	fileNS map[string]string // .cs file -> its declared namespace
+	fs      *projectFS
+	nsSeen  map[string]bool     // namespaces declared somewhere in the project
+	fileNS  map[string]string   // .cs file -> its declared namespace
+	nsFiles map[string][]string // namespace -> files declaring exactly it
 }
 
 func newCSResolver(pfs *projectFS) *csResolver {
-	return &csResolver{fs: pfs, nsSeen: make(map[string]bool), fileNS: make(map[string]string)}
+	return &csResolver{
+		fs:      pfs,
+		nsSeen:  make(map[string]bool),
+		fileNS:  make(map[string]string),
+		nsFiles: make(map[string][]string),
+	}
 }
 
 func (c *csResolver) languages() []string { return []string{"csharp"} }
@@ -51,6 +58,7 @@ func (c *csResolver) addManifest(relDir, absPath string) {
 		rel = relDir + "/" + base
 	}
 	c.fileNS[rel] = ns
+	c.nsFiles[ns] = append(c.nsFiles[ns], rel)
 	// A declaration of a.b.c also makes ancestors a.b and a real namespaces.
 	for ns != "" {
 		c.nsSeen[ns] = true
@@ -62,7 +70,14 @@ func (c *csResolver) addManifest(relDir, absPath string) {
 	}
 }
 
-func (c *csResolver) finalize() {}
+// finalize orders each namespace's file list — WalkDir feeds addManifest in
+// lexical order already, but sorting here keeps that a guarantee rather
+// than an accident.
+func (c *csResolver) finalize() {
+	for _, files := range c.nsFiles {
+		sort.Strings(files)
+	}
+}
 
 // resolve maps a using-directive to the namespace unit it names. `using
 // static a.b.Class` drops trailing segments until a declared namespace
@@ -80,6 +95,32 @@ func (c *csResolver) resolve(_ string, imp string) string {
 		imp = imp[:i]
 	}
 	return ""
+}
+
+// resolveFiles fans a namespace out to the files declaring exactly it,
+// including descendants when the using names an ancestor namespace.
+func (c *csResolver) resolveFiles(fromFile, imp string) []string {
+	ns := c.resolve(fromFile, imp)
+	if ns == "" {
+		return nil
+	}
+	if files := c.nsFiles[ns]; len(files) > 0 {
+		return files
+	}
+	// Ancestor namespace with no direct declarations: gather descendants.
+	var files []string
+	prefix := ns + "."
+	descendants := make([]string, 0)
+	for child := range c.nsFiles {
+		if strings.HasPrefix(child, prefix) {
+			descendants = append(descendants, child)
+		}
+	}
+	sort.Strings(descendants)
+	for _, child := range descendants {
+		files = append(files, c.nsFiles[child]...)
+	}
+	return files
 }
 
 // unitOf returns the file's declared namespace, so intra-namespace usings

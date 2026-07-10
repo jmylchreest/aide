@@ -118,6 +118,13 @@ func moduleDir(file string) string {
 
 func (r *rustResolver) unitOf(file string) string { return file }
 
+func (r *rustResolver) resolveFiles(fromFile, imp string) []string {
+	if f := r.resolve(fromFile, imp); f != "" {
+		return []string{f}
+	}
+	return nil
+}
+
 // crateSrcOf returns the src dir of the crate containing file — the longest
 // src dir that is a path prefix of it.
 func (r *rustResolver) crateSrcOf(file string) string {

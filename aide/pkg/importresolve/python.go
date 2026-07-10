@@ -63,6 +63,13 @@ func (p *pyResolver) resolve(fromFile, imp string) string {
 
 func (p *pyResolver) unitOf(file string) string { return file }
 
+func (p *pyResolver) resolveFiles(fromFile, imp string) []string {
+	if f := p.resolve(fromFile, imp); f != "" {
+		return []string{f}
+	}
+	return nil
+}
+
 func (p *pyResolver) addRoot(rel string) {
 	if rel != "" && !p.fs.dirExists(rel) {
 		return

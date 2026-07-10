@@ -78,6 +78,30 @@ func (j *jvmResolver) resolve(_ string, imp string) string {
 
 func (j *jvmResolver) unitOf(file string) string { return file }
 
+// resolveFiles returns the target file, or a wildcard import's package
+// members.
+func (j *jvmResolver) resolveFiles(fromFile, imp string) []string {
+	target := j.resolve(fromFile, imp)
+	if target == "" {
+		return nil
+	}
+	for _, ext := range jvmSourceExts {
+		if strings.HasSuffix(target, ext) {
+			return []string{target}
+		}
+	}
+	var files []string
+	for _, name := range j.fs.listFiles(target) {
+		for _, ext := range jvmSourceExts {
+			if strings.HasSuffix(name, ext) {
+				files = append(files, path.Join(target, name))
+				break
+			}
+		}
+	}
+	return files
+}
+
 func (j *jvmResolver) addRoot(rel string) {
 	if !j.fs.dirExists(rel) {
 		return
