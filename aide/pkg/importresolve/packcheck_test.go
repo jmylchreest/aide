@@ -21,3 +21,37 @@ func TestResolverLanguagesMatchGrammarPacks(t *testing.T) {
 		}
 	}
 }
+
+// TestDispatchCoversDetectedLanguages guards the opposite direction: for
+// every extension a supported language family owns, the language name the
+// grammar registry emits (which is what code.DetectLanguage feeds coupling)
+// must dispatch to a resolver. This catches pack-splits like .tsx living in
+// its own "tsx" pack rather than under "typescript".
+func TestDispatchCoversDetectedLanguages(t *testing.T) {
+	registered := make(map[string]bool)
+	for _, lr := range newLanguageResolvers(newProjectFS(t.TempDir())) {
+		for _, lang := range lr.languages() {
+			registered[lang] = true
+		}
+	}
+
+	reg := grammar.DefaultPackRegistry()
+	exts := []string{
+		".go",
+		".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs",
+		".py",
+		".rs",
+		".java", ".kt", ".kts", ".scala",
+		".cs",
+	}
+	for _, ext := range exts {
+		lang, ok := reg.LangForExtension(ext)
+		if !ok {
+			t.Errorf("no grammar pack claims extension %q", ext)
+			continue
+		}
+		if !registered[lang] {
+			t.Errorf("extension %q detects as language %q, which no resolver dispatches", ext, lang)
+		}
+	}
+}

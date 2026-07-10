@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path"
+	"sort"
 	"strings"
 )
 
@@ -27,6 +28,24 @@ var tsExtSwaps = map[string][]string{
 type tsResolver struct {
 	fs       *projectFS
 	packages map[string]string // package.json name -> project-relative dir
+	configs  []tsConfig        // tsconfig/jsconfig path aliases, nearest-dir first
+}
+
+// tsConfig holds the path-alias rules from one tsconfig.json/jsconfig.json.
+// "extends" chains are not followed — an alias only in a base config resolves
+// to "" (external), the safe direction.
+type tsConfig struct {
+	dir     string // project-relative dir containing the config
+	baseURL string // project-relative resolution base (dir + compilerOptions.baseUrl)
+	rules   []tsPathRule
+}
+
+// tsPathRule is one compilerOptions.paths entry: a pattern with at most one
+// "*" mapped to target patterns with at most one "*" each.
+type tsPathRule struct {
+	prefix, suffix string   // pattern split around "*" ("@app/" + ""); suffix=="" and exact==true means no wildcard
+	exact          bool     // pattern had no "*": match whole specifier
+	targets        []string // target patterns, "*" replaced with the matched middle
 }
 
 func newTSResolver(pfs *projectFS) *tsResolver {
@@ -34,21 +53,38 @@ func newTSResolver(pfs *projectFS) *tsResolver {
 }
 
 func (t *tsResolver) languages() []string {
-	return []string{"typescript", "javascript"}
+	return []string{"typescript", "tsx", "javascript"}
 }
-func (t *tsResolver) manifests() []string { return []string{"package.json"} }
+func (t *tsResolver) manifests() []string {
+	return []string{"package.json", "tsconfig.json", "jsconfig.json"}
+}
 
 func (t *tsResolver) addManifest(relDir, absPath string) {
-	name := packageJSONName(absPath)
-	if name == "" {
+	if strings.HasSuffix(absPath, "package.json") {
+		name := packageJSONName(absPath)
+		if name == "" {
+			return
+		}
+		if _, exists := t.packages[name]; !exists {
+			t.packages[name] = relDir
+		}
 		return
 	}
-	if _, exists := t.packages[name]; !exists {
-		t.packages[name] = relDir
+	if cfg := parseTSConfig(relDir, absPath); cfg != nil {
+		t.configs = append(t.configs, *cfg)
 	}
 }
 
-func (t *tsResolver) finalize() {}
+// finalize orders configs nearest-directory-first so the closest tsconfig to
+// an importing file wins, mirroring how tsc picks its config.
+func (t *tsResolver) finalize() {
+	sort.SliceStable(t.configs, func(i, j int) bool {
+		if len(t.configs[i].dir) != len(t.configs[j].dir) {
+			return len(t.configs[i].dir) > len(t.configs[j].dir)
+		}
+		return t.configs[i].dir < t.configs[j].dir
+	})
+}
 
 func (t *tsResolver) resolve(fromFile, imp string) string {
 	if strings.HasPrefix(imp, "./") || strings.HasPrefix(imp, "../") || imp == "." || imp == ".." {
@@ -59,6 +95,9 @@ func (t *tsResolver) resolve(fromFile, imp string) string {
 		return t.probeModule(cand)
 	}
 
+	if u := t.resolveAlias(fromFile, imp); u != "" {
+		return u
+	}
 	if pkgDir, ok := t.packages[imp]; ok {
 		return t.probeEntry(pkgDir)
 	}

@@ -31,8 +31,10 @@ type languageResolver interface {
 	// languages returns the grammar-pack language names this resolver
 	// handles (e.g. "go", "typescript").
 	languages() []string
-	// manifests returns the manifest filenames this resolver wants to see
-	// during the project scan (e.g. "go.mod", "package.json").
+	// manifests returns the filenames this resolver wants to see during
+	// the project scan: exact names ("go.mod", "package.json") or
+	// extension patterns ("*.csproj", "*.cs") for languages whose layout
+	// facts live in variably-named or source files.
 	manifests() []string
 	// addManifest is called once per discovered manifest, with the
 	// project-relative directory containing it ("" = root) and its
@@ -56,6 +58,8 @@ func newLanguageResolvers(pfs *projectFS) []languageResolver {
 		newTSResolver(pfs),
 		newPythonResolver(pfs),
 		newRustResolver(pfs),
+		newJVMResolver(pfs),
+		newCSResolver(pfs),
 	}
 }
 
@@ -69,6 +73,7 @@ type Resolver struct {
 var skipDirs = map[string]bool{
 	"node_modules": true, "vendor": true, "dist": true, "build": true,
 	"target": true, "__pycache__": true, "venv": true, "testdata": true,
+	"obj": true, "bin": true,
 }
 
 // New scans rootDir for the manifests each language resolver asks for and
@@ -80,9 +85,14 @@ func New(rootDir string) *Resolver {
 	resolvers := newLanguageResolvers(pfs)
 
 	byManifest := make(map[string][]languageResolver)
+	bySuffix := make(map[string][]languageResolver)
 	byLang := make(map[string]languageResolver)
 	for _, lr := range resolvers {
 		for _, m := range lr.manifests() {
+			if suffix, ok := strings.CutPrefix(m, "*"); ok {
+				bySuffix[suffix] = append(bySuffix[suffix], lr)
+				continue
+			}
 			byManifest[m] = append(byManifest[m], lr)
 		}
 		for _, lang := range lr.languages() {
@@ -101,6 +111,9 @@ func New(rootDir string) *Resolver {
 			return nil
 		}
 		interested := byManifest[d.Name()]
+		if ext := filepath.Ext(d.Name()); ext != "" {
+			interested = append(interested, bySuffix[ext]...)
+		}
 		if len(interested) == 0 {
 			return nil
 		}
