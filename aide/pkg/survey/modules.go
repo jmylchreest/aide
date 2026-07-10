@@ -250,7 +250,15 @@ func communityEntries(g *ModuleGraph, communities map[int][]string, res *Modules
 			continue
 		}
 
+		// Collisions relabel to the hub stem before resorting to a numeric
+		// suffix — two cross-directory communities that both reduce to a
+		// bare "aide" prefix are better told apart by their hubs.
 		label := moduleLabel(g, members)
+		if usedLabels[label] > 0 {
+			if stem := hubStem(g, members); usedLabels[stem] == 0 {
+				label = stem
+			}
+		}
 		if n := usedLabels[label]; n > 0 {
 			usedLabels[label] = n + 1
 			label = fmt.Sprintf("%s-%d", label, n+1)
@@ -285,12 +293,32 @@ func communityEntries(g *ModuleGraph, communities map[int][]string, res *Modules
 }
 
 // moduleLabel names a community after the longest common directory prefix of
-// its members, falling back to the hub file's stem when members share none.
+// its members. A prefix is only trusted when it is specific: multi-segment,
+// or a single segment that most members actually live in directly. A bare
+// top-level segment shared by a cross-directory community ("aide") says
+// nothing — those fall back to the hub file's stem, which names the
+// community's most-connected file.
 func moduleLabel(g *ModuleGraph, members []string) string {
 	prefix := commonDirPrefix(members)
 	if prefix != "" && prefix != "." {
-		return prefix
+		if strings.Contains(prefix, "/") {
+			return prefix
+		}
+		direct := 0
+		for _, m := range members {
+			if path.Dir(m) == prefix {
+				direct++
+			}
+		}
+		if direct*2 >= len(members) {
+			return prefix
+		}
 	}
+	return hubStem(g, members)
+}
+
+// hubStem is the hub file's basename without extensions.
+func hubStem(g *ModuleGraph, members []string) string {
 	hub := hubMember(g, members)
 	base := path.Base(hub)
 	if i := strings.IndexByte(base, '.'); i > 0 {

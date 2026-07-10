@@ -245,3 +245,31 @@ func TestRunModulesRequiresSource(t *testing.T) {
 		t.Error("expected error without a code index source")
 	}
 }
+
+func TestModuleLabelSpecificity(t *testing.T) {
+	g := NewModuleGraph()
+	// Cross-directory community: common prefix is the bare top segment
+	// "aide", nobody lives in aide/ directly — label must come from the hub.
+	spread := []string{"aide/pkg/config/config.go", "aide/cmd/aide/helpers.go", "aide/pkg/store/s.go"}
+	g.AddEdge(spread[0], spread[1], 5)
+	g.AddEdge(spread[0], spread[2], 5)
+	if got := moduleLabel(g, spread); got != "config" {
+		t.Errorf("cross-directory label = %q, want hub stem %q", got, "config")
+	}
+
+	// Members directly inside a single-segment dir: the prefix is earned.
+	local := []string{"handlers/a.go", "handlers/b.go", "handlers/c.go"}
+	g2 := NewModuleGraph()
+	g2.AddEdge(local[0], local[1], 1)
+	if got := moduleLabel(g2, local); got != "handlers" {
+		t.Errorf("direct-dir label = %q, want %q", got, "handlers")
+	}
+
+	// Deep prefixes are always specific enough.
+	deep := []string{"aide/pkg/importresolve/a.go", "aide/pkg/importresolve/b.go"}
+	g3 := NewModuleGraph()
+	g3.AddEdge(deep[0], deep[1], 1)
+	if got := moduleLabel(g3, deep); got != "aide/pkg/importresolve" {
+		t.Errorf("deep prefix label = %q, want the prefix", got)
+	}
+}
