@@ -37,19 +37,19 @@ type InstinctProposedMemoryItem struct {
 }
 
 type InstinctProposalItem struct {
-	ID                string                     `json:"id"`
-	Shape             string                     `json:"shape"`
-	SessionID         string                     `json:"session_id,omitempty"`
-	ProposedAt        string                     `json:"proposed_at"`
-	Summary           string                     `json:"summary"`
-	Status            string                     `json:"status"`
-	RejectionCount    int                        `json:"rejection_count,omitempty"`
-	RejectionReason   string                     `json:"rejection_reason,omitempty"`
-	AcceptedMemoryID  string                     `json:"accepted_memory_id,omitempty"`
-	LastReproposalAt  string                     `json:"last_reproposal_at,omitempty"`
-	ExpiresAt         string                     `json:"expires_at,omitempty"`
-	Evidence          InstinctEvidenceItem       `json:"evidence"`
-	ProposedInstinct  InstinctProposedMemoryItem `json:"proposed_instinct"`
+	ID               string                     `json:"id"`
+	Shape            string                     `json:"shape"`
+	SessionID        string                     `json:"session_id,omitempty"`
+	ProposedAt       string                     `json:"proposed_at"`
+	Summary          string                     `json:"summary"`
+	Status           string                     `json:"status"`
+	RejectionCount   int                        `json:"rejection_count,omitempty"`
+	RejectionReason  string                     `json:"rejection_reason,omitempty"`
+	AcceptedMemoryID string                     `json:"accepted_memory_id,omitempty"`
+	LastReproposalAt string                     `json:"last_reproposal_at,omitempty"`
+	ExpiresAt        string                     `json:"expires_at,omitempty"`
+	Evidence         InstinctEvidenceItem       `json:"evidence"`
+	ProposedInstinct InstinctProposedMemoryItem `json:"proposed_instinct"`
 }
 
 type ListInstinctProposalsOutput struct {

@@ -177,4 +177,3 @@ func protoToObserveEventItem(e *grpcapi.ObserveEvent) ObserveEventItem {
 		Attrs:       e.Attrs,
 	}
 }
-

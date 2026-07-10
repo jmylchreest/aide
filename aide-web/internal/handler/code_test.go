@@ -42,7 +42,7 @@ func TestLangFromExt(t *testing.T) {
 		{".proto", "protobuf"},
 		{".unknown", "text"},
 		{"", "text"},
-		{".GO", "go"},   // case insensitive
+		{".GO", "go"}, // case insensitive
 		{".Py", "python"},
 	}
 	for _, tt := range tests {

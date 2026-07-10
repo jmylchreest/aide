@@ -56,9 +56,9 @@ func TestContains(t *testing.T) {
 		want             bool
 	}{
 		{"Hello World", "hello", true},
-		{"Hello World", "", false},  // empty needle returns false
-		{"", "hello", false},        // empty haystack returns false
-		{"", "", false},             // both empty returns false
+		{"Hello World", "", false}, // empty needle returns false
+		{"", "hello", false},       // empty haystack returns false
+		{"", "", false},            // both empty returns false
 		{"foobar", "OBA", true},
 	}
 	for _, tt := range tests {
@@ -80,7 +80,7 @@ func TestEqualFold(t *testing.T) {
 		{"abc", "abc", true},
 		{"ABC", "ABC", true},
 		{"abc", "abd", false},
-		{"abc", "ab", false},  // different lengths
+		{"abc", "ab", false}, // different lengths
 		{"", "", true},
 		{"Go", "go", true},
 	}

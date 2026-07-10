@@ -33,15 +33,15 @@ func (h *Handler) APIGetStatus(ctx context.Context, input *struct {
 // DetailedStatusOutput is the response body for APIGetDetailedStatus.
 type DetailedStatusOutput struct {
 	Body struct {
-		Version       string              `json:"version"`
-		Uptime        string              `json:"uptime"`
-		ServerRunning bool                `json:"server_running"`
-		Watcher       *WatcherStatus      `json:"watcher,omitempty"`
-		CodeIndexer   *CodeIndexerStatus  `json:"code_indexer,omitempty"`
-		Findings      *FindingsSummary    `json:"findings,omitempty"`
-		Survey        *SurveySummary      `json:"survey,omitempty"`
-		Stores        []StoreInfo         `json:"stores,omitempty"`
-		Grammars      []GrammarInfo       `json:"grammars,omitempty"`
+		Version       string             `json:"version"`
+		Uptime        string             `json:"uptime"`
+		ServerRunning bool               `json:"server_running"`
+		Watcher       *WatcherStatus     `json:"watcher,omitempty"`
+		CodeIndexer   *CodeIndexerStatus `json:"code_indexer,omitempty"`
+		Findings      *FindingsSummary   `json:"findings,omitempty"`
+		Survey        *SurveySummary     `json:"survey,omitempty"`
+		Stores        []StoreInfo        `json:"stores,omitempty"`
+		Grammars      []GrammarInfo      `json:"grammars,omitempty"`
 	}
 }
 
