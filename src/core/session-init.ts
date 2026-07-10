@@ -381,6 +381,17 @@ export function runSessionInit(
       result.dynamic.sessions.push(`${header}:\n${memories}`);
     }
 
+    // Codebase Map — survey modules analyzer output, already capped by the
+    // Go producer. Separately kill-switchable from memory injection.
+    if (
+      !isFalsy(process.env.AIDE_SURVEY_INJECT) &&
+      data.codebase_map &&
+      data.codebase_map.length > 0
+    ) {
+      result.codebaseMap = data.codebase_map;
+      result.codebaseMapNote = data.codebase_map_note;
+    }
+
     const sources: InjectedSource[] = [];
     for (const m of data.global_memories) {
       sources.push({
@@ -427,6 +438,15 @@ export function runSessionInit(
           sessionId: sess.session_id,
         });
       }
+    }
+    for (const mod of result.codebaseMap ?? []) {
+      sources.push({
+        kind: "module",
+        scope: "project",
+        id: `module:${mod.name}`,
+        name: mod.name,
+        content: `${mod.name} — ${mod.size} files, hub: ${mod.hub}`,
+      });
     }
     result.sources = sources;
   } catch {
@@ -560,6 +580,22 @@ export function buildWelcomeContext(
       }
       lines.push("");
     }
+  }
+
+  if (memories.codebaseMap && memories.codebaseMap.length > 0) {
+    const note = memories.codebaseMapNote
+      ? ` (${memories.codebaseMapNote})`
+      : "";
+    lines.push(`## Codebase Map${note}`);
+    lines.push("");
+    lines.push(
+      "Structural modules discovered by clustering the import graph — what belongs together, not just where files live. Query details via the survey MCP tools (survey_list kind=module).",
+    );
+    lines.push("");
+    for (const mod of memories.codebaseMap) {
+      lines.push(`- **${mod.name}** — ${mod.size} files, hub: ${mod.hub}`);
+    }
+    lines.push("");
   }
 
   lines.push("## Available Modes");

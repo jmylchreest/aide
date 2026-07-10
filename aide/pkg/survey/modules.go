@@ -358,6 +358,105 @@ func topDirs(members []string, limit int) []string {
 	return dirs
 }
 
+// ModuleDiff describes how the module map changed between two runs. Because
+// community IDs are remapped to the previous assignment, the same ID means
+// the same community lineage across runs.
+type ModuleDiff struct {
+	New       []string    // labels of communities that did not exist before
+	Dissolved []string    // labels that disappeared
+	Renamed   [][2]string // {old label, new label} for the same community
+	Moved     int         // files present in both runs that changed community
+}
+
+// DiffModules compares two runs' module entries by community lineage.
+func DiffModules(prevEntries, newEntries []*Entry) *ModuleDiff {
+	type meta struct {
+		label   string
+		members map[string]bool
+	}
+	parse := func(entries []*Entry) map[int]meta {
+		out := make(map[int]meta)
+		for _, e := range entries {
+			if e.Analyzer != AnalyzerModules {
+				continue
+			}
+			id, err := strconv.Atoi(e.Metadata["community_id"])
+			if err != nil {
+				continue
+			}
+			var members []string
+			_ = json.Unmarshal([]byte(e.Metadata["members"]), &members)
+			set := make(map[string]bool, len(members))
+			for _, m := range members {
+				set[m] = true
+			}
+			out[id] = meta{label: e.Name, members: set}
+		}
+		return out
+	}
+	prev, next := parse(prevEntries), parse(newEntries)
+
+	d := &ModuleDiff{}
+	ids := make([]int, 0, len(prev)+len(next))
+	seen := make(map[int]bool)
+	for id := range prev {
+		ids = append(ids, id)
+		seen[id] = true
+	}
+	for id := range next {
+		if !seen[id] {
+			ids = append(ids, id)
+		}
+	}
+	sort.Ints(ids)
+
+	prevHome := make(map[string]int)
+	for id, m := range prev {
+		for f := range m.members {
+			prevHome[f] = id
+		}
+	}
+	for _, id := range ids {
+		p, inPrev := prev[id]
+		n, inNext := next[id]
+		switch {
+		case inPrev && !inNext:
+			d.Dissolved = append(d.Dissolved, p.label)
+		case !inPrev && inNext:
+			d.New = append(d.New, n.label)
+		case p.label != n.label:
+			d.Renamed = append(d.Renamed, [2]string{p.label, n.label})
+		}
+		if inNext {
+			for f := range n.members {
+				if home, ok := prevHome[f]; ok && home != id {
+					d.Moved++
+				}
+			}
+		}
+	}
+	return d
+}
+
+// Summary renders the diff as a compact single line, or "" when nothing
+// structural changed.
+func (d *ModuleDiff) Summary() string {
+	var parts []string
+	if len(d.New) > 0 {
+		parts = append(parts, fmt.Sprintf("new: %s", strings.Join(d.New, ", ")))
+	}
+	if len(d.Dissolved) > 0 {
+		parts = append(parts, fmt.Sprintf("dissolved: %s", strings.Join(d.Dissolved, ", ")))
+	}
+	for _, r := range d.Renamed {
+		parts = append(parts, fmt.Sprintf("renamed: %s -> %s", r[0], r[1]))
+	}
+	if d.Moved > 0 {
+		parts = append(parts, fmt.Sprintf("%d files moved between modules", d.Moved))
+	}
+	return strings.Join(parts, "; ")
+}
+
 // PreviousAssignmentFromEntries reconstructs the file -> community map from
 // a prior run's stored entries, for stable IDs and membership diffs. Entries
 // carry their full member list precisely so no separate assignment store

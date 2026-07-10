@@ -374,6 +374,9 @@ func cmdSurveyRun(dbPath string, args []string) error {
 			}
 			fmt.Printf("modules: %d modules from %d files (%d unclustered, imports resolved %d/%d)%s\n",
 				result.Communities, result.Files, result.Singletons, result.ImportsResolved, result.ImportsTotal, suffix)
+			if diff := survey.DiffModules(prevEntries, result.Entries).Summary(); diff != "" {
+				fmt.Printf("  map changes: %s\n", diff)
+			}
 		case survey.AnalyzerTopology:
 			result, err := survey.RunTopology(rootDir)
 			if err != nil {

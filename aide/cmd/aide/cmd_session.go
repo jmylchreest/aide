@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/jmylchreest/aide/aide/pkg/config"
 	"github.com/jmylchreest/aide/aide/pkg/contextshare"
 	"github.com/jmylchreest/aide/aide/pkg/memory"
+	"github.com/jmylchreest/aide/aide/pkg/survey"
 )
 
 // SessionInitResult is the JSON output of `aide session init`.
@@ -30,7 +32,23 @@ type SessionInitResult struct {
 	ProjectMemoryOverflow bool              `json:"project_memory_overflow,omitempty"`
 	Decisions             []SessionDecision `json:"decisions"`
 	RecentSessions        []*SessionGroup   `json:"recent_sessions"`
+
+	// Codebase Map — module entries from the survey modules analyzer,
+	// largest first, capped. Empty when the analyzer has never run.
+	CodebaseMap     []SessionModule `json:"codebase_map,omitempty"`
+	CodebaseMapNote string          `json:"codebase_map_note,omitempty"` // freshness, e.g. "as of a1b2c3d4 — 3 commits behind"
 }
+
+// SessionModule is one Codebase Map line for JSON output.
+type SessionModule struct {
+	Name string `json:"name"`
+	Size int    `json:"size"`
+	Hub  string `json:"hub"`
+}
+
+// sessionModuleLimit caps how many modules the Codebase Map carries — it is
+// a session-start orientation aid, not the full survey.
+const sessionModuleLimit = 12
 
 // SessionMemory is a memory entry for JSON output.
 type SessionMemory struct {
@@ -292,6 +310,48 @@ func sessionFetchContext(backend *Backend, project string, sessionLimit int, res
 	// Recent sessions (grouped by session tag)
 	if project != "" && sessionLimit > 0 {
 		result.RecentSessions = fetchRecentSessions(backend, project, sessionLimit)
+	}
+
+	sessionFetchCodebaseMap(backend, result)
+}
+
+// sessionFetchCodebaseMap loads the module map produced by the survey
+// modules analyzer: largest modules first, capped, with a freshness note so
+// a stale map says so instead of being silently trusted. Absent entries
+// (analyzer never ran) leave the section empty — no nagging.
+func sessionFetchCodebaseMap(backend *Backend, result *SessionInitResult) {
+	entries, err := backend.ListSurvey(survey.SearchOptions{Analyzer: survey.AnalyzerModules, Limit: 1000})
+	if err != nil || len(entries) == 0 {
+		return
+	}
+
+	sort.Slice(entries, func(i, j int) bool {
+		si, _ := strconv.Atoi(entries[i].Metadata["size"])
+		sj, _ := strconv.Atoi(entries[j].Metadata["size"])
+		if si != sj {
+			return si > sj
+		}
+		return entries[i].Name < entries[j].Name
+	})
+
+	for _, e := range entries {
+		if len(result.CodebaseMap) >= sessionModuleLimit {
+			break
+		}
+		size, _ := strconv.Atoi(e.Metadata["size"])
+		result.CodebaseMap = append(result.CodebaseMap, SessionModule{
+			Name: e.Name,
+			Size: size,
+			Hub:  e.Metadata["hub"],
+		})
+	}
+
+	if runCommit := survey.RunCommitForEntries(entries); runCommit != "" {
+		note := fmt.Sprintf("as of %.8s", runCommit)
+		if f, ferr := survey.ComputeFreshness(projectRoot(backend.dbPath), runCommit); ferr == nil && f != nil && (f.Behind > 0 || !f.Found) {
+			note += fmt.Sprintf(" — %s; run survey_run to refresh", f)
+		}
+		result.CodebaseMapNote = note
 	}
 }
 

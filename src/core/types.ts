@@ -86,6 +86,8 @@ export interface SessionInitResult {
     last_at: string;
     memories: Array<{ content: string; category: string }>;
   }>;
+  codebase_map?: Array<{ name: string; size: number; hub: string }>;
+  codebase_map_note?: string;
 }
 
 // =============================================================================
@@ -93,7 +95,7 @@ export interface SessionInitResult {
 // =============================================================================
 
 export interface InjectedSource {
-  kind: "memory" | "decision" | "session_memory";
+  kind: "memory" | "decision" | "session_memory" | "module";
   scope: "global" | "project" | "session";
   id: string;
   name: string;
@@ -114,6 +116,10 @@ export interface MemoryInjection {
   dynamic: {
     sessions: string[];
   };
+  /** Codebase Map lines from the survey modules analyzer, largest first. */
+  codebaseMap?: Array<{ name: string; size: number; hub: string }>;
+  /** Freshness note for the map header, e.g. "as of a1b2c3d4". */
+  codebaseMapNote?: string;
   sources?: InjectedSource[];
 }
 

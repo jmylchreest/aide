@@ -121,3 +121,47 @@ describe("loadConfig", () => {
     expect(config.share?.autoImport).toBe(true);
   });
 });
+
+describe("buildWelcomeContext codebase map", () => {
+  const state = {
+    sessionId: "abcd1234efgh",
+    cwd: "/tmp/proj",
+    activeMode: null,
+    agentCount: 0,
+  };
+  const emptyInjection = () => ({
+    static: { global: [], project: [], decisions: [] },
+    dynamic: { sessions: [] },
+  });
+
+  it("renders the map section with freshness note after content sections", async () => {
+    const { buildWelcomeContext } = await import("../core/session-init.js");
+    const injection = {
+      ...emptyInjection(),
+      codebaseMap: [
+        { name: "observe", size: 74, hub: "aide/pkg/observe/observe.go" },
+        { name: "logger", size: 65, hub: "src/lib/logger.ts" },
+      ],
+      codebaseMapNote: "as of a1b2c3d4 — 3 commits behind; run survey_run to refresh",
+    };
+    const ctx = buildWelcomeContext(state as never, injection as never);
+
+    expect(ctx).toContain(
+      "## Codebase Map (as of a1b2c3d4 — 3 commits behind; run survey_run to refresh)",
+    );
+    expect(ctx).toContain(
+      "- **observe** — 74 files, hub: aide/pkg/observe/observe.go",
+    );
+    expect(ctx).toContain("- **logger** — 65 files, hub: src/lib/logger.ts");
+    // Appended after memories/decisions, before the modes footer.
+    expect(ctx.indexOf("## Codebase Map")).toBeLessThan(
+      ctx.indexOf("## Available Modes"),
+    );
+  });
+
+  it("omits the section entirely when no modules exist", async () => {
+    const { buildWelcomeContext } = await import("../core/session-init.js");
+    const ctx = buildWelcomeContext(state as never, emptyInjection() as never);
+    expect(ctx).not.toContain("Codebase Map");
+  });
+});

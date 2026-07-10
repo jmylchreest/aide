@@ -1,6 +1,7 @@
 package survey
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -192,6 +193,50 @@ func TestRunModulesDeterminismAndRemap(t *testing.T) {
 			t.Errorf("module %q id = %s, want %s (following previous assignment)",
 				e.Name, e.Metadata["community_id"], want)
 		}
+	}
+}
+
+func TestDiffModules(t *testing.T) {
+	mk := func(id, label string, members ...string) *Entry {
+		m, _ := json.Marshal(members)
+		return &Entry{
+			Analyzer: AnalyzerModules,
+			Kind:     KindModule,
+			Name:     label,
+			Metadata: map[string]string{"community_id": id, "members": string(m)},
+		}
+	}
+
+	prev := []*Entry{
+		mk("0", "auth", "auth/a.go", "auth/b.go"),
+		mk("1", "store", "store/s.go", "store/t.go"),
+		mk("2", "web", "web/w.go"),
+	}
+	next := []*Entry{
+		mk("0", "auth", "auth/a.go", "auth/b.go", "store/t.go"), // t.go moved in
+		mk("1", "storage", "store/s.go"),                        // renamed
+		mk("3", "cli", "cli/c.go"),                              // new; id 2 (web) dissolved
+	}
+
+	d := DiffModules(prev, next)
+	if len(d.New) != 1 || d.New[0] != "cli" {
+		t.Errorf("New = %v, want [cli]", d.New)
+	}
+	if len(d.Dissolved) != 1 || d.Dissolved[0] != "web" {
+		t.Errorf("Dissolved = %v, want [web]", d.Dissolved)
+	}
+	if len(d.Renamed) != 1 || d.Renamed[0] != [2]string{"store", "storage"} {
+		t.Errorf("Renamed = %v", d.Renamed)
+	}
+	if d.Moved != 1 {
+		t.Errorf("Moved = %d, want 1 (store/t.go)", d.Moved)
+	}
+	if s := d.Summary(); s == "" {
+		t.Error("Summary should be non-empty for a changed map")
+	}
+
+	if s := DiffModules(prev, prev).Summary(); s != "" {
+		t.Errorf("identical runs should produce empty summary, got %q", s)
 	}
 }
 

@@ -367,6 +367,9 @@ func (s *MCPServer) handleSurveyRun(_ context.Context, _ *mcp.CallToolRequest, i
 			}
 			fmt.Fprintf(&sb, "modules: %d modules from %d files (%d unclustered, imports resolved %d/%d)%s\n",
 				result.Communities, result.Files, result.Singletons, result.ImportsResolved, result.ImportsTotal, suffix)
+			if diff := survey.DiffModules(prevEntries, result.Entries).Summary(); diff != "" {
+				fmt.Fprintf(&sb, "  map changes: %s\n", diff)
+			}
 		case survey.AnalyzerTopology:
 			result, err := survey.RunTopology(rootDir)
 			if err != nil {
