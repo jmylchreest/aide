@@ -35,7 +35,7 @@ type SurveyListInput struct {
 type SurveyStatsInput struct{}
 
 type SurveyRunInput struct {
-	Analyzer string `json:"analyzer,omitempty" jsonschema:"Run a specific analyzer: topology, entrypoints, churn. Omit to run all."`
+	Analyzer string `json:"analyzer,omitempty" jsonschema:"Run a specific analyzer: topology, entrypoints, churn, modules. Omit to run all."`
 }
 
 type SurveyGraphInput struct {
@@ -123,9 +123,12 @@ If counts are zero, run 'aide survey run' or use survey_run to populate.`,
 		Description: `Run codebase survey analyzers to populate structural information.
 
 Analyzers scan the codebase to discover:
-- **topology**: Modules, packages, workspaces, build systems, tech stack
+- **topology**: Packages, workspaces, build systems, tech stack (filesystem view)
 - **entrypoints**: main() functions, HTTP handler mounts, CLI roots
 - **churn**: Git history hotspots (files/dirs that change most often)
+- **modules**: Structural modules found by clustering the import/reference
+  graph — what files actually BELONG together, which directory layout can
+  hide. Requires the code index ('aide code index').
 
 Run all analyzers (omit analyzer param) or a specific one.
 Results are cached and tagged with the git commit at run time — re-run to
@@ -336,11 +339,34 @@ func (s *MCPServer) handleSurveyRun(_ context.Context, _ *mcp.CallToolRequest, i
 	var sb strings.Builder
 	analyzers := []string{input.Analyzer}
 	if input.Analyzer == "" {
-		analyzers = []string{survey.AnalyzerTopology, survey.AnalyzerEntrypoints, survey.AnalyzerChurn}
+		analyzers = []string{survey.AnalyzerTopology, survey.AnalyzerEntrypoints, survey.AnalyzerChurn, survey.AnalyzerModules}
 	}
 
 	for _, name := range analyzers {
 		switch name {
+		case survey.AnalyzerModules:
+			codeStore := s.getCodeStore()
+			if codeStore == nil {
+				sb.WriteString("modules: code index not available — run 'aide code index' first\n")
+				continue
+			}
+			prevEntries, _ := s.surveyStore.ListEntries(survey.SearchOptions{Analyzer: survey.AnalyzerModules, Limit: surveyDiffListLimit})
+			result, err := survey.RunModules(survey.ModulesConfig{
+				RootDir:  rootDir,
+				Source:   &modulesSourceAdapter{store: codeStore},
+				Previous: survey.PreviousAssignmentFromEntries(prevEntries),
+			})
+			if err != nil {
+				fmt.Fprintf(&sb, "modules: error: %v\n", err)
+				continue
+			}
+			suffix, err := s.storeSurveyResult(survey.AnalyzerModules, headCommit, result.Entries)
+			if err != nil {
+				fmt.Fprintf(&sb, "modules: store error: %v\n", err)
+				continue
+			}
+			fmt.Fprintf(&sb, "modules: %d modules from %d files (%d unclustered, imports resolved %d/%d)%s\n",
+				result.Communities, result.Files, result.Singletons, result.ImportsResolved, result.ImportsTotal, suffix)
 		case survey.AnalyzerTopology:
 			result, err := survey.RunTopology(rootDir)
 			if err != nil {
@@ -536,6 +562,76 @@ func graphCounterfactualTokens(rootDir string, nodes []survey.GraphNode) int {
 		entries = append(entries, &survey.Entry{FilePath: n.FilePath})
 	}
 	return survey.CounterfactualTokensForEntries(rootDir, entries)
+}
+
+// =============================================================================
+// ModulesSource Adapter — bridges store.CodeIndexStore to survey.ModulesSource
+// =============================================================================
+
+// modulesSourceAdapter feeds the modules analyzer from the code index. The
+// symbol->files map is built once from ListAllSymbols rather than issuing a
+// search per referenced name — the analyzer asks about thousands of names.
+type modulesSourceAdapter struct {
+	store    store.CodeIndexStore
+	symFiles map[string][]string
+}
+
+func (a *modulesSourceAdapter) ListSourceFiles() ([]survey.ModuleFile, error) {
+	infos, err := a.store.ListAllFileInfo()
+	if err != nil {
+		return nil, err
+	}
+	files := make([]survey.ModuleFile, 0, len(infos))
+	for _, fi := range infos {
+		lang := code.DetectLanguage(fi.Path, nil)
+		if lang == "" {
+			continue
+		}
+		files = append(files, survey.ModuleFile{Path: fi.Path, Language: lang})
+	}
+	return files, nil
+}
+
+func (a *modulesSourceAdapter) FileReferences(filePath string) ([]survey.ReferenceHit, error) {
+	refs, err := a.store.GetFileReferences(filePath)
+	if err != nil {
+		return nil, err
+	}
+	hits := make([]survey.ReferenceHit, 0, len(refs))
+	for _, r := range refs {
+		hits = append(hits, survey.ReferenceHit{
+			Symbol:   r.SymbolName,
+			Kind:     r.Kind,
+			FilePath: r.FilePath,
+			Line:     r.Line,
+		})
+	}
+	return hits, nil
+}
+
+func (a *modulesSourceAdapter) DefiningFiles(symbolName string) ([]string, error) {
+	if a.symFiles == nil {
+		a.symFiles = make(map[string][]string)
+		syms, err := a.store.ListAllSymbols(1 << 22)
+		if err != nil {
+			return nil, err
+		}
+		for _, s := range syms {
+			existing := a.symFiles[s.Name]
+			dup := false
+			for _, f := range existing {
+				if f == s.FilePath {
+					dup = true
+					break
+				}
+			}
+			// One extra beyond the ambiguity cap is enough to disqualify.
+			if !dup && len(existing) <= survey.MaxSymbolDefiners {
+				a.symFiles[s.Name] = append(existing, s.FilePath)
+			}
+		}
+	}
+	return a.symFiles[symbolName], nil
 }
 
 // =============================================================================

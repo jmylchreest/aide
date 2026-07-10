@@ -342,11 +342,38 @@ func cmdSurveyRun(dbPath string, args []string) error {
 
 	analyzers := []string{analyzer}
 	if analyzer == "" {
-		analyzers = []string{survey.AnalyzerTopology, survey.AnalyzerEntrypoints, survey.AnalyzerChurn}
+		analyzers = []string{survey.AnalyzerTopology, survey.AnalyzerEntrypoints, survey.AnalyzerChurn, survey.AnalyzerModules}
 	}
 
 	for _, name := range analyzers {
 		switch name {
+		case survey.AnalyzerModules:
+			if b.useGRPC {
+				fmt.Fprintln(os.Stderr, "modules: needs direct code-index access; the running daemon will produce it via the survey_run MCP tool instead")
+				continue
+			}
+			codeStore, err := b.openCodeStore()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "modules: code index not available (%v) — run 'aide code index' first\n", err)
+				continue
+			}
+			prevEntries, _ := b.ListSurvey(survey.SearchOptions{Analyzer: survey.AnalyzerModules, Limit: surveyDiffListLimit})
+			result, err := survey.RunModules(survey.ModulesConfig{
+				RootDir:  rootDir,
+				Source:   &modulesSourceAdapter{store: codeStore},
+				Previous: survey.PreviousAssignmentFromEntries(prevEntries),
+			})
+			codeStore.Close()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "modules: error: %v\n", err)
+				continue
+			}
+			suffix, err := storeResult(survey.AnalyzerModules, result.Entries)
+			if err != nil {
+				return fmt.Errorf("modules: store error: %w", err)
+			}
+			fmt.Printf("modules: %d modules from %d files (%d unclustered, imports resolved %d/%d)%s\n",
+				result.Communities, result.Files, result.Singletons, result.ImportsResolved, result.ImportsTotal, suffix)
 		case survey.AnalyzerTopology:
 			result, err := survey.RunTopology(rootDir)
 			if err != nil {
@@ -423,7 +450,7 @@ Commands:
   clear           Clear survey entries
 
 Flags (run):
-  --analyzer=<name>  Run only a specific analyzer: topology, entrypoints, churn
+  --analyzer=<name>  Run only a specific analyzer: topology, entrypoints, churn, modules
 
 Flags (search, list):
   --analyzer=<name>  Filter by analyzer: topology, entrypoints, churn

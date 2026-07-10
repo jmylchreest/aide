@@ -36,7 +36,7 @@ Survey describes WHAT the codebase IS — not code problems (use `findings` for 
 ```
 Is the codebase surveyed?
 → Uses survey_stats
-→ Returns: counts by analyzer (topology, entrypoints, churn) and kind, plus freshness vs git HEAD
+→ Returns: counts by analyzer (topology, entrypoints, churn, modules) and kind, plus freshness vs git HEAD
 ```
 
 If freshness shows an analyzer is commits behind HEAD, re-run survey_run before trusting its data.
@@ -45,9 +45,10 @@ If freshness shows an analyzer is commits behind HEAD, re-run survey_run before 
 
 Run analyzers to populate survey data. Three analyzers available:
 
-- **topology** — Modules, packages, workspaces, build systems, tech stack detection
+- **topology** — Packages, workspaces, build systems, tech stack detection (filesystem view)
 - **entrypoints** — main() functions, HTTP handlers, gRPC services, CLI roots (cobra/urfave). Uses code index when available; falls back to file scanning
 - **churn** — Git history hotspots (files/dirs that change most often)
+- **modules** — Structural modules discovered by clustering the import/reference graph: what files actually belong together, which directory layout can hide. Requires the code index (`aide code index`)
 
 ```
 Survey this codebase

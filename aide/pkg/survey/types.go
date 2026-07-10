@@ -24,6 +24,7 @@ const (
 	AnalyzerTopology    = "topology"    // Repo structure, build systems, workspaces
 	AnalyzerEntrypoints = "entrypoints" // Entry point detection
 	AnalyzerChurn       = "churn"       // Git history analysis
+	AnalyzerModules     = "modules"     // Module clustering over the import/reference graph
 )
 
 // Default result limits.
