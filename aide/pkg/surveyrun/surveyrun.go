@@ -175,6 +175,7 @@ func (a *codeSearcher) FindSymbols(query string, kind string, limit int) ([]surv
 			Kind:     r.Symbol.Kind,
 			FilePath: r.Symbol.FilePath,
 			Line:     r.Symbol.StartLine,
+			EndLine:  r.Symbol.EndLine,
 			Language: r.Symbol.Language,
 		})
 	}
@@ -211,6 +212,15 @@ func (a *modulesSource) ListSourceFiles() ([]survey.ModuleFile, error) {
 		lang := code.DetectLanguage(fi.Path, nil)
 		if lang == "" {
 			continue
+		}
+		// A file with no symbols and no references (data/config/build
+		// artifacts the index swept up) has nothing to cluster by — it can
+		// only inflate the singleton count and drag on the run.
+		if len(fi.SymbolIDs) == 0 {
+			refs, rerr := a.store.GetFileReferences(fi.Path)
+			if rerr != nil || len(refs) == 0 {
+				continue
+			}
 		}
 		files = append(files, survey.ModuleFile{Path: fi.Path, Language: lang})
 	}

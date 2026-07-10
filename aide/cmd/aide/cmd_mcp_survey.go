@@ -495,6 +495,7 @@ func (a *codeSearcherAdapter) FindSymbols(query string, kind string, limit int) 
 			Kind:     r.Symbol.Kind,
 			FilePath: r.Symbol.FilePath,
 			Line:     r.Symbol.StartLine,
+			EndLine:  r.Symbol.EndLine, // callee scans need the body range; 0 = empty range = no callees
 			Language: r.Symbol.Language,
 		})
 	}
