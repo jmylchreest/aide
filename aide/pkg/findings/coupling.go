@@ -15,6 +15,7 @@ import (
 	"github.com/jmylchreest/aide/aide/pkg/aideignore"
 	"github.com/jmylchreest/aide/aide/pkg/code"
 	"github.com/jmylchreest/aide/aide/pkg/grammar"
+	"github.com/jmylchreest/aide/aide/pkg/importresolve"
 )
 
 // compiledPattern holds a pre-compiled regex and its capture group index.
@@ -54,6 +55,10 @@ type CouplingConfig struct {
 	// Imports provides code-index-based import extraction (optional).
 	// When set, the coupling analyzer prefers this over regex-based extraction.
 	Imports ImportSource
+	// Resolver maps import strings to project-relative units (optional).
+	// When nil and ProjectRoot is set, one is constructed automatically;
+	// with no ProjectRoot the graph falls back to raw import strings.
+	Resolver *importresolve.Resolver
 }
 
 // CodeIndexImportSource adapts a code index reference source into an ImportSource.
@@ -140,6 +145,16 @@ func AnalyzeCoupling(cfg CouplingConfig) ([]*Finding, *CouplingResult, error) { 
 	result := &CouplingResult{}
 	graph := newImportGraph()
 
+	resolver := cfg.Resolver
+	if resolver == nil && cfg.ProjectRoot != "" {
+		resolver = importresolve.New(cfg.ProjectRoot)
+	}
+
+	// projectNodes tracks graph nodes known to be inside the project: every
+	// scanned source unit, plus every import that resolved to one. Fan-in is
+	// only reported for these — external/stdlib imports are never actionable.
+	projectNodes := make(map[string]bool)
+
 	ignore := cfg.Ignore
 	if ignore == nil {
 		ignore = aideignore.NewFromDefaults()
@@ -177,9 +192,29 @@ func AnalyzeCoupling(cfg CouplingConfig) ([]*Finding, *CouplingResult, error) { 
 
 			relPath := toRelPath(cfg.ProjectRoot, path)
 
+			// With a resolver, graph nodes are dependency units: the package
+			// directory for Go (imports and cycles are package-level there),
+			// the file itself elsewhere. Unresolvable imports keep their raw
+			// string and act as external leaf nodes, exactly as before.
+			from := relPath
+			if resolver != nil {
+				from = resolver.UnitOf(lang, relPath)
+			}
+			projectNodes[from] = true
+
 			imports := extractImports(path, relPath, lang, cfg.Imports)
 			for _, imp := range imports {
-				graph.addEdge(relPath, imp)
+				to := imp
+				if resolver != nil {
+					if unit := resolver.ResolveUnit(lang, relPath, imp); unit != "" {
+						to = unit
+						projectNodes[to] = true
+					}
+				}
+				if to == from {
+					continue // same-unit import (e.g. intra-package) is not coupling
+				}
+				graph.addEdge(from, to)
 			}
 
 			result.FilesAnalyzed++
@@ -234,11 +269,11 @@ func AnalyzeCoupling(cfg CouplingConfig) ([]*Finding, *CouplingResult, error) { 
 	}
 
 	// Phase 3: Detect high fan-in
-	// Only report fan-in for imports that resolve to files within the
-	// scanned project.  External / stdlib packages (fmt, os, path, fs, …)
-	// are never actionable fan-in findings — every Go project imports fmt.
+	// Only report fan-in for units inside the scanned project. External /
+	// stdlib packages (fmt, os, path, fs, …) are never actionable fan-in
+	// findings — every Go project imports fmt.
 	for file, dependents := range graph.reverse {
-		if _, isProjectFile := graph.edges[file]; !isProjectFile {
+		if !projectNodes[file] {
 			continue // external dependency — skip
 		}
 		fanIn := len(dependents)

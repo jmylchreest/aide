@@ -515,6 +515,56 @@ func TestCouplingAnalyzer_NoFanInForExternalImports(t *testing.T) {
 	}
 }
 
+func TestCouplingAnalyzer_ResolvedUnits(t *testing.T) {
+	dir := t.TempDir()
+	files := map[string]string{
+		"go.mod":             "module example.com/proj\n",
+		"pkg/util/util.go":   "package util\n", // leaf package: no imports of its own
+		"pkg/a/a.go":         "package a\n\nimport \"example.com/proj/pkg/util\"\n",
+		"pkg/b/b.go":         "package b\n\nimport \"example.com/proj/pkg/util\"\n",
+		"web/src/cycle_x.ts": "import { y } from './cycle_y'\nexport const x = 1\n",
+		"web/src/cycle_y.ts": "import { x } from './cycle_x'\nexport const y = 2\n",
+	}
+	for rel, content := range files {
+		p := filepath.Join(dir, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatalf("MkdirAll: %v", err)
+		}
+		if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
+			t.Fatalf("WriteFile: %v", err)
+		}
+	}
+
+	findings, result, err := AnalyzeCoupling(CouplingConfig{
+		FanOutThreshold: 100, // suppress fan-out findings
+		FanInThreshold:  2,
+		Paths:           []string{dir},
+		ProjectRoot:     dir, // enables import resolution
+		Ignore:          aideignore.NewEmpty(),
+	})
+	if err != nil {
+		t.Fatalf("AnalyzeCoupling error: %v", err)
+	}
+
+	// Go: pkg/util is imported by two packages. It has no imports of its
+	// own, so only unit resolution can identify it as project-internal.
+	var fanInUnit string
+	for _, f := range findings {
+		if f.Category == "fan-in" {
+			fanInUnit = f.FilePath
+		}
+	}
+	if fanInUnit != "pkg/util" {
+		t.Errorf("expected fan-in finding for unit %q, got %q (findings: %v)", "pkg/util", fanInUnit, findingSummary(findings))
+	}
+
+	// TS: the two files import each other via relative specifiers, which
+	// only resolution can connect into a cycle.
+	if result.CyclesFound != 1 {
+		t.Errorf("expected 1 cycle (ts relative imports), got %d", result.CyclesFound)
+	}
+}
+
 func TestSeverityRank(t *testing.T) {
 	tests := []struct {
 		sev  string
