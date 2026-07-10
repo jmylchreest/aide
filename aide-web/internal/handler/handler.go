@@ -61,19 +61,31 @@ func (h *Handler) APIGetVersion(ctx context.Context, input *struct{}) (*VersionO
 // bookmarks — but ONLY when it matches exactly one instance, so two repos that
 // share a base name never silently resolve to whichever was discovered first.
 func (h *Handler) findInstance(project string) *instance.Instance {
-	var nameMatch *instance.Instance
-	nameMatches := 0
+	var nameMatches []*instance.Instance
 	for _, inst := range h.manager.Instances() {
 		if inst.Slug() == project {
 			return inst
 		}
 		if inst.ProjectName() == project || filepath.Base(inst.ProjectRoot()) == project {
-			nameMatch = inst
-			nameMatches++
+			nameMatches = append(nameMatches, inst)
 		}
 	}
-	if nameMatches == 1 {
-		return nameMatch
+	if len(nameMatches) == 1 {
+		return nameMatches[0]
+	}
+	// Several instances share the name (e.g. a stale registration beside a
+	// live one during daemon cycling): a single CONNECTED match still
+	// resolves unambiguously. Two connected same-name repos stay ambiguous.
+	var connected *instance.Instance
+	connectedCount := 0
+	for _, inst := range nameMatches {
+		if inst.Status() == instance.StatusConnected {
+			connected = inst
+			connectedCount++
+		}
+	}
+	if connectedCount == 1 {
+		return connected
 	}
 	return nil
 }

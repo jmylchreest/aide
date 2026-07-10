@@ -41,6 +41,17 @@ func hashProjectRoot(projectRoot string) string {
 	return hex.EncodeToString(h[:])
 }
 
+// NormalizeRoot resolves symlinks so aliased spellings of the same project
+// directory (a ~/src tree pointing at a data volume) share one registry
+// identity. Two daemons registering "the same" project under different
+// spellings otherwise produce duplicate instances that both connect.
+func NormalizeRoot(projectRoot string) string {
+	if resolved, err := filepath.EvalSymlinks(projectRoot); err == nil {
+		return resolved
+	}
+	return filepath.Clean(projectRoot)
+}
+
 // Register writes an instance registry file for the given daemon.
 // The file is named by the SHA-256 hash of the project root.
 func Register(projectRoot, socketPath, dbPath string) error {
@@ -50,6 +61,14 @@ func Register(projectRoot, socketPath, dbPath string) error {
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("cannot create instances directory: %w", err)
+	}
+
+	normalized := NormalizeRoot(projectRoot)
+	if normalized != projectRoot {
+		// Best-effort: drop a registration written under the alias spelling
+		// so the project has exactly one registry identity.
+		_ = os.Remove(filepath.Join(dir, hashProjectRoot(projectRoot)+".json"))
+		projectRoot = normalized
 	}
 
 	inst := Instance{
@@ -79,6 +98,11 @@ func Unregister(projectRoot string) error {
 	dir, err := InstancesDir()
 	if err != nil {
 		return err
+	}
+	// Remove the registration under both the given and the normalized
+	// spelling — either may have been written by older binaries.
+	if normalized := NormalizeRoot(projectRoot); normalized != projectRoot {
+		_ = os.Remove(filepath.Join(dir, hashProjectRoot(normalized)+".json"))
 	}
 	filePath := filepath.Join(dir, hashProjectRoot(projectRoot)+".json")
 	if err := os.Remove(filePath); err != nil && !os.IsNotExist(err) {

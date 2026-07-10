@@ -46,7 +46,17 @@ export function Header() {
         </Link>
 
         <div className="flex items-center gap-0.5">
-          {instances.map((inst) => {
+          {instances
+            .filter(
+              (inst) =>
+                inst.status === "connected" ||
+                inst.status === "connecting" ||
+                // Keep the instance you are looking at visible even if its
+                // daemon just went away, so navigation doesn't lose context.
+                activeProject === inst.slug ||
+                activeProject === inst.project_name
+            )
+            .map((inst) => {
             const isActive =
               activeProject === inst.slug ||
               activeProject === inst.project_name;

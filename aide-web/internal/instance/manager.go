@@ -19,17 +19,19 @@ func contextWithTimeout() (context.Context, context.CancelFunc) {
 
 // Manager manages connections to multiple aide daemon instances.
 type Manager struct {
-	mu        sync.RWMutex
-	instances map[string]*Instance // keyed by project root
-	watcher   *fsnotify.Watcher
-	done      chan struct{}
+	mu           sync.RWMutex
+	instances    map[string]*Instance // keyed by normalized project root
+	dialFailures map[string]int       // consecutive failed dials per root
+	watcher      *fsnotify.Watcher
+	done         chan struct{}
 }
 
 // NewManager creates a new instance manager that watches the registry directory.
 func NewManager() (*Manager, error) {
 	m := &Manager{
-		instances: make(map[string]*Instance),
-		done:      make(chan struct{}),
+		instances:    make(map[string]*Instance),
+		dialFailures: make(map[string]int),
+		done:         make(chan struct{}),
 	}
 
 	if err := m.loadFromRegistry(); err != nil {
@@ -106,6 +108,7 @@ func (m *Manager) RemoveInstance(projectRoot string) error {
 		inst.Disconnect()
 		delete(m.instances, projectRoot)
 	}
+	delete(m.dialFailures, projectRoot)
 	m.mu.Unlock()
 
 	return registry.Unregister(projectRoot)
@@ -123,6 +126,10 @@ func (m *Manager) loadFromRegistry() error {
 }
 
 func (m *Manager) addOrUpdate(reg registry.Instance) {
+	// Collapse symlink-aliased spellings of the same project directory to
+	// one instance — old registry files may carry either spelling.
+	reg.ProjectRoot = registry.NormalizeRoot(reg.ProjectRoot)
+
 	m.mu.Lock()
 	inst, exists := m.instances[reg.ProjectRoot]
 	if !exists {
@@ -206,12 +213,49 @@ func (m *Manager) healthCheckAll() {
 				}(inst)
 			}
 		case StatusDisconnected:
+			// A registration whose socket file is gone is a dead daemon —
+			// prune it rather than dialing a path that cannot answer.
+			if _, err := os.Stat(inst.SocketPath()); err != nil {
+				log.Printf("instance %s: socket gone, pruning stale registration", inst.ProjectName())
+				if err := m.RemoveInstance(inst.ProjectRoot()); err != nil {
+					log.Printf("instance %s: prune failed: %v", inst.ProjectName(), err)
+				}
+				continue
+			}
 			// Connect() checks status and returns immediately if already connecting
 			go func(i *Instance) {
-				if err := i.Connect(); err == nil {
+				if err := i.Connect(); err != nil {
+					// A socket that exists but repeatedly refuses connections
+					// is left over from a crashed daemon: prune after three
+					// consecutive failures (~15s) instead of dialing forever.
+					if m.recordDialFailure(i.ProjectRoot()) >= stalePruneFailures {
+						log.Printf("instance %s: unreachable, pruning stale registration", i.ProjectName())
+						if rerr := m.RemoveInstance(i.ProjectRoot()); rerr != nil {
+							log.Printf("instance %s: prune failed: %v", i.ProjectName(), rerr)
+						}
+					}
+				} else {
+					m.clearDialFailures(i.ProjectRoot())
 					log.Printf("instance %s: reconnected", i.ProjectName())
 				}
 			}(inst)
 		}
 	}
+}
+
+// stalePruneFailures is how many consecutive failed dials to an existing
+// socket file mark a registration as stale.
+const stalePruneFailures = 3
+
+func (m *Manager) recordDialFailure(projectRoot string) int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.dialFailures[projectRoot]++
+	return m.dialFailures[projectRoot]
+}
+
+func (m *Manager) clearDialFailures(projectRoot string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.dialFailures, projectRoot)
 }
