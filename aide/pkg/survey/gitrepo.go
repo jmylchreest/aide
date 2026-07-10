@@ -80,6 +80,45 @@ type SubmoduleInfo struct {
 	Status string // "checked_out" or "not_checked_out"
 }
 
+// Head returns the current HEAD commit hash, or "" for a repository with no
+// commits yet (unborn HEAD).
+func (g *GitRepo) Head() (string, error) {
+	ref, err := g.repo.Head()
+	if err != nil {
+		return "", nil // unborn HEAD or detached oddity — treat as "no commit"
+	}
+	return ref.Hash().String(), nil
+}
+
+// CommitsBehind walks history from HEAD counting commits until it finds the
+// given commit hash. Returns (count, true) when found within maxWalk commits
+// (count 0 means HEAD itself), or (walked, false) when not found — the commit
+// is very old or history was rewritten. maxWalk <= 0 uses DefaultMaxCommits.
+func (g *GitRepo) CommitsBehind(commit string, maxWalk int) (int, bool, error) {
+	if maxWalk <= 0 {
+		maxWalk = DefaultMaxCommits
+	}
+	logIter, err := g.repo.Log(&git.LogOptions{})
+	if err != nil {
+		return 0, false, fmt.Errorf("failed to read git log: %w", err)
+	}
+	defer logIter.Close()
+
+	count := 0
+	for count <= maxWalk {
+		c, err := logIter.Next()
+		if err != nil {
+			// io.EOF: walked the entire history without a match.
+			return count, false, nil
+		}
+		if c.Hash.String() == commit {
+			return count, true, nil
+		}
+		count++
+	}
+	return count, false, nil
+}
+
 // FileChurnStats walks the commit history and aggregates per-file change statistics.
 // maxCommits limits how far back to look (0 = DefaultMaxCommits).
 func (g *GitRepo) FileChurnStats(maxCommits int) (map[string]*ChurnStat, error) {

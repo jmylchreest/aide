@@ -31,13 +31,15 @@ Survey describes WHAT the codebase IS — not code problems (use `findings` for 
 
 ### 1. Survey Stats (`mcp__plugin_aide_aide__survey_stats`)
 
-**Start here.** Get an overview of what has been surveyed: total entries, breakdown by analyzer and kind.
+**Start here.** Get an overview of what has been surveyed: total entries, breakdown by analyzer and kind, and per-analyzer freshness (the git commit each analyzer last ran at, and how many commits behind HEAD it is).
 
 ```
 Is the codebase surveyed?
 → Uses survey_stats
-→ Returns: counts by analyzer (topology, entrypoints, churn) and kind
+→ Returns: counts by analyzer (topology, entrypoints, churn) and kind, plus freshness vs git HEAD
 ```
+
+If freshness shows an analyzer is commits behind HEAD, re-run survey_run before trusting its data.
 
 ### 2. Survey Run (`mcp__plugin_aide_aide__survey_run`)
 
@@ -50,7 +52,7 @@ Run analyzers to populate survey data. Three analyzers available:
 ```
 Survey this codebase
 → Uses survey_run (no analyzer param = run all)
-→ Returns: entry counts per analyzer
+→ Returns: entry counts per analyzer, an added/removed diff vs the previous run, and the git commit the run is tagged with
 ```
 
 ### 3. Survey List (`mcp__plugin_aide_aide__survey_list`)

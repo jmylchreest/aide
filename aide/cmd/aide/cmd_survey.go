@@ -151,6 +151,19 @@ func cmdSurveyStats(dbPath string, _ []string) error {
 		}
 	}
 
+	if lines := surveyFreshnessLines(projectRoot(dbPath), stats.ByAnalyzer, func(analyzer string) []*survey.Entry {
+		entries, err := b.ListSurvey(survey.SearchOptions{Analyzer: analyzer, Limit: 1})
+		if err != nil {
+			return nil
+		}
+		return entries
+	}); len(lines) > 0 {
+		fmt.Println("  Freshness (vs git HEAD):")
+		for _, line := range lines {
+			fmt.Printf("  %s\n", line)
+		}
+	}
+
 	return nil
 }
 
@@ -311,6 +324,22 @@ func cmdSurveyRun(dbPath string, args []string) error {
 	}
 	defer b.Close()
 
+	headCommit := survey.HeadCommit(rootDir)
+
+	// storeResult stamps the run commit, replaces the analyzer's entries via
+	// the backend, and returns the change-summary display suffix.
+	storeResult := func(name string, entries []*survey.Entry) (string, error) {
+		oldEntries, err := b.ListSurvey(survey.SearchOptions{Analyzer: name, Limit: surveyDiffListLimit})
+		if err != nil {
+			oldEntries = nil // diff is best-effort; storing still proceeds
+		}
+		survey.StampRunCommit(entries, headCommit)
+		if err := b.ReplaceSurveyForAnalyzer(name, entries); err != nil {
+			return "", err
+		}
+		return surveyRunSuffix(oldEntries, entries, headCommit), nil
+	}
+
 	analyzers := []string{analyzer}
 	if analyzer == "" {
 		analyzers = []string{survey.AnalyzerTopology, survey.AnalyzerEntrypoints, survey.AnalyzerChurn}
@@ -324,10 +353,11 @@ func cmdSurveyRun(dbPath string, args []string) error {
 				fmt.Fprintf(os.Stderr, "topology: error: %v\n", err)
 				continue
 			}
-			if err := b.ReplaceSurveyForAnalyzer(survey.AnalyzerTopology, result.Entries); err != nil {
+			suffix, err := storeResult(survey.AnalyzerTopology, result.Entries)
+			if err != nil {
 				return fmt.Errorf("topology: store error: %w", err)
 			}
-			fmt.Printf("topology: %d entries\n", len(result.Entries))
+			fmt.Printf("topology: %d entries%s\n", len(result.Entries), suffix)
 
 		case survey.AnalyzerEntrypoints:
 			// Try to get a code searcher for richer entrypoint detection.
@@ -347,13 +377,14 @@ func cmdSurveyRun(dbPath string, args []string) error {
 				fmt.Fprintf(os.Stderr, "entrypoints: error: %v\n", err)
 				continue
 			}
-			if err := b.ReplaceSurveyForAnalyzer(survey.AnalyzerEntrypoints, result.Entries); err != nil {
+			suffix, err := storeResult(survey.AnalyzerEntrypoints, result.Entries)
+			if err != nil {
 				return fmt.Errorf("entrypoints: store error: %w", err)
 			}
 			if cs != nil {
-				fmt.Printf("entrypoints: %d entries\n", len(result.Entries))
+				fmt.Printf("entrypoints: %d entries%s\n", len(result.Entries), suffix)
 			} else {
-				fmt.Printf("entrypoints: %d entries (code index not available)\n", len(result.Entries))
+				fmt.Printf("entrypoints: %d entries%s (code index not available)\n", len(result.Entries), suffix)
 			}
 
 		case survey.AnalyzerChurn:
@@ -362,10 +393,11 @@ func cmdSurveyRun(dbPath string, args []string) error {
 				fmt.Fprintf(os.Stderr, "churn: error: %v\n", err)
 				continue
 			}
-			if err := b.ReplaceSurveyForAnalyzer(survey.AnalyzerChurn, result.Entries); err != nil {
+			suffix, err := storeResult(survey.AnalyzerChurn, result.Entries)
+			if err != nil {
 				return fmt.Errorf("churn: store error: %w", err)
 			}
-			fmt.Printf("churn: %d entries\n", len(result.Entries))
+			fmt.Printf("churn: %d entries%s\n", len(result.Entries), suffix)
 
 		default:
 			fmt.Fprintf(os.Stderr, "unknown analyzer: %s\n", name)

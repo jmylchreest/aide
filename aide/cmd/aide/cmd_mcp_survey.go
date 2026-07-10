@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/jmylchreest/aide/aide/pkg/code"
@@ -106,6 +107,10 @@ Returns total entry count with breakdowns by analyzer and kind.
 architecture, or technology stack. Then use survey_list or survey_search
 to drill into specific areas.
 
+Includes a freshness section showing which git commit each analyzer last
+ran at and how many commits behind HEAD it is — if analyzers are stale,
+re-run survey_run before trusting the data.
+
 **What survey describes:** WHAT the codebase IS — its structure, modules,
 entry points, tech stack, and hotspots. For code PROBLEMS (complexity,
 security, duplication), use findings_stats instead.
@@ -123,7 +128,9 @@ Analyzers scan the codebase to discover:
 - **churn**: Git history hotspots (files/dirs that change most often)
 
 Run all analyzers (omit analyzer param) or a specific one.
-Results are cached — re-run to refresh after significant changes.
+Results are cached and tagged with the git commit at run time — re-run to
+refresh after significant changes (survey_stats shows staleness). Output
+includes an added/removed diff against the previous run.
 
 **Note:** This is a survey of codebase STRUCTURE. For code health analysis
 (complexity, security, duplication), use 'aide findings run' instead.`,
@@ -268,7 +275,52 @@ func (s *MCPServer) handleSurveyStats(_ context.Context, _ *mcp.CallToolRequest,
 		}
 	}
 
+	if lines := surveyFreshnessLines(projectRoot(s.dbPath), stats.ByAnalyzer, func(analyzer string) []*survey.Entry {
+		entries, err := s.surveyStore.ListEntries(survey.SearchOptions{Analyzer: analyzer, Limit: 1})
+		if err != nil {
+			return nil
+		}
+		return entries
+	}); len(lines) > 0 {
+		sb.WriteString("\nFreshness (vs git HEAD):\n")
+		for _, line := range lines {
+			sb.WriteString(line)
+			sb.WriteString("\n")
+		}
+	}
+
 	return textResult(sb.String()), nil, nil
+}
+
+// surveyFreshnessLines renders one staleness line per analyzer that has
+// stored entries. Any entry works as the freshness witness — an analyzer's
+// entries are replaced wholesale, so they all share one run commit.
+// Analyzers stored before run-commit stamping existed report "unknown".
+func surveyFreshnessLines(rootDir string, byAnalyzer map[string]int, listOne func(analyzer string) []*survey.Entry) []string {
+	names := make([]string, 0, len(byAnalyzer))
+	for name := range byAnalyzer {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	var lines []string
+	for _, name := range names {
+		entries := listOne(name)
+		if len(entries) == 0 {
+			continue
+		}
+		runCommit := survey.RunCommitForEntries(entries)
+		if runCommit == "" {
+			lines = append(lines, fmt.Sprintf("  %-14s unknown — re-run to stamp the current commit", name))
+			continue
+		}
+		f, err := survey.ComputeFreshness(rootDir, runCommit)
+		if err != nil || f == nil {
+			continue
+		}
+		lines = append(lines, fmt.Sprintf("  %-14s %.8s — %s", name, runCommit, f))
+	}
+	return lines
 }
 
 func (s *MCPServer) handleSurveyRun(_ context.Context, _ *mcp.CallToolRequest, input SurveyRunInput) (*mcp.CallToolResult, any, error) {
@@ -279,6 +331,7 @@ func (s *MCPServer) handleSurveyRun(_ context.Context, _ *mcp.CallToolRequest, i
 	}
 
 	rootDir := projectRoot(s.dbPath)
+	headCommit := survey.HeadCommit(rootDir)
 
 	var sb strings.Builder
 	analyzers := []string{input.Analyzer}
@@ -294,11 +347,12 @@ func (s *MCPServer) handleSurveyRun(_ context.Context, _ *mcp.CallToolRequest, i
 				fmt.Fprintf(&sb, "topology: error: %v\n", err)
 				continue
 			}
-			if err := s.surveyStore.ReplaceEntriesForAnalyzer(survey.AnalyzerTopology, result.Entries); err != nil {
+			suffix, err := s.storeSurveyResult(survey.AnalyzerTopology, headCommit, result.Entries)
+			if err != nil {
 				fmt.Fprintf(&sb, "topology: store error: %v\n", err)
 				continue
 			}
-			fmt.Fprintf(&sb, "topology: %d entries\n", len(result.Entries))
+			fmt.Fprintf(&sb, "topology: %d entries%s\n", len(result.Entries), suffix)
 
 		case survey.AnalyzerEntrypoints:
 			var cs survey.CodeSearcher
@@ -310,11 +364,12 @@ func (s *MCPServer) handleSurveyRun(_ context.Context, _ *mcp.CallToolRequest, i
 				fmt.Fprintf(&sb, "entrypoints: error: %v\n", err)
 				continue
 			}
-			if err := s.surveyStore.ReplaceEntriesForAnalyzer(survey.AnalyzerEntrypoints, result.Entries); err != nil {
+			suffix, err := s.storeSurveyResult(survey.AnalyzerEntrypoints, headCommit, result.Entries)
+			if err != nil {
 				fmt.Fprintf(&sb, "entrypoints: store error: %v\n", err)
 				continue
 			}
-			fmt.Fprintf(&sb, "entrypoints: %d entries\n", len(result.Entries))
+			fmt.Fprintf(&sb, "entrypoints: %d entries%s\n", len(result.Entries), suffix)
 			if cs == nil {
 				sb.WriteString("  (code index not available — entrypoint detection limited)\n")
 			}
@@ -325,11 +380,12 @@ func (s *MCPServer) handleSurveyRun(_ context.Context, _ *mcp.CallToolRequest, i
 				fmt.Fprintf(&sb, "churn: error: %v\n", err)
 				continue
 			}
-			if err := s.surveyStore.ReplaceEntriesForAnalyzer(survey.AnalyzerChurn, result.Entries); err != nil {
+			suffix, err := s.storeSurveyResult(survey.AnalyzerChurn, headCommit, result.Entries)
+			if err != nil {
 				fmt.Fprintf(&sb, "churn: store error: %v\n", err)
 				continue
 			}
-			fmt.Fprintf(&sb, "churn: %d entries\n", len(result.Entries))
+			fmt.Fprintf(&sb, "churn: %d entries%s\n", len(result.Entries), suffix)
 
 		default:
 			fmt.Fprintf(&sb, "unknown analyzer: %s\n", name)
@@ -337,6 +393,40 @@ func (s *MCPServer) handleSurveyRun(_ context.Context, _ *mcp.CallToolRequest, i
 	}
 
 	return textResult(sb.String()), nil, nil
+}
+
+// storeSurveyResult stamps entries with the run commit, replaces the
+// analyzer's stored entries, and returns a display suffix describing the
+// change ("(+2, -1) @ a1b2c3d4"). Listing the old entries first is what makes
+// the added/removed diff possible — replace is wholesale.
+func (s *MCPServer) storeSurveyResult(analyzer, headCommit string, entries []*survey.Entry) (string, error) {
+	oldEntries, err := s.surveyStore.ListEntries(survey.SearchOptions{Analyzer: analyzer, Limit: surveyDiffListLimit})
+	if err != nil {
+		oldEntries = nil // diff is best-effort; storing still proceeds
+	}
+	survey.StampRunCommit(entries, headCommit)
+	if err := s.surveyStore.ReplaceEntriesForAnalyzer(analyzer, entries); err != nil {
+		return "", err
+	}
+	return surveyRunSuffix(oldEntries, entries, headCommit), nil
+}
+
+// surveyDiffListLimit bounds how many stored entries are fetched to diff a
+// re-run against. Well above any real analyzer output; exists so a corrupt
+// store can't balloon the fetch.
+const surveyDiffListLimit = 100000
+
+// surveyRunSuffix renders the change summary appended to an analyzer's run
+// output line. Empty diff and no git repo → empty string.
+func surveyRunSuffix(oldEntries, newEntries []*survey.Entry, headCommit string) string {
+	suffix := ""
+	if d := survey.DiffEntries(oldEntries, newEntries); d.Added > 0 || d.Removed > 0 {
+		suffix = fmt.Sprintf(" (+%d, -%d)", d.Added, d.Removed)
+	}
+	if headCommit != "" {
+		suffix += fmt.Sprintf(" @ %.8s", headCommit)
+	}
+	return suffix
 }
 
 func (s *MCPServer) handleSurveyGraph(ctx context.Context, _ *mcp.CallToolRequest, input SurveyGraphInput) (*mcp.CallToolResult, any, error) {
