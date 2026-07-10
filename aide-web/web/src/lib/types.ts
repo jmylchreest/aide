@@ -67,6 +67,48 @@ export interface SurveyItem {
   name: string;
   file_path: string;
   title: string;
+  detail?: string;
+  metadata?: Record<string, string>;
+}
+
+export interface SurveyGraphNode {
+  name: string;
+  kind: string;
+  file: string;
+  line: number;
+  endLine?: number;
+  lang?: string;
+}
+
+export interface SurveyGraphEdge {
+  from: string;
+  to: string;
+  kind: string;
+  file: string;
+  line: number;
+}
+
+export interface CodeSymbolHit {
+  name: string;
+  kind: string;
+  language: string;
+  file: string;
+  line: number;
+  signature: string;
+}
+
+export interface TopReferencedSymbol {
+  symbol: string;
+  count: number;
+  kind?: string;
+  file?: string;
+}
+
+export interface SurveyCallGraph {
+  root: string;
+  nodes: SurveyGraphNode[];
+  edges: SurveyGraphEdge[];
+  depth: number;
 }
 
 export interface SearchResult {

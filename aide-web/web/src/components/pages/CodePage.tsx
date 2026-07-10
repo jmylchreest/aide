@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { RefreshCw } from "lucide-react";
 import { FilterBar } from "../shared/FilterBar";
 import { SortableTable, type Column } from "../shared/SortableTable";
@@ -78,6 +78,19 @@ export function CodePage() {
       key: "line",
       label: "Line",
       sortValue: (row: IndexedSymbol) => row.line,
+    },
+    {
+      key: "_graph",
+      label: "",
+      render: (row: IndexedSymbol) => (
+        <Link
+          to={`/instances/${project}/survey?view=graph&symbol=${encodeURIComponent(row.name)}`}
+          title={`Call graph for ${row.name}`}
+          className="text-aide-text-dim hover:text-aide-accent text-xs whitespace-nowrap"
+        >
+          graph &rarr;
+        </Link>
+      ),
     },
     {
       key: "signature",

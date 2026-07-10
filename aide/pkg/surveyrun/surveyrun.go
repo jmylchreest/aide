@@ -157,6 +157,44 @@ func FormatResults(results []Result) string {
 	return sb.String()
 }
 
+// NewCodeGrapher bridges a code index store to the survey call-graph
+// interface, for consumers that render call graphs (the web dashboard's
+// survey graph endpoint; the CLI and MCP server carry their own bridge).
+func NewCodeGrapher(cs store.CodeIndexStore) survey.CodeGrapher {
+	return &codeGrapher{codeSearcher{store: cs}}
+}
+
+type codeGrapher struct {
+	codeSearcher
+}
+
+func (a *codeGrapher) GetFileReferences(filePath string) ([]survey.ReferenceHit, error) {
+	refs, err := a.store.GetFileReferences(filePath)
+	if err != nil {
+		return nil, err
+	}
+	hits := make([]survey.ReferenceHit, 0, len(refs))
+	for _, r := range refs {
+		hits = append(hits, survey.ReferenceHit{Symbol: r.SymbolName, Kind: r.Kind, FilePath: r.FilePath, Line: r.Line})
+	}
+	return hits, nil
+}
+
+func (a *codeGrapher) GetContainingSymbol(filePath string, line int) (*survey.SymbolHit, error) {
+	sym, err := a.store.GetContainingSymbol(filePath, line)
+	if err != nil || sym == nil {
+		return nil, err
+	}
+	return &survey.SymbolHit{
+		Name:     sym.Name,
+		Kind:     sym.Kind,
+		FilePath: sym.FilePath,
+		Line:     sym.StartLine,
+		EndLine:  sym.EndLine,
+		Language: sym.Language,
+	}, nil
+}
+
 // codeSearcher bridges store.CodeIndexStore to survey.CodeSearcher for the
 // entrypoints analyzer.
 type codeSearcher struct {

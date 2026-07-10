@@ -50,6 +50,7 @@ type Instance struct {
 	findings    store.FindingsStore
 	survey      store.SurveyStore
 	instinct    store.InstinctProposalStore
+	code        store.CodeIndexStore
 	lastSeen    time.Time
 }
 
@@ -145,7 +146,14 @@ func (i *Instance) SurveyStore() store.SurveyStore {
 	return i.survey
 }
 
-// InstinctStore returns the instinct proposal adapter, or nil if disconnected.
+// CodeStore returns the code index adapter, or nil if disconnected.
+func (i *Instance) CodeStore() store.CodeIndexStore {
+	i.mu.RLock()
+	defer i.mu.RUnlock()
+	return i.code
+}
+
+// InstinctStore returns the instinct proposal store adapter.
 func (i *Instance) InstinctStore() store.InstinctProposalStore {
 	i.mu.RLock()
 	defer i.mu.RUnlock()
@@ -189,6 +197,7 @@ func (i *Instance) Connect() error {
 	i.findings = adapter.NewFindingsAdapter(client)
 	i.survey = adapter.NewSurveyAdapter(client)
 	i.instinct = adapter.NewInstinctAdapter(client)
+	i.code = adapter.NewCodeAdapter(client)
 	i.status = StatusConnected
 	i.lastSeen = time.Now()
 	return nil
@@ -206,6 +215,7 @@ func (i *Instance) Disconnect() {
 	i.store = nil
 	i.findings = nil
 	i.survey = nil
+	i.code = nil
 	i.status = StatusDisconnected
 }
 

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { api } from "@/lib/api";
 import { useApi } from "@/hooks/use-api";
@@ -6,6 +6,8 @@ import { FilterBar } from "../shared/FilterBar";
 import { SortableTable, type Column } from "../shared/SortableTable";
 import { Badge } from "../shared/ExpandableCard";
 import type { SurveyItem } from "@/lib/types";
+import { SurveyOverview } from "./SurveyOverview";
+import { SurveyGraphView } from "./SurveyGraphView";
 
 const columns: Column<SurveyItem>[] = [
   {
@@ -37,9 +39,17 @@ const columns: Column<SurveyItem>[] = [
   },
 ];
 
+const VIEWS = ["overview", "list", "graph"] as const;
+type View = (typeof VIEWS)[number];
+
 export function SurveyPage() {
   const { project } = useParams<{ project: string }>();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const view = (
+    VIEWS.includes(searchParams.get("view") as View)
+      ? searchParams.get("view")
+      : "overview"
+  ) as View;
   const [query, setQuery] = useState(() => searchParams.get("q") ?? "");
   const [kindFilter, setKindFilter] = useState("");
   const [analyzerFilter, setAnalyzerFilter] = useState("");
@@ -47,6 +57,24 @@ export function SurveyPage() {
   const { data: entries, loading, error } = useApi(
     () => api.listSurvey(project!),
     [project]
+  );
+
+  const setView = (v: View) => {
+    setSearchParams(
+      (prev) => {
+        prev.set("view", v);
+        return prev;
+      },
+      { replace: true }
+    );
+  };
+
+  const modules = useMemo(
+    () =>
+      (entries ?? []).filter(
+        (e) => e.analyzer === "modules" && e.kind === "module"
+      ),
+    [entries]
   );
 
   const kindOptions = useMemo(() => {
@@ -85,40 +113,70 @@ export function SurveyPage() {
 
   return (
     <div>
-      <h2 className="text-base font-semibold pb-1.5 border-b border-aide-border mb-3">
-        Survey
-      </h2>
-
-      <FilterBar
-        query={query}
-        onQueryChange={setQuery}
-        placeholder="Filter survey entries..."
-        dropdowns={[
-          {
-            value: kindFilter,
-            onChange: setKindFilter,
-            options: kindOptions,
-            placeholder: "All kinds",
-          },
-          {
-            value: analyzerFilter,
-            onChange: setAnalyzerFilter,
-            options: analyzerOptions,
-            placeholder: "All analyzers",
-          },
-        ]}
-      />
+      <div className="flex items-center justify-between pb-1.5 border-b border-aide-border mb-3">
+        <h2 className="text-base font-semibold">Survey</h2>
+        <div className="flex rounded border border-aide-border overflow-hidden text-xs">
+          {VIEWS.map((v) => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              className={`px-3 py-1 capitalize transition-colors ${
+                view === v
+                  ? "bg-aide-accent-dim/30 text-aide-accent-light"
+                  : "text-aide-text-muted hover:text-aide-text hover:bg-aide-surface-hover"
+              }`}
+            >
+              {v}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {loading && <p className="text-aide-text-dim text-sm">Loading...</p>}
       {error && <p className="text-aide-red text-sm">{error}</p>}
 
-      {!loading && !error && (
-        <SortableTable
-          data={filtered}
-          columns={columns}
-          keyFn={(row) => row.id}
-          emptyMessage="No survey entries found."
+      {!loading && !error && view === "overview" && (
+        <SurveyOverview
+          entries={entries ?? []}
+          onModuleSelect={(topDir) => {
+            setQuery(topDir);
+            setView("list");
+          }}
         />
+      )}
+
+      {!loading && !error && view === "list" && (
+        <>
+          <FilterBar
+            query={query}
+            onQueryChange={setQuery}
+            placeholder="Filter survey entries..."
+            dropdowns={[
+              {
+                value: kindFilter,
+                onChange: setKindFilter,
+                options: kindOptions,
+                placeholder: "All kinds",
+              },
+              {
+                value: analyzerFilter,
+                onChange: setAnalyzerFilter,
+                options: analyzerOptions,
+                placeholder: "All analyzers",
+              },
+            ]}
+          />
+          <SortableTable
+            data={filtered}
+            columns={columns}
+            keyFn={(row) => row.id}
+            emptyMessage="No survey entries found."
+          />
+        </>
+      )}
+
+      {!loading && !error && view === "graph" && (
+        <SurveyGraphView project={project!} modules={modules} />
       )}
     </div>
   );

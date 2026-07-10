@@ -7,6 +7,9 @@ import type {
   StateItem,
   FindingItem,
   SurveyItem,
+  SurveyCallGraph,
+  TopReferencedSymbol,
+  CodeSymbolHit,
   SearchResult,
   DetailedStatus,
   TokenEventItem,
@@ -151,10 +154,33 @@ export const api = {
       { ...(analyzer && { analyzer }), ...(severity && { severity }) }
     ).then((r) => r.findings ?? []),
 
-  listSurvey: (project: string, analyzer?: string, kind?: string) =>
+  codeTopReferences: (project: string, limit = 10, kind = "function") =>
+    get<{ symbols: TopReferencedSymbol[] }>(
+      `${BASE}/instances/${encodeURIComponent(project)}/code/top-references`,
+      { limit: String(limit), kind }
+    ).then((r) => r.symbols ?? []),
+
+  // search.json lives outside /api (plain chi route) and is already fuzzy —
+  // bleve handles typos, prefixes, and substrings server-side.
+  codeSearchSymbols: (project: string, q: string) =>
+    fetch(
+      `/instances/${encodeURIComponent(project)}/code/search.json?q=${encodeURIComponent(q)}`
+    )
+      .then((r) => (r.ok ? r.json() : { symbols: [] }))
+      .then(
+        (r: { symbols: CodeSymbolHit[] }) => r.symbols ?? []
+      ),
+
+  surveyGraph: (project: string, symbol: string, direction = "both", maxDepth = 1, maxNodes = 80) =>
+    get<SurveyCallGraph>(
+      `${BASE}/instances/${encodeURIComponent(project)}/survey/graph`,
+      { symbol, direction, max_depth: String(maxDepth), max_nodes: String(maxNodes) }
+    ),
+
+  listSurvey: (project: string, analyzer?: string, kind?: string, limit = 500) =>
     get<{ entries: SurveyItem[] }>(
       `${BASE}/instances/${encodeURIComponent(project)}/survey`,
-      { ...(analyzer && { analyzer }), ...(kind && { kind }) }
+      { limit: String(limit), ...(analyzer && { analyzer }), ...(kind && { kind }) }
     ).then((r) => r.entries ?? []),
 
   getTokenStats: (project: string, session?: string, since?: string, until?: string) =>

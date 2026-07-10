@@ -10,8 +10,8 @@ import (
 	"strings"
 
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/jmylchreest/aide/aide/pkg/grpcapi"
 	"github.com/jmylchreest/aide/aide-web/internal/instance"
+	"github.com/jmylchreest/aide/aide/pkg/grpcapi"
 )
 
 // CodeStatsOutput is the response body for APIListCode.
@@ -60,6 +60,52 @@ func (h *Handler) CodeSearchJSON(w http.ResponseWriter, r *http.Request) {
 			s.Name, s.Kind, s.Language, s.FilePath, s.StartLine, s.Signature)
 	}
 	fmt.Fprint(w, `]}`)
+}
+
+// TopReferencedSymbolItem is one row of APICodeTopReferences.
+type TopReferencedSymbolItem struct {
+	Symbol string `json:"symbol"`
+	Count  int    `json:"count"`
+	Kind   string `json:"kind,omitempty"`
+	File   string `json:"file,omitempty"`
+}
+
+// TopReferencesOutput is the response body for APICodeTopReferences.
+type TopReferencesOutput struct {
+	Body struct {
+		Symbols []TopReferencedSymbolItem `json:"symbols"`
+	}
+}
+
+// APICodeTopReferences ranks symbols by call-site count — the survey graph
+// view offers these as starting points.
+func (h *Handler) APICodeTopReferences(ctx context.Context, input *struct {
+	Project string `path:"project"`
+	Limit   int    `query:"limit" minimum:"1" maximum:"50" default:"10"`
+	Kind    string `query:"kind"`
+}) (*TopReferencesOutput, error) {
+	inst := h.findInstance(input.Project)
+	if inst == nil {
+		return nil, huma.Error404NotFound("instance not found")
+	}
+	cs := inst.CodeStore()
+	if cs == nil {
+		return nil, huma.Error503ServiceUnavailable("instance not connected")
+	}
+	rows, err := cs.TopReferencedSymbols(input.Limit, input.Kind)
+	if err != nil {
+		return nil, huma.Error500InternalServerError(err.Error())
+	}
+	out := &TopReferencesOutput{}
+	for _, r := range rows {
+		out.Body.Symbols = append(out.Body.Symbols, TopReferencedSymbolItem{
+			Symbol: r.Symbol,
+			Count:  r.Count,
+			Kind:   r.Kind,
+			File:   r.File,
+		})
+	}
+	return out, nil
 }
 
 // APIListCode returns code index availability for an instance.
