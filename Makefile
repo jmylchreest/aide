@@ -54,7 +54,6 @@ release: check-version check-release-needed test-ts
 		sed -i 's/"version": *"[^"]*"/"version": "$(VERSION)"/' $$f; \
 	done
 	@echo "Updated: $(VERSION_FILES)"
-	@sed -i 's|@jmylchreest/aide-plugin@[0-9][0-9.]*|@jmylchreest/aide-plugin@$(VERSION)|' .codex-plugin/plugin.json
 	@command -v jq >/dev/null || { echo "jq is required: brew install jq / apt install jq"; exit 1; }
 	@LAST_TAG=$$(git describe --tags --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' 2>/dev/null || echo ""); \
 	BP_DIR=aide/pkg/blueprint/blueprints; \
