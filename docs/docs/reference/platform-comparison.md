@@ -6,22 +6,22 @@ title: Platform Comparison
 
 # Platform Comparison
 
-AIDE supports both Claude Code and OpenCode through platform-specific adapters. While the core functionality is shared, there are differences in how each platform integrates.
+AIDE supports Claude Code, OpenCode, and Codex CLI through platform-specific adapters. While the core functionality is shared, there are differences in how each platform integrates.
 
 ## Feature Matrix
 
-| Feature                 | Claude Code             | OpenCode                                          |
-| ----------------------- | ----------------------- | ------------------------------------------------- |
-| Memory & decisions      | Full                    | Full                                              |
-| Code indexing           | Full                    | Full                                              |
-| Static analysis         | Full                    | Full                                              |
-| Skill injection         | Via hooks               | Via system prompt transform + slash commands      |
-| Swarm mode              | Native (subagent hooks) | Passive swarm-aware state; external orchestration |
-| HUD / status line       | Native                  | Not supported (OpenCode TUI has no status line)   |
-| Persistence (autopilot) | Stop-blocking           | Re-prompting via `session.prompt()` on idle       |
-| Subagent lifecycle      | Full hooks              | Session-based tracking (observational, no spawn)  |
-| Write guard             | Full                    | Full                                              |
-| MCP sync                | Full                    | Full                                              |
+| Feature                 | Claude Code             | OpenCode                                          | Codex CLI                               |
+| ----------------------- | ----------------------- | ------------------------------------------------- | --------------------------------------- |
+| Memory & decisions      | Full                    | Full                                              | Full                                    |
+| Code indexing           | Full                    | Full                                              | Full                                    |
+| Static analysis         | Full                    | Full                                              | Full                                    |
+| Skill injection         | Via hooks               | Via system prompt transform + slash commands      | Via hooks + native `$` mention (plugin) |
+| Swarm mode              | Native (subagent hooks) | Passive swarm-aware state; external orchestration | Limited (no subagent hooks)             |
+| HUD / status line       | Native                  | Not supported (OpenCode TUI has no status line)   | File-based only                         |
+| Persistence (autopilot) | Stop-blocking           | Re-prompting via `session.prompt()` on idle       | Stop-blocking                           |
+| Subagent lifecycle      | Full hooks              | Session-based tracking (observational, no spawn)  | Not available                           |
+| Write guard             | Full                    | Full                                              | Full                                    |
+| MCP sync                | Full                    | Full                                              | Full                                    |
 
 ## Detailed Comparison
 
@@ -31,11 +31,15 @@ AIDE supports both Claude Code and OpenCode through platform-specific adapters. 
 
 **OpenCode:** Skills are injected through system prompt transformation and are also available as `/aide:*` slash commands (e.g., `/aide:test`, `/aide:design`). This gives OpenCode users explicit control over skill activation.
 
+**Codex CLI:** Skills are injected via the `UserPromptSubmit` hook, same as Claude Code. When installed as a Codex plugin, skills are additionally discovered natively (namespaced `aide:<name>`) and can be invoked explicitly with a `$` mention or the `/skills` picker — Codex does not create per-skill slash commands.
+
 ### Swarm Mode
 
 **Claude Code:** Full native support. The orchestrator spawns subagents using Claude's native subagent mechanism. Each subagent gets its own lifecycle hooks (`SubagentStart`, `SubagentStop`) for memory injection and state tracking.
 
 **OpenCode:** Swarm-aware but externally orchestrated. The state system tracks agents and tasks, but spawning new agents requires external tooling (e.g., multiple OpenCode instances coordinated through AIDE's messaging system).
+
+**Codex CLI:** Limited. Codex has no subagent lifecycle hooks, so swarm mode is restricted to the same passive, externally orchestrated model as OpenCode.
 
 ### Status Line / HUD
 
@@ -110,9 +114,24 @@ bunx @jmylchreest/aide-plugin status
 bunx @jmylchreest/aide-plugin uninstall
 ```
 
+### Codex CLI
+
+```bash
+# Recommended: Codex plugin (MCP server + skills), then hooks
+codex plugin marketplace add jmylchreest/aide
+codex plugin add aide@aide
+bunx @jmylchreest/aide-plugin install --platform codex
+
+# Standalone (older Codex, no plugin support) — configures everything
+bunx @jmylchreest/aide-plugin install --platform codex
+```
+
+See [Getting Started: Codex CLI](../getting-started/codex.md) for details.
+
 ## Choosing a Platform
 
-Both platforms get the full AIDE feature set for individual development. Choose based on:
+All platforms get the core AIDE feature set for individual development. Choose based on:
 
 - **Claude Code** — Better for swarm mode (native subagents), status line monitoring, and teams using Claude's ecosystem
 - **OpenCode** — Better if you prefer explicit slash commands for skills, or use OpenCode as your primary editor
+- **Codex CLI** — Full memory, code intelligence, and MCP tooling; skills via `$` mention; no subagent orchestration

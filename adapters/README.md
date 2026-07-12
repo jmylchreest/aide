@@ -10,7 +10,7 @@ These provide first-class aide support with hooks, memory, skills, and persisten
 | --------------- | --------------------------------------------- | ------------------------------------------------------------ |
 | **Claude Code** | Built-in (plugin)                             | All features: hooks, skills, memory, HUD, persistence, swarm |
 | **OpenCode**    | `@jmylchreest/aide-plugin`                    | Hooks, skills, memory, MCP tools. See [opencode/](opencode/) |
-| **Codex CLI**   | `@jmylchreest/aide-plugin --platform codex`   | Hooks, skills, memory, MCP tools (no SubagentStart/Stop, no PreCompact) |
+| **Codex CLI**   | Codex plugin + `@jmylchreest/aide-plugin --platform codex` | Hooks, skills, memory, MCP tools (no SubagentStart/Stop, no PreCompact) |
 
 ## Feature Comparison
 
@@ -50,11 +50,23 @@ See [opencode/README.md](opencode/README.md) for detailed setup.
 
 ### Codex CLI
 
+Recommended (Codex ≥ 0.144): install as a Codex plugin, then add hooks:
+
+```bash
+codex plugin marketplace add jmylchreest/aide
+codex plugin add aide@aide
+bunx @jmylchreest/aide-plugin install --platform codex   # hooks only
+```
+
+Codex consumes aide's Claude plugin manifest (`.claude-plugin/`) directly: the plugin provides the **MCP server** and **skills** (invoke with `$<name>` or the `/skills` picker — skills are never per-skill slash commands in Codex), and `codex plugin marketplace upgrade` keeps them current. The install step then only generates `~/.codex/hooks.json` and enables the `[features].hooks` flag — Codex removed support for plugin-shipped hooks (`plugin_hooks`), so lifecycle hooks still have to be registered directly. The installer detects a plugin-managed setup automatically and skips (and cleans up) the MCP entry and skill copies it would otherwise manage.
+
+Standalone fallback (no plugin):
+
 ```bash
 bunx @jmylchreest/aide-plugin install --platform codex
 ```
 
-This generates `~/.codex/config.toml` (MCP server) and `~/.codex/hooks.json` (lifecycle hooks), and enables the `codex_hooks` feature flag. Use `--project` for project-level config instead.
+Without the plugin, this configures everything: MCP server in `~/.codex/config.toml`, lifecycle hooks in `~/.codex/hooks.json`, and skill copies in `~/.agents/skills/` (tracked in a manifest so re-installs update them and uninstall removes only aide's). Use `--project` for project-level config instead. Re-running the installer also repairs stale entries whose commands no longer resolve (e.g. after removing a global `aide-plugin` install).
 
 **Codex limitations vs Claude Code:** No SubagentStart/Stop hooks (swarm mode limited), no PreCompact hook, no dedicated SessionEnd event (cleanup folded into Stop hook with autopilot mode guard).
 

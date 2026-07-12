@@ -13,6 +13,7 @@ const sidebars: SidebarsConfig = {
       items: [
         "getting-started/claude-code",
         "getting-started/opencode",
+        "getting-started/codex",
         "getting-started/from-source",
         "getting-started/configuration",
       ],

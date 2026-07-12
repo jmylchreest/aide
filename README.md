@@ -22,8 +22,12 @@ bunx @jmylchreest/aide-plugin install
 **Codex CLI:**
 
 ```bash
-bunx @jmylchreest/aide-plugin install --platform codex
+codex plugin marketplace add jmylchreest/aide
+codex plugin add aide@aide
+bunx @jmylchreest/aide-plugin install --platform codex   # hooks only — Codex has no plugin hook support
 ```
+
+The Codex plugin provides the MCP server and skills (invoke with `$<name>` or `/skills`); the install step adds lifecycle hooks. On older Codex versions without plugin support, the install step alone configures everything.
 
 The Go binary downloads automatically on first run. Skills become available immediately.
 
