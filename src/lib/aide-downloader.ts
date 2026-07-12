@@ -566,7 +566,13 @@ Downloads the aide binary from GitHub releases.
     destDir = join(hasMarker ? root : process.cwd(), ".aide", "bin");
   }
 
-  const result = await downloadAideBinary(destDir, { force, quiet: false });
+  // Progress goes to stderr: callers like aide-wrapper may be fronting an
+  // MCP stdio server, where stdout is reserved for JSON-RPC.
+  const result = await downloadAideBinary(destDir, {
+    force,
+    quiet: false,
+    useStderr: true,
+  });
 
   if (result.success) {
     process.exit(0);

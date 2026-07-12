@@ -142,56 +142,90 @@ function binaryExists(): boolean {
 }
 
 /**
+ * Check whether a process is still running. Signal 0 performs the
+ * existence check without delivering a signal; EPERM means the process
+ * exists but belongs to another user, so it counts as alive.
+ */
+function isPidAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err: unknown) {
+    return (err as { code?: string })?.code === "EPERM";
+  }
+}
+
+function removeLock(lockPath: string): void {
+  try {
+    unlinkSync(join(lockPath, "pid"));
+  } catch { /* ignore */ }
+  try {
+    // rmdir only works on empty dirs — that's what we want
+    rmdirSync(lockPath);
+  } catch { /* ignore */ }
+}
+
+/**
  * Simple cross-platform file lock.
  * Uses mkdir as an atomic operation (works on all platforms).
+ * A lock whose owning pid is dead is reclaimed immediately, so a download
+ * that crashed or was killed (e.g. by an MCP client's startup timeout)
+ * can never wedge future startups.
+ * The default timeout stays below common MCP startup timeouts (~30s) so
+ * the force-remove fallback runs before the client gives up on us.
  * Returns a cleanup function to release the lock.
  */
-function acquireLock(lockPath: string, timeoutMs: number = 60000): () => void {
+function acquireLock(lockPath: string, timeoutMs: number = 20000): () => void {
   const start = Date.now();
   const pollMs = 200;
+  let forced = false;
 
   while (true) {
     try {
       mkdirSync(lockPath);
-      // Write our PID for debugging
+      // Write our PID so waiters can detect a dead owner
       try {
         writeFileSync(join(lockPath, "pid"), String(process.pid));
       } catch {
         // ignore
       }
-      return () => {
-        try {
-          unlinkSync(join(lockPath, "pid"));
-        } catch { /* ignore */ }
-        try {
-          // rmdir only works on empty dirs — that's what we want
-          rmdirSync(lockPath);
-        } catch { /* ignore */ }
-      };
+      return () => removeLock(lockPath);
     } catch (err: unknown) {
       if (
-        err &&
-        typeof err === "object" &&
-        "code" in err &&
-        (err as { code: string }).code === "EEXIST"
+        !(
+          err &&
+          typeof err === "object" &&
+          "code" in err &&
+          (err as { code: string }).code === "EEXIST"
+        )
       ) {
-        // Lock held by another process
-        if (Date.now() - start > timeoutMs) {
+        throw err;
+      }
+
+      // Lock held — reclaim it if the owner is provably dead. A missing
+      // or unreadable pid file may just mean the owner is between mkdir
+      // and writeFileSync, so that case is left to the timeout below.
+      try {
+        const pid = Number(readFileSync(join(lockPath, "pid"), "utf-8").trim());
+        if (Number.isFinite(pid) && pid > 0 && pid !== process.pid && !isPidAlive(pid)) {
+          log(`Reclaiming stale download lock (owner pid ${pid} is dead)`);
+          removeLock(lockPath);
+          continue;
+        }
+      } catch { /* pid file unreadable — fall through to timeout */ }
+
+      if (Date.now() - start > timeoutMs) {
+        if (forced) {
           log("ERROR: Timed out waiting for download lock");
-          // Force-remove stale lock and try once more
-          try {
-            unlinkSync(join(lockPath, "pid"));
-          } catch { /* ignore */ }
-          try {
-            rmdirSync(lockPath);
-          } catch { /* ignore */ }
           throw new Error("Timed out waiting for download lock");
         }
-        // Poll — use Bun.sleepSync for cross-platform millisecond sleep
-        Bun.sleepSync(pollMs);
+        log("Timed out waiting for download lock — force-removing and retrying");
+        forced = true;
+        removeLock(lockPath);
         continue;
       }
-      throw err;
+      // Poll — use Bun.sleepSync for cross-platform millisecond sleep
+      Bun.sleepSync(pollMs);
     }
   }
 }
@@ -248,9 +282,11 @@ function downloadBinary(): void {
 
     // Use cross-spawn for cross-platform compatibility (lazy import to
     // survive missing node_modules during bootstrap).
+    // Downloader stdout is redirected to our stderr: when we run as an MCP
+    // server, stdout is the JSON-RPC channel and must stay clean.
     const crossSpawn = require("cross-spawn");
     const result = crossSpawn.sync(runner, runnerArgs, {
-      stdio: ["ignore", "inherit", "inherit"],
+      stdio: ["ignore", 2, "inherit"],
       timeout: 120000,
     });
 
