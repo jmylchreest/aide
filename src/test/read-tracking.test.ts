@@ -51,8 +51,8 @@ describe("checkSmartReadHint", () => {
     expect(result.shouldHint).toBe(false);
   });
 
-  it("should not hint when AIDE_CODE_WATCH is not set", () => {
-    delete process.env.AIDE_CODE_WATCH;
+  it("should not hint when AIDE_CODE_WATCH is disabled", () => {
+    process.env.AIDE_CODE_WATCH = "0";
     const result = checkSmartReadHint("Read", { file_path: "foo.ts" }, cwd, binary);
     expect(result.shouldHint).toBe(false);
   });
@@ -243,8 +243,8 @@ describe("recordFileRead", () => {
     delete process.env.AIDE_CODE_WATCH;
   });
 
-  it("should be a no-op when AIDE_CODE_WATCH is not set", () => {
-    delete process.env.AIDE_CODE_WATCH;
+  it("should be a no-op when AIDE_CODE_WATCH is disabled", () => {
+    process.env.AIDE_CODE_WATCH = "0";
     mockRecordFileRead.mockImplementation(() => {});
     recordFileRead("/usr/bin/aide", "/home/user/project", "src/auth.ts");
     // The mock was called, but the real impl would early-return

@@ -528,11 +528,7 @@ export function installCodex(scope: "user" | "project"): {
       mcpServers[MCP_SERVER_NAME] = {
         command: resolved.mcpCommand,
         args: resolved.mcpArgs,
-        env: {
-          AIDE_CODE_WATCH: "1",
-          AIDE_CODE_WATCH_DELAY: "30s",
-          ...(resolved.wrapperEnv || {}),
-        },
+        ...(resolved.wrapperEnv ? { env: resolved.wrapperEnv } : {}),
       };
       config.mcp_servers = mcpServers;
       configChanged = true;

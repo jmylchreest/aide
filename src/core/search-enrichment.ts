@@ -14,14 +14,14 @@
  *   - Returns a compact enrichment string (~50-150 tokens)
  *   - Never blocks — purely additive context
  *
- * Gated behind AIDE_CODE_WATCH=1 (requires code index to be populated).
+ * Gated on code.watch (default on; requires code index to be populated).
  *
  * Used by both Claude Code hooks (PreToolUse) and OpenCode plugin.
  */
 
 import { execFileSync } from "child_process";
 import { debug } from "../lib/logger.js";
-import { isTruthy } from "../lib/hook-utils.js";
+import { codeWatchEnabled } from "../lib/hook-utils.js";
 
 const SOURCE = "search-enrichment";
 
@@ -74,7 +74,7 @@ export function checkSearchEnrichment(
   }
 
   // Require code watcher to be enabled (implies code index exists)
-  if (!isTruthy(process.env.AIDE_CODE_WATCH)) {
+  if (!codeWatchEnabled(cwd)) {
     return { shouldEnrich: false };
   }
 

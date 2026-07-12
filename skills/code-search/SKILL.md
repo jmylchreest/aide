@@ -153,4 +153,4 @@ In short: `code_search` finds _where things are defined_; Grep finds _patterns i
 - Code must be indexed first: `./.aide/bin/aide code index`
 - Indexing is incremental - only changed files are re-parsed
 - Supports: TypeScript, JavaScript, Go, Python, Rust, and more
-- For file watching: `AIDE_CODE_WATCH=1 claude`
+- File watching is on by default; disable with `AIDE_CODE_WATCH=0` or `code.watch: false` in `.aide/config/aide.json`

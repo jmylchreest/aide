@@ -264,7 +264,7 @@ export function recordToolEvent(
     }
     // Smart-read-hint state: record that this file was read so subsequent
     // re-reads can be flagged as candidates for code_outline/code_symbols.
-    // No-op when AIDE_CODE_WATCH is unset.
+    // No-op when code.watch is disabled.
     recordFileRead(binary, cwd, filePath);
   } else if (CONTENT_WRITE_TOOLS[input.toolName]) {
     // Modify tools: the cost is the new content the agent generates,

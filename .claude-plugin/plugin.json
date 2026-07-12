@@ -10,12 +10,7 @@
   "mcpServers": {
     "aide": {
       "command": "bun",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/bin/aide-wrapper.ts", "mcp"],
-      "env": {
-        "AIDE_CODE_WATCH": "1",
-        "AIDE_CODE_WATCH_DELAY": "30s",
-        "AIDE_REFLECT": "1"
-      }
+      "args": ["${CLAUDE_PLUGIN_ROOT}/bin/aide-wrapper.ts", "mcp"]
     }
   },
   "hooks": {

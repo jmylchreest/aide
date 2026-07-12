@@ -19,7 +19,7 @@ import { resolve, isAbsolute, normalize, extname } from "path";
 import { tmpdir } from "os";
 import { join } from "path";
 import { debug } from "../lib/logger.js";
-import { isTruthy } from "../lib/hook-utils.js";
+import { codeWatchEnabled } from "../lib/hook-utils.js";
 import { getPreviousRead, checkFileReadFreshness } from "./read-tracking.js";
 
 const SOURCE = "context-guard";
@@ -235,7 +235,7 @@ export interface SmartReadHintResult {
  *   2. The file hasn't changed since last indexing (mtime comparison)
  *   3. The file is indexed with symbols (code_outline would be useful)
  *
- * Gated behind AIDE_CODE_WATCH=1 and requires a valid aide binary.
+ * Gated on code.watch (default on) and requires a valid aide binary.
  */
 export function checkSmartReadHint(
   toolName: string,
@@ -249,7 +249,7 @@ export function checkSmartReadHint(
   }
 
   // Require code watcher to be enabled
-  if (!isTruthy(process.env.AIDE_CODE_WATCH)) {
+  if (!codeWatchEnabled(cwd)) {
     return { shouldHint: false };
   }
 

@@ -205,6 +205,36 @@ export function reflectEnabled(cwd: string): boolean {
 }
 
 /**
+ * codeWatchEnabled mirrors the Go-side `code.watch` resolution so TS hooks
+ * gate the same way as `aide mcp`. Precedence:
+ *
+ *   1. AIDE_CODE_WATCH env (recognised truthy/falsy values win)
+ *   2. .aide/config/aide.json `code.watch` at the resolved project root
+ *   3. default true
+ */
+export function codeWatchEnabled(cwd: string): boolean {
+  const env = process.env.AIDE_CODE_WATCH;
+  if (env !== undefined && env !== "") {
+    const norm = env.trim().toLowerCase();
+    if (TRUTHY.has(norm)) return true;
+    if (FALSY.has(norm)) return false;
+  }
+  try {
+    const { root } = findProjectRoot(cwd);
+    const cfgPath = join(root, ".aide", "config", "aide.json");
+    if (existsSync(cfgPath)) {
+      const cfg = JSON.parse(readFileSync(cfgPath, "utf-8")) as {
+        code?: { watch?: boolean };
+      };
+      if (typeof cfg?.code?.watch === "boolean") return cfg.code.watch;
+    }
+  } catch {
+    // Unreadable / malformed config — treat as unset.
+  }
+  return true;
+}
+
+/**
  * Get the plugin root directory from environment variables.
  */
 function getPluginRoot(): string | undefined {

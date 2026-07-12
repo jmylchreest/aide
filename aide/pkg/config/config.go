@@ -395,6 +395,7 @@ var envBareKey = map[string]string{
 // disable features users expect on by default.
 var defaults = map[string]any{
 	"code.store_enabled":            true,
+	"code.watch":                    true,
 	"memory.scoring_enabled":        true,
 	"memory.decay_enabled":          true,
 	"memory.injection_token_budget": 8000,

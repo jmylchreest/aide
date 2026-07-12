@@ -6,14 +6,14 @@
  * to provide smart read hints (suggest code_outline/code_symbols over
  * redundant file re-reads).
  *
- * Gated behind AIDE_CODE_WATCH=1 (file watcher must be enabled).
+ * Gated on code.watch (default on; disable via AIDE_CODE_WATCH=0 or config).
  */
 
 import { execFileSync } from "child_process";
 import { isAbsolute, relative, resolve } from "path";
 import { setState, getState } from "./aide-client.js";
 import { debug } from "../lib/logger.js";
-import { isTruthy } from "../lib/hook-utils.js";
+import { codeWatchEnabled } from "../lib/hook-utils.js";
 
 const SOURCE = "read-tracking";
 
@@ -44,14 +44,14 @@ function toRelativePath(cwd: string, filePath: string): string {
  * Record that a file was read in this session.
  * Sets a state key so subsequent reads can be detected.
  *
- * No-op if AIDE_CODE_WATCH is not enabled.
+ * No-op if code.watch is disabled.
  */
 export function recordFileRead(
   binary: string,
   cwd: string,
   filePath: string,
 ): void {
-  if (!isTruthy(process.env.AIDE_CODE_WATCH)) return;
+  if (!codeWatchEnabled(cwd)) return;
 
   try {
     const relPath = toRelativePath(cwd, filePath);
@@ -67,14 +67,14 @@ export function recordFileRead(
  * Check if a file was previously read in this session.
  * Returns the ISO timestamp of the last read, or null if not read.
  *
- * Returns null if AIDE_CODE_WATCH is not enabled.
+ * Returns null if code.watch is disabled.
  */
 export function getPreviousRead(
   binary: string,
   cwd: string,
   filePath: string,
 ): string | null {
-  if (!isTruthy(process.env.AIDE_CODE_WATCH)) return null;
+  if (!codeWatchEnabled(cwd)) return null;
 
   try {
     const relPath = toRelativePath(cwd, filePath);

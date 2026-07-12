@@ -24,11 +24,6 @@
  *     "aide": {
  *       "type": "local",
  *       "command": ["bunx", "-y", "@jmylchreest/aide-plugin", "mcp"],
- *       "environment": {
- *         "AIDE_CODE_WATCH": "1",
- *         "AIDE_CODE_WATCH_DELAY": "30s",
- *         "AIDE_FORCE_INIT": "1"
- *       },
  *       "enabled": true
  *     }
  *   }

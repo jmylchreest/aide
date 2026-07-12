@@ -11,12 +11,7 @@
   "mcpServers": {
     "aide": {
       "command": "bunx",
-      "args": ["-y", "@jmylchreest/aide-plugin@0.1.5", "mcp"],
-      "env": {
-        "AIDE_CODE_WATCH": "1",
-        "AIDE_CODE_WATCH_DELAY": "30s",
-        "AIDE_REFLECT": "1"
-      }
+      "args": ["-y", "@jmylchreest/aide-plugin@0.1.5", "mcp"]
     }
   }
 }

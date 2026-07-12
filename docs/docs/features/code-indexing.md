@@ -49,10 +49,10 @@ Progress events arrive in completion order rather than walk order — small file
 
 ## File Watcher
 
-When the MCP server is running, a file watcher automatically re-indexes changed files. Controlled by:
+When the MCP server is running, a file watcher automatically re-indexes changed files. On by default; controlled by:
 
+- `code.watch` in `.aide/config/aide.json` or `AIDE_CODE_WATCH=0` to disable
 - `--code-watch` flag on `aide mcp`
-- `AIDE_CODE_WATCH=1` environment variable
 - `AIDE_CODE_WATCH_DELAY=30s` debounce delay (default 30s)
 
 The watcher also triggers findings analysers on changed files.
