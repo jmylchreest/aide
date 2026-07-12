@@ -1,0 +1,22 @@
+{
+  "name": "aide",
+  "version": "0.1.5",
+  "description": "AI Development Environment - persistent memory, code intelligence, and multi-agent orchestration",
+  "author": {
+    "name": "John Mylchreest"
+  },
+  "homepage": "https://github.com/jmylchreest/aide",
+  "license": "MIT",
+  "skills": "./skills/",
+  "mcpServers": {
+    "aide": {
+      "command": "bunx",
+      "args": ["-y", "@jmylchreest/aide-plugin@0.1.5", "mcp"],
+      "env": {
+        "AIDE_CODE_WATCH": "1",
+        "AIDE_CODE_WATCH_DELAY": "30s",
+        "AIDE_REFLECT": "1"
+      }
+    }
+  }
+}
