@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -24,6 +25,7 @@ type StatusOutput struct {
 	Project       string            `json:"project"`
 	Timestamp     time.Time         `json:"timestamp"`
 	ServerRunning bool              `json:"serverRunning"`
+	ServerState   string            `json:"serverState,omitempty"` // "running" | "not-running" | "unreachable-sandboxed"
 	Uptime        string            `json:"uptime,omitempty"`
 	PprofURL      string            `json:"pprofUrl,omitempty"`
 	Watcher       *WatcherStatus    `json:"watcher,omitempty"`
@@ -35,6 +37,15 @@ type StatusOutput struct {
 	Grammars      []GrammarStatus   `json:"grammars,omitempty"`
 	Env           map[string]string `json:"environment,omitempty"`
 }
+
+const (
+	serverStateRunning    = "running"
+	serverStateNotRunning = "not-running"
+	// serverStateSandboxed: a daemon socket exists but this process's sandbox
+	// denies connect(2) (e.g. Codex sandboxed shells), so the daemon's actual
+	// state is unknowable from here.
+	serverStateSandboxed = "unreachable-sandboxed"
+)
 
 type WatcherStatus struct {
 	Enabled      bool     `json:"enabled"`
@@ -140,6 +151,9 @@ func cmdStatus(dbPath string, args []string) error {
 	// Try gRPC first — query the running MCP server for live status
 	if grpcapi.SocketExistsForDB(dbPath) {
 		client, err := grpcapi.NewClientForDB(dbPath)
+		if errors.Is(err, grpcapi.ErrSandboxDenied) {
+			status.ServerState = serverStateSandboxed
+		}
 		if err == nil {
 			defer client.Close()
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -151,11 +165,20 @@ func cmdStatus(dbPath string, args []string) error {
 			}
 		}
 	}
+	if status.ServerState == "" {
+		if status.ServerRunning {
+			status.ServerState = serverStateRunning
+		} else {
+			status.ServerState = serverStateNotRunning
+		}
+	}
 
-	// Direct store fallbacks when server is not running
+	// Direct store fallbacks when no server answered. Skipped when a sandbox
+	// blocked the socket: the daemon behind it likely holds the store locks,
+	// so each open would stall for its lock timeout and then fail anyway.
 	memoryDir := filepath.Dir(dbPath)
 
-	if status.Code == nil {
+	if status.ServerState != serverStateSandboxed && status.Code == nil {
 		codeDBPath := filepath.Join(memoryDir, "code", "index.db")
 		codeSearchPath := filepath.Join(memoryDir, "code", "search.bleve")
 		if cs, err := store.NewCodeStore(codeDBPath, codeSearchPath); err == nil {
@@ -171,7 +194,7 @@ func cmdStatus(dbPath string, args []string) error {
 		}
 	}
 
-	if status.Findings == nil {
+	if status.ServerState != serverStateSandboxed && status.Findings == nil {
 		findingsDir := filepath.Join(memoryDir, "findings")
 		if fs, err := store.NewFindingsStore(findingsDir); err == nil {
 			defer fs.Close()
@@ -185,7 +208,7 @@ func cmdStatus(dbPath string, args []string) error {
 		}
 	}
 
-	if status.Survey == nil {
+	if status.ServerState != serverStateSandboxed && status.Survey == nil {
 		surveyDir := getSurveyStorePath(dbPath)
 		if ss, err := store.NewSurveyStore(surveyDir); err == nil {
 			defer ss.Close()
@@ -342,6 +365,9 @@ func printStatusTable(status StatusOutput) {
 	fmt.Printf("  Time:     %s\n", status.Timestamp.Format("2006-01-02 15:04:05"))
 	if status.ServerRunning {
 		fmt.Printf("  Server:   running (uptime: %s)\n", status.Uptime)
+	} else if status.ServerState == serverStateSandboxed {
+		fmt.Printf("  Server:   unreachable — socket present but this shell's sandbox denies connect()\n")
+		fmt.Printf("            daemon is likely running; in Codex allow it with [sandbox_workspace_write] network_access = true\n")
 	} else {
 		fmt.Printf("  Server:   not running\n")
 	}
@@ -527,7 +553,7 @@ func printMCPToolsStatus(tools []MCPToolStatus) {
 		}
 		fmt.Println()
 	} else {
-		fmt.Println("  Not available (server not running)")
+		fmt.Println("  Not available (no server connection)")
 	}
 	fmt.Println()
 }
@@ -581,7 +607,7 @@ func printGrammarsStatus(grammars []GrammarStatus) {
 		}
 		fmt.Printf("  Total:        %d\n", len(grammars))
 	} else {
-		fmt.Println("  Not available (server not running)")
+		fmt.Println("  Not available (no server connection)")
 	}
 	fmt.Println()
 }

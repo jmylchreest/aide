@@ -236,6 +236,14 @@ aide status --json                       # JSON output
 
 Shows version, server status, file watcher, code index, findings analysers, MCP tools, stores, and environment variables.
 
+The server line (and `serverState` in `--json`) has three states:
+
+| State                   | Meaning                                                                                                                                                                                                                    |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `running`               | Connected to the daemon over `.aide/aide.sock`                                                                                                                                                                              |
+| `not-running`           | No daemon socket; store sections are read directly from disk                                                                                                                                                                |
+| `unreachable-sandboxed` | A daemon socket exists but this shell's sandbox denies `connect()` (e.g. Codex sandboxed execs). The daemon is likely running but unverifiable, so direct store reads are skipped — they would stall on the daemon's locks |
+
 ## Other Commands
 
 ```bash

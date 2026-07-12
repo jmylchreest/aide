@@ -83,6 +83,9 @@ func NewClientWithSocket(socketPath string) (*Client, error) {
 	defer cancel()
 	if err := c.Ping(ctx); err != nil {
 		_ = conn.Close()
+		if isConnectDenied(err) {
+			return nil, fmt.Errorf("failed to connect to %s: %w", socketPath, ErrSandboxDenied)
+		}
 		return nil, fmt.Errorf("failed to connect to socket: %w", err)
 	}
 

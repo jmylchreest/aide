@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi"
@@ -30,6 +31,15 @@ func NewBackend(dbPath string) (*Backend, error) {
 	// to avoid BoltDB file-lock contention.
 	if grpcapi.SocketExistsForDB(dbPath) {
 		client, err := grpcapi.NewClientForDB(dbPath)
+		if errors.Is(err, grpcapi.ErrSandboxDenied) {
+			// A daemon socket is present but this process's sandbox blocks
+			// connect(2). The daemon behind it likely holds the store locks,
+			// so falling through to a direct open would stall for the BoltDB
+			// lock timeout and then fail — fatal for hooks on a ~3s budget.
+			return nil, fmt.Errorf(
+				"aide daemon socket %s is unreachable from this sandboxed shell: %w (rerun outside the sandbox, or allow it in Codex with [sandbox_workspace_write] network_access = true)",
+				grpcapi.SocketPathFromDB(dbPath), err)
+		}
 		if err == nil {
 			// Verify connection works
 			ctx, cancel := context.WithTimeout(context.Background(), DefaultPingTimeout)

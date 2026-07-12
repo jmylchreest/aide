@@ -134,4 +134,4 @@ All platforms get the core AIDE feature set for individual development. Choose b
 
 - **Claude Code** — Better for swarm mode (native subagents), status line monitoring, and teams using Claude's ecosystem
 - **OpenCode** — Better if you prefer explicit slash commands for skills, or use OpenCode as your primary editor
-- **Codex CLI** — Full memory, code intelligence, and MCP tooling; skills via `$` mention; no subagent orchestration
+- **Codex CLI** — Full memory, code intelligence, and MCP tooling; skills via `$` mention; no subagent orchestration. The default sandbox blocks shell/hook access to the aide daemon — see [Sandboxed Shells and the aide Daemon](../getting-started/codex.md#sandboxed-shells-and-the-aide-daemon)

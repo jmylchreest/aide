@@ -53,6 +53,32 @@ Re-running the installer also repairs stale entries whose commands no longer res
 bunx @jmylchreest/aide-plugin status --platform codex
 ```
 
+## Sandboxed Shells and the aide Daemon
+
+aide's daemon is the MCP server process itself: the first `aide mcp` in a project owns the stores and listens on `.aide/aide.sock`; every other aide process (CLI commands, hooks, later MCP servers) attaches to it over that socket.
+
+Codex spawns MCP servers **outside** its sandbox, so the aide MCP tools always work. But shell commands and hooks run **inside** the sandbox, which denies socket `connect()` (`EPERM`) under the default `workspace-write` policy. The result: the MCP side of aide is fully live while any `aide` CLI invocation in the same session cannot reach it —
+
+- `aide status` reports `Server: unreachable — socket present but this shell's sandbox denies connect()`
+- CLI commands that need the daemon (and hooks such as tool-call observation) fail fast with an error explaining the sandbox denial, instead of stalling on the daemon's store locks until the hook budget expires
+
+To let sandboxed commands reach the daemon, enable network access for the workspace-write sandbox in `~/.codex/config.toml`:
+
+```toml
+sandbox_mode = "workspace-write"
+
+[sandbox_workspace_write]
+network_access = true
+```
+
+Or as a one-off:
+
+```bash
+codex -c sandbox_mode="workspace-write" -c sandbox_workspace_write.network_access=true
+```
+
+Note this lifts the sandbox's *entire* network restriction for shell commands (outbound internet included, and `CODEX_SANDBOX_NETWORK_DISABLED` is no longer set) — Codex offers no narrower "unix sockets only" carve-out. If you prefer to keep the network sealed, aide degrades gracefully: MCP tools keep working, and only sandboxed CLI/hook invocations are skipped.
+
 ## Uninstall
 
 ```bash
@@ -66,3 +92,4 @@ codex plugin remove aide@aide
 - No `PreCompact` hook
 - No dedicated `SessionEnd` event — cleanup is folded into the `Stop` hook
 - HUD is file-based only (no native status line)
+- Sandboxed shell commands and hooks cannot reach the aide daemon unless `network_access = true` is set (see [Sandboxed Shells and the aide Daemon](#sandboxed-shells-and-the-aide-daemon))
