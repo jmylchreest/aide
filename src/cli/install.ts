@@ -99,26 +99,63 @@ async function installForCodex(flags: InstallFlags): Promise<void> {
   console.log(`Installing aide for Codex CLI (${scope})...\n`);
 
   const before = isCodexConfigured(scope);
-  if (before.mcp && before.hooks) {
-    console.log("aide is already configured for Codex CLI");
-    console.log("  mcp:   registered in config.toml");
-    console.log("  hooks: registered in hooks.json");
-    console.log("\nNothing to do.");
-    return;
-  }
-
   const result = installCodex(scope);
 
-  if (result.configWritten) {
-    console.log("  + Added aide MCP server to config.toml");
+  if (result.pluginManaged) {
+    console.log(
+      "  = Codex plugin detected — MCP server and skills are plugin-managed",
+    );
+    console.log("    (hooks stay here: Codex has no plugin hook support)");
+    if (result.configWritten) {
+      console.log("  - Removed redundant aide MCP server from config.toml");
+    }
+  } else if (result.configWritten) {
+    console.log(
+      result.mcpRepaired
+        ? "  + Repaired stale aide MCP server command in config.toml"
+        : "  + Added aide MCP server to config.toml",
+    );
   } else if (before.mcp) {
     console.log("  = MCP server already registered in config.toml");
   }
 
   if (result.hooksWritten) {
-    console.log("  + Generated hooks.json with aide hooks");
+    console.log(
+      result.hooksRepaired
+        ? "  + Regenerated stale aide hook commands in hooks.json"
+        : "  + Generated hooks.json with aide hooks",
+    );
   } else if (before.hooks) {
     console.log("  = Hooks already registered in hooks.json");
+  }
+
+  const skills = result.skills;
+  const skillChanges =
+    skills.installed.length + skills.updated.length + skills.removed.length;
+  if (result.pluginManaged) {
+    if (skills.removed.length) {
+      console.log(
+        `  - Removed ${skills.removed.length} loose skill copies (plugin provides skills)`,
+      );
+    }
+  } else if (skillChanges > 0) {
+    const parts: string[] = [];
+    if (skills.installed.length) parts.push(`${skills.installed.length} installed`);
+    if (skills.updated.length) parts.push(`${skills.updated.length} updated`);
+    if (skills.removed.length) parts.push(`${skills.removed.length} removed`);
+    console.log(`  + Skills synced: ${parts.join(", ")}`);
+  } else {
+    console.log("  = Skills up to date");
+  }
+  if (skills.skipped.length) {
+    console.log(
+      `  ! Skipped existing non-aide skills: ${skills.skipped.join(", ")}`,
+    );
+  }
+
+  if (!result.configWritten && !result.hooksWritten && skillChanges === 0) {
+    console.log("\nNothing to do.");
+    return;
   }
 
   console.log("\nInstallation complete. Start Codex CLI to use aide.");

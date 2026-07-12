@@ -30,6 +30,16 @@ function detectPlatform(): Platform {
     process.exit(1);
   }
 
+  // Positional form: `install codex`, `status opencode`
+  if (["install", "uninstall", "status"].includes(command ?? "")) {
+    const pos = args[1];
+    if (pos && !pos.startsWith("-")) {
+      if (pos === "codex" || pos === "opencode") return pos;
+      console.error(`Unknown platform: ${pos}. Use "opencode" or "codex".`);
+      process.exit(1);
+    }
+  }
+
   if (process.env.CODEX_HOME || process.env.CODEX_SANDBOX_TYPE) return "codex";
 
   return "opencode";
@@ -47,7 +57,8 @@ Usage:
   aide-plugin --help      Show this help message
 
 Options:
-  --platform codex|opencode   Target platform (auto-detected if omitted)
+  --platform codex|opencode   Target platform (also accepted positionally,
+                              e.g. \`install codex\`; auto-detected if omitted)
   --project                   Apply to project-level config instead of global
   --no-mcp                    Skip MCP server registration (plugin only)
 
