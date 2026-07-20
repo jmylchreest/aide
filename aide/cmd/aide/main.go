@@ -57,6 +57,13 @@ func main() {
 			fatal("%v", err)
 		}
 		return
+	case "anchor":
+		// Read-only resolution probe: must run before any .aide/ creation
+		// below and must not require a marker to exist.
+		if err := cmdAnchor(args); err != nil {
+			fatal("%v", err)
+		}
+		return
 	}
 
 	// Determine database path from project root (walks up to .aide or .git).
@@ -74,11 +81,7 @@ func main() {
 	}
 
 	// Use legacy store.db if it exists, otherwise use the new memory.db name.
-	dbPath := filepath.Join(projectRoot, defaultDBName)
-	legacyPath := filepath.Join(projectRoot, legacyDBName)
-	if _, err := os.Stat(legacyPath); err == nil {
-		dbPath = legacyPath
-	}
+	dbPath := computeDBPath(projectRoot)
 
 	// Ensure memory directory exists.
 	memoryDir := filepath.Dir(dbPath)
@@ -160,6 +163,7 @@ Usage:
   aide <command> [arguments]
 
 Commands:
+  anchor     Show resolved project root, provenance, and scope chain (read-only; --json)
   session    Session lifecycle (init - single-call startup)
   memory     Manage memories (add, delete, search, select, list, export, clear)
   code       Index and search code symbols (index, search, symbols, clear)
@@ -251,105 +255,35 @@ func extractProjectRootFlag(args []string) (string, []string, bool) {
 }
 
 // findProjectRoot walks up directories looking for .aide or .git markers.
-// This avoids spawning a git subprocess on every invocation.
 // For git worktrees, .git is a file pointing to the main repo; we follow it
 // to find the actual repository root so all worktrees share the same store.
 // Submodules also use a .git file but are distinct repositories: a checkout
 // inside a submodule anchors the submodule's own .aide/ store, not the
 // superproject's — where you start (cwd) decides which project you're in.
 //
-// To prevent cross-project memory contamination, ~/.aide/ (created by the
-// TypeScript layer for global skills/MCP config) is skipped as a project
-// marker unless cwd is exactly $HOME (user intentionally working from home).
-//
-// AIDE_PROJECT_ROOT short-circuits the walk: when set to an existing
-// directory it is returned as-is (with hasMarker=true), so users can run
-// aide commands against any project from any cwd.
-//
-// Returns the resolved project root and a boolean indicating whether a
-// .aide/ or .git/ marker was actually found. When no marker is found,
-// the current working directory is returned.
+// Thin wrapper over resolveAnchor (cmd_anchor.go), which is the single
+// resolution authority and carries the full semantics documentation. Do
+// not add resolution logic here or anywhere else.
 func findProjectRoot() (string, bool) {
-	if override := os.Getenv("AIDE_PROJECT_ROOT"); override != "" {
-		abs, err := filepath.Abs(override)
-		if err == nil {
-			if info, err := os.Stat(abs); err == nil && info.IsDir() {
-				return abs, true
-			}
-		}
-		fmt.Fprintf(os.Stderr, "aide: AIDE_PROJECT_ROOT=%q is not a directory; falling back to walk-up\n", override)
-	}
-
-	cwd, err := os.Getwd()
-	if err != nil {
-		return ".", false
-	}
-
-	homeDir, _ := os.UserHomeDir()
-
-	// Walk the full ancestry collecting candidates. The closest VCS root
-	// wins, then .aide/-only candidates as a fallback for VCS-less
-	// projects. This avoids latching onto a stray child .aide/ (created by
-	// an accidental CLI invocation from a subdir) when the real project
-	// root is one or more levels up: a stray .aide/ has no VCS marker, so
-	// any real repository above it takes priority.
-	type cand struct {
-		dir         string
-		hasAide     bool
-		hasVCS      bool
-		vcsResolved string // worktree-resolved root for .git files; empty otherwise
-	}
-	var path []cand
-	dir := cwd
-	for {
-		c := cand{dir: dir}
-		aidePath := filepath.Join(dir, ".aide")
-		if _, err := os.Stat(aidePath); err == nil {
-			// Skip ~/.aide/ as a project marker unless cwd is $HOME itself.
-			// ~/.aide/ is the TS layer's global config dir, not a project.
-			if homeDir == "" || dir != homeDir || cwd == homeDir {
-				c.hasAide = true
-			}
-		}
-		if vcsDir, resolved, ok := vcsMarker(dir); ok {
-			c.hasVCS = true
-			if resolved != "" {
-				c.vcsResolved = resolved
-			} else {
-				c.vcsResolved = vcsDir
-			}
-		}
-		if c.hasAide || c.hasVCS {
-			path = append(path, c)
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			break
-		}
-		dir = parent
-	}
-
-	// Priority: closest VCS root wins. A VCS boundary — including a
-	// submodule, which is its own repository with its own history and
-	// often its own team — is the project boundary, regardless of whether
-	// an ancestor also carries .aide/. Starting inside a submodule anchors
-	// the submodule; starting in the superproject anchors the superproject.
-	// A stray child .aide/ without VCS still can't shadow the real root:
-	// .aide/-only candidates are considered only when no VCS marker exists
-	// anywhere in the ancestry.
-	for _, c := range path {
-		if c.hasVCS {
-			return c.vcsResolved, true
-		}
-	}
-	// Then closest .aide/-only (standalone projects with no VCS).
-	for _, c := range path {
-		if c.hasAide {
-			return c.dir, true
-		}
-	}
-	return cwd, false
+	a := resolveAnchor("")
+	return a.Root, a.HasMarker
 }
+
+// computeDBPath returns the store path under projectRoot, preferring the
+// legacy store.db name when it already exists.
+func computeDBPath(projectRoot string) string {
+	dbPath := filepath.Join(projectRoot, defaultDBName)
+	legacyPath := filepath.Join(projectRoot, legacyDBName)
+	if _, err := os.Stat(legacyPath); err == nil {
+		dbPath = legacyPath
+	}
+	return dbPath
+}
+
+// vcsMarkerNames are the recognized VCS root markers, .git first. Every
+// marker check in this package must use this list — keeping the anchor
+// classifier, vcsMarker, and isVCSRoot in agreement.
+var vcsMarkerNames = []string{".git", ".hg", ".svn", ".bzr", ".fossil"}
 
 // vcsMarker reports whether dir contains a VCS marker, and for .git files
 // (worktrees) returns the resolved main-repo root. Empty resolved string
@@ -366,7 +300,7 @@ func vcsMarker(dir string) (vcsDir string, resolved string, ok bool) {
 		}
 		return dir, "", true
 	}
-	for _, marker := range []string{".hg", ".svn", ".bzr", ".fossil"} {
+	for _, marker := range vcsMarkerNames[1:] {
 		if _, err := os.Stat(filepath.Join(dir, marker)); err == nil {
 			return dir, "", true
 		}
@@ -379,7 +313,7 @@ func vcsMarker(dir string) (vcsDir string, resolved string, ok bool) {
 // directory backed only by .aide/ (e.g. $HOME) shouldn't have the file
 // watcher walk and re-index everything beneath it.
 func isVCSRoot(dir string) bool {
-	for _, marker := range []string{".git", ".hg", ".svn", ".bzr", ".fossil"} {
+	for _, marker := range vcsMarkerNames {
 		if _, err := os.Stat(filepath.Join(dir, marker)); err == nil {
 			return true
 		}
@@ -400,38 +334,34 @@ func isSubmoduleGitdir(gitdir string) bool {
 	return false
 }
 
-// resolveWorktreeRoot reads a .git file (worktree marker) and resolves the
-// main repository root. The file contains "gitdir: /path/to/repo/.git/worktrees/<name>".
-// Submodule .git files (gitdir under .git/modules/) resolve to "" so the
-// submodule directory itself becomes the root.
-func resolveWorktreeRoot(gitFilePath string) string {
+// gitfileInfo parses a .git file ("gitdir: <path>") and classifies it:
+// shape "worktree" (linked worktree) or "submodule" (gitdir under a
+// superproject's .git/modules/ tree), plus the owning repository's root —
+// the main repo for a worktree, the superproject for a submodule. Returns
+// ("", "") when the file is unreadable or not a gitdir pointer. This is
+// the single .git-file parser; resolveWorktreeRoot and the anchor
+// provenance/chain build on it.
+func gitfileInfo(gitFilePath string) (shape string, ownerRoot string) {
 	data, err := os.ReadFile(gitFilePath)
 	if err != nil {
-		return ""
+		return "", ""
 	}
 	line := strings.TrimSpace(string(data))
 	if !strings.HasPrefix(line, "gitdir:") {
-		return ""
+		return "", ""
 	}
 	gitdir := strings.TrimSpace(strings.TrimPrefix(line, "gitdir:"))
-
-	// Make absolute if relative
 	if !filepath.IsAbs(gitdir) {
 		gitdir = filepath.Join(filepath.Dir(gitFilePath), gitdir)
 	}
 
-	// Submodules also use a .git file, with gitdir pointing into the
-	// superproject's .git/modules/ tree. A submodule is a distinct
-	// repository, so it anchors its own .aide/ store rather than sharing
-	// the superproject's. Returning "" makes vcsMarker fall back to the
-	// submodule directory itself. (A worktree OF a submodule also lands
-	// here and anchors at the worktree directory — known limitation.)
+	shape = "worktree"
 	if isSubmoduleGitdir(gitdir) {
-		return ""
+		shape = "submodule"
 	}
 
-	// Walk up from .git/worktrees/<name> to find the .git directory
-	// then return its parent as the repo root
+	// Walk up the gitdir path to the ".git" component; its parent is the
+	// owning repository's root.
 	candidate := gitdir
 	for {
 		parent := filepath.Dir(candidate)
@@ -439,11 +369,28 @@ func resolveWorktreeRoot(gitFilePath string) string {
 			break
 		}
 		if filepath.Base(candidate) == ".git" {
-			return parent
+			return shape, parent
 		}
 		candidate = parent
 	}
-	return ""
+	return shape, ""
+}
+
+// resolveWorktreeRoot reads a .git file (worktree marker) and resolves the
+// main repository root. The file contains "gitdir: /path/to/repo/.git/worktrees/<name>".
+//
+// Submodules also use a .git file, with gitdir pointing into the
+// superproject's .git/modules/ tree. A submodule is a distinct repository,
+// so it anchors its own .aide/ store rather than sharing the
+// superproject's: returning "" makes vcsMarker fall back to the submodule
+// directory itself. (A worktree OF a submodule also lands here and anchors
+// at the worktree directory — known limitation.)
+func resolveWorktreeRoot(gitFilePath string) string {
+	shape, ownerRoot := gitfileInfo(gitFilePath)
+	if shape != "worktree" {
+		return ""
+	}
+	return ownerRoot
 }
 
 // ensureBinSymlink creates or updates .aide/bin/aide as a symlink to the
