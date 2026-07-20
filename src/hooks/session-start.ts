@@ -34,6 +34,10 @@ import {
 import { findAideBinary, ensureAideBinary } from "../lib/aide-downloader.js";
 import { findProjectRoot } from "../lib/project-root.js";
 import {
+  resolveAnchorViaBinary,
+  writeSessionAnchor,
+} from "../lib/anchor.js";
+import {
   emitInjectionEvent,
   recordObserveEvent,
 } from "../core/read-tracking.js";
@@ -422,10 +426,39 @@ async function main(): Promise<void> {
     // Check that aide binary is available (auto-downloads if missing/outdated)
     debugLog("checkAideBinary starting...");
     const {
+      binary: resolvedBinary,
       error: binaryError,
       warning: binaryWarning,
       downloaded: binaryDownloaded,
     } = await checkAideBinary(cwd, log);
+
+    // Resolve and persist the session anchor: the Go binary is the single
+    // resolution authority, and the persisted anchor (session-keyed cache +
+    // <root>/.aide/state/anchor.json) is what every later hook reads instead
+    // of re-deriving the root. Best-effort — hooks fall back to shelling
+    // out, then to the TS walk.
+    if (resolvedBinary) {
+      debugLog("anchor resolve/persist starting...");
+      try {
+        const anchor = resolveAnchorViaBinary(resolvedBinary, launchedCwd);
+        if (anchor) {
+          writeSessionAnchor(sessionId, launchedCwd, anchor);
+          if (anchor.root !== cwd) {
+            // The Go resolver and the TS walk disagreeing is exactly the
+            // misanchoring class the anchor exists to catch — surface it.
+            log.warn(
+              `anchor mismatch: binary resolved ${anchor.root}, TS walk resolved ${cwd}`,
+            );
+          }
+          debugLog(
+            `anchor persisted: root=${anchor.root} chain=${anchor.chain.length} (${Date.now() - hookStart}ms)`,
+          );
+        }
+      } catch (err) {
+        log.warn("anchor persist failed (non-fatal)", err);
+      }
+    }
+
     if (binaryDownloaded) {
       debugLog(`aide binary was downloaded`);
     }

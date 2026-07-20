@@ -14,6 +14,7 @@ import { dirname, join } from "path";
 import which from "which";
 import type { FindBinaryOptions } from "./types.js";
 import { debug } from "../lib/logger.js";
+import { findProjectRoot } from "../lib/project-root.js";
 
 const SOURCE = "aide-client";
 const IS_WINDOWS = process.platform === "win32";
@@ -50,12 +51,27 @@ export function findAideBinary(opts: FindBinaryOptions = {}): string | null {
     }
   }
 
-  // 2. Project-local .aide/bin/
+  // 2. Project-local .aide/bin/ — at cwd, then at the resolved project
+  // root (ensureBinSymlink plants the symlink at the ROOT, so a cwd deep
+  // inside the repo — or inside a worktree/submodule whose store lives
+  // elsewhere — must still find it).
   if (cwd) {
     const projectBinary = join(cwd, ".aide", "bin", BINARY_NAME);
     if (existsSync(projectBinary)) {
       ensureBinInPath(dirname(projectBinary));
       return projectBinary;
+    }
+    try {
+      const { root } = findProjectRoot(cwd);
+      if (root && root !== cwd) {
+        const rootBinary = join(root, ".aide", "bin", BINARY_NAME);
+        if (existsSync(rootBinary)) {
+          ensureBinInPath(dirname(rootBinary));
+          return rootBinary;
+        }
+      }
+    } catch {
+      /* resolution is best-effort here */
     }
   }
 

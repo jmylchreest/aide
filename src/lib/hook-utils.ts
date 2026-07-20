@@ -102,7 +102,9 @@ export function normalizeHookInput(raw: string): string {
   try {
     const data = JSON.parse(raw) as Record<string, unknown>;
 
-    // Map known alternative field names → canonical snake_case
+    // Map known alternative field names → canonical snake_case. The cwd
+    // aliases matter for anchoring: a harness renaming its cwd field must
+    // degrade to the process-cwd fallback, never silently re-root hooks.
     const aliases: Record<string, string> = {
       hookEventName: "hook_event_name",
       sessionId: "session_id",
@@ -111,6 +113,9 @@ export function normalizeHookInput(raw: string): string {
       agentName: "agent_name",
       toolInput: "tool_input",
       permissionMode: "permission_mode",
+      workingDirectory: "cwd",
+      working_directory: "cwd",
+      workingDir: "cwd",
     };
 
     let changed = false;
