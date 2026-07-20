@@ -36,13 +36,15 @@ const {
   readFileSync,
   statSync,
 } = require("fs") as typeof import("fs");
-const { join, dirname } = require("path") as typeof import("path");
+const { join, dirname, basename } = require("path") as typeof import("path");
 const whichSync = (require("which") as typeof import("which")).sync;
 
 /**
- * Inline walk-up for project root — mirrors lib/project-root.ts logic
- * (priority: both markers > VCS > .aide/-only > cwd). Inlined here to keep
- * this hook's startup cheap (no extra ES imports).
+ * Inline walk-up for project root — mirrors lib/project-root.ts semantics
+ * (closest VCS root wins, linked worktrees resolve to the main repo,
+ * submodule checkouts anchor themselves; .aide/-only as fallback). Inlined
+ * here to keep this hook's startup cheap (no extra ES imports); replaced by
+ * the anchor reader once `aide anchor` lands.
  */
 function resolveRoot(cwd: string): string {
   const override = process.env.AIDE_PROJECT_ROOT;
@@ -53,24 +55,57 @@ function resolveRoot(cwd: string): string {
       /* fall through */
     }
   }
-  const candidates: { dir: string; hasAide: boolean; hasVCS: boolean }[] = [];
+
+  // "gitdir: <main>/.git/worktrees/<wt>" → main repo root; submodule
+  // gitdirs (.git/modules/) return null so the checkout anchors itself.
+  function resolveGitFile(gitFilePath: string): string | null {
+    try {
+      const content = readFileSync(gitFilePath, "utf-8").trim();
+      if (!content.startsWith("gitdir:")) return null;
+      let gitdir = content.slice("gitdir:".length).trim();
+      if (!gitdir.startsWith("/")) {
+        gitdir = join(dirname(gitFilePath), gitdir);
+      }
+      const parts = gitdir.split(/[\\/]+/);
+      for (let i = 0; i < parts.length - 1; i++) {
+        if (parts[i] === ".git" && parts[i + 1] === "modules") return null;
+      }
+      let candidate = gitdir;
+      for (;;) {
+        const parent = dirname(candidate);
+        if (parent === candidate) break;
+        if (basename(candidate) === ".git") return parent;
+        candidate = parent;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  const candidates: { dir: string; hasAide: boolean; vcsRoot: string }[] = [];
   let dir = cwd;
   for (;;) {
     const hasAide = existsSync(join(dir, ".aide"));
-    let hasVCS = false;
-    for (const m of [".git", ".hg", ".svn", ".bzr", ".fossil"]) {
-      if (existsSync(join(dir, m))) {
-        hasVCS = true;
-        break;
+    let vcsRoot = "";
+    const gitPath = join(dir, ".git");
+    try {
+      const st = statSync(gitPath);
+      vcsRoot = st.isFile() ? resolveGitFile(gitPath) || dir : dir;
+    } catch {
+      for (const m of [".hg", ".svn", ".bzr", ".fossil"]) {
+        if (existsSync(join(dir, m))) {
+          vcsRoot = dir;
+          break;
+        }
       }
     }
-    if (hasAide || hasVCS) candidates.push({ dir, hasAide, hasVCS });
+    if (hasAide || vcsRoot) candidates.push({ dir, hasAide, vcsRoot });
     const parent = dirname(dir);
     if (parent === dir) break;
     dir = parent;
   }
-  for (const c of candidates) if (c.hasAide && c.hasVCS) return c.dir;
-  for (const c of candidates) if (c.hasVCS) return c.dir;
+  for (const c of candidates) if (c.vcsRoot) return c.vcsRoot;
   for (const c of candidates) if (c.hasAide) return c.dir;
   return cwd;
 }
@@ -137,12 +172,26 @@ function main(): void {
     }
     log(cwd, `stdin (${input.length} bytes): ${input.trim().slice(0, 200)}`);
 
-    // Parse session_id from stdin JSON
+    // Parse session_id, event name, and optional duration (ms) from stdin
     let sessionId = "";
+    let eventName = "";
+    let durationMs = 0;
     if (input.trim()) {
       try {
         const data = JSON.parse(input);
         sessionId = data.session_id || "";
+        eventName = data.hook_event_name || "";
+        // Clamp to a finite safe integer — JSON.parse can yield Infinity
+        // (1e999) and template serialization of huge numbers ("1e+21")
+        // would fail Go-side strconv parsing.
+        if (
+          typeof data.duration === "number" &&
+          Number.isFinite(data.duration) &&
+          data.duration > 0 &&
+          data.duration <= Number.MAX_SAFE_INTEGER
+        ) {
+          durationMs = Math.round(data.duration);
+        }
       } catch {
         log(cwd, "stdin is not valid JSON");
       }
@@ -162,6 +211,20 @@ function main(): void {
     log(cwd, `binary: ${binary}`);
     if (!binary) {
       log(cwd, "no binary found, skipping cleanup");
+      return;
+    }
+
+    // Event guard: Codex has no SessionEnd event — its hooks.json maps the
+    // per-turn Stop event to this hook, and running real teardown there would
+    // clear counters and broadcast a "Session ended" message on EVERY turn.
+    // Only genuine session ends may proceed (including the lifecycle record
+    // below — a per-turn "session-end" trigger would be misleading telemetry).
+    // (AIDE_PLATFORM=codex is set by the `aide-plugin hook` dispatcher.)
+    if (eventName === "Stop" || process.env.AIDE_PLATFORM === "codex") {
+      log(
+        cwd,
+        `per-turn event (event=${eventName || "?"} platform=${process.env.AIDE_PLATFORM || "?"}), skipping session teardown`,
+      );
       return;
     }
 
@@ -185,16 +248,22 @@ function main(): void {
       // Non-fatal telemetry — never block session end.
     }
 
-    // Mode guard: skip cleanup if autopilot is active (session is continuing,
-    // not ending). This matters when Codex CLI invokes session-end from Stop
-    // hook since there's no separate SessionEnd event.
+    // Mode guard: skip teardown while autopilot is active. Mode is global
+    // by design (sessionless writers — see core/aide-client.ts). On a
+    // genuine SessionEnd this is conservative: teardown is skipped even if
+    // the autopilot belongs to a different concurrent session; session init
+    // hygiene covers the leftovers.
+    // NOTE: `state get` prints "key = value", so the value must be parsed
+    // out — comparing the raw output to "autopilot" (as this guard
+    // originally did) never matches.
     try {
-      const mode = execFileSync(binary, ["state", "get", "mode"], {
+      const out = execFileSync(binary, ["state", "get", "mode"], {
         cwd,
         timeout: 500,
         encoding: "utf-8",
-      }).trim();
-      if (mode === "autopilot") {
+      });
+      const m = out.match(/=\s*(.+)$/m);
+      if ((m ? m[1].trim() : "") === "autopilot") {
         log(
           cwd,
           "autopilot mode active, skipping cleanup (session continuing)",
@@ -205,8 +274,10 @@ function main(): void {
       // Binary may not support 'state get' or state may not exist — proceed
     }
 
-    log(cwd, `spawning cleanup: session end --session=${sessionId}`);
-    const child = spawn(binary, ["session", "end", `--session=${sessionId}`], {
+    const endArgs = ["session", "end", `--session=${sessionId}`];
+    if (durationMs > 0) endArgs.push(`--duration=${durationMs}`);
+    log(cwd, `spawning cleanup: ${endArgs.join(" ")}`);
+    const child = spawn(binary, endArgs, {
       cwd,
       detached: true,
       stdio: "ignore",

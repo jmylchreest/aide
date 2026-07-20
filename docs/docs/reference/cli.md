@@ -248,16 +248,18 @@ The server line (and `serverState` in `--json`) has three states:
 
 ```bash
 aide session init                        # Initialize session
+aide session end --session=ID            # End session (teardown + metrics)
 aide upgrade                             # Self-upgrade binary
 aide daemon --socket=/path/to/aide.sock  # Start gRPC daemon
 aide mcp                                 # Start MCP server
 aide version                             # Show version
 ```
 
-| Command        | Description                  |
-| -------------- | ---------------------------- |
-| `session init` | Initialize a new session     |
-| `upgrade`      | Self-upgrade the aide binary |
-| `daemon`       | Start the gRPC daemon        |
-| `mcp`          | Start the MCP server (stdio) |
-| `version`      | Show the installed version   |
+| Command        | Description                                                                                                       |
+| -------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `session init` | Initialize a new session                                                                                          |
+| `session end`  | End a session: broadcast the end message, clear transient state, record metrics (`--session=ID [--duration=MS]`) |
+| `upgrade`      | Self-upgrade the aide binary                                                                                      |
+| `daemon`       | Start the gRPC daemon                                                                                             |
+| `mcp`          | Start the MCP server (stdio)                                                                                      |
+| `version`      | Show the installed version                                                                                        |

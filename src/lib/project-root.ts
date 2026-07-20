@@ -131,8 +131,10 @@ function vcsMarkerAt(dir: string): { ok: boolean; resolved: string } {
  * Returns the resolved root directory, or null when nothing is found.
  *
  * Thin wrapper around findProjectRoot for callers that want a nullable
- * result rather than the {root,hasMarker} shape (e.g. the OpenCode plugin
- * which has its own fallback chain).
+ * result rather than the {root,hasMarker} shape. No in-repo production
+ * callers remain (the OpenCode plugin now uses findProjectRoot directly);
+ * kept as published API for external consumers. Prefer findProjectRoot
+ * in new code.
  */
 export function walkUpForProjectRoot(startDir: string): string | null {
   const { root, hasMarker } = findProjectRoot(startDir);

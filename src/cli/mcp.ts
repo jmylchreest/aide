@@ -11,6 +11,7 @@ import spawn from "cross-spawn";
 import { existsSync } from "fs";
 import { dirname, join, resolve } from "path";
 import { fileURLToPath } from "url";
+import { findProjectRoot } from "../lib/project-root.js";
 
 /**
  * Find the aide-wrapper.ts script relative to this CLI module.
@@ -44,12 +45,19 @@ export async function mcp(extraArgs: string[]): Promise<void> {
   const wrapper = findWrapper();
   const args = [wrapper, "mcp", ...extraArgs];
 
+  // Pin the server's cwd to the canonical project root rather than wherever
+  // the harness happened to spawn this process. The Go binary resolves its
+  // project root from cwd at startup, so without this the MCP server can
+  // anchor a different .aide than the plugin hooks (split-brain).
+  const { root } = findProjectRoot(process.cwd());
+
   // Use bun (via cross-spawn for Windows .cmd resolution) to run the
   // TypeScript wrapper. stdio is inherited so the MCP JSON-RPC protocol
   // flows directly between OpenCode and the aide binary.
   const result = spawn.sync("bun", args, {
     stdio: "inherit",
     env: process.env,
+    cwd: root,
   });
 
   if (result.status !== 0) {

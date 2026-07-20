@@ -360,6 +360,21 @@ export function runSessionInit(
 
     const data: SessionInitResult = JSON.parse(output);
 
+    // Surface retention pruning — a silent mass deletion (e.g. first sweep
+    // after a default-TTL change) must leave a user-visible trace.
+    if (data.retention_pruned) {
+      const total = Object.values(data.retention_pruned).reduce(
+        (a, b) => a + b,
+        0,
+      );
+      if (total > 0) {
+        const detail = Object.entries(data.retention_pruned)
+          .map(([k, v]) => `${v} ${k}`)
+          .join(", ");
+        result.retentionNote = `Retention sweep removed ${total} records past their configured TTL (${detail}). Tune via cleanup.*_max_age.`;
+      }
+    }
+
     if (isFalsy(process.env.AIDE_MEMORY_INJECT)) {
       return result;
     }
@@ -595,6 +610,11 @@ export function buildWelcomeContext(
     for (const mod of memories.codebaseMap) {
       lines.push(`- **${mod.name}** — ${mod.size} files, hub: ${mod.hub}`);
     }
+    lines.push("");
+  }
+
+  if (memories.retentionNote) {
+    lines.push(`> ${memories.retentionNote}`);
     lines.push("");
   }
 

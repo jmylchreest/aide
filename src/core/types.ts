@@ -65,6 +65,7 @@ export interface SessionState {
 export interface SessionInitResult {
   state_keys_deleted: number;
   stale_agents_cleaned: number;
+  retention_pruned?: Record<string, number>;
   global_memories: Array<{
     id: string;
     content: string;
@@ -120,6 +121,8 @@ export interface MemoryInjection {
   codebaseMap?: Array<{ name: string; size: number; hub: string }>;
   /** Freshness note for the map header, e.g. "as of a1b2c3d4". */
   codebaseMapNote?: string;
+  /** User-visible note when the retention sweep pruned records at init. */
+  retentionNote?: string;
   sources?: InjectedSource[];
 }
 

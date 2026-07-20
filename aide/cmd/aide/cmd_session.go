@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -25,6 +26,9 @@ type SessionInitResult struct {
 
 	// Share auto-import results
 	SharedImported int `json:"shared_imported,omitempty"`
+
+	// Retention sweep results (direct mode only), per-bucket pruned counts
+	RetentionPruned map[string]int `json:"retention_pruned,omitempty"`
 
 	// Memory injection data
 	GlobalMemories        []SessionMemory   `json:"global_memories"`
@@ -71,6 +75,7 @@ type SessionDecision struct {
 func cmdSession(dbPath string, args []string) error {
 	return dispatchSubcmd("session", args, printSessionUsage, []subcmd{
 		{name: "init", handler: func(a []string) error { return sessionInit(dbPath, a) }},
+		{name: "end", handler: func(a []string) error { return sessionEnd(dbPath, a) }},
 	})
 }
 
@@ -82,6 +87,7 @@ Usage:
 
 Subcommands:
   init       Initialize a new session (reset state, cleanup, fetch context)
+  end        End a session (record end message, clear transient state)
 
 Options:
   init:
@@ -90,6 +96,9 @@ Options:
     --session-limit=N    Number of recent sessions to include (default: 3)
     --share-import       Import shared data from .aide/shared/ on session start
     --format=json        Output as JSON (default)
+  end:
+    --session=ID         Session ID to end (required)
+    --duration=MS        Session duration in milliseconds (optional)
 
 Environment:
   AIDE_SHARE_AUTO_IMPORT=1   Enable auto-import of shared data on session init
@@ -97,7 +106,90 @@ Environment:
 Examples:
   aide session init --project=myapp
   aide session init --project=myapp --share-import
-  aide session init --project=myapp --cleanup-age=1h --session-limit=5`)
+  aide session init --project=myapp --cleanup-age=1h --session-limit=5
+  aide session end --session=abc123 --duration=45000`)
+}
+
+// sessionStateKeys are the session-descriptive state keys. The counters
+// (startedAt, toolCalls, lastToolUse, lastTool) are written session-scoped
+// (agent:<sessionID>:<key>) by hooks so concurrent sessions in one store
+// cannot clobber each other. `mode` is the exception: it stays GLOBAL by
+// design — sessionless writers (`aide state set mode autopilot` and the
+// documented off-switch `aide state set mode ""`) can only reach the global
+// key, and shared modes like swarm span sessions (see the note in
+// src/core/aide-client.ts; a promote-to-session-scope design was tried and
+// reverted). Session init deletes the global spellings as stale-value
+// hygiene — a crashed session must not leak mode into every future session
+// (known cost: starting a session clears a concurrent session's global
+// mode, pre-existing behavior). Session end deliberately does NOT touch
+// them: another session may still be running against the same store.
+var sessionStateKeys = []string{
+	"mode",
+	"startedAt",
+	"modelTier",
+	"agentCount",
+	"toolCalls",
+	"lastToolUse",
+	"lastTool",
+}
+
+// sessionEnd performs session teardown in a single invocation, mirroring the
+// startup consolidation in sessionInit. It is spawned detached by the
+// session-end hooks, so teardown is best-effort: every step runs and failures
+// are reported together rather than aborting at the first error.
+// 1. Broadcast a system message recording the session end
+// 2. Clear session-scoped state (agent:<sessionID>:*) — this covers the
+//    session's own mode/counters; global keys are left alone because other
+//    sessions sharing the store may still be live
+// 3. Record last-session metrics
+func sessionEnd(dbPath string, args []string) error {
+	sessionID := parseFlag(args, "--session=")
+	if sessionID == "" {
+		return fmt.Errorf("usage: aide session end --session=SESSION_ID [--duration=MS]")
+	}
+	// A bad duration must not abort teardown (the hook spawns this detached
+	// and discards stderr — aborting here would silently skip cleanup).
+	// Degrade to no-duration and report the error alongside the teardown.
+	durationMS := 0
+	var errs []error
+	if s := parseFlag(args, "--duration="); s != "" {
+		if n, err := strconv.Atoi(s); err == nil && n >= 0 {
+			durationMS = n
+		} else {
+			errs = append(errs, fmt.Errorf("invalid --duration= value %q: expected milliseconds (teardown ran without it)", s))
+		}
+	}
+
+	backend, err := NewBackend(dbPath)
+	if err != nil {
+		return err
+	}
+	defer backend.Close()
+
+	content := fmt.Sprintf("Session %s ended", sessionID)
+	if durationMS > 0 {
+		content = fmt.Sprintf("Session %s ended (%ds)", sessionID, (durationMS+500)/1000)
+	}
+	if _, err := backend.SendMessageWithOpts("system", "", content, "system", DefaultMessageTTLSeconds, MessageSendOpts{}); err != nil {
+		errs = append(errs, fmt.Errorf("send session-end message: %w", err))
+	}
+
+	cleared, err := backend.ClearState(sessionID)
+	if err != nil {
+		errs = append(errs, fmt.Errorf("clear agent state: %w", err))
+	}
+
+	if durationMS > 0 {
+		if err := backend.SetState("last_session_duration", strconv.Itoa(durationMS), ""); err != nil {
+			errs = append(errs, fmt.Errorf("set last_session_duration: %w", err))
+		}
+	}
+	if err := backend.SetState("last_session_end", time.Now().UTC().Format(time.RFC3339), ""); err != nil {
+		errs = append(errs, fmt.Errorf("set last_session_end: %w", err))
+	}
+
+	fmt.Printf("Session %s ended: cleared %d session-scoped state entries\n", sessionID, cleared)
+	return errors.Join(errs...)
 }
 
 // sessionInit performs all session startup in a single DB open:
@@ -130,15 +222,7 @@ func sessionInit(dbPath string, args []string) error {
 	result := SessionInitResult{}
 
 	// 1. Delete global state keys
-	globalKeys := []string{
-		"mode",
-		"startedAt",
-		"lastToolUse",
-		"toolCalls",
-		"agentCount",
-		"lastTool",
-	}
-	for _, key := range globalKeys {
+	for _, key := range sessionStateKeys {
 		if err := backend.DeleteState(key); err == nil {
 			result.StateKeysDeleted++
 		}
@@ -148,6 +232,12 @@ func sessionInit(dbPath string, args []string) error {
 	cleaned, err := backend.CleanupState(cleanupAge)
 	if err == nil {
 		result.StaleAgentsCleaned = cleaned
+	}
+
+	// 2b. Retention sweep (direct mode only; the daemon runs its own loop).
+	// Rate-limited to once per hour so swarm session starts stay cheap.
+	if pruned := backend.RetentionSweep(); len(pruned) > 0 {
+		result.RetentionPruned = pruned
 	}
 
 	// 3. Auto-import shared data if enabled. The per-record and legacy layouts
