@@ -61,7 +61,6 @@ import {
 import { getState, setState } from "../core/aide-client.js";
 import { isFalsy, reflectEnabled } from "../lib/hook-utils.js";
 import { saveStateSnapshot } from "../core/pre-compact-logic.js";
-import { cleanupSession } from "../core/cleanup.js";
 import {
   buildSessionSummaryFromState,
   getSessionCommits,
@@ -518,6 +517,7 @@ async function handleSessionIdle(
         state.binary,
         state.cwd,
         sessionId,
+        sessionId,
       );
       if (persistResult) {
         const activeMode = getActiveMode(state.binary, state.cwd);
@@ -623,8 +623,19 @@ async function handleSessionDeleted(
 ): Promise<void> {
   const sessionId = extractSessionId(event);
 
+  // Same teardown as the Claude Code SessionEnd hook — one implementation
+  // in Go (`aide session end`) instead of a hand-synchronized TS copy.
   if (state.binary) {
-    cleanupSession(state.binary, state.cwd, sessionId);
+    try {
+      execFileSync(
+        state.binary,
+        ["session", "end", `--session=${sessionId}`],
+        { cwd: state.cwd, timeout: 10000, stdio: ["pipe", "pipe", "pipe"] },
+      );
+      debug(SOURCE, `session end ${sessionId.slice(0, 8)} ok`);
+    } catch (err) {
+      debug(SOURCE, `session end failed (non-fatal): ${err}`);
+    }
   }
 
   state.initializedSessions.delete(sessionId);
@@ -820,7 +831,16 @@ function createToolAfterHandler(
   return async (input, _output) => {
     if (!state.binary) return;
 
-    updateToolStats(state.binary, state.cwd, input.tool, input.sessionID);
+    // sessionID doubles as the agentId here: tool.execute.before registers
+    // currentTool under agentId=input.sessionID, so the same scope must be
+    // passed for the clear or the tool shows as forever-running.
+    updateToolStats(
+      state.binary,
+      state.cwd,
+      input.tool,
+      input.sessionID,
+      input.sessionID,
+    );
 
     // Write a partial memory for significant tool uses
     try {

@@ -17,7 +17,11 @@ import { debug } from "../lib/logger.js";
 const SOURCE = "persistence-logic";
 
 /**
- * Check if a persistence mode is active
+ * Check if a persistence mode is active.
+ *
+ * Mode is global by design (see the note in aide-client.ts): the autopilot
+ * skill and its documented off-switch (`aide state set mode ""`) both write
+ * the global key. Iteration counters remain session-scoped.
  */
 export function getActiveMode(
   binary: string,
@@ -83,6 +87,7 @@ export function checkPersistence(
   binary: string,
   cwd: string,
   agentId?: string,
+  sessionId?: string,
 ): { reason: string } | null {
   const mode = getActiveMode(binary, cwd);
   if (!mode) return null;
@@ -90,15 +95,16 @@ export function checkPersistence(
   // Get and increment iteration counter (guard against NaN from corrupted state).
   // NOTE: read-then-write is not atomic, but concurrent Stop events are extremely
   // rare in practice. The counter is a safety cap, not a precise meter.
-  const iterStr = getState(binary, cwd, `${mode}_iterations`) || "0";
+  // Session-scoped so concurrent sessions count independently.
+  const iterStr = getState(binary, cwd, `${mode}_iterations`, sessionId) || "0";
   const parsed = parseInt(iterStr, 10);
   const iteration = (Number.isNaN(parsed) ? 0 : parsed) + 1;
-  setState(binary, cwd, `${mode}_iterations`, String(iteration));
+  setState(binary, cwd, `${mode}_iterations`, String(iteration), sessionId);
 
   if (iteration > MAX_PERSISTENCE_ITERATIONS) {
-    // Clear the mode after max iterations, allow stop
+    // Clear the (global) mode after max iterations, allow stop
     setState(binary, cwd, "mode", "");
-    setState(binary, cwd, `${mode}_iterations`, "0");
+    setState(binary, cwd, `${mode}_iterations`, "0", sessionId);
     return null;
   }
 
@@ -130,7 +136,7 @@ export function checkPersistence(
   // Auto-release: if tasks exist and all are complete, allow stop
   if (allTasksComplete) {
     setState(binary, cwd, "mode", "");
-    setState(binary, cwd, `${mode}_iterations`, "0");
+    setState(binary, cwd, `${mode}_iterations`, "0", sessionId);
     return null;
   }
 

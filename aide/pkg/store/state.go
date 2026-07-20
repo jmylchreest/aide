@@ -125,17 +125,36 @@ func (s *BoltStore) CleanupStaleState(maxAge time.Duration) (int, error) {
 	var keysToDelete [][]byte
 	cutoff := time.Now().Add(-maxAge)
 
-	// First, collect stale keys.
+	// Staleness is judged per AGENT, not per entry: an agent (or session —
+	// sessions store their counters agent-scoped too) is stale only when its
+	// NEWEST entry is older than the cutoff. Judging per entry would prune
+	// write-once keys like startedAt out from under a live session whose
+	// other keys are still being refreshed.
 	err := s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(BucketState)
+
+		newest := map[string]time.Time{}
+		if err := b.ForEach(func(k, v []byte) error {
+			var st memory.State
+			if err := json.Unmarshal(v, &st); err != nil {
+				return nil // malformed entries are handled in the next pass
+			}
+			if st.Agent != "" && st.UpdatedAt.After(newest[st.Agent]) {
+				newest[st.Agent] = st.UpdatedAt
+			}
+			return nil
+		}); err != nil {
+			return err
+		}
+
 		return b.ForEach(func(k, v []byte) error {
 			var st memory.State
 			if err := json.Unmarshal(v, &st); err != nil {
 				log.Printf("store: skipping malformed state entry: %v", err)
 				return nil
 			}
-			// Only clean up agent-specific state that's stale.
-			if st.Agent != "" && st.UpdatedAt.Before(cutoff) {
+			// Only clean up agent-specific state belonging to stale agents.
+			if st.Agent != "" && newest[st.Agent].Before(cutoff) {
 				keysToDelete = append(keysToDelete, k)
 			}
 			return nil

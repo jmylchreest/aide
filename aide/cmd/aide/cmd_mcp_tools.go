@@ -177,13 +177,15 @@ func (s *MCPServer) registerStateReadTools() {
 		Name: "state_get",
 		Description: `Get a state value (global or per-agent).
 
-**Common state keys:**
+**Common global state keys:**
 - "mode" - Current operation mode (normal, eco, autopilot, etc.)
-- "modelTier" - Current model tier (smart, fast, etc.)
 - "activeSkill" - Currently executing skill
 
-**Per-agent state:**
-Use agent_id parameter to get agent-specific state like "agent:abc123:status".
+**Per-agent / per-session state:**
+Use agent_id parameter for agent- or session-scoped state. Session counters
+(startedAt, toolCalls, lastTool, lastToolUse) are stored per session under
+agent_id = the session ID; subagent tracking (status, type, currentTool)
+under agent_id = the agent ID.
 
 State is managed by orchestration hooks, not directly settable via tools.`,
 	}, s.handleStateGet)

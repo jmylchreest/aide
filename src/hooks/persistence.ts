@@ -53,7 +53,7 @@ async function main(): Promise<void> {
       return;
     }
 
-    const result = checkPersistence(binary, cwd, data.session_id);
+    const result = checkPersistence(binary, cwd, data.session_id, data.session_id);
     if (!result) {
       emitHookResult({});
       return;

@@ -82,30 +82,43 @@ export function trackToolUse(
 }
 
 /**
- * Update session state after tool completion (PostToolUse)
+ * Update session state after tool completion (PostToolUse).
+ *
+ * Counters are session-scoped (agent:<sessionId>:<key>) so concurrent
+ * sessions sharing one store track independently; without a sessionId the
+ * legacy global keys are used.
  */
 export function updateToolStats(
   binary: string,
   cwd: string,
   toolName: string,
+  sessionId?: string,
   agentId?: string,
 ): void {
   // Initialize startedAt if not set
-  const existingStartedAt = getState(binary, cwd, "startedAt");
+  const existingStartedAt = getState(binary, cwd, "startedAt", sessionId);
   if (!existingStartedAt) {
-    setState(binary, cwd, "startedAt", new Date().toISOString());
+    setState(binary, cwd, "startedAt", new Date().toISOString(), sessionId);
   }
 
   // Track tool calls (guard against NaN from corrupted state)
-  const parsed = parseInt(getState(binary, cwd, "toolCalls") || "0", 10);
+  const parsed = parseInt(
+    getState(binary, cwd, "toolCalls", sessionId) || "0",
+    10,
+  );
   const currentToolCalls = Number.isNaN(parsed) ? 0 : parsed;
-  setState(binary, cwd, "toolCalls", String(currentToolCalls + 1));
-  setState(binary, cwd, "lastToolUse", new Date().toISOString());
-  setState(binary, cwd, "lastTool", toolName);
+  setState(binary, cwd, "toolCalls", String(currentToolCalls + 1), sessionId);
+  setState(binary, cwd, "lastToolUse", new Date().toISOString(), sessionId);
+  setState(binary, cwd, "lastTool", toolName, sessionId);
 
-  // Clear currentTool since PostToolUse means the tool completed
+  // Clear currentTool since PostToolUse means the tool completed —
+  // trackToolUse sets it for this agentId on every PreToolUse (including
+  // when the agent IS the session), so it must be cleared for the same
+  // scope or the HUD shows the last tool as forever-running.
   if (agentId) {
     setState(binary, cwd, "currentTool", "", agentId);
-    setState(binary, cwd, "lastTool", toolName, agentId);
+    if (agentId !== sessionId) {
+      setState(binary, cwd, "lastTool", toolName, agentId);
+    }
   }
 }

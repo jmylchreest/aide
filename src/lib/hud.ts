@@ -96,51 +96,76 @@ const ICONS = {
   time: "⏱️",
 };
 
+/** One row of `aide state list --json`. */
+interface StateEntry {
+  key: string;
+  value: string;
+  agent?: string;
+}
+
+/**
+ * Fetch all state entries as structured rows via `state list --json`.
+ *
+ * NOTE: the plain `state list` output is a tabwriter table (AGENT/KEY/VALUE
+ * columns) — earlier versions of this file tried to regex `key = value`
+ * lines out of it and silently matched nothing. JSON is the stable contract.
+ */
+function listStateEntries(cwd: string): StateEntry[] {
+  const output = runAide(cwd, ["state", "list", "--json"]);
+  if (!output) return [];
+  try {
+    const parsed = JSON.parse(output);
+    return Array.isArray(parsed) ? (parsed as StateEntry[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Strip the "agent:<id>:" prefix from a scoped state key. */
+function scopedKeyField(key: string, agentId: string): string | null {
+  const prefix = `agent:${agentId}:`;
+  return key.startsWith(prefix) ? key.slice(prefix.length) : null;
+}
+
 /**
  * Get all agent states from aide state store
  */
 export function getAgentStates(cwd: string): AgentState[] {
-  const output = runAide(cwd, ["state", "list"]);
-  if (!output) return [];
-
   const agents: Map<string, AgentState> = new Map();
 
-  for (const line of output.split("\n")) {
-    const agentMatch = line.match(
-      /^\[([^\]]+)\]\s+agent:[^:]+:(\w+)\s*=\s*(.+)$/,
-    );
-    if (agentMatch) {
-      const [, agentId, key, value] = agentMatch;
-      if (!agents.has(agentId)) {
-        agents.set(agentId, {
-          agentId,
-          mode: null,
-          startedAt: null,
-          currentTool: null,
-          tasksCompleted: 0,
-          tasksTotal: 0,
-          status: null,
-          type: null,
-          task: null,
-          skill: null,
-          session: null,
-        });
-      }
-      const agent = agents.get(agentId);
-      if (!agent) continue;
-      if (key === "mode") agent.mode = value.trim();
-      if (key === "startedAt") agent.startedAt = value.trim();
-      if (key === "currentTool") agent.currentTool = value.trim();
-      if (key === "tasksCompleted")
-        agent.tasksCompleted = parseInt(value.trim(), 10) || 0;
-      if (key === "tasksTotal")
-        agent.tasksTotal = parseInt(value.trim(), 10) || 0;
-      if (key === "status") agent.status = value.trim();
-      if (key === "type") agent.type = value.trim();
-      if (key === "task") agent.task = value.trim();
-      if (key === "skill") agent.skill = value.trim();
-      if (key === "session") agent.session = value.trim();
+  for (const entry of listStateEntries(cwd)) {
+    if (!entry.agent) continue;
+    const key = scopedKeyField(entry.key, entry.agent);
+    if (!key) continue;
+    const value = (entry.value ?? "").trim();
+
+    if (!agents.has(entry.agent)) {
+      agents.set(entry.agent, {
+        agentId: entry.agent,
+        mode: null,
+        startedAt: null,
+        currentTool: null,
+        tasksCompleted: 0,
+        tasksTotal: 0,
+        status: null,
+        type: null,
+        task: null,
+        skill: null,
+        session: null,
+      });
     }
+    const agent = agents.get(entry.agent);
+    if (!agent) continue;
+    if (key === "mode") agent.mode = value;
+    if (key === "startedAt") agent.startedAt = value;
+    if (key === "currentTool") agent.currentTool = value;
+    if (key === "tasksCompleted") agent.tasksCompleted = parseInt(value, 10) || 0;
+    if (key === "tasksTotal") agent.tasksTotal = parseInt(value, 10) || 0;
+    if (key === "status") agent.status = value;
+    if (key === "type") agent.type = value;
+    if (key === "task") agent.task = value;
+    if (key === "skill") agent.skill = value;
+    if (key === "session") agent.session = value;
   }
 
   return Array.from(agents.values());
@@ -166,9 +191,14 @@ export function loadHudConfig(cwd: string): HudConfig {
 }
 
 /**
- * Get current session state from aide state store
+ * Get current session state from aide state store.
+ *
+ * Session-descriptive keys are written session-scoped
+ * (agent:<sessionId>:<key>) so concurrent sessions don't clobber each other;
+ * bare global spellings remain as a fallback for sessionless writers.
+ * Scoped entries win over globals when a sessionId is provided.
  */
-export function getSessionState(cwd: string): SessionState {
+export function getSessionState(cwd: string, sessionId?: string): SessionState {
   const state: SessionState = {
     activeMode: null,
     agentCount: 0,
@@ -177,22 +207,28 @@ export function getSessionState(cwd: string): SessionState {
     lastTool: null,
   };
 
-  const output = runAide(cwd, ["state", "list"]);
-  if (!output) return state;
+  const globals: Record<string, string> = {};
+  const scoped: Record<string, string> = {};
 
-  for (const line of output.split("\n")) {
-    const globalMatch = line.match(/^(\w+)\s*=\s*(.+)$/);
-    if (globalMatch && !line.startsWith("[")) {
-      const [, key, value] = globalMatch;
-      if (key === "mode") state.activeMode = value.trim();
-      if (key === "agentCount")
-        state.agentCount = parseInt(value.trim(), 10) || 0;
-      if (key === "startedAt") state.startedAt = value.trim();
-      if (key === "toolCalls")
-        state.toolCalls = parseInt(value.trim(), 10) || 0;
-      if (key === "lastTool") state.lastTool = value.trim();
+  for (const entry of listStateEntries(cwd)) {
+    if (!entry.agent) {
+      globals[entry.key] = (entry.value ?? "").trim();
+      continue;
+    }
+    if (sessionId && entry.agent === sessionId) {
+      const key = scopedKeyField(entry.key, entry.agent);
+      if (key) scoped[key] = (entry.value ?? "").trim();
     }
   }
+
+  const pick = (key: string): string | null =>
+    scoped[key] ?? globals[key] ?? null;
+
+  state.activeMode = pick("mode");
+  state.agentCount = parseInt(pick("agentCount") || "0", 10) || 0;
+  state.startedAt = pick("startedAt");
+  state.toolCalls = parseInt(pick("toolCalls") || "0", 10) || 0;
+  state.lastTool = pick("lastTool");
 
   return state;
 }
@@ -470,7 +506,7 @@ export function writeHudOutput(cwd: string, output: string): void {
  */
 export function refreshHud(cwd: string, sessionId?: string): void {
   const config = loadHudConfig(cwd);
-  const state = getSessionState(cwd);
+  const state = getSessionState(cwd, sessionId);
   const allAgents = getAgentStates(cwd);
 
   // Filter to only agents from the current session

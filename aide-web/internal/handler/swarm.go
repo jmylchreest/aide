@@ -138,6 +138,13 @@ func (h *Handler) APIListSwarmAgents(ctx context.Context, input *struct {
 	out := &ListSwarmAgentsOutput{}
 	staleCutoff := time.Now().Add(-staleAgentAge)
 	for _, r := range by {
+		// Sessions store their own counters agent-scoped (agent:<sessionID>:
+		// startedAt/toolCalls/...) but are not swarm agents. Real agents are
+		// registered by the subagent tracker with type+status; rows with
+		// neither are session bookkeeping, not agents.
+		if r.Type == "" && r.Status == "" {
+			continue
+		}
 		if input.ParentSession != "" && r.ParentSession != input.ParentSession {
 			continue
 		}

@@ -414,6 +414,45 @@ func TestStateCleanupStale(t *testing.T) {
 	}
 }
 
+// TestStateCleanupStalePerAgent pins the per-AGENT staleness contract: an
+// agent/session with ANY fresh entry keeps ALL its entries — including
+// write-once keys like startedAt that are never refreshed. Judging per entry
+// would prune a live session's startedAt whenever another session inits
+// (the session-init CleanupState(30m) path), breaking HUD duration and
+// summary commit-scoping mid-session.
+func TestStateCleanupStalePerAgent(t *testing.T) {
+	store, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	old := time.Now().Add(-time.Hour)
+
+	// Live session: startedAt written once (old), toolCalls just refreshed.
+	store.SetState(&memory.State{Key: "agent:live:startedAt", Value: "t0", Agent: "live", UpdatedAt: old})
+	store.SetState(&memory.State{Key: "agent:live:toolCalls", Value: "9", Agent: "live"})
+
+	// Dead session: everything old.
+	store.SetState(&memory.State{Key: "agent:dead:startedAt", Value: "t0", Agent: "dead", UpdatedAt: old})
+	store.SetState(&memory.State{Key: "agent:dead:toolCalls", Value: "3", Agent: "dead", UpdatedAt: old})
+
+	count, err := store.CleanupStaleState(30 * time.Minute)
+	if err != nil {
+		t.Fatalf("cleanup: %v", err)
+	}
+	if count != 2 {
+		t.Errorf("expected exactly the dead agent's 2 entries pruned, got %d", count)
+	}
+
+	if _, err := store.GetState("agent:live:startedAt"); err != nil {
+		t.Errorf("live session's write-once startedAt was pruned: %v", err)
+	}
+	if _, err := store.GetState("agent:live:toolCalls"); err != nil {
+		t.Errorf("live session's toolCalls was pruned: %v", err)
+	}
+	if _, err := store.GetState("agent:dead:startedAt"); err == nil {
+		t.Error("dead session's startedAt survived")
+	}
+}
+
 // =============================================================================
 // Task Operations
 // =============================================================================

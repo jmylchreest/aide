@@ -5,7 +5,7 @@
  * Handles agent state cleanup and session end operations.
  */
 
-import { clearAgentState, deleteState, setState, runAide } from "./aide-client.js";
+import { clearAgentState } from "./aide-client.js";
 
 /**
  * Clean up agent-specific state when an agent stops
@@ -18,45 +18,7 @@ export function cleanupAgent(
   return clearAgentState(binary, cwd, agentId);
 }
 
-/**
- * Clean up session state and record session end
- */
-export function cleanupSession(
-  binary: string,
-  cwd: string,
-  sessionId: string,
-  duration?: number,
-): void {
-  // Record session end
-  const durationStr = duration ? ` (${Math.round(duration / 1000)}s)` : "";
-  runAide(binary, cwd, [
-    "message",
-    "send",
-    `Session ${sessionId} ended${durationStr}`,
-    "--from=system",
-    "--type=system",
-  ]);
-
-  // Clear transient state for this session/agent
-  clearAgentState(binary, cwd, sessionId);
-
-  // Clear global session state
-  const globalSessionKeys = [
-    "mode",
-    "startedAt",
-    "modelTier",
-    "agentCount",
-    "toolCalls",
-    "lastToolUse",
-    "lastTool",
-  ];
-  for (const key of globalSessionKeys) {
-    deleteState(binary, cwd, key);
-  }
-
-  // Record session metrics
-  if (duration) {
-    setState(binary, cwd, "last_session_duration", String(duration));
-  }
-  setState(binary, cwd, "last_session_end", new Date().toISOString());
-}
+// Session teardown lives in Go as `aide session end` (single invocation:
+// end message, agent state clear, session keys, metrics). All platforms —
+// Claude Code SessionEnd hook, OpenCode session.deleted — spawn it rather
+// than duplicating the sequence here.

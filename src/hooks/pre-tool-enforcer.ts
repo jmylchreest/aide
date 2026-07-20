@@ -57,7 +57,8 @@ async function main(): Promise<void> {
     const cwd = data.cwd || process.cwd();
     const sessionId = data.session_id || "";
 
-    // Resolve active mode from aide binary (source of truth: BBolt store)
+    // Resolve active mode from aide binary (source of truth: BBolt store).
+    // Mode is global by design — see the note in core/aide-client.ts.
     let activeMode: string | null = null;
     let aideBinary: string | null = null;
     try {

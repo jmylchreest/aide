@@ -21,6 +21,7 @@ import {
   getSessionCommits,
   storeSessionSummary,
 } from "../core/session-summary-logic.js";
+import { getScopedState } from "../core/aide-client.js";
 import {
   gatherPartials,
   buildSummaryFromPartials,
@@ -63,8 +64,11 @@ function captureSessionSummary(
   let summary: string | null = null;
 
   if (partials.length > 0) {
-    // Build from partials + git data
-    const commits = getSessionCommits(cwd);
+    // Build from partials + git data, scoped to this session's start time
+    // (session-scoped startedAt; falls back to "4 hours ago" inside
+    // getSessionCommits when the session never recorded one).
+    const startedAt = getScopedState(binary, cwd, sessionId, "startedAt");
+    const commits = getSessionCommits(cwd, startedAt ?? undefined);
     summary = buildSummaryFromPartials(partials, commits, []);
     debug(SOURCE, `Built summary from ${partials.length} partials`);
   }

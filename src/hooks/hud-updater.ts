@@ -75,7 +75,7 @@ async function main(): Promise<void> {
       log.start("updateSessionState");
       const binary = findAideBinary(cwd);
       if (binary) {
-        updateToolStats(binary, cwd, toolName, agentId);
+        updateToolStats(binary, cwd, toolName, sessionId, agentId);
 
         // Write a partial memory for significant tool uses
         storePartialMemory(binary, cwd, {
@@ -96,7 +96,7 @@ async function main(): Promise<void> {
     log.end("loadHudConfig");
 
     log.start("getSessionState");
-    const state = getSessionState(cwd);
+    const state = getSessionState(cwd, sessionId);
     log.end("getSessionState", state);
 
     log.start("getAgentStates");

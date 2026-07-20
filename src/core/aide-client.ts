@@ -158,6 +158,36 @@ export function getState(
 }
 
 /**
+ * Read session-scoped state (agent:<sessionId>:<key>), falling back to the
+ * bare global key. Session-descriptive keys (mode, startedAt, toolCalls…)
+ * are written session-scoped by hooks so concurrent sessions sharing one
+ * store cannot clobber each other; the bare global spelling remains for
+ * sessionless writers (skills, manual CLI use).
+ */
+export function getScopedState(
+  binary: string,
+  cwd: string,
+  sessionId: string | undefined,
+  key: string,
+): string | null {
+  if (sessionId) {
+    const scoped = getState(binary, cwd, key, sessionId);
+    if (scoped) return scoped;
+  }
+  return getState(binary, cwd, key);
+}
+
+// NOTE on `mode`: unlike the per-session counters above, mode is deliberately
+// GLOBAL state. It is written by sessionless actors (`aide state set mode
+// autopilot` from the autopilot skill, swarm orchestration) and its documented
+// off-switch is `aide state set mode ""` — both only reachable as a global
+// key. An earlier promote-to-session-scope design broke the off-switch,
+// could lose the mode entirely on a failed scoped write, and starved shared
+// swarm mode; per-session mode isolation needs real session identity (anchor
+// work) rather than first-reader-wins claiming. Per-session iteration
+// counters (`<mode>_iterations`) ARE session-scoped.
+
+/**
  * Delete a state key from aide
  */
 export function deleteState(
