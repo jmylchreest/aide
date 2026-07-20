@@ -135,7 +135,7 @@ func TestResolveAnchorNestedPlainRepo(t *testing.T) {
 }
 
 func TestResolveAnchorWorktree(t *testing.T) {
-	_, _, super, _, _, worktree, _ := anchorFixture(t)
+	_, outer, super, _, _, worktree, _ := anchorFixture(t)
 
 	a := resolveAnchor(filepath.Join(worktree, "sub"))
 
@@ -144,6 +144,107 @@ func TestResolveAnchorWorktree(t *testing.T) {
 	}
 	if a.Provenance.GitdirShape != "worktree" {
 		t.Errorf("gitdirShape = %q, want worktree", a.Provenance.GitdirShape)
+	}
+
+	// The chain derives from the RESOLVED root's ancestry, so entering via
+	// the worktree yields the same chain as entering at super directly —
+	// entry-path independence is the contract consumers rely on.
+	want := []string{super, outer}
+	got := chainRoots(a)
+	if len(got) != len(want) || got[1] != outer {
+		t.Fatalf("worktree chain = %v, want %v (same as direct entry)", got, want)
+	}
+	direct := resolveAnchor(super)
+	if len(chainRoots(direct)) != len(got) {
+		t.Errorf("chain differs by entry path: worktree %v vs direct %v", got, chainRoots(direct))
+	}
+}
+
+// TestResolveAnchorNestedSubmodule pins nearest-first ordering for nested
+// submodules: gitdir .git/modules/a/modules/b names the TOP superproject,
+// but the directly-containing submodule (a) must come first in the chain.
+func TestResolveAnchorNestedSubmodule(t *testing.T) {
+	tmp, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	mustMkdir := func(p string) {
+		t.Helper()
+		if err := os.MkdirAll(p, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	mustWrite := func(p, content string) {
+		t.Helper()
+		if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	super := filepath.Join(tmp, "super")
+	mustMkdir(filepath.Join(super, ".git", "modules", "a", "modules", "b"))
+	subA := filepath.Join(super, "a")
+	mustMkdir(subA)
+	mustWrite(filepath.Join(subA, ".git"),
+		"gitdir: "+filepath.Join(super, ".git", "modules", "a")+"\n")
+	subB := filepath.Join(subA, "b")
+	mustMkdir(subB)
+	mustWrite(filepath.Join(subB, ".git"),
+		"gitdir: "+filepath.Join(super, ".git", "modules", "a", "modules", "b")+"\n")
+
+	t.Setenv("AIDE_PROJECT_ROOT", "")
+	os.Unsetenv("AIDE_PROJECT_ROOT")
+
+	a := resolveAnchor(subB)
+
+	if a.Root != subB {
+		t.Fatalf("root = %q, want innermost submodule %q", a.Root, subB)
+	}
+	want := []string{subB, subA, super}
+	got := chainRoots(a)
+	if len(got) != len(want) {
+		t.Fatalf("chain = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("chain[%d] = %q, want %q (nearest first)", i, got[i], want[i])
+		}
+	}
+	// The top superproject is the one the gitdir names — it carries the
+	// submodule-gitdir evidence; the intermediate is ancestor-evidenced.
+	if a.Chain[1].Evidence != "ancestor-vcs-root" {
+		t.Errorf("chain[1].evidence = %q, want ancestor-vcs-root", a.Chain[1].Evidence)
+	}
+	if a.Chain[2].Evidence != "submodule-gitdir" {
+		t.Errorf("chain[2].evidence = %q, want submodule-gitdir", a.Chain[2].Evidence)
+	}
+}
+
+// TestResolveAnchorInvalidGitFile pins provenance honesty: a .git FILE that
+// is not a gitdir pointer anchors the directory (parity with the walk) but
+// must be labeled invalid, not passed off as a plain repo.
+func TestResolveAnchorInvalidGitFile(t *testing.T) {
+	tmp, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := filepath.Join(tmp, "p")
+	if err := os.MkdirAll(p, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(p, ".git"), []byte("garbage\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("AIDE_PROJECT_ROOT", "")
+	os.Unsetenv("AIDE_PROJECT_ROOT")
+
+	a := resolveAnchor(p)
+	if a.Root != p {
+		t.Fatalf("root = %q, want %q", a.Root, p)
+	}
+	if a.Provenance.GitdirShape != "invalid" {
+		t.Errorf("gitdirShape = %q, want invalid", a.Provenance.GitdirShape)
 	}
 }
 

@@ -10,7 +10,14 @@
  * Run from packages/opencode-plugin/ or via `npm run copy-src`.
  */
 
-import { cpSync, mkdirSync, existsSync, copyFileSync, chmodSync } from "fs";
+import {
+  cpSync,
+  mkdirSync,
+  existsSync,
+  copyFileSync,
+  chmodSync,
+  rmSync,
+} from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
@@ -33,6 +40,9 @@ for (const dir of dirs) {
     console.error(`ERROR: ${src} not found`);
     process.exit(1);
   }
+  // Clean before copy: cpSync is additive, so deletions in the root src/
+  // would otherwise persist forever in the generated tree.
+  rmSync(dest, { recursive: true, force: true });
   mkdirSync(dest, { recursive: true });
   cpSync(src, dest, { recursive: true });
   console.log(`  copied src/${dir}/`);

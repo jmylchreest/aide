@@ -34,8 +34,12 @@ type anchorProvenance struct {
 	// ".fossil", ".aide", or "" when no marker was found.
 	Marker string `json:"marker,omitempty"`
 	// GitdirShape classifies a .git marker: "directory" (plain repo),
-	// "worktree" (linked worktree, anchored at the main repo), or
-	// "submodule" (anchored at the submodule checkout itself).
+	// "worktree" (linked worktree — anchored at the main repo when its
+	// gitdir contains a ".git" component to resolve through; a worktree of
+	// a BARE repo has none and anchors at the checkout itself),
+	// "submodule" (anchored at the submodule checkout itself), or
+	// "invalid" (a .git file that is not a gitdir pointer — anchored at
+	// the directory, surfaced so tooling can flag the misconfiguration).
 	GitdirShape string `json:"gitdirShape,omitempty"`
 }
 
@@ -92,7 +96,7 @@ func resolveAnchor(startCwd string) anchorInfo {
 				info.Root = abs
 				info.HasMarker = true
 				info.Source = "env"
-				finishAnchor(&info, abs, collectAnchorCandidates(abs))
+				finishAnchor(&info, abs)
 				return info
 			}
 		}
@@ -120,7 +124,7 @@ func resolveAnchor(startCwd string) anchorInfo {
 			info.Root = c.vcsResolved
 			info.HasMarker = true
 			info.Source = "walk"
-			finishAnchor(&info, c.dir, cands)
+			finishAnchor(&info, c.dir)
 			return info
 		}
 	}
@@ -130,13 +134,13 @@ func resolveAnchor(startCwd string) anchorInfo {
 			info.Root = c.dir
 			info.HasMarker = true
 			info.Source = "walk"
-			finishAnchor(&info, c.dir, cands)
+			finishAnchor(&info, c.dir)
 			return info
 		}
 	}
 
 	info.Root = cwd
-	finishAnchor(&info, cwd, cands)
+	finishAnchor(&info, cwd)
 	return info
 }
 
@@ -187,7 +191,7 @@ func collectAnchorCandidates(cwd string) []anchorCand {
 // already-decided root. markerDir is the directory whose marker DECIDED
 // the anchor — for a linked worktree that is the worktree checkout (whose
 // .git file carries the worktree shape), not the resolved main-repo root.
-func finishAnchor(info *anchorInfo, markerDir string, cands []anchorCand) {
+func finishAnchor(info *anchorInfo, markerDir string) {
 	info.RealRoot = realPath(info.Root)
 	info.Provenance = classifyAnchorMarker(markerDir, info.HasMarker)
 	info.Identity.ProjectName, info.Identity.Source = anchorProjectIdentity(info.Root)
@@ -200,42 +204,51 @@ func finishAnchor(info *anchorInfo, markerDir string, cands []anchorCand) {
 		Relation: "self",
 	}}
 
-	// Submodule checkout: the superproject (owner of the gitdir under
-	// .git/modules/) is the nearest parent scope — the strongest evidence.
-	var submoduleParent string
+	// Parents are derived from the RESOLVED root's ancestry — never the
+	// launch path — so the same root always yields the same chain no
+	// matter where the session entered from (worktree checkout, deep
+	// subdir, env override). Every ancestor VCS root physically contains
+	// the anchor by construction. The walk is nearest-first already.
+	//
+	// A submodule's superproject (owner of the gitdir under .git/modules/)
+	// is usually also an ancestor; when it is, the ancestor entry is
+	// upgraded to the stronger submodule-gitdir evidence. When the
+	// checkout lives OUTSIDE the superproject tree, the owner is appended
+	// after the ancestors — containment-ordered entries first.
+	var submoduleOwner string
 	if info.Provenance.GitdirShape == "submodule" {
-		if _, mainRoot := gitfileInfo(filepath.Join(info.Root, ".git")); mainRoot != "" && mainRoot != info.Root {
-			submoduleParent = mainRoot
-			chain = append(chain, anchorScope{
-				Root:     mainRoot,
-				RealRoot: realPath(mainRoot),
-				Relation: "parent",
-				Evidence: "submodule-gitdir",
-			})
+		if _, owner := gitfileInfo(filepath.Join(info.Root, ".git")); owner != "" && owner != info.Root {
+			submoduleOwner = owner
 		}
 	}
 
-	// Ancestor VCS roots physically containing the anchor. Deduplicate
-	// against self, the submodule parent, and repeated resolutions (several
-	// walk levels can resolve to one root).
 	seen := map[string]bool{info.Root: true}
-	if submoduleParent != "" {
-		seen[submoduleParent] = true
+	ownerPlaced := false
+	if parentDir := filepath.Dir(info.Root); parentDir != info.Root {
+		for _, c := range collectAnchorCandidates(parentDir) {
+			if !c.hasVCS || seen[c.vcsResolved] {
+				continue
+			}
+			seen[c.vcsResolved] = true
+			evidence := "ancestor-vcs-root"
+			if c.vcsResolved == submoduleOwner {
+				evidence = "submodule-gitdir"
+				ownerPlaced = true
+			}
+			chain = append(chain, anchorScope{
+				Root:     c.vcsResolved,
+				RealRoot: realPath(c.vcsResolved),
+				Relation: "parent",
+				Evidence: evidence,
+			})
+		}
 	}
-	for _, c := range cands {
-		if !c.hasVCS || seen[c.vcsResolved] {
-			continue
-		}
-		// Only directories strictly above the anchor are parent scopes.
-		if !strings.HasPrefix(info.Root+string(filepath.Separator), c.dir+string(filepath.Separator)) || c.dir == info.Root {
-			continue
-		}
-		seen[c.vcsResolved] = true
+	if submoduleOwner != "" && !ownerPlaced && !seen[submoduleOwner] {
 		chain = append(chain, anchorScope{
-			Root:     c.vcsResolved,
-			RealRoot: realPath(c.vcsResolved),
+			Root:     submoduleOwner,
+			RealRoot: realPath(submoduleOwner),
 			Relation: "parent",
-			Evidence: "ancestor-vcs-root",
+			Evidence: "submodule-gitdir",
 		})
 	}
 
@@ -255,7 +268,9 @@ func classifyAnchorMarker(root string, hasMarker bool) anchorProvenance {
 		}
 		shape, _ := gitfileInfo(gitPath)
 		if shape == "" {
-			shape = "directory"
+			// os.Stat proved .git is a FILE; an unparseable one is a
+			// misconfiguration, not a plain repo — say so.
+			shape = "invalid"
 		}
 		return anchorProvenance{Marker: ".git", GitdirShape: shape}
 	}

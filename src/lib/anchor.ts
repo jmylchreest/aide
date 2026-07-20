@@ -2,16 +2,21 @@
  * Anchor reader — the TS side of `aide anchor`.
  *
  * The Go binary is the single resolution authority (resolveAnchor in
- * cmd_anchor.go). Session start shells out once, persists the result, and
- * every subsequent hook reads the persisted anchor instead of re-deriving
- * the root:
+ * cmd_anchor.go). Session start shells out once and persists the result;
+ * consumers migrate onto getAnchor/getAnchoredRoot incrementally (hooks
+ * still walking via findProjectRoot are the remaining migration surface):
  *
  *   ~/.aide/anchors/<session_id>.json   session-keyed cache — O(1) lookup
  *                                       from a hook payload's session_id,
  *                                       no walk, no chicken-and-egg
  *   <root>/.aide/state/anchor.json      project-local copy (state/ is
  *                                       gitignored) for inspection and for
- *                                       consumers without a session id
+ *                                       consumers without a session id.
+ *                                       Last-writer-wins: all worktrees of
+ *                                       one repo share the main root, so
+ *                                       concurrent sessions overwrite each
+ *                                       other here — the session-keyed
+ *                                       cache is the authoritative lookup
  *
  * Readers validate before trusting: schema version, launchCwd match, and
  * that the recorded root still exists. On any mismatch they fall back to
@@ -86,9 +91,18 @@ function isValidAnchor(a: unknown): a is AnchorInfo {
     info.schemaVersion === ANCHOR_SCHEMA_VERSION &&
     typeof info.root === "string" &&
     info.root.length > 0 &&
+    typeof info.dbPath === "string" &&
+    typeof info.socketPath === "string" &&
+    !!info.identity &&
+    typeof info.identity.projectName === "string" &&
+    !!info.provenance &&
+    typeof info.provenance === "object" &&
     Array.isArray(info.chain) &&
     info.chain.length > 0 &&
-    info.chain[0].relation === "self"
+    info.chain[0].relation === "self" &&
+    info.chain.every(
+      (s) => typeof s.root === "string" && typeof s.relation === "string",
+    )
   );
 }
 
@@ -110,8 +124,10 @@ export function resolveAnchorViaBinary(
   cwd: string,
 ): AnchorInfo | null {
   try {
-    const out = execFileSync(binary, ["anchor", "--json"], {
-      cwd,
+    // --cwd is passed explicitly rather than relying on the child's
+    // inherited working directory: it survives a deleted/renamed cwd and
+    // is immune to getcwd/$PWD spelling differences.
+    const out = execFileSync(binary, ["anchor", "--json", `--cwd=${cwd}`], {
       encoding: "utf-8",
       timeout: 5000,
     });
@@ -162,17 +178,25 @@ export function writeSessionAnchor(
   sweepAnchorCache();
 }
 
-/** Remove session-keyed caches past their TTL. Best-effort. */
+/**
+ * Remove session-keyed caches past their TTL, plus orphaned atomic-write
+ * temp files (crash between write and rename) older than an hour.
+ * Best-effort.
+ */
 export function sweepAnchorCache(): void {
   try {
     const dir = anchorCacheDir();
     if (!existsSync(dir)) return;
     const cutoff = Date.now() - ANCHOR_CACHE_TTL_MS;
+    const tmpCutoff = Date.now() - 60 * 60 * 1000;
     for (const name of readdirSync(dir)) {
-      if (!name.endsWith(".json")) continue;
       const p = join(dir, name);
       try {
-        if (statSync(p).mtimeMs < cutoff) unlinkSync(p);
+        if (name.includes(".json.tmp-")) {
+          if (statSync(p).mtimeMs < tmpCutoff) unlinkSync(p);
+        } else if (name.endsWith(".json")) {
+          if (statSync(p).mtimeMs < cutoff) unlinkSync(p);
+        }
       } catch {
         /* races are fine */
       }

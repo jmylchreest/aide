@@ -19,6 +19,7 @@ import {
   mkdirSync,
   copyFileSync,
   chmodSync,
+  realpathSync,
 } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -433,19 +434,29 @@ async function main(): Promise<void> {
     } = await checkAideBinary(cwd, log);
 
     // Resolve and persist the session anchor: the Go binary is the single
-    // resolution authority, and the persisted anchor (session-keyed cache +
-    // <root>/.aide/state/anchor.json) is what every later hook reads instead
-    // of re-deriving the root. Best-effort — hooks fall back to shelling
-    // out, then to the TS walk.
+    // resolution authority; the persisted anchor (session-keyed cache +
+    // <root>/.aide/state/anchor.json) is what anchor-aware consumers read
+    // instead of re-deriving the root (remaining consumers migrate onto
+    // getAnchoredRoot incrementally). Best-effort — readers fall back to
+    // shelling out, then to the TS walk.
     if (resolvedBinary) {
       debugLog("anchor resolve/persist starting...");
       try {
         const anchor = resolveAnchorViaBinary(resolvedBinary, launchedCwd);
         if (anchor) {
           writeSessionAnchor(sessionId, launchedCwd, anchor);
-          if (anchor.root !== cwd) {
-            // The Go resolver and the TS walk disagreeing is exactly the
-            // misanchoring class the anchor exists to catch — surface it.
+          // The Go resolver and the TS walk disagreeing is exactly the
+          // misanchoring class the anchor exists to catch — surface it.
+          // Compare symlink-resolved spellings so aliases (~/src vs a
+          // mount path) and getcwd/$PWD differences don't false-warn.
+          const tsRealRoot = (() => {
+            try {
+              return realpathSync(cwd);
+            } catch {
+              return cwd;
+            }
+          })();
+          if (anchor.realRoot !== tsRealRoot) {
             log.warn(
               `anchor mismatch: binary resolved ${anchor.root}, TS walk resolved ${cwd}`,
             );
