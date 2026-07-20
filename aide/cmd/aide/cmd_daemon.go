@@ -22,10 +22,14 @@ import (
 //
 // Returns when ctx is cancelled. Errors are logged but never fatal — a
 // daemon should never die from a cleanup hiccup.
-func runCleanupLoop(ctx context.Context, st store.Store) {
+// runCleanupLoop periodically prunes the retention buckets. logf receives
+// progress lines — the daemon passes fmt.Printf (stdout), while the MCP
+// primary MUST pass a stderr-backed logger: its stdout is the JSON-RPC
+// channel and any stray print corrupts the protocol.
+func runCleanupLoop(ctx context.Context, st store.Store, logf func(format string, args ...any)) {
 	cfg := config.Get().Cleanup
 	if !cfg.Enabled {
-		fmt.Println("cleanup loop disabled (cleanup.enabled=false)")
+		logf("cleanup loop disabled (cleanup.enabled=false)\n")
 		return
 	}
 
@@ -34,7 +38,7 @@ func runCleanupLoop(ctx context.Context, st store.Store) {
 	observeAge := cfg.ObserveMaxAgeDuration()
 	taskAge := cfg.TaskMaxAgeDuration()
 	tokenAge := cfg.TokenMaxAgeDuration()
-	fmt.Printf("cleanup loop: every %s — state>%s, observe>%s, done-tasks>%s, token-events>%s\n", interval, stateAge, observeAge, taskAge, tokenAge)
+	logf("cleanup loop: every %s — state>%s, observe>%s, done-tasks>%s, token-events>%s\n", interval, stateAge, observeAge, taskAge, tokenAge)
 
 	// Stagger the first run by a few seconds so daemon startup logs stay
 	// readable. After that, tick on the configured interval.
@@ -48,38 +52,50 @@ func runCleanupLoop(ctx context.Context, st store.Store) {
 		case <-timer.C:
 		}
 
-		if n, err := st.CleanupStaleState(stateAge); err != nil {
-			fmt.Printf("cleanup: state error: %v\n", err)
-		} else if n > 0 {
-			fmt.Printf("cleanup: pruned %d stale state entries\n", n)
-		}
-
-		if n, err := st.CleanupObserveEvents(observeAge); err != nil {
-			fmt.Printf("cleanup: observe error: %v\n", err)
-		} else if n > 0 {
-			fmt.Printf("cleanup: pruned %d stale observe events\n", n)
-		}
-
-		if n, err := st.PruneMessages(); err != nil {
-			fmt.Printf("cleanup: message error: %v\n", err)
-		} else if n > 0 {
-			fmt.Printf("cleanup: pruned %d expired messages\n", n)
-		}
-
-		if n, err := st.PruneCompletedTasks(taskAge); err != nil {
-			fmt.Printf("cleanup: task error: %v\n", err)
-		} else if n > 0 {
-			fmt.Printf("cleanup: pruned %d completed tasks\n", n)
-		}
-
-		if n, err := st.CleanupTokenEvents(tokenAge); err != nil {
-			fmt.Printf("cleanup: token error: %v\n", err)
-		} else if n > 0 {
-			fmt.Printf("cleanup: pruned %d token events\n", n)
+		counts, errs := retentionSweepOnce(st, cfg)
+		for _, name := range retentionBuckets {
+			if err := errs[name]; err != nil {
+				logf("cleanup: %s error: %v\n", name, err)
+			} else if n := counts[name]; n > 0 {
+				logf("cleanup: pruned %d %s\n", n, name)
+			}
 		}
 
 		timer.Reset(interval)
 	}
+}
+
+// retentionBuckets names the time-based buckets the retention sweep covers,
+// in reporting order. Memories and decisions are deliberately absent — they
+// are knowledge, not telemetry, and are never retention-pruned.
+var retentionBuckets = []string{
+	"stale state entries",
+	"stale observe events",
+	"expired messages",
+	"completed tasks",
+	"token events",
+}
+
+// retentionSweepOnce runs one retention pass across all time-based buckets,
+// using the configured per-bucket max ages (default 90d; "0" disables a
+// bucket). Shared by the daemon's cleanup loop and the direct-mode sweep at
+// session init, so retention holds whether or not a daemon is running.
+func retentionSweepOnce(st store.Store, cfg config.CleanupConfig) (map[string]int, map[string]error) {
+	counts := map[string]int{}
+	errs := map[string]error{}
+	run := func(name string, fn func() (int, error)) {
+		if n, err := fn(); err != nil {
+			errs[name] = err
+		} else if n > 0 {
+			counts[name] = n
+		}
+	}
+	run("stale state entries", func() (int, error) { return st.CleanupStaleState(cfg.StateMaxAgeDuration()) })
+	run("stale observe events", func() (int, error) { return st.CleanupObserveEvents(cfg.ObserveMaxAgeDuration()) })
+	run("expired messages", func() (int, error) { return st.PruneMessages() })
+	run("completed tasks", func() (int, error) { return st.PruneCompletedTasks(cfg.TaskMaxAgeDuration()) })
+	run("token events", func() (int, error) { return st.CleanupTokenEvents(cfg.TokenMaxAgeDuration()) })
+	return counts, errs
 }
 
 // cmdDaemon starts the gRPC daemon.
@@ -180,7 +196,7 @@ func cmdDaemon(dbPath string, args []string) error {
 
 	// Background bucket-prune loop. Survives the daemon's lifetime;
 	// stopped via ctx on shutdown.
-	go runCleanupLoop(ctx, st)
+	go runCleanupLoop(ctx, st, func(format string, args ...any) { fmt.Printf(format, args...) })
 
 	// Register instance for discovery by aide-web
 	projRoot := projectRoot(dbPath)

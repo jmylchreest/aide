@@ -128,11 +128,18 @@ Project-level settings can be stored in `.aide/config/aide.json`:
 | `findings.clones.windowSize`    | 50      | Sliding window size in tokens for detection  |
 | `findings.clones.minLines`      | 6       | Minimum clone size in lines to report        |
 
-| `cleanup.enabled`               | true    | Master switch for the daemon's background bucket-pruning loop |
-| `cleanup.observe_max_age`       | 8760h   | TTL for observe/telemetry events (`0` = keep forever) |
-| `cleanup.task_max_age`          | 8760h   | TTL for completed tasks (pending/claimed are never pruned) |
-| `cleanup.state_max_age`         | 8760h   | TTL for per-agent session state |
+| `cleanup.enabled`               | true    | Master switch for retention pruning (daemon loop + session-init sweep) |
+| `cleanup.observe_max_age`       | 2160h   | TTL for observe/telemetry events, 90 days (`0` = keep forever) |
+| `cleanup.task_max_age`          | 2160h   | TTL for completed tasks, 90 days (pending/claimed are never pruned) |
+| `cleanup.state_max_age`         | 2160h   | TTL for per-agent session state, 90 days |
+| `cleanup.token_max_age`         | 2160h   | TTL for token events, 90 days |
 | `maintenance.compact_on_exit`   | true    | Rewrite bolt stores to reclaim free pages when the daemon/MCP server exits |
+
+Retention runs in the background loop of whichever long-lived process holds
+the store (the daemon or the MCP primary, every 15m) and, when neither is
+running, as a rate-limited sweep at session init — so data older than the
+configured TTLs is always removed either way. Memories and decisions are
+never retention-pruned: they are knowledge, not telemetry.
 
 Values in `aide.json` serve as project-level defaults. CLI flags override config file values. If neither is set, the built-in defaults apply.
 

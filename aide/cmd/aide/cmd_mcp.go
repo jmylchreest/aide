@@ -760,6 +760,14 @@ func cmdMCP(dbPath string, args []string) error {
 	observe.SetDefault(observeSink)
 	defer observe.SetDefault(nil)
 
+	// The MCP primary holds the store locks for its whole lifetime, which
+	// makes Backend.RetentionSweep (direct-mode only) a no-op for every CLI
+	// invocation — so the primary must run the retention loop itself, same
+	// as the standalone daemon.
+	cleanupCtx, cleanupCancel := context.WithCancel(context.Background())
+	defer cleanupCancel()
+	go runCleanupLoop(cleanupCtx, st, mcpLog.Printf)
+
 	if migrated, err := st.Bolt().MigrateTokenEventsToObserve(); err != nil {
 		mcpLog.Printf("WARNING: token-event migration failed: %v", err)
 	} else if migrated > 0 {

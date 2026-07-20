@@ -5,9 +5,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
+	"github.com/jmylchreest/aide/aide/pkg/config"
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi"
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi/adapter"
+	"github.com/jmylchreest/aide/aide/pkg/memory"
 	"github.com/jmylchreest/aide/aide/pkg/store"
 )
 
@@ -120,6 +123,43 @@ func (b *Backend) TombstoneStore() store.TombstoneStore {
 // This matches the timeout used by grpcStoreAdapter.rpcCtx.
 func (b *Backend) rpcCtx() (context.Context, context.CancelFunc) {
 	return context.WithTimeout(context.Background(), adapter.RPCTimeout)
+}
+
+// lastRetentionSweepKey records when the direct-mode retention sweep last ran,
+// rate-limiting it so rapid session starts (subagent swarms) don't rescan the
+// buckets on every init.
+const lastRetentionSweepKey = "lastRetentionSweep"
+
+// retentionSweepMinInterval is the minimum gap between direct-mode sweeps.
+const retentionSweepMinInterval = time.Hour
+
+// RetentionSweep runs one retention pass directly against the store.
+// In gRPC mode it is a no-op: the daemon behind the socket runs the cleanup
+// loop on its own interval. Returns per-bucket pruned counts (empty when
+// skipped); errors are best-effort and never fail the caller.
+func (b *Backend) RetentionSweep() map[string]int {
+	if b.useGRPC || b.store == nil {
+		return nil
+	}
+	cfg := config.Get().Cleanup
+	if !cfg.Enabled {
+		return nil
+	}
+
+	if st, err := b.store.GetState(lastRetentionSweepKey); err == nil && st != nil {
+		if last, perr := time.Parse(time.RFC3339, st.Value); perr == nil {
+			if time.Since(last) < retentionSweepMinInterval {
+				return nil
+			}
+		}
+	}
+
+	counts, _ := retentionSweepOnce(b.store, cfg)
+	_ = b.store.SetState(&memory.State{
+		Key:   lastRetentionSweepKey,
+		Value: time.Now().UTC().Format(time.RFC3339),
+	})
+	return counts
 }
 
 // openCodeStore opens the code store for direct access.

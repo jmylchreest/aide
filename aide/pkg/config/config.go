@@ -65,26 +65,30 @@ type MaintenanceConfig struct {
 	CompactOnExit bool `koanf:"compact_on_exit"`
 }
 
-// CleanupConfig controls the daemon's background bucket-pruning loop.
+// CleanupConfig controls retention pruning: the daemon's background loop and
+// the direct-mode sweep at session init both use these knobs.
 // All durations are Go duration strings ("15m", "168h"). Empty values fall
-// back to the defaults in the accessor methods (one year). A value of "0"
+// back to the defaults in the accessor methods (90 days). A value of "0"
 // disables pruning for that bucket entirely — its records are retained forever.
 // Disable the whole loop with AIDE_CLEANUP_ENABLED=0 or cleanup.enabled=false.
+// Memories and decisions are deliberately NOT retention-pruned: they are the
+// product, not telemetry.
 type CleanupConfig struct {
 	Enabled       bool   `koanf:"enabled"`         // default true; AIDE_CLEANUP_ENABLED=0 to disable
 	Interval      string `koanf:"interval"`        // default "15m"
-	StateMaxAge   string `koanf:"state_max_age"`   // default "8760h" (365d) — agent-specific state only
-	ObserveMaxAge string `koanf:"observe_max_age"` // default "8760h" (365d)
-	TaskMaxAge    string `koanf:"task_max_age"`    // default "8760h" (365d) — done tasks only; pending/claimed/blocked never pruned
-	TokenMaxAge   string `koanf:"token_max_age"`   // default "8760h" (365d) — token events back the token-intelligence page
+	StateMaxAge   string `koanf:"state_max_age"`   // default "2160h" (90d) — agent-specific state only
+	ObserveMaxAge string `koanf:"observe_max_age"` // default "2160h" (90d)
+	TaskMaxAge    string `koanf:"task_max_age"`    // default "2160h" (90d) — done tasks only; pending/claimed/blocked never pruned
+	TokenMaxAge   string `koanf:"token_max_age"`   // default "2160h" (90d) — token events back the token-intelligence page
 }
 
 // defaultBucketMaxAge is the fallback TTL for the time-based cleanup buckets
 // (observe events, agent state, done tasks, token events) used when the matching
-// cleanup.*_max_age value is empty. Deliberately long — a full year — so nothing
-// is dropped under normal use; tune any bucket down via config, or set it to "0"
-// to disable pruning for that bucket entirely.
-const defaultBucketMaxAge = 365 * 24 * time.Hour
+// cleanup.*_max_age value is empty. 90 days: long enough that nothing in active
+// use is dropped, short enough that telemetry-shaped data cannot accumulate
+// unbounded. Tune any bucket via config (e.g. "8760h" for a year), or set it
+// to "0" to disable pruning for that bucket entirely.
+const defaultBucketMaxAge = 90 * 24 * time.Hour
 
 // IntervalDuration returns the tick interval with a default fallback.
 func (c CleanupConfig) IntervalDuration() time.Duration {
