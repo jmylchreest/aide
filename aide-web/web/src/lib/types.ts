@@ -8,6 +8,9 @@ export interface InstanceInfo {
   socket_path: string;
   status: InstanceStatus;
   version: string;
+  /** Anchor-chain ancestor roots, nearest first. Match against other
+   *  instances' project_root to build estate relationships. */
+  parents?: string[];
 }
 
 export interface MemoryItem {

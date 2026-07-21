@@ -5,7 +5,21 @@ import { SortableTable, type Column } from "../shared/SortableTable";
 import { StatusBadge } from "../shared/StatusBadge";
 import type { InstanceInfo } from "@/lib/types";
 
-function makeColumns(onRemove: (project: string) => void): Column<InstanceInfo>[] {
+/** Estate relationships derived from anchor-chain parents. */
+function estateLookup(instances: InstanceInfo[]) {
+  const byRoot = new Map(instances.map((i) => [i.project_root, i]));
+  const childCount = new Map<string, number>();
+  for (const i of instances) {
+    const parent = i.parents?.[0];
+    if (parent) childCount.set(parent, (childCount.get(parent) ?? 0) + 1);
+  }
+  return { byRoot, childCount };
+}
+
+function makeColumns(
+  onRemove: (project: string) => void,
+  estate: ReturnType<typeof estateLookup>,
+): Column<InstanceInfo>[] {
   return [
     {
       key: "project_name",
@@ -14,6 +28,48 @@ function makeColumns(onRemove: (project: string) => void): Column<InstanceInfo>[
       render: (row) => (
         <span className="font-medium text-aide-text">{row.project_name}</span>
       ),
+    },
+    {
+      key: "estate",
+      label: "Estate",
+      sortable: false,
+      render: (row) => {
+        const parentRoot = row.parents?.[0];
+        if (parentRoot) {
+          const parent = estate.byRoot.get(parentRoot);
+          const label = parent?.project_name ?? parentRoot.split("/").pop();
+          return (
+            <span
+              className="text-aide-text-muted"
+              title={`Nested inside ${parentRoot} (own store; parent decisions cascade into its sessions)`}
+            >
+              {"↳ in "}
+              {parent ? (
+                <Link
+                  to={`/instances/${encodeURIComponent(parent.slug)}/status`}
+                  className="text-aide-accent hover:underline"
+                >
+                  {label}
+                </Link>
+              ) : (
+                label
+              )}
+            </span>
+          );
+        }
+        const children = estate.childCount.get(row.project_root);
+        if (children) {
+          return (
+            <span
+              className="text-aide-text-muted"
+              title="Estate root: these subprojects have their own stores; this project's decisions cascade into their sessions"
+            >
+              {children} subproject{children > 1 ? "s" : ""}
+            </span>
+          );
+        }
+        return <span className="text-aide-text-dim">{"—"}</span>;
+      },
     },
     {
       key: "status",
@@ -98,7 +154,7 @@ export function InstancesPage() {
     }
   };
 
-  const columns = makeColumns(handleRemove);
+  const columns = makeColumns(handleRemove, estateLookup(instances ?? []));
 
   return (
     <div>

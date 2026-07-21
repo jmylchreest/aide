@@ -18,6 +18,9 @@ type InstanceInfo struct {
 	SocketPath  string          `json:"socket_path"`
 	Status      instance.Status `json:"status"`
 	Version     string          `json:"version"`
+	// Parents are anchor-chain ancestor roots, nearest first. Consumers
+	// match them against other instances' ProjectRoot to build estate trees.
+	Parents []string `json:"parents,omitempty"`
 }
 
 // ListInstancesOutput is the response body for APIListInstances.
@@ -55,6 +58,7 @@ func (h *Handler) APIListInstances(ctx context.Context, input *struct{}) (*ListI
 			SocketPath:  inst.SocketPath(),
 			Status:      inst.Status(),
 			Version:     inst.Version(),
+			Parents:     inst.Parents(),
 		})
 	}
 	return out, nil

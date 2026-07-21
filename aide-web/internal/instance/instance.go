@@ -49,6 +49,7 @@ type Instance struct {
 	socketPath  string
 	dbPath      string
 	version     string
+	parents     []string
 	status      Status
 	client      *grpcapi.Client
 	store       store.Store
@@ -101,6 +102,22 @@ func (i *Instance) DBPath() string {
 	i.mu.RLock()
 	defer i.mu.RUnlock()
 	return i.dbPath
+}
+
+// Parents returns the anchor-chain ancestor roots recorded at
+// registration, nearest first. Empty for estate roots and standalone
+// projects, and for instances registered by pre-estate binaries.
+func (i *Instance) Parents() []string {
+	i.mu.RLock()
+	defer i.mu.RUnlock()
+	return append([]string(nil), i.parents...)
+}
+
+// SetParents records the ancestor roots from a registry refresh.
+func (i *Instance) SetParents(parents []string) {
+	i.mu.Lock()
+	i.parents = append([]string(nil), parents...)
+	i.mu.Unlock()
 }
 
 func (i *Instance) Version() string {

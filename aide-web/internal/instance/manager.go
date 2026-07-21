@@ -139,6 +139,7 @@ func (m *Manager) addOrUpdate(reg registry.Instance) {
 		inst.UpdateMeta(reg.SocketPath, reg.DBPath, reg.Version)
 	}
 	m.mu.Unlock()
+	inst.SetParents(reg.Parents)
 
 	// Connect() is idempotent — returns nil if already connected/connecting
 	go func() {
