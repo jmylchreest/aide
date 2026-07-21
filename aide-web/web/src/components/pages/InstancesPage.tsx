@@ -142,6 +142,74 @@ function makeColumns(
   ];
 }
 
+/** One node in the estate forest: an instance plus its nested children. */
+interface EstateNode {
+  inst: InstanceInfo;
+  children: EstateNode[];
+}
+
+/** Build estate trees from parents[0] containment among known instances. */
+function buildEstateForest(instances: InstanceInfo[]): EstateNode[] {
+  const byRoot = new Map(instances.map((i) => [i.project_root, i]));
+  const childrenOf = new Map<string, InstanceInfo[]>();
+  for (const i of instances) {
+    const parentRoot = i.parents?.[0];
+    if (parentRoot && byRoot.has(parentRoot)) {
+      const list = childrenOf.get(parentRoot) ?? [];
+      list.push(i);
+      childrenOf.set(parentRoot, list);
+    }
+  }
+  if (childrenOf.size === 0) return [];
+
+  const build = (inst: InstanceInfo): EstateNode => ({
+    inst,
+    children: (childrenOf.get(inst.project_root) ?? [])
+      .sort((a, b) => a.project_name.localeCompare(b.project_name))
+      .map(build),
+  });
+
+  return instances
+    .filter(
+      (i) =>
+        childrenOf.has(i.project_root) &&
+        !(i.parents?.[0] && byRoot.has(i.parents[0])),
+    )
+    .sort((a, b) => a.project_name.localeCompare(b.project_name))
+    .map(build);
+}
+
+function EstateTreeNode({ node, depth }: { node: EstateNode; depth: number }) {
+  const { inst } = node;
+  const online = inst.status === "connected";
+  return (
+    <>
+      <div
+        className="flex items-center gap-2 py-0.5 text-sm"
+        style={{ paddingLeft: `${depth * 1.25}rem` }}
+      >
+        <StatusBadge status={inst.status} />
+        {online ? (
+          <Link
+            to={`/instances/${encodeURIComponent(inst.slug)}/status`}
+            className="text-aide-accent hover:underline font-medium"
+          >
+            {inst.project_name}
+          </Link>
+        ) : (
+          <span className="font-medium text-aide-text">{inst.project_name}</span>
+        )}
+        <code className="text-aide-text-dim text-xs bg-transparent px-0">
+          {inst.project_root}
+        </code>
+      </div>
+      {node.children.map((c) => (
+        <EstateTreeNode key={c.inst.slug} node={c} depth={depth + 1} />
+      ))}
+    </>
+  );
+}
+
 export function InstancesPage() {
   const { data: instances, loading, error, refresh } = useApi(() => api.listInstances());
 
@@ -164,6 +232,17 @@ export function InstancesPage() {
 
       {loading && <p className="text-aide-text-dim text-sm">Loading...</p>}
       {error && <p className="text-aide-red text-sm">{error}</p>}
+
+      {!loading && !error && instances && buildEstateForest(instances).length > 0 && (
+        <div className="mb-4 border border-aide-border rounded-sm p-3">
+          <h3 className="text-sm font-semibold text-aide-text-muted mb-1.5">
+            Estates
+          </h3>
+          {buildEstateForest(instances).map((n) => (
+            <EstateTreeNode key={n.inst.slug} node={n} depth={0} />
+          ))}
+        </div>
+      )}
 
       {!loading && !error && instances && (
         <SortableTable

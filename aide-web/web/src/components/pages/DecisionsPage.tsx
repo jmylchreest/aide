@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useEffect, useState, useMemo } from "react";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { api } from "@/lib/api";
 import { useApi } from "@/hooks/use-api";
 import { FilterBar } from "../shared/FilterBar";
@@ -11,6 +11,84 @@ import { ClipboardBanner } from "../shared/ClipboardBanner";
 import type { DecisionItem } from "@/lib/types";
 
 type SortMode = "newest" | "alpha";
+
+/**
+ * Decisions this store's sessions inherit from ancestor instances —
+ * the same nearest-wins merge the session cascade performs, computed from
+ * CONNECTED ancestors only (mirroring the cascade's socket rung; offline
+ * ancestors are skipped, as their stores are unreadable here).
+ */
+function InheritedDecisions({
+  slug,
+  localTopics,
+}: {
+  slug: string;
+  localTopics: Set<string>;
+}) {
+  const [inherited, setInherited] = useState<
+    Array<DecisionItem & { originName: string; originSlug: string }>
+  >([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const instances = await api.listInstances();
+        const me = instances.find((i) => i.slug === slug);
+        if (!me?.parents?.length) return;
+        const byRoot = new Map(instances.map((i) => [i.project_root, i]));
+        const seen = new Set(localTopics);
+        const acc: Array<DecisionItem & { originName: string; originSlug: string }> = [];
+        for (const parentRoot of me.parents) {
+          const parent = byRoot.get(parentRoot);
+          if (!parent || parent.status !== "connected") continue;
+          const decisions = await api.listDecisions(parent.slug);
+          const latest = new Map<string, DecisionItem>();
+          for (const d of decisions) {
+            const cur = latest.get(d.topic);
+            if (!cur || d.created_at > cur.created_at) latest.set(d.topic, d);
+          }
+          for (const [topic, d] of [...latest.entries()].sort()) {
+            if (seen.has(topic)) continue;
+            seen.add(topic);
+            acc.push({ ...d, originName: parent.project_name, originSlug: parent.slug });
+          }
+        }
+        if (!cancelled) setInherited(acc);
+      } catch {
+        /* estate view is best-effort */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [slug, localTopics]);
+
+  if (inherited.length === 0) return null;
+  return (
+    <div className="mt-4 border border-aide-border rounded-sm p-3">
+      <h3 className="text-sm font-semibold text-aide-text-muted mb-1.5">
+        Inherited from estate
+      </h3>
+      <p className="text-xs text-aide-text-dim mb-2">
+        Sessions in this project also receive these ancestor decisions
+        (nearest-wins; decide the topic locally to override).
+      </p>
+      {inherited.map((d) => (
+        <div key={`${d.originSlug}:${d.topic}`} className="py-0.5 text-sm">
+          <span className="font-medium text-aide-text">{d.topic}</span>
+          <span className="text-aide-text-muted">: {d.decision}</span>{" "}
+          <Link
+            to={`/instances/${encodeURIComponent(d.originSlug)}/decisions`}
+            className="text-xs text-aide-accent hover:underline"
+          >
+            from {d.originName}
+          </Link>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export function DecisionsPage() {
   const { project } = useParams<{ project: string }>();
@@ -32,6 +110,11 @@ export function DecisionsPage() {
   const { data: decisions, loading, error, refresh } = useApi(
     () => api.listDecisions(project!),
     [project]
+  );
+
+  const localTopics = useMemo(
+    () => new Set((decisions ?? []).map((d) => d.topic)),
+    [decisions],
   );
 
   // Compute superseded status: for each topic, only the newest is current
@@ -303,6 +386,8 @@ export function DecisionsPage() {
         message={`Paste decision "${clipboardItem?.label ?? ""}" from ${clipboardItem?.sourceInstance ?? ""} into ${project}?`}
         confirmLabel="Paste"
       />
+
+      {project && <InheritedDecisions slug={project} localTopics={localTopics} />}
     </div>
   );
 }
