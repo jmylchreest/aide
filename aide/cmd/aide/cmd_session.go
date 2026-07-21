@@ -402,9 +402,7 @@ func sessionFetchContext(backend *Backend, project string, sessionLimit int, res
 		}
 	}
 
-	// Decisions (latest per topic), then the estate cascade: ancestors'
-	// decisions join nearest-wins — a topic decided locally shadows every
-	// ancestor's version of it, and nearer ancestors shadow farther ones.
+	// Own decisions first (latest per topic), then the estate cascade.
 	seenTopics := make(map[string]bool)
 	decisions, err := backend.ListDecisions()
 	if err == nil {
@@ -457,7 +455,7 @@ func sessionCascadeDecisions(backend *Backend, seenTopics map[string]bool, resul
 			continue
 		}
 		name, _ := anchor.ProjectIdentity(link.Root)
-		// Deterministic order within one ancestor: topic-sorted.
+		// Topic-sorted: injection order must be deterministic across runs.
 		latest := latestDecisionsByTopic(parentDecisions)
 		topics := make([]string, 0, len(latest))
 		for t := range latest {

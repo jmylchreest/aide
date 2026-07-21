@@ -303,8 +303,6 @@ func computeDBPath(projectRoot string) string {
 	return dbPath
 }
 
-// vcsMarkerNames aliases the shared scope-package list so every marker
-// check in this package stays in agreement with the survey analyzers.
 var vcsMarkerNames = anchor.VCSMarkerNames
 
 // vcsMarker reports whether dir contains a VCS marker, and for .git files
@@ -343,12 +341,10 @@ func isVCSRoot(dir string) bool {
 	return false
 }
 
-// isSubmoduleGitdir delegates to the shared scope-package classifier.
 func isSubmoduleGitdir(gitdir string) bool {
 	return anchor.IsSubmoduleGitdir(gitdir)
 }
 
-// gitfileInfo delegates to the shared scope-package parser.
 func gitfileInfo(gitFilePath string) (shape string, ownerRoot string) {
 	return anchor.GitfileInfo(gitFilePath)
 }

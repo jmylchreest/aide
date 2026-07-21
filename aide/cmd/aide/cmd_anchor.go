@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"github.com/jmylchreest/aide/aide/internal/version"
-	"github.com/jmylchreest/aide/aide/pkg/grpcapi"
 	"github.com/jmylchreest/aide/aide/pkg/anchor"
+	"github.com/jmylchreest/aide/aide/pkg/grpcapi"
 )
 
 // anchorSchemaVersion identifies the anchor JSON contract. Bump on any
@@ -63,7 +63,7 @@ type anchorInfo struct {
 	Identity        anchorIdentityInfo `json:"identity"`
 	DBPath          string             `json:"dbPath"`
 	SocketPath      string             `json:"socketPath"`
-	Chain           []anchorLink      `json:"chain"`
+	Chain           []anchorLink       `json:"chain"`
 }
 
 // resolveAnchor is the single authoritative project-root resolution,
@@ -190,8 +190,7 @@ func deleteSessionAnchor(sessionID string) {
 	}
 }
 
-// extractStoreFlag pulls --store=parent|top|<path> out of the arg list,
-// mirroring extractProjectRootFlag's shape.
+// extractStoreFlag pulls --store=parent|top|<path> out of the arg list.
 func extractStoreFlag(args []string) (string, []string, bool) {
 	for i, a := range args {
 		if a == "--store" {
@@ -260,7 +259,6 @@ func resolveStoreTarget(a anchorInfo, selector string) (string, error) {
 	return target, nil
 }
 
-// anchorHasStore reports whether root carries an initialized .aide dir.
 func anchorHasStore(root string) bool {
 	st, err := os.Stat(filepath.Join(root, ".aide"))
 	return err == nil && st.IsDir()
@@ -383,8 +381,6 @@ func finishAnchor(info *anchorInfo, markerDir string) {
 	info.Chain = chain
 }
 
-// classifyAnchorMarker reports which marker anchored root via the shared
-// scope-package classifier.
 func classifyAnchorMarker(root string, hasMarker bool) anchorProvenance {
 	if !hasMarker {
 		return anchorProvenance{}
@@ -393,17 +389,14 @@ func classifyAnchorMarker(root string, hasMarker bool) anchorProvenance {
 	return anchorProvenance{Marker: marker, GitdirShape: shape}
 }
 
-// anchorProjectIdentity delegates to the shared scope-package derivation.
 func anchorProjectIdentity(root string) (name, source string) {
 	return anchor.ProjectIdentity(root)
 }
 
-// lastURLSegment delegates to the shared scope package (kept for tests).
 func lastURLSegment(url string) string {
 	return anchor.LastURLSegment(url)
 }
 
-// realPath delegates to the shared scope package.
 func realPath(p string) string {
 	return anchor.RealPath(p)
 }

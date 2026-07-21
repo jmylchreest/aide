@@ -492,9 +492,7 @@ func TestResolveStoreTarget(t *testing.T) {
 		}
 	})
 	t.Run("uninitialized target refused", func(t *testing.T) {
-		// nested itself has no .aide; route to it from the submodule via
-		// an anchor whose chain contains it? nested is not in submodule's
-		// chain — use self on a store-less project instead.
+		// nested has no .aide, so routing to self must refuse.
 		nestedAnchor := resolveAnchor(nested)
 		if _, err := resolveStoreTarget(nestedAnchor, "self"); err == nil {
 			t.Fatal("store-less target accepted — a write must not bootstrap a store implicitly")
