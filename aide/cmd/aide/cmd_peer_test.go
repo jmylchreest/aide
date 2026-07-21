@@ -188,3 +188,35 @@ func TestSyncPublish(t *testing.T) {
 		t.Errorf("published shared-topic = %+v, want the local store's local-version", d)
 	}
 }
+
+// TestSessionEndPublish pins the write-side symmetry: session teardown
+// publishes new local decisions to publish-enabled subscriptions without
+// any external scheduler.
+func TestSessionEndPublish(t *testing.T) {
+	root := peerFixture(t)
+	remote := filepath.Join(t.TempDir(), "context.git")
+	if _, err := git.PlainInit(remote, true); err != nil {
+		t.Fatal(err)
+	}
+	cfgJSON := fmt.Sprintf(`{"subscriptions":[{"name":"pub","url":%q,"publish":true}]}`, remote)
+	if err := os.WriteFile(filepath.Join(root, ".aide", "config", "aide.json"), []byte(cfgJSON), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := config.Load(root); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := sessionEnd(computeDBPath(root), []string{"--session=endpub01"}); err != nil {
+		t.Fatalf("session end: %v", err)
+	}
+
+	consumer := t.TempDir()
+	shareRoot, err := subscription.Sync(context.Background(), consumer, config.SubscriptionConfig{Name: "pub", URL: remote})
+	if err != nil {
+		t.Fatal(err)
+	}
+	latest, err := subscription.ReadDecisions(shareRoot)
+	if err != nil || latest["shared-topic"] == nil {
+		t.Fatalf("teardown publish missing: %v %v", latest, err)
+	}
+}

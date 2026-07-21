@@ -216,8 +216,39 @@ func sessionEnd(dbPath string, args []string) error {
 
 	deleteSessionAnchor(sessionID)
 
+	if published := sessionEndPublish(backend, dbPath); published > 0 {
+		fmt.Printf("Published decisions to %d subscription(s)\n", published)
+	}
+
 	fmt.Printf("Session %s ended: cleared %d session-scoped state entries\n", sessionID, cleared)
 	return errors.Join(errs...)
+}
+
+// sessionEndPublish pushes publish-enabled subscriptions on teardown —
+// the write-side twin of session-start's cache refresh. Sessions are
+// where decisions get made, so the session ending IS the publish event;
+// no external scheduler needed. Best-effort under one shared deadline:
+// an offline remote never blocks teardown, and the next session's end
+// retries implicitly (unpublished records are still new then). Returns
+// how many subscriptions shipped something.
+func sessionEndPublish(backend *Backend, dbPath string) int {
+	if v := os.Getenv("AIDE_CASCADE_DISABLED"); v == "1" || strings.EqualFold(v, "true") {
+		return 0
+	}
+	subs := config.Get().Subscriptions
+	root := projectRoot(dbPath)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	published := 0
+	for _, sub := range subs {
+		if !sub.Publish {
+			continue
+		}
+		if pushed, err := subscription.Publish(ctx, root, sub, publishWrite(backend)); err == nil && pushed {
+			published++
+		}
+	}
+	return published
 }
 
 // sessionInit performs all session startup in a single DB open:

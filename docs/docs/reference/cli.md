@@ -246,6 +246,15 @@ respects the `share.decisions.export_filter` policy and never includes
 memories. An empty repository works as a starting point — the first
 publish bootstraps it.
 
+No external scheduler is needed in either direction: the session
+lifecycle is the clock. Session **start** refreshes stale subscription
+caches (reads); session **end** publishes publish-enabled subscriptions
+(writes) — decisions are only ever made inside sessions, so the session
+ending is the publish event. Both are bounded and offline-silent; an
+unreachable remote never blocks startup or teardown, and unpublished
+records simply ship at the next session end. `aide sync` remains the
+manual lever for forcing either side immediately.
+
 ## Global Flags
 
 ```bash
