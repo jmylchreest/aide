@@ -16,6 +16,11 @@ import (
 )
 
 // Instance describes a running aide daemon for discovery.
+// Parents carries the anchor chain's ancestor roots (nearest first) so
+// consumers like aide-web can assemble the estate graph — which instances
+// contain which — without re-resolving anything. Identity and topology
+// only, never liveness: whether a parent has its own live daemon is
+// answered by the parent's own registry entry.
 type Instance struct {
 	ProjectRoot  string    `json:"project_root"`
 	ProjectName  string    `json:"project_name"`
@@ -24,6 +29,7 @@ type Instance struct {
 	PID          int       `json:"pid"`
 	Version      string    `json:"version"`
 	RegisteredAt time.Time `json:"registered_at"`
+	Parents      []string  `json:"parents,omitempty"`
 }
 
 // InstancesDir returns the directory where instance registry files are stored.
@@ -54,7 +60,14 @@ func NormalizeRoot(projectRoot string) string {
 
 // Register writes an instance registry file for the given daemon.
 // The file is named by the SHA-256 hash of the project root.
+// Register records an instance without estate context (legacy signature).
 func Register(projectRoot, socketPath, dbPath string) error {
+	return RegisterWithParents(projectRoot, socketPath, dbPath, nil)
+}
+
+// RegisterWithParents records an instance including its anchor-chain
+// ancestor roots for estate-aware consumers.
+func RegisterWithParents(projectRoot, socketPath, dbPath string, parents []string) error {
 	dir, err := InstancesDir()
 	if err != nil {
 		return err
@@ -72,6 +85,7 @@ func Register(projectRoot, socketPath, dbPath string) error {
 	}
 
 	inst := Instance{
+		Parents:      parents,
 		ProjectRoot:  projectRoot,
 		ProjectName:  filepath.Base(projectRoot),
 		SocketPath:   socketPath,

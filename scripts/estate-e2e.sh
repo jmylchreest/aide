@@ -74,7 +74,7 @@ for d in "${LEVELS[@]}"; do
   A "$E/$d" memory add --category=learning "memory only for $tag" >/dev/null
 done
 
-echo "== phase 3: isolation matrix (pre-M1 baseline: no cascade, no leaks)"
+echo "== phase 3: store isolation matrix (CLI reads are store-local by design; the cascade is injection-only — see phase 7)"
 for d in "${LEVELS[@]}"; do
   tag="$(basename "$d")"
   got="$(A "$E/$d" decision get estate-topic 2>/dev/null | grep -o "decided-by-[a-z-]*" | head -1)"
@@ -131,6 +131,17 @@ echo "== phase 6: no cross-store pollution from the session"
 for d in tl tl/mid; do
   check "$d store has no session artifacts" "! (A $E/$d message list 2>/dev/null | grep -q $SID)"
 done
+
+echo "== phase 7: decision cascade in session injection (origin-labeled, nearest-wins)"
+CSID="cascade-$$"
+echo "{\"session_id\":\"$CSID\",\"cwd\":\"$E/tl/mid/leaf\",\"hook_event_name\":\"SessionStart\"}" \
+  | (cd "$E/tl/mid/leaf" && run bun "$REPO/src/hooks/session-start.ts" > "$E/cascade-ctx.json" 2>/dev/null)
+check "leaf inherits tl's estate-rule"            "grep -q 'estate-rule' $E/cascade-ctx.json"
+check "inherited decision is origin-labeled"      "grep -q 'inherited from parent' $E/cascade-ctx.json"
+check "estate-topic shows leaf's OWN value"       "grep -q 'decided-by-leaf' $E/cascade-ctx.json"
+check "leaf's estate-topic NOT overridden by parents" "! grep -q 'decided-by-mid[^-]' $E/cascade-ctx.json"
+check "store-routed (mid's) cascades to leaf too" "grep -q 'via-parent-from-leaf' $E/cascade-ctx.json"
+run "$E/aide" --project-root "$E/tl/mid/leaf" session end --session=$CSID >/dev/null 2>&1
 
 echo
 echo "== RESULT: $PASS passed, $FAIL failed  (estate kept at $E; rm -rf it when done)"

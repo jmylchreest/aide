@@ -223,6 +223,17 @@ fallback: the estate root has no parent, non-chain paths are rejected
 (unrelated stores are `--project-root`'s job), and the target must already
 have a `.aide` store — a write never bootstraps another project's store.
 
+## Decision Cascade
+
+Sessions in a project with ancestors (see `aide anchor`) inherit ancestor
+decisions into their injected context, nearest-wins: a topic decided
+locally shadows every ancestor version. Inherited entries are labeled
+`inherited from parent <name>` with an override hint. Reads go through the
+ancestor's daemon socket when live, else a short read-only open — never a
+writable open of another project's store. CLI/MCP `decision get` remains
+store-local (placement is physical); the cascade is a context-injection
+feature. Disable with `AIDE_CASCADE_DISABLED=1`.
+
 ## Anchor
 
 ```bash

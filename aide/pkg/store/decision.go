@@ -94,6 +94,9 @@ func (s *BoltStore) ListDecisions() ([]*memory.Decision, error) {
 
 	err := s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(BucketDecisions)
+		if b == nil {
+			return nil // read-only open of a store without the bucket
+		}
 		return b.ForEach(func(_, v []byte) error {
 			var d memory.Decision
 			if err := json.Unmarshal(v, &d); err != nil {

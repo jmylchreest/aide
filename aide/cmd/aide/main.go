@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/jmylchreest/aide/aide/internal/version"
-	"github.com/jmylchreest/aide/aide/pkg/config"
 	"github.com/jmylchreest/aide/aide/pkg/anchor"
+	"github.com/jmylchreest/aide/aide/pkg/config"
 )
 
 const (
@@ -209,6 +209,7 @@ Commands:
 
 Environment:
   AIDE_FORCE_INIT=1       Force initialisation even without .git/ or .aide/
+  AIDE_CASCADE_DISABLED=1 Disable ancestor decision cascade in session context
   AIDE_GRAMMAR_URL        URL template for grammar downloads (placeholders: {version}, {asset}, {name}, {os}, {arch})
   AIDE_GRAMMAR_AUTO_DOWNLOAD  Set to 0 or false to disable automatic grammar downloads
   AIDE_CODE_WATCH=1       Enable file watching for code index updates

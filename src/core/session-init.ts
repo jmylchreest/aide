@@ -384,7 +384,7 @@ export function runSessionInit(
     result.static.projectOverflow = data.project_memory_overflow ?? false;
     result.static.decisions = data.decisions.map(
       (d) =>
-        `**${d.topic}**: ${d.value}${d.rationale ? ` (${d.rationale})` : ""}`,
+        `**${d.topic}**: ${d.value}${d.rationale ? ` (${d.rationale})` : ""}${d.origin_name ? ` — inherited from parent **${d.origin_name}** (override with a local \`decision set ${d.topic}\`)` : ""}`,
     );
 
     for (const sess of data.recent_sessions) {
@@ -620,7 +620,7 @@ export function buildWelcomeContext(
     lines.push("## Estate");
     lines.push("");
     lines.push(
-      "Related project scopes. Each has its OWN aide store — memories, decisions, and state written here do not reach them (and vice versa).",
+      "Related project scopes. Each has its OWN aide store: memories and state never cross between them, and writes stay local unless routed with --store. Parent DECISIONS cascade into this context (labeled 'inherited from parent') until overridden locally.",
     );
     lines.push("");
     for (const p of estate.parents ?? []) {

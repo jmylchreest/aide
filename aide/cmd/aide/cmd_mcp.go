@@ -806,7 +806,11 @@ func cmdMCP(dbPath string, args []string) error {
 
 	// Register instance for discovery by aide-web
 	projRoot := projectRoot(dbPath)
-	if err := registry.Register(projRoot, socketPath, dbPath); err != nil {
+	var chainParents []string
+	for _, link := range resolveAnchor(projRoot).Chain[1:] {
+		chainParents = append(chainParents, link.Root)
+	}
+	if err := registry.RegisterWithParents(projRoot, socketPath, dbPath, chainParents); err != nil {
 		mcpLog.Printf("warning: failed to register instance: %v", err)
 	} else {
 		defer func() {

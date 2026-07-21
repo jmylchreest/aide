@@ -11,11 +11,16 @@ import (
 	"strings"
 	"time"
 
+	"context"
+
 	"github.com/jmylchreest/aide/aide/pkg/anchor"
 	"github.com/jmylchreest/aide/aide/pkg/code"
 	"github.com/jmylchreest/aide/aide/pkg/config"
 	"github.com/jmylchreest/aide/aide/pkg/contextshare"
+	"github.com/jmylchreest/aide/aide/pkg/grpcapi"
+	"github.com/jmylchreest/aide/aide/pkg/grpcapi/adapter"
 	"github.com/jmylchreest/aide/aide/pkg/memory"
+	"github.com/jmylchreest/aide/aide/pkg/store"
 	"github.com/jmylchreest/aide/aide/pkg/survey"
 )
 
@@ -84,12 +89,17 @@ type SessionMemory struct {
 	Score     float64  `json:"score"`
 }
 
-// SessionDecision is a decision entry for JSON output.
+// SessionDecision is a decision entry for JSON output. Origin fields are
+// set only for decisions cascaded from an ancestor store (provenance, per
+// decision terminology-axes): Origin is the ancestor's root, OriginName
+// its project identity.
 type SessionDecision struct {
-	Topic     string `json:"topic"`
-	Value     string `json:"value"`
-	Rationale string `json:"rationale,omitempty"`
-	CreatedAt string `json:"created_at"`
+	Topic      string `json:"topic"`
+	Value      string `json:"value"`
+	Rationale  string `json:"rationale,omitempty"`
+	CreatedAt  string `json:"created_at"`
+	Origin     string `json:"origin,omitempty"`
+	OriginName string `json:"origin_name,omitempty"`
 }
 
 func cmdSession(dbPath string, args []string) error {
@@ -149,11 +159,11 @@ var sessionStateKeys = []string{
 // startup consolidation in sessionInit. It is spawned detached by the
 // session-end hooks, so teardown is best-effort: every step runs and failures
 // are reported together rather than aborting at the first error.
-// 1. Broadcast a system message recording the session end
-// 2. Clear session-scoped state (agent:<sessionID>:*) — this covers the
-//    session's own mode/counters; global keys are left alone because other
-//    sessions sharing the store may still be live
-// 3. Record last-session metrics
+//  1. Broadcast a system message recording the session end
+//  2. Clear session-scoped state (agent:<sessionID>:*) — this covers the
+//     session's own mode/counters; global keys are left alone because other
+//     sessions sharing the store may still be live
+//  3. Record last-session metrics
 func sessionEnd(dbPath string, args []string) error {
 	sessionID := parseFlag(args, "--session=")
 	if sessionID == "" {
@@ -392,16 +402,15 @@ func sessionFetchContext(backend *Backend, project string, sessionLimit int, res
 		}
 	}
 
-	// Decisions (latest per topic)
+	// Decisions (latest per topic), then the estate cascade: ancestors'
+	// decisions join nearest-wins — a topic decided locally shadows every
+	// ancestor's version of it, and nearer ancestors shadow farther ones.
+	seenTopics := make(map[string]bool)
 	decisions, err := backend.ListDecisions()
 	if err == nil {
-		latest := make(map[string]*memory.Decision)
-		for _, d := range decisions {
-			if existing, ok := latest[d.Topic]; !ok || d.CreatedAt.After(existing.CreatedAt) {
-				latest[d.Topic] = d
-			}
-		}
+		latest := latestDecisionsByTopic(decisions)
 		for _, d := range latest {
+			seenTopics[d.Topic] = true
 			result.Decisions = append(result.Decisions, SessionDecision{
 				Topic:     d.Topic,
 				Value:     d.Decision,
@@ -410,6 +419,7 @@ func sessionFetchContext(backend *Backend, project string, sessionLimit int, res
 			})
 		}
 	}
+	sessionCascadeDecisions(backend, seenTopics, result)
 
 	// Recent sessions (grouped by session tag)
 	if project != "" && sessionLimit > 0 {
@@ -418,6 +428,93 @@ func sessionFetchContext(backend *Backend, project string, sessionLimit int, res
 
 	sessionFetchCodebaseMap(backend, result)
 	sessionFetchEstate(backend, result)
+}
+
+// latestDecisionsByTopic reduces an append-only decision list to the
+// newest entry per topic.
+func latestDecisionsByTopic(decisions []*memory.Decision) map[string]*memory.Decision {
+	latest := make(map[string]*memory.Decision)
+	for _, d := range decisions {
+		if existing, ok := latest[d.Topic]; !ok || d.CreatedAt.After(existing.CreatedAt) {
+			latest[d.Topic] = d
+		}
+	}
+	return latest
+}
+
+// sessionCascadeDecisions layers ancestors' decisions into the session
+// context, nearest-first, for topics not already decided nearer. Cascaded
+// entries carry origin provenance. Kill switch: AIDE_CASCADE_DISABLED=1.
+// Solo repos are unaffected — no parents, no cascade, no cost.
+func sessionCascadeDecisions(backend *Backend, seenTopics map[string]bool, result *SessionInitResult) {
+	if v := os.Getenv("AIDE_CASCADE_DISABLED"); v == "1" || strings.EqualFold(v, "true") {
+		return
+	}
+	a := resolveAnchor(projectRoot(backend.dbPath))
+	for _, link := range a.Chain[1:] {
+		parentDecisions := fetchAncestorDecisions(link.Root)
+		if len(parentDecisions) == 0 {
+			continue
+		}
+		name, _ := anchor.ProjectIdentity(link.Root)
+		// Deterministic order within one ancestor: topic-sorted.
+		latest := latestDecisionsByTopic(parentDecisions)
+		topics := make([]string, 0, len(latest))
+		for t := range latest {
+			topics = append(topics, t)
+		}
+		sort.Strings(topics)
+		for _, topic := range topics {
+			if seenTopics[topic] {
+				continue
+			}
+			seenTopics[topic] = true
+			d := latest[topic]
+			result.Decisions = append(result.Decisions, SessionDecision{
+				Topic:      d.Topic,
+				Value:      d.Decision,
+				Rationale:  d.Rationale,
+				CreatedAt:  d.CreatedAt.Format(time.RFC3339),
+				Origin:     link.Root,
+				OriginName: name,
+			})
+		}
+	}
+}
+
+// fetchAncestorDecisions reads an ancestor store's decisions through the
+// access ladder: its live daemon socket when one exists; a short-timeout
+// READ-ONLY direct open when none does (never a writable open — that
+// would create buckets and contend for the write lock); skipped entirely
+// when the socket exists but is unreachable, since the daemon behind it
+// holds the store locks.
+func fetchAncestorDecisions(root string) []*memory.Decision {
+	dbPath := computeDBPath(root)
+	if grpcapi.SocketExistsForDB(dbPath) {
+		client, err := grpcapi.NewClientForDB(dbPath)
+		if err != nil {
+			return nil
+		}
+		defer client.Close()
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		resp, err := client.Decision.List(ctx, &grpcapi.DecisionListRequest{})
+		if err != nil {
+			return nil
+		}
+		return adapter.ProtoToDecisions(resp.Decisions)
+	}
+
+	st, err := store.NewReadOnlyBoltStore(dbPath)
+	if err != nil {
+		return nil
+	}
+	defer st.Close()
+	ds, err := st.ListDecisions()
+	if err != nil {
+		return nil
+	}
+	return ds
 }
 
 // sessionFetchEstate assembles the estate picture: parents from the anchor

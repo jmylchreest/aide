@@ -95,7 +95,13 @@ export interface SessionInitResult {
     score?: number;
   }>;
   project_memory_overflow?: boolean;
-  decisions: Array<{ topic: string; value: string; rationale?: string }>;
+  decisions: Array<{
+    topic: string;
+    value: string;
+    rationale?: string;
+    origin?: string;
+    origin_name?: string;
+  }>;
   recent_sessions: Array<{
     session_id: string;
     last_at: string;

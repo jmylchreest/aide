@@ -4,6 +4,7 @@ package store
 import (
 	"errors"
 	"fmt"
+	"os"
 	"time"
 
 	bolt "go.etcd.io/bbolt"
@@ -33,6 +34,26 @@ var (
 // BoltStore implements storage using bbolt.
 type BoltStore struct {
 	db *bolt.DB
+}
+
+// NewReadOnlyBoltStore opens an EXISTING store for reading: no write lock,
+// no bucket creation, no migrations. Used by the estate cascade to read an
+// ancestor's decisions when its daemon is not running — the short timeout
+// fails fast instead of contending with a daemon starting concurrently.
+// Callers must treat a nil error as read-only access to whatever schema
+// the file has (buckets may be absent; readers must nil-guard).
+func NewReadOnlyBoltStore(path string) (*BoltStore, error) {
+	if _, err := os.Stat(path); err != nil {
+		return nil, err
+	}
+	db, err := bolt.Open(path, 0o600, &bolt.Options{
+		ReadOnly: true,
+		Timeout:  500 * time.Millisecond,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &BoltStore{db: db}, nil
 }
 
 // NewBoltStore creates a new bbolt-backed store.
