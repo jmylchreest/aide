@@ -101,6 +101,8 @@ export interface SessionInitResult {
     rationale?: string;
     origin?: string;
     origin_name?: string;
+    /** "parent" (anchor-chain cascade) or "peer" (subscription layer); absent = local. */
+    origin_kind?: string;
   }>;
   recent_sessions: Array<{
     session_id: string;

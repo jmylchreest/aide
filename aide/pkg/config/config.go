@@ -54,6 +54,22 @@ type Config struct {
 	Reflect     ReflectConfig     `koanf:"reflect"`
 	Cleanup     CleanupConfig     `koanf:"cleanup"`
 	Maintenance MaintenanceConfig `koanf:"maintenance"`
+
+	// Subscriptions are remote or local context trees this project reads
+	// decisions from (never memories — see the memory-isolation decision).
+	// Peer records are read-only and never re-exported; `aide context adopt`
+	// is the promotion verb.
+	Subscriptions []SubscriptionConfig `koanf:"subscriptions"`
+}
+
+// SubscriptionConfig names one peer context source: a git repository
+// (URL, fetched into .aide/cache/remotes/<name>/) or a local directory
+// (Path, read in place). Exactly one of URL and Path must be set.
+type SubscriptionConfig struct {
+	Name   string `koanf:"name"`
+	URL    string `koanf:"url"`
+	Path   string `koanf:"path"`
+	Branch string `koanf:"branch"` // git only; empty = the remote's default branch
 }
 
 // MaintenanceConfig controls on-disk upkeep of the bolt stores. bbolt never

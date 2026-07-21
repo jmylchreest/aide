@@ -384,7 +384,7 @@ export function runSessionInit(
     result.static.projectOverflow = data.project_memory_overflow ?? false;
     result.static.decisions = data.decisions.map(
       (d) =>
-        `**${d.topic}**: ${d.value}${d.rationale ? ` (${d.rationale})` : ""}${d.origin_name ? ` — inherited from parent **${d.origin_name}** (override with a local \`decision set ${d.topic}\`)` : ""}`,
+        `**${d.topic}**: ${d.value}${d.rationale ? ` (${d.rationale})` : ""}${decisionOriginSuffix(d)}`,
     );
 
     for (const sess of data.recent_sessions) {
@@ -476,6 +476,21 @@ export function runSessionInit(
 /**
  * Format a timestamp as relative time
  */
+/**
+ * Provenance suffix for a non-local decision: parent decisions cascade
+ * from the anchor chain (override locally), peer decisions come from a
+ * read-only subscription layer (promote with `aide context adopt`).
+ */
+function decisionOriginSuffix(
+  d: SessionInitResult["decisions"][number],
+): string {
+  if (!d.origin_name) return "";
+  if (d.origin_kind === "peer") {
+    return ` — from peer **${d.origin_name}** (read-only; adopt with \`aide context adopt ${d.topic} --from=${d.origin_name}\`)`;
+  }
+  return ` — inherited from parent **${d.origin_name}** (override with a local \`decision set ${d.topic}\`)`;
+}
+
 export function formatTimeAgo(isoTimestamp: string): string {
   try {
     const dt = new Date(isoTimestamp);

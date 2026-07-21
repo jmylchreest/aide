@@ -148,6 +148,10 @@ func runCommand(cmd, dbPath string, args []string) error {
 		return cmdBlueprint(dbPath, args)
 	case "share":
 		return cmdShare(dbPath, args)
+	case "sync":
+		return cmdSync(dbPath, args)
+	case "context":
+		return cmdContext(dbPath, args)
 	case "config":
 		return cmdConfig(dbPath, args)
 	case "maintenance":
@@ -197,6 +201,8 @@ Commands:
   state      Manage session/agent state (set, get, delete, list, clear)
   blueprint  Manage and import best-practice decision blueprints
   share      Export/import decisions & memories as git-friendly markdown
+  sync       Fetch subscribed peer context (decisions only, read-only layer)
+  context    Cross-project context operations (adopt a peer decision)
   config     Inspect and edit aide configuration (show, get, set, unset, path)
   maintenance Compact bolt stores to reclaim disk (compact)
   daemon     Start gRPC daemon (Unix socket for IPC)
@@ -209,7 +215,7 @@ Commands:
 
 Environment:
   AIDE_FORCE_INIT=1       Force initialisation even without .git/ or .aide/
-  AIDE_CASCADE_DISABLED=1 Disable ancestor decision cascade in session context
+  AIDE_CASCADE_DISABLED=1 Disable ancestor cascade and peer subscription layer in session context
   AIDE_GRAMMAR_URL        URL template for grammar downloads (placeholders: {version}, {asset}, {name}, {os}, {arch})
   AIDE_GRAMMAR_AUTO_DOWNLOAD  Set to 0 or false to disable automatic grammar downloads
   AIDE_CODE_WATCH=1       Enable file watching for code index updates

@@ -21,6 +21,7 @@ import (
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi/adapter"
 	"github.com/jmylchreest/aide/aide/pkg/memory"
 	"github.com/jmylchreest/aide/aide/pkg/store"
+	"github.com/jmylchreest/aide/aide/pkg/subscription"
 	"github.com/jmylchreest/aide/aide/pkg/survey"
 )
 
@@ -100,6 +101,9 @@ type SessionDecision struct {
 	CreatedAt  string `json:"created_at"`
 	Origin     string `json:"origin,omitempty"`
 	OriginName string `json:"origin_name,omitempty"`
+	// OriginKind distinguishes non-local decisions: "parent" (anchor-chain
+	// cascade) or "peer" (subscription layer). Empty = local.
+	OriginKind string `json:"origin_kind,omitempty"`
 }
 
 func cmdSession(dbPath string, args []string) error {
@@ -418,6 +422,7 @@ func sessionFetchContext(backend *Backend, project string, sessionLimit int, res
 		}
 	}
 	sessionCascadeDecisions(backend, seenTopics, result)
+	sessionPeerDecisions(backend, seenTopics, result)
 
 	// Recent sessions (grouped by session tag)
 	if project != "" && sessionLimit > 0 {
@@ -475,6 +480,60 @@ func sessionCascadeDecisions(backend *Backend, seenTopics map[string]bool, resul
 				CreatedAt:  d.CreatedAt.Format(time.RFC3339),
 				Origin:     link.Root,
 				OriginName: name,
+				OriginKind: "parent",
+			})
+		}
+	}
+}
+
+// peerSyncMaxAge is how stale a subscription cache may be before session
+// init attempts a refresh fetch.
+const peerSyncMaxAge = time.Hour
+
+// sessionPeerDecisions layers subscribed peers' decisions in after the
+// estate cascade — the outermost precedence ring (local > ancestors >
+// peers, subscription order among peers). Cache-first and offline-silent:
+// one short deadline is shared across any refresh fetches, and a failed
+// fetch serves the stale cache. Shares the cascade's kill switch.
+func sessionPeerDecisions(backend *Backend, seenTopics map[string]bool, result *SessionInitResult) {
+	if v := os.Getenv("AIDE_CASCADE_DISABLED"); v == "1" || strings.EqualFold(v, "true") {
+		return
+	}
+	subs := config.Get().Subscriptions
+	if len(subs) == 0 {
+		return
+	}
+	root := projectRoot(backend.dbPath)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	for _, sub := range subs {
+		shareRoot, err := subscription.EnsureFresh(ctx, root, sub, peerSyncMaxAge)
+		if err != nil {
+			continue
+		}
+		latest, err := subscription.ReadDecisions(shareRoot)
+		if err != nil {
+			continue
+		}
+		topics := make([]string, 0, len(latest))
+		for t := range latest {
+			topics = append(topics, t)
+		}
+		sort.Strings(topics)
+		for _, topic := range topics {
+			if seenTopics[topic] {
+				continue
+			}
+			seenTopics[topic] = true
+			d := latest[topic]
+			result.Decisions = append(result.Decisions, SessionDecision{
+				Topic:      d.Topic,
+				Value:      d.Decision,
+				Rationale:  d.Rationale,
+				CreatedAt:  d.CreatedAt.Format(time.RFC3339),
+				Origin:     "peer:" + sub.Name,
+				OriginName: sub.Name,
+				OriginKind: "peer",
 			})
 		}
 	}

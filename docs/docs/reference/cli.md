@@ -208,6 +208,34 @@ aide share import --dry-run              # Preview import
 | `share export` | Export decisions and memories to `.aide/shared/` |
 | `share import` | Import from `.aide/shared/`                      |
 
+## Sync & Subscriptions
+
+```bash
+aide sync                                # Fetch all subscribed peer context
+aide sync platform-team                  # Fetch one subscription
+aide context adopt api-style --from=platform-team   # Promote a peer decision locally
+```
+
+Subscriptions name peer context sources in `.aide/config/aide.json`:
+
+```json
+{ "subscriptions": [
+    { "name": "platform-team", "url": "git@host:platform/context.git", "branch": "main" },
+    { "name": "proto-repo",    "path": "../protos" }
+] }
+```
+
+`aide sync` fetches git subscriptions into `.aide/cache/remotes/<name>/`
+(local `path` subscriptions are read in place). Peer records form a
+**read-only layer**: their decisions appear in session context labeled
+`from peer <name>`, at the lowest precedence (local > ancestors > peers),
+and are **never re-exported** — you only publish records you authored or
+explicitly adopted. Only decisions cross project boundaries; memories and
+state never do. `aide context adopt TOPIC [--from=PEER]` is the promotion
+verb: it copies the peer's current decision into the local store as a new
+local decision stamped with adoption provenance. Session init refreshes
+stale subscription caches opportunistically (bounded, offline-silent).
+
 ## Global Flags
 
 ```bash
@@ -232,7 +260,8 @@ locally shadows every ancestor version. Inherited entries are labeled
 ancestor's daemon socket when live, else a short read-only open — never a
 writable open of another project's store. CLI/MCP `decision get` remains
 store-local (placement is physical); the cascade is a context-injection
-feature. Disable with `AIDE_CASCADE_DISABLED=1`.
+feature. Subscribed peers layer in below ancestors (see Sync &
+Subscriptions). Disable both with `AIDE_CASCADE_DISABLED=1`.
 
 ## Anchor
 
