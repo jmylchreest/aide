@@ -40,11 +40,39 @@ const { join, dirname, basename } = require("path") as typeof import("path");
 const whichSync = (require("which") as typeof import("which")).sync;
 
 /**
+ * Read the session anchor cache (~/.aide/anchors/<id>.json) written by
+ * session-start — the authoritative root for this session. Inlined
+ * require-style (no ES imports, same startup constraint as the rest of
+ * this hook). Returns null on any doubt; callers fall back to the walk.
+ */
+function readAnchorRoot(sessionId: string, cwd: string): string | null {
+  try {
+    const { homedir } = require("os") as typeof import("os");
+    const p = join(homedir(), ".aide", "anchors", `${sessionId}.json`);
+    if (!existsSync(p)) return null;
+    const entry = JSON.parse(readFileSync(p, "utf-8"));
+    const root = entry?.anchor?.root;
+    if (
+      entry?.anchor?.schemaVersion !== 1 ||
+      typeof root !== "string" ||
+      !root ||
+      entry.launchCwd !== cwd ||
+      !existsSync(root)
+    ) {
+      return null;
+    }
+    return root;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Inline walk-up for project root — mirrors lib/project-root.ts semantics
  * (closest VCS root wins, linked worktrees resolve to the main repo,
  * submodule checkouts anchor themselves; .aide/-only as fallback). Inlined
- * here to keep this hook's startup cheap (no extra ES imports); replaced by
- * the anchor reader once `aide anchor` lands.
+ * here to keep this hook's startup cheap (no extra ES imports). FALLBACK
+ * only: the session anchor cache (readAnchorRoot) is consulted first.
  */
 function resolveRoot(cwd: string): string {
   const override = process.env.AIDE_PROJECT_ROOT;
@@ -133,7 +161,14 @@ function log(cwd: string, msg: string): void {
 }
 
 /** Find aide binary — inline, no external module imports. */
-function findBinary(cwd?: string): string | null {
+function findBinary(cwd?: string, anchorRoot?: string | null): string | null {
+  // Session anchor root first: ensureBinSymlink plants .aide/bin/aide at
+  // the ANCHORED root, which the walk below can miss in submodule/worktree
+  // layouts when the plugin-root env is absent.
+  if (anchorRoot) {
+    const p = join(anchorRoot, ".aide", "bin", "aide");
+    if (existsSync(p)) return p;
+  }
   const pluginRoot =
     process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT;
   let resolvedRoot = pluginRoot;
@@ -207,7 +242,9 @@ function main(): void {
       return;
     }
 
-    const binary = findBinary(cwd);
+    const anchorRoot = readAnchorRoot(sessionId, cwd);
+    if (anchorRoot) log(cwd, `anchor root: ${anchorRoot}`);
+    const binary = findBinary(cwd, anchorRoot);
     log(cwd, `binary: ${binary}`);
     if (!binary) {
       log(cwd, "no binary found, skipping cleanup");
@@ -242,7 +279,7 @@ function main(): void {
           "--category=lifecycle",
           `--session=${sessionId}`,
         ],
-        { cwd, timeout: 3000, stdio: ["pipe", "pipe", "pipe"] },
+        { cwd: anchorRoot || cwd, timeout: 3000, stdio: ["pipe", "pipe", "pipe"] },
       );
     } catch {
       // Non-fatal telemetry — never block session end.
@@ -258,7 +295,7 @@ function main(): void {
     // originally did) never matches.
     try {
       const out = execFileSync(binary, ["state", "get", "mode"], {
-        cwd,
+        cwd: anchorRoot || cwd,
         timeout: 500,
         encoding: "utf-8",
       });
@@ -278,7 +315,7 @@ function main(): void {
     if (durationMs > 0) endArgs.push(`--duration=${durationMs}`);
     log(cwd, `spawning cleanup: ${endArgs.join(" ")}`);
     const child = spawn(binary, endArgs, {
-      cwd,
+      cwd: anchorRoot || cwd,
       detached: true,
       stdio: "ignore",
     });

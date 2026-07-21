@@ -56,7 +56,7 @@ async function main(): Promise<void> {
     const sessionId = data.session_id || "unknown";
 
     // Save state snapshot before compaction — delegates to core
-    const binary = findAideBinary(cwd);
+    const binary = findAideBinary(cwd, data.session_id);
     if (binary) {
       // Emit a lifecycle trigger so PreCompact is traceable in the dashboard,
       // symmetric with session-start and subagent-start/stop.

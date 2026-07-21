@@ -191,7 +191,7 @@ async function main(): Promise<void> {
       }
 
       try {
-        const binary = findAideBinary(cwd);
+        const binary = findAideBinary(cwd, data.session_id);
         const injected = output.hookSpecificOutput?.additionalContext;
         if (binary && injected) {
           emitInjectionEvent(binary, cwd, {

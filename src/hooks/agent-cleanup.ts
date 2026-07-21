@@ -45,7 +45,7 @@ async function main(): Promise<void> {
 
     // Clean up agent-specific state — delegates to core
     if (agentId) {
-      const binary = findAideBinary(cwd);
+      const binary = findAideBinary(cwd, data.session_id);
       if (binary) {
         const cleared = cleanupAgent(binary, cwd, agentId);
         if (cleared) {

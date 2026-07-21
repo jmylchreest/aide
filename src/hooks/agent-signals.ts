@@ -109,7 +109,7 @@ async function main(): Promise<void> {
     const cwd = data.cwd || process.cwd();
     log = new Logger("agent-signals", cwd);
 
-    const binary = findAideBinary(cwd);
+    const binary = findAideBinary(cwd, data.session_id);
     if (!binary) {
       passThrough();
       return;

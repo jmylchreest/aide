@@ -111,7 +111,7 @@ function getProjectName(cwd: string): string {
  * This ensures subagents respect user preferences, project context,
  * and architectural decisions.
  */
-function fetchSubagentMemories(cwd: string): {
+function fetchSubagentMemories(cwd: string, sessionId?: string): {
   global: string[];
   project: string[];
   decisions: string[];
@@ -126,7 +126,7 @@ function fetchSubagentMemories(cwd: string): {
     return result;
   }
 
-  const binary = findAideBinary(cwd);
+  const binary = findAideBinary(cwd, sessionId);
   if (!binary) {
     return result;
   }
@@ -335,7 +335,7 @@ async function processSubagentStart(
 
   // Fetch memories for subagent context injection
   log?.start("fetchMemories");
-  const memories = fetchSubagentMemories(cwd);
+  const memories = fetchSubagentMemories(cwd, session_id);
   log?.end("fetchMemories", {
     globalCount: memories.global.length,
     projectCount: memories.project.length,
@@ -349,7 +349,7 @@ async function processSubagentStart(
   );
 
   // Emit session observe event so SubagentStart is traceable in the dashboard
-  const binary = findAideBinary(cwd);
+  const binary = findAideBinary(cwd, session_id);
   if (binary) {
     recordObserveEvent(binary, cwd, {
       kind: "session",
@@ -386,7 +386,7 @@ async function processSubagentStop(data: SubagentStopInput): Promise<void> {
   log?.end("refreshHud");
 
   // Emit session observe event so SubagentStop is traceable in the dashboard
-  const binary = findAideBinary(cwd);
+  const binary = findAideBinary(cwd, session_id);
   if (binary) {
     recordObserveEvent(binary, cwd, {
       kind: "session",
@@ -444,7 +444,7 @@ async function main(): Promise<void> {
         additionalContext,
       };
       try {
-        const binary = findAideBinary(cwd);
+        const binary = findAideBinary(cwd, data.session_id);
         if (binary) {
           const startData = data as SubagentStartInput;
           emitInjectionEvent(binary, cwd, {

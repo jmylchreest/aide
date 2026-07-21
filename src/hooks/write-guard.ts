@@ -66,7 +66,7 @@ async function main(): Promise<void> {
         "";
       debug(SOURCE, `Advisory: Write to existing file: ${filePath}`);
       try {
-        const binary = findAideBinary(cwd);
+        const binary = findAideBinary(cwd, data.session_id);
         if (binary && result.message) {
           emitInjectionEvent(binary, cwd, {
             source: SOURCE,

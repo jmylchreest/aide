@@ -17,6 +17,7 @@ import {
   shellEscape,
 } from "../core/aide-client.js";
 import { debug } from "./logger.js";
+import { readSessionAnchor } from "./anchor.js";
 
 export { sanitizeForLog, shellEscape };
 
@@ -251,8 +252,26 @@ function getPluginRoot(): string | undefined {
  *
  * Reads AIDE_PLUGIN_ROOT / CLAUDE_PLUGIN_ROOT from the environment
  * and delegates to the platform-agnostic aide-client implementation.
+ *
+ * With a sessionId, the persisted session anchor is consulted first: the
+ * search starts at the ANCHORED root (sub-ms cache read, agrees with the
+ * Go resolver in worktree/submodule layouts) and parent scopes' .aide/bin
+ * directories join the search path. Falls back to the plain cwd search
+ * when no valid anchor exists.
  */
-export function findAideBinary(cwd?: string): string | null {
+export function findAideBinary(cwd?: string, sessionId?: string): string | null {
+  if (cwd && sessionId) {
+    const anchor = readSessionAnchor(sessionId, cwd);
+    if (anchor) {
+      return clientFindBinary({
+        cwd: anchor.root,
+        pluginRoot: getPluginRoot(),
+        additionalPaths: anchor.chain
+          .slice(1)
+          .map((s) => join(s.root, ".aide", "bin")),
+      });
+    }
+  }
   return clientFindBinary({ cwd, pluginRoot: getPluginRoot() });
 }
 

@@ -73,7 +73,7 @@ async function main(): Promise<void> {
     // Update session state (per-agent tracking) — delegates to core
     if (toolName) {
       log.start("updateSessionState");
-      const binary = findAideBinary(cwd);
+      const binary = findAideBinary(cwd, data.session_id);
       if (binary) {
         updateToolStats(binary, cwd, toolName, sessionId, agentId);
 

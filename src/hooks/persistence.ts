@@ -47,7 +47,7 @@ async function main(): Promise<void> {
       return;
     }
 
-    const binary = findAideBinary(cwd);
+    const binary = findAideBinary(cwd, data.session_id);
     if (!binary) {
       emitHookResult({});
       return;

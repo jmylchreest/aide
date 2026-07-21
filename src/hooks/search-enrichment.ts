@@ -56,7 +56,7 @@ async function main(): Promise<void> {
     const cwd = data.cwd || process.cwd();
     const sessionId = data.session_id || "";
 
-    const binary = findAideBinary(cwd);
+    const binary = findAideBinary(cwd, data.session_id);
 
     const result = checkSearchEnrichment(toolName, toolInput, cwd, binary);
 

@@ -85,7 +85,7 @@ async function main(): Promise<void> {
         `Detected ${result.suspiciousCount} suspicious comments in ${filePath}`,
       );
       try {
-        const binary = findAideBinary(cwd);
+        const binary = findAideBinary(cwd, data.session_id);
         if (binary && result.warning) {
           emitInjectionEvent(binary, cwd, {
             source: SOURCE,

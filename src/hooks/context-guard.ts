@@ -62,7 +62,7 @@ async function main(): Promise<void> {
     const sessionId = data.session_id || "unknown";
 
     const result = checkContextGuard(toolName, toolInput, cwd, sessionId);
-    const binary = findAideBinary(cwd);
+    const binary = findAideBinary(cwd, data.session_id);
 
     if (result.shouldAdvise && result.advisory) {
       debug(SOURCE, `Advising on large file read`);

@@ -62,7 +62,7 @@ async function main(): Promise<void> {
     let activeMode: string | null = null;
     let aideBinary: string | null = null;
     try {
-      aideBinary = findAideBinary(cwd);
+      aideBinary = findAideBinary(cwd, data.session_id);
       if (aideBinary) {
         activeMode = getState(aideBinary, cwd, "mode");
       }

@@ -175,7 +175,7 @@ async function main(): Promise<void> {
     // sessions that aren't running reflect don't accrue extra events.
     if (prompt && reflectEnabled(cwd)) {
       try {
-        const binary = findAideBinary(cwd);
+        const binary = findAideBinary(cwd, sessionId);
         if (binary) {
           recordObserveEvent(binary, cwd, {
             kind: "hook",
@@ -227,7 +227,7 @@ async function main(): Promise<void> {
       // single "skill-injector" aggregate). Subtype="skill" keeps the
       // category roll-up; Name carries the per-skill identifier.
       try {
-        const binary = findAideBinary(cwd);
+        const binary = findAideBinary(cwd, sessionId);
         if (binary) {
           for (const skill of matched) {
             const text = `### ${skill.name}\n${skill.description ?? ""}\n${skill.content}`;

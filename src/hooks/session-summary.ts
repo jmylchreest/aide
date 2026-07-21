@@ -50,7 +50,7 @@ function captureSessionSummary(
   sessionId: string,
   transcriptPath: string,
 ): boolean {
-  const binary = findAideBinary(cwd);
+  const binary = findAideBinary(cwd, sessionId);
   if (!binary) {
     debug(SOURCE, "aide binary not found, cannot capture session summary");
     return false;
