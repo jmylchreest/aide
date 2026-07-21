@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	git "github.com/go-git/go-git/v5"
@@ -154,6 +155,39 @@ func resolveAnchor(startCwd string) anchorInfo {
 	info.Root = cwd
 	finishAnchor(&info, cwd)
 	return info
+}
+
+// anchorSessionIDRe matches valid session ids for cache paths — mirrors
+// SESSION_ID_RE in src/lib/anchor.ts (path-traversal guard).
+var anchorSessionIDRe = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,128}$`)
+
+// anchorCacheDirs returns the session-anchor cache directories, preferred
+// first — the exact contract of anchorCacheDirs in src/lib/anchor.ts:
+// XDG_RUNTIME_DIR/aide/anchors when the runtime dir exists (Linux), then
+// ~/.aide/anchors as the portable fallback.
+func anchorCacheDirs() []string {
+	var dirs []string
+	if xdg := os.Getenv("XDG_RUNTIME_DIR"); xdg != "" {
+		if st, err := os.Stat(xdg); err == nil && st.IsDir() {
+			dirs = append(dirs, filepath.Join(xdg, "aide", "anchors"))
+		}
+	}
+	if home, err := os.UserHomeDir(); err == nil {
+		dirs = append(dirs, filepath.Join(home, ".aide", "anchors"))
+	}
+	return dirs
+}
+
+// deleteSessionAnchor removes a session's anchor cache entries from every
+// candidate location. Called from session end so live sessions are the
+// only ones with cache files; the TS TTL sweep remains the crash backstop.
+func deleteSessionAnchor(sessionID string) {
+	if !anchorSessionIDRe.MatchString(sessionID) {
+		return
+	}
+	for _, dir := range anchorCacheDirs() {
+		_ = os.Remove(filepath.Join(dir, sessionID+".json"))
+	}
 }
 
 // anchorOverrideAllowed reports whether an AIDE_PROJECT_ROOT override may

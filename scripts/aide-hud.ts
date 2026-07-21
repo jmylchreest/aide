@@ -17,7 +17,7 @@
  */
 
 import { existsSync, readFileSync } from "fs";
-import { join, dirname } from "path";
+import { join, dirname, sep } from "path";
 import { homedir } from "os";
 
 interface StatuslineInput {
@@ -46,8 +46,15 @@ function readStatuslineInput(): StatuslineInput {
 function readAnchorRoot(sessionId: string, cwd?: string): string | null {
   try {
     if (!/^[a-zA-Z0-9_-]{1,128}$/.test(sessionId)) return null;
-    const p = join(homedir(), ".aide", "anchors", `${sessionId}.json`);
-    if (!existsSync(p)) return null;
+    // Same location contract as lib/anchor.ts anchorCacheDirs.
+    const dirs: string[] = [];
+    const xdg = process.env.XDG_RUNTIME_DIR;
+    if (xdg && existsSync(xdg)) dirs.push(join(xdg, "aide", "anchors"));
+    dirs.push(join(homedir(), ".aide", "anchors"));
+    const p = dirs
+      .map((d) => join(d, `${sessionId}.json`))
+      .find((f) => existsSync(f));
+    if (!p) return null;
     const entry = JSON.parse(readFileSync(p, "utf-8"));
     const root = entry?.anchor?.root;
     if (entry?.anchor?.schemaVersion !== 1 || typeof root !== "string" || !root)
@@ -55,7 +62,7 @@ function readAnchorRoot(sessionId: string, cwd?: string): string | null {
     // The statusline cwd may drift below the launch dir; require only that
     // the recorded root still exists and contains (or equals) the cwd.
     if (!existsSync(root)) return null;
-    if (cwd && cwd !== root && !cwd.startsWith(root + "/")) return null;
+    if (cwd && cwd !== root && !cwd.startsWith(root + sep)) return null;
     return root;
   } catch {
     return null;

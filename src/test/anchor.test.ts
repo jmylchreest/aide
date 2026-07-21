@@ -68,12 +68,14 @@ describe("anchor reader", () => {
     projectRoot = join(tmp, "proj");
     mkdirSync(join(projectRoot, ".aide"), { recursive: true });
     delete process.env.AIDE_PROJECT_ROOT;
+    delete process.env.XDG_RUNTIME_DIR;
   });
 
   afterEach(() => {
     rmSync(tmp, { recursive: true, force: true });
     rmSync(tempHome, { recursive: true, force: true });
     delete process.env.AIDE_PROJECT_ROOT;
+    delete process.env.XDG_RUNTIME_DIR;
   });
 
   it("round-trips through the session cache and project copy", () => {
@@ -165,6 +167,35 @@ describe("anchor reader", () => {
     expect(result.anchor).toBeNull();
     expect(result.root).toBe(projectRoot);
     expect(result.hasMarker).toBe(true);
+  });
+
+  it("prefers XDG_RUNTIME_DIR for writes when the runtime dir exists", () => {
+    const xdg = join(tmp, "runtime");
+    mkdirSync(xdg, { recursive: true });
+    process.env.XDG_RUNTIME_DIR = xdg;
+
+    writeSessionAnchor("sess-xdg", projectRoot, makeAnchor(projectRoot));
+
+    expect(
+      existsSync(join(xdg, "aide", "anchors", "sess-xdg.json")),
+    ).toBe(true);
+    expect(
+      existsSync(join(tempHome, ".aide", "anchors", "sess-xdg.json")),
+    ).toBe(false);
+    expect(readSessionAnchor("sess-xdg", projectRoot)?.root).toBe(projectRoot);
+  });
+
+  it("falls back to the home cache when the entry is not in the runtime dir", () => {
+    // Written without XDG (lands in ~), read with XDG set: the reader must
+    // cover both locations so env drift between processes cannot lose it.
+    writeSessionAnchor("sess-home", projectRoot, makeAnchor(projectRoot));
+    const xdg = join(tmp, "runtime2");
+    mkdirSync(xdg, { recursive: true });
+    process.env.XDG_RUNTIME_DIR = xdg;
+
+    expect(readSessionAnchor("sess-home", projectRoot)?.root).toBe(
+      projectRoot,
+    );
   });
 
   it("sweeps session caches past the TTL", () => {

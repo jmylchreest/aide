@@ -36,7 +36,8 @@ const {
   readFileSync,
   statSync,
 } = require("fs") as typeof import("fs");
-const { join, dirname, basename } = require("path") as typeof import("path");
+const { join, dirname, basename, isAbsolute } =
+  require("path") as typeof import("path");
 const whichSync = (require("which") as typeof import("which")).sync;
 
 /**
@@ -46,8 +47,15 @@ const whichSync = (require("which") as typeof import("which")).sync;
 function readAnchorRoot(sessionId: string, cwd: string): string | null {
   try {
     const { homedir } = require("os") as typeof import("os");
-    const p = join(homedir(), ".aide", "anchors", `${sessionId}.json`);
-    if (!existsSync(p)) return null;
+    // Same location contract as lib/anchor.ts anchorCacheDirs.
+    const dirs: string[] = [];
+    const xdg = process.env.XDG_RUNTIME_DIR;
+    if (xdg && existsSync(xdg)) dirs.push(join(xdg, "aide", "anchors"));
+    dirs.push(join(homedir(), ".aide", "anchors"));
+    const p = dirs
+      .map((d) => join(d, `${sessionId}.json`))
+      .find((f) => existsSync(f));
+    if (!p) return null;
     const entry = JSON.parse(readFileSync(p, "utf-8"));
     const root = entry?.anchor?.root;
     if (
@@ -96,7 +104,7 @@ function resolveRoot(cwd: string): string {
       const content = readFileSync(gitFilePath, "utf-8").trim();
       if (!content.startsWith("gitdir:")) return null;
       let gitdir = content.slice("gitdir:".length).trim();
-      if (!gitdir.startsWith("/")) {
+      if (!isAbsolute(gitdir)) {
         gitdir = join(dirname(gitFilePath), gitdir);
       }
       const parts = gitdir.split(/[\\/]+/);

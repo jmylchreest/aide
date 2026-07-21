@@ -76,13 +76,26 @@ const ANCHOR_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 const SESSION_ID_RE = /^[a-zA-Z0-9_-]{1,128}$/;
 
-function anchorCacheDir(): string {
-  return join(homedir(), ".aide", "anchors");
+/**
+ * Candidate cache directories, preferred first. On Linux the XDG runtime
+ * dir (tmpfs, user-owned, cleared on reboot) is the right home for
+ * per-session runtime state; everywhere else — and when XDG_RUNTIME_DIR is
+ * unset — ~/.aide/anchors is the portable fallback. Writers use the first
+ * entry; readers and the sweep cover all of them, so env differences
+ * between processes of one session cannot lose the cache. The Go binary's
+ * session-end deletion (deleteSessionAnchor) mirrors this list exactly.
+ */
+function anchorCacheDirs(): string[] {
+  const dirs: string[] = [];
+  const xdg = process.env.XDG_RUNTIME_DIR;
+  if (xdg && existsSync(xdg)) dirs.push(join(xdg, "aide", "anchors"));
+  dirs.push(join(homedir(), ".aide", "anchors"));
+  return dirs;
 }
 
 function sessionAnchorPath(sessionId: string): string | null {
   if (!SESSION_ID_RE.test(sessionId)) return null;
-  return join(anchorCacheDir(), `${sessionId}.json`);
+  return join(anchorCacheDirs()[0], `${sessionId}.json`);
 }
 
 function isValidAnchor(a: unknown): a is AnchorInfo {
@@ -112,7 +125,17 @@ function atomicWrite(path: string, content: string): void {
   mkdirSync(dirname(path), { recursive: true });
   const tmp = `${path}.tmp-${process.pid}`;
   writeFileSync(tmp, content);
-  renameSync(tmp, path);
+  try {
+    renameSync(tmp, path);
+  } catch {
+    // Windows can refuse rename-over-existing; replace explicitly.
+    try {
+      unlinkSync(path);
+    } catch {
+      /* may not exist */
+    }
+    renameSync(tmp, path);
+  }
 }
 
 /**
@@ -191,28 +214,30 @@ export function writeSessionAnchor(
 /**
  * Remove session-keyed caches past their TTL, plus orphaned atomic-write
  * temp files (crash between write and rename) older than an hour.
- * Best-effort.
+ * Best-effort backstop — the primary cleanup is session-end deleting its
+ * own entry.
  */
 export function sweepAnchorCache(): void {
-  try {
-    const dir = anchorCacheDir();
-    if (!existsSync(dir)) return;
-    const cutoff = Date.now() - ANCHOR_CACHE_TTL_MS;
-    const tmpCutoff = Date.now() - 60 * 60 * 1000;
-    for (const name of readdirSync(dir)) {
-      const p = join(dir, name);
-      try {
-        if (name.includes(".json.tmp-")) {
-          if (statSync(p).mtimeMs < tmpCutoff) unlinkSync(p);
-        } else if (name.endsWith(".json")) {
-          if (statSync(p).mtimeMs < cutoff) unlinkSync(p);
+  const cutoff = Date.now() - ANCHOR_CACHE_TTL_MS;
+  const tmpCutoff = Date.now() - 60 * 60 * 1000;
+  for (const dir of anchorCacheDirs()) {
+    try {
+      if (!existsSync(dir)) continue;
+      for (const name of readdirSync(dir)) {
+        const p = join(dir, name);
+        try {
+          if (name.includes(".json.tmp-")) {
+            if (statSync(p).mtimeMs < tmpCutoff) unlinkSync(p);
+          } else if (name.endsWith(".json")) {
+            if (statSync(p).mtimeMs < cutoff) unlinkSync(p);
+          }
+        } catch {
+          /* races are fine */
         }
-      } catch {
-        /* races are fine */
       }
+    } catch {
+      /* best effort */
     }
-  } catch {
-    /* best effort */
   }
 }
 
@@ -226,19 +251,23 @@ export function readSessionAnchor(
   sessionId: string,
   launchCwd: string,
 ): AnchorInfo | null {
-  const sessionPath = sessionAnchorPath(sessionId);
-  if (!sessionPath || !existsSync(sessionPath)) return null;
-  try {
-    const entry = JSON.parse(
-      readFileSync(sessionPath, "utf-8"),
-    ) as SessionAnchorEntry;
-    if (!isValidAnchor(entry.anchor)) return null;
-    if (entry.launchCwd !== launchCwd) return null;
-    if (!existsSync(entry.anchor.root)) return null;
-    return entry.anchor;
-  } catch {
-    return null;
+  if (!SESSION_ID_RE.test(sessionId)) return null;
+  for (const dir of anchorCacheDirs()) {
+    const sessionPath = join(dir, `${sessionId}.json`);
+    if (!existsSync(sessionPath)) continue;
+    try {
+      const entry = JSON.parse(
+        readFileSync(sessionPath, "utf-8"),
+      ) as SessionAnchorEntry;
+      if (!isValidAnchor(entry.anchor)) continue;
+      if (entry.launchCwd !== launchCwd) continue;
+      if (!existsSync(entry.anchor.root)) continue;
+      return entry.anchor;
+    } catch {
+      continue;
+    }
   }
+  return null;
 }
 
 /**

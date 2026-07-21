@@ -180,6 +180,8 @@ func sessionEnd(dbPath string, args []string) error {
 		errs = append(errs, fmt.Errorf("set last_session_end: %w", err))
 	}
 
+	deleteSessionAnchor(sessionID)
+
 	fmt.Printf("Session %s ended: cleared %d session-scoped state entries\n", sessionID, cleared)
 	return errors.Join(errs...)
 }

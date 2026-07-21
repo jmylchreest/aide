@@ -180,6 +180,51 @@ func TestSessionEndWithoutSeededState(t *testing.T) {
 	}
 }
 
+// TestSessionEndDeletesAnchor: session end must remove the session's
+// anchor cache entries from every candidate location (XDG runtime dir and
+// home fallback), so only live sessions keep cache files.
+func TestSessionEndDeletesAnchor(t *testing.T) {
+	dbPath := newSessionTestDB(t)
+	const sessionID = "anchor-sess"
+
+	home := t.TempDir()
+	xdg := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_RUNTIME_DIR", xdg)
+
+	for _, dir := range []string{
+		filepath.Join(xdg, "aide", "anchors"),
+		filepath.Join(home, ".aide", "anchors"),
+	} {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, sessionID+".json"), []byte("{}"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		// A different session's entry must survive.
+		if err := os.WriteFile(filepath.Join(dir, "other-sess.json"), []byte("{}"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := cmdSession(dbPath, []string{"end", "--session=" + sessionID}); err != nil {
+		t.Fatalf("session end: %v", err)
+	}
+
+	for _, dir := range []string{
+		filepath.Join(xdg, "aide", "anchors"),
+		filepath.Join(home, ".aide", "anchors"),
+	} {
+		if _, err := os.Stat(filepath.Join(dir, sessionID+".json")); err == nil {
+			t.Errorf("anchor entry survived session end in %s", dir)
+		}
+		if _, err := os.Stat(filepath.Join(dir, "other-sess.json")); err != nil {
+			t.Errorf("other session's anchor entry was deleted in %s", dir)
+		}
+	}
+}
+
 // TestRetentionSweep asserts the direct-mode sweep runs, stamps its
 // rate-limit key, and skips within the minimum interval.
 func TestRetentionSweep(t *testing.T) {

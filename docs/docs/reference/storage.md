@@ -6,7 +6,7 @@ title: Storage Layout
 
 # Storage Layout
 
-AIDE data is stored in `.aide/` at the project root, with one user-global exception: session anchor caches live in `~/.aide/anchors/<session_id>.json` so hooks and the statusline can resolve a session's root without walking. A `.aide/.gitignore` is automatically created on first session to separate machine-local data from shareable content.
+AIDE data is stored in `.aide/` at the project root, with one exception: session anchor caches live outside the project (`$XDG_RUNTIME_DIR/aide/anchors/` on Linux, `~/.aide/anchors/` elsewhere) so hooks and the statusline can resolve a session's root without walking. Entries are removed when the session ends; a TTL sweep cleans up after crashed sessions. A `.aide/.gitignore` is automatically created on first session to separate machine-local data from shareable content.
 
 ## Directory Structure
 
