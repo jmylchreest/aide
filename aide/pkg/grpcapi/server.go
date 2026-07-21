@@ -3,6 +3,8 @@ package grpcapi
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"net"
 	"os"
@@ -32,13 +34,36 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// SocketPathFromDB returns the Unix socket path derived from the database path.
-// The socket is placed in the project's .aide directory (sibling to the memory dir).
+// maxSocketPathLen is a conservative bound for Unix socket paths: sun_path
+// is 108 bytes on Linux and 104 on macOS including the NUL terminator, and
+// binding beyond it fails with EINVAL.
+const maxSocketPathLen = 100
+
+// SocketPathFromDB returns the Unix socket path derived from the database
+// path: <project>/.aide/aide.sock, or — when that would exceed sun_path
+// (deep project directories) — a short hashed path under the runtime dir.
+// Both server and clients derive the path with this one function, so the
+// fallback must stay deterministic: it depends only on the project root
+// and the user's runtime/temp dir, never on per-process state.
 func SocketPathFromDB(dbPath string) string {
-	// dbPath is typically <project>/.aide/memory/memory.db
-	// We want <project>/.aide/aide.sock
 	aideDir := filepath.Dir(filepath.Dir(dbPath))
-	return filepath.Join(aideDir, "aide.sock")
+	p := filepath.Join(aideDir, "aide.sock")
+	if len(p) <= maxSocketPathLen {
+		return p
+	}
+
+	sum := sha256.Sum256([]byte(projectRoot(dbPath)))
+	name := hex.EncodeToString(sum[:])[:16] + ".sock"
+	base := os.Getenv("XDG_RUNTIME_DIR")
+	if base != "" {
+		if st, err := os.Stat(base); err != nil || !st.IsDir() {
+			base = ""
+		}
+	}
+	if base == "" {
+		base = os.TempDir()
+	}
+	return filepath.Join(base, "aide", name)
 }
 
 // projectRoot derives the project root from the database path.
@@ -256,7 +281,7 @@ func (s *Server) Start() error {
 	// Listen on Unix socket
 	listener, err := net.Listen("unix", s.socketPath)
 	if err != nil {
-		return fmt.Errorf("failed to listen on socket: %w", err)
+		return fmt.Errorf("failed to listen on socket %s: %w (other sessions cannot share this store until a daemon binds; check permissions and stale files)", s.socketPath, err)
 	}
 
 	// Create gRPC server
