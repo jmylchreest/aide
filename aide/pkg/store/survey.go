@@ -1,8 +1,13 @@
 package store
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
+
+	bolt "go.etcd.io/bbolt"
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/analysis/analyzer/custom"
@@ -245,4 +250,47 @@ func (s *SurveyStoreImpl) ReplaceEntriesForAnalyzerAndFile(analyzer, filePath st
 // Clear removes all survey entries.
 func (s *SurveyStoreImpl) Clear() error {
 	return s.searchableStore.Clear()
+}
+
+// ReadSurveyEntriesRO reads survey entries of one kind straight from the
+// bolt file in a survey store directory, without opening the bleve index
+// (which holds a process lock) or taking a writable bolt lock. For
+// observers like aide-web inspecting a project whose daemon is not
+// running. kind "" matches all; limit 0 means no cap.
+func ReadSurveyEntriesRO(dir, kind string, limit int) ([]*survey.Entry, error) {
+	path := filepath.Join(dir, "survey.db")
+	if _, err := os.Stat(path); err != nil {
+		return nil, err
+	}
+	db, err := bolt.Open(path, 0o600, &bolt.Options{
+		ReadOnly: true,
+		Timeout:  500 * time.Millisecond,
+	})
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	var entries []*survey.Entry
+	err = db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket(BucketSurvey)
+		if b == nil {
+			return nil
+		}
+		return b.ForEach(func(_, v []byte) error {
+			if limit > 0 && len(entries) >= limit {
+				return nil
+			}
+			var e survey.Entry
+			if err := json.Unmarshal(v, &e); err != nil {
+				return nil
+			}
+			if kind != "" && e.Kind != kind {
+				return nil
+			}
+			entries = append(entries, &e)
+			return nil
+		})
+	})
+	return entries, err
 }

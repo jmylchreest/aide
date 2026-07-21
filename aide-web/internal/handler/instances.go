@@ -2,9 +2,12 @@ package handler
 
 import (
 	"context"
+	"path/filepath"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/jmylchreest/aide/aide-web/internal/instance"
+	"github.com/jmylchreest/aide/aide/pkg/store"
+	"github.com/jmylchreest/aide/aide/pkg/survey"
 )
 
 // InstanceInfo is the JSON representation of an instance.
@@ -21,6 +24,41 @@ type InstanceInfo struct {
 	// Parents are anchor-chain ancestor roots, nearest first. Consumers
 	// match them against other instances' ProjectRoot to build estate trees.
 	Parents []string `json:"parents,omitempty"`
+	// Subprojects are surveyed child scopes (nested VCS roots, submodules)
+	// under this instance's root — the downward half of the estate map,
+	// available whether or not any child has a live daemon.
+	Subprojects []SubprojectInfo `json:"subprojects,omitempty"`
+}
+
+// SubprojectInfo is one surveyed child project scope.
+type SubprojectInfo struct {
+	Name     string `json:"name"`
+	Path     string `json:"path,omitempty"` // relative to the instance root
+	Evidence string `json:"evidence,omitempty"`
+	HasStore bool   `json:"has_store,omitempty"`
+}
+
+// instanceSubprojects lists an instance's surveyed child scopes: through
+// the live survey adapter when connected, else straight from the bolt
+// file so idle nodes keep their estate shape visible. Best-effort — an
+// unreadable or unsurveyed store yields none.
+func instanceSubprojects(inst *instance.Instance) []SubprojectInfo {
+	var entries []*survey.Entry
+	if ss := inst.SurveyStore(); ss != nil {
+		entries, _ = ss.ListEntries(survey.SearchOptions{Kind: survey.KindSubproject, Limit: 100})
+	} else if dbPath := inst.DBPath(); dbPath != "" {
+		entries, _ = store.ReadSurveyEntriesRO(filepath.Join(filepath.Dir(dbPath), "survey"), survey.KindSubproject, 100)
+	}
+	subs := make([]SubprojectInfo, 0, len(entries))
+	for _, e := range entries {
+		subs = append(subs, SubprojectInfo{
+			Name:     e.Name,
+			Path:     e.FilePath,
+			Evidence: e.Metadata["evidence"],
+			HasStore: e.Metadata["has_aide_store"] == "true",
+		})
+	}
+	return subs
 }
 
 // ListInstancesOutput is the response body for APIListInstances.
@@ -59,6 +97,7 @@ func (h *Handler) APIListInstances(ctx context.Context, input *struct{}) (*ListI
 			Status:      inst.Status(),
 			Version:     inst.Version(),
 			Parents:     inst.Parents(),
+			Subprojects: instanceSubprojects(inst),
 		})
 	}
 	return out, nil

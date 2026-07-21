@@ -11,6 +11,17 @@ export interface InstanceInfo {
   /** Anchor-chain ancestor roots, nearest first. Match against other
    *  instances' project_root to build estate relationships. */
   parents?: string[];
+  /** Surveyed child scopes under this root — present even when the child
+   *  has no live daemon (read straight from the survey store). */
+  subprojects?: SubprojectInfo[];
+}
+
+export interface SubprojectInfo {
+  name: string;
+  /** Relative to the owning instance's project_root. */
+  path?: string;
+  evidence?: string;
+  has_store?: boolean;
 }
 
 export interface MemoryItem {

@@ -57,7 +57,8 @@ function makeColumns(
             </span>
           );
         }
-        const children = estate.childCount.get(row.project_root);
+        const children =
+          estate.childCount.get(row.project_root) ?? row.subprojects?.length ?? 0;
         if (children) {
           return (
             <span
@@ -148,7 +149,16 @@ interface EstateNode {
   children: EstateNode[];
 }
 
-/** Build estate trees from parents[0] containment among known instances. */
+/** Separator-tolerant path key for matching roots across platforms. */
+function normPath(p: string): string {
+  return p.replace(/\\/g, "/").replace(/\/+$/, "");
+}
+
+/**
+ * Build estate trees from parents[0] containment among known instances.
+ * An instance with only surveyed (daemon-less) subprojects is still an
+ * estate root — those render as leaf rows inside EstateTreeNode.
+ */
 function buildEstateForest(instances: InstanceInfo[]): EstateNode[] {
   const byRoot = new Map(instances.map((i) => [i.project_root, i]));
   const childrenOf = new Map<string, InstanceInfo[]>();
@@ -160,7 +170,6 @@ function buildEstateForest(instances: InstanceInfo[]): EstateNode[] {
       childrenOf.set(parentRoot, list);
     }
   }
-  if (childrenOf.size === 0) return [];
 
   const build = (inst: InstanceInfo): EstateNode => ({
     inst,
@@ -172,16 +181,29 @@ function buildEstateForest(instances: InstanceInfo[]): EstateNode[] {
   return instances
     .filter(
       (i) =>
-        childrenOf.has(i.project_root) &&
+        (childrenOf.has(i.project_root) || (i.subprojects?.length ?? 0) > 0) &&
         !(i.parents?.[0] && byRoot.has(i.parents[0])),
     )
     .sort((a, b) => a.project_name.localeCompare(b.project_name))
     .map(build);
 }
 
-function EstateTreeNode({ node, depth }: { node: EstateNode; depth: number }) {
+function EstateTreeNode({
+  node,
+  depth,
+  knownRoots,
+}: {
+  node: EstateNode;
+  depth: number;
+  knownRoots: Set<string>;
+}) {
   const { inst } = node;
   const online = inst.status === "connected";
+  // Surveyed children that are NOT registered instances: daemon-less
+  // nodes the survey knows about but the registry doesn't.
+  const surveyed = (inst.subprojects ?? []).filter(
+    (s) => s.path && !knownRoots.has(normPath(`${inst.project_root}/${s.path}`)),
+  );
   return (
     <>
       <div
@@ -204,7 +226,29 @@ function EstateTreeNode({ node, depth }: { node: EstateNode; depth: number }) {
         </code>
       </div>
       {node.children.map((c) => (
-        <EstateTreeNode key={c.inst.slug} node={c} depth={depth + 1} />
+        <EstateTreeNode
+          key={c.inst.slug}
+          node={c}
+          depth={depth + 1}
+          knownRoots={knownRoots}
+        />
+      ))}
+      {surveyed.map((s) => (
+        <div
+          key={s.path}
+          className="flex items-center gap-2 py-0.5 text-sm"
+          style={{ paddingLeft: `${(depth + 1) * 1.25}rem` }}
+          title={`Surveyed subproject (${s.evidence ?? "unknown evidence"}) — no aide daemon registered`}
+        >
+          <span className="inline-block w-2 h-2 rounded-full border border-aide-text-dim" />
+          <span className="text-aide-text-muted">{s.name}</span>
+          <code className="text-aide-text-dim text-xs bg-transparent px-0">
+            {s.path}
+          </code>
+          {!s.has_store && (
+            <span className="text-aide-text-dim text-xs">no store</span>
+          )}
+        </div>
       ))}
     </>
   );
@@ -239,7 +283,14 @@ export function InstancesPage() {
             Estates
           </h3>
           {buildEstateForest(instances).map((n) => (
-            <EstateTreeNode key={n.inst.slug} node={n} depth={0} />
+            <EstateTreeNode
+              key={n.inst.slug}
+              node={n}
+              depth={0}
+              knownRoots={
+                new Set(instances.map((i) => normPath(i.project_root)))
+              }
+            />
           ))}
         </div>
       )}
