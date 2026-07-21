@@ -190,6 +190,7 @@ func TestSessionEndDeletesAnchor(t *testing.T) {
 	home := t.TempDir()
 	xdg := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home) // os.UserHomeDir on Windows
 	t.Setenv("XDG_RUNTIME_DIR", xdg)
 
 	for _, dir := range []string{
