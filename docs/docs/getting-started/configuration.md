@@ -17,6 +17,7 @@ AIDE is configured through environment variables. All variables are optional.
 | `AIDE_INDEX_NON_VCS=1`           | Allow watcher/indexing in non-VCS dirs (default: refuse) |
 | `AIDE_INDEX_WORKERS=N`           | Parallel parser workers for code indexing (default: NumCPU, capped at 32) |
 | `AIDE_MEMORY_INJECT=0`           | Disable memory injection                         |
+| `AIDE_CASCADE_DISABLED=1`        | Disable all cross-project decision layers in session context: the ancestor cascade and the peer subscription layer (session-start fetch and session-end publish included) |
 | `AIDE_MCP_SYNC=0`                | Disable cross-assistant MCP server sync (default: enabled) |
 | `AIDE_MEMORY_SCORING_DISABLED=1` | Disable memory scoring (use chronological order) |
 | `AIDE_MEMORY_DECAY_DISABLED=1`   | Disable recency decay in memory scoring          |
@@ -34,6 +35,7 @@ var to where it actually needs to live:
 | ---------------------- | -------------------- | --------------------------------------------------- |
 | `AIDE_CODE_WATCH`      | hooks + CLI + daemon | shell that launches the harness, **or** MCP env block |
 | `AIDE_CODE_WATCH_DELAY`| daemon               | MCP env block (used at daemon startup)              |
+| `AIDE_CASCADE_DISABLED`| CLI (`session init`/`session end`, spawned by hooks) | shell that launches the harness |
 | `AIDE_DEBUG`           | hooks + CLI          | shell that launches the harness                     |
 | `AIDE_FORCE_INIT`      | CLI                  | shell at CLI invocation time                        |
 | `AIDE_INDEX_NON_VCS`   | daemon               | MCP env block                                       |
