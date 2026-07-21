@@ -111,10 +111,8 @@ export function updateToolStats(
   setState(binary, cwd, "lastToolUse", new Date().toISOString(), sessionId);
   setState(binary, cwd, "lastTool", toolName, sessionId);
 
-  // Clear currentTool since PostToolUse means the tool completed —
-  // trackToolUse sets it for this agentId on every PreToolUse (including
-  // when the agent IS the session), so it must be cleared for the same
-  // scope or the HUD shows the last tool as forever-running.
+  // trackToolUse sets currentTool for this agentId on every PreToolUse —
+  // clear the same scope or the HUD shows the tool as forever-running.
   if (agentId) {
     setState(binary, cwd, "currentTool", "", agentId);
     if (agentId !== sessionId) {

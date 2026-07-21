@@ -322,12 +322,28 @@ func isVCSRoot(dir string) bool {
 }
 
 // isSubmoduleGitdir reports whether a resolved gitdir path points into a
-// superproject's .git/modules/ tree, i.e. the .git file belongs to a
-// submodule checkout rather than a linked worktree.
+// superproject's modules tree, i.e. the .git file belongs to a submodule
+// checkout rather than a linked worktree. Two shapes qualify:
+//
+//	<super>/.git/modules/<path>                    plain submodule
+//	<super>/.git/worktrees/<wt>/modules/<path>     submodule inside a
+//	                                               linked worktree of the
+//	                                               superproject
+//
+// The second shape was previously misclassified as a worktree, which made
+// a submodule checked out inside a super-repo worktree anchor the
+// SUPERPROJECT's store instead of its own.
 func isSubmoduleGitdir(gitdir string) bool {
 	parts := strings.Split(filepath.ToSlash(gitdir), "/")
 	for i := 0; i < len(parts)-1; i++ {
-		if parts[i] == ".git" && parts[i+1] == "modules" {
+		if parts[i] != ".git" {
+			continue
+		}
+		j := i + 1
+		if parts[j] == "worktrees" && j+2 < len(parts) {
+			j += 2
+		}
+		if j < len(parts) && parts[j] == "modules" {
 			return true
 		}
 	}
@@ -360,6 +376,13 @@ func gitfileInfo(gitFilePath string) (shape string, ownerRoot string) {
 		shape = "submodule"
 	}
 
+	// A dangling gitdir (repo moved or deleted) must not resurrect state at
+	// the dead path: keep the shape classification but report no owner, so
+	// resolution falls back to the checkout directory itself.
+	if _, err := os.Stat(gitdir); err != nil {
+		return shape, ""
+	}
+
 	// Walk up the gitdir path to the ".git" component; its parent is the
 	// owning repository's root.
 	candidate := gitdir
@@ -380,11 +403,12 @@ func gitfileInfo(gitFilePath string) (shape string, ownerRoot string) {
 // main repository root. The file contains "gitdir: /path/to/repo/.git/worktrees/<name>".
 //
 // Submodules also use a .git file, with gitdir pointing into the
-// superproject's .git/modules/ tree. A submodule is a distinct repository,
-// so it anchors its own .aide/ store rather than sharing the
-// superproject's: returning "" makes vcsMarker fall back to the submodule
-// directory itself. (A worktree OF a submodule also lands here and anchors
-// at the worktree directory — known limitation.)
+// superproject's modules tree (plain or worktree-hosted — see
+// isSubmoduleGitdir). A submodule is a distinct repository, so it anchors
+// its own .aide/ store rather than sharing the superproject's: returning
+// "" makes vcsMarker fall back to the submodule directory itself. (A
+// worktree OF a submodule also lands here and anchors at the worktree
+// directory — known limitation.)
 func resolveWorktreeRoot(gitFilePath string) string {
 	shape, ownerRoot := gitfileInfo(gitFilePath)
 	if shape != "worktree" {

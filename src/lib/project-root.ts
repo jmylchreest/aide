@@ -52,14 +52,26 @@ export function findProjectRoot(cwd: string): ProjectRootResult {
       const abs = resolve(override);
       const stat = statSync(abs);
       if (stat.isDirectory()) {
-        return { root: abs, hasMarker: true };
+        // An override pointing at an unmarked directory is almost always
+        // stale (repo moved, leaked env from another project) — require a
+        // marker, or AIDE_FORCE_INIT to say "yes, really". Mirrors the Go
+        // resolver's validation.
+        if (overrideAllowed(abs)) {
+          return { root: abs, hasMarker: true };
+        }
+        process.stderr.write(
+          `aide: AIDE_PROJECT_ROOT=${JSON.stringify(override)} has no .aide/ or VCS marker (set AIDE_FORCE_INIT=1 to use it anyway); falling back to walk-up\n`,
+        );
+      } else {
+        process.stderr.write(
+          `aide: AIDE_PROJECT_ROOT=${JSON.stringify(override)} is not a directory; falling back to walk-up\n`,
+        );
       }
     } catch {
-      // Fall through to the walk-up.
+      process.stderr.write(
+        `aide: AIDE_PROJECT_ROOT=${JSON.stringify(override)} is not a directory; falling back to walk-up\n`,
+      );
     }
-    process.stderr.write(
-      `aide: AIDE_PROJECT_ROOT=${JSON.stringify(override)} is not a directory; falling back to walk-up\n`,
-    );
   }
 
   const startCwd = resolve(cwd);
@@ -105,6 +117,20 @@ export function findProjectRoot(cwd: string): ProjectRootResult {
   return { root: startCwd, hasMarker: false };
 }
 
+/**
+ * Whether an AIDE_PROJECT_ROOT override may anchor dir: it carries a
+ * project marker, or AIDE_FORCE_INIT is set.
+ */
+function overrideAllowed(dir: string): boolean {
+  const force = process.env.AIDE_FORCE_INIT;
+  if (force === "1" || force?.toLowerCase() === "true") return true;
+  if (existsSync(join(dir, ".aide"))) return true;
+  for (const marker of [".git", ".hg", ".svn", ".bzr", ".fossil"]) {
+    if (existsSync(join(dir, marker))) return true;
+  }
+  return false;
+}
+
 function vcsMarkerAt(dir: string): { ok: boolean; resolved: string } {
   const gitPath = join(dir, ".git");
   if (existsSync(gitPath)) {
@@ -143,13 +169,19 @@ export function walkUpForProjectRoot(startDir: string): string | null {
 
 /**
  * Reports whether a resolved gitdir path points into a superproject's
- * .git/modules/ tree, i.e. the .git file belongs to a submodule checkout
- * rather than a linked worktree.
+ * modules tree, i.e. the .git file belongs to a submodule checkout rather
+ * than a linked worktree. Matches both plain (`.git/modules/<p>`) and
+ * worktree-hosted (`.git/worktrees/<wt>/modules/<p>`) shapes — the latter
+ * was previously misclassified as a worktree, anchoring the superproject
+ * instead of the submodule. Mirrors aide/cmd/aide/main.go.
  */
 function isSubmoduleGitdir(gitdir: string): boolean {
   const parts = gitdir.split(/[\\/]+/);
   for (let i = 0; i < parts.length - 1; i++) {
-    if (parts[i] === ".git" && parts[i + 1] === "modules") return true;
+    if (parts[i] !== ".git") continue;
+    let j = i + 1;
+    if (parts[j] === "worktrees" && j + 2 < parts.length) j += 2;
+    if (j < parts.length && parts[j] === "modules") return true;
   }
   return false;
 }
@@ -174,6 +206,10 @@ export function resolveWorktreeGitFile(gitFilePath: string): string | null {
     }
 
     if (isSubmoduleGitdir(gitdir)) return null;
+
+    // A dangling gitdir (repo moved or deleted) must not resurrect state
+    // at the dead path — fall back to the checkout directory itself.
+    if (!existsSync(gitdir)) return null;
 
     let candidate = gitdir;
     for (;;) {

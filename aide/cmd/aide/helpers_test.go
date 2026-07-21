@@ -54,6 +54,8 @@ func TestIsSubmoduleGitdir(t *testing.T) {
 	}{
 		{"/super/.git/modules/lib", true},
 		{"/super/.git/modules/a/modules/b", true},
+		{"/super/.git/worktrees/wt/modules/lib", true},
+		{"/super/.git/worktrees/wt/modules/a/modules/b", true},
 		{"/main/.git/worktrees/wt", false},
 		{"/main/.git", false},
 		{"/elsewhere/bare-git-dir", false},

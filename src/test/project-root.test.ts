@@ -169,10 +169,10 @@ describe("findProjectRoot", () => {
     expect(result.root).toBe(loose);
   });
 
-  it("honours AIDE_PROJECT_ROOT when set to a valid directory", async () => {
+  it("honours AIDE_PROJECT_ROOT when set to a marked directory", async () => {
     const { findProjectRoot } = await import("../lib/project-root.js");
     const override = join(tmp, "override");
-    mkdirSync(override, { recursive: true });
+    mkdirSync(join(override, ".git"), { recursive: true });
     process.env.AIDE_PROJECT_ROOT = override;
 
     // cwd is somewhere totally unrelated — the env override wins.
@@ -180,6 +180,53 @@ describe("findProjectRoot", () => {
 
     expect(result.hasMarker).toBe(true);
     expect(result.root).toBe(override);
+  });
+
+  it("rejects an unmarked AIDE_PROJECT_ROOT unless forced", async () => {
+    const { findProjectRoot } = await import("../lib/project-root.js");
+    const override = join(tmp, "bare-override");
+    mkdirSync(override, { recursive: true });
+    mkdirSync(join(tmp, ".git"), { recursive: true });
+    process.env.AIDE_PROJECT_ROOT = override;
+
+    // Unmarked override: rejected, the walk finds the real repo.
+    expect(findProjectRoot(tmp).root).toBe(tmp);
+
+    process.env.AIDE_FORCE_INIT = "1";
+    try {
+      expect(findProjectRoot(tmp).root).toBe(override);
+    } finally {
+      delete process.env.AIDE_FORCE_INIT;
+    }
+  });
+
+  it("classifies a worktree-hosted submodule as a submodule", async () => {
+    const { findProjectRoot } = await import("../lib/project-root.js");
+    const superRepo = join(tmp, "super");
+    mkdirSync(join(superRepo, ".git", "worktrees", "wt", "modules", "lib"), {
+      recursive: true,
+    });
+    const sub = join(tmp, "wt", "vendor", "lib");
+    mkdirSync(join(sub, "src"), { recursive: true });
+    writeFileSync(
+      join(sub, ".git"),
+      `gitdir: ${join(superRepo, ".git", "worktrees", "wt", "modules", "lib")}\n`,
+    );
+
+    // Anchors the submodule checkout, not the superproject.
+    expect(findProjectRoot(join(sub, "src")).root).toBe(sub);
+  });
+
+  it("does not resurrect state at a dangling gitdir target", async () => {
+    const { findProjectRoot } = await import("../lib/project-root.js");
+    const wt = join(tmp, "wt2");
+    mkdirSync(wt, { recursive: true });
+    writeFileSync(
+      join(wt, ".git"),
+      `gitdir: ${join(tmp, "gone", ".git", "worktrees", "wt2")}\n`,
+    );
+
+    expect(findProjectRoot(wt).root).toBe(wt);
   });
 
   it("falls back to walk-up when AIDE_PROJECT_ROOT is not a directory", async () => {

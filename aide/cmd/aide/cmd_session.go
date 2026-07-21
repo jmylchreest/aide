@@ -110,19 +110,11 @@ Examples:
   aide session end --session=abc123 --duration=45000`)
 }
 
-// sessionStateKeys are the session-descriptive state keys. The counters
-// (startedAt, toolCalls, lastToolUse, lastTool) are written session-scoped
-// (agent:<sessionID>:<key>) by hooks so concurrent sessions in one store
-// cannot clobber each other. `mode` is the exception: it stays GLOBAL by
-// design — sessionless writers (`aide state set mode autopilot` and the
-// documented off-switch `aide state set mode ""`) can only reach the global
-// key, and shared modes like swarm span sessions (see the note in
-// src/core/aide-client.ts; a promote-to-session-scope design was tried and
-// reverted). Session init deletes the global spellings as stale-value
-// hygiene — a crashed session must not leak mode into every future session
-// (known cost: starting a session clears a concurrent session's global
-// mode, pre-existing behavior). Session end deliberately does NOT touch
-// them: another session may still be running against the same store.
+// sessionStateKeys: counters are written session-scoped by hooks; `mode`
+// stays GLOBAL by design (sessionless writers, shared swarm mode — see the
+// note in src/core/aide-client.ts; promotion was tried and reverted).
+// Session init deletes the global spellings as stale-value hygiene; session
+// end deliberately does NOT — another session may still be live.
 var sessionStateKeys = []string{
 	"mode",
 	"startedAt",

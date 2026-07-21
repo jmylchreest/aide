@@ -1,0 +1,62 @@
+{
+  "$comment": "Golden gitdir-shape table: the cross-language contract for project-root resolution. Consumed by aide/cmd/aide/gitdir_shapes_test.go (Go) and src/test/gitdir-shapes.test.ts (TS). Each case builds: a repo dir 'super' containing the listed gitdirDirs (created under super/), a checkout dir 'checkout' whose .git FILE contains 'gitdir: <super>/<gitdirTarget>' (or a .git DIRECTORY when gitdirTarget is null), and resolution runs from checkout (or checkout/<cwdSuffix>). expectAnchor: 'checkout' = the checkout dir anchors itself; 'super' = resolution lands on the super repo root. expectShape matches the Go anchor provenance (TS has no provenance surface; TS tests assert the anchor only).",
+  "cases": [
+    {
+      "name": "plain repo (.git directory)",
+      "gitdirDirs": [".git"],
+      "gitdirTarget": null,
+      "expectAnchor": "checkout",
+      "expectShape": "directory"
+    },
+    {
+      "name": "linked worktree",
+      "gitdirDirs": [".git/worktrees/wt"],
+      "gitdirTarget": ".git/worktrees/wt",
+      "expectAnchor": "super",
+      "expectShape": "worktree"
+    },
+    {
+      "name": "plain submodule",
+      "gitdirDirs": [".git/modules/lib"],
+      "gitdirTarget": ".git/modules/lib",
+      "expectAnchor": "checkout",
+      "expectShape": "submodule"
+    },
+    {
+      "name": "nested submodule",
+      "gitdirDirs": [".git/modules/a/modules/b"],
+      "gitdirTarget": ".git/modules/a/modules/b",
+      "expectAnchor": "checkout",
+      "expectShape": "submodule"
+    },
+    {
+      "name": "worktree-hosted submodule",
+      "gitdirDirs": [".git/worktrees/wt/modules/lib"],
+      "gitdirTarget": ".git/worktrees/wt/modules/lib",
+      "expectAnchor": "checkout",
+      "expectShape": "submodule"
+    },
+    {
+      "name": "dangling gitdir",
+      "gitdirDirs": [],
+      "gitdirTarget": ".git/worktrees/gone",
+      "expectAnchor": "checkout",
+      "expectShape": "worktree"
+    },
+    {
+      "name": "invalid .git file",
+      "gitdirDirs": [],
+      "gitdirTarget": "GARBAGE",
+      "expectAnchor": "checkout",
+      "expectShape": "invalid"
+    },
+    {
+      "name": "deep cwd inside submodule",
+      "gitdirDirs": [".git/modules/lib"],
+      "gitdirTarget": ".git/modules/lib",
+      "cwdSuffix": "src/deep",
+      "expectAnchor": "checkout",
+      "expectShape": "submodule"
+    }
+  ]
+}

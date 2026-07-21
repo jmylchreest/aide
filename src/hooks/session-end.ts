@@ -40,10 +40,8 @@ const { join, dirname, basename } = require("path") as typeof import("path");
 const whichSync = (require("which") as typeof import("which")).sync;
 
 /**
- * Read the session anchor cache (~/.aide/anchors/<id>.json) written by
- * session-start — the authoritative root for this session. Inlined
- * require-style (no ES imports, same startup constraint as the rest of
- * this hook). Returns null on any doubt; callers fall back to the walk.
+ * Session anchor cache (~/.aide/anchors/<id>.json) — the authoritative
+ * root for this session. Null on any doubt; callers fall back to the walk.
  */
 function readAnchorRoot(sessionId: string, cwd: string): string | null {
   try {
@@ -78,7 +76,14 @@ function resolveRoot(cwd: string): string {
   const override = process.env.AIDE_PROJECT_ROOT;
   if (override) {
     try {
-      if (statSync(override).isDirectory()) return override;
+      const force = process.env.AIDE_FORCE_INIT;
+      const marked =
+        force === "1" ||
+        force?.toLowerCase() === "true" ||
+        [".aide", ".git", ".hg", ".svn", ".bzr", ".fossil"].some((m) =>
+          existsSync(join(override, m)),
+        );
+      if (marked && statSync(override).isDirectory()) return override;
     } catch {
       /* fall through */
     }
@@ -96,8 +101,12 @@ function resolveRoot(cwd: string): string {
       }
       const parts = gitdir.split(/[\\/]+/);
       for (let i = 0; i < parts.length - 1; i++) {
-        if (parts[i] === ".git" && parts[i + 1] === "modules") return null;
+        if (parts[i] !== ".git") continue;
+        let j = i + 1;
+        if (parts[j] === "worktrees" && j + 2 < parts.length) j += 2;
+        if (j < parts.length && parts[j] === "modules") return null;
       }
+      if (!existsSync(gitdir)) return null;
       let candidate = gitdir;
       for (;;) {
         const parent = dirname(candidate);
@@ -162,9 +171,8 @@ function log(cwd: string, msg: string): void {
 
 /** Find aide binary — inline, no external module imports. */
 function findBinary(cwd?: string, anchorRoot?: string | null): string | null {
-  // Session anchor root first: ensureBinSymlink plants .aide/bin/aide at
-  // the ANCHORED root, which the walk below can miss in submodule/worktree
-  // layouts when the plugin-root env is absent.
+  // ensureBinSymlink plants the symlink at the ANCHORED root, which the
+  // walk below can miss in submodule/worktree layouts.
   if (anchorRoot) {
     const p = join(anchorRoot, ".aide", "bin", "aide");
     if (existsSync(p)) return p;

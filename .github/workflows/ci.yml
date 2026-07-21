@@ -31,6 +31,9 @@ jobs:
       - name: Lint
         run: bun run lint
 
+      - name: Resolver guards
+        run: ./scripts/check-resolver-guards.sh
+
   go:
     name: Go Tests (aide)
     runs-on: ubuntu-latest

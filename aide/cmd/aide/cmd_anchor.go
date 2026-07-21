@@ -92,15 +92,27 @@ func resolveAnchor(startCwd string) anchorInfo {
 	if override := os.Getenv("AIDE_PROJECT_ROOT"); override != "" {
 		abs, err := filepath.Abs(override)
 		if err == nil {
-			if st, err := os.Stat(abs); err == nil && st.IsDir() {
+			st, statErr := os.Stat(abs)
+			switch {
+			case statErr != nil || !st.IsDir():
+				fmt.Fprintf(os.Stderr, "aide: AIDE_PROJECT_ROOT=%q is not a directory; falling back to walk-up\n", override)
+			case !anchorOverrideAllowed(abs):
+				// An override pointing at an unmarked directory is almost
+				// always stale (repo moved/renamed, leaked env from another
+				// project). Anchoring there would plant .aide/ in an
+				// arbitrary directory — require a marker, or AIDE_FORCE_INIT
+				// to say "yes, really".
+				fmt.Fprintf(os.Stderr, "aide: AIDE_PROJECT_ROOT=%q has no .aide/ or VCS marker (set AIDE_FORCE_INIT=1 to use it anyway); falling back to walk-up\n", override)
+			default:
 				info.Root = abs
 				info.HasMarker = true
 				info.Source = "env"
 				finishAnchor(&info, abs)
 				return info
 			}
+		} else {
+			fmt.Fprintf(os.Stderr, "aide: AIDE_PROJECT_ROOT=%q is not a directory; falling back to walk-up\n", override)
 		}
-		fmt.Fprintf(os.Stderr, "aide: AIDE_PROJECT_ROOT=%q is not a directory; falling back to walk-up\n", override)
 	}
 
 	cwd := startCwd
@@ -142,6 +154,18 @@ func resolveAnchor(startCwd string) anchorInfo {
 	info.Root = cwd
 	finishAnchor(&info, cwd)
 	return info
+}
+
+// anchorOverrideAllowed reports whether an AIDE_PROJECT_ROOT override may
+// anchor dir: it carries a project marker, or AIDE_FORCE_INIT is set.
+func anchorOverrideAllowed(dir string) bool {
+	if os.Getenv("AIDE_FORCE_INIT") == "1" || strings.EqualFold(os.Getenv("AIDE_FORCE_INIT"), "true") {
+		return true
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".aide")); err == nil {
+		return true
+	}
+	return isVCSRoot(dir)
 }
 
 // anchorCand is one directory on the walk carrying a marker.
@@ -204,17 +228,11 @@ func finishAnchor(info *anchorInfo, markerDir string) {
 		Relation: "self",
 	}}
 
-	// Parents are derived from the RESOLVED root's ancestry — never the
-	// launch path — so the same root always yields the same chain no
-	// matter where the session entered from (worktree checkout, deep
-	// subdir, env override). Every ancestor VCS root physically contains
-	// the anchor by construction. The walk is nearest-first already.
-	//
-	// A submodule's superproject (owner of the gitdir under .git/modules/)
-	// is usually also an ancestor; when it is, the ancestor entry is
-	// upgraded to the stronger submodule-gitdir evidence. When the
-	// checkout lives OUTSIDE the superproject tree, the owner is appended
-	// after the ancestors — containment-ordered entries first.
+	// Parents derive from the RESOLVED root's ancestry (nearest-first by
+	// construction), never the launch path — same root, same chain, from
+	// any entry. A submodule's gitdir owner is usually also an ancestor;
+	// when reached it carries the stronger submodule-gitdir evidence, and
+	// an out-of-tree owner is appended after the contained ancestors.
 	var submoduleOwner string
 	if info.Provenance.GitdirShape == "submodule" {
 		if _, owner := gitfileInfo(filepath.Join(info.Root, ".git")); owner != "" && owner != info.Root {

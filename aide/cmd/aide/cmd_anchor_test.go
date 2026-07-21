@@ -320,6 +320,102 @@ func TestResolveAnchorEnvOverride(t *testing.T) {
 	}
 }
 
+func TestResolveAnchorEnvOverrideRequiresMarker(t *testing.T) {
+	tmp, _, super, _, _, _, bare := anchorFixture(t)
+	_ = tmp
+
+	// Unmarked override: rejected, walk proceeds from cwd.
+	t.Setenv("AIDE_PROJECT_ROOT", bare)
+	a := resolveAnchor(super)
+	if a.Source != "walk" || a.Root != super {
+		t.Errorf("unmarked override accepted: root=%q source=%q", a.Root, a.Source)
+	}
+
+	// Same override with AIDE_FORCE_INIT: accepted.
+	t.Setenv("AIDE_FORCE_INIT", "1")
+	a = resolveAnchor(super)
+	if a.Source != "env" || a.Root != bare {
+		t.Errorf("forced override rejected: root=%q source=%q", a.Root, a.Source)
+	}
+}
+
+// TestResolveAnchorDanglingGitdir: a .git file whose gitdir target no
+// longer exists (repo moved/deleted) must anchor the checkout dir, never
+// the dead path.
+func TestResolveAnchorDanglingGitdir(t *testing.T) {
+	tmp, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	wt := filepath.Join(tmp, "wt")
+	if err := os.MkdirAll(wt, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	dead := filepath.Join(tmp, "gone", ".git", "worktrees", "wt")
+	if err := os.WriteFile(filepath.Join(wt, ".git"), []byte("gitdir: "+dead+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("AIDE_PROJECT_ROOT", "")
+	os.Unsetenv("AIDE_PROJECT_ROOT")
+
+	a := resolveAnchor(wt)
+	if a.Root != wt {
+		t.Fatalf("root = %q, want checkout dir %q (dead gitdir must not resurrect state)", a.Root, wt)
+	}
+}
+
+// TestResolveAnchorWorktreeHostedSubmodule: gitdir
+// .git/worktrees/<wt>/modules/<sub> is a SUBMODULE (previously
+// misclassified as a worktree, anchoring the superproject).
+func TestResolveAnchorWorktreeHostedSubmodule(t *testing.T) {
+	tmp, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	mustMkdir := func(p string) {
+		t.Helper()
+		if err := os.MkdirAll(p, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	super := filepath.Join(tmp, "super")
+	mustMkdir(filepath.Join(super, ".git", "worktrees", "wt", "modules", "lib"))
+	wt := filepath.Join(tmp, "wt")
+	mustMkdir(wt)
+	if err := os.WriteFile(filepath.Join(wt, ".git"),
+		[]byte("gitdir: "+filepath.Join(super, ".git", "worktrees", "wt")+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	sub := filepath.Join(wt, "vendor", "lib")
+	mustMkdir(sub)
+	if err := os.WriteFile(filepath.Join(sub, ".git"),
+		[]byte("gitdir: "+filepath.Join(super, ".git", "worktrees", "wt", "modules", "lib")+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("AIDE_PROJECT_ROOT", "")
+	os.Unsetenv("AIDE_PROJECT_ROOT")
+
+	a := resolveAnchor(sub)
+	if a.Root != sub {
+		t.Fatalf("root = %q, want submodule checkout %q", a.Root, sub)
+	}
+	if a.Provenance.GitdirShape != "submodule" {
+		t.Errorf("gitdirShape = %q, want submodule", a.Provenance.GitdirShape)
+	}
+	// The gitdir names the superproject; it joins the chain as the owner.
+	found := false
+	for _, s := range a.Chain[1:] {
+		if s.Root == super && s.Evidence == "submodule-gitdir" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("superproject %q missing from chain %v", super, chainRoots(a))
+	}
+}
+
 func TestResolveAnchorPayload(t *testing.T) {
 	_, _, super, _, _, _, _ := anchorFixture(t)
 

@@ -433,11 +433,8 @@ async function main(): Promise<void> {
       downloaded: binaryDownloaded,
     } = await checkAideBinary(cwd, log);
 
-    // Resolve and persist the session anchor: the Go binary is the single
-    // resolution authority; the persisted anchor (session-keyed cache +
-    // <root>/.aide/state/anchor.json) is what anchor-aware consumers read
-    // instead of re-deriving the root (remaining consumers migrate onto
-    // getAnchoredRoot incrementally). Best-effort — readers fall back to
+    // Persist the session anchor — the cache anchor-aware consumers read
+    // instead of re-deriving the root. Best-effort: readers fall back to
     // shelling out, then to the TS walk.
     if (resolvedBinary) {
       debugLog("anchor resolve/persist starting...");
@@ -445,10 +442,9 @@ async function main(): Promise<void> {
         const anchor = resolveAnchorViaBinary(resolvedBinary, launchedCwd);
         if (anchor) {
           writeSessionAnchor(sessionId, launchedCwd, anchor);
-          // The Go resolver and the TS walk disagreeing is exactly the
-          // misanchoring class the anchor exists to catch — surface it.
-          // Compare symlink-resolved spellings so aliases (~/src vs a
-          // mount path) and getcwd/$PWD differences don't false-warn.
+          // Go-vs-TS disagreement is the misanchoring class the anchor
+          // exists to catch. Compare symlink-resolved spellings so path
+          // aliases don't false-warn.
           const tsRealRoot = (() => {
             try {
               return realpathSync(cwd);

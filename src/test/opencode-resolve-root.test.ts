@@ -145,8 +145,9 @@ describe("resolveProjectRoot (OpenCode)", () => {
   it("honors AIDE_PROJECT_ROOT over everything", async () => {
     const { resolveProjectRoot } = await import("../opencode/resolve-root.js");
 
+    // Overrides must point at a marked directory (or set AIDE_FORCE_INIT).
     const override = join(tmp, "override");
-    mkdirSync(override, { recursive: true });
+    mkdirSync(join(override, ".aide"), { recursive: true });
     const repo = join(tmp, "repo");
     mkdirSync(join(repo, ".git"), { recursive: true });
     process.env.AIDE_PROJECT_ROOT = override;
