@@ -396,6 +396,8 @@ export function runSessionInit(
       result.dynamic.sessions.push(`${header}:\n${memories}`);
     }
 
+    result.estate = data.estate;
+
     // Codebase Map — survey modules analyzer output, already capped by the
     // Go producer. Separately kill-switchable from memory injection.
     if (
@@ -609,6 +611,27 @@ export function buildWelcomeContext(
     lines.push("");
     for (const mod of memories.codebaseMap) {
       lines.push(`- **${mod.name}** — ${mod.size} files, hub: ${mod.hub}`);
+    }
+    lines.push("");
+  }
+
+  const estate = memories.estate;
+  if (estate && ((estate.parents?.length ?? 0) > 0 || (estate.subprojects?.length ?? 0) > 0)) {
+    lines.push("## Estate");
+    lines.push("");
+    lines.push(
+      "Related project scopes. Each has its OWN aide store — memories, decisions, and state written here do not reach them (and vice versa).",
+    );
+    lines.push("");
+    for (const p of estate.parents ?? []) {
+      lines.push(
+        `- parent: **${p.name ?? p.path}** at ${p.path} (${p.evidence ?? "parent"}${p.has_store ? ", has own store" : ""})`,
+      );
+    }
+    for (const c of estate.subprojects ?? []) {
+      lines.push(
+        `- child: **${c.name ?? c.path}** at ./${c.path} (${c.evidence ?? "subproject"}${c.has_store ? ", has own store" : ""}) — its files belong to its own project`,
+      );
     }
     lines.push("");
   }

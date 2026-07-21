@@ -352,7 +352,7 @@ Flags (run):
 
 Flags (search, list):
   --analyzer=<name>  Filter by analyzer: topology, entrypoints, churn
-  --kind=<kind>      Filter by kind: module, entrypoint, dependency, tech_stack, churn, submodule, workspace, arch_pattern
+  --kind=<kind>      Filter by kind: module, entrypoint, dependency, tech_stack, churn, submodule, subproject, workspace, arch_pattern
   --file=<path>      Filter by file path pattern
   --limit=<n>        Maximum results
   --json             Output as JSON

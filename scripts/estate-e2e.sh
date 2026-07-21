@@ -93,7 +93,10 @@ done
 echo "== phase 5: session lifecycle against the deepest submodule"
 SUB="$E/tl/mid/mid-sub"
 echo "{\"session_id\":\"$SID\",\"cwd\":\"$SUB\",\"hook_event_name\":\"SessionStart\"}" \
-  | (cd "$SUB" && run bun "$REPO/src/hooks/session-start.ts" >/dev/null 2>&1)
+  | (cd "$SUB" && run bun "$REPO/src/hooks/session-start.ts" > "$E/session-start.json" 2>/dev/null)
+check "welcome context has Estate section"      "grep -q '## Estate' $E/session-start.json"
+check "estate lists mid as parent"              "grep -q 'submodule-gitdir' $E/session-start.json"
+check "estate warns stores are separate"        "grep -q 'OWN aide store' $E/session-start.json"
 check "anchor cache in runtime dir"  "[ -f $E/runtime/aide/anchors/$SID.json ]"
 check "anchor cache NOT in home"     "[ ! -f $E/home/.aide/anchors/$SID.json ]"
 check "project anchor copy present"  "[ -f $SUB/.aide/state/anchor.json ]"

@@ -23,14 +23,14 @@ import (
 type SurveySearchInput struct {
 	Query    string `json:"query" jsonschema:"Search query for survey entry names, titles, and details. Supports Bleve query syntax."`
 	Analyzer string `json:"analyzer,omitempty" jsonschema:"Filter by analyzer: topology, entrypoints, churn"`
-	Kind     string `json:"kind,omitempty" jsonschema:"Filter by kind: module, entrypoint, dependency, tech_stack, churn, submodule, workspace, arch_pattern"`
+	Kind     string `json:"kind,omitempty" jsonschema:"Filter by kind: module, entrypoint, dependency, tech_stack, churn, submodule, subproject, workspace, arch_pattern"`
 	FilePath string `json:"file,omitempty" jsonschema:"Filter by file path pattern (substring match)"`
 	Limit    int    `json:"limit,omitempty" jsonschema:"Maximum results (default 20)"`
 }
 
 type SurveyListInput struct {
 	Analyzer string `json:"analyzer,omitempty" jsonschema:"Filter by analyzer: topology, entrypoints, churn"`
-	Kind     string `json:"kind,omitempty" jsonschema:"Filter by kind: module, entrypoint, dependency, tech_stack, churn, submodule, workspace, arch_pattern"`
+	Kind     string `json:"kind,omitempty" jsonschema:"Filter by kind: module, entrypoint, dependency, tech_stack, churn, submodule, subproject, workspace, arch_pattern"`
 	FilePath string `json:"file,omitempty" jsonschema:"Filter by file path pattern (substring match)"`
 	Limit    int    `json:"limit,omitempty" jsonschema:"Maximum results (default 100)"`
 }
@@ -96,7 +96,7 @@ for code health issues).
 - "What files change most?" → kind=churn
 - "What's in src/auth/?" → filter by file path
 
-**Kinds:** module, entrypoint, dependency, tech_stack, churn, submodule, workspace, arch_pattern
+**Kinds:** module, entrypoint, dependency, tech_stack, churn, submodule, subproject, workspace, arch_pattern
 **Analyzers:** topology (structure), entrypoints (entry points), churn (git history)`,
 	}, s.handleSurveyList)
 

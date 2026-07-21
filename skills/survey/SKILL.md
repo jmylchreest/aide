@@ -60,7 +60,13 @@ Survey this codebase
 
 Browse entries filtered by analyzer, kind, or file path. No search query needed.
 
-**Kinds:** module, entrypoint, dependency, tech_stack, churn, submodule, workspace, arch_pattern
+**Kinds:** module, entrypoint, dependency, tech_stack, churn, submodule, subproject, workspace, arch_pattern
+
+```
+What other projects live inside this repo?
+→ Uses survey_list with kind=subproject
+→ Returns: child project scopes (submodules, nested repos) with identity and whether each has its own .aide store — their files belong to THEIR stores, not this project's
+```
 
 ```
 What modules are in this codebase?

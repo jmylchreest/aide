@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jmylchreest/aide/aide/pkg/anchor"
 	"github.com/jmylchreest/aide/aide/pkg/code"
 	"github.com/jmylchreest/aide/aide/pkg/config"
 	"github.com/jmylchreest/aide/aide/pkg/contextshare"
@@ -41,6 +42,25 @@ type SessionInitResult struct {
 	// largest first, capped. Empty when the analyzer has never run.
 	CodebaseMap     []SessionModule `json:"codebase_map,omitempty"`
 	CodebaseMapNote string          `json:"codebase_map_note,omitempty"` // freshness, e.g. "as of a1b2c3d4 — 3 commits behind"
+
+	// Estate — parent projects from the anchor chain (upward) and direct
+	// child subprojects from survey (downward). Omitted for standalone
+	// repos with no surveyed children.
+	Estate *SessionEstate `json:"estate,omitempty"`
+}
+
+// SessionEstate is the estate picture for session injection.
+type SessionEstate struct {
+	Parents     []SessionEstateNode `json:"parents,omitempty"`
+	Subprojects []SessionEstateNode `json:"subprojects,omitempty"`
+}
+
+// SessionEstateNode is one related project scope.
+type SessionEstateNode struct {
+	Name     string `json:"name,omitempty"`
+	Path     string `json:"path"`
+	Evidence string `json:"evidence,omitempty"`
+	HasStore bool   `json:"has_store,omitempty"`
 }
 
 // SessionModule is one Codebase Map line for JSON output.
@@ -397,6 +417,40 @@ func sessionFetchContext(backend *Backend, project string, sessionLimit int, res
 	}
 
 	sessionFetchCodebaseMap(backend, result)
+	sessionFetchEstate(backend, result)
+}
+
+// sessionFetchEstate assembles the estate picture: parents from the anchor
+// chain (re-resolved, cheap), direct children from the survey subproject
+// entries when the topology analyzer has run.
+func sessionFetchEstate(backend *Backend, result *SessionInitResult) {
+	estate := &SessionEstate{}
+
+	a := resolveAnchor(projectRoot(backend.dbPath))
+	for _, link := range a.Chain[1:] {
+		name, _ := anchor.ProjectIdentity(link.Root)
+		estate.Parents = append(estate.Parents, SessionEstateNode{
+			Name:     name,
+			Path:     link.Root,
+			Evidence: link.Evidence,
+			HasStore: anchor.HasAideStore(link.Root),
+		})
+	}
+
+	if entries, err := backend.ListSurvey(survey.SearchOptions{Kind: survey.KindSubproject, Limit: 100}); err == nil {
+		for _, e := range entries {
+			estate.Subprojects = append(estate.Subprojects, SessionEstateNode{
+				Name:     e.Name,
+				Path:     e.FilePath,
+				Evidence: e.Metadata["evidence"],
+				HasStore: e.Metadata["has_aide_store"] == "true",
+			})
+		}
+	}
+
+	if len(estate.Parents) > 0 || len(estate.Subprojects) > 0 {
+		result.Estate = estate
+	}
 }
 
 // sessionFetchCodebaseMap loads the module map produced by the survey
