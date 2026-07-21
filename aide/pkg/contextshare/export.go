@@ -49,11 +49,15 @@ type ExportOptions struct {
 	MemoryFilter   Filter        // Applied to each memory's token set
 }
 
-// ExportStats reports what an export wrote.
+// ExportStats reports what an export wrote — and what the configured
+// filters held back, so callers can surface "N excluded by policy"
+// instead of records disappearing silently.
 type ExportStats struct {
-	Decisions  int // Decision version files present after export
-	Memories   int // Memory files present after export
-	Tombstones int // Live tombstone files present after export
+	Decisions         int // Decision version files present after export
+	Memories          int // Memory files present after export
+	Tombstones        int // Live tombstone files present after export
+	DecisionsExcluded int // Decision versions rejected by the export filter
+	MemoriesExcluded  int // Memories rejected by the export filter
 }
 
 // Export projects the shareable subset of src into the context tree at root.
@@ -101,19 +105,21 @@ func Export(src Source, tombs TombstoneAccess, root string, opts ExportOptions) 
 	}
 
 	if opts.Decisions {
-		n, err := exportDecisions(src, root, live, opts.DecisionFilter)
+		n, excluded, err := exportDecisions(src, root, live, opts.DecisionFilter)
 		if err != nil {
 			return nil, err
 		}
 		stats.Decisions = n
+		stats.DecisionsExcluded = excluded
 	}
 
 	if opts.Memories {
-		n, err := exportMemories(src, root, live, opts.MemoryFilter)
+		n, excluded, err := exportMemories(src, root, live, opts.MemoryFilter)
 		if err != nil {
 			return nil, err
 		}
 		stats.Memories = n
+		stats.MemoriesExcluded = excluded
 	}
 
 	if err := WriteManifest(root, now); err != nil {
@@ -204,15 +210,16 @@ func removeShadowedRecord(root string, t *memory.Tombstone) error {
 
 // exportDecisions writes one write-once file per decision version that passes
 // the filter.
-func exportDecisions(src Source, root string, live map[string]*memory.Tombstone, filter Filter) (int, error) {
+func exportDecisions(src Source, root string, live map[string]*memory.Tombstone, filter Filter) (int, int, error) {
 	decisions, err := src.ListDecisions()
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 
-	count := 0
+	count, excluded := 0, 0
 	for _, d := range decisions {
 		if !filter.Match(DecisionTokens(d)) {
+			excluded++
 			continue
 		}
 		if shadowed(live, memory.TombstoneKindDecisionTopic, d.Topic, recordTimeDecision(d)) {
@@ -220,7 +227,7 @@ func exportDecisions(src Source, root string, live map[string]*memory.Tombstone,
 		}
 		path := DecisionPath(root, d)
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-			return count, err
+			return count, excluded, err
 		}
 		// Write-once: version files are immutable by identity.
 		if _, err := os.Stat(path); err == nil {
@@ -228,11 +235,11 @@ func exportDecisions(src Source, root string, live map[string]*memory.Tombstone,
 			continue
 		}
 		if err := os.WriteFile(path, MarshalDecision(d), 0o644); err != nil {
-			return count, fmt.Errorf("failed to write %s: %w", path, err)
+			return count, excluded, fmt.Errorf("failed to write %s: %w", path, err)
 		}
 		count++
 	}
-	return count, nil
+	return count, excluded, nil
 }
 
 // exportMemories writes one file per memory that passes the filter.
@@ -242,15 +249,16 @@ func exportDecisions(src Source, root string, live map[string]*memory.Tombstone,
 // converge to the forgotten state instead of keeping (or resurrecting) an
 // unforgotten copy from a stale tree file. Filtering by tokens, not by the old
 // IsShareableMemory gate, is what makes the export policy user-configurable.
-func exportMemories(src Source, root string, live map[string]*memory.Tombstone, filter Filter) (int, error) {
+func exportMemories(src Source, root string, live map[string]*memory.Tombstone, filter Filter) (int, int, error) {
 	memories, err := src.ListMemories(memory.SearchOptions{IncludeAll: true})
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 
-	count := 0
+	count, excluded := 0, 0
 	for _, m := range memories {
 		if !filter.Match(MemoryTokens(m)) {
+			excluded++
 			continue
 		}
 		if shadowed(live, memory.TombstoneKindMemory, m.ID, recordTimeMemory(m)) {
@@ -265,11 +273,11 @@ func exportMemories(src Source, root string, live map[string]*memory.Tombstone, 
 			continue
 		}
 		if err := os.WriteFile(path, data, 0o644); err != nil {
-			return count, fmt.Errorf("failed to write %s: %w", path, err)
+			return count, excluded, fmt.Errorf("failed to write %s: %w", path, err)
 		}
 		count++
 	}
-	return count, nil
+	return count, excluded, nil
 }
 
 // shadowed reports whether a live tombstone covers a record. A record

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -8,10 +9,12 @@ import (
 	"testing"
 	"time"
 
+	git "github.com/go-git/go-git/v5"
 	"github.com/jmylchreest/aide/aide/pkg/config"
 	"github.com/jmylchreest/aide/aide/pkg/contextshare"
 	"github.com/jmylchreest/aide/aide/pkg/memory"
 	"github.com/jmylchreest/aide/aide/pkg/store"
+	"github.com/jmylchreest/aide/aide/pkg/subscription"
 )
 
 // peerFixture builds a project with a local decision on "shared-topic" and
@@ -148,5 +151,40 @@ func TestDecisionAdopt(t *testing.T) {
 
 	if err := cmdDecision(dbPath, []string{"adopt", "no-such-topic"}); err == nil {
 		t.Error("expected error adopting unknown topic")
+	}
+}
+
+// TestSyncPublish drives the two-way flow through cmdSync: a
+// publish-enabled subscription ships the local store's decisions to a
+// bare remote, where a second project's sync can read them.
+func TestSyncPublish(t *testing.T) {
+	root := peerFixture(t)
+	remote := filepath.Join(t.TempDir(), "context.git")
+	if _, err := git.PlainInit(remote, true); err != nil {
+		t.Fatal(err)
+	}
+	cfgJSON := fmt.Sprintf(`{"subscriptions":[{"name":"pub","url":%q,"publish":true}]}`, remote)
+	if err := os.WriteFile(filepath.Join(root, ".aide", "config", "aide.json"), []byte(cfgJSON), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := config.Load(root); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := cmdSync(computeDBPath(root), nil); err != nil {
+		t.Fatalf("sync with publish: %v", err)
+	}
+
+	consumer := t.TempDir()
+	shareRoot, err := subscription.Sync(context.Background(), consumer, config.SubscriptionConfig{Name: "pub", URL: remote})
+	if err != nil {
+		t.Fatal(err)
+	}
+	latest, err := subscription.ReadDecisions(shareRoot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d := latest["shared-topic"]; d == nil || d.Decision != "local-version" {
+		t.Errorf("published shared-topic = %+v, want the local store's local-version", d)
 	}
 }

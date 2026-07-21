@@ -49,6 +49,16 @@ var reservedShareFiles = map[string]bool{
 
 // isReservedShareFile reports whether name is one of the reserved explainer
 // files written by the export command and must be skipped by importers.
+// excludedNote annotates an export count with how many records the
+// configured filter held back, so policy exclusions are visible instead
+// of silent.
+func excludedNote(n int) string {
+	if n == 0 {
+		return ""
+	}
+	return fmt.Sprintf(" (%d excluded by policy)", n)
+}
+
 func isReservedShareFile(name string) bool {
 	return reservedShareFiles[name]
 }
@@ -170,10 +180,10 @@ func cmdShareExport(dbPath string, args []string) error {
 		}
 		fmt.Printf("Exported to %s\n", outputDir)
 		if exportDecisions {
-			fmt.Printf("  decisions:  %d\n", stats.Decisions)
+			fmt.Printf("  decisions:  %d%s\n", stats.Decisions, excludedNote(stats.DecisionsExcluded))
 		}
 		if exportMemories {
-			fmt.Printf("  memories:   %d\n", stats.Memories)
+			fmt.Printf("  memories:   %d%s\n", stats.Memories, excludedNote(stats.MemoriesExcluded))
 		}
 		fmt.Printf("  tombstones: %d\n", stats.Tombstones)
 		if backend.TombstoneStore() == nil {

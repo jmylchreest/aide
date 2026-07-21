@@ -65,11 +65,14 @@ type Config struct {
 // SubscriptionConfig names one peer context source: a git repository
 // (URL, fetched into .aide/cache/remotes/<name>/) or a local directory
 // (Path, read in place). Exactly one of URL and Path must be set.
+// Publish makes the subscription two-way: `aide sync` also writes this
+// project's own decisions into it (commit+push for git subscriptions).
 type SubscriptionConfig struct {
-	Name   string `koanf:"name"`
-	URL    string `koanf:"url"`
-	Path   string `koanf:"path"`
-	Branch string `koanf:"branch"` // git only; empty = the remote's default branch
+	Name    string `koanf:"name"`
+	URL     string `koanf:"url"`
+	Path    string `koanf:"path"`
+	Branch  string `koanf:"branch"` // git only; empty = the remote's default branch
+	Publish bool   `koanf:"publish"`
 }
 
 // MaintenanceConfig controls on-disk upkeep of the bolt stores. bbolt never

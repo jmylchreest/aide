@@ -102,6 +102,12 @@ check "tl has share exports" "ls $E/tl/.aide/shared/decisions/* >/dev/null 2>&1"
 for d in tl/proj-sub tl/mid tl/mid/mid-sub tl/mid/leaf; do
   check "$d has NO share dir" "[ ! -d $E/$d/.aide/shared ]"
 done
+# --store routes share commands wholesale: run from the leaf, export and
+# import operate on the PARENT's .aide/shared and store.
+run "$E/aide" --project-root "$E/tl/mid/leaf" --store parent share export >/dev/null 2>&1 || true
+check "routed export writes mid's shared dir" "ls $E/tl/mid/.aide/shared/decisions/* >/dev/null 2>&1"
+check "routed export leaves leaf shared-less" "[ ! -d $E/tl/mid/leaf/.aide/shared ]"
+check "routed import targets mid's store" "run $E/aide --project-root $E/tl/mid/leaf --store parent share import --dry-run >/dev/null 2>&1"
 
 echo "== phase 5: session lifecycle against the deepest submodule"
 SUB="$E/tl/mid/mid-sub"

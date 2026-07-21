@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jmylchreest/aide/aide/pkg/config"
+	"github.com/jmylchreest/aide/aide/pkg/contextshare"
 	"github.com/jmylchreest/aide/aide/pkg/subscription"
 )
 
@@ -42,12 +43,42 @@ func cmdSync(dbPath string, args []string) error {
 	}
 
 	root := projectRoot(dbPath)
+	var backend *Backend
+	defer func() {
+		if backend != nil {
+			backend.Close()
+		}
+	}()
+
 	var failed []error
 	for _, sub := range subs {
 		if len(names) > 0 && !slices.Contains(names, sub.Name) {
 			continue
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+
+		// Publish-enabled subscriptions push our own decisions first —
+		// Publish fetches internally, so the read below sees the union.
+		if sub.Publish {
+			if backend == nil {
+				var err error
+				if backend, err = NewBackend(dbPath); err != nil {
+					cancel()
+					return err
+				}
+			}
+			pushed, err := subscription.Publish(ctx, root, sub, publishWrite(backend))
+			if err != nil {
+				cancel()
+				fmt.Printf("✗ %s: publish: %v\n", sub.Name, err)
+				failed = append(failed, err)
+				continue
+			}
+			if pushed {
+				fmt.Printf("↑ %s: published local decisions\n", sub.Name)
+			}
+		}
+
 		shareRoot, err := subscription.Sync(ctx, root, sub)
 		cancel()
 		if err != nil {
@@ -66,6 +97,24 @@ func cmdSync(dbPath string, args []string) error {
 	return errors.Join(failed...)
 }
 
+// publishWrite is the record-writing half of a publish: this store's
+// decisions (through the configured export filter) plus tombstones, via
+// contextshare.Export's write-once semantics. Decisions only — memories
+// never leave a project, whatever the share.memories policy says about
+// the project's own .aide/shared/.
+func publishWrite(backend *Backend) func(shareRoot string) error {
+	return func(shareRoot string) error {
+		_, err := contextshare.Export(backend.Store(), backend.TombstoneStore(), shareRoot, contextshare.ExportOptions{
+			Decisions:      true,
+			DecisionFilter: toFilter(config.Get().Share.DecisionExportFilter()),
+		})
+		if err != nil {
+			return err
+		}
+		return writeShareExplainers(shareRoot)
+	}
+}
+
 func printSyncUsage() {
 	fmt.Println(`aide sync - Fetch subscribed peer context
 
@@ -78,12 +127,18 @@ reports the decisions each peer publishes. Peer decisions appear in
 session context as a read-only layer (origin peer:<name>), are never
 re-exported, and sync only decisions — memories never leave a project.
 
+A subscription with "publish": true is two-way: sync also writes this
+project's own decisions into it (fetch, commit, push, retrying on a
+race). Write-once record files make concurrent publishers safe — see
+'aide share' for the format.
+
 Promote a peer decision into this project with:
   aide decision adopt <topic> --from=<name>
 
 Subscriptions live in .aide/config/aide.json:
   { "subscriptions": [
       { "name": "platform-team", "url": "git@host:platform/context.git", "branch": "main" },
+      { "name": "team-context",  "url": "git@host:team/context.git", "publish": true },
       { "name": "proto-repo",    "path": "../protos" }
   ] }`)
 }

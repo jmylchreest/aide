@@ -35,6 +35,13 @@ func CacheDir(projectRoot, name string) string {
 	return filepath.Join(projectRoot, ".aide", "cache", "remotes", name)
 }
 
+func resolvePath(projectRoot, p string) string {
+	if filepath.IsAbs(p) {
+		return p
+	}
+	return filepath.Join(projectRoot, p)
+}
+
 func validate(sub config.SubscriptionConfig) error {
 	if !nameRe.MatchString(sub.Name) {
 		return fmt.Errorf("subscription name %q must match %s", sub.Name, nameRe)
@@ -54,10 +61,7 @@ func Sync(ctx context.Context, projectRoot string, sub config.SubscriptionConfig
 		return "", err
 	}
 	if sub.Path != "" {
-		p := sub.Path
-		if !filepath.IsAbs(p) {
-			p = filepath.Join(projectRoot, p)
-		}
+		p := resolvePath(projectRoot, sub.Path)
 		if info, err := os.Stat(p); err != nil || !info.IsDir() {
 			return "", fmt.Errorf("subscription %q path %s is not a directory", sub.Name, p)
 		}
@@ -120,11 +124,7 @@ func CachedRoot(projectRoot string, sub config.SubscriptionConfig) (string, erro
 		return "", err
 	}
 	if sub.Path != "" {
-		p := sub.Path
-		if !filepath.IsAbs(p) {
-			p = filepath.Join(projectRoot, p)
-		}
-		return shareRoot(sub.Name, p)
+		return shareRoot(sub.Name, resolvePath(projectRoot, sub.Path))
 	}
 	dir := CacheDir(projectRoot, sub.Name)
 	if _, err := os.Stat(dir); err != nil {

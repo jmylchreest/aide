@@ -237,6 +237,15 @@ verb: it copies the peer's current decision into the local store as a new
 local decision stamped with adoption provenance. Session init refreshes
 stale subscription caches opportunistically (bounded, offline-silent).
 
+A subscription with `"publish": true` is two-way: `aide sync` also writes
+this project's own decisions into it — fetch, reset to the remote head,
+apply records, commit, push, retrying on a push race. Write-once record
+files named by identity make concurrent publishers safe: colliding paths
+are structurally impossible, so no merge machinery is needed. Publishing
+respects the `share.decisions.export_filter` policy and never includes
+memories. An empty repository works as a starting point — the first
+publish bootstraps it.
+
 ## Global Flags
 
 ```bash

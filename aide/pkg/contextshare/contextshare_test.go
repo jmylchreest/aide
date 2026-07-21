@@ -1014,3 +1014,35 @@ func seedMemory(t *testing.T, s *store.BoltStore, id, content string, tags []str
 		t.Fatalf("AddMemory: %v", err)
 	}
 }
+
+// TestExportExcludedCounts pins the "excluded by policy" accounting: a
+// filter that rejects records reports them in the stats instead of
+// dropping them silently.
+func TestExportExcludedCounts(t *testing.T) {
+	s := newTestStore(t)
+	now := time.Now()
+	if err := s.SetDecision(&memory.Decision{Topic: "keep-me", Decision: "v", CreatedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.SetDecision(&memory.Decision{Topic: "secret-thing", Decision: "v", CreatedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	seedMemory(t, s, "01HXMEMEXCL0000000000000EX", "kept", []string{"team"}, now, now)
+	seedMemory(t, s, "01HXMEMEXCL0000000000000EY", "held back", []string{"personal"}, now, now)
+
+	stats, err := Export(s, s, t.TempDir(), ExportOptions{
+		Decisions:      true,
+		Memories:       true,
+		DecisionFilter: Filter{Include: []string{"*"}, Exclude: []string{"topic:secret-*"}},
+		MemoryFilter:   Filter{Include: []string{"*"}, Exclude: []string{"personal"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stats.Decisions != 1 || stats.DecisionsExcluded != 1 {
+		t.Errorf("decisions = %d/%d excluded, want 1/1", stats.Decisions, stats.DecisionsExcluded)
+	}
+	if stats.Memories != 1 || stats.MemoriesExcluded != 1 {
+		t.Errorf("memories = %d/%d excluded, want 1/1", stats.Memories, stats.MemoriesExcluded)
+	}
+}
