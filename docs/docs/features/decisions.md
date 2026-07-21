@@ -33,6 +33,60 @@ aide share import --dry-run          # Preview what would be imported
 
 Exported files use YAML frontmatter + markdown body, so they work as LLM context even without AIDE installed.
 
+## Inheriting from Parent Projects
+
+When a project sits inside another project — a submodule in a superrepo, a
+nested repository — sessions inherit the ancestors' decisions automatically.
+Nothing to configure: at session start aide resolves the chain of containing
+projects (see `aide anchor`) and overlays each ancestor's decisions onto the
+context, labeled `inherited from parent <name>`.
+
+Shadowing is by topic, nearest wins: decide a topic locally and every
+ancestor's version of that topic is ignored for your sessions (theirs stay
+intact upstream). Nothing is copied between stores — provenance is
+synthesized at read time — and `decision get` stays store-local.
+
+To record a decision *at* the estate level instead, route the write upward:
+
+```bash
+aide --store parent decision set logging "slog, structured"  # nearest container
+aide --store top decision set go-version "1.26"              # the estate root
+```
+
+## Subscribing to Other Teams
+
+Teams that don't share a filesystem subscribe to each other's decisions over
+plain git. Name your sources in `.aide/config/aide.json`:
+
+```json
+{ "subscriptions": [
+    { "name": "platform-team", "url": "git@host:platform/context.git", "branch": "main" },
+    { "name": "team-context",  "url": "git@host:team/context.git", "publish": true },
+    { "name": "proto-repo",    "path": "../protos" }
+] }
+```
+
+Peer decisions appear in session context as a read-only layer labeled
+`from peer <name>`, at the lowest precedence (local > ancestors > peers).
+They are never re-exported — you only publish what you authored or
+explicitly adopted:
+
+```bash
+aide decision adopt api-style --from=platform-team
+```
+
+copies the peer's current decision into your store as a new local decision
+with adoption provenance. A subscription with `"publish": true` is two-way:
+your own decisions are pushed back out for others to subscribe to.
+
+No scheduler is needed: session **start** refreshes stale subscription
+caches and session **end** publishes — decisions are made inside sessions,
+so the session lifecycle is the sync loop. `aide sync` remains the manual
+lever. Only decisions cross project boundaries; memories and state never do.
+`AIDE_CASCADE_DISABLED=1` turns off both the ancestor cascade and the peer
+layer. See the [CLI reference](/docs/reference/cli#sync--subscriptions) for
+details.
+
 ### Share decisions with your team
 
 1. Run `aide share export` and commit `.aide/shared/` to git.

@@ -84,6 +84,7 @@ worktrees/
 memory/
 code/
 grammars/
+cache/
 
 # Runtime socket - machine-specific
 aide.sock
@@ -129,6 +130,18 @@ aide-memory.db
           `\n
 # Tree-sitter grammars - platform-specific binaries
 grammars/
+`;
+        updated = true;
+      }
+
+      // Ensure the subscription cache (git clones of peer context repos)
+      // is ignored — an embedded checkout must never reach the host repo
+      if (!existingContent.includes("cache/")) {
+        existingContent =
+          existingContent.trimEnd() +
+          `\n
+# Subscription cache - machine-local peer checkouts (aide sync)
+cache/
 `;
         updated = true;
       }

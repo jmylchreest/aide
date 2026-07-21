@@ -33,6 +33,8 @@ AIDE data is stored in `.aide/` at the project root, with one exception: session
 │   ├── mcp.json               # Canonical MCP server config
 │   └── mcp-sync.journal.json  # MCP sync deletion journal
 ├── blueprints/                # Local blueprint overrides (JSON)
+├── cache/
+│   └── remotes/<name>/        # Subscription checkouts (git clones of peer context repos; machine-local, rebuilt by sync)
 ├── shared/                    # Exported decisions and memories
 │   ├── decisions/             # One markdown file per topic
 │   └── memories/              # One markdown file per category
@@ -52,6 +54,7 @@ These are binary databases, runtime state, and machine-specific files that shoul
 | `state/`                       | Runtime state (HUD output, session info, worktree tracking) |
 | `bin/`                         | Downloaded aide binary                                      |
 | `worktrees/`                   | Git worktree directories for swarm mode                     |
+| `cache/`                       | Subscription checkouts — git clones of peer context repos   |
 | `_logs/`                       | Debug logs (when `AIDE_DEBUG=1`)                            |
 | `config/mcp.json`              | Canonical MCP server config (machine-specific sync state)   |
 | `config/mcp-sync.journal.json` | Tracks intentional MCP server removals                      |
