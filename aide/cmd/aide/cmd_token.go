@@ -42,7 +42,7 @@ Options:
     --json           Output as JSON
 
   cleanup:
-    --max-age=DURATION  Max age (default: cleanup.token_max_age, 365d; 0 = keep all)
+    --max-age=DURATION  Max age (default: cleanup.token_max_age, 90d; 0 = keep all)
 
 Note: All token counts are estimates based on calibrated per-language ratios.
 Token events are recorded automatically by hooks via the observe stream

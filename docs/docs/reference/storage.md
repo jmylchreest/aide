@@ -6,7 +6,7 @@ title: Storage Layout
 
 # Storage Layout
 
-All AIDE data is stored in `.aide/` at the project root. A `.aide/.gitignore` is automatically created on first session to separate machine-local data from shareable content.
+AIDE data is stored in `.aide/` at the project root, with one user-global exception: session anchor caches live in `~/.aide/anchors/<session_id>.json` so hooks and the statusline can resolve a session's root without walking. A `.aide/.gitignore` is automatically created on first session to separate machine-local data from shareable content.
 
 ## Directory Structure
 
@@ -24,7 +24,7 @@ All AIDE data is stored in `.aide/` at the project root. A `.aide/.gitignore` is
 │   └── survey/
 │       ├── survey.db          # Codebase survey entries
 │       └── search.bleve/      # Survey search index
-├── state/                     # Runtime state (HUD, session info, worktrees)
+├── state/                     # Runtime state (HUD, session info, anchor.json, worktrees)
 ├── bin/                       # Downloaded aide binary
 ├── worktrees/                 # Git worktree directories (swarm mode)
 ├── _logs/                     # Debug logs (when AIDE_DEBUG=1)

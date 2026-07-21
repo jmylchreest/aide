@@ -164,7 +164,7 @@ Usage:
 
 Commands:
   anchor     Show resolved project root, provenance, and scope chain (read-only; --json)
-  session    Session lifecycle (init - single-call startup)
+  session    Session lifecycle (init - single-call startup; end - teardown + metrics)
   memory     Manage memories (add, delete, search, select, list, export, clear)
   code       Index and search code symbols (index, search, symbols, clear)
   findings   Query and manage static analysis findings (search, list, stats, clear)

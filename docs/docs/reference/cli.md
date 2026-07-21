@@ -208,6 +208,25 @@ aide share import --dry-run              # Preview import
 | `share export` | Export decisions and memories to `.aide/shared/` |
 | `share import` | Import from `.aide/shared/`                      |
 
+## Anchor
+
+```bash
+aide anchor                              # Resolved root, provenance, parent scopes
+aide anchor --json                       # Full machine-readable payload
+aide anchor --cwd=/path/to/dir           # Probe from another directory
+```
+
+A read-only resolution probe: prints the project root aide would use, which
+marker decided it (`.git` directory/worktree/submodule, `.aide`, env
+override), the project identity, and the scope chain — the project itself
+plus VCS-evidenced parent scopes (a submodule's superproject, ancestor
+repositories that contain it). It never creates `.aide/` and exits 0 even
+when no marker is found, so it is safe to run anywhere — the "what would
+happen?" command for worktree, submodule, and nested-repo layouts.
+
+The `--json` payload is the contract consumed by the hook layer (persisted
+per session under `~/.aide/anchors/` and `.aide/state/anchor.json`).
+
 ## Token (Experimental)
 
 ```bash
@@ -215,7 +234,7 @@ aide token stats                         # Estimated all-time token statistics
 aide token stats --json                  # JSON output
 aide token summary                       # Recent token events
 aide token summary --last=20             # Last 20 events
-aide token cleanup                       # Remove events older than 30 days
+aide token cleanup                       # Remove events older than 90 days (cleanup.token_max_age)
 aide token cleanup --max-age=168h        # Custom retention
 ```
 
@@ -223,7 +242,7 @@ aide token cleanup --max-age=168h        # Custom retention
 | --------------- | --------------------------------------------- |
 | `token stats`   | Show estimated token read/saved statistics    |
 | `token summary` | List recent token events                      |
-| `token cleanup` | Remove old token events (default 30 days)     |
+| `token cleanup` | Remove old token events (default 90 days)     |
 
 Token tracking is experimental. All counts are estimates based on calibrated per-language character ratios — useful for relative comparisons, not exact cost accounting.
 

@@ -112,7 +112,7 @@ func (c CleanupConfig) TaskMaxAgeDuration() time.Duration {
 
 // TokenMaxAgeDuration returns the token-event TTL with a default fallback.
 // Token events back the "Last 30 / 60 / 90 days" trend filters on the token
-// intelligence page, so the default keeps a full year of history.
+// intelligence page; the default keeps 90 days of history.
 func (c CleanupConfig) TokenMaxAgeDuration() time.Duration {
 	return parseDur(c.TokenMaxAge, defaultBucketMaxAge)
 }
