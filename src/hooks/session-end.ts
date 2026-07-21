@@ -250,26 +250,25 @@ function main(): void {
       return;
     }
 
-    const anchorRoot = readAnchorRoot(sessionId, cwd);
-    if (anchorRoot) log(cwd, `anchor root: ${anchorRoot}`);
-    const binary = findBinary(cwd, anchorRoot);
-    log(cwd, `binary: ${binary}`);
-    if (!binary) {
-      log(cwd, "no binary found, skipping cleanup");
-      return;
-    }
-
-    // Event guard: Codex has no SessionEnd event — its hooks.json maps the
-    // per-turn Stop event to this hook, and running real teardown there would
-    // clear counters and broadcast a "Session ended" message on EVERY turn.
-    // Only genuine session ends may proceed (including the lifecycle record
-    // below — a per-turn "session-end" trigger would be misleading telemetry).
+    // Event guard, hoisted before any resolution work: Codex maps its
+    // per-turn Stop event here, and real teardown per turn would clear
+    // counters and broadcast "Session ended" every turn. Genuine session
+    // ends only — including the lifecycle record below.
     // (AIDE_PLATFORM=codex is set by the `aide-plugin hook` dispatcher.)
     if (eventName === "Stop" || process.env.AIDE_PLATFORM === "codex") {
       log(
         cwd,
         `per-turn event (event=${eventName || "?"} platform=${process.env.AIDE_PLATFORM || "?"}), skipping session teardown`,
       );
+      return;
+    }
+
+    const anchorRoot = readAnchorRoot(sessionId, cwd);
+    if (anchorRoot) log(cwd, `anchor root: ${anchorRoot}`);
+    const binary = findBinary(cwd, anchorRoot);
+    log(cwd, `binary: ${binary}`);
+    if (!binary) {
+      log(cwd, "no binary found, skipping cleanup");
       return;
     }
 

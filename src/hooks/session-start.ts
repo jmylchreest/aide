@@ -436,7 +436,7 @@ async function main(): Promise<void> {
     // Persist the session anchor — the cache anchor-aware consumers read
     // instead of re-deriving the root. Best-effort: readers fall back to
     // shelling out, then to the TS walk.
-    if (resolvedBinary) {
+    if (resolvedBinary && sessionId !== "unknown") {
       debugLog("anchor resolve/persist starting...");
       try {
         const anchor = resolveAnchorViaBinary(resolvedBinary, launchedCwd);

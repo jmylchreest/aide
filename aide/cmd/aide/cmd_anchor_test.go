@@ -17,10 +17,9 @@ import (
 //	  stray/                   .aide/ only, no VCS  — must never join a chain
 //	wt/                        linked worktree of super (.git file -> super/.git/worktrees/wt)
 //	bare/                      no markers at all
-func anchorFixture(t *testing.T) (tmp, outer, super, submodule, nested, worktree, bare string) {
+func anchorFixture(t *testing.T) (outer, super, submodule, nested, worktree, bare string) {
 	t.Helper()
-	var err error
-	tmp, err = filepath.EvalSymlinks(t.TempDir())
+	tmp, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,7 +65,7 @@ func anchorFixture(t *testing.T) (tmp, outer, super, submodule, nested, worktree
 
 	t.Setenv("AIDE_PROJECT_ROOT", "")
 	os.Unsetenv("AIDE_PROJECT_ROOT")
-	return
+	return outer, super, submodule, nested, worktree, bare
 }
 
 func chainRoots(a anchorInfo) []string {
@@ -78,7 +77,7 @@ func chainRoots(a anchorInfo) []string {
 }
 
 func TestResolveAnchorSubmodule(t *testing.T) {
-	_, outer, super, submodule, _, _, _ := anchorFixture(t)
+	outer, super, submodule, _, _, _ := anchorFixture(t)
 
 	a := resolveAnchor(filepath.Join(submodule, "src"))
 
@@ -112,7 +111,7 @@ func TestResolveAnchorSubmodule(t *testing.T) {
 }
 
 func TestResolveAnchorNestedPlainRepo(t *testing.T) {
-	_, outer, super, _, nested, _, _ := anchorFixture(t)
+	outer, super, _, nested, _, _ := anchorFixture(t)
 
 	a := resolveAnchor(filepath.Join(nested, "pkg"))
 
@@ -135,7 +134,7 @@ func TestResolveAnchorNestedPlainRepo(t *testing.T) {
 }
 
 func TestResolveAnchorWorktree(t *testing.T) {
-	_, outer, super, _, _, worktree, _ := anchorFixture(t)
+	outer, super, _, _, worktree, _ := anchorFixture(t)
 
 	a := resolveAnchor(filepath.Join(worktree, "sub"))
 
@@ -249,7 +248,7 @@ func TestResolveAnchorInvalidGitFile(t *testing.T) {
 }
 
 func TestResolveAnchorSuperRoot(t *testing.T) {
-	_, outer, super, _, _, _, _ := anchorFixture(t)
+	outer, super, _, _, _, _ := anchorFixture(t)
 
 	a := resolveAnchor(super)
 
@@ -266,7 +265,7 @@ func TestResolveAnchorSuperRoot(t *testing.T) {
 // TestResolveAnchorStrayAideNeverJoinsChain pins the leakage guard: an
 // .aide/-only directory (no VCS) must never appear as a parent scope.
 func TestResolveAnchorStrayAideNeverJoinsChain(t *testing.T) {
-	_, outer, _, _, _, _, _ := anchorFixture(t)
+	outer, _, _, _, _, _ := anchorFixture(t)
 
 	strayChild := filepath.Join(outer, "stray", "child")
 	if err := os.MkdirAll(strayChild, 0o755); err != nil {
@@ -288,8 +287,7 @@ func TestResolveAnchorStrayAideNeverJoinsChain(t *testing.T) {
 }
 
 func TestResolveAnchorNoMarker(t *testing.T) {
-	tmp, _, _, _, _, _, bare := anchorFixture(t)
-	_ = tmp
+	_, _, _, _, _, bare := anchorFixture(t)
 
 	a := resolveAnchor(bare)
 
@@ -310,7 +308,7 @@ func TestResolveAnchorNoMarker(t *testing.T) {
 }
 
 func TestResolveAnchorEnvOverride(t *testing.T) {
-	_, _, super, submodule, _, _, _ := anchorFixture(t)
+	_, super, submodule, _, _, _ := anchorFixture(t)
 
 	t.Setenv("AIDE_PROJECT_ROOT", super)
 	a := resolveAnchor(filepath.Join(submodule, "src"))
@@ -321,8 +319,7 @@ func TestResolveAnchorEnvOverride(t *testing.T) {
 }
 
 func TestResolveAnchorEnvOverrideRequiresMarker(t *testing.T) {
-	tmp, _, super, _, _, _, bare := anchorFixture(t)
-	_ = tmp
+	_, super, _, _, _, bare := anchorFixture(t)
 
 	// Unmarked override: rejected, walk proceeds from cwd.
 	t.Setenv("AIDE_PROJECT_ROOT", bare)
@@ -417,7 +414,7 @@ func TestResolveAnchorWorktreeHostedSubmodule(t *testing.T) {
 }
 
 func TestResolveAnchorPayload(t *testing.T) {
-	_, _, super, _, _, _, _ := anchorFixture(t)
+	_, super, _, _, _, _ := anchorFixture(t)
 
 	a := resolveAnchor(super)
 

@@ -32,7 +32,12 @@ function readStatuslineInput(): StatuslineInput {
     if (process.stdin.isTTY) return {};
     const raw = readFileSync(0, "utf-8");
     if (!raw.trim()) return {};
-    return JSON.parse(raw) as StatuslineInput;
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    return {
+      session_id:
+        typeof parsed.session_id === "string" ? parsed.session_id : undefined,
+      cwd: typeof parsed.cwd === "string" ? parsed.cwd : undefined,
+    };
   } catch {
     return {};
   }

@@ -59,6 +59,10 @@ import {
   getContentToCheck,
 } from "../core/comment-checker.js";
 import { getState, setState } from "../core/aide-client.js";
+import {
+  resolveAnchorViaBinary,
+  writeSessionAnchor,
+} from "../lib/anchor.js";
 import { isFalsy, reflectEnabled } from "../lib/hook-utils.js";
 import { saveStateSnapshot } from "../core/pre-compact-logic.js";
 import {
@@ -481,6 +485,16 @@ async function handleSessionCreated(
     } catch (err) {
       debug(SOURCE, `Failed to register session state (non-fatal): ${err}`);
     }
+
+    // Persist the session anchor for parity with Claude Code's
+    // session-start: launchCwd must be state.cwd, the value any future
+    // hooks.ts reader would pass.
+    try {
+      const anchor = resolveAnchorViaBinary(state.binary, state.cwd);
+      if (anchor) writeSessionAnchor(sessionId, state.cwd, anchor);
+    } catch (err) {
+      debug(SOURCE, `anchor persist failed (non-fatal): ${err}`);
+    }
   }
 
   if (state.memories) {
@@ -634,7 +648,21 @@ async function handleSessionDeleted(
       );
       debug(SOURCE, `session end ${sessionId.slice(0, 8)} ok`);
     } catch (err) {
+      // Surface through OpenCode's log, not just debug: a stale binary
+      // without the subcommand fails on every session end, and this
+      // failure class was invisible for months as debug-only.
       debug(SOURCE, `session end failed (non-fatal): ${err}`);
+      try {
+        await state.client.app.log({
+          body: {
+            service: "aide",
+            level: "warn",
+            message: `session teardown failed (stale aide binary without 'session end'?): ${err}`,
+          },
+        });
+      } catch {
+        /* log channel unavailable */
+      }
     }
   }
 

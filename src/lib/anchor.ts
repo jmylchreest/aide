@@ -27,6 +27,7 @@
 
 import {
   existsSync,
+  lstatSync,
   mkdirSync,
   readFileSync,
   readdirSync,
@@ -126,10 +127,13 @@ export function resolveAnchorViaBinary(
   try {
     // --cwd is passed explicitly rather than relying on the child's
     // inherited working directory: it survives a deleted/renamed cwd and
-    // is immune to getcwd/$PWD spelling differences.
+    // is immune to getcwd/$PWD spelling differences. stderr is dropped —
+    // pre-anchor binaries print "unknown command" there, and hook stderr
+    // renders as an error in Claude Code.
     const out = execFileSync(binary, ["anchor", "--json", `--cwd=${cwd}`], {
       encoding: "utf-8",
       timeout: 5000,
+      stdio: ["ignore", "pipe", "ignore"],
     });
     const parsed = JSON.parse(out) as unknown;
     return isValidAnchor(parsed) ? parsed : null;
@@ -165,11 +169,17 @@ export function writeSessionAnchor(
     }
   }
 
-  // Project-local copy only when the project actually has .aide/ (the
-  // anchor itself must never create it).
+  // Project-local copy only when the project actually has a real .aide/
+  // (never created here, and never written through a symlinked .aide or
+  // state dir — a hostile repo could point one at a user-writable path).
   try {
-    if (existsSync(join(anchor.root, ".aide"))) {
-      atomicWrite(join(anchor.root, ".aide", "state", "anchor.json"), json);
+    const aideDir = join(anchor.root, ".aide");
+    const stateDir = join(aideDir, "state");
+    if (
+      lstatSync(aideDir).isDirectory() &&
+      (!existsSync(stateDir) || lstatSync(stateDir).isDirectory())
+    ) {
+      atomicWrite(join(stateDir, "anchor.json"), json);
     }
   } catch {
     /* best effort */
