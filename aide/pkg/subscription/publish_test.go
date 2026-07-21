@@ -8,6 +8,7 @@ import (
 	"time"
 
 	git "github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/jmylchreest/aide/aide/pkg/config"
 	"github.com/jmylchreest/aide/aide/pkg/contextshare"
 	"github.com/jmylchreest/aide/aide/pkg/memory"
@@ -77,6 +78,72 @@ func TestPublishGit(t *testing.T) {
 		t.Fatal(err)
 	} else if pushed {
 		t.Error("watermark-only re-publish shipped a commit")
+	}
+}
+
+// TestPublishBootstrapMainHead reproduces the real-world default: a bare
+// remote whose HEAD points at main (git init.defaultBranch=main). The
+// bootstrap must publish main — not go-git's master — so the remote HEAD
+// never dangles, and both the publisher's own re-sync and a fresh
+// consumer's clone succeed.
+func TestPublishBootstrapMainHead(t *testing.T) {
+	remote := t.TempDir()
+	bare, err := git.PlainInit(remote, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	head := plumbing.NewSymbolicReference(plumbing.HEAD, plumbing.NewBranchReferenceName("main"))
+	if err := bare.Storer.SetReference(head); err != nil {
+		t.Fatal(err)
+	}
+
+	sub := config.SubscriptionConfig{Name: "ctx", URL: remote, Publish: true}
+	proj := t.TempDir()
+	if pushed, err := Publish(context.Background(), proj, sub, writeTopic(t, "t", "v", time.Now())); err != nil || !pushed {
+		t.Fatalf("bootstrap publish: pushed=%v err=%v", pushed, err)
+	}
+	if _, err := Sync(context.Background(), proj, sub); err != nil {
+		t.Fatalf("publisher's own re-sync: %v", err)
+	}
+
+	consumer := t.TempDir()
+	root, err := Sync(context.Background(), consumer, config.SubscriptionConfig{Name: "ctx", URL: remote})
+	if err != nil {
+		t.Fatalf("fresh consumer sync: %v", err)
+	}
+	if latest, err := ReadDecisions(root); err != nil || latest["t"] == nil {
+		t.Fatalf("consumer read: %v %v", latest, err)
+	}
+}
+
+// TestSyncDanglingRemoteHead: a remote whose HEAD names a branch nobody
+// pushed (mismatched defaults between publisher and server) still syncs —
+// the clone falls back to the branch the remote actually has.
+func TestSyncDanglingRemoteHead(t *testing.T) {
+	remote := t.TempDir()
+	bare, err := git.PlainInit(remote, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	head := plumbing.NewSymbolicReference(plumbing.HEAD, plumbing.NewBranchReferenceName("trunk"))
+	if err := bare.Storer.SetReference(head); err != nil {
+		t.Fatal(err)
+	}
+	// Publisher bootstraps with no branch configured → publishes main;
+	// remote HEAD (trunk) now dangles.
+	proj := t.TempDir()
+	sub := config.SubscriptionConfig{Name: "ctx", URL: remote, Publish: true}
+	if _, err := Publish(context.Background(), proj, sub, writeTopic(t, "t", "v", time.Now())); err != nil {
+		t.Fatal(err)
+	}
+
+	consumer := t.TempDir()
+	root, err := Sync(context.Background(), consumer, config.SubscriptionConfig{Name: "ctx", URL: remote})
+	if err != nil {
+		t.Fatalf("consumer sync with dangling remote HEAD: %v", err)
+	}
+	if latest, err := ReadDecisions(root); err != nil || latest["t"] == nil {
+		t.Fatalf("consumer read: %v %v", latest, err)
 	}
 }
 

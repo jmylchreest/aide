@@ -13,10 +13,13 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"time"
 
 	git "github.com/go-git/go-git/v5"
+	gitconfig "github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
+	gitmemory "github.com/go-git/go-git/v5/storage/memory"
 	"github.com/jmylchreest/aide/aide/pkg/config"
 	"github.com/jmylchreest/aide/aide/pkg/contextshare"
 	"github.com/jmylchreest/aide/aide/pkg/memory"
@@ -83,11 +86,7 @@ func gitSync(ctx context.Context, dir, url, branch string) error {
 	}
 	repo, err := git.PlainOpen(dir)
 	if errors.Is(err, git.ErrRepositoryNotExists) {
-		_, err = git.PlainCloneContext(ctx, dir, false, &git.CloneOptions{
-			URL:           url,
-			ReferenceName: ref,
-			SingleBranch:  branch != "",
-		})
+		_, err = cloneWithFallback(ctx, dir, url, branch)
 		return err
 	}
 	if err != nil {
@@ -102,10 +101,100 @@ func gitSync(ctx context.Context, dir, url, branch string) error {
 		SingleBranch:  branch != "",
 		Force:         true,
 	})
+	if err != nil && branch == "" && errors.Is(err, plumbing.ErrReferenceNotFound) {
+		if db := remoteDefaultBranch(url); db != "" {
+			err = wt.PullContext(ctx, &git.PullOptions{
+				ReferenceName: plumbing.NewBranchReferenceName(db),
+				SingleBranch:  true,
+				Force:         true,
+			})
+		}
+	}
 	if errors.Is(err, git.NoErrAlreadyUpToDate) {
 		return nil
 	}
 	return err
+}
+
+// cloneWithFallback clones dir from url. A dangling remote HEAD (the
+// server's default branch was never pushed — common when a publisher
+// bootstrapped an empty repo under a different default) fails ref
+// resolution; the retry targets the branch the remote actually has.
+func cloneWithFallback(ctx context.Context, dir, url, branch string) (*git.Repository, error) {
+	var ref plumbing.ReferenceName
+	if branch != "" {
+		ref = plumbing.NewBranchReferenceName(branch)
+	}
+	repo, err := git.PlainCloneContext(ctx, dir, false, &git.CloneOptions{
+		URL:           url,
+		ReferenceName: ref,
+		SingleBranch:  branch != "",
+	})
+	if err != nil && branch == "" && errors.Is(err, plumbing.ErrReferenceNotFound) {
+		if db := remoteDefaultBranch(url); db != "" {
+			_ = os.RemoveAll(dir)
+			repo, err = git.PlainCloneContext(ctx, dir, false, &git.CloneOptions{
+				URL:           url,
+				ReferenceName: plumbing.NewBranchReferenceName(db),
+				SingleBranch:  true,
+			})
+		}
+	}
+	return repo, err
+}
+
+// remoteDefaultBranch asks the remote which branch to treat as default:
+// HEAD's symref target when advertised, else the branch HEAD's hash
+// points at (main/master preferred), else main/master by presence, else
+// the first branch alphabetically. Empty when the remote is unreachable
+// or has no branches.
+func remoteDefaultBranch(url string) string {
+	rem := git.NewRemote(gitmemory.NewStorage(), &gitconfig.RemoteConfig{
+		Name: "origin",
+		URLs: []string{url},
+	})
+	refs, err := rem.List(&git.ListOptions{})
+	if err != nil {
+		return ""
+	}
+	var headHash plumbing.Hash
+	branches := map[string]plumbing.Hash{}
+	names := []string{}
+	for _, r := range refs {
+		if r.Name() == plumbing.HEAD {
+			if r.Type() == plumbing.SymbolicReference {
+				return r.Target().Short()
+			}
+			headHash = r.Hash()
+			continue
+		}
+		if r.Name().IsBranch() {
+			branches[r.Name().Short()] = r.Hash()
+			names = append(names, r.Name().Short())
+		}
+	}
+	if !headHash.IsZero() {
+		for _, cand := range []string{"main", "master"} {
+			if h, ok := branches[cand]; ok && h == headHash {
+				return cand
+			}
+		}
+		for _, n := range names {
+			if branches[n] == headHash {
+				return n
+			}
+		}
+	}
+	for _, cand := range []string{"main", "master"} {
+		if _, ok := branches[cand]; ok {
+			return cand
+		}
+	}
+	sort.Strings(names)
+	if len(names) > 0 {
+		return names[0]
+	}
+	return ""
 }
 
 func stampSync(dir string) {

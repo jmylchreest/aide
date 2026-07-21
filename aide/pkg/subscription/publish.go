@@ -112,15 +112,7 @@ func openOrClone(ctx context.Context, dir, url, branch string) (repo *git.Reposi
 		return nil, false, err
 	}
 
-	var ref plumbing.ReferenceName
-	if branch != "" {
-		ref = plumbing.NewBranchReferenceName(branch)
-	}
-	repo, err = git.PlainCloneContext(ctx, dir, false, &git.CloneOptions{
-		URL:           url,
-		ReferenceName: ref,
-		SingleBranch:  branch != "",
-	})
+	repo, err = cloneWithFallback(ctx, dir, url, branch)
 	if err == nil {
 		return repo, false, nil
 	}
@@ -138,11 +130,15 @@ func openOrClone(ctx context.Context, dir, url, branch string) (repo *git.Reposi
 	}); err != nil {
 		return nil, false, err
 	}
-	if branch != "" {
-		head := plumbing.NewSymbolicReference(plumbing.HEAD, plumbing.NewBranchReferenceName(branch))
-		if err := repo.Storer.SetReference(head); err != nil {
-			return nil, false, err
-		}
+	// Never inherit go-git's master default: an unconfigured bootstrap
+	// publishes main, matching what modern servers point HEAD at. (An
+	// empty remote advertises nothing, so its preference is unknowable.)
+	if branch == "" {
+		branch = "main"
+	}
+	head := plumbing.NewSymbolicReference(plumbing.HEAD, plumbing.NewBranchReferenceName(branch))
+	if err := repo.Storer.SetReference(head); err != nil {
+		return nil, false, err
 	}
 	return repo, true, nil
 }
