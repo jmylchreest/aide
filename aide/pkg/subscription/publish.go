@@ -38,11 +38,7 @@ func Publish(ctx context.Context, projectRoot string, sub config.SubscriptionCon
 	}
 
 	if sub.Path != "" {
-		root, err := publishRoot(sub.Name, resolvePath(projectRoot, sub.Path))
-		if err != nil {
-			return false, err
-		}
-		return true, write(root)
+		return true, write(publishRoot(sub.Name, resolvePath(projectRoot, sub.Path)))
 	}
 
 	dir := CacheDir(projectRoot, sub.Name)
@@ -58,11 +54,7 @@ func Publish(ctx context.Context, projectRoot string, sub config.SubscriptionCon
 			}
 		}
 
-		root, err := publishRoot(sub.Name, dir)
-		if err != nil {
-			return false, err
-		}
-		if err := write(root); err != nil {
+		if err := write(publishRoot(sub.Name, dir)); err != nil {
 			return false, err
 		}
 
@@ -171,11 +163,11 @@ func resetToRemote(ctx context.Context, repo *git.Repository, branch string) err
 
 // publishRoot is shareRoot with a fallback: a tree with no records yet
 // publishes at the directory root (the dedicated-context-repo layout).
-func publishRoot(name, dir string) (string, error) {
+func publishRoot(name, dir string) string {
 	if root, err := shareRoot(name, dir); err == nil {
-		return root, nil
+		return root
 	}
-	return dir, nil
+	return dir
 }
 
 // onlyManifestChanged reports whether the staged changes carry no record

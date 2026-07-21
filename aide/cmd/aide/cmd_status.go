@@ -363,12 +363,13 @@ func printStatusTable(status StatusOutput) {
 		fmt.Printf("  Mode:     %s\n", status.Mode)
 	}
 	fmt.Printf("  Time:     %s\n", status.Timestamp.Format("2006-01-02 15:04:05"))
-	if status.ServerRunning {
+	switch {
+	case status.ServerRunning:
 		fmt.Printf("  Server:   running (uptime: %s)\n", status.Uptime)
-	} else if status.ServerState == serverStateSandboxed {
+	case status.ServerState == serverStateSandboxed:
 		fmt.Printf("  Server:   unreachable — socket present but this shell's sandbox denies connect()\n")
 		fmt.Printf("            daemon is likely running; in Codex allow it with [sandbox_workspace_write] network_access = true\n")
-	} else {
+	default:
 		fmt.Printf("  Server:   not running\n")
 	}
 	if status.PprofURL != "" {

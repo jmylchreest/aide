@@ -241,9 +241,9 @@ func resolveStoreTarget(a anchorInfo, selector string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("--store=%q: %w", selector, err)
 		}
-		real := realPath(abs)
+		resolved := realPath(abs)
 		for _, link := range a.Chain {
-			if link.Root == abs || link.RealRoot == real {
+			if link.Root == abs || link.RealRoot == resolved {
 				target = link.Root
 				break
 			}
