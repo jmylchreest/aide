@@ -10,7 +10,8 @@ const (
 	KindDependency   = "dependency"   // External dependency or internal module relationship
 	KindTechStack    = "tech_stack"   // Language, framework, build system detected
 	KindChurn        = "churn"        // Git history hotspot (high-change file/dir)
-	KindSubmodule    = "submodule"    // Git submodule reference
+	KindSubmodule    = "submodule"    // Git submodule reference (churn analyzer, history lens)
+	KindSubproject   = "subproject"   // Child project scope: nested VCS root or submodule checkout with its own store boundary
 	KindWorkspace    = "workspace"    // Monorepo workspace root (npm, go, cargo, etc.)
 	KindArchPattern  = "arch_pattern" // Detected architectural pattern (MVC, hexagonal, etc.)
 	KindUnclassified = "unclassified" // Files not matching any known grammar pack, grouped by extension.

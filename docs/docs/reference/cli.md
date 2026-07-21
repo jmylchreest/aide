@@ -218,7 +218,7 @@ aide anchor --cwd=/path/to/dir           # Probe from another directory
 
 A read-only resolution probe: prints the project root aide would use, which
 marker decided it (`.git` directory/worktree/submodule, `.aide`, env
-override), the project identity, and the scope chain — the project itself
+override), the project identity, and the anchor chain — the project itself
 plus VCS-evidenced parent scopes (a submodule's superproject, ancestor
 repositories that contain it). It never creates `.aide/` and exits 0 even
 when no marker is found, so it is safe to run anywhere — the "what would

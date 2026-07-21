@@ -55,6 +55,9 @@ func RunTopologyWithRegistry(rootDir string, reg *grammar.PackRegistry) (*Topolo
 	}
 
 	AnnotateEstTokens(rootDir, result.Entries)
+	// Child project scopes: the downward estate map.
+	result.Entries = append(result.Entries, discoverSubprojects(rootDir)...)
+
 	return result, nil
 }
 

@@ -41,7 +41,7 @@ import { homedir } from "os";
 import { dirname, join } from "path";
 import { findProjectRoot } from "./project-root.js";
 
-export interface AnchorScope {
+export interface AnchorLink {
   root: string;
   realRoot: string;
   relation: "self" | "parent";
@@ -59,7 +59,7 @@ export interface AnchorInfo {
   identity: { projectName: string; source: string };
   dbPath: string;
   socketPath: string;
-  chain: AnchorScope[];
+  chain: AnchorLink[];
 }
 
 /** Session cache entry: the anchor plus the launch context it was resolved for. */

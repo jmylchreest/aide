@@ -8,22 +8,22 @@ import (
 	"regexp"
 	"strings"
 
-	git "github.com/go-git/go-git/v5"
 	"github.com/jmylchreest/aide/aide/internal/version"
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi"
+	"github.com/jmylchreest/aide/aide/pkg/anchor"
 )
 
 // anchorSchemaVersion identifies the anchor JSON contract. Bump on any
 // breaking change to the payload shape; readers must check it.
 const anchorSchemaVersion = 1
 
-// anchorScope is one member of the scope chain: the anchored project itself
+// anchorLink is one member of the anchor chain: the anchored project itself
 // (relation "self") followed by VCS-evidenced ancestor scopes (relation
 // "parent"), nearest first. Chain membership requires VCS evidence — a
 // submodule gitdir or an ancestor repository that physically contains the
 // anchor — never mere .aide/ presence, so a stray .aide/ above unrelated
 // repos can never become a context source.
-type anchorScope struct {
+type anchorLink struct {
 	Root     string `json:"root"`
 	RealRoot string `json:"realRoot"`
 	Relation string `json:"relation"`           // "self" | "parent"
@@ -63,11 +63,11 @@ type anchorInfo struct {
 	Identity        anchorIdentityInfo `json:"identity"`
 	DBPath          string             `json:"dbPath"`
 	SocketPath      string             `json:"socketPath"`
-	Chain           []anchorScope      `json:"chain"`
+	Chain           []anchorLink      `json:"chain"`
 }
 
 // resolveAnchor is the single authoritative project-root resolution,
-// returning full provenance and the scope chain. findProjectRoot is a thin
+// returning full provenance and the anchor chain. findProjectRoot is a thin
 // wrapper over it — do not add resolution logic anywhere else.
 //
 // startCwd == "" means the process working directory. AIDE_PROJECT_ROOT,
@@ -256,7 +256,7 @@ func finishAnchor(info *anchorInfo, markerDir string) {
 	info.DBPath = computeDBPath(info.Root)
 	info.SocketPath = grpcapi.SocketPathFromDB(info.DBPath)
 
-	chain := []anchorScope{{
+	chain := []anchorLink{{
 		Root:     info.Root,
 		RealRoot: info.RealRoot,
 		Relation: "self",
@@ -287,7 +287,7 @@ func finishAnchor(info *anchorInfo, markerDir string) {
 				evidence = "submodule-gitdir"
 				ownerPlaced = true
 			}
-			chain = append(chain, anchorScope{
+			chain = append(chain, anchorLink{
 				Root:     c.vcsResolved,
 				RealRoot: realPath(c.vcsResolved),
 				Relation: "parent",
@@ -296,7 +296,7 @@ func finishAnchor(info *anchorInfo, markerDir string) {
 		}
 	}
 	if submoduleOwner != "" && !ownerPlaced && !seen[submoduleOwner] {
-		chain = append(chain, anchorScope{
+		chain = append(chain, anchorLink{
 			Root:     submoduleOwner,
 			RealRoot: realPath(submoduleOwner),
 			Relation: "parent",
@@ -307,70 +307,29 @@ func finishAnchor(info *anchorInfo, markerDir string) {
 	info.Chain = chain
 }
 
-// classifyAnchorMarker reports which marker anchored root, and the gitdir
-// shape when the marker is .git.
+// classifyAnchorMarker reports which marker anchored root via the shared
+// scope-package classifier.
 func classifyAnchorMarker(root string, hasMarker bool) anchorProvenance {
 	if !hasMarker {
 		return anchorProvenance{}
 	}
-	gitPath := filepath.Join(root, ".git")
-	if st, err := os.Stat(gitPath); err == nil {
-		if st.IsDir() {
-			return anchorProvenance{Marker: ".git", GitdirShape: "directory"}
-		}
-		shape, _ := gitfileInfo(gitPath)
-		if shape == "" {
-			// os.Stat proved .git is a FILE; an unparseable one is a
-			// misconfiguration, not a plain repo — say so.
-			shape = "invalid"
-		}
-		return anchorProvenance{Marker: ".git", GitdirShape: shape}
-	}
-	for _, marker := range vcsMarkerNames[1:] {
-		if _, err := os.Stat(filepath.Join(root, marker)); err == nil {
-			return anchorProvenance{Marker: marker}
-		}
-	}
-	if _, err := os.Stat(filepath.Join(root, ".aide")); err == nil {
-		return anchorProvenance{Marker: ".aide"}
-	}
-	return anchorProvenance{}
+	marker, shape := anchor.ClassifyDir(root)
+	return anchorProvenance{Marker: marker, GitdirShape: shape}
 }
 
-// anchorProjectIdentity derives the project name: the last path segment of
-// the origin remote URL when one exists (rename-stable), else the directory
-// basename. Mirrors the TS layer's getProjectName so both sides agree.
+// anchorProjectIdentity delegates to the shared scope-package derivation.
 func anchorProjectIdentity(root string) (name, source string) {
-	if repo, err := git.PlainOpenWithOptions(root, &git.PlainOpenOptions{}); err == nil {
-		if remote, err := repo.Remote("origin"); err == nil {
-			urls := remote.Config().URLs
-			if len(urls) > 0 {
-				if n := lastURLSegment(urls[0]); n != "" {
-					return n, "git-remote"
-				}
-			}
-		}
-	}
-	return filepath.Base(root), "basename"
+	return anchor.ProjectIdentity(root)
 }
 
-// lastURLSegment extracts the repository name from a git remote URL:
-// "git@host:org/repo.git" and "https://host/org/repo.git" both yield "repo".
+// lastURLSegment delegates to the shared scope package (kept for tests).
 func lastURLSegment(url string) string {
-	s := strings.TrimSuffix(strings.TrimRight(strings.TrimSpace(url), "/"), ".git")
-	if i := strings.LastIndexAny(s, "/:"); i >= 0 {
-		s = s[i+1:]
-	}
-	return s
+	return anchor.LastURLSegment(url)
 }
 
-// realPath resolves symlinks, falling back to the input on error so aliased
-// spellings of one project map to one identity (mirrors registry.NormalizeRoot).
+// realPath delegates to the shared scope package.
 func realPath(p string) string {
-	if resolved, err := filepath.EvalSymlinks(p); err == nil {
-		return resolved
-	}
-	return p
+	return anchor.RealPath(p)
 }
 
 // cmdAnchor implements `aide anchor [--json] [--cwd=PATH]`.

@@ -55,6 +55,18 @@ print('    ident  :', a['identity']['projectName'], '('+a['identity']['source']+
 for s in a['chain'][1:]: print('    parent :', s['root'].replace('$E/',''), '['+s['evidence']+']')"
 done
 
+echo "== phase 1b: downward estate map (survey subprojects, direct children only)"
+A "$E/tl" survey run --analyzer=topology >/dev/null 2>&1
+tl_map="$(A "$E/tl" survey list --kind=subproject 2>/dev/null)"
+tl_children="$(echo "$tl_map" | grep -c "^\[" || true)"
+check "tl lists its 2 direct children (got $tl_children)" "[ \"$tl_children\" = \"2\" ]"
+check "tl sees proj-sub as submodule (identity standalone-a)" "echo \"$tl_map\" | grep -q 'submodule-gitdir'"
+check "tl sees mid as nested repo" "echo \"$tl_map\" | grep -q 'Subproject mid'"
+A "$E/tl/mid" survey run --analyzer=topology >/dev/null 2>&1
+mid_map="$(A "$E/tl/mid" survey list --kind=subproject 2>/dev/null)"
+mid_children="$(echo "$mid_map" | grep -c "^\[" || true)"
+check "mid lists its 2 direct children (got $mid_children)" "[ \"$mid_children\" = \"2\" ]"
+
 echo "== phase 2: per-store decisions + memories (writes)"
 for d in "${LEVELS[@]}"; do
   tag="$(basename "$d")"

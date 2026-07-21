@@ -9,6 +9,7 @@ import (
 
 	"github.com/jmylchreest/aide/aide/internal/version"
 	"github.com/jmylchreest/aide/aide/pkg/config"
+	"github.com/jmylchreest/aide/aide/pkg/anchor"
 )
 
 const (
@@ -163,7 +164,7 @@ Usage:
   aide <command> [arguments]
 
 Commands:
-  anchor     Show resolved project root, provenance, and scope chain (read-only; --json)
+  anchor     Show resolved project root, provenance, and anchor chain (read-only; --json)
   session    Session lifecycle (init - single-call startup; end - teardown + metrics)
   memory     Manage memories (add, delete, search, select, list, export, clear)
   code       Index and search code symbols (index, search, symbols, clear)
@@ -280,10 +281,9 @@ func computeDBPath(projectRoot string) string {
 	return dbPath
 }
 
-// vcsMarkerNames are the recognized VCS root markers, .git first. Every
-// marker check in this package must use this list — keeping the anchor
-// classifier, vcsMarker, and isVCSRoot in agreement.
-var vcsMarkerNames = []string{".git", ".hg", ".svn", ".bzr", ".fossil"}
+// vcsMarkerNames aliases the shared scope-package list so every marker
+// check in this package stays in agreement with the survey analyzers.
+var vcsMarkerNames = anchor.VCSMarkerNames
 
 // vcsMarker reports whether dir contains a VCS marker, and for .git files
 // (worktrees) returns the resolved main-repo root. Empty resolved string
@@ -321,82 +321,14 @@ func isVCSRoot(dir string) bool {
 	return false
 }
 
-// isSubmoduleGitdir reports whether a resolved gitdir path points into a
-// superproject's modules tree, i.e. the .git file belongs to a submodule
-// checkout rather than a linked worktree. Two shapes qualify:
-//
-//	<super>/.git/modules/<path>                    plain submodule
-//	<super>/.git/worktrees/<wt>/modules/<path>     submodule inside a
-//	                                               linked worktree of the
-//	                                               superproject
-//
-// The second shape was previously misclassified as a worktree, which made
-// a submodule checked out inside a super-repo worktree anchor the
-// SUPERPROJECT's store instead of its own.
+// isSubmoduleGitdir delegates to the shared scope-package classifier.
 func isSubmoduleGitdir(gitdir string) bool {
-	parts := strings.Split(filepath.ToSlash(gitdir), "/")
-	for i := 0; i < len(parts)-1; i++ {
-		if parts[i] != ".git" {
-			continue
-		}
-		j := i + 1
-		if parts[j] == "worktrees" && j+2 < len(parts) {
-			j += 2
-		}
-		if j < len(parts) && parts[j] == "modules" {
-			return true
-		}
-	}
-	return false
+	return anchor.IsSubmoduleGitdir(gitdir)
 }
 
-// gitfileInfo parses a .git file ("gitdir: <path>") and classifies it:
-// shape "worktree" (linked worktree) or "submodule" (gitdir under a
-// superproject's .git/modules/ tree), plus the owning repository's root —
-// the main repo for a worktree, the superproject for a submodule. Returns
-// ("", "") when the file is unreadable or not a gitdir pointer. This is
-// the single .git-file parser; resolveWorktreeRoot and the anchor
-// provenance/chain build on it.
+// gitfileInfo delegates to the shared scope-package parser.
 func gitfileInfo(gitFilePath string) (shape string, ownerRoot string) {
-	data, err := os.ReadFile(gitFilePath)
-	if err != nil {
-		return "", ""
-	}
-	line := strings.TrimSpace(string(data))
-	if !strings.HasPrefix(line, "gitdir:") {
-		return "", ""
-	}
-	gitdir := strings.TrimSpace(strings.TrimPrefix(line, "gitdir:"))
-	if !filepath.IsAbs(gitdir) {
-		gitdir = filepath.Join(filepath.Dir(gitFilePath), gitdir)
-	}
-
-	shape = "worktree"
-	if isSubmoduleGitdir(gitdir) {
-		shape = "submodule"
-	}
-
-	// A dangling gitdir (repo moved or deleted) must not resurrect state at
-	// the dead path: keep the shape classification but report no owner, so
-	// resolution falls back to the checkout directory itself.
-	if _, err := os.Stat(gitdir); err != nil {
-		return shape, ""
-	}
-
-	// Walk up the gitdir path to the ".git" component; its parent is the
-	// owning repository's root.
-	candidate := gitdir
-	for {
-		parent := filepath.Dir(candidate)
-		if parent == candidate {
-			break
-		}
-		if filepath.Base(candidate) == ".git" {
-			return shape, parent
-		}
-		candidate = parent
-	}
-	return shape, ""
+	return anchor.GitfileInfo(gitFilePath)
 }
 
 // resolveWorktreeRoot reads a .git file (worktree marker) and resolves the
