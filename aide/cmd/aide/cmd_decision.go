@@ -29,6 +29,7 @@ func cmdDecision(dbPath string, args []string) error {
 		{name: "history", handler: func(a []string) error { return decisionHistory(backend, a) }},
 		{name: "delete", handler: func(a []string) error { return decisionDelete(backend, a) }},
 		{name: "clear", handler: func(a []string) error { return decisionClear(backend) }},
+		{name: "adopt", handler: func(a []string) error { return decisionAdopt(backend, dbPath, a) }},
 	})
 }
 
@@ -45,6 +46,7 @@ Subcommands:
   history    Show decision history for a topic
   delete     Delete all decisions for a topic
   clear      Clear all decisions
+  adopt      Copy a subscribed peer's decision into this store
 
 Options:
   set TOPIC DECISION:
@@ -59,12 +61,23 @@ Options:
   history TOPIC:
     --full             Show details in history output
 
+  adopt TOPIC:
+    --from=PEER        Subscription to adopt from (required when several
+                       peers publish the topic)
+
+Adopt copies a peer's current decision for TOPIC into this store as a
+new local decision stamped with adoption provenance — the only way peer
+content enters a local store; peer layers are otherwise read-only and
+never re-exported. Reads the local subscription cache ('aide sync' to
+refresh).
+
 Examples:
   aide decision set auth-strategy "JWT" --rationale="Stateless"
   aide decision set auth-strategy "Session" --rationale="Changed mind"
   aide decision get auth-strategy
   aide decision history auth-strategy --full
-  aide decision list --format=json`)
+  aide decision list --format=json
+  aide decision adopt api-style --from=platform-team`)
 }
 
 func decisionSet(b *Backend, args []string) error {

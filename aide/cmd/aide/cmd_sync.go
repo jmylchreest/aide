@@ -79,7 +79,7 @@ session context as a read-only layer (origin peer:<name>), are never
 re-exported, and sync only decisions — memories never leave a project.
 
 Promote a peer decision into this project with:
-  aide context adopt <topic> --from=<name>
+  aide decision adopt <topic> --from=<name>
 
 Subscriptions live in .aide/config/aide.json:
   { "subscriptions": [

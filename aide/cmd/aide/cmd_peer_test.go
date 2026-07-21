@@ -120,13 +120,13 @@ func TestSessionPeerKillSwitch(t *testing.T) {
 	}
 }
 
-// TestContextAdopt promotes a peer decision into the local store with
+// TestDecisionAdopt promotes a peer decision into the local store with
 // adoption provenance.
-func TestContextAdopt(t *testing.T) {
+func TestDecisionAdopt(t *testing.T) {
 	root := peerFixture(t)
 	dbPath := computeDBPath(root)
 
-	if err := cmdContextAdopt(dbPath, []string{"peer-only", "--from=team"}); err != nil {
+	if err := cmdDecision(dbPath, []string{"adopt", "peer-only", "--from=team"}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -146,7 +146,7 @@ func TestContextAdopt(t *testing.T) {
 		t.Errorf("DecidedBy = %q, want adoption provenance with original author", d.DecidedBy)
 	}
 
-	if err := cmdContextAdopt(dbPath, []string{"no-such-topic"}); err == nil {
+	if err := cmdDecision(dbPath, []string{"adopt", "no-such-topic"}); err == nil {
 		t.Error("expected error adopting unknown topic")
 	}
 }

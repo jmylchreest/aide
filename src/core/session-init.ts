@@ -479,14 +479,14 @@ export function runSessionInit(
 /**
  * Provenance suffix for a non-local decision: parent decisions cascade
  * from the anchor chain (override locally), peer decisions come from a
- * read-only subscription layer (promote with `aide context adopt`).
+ * read-only subscription layer (promote with `aide decision adopt`).
  */
 function decisionOriginSuffix(
   d: SessionInitResult["decisions"][number],
 ): string {
   if (!d.origin_name) return "";
   if (d.origin_kind === "peer") {
-    return ` — from peer **${d.origin_name}** (read-only; adopt with \`aide context adopt ${d.topic} --from=${d.origin_name}\`)`;
+    return ` — from peer **${d.origin_name}** (read-only; adopt with \`aide decision adopt ${d.topic} --from=${d.origin_name}\`)`;
   }
   return ` — inherited from parent **${d.origin_name}** (override with a local \`decision set ${d.topic}\`)`;
 }

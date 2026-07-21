@@ -45,6 +45,7 @@ aide decision delete auth-strategy
 | `decision list`    | List all decision topics                           |
 | `decision history` | Show full history for a topic                      |
 | `decision delete`  | Delete a decision topic                            |
+| `decision adopt`   | Promote a subscribed peer's decision into this store (see Sync & Subscriptions) |
 
 ## Tasks
 
@@ -213,7 +214,7 @@ aide share import --dry-run              # Preview import
 ```bash
 aide sync                                # Fetch all subscribed peer context
 aide sync platform-team                  # Fetch one subscription
-aide context adopt api-style --from=platform-team   # Promote a peer decision locally
+aide decision adopt api-style --from=platform-team  # Promote a peer decision locally
 ```
 
 Subscriptions name peer context sources in `.aide/config/aide.json`:
@@ -231,7 +232,7 @@ Subscriptions name peer context sources in `.aide/config/aide.json`:
 `from peer <name>`, at the lowest precedence (local > ancestors > peers),
 and are **never re-exported** — you only publish records you authored or
 explicitly adopted. Only decisions cross project boundaries; memories and
-state never do. `aide context adopt TOPIC [--from=PEER]` is the promotion
+state never do. `aide decision adopt TOPIC [--from=PEER]` is the promotion
 verb: it copies the peer's current decision into the local store as a new
 local decision stamped with adoption provenance. Session init refreshes
 stale subscription caches opportunistically (bounded, offline-silent).

@@ -150,8 +150,6 @@ func runCommand(cmd, dbPath string, args []string) error {
 		return cmdShare(dbPath, args)
 	case "sync":
 		return cmdSync(dbPath, args)
-	case "context":
-		return cmdContext(dbPath, args)
 	case "config":
 		return cmdConfig(dbPath, args)
 	case "maintenance":
@@ -202,7 +200,6 @@ Commands:
   blueprint  Manage and import best-practice decision blueprints
   share      Export/import decisions & memories as git-friendly markdown
   sync       Fetch subscribed peer context (decisions only, read-only layer)
-  context    Cross-project context operations (adopt a peer decision)
   config     Inspect and edit aide configuration (show, get, set, unset, path)
   maintenance Compact bolt stores to reclaim disk (compact)
   daemon     Start gRPC daemon (Unix socket for IPC)
