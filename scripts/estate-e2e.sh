@@ -83,6 +83,19 @@ for d in "${LEVELS[@]}"; do
   check "$d has exactly 1 estate memory (got $mems)" "[ \"$mems\" = \"1\" ]"
 done
 
+echo "== phase 3b: --store routing (decision store-routing semantics)"
+run "$E/aide" --project-root "$E/tl/mid/leaf" --store parent decision set store-routed "via-parent-from-leaf" >/dev/null 2>&1
+got="$(A "$E/tl/mid" decision get store-routed 2>/dev/null | grep -o 'via-parent-from-leaf' | head -1)"
+check "leaf --store parent lands in mid ($got)" "[ \"$got\" = \"via-parent-from-leaf\" ]"
+check "leaf's own store untouched by parent write" "! (A $E/tl/mid/leaf decision get store-routed 2>/dev/null | grep -q via-parent)"
+run "$E/aide" --project-root "$E/tl/mid/leaf" --store top decision set estate-rule "via-top-from-leaf" >/dev/null 2>&1
+got="$(A "$E/tl" decision get estate-rule 2>/dev/null | grep -o 'via-top-from-leaf' | head -1)"
+check "leaf --store top lands in tl ($got)" "[ \"$got\" = \"via-top-from-leaf\" ]"
+check "estate root rejects --store parent" "! run $E/aide --project-root $E/tl --store parent decision set x y >/dev/null 2>&1"
+git init -q "$E/bare-parent" && mkdir -p "$E/bare-parent/child" && git init -q "$E/bare-parent/child"
+check "uninitialized parent refused" "! run $E/aide --project-root $E/bare-parent/child --store parent decision set x y >/dev/null 2>&1"
+check "sibling path rejected" "! run $E/aide --project-root $E/tl/mid/leaf --store $E/tl/proj-sub decision set x y >/dev/null 2>&1"
+
 echo "== phase 4: share export stays local to its store"
 A "$E/tl" share export >/dev/null 2>&1 || true
 check "tl has share exports" "ls $E/tl/.aide/shared/decisions/* >/dev/null 2>&1"

@@ -448,6 +448,60 @@ func TestResolveAnchorPayload(t *testing.T) {
 	}
 }
 
+// TestResolveStoreTarget pins the --store routing semantics (decision
+// store-routing): parent = nearest container, top = outermost ancestor,
+// paths must be chain members, no-parent and uninitialized targets are
+// hard errors.
+func TestResolveStoreTarget(t *testing.T) {
+	outer, super, submodule, nested, _, _ := anchorFixture(t)
+	// anchorFixture gives super a .aide; outer needs one for routing tests.
+	if err := os.MkdirAll(filepath.Join(outer, ".aide"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// nested's chain: [nested, super, outer]
+	a := resolveAnchor(nested)
+
+	t.Run("parent is the nearest container", func(t *testing.T) {
+		got, err := resolveStoreTarget(a, "parent")
+		if err != nil || got != super {
+			t.Fatalf("parent = %q, %v; want %q", got, err, super)
+		}
+	})
+	t.Run("top is the outermost ancestor", func(t *testing.T) {
+		got, err := resolveStoreTarget(a, "top")
+		if err != nil || got != outer {
+			t.Fatalf("top = %q, %v; want %q", got, err, outer)
+		}
+	})
+	t.Run("explicit chain-member path", func(t *testing.T) {
+		got, err := resolveStoreTarget(a, outer)
+		if err != nil || got != outer {
+			t.Fatalf("path = %q, %v; want %q", got, err, outer)
+		}
+	})
+	t.Run("non-chain path rejected", func(t *testing.T) {
+		if _, err := resolveStoreTarget(a, submodule); err == nil {
+			t.Fatal("sibling accepted — --store must stay within the chain")
+		}
+	})
+	t.Run("estate root has no parent", func(t *testing.T) {
+		rootAnchor := resolveAnchor(outer)
+		if _, err := resolveStoreTarget(rootAnchor, "parent"); err == nil {
+			t.Fatal("parent accepted at the estate root")
+		}
+	})
+	t.Run("uninitialized target refused", func(t *testing.T) {
+		// nested itself has no .aide; route to it from the submodule via
+		// an anchor whose chain contains it? nested is not in submodule's
+		// chain — use self on a store-less project instead.
+		nestedAnchor := resolveAnchor(nested)
+		if _, err := resolveStoreTarget(nestedAnchor, "self"); err == nil {
+			t.Fatal("store-less target accepted — a write must not bootstrap a store implicitly")
+		}
+	})
+}
+
 func TestLastURLSegment(t *testing.T) {
 	cases := map[string]string{
 		"git@github.com:org/repo.git":     "repo",

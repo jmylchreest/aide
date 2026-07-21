@@ -208,6 +208,21 @@ aide share import --dry-run              # Preview import
 | `share export` | Export decisions and memories to `.aide/shared/` |
 | `share import` | Import from `.aide/shared/`                      |
 
+## Global Flags
+
+```bash
+aide --store parent decision set api-style "REST"   # write into the nearest containing project
+aide --store top decision set go-version "1.26"     # write into the estate root
+aide --project-root /path/to/proj memory list       # run against any store
+```
+
+`--store` re-targets the whole invocation onto another member of this
+project's anchor chain: `parent` (nearest container), `top` (outermost
+ancestor), or an explicit chain-member path. Hard errors, never silent
+fallback: the estate root has no parent, non-chain paths are rejected
+(unrelated stores are `--project-root`'s job), and the target must already
+have a `.aide` store — a write never bootstraps another project's store.
+
 ## Anchor
 
 ```bash

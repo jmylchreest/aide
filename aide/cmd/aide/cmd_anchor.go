@@ -190,6 +190,82 @@ func deleteSessionAnchor(sessionID string) {
 	}
 }
 
+// extractStoreFlag pulls --store=parent|top|<path> out of the arg list,
+// mirroring extractProjectRootFlag's shape.
+func extractStoreFlag(args []string) (string, []string, bool) {
+	for i, a := range args {
+		if a == "--store" {
+			if i+1 >= len(args) {
+				return "", args, false
+			}
+			return args[i+1], append(append([]string{}, args[:i]...), args[i+2:]...), true
+		}
+		if strings.HasPrefix(a, "--store=") {
+			return a[len("--store="):], append(append([]string{}, args[:i]...), args[i+1:]...), true
+		}
+	}
+	return "", args, false
+}
+
+// resolveStoreTarget maps a --store selector onto the anchor chain,
+// per decision store-routing:
+//
+//	parent  → chain[1], the nearest containing project
+//	top     → the outermost ancestor
+//	<path>  → an explicit chain member (self included); anything outside
+//	          the chain is rejected — unrelated stores are --project-root's
+//	          job, keeping --store scoped to "within my own estate"
+//
+// Errors are hard: a missing parent or a target without an existing .aide
+// store must surface to the caller, never silently fall back to self — a
+// write landing in a different store than requested is the misplacement
+// bug class the anchor exists to kill.
+func resolveStoreTarget(a anchorInfo, selector string) (string, error) {
+	var target string
+	switch selector {
+	case "":
+		return "", fmt.Errorf("--store requires a value: parent, top, or a path")
+	case "self":
+		target = a.Root
+	case "parent":
+		if len(a.Chain) < 2 {
+			return "", fmt.Errorf("no parent in the anchor chain — %s is the estate root (run 'aide anchor' to inspect)", a.Root)
+		}
+		target = a.Chain[1].Root
+	case "top":
+		if len(a.Chain) < 2 {
+			return "", fmt.Errorf("no ancestors in the anchor chain — %s is the estate root (run 'aide anchor' to inspect)", a.Root)
+		}
+		target = a.Chain[len(a.Chain)-1].Root
+	default:
+		abs, err := filepath.Abs(selector)
+		if err != nil {
+			return "", fmt.Errorf("--store=%q: %w", selector, err)
+		}
+		real := realPath(abs)
+		for _, link := range a.Chain {
+			if link.Root == abs || link.RealRoot == real {
+				target = link.Root
+				break
+			}
+		}
+		if target == "" {
+			return "", fmt.Errorf("--store=%q is not in this project's anchor chain (run 'aide anchor' to inspect; use --project-root for unrelated stores)", selector)
+		}
+	}
+
+	if !anchorHasStore(target) {
+		return "", fmt.Errorf("--store target %s has no .aide store yet — initialize it by running a session there (or use --project-root explicitly)", target)
+	}
+	return target, nil
+}
+
+// anchorHasStore reports whether root carries an initialized .aide dir.
+func anchorHasStore(root string) bool {
+	st, err := os.Stat(filepath.Join(root, ".aide"))
+	return err == nil && st.IsDir()
+}
+
 // anchorOverrideAllowed reports whether an AIDE_PROJECT_ROOT override may
 // anchor dir: it carries a project marker, or AIDE_FORCE_INIT is set.
 func anchorOverrideAllowed(dir string) bool {

@@ -33,6 +33,10 @@ func main() {
 		_ = os.Setenv("AIDE_PROJECT_ROOT", override)
 		rawArgs = rest
 	}
+	storeSelector, rest, hasStoreFlag := extractStoreFlag(rawArgs)
+	if hasStoreFlag {
+		rawArgs = rest
+	}
 	if len(rawArgs) == 0 {
 		printUsage()
 		os.Exit(1)
@@ -68,7 +72,17 @@ func main() {
 	}
 
 	// Determine database path from project root (walks up to .aide or .git).
+	// --store re-targets the whole invocation onto another member of the
+	// anchor chain (decision store-routing) — resolved here, at the single
+	// dbPath seam, so every subcommand routes uniformly.
 	projectRoot, hasMarker := findProjectRoot()
+	if hasStoreFlag {
+		target, err := resolveStoreTarget(resolveAnchor(""), storeSelector)
+		if err != nil {
+			fatal("%v", err)
+		}
+		projectRoot, hasMarker = target, true
+	}
 	if _, err := config.Load(projectRoot); err != nil {
 		fmt.Fprintf(os.Stderr, "aide: warning: config load failed: %v\n", err)
 	}
@@ -161,7 +175,14 @@ func printUsage() {
 	fmt.Printf(`aide %s - AI Development Environment - Unified system for AI agent orchestration
 
 Usage:
-  aide <command> [arguments]
+  aide [--project-root PATH] [--store parent|top|PATH] <command> [arguments]
+
+Global flags:
+  --project-root PATH  Run against an arbitrary project root (any store)
+  --store SELECTOR     Run against another member of THIS project's anchor
+                       chain: parent (nearest container), top (outermost
+                       ancestor), or an explicit chain-member path. The
+                       target must already have a .aide store.
 
 Commands:
   anchor     Show resolved project root, provenance, and anchor chain (read-only; --json)
