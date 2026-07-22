@@ -21,3 +21,6 @@ aide-memory.db
 
 # Runtime socket - machine-specific
 aide.sock
+
+# Subscription cache - machine-local peer checkouts (aide sync)
+cache/
