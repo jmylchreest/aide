@@ -215,7 +215,12 @@ export function composeStatusline(
     const head = agent.type ? `▶[${shortId}] ${agent.type}` : `▶[${shortId}]`;
     const row: string[] = [head];
     row.push(formatDuration(agent.startedAt));
+    if (agent.toolCalls > 0) row.push(`⚒${agent.toolCalls}`);
+    // Live tool when one is mid-flight; otherwise the last tool — fast
+    // tools clear currentTool in milliseconds, and a blank row reads as
+    // a hung agent.
     if (agent.currentTool) row.push(`▸ ${formatActivity(agent.currentTool)}`);
+    else if (agent.lastTool) row.push(`· ${agent.lastTool}`);
     else if (agent.task) row.push(agent.task.slice(0, 35));
     lines.push(`└─ ${row.join(" | ")}`);
   }

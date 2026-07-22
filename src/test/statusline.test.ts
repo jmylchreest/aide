@@ -44,6 +44,8 @@ function agent(over: Partial<AgentState>): AgentState {
     mode: null,
     startedAt: AGO_4M,
     currentTool: null,
+    lastTool: null,
+    toolCalls: 0,
     tasksCompleted: 0,
     tasksTotal: 0,
     status: "running",
@@ -102,15 +104,21 @@ describe("composeStatusline scenarios", () => {
           agentId: "exec-1a2b3c4",
           type: "executor",
           currentTool: "Bash(bun run test)",
+          toolCalls: 23,
         }),
-        agent({ agentId: "rev-9z8y7x6", type: "reviewer", task: "review story-3 diff" }),
+        agent({
+          agentId: "rev-9z8y7x6",
+          type: "reviewer",
+          lastTool: "Read",
+          toolCalls: 9,
+        }),
       ],
     });
     expect(composeStatusline(payload({ contextPercent: 44 }), d, "full")).toBe(
       [
         "[aide 0.1.8] swarm | Fable 5 | ctx 44% | idle 2m | ⚒88 | agents:2",
-        "└─ ▶[exec-1a] executor | 4m | ▸ Bash: bun run test",
-        "└─ ▶[rev-9z8] reviewer | 4m | review story-3 diff",
+        "└─ ▶[exec-1a] executor | 4m | ⚒23 | ▸ Bash: bun run test",
+        "└─ ▶[rev-9z8] reviewer | 4m | ⚒9 | · Read",
       ].join("\n"),
     );
   });

@@ -25,6 +25,7 @@ import {
   getSessionState,
   formatHud,
   writeHudOutput,
+  invalidateHudRenderCache,
 } from "../lib/hud.js";
 
 interface HookInput {
@@ -76,6 +77,11 @@ async function main(): Promise<void> {
       const binary = findAideBinary(cwd, data.session_id);
       if (binary) {
         updateToolStats(binary, cwd, toolName, sessionId, agentId);
+        // Subagent activity must reach the statusline on the next repaint,
+        // not after the render cache TTL.
+        if (agentId && agentId !== sessionId) {
+          invalidateHudRenderCache(sessionId);
+        }
 
         // Write a partial memory for significant tool uses
         storePartialMemory(binary, cwd, {

@@ -117,6 +117,12 @@ export function updateToolStats(
     setState(binary, cwd, "currentTool", "", agentId);
     if (agentId !== sessionId) {
       setState(binary, cwd, "lastTool", toolName, agentId);
+      const agentParsed = parseInt(
+        getState(binary, cwd, "toolCalls", agentId) || "0",
+        10,
+      );
+      const agentCalls = Number.isNaN(agentParsed) ? 0 : agentParsed;
+      setState(binary, cwd, "toolCalls", String(agentCalls + 1), agentId);
     }
   }
 }

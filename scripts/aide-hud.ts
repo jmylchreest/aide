@@ -25,13 +25,17 @@ import {
 } from "fs";
 import { execFileSync } from "child_process";
 import { join, dirname, sep, basename } from "path";
-import { homedir, tmpdir } from "os";
+import { homedir } from "os";
 import {
   composeStatusline,
   parsePayload,
   type StatuslineData,
 } from "../src/lib/statusline.js";
-import type { AgentState, SessionState } from "../src/lib/hud.js";
+import {
+  hudRenderCacheFile,
+  type AgentState,
+  type SessionState,
+} from "../src/lib/hud.js";
 
 const SESSION_ID_RE = /^[a-zA-Z0-9_-]{1,128}$/;
 const STATE_CACHE_TTL_MS = 2000;
@@ -128,13 +132,9 @@ interface StateEntry {
  * indistinguishable in a one-line display.
  */
 function readStateCached(root: string, sessionId: string): StateEntry[] {
-  const cacheDir = join(
-    process.env.XDG_RUNTIME_DIR && existsSync(process.env.XDG_RUNTIME_DIR)
-      ? join(process.env.XDG_RUNTIME_DIR, "aide")
-      : join(tmpdir(), "aide"),
-    "hud",
-  );
-  const cachePath = join(cacheDir, `${sessionId}.json`);
+  const cachePath = hudRenderCacheFile(sessionId);
+  if (!cachePath) return [];
+  const cacheDir = dirname(cachePath);
   try {
     const cached = JSON.parse(readFileSync(cachePath, "utf-8"));
     if (
@@ -208,6 +208,8 @@ function buildData(
         mode: null,
         startedAt: null,
         currentTool: null,
+        lastTool: null,
+        toolCalls: 0,
         tasksCompleted: 0,
         tasksTotal: 0,
         status: null,
@@ -220,6 +222,8 @@ function buildData(
     const a = agents.get(e.agent)!;
     if (field === "startedAt") a.startedAt = value;
     if (field === "currentTool") a.currentTool = value;
+    if (field === "lastTool") a.lastTool = value;
+    if (field === "toolCalls") a.toolCalls = parseInt(value, 10) || 0;
     if (field === "status") a.status = value;
     if (field === "type") a.type = value;
     if (field === "task") a.task = value;

@@ -5,8 +5,15 @@
  * to maintain a consistent status line display.
  */
 
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
+import {
+  existsSync,
+  readFileSync,
+  writeFileSync,
+  mkdirSync,
+  unlinkSync,
+} from "fs";
 import { join } from "path";
+import { tmpdir } from "os";
 import { execFileSync } from "child_process";
 import { runAide, findAideBinary } from "./hook-utils.js";
 import { findProjectRoot } from "./project-root.js";
@@ -52,6 +59,8 @@ export interface AgentState {
   mode: string | null;
   startedAt: string | null;
   currentTool: string | null;
+  lastTool: string | null;
+  toolCalls: number;
   tasksCompleted: number;
   tasksTotal: number;
   status: string | null;
@@ -59,6 +68,32 @@ export interface AgentState {
   task: string | null;
   skill: string | null;
   session: string | null;
+}
+
+/**
+ * The statusline's render cache for one session — a short-TTL snapshot of
+ * `state list --json` so the ~300ms render cadence doesn't spawn the
+ * binary each tick. State-changing hooks invalidate it so subagent
+ * starts/stops and their tool switches appear on the next repaint
+ * instead of after the TTL.
+ */
+export function hudRenderCacheFile(sessionId: string): string | null {
+  if (!/^[a-zA-Z0-9_-]{1,128}$/.test(sessionId)) return null;
+  const xdg = process.env.XDG_RUNTIME_DIR;
+  const base =
+    xdg && existsSync(xdg) ? join(xdg, "aide") : join(tmpdir(), "aide");
+  return join(base, "hud", `${sessionId}.json`);
+}
+
+export function invalidateHudRenderCache(sessionId?: string): void {
+  if (!sessionId) return;
+  const p = hudRenderCacheFile(sessionId);
+  if (!p) return;
+  try {
+    unlinkSync(p);
+  } catch {
+    /* absent is the goal */
+  }
 }
 
 export interface HudConfig {
@@ -145,6 +180,8 @@ export function getAgentStates(cwd: string): AgentState[] {
         mode: null,
         startedAt: null,
         currentTool: null,
+        lastTool: null,
+        toolCalls: 0,
         tasksCompleted: 0,
         tasksTotal: 0,
         status: null,
@@ -159,6 +196,8 @@ export function getAgentStates(cwd: string): AgentState[] {
     if (key === "mode") agent.mode = value;
     if (key === "startedAt") agent.startedAt = value;
     if (key === "currentTool") agent.currentTool = value;
+    if (key === "lastTool") agent.lastTool = value;
+    if (key === "toolCalls") agent.toolCalls = parseInt(value, 10) || 0;
     if (key === "tasksCompleted") agent.tasksCompleted = parseInt(value, 10) || 0;
     if (key === "tasksTotal") agent.tasksTotal = parseInt(value, 10) || 0;
     if (key === "status") agent.status = value;

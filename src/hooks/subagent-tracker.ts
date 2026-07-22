@@ -29,7 +29,7 @@ import {
   emitInjectionEvent,
   recordObserveEvent,
 } from "../core/read-tracking.js";
-import { refreshHud } from "../lib/hud.js";
+import { refreshHud, invalidateHudRenderCache } from "../lib/hud.js";
 
 // Global logger instance
 let log: Logger | null = null;
@@ -331,6 +331,7 @@ async function processSubagentStart(
   // Refresh HUD to show the new running agent
   log?.start("refreshHud");
   refreshHud(cwd, session_id);
+  invalidateHudRenderCache(session_id);
   log?.end("refreshHud");
 
   // Fetch memories for subagent context injection
@@ -383,6 +384,7 @@ async function processSubagentStop(data: SubagentStopInput): Promise<void> {
   // Refresh HUD to remove the completed agent
   log?.start("refreshHud");
   refreshHud(cwd, session_id);
+  invalidateHudRenderCache(session_id);
   log?.end("refreshHud");
 
   // Emit session observe event so SubagentStop is traceable in the dashboard
