@@ -18,10 +18,11 @@ exactly one command, configured in `~/.claude/settings.json`:
 ```
 
 `~/.claude/bin/aide-hud.ts` is a wrapper the aide session-start hook
-installs and keeps current: it locates the newest plugin install and runs
-its statusline script, so plugin updates never break the statusline.
-(Developers running from a checkout can point at
-`<checkout>/scripts/aide-hud.ts` directly instead.)
+installs when absent (existing copies are never overwritten): it locates
+the newest plugin install and runs its statusline script, so plugin
+updates take effect without touching the wrapper. (Developers running
+from a checkout can point at `<checkout>/scripts/aide-hud.ts` directly
+instead.)
 
 If you already use another statusline (ccusage, ccstatusline, a powerline),
 keep it — aide doesn't need the slot and won't fight for it.
