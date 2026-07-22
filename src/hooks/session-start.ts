@@ -34,6 +34,7 @@ import {
 } from "../lib/hook-utils.js";
 import { findAideBinary, ensureAideBinary } from "../lib/aide-downloader.js";
 import { findProjectRoot } from "../lib/project-root.js";
+import { shouldInstallWrapper } from "../lib/hud.js";
 import {
   resolveAnchorViaBinary,
   writeSessionAnchor,
@@ -177,13 +178,6 @@ function installHudWrapper(log: Logger): void {
   const claudeBinDir = join(homedir(), ".claude", "bin");
   const wrapperDest = join(claudeBinDir, "aide-hud.ts");
 
-  // Check if wrapper already exists
-  if (existsSync(wrapperDest)) {
-    log.debug("HUD wrapper already installed");
-    log.end("installHudWrapper", { skipped: true, reason: "exists" });
-    return;
-  }
-
   // Find our wrapper source
   const pluginRoot = getPluginRoot();
   if (!pluginRoot) {
@@ -200,12 +194,22 @@ function installHudWrapper(log: Logger): void {
   }
 
   try {
-    // Create ~/.claude/bin if needed
+    const srcContent = readFileSync(wrapperSrc, "utf-8");
+    let destContent: string | null = null;
+    try {
+      destContent = readFileSync(wrapperDest, "utf-8");
+    } catch {
+      /* absent -> install */
+    }
+    if (!shouldInstallWrapper(srcContent, destContent)) {
+      log.debug("HUD wrapper up to date (or user-owned)");
+      log.end("installHudWrapper", { skipped: true, reason: "current" });
+      return;
+    }
+
     if (!existsSync(claudeBinDir)) {
       mkdirSync(claudeBinDir, { recursive: true });
     }
-
-    // Copy wrapper script
     copyFileSync(wrapperSrc, wrapperDest);
     try {
       chmodSync(wrapperDest, 0o755);

@@ -85,6 +85,37 @@ export function hudRenderCacheFile(sessionId: string): string | null {
   return join(base, "hud", `${sessionId}.json`);
 }
 
+const WRAPPER_VERSION_RE = /aide-wrapper-version:\s*(\d+)/;
+// Wrappers deployed before the version marker existed all carry this
+// header; treat them as managed v1 so they upgrade exactly once.
+const LEGACY_MANAGED_RE = /aide-hud-wrapper\.ts - Installed to/;
+
+/**
+ * Whether the HUD wrapper at the destination should be (re)written from
+ * the plugin's source copy. Install when absent; upgrade when the
+ * existing copy is recognizably aide-managed AND the source declares a
+ * strictly higher version (a session running an older plugin must never
+ * downgrade). Anything unrecognized is the user's file — never touched.
+ */
+export function shouldInstallWrapper(
+  srcContent: string,
+  destContent: string | null,
+): boolean {
+  if (destContent === null) return true;
+  const srcVersion = parseInt(
+    srcContent.match(WRAPPER_VERSION_RE)?.[1] ?? "0",
+    10,
+  );
+  const destMarker = destContent.match(WRAPPER_VERSION_RE);
+  const destVersion = destMarker
+    ? parseInt(destMarker[1], 10)
+    : LEGACY_MANAGED_RE.test(destContent)
+      ? 1
+      : null;
+  if (destVersion === null) return false;
+  return srcVersion > destVersion;
+}
+
 export function invalidateHudRenderCache(sessionId?: string): void {
   if (!sessionId) return;
   const p = hudRenderCacheFile(sessionId);

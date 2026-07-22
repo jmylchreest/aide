@@ -5,7 +5,7 @@ import {
   type StatuslineData,
   type StatuslinePayload,
 } from "../lib/statusline.js";
-import type { AgentState } from "../lib/hud.js";
+import { shouldInstallWrapper, type AgentState } from "../lib/hud.js";
 
 // These goldens ARE the spec: each scenario pins the exact line the
 // statusline renders for a representative session state.
@@ -231,5 +231,49 @@ describe("parsePayload", () => {
   it("tolerates junk", () => {
     expect(parsePayload(null)).toEqual({});
     expect(parsePayload({ model: 7, context: "nope" }).contextPercent).toBeNull();
+  });
+});
+
+describe("shouldInstallWrapper", () => {
+  const src = "/* aide-wrapper-version: 2 */ delegate();";
+
+  it("installs when absent", () => {
+    expect(shouldInstallWrapper(src, null)).toBe(true);
+  });
+
+  it("upgrades a managed copy with a lower version", () => {
+    expect(
+      shouldInstallWrapper(src, "/* aide-wrapper-version: 1 */ old();"),
+    ).toBe(true);
+  });
+
+  it("never downgrades: older plugin against newer wrapper", () => {
+    expect(
+      shouldInstallWrapper(src, "/* aide-wrapper-version: 3 */ newer();"),
+    ).toBe(false);
+    expect(
+      shouldInstallWrapper(src, "/* aide-wrapper-version: 2 */ same();"),
+    ).toBe(false);
+  });
+
+  it("treats the pre-marker header as managed v1", () => {
+    expect(
+      shouldInstallWrapper(
+        src,
+        "// aide-hud-wrapper.ts - Installed to ~/.claude/bin/aide-hud.ts\nold();",
+      ),
+    ).toBe(true);
+  });
+
+  it("never touches an unrecognized (user-owned) file", () => {
+    expect(shouldInstallWrapper(src, "#!/bin/bash\nmy custom hud")).toBe(false);
+  });
+
+  it("the shipped wrapper source is itself recognized as managed", async () => {
+    const { readFileSync } = await import("fs");
+    const shipped = readFileSync("scripts/aide-hud-wrapper.ts", "utf-8");
+    expect(shouldInstallWrapper(shipped, shipped)).toBe(false);
+    expect(shouldInstallWrapper(shipped, null)).toBe(true);
+    expect(/aide-wrapper-version:\s*\d+/.test(shipped)).toBe(true);
   });
 });

@@ -5,7 +5,12 @@
  * This is a thin wrapper that delegates to the real HUD script in the aide plugin.
  * This allows the plugin to update without requiring users to reinstall the wrapper.
  *
- * Cross-platform TypeScript HUD wrapper script.
+ * The marker below makes the installed copy recognizably aide-managed:
+ * session-start upgrades managed copies when the plugin ships a higher
+ * version, and never touches files without a marker. Bump it whenever
+ * this file changes.
+ *
+ * aide-wrapper-version: 2
  */
 
 import { existsSync, readdirSync, statSync } from "fs";
