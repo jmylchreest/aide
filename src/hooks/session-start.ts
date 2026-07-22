@@ -40,8 +40,9 @@ import {
   writeSessionAnchor,
 } from "../lib/anchor.js";
 import {
-  emitInjectionEvent,
-  recordObserveEvent,
+  injectionBatchEvent,
+  recordObserveEventsBatch,
+  type ObserveBatchEvent,
 } from "../core/read-tracking.js";
 import { buildResumeContext } from "../core/session-resume-logic.js";
 import {
@@ -533,6 +534,11 @@ async function main(): Promise<void> {
     // On resume/compact, re-inject the last session checkpoint so the agent
     // rebuilds working context instead of relearning it (MiMo-style context
     // reconstruction, done at the SessionStart boundary).
+    // Observe events for the checkpoint, the lifecycle marker, and every
+    // injected source accumulate here and ship as ONE batched spawn — the
+    // per-source spawns used to dominate startup time.
+    const observeBatch: ObserveBatchEvent[] = [];
+    log.start("resumeCheckpoint");
     try {
       const resumeBinary = findAideBinary(cwd);
       if (resumeBinary) {
@@ -545,7 +551,7 @@ async function main(): Promise<void> {
         if (resume) {
           context = `${context}\n\n${resume}`;
           debugLog(`Injected resume checkpoint (source=${data.source})`);
-          recordObserveEvent(resumeBinary, cwd, {
+          observeBatch.push({
             kind: "injection",
             name: "resume-checkpoint",
             category: "resume",
@@ -557,14 +563,16 @@ async function main(): Promise<void> {
     } catch (err) {
       debugLog(`Resume checkpoint injection failed (non-fatal): ${err}`);
     }
+    log.end("resumeCheckpoint");
 
+    log.start("observeEvents");
     try {
       const binary = findAideBinary(cwd);
       if (binary) {
-        // Emit a lifecycle trigger so SessionStart is traceable in the
-        // dashboard, symmetric with subagent-start/stop. Fires regardless of
-        // whether any memories were injected.
-        recordObserveEvent(binary, cwd, {
+        // Lifecycle trigger so SessionStart is traceable in the dashboard,
+        // symmetric with subagent-start/stop. Fires regardless of whether
+        // any memories were injected.
+        observeBatch.push({
           kind: "session",
           name: "session-start",
           category: "lifecycle",
@@ -582,19 +590,25 @@ async function main(): Promise<void> {
             attrs.score_at_injection = src.score.toFixed(2);
           }
 
-          emitInjectionEvent(binary, cwd, {
-            source: SOURCE,
-            subtype: src.kind,
-            name: src.name,
-            content: src.content,
-            sessionId,
-            attrs: { ...attrs, source_id: src.id },
-          });
+          observeBatch.push(
+            injectionBatchEvent({
+              source: SOURCE,
+              subtype: src.kind,
+              name: src.name,
+              content: src.content,
+              sessionId,
+              attrs: { ...attrs, source_id: src.id },
+            }),
+          );
         }
+      }
+      if (binary) {
+        recordObserveEventsBatch(binary, cwd, observeBatch);
       }
     } catch {
       // Non-fatal — don't break session start for telemetry
     }
+    log.end("observeEvents", { events: observeBatch.length });
 
     log.end("total");
     log.info("Session start complete");

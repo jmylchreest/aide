@@ -120,6 +120,78 @@ export function previewContent(text: string, maxChars = 300): string {
   return collapsed.slice(0, maxChars - 1) + "…";
 }
 
+/** One event for the batch recorder — mirrors observe record --stdin. */
+export interface ObserveBatchEvent {
+  kind: string;
+  name: string;
+  category?: string;
+  subtype?: string;
+  tokens?: number;
+  saved?: number;
+  file?: string;
+  session?: string;
+  attrs?: Record<string, string>;
+}
+
+/**
+ * Record many observe events in ONE binary spawn via
+ * `observe record --stdin` (JSON Lines). Per-event spawns cost a process
+ * start plus a bolt open each — a session start injecting dozens of
+ * sources paid seconds for what is one write transaction. Falls back to
+ * per-event recording when the binary predates --stdin. Fire-and-forget.
+ */
+export function recordObserveEventsBatch(
+  binary: string,
+  cwd: string,
+  events: ObserveBatchEvent[],
+): void {
+  if (events.length === 0) return;
+  try {
+    const input = events.map((e) => JSON.stringify(e)).join("\n") + "\n";
+    execFileSync(binary, ["observe", "record", "--stdin"], {
+      cwd,
+      input,
+      timeout: 10000,
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    debug(SOURCE, `Observe batch: recorded ${events.length} event(s)`);
+  } catch (err) {
+    debug(SOURCE, `Observe batch failed (${err}); falling back to per-event`);
+    for (const e of events) {
+      recordObserveEvent(binary, cwd, e);
+    }
+  }
+}
+
+/**
+ * Build the `kind=injection` batch event for one injected source — the
+ * batch counterpart of emitInjectionEvent, sharing its field naming.
+ */
+export function injectionBatchEvent(opts: {
+  source: string;
+  subtype: string;
+  content: string;
+  sessionId?: string;
+  name?: string;
+  attrs?: Record<string, string>;
+}): ObserveBatchEvent {
+  return {
+    kind: "injection",
+    name: opts.name ?? opts.source,
+    category: "inject",
+    subtype: opts.subtype,
+    tokens: Math.round(opts.content.length / 3.0),
+    file: opts.source,
+    session: opts.sessionId,
+    attrs: {
+      source_id: opts.source,
+      source_kind: opts.subtype,
+      content_preview: previewContent(opts.content, 2000),
+      ...(opts.attrs ?? {}),
+    },
+  };
+}
+
 /**
  * Record an arbitrary observe event via `aide observe record`.
  * Prefer `emitInjectionEvent` for `kind=injection` callers — this raw
@@ -190,19 +262,5 @@ export function emitInjectionEvent(
     attrs?: Record<string, string>;
   },
 ): void {
-  const baseAttrs: Record<string, string> = {
-    source_id: opts.source,
-    source_kind: opts.subtype,
-    content_preview: previewContent(opts.content, 2000),
-  };
-  recordObserveEvent(binary, cwd, {
-    kind: "injection",
-    name: opts.name ?? opts.source,
-    category: "inject",
-    subtype: opts.subtype,
-    tokens: Math.round(opts.content.length / 3.0),
-    file: opts.source,
-    session: opts.sessionId,
-    attrs: { ...baseAttrs, ...(opts.attrs ?? {}) },
-  });
+  recordObserveEvent(binary, cwd, injectionBatchEvent(opts));
 }

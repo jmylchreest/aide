@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -38,6 +39,10 @@ Subcommands:
   cleanup     Remove events older than --age (default: cleanup.observe_max_age; 0 = keep all)
 
 record options:
+  --stdin          Batch mode: read JSON Lines from stdin, one event per
+                   line ({"kind","name","category","subtype","tokens",
+                   "saved","file","session","error","attrs"}); other
+                   flags are ignored
   --kind=K         tool_call | span | hook | injection | session   (required)
   --name=NAME      Event identifier (e.g., skill name, hook name)  (required)
   --category=C     consume / navigate / inject / coordinate / ...
@@ -210,10 +215,80 @@ type bucket struct {
 	saved   int
 }
 
-// cmdObserveRecord emits a one-off observe event from the CLI. Used by hooks
-// (skill-injector, session-start) to record per-source injection events
-// without each writer needing to translate via the legacy TokenEvent shape.
+// observeBatchLine is one JSON Lines record for `observe record --stdin`.
+type observeBatchLine struct {
+	Kind     string            `json:"kind"`
+	Name     string            `json:"name"`
+	Category string            `json:"category,omitempty"`
+	Subtype  string            `json:"subtype,omitempty"`
+	Tokens   int               `json:"tokens,omitempty"`
+	Saved    int               `json:"saved,omitempty"`
+	File     string            `json:"file,omitempty"`
+	Session  string            `json:"session,omitempty"`
+	Error    string            `json:"error,omitempty"`
+	Attrs    map[string]string `json:"attrs,omitempty"`
+}
+
+// cmdObserveRecordBatch ingests JSON Lines from stdin under ONE store
+// open. Hooks that emit an event per injected source were paying a full
+// binary spawn + bolt open each — at session start that multiplied into
+// seconds. Malformed lines are skipped and counted, never fatal.
+func cmdObserveRecordBatch(dbPath string) error {
+	backend, err := NewBackend(dbPath)
+	if err != nil {
+		return err
+	}
+	defer backend.Close()
+
+	recorded, skipped := 0, 0
+	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+		var l observeBatchLine
+		if err := json.Unmarshal([]byte(line), &l); err != nil || l.Kind == "" || l.Name == "" {
+			skipped++
+			continue
+		}
+		ev := &observe.Event{
+			Kind:        observe.Kind(l.Kind),
+			Name:        l.Name,
+			Category:    l.Category,
+			Subtype:     l.Subtype,
+			Tokens:      l.Tokens,
+			TokensSaved: l.Saved,
+			FilePath:    l.File,
+			SessionID:   l.Session,
+			Error:       l.Error,
+			Attrs:       l.Attrs,
+		}
+		if err := backend.Store().AddObserveEvent(ev); err != nil {
+			skipped++
+			continue
+		}
+		recorded++
+	}
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("reading stdin: %w", err)
+	}
+	fmt.Printf("recorded %d event(s)", recorded)
+	if skipped > 0 {
+		fmt.Printf(", skipped %d", skipped)
+	}
+	fmt.Println()
+	return nil
+}
+
+// cmdObserveRecord emits observe events from the CLI: one event from
+// flags, or a batch of JSON Lines from stdin with --stdin. Used by hooks
+// (skill-injector, session-start) to record per-source injection events.
 func cmdObserveRecord(dbPath string, args []string) error {
+	if hasFlag(args, "--stdin") {
+		return cmdObserveRecordBatch(dbPath)
+	}
 	kind := parseFlag(args, "--kind=")
 	name := parseFlag(args, "--name=")
 	if kind == "" || name == "" {
