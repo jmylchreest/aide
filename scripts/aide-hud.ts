@@ -1,69 +1,94 @@
 #!/usr/bin/env bun
 /**
- * aide-hud.ts - Status line display for aide plugin
+ * aide-hud.ts - Claude Code statusline entry for aide.
  *
- * Reads HUD state from <project-root>/.aide/state/hud.txt and outputs
- * formatted status. Falls back to minimal display if state doesn't exist.
+ * Composes the line at READ time (the ecosystem pattern) instead of
+ * cat-ing a hook-written file:
  *
- * Root resolution ladder (matching the anchor design — this script must
- * not grow its own resolver semantics):
- *   1. session anchor cache (~/.aide/anchors/<session_id>.json) — the
- *      statusline stdin JSON carries session_id + cwd
- *   2. AIDE_PROJECT_ROOT
- *   3. minimal .aide walk from the statusline cwd (last resort only; a
- *      session that ran session-start always hits the anchor cache)
+ *   stdin payload  -> model, context %, cost (native fields)
+ *   session anchor -> project root, identity, estate (sub-ms file read)
+ *   aide state     -> mode, activity, tool counts, subagents
+ *                     (session-scoped; `state list --json` behind a 2s
+ *                     on-disk cache so the ~300ms render cadence costs
+ *                     at most one binary spawn every 2 seconds)
  *
- * Cross-platform TypeScript HUD status line script.
+ * Fallback ladder when live composition is impossible: the hook-written
+ * .aide/state/hud.txt, then a minimal "[aide] idle".
  */
 
-import { existsSync, readFileSync } from "fs";
-import { join, dirname, sep } from "path";
-import { homedir } from "os";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  writeFileSync,
+} from "fs";
+import { execFileSync } from "child_process";
+import { join, dirname, sep, basename } from "path";
+import { homedir, tmpdir } from "os";
+import {
+  composeStatusline,
+  parsePayload,
+  type StatuslineData,
+} from "../src/lib/statusline.js";
+import type { AgentState, SessionState } from "../src/lib/hud.js";
 
-interface StatuslineInput {
-  session_id?: string;
-  cwd?: string;
+const SESSION_ID_RE = /^[a-zA-Z0-9_-]{1,128}$/;
+const STATE_CACHE_TTL_MS = 2000;
+
+interface AnchorIdentity {
+  root: string;
+  projectName: string | null;
+  parentName: string | null;
 }
 
-function readStatuslineInput(): StatuslineInput {
+function readStdinRaw(): unknown {
   try {
-    // Manual terminal runs have a TTY on stdin — reading would block
-    // until EOF. Statusline invocations pipe JSON and close the pipe.
     if (process.stdin.isTTY) return {};
     const raw = readFileSync(0, "utf-8");
-    if (!raw.trim()) return {};
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
-    return {
-      session_id:
-        typeof parsed.session_id === "string" ? parsed.session_id : undefined,
-      cwd: typeof parsed.cwd === "string" ? parsed.cwd : undefined,
-    };
+    return raw.trim() ? JSON.parse(raw) : {};
   } catch {
     return {};
   }
 }
 
-function readAnchorRoot(sessionId: string, cwd?: string): string | null {
+/** Same location contract as lib/anchor.ts anchorCacheDirs. */
+function anchorCacheDirs(): string[] {
+  const dirs: string[] = [];
+  const xdg = process.env.XDG_RUNTIME_DIR;
+  if (xdg && existsSync(xdg)) dirs.push(join(xdg, "aide"));
+  dirs.push(join(homedir(), ".aide"));
+  return dirs;
+}
+
+function readAnchor(sessionId: string, cwd?: string): AnchorIdentity | null {
   try {
-    if (!/^[a-zA-Z0-9_-]{1,128}$/.test(sessionId)) return null;
-    // Same location contract as lib/anchor.ts anchorCacheDirs.
-    const dirs: string[] = [];
-    const xdg = process.env.XDG_RUNTIME_DIR;
-    if (xdg && existsSync(xdg)) dirs.push(join(xdg, "aide", "anchors"));
-    dirs.push(join(homedir(), ".aide", "anchors"));
-    const p = dirs
-      .map((d) => join(d, `${sessionId}.json`))
+    if (!SESSION_ID_RE.test(sessionId)) return null;
+    const p = anchorCacheDirs()
+      .map((d) => join(d, "anchors", `${sessionId}.json`))
       .find((f) => existsSync(f));
     if (!p) return null;
     const entry = JSON.parse(readFileSync(p, "utf-8"));
-    const root = entry?.anchor?.root;
-    if (entry?.anchor?.schemaVersion !== 1 || typeof root !== "string" || !root)
+    const anchor = entry?.anchor;
+    const root = anchor?.root;
+    if (anchor?.schemaVersion !== 1 || typeof root !== "string" || !root)
       return null;
-    // The statusline cwd may drift below the launch dir; require only that
-    // the recorded root still exists and contains (or equals) the cwd.
     if (!existsSync(root)) return null;
     if (cwd && cwd !== root && !cwd.startsWith(root + sep)) return null;
-    return root;
+
+    let parentName: string | null = null;
+    const chain = Array.isArray(anchor.chain) ? anchor.chain : [];
+    if (chain.length > 1 && typeof chain[1]?.root === "string") {
+      parentName = basename(chain[1].root);
+    }
+    return {
+      root,
+      projectName:
+        typeof anchor.identity?.projectName === "string"
+          ? anchor.identity.projectName
+          : basename(root),
+      parentName,
+    };
   } catch {
     return null;
   }
@@ -80,34 +105,212 @@ function walkForAide(startDir: string): string | null {
   return null;
 }
 
-const input = readStatuslineInput();
-const startCwd = input.cwd || process.cwd();
-
-let projectRoot: string | null = null;
-if (input.session_id) {
-  projectRoot = readAnchorRoot(input.session_id, startCwd);
-}
-if (!projectRoot) {
-  const override = process.env.AIDE_PROJECT_ROOT;
-  if (override && existsSync(override)) projectRoot = override;
-}
-if (!projectRoot) {
-  projectRoot = walkForAide(startCwd) ?? startCwd;
+function findBinary(root: string): string | null {
+  const local = join(
+    root,
+    ".aide",
+    "bin",
+    process.platform === "win32" ? "aide.exe" : "aide",
+  );
+  if (existsSync(local)) return local;
+  return "aide"; // PATH fallback; execFileSync throws if absent
 }
 
-const hudFile = join(projectRoot, ".aide", "state", "hud.txt");
+interface StateEntry {
+  key: string;
+  value: string;
+  agent?: string;
+}
 
-if (existsSync(hudFile)) {
+/**
+ * `aide state list --json`, behind a per-session on-disk cache: the
+ * statusline renders every ~300ms but a state snapshot a second old is
+ * indistinguishable in a one-line display.
+ */
+function readStateCached(root: string, sessionId: string): StateEntry[] {
+  const cacheDir = join(
+    process.env.XDG_RUNTIME_DIR && existsSync(process.env.XDG_RUNTIME_DIR)
+      ? join(process.env.XDG_RUNTIME_DIR, "aide")
+      : join(tmpdir(), "aide"),
+    "hud",
+  );
+  const cachePath = join(cacheDir, `${sessionId}.json`);
   try {
-    const content = readFileSync(hudFile, "utf-8").trim();
-    if (content) {
-      console.log(content);
-      process.exit(0);
+    const cached = JSON.parse(readFileSync(cachePath, "utf-8"));
+    if (
+      typeof cached?.ts === "number" &&
+      Date.now() - cached.ts < STATE_CACHE_TTL_MS &&
+      Array.isArray(cached.entries)
+    ) {
+      return cached.entries as StateEntry[];
     }
   } catch {
-    // fall through to default
+    /* miss */
   }
+
+  const binary = findBinary(root);
+  let entries: StateEntry[] = [];
+  try {
+    const out = execFileSync(binary!, ["state", "list", "--json"], {
+      cwd: root,
+      encoding: "utf-8",
+      timeout: 3000,
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+    const parsed = JSON.parse(out);
+    if (Array.isArray(parsed)) entries = parsed as StateEntry[];
+  } catch {
+    return [];
+  }
+
+  try {
+    mkdirSync(cacheDir, { recursive: true });
+    const tmp = `${cachePath}.tmp-${process.pid}`;
+    writeFileSync(tmp, JSON.stringify({ ts: Date.now(), entries }));
+    renameSync(tmp, cachePath);
+  } catch {
+    /* cache write is best-effort */
+  }
+  return entries;
 }
 
-// No state at all - show minimal status
+function buildData(
+  root: string,
+  sessionId: string | undefined,
+  identity: AnchorIdentity | null,
+): StatuslineData | null {
+  if (!sessionId) return null;
+  const entries = readStateCached(root, sessionId);
+  if (entries.length === 0) return null;
+
+  const globals: Record<string, string> = {};
+  const scoped: Record<string, string> = {};
+  const agents = new Map<string, AgentState>();
+  const scopedPrefix = `agent:${sessionId}:`;
+
+  for (const e of entries) {
+    const value = (e.value ?? "").trim();
+    if (!e.agent) {
+      globals[e.key] = value;
+      continue;
+    }
+    if (e.agent === sessionId && e.key.startsWith(scopedPrefix)) {
+      scoped[e.key.slice(scopedPrefix.length)] = value;
+      continue;
+    }
+    // Subagent rows: agent:<id>:<field> for non-session agents.
+    const prefix = `agent:${e.agent}:`;
+    if (!e.key.startsWith(prefix)) continue;
+    const field = e.key.slice(prefix.length);
+    if (!agents.has(e.agent)) {
+      agents.set(e.agent, {
+        agentId: e.agent,
+        mode: null,
+        startedAt: null,
+        currentTool: null,
+        tasksCompleted: 0,
+        tasksTotal: 0,
+        status: null,
+        type: null,
+        task: null,
+        skill: null,
+        session: null,
+      });
+    }
+    const a = agents.get(e.agent)!;
+    if (field === "startedAt") a.startedAt = value;
+    if (field === "currentTool") a.currentTool = value;
+    if (field === "status") a.status = value;
+    if (field === "type") a.type = value;
+    if (field === "task") a.task = value;
+    if (field === "session") a.session = value;
+  }
+
+  const pick = (k: string): string | null => scoped[k] ?? globals[k] ?? null;
+  const activeMode = pick("mode");
+  const state: SessionState = {
+    activeMode,
+    agentCount: 0,
+    startedAt: pick("startedAt"),
+    toolCalls: parseInt(pick("toolCalls") || "0", 10) || 0,
+    lastTool: pick("lastTool"),
+  };
+
+  // Only this session's subagents belong on this session's statusline.
+  const sessionAgents = Array.from(agents.values()).filter(
+    (a) => a.session === sessionId || a.session === null,
+  );
+
+  return {
+    version: "", // filled by caller
+    projectName: identity?.projectName ?? null,
+    parentName: identity?.parentName ?? null,
+    state,
+    currentTool: scoped["currentTool"] ?? null,
+    lastToolUse: pick("lastToolUse"),
+    modeIterations: activeMode
+      ? (pick(`${activeMode}_iterations`) ?? null)
+      : null,
+    agents: sessionAgents,
+  };
+}
+
+function readVersion(root: string): string {
+  // The anchor-era binary stamps its version into hud.txt's tag; cheaper
+  // than spawning `aide version` per render: parse it opportunistically.
+  try {
+    const hud = readFileSync(join(root, ".aide", "state", "hud.txt"), "utf-8");
+    const m = hud.match(/\[aide\(([^)]+)\)\]/);
+    if (m) return m[1];
+  } catch {
+    /* fall through */
+  }
+  return "";
+}
+
+// ---- main ----
+
+const raw = readStdinRaw();
+const payload = parsePayload(raw);
+const startCwd = payload.cwd || process.cwd();
+
+let identity: AnchorIdentity | null = null;
+if (payload.sessionId) identity = readAnchor(payload.sessionId, startCwd);
+
+let root = identity?.root ?? null;
+if (!root) {
+  const override = process.env.AIDE_PROJECT_ROOT;
+  if (override && existsSync(override)) root = override;
+}
+if (!root) root = walkForAide(startCwd) ?? startCwd;
+
+const data = buildData(root, payload.sessionId, identity);
+if (data) {
+  data.version = readVersion(root);
+  let format: "minimal" | "full" | "icons" = "full";
+  try {
+    const cfg = JSON.parse(
+      readFileSync(join(root, ".aide", "config", "hud.json"), "utf-8"),
+    );
+    if (cfg.format === "minimal" || cfg.format === "icons") format = cfg.format;
+  } catch {
+    /* default */
+  }
+  console.log(composeStatusline(payload, data, format));
+  process.exit(0);
+}
+
+// Fallback: the hook-written file, then minimal.
+try {
+  const content = readFileSync(
+    join(root, ".aide", "state", "hud.txt"),
+    "utf-8",
+  ).trim();
+  if (content) {
+    console.log(content.split("\n")[0]);
+    process.exit(0);
+  }
+} catch {
+  /* fall through */
+}
 console.log("[aide] idle");
