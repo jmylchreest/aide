@@ -70,7 +70,7 @@ seconds old (the render cache).
 ## Configuration
 
 Statusline settings live in aide's ordinary config (see
-[Configuration](/docs/getting-started/configuration)) under the `hud` key:
+[Configuration](../getting-started/configuration.md)) under the `hud` key:
 
 ```bash
 aide config set hud.format minimal            # full (default) or minimal
