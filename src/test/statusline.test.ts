@@ -121,12 +121,19 @@ describe("composeStatusline scenarios", () => {
     ).toContain("ctx 93%‼");
   });
 
-  it("cost appears once it rounds to a cent", () => {
+  it("cost is opt-in: absent by default, rendered when whitelisted", () => {
     expect(
       composeStatusline(payload({ costUSD: 4.512 }), base(), "full"),
+    ).not.toContain("$");
+    expect(
+      composeStatusline(payload({ costUSD: 4.512 }), base(), "full", [
+        "model",
+        "context",
+        "cost",
+      ]),
     ).toContain("$4.51");
     expect(
-      composeStatusline(payload({ costUSD: 0.001 }), base(), "full"),
+      composeStatusline(payload({ costUSD: 0.001 }), base(), "full", ["cost"]),
     ).not.toContain("$");
   });
 

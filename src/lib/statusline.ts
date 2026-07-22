@@ -141,10 +141,12 @@ export function composeStatusline(
   elements?: string[],
 ): string {
   const parts: string[] = [];
-  // Segment opt-out: an elements list in .aide/config/hud.json drops any
-  // payload-derived or optional segment. Activity is always rendered — a
+  // Segment whitelist from hud.segments config. Without one, every
+  // segment renders except cost — tool calls are the default "how much
+  // work" signal; dollars are opt-in. Activity is always rendered — a
   // statusline that can't say what's happening isn't one.
-  const on = (name: string): boolean => !elements || elements.includes(name);
+  const on = (name: string): boolean =>
+    elements ? elements.includes(name) : name !== "cost";
 
   // Directory: the canonical statusline element — aide's line replaces
   // the docs' model+dir+context default, so it must not lose the dir.
