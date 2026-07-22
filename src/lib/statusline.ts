@@ -76,7 +76,7 @@ export function parsePayload(raw: unknown): StatuslinePayload {
     typeof v === "number" && isFinite(v) ? v : null;
 
   // Context usage has appeared under several shapes across CC versions.
-  let contextPercent: number | null = null;
+  let contextPercent: number | null;
   const ctx = p.context ?? p.context_usage ?? p.context_window ?? null;
   if (ctx && typeof ctx === "object") {
     contextPercent =
