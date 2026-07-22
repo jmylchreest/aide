@@ -1,5 +1,5 @@
 ---
-sidebar_position: 6
+sidebar_position: 7
 ---
 
 # Statusline
@@ -12,10 +12,16 @@ exactly one command, configured in `~/.claude/settings.json`:
 {
   "statusLine": {
     "type": "command",
-    "command": "bun /path/to/aide-plugin/scripts/aide-hud.ts"
+    "command": "bun ~/.claude/bin/aide-hud.ts"
   }
 }
 ```
+
+`~/.claude/bin/aide-hud.ts` is a wrapper the aide session-start hook
+installs and keeps current: it locates the newest plugin install and runs
+its statusline script, so plugin updates never break the statusline.
+(Developers running from a checkout can point at
+`<checkout>/scripts/aide-hud.ts` directly instead.)
 
 If you already use another statusline (ccusage, ccstatusline, a powerline),
 keep it — aide doesn't need the slot and won't fight for it.
@@ -32,19 +38,19 @@ segment in a standalone repo.
 A quiet session:
 
 ```
-[aide 0.1.8] …/jmylchreest/aide | Fable 5 | ctx 12% | idle 2m
+[aide 0.1.x] …/jmylchreest/aide | Fable 5 | ctx 12% | idle 2m
 ```
 
 A busy one, inside a nested project, with a mode engaged:
 
 ```
-[aide 0.1.8] …/tl/webshop | webshop⊂tl | autopilot 3/20 | Fable 5 | ctx 71%⚠ | ▸ Edit: cmd_session.go | ⚒203
+[aide 0.1.x] …/tl/webshop | webshop⊂tl | autopilot 3/20 | Fable 5 | ctx 71%⚠ | ▸ Edit: cmd_session.go | ⚒203
 ```
 
 A swarm adds one row per running subagent:
 
 ```
-[aide 0.1.8] swarm | Fable 5 | ctx 44% | idle 2m | ⚒88 | agents:2
+[aide 0.1.x] swarm | Fable 5 | ctx 44% | idle 2m | ⚒88 | agents:2
 └─ ▶[exec-1a] executor | 4m | ▸ Bash: bun run test
 └─ ▶[rev-9z8] reviewer | 4m | review story-3 diff
 ```
@@ -84,3 +90,10 @@ aide config set hud.segments dir context tools # whitelist segments
 
 `AIDE_HUD_FORMAT` and `AIDE_HUD_SEGMENTS` (comma-separated) override the
 config files, matching aide's usual env-over-file precedence.
+
+:::note
+A legacy `.aide/config/hud.json` file, if present, still wins over both
+`aide.json` layers (it predates the `hud` config section). If
+`aide config set hud.format ...` appears to have no effect, delete or
+migrate that file.
+:::

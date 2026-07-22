@@ -99,9 +99,7 @@ func cmdSync(dbPath string, args []string) error {
 
 // publishWrite is the record-writing half of a publish: this store's
 // decisions (through the configured export filter) plus tombstones, via
-// contextshare.Export's write-once semantics. Decisions only — memories
-// never leave a project, whatever the share.memories policy says about
-// the project's own .aide/shared/.
+// contextshare.Export's write-once semantics.
 func publishWrite(backend *Backend) func(shareRoot string) error {
 	return func(shareRoot string) error {
 		_, err := contextshare.Export(backend.Store(), backend.TombstoneStore(), shareRoot, contextshare.ExportOptions{

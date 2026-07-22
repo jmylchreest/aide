@@ -487,9 +487,6 @@ export function runSessionInit(
 }
 
 /**
- * Format a timestamp as relative time
- */
-/**
  * Provenance suffix for a non-local decision: parent decisions cascade
  * from the anchor chain (override locally), peer decisions come from a
  * read-only subscription layer (promote with `aide decision adopt`).

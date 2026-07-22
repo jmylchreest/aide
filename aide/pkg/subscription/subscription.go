@@ -3,7 +3,7 @@
 // or local directories read in place. Peers are a read-only layer —
 // decisions only (memories never cross project boundaries), surfaced with
 // origin provenance and never re-exported. Promotion into the local store
-// is `aide context adopt`.
+// is `aide decision adopt`.
 package subscription
 
 import (
@@ -102,7 +102,7 @@ func gitSync(ctx context.Context, dir, url, branch string) error {
 		Force:         true,
 	})
 	if err != nil && branch == "" && errors.Is(err, plumbing.ErrReferenceNotFound) {
-		if db := remoteDefaultBranch(url); db != "" {
+		if db := remoteDefaultBranch(ctx, url); db != "" {
 			err = wt.PullContext(ctx, &git.PullOptions{
 				ReferenceName: plumbing.NewBranchReferenceName(db),
 				SingleBranch:  true,
@@ -131,7 +131,7 @@ func cloneWithFallback(ctx context.Context, dir, url, branch string) (*git.Repos
 		SingleBranch:  branch != "",
 	})
 	if err != nil && branch == "" && errors.Is(err, plumbing.ErrReferenceNotFound) {
-		if db := remoteDefaultBranch(url); db != "" {
+		if db := remoteDefaultBranch(ctx, url); db != "" {
 			_ = os.RemoveAll(dir)
 			repo, err = git.PlainCloneContext(ctx, dir, false, &git.CloneOptions{
 				URL:           url,
@@ -148,12 +148,12 @@ func cloneWithFallback(ctx context.Context, dir, url, branch string) (*git.Repos
 // points at (main/master preferred), else main/master by presence, else
 // the first branch alphabetically. Empty when the remote is unreachable
 // or has no branches.
-func remoteDefaultBranch(url string) string {
+func remoteDefaultBranch(ctx context.Context, url string) string {
 	rem := git.NewRemote(gitmemory.NewStorage(), &gitconfig.RemoteConfig{
 		Name: "origin",
 		URLs: []string{url},
 	})
-	refs, err := rem.List(&git.ListOptions{})
+	refs, err := rem.ListContext(ctx, &git.ListOptions{})
 	if err != nil {
 		return ""
 	}
@@ -238,10 +238,16 @@ func EnsureFresh(ctx context.Context, projectRoot string, sub config.Subscriptio
 	if info, err := os.Stat(filepath.Join(dir, syncStamp)); err == nil && time.Since(info.ModTime()) < maxAge {
 		return shareRoot(sub.Name, dir)
 	}
-	if root, err := Sync(ctx, projectRoot, sub); err == nil {
+	root, syncErr := Sync(ctx, projectRoot, sub)
+	if syncErr == nil {
 		return root, nil
 	}
-	return CachedRoot(projectRoot, sub)
+	if cached, err := CachedRoot(projectRoot, sub); err == nil {
+		return cached, nil
+	}
+	// No cache to fall back on: the fetch failure is the actionable cause,
+	// not "run aide sync" (which would fail the same way).
+	return "", syncErr
 }
 
 // shareRoot locates the record tree inside a subscription target: the

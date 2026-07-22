@@ -214,8 +214,12 @@ aide share import --dry-run              # Preview import
 ```bash
 aide sync                                # Fetch all subscribed peer context
 aide sync platform-team                  # Fetch one subscription
+aide sync --timeout=2m                   # Per-subscription deadline (default 60s)
 aide decision adopt api-style --from=platform-team  # Promote a peer decision locally
 ```
+
+A failing subscription is reported and skipped, the rest still sync, and
+the command exits non-zero if any failed — CI can use it as a red light.
 
 Subscriptions name peer context sources in `.aide/config/aide.json`:
 
@@ -234,8 +238,12 @@ and are **never re-exported** — you only publish records you authored or
 explicitly adopted. Only decisions cross project boundaries; memories and
 state never do. `aide decision adopt TOPIC [--from=PEER]` is the promotion
 verb: it copies the peer's current decision into the local store as a new
-local decision stamped with adoption provenance. Session init refreshes
-stale subscription caches opportunistically (bounded, offline-silent).
+local decision stamped with adoption provenance. Adopt reads only the
+local cache (never the network), and `--from` is required when more than
+one peer publishes the topic. Session init refreshes any subscription
+cache older than 1 hour, under a single 5-second deadline shared across
+subscriptions, silently serving the stale cache when offline; session-end
+publishing gets 10 seconds.
 
 A subscription with `"publish": true` is two-way: `aide sync` also writes
 this project's own decisions into it — fetch, reset to the remote head,

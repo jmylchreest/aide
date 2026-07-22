@@ -33,6 +33,14 @@ aide share import --dry-run          # Preview what would be imported
 
 Exported files use YAML frontmatter + markdown body, so they work as LLM context even without AIDE installed.
 
+### Share decisions with your team
+
+1. Run `aide share export` and commit `.aide/shared/` to git.
+2. Teammates add `AIDE_SHARE_AUTO_IMPORT=1` to `.claude/settings.json` (also tracked in git).
+3. On the next session start, aide imports from `.aide/shared/` — new decisions arrive automatically; decisions whose text differs from the local latest are **appended** to the topic thread (incoming becomes the new latest); identical decisions are skipped.
+
+Decisions are append-only per topic — superseding, not overwriting. To change course, commit a new decision for the topic; it becomes the new latest on the next import, and the previous one stays visible via `aide decision history <topic>`. For the full conflict-resolution rules (including memories), see [Storage → Import Conflict Resolution](/docs/reference/storage#import-conflict-resolution).
+
 ## Inheriting from Parent Projects
 
 When a project sits inside another project — a submodule in a superrepo, a
@@ -76,24 +84,19 @@ aide decision adopt api-style --from=platform-team
 ```
 
 copies the peer's current decision into your store as a new local decision
-with adoption provenance. A subscription with `"publish": true` is two-way:
+with adoption provenance. Adopt reads the local subscription cache, never
+the network — run `aide sync` (or start a session) first if the peer was
+never fetched — and when several peers publish the same topic, `--from` is
+required to disambiguate. A subscription with `"publish": true` is two-way:
 your own decisions are pushed back out for others to subscribe to.
 
-No scheduler is needed: session **start** refreshes stale subscription
-caches and session **end** publishes — decisions are made inside sessions,
-so the session lifecycle is the sync loop. `aide sync` remains the manual
-lever. Only decisions cross project boundaries; memories and state never do.
-`AIDE_CASCADE_DISABLED=1` turns off both the ancestor cascade and the peer
-layer. See the [CLI reference](/docs/reference/cli#sync--subscriptions) for
-details.
-
-### Share decisions with your team
-
-1. Run `aide share export` and commit `.aide/shared/` to git.
-2. Teammates add `AIDE_SHARE_AUTO_IMPORT=1` to `.claude/settings.json` (also tracked in git).
-3. On the next session start, aide imports from `.aide/shared/` — new decisions arrive automatically; decisions whose text differs from the local latest are **appended** to the topic thread (incoming becomes the new latest); identical decisions are skipped.
-
-Decisions are append-only per topic — superseding, not overwriting. To change course, commit a new decision for the topic; it becomes the new latest on the next import, and the previous one stays visible via `aide decision history <topic>`. For the full conflict-resolution rules (including memories), see [Storage → Import Conflict Resolution](/docs/reference/storage#import-conflict-resolution).
+No scheduler is needed: session **start** refreshes any subscription cache
+older than an hour and session **end** publishes — decisions are made
+inside sessions, so the session lifecycle is the sync loop. `aide sync`
+remains the manual lever. Only decisions cross project boundaries; memories
+and state never do. `AIDE_CASCADE_DISABLED=1` turns off both the ancestor
+cascade and the peer layer. See the
+[CLI reference](/docs/reference/cli#sync--subscriptions) for details.
 
 ## Blueprints
 

@@ -229,8 +229,10 @@ func sessionEnd(dbPath string, args []string) error {
 // where decisions get made, so the session ending IS the publish event;
 // no external scheduler needed. Best-effort under one shared deadline:
 // an offline remote never blocks teardown, and the next session's end
-// retries implicitly (unpublished records are still new then). Returns
-// how many subscriptions shipped something.
+// retries implicitly (unpublished records are still new then). Shares
+// the cascade's kill switch: AIDE_CASCADE_DISABLED stops decisions
+// crossing project boundaries in BOTH directions. Returns how many
+// subscriptions shipped something.
 func sessionEndPublish(backend *Backend, dbPath string) int {
 	if v := os.Getenv("AIDE_CASCADE_DISABLED"); v == "1" || strings.EqualFold(v, "true") {
 		return 0
@@ -244,7 +246,14 @@ func sessionEndPublish(backend *Backend, dbPath string) int {
 		if !sub.Publish {
 			continue
 		}
-		if pushed, err := subscription.Publish(ctx, root, sub, publishWrite(backend)); err == nil && pushed {
+		pushed, err := subscription.Publish(ctx, root, sub, publishWrite(backend))
+		if err != nil {
+			// One line per failure keeps chronic problems (dead remote,
+			// bad auth) diagnosable without failing teardown.
+			fmt.Fprintf(os.Stderr, "warning: publish failed: %v\n", err)
+			continue
+		}
+		if pushed {
 			published++
 		}
 	}

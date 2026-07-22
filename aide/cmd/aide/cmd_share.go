@@ -47,8 +47,6 @@ var reservedShareFiles = map[string]bool{
 	"MEMORIES.md":  true,
 }
 
-// isReservedShareFile reports whether name is one of the reserved explainer
-// files written by the export command and must be skipped by importers.
 // excludedNote annotates an export count with how many records the
 // configured filter held back, so policy exclusions are visible instead
 // of silent.
@@ -59,6 +57,8 @@ func excludedNote(n int) string {
 	return fmt.Sprintf(" (%d excluded by policy)", n)
 }
 
+// isReservedShareFile reports whether name is one of the reserved explainer
+// files written by the export command and must be skipped by importers.
 func isReservedShareFile(name string) bool {
 	return reservedShareFiles[name]
 }

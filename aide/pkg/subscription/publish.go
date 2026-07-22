@@ -13,6 +13,7 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/jmylchreest/aide/aide/pkg/config"
+	"github.com/jmylchreest/aide/aide/pkg/contextshare"
 )
 
 // publishRetries bounds the fetch/reset/write/commit/push loop when
@@ -37,8 +38,13 @@ func Publish(ctx context.Context, projectRoot string, sub config.SubscriptionCon
 		return false, fmt.Errorf("subscription %q is not publish-enabled", sub.Name)
 	}
 
+	// Path subscriptions have no commit to inspect, so a successful write
+	// always reports shipped.
 	if sub.Path != "" {
-		return true, write(publishRoot(sub.Name, resolvePath(projectRoot, sub.Path)))
+		if err := write(publishRoot(sub.Name, resolvePath(projectRoot, sub.Path))); err != nil {
+			return false, fmt.Errorf("subscription %q: %w", sub.Name, err)
+		}
+		return true, nil
 	}
 
 	dir := CacheDir(projectRoot, sub.Name)
@@ -55,7 +61,7 @@ func Publish(ctx context.Context, projectRoot string, sub config.SubscriptionCon
 		}
 
 		if err := write(publishRoot(sub.Name, dir)); err != nil {
-			return false, err
+			return false, fmt.Errorf("subscription %q: %w", sub.Name, err)
 		}
 
 		wt, err := repo.Worktree()
@@ -179,7 +185,8 @@ func onlyManifestChanged(status git.Status) bool {
 		if s.Staging == git.Unmodified && s.Worktree == git.Unmodified {
 			continue
 		}
-		if !strings.HasSuffix(path, "/"+"manifest.json") && path != "manifest.json" {
+		if !strings.HasSuffix(path, "/"+contextshare.ManifestName) &&
+			path != contextshare.ManifestName {
 			return false
 		}
 	}
@@ -199,6 +206,9 @@ func commitAuthor(repo *git.Repository) *object.Signature {
 	return sig
 }
 
+// go-git builds push non-fast-forward errors with plain fmt.Errorf (its
+// ErrNonFastForwardUpdate sentinel is pull-side only), so string matching
+// is the only detection available.
 func isPushRace(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "non-fast-forward")
 }

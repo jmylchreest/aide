@@ -2,6 +2,7 @@ package store
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -271,6 +272,7 @@ func ReadSurveyEntriesRO(dir, kind string, limit int) ([]*survey.Entry, error) {
 	}
 	defer db.Close()
 
+	errLimit := errors.New("limit reached")
 	var entries []*survey.Entry
 	err = db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(BucketSurvey)
@@ -278,9 +280,6 @@ func ReadSurveyEntriesRO(dir, kind string, limit int) ([]*survey.Entry, error) {
 			return nil
 		}
 		return b.ForEach(func(_, v []byte) error {
-			if limit > 0 && len(entries) >= limit {
-				return nil
-			}
 			var e survey.Entry
 			if err := json.Unmarshal(v, &e); err != nil {
 				return nil
@@ -289,8 +288,14 @@ func ReadSurveyEntriesRO(dir, kind string, limit int) ([]*survey.Entry, error) {
 				return nil
 			}
 			entries = append(entries, &e)
+			if limit > 0 && len(entries) >= limit {
+				return errLimit
+			}
 			return nil
 		})
 	})
+	if errors.Is(err, errLimit) {
+		err = nil
+	}
 	return entries, err
 }
