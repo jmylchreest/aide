@@ -40,11 +40,30 @@ export interface StatuslineData {
   /** "<n>/<max>" iterations when a persistence mode is active. */
   modeIterations?: string | null;
   agents: AgentState[];
+  /** Home directory for ~-relative dir display (injected for testability). */
+  homeDir?: string;
 }
 
 export type StatuslineFormat = "minimal" | "full";
 
 const MAX_ACTIVITY = 32;
+const MAX_DIR = 30;
+
+/**
+ * ~-relative directory for the dir segment, truncated to the last two
+ * path components when long — the shape every canonical statusline uses.
+ */
+export function formatDir(dir: string, home?: string): string {
+  let d = dir;
+  if (home && (d === home || d.startsWith(home + "/"))) {
+    d = "~" + d.slice(home.length);
+  }
+  if (d.length > MAX_DIR) {
+    const parts = d.split("/").filter(Boolean);
+    if (parts.length > 2) d = "…/" + parts.slice(-2).join("/");
+  }
+  return d;
+}
 
 /**
  * Parse the raw stdin JSON into the fields we use, defensively: the payload
@@ -73,7 +92,12 @@ export function parsePayload(raw: unknown): StatuslinePayload {
 
   return {
     sessionId: typeof p.session_id === "string" ? p.session_id : undefined,
-    cwd: typeof p.cwd === "string" ? p.cwd : undefined,
+    cwd:
+      typeof p.workspace?.current_dir === "string"
+        ? p.workspace.current_dir
+        : typeof p.cwd === "string"
+          ? p.cwd
+          : undefined,
     modelName:
       typeof p.model?.display_name === "string"
         ? p.model.display_name
@@ -121,6 +145,12 @@ export function composeStatusline(
   // payload-derived or optional segment. Activity is always rendered — a
   // statusline that can't say what's happening isn't one.
   const on = (name: string): boolean => !elements || elements.includes(name);
+
+  // Directory: the canonical statusline element — aide's line replaces
+  // the docs' model+dir+context default, so it must not lose the dir.
+  if (on("dir") && payload.cwd) {
+    parts.push(formatDir(payload.cwd, data.homeDir));
+  }
 
   // Estate: only when this project actually sits inside another.
   if (on("estate") && data.parentName && data.projectName) {

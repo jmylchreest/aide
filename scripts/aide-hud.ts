@@ -287,6 +287,7 @@ if (!root) root = walkForAide(startCwd) ?? startCwd;
 const data = buildData(root, payload.sessionId, identity);
 if (data) {
   data.version = readVersion(root);
+  data.homeDir = homedir();
   let format: "minimal" | "full" = "full";
   let elements: string[] | undefined;
   try {

@@ -166,6 +166,28 @@ describe("composeStatusline scenarios", () => {
   });
 });
 
+describe("dir segment", () => {
+  it("renders ~-relative, truncated to the last two components", () => {
+    const d = base({ lastToolUse: AGO_2M, homeDir: "/home/johnm" });
+    expect(
+      composeStatusline(
+        payload({ cwd: "/home/johnm/src/github.com/jmylchreest/aide" }),
+        d,
+        "full",
+      ),
+    ).toBe("[aide 0.1.8] …/jmylchreest/aide | Fable 5 | ctx 12% | idle 2m");
+    expect(
+      composeStatusline(payload({ cwd: "/home/johnm/blog" }), d, "full"),
+    ).toBe("[aide 0.1.8] ~/blog | Fable 5 | ctx 12% | idle 2m");
+  });
+
+  it("workspace.current_dir wins over cwd in the payload", () => {
+    expect(
+      parsePayload({ cwd: "/a", workspace: { current_dir: "/b" } }).cwd,
+    ).toBe("/b");
+  });
+});
+
 describe("parsePayload", () => {
   it("extracts model, context, and cost from the documented shape", () => {
     const p = parsePayload({
