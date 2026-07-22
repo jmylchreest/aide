@@ -255,6 +255,57 @@ function buildData(
   };
 }
 
+/**
+ * Statusline config, mirroring the Go config's layering for the `hud`
+ * section: defaults -> global ~/.aide/config/aide.json -> project
+ * aide.json -> legacy .aide/config/hud.json (kept winning for setups
+ * that predate the aide.json hud section) -> AIDE_HUD_* env vars.
+ * `aide config set hud.format minimal` / `hud.segments dir context ...`
+ * is the supported way to write these.
+ */
+function readHudConfig(root: string): {
+  format: "minimal" | "full";
+  segments?: string[];
+} {
+  const out: { format: "minimal" | "full"; segments?: string[] } = {
+    format: "full",
+  };
+  const apply = (h: unknown): void => {
+    if (!h || typeof h !== "object") return;
+    const c = h as Record<string, unknown>;
+    if (c.format === "minimal" || c.format === "full") out.format = c.format;
+    if (
+      Array.isArray(c.segments) &&
+      c.segments.every((e) => typeof e === "string")
+    ) {
+      out.segments = c.segments as string[];
+    }
+  };
+  const layers: Array<[string, boolean]> = [
+    [join(homedir(), ".aide", "config", "aide.json"), true],
+    [join(root, ".aide", "config", "aide.json"), true],
+    [join(root, ".aide", "config", "hud.json"), false],
+  ];
+  for (const [p, nested] of layers) {
+    try {
+      const raw = JSON.parse(readFileSync(p, "utf-8"));
+      apply(nested ? raw?.hud : raw);
+    } catch {
+      /* layer absent */
+    }
+  }
+  const envFormat = process.env.AIDE_HUD_FORMAT;
+  if (envFormat === "minimal" || envFormat === "full") out.format = envFormat;
+  const envSegments = process.env.AIDE_HUD_SEGMENTS;
+  if (envSegments) {
+    out.segments = envSegments
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+  return out;
+}
+
 function readVersion(root: string): string {
   // The anchor-era binary stamps its version into hud.txt's tag; cheaper
   // than spawning `aide version` per render: parse it opportunistically.
@@ -288,26 +339,8 @@ const data = buildData(root, payload.sessionId, identity);
 if (data) {
   data.version = readVersion(root);
   data.homeDir = homedir();
-  let format: "minimal" | "full" = "full";
-  let elements: string[] | undefined;
-  try {
-    const cfg = JSON.parse(
-      readFileSync(join(root, ".aide", "config", "hud.json"), "utf-8"),
-    );
-    if (cfg.format === "minimal") format = cfg.format;
-    // `segments` (not the legacy `elements` key, whose vocabulary belongs
-    // to the old hud.txt renderer): which optional segments to show, from
-    // estate|mode|model|context|tools|agents|cost.
-    if (
-      Array.isArray(cfg.segments) &&
-      cfg.segments.every((e: unknown) => typeof e === "string")
-    ) {
-      elements = cfg.segments;
-    }
-  } catch {
-    /* default */
-  }
-  console.log(composeStatusline(payload, data, format, elements));
+  const cfg = readHudConfig(root);
+  console.log(composeStatusline(payload, data, cfg.format, cfg.segments));
   process.exit(0);
 }
 

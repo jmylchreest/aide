@@ -263,6 +263,27 @@ func printResolvedConfig(cfg *config.Config) {
 	fmt.Println("\nmaintenance")
 	fmt.Printf("  compact_on_exit %v\n", cfg.Maintenance.CompactOnExit)
 
+	fmt.Println("\nhud")
+	fmt.Printf("  format          %s\n", emptyDash(cfg.Hud.Format))
+	fmt.Printf("  segments        %s\n", fmtList(cfg.Hud.Segments))
+
+	fmt.Println("\nsubscriptions")
+	if len(cfg.Subscriptions) == 0 {
+		fmt.Println("  (none)")
+	} else {
+		for _, s := range cfg.Subscriptions {
+			src := s.URL
+			if src == "" {
+				src = s.Path
+			}
+			pub := ""
+			if s.Publish {
+				pub = "  [publish]"
+			}
+			fmt.Printf("  %-15s %s%s\n", s.Name, src, pub)
+		}
+	}
+
 	fmt.Println("\nshare")
 	fmt.Printf("  auto_import     %v\n", cfg.Share.AutoImport)
 	printShareTypePolicy("decisions",

@@ -60,6 +60,19 @@ type Config struct {
 	// Peer records are read-only and never re-exported; `aide context adopt`
 	// is the promotion verb.
 	Subscriptions []SubscriptionConfig `koanf:"subscriptions"`
+
+	Hud HudConfig `koanf:"hud"`
+}
+
+// HudConfig shapes the statusline the plugin's aide-hud script renders.
+// Format is "full" (default) or "minimal". Segments, when non-empty,
+// whitelists the optional segments to show — any of dir, estate, mode,
+// model, context, tools, agents, cost; the activity segment (live tool /
+// idle age) always renders. Read by the TS statusline script, layered
+// global-then-project like the rest of this file.
+type HudConfig struct {
+	Format   string   `koanf:"format"`
+	Segments []string `koanf:"segments"`
 }
 
 // SubscriptionConfig names one peer context source: a git repository

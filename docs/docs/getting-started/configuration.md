@@ -136,6 +136,8 @@ Project-level settings can be stored in `.aide/config/aide.json`:
 | `cleanup.state_max_age`         | 2160h   | TTL for per-agent session state, 90 days |
 | `cleanup.token_max_age`         | 2160h   | TTL for token events, 90 days |
 | `maintenance.compact_on_exit`   | true    | Rewrite bolt stores to reclaim free pages when the daemon/MCP server exits |
+| `hud.format`                    | full    | Statusline format: `full` or `minimal` (minimal drops model, tool count, and cost) |
+| `hud.segments`                  | (all)   | Whitelist of optional statusline segments: `dir`, `estate`, `mode`, `model`, `context`, `tools`, `agents`, `cost`. The activity segment always renders. Set via `aide config set hud.segments dir context tools` |
 
 Retention runs in the background loop of whichever long-lived process holds
 the store (the daemon or the MCP primary, every 15m) and, when neither is
