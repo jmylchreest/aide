@@ -42,7 +42,7 @@ export interface StatuslineData {
   agents: AgentState[];
 }
 
-export type StatuslineFormat = "minimal" | "full" | "icons";
+export type StatuslineFormat = "minimal" | "full";
 
 const MAX_ACTIVITY = 32;
 
@@ -114,76 +114,67 @@ export function composeStatusline(
   payload: StatuslinePayload,
   data: StatuslineData,
   format: StatuslineFormat = "full",
+  elements?: string[],
 ): string {
   const parts: string[] = [];
-  const icons = format === "icons";
+  // Segment opt-out: an elements list in .aide/config/hud.json drops any
+  // payload-derived or optional segment. Activity is always rendered — a
+  // statusline that can't say what's happening isn't one.
+  const on = (name: string): boolean => !elements || elements.includes(name);
 
   // Estate: only when this project actually sits inside another.
-  if (data.parentName && data.projectName) {
-    parts.push(
-      icons
-        ? `🏰 ${data.projectName}⊂${data.parentName}`
-        : `${data.projectName}⊂${data.parentName}`,
-    );
+  if (on("estate") && data.parentName && data.projectName) {
+    parts.push(`${data.projectName}⊂${data.parentName}`);
   }
 
   // Mode: only when one is actually engaged.
-  if (data.state.activeMode) {
+  if (on("mode") && data.state.activeMode) {
     const iter = data.modeIterations ? ` ${data.modeIterations}` : "";
-    parts.push(
-      icons
-        ? `🚀 ${data.state.activeMode}${iter}`
-        : `${data.state.activeMode}${iter}`,
-    );
+    parts.push(`${data.state.activeMode}${iter}`);
   }
 
-  if (format !== "minimal" && payload.modelName) {
-    parts.push(icons ? `🤖 ${payload.modelName}` : payload.modelName);
+  if (format !== "minimal" && on("model") && payload.modelName) {
+    parts.push(payload.modelName);
   }
 
-  if (payload.contextPercent !== null && payload.contextPercent !== undefined) {
-    parts.push(
-      icons
-        ? `📊 ${contextPart(payload.contextPercent)}`
-        : contextPart(payload.contextPercent),
-    );
+  if (
+    on("context") &&
+    payload.contextPercent !== null &&
+    payload.contextPercent !== undefined
+  ) {
+    parts.push(contextPart(payload.contextPercent));
   }
 
   // Activity: the live tool, else idle + how long since the last one.
   if (data.currentTool) {
-    const act = formatActivity(data.currentTool);
-    parts.push(icons ? `⚙ ${act}` : `▸ ${act}`);
+    parts.push(`▸ ${formatActivity(data.currentTool)}`);
   } else {
     const age = idleAge(data);
     parts.push(age ? `idle ${age}` : "idle");
   }
 
-  if (format !== "minimal" && data.state.toolCalls > 0) {
-    parts.push(icons ? `🔧 ${data.state.toolCalls}` : `⚒${data.state.toolCalls}`);
+  if (format !== "minimal" && on("tools") && data.state.toolCalls > 0) {
+    parts.push(`⚒${data.state.toolCalls}`);
   }
 
   const running = data.agents.filter((a) => a.status === "running");
-  if (running.length > 0) {
-    parts.push(icons ? `👥 ${running.length}` : `agents:${running.length}`);
+  if (on("agents") && running.length > 0) {
+    parts.push(`agents:${running.length}`);
   }
 
   if (
     format !== "minimal" &&
+    on("cost") &&
     payload.costUSD !== null &&
     payload.costUSD !== undefined &&
     payload.costUSD >= 0.01
   ) {
-    parts.push(icons ? `💰 $${payload.costUSD.toFixed(2)}` : `$${payload.costUSD.toFixed(2)}`);
+    parts.push(`$${payload.costUSD.toFixed(2)}`);
   }
 
   const tag =
-    format === "full" && data.version
-      ? `[aide ${data.version}]`
-      : icons
-        ? ""
-        : "[aide]";
-  const sep = icons ? "  " : " | ";
-  const main = [tag, parts.join(sep)].filter(Boolean).join(" ");
+    format === "full" && data.version ? `[aide ${data.version}]` : "[aide]";
+  const main = [tag, parts.join(" | ")].filter(Boolean).join(" ");
 
   const lines = [main];
   for (const agent of running) {

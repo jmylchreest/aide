@@ -287,16 +287,26 @@ if (!root) root = walkForAide(startCwd) ?? startCwd;
 const data = buildData(root, payload.sessionId, identity);
 if (data) {
   data.version = readVersion(root);
-  let format: "minimal" | "full" | "icons" = "full";
+  let format: "minimal" | "full" = "full";
+  let elements: string[] | undefined;
   try {
     const cfg = JSON.parse(
       readFileSync(join(root, ".aide", "config", "hud.json"), "utf-8"),
     );
-    if (cfg.format === "minimal" || cfg.format === "icons") format = cfg.format;
+    if (cfg.format === "minimal") format = cfg.format;
+    // `segments` (not the legacy `elements` key, whose vocabulary belongs
+    // to the old hud.txt renderer): which optional segments to show, from
+    // estate|mode|model|context|tools|agents|cost.
+    if (
+      Array.isArray(cfg.segments) &&
+      cfg.segments.every((e: unknown) => typeof e === "string")
+    ) {
+      elements = cfg.segments;
+    }
   } catch {
     /* default */
   }
-  console.log(composeStatusline(payload, data, format));
+  console.log(composeStatusline(payload, data, format, elements));
   process.exit(0);
 }
 

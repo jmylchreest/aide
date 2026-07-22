@@ -142,16 +142,21 @@ describe("composeStatusline scenarios", () => {
     );
   });
 
-  it("icons: emoji separator style", () => {
+  it("segments config drops payload-derived parts individually", () => {
     const d = base({
       projectName: "webshop",
       parentName: "tl",
       currentTool: "Bash(go build ./...)",
       state: { ...base().state, toolCalls: 12 },
     });
-    expect(composeStatusline(payload({ contextPercent: 38 }), d, "icons")).toBe(
-      "🏰 webshop⊂tl  🤖 Fable 5  📊 ctx 38%  ⚙ Bash: go build ./...  🔧 12",
-    );
+    expect(
+      composeStatusline(
+        payload({ contextPercent: 38, costUSD: 2.5 }),
+        d,
+        "full",
+        ["estate", "context", "tools"],
+      ),
+    ).toBe("[aide 0.1.8] webshop⊂tl | ctx 38% | ▸ Bash: go build ./... | ⚒12");
   });
 
   it("no payload extras: still renders from aide data alone", () => {
