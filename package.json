@@ -28,19 +28,19 @@
     "@types/cross-spawn": "^6.0.6",
     "@types/node": "^25.9.0",
     "@types/which": "^3.0.4",
-    "@typescript-eslint/eslint-plugin": "^8.59.4",
-    "@typescript-eslint/parser": "^8.59.4",
-    "eslint": "^10.4.0",
-    "prettier": "^3.8.3",
+    "@typescript-eslint/eslint-plugin": "^8.65.0",
+    "@typescript-eslint/parser": "^8.65.0",
+    "eslint": "^10.7.0",
+    "prettier": "^3.9.6",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.6"
+    "vitest": "^4.1.10"
   },
   "engines": {
     "bun": ">=1.0.0"
   },
   "dependencies": {
     "cross-spawn": "^7.0.6",
-    "smol-toml": "^1.6.1",
+    "smol-toml": "^1.7.0",
     "which": "^7.0.0"
   }
 }
