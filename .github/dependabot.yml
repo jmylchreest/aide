@@ -1,0 +1,49 @@
+version: 2
+updates:
+  # Bun/TypeScript: root workspace (includes packages/*), docs site, aide-web frontend
+  - package-ecosystem: "bun"
+    directories:
+      - "/"
+      - "/docs"
+      - "/aide-web/web"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    # Supply-chain guard: only pick up releases at least 3 days old
+    cooldown:
+      default-days: 3
+    groups:
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Go modules
+  - package-ecosystem: "gomod"
+    directories:
+      - "/aide"
+      - "/aide-web"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    cooldown:
+      default-days: 3
+    groups:
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # GitHub Actions workflow pins
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    cooldown:
+      default-days: 3
+    groups:
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"

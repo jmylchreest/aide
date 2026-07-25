@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Used by the Dependabot fix-it workflow: pushes made with GITHUB_TOKEN
+  # don't trigger pull_request events, so CI is re-dispatched on the branch.
+  workflow_dispatch:
 
 jobs:
   typescript:
