@@ -239,7 +239,7 @@ jobs:
           fi
 
       - name: Upload Zig artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: zig-toolchain
           path: zig-x86_64-linux-${{ steps.resolve.outputs.version }}.tar.xz
@@ -339,7 +339,7 @@ jobs:
           strip: false # Already stripped via -s -w ldflags
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: aide-${{ matrix.goos }}-${{ matrix.goarch }}
           path: dist/aide-*
@@ -437,7 +437,7 @@ jobs:
           strip: false
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: aide-web-${{ matrix.goos }}-${{ matrix.goarch }}
           path: dist/aide-web-*
@@ -677,7 +677,7 @@ jobs:
           fi
 
       - name: Upload grammar artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: grammars-${{ matrix.os_name }}-${{ matrix.arch }}
           path: |
@@ -720,7 +720,7 @@ jobs:
         run: bun pm pack
 
       - name: Upload npm tarball artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: npm-package
           path: packages/opencode-plugin/jmylchreest-aide-plugin-*.tgz
