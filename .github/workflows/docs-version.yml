@@ -54,16 +54,12 @@ jobs:
           fi
           echo "Tag exists: ${{ inputs.tag }}"
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: docs/package-lock.json
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
 
       - name: Install dependencies
         working-directory: docs
-        run: npm ci
+        run: bun install --frozen-lockfile
 
       - name: Extract version from tag
         id: version
@@ -89,7 +85,7 @@ jobs:
       - name: Create documentation version
         if: steps.check.outputs.exists != 'true'
         working-directory: docs
-        run: npm run docusaurus docs:version ${{ steps.version.outputs.VERSION }}
+        run: bun run docusaurus docs:version ${{ steps.version.outputs.VERSION }}
 
       - name: Commit version files
         if: steps.check.outputs.exists != 'true'

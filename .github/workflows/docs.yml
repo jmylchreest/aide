@@ -52,18 +52,14 @@ jobs:
           lfs: true
           ref: ${{ inputs.ref || github.sha }}
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: docs/package-lock.json
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
 
       - name: Install dependencies
-        run: npm ci
+        run: bun install --frozen-lockfile
 
       - name: Build documentation
-        run: npm run build
+        run: bun run build
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5
