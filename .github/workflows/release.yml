@@ -331,7 +331,7 @@ jobs:
 
       - name: Compress binary with UPX
         if: matrix.goos != 'darwin' && !(matrix.goos == 'windows' && matrix.goarch == 'arm64')
-        uses: svenstaro/upx-action@v2
+        uses: svenstaro/upx-action@v3
         with:
           files: |
             dist/aide-*
@@ -429,7 +429,7 @@ jobs:
 
       - name: Compress binary with UPX
         if: matrix.goos != 'darwin' && !(matrix.goos == 'windows' && matrix.goarch == 'arm64')
-        uses: svenstaro/upx-action@v2
+        uses: svenstaro/upx-action@v3
         with:
           files: |
             dist/aide-web-*
