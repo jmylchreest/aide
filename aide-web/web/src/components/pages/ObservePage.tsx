@@ -138,6 +138,9 @@ export function ObservePage({ fixedKind, title }: ObservePageProps = {}) {
           {filtered.map((ev) => {
             const isOpen = !!expanded[ev.id];
             const kindClass = KIND_COLOURS[ev.kind] ?? "bg-aide-surface text-aide-text-muted";
+            // Hoisted so the click/key handlers below close over a narrowed string
+            // rather than the optional property, which TS cannot narrow inside callbacks.
+            const sessionId = ev.session_id;
             return (
               <div key={ev.id} className="border-b border-aide-border last:border-b-0">
                 <button
@@ -162,25 +165,25 @@ export function ObservePage({ fixedKind, title }: ObservePageProps = {}) {
                       {ev.subtype ? `/${ev.subtype}` : ""}
                     </span>
                   )}
-                  {ev.session_id && (
+                  {sessionId && (
                     <span
                       role="button"
                       tabIndex={0}
                       className="text-[0.6rem] text-aide-text-dim font-mono shrink-0 hover:text-aide-accent hover:underline cursor-pointer"
-                      title={`Filter to session ${ev.session_id} — click to apply`}
+                      title={`Filter to session ${sessionId} — click to apply`}
                       onClick={(e) => {
                         e.stopPropagation();
-                        setSessionFilter(ev.session_id);
+                        setSessionFilter(sessionId);
                       }}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === " ") {
                           e.preventDefault();
                           e.stopPropagation();
-                          setSessionFilter(ev.session_id);
+                          setSessionFilter(sessionId);
                         }
                       }}
                     >
-                      {ev.session_id.slice(0, 8)}
+                      {sessionId.slice(0, 8)}
                     </span>
                   )}
                   <span className="text-xs text-aide-text font-mono truncate flex-1">

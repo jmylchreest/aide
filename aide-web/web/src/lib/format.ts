@@ -1,4 +1,5 @@
-export function formatTimestamp(ts: string): string {
+export function formatTimestamp(ts: string | undefined): string {
+  if (!ts) return "";
   try {
     const d = new Date(ts);
     return d.toISOString().replace("T", " ").replace("Z", "").slice(0, 23);

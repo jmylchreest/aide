@@ -212,16 +212,14 @@ export function SwarmPage() {
                     </span>
                     <span className="flex items-center gap-1">
                       {a.halt && (
-                        <AlertTriangle
-                          className="w-3 h-3 text-red-400"
-                          title={a.halt_reason || "halted"}
-                        />
+                        <span title={a.halt_reason || "halted"}>
+                          <AlertTriangle className="w-3 h-3 text-red-400" />
+                        </span>
                       )}
                       {a.paused && (
-                        <Pause
-                          className="w-3 h-3 text-amber-400"
-                          title="paused"
-                        />
+                        <span title="paused">
+                          <Pause className="w-3 h-3 text-amber-400" />
+                        </span>
                       )}
                       {a.status === "running" && !a.halt && !a.paused && (
                         <span className="w-2 h-2 rounded-full bg-emerald-400" />
