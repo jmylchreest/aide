@@ -300,15 +300,14 @@ export const api = {
       `${BASE}/instances/${encodeURIComponent(project)}/code/index`
     ),
 
-  listSwarmAgents: (project: string, parentSession?: string, includeStale = false) => {
-    const params: Record<string, string> = {};
-    if (parentSession) params.parent_session = parentSession;
-    if (includeStale) params.include_stale = "1";
-    return get<{ agents: SwarmAgentItem[] }>(
+  listSwarmAgents: (project: string, parentSession?: string, includeStale = false) =>
+    get<{ agents: SwarmAgentItem[] }>(
       `${BASE}/instances/${encodeURIComponent(project)}/swarm/agents`,
-      Object.keys(params).length > 0 ? params : undefined,
-    ).then((r) => r.agents ?? []);
-  },
+      {
+        ...(parentSession ? { parent_session: parentSession } : {}),
+        ...(includeStale ? { include_stale: "1" } : {}),
+      },
+    ).then((r) => r.agents ?? []),
 
   swarmTasksWatchUrl: (
     project: string,

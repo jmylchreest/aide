@@ -3,8 +3,7 @@ import { useParams } from "react-router-dom";
 import { api } from "@/lib/api";
 import { useApi } from "@/hooks/use-api";
 import { FilterBar } from "../shared/FilterBar";
-import { ExpandableCard, Badge, Tag } from "../shared/ExpandableCard";
-import type { MessageItem } from "@/lib/types";
+import { ExpandableCard, Badge } from "../shared/ExpandableCard";
 
 const typeVariant: Record<string, "accent" | "muted" | "green" | "yellow"> = {
   request: "accent",
