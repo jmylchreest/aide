@@ -461,8 +461,8 @@ func sessionFetchContext(backend *Backend, project string, sessionLimit int, res
 			})
 		}
 	}
-	sessionCascadeDecisions(backend, seenTopics, result)
-	sessionPeerDecisions(backend, seenTopics, result)
+	result.Decisions = append(result.Decisions, cascadeDecisions(backend.dbPath, seenTopics)...)
+	result.Decisions = append(result.Decisions, peerDecisions(backend.dbPath, seenTopics)...)
 
 	// Recent sessions (grouped by session tag)
 	if project != "" && sessionLimit > 0 {
@@ -485,15 +485,20 @@ func latestDecisionsByTopic(decisions []*memory.Decision) map[string]*memory.Dec
 	return latest
 }
 
-// sessionCascadeDecisions layers ancestors' decisions into the session
-// context, nearest-first, for topics not already decided nearer. Cascaded
-// entries carry origin provenance. Kill switch: AIDE_CASCADE_DISABLED=1.
-// Solo repos are unaffected — no parents, no cascade, no cost.
-func sessionCascadeDecisions(backend *Backend, seenTopics map[string]bool, result *SessionInitResult) {
+// cascadeDecisions returns ancestors' decisions, nearest-first, for topics
+// not already decided nearer. Cascaded entries carry origin provenance.
+// Kill switch: AIDE_CASCADE_DISABLED=1. Solo repos are unaffected — no
+// parents, no cascade, no cost.
+//
+// seenTopics is read and updated so callers can layer rings in precedence
+// order (local > ancestors > peers); shared by session init and
+// `aide decision list --origin`.
+func cascadeDecisions(dbPath string, seenTopics map[string]bool) []SessionDecision {
 	if v := os.Getenv("AIDE_CASCADE_DISABLED"); v == "1" || strings.EqualFold(v, "true") {
-		return
+		return nil
 	}
-	a := resolveAnchor(projectRoot(backend.dbPath))
+	var out []SessionDecision
+	a := resolveAnchor(projectRoot(dbPath))
 	for _, link := range a.Chain[1:] {
 		parentDecisions := fetchAncestorDecisions(link.Root)
 		if len(parentDecisions) == 0 {
@@ -513,7 +518,7 @@ func sessionCascadeDecisions(backend *Backend, seenTopics map[string]bool, resul
 			}
 			seenTopics[topic] = true
 			d := latest[topic]
-			result.Decisions = append(result.Decisions, SessionDecision{
+			out = append(out, SessionDecision{
 				Topic:      d.Topic,
 				Value:      d.Decision,
 				Rationale:  d.Rationale,
@@ -524,26 +529,31 @@ func sessionCascadeDecisions(backend *Backend, seenTopics map[string]bool, resul
 			})
 		}
 	}
+	return out
 }
 
 // peerSyncMaxAge is how stale a subscription cache may be before session
 // init attempts a refresh fetch.
 const peerSyncMaxAge = time.Hour
 
-// sessionPeerDecisions layers subscribed peers' decisions in after the
-// estate cascade — the outermost precedence ring (local > ancestors >
-// peers, subscription order among peers). Cache-first and offline-silent:
-// one short deadline is shared across any refresh fetches, and a failed
-// fetch serves the stale cache. Shares the cascade's kill switch.
-func sessionPeerDecisions(backend *Backend, seenTopics map[string]bool, result *SessionInitResult) {
+// peerDecisions returns subscribed peers' decisions, the outermost
+// precedence ring (local > ancestors > peers, subscription order among
+// peers). Cache-first and offline-silent: one short deadline is shared
+// across any refresh fetches, and a failed fetch serves the stale cache.
+// Shares the cascade's kill switch.
+//
+// seenTopics is read and updated so callers can layer rings in precedence
+// order; shared by session init and `aide decision list --origin`.
+func peerDecisions(dbPath string, seenTopics map[string]bool) []SessionDecision {
 	if v := os.Getenv("AIDE_CASCADE_DISABLED"); v == "1" || strings.EqualFold(v, "true") {
-		return
+		return nil
 	}
 	subs := config.Get().Subscriptions
 	if len(subs) == 0 {
-		return
+		return nil
 	}
-	root := projectRoot(backend.dbPath)
+	var out []SessionDecision
+	root := projectRoot(dbPath)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	for _, sub := range subs {
@@ -566,7 +576,7 @@ func sessionPeerDecisions(backend *Backend, seenTopics map[string]bool, result *
 			}
 			seenTopics[topic] = true
 			d := latest[topic]
-			result.Decisions = append(result.Decisions, SessionDecision{
+			out = append(out, SessionDecision{
 				Topic:      d.Topic,
 				Value:      d.Decision,
 				Rationale:  d.Rationale,
@@ -577,6 +587,7 @@ func sessionPeerDecisions(backend *Backend, seenTopics map[string]bool, result *
 			})
 		}
 	}
+	return out
 }
 
 // fetchAncestorDecisions reads an ancestor store's decisions through the

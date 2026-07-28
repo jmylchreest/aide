@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jmylchreest/aide/aide/pkg/memory"
@@ -38,6 +39,10 @@ type StateListInput struct {
 
 type DecisionGetInput struct {
 	Topic string `json:"topic" jsonschema:"Decision topic key (kebab-case), e.g., 'auth-strategy', 'testing-framework', 'db-schema'. Use decision_list first to discover available topics."`
+}
+
+type DecisionListInput struct {
+	Origin string `json:"origin,omitempty" jsonschema:"Optional. Also list decisions in force from elsewhere in the estate: 'parent' (anchor-chain ancestors), 'peer' (subscriptions), or 'all'. Omit for this project's own decisions only. A topic decided nearer always wins, so these only add topics not decided locally."`
 }
 
 type DecisionHistoryInput struct {
@@ -274,11 +279,16 @@ Each entry includes: decision, rationale, details, references, and timestamp.
 
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name: "decision_list",
-		Description: `List all recorded decisions (latest for each topic).
+		Description: `List this project's recorded decisions (latest for each topic).
 
 **Start here** - call this first to discover what decision topics exist.
 Returns a summary of all decision topics with their current (most recent) values.
-Then use decision_get for full details on a specific topic, or decision_history to see how it evolved.`,
+Then use decision_get for full details on a specific topic, or decision_history to see how it evolved.
+
+**Inherited decisions:** pass origin='parent' (anchor-chain ancestors), 'peer'
+(subscriptions), or 'all' to also list rules in force here but stored upstream.
+Those are reported separately with their source, and are read-only from here —
+use decision_adopt to copy one into this project.`,
 	}, s.handleDecisionList)
 }
 
@@ -312,8 +322,8 @@ func (s *MCPServer) handleDecisionHistory(_ context.Context, _ *mcp.CallToolRequ
 	return textResult(formatDecisionHistoryMarkdown(input.Topic, history)), nil, nil
 }
 
-func (s *MCPServer) handleDecisionList(_ context.Context, _ *mcp.CallToolRequest, _ emptyInput) (*mcp.CallToolResult, any, error) {
-	mcpLog.Printf("tool: decision_list")
+func (s *MCPServer) handleDecisionList(_ context.Context, _ *mcp.CallToolRequest, input DecisionListInput) (*mcp.CallToolResult, any, error) {
+	mcpLog.Printf("tool: decision_list origin=%s", input.Origin)
 
 	decisions, err := s.store.ListDecisions()
 	if err != nil {
@@ -321,8 +331,47 @@ func (s *MCPServer) handleDecisionList(_ context.Context, _ *mcp.CallToolRequest
 		return errorResult(fmt.Sprintf("list decisions failed: %v", err)), nil, nil
 	}
 
-	mcpLog.Printf("  found: %d decisions", len(decisions))
-	return textResult(formatDecisionsMarkdown(decisions)), nil, nil
+	switch input.Origin {
+	case "", "parent", "peer", "all":
+	default:
+		return errorResult(fmt.Sprintf("invalid origin %q: want parent, peer, or all", input.Origin)), nil, nil
+	}
+
+	// Local rings first so a topic decided nearer wins, matching session
+	// init and `aide decision list --origin`.
+	seenTopics := make(map[string]bool, len(decisions))
+	for _, d := range decisions {
+		seenTopics[d.Topic] = true
+	}
+	var estate []SessionDecision
+	if input.Origin == "parent" || input.Origin == "all" {
+		estate = append(estate, cascadeDecisions(s.dbPath, seenTopics)...)
+	}
+	if input.Origin == "peer" || input.Origin == "all" {
+		estate = append(estate, peerDecisions(s.dbPath, seenTopics)...)
+	}
+
+	mcpLog.Printf("  found: %d decisions (+%d estate)", len(decisions), len(estate))
+	return textResult(formatDecisionsMarkdown(decisions) + formatEstateDecisionsMarkdown(estate)), nil, nil
+}
+
+// formatEstateDecisionsMarkdown renders non-local decisions as a separate
+// section so their provenance stays visible — an agent must be able to tell
+// which store a rule came from before editing or superseding it.
+func formatEstateDecisionsMarkdown(estate []SessionDecision) string {
+	if len(estate) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("\n## In force from the estate\n\n")
+	b.WriteString("Not stored in this project — decided upstream and inherited.\n\n")
+	for _, d := range estate {
+		fmt.Fprintf(&b, "- **%s** (%s): %s\n", d.Topic, originLabel(d), d.Value)
+		if d.Rationale != "" {
+			fmt.Fprintf(&b, "  - Rationale: %s\n", d.Rationale)
+		}
+	}
+	return b.String()
 }
 
 // ============================================================================

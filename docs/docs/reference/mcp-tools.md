@@ -37,7 +37,7 @@ Returns all memories, optionally filtered by category. Results include timestamp
 | Tool               | Purpose                                |
 | ------------------ | -------------------------------------- |
 | `decision_get`     | Get the current decision for a topic   |
-| `decision_list`    | List all recorded decisions            |
+| `decision_list`    | List recorded decisions (`origin` to widen) |
 | `decision_history` | Full chronological history for a topic |
 
 ### decision_get
@@ -48,7 +48,16 @@ Returns the latest (current) decision for a topic. Decisions are append-only —
 
 ### decision_list
 
-Returns a summary of all decision topics with their current values. Call this first to discover what topics exist.
+Returns a summary of this project's decision topics with their current values. Call this first to discover what topics exist.
+
+**Parameters:** `origin` (string, optional) — `parent`, `peer`, or `all`
+
+By default only this project's own decisions are returned. Pass `origin` to also
+list rules in force here but stored upstream: `parent` for anchor-chain
+ancestors, `peer` for subscriptions, `all` for both. Inherited decisions are
+reported in a separate section with their source, and never shadow a local
+decision on the same topic. They are read-only from here — use `decision_adopt`
+to copy one into this project.
 
 ### decision_history
 

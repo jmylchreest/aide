@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -42,7 +43,7 @@ Usage:
 Subcommands:
   set        Record a decision (latest wins per topic)
   get        Get the current decision for a topic
-  list       List all current decisions
+  list       List this store's current decisions (--origin to widen)
   history    Show decision history for a topic
   delete     Delete all decisions for a topic
   clear      Clear all decisions
@@ -57,6 +58,11 @@ Options:
 
   list:
     --format=json      Output as JSON
+    --origin=KIND      Also show decisions in force from elsewhere in the
+                       estate: 'parent' (anchor chain), 'peer'
+                       (subscriptions), or 'all'. Default is this store
+                       only. A topic decided nearer always wins, so these
+                       are additive — local > parent > peer.
 
   history TOPIC:
     --full             Show details in history output
@@ -144,7 +150,40 @@ func decisionGet(b *Backend, args []string) error {
 	return nil
 }
 
+// parseOriginFlag pulls --origin=parent|peer|all out of args, accepting the
+// same space and equals forms as --store. An empty return means local-only,
+// the default. Mirrors the provenance axis of decision terminology-axes:
+// origin is where a record came from, never scope and never topology.
+func parseOriginFlag(args []string) (string, error) {
+	sel := ""
+	for i, a := range args {
+		switch {
+		case a == "--origin":
+			if i+1 >= len(args) {
+				return "", fmt.Errorf("--origin requires a value: parent, peer, or all")
+			}
+			sel = args[i+1]
+		case strings.HasPrefix(a, "--origin="):
+			sel = a[len("--origin="):]
+		default:
+			continue
+		}
+		break
+	}
+	switch sel {
+	case "", "parent", "peer", "all":
+		return sel, nil
+	default:
+		return "", fmt.Errorf("invalid --origin value %q: want parent, peer, or all", sel)
+	}
+}
+
 func decisionList(b *Backend, args []string) error {
+	origin, err := parseOriginFlag(args)
+	if err != nil {
+		return err
+	}
+
 	decisions, err := b.ListDecisions()
 	if err != nil {
 		return fmt.Errorf("failed to list decisions: %w", err)
@@ -158,27 +197,83 @@ func decisionList(b *Backend, args []string) error {
 		}
 	}
 
-	// Collect map values into a stable slice.
-	latestSlice := make([]*memory.Decision, 0, len(latest))
-	for _, d := range latest {
-		latestSlice = append(latestSlice, d)
+	// Local first, then the estate rings in precedence order, so a topic
+	// decided nearer always wins — same layering as session init.
+	rows := make([]SessionDecision, 0, len(latest))
+	seenTopics := make(map[string]bool, len(latest))
+	localTopics := make([]string, 0, len(latest))
+	for t := range latest {
+		localTopics = append(localTopics, t)
+	}
+	// Topic-sorted like the cascade rings: map order made this output
+	// differ run to run, which is noise in diffs and in agent context.
+	sort.Strings(localTopics)
+	for _, t := range localTopics {
+		d := latest[t]
+		seenTopics[d.Topic] = true
+		rows = append(rows, SessionDecision{
+			Topic:     d.Topic,
+			Value:     d.Decision,
+			Rationale: d.Rationale,
+			CreatedAt: d.CreatedAt.Format(time.RFC3339),
+		})
+	}
+	if origin == "parent" || origin == "all" {
+		rows = append(rows, cascadeDecisions(b.dbPath, seenTopics)...)
+	}
+	if origin == "peer" || origin == "all" {
+		rows = append(rows, peerDecisions(b.dbPath, seenTopics)...)
 	}
 
 	if wantJSON(args) {
-		return printJSON(latestSlice)
+		return printJSON(rows)
 	}
 
-	if len(latestSlice) == 0 {
+	if len(rows) == 0 {
 		fmt.Println("No decisions found")
 		return nil
 	}
 
+	// The ORIGIN column only earns its width when something non-local is present.
+	showOrigin := false
+	for _, r := range rows {
+		if r.OriginKind != "" {
+			showOrigin = true
+			break
+		}
+	}
+
 	w := newTabWriter()
-	fmt.Fprintln(w, "DATE\tTOPIC\tDECISION")
-	for _, d := range latestSlice {
-		fmt.Fprintf(w, "%s\t%s\t%s\n", d.CreatedAt.Format("2006-01-02"), d.Topic, truncate(d.Decision, 60))
+	if showOrigin {
+		fmt.Fprintln(w, "DATE\tORIGIN\tTOPIC\tDECISION")
+	} else {
+		fmt.Fprintln(w, "DATE\tTOPIC\tDECISION")
+	}
+	for _, r := range rows {
+		date := r.CreatedAt
+		if t, err := time.Parse(time.RFC3339, r.CreatedAt); err == nil {
+			date = t.Format("2006-01-02")
+		}
+		if showOrigin {
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", date, originLabel(r), r.Topic, truncate(r.Value, 60))
+			continue
+		}
+		fmt.Fprintf(w, "%s\t%s\t%s\n", date, r.Topic, truncate(r.Value, 60))
 	}
 	return w.Flush()
+}
+
+// originLabel renders a decision's provenance as "local", "parent:<name>" or
+// "peer:<name>", falling back to the bare kind when the ancestor has no
+// resolvable project identity.
+func originLabel(d SessionDecision) string {
+	if d.OriginKind == "" {
+		return "local"
+	}
+	if d.OriginName == "" {
+		return d.OriginKind
+	}
+	return d.OriginKind + ":" + d.OriginName
 }
 
 func decisionHistory(b *Backend, args []string) error {

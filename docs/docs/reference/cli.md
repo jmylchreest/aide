@@ -34,6 +34,7 @@ aide memory export --format=markdown     # Export to markdown
 aide decision set auth-strategy "JWT with refresh tokens" --rationale="Stateless"
 aide decision get auth-strategy
 aide decision list
+aide decision list --origin=all
 aide decision history auth-strategy
 aide decision delete auth-strategy
 ```
@@ -42,10 +43,24 @@ aide decision delete auth-strategy
 | ------------------ | -------------------------------------------------- |
 | `decision set`     | Record a decision for a topic (appends to history) |
 | `decision get`     | Get the current (latest) decision                  |
-| `decision list`    | List all decision topics                           |
+| `decision list`    | List this store's decision topics (`--origin` to widen) |
 | `decision history` | Show full history for a topic                      |
 | `decision delete`  | Delete a decision topic                            |
 | `decision adopt`   | Promote a subscribed peer's decision into this store (see Sync & Subscriptions) |
+
+`decision list` shows this store's own decisions by default. Pass `--origin`
+to also list rules that are in force here but stored elsewhere in the estate:
+
+| Value    | Shows additionally                            |
+| -------- | --------------------------------------------- |
+| `parent` | Ancestors on the anchor chain                 |
+| `peer`   | Subscribed peers                              |
+| `all`    | Both                                          |
+
+These are additive and never shadow local decisions — a topic decided nearer
+always wins (local > parent > peer), matching what `session init` injects. An
+`ORIGIN` column appears when a non-local row is present. Inherited entries are
+read-only from here; use `decision adopt` to copy one into this store.
 
 ## Tasks
 
