@@ -1046,3 +1046,54 @@ func TestExportExcludedCounts(t *testing.T) {
 		t.Errorf("memories = %d/%d excluded, want 1/1", stats.Memories, stats.MemoriesExcluded)
 	}
 }
+
+// A decisions-only export must still materialise memory tombstones and use
+// them to unpublish the memory files they shadow. Gating tombstones behind
+// the per-type publish flag would strand a deleted memory's file in the
+// shared tree — committed to git and still importable by subscribers —
+// because no later decisions-only export would ever clean it up.
+func TestExportDecisionsOnlyStillPropagatesMemoryTombstones(t *testing.T) {
+	s := newTestStore(t)
+	root := filepath.Join(t.TempDir(), "context")
+	now := time.Now()
+
+	// A memory that was published while the memories policy was on.
+	const memID = "01HXTOMBONLYDECISIONS00001"
+	seedMemory(t, s, memID, "published earlier", []string{"team"}, now, now)
+	if err := s.SetDecision(&memory.Decision{Topic: "keep-me", Decision: "v", CreatedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	mustExport(t, s, root) // both types on
+	if _, err := os.Stat(MemoryPath(root, memID)); err != nil {
+		t.Fatalf("memory file should exist after a memories-on export: %v", err)
+	}
+
+	// The memory is deleted, then the policy narrows to decisions only.
+	if err := s.DeleteMemory(memID); err != nil {
+		t.Fatalf("DeleteMemory: %v", err)
+	}
+	stats, err := Export(s, s, root, ExportOptions{
+		Decisions:      true,
+		Memories:       false,
+		DecisionFilter: matchAll,
+		MemoryFilter:   matchAll,
+	})
+	if err != nil {
+		t.Fatalf("Export: %v", err)
+	}
+
+	ts := &memory.Tombstone{ID: memID, Kind: memory.TombstoneKindMemory}
+	if _, err := os.Stat(TombstonePath(root, ts)); err != nil {
+		t.Errorf("memory tombstone not written during a decisions-only export: %v", err)
+	}
+	if stats.Tombstones != 1 {
+		t.Errorf("stats.Tombstones = %d, want 1", stats.Tombstones)
+	}
+	if _, err := os.Stat(MemoryPath(root, memID)); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("deleted memory still published after decisions-only export, stat err=%v", err)
+	}
+	// The gate still applies to live records: nothing new was published.
+	if stats.Memories != 0 {
+		t.Errorf("stats.Memories = %d, want 0 with Memories=false", stats.Memories)
+	}
+}
