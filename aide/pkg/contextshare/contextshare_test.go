@@ -1097,3 +1097,100 @@ func TestExportDecisionsOnlyStillPropagatesMemoryTombstones(t *testing.T) {
 		t.Errorf("stats.Memories = %d, want 0 with Memories=false", stats.Memories)
 	}
 }
+
+// The common shape for a store whose memories stay local: memories are
+// deleted routinely (agent-curated stores churn heavily), but were never
+// exported, so their tombstones have nothing to unpublish here and no
+// subscriber can hold the record either. Materialising them would commit
+// hundreds of inert files to git.
+func TestExportSkipsNeverPublishedMemoryTombstones(t *testing.T) {
+	s := newTestStore(t)
+	root := filepath.Join(t.TempDir(), "context")
+	now := time.Now()
+
+	if err := s.SetDecision(&memory.Decision{Topic: "keep-me", Decision: "v", CreatedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	// Memories that live and die entirely inside this store.
+	for _, id := range []string{"01HXNEVERPUB00000000000001", "01HXNEVERPUB00000000000002"} {
+		seedMemory(t, s, id, "local only", []string{"team"}, now, now)
+		if err := s.DeleteMemory(id); err != nil {
+			t.Fatalf("DeleteMemory: %v", err)
+		}
+	}
+
+	stats, err := Export(s, s, root, ExportOptions{
+		Decisions:      true,
+		Memories:       false,
+		DecisionFilter: matchAll,
+		MemoryFilter:   matchAll,
+	})
+	if err != nil {
+		t.Fatalf("Export: %v", err)
+	}
+
+	if stats.Tombstones != 0 {
+		t.Errorf("stats.Tombstones = %d, want 0", stats.Tombstones)
+	}
+	if stats.TombstonesSkipped != 2 {
+		t.Errorf("stats.TombstonesSkipped = %d, want 2", stats.TombstonesSkipped)
+	}
+	entries, err := os.ReadDir(filepath.Join(root, "tombstones"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("tombstone files written for never-published memories: %v", entries)
+	}
+	// The decisions themselves still ship.
+	if stats.Decisions != 1 {
+		t.Errorf("stats.Decisions = %d, want 1", stats.Decisions)
+	}
+}
+
+// Once a tombstone has been published it must keep propagating for its full
+// TTL, even after it has removed the record it shadowed. Otherwise a peer
+// that syncs late would never learn about the deletion.
+func TestExportKeepsPublishedTombstoneAfterRecordRemoved(t *testing.T) {
+	s := newTestStore(t)
+	root := filepath.Join(t.TempDir(), "context")
+	now := time.Now()
+
+	const memID = "01HXPUBTHENQUIET0000000001"
+	seedMemory(t, s, memID, "published earlier", []string{"team"}, now, now)
+	mustExport(t, s, root) // memories on: the record is published
+	if err := s.DeleteMemory(memID); err != nil {
+		t.Fatalf("DeleteMemory: %v", err)
+	}
+
+	decisionsOnly := ExportOptions{
+		Decisions:      true,
+		Memories:       false,
+		DecisionFilter: matchAll,
+		MemoryFilter:   matchAll,
+	}
+	// First pass writes the tombstone and unpublishes the memory file.
+	if _, err := Export(s, s, root, decisionsOnly); err != nil {
+		t.Fatalf("Export: %v", err)
+	}
+	ts := &memory.Tombstone{ID: memID, Kind: memory.TombstoneKindMemory}
+	if _, err := os.Stat(TombstonePath(root, ts)); err != nil {
+		t.Fatalf("tombstone should have been published: %v", err)
+	}
+
+	// Second pass: the shadowed record is gone now, so the skip condition
+	// would match on content alone. The existing file must keep it alive.
+	stats, err := Export(s, s, root, decisionsOnly)
+	if err != nil {
+		t.Fatalf("Export: %v", err)
+	}
+	if _, err := os.Stat(TombstonePath(root, ts)); err != nil {
+		t.Errorf("published tombstone dropped on re-export: %v", err)
+	}
+	if stats.Tombstones != 1 {
+		t.Errorf("stats.Tombstones = %d, want 1", stats.Tombstones)
+	}
+	if stats.TombstonesSkipped != 0 {
+		t.Errorf("stats.TombstonesSkipped = %d, want 0", stats.TombstonesSkipped)
+	}
+}

@@ -34,9 +34,12 @@ type TombstoneAccess interface {
 // ExportOptions configures Export.
 //
 // Decisions and Memories are the per-type publish gates: when false, no records
-// of that type are written. Tombstones are always materialised and expired
-// regardless of these gates — deletions propagate independently of the type
-// policy, so a disabled type still has its pending deletions recorded.
+// of that type are written. Tombstones still propagate across a closed gate:
+// a deletion is materialised whenever it has published work to do — either its
+// type is being exported, or a record file it shadows is still in the tree and
+// must be unpublished. The one case that is skipped is a deletion that was
+// never published and never can be: type off and nothing left to remove, where
+// no subscriber can hold the record either. Expiry applies to all of them.
 // DecisionFilter and MemoryFilter then select which records of an enabled type
 // ship, globbing over each record's token set (see DecisionTokens/MemoryTokens).
 // The cmd layer maps user config into these; contextshare just applies them.
@@ -58,6 +61,9 @@ type ExportStats struct {
 	Tombstones        int // Live tombstone files present after export
 	DecisionsExcluded int // Decision versions rejected by the export filter
 	MemoriesExcluded  int // Memories rejected by the export filter
+	// TombstonesSkipped counts deletions that were not materialised because
+	// their type is not published and they had nothing left to unpublish.
+	TombstonesSkipped int
 }
 
 // Export projects the shareable subset of src into the context tree at root.
@@ -93,7 +99,18 @@ func Export(src Source, tombs TombstoneAccess, root string, opts ExportOptions) 
 	// Materialise live tombstones and remove the record files they shadow.
 	for _, t := range live {
 		path := TombstonePath(root, t)
-		if _, err := os.Stat(path); errors.Is(err, fs.ErrNotExist) {
+		_, statErr := os.Stat(path)
+		if errors.Is(statErr, fs.ErrNotExist) {
+			// This deletion has never been published. If its type is not being
+			// published either, and no record file is left to unpublish, the
+			// tombstone has no work to do here or downstream — no subscriber
+			// can hold a record that was never exported. Skip it rather than
+			// commit an inert file, which is the common shape for a store whose
+			// memories stay local while its decisions ship.
+			if !typePublished(t.Kind, opts) && !shadowedRecordExists(root, t) {
+				stats.TombstonesSkipped++
+				continue
+			}
 			if err := os.WriteFile(path, MarshalTombstone(t), 0o644); err != nil {
 				return nil, fmt.Errorf("failed to write tombstone %s: %w", t.ID, err)
 			}
@@ -193,6 +210,34 @@ func collectLiveTombstones(tombs TombstoneAccess, root string, now time.Time, tt
 
 // removeShadowedRecord deletes the record file(s) a tombstone shadows.
 // This is the only path that ever deletes record files from a context tree.
+// typePublished reports whether the record type a tombstone shadows is being
+// exported by this run.
+func typePublished(kind string, opts ExportOptions) bool {
+	switch kind {
+	case memory.TombstoneKindMemory:
+		return opts.Memories
+	case memory.TombstoneKindDecisionTopic:
+		return opts.Decisions
+	}
+	// Unknown kinds are treated as published so an unrecognised tombstone is
+	// still materialised — never silently dropped.
+	return true
+}
+
+// shadowedRecordExists reports whether the record a tombstone shadows is still
+// present in the tree, i.e. whether there is anything left to unpublish.
+func shadowedRecordExists(root string, t *memory.Tombstone) bool {
+	switch t.Kind {
+	case memory.TombstoneKindMemory:
+		_, err := os.Stat(MemoryPath(root, t.ID))
+		return err == nil
+	case memory.TombstoneKindDecisionTopic:
+		_, err := os.Stat(filepath.Join(root, decisionsDir, TopicName(t.ID)))
+		return err == nil
+	}
+	return false
+}
+
 func removeShadowedRecord(root string, t *memory.Tombstone) error {
 	switch t.Kind {
 	case memory.TombstoneKindMemory:

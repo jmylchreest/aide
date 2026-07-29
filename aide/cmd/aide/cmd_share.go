@@ -57,6 +57,16 @@ func excludedNote(n int) string {
 	return fmt.Sprintf(" (%d excluded by policy)", n)
 }
 
+// skippedTombstoneNote reports deletions that were not published because their
+// type is not exported and they had nothing left to unpublish. Surfacing the
+// count keeps the omission visible rather than looking like lost deletions.
+func skippedTombstoneNote(n int) string {
+	if n == 0 {
+		return ""
+	}
+	return fmt.Sprintf(" (%d unpublished deletion(s) skipped)", n)
+}
+
 // isReservedShareFile reports whether name is one of the reserved explainer
 // files written by the export command and must be skipped by importers.
 func isReservedShareFile(name string) bool {
@@ -185,7 +195,7 @@ func cmdShareExport(dbPath string, args []string) error {
 		if exportMemories {
 			fmt.Printf("  memories:   %d%s\n", stats.Memories, excludedNote(stats.MemoriesExcluded))
 		}
-		fmt.Printf("  tombstones: %d\n", stats.Tombstones)
+		fmt.Printf("  tombstones: %d%s\n", stats.Tombstones, skippedTombstoneNote(stats.TombstonesSkipped))
 		if backend.TombstoneStore() == nil {
 			fmt.Fprintln(os.Stderr, "warning: no tombstone store available; deletions were not materialised as tombstones")
 		}
