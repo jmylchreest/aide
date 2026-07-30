@@ -10,9 +10,19 @@
  *   2. CLAUDE_PLUGIN_ROOT (set by Claude Code)
  *   3. SCRIPT_DIR/..      (fallback: infer from wrapper location)
  *
- * Lives at: <plugin-root>/bin/aide-wrapper.ts
- * Binary at: <plugin-root>/bin/aide[.exe]
+ * Binary resolution order (first hit wins):
+ *   1. Bundled via npm optionalDependencies:
+ *      <plugin-root>/node_modules/@jmylchreest/aide-binary-<platform>-<arch>/bin/aide[.exe]
+ *   2. PLUGIN_ROOT/bin/aide[.exe]  (legacy: downloaded by previous wrapper run)
+ *   3. Downloaded fresh into PLUGIN_ROOT/bin/  (fallback when neither exists)
  *
+ * The bundled path is populated by `npm install` for OpenCode/Codex users
+ * (zero-config, offline-after-install). Claude Code users — whose plugin
+ * distribution does not support npm optionalDependencies — fall through
+ * to the legacy download path; Claude's per-version cache layout makes
+ * that path work correctly.
+ *
+ * Lives at: <plugin-root>/bin/aide-wrapper.ts
  * Logs written to: .aide/_logs/wrapper.log
  */
 
@@ -50,6 +60,31 @@ const PLUGIN_ROOT =
 
 const BINARY = join(PLUGIN_ROOT, "bin", `aide${EXT}`);
 const BIN_DIR = join(PLUGIN_ROOT, "bin");
+
+// Bundled binary path (populated by npm install via optionalDependencies).
+// When present, we use it without version checks — npm is the authority
+// for the bundled binary's lifecycle (install = upgrade).
+const BUNDLED_BINARY = (() => {
+  const key = `${process.platform}-${process.arch}`;
+  const ARCH_PKG: Record<string, string> = {
+    "linux-x64": "linux-amd64",
+    "linux-arm64": "linux-arm64",
+    "darwin-x64": "darwin-amd64",
+    "darwin-arm64": "darwin-arm64",
+    "win32-x64": "windows-amd64",
+    "win32-arm64": "windows-arm64",
+  };
+  const archPkg = ARCH_PKG[key];
+  if (!archPkg) return null;
+  const candidate = join(
+    PLUGIN_ROOT,
+    "node_modules",
+    `@jmylchreest/aide-binary-${archPkg}`,
+    "bin",
+    `aide${EXT}`,
+  );
+  return existsSync(candidate) ? candidate : null;
+})();
 
 // Setup logging
 const LOG_DIR = join(PLUGIN_ROOT, ".aide", "_logs");
@@ -342,52 +377,64 @@ log(
 );
 log(`PLUGIN_ROOT=${PLUGIN_ROOT}`);
 log(`BINARY=${BINARY}`);
+log(
+  `BUNDLED_BINARY=${BUNDLED_BINARY ?? "(none — using legacy download path)"}`,
+);
 
-let needsDownload = false;
-
-if (!binaryExists()) {
-  needsDownload = true;
-  log("Binary not found or not executable");
+if (BUNDLED_BINARY) {
+  // Bundled binary is present (npm install populated it via optionalDependencies).
+  // npm is authoritative for its lifecycle — skip version checks and the
+  // download path entirely. This makes MCP launches fully offline once
+  // `bunx @latest install` (or `npm install`) has completed.
+  log(`Using bundled binary, skipping download checks`);
 } else {
-  const binaryVersion = getBinaryVersion(BINARY);
-  log(`Binary version: ${binaryVersion ?? "unknown"}`);
+  let needsDownload = false;
 
-  if (binaryVersion && binaryVersion.includes("-dev.")) {
-    // Dev build — check base version against plugin version
-    const baseVersion = binaryVersion.split("-")[0];
-    const pluginVersion = getPluginVersion();
-
-    if (pluginVersion && versionGte(baseVersion, pluginVersion)) {
-      log(
-        `Dev build v${binaryVersion} (base ${baseVersion} >= plugin v${pluginVersion}), using local build`,
-      );
-    } else {
-      needsDownload = true;
-      log(
-        `Dev build v${binaryVersion} is older than plugin v${pluginVersion ?? "unknown"}, re-downloading`,
-      );
-    }
+  if (!binaryExists()) {
+    needsDownload = true;
+    log("Binary not found or not executable");
   } else {
-    const pluginVersion = getPluginVersion();
-    if (pluginVersion && binaryVersion && !versionGte(binaryVersion, pluginVersion)) {
-      needsDownload = true;
-      log(
-        `Release binary v${binaryVersion} is older than plugin v${pluginVersion}, re-downloading`,
-      );
+    const binaryVersion = getBinaryVersion(BINARY);
+    log(`Binary version: ${binaryVersion ?? "unknown"}`);
+
+    if (binaryVersion && binaryVersion.includes("-dev.")) {
+      // Dev build — check base version against plugin version
+      const baseVersion = binaryVersion.split("-")[0];
+      const pluginVersion = getPluginVersion();
+
+      if (pluginVersion && versionGte(baseVersion, pluginVersion)) {
+        log(
+          `Dev build v${binaryVersion} (base ${baseVersion} >= plugin v${pluginVersion}), using local build`,
+        );
+      } else {
+        needsDownload = true;
+        log(
+          `Dev build v${binaryVersion} is older than plugin v${pluginVersion ?? "unknown"}, re-downloading`,
+        );
+      }
     } else {
-      log(`Release binary v${binaryVersion ?? "unknown"} (plugin v${pluginVersion ?? "unknown"})`);
+      const pluginVersion = getPluginVersion();
+      if (pluginVersion && binaryVersion && !versionGte(binaryVersion, pluginVersion)) {
+        needsDownload = true;
+        log(
+          `Release binary v${binaryVersion} is older than plugin v${pluginVersion}, re-downloading`,
+        );
+      } else {
+        log(`Release binary v${binaryVersion ?? "unknown"} (plugin v${pluginVersion ?? "unknown"})`);
+      }
     }
+  }
+
+  if (needsDownload) {
+    downloadBinary();
   }
 }
 
-if (needsDownload) {
-  downloadBinary();
-}
-
 // Execute the aide binary, replacing this process
-log(`Executing: ${BINARY} ${process.argv.slice(2).join(" ")}`);
+const execBinary = BUNDLED_BINARY ?? BINARY;
+log(`Executing: ${execBinary} ${process.argv.slice(2).join(" ")}`);
 
-const result = spawnSync(BINARY, process.argv.slice(2), {
+const result = spawnSync(execBinary, process.argv.slice(2), {
   stdio: "inherit",
   env: process.env,
 });
