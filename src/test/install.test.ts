@@ -1,12 +1,10 @@
 /**
- * Tests for install-time binary version reconciliation.
+ * Tests for install-time binary status reporting.
  *
- * install.ts reads the plugin version from its own package.json (not from
- * AIDE_PLUGIN_ROOT) and uses that to drive the Go binary download. These
- * tests pin the pure-logic contracts and the downloader API extensions
- * that make that work. End-to-end behaviour (stale-bin → network → fresh
- * binary) is verified manually because faking a stale bin/aide in unit
- * tests requires a module seam we deliberately did not introduce.
+ * install.ts is a config writer. Binary provisioning is owned by npm
+ * (optionalDependencies) and the MCP wrapper. install's only binary
+ * responsibility is reporting where the binary lives so users can spot
+ * a missing optionalDependency install.
  *
  * Run with: npx vitest run src/test/install.test.ts
  */
@@ -16,7 +14,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import {
-  ensureBinaryMatchesPluginVersion,
+  checkBinaryStatus,
   isBinaryCurrent,
   readBinaryVersion,
 } from "../cli/install.js";
@@ -24,22 +22,22 @@ import * as downloader from "../lib/aide-downloader.js";
 
 describe("isBinaryCurrent", () => {
   it("returns true when release binary equals plugin version", () => {
-    expect(isBinaryCurrent("0.1.10", "0.1.10")).toBe(true);
+    expect(isBinaryCurrent("0.1.12", "0.1.12")).toBe(true);
   });
 
   it("returns true when release binary is newer than plugin version", () => {
-    expect(isBinaryCurrent("0.2.0", "0.1.10")).toBe(true);
-    expect(isBinaryCurrent("0.1.11", "0.1.10")).toBe(true);
+    expect(isBinaryCurrent("0.2.0", "0.1.12")).toBe(true);
+    expect(isBinaryCurrent("0.1.13", "0.1.12")).toBe(true);
   });
 
   it("returns false when release binary is older than plugin version", () => {
-    expect(isBinaryCurrent("0.0.61", "0.1.10")).toBe(false);
-    expect(isBinaryCurrent("0.1.9", "0.1.10")).toBe(false);
+    expect(isBinaryCurrent("0.0.61", "0.1.12")).toBe(false);
+    expect(isBinaryCurrent("0.1.9", "0.1.12")).toBe(false);
   });
 
   it("compares only the base version for dev builds", () => {
-    expect(isBinaryCurrent("0.1.10-dev.5+abc1234", "0.1.10")).toBe(true);
-    expect(isBinaryCurrent("0.1.9-dev.20+def5678", "0.1.10")).toBe(false);
+    expect(isBinaryCurrent("0.1.12-dev.5+abc1234", "0.1.12")).toBe(true);
+    expect(isBinaryCurrent("0.1.9-dev.20+def5678", "0.1.12")).toBe(false);
   });
 });
 
@@ -60,28 +58,26 @@ describe("readBinaryVersion", () => {
     tempDir = mkdtempSync(join(tmpdir(), "aide-readbin-"));
     const fakeBin = join(tempDir, "aide");
     writeFileSync(fakeBin, "not executable");
-    // No chmod — execFileSync should fail on most filesystems.
     const v = await readBinaryVersion(fakeBin);
     expect(v).toBeNull();
   });
 });
 
-describe("ensureBinaryMatchesPluginVersion (sanity contract)", () => {
-  it("returns one of the valid UpgradeOutcome kinds", async () => {
-    const outcome = await ensureBinaryMatchesPluginVersion();
-    expect(["current", "upgraded", "skipped", "failed"]).toContain(
-      outcome.kind,
-    );
-    if (outcome.kind === "current") {
-      expect(typeof outcome.binaryVersion).toBe("string");
-      expect(typeof outcome.pluginVersion).toBe("string");
-    } else if (outcome.kind === "upgraded") {
-      expect(typeof outcome.toVersion).toBe("string");
-      expect(typeof outcome.path).toBe("string");
-    } else if (outcome.kind === "skipped") {
-      expect(typeof outcome.reason).toBe("string");
-    } else if (outcome.kind === "failed") {
-      expect(typeof outcome.error).toBe("string");
+describe("checkBinaryStatus (sanity contract)", () => {
+  it("returns one of the valid BinaryStatus kinds", async () => {
+    const status = await checkBinaryStatus();
+    expect(["bundled", "legacy", "missing"]).toContain(status.kind);
+    if (status.kind === "bundled") {
+      expect(typeof status.version).toBe("string");
+      expect(status.version).toMatch(/^\d+\.\d+\.\d+/);
+      expect(typeof status.path).toBe("string");
+    } else if (status.kind === "legacy") {
+      expect(typeof status.version).toBe("string");
+      expect(status.version).toMatch(/^\d+\.\d+\.\d+/);
+      expect(typeof status.path).toBe("string");
+    } else if (status.kind === "missing") {
+      expect(typeof status.reason).toBe("string");
+      expect(status.reason.length).toBeGreaterThan(0);
     }
   });
 });
@@ -129,22 +125,6 @@ describe("downloader API: explicit pluginVersion / pluginRoot options", () => {
     expect(urls[1]).toContain("releases/latest/download/");
   });
 
-  it("getDownloadUrls falls back to env-derived pluginVersion", () => {
-    savedRoot = process.env.AIDE_PLUGIN_ROOT;
-    process.env.AIDE_PLUGIN_ROOT = join(
-      import.meta.dirname,
-      "..",
-      "..",
-      "packages",
-      "opencode-plugin",
-    );
-    const urls = downloader.getDownloadUrls();
-    const expectedVersion = downloader.getPluginVersion();
-    if (expectedVersion) {
-      expect(urls[0]).toContain(`releases/download/v${expectedVersion}/`);
-    }
-  });
-
   it("getDownloadUrls returns at least one URL even when version unresolvable", () => {
     savedRoot = process.env.AIDE_PLUGIN_ROOT;
     process.env.AIDE_PLUGIN_ROOT = "/nope";
@@ -158,7 +138,7 @@ describe("downloader API: explicit pluginVersion / pluginRoot options", () => {
 });
 
 it("module compile sanity", () => {
-  expect(typeof ensureBinaryMatchesPluginVersion).toBe("function");
+  expect(typeof checkBinaryStatus).toBe("function");
   expect(typeof isBinaryCurrent).toBe("function");
   expect(typeof readBinaryVersion).toBe("function");
 });
