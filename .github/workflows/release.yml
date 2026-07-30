@@ -774,7 +774,6 @@ jobs:
         with:
           name: aide-${{ matrix.goos }}-${{ matrix.goarch }}
           path: dist
-          if-no-files-found: error
 
       - name: Stage binary into per-arch package
         run: |
