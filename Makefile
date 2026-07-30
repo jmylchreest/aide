@@ -8,7 +8,7 @@
 
 .PHONY: release release-push build build-pprof build-web test test-ts test-go lint check-version check-release-needed
 
-VERSION_FILES = package.json .claude-plugin/plugin.json .claude-plugin/marketplace.json .codex-plugin/plugin.json packages/opencode-plugin/package.json
+VERSION_FILES = package.json .claude-plugin/plugin.json .claude-plugin/marketplace.json .codex-plugin/plugin.json packages/opencode-plugin/package.json $(wildcard packages/aide-binary-*/package.json)
 
 # Auto-detect next version from latest git tag (same logic as release.yml)
 # If VERSION is passed, use that; otherwise bump patch from latest tag.

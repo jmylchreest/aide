@@ -728,11 +728,85 @@ jobs:
           retention-days: 1
           compression-level: 9
 
+  # Pack the 6 per-arch binary packages (optionalDependencies of the main
+  # npm package — see decision `multi-arch-binary-distribution`). Each
+  # tarball contains a single Go binary at bin/aide[.exe]; npm picks the
+  # matching one per host during install.
+  build-per-arch-packages:
+    name: Build per-arch npm packages
+    runs-on: ubuntu-latest
+    needs: [prepare, build]
+    if: needs.prepare.outputs.should_skip != 'true' && github.event_name == 'push'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - pkg: aide-binary-linux-amd64
+            goos: linux
+            goarch: amd64
+            ext: ""
+          - pkg: aide-binary-linux-arm64
+            goos: linux
+            goarch: arm64
+            ext: ""
+          - pkg: aide-binary-darwin-amd64
+            goos: darwin
+            goarch: amd64
+            ext: ""
+          - pkg: aide-binary-darwin-arm64
+            goos: darwin
+            goarch: arm64
+            ext: ""
+          - pkg: aide-binary-windows-amd64
+            goos: windows
+            goarch: amd64
+            ext: ".exe"
+          - pkg: aide-binary-windows-arm64
+            goos: windows
+            goarch: arm64
+            ext: ".exe"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Download Go binary artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: aide-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist
+          if-no-files-found: error
+
+      - name: Stage binary into per-arch package
+        run: |
+          mkdir -p "packages/${{ matrix.pkg }}/bin"
+          cp "dist/aide-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }}" \
+             "packages/${{ matrix.pkg }}/bin/aide${{ matrix.ext }}"
+          chmod +x "packages/${{ matrix.pkg }}/bin/aide${{ matrix.ext }}"
+
+      - name: Set package version
+        working-directory: packages/${{ matrix.pkg }}
+        run: |
+          jq --arg v "${{ needs.prepare.outputs.version }}" '.version = $v' package.json > package.json.tmp
+          mv package.json.tmp package.json
+
+      - name: Pack tarball
+        working-directory: packages/${{ matrix.pkg }}
+        run: bun pm pack
+
+      - name: Upload per-arch tarball artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: npm-${{ matrix.pkg }}
+          path: packages/${{ matrix.pkg }}/jmylchreest-${{ matrix.pkg }}-*.tgz
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 9
+
   # Create release (only on tag push)
   release:
     name: Release
     runs-on: ubuntu-latest
-    needs: [prepare, build, build-web, build-grammars, build-npm]
+    needs: [prepare, build, build-web, build-grammars, build-npm, build-per-arch-packages]
     if: needs.prepare.outputs.is_release == 'true'
     permissions:
       contents: write
@@ -786,11 +860,15 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # Publish to npm (only on tag push, after release)
+  # Publish to npm (only on tag push, after release).
+  # Publishes 7 packages in lockstep: 1 main + 6 per-arch optional deps.
+  # Order matters: per-arch packages must exist before the main package's
+  # optionalDependencies resolve. Use --tag latest so users on @latest
+  # always pick up the most recent release on first install.
   publish-npm:
     name: Publish to npm
     runs-on: ubuntu-latest
-    needs: [prepare, build-npm, release]
+    needs: [prepare, build-npm, build-per-arch-packages, release]
     if: needs.prepare.outputs.is_release == 'true'
     permissions:
       contents: read
@@ -808,14 +886,26 @@ jobs:
       - name: Upgrade npm CLI
         run: npm install -g npm@latest
 
-      - name: Download npm tarball
+      - name: Download all npm tarballs
         uses: actions/download-artifact@v8
         with:
-          name: npm-package
           path: artifacts
 
-      - name: Publish to npm with provenance
-        run: npm publish ./artifacts/jmylchreest-aide-plugin-*.tgz --provenance --access public
+      # Publish per-arch packages first (the main package's
+      # optionalDependencies reference these names). If a publish fails
+      # the main package will fail to install with optional deps unresolved.
+      - name: Publish per-arch packages with provenance
+        run: |
+          set -euo pipefail
+          for tgz in artifacts/npm-aide-binary-*/jmylchreest-aide-binary-*.tgz; do
+            echo "Publishing $(basename "$tgz")"
+            npm publish "$tgz" --provenance --access public
+          done
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish main package with provenance
+        run: npm publish ./artifacts/npm-package/jmylchreest-aide-plugin-*.tgz --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
