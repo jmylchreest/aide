@@ -22,9 +22,51 @@
         "vitest": "^4.1.10",
       },
     },
+    "packages/aide-binary-darwin-amd64": {
+      "name": "@jmylchreest/aide-binary-darwin-amd64",
+      "version": "0.1.12",
+      "bin": {
+        "aide": "./bin/aide",
+      },
+    },
+    "packages/aide-binary-darwin-arm64": {
+      "name": "@jmylchreest/aide-binary-darwin-arm64",
+      "version": "0.1.12",
+      "bin": {
+        "aide": "./bin/aide",
+      },
+    },
+    "packages/aide-binary-linux-amd64": {
+      "name": "@jmylchreest/aide-binary-linux-amd64",
+      "version": "0.1.12",
+      "bin": {
+        "aide": "./bin/aide",
+      },
+    },
+    "packages/aide-binary-linux-arm64": {
+      "name": "@jmylchreest/aide-binary-linux-arm64",
+      "version": "0.1.12",
+      "bin": {
+        "aide": "./bin/aide",
+      },
+    },
+    "packages/aide-binary-windows-amd64": {
+      "name": "@jmylchreest/aide-binary-windows-amd64",
+      "version": "0.1.12",
+      "bin": {
+        "aide.exe": "./bin/aide.exe",
+      },
+    },
+    "packages/aide-binary-windows-arm64": {
+      "name": "@jmylchreest/aide-binary-windows-arm64",
+      "version": "0.1.12",
+      "bin": {
+        "aide.exe": "./bin/aide.exe",
+      },
+    },
     "packages/opencode-plugin": {
       "name": "@jmylchreest/aide-plugin",
-      "version": "0.1.8",
+      "version": "0.1.12",
       "bin": {
         "aide-plugin": "./src/cli/index.ts",
         "aide-wrapper": "./bin/aide-wrapper.ts",
@@ -33,6 +75,14 @@
         "cross-spawn": "^7.0.6",
         "smol-toml": "^1.7.0",
         "which": "^7.0.0",
+      },
+      "optionalDependencies": {
+        "@jmylchreest/aide-binary-darwin-amd64": "0.1.12",
+        "@jmylchreest/aide-binary-darwin-arm64": "0.1.12",
+        "@jmylchreest/aide-binary-linux-amd64": "0.1.12",
+        "@jmylchreest/aide-binary-linux-arm64": "0.1.12",
+        "@jmylchreest/aide-binary-windows-amd64": "0.1.12",
+        "@jmylchreest/aide-binary-windows-arm64": "0.1.12",
       },
     },
   },
@@ -112,6 +162,18 @@
     "@humanwhocodes/module-importer": ["@humanwhocodes/module-importer@1.0.1", "", {}, "sha512-bxveV4V8v5Yb4ncFTT3rPSgZBOpCkjfK0y4oVVVJwIuDVBRMDXrPyXRL988i5ap9m9bnyEEjWfm5WkBmtffLfA=="],
 
     "@humanwhocodes/retry": ["@humanwhocodes/retry@0.4.3", "", {}, "sha512-bV0Tgo9K4hfPCek+aMAn81RppFKv2ySDQeMoSZuvTASywNTnVJCArCZE2FWqpvIatKu7VMRLWlR1EazvVhDyhQ=="],
+
+    "@jmylchreest/aide-binary-darwin-amd64": ["@jmylchreest/aide-binary-darwin-amd64@workspace:packages/aide-binary-darwin-amd64"],
+
+    "@jmylchreest/aide-binary-darwin-arm64": ["@jmylchreest/aide-binary-darwin-arm64@workspace:packages/aide-binary-darwin-arm64"],
+
+    "@jmylchreest/aide-binary-linux-amd64": ["@jmylchreest/aide-binary-linux-amd64@workspace:packages/aide-binary-linux-amd64"],
+
+    "@jmylchreest/aide-binary-linux-arm64": ["@jmylchreest/aide-binary-linux-arm64@workspace:packages/aide-binary-linux-arm64"],
+
+    "@jmylchreest/aide-binary-windows-amd64": ["@jmylchreest/aide-binary-windows-amd64@workspace:packages/aide-binary-windows-amd64"],
+
+    "@jmylchreest/aide-binary-windows-arm64": ["@jmylchreest/aide-binary-windows-arm64@workspace:packages/aide-binary-windows-arm64"],
 
     "@jmylchreest/aide-plugin": ["@jmylchreest/aide-plugin@workspace:packages/opencode-plugin"],
 
