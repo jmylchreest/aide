@@ -54,5 +54,13 @@
     "cross-spawn": "^7.0.6",
     "smol-toml": "^1.7.0",
     "which": "^7.0.0"
+  },
+  "optionalDependencies": {
+    "@jmylchreest/aide-binary-darwin-amd64": "0.1.12",
+    "@jmylchreest/aide-binary-darwin-arm64": "0.1.12",
+    "@jmylchreest/aide-binary-linux-amd64": "0.1.12",
+    "@jmylchreest/aide-binary-linux-arm64": "0.1.12",
+    "@jmylchreest/aide-binary-windows-amd64": "0.1.12",
+    "@jmylchreest/aide-binary-windows-arm64": "0.1.12"
   }
 }
