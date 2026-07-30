@@ -1,0 +1,23 @@
+{
+  "name": "@jmylchreest/aide-binary-linux-amd64",
+  "version": "0.1.12",
+  "description": "Bundled aide binary for linux/x64. Companion to @jmylchreest/aide-plugin.",
+  "license": "MIT",
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jmylchreest/aide",
+    "directory": "packages/aide-binary-linux-amd64"
+  },
+  "bin": {
+    "aide": "./bin/aide"
+  },
+  "files": [
+    "bin/**"
+  ]
+}

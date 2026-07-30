@@ -1,0 +1,23 @@
+{
+  "name": "@jmylchreest/aide-binary-windows-amd64",
+  "version": "0.1.12",
+  "description": "Bundled aide binary for win32/x64. Companion to @jmylchreest/aide-plugin.",
+  "license": "MIT",
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jmylchreest/aide",
+    "directory": "packages/aide-binary-windows-amd64"
+  },
+  "bin": {
+    "aide.exe": "./bin/aide.exe"
+  },
+  "files": [
+    "bin/**"
+  ]
+}
