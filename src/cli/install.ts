@@ -4,9 +4,11 @@
  * On reinstall, detects and upgrades stale MCP command configurations
  * (e.g. old `aide-wrapper` commands) to the current format.
  *
- * Also reconciles the Go binary: if the binary on disk is older than the
- * just-installed plugin package version, downloads the matching release.
- * Skip with --no-upgrade.
+ * Binary provisioning is handled by npm (via `optionalDependencies` on
+ * `@jmylchreest/aide-binary-<arch>`) and the MCP wrapper. This command
+ * reports the current binary status without modifying it; users upgrade
+ * the binary by running `bunx @jmylchreest/aide-plugin@latest` (which
+ * re-extracts the npm package and refreshes the optional dep).
  */
 
 import {
@@ -26,7 +28,6 @@ import { existsSync, readFileSync } from "fs";
 import { fileURLToPath } from "url";
 import {
   compareVersions,
-  downloadAideBinary,
   getBaseVersion,
   isDevBuild,
 } from "../lib/aide-downloader.js";
@@ -56,60 +57,70 @@ function getInstallScriptPluginVersion(): string | null {
   }
 }
 
+/** Map process.platform + process.arch → per-arch npm package suffix. */
+function getArchPackageSuffix(): string | null {
+  const key = `${process.platform}-${process.arch}`;
+  const ARCH_PKG: Record<string, string> = {
+    "linux-x64": "linux-amd64",
+    "linux-arm64": "linux-arm64",
+    "darwin-x64": "darwin-amd64",
+    "darwin-arm64": "darwin-arm64",
+    "win32-x64": "windows-amd64",
+    "win32-arm64": "windows-arm64",
+  };
+  return ARCH_PKG[key] ?? null;
+}
+
 export interface InstallFlags {
   project?: boolean;
   noMcp?: boolean;
-  noUpgrade?: boolean;
   platform?: "opencode" | "codex";
 }
 
-export type UpgradeOutcome =
-  | { kind: "current"; binaryVersion: string; pluginVersion: string }
-  | { kind: "upgraded"; fromVersion: string | null; toVersion: string; path: string }
-  | { kind: "skipped"; reason: string }
-  | { kind: "failed"; error: string };
+export type BinaryStatus =
+  | { kind: "bundled"; version: string; path: string }
+  | { kind: "legacy"; version: string; path: string }
+  | { kind: "missing"; reason: string };
 
 /**
- * Ensure the on-disk aide binary matches the version of the plugin package
- * that was just installed.
- *
- * "On-disk" here means the binary in the plugin's own bin/ directory —
- * the one the wrapper will exec on the next MCP launch. We deliberately
- * do NOT touch `<cwd>/.aide/bin/aide`: that's a user-managed local copy
- * (typically built from source via the Go Makefile). Users can run
- * `aide upgrade` there themselves if they want both copies in sync.
+ * Report where the aide binary lives (bundled via npm or legacy download).
+ * Does NOT modify the filesystem — the wrapper handles actual provisioning.
  */
-export async function ensureBinaryMatchesPluginVersion(): Promise<UpgradeOutcome> {
-  const pluginVersion = getInstallScriptPluginVersion();
-  if (!pluginVersion) {
-    return { kind: "skipped", reason: "could not read plugin package.json version" };
-  }
-
-  const pluginRoot = getInstallScriptPluginRoot();
+export async function checkBinaryStatus(): Promise<BinaryStatus> {
   const isWindows = process.platform === "win32";
-  const pluginBinPath = join(pluginRoot, "bin", `aide${isWindows ? ".exe" : ""}`);
+  const ext = isWindows ? ".exe" : "";
+  const pluginRoot = getInstallScriptPluginRoot();
 
-  const existingVersion = existsSync(pluginBinPath)
-    ? await readBinaryVersion(pluginBinPath)
-    : null;
-
-  if (existingVersion && isBinaryCurrent(existingVersion, pluginVersion)) {
-    return { kind: "current", binaryVersion: existingVersion, pluginVersion };
+  const archSuffix = getArchPackageSuffix();
+  if (archSuffix) {
+    const bundledPath = join(
+      pluginRoot,
+      "node_modules",
+      `@jmylchreest/aide-binary-${archSuffix}`,
+      "bin",
+      `aide${ext}`,
+    );
+    if (existsSync(bundledPath)) {
+      const version = await readBinaryVersion(bundledPath);
+      if (version) {
+        return { kind: "bundled", version, path: bundledPath };
+      }
+    }
   }
 
-  const result = await downloadAideBinary(join(pluginRoot, "bin"), {
-    force: true,
-    pluginVersion,
-  });
-  if (!result.success) {
-    return { kind: "failed", error: result.message };
+  const legacyPath = join(pluginRoot, "bin", `aide${ext}`);
+  if (existsSync(legacyPath)) {
+    const version = await readBinaryVersion(legacyPath);
+    if (version) {
+      return { kind: "legacy", version, path: legacyPath };
+    }
   }
-  const newVersion = await readBinaryVersion(result.path!);
+
   return {
-    kind: "upgraded",
-    fromVersion: existingVersion,
-    toVersion: newVersion ?? pluginVersion,
-    path: result.path!,
+    kind: "missing",
+    reason:
+      "no binary on disk; wrapper will download on first MCP launch " +
+      "(users on OpenCode/Codex with bundling get it via `bunx @latest`)",
   };
 }
 
@@ -130,28 +141,17 @@ export function isBinaryCurrent(binaryVersion: string, pluginVersion: string): b
   return compareVersions(base, pluginVersion) >= 0;
 }
 
-function printUpgradeOutcome(outcome: UpgradeOutcome, noUpgrade: boolean): void {
-  if (noUpgrade) {
-    console.log("  - Skipped binary upgrade (--no-upgrade)");
-    return;
-  }
-  switch (outcome.kind) {
-    case "current":
-      console.log(`  = Binary up to date (v${outcome.binaryVersion})`);
+function printBinaryStatus(status: BinaryStatus): void {
+  switch (status.kind) {
+    case "bundled":
+      console.log(`  = Binary bundled via npm: v${status.version}`);
       return;
-    case "upgraded":
-      console.log(
-        outcome.fromVersion
-          ? `  + Upgraded binary: v${outcome.fromVersion} → v${outcome.toVersion}`
-          : `  + Installed binary: v${outcome.toVersion}`,
-      );
+    case "legacy":
+      console.log(`  = Binary (legacy download path): v${status.version}`);
+      console.log("    Re-run `bunx @jmylchreest/aide-plugin@latest install` to migrate to bundled.");
       return;
-    case "skipped":
-      console.log(`  ! Skipped binary upgrade: ${outcome.reason}`);
-      return;
-    case "failed":
-      console.log(`  ! Binary upgrade failed: ${outcome.error}`);
-      console.log("    Config is installed; run `aide upgrade` to retry.");
+    case "missing":
+      console.log(`  ! ${status.reason}`);
       return;
   }
 }
@@ -183,14 +183,6 @@ async function installOpenCode(flags: InstallFlags): Promise<void> {
     !flags.noMcp && before.mcp && !isMcpCommandCurrent(existing);
 
   const configUnchanged = before.plugin && before.mcp && !mcpNeedsUpdate;
-
-  if (configUnchanged && flags.noUpgrade) {
-    console.log(`aide is already configured in ${configPath}`);
-    console.log("  plugin: registered");
-    console.log("  mcp:    registered");
-    console.log("  upgrade: skipped (--no-upgrade)");
-    return;
-  }
 
   if (configUnchanged) {
     console.log(`aide is already configured in ${configPath}\n`);
@@ -227,10 +219,8 @@ async function installOpenCode(flags: InstallFlags): Promise<void> {
   }
 
   console.log("");
-  const outcome = flags.noUpgrade
-    ? { kind: "skipped" as const, reason: "--no-upgrade" }
-    : await ensureBinaryMatchesPluginVersion();
-  printUpgradeOutcome(outcome, !!flags.noUpgrade);
+  const status = await checkBinaryStatus();
+  printBinaryStatus(status);
 
   console.log("\nInstallation complete. Start OpenCode to use aide.");
 
@@ -301,23 +291,15 @@ async function installForCodex(flags: InstallFlags): Promise<void> {
   }
 
   if (!result.configWritten && !result.hooksWritten && skillChanges === 0) {
-    if (flags.noUpgrade) {
-      console.log("  upgrade: skipped (--no-upgrade)");
-      return;
-    }
-    const outcome = await ensureBinaryMatchesPluginVersion();
+    const status = await checkBinaryStatus();
     console.log("");
-    printUpgradeOutcome(outcome, false);
+    printBinaryStatus(status);
     return;
   }
 
-  if (!flags.noUpgrade) {
-    const outcome = await ensureBinaryMatchesPluginVersion();
-    console.log("");
-    printUpgradeOutcome(outcome, false);
-  } else {
-    console.log("  - Skipped binary upgrade (--no-upgrade)");
-  }
+  const status = await checkBinaryStatus();
+  console.log("");
+  printBinaryStatus(status);
 
   console.log("\nInstallation complete. Start Codex CLI to use aide.");
 
