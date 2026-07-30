@@ -48,13 +48,20 @@ export interface EnsureResult {
 
 /**
  * Get the plugin version from package.json
+ *
+ * Accepts an optional explicit `pluginRoot` to bypass the env-var lookup
+ * (AIDE_PLUGIN_ROOT / CLAUDE_PLUGIN_ROOT). Callers that know better than
+ * the env — e.g. install.ts running from `bunx` while a parent OpenCode
+ * session has set the env to a stale cache — should pass an explicit root.
  */
-export function getPluginVersion(): string | null {
-  const pluginRoot = getPluginRoot();
-  if (!pluginRoot) return null;
+export function getPluginVersion(
+  opts: { pluginRoot?: string } = {},
+): string | null {
+  const root = opts.pluginRoot ?? getPluginRoot();
+  if (!root) return null;
 
   try {
-    const pkgPath = join(pluginRoot, "package.json");
+    const pkgPath = join(root, "package.json");
     if (existsSync(pkgPath)) {
       const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
       if (pkg.version && pkg.version !== "0.0.0") {
@@ -181,9 +188,19 @@ export function getBinaryName(): string {
  * marketplace pulls the new plugin version before the release action
  * has finished publishing binary artifacts.
  */
-export function getDownloadUrls(): string[] {
+/**
+ * Build GitHub release URLs to download the aide binary from.
+ *
+ * Pass `pluginVersion` to pin the URL to a specific release tag (skips
+ * env-var lookup). When omitted, falls back to `getPluginVersion()` which
+ * reads from `AIDE_PLUGIN_ROOT` / `CLAUDE_PLUGIN_ROOT` env or the script's
+ * own package.json.
+ */
+export function getDownloadUrls(
+  opts: { pluginVersion?: string } = {},
+): string[] {
   const binaryName = getBinaryName();
-  const version = getPluginVersion();
+  const version = opts.pluginVersion ?? getPluginVersion();
 
   if (version) {
     return [
@@ -231,7 +248,12 @@ export function getPluginRoot(): string | null {
  */
 export async function downloadAideBinary(
   destDir: string,
-  options: { force?: boolean; quiet?: boolean; useStderr?: boolean } = {},
+  options: {
+    force?: boolean;
+    quiet?: boolean;
+    useStderr?: boolean;
+    pluginVersion?: string;
+  } = {},
 ): Promise<DownloadResult> {
   const { force = false, quiet = false, useStderr = false } = options;
 
@@ -263,7 +285,7 @@ export async function downloadAideBinary(
     }
   }
 
-  const urls = getDownloadUrls();
+  const urls = getDownloadUrls({ pluginVersion: options.pluginVersion });
 
   try {
     // Create bin directory
