@@ -926,21 +926,37 @@ jobs:
 
       # Guard the main package: shipping it while an optionalDependency is
       # missing gives that platform a plugin with no binary.
+      #
+      # A just-published package is not immediately readable — npm's read
+      # path lags the write path, and a brand-new package name can take
+      # several minutes to appear. Poll rather than judge on the first look,
+      # and bypass the local cache so a negative lookup isn't remembered.
       - name: Verify per-arch packages resolve
+        timeout-minutes: 20
         run: |
-          set -euo pipefail
+          set -uo pipefail
           version="${{ needs.prepare.outputs.version }}"
-          missing=0
-          for arch in linux-amd64 linux-arm64 darwin-amd64 darwin-arm64 windows-amd64 windows-arm64; do
-            pkg="@jmylchreest/aide-binary-$arch@$version"
-            if npm view "$pkg" version >/dev/null 2>&1; then
-              echo "  ok      $pkg"
-            else
-              echo "  MISSING $pkg"
-              missing=1
-            fi
+          pending="linux-amd64 linux-arm64 darwin-amd64 darwin-arm64 windows-amd64 windows-arm64"
+          for attempt in $(seq 1 40); do
+            still=""
+            for arch in $pending; do
+              pkg="@jmylchreest/aide-binary-$arch@$version"
+              if npm view "$pkg" version --prefer-online >/dev/null 2>&1; then
+                echo "  ok      $pkg"
+              else
+                still="$still $arch"
+              fi
+            done
+            pending="$still"
+            [ -z "$pending" ] && break
+            echo "  waiting for registry (attempt $attempt):$pending"
+            sleep 15
           done
-          [ "$missing" -eq 0 ] || { echo "Refusing to publish the plugin with unresolvable optionalDependencies"; exit 1; }
+          if [ -n "$pending" ]; then
+            echo "Still unresolvable after polling:$pending"
+            echo "The tarballs may already be published — re-run this job once the registry catches up."
+            exit 1
+          fi
 
       - name: Publish main package with provenance
         run: |
