@@ -16,7 +16,7 @@ claude plugin install aide@aide
 **OpenCode:**
 
 ```bash
-bunx @jmylchreest/aide-plugin install
+bunx @jmylchreest/aide-plugin@latest install
 ```
 
 **Codex CLI:**
@@ -24,12 +24,14 @@ bunx @jmylchreest/aide-plugin install
 ```bash
 codex plugin marketplace add jmylchreest/aide
 codex plugin add aide@aide
-bunx @jmylchreest/aide-plugin install --platform codex   # hooks only — Codex has no plugin hook support
+bunx @jmylchreest/aide-plugin@latest install --platform codex   # hooks only — Codex has no plugin hook support
 ```
 
 The Codex plugin provides the MCP server and skills (invoke with `$<name>` or `/skills`); the install step adds lifecycle hooks. On older Codex versions without plugin support, the install step alone configures everything.
 
-The Go binary downloads automatically on first run. Skills become available immediately.
+The Go binary ships as a per-platform npm package, so it lands on disk with the install (older setups fall back to downloading it on first run). Skills become available immediately.
+
+Install pins the exact version in `opencode.json`; re-run it with `@latest` to upgrade. See [OpenCode setup](docs/docs/getting-started/opencode.md) for why the pin matters.
 
 ## What You Get
 
@@ -224,7 +226,7 @@ bun install && bun run build
 claude --plugin-dir /path/to/aide
 
 # OpenCode
-bunx @jmylchreest/aide-plugin install --project
+bunx @jmylchreest/aide-plugin@latest install --project
 ```
 
 ## Troubleshooting
@@ -242,7 +244,7 @@ AIDE_DEBUG=1 claude                       # Debug logging (or AIDE_DEBUG=1 openc
 claude plugin uninstall aide && claude plugin install aide@aide
 
 # OpenCode
-bunx @jmylchreest/aide-plugin uninstall && bunx @jmylchreest/aide-plugin install
+bunx @jmylchreest/aide-plugin@latest uninstall && bunx @jmylchreest/aide-plugin@latest install
 ```
 
 ## Adding Support for New Assistants

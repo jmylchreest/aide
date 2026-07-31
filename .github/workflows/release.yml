@@ -709,11 +709,19 @@ jobs:
       - name: Prepare OpenCode plugin package
         run: bun packages/opencode-plugin/scripts/copy-src.mjs
 
+      # The per-arch optionalDependencies are exact pins and must track the
+      # version being built — snapshot builds especially, where the committed
+      # pins point at the last tagged release.
       - name: Set package version
         working-directory: packages/opencode-plugin
         run: |
-          jq '.version = "${{ needs.prepare.outputs.version }}"' package.json > package.json.tmp
+          jq --arg v "${{ needs.prepare.outputs.version }}" \
+            '.version = $v
+             | if .optionalDependencies
+               then .optionalDependencies |= with_entries(.value = $v)
+               else . end' package.json > package.json.tmp
           mv package.json.tmp package.json
+          jq -r '.version, (.optionalDependencies // {} | to_entries[] | "  \(.key)@\(.value)")' package.json
 
       - name: Pack tarball
         working-directory: packages/opencode-plugin
@@ -896,18 +904,54 @@ jobs:
       # Publish per-arch packages first (the main package's
       # optionalDependencies reference these names). If a publish fails
       # the main package will fail to install with optional deps unresolved.
+      #
+      # Each publish is skipped when that exact version is already on the
+      # registry, so re-running the job after a partial failure resumes
+      # instead of dying on "cannot publish over an existing version".
       - name: Publish per-arch packages with provenance
         run: |
           set -euo pipefail
           for tgz in artifacts/npm-aide-binary-*/jmylchreest-aide-binary-*.tgz; do
-            echo "Publishing $(basename "$tgz")"
+            name=$(tar -xzOf "$tgz" package/package.json | jq -r .name)
+            version=$(tar -xzOf "$tgz" package/package.json | jq -r .version)
+            if npm view "$name@$version" version >/dev/null 2>&1; then
+              echo "Skipping $name@$version (already published)"
+              continue
+            fi
+            echo "Publishing $name@$version"
             npm publish "$tgz" --provenance --access public
           done
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+      # Guard the main package: shipping it while an optionalDependency is
+      # missing gives that platform a plugin with no binary.
+      - name: Verify per-arch packages resolve
+        run: |
+          set -euo pipefail
+          version="${{ needs.prepare.outputs.version }}"
+          missing=0
+          for arch in linux-amd64 linux-arm64 darwin-amd64 darwin-arm64 windows-amd64 windows-arm64; do
+            pkg="@jmylchreest/aide-binary-$arch@$version"
+            if npm view "$pkg" version >/dev/null 2>&1; then
+              echo "  ok      $pkg"
+            else
+              echo "  MISSING $pkg"
+              missing=1
+            fi
+          done
+          [ "$missing" -eq 0 ] || { echo "Refusing to publish the plugin with unresolvable optionalDependencies"; exit 1; }
+
       - name: Publish main package with provenance
-        run: npm publish ./artifacts/npm-package/jmylchreest-aide-plugin-*.tgz --provenance --access public
+        run: |
+          set -euo pipefail
+          tgz=$(ls ./artifacts/npm-package/jmylchreest-aide-plugin-*.tgz)
+          version=$(tar -xzOf "$tgz" package/package.json | jq -r .version)
+          if npm view "@jmylchreest/aide-plugin@$version" version >/dev/null 2>&1; then
+            echo "Skipping @jmylchreest/aide-plugin@$version (already published)"
+            exit 0
+          fi
+          npm publish "$tgz" --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 

@@ -12,7 +12,10 @@
  *
  * Binary resolution order (first hit wins):
  *   1. Bundled via npm optionalDependencies:
- *      <plugin-root>/node_modules/@jmylchreest/aide-binary-<platform>-<arch>/bin/aide[.exe]
+ *      @jmylchreest/aide-binary-<platform>-<arch>/bin/aide[.exe], located
+ *      with node's resolution algorithm and a node_modules walk-up. Package
+ *      managers HOIST optional deps next to the plugin, not inside it, so
+ *      <plugin-root>/node_modules/ is the one place it is never found.
  *   2. PLUGIN_ROOT/bin/aide[.exe]  (legacy: downloaded by previous wrapper run)
  *   3. Downloaded fresh into PLUGIN_ROOT/bin/  (fallback when neither exists)
  *
@@ -21,6 +24,11 @@
  * distribution does not support npm optionalDependencies — fall through
  * to the legacy download path; Claude's per-version cache layout makes
  * that path work correctly.
+ *
+ * This file is deliberately self-contained: it runs before `bun install`
+ * has necessarily populated node_modules, so it duplicates the resolution
+ * logic in src/lib/binary-resolve.ts rather than importing it. The two are
+ * pinned together by src/test/binary-resolve.test.ts.
  *
  * Lives at: <plugin-root>/bin/aide-wrapper.ts
  * Logs written to: .aide/_logs/wrapper.log
@@ -37,7 +45,8 @@ import {
   writeFileSync,
   rmdirSync,
 } from "fs";
-import { dirname, join, resolve } from "path";
+import { createRequire } from "module";
+import { dirname, join, resolve, sep } from "path";
 import { fileURLToPath } from "url";
 
 const isWindows = process.platform === "win32";
@@ -53,38 +62,75 @@ try {
   scriptDir = dirname(__filename);
 }
 
+// The package this wrapper physically belongs to. Unlike PLUGIN_ROOT it
+// cannot be pointed elsewhere by an env var inherited from a parent session,
+// so it is the trustworthy anchor for "which install am I part of".
+const SELF_ROOT = resolve(scriptDir, "..");
+
 const PLUGIN_ROOT =
   process.env.AIDE_PLUGIN_ROOT ||
   process.env.CLAUDE_PLUGIN_ROOT ||
-  resolve(scriptDir, "..");
+  SELF_ROOT;
 
 const BINARY = join(PLUGIN_ROOT, "bin", `aide${EXT}`);
 const BIN_DIR = join(PLUGIN_ROOT, "bin");
 
-// Bundled binary path (populated by npm install via optionalDependencies).
-// When present, we use it without version checks — npm is the authority
-// for the bundled binary's lifecycle (install = upgrade).
-const BUNDLED_BINARY = (() => {
-  const key = `${process.platform}-${process.arch}`;
-  const ARCH_PKG: Record<string, string> = {
-    "linux-x64": "linux-amd64",
-    "linux-arm64": "linux-arm64",
-    "darwin-x64": "darwin-amd64",
-    "darwin-arm64": "darwin-arm64",
-    "win32-x64": "windows-amd64",
-    "win32-arm64": "windows-arm64",
-  };
-  const archPkg = ARCH_PKG[key];
-  if (!archPkg) return null;
-  const candidate = join(
-    PLUGIN_ROOT,
-    "node_modules",
-    `@jmylchreest/aide-binary-${archPkg}`,
-    "bin",
-    `aide${EXT}`,
-  );
-  return existsSync(candidate) ? candidate : null;
+// Per-arch npm package holding the bundled binary for this host.
+const ARCH_PKG: Record<string, string> = {
+  "linux-x64": "linux-amd64",
+  "linux-arm64": "linux-arm64",
+  "darwin-x64": "darwin-amd64",
+  "darwin-arm64": "darwin-arm64",
+  "win32-x64": "windows-amd64",
+  "win32-arm64": "windows-arm64",
+};
+const BINARY_PKG = (() => {
+  const suffix = ARCH_PKG[`${process.platform}-${process.arch}`];
+  return suffix ? `@jmylchreest/aide-binary-${suffix}` : null;
 })();
+
+/**
+ * Find the binary npm installed via optionalDependencies.
+ *
+ * Package managers hoist optional deps to the install root, so the binary
+ * is a *sibling* of the plugin package:
+ *
+ *   node_modules/@jmylchreest/aide-plugin/               <- SELF_ROOT
+ *   node_modules/@jmylchreest/aide-binary-linux-amd64/bin/aide
+ *
+ * Node's resolver handles that natively; the walk-up covers layouts where
+ * it can't run (bun's ESM cache, Yarn PnP-free installs, dev checkouts).
+ */
+function resolveBundledBinary(): string | null {
+  if (!BINARY_PKG) return null;
+  const subPath = join(...BINARY_PKG.split("/"), "bin", `aide${EXT}`);
+
+  try {
+    const resolved = createRequire(import.meta.url).resolve(
+      `${BINARY_PKG}/bin/aide${EXT}`,
+    );
+    if (existsSync(resolved)) return resolved;
+  } catch {
+    // Not resolvable from here — fall through to the filesystem walk.
+  }
+
+  const roots = SELF_ROOT === PLUGIN_ROOT ? [SELF_ROOT] : [SELF_ROOT, PLUGIN_ROOT];
+  for (const root of roots) {
+    let dir = resolve(root);
+    for (;;) {
+      const nested = join(dir, "node_modules", subPath);
+      if (existsSync(nested)) return nested;
+      if (dir.endsWith(`${sep}node_modules`)) {
+        const hoisted = join(dir, subPath);
+        if (existsSync(hoisted)) return hoisted;
+      }
+      const parent = dirname(dir);
+      if (parent === dir) break;
+      dir = parent;
+    }
+  }
+  return null;
+}
 
 // Setup logging
 const LOG_DIR = join(PLUGIN_ROOT, ".aide", "_logs");
@@ -142,19 +188,23 @@ function getBinaryVersion(binary: string): string | null {
 }
 
 /**
- * Read the plugin version from plugin.json or package.json
+ * Read the plugin version from plugin.json or package.json.
+ *
+ * SELF_ROOT is consulted first: it is the package this wrapper was shipped
+ * in, so it describes the code actually running. PLUGIN_ROOT can point at a
+ * different (often older) install via an inherited env var.
  */
 function getPluginVersion(): string | null {
-  for (const relPath of [
-    ".claude-plugin/plugin.json",
-    "package.json",
-  ]) {
-    try {
-      const content = readFileSync(join(PLUGIN_ROOT, relPath), "utf-8");
-      const match = content.match(/"version"\s*:\s*"(\d+\.\d+\.\d+)/);
-      if (match) return match[1];
-    } catch {
-      // skip
+  const roots = SELF_ROOT === PLUGIN_ROOT ? [SELF_ROOT] : [SELF_ROOT, PLUGIN_ROOT];
+  for (const root of roots) {
+    for (const relPath of [".claude-plugin/plugin.json", "package.json"]) {
+      try {
+        const content = readFileSync(join(root, relPath), "utf-8");
+        const match = content.match(/"version"\s*:\s*"(\d+\.\d+\.\d+)/);
+        if (match && match[1] !== "0.0.0") return match[1];
+      } catch {
+        // skip
+      }
     }
   }
   return null;
@@ -346,7 +396,23 @@ function downloadBinary(): void {
 // After a Claude Code marketplace autoUpdate (git pull), node_modules/
 // may be missing since it's gitignored. Detect and self-heal before any
 // imports that depend on npm packages (e.g. 'which', 'cross-spawn').
+//
+// Resolvability is the test, not the presence of PLUGIN_ROOT/node_modules:
+// in an npm install our dependencies are hoisted to the install root, so
+// that directory is legitimately absent and running `bun install` there
+// would be pure waste (and noisy failures when offline).
+function dependenciesResolvable(): boolean {
+  try {
+    const req = createRequire(import.meta.url);
+    req.resolve("cross-spawn");
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function ensureDependencies(): void {
+  if (dependenciesResolvable()) return;
   const nodeModules = join(PLUGIN_ROOT, "node_modules");
   if (!existsSync(nodeModules)) {
     log("node_modules missing — running bun install to restore dependencies");
@@ -376,18 +442,37 @@ log(
   `Starting wrapper (pid=${process.pid}, args=${process.argv.slice(2).join(" ")})`,
 );
 log(`PLUGIN_ROOT=${PLUGIN_ROOT}`);
+log(`SELF_ROOT=${SELF_ROOT}`);
 log(`BINARY=${BINARY}`);
-log(
-  `BUNDLED_BINARY=${BUNDLED_BINARY ?? "(none — using legacy download path)"}`,
-);
 
-if (BUNDLED_BINARY) {
-  // Bundled binary is present (npm install populated it via optionalDependencies).
-  // npm is authoritative for its lifecycle — skip version checks and the
-  // download path entirely. This makes MCP launches fully offline once
-  // `bunx @latest install` (or `npm install`) has completed.
-  log(`Using bundled binary, skipping download checks`);
-} else {
+// Bundled binary: installed by npm via optionalDependencies, pinned to the
+// exact plugin version, so npm owns its lifecycle (install = upgrade). We
+// still verify the version — a hoisted resolution can land on a different
+// install's copy, and silently running the wrong binary is the exact bug
+// class this whole mechanism exists to kill.
+let bundledBinary = resolveBundledBinary();
+log(`BUNDLED_BINARY=${bundledBinary ?? "(none — using legacy download path)"}`);
+
+if (bundledBinary) {
+  const pluginVersion = getPluginVersion();
+  const bundledVersion = getBinaryVersion(bundledBinary);
+  if (!bundledVersion) {
+    log("WARNING: bundled binary is not executable, falling back to download path");
+    bundledBinary = null;
+  } else if (pluginVersion && !versionGte(bundledVersion.split("-")[0], pluginVersion)) {
+    log(
+      `WARNING: bundled binary v${bundledVersion} is older than plugin v${pluginVersion} ` +
+        `(stale optionalDependency?), falling back to download path`,
+    );
+    bundledBinary = null;
+  } else {
+    log(
+      `Using bundled binary v${bundledVersion} (plugin v${pluginVersion ?? "unknown"})`,
+    );
+  }
+}
+
+if (!bundledBinary) {
   let needsDownload = false;
 
   if (!binaryExists()) {
@@ -431,7 +516,7 @@ if (BUNDLED_BINARY) {
 }
 
 // Execute the aide binary, replacing this process
-const execBinary = BUNDLED_BINARY ?? BINARY;
+const execBinary = bundledBinary ?? BINARY;
 log(`Executing: ${execBinary} ${process.argv.slice(2).join(" ")}`);
 
 const result = spawnSync(execBinary, process.argv.slice(2), {

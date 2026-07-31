@@ -33,9 +33,9 @@ claude --plugin-dir /path/to/aide
 ### OpenCode
 
 ```bash
-bunx @jmylchreest/aide-plugin install --plugin-path /path/to/aide
+bunx @jmylchreest/aide-plugin@latest install --plugin-path /path/to/aide
 ```
 
 :::note
-The `aide` Go binary is automatically downloaded when the plugin is installed via marketplace or npm. Building from source is only needed for development or customization.
+The `aide` Go binary comes with the plugin: npm installs ship it as a per-platform package (`@jmylchreest/aide-binary-<platform>-<arch>`, an optionalDependency pinned to the plugin version), and Claude Code marketplace installs download it on first run. Building from source is only needed for development or customization.
 :::

@@ -11,7 +11,7 @@ Requires Codex ≥ 0.144.
 ```bash
 codex plugin marketplace add jmylchreest/aide
 codex plugin add aide@aide
-bunx @jmylchreest/aide-plugin install --platform codex   # hooks only
+bunx @jmylchreest/aide-plugin@latest install --platform codex   # hooks only
 ```
 
 Codex consumes aide's Claude plugin manifest directly. The plugin provides:
@@ -40,7 +40,7 @@ Codex never creates per-skill slash commands (`/aide:test` will not work). Inste
 For Codex versions without plugin support:
 
 ```bash
-bunx @jmylchreest/aide-plugin install --platform codex
+bunx @jmylchreest/aide-plugin@latest install --platform codex
 ```
 
 This configures everything directly: the MCP server in `~/.codex/config.toml`, lifecycle hooks in `~/.codex/hooks.json`, and skill copies in `~/.agents/skills/`. Skill copies are tracked in a manifest so re-installs update them and uninstall removes only aide's. Use `--project` for project-level config.
@@ -50,7 +50,7 @@ Re-running the installer also repairs stale entries whose commands no longer res
 ## Check Status
 
 ```bash
-bunx @jmylchreest/aide-plugin status --platform codex
+bunx @jmylchreest/aide-plugin@latest status --platform codex
 ```
 
 ## Sandboxed Shells and the aide Daemon
@@ -82,7 +82,7 @@ Note this lifts the sandbox's *entire* network restriction for shell commands (o
 ## Uninstall
 
 ```bash
-bunx @jmylchreest/aide-plugin uninstall --platform codex
+bunx @jmylchreest/aide-plugin@latest uninstall --platform codex
 codex plugin remove aide@aide
 ```
 

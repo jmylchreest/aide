@@ -9,13 +9,11 @@
   "cpu": [
     "x64"
   ],
+  "preferUnplugged": true,
   "repository": {
     "type": "git",
     "url": "https://github.com/jmylchreest/aide",
     "directory": "packages/aide-binary-darwin-amd64"
-  },
-  "bin": {
-    "aide": "./bin/aide"
   },
   "files": [
     "bin/**"

@@ -9,13 +9,11 @@
   "cpu": [
     "arm64"
   ],
+  "preferUnplugged": true,
   "repository": {
     "type": "git",
     "url": "https://github.com/jmylchreest/aide",
     "directory": "packages/aide-binary-windows-arm64"
-  },
-  "bin": {
-    "aide.exe": "./bin/aide.exe"
   },
   "files": [
     "bin/**"

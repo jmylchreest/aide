@@ -55,6 +55,14 @@ release: check-version check-release-needed test-ts
 	done
 	@echo "Updated: $(VERSION_FILES)"
 	@command -v jq >/dev/null || { echo "jq is required: brew install jq / apt install jq"; exit 1; }
+	@# The per-arch binary packages are pinned exactly, so their pins must move
+	@# with the release — a stale pin silently ships the previous release's
+	@# binaries. sed above only rewrites "version" keys, not dependency values.
+	@PKG=packages/opencode-plugin/package.json; \
+	jq --arg v "$(VERSION)" \
+		'if .optionalDependencies then .optionalDependencies |= with_entries(.value = $$v) else . end' \
+		"$$PKG" > "$$PKG.tmp" && mv "$$PKG.tmp" "$$PKG"
+	@echo "Pinned optionalDependencies to $(VERSION)"
 	@LAST_TAG=$$(git describe --tags --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' 2>/dev/null || echo ""); \
 	BP_DIR=aide/pkg/blueprint/blueprints; \
 	if [ -n "$$LAST_TAG" ]; then \

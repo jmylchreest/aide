@@ -4,9 +4,11 @@
 
 import { existsSync } from "fs";
 import {
+  configuredPluginVersion,
   getGlobalConfigPath,
   getProjectConfigPath,
   isAideConfigured,
+  isMcpCommandCurrent,
   readConfig,
 } from "./config.js";
 import {
@@ -14,36 +16,57 @@ import {
   getCodexConfigTomlPath,
   getCodexHooksJsonPath,
 } from "./codex-config.js";
+import { getRunningPluginVersion } from "../lib/plugin-version.js";
 
 export interface StatusFlags {
   platform?: "opencode" | "codex";
 }
 
+/**
+ * Describe the plugin pin, flagging anything that leaves OpenCode stuck on
+ * an old version: no pin at all (OpenCode caches the first install forever)
+ * or a pin behind the package this command runs from.
+ */
+function describePin(pinned: string | null, running: string | null): string {
+  if (pinned === null) return "not found";
+  if (pinned === "") return "registered (unpinned — run install to pin a version)";
+  if (running && pinned !== running) {
+    return `v${pinned} (stale — this package is v${running}, run install to re-pin)`;
+  }
+  return `v${pinned}`;
+}
+
+function showOpenCodeConfig(path: string, running: string | null): void {
+  if (!existsSync(path)) {
+    console.log("  (file does not exist)");
+    return;
+  }
+  const config = readConfig(path);
+  const s = isAideConfigured(config);
+  console.log(`  plugin: ${describePin(configuredPluginVersion(config), running)}`);
+  if (!s.mcp) {
+    console.log("  mcp:    not found");
+  } else if (isMcpCommandCurrent(config, running)) {
+    console.log("  mcp:    registered");
+  } else {
+    console.log("  mcp:    registered (command out of date — run install)");
+  }
+}
+
 function showOpenCodeStatus(): void {
   console.log("aide plugin status (OpenCode)\n");
 
+  const running = getRunningPluginVersion();
   const globalPath = getGlobalConfigPath();
   const projectPath = getProjectConfigPath();
 
   console.log(`Global config: ${globalPath}`);
-  if (existsSync(globalPath)) {
-    const s = isAideConfigured(readConfig(globalPath));
-    console.log(`  plugin: ${s.plugin ? "registered" : "not found"}`);
-    console.log(`  mcp:    ${s.mcp ? "registered" : "not found"}`);
-  } else {
-    console.log("  (file does not exist)");
-  }
+  showOpenCodeConfig(globalPath, running);
 
   console.log();
 
   console.log(`Project config: ${projectPath}`);
-  if (existsSync(projectPath)) {
-    const s = isAideConfigured(readConfig(projectPath));
-    console.log(`  plugin: ${s.plugin ? "registered" : "not found"}`);
-    console.log(`  mcp:    ${s.mcp ? "registered" : "not found"}`);
-  } else {
-    console.log("  (file does not exist)");
-  }
+  showOpenCodeConfig(projectPath, running);
 }
 
 function showCodexStatus(): void {

@@ -1,75 +1,44 @@
 /**
  * Install command — registers aide plugin and MCP server for OpenCode or Codex CLI.
  *
- * On reinstall, detects and upgrades stale MCP command configurations
- * (e.g. old `aide-wrapper` commands) to the current format.
+ * Config is written with the exact version of the package this command ran
+ * from (`@jmylchreest/aide-plugin@0.1.13`), for both the plugin array and the
+ * MCP command. Neither OpenCode nor bunx re-resolves an unpinned spec once
+ * cached, so the pin is what makes upgrades happen at all — and it matches
+ * plugin, MCP server and bundled binary to a single version. Re-running
+ * `bunx @jmylchreest/aide-plugin@latest install` is therefore the upgrade
+ * action; on reinstall this also repairs stale pins and command formats.
  *
  * Binary provisioning is handled by npm (via `optionalDependencies` on
  * `@jmylchreest/aide-binary-<arch>`) and the MCP wrapper. This command
- * reports the current binary status without modifying it; users upgrade
- * the binary by running `bunx @jmylchreest/aide-plugin@latest` (which
- * re-extracts the npm package and refreshes the optional dep).
+ * reports the current binary status without modifying it.
  */
 
 import {
   addAideToConfig,
+  configuredPluginVersion,
   getGlobalConfigPath,
   getProjectConfigPath,
   isAideConfigured,
+  isMcpCommandCurrent,
+  pluginSpec,
   readConfig,
   writeConfig,
-  PLUGIN_NAME,
-  MCP_SERVER_NAME,
 } from "./config.js";
 import { installCodex, isCodexConfigured } from "./codex-config.js";
-import { join, dirname } from "path";
 import { execFileSync } from "child_process";
-import { existsSync, readFileSync } from "fs";
-import { fileURLToPath } from "url";
+import { existsSync } from "fs";
+import { join } from "path";
 import {
   compareVersions,
   getBaseVersion,
   isDevBuild,
 } from "../lib/aide-downloader.js";
-
-/**
- * Derive the plugin root from this script's location.
- *
- * We cannot trust `getPluginRoot()` (AIDE_PLUGIN_ROOT /
- * CLAUDE_PLUGIN_ROOT env vars): when `install` runs from
- * `bunx ...@latest install` it lives in bunx's cache, while the env may
- * be inherited from a parent OpenCode/Claude session pointing at a
- * different (often stale) plugin cache. Anchoring to `import.meta.url`
- * ties the version source to the package the user just installed.
- */
-function getInstallScriptPluginRoot(): string {
-  const scriptPath = fileURLToPath(import.meta.url);
-  return join(dirname(scriptPath), "..", "..");
-}
-
-function getInstallScriptPluginVersion(): string | null {
-  const root = getInstallScriptPluginRoot();
-  try {
-    const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf-8"));
-    return pkg.version && pkg.version !== "0.0.0" ? pkg.version : null;
-  } catch {
-    return null;
-  }
-}
-
-/** Map process.platform + process.arch → per-arch npm package suffix. */
-function getArchPackageSuffix(): string | null {
-  const key = `${process.platform}-${process.arch}`;
-  const ARCH_PKG: Record<string, string> = {
-    "linux-x64": "linux-amd64",
-    "linux-arm64": "linux-arm64",
-    "darwin-x64": "darwin-amd64",
-    "darwin-arm64": "darwin-arm64",
-    "win32-x64": "windows-amd64",
-    "win32-arm64": "windows-arm64",
-  };
-  return ARCH_PKG[key] ?? null;
-}
+import { resolveBundledBinary } from "../lib/binary-resolve.js";
+import {
+  getRunningPluginRoot,
+  getRunningPluginVersion,
+} from "../lib/plugin-version.js";
 
 export interface InstallFlags {
   project?: boolean;
@@ -89,22 +58,15 @@ export type BinaryStatus =
 export async function checkBinaryStatus(): Promise<BinaryStatus> {
   const isWindows = process.platform === "win32";
   const ext = isWindows ? ".exe" : "";
-  const pluginRoot = getInstallScriptPluginRoot();
+  const pluginRoot = getRunningPluginRoot();
 
-  const archSuffix = getArchPackageSuffix();
-  if (archSuffix) {
-    const bundledPath = join(
-      pluginRoot,
-      "node_modules",
-      `@jmylchreest/aide-binary-${archSuffix}`,
-      "bin",
-      `aide${ext}`,
-    );
-    if (existsSync(bundledPath)) {
-      const version = await readBinaryVersion(bundledPath);
-      if (version) {
-        return { kind: "bundled", version, path: bundledPath };
-      }
+  // Hoisting means the per-arch package sits next to the plugin, not inside
+  // it — resolveBundledBinary() follows node resolution to find it.
+  const bundledPath = resolveBundledBinary({ pluginRoot, from: import.meta.url });
+  if (bundledPath) {
+    const version = await readBinaryVersion(bundledPath);
+    if (version) {
+      return { kind: "bundled", version, path: bundledPath };
     }
   }
 
@@ -156,19 +118,6 @@ function printBinaryStatus(status: BinaryStatus): void {
   }
 }
 
-function isMcpCommandCurrent(config: ReturnType<typeof readConfig>): boolean {
-  const mcpConfig = config.mcp?.[MCP_SERVER_NAME];
-  if (!mcpConfig?.command || mcpConfig.command.length === 0) return false;
-  const cmd = mcpConfig.command;
-  return (
-    cmd.length === 4 &&
-    cmd[0] === "bunx" &&
-    cmd[1] === "-y" &&
-    cmd[2] === PLUGIN_NAME &&
-    cmd[3] === "mcp"
-  );
-}
-
 async function installOpenCode(flags: InstallFlags): Promise<void> {
   const configPath = flags.project
     ? getProjectConfigPath()
@@ -177,39 +126,50 @@ async function installOpenCode(flags: InstallFlags): Promise<void> {
   const scope = flags.project ? "project" : "global";
   console.log(`Installing aide plugin for OpenCode (${scope})...\n`);
 
+  // The version of the package this command was launched from — that is what
+  // gets pinned, so `bunx @jmylchreest/aide-plugin@latest install` is the
+  // upgrade action for both the plugin and the MCP server.
+  const version = getRunningPluginVersion();
+  const spec = pluginSpec(version);
+
   const existing = readConfig(configPath);
   const before = isAideConfigured(existing);
+  const pinnedBefore = configuredPluginVersion(existing);
+  const pluginNeedsRepin = before.plugin && pinnedBefore !== (version ?? "");
   const mcpNeedsUpdate =
-    !flags.noMcp && before.mcp && !isMcpCommandCurrent(existing);
+    !flags.noMcp && before.mcp && !isMcpCommandCurrent(existing, version);
 
-  const configUnchanged = before.plugin && before.mcp && !mcpNeedsUpdate;
+  const configUnchanged =
+    before.plugin && (before.mcp || flags.noMcp) && !pluginNeedsRepin && !mcpNeedsUpdate;
 
   if (configUnchanged) {
     console.log(`aide is already configured in ${configPath}\n`);
-    console.log("  plugin: registered");
+    console.log(`  plugin: ${spec}`);
     console.log("  mcp:    registered");
   } else {
-    if (mcpNeedsUpdate && existing.mcp) {
-      delete existing.mcp[MCP_SERVER_NAME];
-    }
-
-    const updated = addAideToConfig(existing, { noMcp: flags.noMcp });
+    const updated = addAideToConfig(existing, {
+      noMcp: flags.noMcp,
+      version,
+    });
     writeConfig(configPath, updated);
 
     const after = isAideConfigured(updated);
     console.log(`Updated: ${configPath}\n`);
 
     if (!before.plugin && after.plugin) {
-      console.log(`  + Added "${PLUGIN_NAME}" to plugin array`);
-    } else if (before.plugin) {
-      console.log(`  = Plugin already registered`);
+      console.log(`  + Added "${spec}" to plugin array`);
+    } else if (pluginNeedsRepin) {
+      const was = pinnedBefore ? `v${pinnedBefore}` : "unpinned";
+      console.log(`  ~ Re-pinned plugin to ${spec} (was ${was})`);
+    } else {
+      console.log(`  = Plugin already registered (${spec})`);
     }
 
     if (!flags.noMcp) {
       if (mcpNeedsUpdate) {
-        console.log(`  ~ Updated "aide" MCP server command (was outdated)`);
+        console.log(`  ~ Updated "aide" MCP server command to ${spec}`);
       } else if (!before.mcp && after.mcp) {
-        console.log(`  + Added "aide" MCP server`);
+        console.log(`  + Added "aide" MCP server (${spec})`);
       } else if (before.mcp) {
         console.log(`  = MCP server already registered`);
       }
@@ -221,6 +181,17 @@ async function installOpenCode(flags: InstallFlags): Promise<void> {
   console.log("");
   const status = await checkBinaryStatus();
   printBinaryStatus(status);
+
+  if (!version) {
+    console.log(
+      "\n  ! Running from an unversioned checkout — config left unpinned.\n" +
+        "    Released installs pin the exact version so OpenCode picks up upgrades.",
+    );
+  } else if (pluginNeedsRepin) {
+    console.log(
+      `\nOpenCode installs the new plugin version on next start (pin changed to v${version}).`,
+    );
+  }
 
   console.log("\nInstallation complete. Start OpenCode to use aide.");
 

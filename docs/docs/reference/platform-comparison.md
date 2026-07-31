@@ -105,13 +105,13 @@ claude plugin install aide@aide
 
 ```bash
 # From npm
-bunx @jmylchreest/aide-plugin install
+bunx @jmylchreest/aide-plugin@latest install
 
 # Check status
-bunx @jmylchreest/aide-plugin status
+bunx @jmylchreest/aide-plugin@latest status
 
 # Uninstall
-bunx @jmylchreest/aide-plugin uninstall
+bunx @jmylchreest/aide-plugin@latest uninstall
 ```
 
 ### Codex CLI
@@ -120,10 +120,10 @@ bunx @jmylchreest/aide-plugin uninstall
 # Recommended: Codex plugin (MCP server + skills), then hooks
 codex plugin marketplace add jmylchreest/aide
 codex plugin add aide@aide
-bunx @jmylchreest/aide-plugin install --platform codex
+bunx @jmylchreest/aide-plugin@latest install --platform codex
 
 # Standalone (older Codex, no plugin support) — configures everything
-bunx @jmylchreest/aide-plugin install --platform codex
+bunx @jmylchreest/aide-plugin@latest install --platform codex
 ```
 
 See [Getting Started: Codex CLI](../getting-started/codex.md) for details.
