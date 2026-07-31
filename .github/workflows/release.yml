@@ -790,7 +790,7 @@ jobs:
 
       - name: Pack tarball
         working-directory: packages/${{ matrix.pkg }}
-        run: bun pm pack
+        run: npm pack
 
       - name: Upload per-arch tarball artifact
         uses: actions/upload-artifact@v7
