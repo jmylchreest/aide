@@ -1,6 +1,6 @@
 {
   "name": "@jmylchreest/aide-binary-windows-amd64",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "description": "Bundled aide binary for win32/x64. Companion to @jmylchreest/aide-plugin.",
   "license": "MIT",
   "os": [
