@@ -769,6 +769,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
       - name: Download Go binary artifact
         uses: actions/download-artifact@v8
         with:
@@ -790,7 +793,7 @@ jobs:
 
       - name: Pack tarball
         working-directory: packages/${{ matrix.pkg }}
-        run: npm pack
+        run: bun pm pack
 
       - name: Upload per-arch tarball artifact
         uses: actions/upload-artifact@v7
