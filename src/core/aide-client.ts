@@ -140,7 +140,16 @@ export function setState(
   try {
     const args = ["state", "set", key, value];
     if (agentId) args.push(`--agent=${agentId}`);
-    execFileSync(binary, args, { cwd, stdio: "pipe", timeout: 5000 });
+    // env is passed explicitly rather than left to inheritance: Node defaults
+    // to process.env at spawn time, but bun does not forward mutations made to
+    // process.env after start-up, so anything set at runtime would be dropped
+    // from the child. Every spawn below does the same for the same reason.
+    execFileSync(binary, args, {
+      cwd,
+      stdio: "pipe",
+      timeout: 5000,
+      env: process.env,
+    });
     return true;
   } catch (err) {
     debug(SOURCE, `setState failed for key=${key}: ${err}`);
@@ -164,6 +173,7 @@ export function getState(
       cwd,
       encoding: "utf-8",
       timeout: 5000,
+      env: process.env,
     });
     const match = output.match(/=\s*(.+)$/m);
     return match ? match[1].trim() : null;
@@ -217,6 +227,7 @@ export function deleteState(
     execFileSync(binary, ["state", "delete", fullKey], {
       cwd,
       stdio: "pipe",
+      env: process.env,
     });
     return true;
   } catch (err) {
@@ -237,6 +248,7 @@ export function clearAgentState(
     execFileSync(binary, ["state", "clear", `--agent=${agentId}`], {
       cwd,
       stdio: "pipe",
+      env: process.env,
     });
     return true;
   } catch (err) {

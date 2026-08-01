@@ -10,6 +10,10 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
+  actualOs,
+  resetModules,
+} from "./helpers/runner-compat.js";
+import {
   mkdtempSync,
   rmSync,
   mkdirSync,
@@ -23,13 +27,10 @@ import { fileURLToPath } from "url";
 
 let tempHome = "";
 
-vi.mock("os", async (importOriginal) => {
-  const actual = (await importOriginal()) as typeof import("os");
-  return {
-    ...actual,
-    homedir: () => tempHome,
-  };
-});
+vi.mock("os", () => ({
+  ...actualOs(),
+  homedir: () => tempHome,
+}));
 
 interface ShapeCase {
   name: string;
@@ -57,7 +58,7 @@ describe("gitdir shapes golden table", () => {
     tmp = realpathSync(mkdtempSync(join(tmpdir(), "aide-shapes-")));
     tempHome = realpathSync(mkdtempSync(join(tmpdir(), "aide-shapes-home-")));
     delete process.env.AIDE_PROJECT_ROOT;
-    vi.resetModules();
+    resetModules();
   });
 
   afterEach(() => {

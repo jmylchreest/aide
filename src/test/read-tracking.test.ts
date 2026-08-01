@@ -5,6 +5,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { mocked } from "./helpers/runner-compat.js";
 import { checkSmartReadHint } from "../core/context-guard.js";
 
 // Mock aide-client and read-tracking modules
@@ -14,24 +15,24 @@ vi.mock("../core/aide-client.js", () => ({
   findAideBinary: vi.fn(() => "/usr/bin/aide"),
 }));
 
-vi.mock("../core/read-tracking.js", async (importOriginal) => {
-  const original =
-    (await importOriginal()) as typeof import("../core/read-tracking.js");
-  return {
-    ...original,
-    getPreviousRead: vi.fn(),
-    checkFileReadFreshness: vi.fn(),
-    recordFileRead: vi.fn(),
-  };
-});
+// Replaced outright rather than spread over the original: retrieving the
+// original inside a factory needs vitest's `importOriginal`, which bun's shim
+// does not pass, and re-importing the module here would re-enter this mock.
+// Only context-guard is in this suite's import graph and it reaches for just
+// getPreviousRead and checkFileReadFreshness, so nothing else is needed.
+vi.mock("../core/read-tracking.js", () => ({
+  getPreviousRead: vi.fn(),
+  checkFileReadFreshness: vi.fn(),
+  recordFileRead: vi.fn(),
+}));
 
 import { getPreviousRead, checkFileReadFreshness, recordFileRead } from "../core/read-tracking.js";
 import { setState } from "../core/aide-client.js";
 
-const mockGetPreviousRead = vi.mocked(getPreviousRead);
-const mockCheckFreshness = vi.mocked(checkFileReadFreshness);
-const mockRecordFileRead = vi.mocked(recordFileRead);
-const mockSetState = vi.mocked(setState);
+const mockGetPreviousRead = mocked(getPreviousRead);
+const mockCheckFreshness = mocked(checkFileReadFreshness);
+const mockRecordFileRead = mocked(recordFileRead);
+const mockSetState = mocked(setState);
 
 describe("checkSmartReadHint", () => {
   const cwd = "/home/user/project";

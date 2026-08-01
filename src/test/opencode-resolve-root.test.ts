@@ -11,6 +11,10 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import {
+  actualOs,
+  resetModules,
+} from "./helpers/runner-compat.js";
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, realpathSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
@@ -18,13 +22,10 @@ import type { PluginInput } from "../opencode/types.js";
 
 let tempHome = "";
 
-vi.mock("os", async (importOriginal) => {
-  const actual = (await importOriginal()) as typeof import("os");
-  return {
-    ...actual,
-    homedir: () => tempHome,
-  };
-});
+vi.mock("os", () => ({
+  ...actualOs(),
+  homedir: () => tempHome,
+}));
 
 function ctxWith(
   directory: string,
@@ -46,7 +47,7 @@ describe("resolveProjectRoot (OpenCode)", () => {
     tempHome = realpathSync(mkdtempSync(join(tmpdir(), "aide-oc-home-")));
     delete process.env.AIDE_PROJECT_ROOT;
     delete process.env.AIDE_FORCE_INIT;
-    vi.resetModules();
+    resetModules();
   });
 
   afterEach(() => {

@@ -7,6 +7,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { actualOs } from "./helpers/runner-compat.js";
 import {
   mkdtempSync,
   rmSync,
@@ -22,13 +23,10 @@ import { tmpdir } from "os";
 
 let tempHome = "";
 
-vi.mock("os", async (importOriginal) => {
-  const actual = (await importOriginal()) as typeof import("os");
-  return {
-    ...actual,
-    homedir: () => tempHome,
-  };
-});
+vi.mock("os", () => ({
+  ...actualOs(),
+  homedir: () => tempHome,
+}));
 
 import {
   ANCHOR_SCHEMA_VERSION,

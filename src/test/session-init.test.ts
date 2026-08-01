@@ -6,6 +6,10 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
+  actualOs,
+  resetModules,
+} from "./helpers/runner-compat.js";
+import {
   mkdtempSync,
   rmSync,
   writeFileSync,
@@ -17,13 +21,10 @@ import { tmpdir } from "os";
 
 let tempHome = "";
 
-vi.mock("os", async (importOriginal) => {
-  const actual = (await importOriginal()) as typeof import("os");
-  return {
-    ...actual,
-    homedir: () => tempHome,
-  };
-});
+vi.mock("os", () => ({
+  ...actualOs(),
+  homedir: () => tempHome,
+}));
 
 describe("ensureDirectories", () => {
   let projectDir: string;
@@ -31,7 +32,7 @@ describe("ensureDirectories", () => {
   beforeEach(() => {
     projectDir = mkdtempSync(join(tmpdir(), "aide-session-"));
     tempHome = mkdtempSync(join(tmpdir(), "aide-home-"));
-    vi.resetModules();
+    resetModules();
   });
 
   afterEach(() => {
@@ -92,7 +93,7 @@ describe("loadConfig", () => {
   beforeEach(() => {
     projectDir = mkdtempSync(join(tmpdir(), "aide-session-config-"));
     tempHome = mkdtempSync(join(tmpdir(), "aide-home-config-"));
-    vi.resetModules();
+    resetModules();
   });
 
   afterEach(() => {

@@ -6,6 +6,10 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
+  actualOs,
+  resetModules,
+} from "./helpers/runner-compat.js";
+import {
   mkdtempSync,
   rmSync,
   writeFileSync,
@@ -19,13 +23,10 @@ import { tmpdir } from "os";
 
 let tempHome = "";
 
-vi.mock("os", async (importOriginal) => {
-  const actual = (await importOriginal()) as typeof import("os");
-  return {
-    ...actual,
-    homedir: () => tempHome,
-  };
-});
+vi.mock("os", () => ({
+  ...actualOs(),
+  homedir: () => tempHome,
+}));
 
 function readJson(path: string): any {
   return JSON.parse(readFileSync(path, "utf-8"));
@@ -37,7 +38,7 @@ describe("syncMcpServers", () => {
   beforeEach(() => {
     projectDir = mkdtempSync(join(tmpdir(), "aide-mcp-project-"));
     tempHome = mkdtempSync(join(tmpdir(), "aide-mcp-home-"));
-    vi.resetModules();
+    resetModules();
   });
 
   afterEach(() => {
