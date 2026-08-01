@@ -72,6 +72,19 @@ type Message struct {
 	ExpiresAt       time.Time `json:"expiresAt,omitempty"` // TTL - auto-prune after this time
 }
 
+// Decision precedence bands. Precedence is a plain sort key — higher is
+// injected earlier — but one threshold carries meaning: at or above
+// PrecedenceOverride a decision claims authority over the ordinary set and is
+// rendered in its own block ahead of them. Below the threshold, precedence only
+// orders decisions within the ordinary block; it makes no claim over anything.
+const (
+	// PrecedenceDefault is the weight of an ordinary decision.
+	PrecedenceDefault = 0
+	// PrecedenceOverride is the threshold at and above which a decision is
+	// promoted into the overriding block.
+	PrecedenceOverride = 100
+)
+
 // Decision represents a shared architectural decision with full context.
 // Decisions are append-only (latest wins) and can contain rich details.
 type Decision struct {
@@ -81,8 +94,13 @@ type Decision struct {
 	Details    string    `json:"details,omitempty"`    // Full content: schemas, code examples, specs
 	References []string  `json:"references,omitempty"` // External links, docs, related files
 	DecidedBy  string    `json:"decidedBy,omitempty"`  // Who made the decision (agent/user)
+	Precedence int       `json:"precedence,omitempty"` // Injection weight; >= PrecedenceOverride overrides
 	CreatedAt  time.Time `json:"createdAt"`
 }
+
+// Overrides reports whether the decision claims authority over ordinary
+// decisions and should be injected in the overriding block.
+func (d *Decision) Overrides() bool { return d.Precedence >= PrecedenceOverride }
 
 // Tombstone kinds for deleted shareable records.
 const (

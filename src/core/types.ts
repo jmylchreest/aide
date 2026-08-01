@@ -62,6 +62,13 @@ export interface SessionState {
   agentCount: number;
 }
 
+/**
+ * Precedence at or above which a decision claims authority over the ordinary
+ * set and is injected in its own block ahead of them. Mirrors
+ * memory.PrecedenceOverride in the Go store.
+ */
+export const DECISION_PRECEDENCE_OVERRIDE = 100;
+
 export interface SessionInitResult {
   state_keys_deleted: number;
   stale_agents_cleaned: number;
@@ -99,6 +106,8 @@ export interface SessionInitResult {
     topic: string;
     value: string;
     rationale?: string;
+    /** Injection weight; >= 100 overrides ordinary decisions. Absent = 0. */
+    precedence?: number;
     origin?: string;
     origin_name?: string;
     /** "parent" (anchor-chain cascade) or "peer" (subscription layer); absent = local. */
@@ -135,6 +144,8 @@ export interface MemoryInjection {
     project: string[];
     projectOverflow?: boolean;
     decisions: string[];
+    /** Decisions at or above the override threshold, rendered ahead of the rest. */
+    overridingDecisions?: string[];
   };
   dynamic: {
     sessions: string[];

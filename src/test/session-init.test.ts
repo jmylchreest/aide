@@ -165,3 +165,65 @@ describe("buildWelcomeContext codebase map", () => {
     expect(ctx).not.toContain("Codebase Map");
   });
 });
+
+describe("buildWelcomeContext decision precedence", () => {
+  const state = {
+    sessionId: "abcd1234efgh",
+    cwd: "/tmp/proj",
+    activeMode: null,
+    agentCount: 0,
+  };
+
+  it("renders overriding decisions ahead of ordinary ones, with the override claim stated", async () => {
+    const { buildWelcomeContext } = await import("../core/session-init.js");
+    const injection = {
+      static: {
+        global: [],
+        project: [],
+        decisions: ["**python-testing**: Test with pytest"],
+        overridingDecisions: [
+          "**existing-codebase-precedence**: The repository is the authority",
+        ],
+      },
+      dynamic: { sessions: [] },
+    };
+    const ctx = buildWelcomeContext(state as never, injection as never);
+
+    expect(ctx).toContain("## Overriding Decisions");
+    expect(ctx).toContain("## Project Decisions");
+    // Ordering is the mechanism: guardrails must be read before what they override.
+    expect(ctx.indexOf("## Overriding Decisions")).toBeLessThan(
+      ctx.indexOf("## Project Decisions"),
+    );
+    // Ordering alone does not create precedence — the header must say so.
+    expect(ctx).toContain("These take precedence over every decision below");
+    expect(ctx).toContain("**existing-codebase-precedence**");
+    expect(ctx).toContain("**python-testing**");
+  });
+
+  it("omits the overriding block when nothing claims precedence", async () => {
+    const { buildWelcomeContext } = await import("../core/session-init.js");
+    const injection = {
+      static: {
+        global: [],
+        project: [],
+        decisions: ["**python-testing**: Test with pytest"],
+        overridingDecisions: [],
+      },
+      dynamic: { sessions: [] },
+    };
+    const ctx = buildWelcomeContext(state as never, injection as never);
+    expect(ctx).not.toContain("## Overriding Decisions");
+    expect(ctx).toContain("## Project Decisions");
+  });
+
+  it("tolerates an injection built without the field", async () => {
+    const { buildWelcomeContext } = await import("../core/session-init.js");
+    const injection = {
+      static: { global: [], project: [], decisions: ["**a**: b"] },
+      dynamic: { sessions: [] },
+    };
+    const ctx = buildWelcomeContext(state as never, injection as never);
+    expect(ctx).not.toContain("## Overriding Decisions");
+  });
+});

@@ -199,6 +199,9 @@ message Decision {
   repeated string references = 5;  // External links, docs, related files
   string decided_by = 6;
   google.protobuf.Timestamp created_at = 7;
+  // Injection ordering weight. 0 is the default. >= 100 promotes the decision
+  // into the overriding block that is injected ahead of ordinary decisions.
+  int32 precedence = 8;
 }
 
 message DecisionSetRequest {
@@ -211,6 +214,9 @@ message DecisionSetRequest {
   // When set, the server preserves this timestamp instead of using time.Now().
   // Used by identity-preserving flows such as `aide share import`.
   google.protobuf.Timestamp created_at = 7;
+  // Unset (nil) carries the previous revision's precedence forward, so an edit
+  // that does not mention precedence cannot silently demote a guardrail.
+  optional int32 precedence = 8;
 }
 
 message DecisionSetResponse {

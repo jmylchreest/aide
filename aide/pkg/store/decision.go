@@ -33,6 +33,27 @@ func (s *BoltStore) SetDecision(d *memory.Decision) error {
 	})
 }
 
+// DecisionGetter reads the current revision of a topic. Satisfied by both the
+// store and the CLI backend, so precedence resolution works on either path.
+type DecisionGetter interface {
+	GetDecision(topic string) (*memory.Decision, error)
+}
+
+// ResolvePrecedence decides what precedence a new revision of a topic carries.
+// A nil request means the caller did not mention precedence, so the current
+// revision's weight is carried forward — otherwise an ordinary edit (a reworded
+// summary from the CLI or the web UI) would silently demote a guardrail to the
+// default band. An explicit request always wins, including an explicit zero.
+func ResolvePrecedence(g DecisionGetter, topic string, requested *int) int {
+	if requested != nil {
+		return *requested
+	}
+	if prev, err := g.GetDecision(topic); err == nil && prev != nil {
+		return prev.Precedence
+	}
+	return memory.PrecedenceDefault
+}
+
 // GetDecision retrieves the latest decision by topic.
 func (s *BoltStore) GetDecision(topic string) (*memory.Decision, error) {
 	var latest *memory.Decision

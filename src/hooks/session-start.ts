@@ -289,7 +289,7 @@ function runSessionInit(
     log.debug("aide binary not found, skipping session init");
     log.end("sessionInit", { skipped: true, reason: "no-binary" });
     return {
-      static: { global: [], project: [], decisions: [] },
+      static: { global: [], project: [], decisions: [], overridingDecisions: [] },
       dynamic: { sessions: [] },
     };
   }

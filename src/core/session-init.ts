@@ -26,7 +26,7 @@ import type {
   InjectedSource,
   StartupNotices,
 } from "./types.js";
-import { DEFAULT_CONFIG } from "./types.js";
+import { DEFAULT_CONFIG, DECISION_PRECEDENCE_OVERRIDE } from "./types.js";
 import { isTruthy, isFalsy } from "../lib/hook-utils.js";
 import { findProjectRoot } from "../lib/project-root.js";
 
@@ -339,7 +339,7 @@ export function runSessionInit(
   config?: AideConfig,
 ): MemoryInjection {
   const result: MemoryInjection = {
-    static: { global: [], project: [], decisions: [] },
+    static: { global: [], project: [], decisions: [], overridingDecisions: [] },
     dynamic: { sessions: [] },
   };
 
@@ -395,10 +395,17 @@ export function runSessionInit(
     result.static.global = data.global_memories.map((m) => m.content);
     result.static.project = data.project_memories.map((m) => m.content);
     result.static.projectOverflow = data.project_memory_overflow ?? false;
-    result.static.decisions = data.decisions.map(
-      (d) =>
-        `**${d.topic}**: ${d.value}${d.rationale ? ` (${d.rationale})` : ""}${decisionOriginSuffix(d)}`,
-    );
+    // Split at the override threshold. Ordering within each bucket is already
+    // fixed by the CLI (precedence desc, then ring, then topic), so the
+    // rendered block is byte-identical across runs for an unchanged store.
+    const renderDecision = (d: SessionInitResult["decisions"][number]) =>
+      `**${d.topic}**: ${d.value}${d.rationale ? ` (${d.rationale})` : ""}${decisionOriginSuffix(d)}`;
+    result.static.overridingDecisions = data.decisions
+      .filter((d) => (d.precedence ?? 0) >= DECISION_PRECEDENCE_OVERRIDE)
+      .map(renderDecision);
+    result.static.decisions = data.decisions
+      .filter((d) => (d.precedence ?? 0) < DECISION_PRECEDENCE_OVERRIDE)
+      .map(renderDecision);
 
     for (const sess of data.recent_sessions) {
       const timeAgo = sess.last_at ? formatTimeAgo(sess.last_at) : "";
@@ -595,6 +602,20 @@ export function buildWelcomeContext(
       lines.push(
         "_More project memories exist. Use `memory_search` to find specific context._",
       );
+    }
+    lines.push("");
+  }
+
+  const overriding = memories.static.overridingDecisions ?? [];
+  if (overriding.length > 0) {
+    lines.push("## Overriding Decisions");
+    lines.push("");
+    lines.push(
+      "These take precedence over every decision below and over general best practice. Where they conflict with anything else, these win:",
+    );
+    lines.push("");
+    for (const decision of overriding) {
+      lines.push(`- ${decision}`);
     }
     lines.push("");
   }

@@ -98,6 +98,7 @@ type SessionDecision struct {
 	Topic      string `json:"topic"`
 	Value      string `json:"value"`
 	Rationale  string `json:"rationale,omitempty"`
+	Precedence int    `json:"precedence,omitempty"`
 	CreatedAt  string `json:"created_at"`
 	Origin     string `json:"origin,omitempty"`
 	OriginName string `json:"origin_name,omitempty"`
@@ -451,18 +452,35 @@ func sessionFetchContext(backend *Backend, project string, sessionLimit int, res
 	decisions, err := backend.ListDecisions()
 	if err == nil {
 		latest := latestDecisionsByTopic(decisions)
-		for _, d := range latest {
+		// Ranging a map made this block reorder on every session, which is
+		// noise in agent context and defeats prompt caching on the prefix.
+		// Same fix as `aide decision list`.
+		topics := make([]string, 0, len(latest))
+		for t := range latest {
+			topics = append(topics, t)
+		}
+		sort.Strings(topics)
+		for _, t := range topics {
+			d := latest[t]
 			seenTopics[d.Topic] = true
 			result.Decisions = append(result.Decisions, SessionDecision{
-				Topic:     d.Topic,
-				Value:     d.Decision,
-				Rationale: d.Rationale,
-				CreatedAt: d.CreatedAt.Format(time.RFC3339),
+				Topic:      d.Topic,
+				Value:      d.Decision,
+				Rationale:  d.Rationale,
+				Precedence: d.Precedence,
+				CreatedAt:  d.CreatedAt.Format(time.RFC3339),
 			})
 		}
 	}
 	result.Decisions = append(result.Decisions, cascadeDecisions(backend.dbPath, seenTopics)...)
 	result.Decisions = append(result.Decisions, peerDecisions(backend.dbPath, seenTopics)...)
+
+	// Highest precedence first so guardrails lead the injected block; the
+	// ring order (local > parent > peer) is preserved within a weight, and
+	// each ring is already topic-sorted, so the result is fully deterministic.
+	sort.SliceStable(result.Decisions, func(i, j int) bool {
+		return result.Decisions[i].Precedence > result.Decisions[j].Precedence
+	})
 
 	// Recent sessions (grouped by session tag)
 	if project != "" && sessionLimit > 0 {
@@ -522,6 +540,7 @@ func cascadeDecisions(dbPath string, seenTopics map[string]bool) []SessionDecisi
 				Topic:      d.Topic,
 				Value:      d.Decision,
 				Rationale:  d.Rationale,
+				Precedence: d.Precedence,
 				CreatedAt:  d.CreatedAt.Format(time.RFC3339),
 				Origin:     link.Root,
 				OriginName: name,
@@ -580,6 +599,7 @@ func peerDecisions(dbPath string, seenTopics map[string]bool) []SessionDecision 
 				Topic:      d.Topic,
 				Value:      d.Decision,
 				Rationale:  d.Rationale,
+				Precedence: d.Precedence,
 				CreatedAt:  d.CreatedAt.Format(time.RFC3339),
 				Origin:     "peer:" + sub.Name,
 				OriginName: sub.Name,

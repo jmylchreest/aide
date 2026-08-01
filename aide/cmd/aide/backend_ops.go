@@ -8,6 +8,7 @@ import (
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi/adapter"
 	"github.com/jmylchreest/aide/aide/pkg/memory"
 	"github.com/jmylchreest/aide/aide/pkg/store"
+	"google.golang.org/protobuf/proto"
 )
 
 // =============================================================================
@@ -391,19 +392,25 @@ func (b *Backend) CleanupState(maxAge time.Duration) (int, error) {
 // Decision Operations
 // =============================================================================
 
-func (b *Backend) SetDecision(topic, decision, rationale, details, decidedBy string, references []string) (*memory.Decision, error) {
+// SetDecision writes a new revision of a topic. A nil precedence carries the
+// current revision's weight forward; see store.ResolvePrecedence.
+func (b *Backend) SetDecision(topic, decision, rationale, details, decidedBy string, references []string, precedence *int) (*memory.Decision, error) {
 	ctx, cancel := b.rpcCtx()
 	defer cancel()
 
 	if b.useGRPC {
-		resp, err := b.grpcClient.Decision.Set(ctx, &grpcapi.DecisionSetRequest{
+		req := &grpcapi.DecisionSetRequest{
 			Topic:      topic,
 			Decision:   decision,
 			Rationale:  rationale,
 			Details:    details,
 			References: references,
 			DecidedBy:  decidedBy,
-		})
+		}
+		if precedence != nil {
+			req.Precedence = proto.Int32(int32(*precedence))
+		}
+		resp, err := b.grpcClient.Decision.Set(ctx, req)
 		if err != nil {
 			return nil, err
 		}
@@ -417,6 +424,7 @@ func (b *Backend) SetDecision(topic, decision, rationale, details, decidedBy str
 		Details:    details,
 		References: references,
 		DecidedBy:  decidedBy,
+		Precedence: store.ResolvePrecedence(b.store, topic, precedence),
 		CreatedAt:  time.Now(),
 	}
 	if err := b.store.SetDecision(dec); err != nil {

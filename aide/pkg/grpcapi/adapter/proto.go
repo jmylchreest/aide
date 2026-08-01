@@ -81,6 +81,7 @@ func ProtoToDecision(p *grpcapi.Decision) *memory.Decision {
 		Details:    p.Details,
 		References: p.References,
 		DecidedBy:  p.DecidedBy,
+		Precedence: int(p.Precedence),
 		CreatedAt:  p.CreatedAt.AsTime(),
 	}
 }

@@ -909,7 +909,7 @@ func shareImportDecisions(b *Backend, inputDir string, dryRun bool) (imported, s
 			continue
 		}
 
-		_, err = b.SetDecision(d.Topic, d.Decision, d.Rationale, d.Details, d.DecidedBy, d.References)
+		_, err = b.SetDecision(d.Topic, d.Decision, d.Rationale, d.Details, d.DecidedBy, d.References, &d.Precedence)
 		if err != nil {
 			return imported, skipped, fmt.Errorf("failed to import decision %s: %w", d.Topic, err)
 		}

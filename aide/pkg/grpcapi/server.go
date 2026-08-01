@@ -603,6 +603,14 @@ type decisionServiceImpl struct {
 }
 
 func (s *decisionServiceImpl) Set(ctx context.Context, req *DecisionSetRequest) (*DecisionSetResponse, error) {
+	// An unset precedence carries the current revision's weight forward, so an
+	// edit that does not mention precedence cannot silently demote a guardrail.
+	var precedence *int
+	if req.Precedence != nil {
+		n := int(*req.Precedence)
+		precedence = &n
+	}
+
 	dec := &memory.Decision{
 		Topic:      req.Topic,
 		Decision:   req.Decision,
@@ -610,6 +618,7 @@ func (s *decisionServiceImpl) Set(ctx context.Context, req *DecisionSetRequest) 
 		Details:    req.Details,
 		References: req.References,
 		DecidedBy:  req.DecidedBy,
+		Precedence: store.ResolvePrecedence(s.store, req.Topic, precedence),
 	}
 	// Honour caller-supplied CreatedAt; BoltStore.SetDecision stamps time.Now()
 	// when zero, matching the existing default.
@@ -2763,6 +2772,7 @@ func decisionToProto(d *memory.Decision) *Decision {
 		Details:    d.Details,
 		References: d.References,
 		DecidedBy:  d.DecidedBy,
+		Precedence: int32(d.Precedence),
 		CreatedAt:  timestamppb.New(d.CreatedAt),
 	}
 }

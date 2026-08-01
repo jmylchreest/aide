@@ -19,14 +19,18 @@ var embeddedBlueprints embed.FS
 
 // Blueprint is a portable bundle of best-practice decisions for a language or stack.
 type Blueprint struct {
-	SchemaVersion int                 `json:"schema_version"`
-	Name          string              `json:"name"`
-	DisplayName   string              `json:"display_name"`
-	Description   string              `json:"description"`
-	Version       string              `json:"version"`
-	Tags          []string            `json:"tags,omitempty"`
-	Includes      []string            `json:"includes,omitempty"`
-	Decisions     []BlueprintDecision `json:"decisions"`
+	SchemaVersion int      `json:"schema_version"`
+	Name          string   `json:"name"`
+	DisplayName   string   `json:"display_name"`
+	Description   string   `json:"description"`
+	Version       string   `json:"version"`
+	Tags          []string `json:"tags,omitempty"`
+	Includes      []string `json:"includes,omitempty"`
+	// DefaultPrecedence applies to every decision in this blueprint that does
+	// not set its own, so a guardrail bundle declares its weight once rather
+	// than repeating it on each decision.
+	DefaultPrecedence int                 `json:"default_precedence,omitempty"`
+	Decisions         []BlueprintDecision `json:"decisions"`
 }
 
 // BlueprintDecision is a single decision within a blueprint.
@@ -36,6 +40,17 @@ type BlueprintDecision struct {
 	Rationale  string   `json:"rationale"`
 	Details    string   `json:"details,omitempty"`
 	References []string `json:"references,omitempty"`
+	// Precedence overrides the blueprint's DefaultPrecedence for this decision.
+	// Nil means "inherit the blueprint default".
+	Precedence *int `json:"precedence,omitempty"`
+}
+
+// EffectivePrecedence resolves a decision's weight against the blueprint default.
+func (bp *Blueprint) EffectivePrecedence(d BlueprintDecision) int {
+	if d.Precedence != nil {
+		return *d.Precedence
+	}
+	return bp.DefaultPrecedence
 }
 
 // ImportResult summarises the outcome of importing a blueprint.

@@ -142,9 +142,12 @@ func importBlueprint(backend *Backend, bp *blueprint.Blueprint, force, dryRun bo
 				existing.DecidedBy == legacyProvenance
 
 			if fromThisBlueprint {
+				// Precedence participates: a blueprint that only re-weights a
+				// decision must still be able to upgrade an earlier import.
 				contentChanged := existing.Decision != d.Decision ||
 					existing.Rationale != d.Rationale ||
-					existing.Details != d.Details
+					existing.Details != d.Details ||
+					existing.Precedence != bp.EffectivePrecedence(d)
 
 				// Extract existing version; legacy (unversioned) is always superseded.
 				existingVer := "0.0.0"
@@ -155,7 +158,8 @@ func importBlueprint(backend *Backend, bp *blueprint.Blueprint, force, dryRun bo
 				if compareVersions(bp.Version, existingVer) > 0 && contentChanged {
 					// Newer blueprint version with changed content — supersede.
 					if !dryRun {
-						_, err = backend.SetDecision(d.Topic, d.Decision, d.Rationale, d.Details, provenance, d.References)
+						precedence := bp.EffectivePrecedence(d)
+						_, err = backend.SetDecision(d.Topic, d.Decision, d.Rationale, d.Details, provenance, d.References, &precedence)
 						if err != nil {
 							return result, fmt.Errorf("update decision %s: %w", d.Topic, err)
 						}
@@ -175,7 +179,8 @@ func importBlueprint(backend *Backend, bp *blueprint.Blueprint, force, dryRun bo
 			continue
 		}
 
-		_, err = backend.SetDecision(d.Topic, d.Decision, d.Rationale, d.Details, provenance, d.References)
+		precedence := bp.EffectivePrecedence(d)
+		_, err = backend.SetDecision(d.Topic, d.Decision, d.Rationale, d.Details, provenance, d.References, &precedence)
 		if err != nil {
 			return result, fmt.Errorf("set decision %s: %w", d.Topic, err)
 		}

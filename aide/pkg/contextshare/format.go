@@ -195,6 +195,9 @@ func MarshalDecision(d *memory.Decision) []byte {
 	if d.DecidedBy != "" {
 		fmt.Fprintf(&b, "decided_by: %s\n", d.DecidedBy)
 	}
+	if d.Precedence != memory.PrecedenceDefault {
+		fmt.Fprintf(&b, "precedence: %d\n", d.Precedence)
+	}
 	fmt.Fprintf(&b, "created_at: %s\n", d.CreatedAt.UTC().Format(time.RFC3339Nano))
 	if len(d.References) > 0 {
 		b.WriteString("references:\n")
@@ -243,6 +246,13 @@ func ParseDecision(data []byte) (*memory.Decision, error) {
 		case strings.HasPrefix(line, "decided_by:"):
 			listKey = ""
 			d.DecidedBy = strings.TrimSpace(strings.TrimPrefix(line, "decided_by:"))
+		case strings.HasPrefix(line, "precedence:"):
+			listKey = ""
+			n, err := strconv.Atoi(strings.TrimSpace(strings.TrimPrefix(line, "precedence:")))
+			if err != nil {
+				return nil, fmt.Errorf("malformed precedence: %w", err)
+			}
+			d.Precedence = n
 		case strings.HasPrefix(line, "created_at:"):
 			listKey = ""
 			t, err := time.Parse(time.RFC3339Nano, strings.TrimSpace(strings.TrimPrefix(line, "created_at:")))

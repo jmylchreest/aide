@@ -29,6 +29,7 @@ import {
   emitInjectionEvent,
   recordObserveEvent,
 } from "../core/read-tracking.js";
+import { DECISION_PRECEDENCE_OVERRIDE } from "../core/types.js";
 import { refreshHud, invalidateHudRenderCache } from "../lib/hud.js";
 
 // Global logger instance
@@ -115,11 +116,13 @@ function fetchSubagentMemories(cwd: string, sessionId?: string): {
   global: string[];
   project: string[];
   decisions: string[];
+  overridingDecisions: string[];
 } {
   const result = {
     global: [] as string[],
     project: [] as string[],
     decisions: [] as string[],
+    overridingDecisions: [] as string[],
   };
 
   if (isFalsy(process.env.AIDE_MEMORY_INJECT)) {
@@ -190,10 +193,21 @@ function fetchSubagentMemories(cwd: string, sessionId?: string): {
       .trim();
 
     if (decisionsOutput && decisionsOutput !== "[]") {
-      const decisions = JSON.parse(decisionsOutput);
-      result.decisions = decisions.map(
-        (d: { topic: string; value: string }) => `**${d.topic}**: ${d.value}`,
-      );
+      const decisions: Array<{
+        topic: string;
+        value: string;
+        precedence?: number;
+      }> = JSON.parse(decisionsOutput);
+      // Same split as session init: a subagent must see guardrails ahead of
+      // the decisions they override, not interleaved with them.
+      const render = (d: { topic: string; value: string }) =>
+        `**${d.topic}**: ${d.value}`;
+      result.overridingDecisions = decisions
+        .filter((d) => (d.precedence ?? 0) >= DECISION_PRECEDENCE_OVERRIDE)
+        .map(render);
+      result.decisions = decisions
+        .filter((d) => (d.precedence ?? 0) < DECISION_PRECEDENCE_OVERRIDE)
+        .map(render);
     }
   } catch (err) {
     log?.debug(
@@ -211,6 +225,7 @@ function buildSubagentContext(memories: {
   global: string[];
   project: string[];
   decisions: string[];
+  overridingDecisions: string[];
 }): string {
   const lines: string[] = [];
 
@@ -231,6 +246,19 @@ function buildSubagentContext(memories: {
     lines.push("");
     for (const mem of memories.project) {
       lines.push(`- ${mem}`);
+    }
+  }
+
+  if (memories.overridingDecisions.length > 0) {
+    lines.push("");
+    lines.push("## Overriding Decisions");
+    lines.push("");
+    lines.push(
+      "These take precedence over every decision below and over general best practice. Where they conflict with anything else, these win:",
+    );
+    lines.push("");
+    for (const decision of memories.overridingDecisions) {
+      lines.push(`- ${decision}`);
     }
   }
 
@@ -340,13 +368,13 @@ async function processSubagentStart(
   log?.end("fetchMemories", {
     globalCount: memories.global.length,
     projectCount: memories.project.length,
-    decisionCount: memories.decisions.length,
+    decisionCount: memories.decisions.length + memories.overridingDecisions.length,
   });
 
   // Always build and inject context (messaging section is unconditional)
   const context = buildSubagentContext(memories);
   log?.info(
-    `Injecting context for subagent: ${memories.global.length} preferences, ${memories.project.length} project, ${memories.decisions.length} decisions`,
+    `Injecting context for subagent: ${memories.global.length} preferences, ${memories.project.length} project, ${memories.decisions.length} decisions, ${memories.overridingDecisions.length} overriding`,
   );
 
   // Emit session observe event so SubagentStart is traceable in the dashboard

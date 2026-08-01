@@ -351,11 +351,11 @@ func TestShareExportImportDecisionsRoundTrip(t *testing.T) {
 	defer cleanup()
 
 	// Add decisions
-	_, err := b.SetDecision("auth", "JWT", "Stateless", "Use RS256", "agent-1", nil)
+	_, err := b.SetDecision("auth", "JWT", "Stateless", "Use RS256", "agent-1", nil, nil)
 	if err != nil {
 		t.Fatalf("SetDecision: %v", err)
 	}
-	_, err = b.SetDecision("db", "PostgreSQL", "ACID compliance", "", "", nil)
+	_, err = b.SetDecision("db", "PostgreSQL", "ACID compliance", "", "", nil, nil)
 	if err != nil {
 		t.Fatalf("SetDecision: %v", err)
 	}
@@ -407,7 +407,7 @@ func TestShareImportDecisionsIdempotent(t *testing.T) {
 	b, tmpDir, cleanup := setupShareTest(t)
 	defer cleanup()
 
-	_, _ = b.SetDecision("test", "value", "", "", "", nil)
+	_, _ = b.SetDecision("test", "value", "", "", "", nil, nil)
 
 	sharedDir := filepath.Join(tmpDir, ".aide", "shared")
 	shareExportDecisions(b, sharedDir)
@@ -432,8 +432,8 @@ func TestShareExportCleansStaleDecisions(t *testing.T) {
 	sharedDir := filepath.Join(tmpDir, ".aide", "shared")
 
 	// Export two decisions
-	b.SetDecision("keep", "yes", "", "", "", nil)
-	b.SetDecision("remove", "later", "", "", "", nil)
+	b.SetDecision("keep", "yes", "", "", "", nil, nil)
+	b.SetDecision("remove", "later", "", "", "", nil, nil)
 	shareExportDecisions(b, sharedDir)
 
 	// Verify both files exist
@@ -736,7 +736,7 @@ func TestShareExportWritesDecisionsReadme(t *testing.T) {
 	b, tmpDir, cleanup := setupShareTest(t)
 	defer cleanup()
 
-	if _, err := b.SetDecision("topic-a", "value-a", "", "", "", nil); err != nil {
+	if _, err := b.SetDecision("topic-a", "value-a", "", "", "", nil, nil); err != nil {
 		t.Fatalf("SetDecision: %v", err)
 	}
 

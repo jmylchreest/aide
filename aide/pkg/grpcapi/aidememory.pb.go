@@ -1471,14 +1471,17 @@ func (x *StateCleanupResponse) GetCount() int32 {
 }
 
 type Decision struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Topic         string                 `protobuf:"bytes,1,opt,name=topic,proto3" json:"topic,omitempty"`
-	Decision      string                 `protobuf:"bytes,2,opt,name=decision,proto3" json:"decision,omitempty"`
-	Rationale     string                 `protobuf:"bytes,3,opt,name=rationale,proto3" json:"rationale,omitempty"`
-	Details       string                 `protobuf:"bytes,4,opt,name=details,proto3" json:"details,omitempty"`       // Full content: schemas, code, specs
-	References    []string               `protobuf:"bytes,5,rep,name=references,proto3" json:"references,omitempty"` // External links, docs, related files
-	DecidedBy     string                 `protobuf:"bytes,6,opt,name=decided_by,json=decidedBy,proto3" json:"decided_by,omitempty"`
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Topic      string                 `protobuf:"bytes,1,opt,name=topic,proto3" json:"topic,omitempty"`
+	Decision   string                 `protobuf:"bytes,2,opt,name=decision,proto3" json:"decision,omitempty"`
+	Rationale  string                 `protobuf:"bytes,3,opt,name=rationale,proto3" json:"rationale,omitempty"`
+	Details    string                 `protobuf:"bytes,4,opt,name=details,proto3" json:"details,omitempty"`       // Full content: schemas, code, specs
+	References []string               `protobuf:"bytes,5,rep,name=references,proto3" json:"references,omitempty"` // External links, docs, related files
+	DecidedBy  string                 `protobuf:"bytes,6,opt,name=decided_by,json=decidedBy,proto3" json:"decided_by,omitempty"`
+	CreatedAt  *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	// Injection ordering weight. 0 is the default. >= 100 promotes the decision
+	// into the overriding block that is injected ahead of ordinary decisions.
+	Precedence    int32 `protobuf:"varint,8,opt,name=precedence,proto3" json:"precedence,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1562,6 +1565,13 @@ func (x *Decision) GetCreatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *Decision) GetPrecedence() int32 {
+	if x != nil {
+		return x.Precedence
+	}
+	return 0
+}
+
 type DecisionSetRequest struct {
 	state      protoimpl.MessageState `protogen:"open.v1"`
 	Topic      string                 `protobuf:"bytes,1,opt,name=topic,proto3" json:"topic,omitempty"`
@@ -1572,7 +1582,10 @@ type DecisionSetRequest struct {
 	DecidedBy  string                 `protobuf:"bytes,6,opt,name=decided_by,json=decidedBy,proto3" json:"decided_by,omitempty"`
 	// When set, the server preserves this timestamp instead of using time.Now().
 	// Used by identity-preserving flows such as `aide share import`.
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	// Unset (nil) carries the previous revision's precedence forward, so an edit
+	// that does not mention precedence cannot silently demote a guardrail.
+	Precedence    *int32 `protobuf:"varint,8,opt,name=precedence,proto3,oneof" json:"precedence,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1654,6 +1667,13 @@ func (x *DecisionSetRequest) GetCreatedAt() *timestamppb.Timestamp {
 		return x.CreatedAt
 	}
 	return nil
+}
+
+func (x *DecisionSetRequest) GetPrecedence() int32 {
+	if x != nil && x.Precedence != nil {
+		return *x.Precedence
+	}
+	return 0
 }
 
 type DecisionSetResponse struct {
@@ -10745,7 +10765,7 @@ const file_aidememory_proto_rawDesc = "" +
 	"\x13StateCleanupRequest\x12\x17\n" +
 	"\amax_age\x18\x01 \x01(\tR\x06maxAge\",\n" +
 	"\x14StateCleanupResponse\x12\x14\n" +
-	"\x05count\x18\x01 \x01(\x05R\x05count\"\xee\x01\n" +
+	"\x05count\x18\x01 \x01(\x05R\x05count\"\x8e\x02\n" +
 	"\bDecision\x12\x14\n" +
 	"\x05topic\x18\x01 \x01(\tR\x05topic\x12\x1a\n" +
 	"\bdecision\x18\x02 \x01(\tR\bdecision\x12\x1c\n" +
@@ -10757,7 +10777,10 @@ const file_aidememory_proto_rawDesc = "" +
 	"\n" +
 	"decided_by\x18\x06 \x01(\tR\tdecidedBy\x129\n" +
 	"\n" +
-	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\xf8\x01\n" +
+	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x1e\n" +
+	"\n" +
+	"precedence\x18\b \x01(\x05R\n" +
+	"precedence\"\xac\x02\n" +
 	"\x12DecisionSetRequest\x12\x14\n" +
 	"\x05topic\x18\x01 \x01(\tR\x05topic\x12\x1a\n" +
 	"\bdecision\x18\x02 \x01(\tR\bdecision\x12\x1c\n" +
@@ -10769,7 +10792,11 @@ const file_aidememory_proto_rawDesc = "" +
 	"\n" +
 	"decided_by\x18\x06 \x01(\tR\tdecidedBy\x129\n" +
 	"\n" +
-	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"G\n" +
+	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12#\n" +
+	"\n" +
+	"precedence\x18\b \x01(\x05H\x00R\n" +
+	"precedence\x88\x01\x01B\r\n" +
+	"\v_precedence\"G\n" +
 	"\x13DecisionSetResponse\x120\n" +
 	"\bdecision\x18\x01 \x01(\v2\x14.aidememory.DecisionR\bdecision\"*\n" +
 	"\x12DecisionGetRequest\x12\x14\n" +
@@ -12084,6 +12111,7 @@ func file_aidememory_proto_init() {
 	if File_aidememory_proto != nil {
 		return
 	}
+	file_aidememory_proto_msgTypes[29].OneofWrappers = []any{}
 	file_aidememory_proto_msgTypes[77].OneofWrappers = []any{
 		(*CodeIndexEvent_Progress)(nil),
 		(*CodeIndexEvent_Summary)(nil),

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -79,6 +80,7 @@ refresh).
 
 Examples:
   aide decision set auth-strategy "JWT" --rationale="Stateless"
+  aide decision set house-style "Follow the repo" --precedence=100
   aide decision set auth-strategy "Session" --rationale="Changed mind"
   aide decision get auth-strategy
   aide decision history auth-strategy --full
@@ -88,7 +90,7 @@ Examples:
 
 func decisionSet(b *Backend, args []string) error {
 	if len(args) < 2 {
-		return fmt.Errorf("usage: aide decision set TOPIC DECISION [--rationale=TEXT] [--details=TEXT] [--ref=URL...] [--by=AGENT]")
+		return fmt.Errorf("usage: aide decision set TOPIC DECISION [--rationale=TEXT] [--details=TEXT] [--ref=URL...] [--by=AGENT] [--precedence=N]")
 	}
 
 	topic := args[0]
@@ -105,12 +107,28 @@ func decisionSet(b *Backend, args []string) error {
 		}
 	}
 
-	d, err := b.SetDecision(topic, decision, rationale, details, decidedBy, references)
+	// Unset leaves precedence to be carried forward from the current revision,
+	// so rewording a guardrail cannot silently demote it.
+	var precedence *int
+	if raw := parseFlag(args[2:], "--precedence="); raw != "" {
+		n, err := strconv.Atoi(raw)
+		if err != nil {
+			return fmt.Errorf("invalid --precedence=%s: must be an integer", raw)
+		}
+		precedence = &n
+	}
+
+	d, err := b.SetDecision(topic, decision, rationale, details, decidedBy, references, precedence)
 	if err != nil {
 		return fmt.Errorf("failed to set decision: %w", err)
 	}
 
 	fmt.Printf("Set decision: %s = %s\n", d.Topic, d.Decision)
+	if d.Overrides() {
+		fmt.Printf("  precedence %d (overriding — injected ahead of ordinary decisions)\n", d.Precedence)
+	} else if d.Precedence != memory.PrecedenceDefault {
+		fmt.Printf("  precedence %d\n", d.Precedence)
+	}
 	return nil
 }
 

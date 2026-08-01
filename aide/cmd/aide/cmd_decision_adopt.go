@@ -83,7 +83,7 @@ func decisionAdopt(backend *Backend, dbPath string, args []string) error {
 		decidedBy = fmt.Sprintf("%s (originally by %s)", decidedBy, src.d.DecidedBy)
 	}
 
-	adopted, err := backend.SetDecision(topic, src.d.Decision, src.d.Rationale, src.d.Details, decidedBy, src.d.References)
+	adopted, err := backend.SetDecision(topic, src.d.Decision, src.d.Rationale, src.d.Details, decidedBy, src.d.References, &src.d.Precedence)
 	if err != nil {
 		return err
 	}
