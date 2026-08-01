@@ -262,7 +262,7 @@ export function DecisionsPage() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        copy({ type: "decision", sourceInstance: project!, data: { topic: d.topic, decision: d.decision, rationale: d.rationale, decided_by: d.decided_by }, label: d.topic });
+                        copy({ type: "decision", sourceInstance: project!, data: { topic: d.topic, decision: d.decision, rationale: d.rationale, details: d.details, references: d.references, decided_by: d.decided_by, precedence: d.precedence }, label: d.topic });
                       }}
                       className="p-1 rounded-sm text-aide-text-dim hover:text-aide-accent hover:bg-aide-accent/10 transition-colors"
                       title="Copy decision"
@@ -283,11 +283,25 @@ export function DecisionsPage() {
                 }
                 footer={
                   <div className="flex items-center justify-between gap-2">
-                    {d.decided_by ? (
-                      <span className="text-[0.6rem] text-aide-text-dim">
-                        Decided by {d.decided_by}
-                      </span>
-                    ) : <span />}
+                    <span className="flex items-center gap-2 min-w-0">
+                      {d.decided_by && (
+                        <span className="text-[0.6rem] text-aide-text-dim">
+                          Decided by {d.decided_by}
+                        </span>
+                      )}
+                      {d.precedence != null && d.precedence !== 0 && (
+                        <span
+                          className="text-[0.6rem] font-mono shrink-0 px-1 rounded border border-aide-border text-aide-text-muted"
+                          title={
+                            d.precedence >= 100
+                              ? `Precedence ${d.precedence} — injected ahead of ordinary decisions, which it overrides`
+                              : `Precedence ${d.precedence} — ordered above default decisions; claims no override`
+                          }
+                        >
+                          {d.precedence >= 100 ? `overrides · ${d.precedence}` : `p${d.precedence}`}
+                        </span>
+                      )}
+                    </span>
                     {d.created_at && (
                       <span className="text-[0.6rem] text-aide-text-dim font-mono shrink-0">
                         {new Date(d.created_at).toLocaleDateString()}

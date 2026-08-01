@@ -36,7 +36,11 @@ export interface DecisionItem {
   topic: string;
   decision: string;
   rationale: string;
+  details?: string;
+  references?: string[];
   decided_by: string;
+  /** Injection weight; >= 100 overrides ordinary decisions. */
+  precedence?: number;
   created_at: string;
 }
 

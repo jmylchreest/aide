@@ -112,7 +112,7 @@ export const api = {
       `${BASE}/instances/${encodeURIComponent(project)}/decisions`
     ).then((r) => r.decisions ?? []),
 
-  createDecision: (project: string, data: { topic: string; decision: string; rationale?: string; decided_by?: string }) =>
+  createDecision: (project: string, data: { topic: string; decision: string; rationale?: string; details?: string; references?: string[]; decided_by?: string; precedence?: number }) =>
     post(`${BASE}/instances/${encodeURIComponent(project)}/decisions`, data),
 
   deleteDecision: (project: string, topic: string) =>
