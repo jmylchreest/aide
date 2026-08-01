@@ -3,7 +3,7 @@
   "name": "python-django",
   "display_name": "Django Best Practices",
   "description": "Production Django: app layout, environment-driven settings, ORM query discipline, database-level integrity, reversible migrations, DRF or Ninja API layers, auth and permissions, security defaults, caching, background work, testing, and deployment",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "tags": [
     "web",
     "django",

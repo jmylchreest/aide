@@ -3,7 +3,7 @@
   "name": "python-github-actions",
   "display_name": "Python CI/CD (GitHub Actions)",
   "description": "Python continuous integration and release on GitHub Actions: uv-managed toolchain, frozen installs, interpreter matrix, Ruff and strict type checking, coverage, dependency auditing, and PyPI Trusted Publishing",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "tags": [
     "ci",
     "github-actions",

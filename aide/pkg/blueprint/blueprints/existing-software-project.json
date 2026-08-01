@@ -3,7 +3,7 @@
   "name": "existing-software-project",
   "display_name": "Working in an Existing Codebase",
   "description": "Deference rules for brownfield work: the repository's own conventions, toolchain, and idioms outrank general best practice, and the diff stays as small as the task requires",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "tags": [
     "meta",
     "brownfield",

@@ -3,7 +3,7 @@
   "name": "python-api",
   "display_name": "Python API Services",
   "description": "Production HTTP services in Python: framework selection, ASGI serving, validated boundaries, SQLAlchemy and Alembic, auth, background work, observability, and testing",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "tags": [
     "api",
     "backend",

@@ -3,7 +3,7 @@
   "name": "python",
   "display_name": "Python Best Practices",
   "description": "Idiomatic modern Python: pyproject-declared projects, uv environments, full type annotations checked in CI, Ruff as the single linter and formatter, pytest, structured logging, and asyncio done correctly",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "tags": [
     "language",
     "python"
