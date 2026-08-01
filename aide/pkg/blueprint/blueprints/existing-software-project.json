@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "name": "existing-software-project",
+  "display_name": "Working in an Existing Codebase",
+  "description": "Deference rules for brownfield work: the repository's own conventions, toolchain, and idioms outrank general best practice, and the diff stays as small as the task requires",
+  "version": "0.1.13",
+  "tags": [
+    "meta",
+    "brownfield",
+    "conventions"
+  ],
+  "includes": [],
+  "default_precedence": 100,
+  "decisions": [
+    {
+      "topic": "existing-codebase-precedence",
+      "decision": "The repository is the authority. Where an established convention in this codebase conflicts with general best practice or any imported language blueprint, follow the codebase and raise the divergence separately.",
+      "rationale": "A convention that is consistent across a codebase has value beyond whether it is optimal — it makes every file predictable, keeps diffs reviewable, and encodes decisions the team may have made for reasons that are not visible in the code. Changing it as a side effect of unrelated work converts a small reviewable change into a large one, mixes two concerns in a single review, and silently discards a decision nobody agreed to revisit. Best-practice blueprints describe the target state for new work; they are not a licence to retrofit.",
+      "details": "Precedence, highest first: (1) explicit instruction in this task, (2) recorded aide decisions for this project, (3) conventions observable in the surrounding code and committed config, (4) language/framework blueprints, (5) general best practice. A convention counts as established when it holds across the module you are touching, not because a single file does it. When you believe an established convention is wrong, say so once, in the summary of your work, with the concrete cost — then implement it the existing way. If the divergence is worth acting on, record it with `aide task create` or `aide decision set`, never as an unrequested edit.",
+      "references": []
+    },
+    {
+      "topic": "existing-convention-discovery",
+      "decision": "Read before you write: inspect sibling files, committed tool configuration, and contributor documentation to establish the local conventions, and derive the conventions from what the repository actually does rather than from what its stack usually does.",
+      "rationale": "Conventions are observable facts about a repository, not something to be guessed from the language. Two Python services can differ on layout, typing strictness, test style, and error handling, and being wrong about which one you are in produces code that reviews badly despite being individually defensible. Reading two or three neighbouring files is far cheaper than a review cycle spent on style, and the committed configuration tells you exactly which rules are enforced rather than which ones are fashionable.",
+      "details": "Before the first edit: read the file you are changing in full plus two or three of its closest siblings; read the repository's contributor guide (CONTRIBUTING.md, CLAUDE.md, AGENTS.md, docs/) and its recorded aide decisions and memories; enumerate the committed tool configuration (.editorconfig, linter and formatter config, type-checker settings, pre-commit hooks, task runner files, CI workflows). Use `aide survey` and the code-index tools to find the existing implementation of the pattern you are about to add — the second instance of something should look like the first. Match what you find on: file and directory naming, module size and splitting, import ordering and grouping, error construction and propagation, logging, dependency wiring, and test placement.",
+      "references": []
+    },
+    {
+      "topic": "existing-toolchain-fidelity",
+      "decision": "Use the project's committed toolchain and its documented entry points; do not introduce a parallel toolchain, a different package manager, or a globally installed tool version.",
+      "rationale": "The committed toolchain is what CI runs and what every other contributor gets. A build that only works through a different tool, or a tool at a different version, produces changes that pass locally and fail in CI, and lockfile churn from a second package manager is both noisy and destructive. The task runner in the repository root is also documentation: it records the exact command sequence the team expects, including flags that are easy to omit.",
+      "details": "Invoke work through the repository's own entry points — Makefile, Taskfile, justfile, package scripts, tox/nox sessions — rather than reconstructing the underlying command. Respect pinned versions (.tool-versions, .nvmrc, go.mod toolchain, global.json, rust-toolchain.toml, requires-python) and the pinned package manager; if the project locks with one tool, never write a lockfile with another. Do not add, replace, or reconfigure build, lint, or test tooling as part of unrelated work — that is its own change with its own review. If a required tool is missing from your environment, say so; do not substitute a different one silently.",
+      "references": []
+    },
+    {
+      "topic": "existing-lint-and-format-authority",
+      "decision": "Treat committed linter and formatter configuration as binding: satisfy the rules by changing the code, never by suppressing the rule, relaxing the configuration, or reformatting code the task does not touch.",
+      "rationale": "Linter configuration is an agreed contract, and editing it to make your change pass converts a local problem into a repository-wide loosening that nobody reviewed. Blanket suppressions have the same effect at file scope and tend to outlive the line that caused them. Running a formatter across files the change does not touch is equally damaging in the other direction: it inflates the diff with unrelated churn, buries the real change, and destroys `git blame` for lines you never considered.",
+      "details": "Fix the finding rather than silence it. Where a suppression is genuinely correct, make it the narrowest form the tool offers, attach it to the specific line or symbol, and state the reason inline. Never widen `ignore` lists, lower a severity, or exclude a path to get green. Format only the lines and files your change already touches; if the repository is not uniformly formatted, do not fix that as a side effect. Where a formatter is committed, let it decide formatting — do not hand-tune style it will rewrite. If a rule is genuinely wrong for this repository, propose the configuration change as its own commit with its own justification.",
+      "references": []
+    },
+    {
+      "topic": "existing-change-blast-radius",
+      "decision": "Keep the diff to what the task requires. No drive-by renames, reorderings, dependency bumps, or opportunistic refactors.",
+      "rationale": "Reviewers can only give real attention to a bounded change; unrelated edits mixed into a feature or fix consume that attention and let genuine defects through. Unrelated changes also break bisection and revert — reverting a bad fix should not also revert a rename. The improvements are usually correct in isolation, and that is exactly why they deserve their own change where they can be judged on their own merits.",
+      "details": "Before finishing, review your own diff and remove anything that is not required by the task: reordered imports, renamed locals, changed whitespace, tightened types in untouched functions, upgraded dependencies, and reformatted neighbours. Bounded exception — the boy-scout rule applies only inside code you are already modifying and only when the cleanup is small enough not to dominate the diff. Everything larger becomes a follow-up: capture it with `aide task create` or note it in your summary. When a task genuinely requires a wide mechanical change, keep it mechanical and separate it from behavioural changes so each can be reviewed in the appropriate mode.",
+      "references": []
+    },
+    {
+      "topic": "existing-dependency-restraint",
+      "decision": "Prefer what is already in the dependency graph; adding a dependency to an existing project is an architectural decision that needs explicit approval.",
+      "rationale": "An established project has already chosen its libraries, and adding a second library that does the same job splits idioms across the codebase and leaves every future contributor guessing which one to use. Every new dependency also adds supply-chain surface, licence obligations, transitive version constraints, and upgrade work that the team carries permanently — a cost that is invisible at the moment of `import` and paid for years.",
+      "details": "Solve the problem with the standard library and the libraries the project already depends on before considering anything new. Where a new dependency is genuinely warranted, stop and ask: state what it does, what it replaces, its maintenance and licence position, and its transitive weight, then record the outcome with `aide decision set`. Never add a dependency solely to match a blueprint's preferred library when a working equivalent is already present. Do not upgrade or remove existing dependencies as part of unrelated work, and never regenerate the lockfile wholesale when adding a single entry.",
+      "references": []
+    },
+    {
+      "topic": "existing-test-conventions",
+      "decision": "Write tests the way this repository already writes tests — same framework, same layout, same naming, same fixture and assertion style — and run the existing suite before and after your change.",
+      "rationale": "A second test framework or a second test style in one repository doubles the knowledge required to work in it and usually means one style rots. Matching the existing shape also means your tests run in CI without any wiring, get collected by the existing selectors, and are legible to reviewers who already know the local idiom. Running the suite before you start separates failures you introduced from failures that were already there — a distinction that is expensive to recover later.",
+      "details": "Match the existing framework, runner, and invocation; match test file location and naming, test function naming, setup and fixture mechanics, assertion style, and how the repository handles fakes, doubles, and golden files. Match its integration-test boundary — what it considers safe to hit in a unit test. Record the pre-change baseline of the suite so you can attribute any new failure. Never delete, skip, or weaken an existing test to make a change pass; if a test is genuinely obsolete, remove it as an explicit, explained part of the change. When the repository has no tests for the area you are touching, add tests in the style implied by the closest thing it does have rather than importing a preferred framework.",
+      "references": []
+    },
+    {
+      "topic": "existing-error-and-logging-idiom",
+      "decision": "Follow the codebase's existing error-handling and logging idioms rather than introducing a different error type, wrapping convention, or logging library.",
+      "rationale": "Error handling and logging are cross-cutting: they are consumed by callers, by alerting, and by log-processing pipelines that are configured for the format the codebase already emits. A new error type breaks the type switches and matchers that already exist; a second logging library produces output the existing configuration cannot route, level, or parse, and doubles the configuration surface. These systems are only useful when they are uniform.",
+      "details": "Use the project's existing error types, sentinel values, wrapping helpers, and error message conventions — including capitalisation and punctuation — and add to the existing hierarchy rather than starting a parallel one. Use the logger the project already uses, obtained the way the project obtains it, at the levels it already uses, with the same structured field names for the same concepts (request id, tenant, user, duration). Match how it handles context propagation and correlation ids. Do not introduce a structured logger into a codebase that logs unstructured, or vice versa, as a side effect of another change.",
+      "references": []
+    },
+    {
+      "topic": "existing-naming-and-comment-idiom",
+      "decision": "Match the surrounding code's naming, comment density, and documentation style. Comments explain why; names and types carry the story.",
+      "rationale": "Code is read far more than it is written, and a file reads badly when one function is annotated in a different register from its neighbours — heavily commented code dropped into a spare codebase draws attention to itself rather than to what it does. Consistency in naming is what makes a codebase searchable. Comments that narrate what the next line does duplicate the code, drift out of date the moment it changes, and train readers to skip comments entirely, which is precisely when the one comment that mattered gets missed.",
+      "details": "Adopt the local vocabulary for domain concepts — the same word for the same thing, even where you would have chosen a different word — and match local conventions for abbreviation, casing, receiver and parameter naming, and boolean and predicate naming. Match the existing docstring or doc-comment convention exactly, including its format and where the repository considers it required. Write inline comments only for the non-obvious: the reason for a choice, a constraint, a workaround with its trigger, a subtlety that will otherwise be refactored away. Do not add narrating comments, section banners, or restatements of the signature, and do not annotate your own edits — the diff is not documentation.",
+      "references": []
+    },
+    {
+      "topic": "existing-public-contract-stability",
+      "decision": "Treat anything consumers depend on as a contract: extend additively, deprecate before removing, and never change observable behaviour silently.",
+      "rationale": "In an established project you cannot see all the callers, and the ones you cannot see are exactly the ones that break. A breaking change to a published interface propagates cost to every consumer on a schedule they did not choose, and a silent behavioural change is worse than a compile error because it fails in production rather than at build time. Additive change plus a deprecation window lets consumers migrate on their own timeline.",
+      "details": "The contract surface is wider than the public API: exported symbols and signatures, HTTP and RPC schemas, event and message payloads, database schemas, configuration keys and their defaults, CLI flags and output formats, log lines and metric names something might alert on, and file formats. Extend by adding optional inputs and new endpoints, symbols, or fields; keep old paths working and delegating. When removal is genuinely required, deprecate first with a documented replacement and a stated timeline, and search the repository and its known consumers for callers. Ship schema and data migrations as expand-then-contract so old and new code can run simultaneously. Where the change is genuinely breaking, say so explicitly and follow the project's versioning and changelog conventions.",
+      "references": []
+    },
+    {
+      "topic": "existing-generated-and-vendored-code",
+      "decision": "Never hand-edit generated or vendored files. Change the source or the generator, then regenerate with the project's committed command.",
+      "rationale": "A hand-edit to a generated file survives exactly until the next regeneration, at which point it disappears silently and takes the behaviour that depended on it with it. Because generated output is usually large, the loss is easy to miss in review. Vendored dependencies behave the same way and additionally diverge from upstream, which turns every future upgrade into a manual reconciliation of changes nobody recorded.",
+      "details": "Recognise generated output from its header, its path (vendor/, node_modules/, third_party/, generated/, .pb.go, _pb2.py, *.g.dart, migrations produced by a tool), or its exclusion from linting. To change it, change the schema, template, or generator configuration and re-run the project's regeneration command so the result is reproducible for everyone. Commit regenerated output in the same change as the source that produced it, and do not mix an unrelated regeneration into a feature change — a large regeneration diff hides everything else. Where a vendored dependency genuinely needs a change, patch it through the project's existing patch mechanism, or upstream the fix, so the change survives an upgrade.",
+      "references": []
+    },
+    {
+      "topic": "existing-vcs-conventions",
+      "decision": "Derive commit message format, branch naming, and change granularity from this repository's actual history — this supersedes the general blueprint's Conventional Commits default when the repository does not use it.",
+      "rationale": "Commit conventions are only worth anything when they are uniform: tooling that parses them (changelog generation, release automation, semver inference) breaks on a mixed history, and a history in two formats is harder to read than one in either. The repository's own log is the authoritative statement of its convention, and it outranks a default carried in from a blueprint that knows nothing about this project.",
+      "details": "Read the recent history before writing a commit message and match its format — prefix scheme, tense and mood, capitalisation, subject length, whether a body is used, and how issues and tickets are referenced. Match branch naming and the project's stance on merge versus rebase versus squash. Match its granularity: a repository that commits one logical change at a time should not receive a single squashed commit, and one that ships one commit per change should not receive fifteen. Follow any committed enforcement (commitlint, hooks, PR title checks) exactly. Only apply the general blueprint's Conventional Commits default where the repository's history already follows it or a maintainer asks for the change. Never add trailers, attribution, or tooling advertisements the repository's history does not already contain.",
+      "references": []
+    },
+    {
+      "topic": "existing-verification-parity",
+      "decision": "Verify with the project's own commands — the ones CI runs — and report the actual result, including what you could not run.",
+      "rationale": "A change is only as verified as the checks that were actually executed against it, and CI is the definition of done that the project already agreed on. Running a different or narrower command produces a confident report that CI then contradicts, which costs a full round trip and erodes trust in every subsequent report. Being explicit about what could not be run lets a human make an informed decision instead of assuming full coverage.",
+      "details": "Read the CI workflow and reproduce its checks locally in the same way: same task-runner targets, same flags, same lint, type-check, build, and test steps, and the full suite rather than only the tests you touched — cross-module breakage is the failure mode local narrow runs miss. Where a check needs infrastructure or credentials you do not have, say which check was skipped and why rather than declaring success. Report failures with the actual output; never describe a change as working, complete, or verified on the strength of it having compiled. If the change requires a CI, build, or tooling update to pass, include that in the same change rather than leaving CI broken.",
+      "references": []
+    },
+    {
+      "topic": "existing-modernisation-as-explicit-work",
+      "decision": "Modernise only when modernising is the assigned task; when it is, do it as a bounded, mechanical, single-concern migration that is separated from behavioural change.",
+      "rationale": "Legacy patterns in a working system usually reflect constraints that are no longer visible — a platform version, a dependency limit, a bug being worked around — so rewriting them opportunistically risks reintroducing solved problems with no test to catch it. When modernisation is the actual goal, the review problem is completeness and safety, and that review is only possible when the change contains one kind of transformation and no behavioural change hiding inside it.",
+      "details": "Encountering legacy code is not a mandate to change it: leave it, and record what you found with `aide task create` or as a finding. When migration is the task, define the boundary first (one pattern, one module, or one directory) and confirm the target with `aide decision set` so later work is consistent. Prefer an automated codemod or the language's own fix tooling so the transformation is uniform and reviewable as a rule rather than as N edits. Establish characterisation tests before changing behaviourally-sensitive code that lacks coverage. Keep pure refactors behaviour-preserving and commit them separately from functional change; land the migration incrementally so the codebase compiles, passes, and is deployable at every step, and finish what you start rather than leaving two idioms in place indefinitely.",
+      "references": []
+    }
+  ]
+}

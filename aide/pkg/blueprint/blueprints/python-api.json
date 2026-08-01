@@ -1,0 +1,127 @@
+{
+  "schema_version": 1,
+  "name": "python-api",
+  "display_name": "Python API Services",
+  "description": "Production HTTP services in Python: framework selection, ASGI serving, validated boundaries, SQLAlchemy and Alembic, auth, background work, observability, and testing",
+  "version": "0.1.13",
+  "tags": [
+    "api",
+    "backend",
+    "python"
+  ],
+  "includes": [
+    "python"
+  ],
+  "decisions": [
+    {
+      "topic": "python-api-framework-selection",
+      "decision": "Pick exactly one HTTP framework per service and state it as a project decision: FastAPI for new APIs, Django where the batteries genuinely pay for themselves, Flask where a Flask codebase already exists or the service is genuinely tiny.",
+      "rationale": "Two frameworks in one service means two routing models, two dependency-wiring conventions, two error-handling paths, and two testing setups, for no capability that either lacks. The choice also has to be explicit rather than inherited from whatever the first file used, because it determines the shape of everything downstream. FastAPI is the strong default for new API work: it derives validation and an OpenAPI document from the annotations the code already carries, so the contract cannot drift from the handler. Django earns its place when a project wants the ORM, migrations, admin, and auth as a coherent whole rather than assembled. Flask remains correct where it is already established or where the service is small enough that a micro-framework is genuinely simpler.",
+      "details": "Record the choice with `aide decision set` so later work is consistent. FastAPI: annotation-driven validation, native OpenAPI, async-first, the default for new HTTP APIs. Django: full-stack with ORM, migrations, admin, auth, and Django REST Framework or Django Ninja for APIs — choose it deliberately, and follow the python-django blueprint rather than this one. Flask: minimal and unopinionated, so validation, serialisation, and API documentation must be added explicitly (Pydantic plus flask-openapi or apispec) — a cost worth naming before choosing it. Litestar is a reasonable FastAPI alternative where its DI and layered architecture fit better. Do not migrate an existing service to a different framework as a side effect of feature work.",
+      "references": [
+        "https://fastapi.tiangolo.com/",
+        "https://flask.palletsprojects.com/"
+      ]
+    },
+    {
+      "topic": "python-api-asgi-and-serving",
+      "decision": "Build new services on ASGI and serve them with a process manager running multiple single-loop workers behind a reverse proxy; keep WSGI for synchronous frameworks.",
+      "rationale": "ASGI supports long-lived connections — websockets, server-sent events, streaming — which WSGI's request-response model cannot express, and it lets a single worker hold thousands of concurrent I/O-bound connections instead of one per thread. Running several workers is what turns that into throughput across cores, since each worker is one event loop in one process. A reverse proxy in front is what handles TLS termination, slow-client buffering, and static assets, none of which an application server should be doing.",
+      "details": "Serve ASGI with uvicorn (or granian) under a supervisor that manages worker count, sizing workers to available cores and validating the number under load rather than assuming. Never enable --reload outside development. Serve synchronous Flask or Django with gunicorn using sync or gthread workers, and do not mix a sync framework onto an async server to look modern. Implement graceful shutdown: stop accepting, drain in-flight requests, close pools, and honour the platform's termination grace period. Expose liveness and readiness separately, with readiness reflecting real dependency health. Set explicit request-size and timeout limits at the proxy, and let the proxy or platform terminate TLS. Trust forwarded headers only from known proxies.",
+      "references": [
+        "https://asgi.readthedocs.io/en/latest/",
+        "https://www.uvicorn.org/deployment/"
+      ]
+    },
+    {
+      "topic": "python-api-request-and-response-contracts",
+      "decision": "Validate every inbound payload into a typed model at the boundary and serialise every response from an explicit response type; never read raw request dictionaries in handler logic.",
+      "rationale": "Parsing untrusted input into a declared type once, at the edge, means the rest of the request path handles data whose shape is guaranteed — no defensive key checks, no coercion scattered through the call stack, and a single place where malformed input is rejected with a useful message. An explicit response type is the other half: without one, whatever the handler happens to return becomes the public contract, so an added internal field leaks and a renamed one silently breaks clients.",
+      "details": "FastAPI: declare Pydantic models for body, query, path, and header parameters and set response_model on every route so output is filtered to the declared shape. Flask: there is no built-in validation, so parse explicitly with a Pydantic model at the top of each handler and serialise through a declared model — do not read request.json directly in logic. Keep request, response, domain, and persistence models as separate types even where they currently match, so an internal change is not automatically an API change. Constrain types at the boundary (bounded strings, ranges, enums, formats) rather than checking later, and set explicit limits on body size and collection lengths. Return 422 for validation failure with field-level detail that does not echo secrets, and version the API in the path from the first release.",
+      "references": [
+        "https://fastapi.tiangolo.com/tutorial/response-model/",
+        "https://docs.pydantic.dev/latest/concepts/validators/"
+      ]
+    },
+    {
+      "topic": "python-api-api-design-and-errors",
+      "decision": "Generate the OpenAPI document from the code, and return errors as a consistent machine-readable problem type with the correct status code.",
+      "rationale": "A hand-maintained API document is wrong the moment a handler changes, and clients generated from it fail in ways that look like server bugs; deriving it from the same annotations that drive validation makes drift structurally impossible. Errors need the same discipline: a client cannot handle failures programmatically if the error body's shape depends on which handler produced it, and a stack trace or raw exception message returned to a caller both fails to help them and leaks internals.",
+      "details": "FastAPI produces OpenAPI natively — invest in making it accurate with summaries, descriptions, tags, and declared error responses, and publish the schema as a build artefact so client generation and contract tests can consume it. Flask needs the schema added explicitly (apispec or flask-openapi) and kept in CI. Adopt RFC 9457 problem details as the error body, with a stable machine-readable type or code alongside the human-readable message, and register one exception handler that maps the project's exception hierarchy onto it rather than constructing error responses per handler. Use status codes accurately — 400 malformed, 401 unauthenticated, 403 unauthorised, 404 absent, 409 conflict, 422 semantically invalid, 429 throttled — and never return 200 with an error inside. Include a correlation id in every error response, log the detail server-side, and return nothing internal. Paginate every collection from the first version, and make writes idempotent where a client can safely retry.",
+      "references": [
+        "https://www.rfc-editor.org/rfc/rfc9457.html",
+        "https://fastapi.tiangolo.com/tutorial/handling-errors/"
+      ]
+    },
+    {
+      "topic": "python-api-dependencies-and-lifespan",
+      "decision": "Create shared resources once in the application lifespan and inject them into handlers; never construct clients, pools, or sessions at module import.",
+      "rationale": "A connection pool or HTTP client built at import time is created before configuration is validated, is shared across a fork boundary in a way that corrupts sockets, cannot be closed on shutdown, and cannot be substituted in a test without patching a global. Building it in the lifespan hook ties its life to the application's, so it is created after configuration, per worker process, and closed deterministically. Injection is what makes the handler testable: the test supplies a different implementation instead of reaching into the module.",
+      "details": "FastAPI: open pools and clients in the lifespan context manager, store them on app.state, and expose them through Depends; use dependency_overrides in tests rather than patching. Flask: use the application-factory pattern with extensions initialised through init_app, and keep per-request state on g rather than in module globals. Keep handlers thin — parse, delegate to a service function that takes its collaborators as arguments, format — so business logic is testable without an HTTP layer. Scope dependencies deliberately: process-lifetime for pools and clients, request-lifetime for sessions and units of work, and never share a database session across requests. Reuse one HTTP client with connection pooling and explicit timeouts rather than creating one per call. Configure middleware once and keep it ordered deliberately, since ordering determines what sees an error.",
+      "references": [
+        "https://fastapi.tiangolo.com/advanced/events/",
+        "https://flask.palletsprojects.com/en/stable/patterns/appfactories/"
+      ]
+    },
+    {
+      "topic": "python-api-database-access",
+      "decision": "Use SQLAlchemy 2.0's typed ORM with Alembic migrations, keep the session scoped to a request or unit of work, and never build SQL by string interpolation.",
+      "rationale": "SQLAlchemy 2.0's typed declarative mapping puts the schema in the type system, so a checker catches a renamed column before the query reaches the database. Alembic makes the schema's history a reviewable, ordered, reversible artefact rather than a set of statements someone ran once — which is what makes a rollback and a second environment possible at all. A request-scoped session is what gives a request a single transactional boundary; a longer-lived one accumulates identity-map state and leaks data between requests.",
+      "details": "Declare models with Mapped[...] and mapped_column so the checker sees the schema. Use the async engine with async frameworks and an async driver (asyncpg, aiomysql); never use a synchronous driver from a coroutine. Generate every schema change through an Alembic revision, review the autogenerated output rather than trusting it, and make migrations reversible and safe to run against a live system using expand-then-contract; never use create_all outside tests. Open one session per request or per unit of work, commit at the boundary, and roll back on failure — do not commit inside a repository method. Eliminate N+1 access explicitly with selectinload or joinedload, and select only the columns you need. Set pool sizes and statement timeouts explicitly, and size the pool against the total across all workers rather than per process. Where raw SQL is genuinely warranted use text() with bound parameters, never f-strings. Keep query construction out of handlers, behind a repository or service function that can be tested against a real database.",
+      "references": [
+        "https://docs.sqlalchemy.org/en/20/orm/quickstart.html",
+        "https://alembic.sqlalchemy.org/en/latest/autogenerate.html"
+      ]
+    },
+    {
+      "topic": "python-api-authentication-and-authorisation",
+      "decision": "Delegate authentication to a proven library or identity provider, verify credentials on every request at a single enforcement point, and authorise on the resource rather than only on the route.",
+      "rationale": "Authentication code is unusually unforgiving — a signature verified with the wrong algorithm, an unchecked audience or expiry, or a timing-variable comparison each produce a system that appears to work while accepting forged credentials. Hand-rolled implementations fail these cases routinely. Authorisation fails differently: route-level checks confirm that a caller may use an endpoint but not that they may touch the specific record they named, which is the most common serious access-control bug in HTTP APIs.",
+      "details": "Use an established OIDC or OAuth2 provider and a maintained library for token verification; validate signature, issuer, audience, and expiry, and pin the expected algorithm rather than trusting the token's own header. Store passwords with argon2id or bcrypt via passlib and compare with a constant-time function. Enforce authentication in one place — a dependency or middleware — so a new route cannot be accidentally public, and prefer default-deny with explicit opt-out over the reverse. Check ownership and scope against the requested resource inside the handler or service, not only on the route. For cookie sessions set Secure, HttpOnly, and SameSite, and add CSRF protection; token-in-header APIs do not need CSRF but must set CORS explicitly with an allow-list, never a wildcard with credentials. Keep access tokens short-lived with refresh and revocation, rate-limit authentication endpoints, and log authentication and authorisation failures with enough context to investigate and no credential material.",
+      "references": [
+        "https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html",
+        "https://datatracker.ietf.org/doc/html/rfc9700"
+      ]
+    },
+    {
+      "topic": "python-api-background-work",
+      "decision": "Keep request handlers to work the caller must wait for; move anything slow, retryable, or externally dependent to a durable task queue with idempotent tasks.",
+      "rationale": "Work done inside a request holds a connection and a worker for its duration and is lost entirely if the process restarts mid-flight, so a slow third-party call becomes both a latency problem and a correctness problem. A durable queue persists the job before acknowledging the request, which is what allows retries, backoff, and a restart without silent data loss. Idempotency is the requirement that makes retry safe — an at-least-once queue will eventually deliver a message twice, and a task that is not idempotent turns that into duplicated side effects.",
+      "details": "Use a durable broker-backed queue — Celery where its ecosystem is wanted, arq or Dramatiq for a lighter async-native option, or the platform's native queue. Enqueue only an identifier and the minimum payload, and have the worker load current state, so a task never operates on a stale snapshot. Make every task idempotent with an idempotency key or a state check, and set explicit retry limits, backoff, and a dead-letter destination — never retry forever. Give every task a timeout and make long tasks resumable rather than restarting from the beginning. Reserve FastAPI's BackgroundTasks for genuinely cheap fire-and-forget work whose loss is acceptable, since it is in-process and dies with the worker. Run scheduled work through a scheduler with a single leader rather than a per-instance timer, propagate the correlation id into the task, and monitor queue depth, age, and failure rate as first-class signals.",
+      "references": [
+        "https://docs.celeryq.dev/en/stable/userguide/tasks.html",
+        "https://fastapi.tiangolo.com/tutorial/background-tasks/"
+      ]
+    },
+    {
+      "topic": "python-api-observability",
+      "decision": "Instrument with OpenTelemetry, emit structured logs carrying a correlation id through every layer, and expose health separately from readiness.",
+      "rationale": "In a service that calls a database, a cache, and two other services, a latency or error report is unactionable without knowing which hop was responsible — a trace answers that directly, and OpenTelemetry provides it through a vendor-neutral API so the backend can change without reinstrumenting. A correlation id shared by logs, traces, and errors is what lets one user's report be reconstructed across components. Separating liveness from readiness matters operationally: conflating them makes an orchestrator restart a healthy process that is merely waiting on a dependency, turning a transient outage into a crash loop.",
+      "details": "Use OpenTelemetry auto-instrumentation for the framework, HTTP client, and database as a baseline, then add spans for meaningful business operations with attributes worth querying. Generate or accept a correlation id at the edge, put it in a contextvar so every log line and downstream call carries it, and propagate W3C trace context to callees and into queued tasks. Emit JSON logs to stdout with consistent field names, and never log secrets or personal data. Record the RED signals — request rate, error rate, duration as a histogram — with bounded label cardinality, and never label with a user or request id. Report readiness from real dependency checks and liveness from the process only. Capture unhandled exceptions to an error tracker with the correlation id attached, and sample traces at a rate that keeps cost sane while always keeping errors and slow requests.",
+      "references": [
+        "https://opentelemetry.io/docs/languages/python/getting-started/",
+        "https://www.w3.org/TR/trace-context/"
+      ]
+    },
+    {
+      "topic": "python-api-testing",
+      "decision": "Test handlers in-process through the framework's test client with dependencies overridden, and test against a real database in integration tests rather than mocking the data layer.",
+      "rationale": "An in-process test client exercises the whole application — routing, validation, serialisation, middleware, and error handling — without a network or a running server, so it is both faster and more faithful than either mocking the framework or spinning up a subprocess. Mocking the data layer is the opposite trade: it removes exactly the component whose behaviour is hardest to predict, so constraint violations, transaction semantics, and query bugs all survive a fully green suite and appear in production.",
+      "details": "FastAPI: use TestClient or httpx with ASGITransport, and substitute collaborators through dependency_overrides rather than patching modules. Flask: use the app factory to build a test app and its test client. Cover the contract at the boundary — status codes, response shape, validation failures, authentication and authorisation paths, and pagination — not only the happy path. Run integration tests against the real engine via testcontainers or a disposable schema, with each test in a transaction that rolls back or against a fresh schema, so tests stay independent. Fake outbound HTTP at the transport layer with respx or responses; never call a third party from a test. Assert the generated OpenAPI schema against a committed snapshot so a breaking contract change fails in CI. Mark integration and end-to-end tests separately so the fast suite stays fast, and run migrations from empty in CI to prove they apply.",
+      "references": [
+        "https://fastapi.tiangolo.com/advanced/async-tests/",
+        "https://testcontainers-python.readthedocs.io/"
+      ]
+    },
+    {
+      "topic": "python-api-deployment",
+      "decision": "Ship a multi-stage container that installs from the lockfile, runs as a non-root user, and takes all configuration from the environment.",
+      "rationale": "A build-time layer that installs from a lockfile produces the identical dependency set on every build, which is what makes an image reproducible and a rollback meaningful. Discarding the build stage keeps compilers and development dependencies out of the runtime image, cutting both size and attack surface. Running as root inside a container removes a meaningful containment boundary for no benefit, and baked-in configuration means the same artefact cannot be promoted through environments — so the thing tested in staging is not the thing deployed.",
+      "details": "Build in one stage and copy only the installed environment and application into a slim runtime base. Install with `uv sync --frozen --no-dev` so the build fails rather than resolving, and order layers so dependency installation is cached independently of source changes. Create and switch to a non-root user, and keep the filesystem read-only apart from explicit writable paths. Set PYTHONDONTWRITEBYTECODE and PYTHONUNBUFFERED so logs stream. Pass all configuration and secrets as environment variables or mounted secrets at runtime — never in the image, never in a build argument. Log to stdout and let the platform collect. Handle SIGTERM for graceful shutdown and ensure the process is PID 1 or supervised by an init that forwards signals. Pin the base image by digest, rebuild regularly for base security updates, scan the image in CI, and stamp the image with the commit for traceability.",
+      "references": [
+        "https://docs.astral.sh/uv/guides/integration/docker/",
+        "https://docs.docker.com/build/building/multi-stage/"
+      ]
+    }
+  ]
+}

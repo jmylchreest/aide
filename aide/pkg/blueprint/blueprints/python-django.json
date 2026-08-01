@@ -1,0 +1,176 @@
+{
+  "schema_version": 1,
+  "name": "python-django",
+  "display_name": "Django Best Practices",
+  "description": "Production Django: app layout, environment-driven settings, ORM query discipline, database-level integrity, reversible migrations, DRF or Ninja API layers, auth and permissions, security defaults, caching, background work, testing, and deployment",
+  "version": "0.1.13",
+  "tags": [
+    "web",
+    "django",
+    "python"
+  ],
+  "includes": [
+    "python"
+  ],
+  "decisions": [
+    {
+      "topic": "django-supersession",
+      "decision": "Django's own mechanisms supersede the general Python equivalents for configuration, persistence, and boundary validation; follow the core Python blueprint for everything else.",
+      "rationale": "Django is a framework rather than a library collection: its settings module, ORM, migration system, and form and serializer layers are load-bearing and are assumed by the admin, by third-party apps, and by the framework's own internals. Replacing one of them with the general-purpose Python equivalent means fighting the framework for no benefit and losing the ecosystem that depends on it. Everything outside that footprint — typing, linting, testing mechanics, error handling, logging, packaging, security hygiene — is ordinary Python where the core blueprint applies unchanged, so stating the boundary precisely stops an agent applying framework overrides where they do not belong.",
+      "details": "Superseded for Django projects: python-configuration-and-secrets (Django settings modules with environment-driven values replace a standalone pydantic-settings object), python-data-modelling at the persistence and HTTP boundary (Django models, forms, and DRF or Ninja schemas replace SQLAlchemy models and free-standing Pydantic request models), and python-project-structure's src/ layout and domain-package guidance (Django apps are the unit of organisation). Not superseded, and still binding: version policy, uv and lockfiles, type annotations and strict checking, Ruff, error handling, logging, async, concurrency, testing mechanics, CLI, performance, security, docstrings and comments, and imports. Where this blueprint and the core Python blueprint address the same concern, this one wins inside a Django project.",
+      "references": [
+        "https://docs.djangoproject.com/en/stable/misc/design-philosophies/"
+      ]
+    },
+    {
+      "topic": "django-project-and-app-layout",
+      "decision": "Organise the codebase as small apps scoped to a domain concern, with the project package holding only settings, root URLs, and the server entry points.",
+      "rationale": "The app is Django's unit of reuse, configuration, and migration history, so an app that covers one concern can be understood, tested, and moved on its own, while a single application app accumulates every model and every migration until its history is impossible to reason about. Keeping the project package free of business logic matters for the same reason: it is imported by settings resolution and by both server entry points, so logic placed there is loaded in every context and becomes impossible to test in isolation.",
+      "details": "Name apps after the domain concern they own (billing, catalogue, accounts), not after a technical layer. Give each app its own models, views, urls, admin, and migrations, and include its URLs from the root URLconf under a namespace. Keep the project package to settings, root urls.py, asgi.py, wsgi.py, and nothing else. Extract non-trivial business logic out of views and models into a services or domain module within the app so it is callable from a view, a management command, and a task without duplication. Keep cross-app imports pointing one way and resolve model references across apps with string references ('app.Model') to avoid import cycles. Reach for third-party apps for solved problems (django-allauth, django-filter) rather than reimplementing, and put genuinely shared helpers in a named common app rather than a utils grab-bag.",
+      "references": [
+        "https://docs.djangoproject.com/en/stable/ref/applications/",
+        "https://docs.djangoproject.com/en/stable/intro/reusable-apps/"
+      ]
+    },
+    {
+      "topic": "django-settings-and-configuration",
+      "decision": "Keep one settings module whose environment-specific values come from the environment, validated at startup; never branch on DEBUG to decide behaviour and never commit a secret.",
+      "rationale": "Settings are read once at import and cached, so a value that differs between environments has to come from outside the code — anything else means the deployed artefact is not the artefact that was tested. Duplicating whole settings modules per environment causes the divergence it was meant to manage: production acquires a setting development never had, and the difference is discovered in production. DEBUG is specifically dangerous as a branch because it does far more than change behaviour — when true it disables host checking and renders tracebacks containing settings and local variables to the client.",
+      "details": "Read environment-specific values through django-environ or os.environ with explicit types and no default for anything that must be set, so a missing value fails at startup rather than silently falling back. Where per-environment modules are genuinely warranted, keep a single base and let each override the minimum. SECRET_KEY, database credentials, and third-party keys come from the environment or a secret manager only. Set DEBUG False everywhere except local development and never key application behaviour off it — use an explicit setting for the actual thing that varies. Set ALLOWED_HOSTS explicitly. Import settings as `from django.conf import settings` and read attributes at call time, never by importing the settings module directly or copying values into module constants at import. Run `manage.py check --deploy` in CI so misconfiguration fails the build rather than the deployment.",
+      "references": [
+        "https://docs.djangoproject.com/en/stable/topics/settings/",
+        "https://docs.djangoproject.com/en/stable/howto/deployment/checklist/"
+      ]
+    },
+    {
+      "topic": "django-orm-query-discipline",
+      "decision": "Make the database do the work: resolve related objects with select_related and prefetch_related, aggregate and annotate in the query, and never issue queries inside a loop.",
+      "rationale": "Because a QuerySet is lazy and attribute access on an unfetched relation triggers its own query, the N+1 pattern is the default outcome of ordinary-looking code — a template or serializer that touches a foreign key per row turns one query into hundreds, and it only becomes visible at production data volumes. The same applies to filtering and aggregation in Python: pulling rows into memory to count or sum them transfers data the database could have reduced to a single value, and the cost scales with the table rather than with the answer.",
+      "details": "Use select_related for forward foreign key and one-to-one relations (a join) and prefetch_related for reverse and many-to-many relations (a second query), and add them at the point the queryset is built rather than hoping the caller does. Use annotate, aggregate, Q, F, and conditional expressions so filtering and computation happen in SQL; use F expressions for read-modify-write updates so the operation is atomic rather than racing. Prefer bulk_create, bulk_update, and queryset .update() over per-object saves in a loop. Use .only() and .defer() where a table is wide and .exists() rather than truthiness on a queryset, .count() rather than len(). Stream large result sets with .iterator(). Index the columns you filter, order, and join on, and confirm with .explain(). Put reusable filters on a custom QuerySet and Manager so query logic is named, tested, and not duplicated across views. Watch the query count in development with django-debug-toolbar and assert it in tests for hot paths.",
+      "references": [
+        "https://docs.djangoproject.com/en/stable/topics/db/optimization/",
+        "https://docs.djangoproject.com/en/stable/ref/models/querysets/"
+      ]
+    },
+    {
+      "topic": "django-models-and-data-integrity",
+      "decision": "Enforce invariants in the database with constraints, not only in application validation, and make every relational and nullability choice explicit.",
+      "rationale": "Application-level validation is bypassed by bulk operations, raw SQL, management commands, the admin in some paths, and anything else touching the database — so a rule that exists only in a model method is a rule the data will eventually violate, and the violation is discovered long after the code that caused it. A database constraint holds regardless of the path and fails at the moment of the write. Explicit deletion behaviour matters for the same reason: on_delete has no safe default, and the wrong choice either cascades away data nobody intended to delete or leaves rows that can never be removed.",
+      "details": "Express invariants as Meta.constraints with UniqueConstraint and CheckConstraint so the database enforces them, and pair them with model validation for a good error message rather than relying on validation alone. Choose on_delete deliberately per relation — PROTECT is the safer default for anything referencing real-world records, CASCADE only where the child genuinely has no independent existence. Avoid null=True on text columns so absence has one representation, and keep null (database) and blank (validation) distinct. Use DecimalField for money, never FloatField, and timezone-aware DateTimeField with USE_TZ enabled. Name related_name explicitly on every relation. Keep model methods to behaviour that belongs to the row and move workflow logic into a service function; override save() sparingly and never for logic that bulk operations must also apply. Add db_index or Meta.indexes for the access patterns you actually have, and wrap multi-write operations in transaction.atomic so a partial failure cannot leave inconsistent state.",
+      "references": [
+        "https://docs.djangoproject.com/en/stable/ref/models/constraints/",
+        "https://docs.djangoproject.com/en/stable/ref/models/fields/#django.db.models.ForeignKey.on_delete"
+      ]
+    },
+    {
+      "topic": "django-migrations",
+      "decision": "Generate every schema change as a reviewed, reversible migration; never edit an applied migration, and separate schema changes from data changes.",
+      "rationale": "Migrations are the schema's version history, and their value comes entirely from every environment having applied the same ordered set — editing one that has already run means environments silently diverge with no error to signal it. Autogenerated output also needs reading rather than trusting: it infers intent from the model diff and will happily produce a destructive operation, or one that takes a long lock, from an innocuous-looking field change. Mixing a data backfill into a schema migration compounds the risk, because the two need different transactional and timing treatment and cannot be retried independently.",
+      "details": "Run makemigrations, read the generated operations, and rename the file to describe the change. Add `makemigrations --check --dry-run` to CI so a model change without a migration fails the build. Never edit or delete a migration that has been applied anywhere beyond your machine — write a new one. Keep data migrations in their own files using RunPython with a real reverse function (or explicit noop), and access models through apps.get_model rather than importing them, since the current model class will not match the historical schema. For zero-downtime deploys use expand-then-contract: add nullable, backfill in batches, start writing, then make non-nullable and drop the old column in a later release, so old and new code can run simultaneously. Be explicit about locking on large tables — add indexes concurrently where the backend supports it and avoid rewriting a large table inside a single transaction. Squash migrations when a history becomes unwieldy, and run migrations as an explicit deploy step, never automatically at application startup.",
+      "references": [
+        "https://docs.djangoproject.com/en/stable/topics/migrations/",
+        "https://docs.djangoproject.com/en/stable/howto/writing-migrations/"
+      ]
+    },
+    {
+      "topic": "django-views-and-urls",
+      "decision": "Keep views thin — parse, authorise, delegate, respond — and route through named URL patterns resolved with reverse rather than hard-coded paths.",
+      "rationale": "Logic inside a view can only be exercised through an HTTP request, so it cannot be reused by a management command, a task, or another view, and testing it means constructing requests to reach code that has nothing to do with HTTP. Moving it into a plain function makes it directly callable and directly testable. Named URLs matter for a related reason: a hard-coded path duplicates routing knowledge everywhere it appears, so a URL change becomes a repository-wide search with no compiler or test to catch the instances that were missed.",
+      "details": "A view should validate input through a form or serializer, check permissions, call a service function, and render or serialise the result. Choose function-based views where the flow is explicit and class-based views where a generic one genuinely fits — do not build deep mixin hierarchies whose behaviour is only discoverable by reading the method resolution order. Name every URL pattern, namespace each app's URLs, and build links with reverse or the url template tag; give models get_absolute_url where it applies. Keep path converters typed so parsing is not repeated in the view. Return the right status codes and use redirects after successful writes so a refresh cannot resubmit. Put cross-cutting concerns in middleware or a decorator rather than repeating them per view, and keep templates free of logic beyond presentation.",
+      "references": [
+        "https://docs.djangoproject.com/en/stable/topics/http/urls/",
+        "https://docs.djangoproject.com/en/stable/topics/class-based-views/"
+      ]
+    },
+    {
+      "topic": "django-api-layer",
+      "decision": "Expose APIs through an explicit schema layer — Django REST Framework serializers or django-ninja schemas — and never derive the public shape from the model automatically.",
+      "rationale": "A serializer declared with `fields = '__all__'` makes the model the public contract, so adding an internal field publishes it and renaming one breaks every client, with no diff that looks like an API change. Declaring fields explicitly makes every addition to the public surface a deliberate, reviewable act. An explicit schema layer also produces an accurate OpenAPI document from the same declaration that performs validation, so the published contract cannot drift from what the endpoint actually accepts.",
+      "details": "Choose one API layer per project: Django REST Framework where its viewsets, permissions, and ecosystem are wanted, or django-ninja where Pydantic types and FastAPI-style annotations fit better. List serializer or schema fields explicitly — never '__all__' — and keep separate read and write shapes where they differ. Validate at the serializer or schema, not in the view. Set pagination as a project-wide default so no endpoint can return an unbounded collection, and set throttling and default permission classes globally to default-deny with explicit opt-out. Version the API in the URL from the first release. Generate and publish the OpenAPI schema (drf-spectacular for DRF, native for Ninja) and assert it against a committed snapshot in CI so a breaking change fails there. Return consistent, machine-readable error bodies through a single exception handler rather than constructing them per view. Keep querysets in API views optimised with select_related and prefetch_related, since serializers traverse relations by default.",
+      "references": [
+        "https://www.django-rest-framework.org/api-guide/serializers/",
+        "https://django-ninja.dev/guides/response/"
+      ]
+    },
+    {
+      "topic": "django-forms-and-validation",
+      "decision": "Validate every inbound payload through a form or serializer and act on its cleaned output; never read request.POST or request.data in business logic.",
+      "rationale": "Raw request data is untyped, unvalidated, and attacker-controlled, so reading it directly pushes coercion and checking into whatever code happens to consume it — inconsistently, and usually incompletely. A form or serializer concentrates that into one declared place that both validates and converts, so downstream code receives typed values whose constraints are already guaranteed. It is also the layer the framework's error rendering, admin, and API tooling expect, so bypassing it means reimplementing error reporting by hand.",
+      "details": "Define a form or serializer for every write endpoint and use its cleaned_data or validated_data — never the raw request. Put field-level rules in clean_<field> and cross-field rules in clean or validate so the error attaches to the right field. Call full_clean() when saving a model outside a form, since save() does not validate. Never construct a model instance directly from unfiltered request data, which is how mass-assignment bugs appear. Keep validation that concerns a single value on the field, and validation that concerns a business rule in the service layer, so the same rule holds for a management command and a task. Return field-level errors that identify the problem without echoing secrets or internal state, and enforce size and length limits at the field rather than after parsing.",
+      "references": [
+        "https://docs.djangoproject.com/en/stable/ref/forms/validation/",
+        "https://docs.djangoproject.com/en/stable/ref/models/instances/#django.db.models.Model.full_clean"
+      ]
+    },
+    {
+      "topic": "django-auth-and-permissions",
+      "decision": "Define a custom user model in the first migration, use Django's authentication machinery rather than a hand-rolled equivalent, and authorise against the specific object rather than only the view.",
+      "rationale": "Changing the user model after migrations exist is one of the few genuinely painful operations in Django, because every foreign key to it is already baked into the migration history — so the cost of doing it on day one is nearly zero and the cost of doing it later is a manual data migration across the whole schema. Django's own authentication is worth using because password hashing, session handling, and timing-safe comparison are exactly the areas where a plausible-looking custom implementation fails silently. Object-level authorisation matters because a view-level check confirms the caller may use the endpoint, not that they may touch the record they named.",
+      "details": "Start every project with a custom user model (subclassing AbstractUser, or AbstractBaseUser where the identifier is not a username) and set AUTH_USER_MODEL before the first migration; reference it as settings.AUTH_USER_MODEL or get_user_model(), never by importing User. Use Django's password hashers and validators and never store or log a password. Enforce authentication with a default-deny posture — LoginRequiredMiddleware or global default permission classes — so a new view cannot be accidentally public. Check ownership and scope against the requested object inside the view or service, or scope the queryset to the requesting user so an unauthorised record is not retrievable at all. Delegate federated login to django-allauth or a maintained OIDC package rather than implementing a flow. Keep sessions secure with the SESSION_COOKIE_SECURE, HttpOnly, and SameSite settings, rotate the session on login, and rate-limit authentication endpoints. Log authentication and authorisation failures with enough context to investigate and no credential material.",
+      "references": [
+        "https://docs.djangoproject.com/en/stable/topics/auth/customizing/",
+        "https://docs.djangoproject.com/en/stable/topics/auth/default/"
+      ]
+    },
+    {
+      "topic": "django-security-defaults",
+      "decision": "Turn on the framework's security settings explicitly and keep its protections intact: leave template autoescaping on, keep CSRF enabled, and never interpolate input into SQL or into marked-safe output.",
+      "rationale": "Django ships strong defaults but leaves the transport and header settings off, because they depend on deployment — so a project that never sets them runs without HSTS, secure cookies, or redirect enforcement while appearing to be secure by default. The protections that are on by default fail the other way: they are only bypassed deliberately, which means every `|safe`, `mark_safe`, `csrf_exempt`, and `.raw()` or `.extra()` call is a place someone opted out of a protection, and those are precisely the lines that need justification and review.",
+      "details": "Run `manage.py check --deploy` in CI and resolve every warning: SECURE_HSTS_SECONDS with preload once confident, SECURE_SSL_REDIRECT, SESSION_COOKIE_SECURE, CSRF_COOKIE_SECURE, X_FRAME_OPTIONS, and SECURE_CONTENT_TYPE_NOSNIFF. Leave autoescaping on and treat mark_safe or |safe on anything derived from user input as a defect; sanitise HTML with a maintained sanitiser (nh3, bleach) if it must be rendered. Keep CSRF middleware enabled and justify every csrf_exempt in a comment. Use the ORM or parameterised raw queries — never string-formatted SQL, including in .raw() and .extra(). Set ALLOWED_HOSTS and CSRF_TRUSTED_ORIGINS explicitly and configure CORS with an allow-list, never a wildcard with credentials. Serve user-uploaded files from a separate domain or storage backend with content types forced, and validate uploads by content rather than by extension. Add a Content-Security-Policy. Keep Django itself on a supported release and apply security releases promptly, since the advisories are public.",
+      "references": [
+        "https://docs.djangoproject.com/en/stable/topics/security/",
+        "https://docs.djangoproject.com/en/stable/howto/deployment/checklist/"
+      ]
+    },
+    {
+      "topic": "django-templates-and-static-assets",
+      "decision": "Keep templates presentational with inheritance and no business logic, and serve static files through the staticfiles pipeline with hashed names rather than from the application server.",
+      "rationale": "Logic in a template cannot be unit tested, cannot be reused, and hides database access behind attribute lookups that quietly issue queries per row — the most common source of N+1 in server-rendered Django. Static assets have a different failure mode: serving them from the application server consumes a worker per file and defeats caching, while unhashed filenames mean a client keeps a stale asset after a deploy, producing bugs that only reproduce for users who visited before the release.",
+      "details": "Use template inheritance from a base layout and include or partials for reuse; prepare values in the view or a service and pass them in, rather than computing in the template. Keep custom template tags and filters small and tested. Avoid triggering queries from a template — resolve relations in the queryset with select_related and prefetch_related first. Use ManifestStaticFilesStorage (or the equivalent storages backend) so collectstatic produces content-hashed filenames that can be cached indefinitely, and serve them from a CDN or through WhiteNoise rather than the application server. Reference assets with the static template tag, never a hard-coded path. Keep user-uploaded media on object storage, separate from static assets, and never serve it from the same origin with the same trust. Where the project is server-rendered, prefer progressive enhancement (htmx or small islands of JavaScript) over introducing a full client framework without a decision.",
+      "references": [
+        "https://docs.djangoproject.com/en/stable/ref/templates/language/",
+        "https://docs.djangoproject.com/en/stable/ref/contrib/staticfiles/"
+      ]
+    },
+    {
+      "topic": "django-caching-and-performance",
+      "decision": "Profile before caching, cache at the narrowest useful level with explicit invalidation, and use persistent database connections rather than reconnecting per request.",
+      "rationale": "Caching applied before measurement usually hides an unresolved query problem rather than fixing it, and it does so at the cost of a second source of truth that can serve stale data — so the bug becomes intermittent instead of consistent. Narrow caching keeps the invalidation problem tractable, because a cached fragment or computed value has an obvious owner, whereas a whole-page cache has to be invalidated by anything that could change anything on the page. Connection handling matters independently: opening a database connection per request adds a round trip to every request and is pure overhead at any real request rate.",
+      "details": "Measure first with django-debug-toolbar, django-silk, or query logging, and fix N+1 access and missing indexes before adding a cache. Prefer low-level cache.get/set around an expensive computation, then template fragment caching, and reserve per-view or per-site caching for genuinely static pages. Key caches on everything the value depends on, including the user or tenant where the value is not global, and invalidate explicitly on write rather than relying on expiry alone; use a short TTL as a safety net. Use Redis or Memcached in deployed environments and never the local-memory backend behind multiple workers, since each worker gets its own copy. Set CONN_MAX_AGE for persistent connections and use a connection pooler where the worker count is high. Cache the expensive part, not the whole response, so authorisation is still evaluated per request. Add database-level query timeouts, and move anything slow out of the request path entirely rather than caching around it.",
+      "references": [
+        "https://docs.djangoproject.com/en/stable/topics/cache/",
+        "https://docs.djangoproject.com/en/stable/ref/databases/#persistent-database-connections"
+      ]
+    },
+    {
+      "topic": "django-background-work",
+      "decision": "Move anything slow or externally dependent out of the request into a durable task queue, and enqueue with transaction.on_commit so a task never runs against a rolled-back write.",
+      "rationale": "Work performed inside a request holds a worker and a database connection for its duration and is lost entirely if the process restarts mid-flight, which turns a slow third-party call into both a latency and a correctness problem. Enqueuing inside a transaction has a subtler failure that is easy to miss in development and common in production: the worker can pick the task up and read the database before the transaction commits, so it sees a row that does not yet exist, or one that never will because the transaction rolled back. transaction.on_commit defers the enqueue until the write is durable.",
+      "details": "Use Celery where its scheduling and routing are wanted, or a lighter queue (django-tasks, RQ, Dramatiq) where they are not. Always enqueue through transaction.on_commit inside a transactional view. Pass identifiers rather than model instances so the worker loads current state instead of a stale serialised snapshot. Make tasks idempotent with an idempotency key or a state check, since an at-least-once queue will eventually deliver twice, and set explicit retry limits, backoff, and a dead-letter destination — never retry forever. Give every task a timeout and make long work resumable in batches rather than restarting from the start. Run periodic work through a scheduler with a single leader rather than a per-instance timer. Ensure the worker loads the same settings as the web process, propagate the correlation id into the task, and monitor queue depth, task age, and failure rate as first-class signals.",
+      "references": [
+        "https://docs.djangoproject.com/en/stable/topics/db/transactions/#performing-actions-after-commit",
+        "https://docs.celeryq.dev/en/stable/django/first-steps-with-django.html"
+      ]
+    },
+    {
+      "topic": "django-testing",
+      "decision": "Test with pytest-django against a real database, build objects with factories rather than fixture files, and assert on behaviour through the test client rather than on implementation.",
+      "rationale": "Django's behaviour is largely database behaviour — constraints, cascades, transactions, and the queries the ORM actually emits — so mocking the data layer removes exactly the component whose behaviour is hardest to predict and leaves those failures to production. JSON fixture files fail differently: they are global, they drift from the schema on every migration, and a test that depends on one is coupled to data it did not declare, so factories that state only what the test cares about are both clearer and more durable.",
+      "details": "Use pytest-django with the django_db marker, --reuse-db locally for speed and a fresh database in CI to prove migrations apply from empty. Build objects with factory_boy factories that declare only the fields under test. Use the test client to exercise views end to end — status, redirects, permissions, and rendered context — and call service functions directly for business logic. Cover the authorisation paths explicitly, including the unauthorised and wrong-owner cases, since those are the ones that silently pass when only the happy path is tested. Assert query counts with assertNumQueries on hot paths so an N+1 regression fails a test rather than a dashboard. Override settings with the settings fixture or override_settings rather than mutating them. Keep external HTTP faked at the transport layer, use a locmem email backend, and run tasks eagerly or assert the enqueue rather than depending on a live worker. Run `makemigrations --check` and `check --deploy` as part of the suite.",
+      "references": [
+        "https://pytest-django.readthedocs.io/en/latest/",
+        "https://factoryboy.readthedocs.io/en/stable/orms.html"
+      ]
+    },
+    {
+      "topic": "django-deployment",
+      "decision": "Deploy the checked artefact behind a real web server: DEBUG off, migrations and collectstatic as explicit deploy steps, and configuration from the environment.",
+      "rationale": "The development server is single-threaded, unhardened, and explicitly unsupported for production, so serving through it is a availability and security problem rather than a performance one. Running migrations at application startup fails differently and worse: multiple workers or replicas start simultaneously and race to apply the same migration, which can leave the schema half-applied with no clean recovery. Making both migration and static collection explicit deploy steps gives them a single execution and a place to fail before traffic is routed.",
+      "details": "Serve through gunicorn (WSGI) or uvicorn workers (ASGI, required for channels or async views) behind a reverse proxy that terminates TLS, buffers slow clients, and serves or proxies static assets. Set DEBUG False and run `manage.py check --deploy` in CI. Run migrate and collectstatic as ordered deploy steps with a single runner, before new code takes traffic; keep migrations backwards compatible so old and new code overlap safely during a rolling deploy. Take all configuration and secrets from the environment or a secret manager so the same image promotes across environments. Log to stdout in JSON and let the platform collect; configure logging in settings via LOGGING rather than per-module. Expose liveness and readiness separately, with readiness reflecting database and cache health. Handle SIGTERM for graceful shutdown and size the worker count against available cores and database connections. Pin the base image by digest, run as a non-root user, and stamp the build with the commit for traceability.",
+      "references": [
+        "https://docs.djangoproject.com/en/stable/howto/deployment/",
+        "https://docs.djangoproject.com/en/stable/howto/deployment/checklist/"
+      ]
+    }
+  ]
+}

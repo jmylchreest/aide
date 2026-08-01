@@ -1,0 +1,215 @@
+{
+  "schema_version": 1,
+  "name": "python",
+  "display_name": "Python Best Practices",
+  "description": "Idiomatic modern Python: pyproject-declared projects, uv environments, full type annotations checked in CI, Ruff as the single linter and formatter, pytest, structured logging, and asyncio done correctly",
+  "version": "0.1.13",
+  "tags": [
+    "language",
+    "python"
+  ],
+  "includes": [
+    "general"
+  ],
+  "decisions": [
+    {
+      "topic": "python-version-policy",
+      "decision": "Declare the supported interpreter range with requires-python in pyproject.toml, develop against the newest release you support, and test every version in the range in CI.",
+      "rationale": "requires-python is the only machine-readable statement of what the project runs on: resolvers use it to avoid installing a distribution onto an interpreter it cannot support, so getting it right prevents an entire class of user-facing install failure. Each release cycle removes deprecated behaviour and adds language and standard-library features worth having, and CPython's five-year support window makes the drop schedule predictable rather than a judgement call. Testing the whole declared range is what makes the declaration true rather than aspirational.",
+      "details": "Set requires-python = \">=3.X\" in [project] and keep the CI matrix identical to the declared range — a version you claim and do not test is a version you do not support. Pin the development interpreter for reproducibility (.python-version, consumed by uv and pyenv). Drop end-of-life versions promptly and treat the drop as a minor-version bump with a changelog entry. Avoid version-conditional code where a supported-range feature exists; where a branch is genuinely needed, gate on sys.version_info rather than on feature probing, and delete the branch when the old version is dropped. Prefer the standard library shipped with the newest supported version over a backport package.",
+      "references": [
+        "https://packaging.python.org/en/latest/guides/writing-pyproject-toml/",
+        "https://devguide.python.org/versions/"
+      ]
+    },
+    {
+      "topic": "python-packaging-and-metadata",
+      "decision": "Declare the project entirely in pyproject.toml using the [project] table, and adopt the src/ layout.",
+      "rationale": "pyproject.toml is the standard, declarative, tool-agnostic project definition: it replaces executable setup.py metadata that had to be run to be read, and it makes the build backend an explicit choice rather than an implicit setuptools default. The src/ layout stops the interpreter from importing the package straight out of the working directory, which means tests exercise the installed distribution — the same artefact users get — and packaging mistakes such as a missing subpackage or data file fail in CI rather than after release.",
+      "details": "Put name, version, description, readme, requires-python, licence, authors, classifiers, dependencies, [project.optional-dependencies], [project.scripts], and [project.urls] in pyproject.toml, and select an explicit [build-system] backend (hatchling, or setuptools where a legacy build needs it). Lay out src/<package>/, tests/ outside the package, and install the project into the environment in editable mode for development. Keep setup.py only where a C extension genuinely requires it, and never as the metadata source. Prefer a single source of truth for the version — either static in [project] or derived from VCS tags by the backend — and never duplicate it in __init__.py. Ship type information by including a py.typed marker in the package.",
+      "references": [
+        "https://packaging.python.org/en/latest/guides/writing-pyproject-toml/",
+        "https://packaging.python.org/en/latest/discussions/src-layout-vs-flat-layout/"
+      ]
+    },
+    {
+      "topic": "python-environments-and-dependencies",
+      "decision": "Use uv to manage the interpreter, the virtual environment, and a committed universal lockfile; install from the lock in CI and production with a frozen, no-resolution sync.",
+      "rationale": "Dependency resolution at deploy time is non-determinism in the release path: the same commit installs different transitive versions on different days, so a build can break with no change to the code. A committed lockfile pins the full transitive graph with hashes and makes installs reproducible and auditable. uv resolves and installs an order of magnitude faster than pip-based workflows, manages the interpreter itself so the toolchain is not an unwritten prerequisite, and produces a universal lock that resolves once for every supported platform and Python version instead of one lock per environment.",
+      "details": "Commit uv.lock and use `uv sync --frozen` (or `--locked` to assert the lock matches pyproject.toml) in CI, containers, and deploys so an install never resolves. Keep runtime dependencies in [project.dependencies] with the widest constraints that are actually true, and use PEP 735 [dependency-groups] for dev, test, lint, and docs tooling so they never reach a production install or a published distribution's metadata. Use `uv run` to execute in the project environment and `uvx` for one-off tools rather than installing tools globally. Never commit a virtual environment, never install into the system interpreter, and never hand-edit the lockfile. Poetry or pip-tools are acceptable where already established — the binding requirement is a committed lock plus a frozen install, not the specific tool.",
+      "references": [
+        "https://docs.astral.sh/uv/concepts/projects/sync/",
+        "https://peps.python.org/pep-0735/"
+      ]
+    },
+    {
+      "topic": "python-type-annotations",
+      "decision": "Annotate every function signature, class attribute, and module constant, and model the domain in the type system using modern built-in generic and union syntax.",
+      "rationale": "Annotations are the cheapest form of documentation that cannot go stale, because a checker verifies them against the code. They are what makes large-scale refactoring safe — a signature change surfaces every caller before runtime rather than in production — and they carry the intent that would otherwise have to live in a comment. Modern syntax (built-in generics and the | union operator) removes the typing-module ceremony that made annotations feel expensive, so there is no longer a readability argument for omitting them.",
+      "details": "Annotate parameters, return types (including -> None), attributes, and module-level constants. Use built-in generics (list[str], dict[str, int]) and X | None rather than List, Dict, and Optional; import ABCs from collections.abc. Accept the widest abstract type you actually need (Sequence, Iterable, Mapping) and return the concrete type. Reserve Any for genuine dynamism and prefer object, a Protocol, or a TypeVar; use Protocol for structural interfaces rather than inheriting from a base purely to satisfy a checker. Model closed sets with Literal or enum.Enum, use Final for constants, TypedDict for structured dicts crossing a boundary, and Self for fluent returns. Use NewType or a small frozen dataclass to keep distinct identifiers from being interchangeable. Add `from __future__ import annotations` where forward references or import cycles require it, and keep type-only imports under `if TYPE_CHECKING:`.",
+      "references": [
+        "https://docs.python.org/3/library/typing.html",
+        "https://typing.python.org/en/latest/reference/best_practices.html"
+      ]
+    },
+    {
+      "topic": "python-static-type-checking",
+      "decision": "Run a type checker in strict mode over the whole project as a required CI gate, and fix findings rather than suppressing them.",
+      "rationale": "Annotations that are never checked drift out of agreement with the code and become actively misleading — worse than no annotations, because they are trusted. Strict mode is what catches the cases that matter: an unannotated function is silently exempt from checking in non-strict mode, so a single missing signature can hide an entire module's worth of errors. Making the check a required gate is what keeps the codebase from accumulating a backlog that nobody has the mandate to clear.",
+      "details": "Adopt mypy --strict or Pyright/basedpyright in strict mode, configured in pyproject.toml, and run it over the whole project rather than changed files. Where a dependency is untyped, install its stubs or write a narrow local stub; do not disable checking for your own code to accommodate it. Keep ignores rare, specific, and justified: use `# type: ignore[error-code]` with the code and a reason, never a bare ignore, and never a module-wide or global disable. Enable warn_unused_ignores so suppressions are removed when they stop being needed. When introducing checking to an existing codebase, ratchet — enable strictness per module and tighten over time rather than baselining the whole project as an exception. Use `assert_type` and `reveal_type` while developing complex generic code, and typing.cast only where you can state why the checker cannot see it.",
+      "references": [
+        "https://mypy.readthedocs.io/en/stable/existing_code.html",
+        "https://microsoft.github.io/pyright/#/configuration"
+      ]
+    },
+    {
+      "topic": "python-linting-and-formatting",
+      "decision": "Use Ruff as the single linter and formatter, configured in pyproject.toml, with a deliberately broad rule selection and `ruff format` owning all formatting decisions.",
+      "rationale": "One tool that replaces flake8, isort, pyupgrade, pydocstyle, bandit's core rules, and Black removes an entire category of configuration conflict — the historical Python stack required careful reconciliation between tools that disagreed about line length, import order, and string quoting. Ruff is fast enough to run on every save and in a pre-commit hook without friction, which is what makes lint findings get fixed while the code is being written rather than at review. A formatter that owns formatting ends style discussion permanently and keeps diffs to semantic change.",
+      "details": "Configure [tool.ruff] and [tool.ruff.lint] in pyproject.toml. Select broadly — E/W (pycodestyle), F (pyflakes), I (import sorting), N (naming), UP (pyupgrade), B (bugbear), A (builtin shadowing), C4 (comprehensions), SIM (simplification), RUF, plus S (bandit) for security and ANN for annotation completeness — and record the reason for each rule you exclude. Run `ruff format` and `ruff check --fix` locally and `ruff format --check` plus `ruff check` in CI. Use per-file-ignores for legitimately different contexts (tests need assert, so exclude S101 there) rather than inline noqa; where noqa is genuinely right, make it rule-specific with a reason. Wire both into pre-commit so findings never reach CI. Do not run a second formatter alongside it.",
+      "references": [
+        "https://docs.astral.sh/ruff/configuration/",
+        "https://docs.astral.sh/ruff/rules/"
+      ]
+    },
+    {
+      "topic": "python-project-structure",
+      "decision": "Organise modules by domain concern rather than by technical layer, keep the import graph acyclic, and make each package's public surface explicit.",
+      "rationale": "Layer-based packages (models/, views/, utils/) scatter a single feature across the tree, so every change touches every package and no module can be understood or moved on its own. Domain packages keep a change local and make the system's actual structure legible from its directory listing. Because Python executes a module on first import, an import cycle is a genuine runtime failure rather than a style problem, and an implicit public surface means every internal name becomes something a consumer can depend on and you can no longer change.",
+      "details": "Group by concern (billing/, ingest/, auth/) with each package owning its models, logic, and adapters. Keep modules focused and split when a module accumulates unrelated responsibilities; a large module that is genuinely one concern is fine. Use `_`-prefixed names for internals and re-export the intended surface from the package's __init__.py, keeping __init__.py free of side effects and heavy imports. Break cycles by extracting the shared abstraction rather than by moving imports into functions, and use `if TYPE_CHECKING:` for annotation-only imports. Do not create a utils or helpers package — name the concern. Keep the dependency direction pointing inward: domain logic must not import web, CLI, or persistence adapters, so the core stays testable without infrastructure.",
+      "references": [
+        "https://docs.python.org/3/reference/import.html"
+      ]
+    },
+    {
+      "topic": "python-error-handling",
+      "decision": "Define a project exception hierarchy under one base class, raise the most specific type available, catch narrowly, and always chain with `raise ... from`.",
+      "rationale": "A single project base exception lets a caller distinguish failures this project raises from failures escaping a dependency, which is the difference between handling an error and swallowing an unrelated bug. Broad excepts catch the exceptions you did not anticipate — including typos surfacing as AttributeError and interrupts — and turn them into silent wrong behaviour that is diagnosed weeks later. Explicit chaining preserves the original traceback, so the log shows both the low-level cause and the high-level meaning instead of one without the other.",
+      "details": "Root the hierarchy at a single ProjectError and derive meaningful subtypes carrying structured context as attributes rather than only a formatted message; subclass the closest builtin (ValueError, LookupError) where consumers would reasonably catch it. Catch the narrowest type at the point where you can actually do something; never write a bare `except:`, and treat `except Exception` as acceptable only at a top-level boundary that logs and converts. Re-raise with `raise NewError(...) from err`, or `from None` where the cause is genuinely noise. Use `else:` to keep the try body to the line that can fail and `finally:` or a context manager for cleanup. Never use exceptions for ordinary control flow in a hot loop, never swallow with `pass`, and prefer EAFP where it is idiomatic (dict access, file open) and LBYL where a check is genuinely cheaper. Use ExceptionGroup and `except*` for concurrent failures.",
+      "references": [
+        "https://docs.python.org/3/tutorial/errors.html",
+        "https://peps.python.org/pep-0654/"
+      ]
+    },
+    {
+      "topic": "python-logging",
+      "decision": "Use the standard logging module with a module-level `logger = logging.getLogger(__name__)`, pass structured context as arguments rather than formatting into the message, and configure handlers only in the application entry point.",
+      "rationale": "A `__name__` logger inherits the module's package path, so operators can raise or lower verbosity for one subsystem without touching code. Deferring interpolation to the logging call means the formatting cost is not paid for a message that is filtered out, and it keeps the message template constant so aggregation groups occurrences instead of treating every parameter value as a distinct error. Configuring handlers inside a library steals a decision that belongs to the application and produces duplicate or misrouted output the consumer cannot turn off.",
+      "details": "Never use print() for diagnostics. Use `logger.info(\"processed order\", extra={...})` or lazy %-style parameters — never an f-string in the call. Configure once in the entry point via dictConfig, and in libraries attach nothing but a NullHandler. Log exceptions with logger.exception inside the handler so the traceback is attached. Adopt a consistent structured field vocabulary for cross-cutting identifiers (request_id, user_id, tenant, duration_ms) and emit JSON in deployed environments — structlog or a JSON formatter on top of stdlib logging, keeping stdlib as the interface so library logs are captured too. Reserve ERROR for something that needs attention, WARNING for a recovered anomaly, INFO for lifecycle events, and DEBUG for detail; never log secrets, credentials, tokens, or personal data.",
+      "references": [
+        "https://docs.python.org/3/howto/logging.html",
+        "https://www.structlog.org/en/stable/"
+      ]
+    },
+    {
+      "topic": "python-data-modelling",
+      "decision": "Give every structured value a type: frozen dataclasses for internal values, Pydantic models at external boundaries, and enums for closed sets. Do not pass dictionaries as ad-hoc records.",
+      "rationale": "A dict used as a record has no checked shape, so a typo in a key is a runtime KeyError far from its cause, and neither the type checker nor the reader can tell what the structure contains. A declared type documents the shape, is checked statically, and gives the value somewhere to keep the behaviour that belongs to it. Pydantic earns its place specifically at boundaries, where data is genuinely untrusted and needs parsing and coercion; using it for internal values that are already valid adds validation cost on every construction for no benefit.",
+      "details": "Use @dataclass(frozen=True, slots=True) for internal value objects — immutability makes them safe to share and hashable, slots cuts memory and catches attribute typos. Use Pydantic v2 BaseModel for anything crossing a trust boundary (HTTP payloads, message bodies, configuration, third-party responses), validating once at the edge and passing validated types inward so the core never re-checks. Use enum.Enum or StrEnum for closed sets rather than string literals, and Decimal for money — never float. Prefer parsing into a type over defensively checking a dict at every use, and never use a mutable default; use field(default_factory=...). Keep persistence models and API schemas as separate types even when they currently match, so a storage change does not become a breaking API change.",
+      "references": [
+        "https://docs.python.org/3/library/dataclasses.html",
+        "https://docs.pydantic.dev/latest/concepts/models/"
+      ]
+    },
+    {
+      "topic": "python-async",
+      "decision": "Choose async only for I/O-bound concurrency, and once chosen never block the event loop; structure concurrent work with TaskGroup and bound it with timeouts.",
+      "rationale": "asyncio gets its throughput from a single thread never being blocked, so one synchronous call — a blocking driver, a file read, a CPU-bound loop — stalls every other task on the loop, including health checks and timeouts. That failure mode is invisible under light load and catastrophic under real traffic. TaskGroup is what makes concurrency reliable rather than merely parallel: it guarantees every child is awaited, cancels its siblings on failure, and propagates the errors as a group, which is precisely what manual create_task and gather do not do.",
+      "details": "Do not make a codebase async because async is modern — a CPU-bound or low-concurrency workload gains nothing and pays in complexity. Where async is right, use async-native drivers throughout (httpx, asyncpg or SQLAlchemy's async engine, aiofiles) and never call a blocking library from a coroutine; push unavoidable blocking calls to asyncio.to_thread and CPU-bound work to a process pool. Use `async with asyncio.TaskGroup()` rather than bare create_task, whose return value must otherwise be held to stop the task being garbage collected mid-flight. Bound every external call with asyncio.timeout. Make cancellation correct: never swallow CancelledError, and do cleanup in finally or an async context manager. Use asyncio.Queue and Semaphore for backpressure rather than unbounded spawning, and keep one event loop per process started by asyncio.run. Use anyio where a library must also support trio.",
+      "references": [
+        "https://docs.python.org/3/library/asyncio-task.html",
+        "https://docs.python.org/3/library/asyncio-dev.html"
+      ]
+    },
+    {
+      "topic": "python-concurrency-and-parallelism",
+      "decision": "Match the concurrency primitive to the workload: asyncio or threads for I/O, processes for CPU-bound work, and concurrent.futures where a simple pool is enough.",
+      "rationale": "In the default build the global interpreter lock means threads give no speed-up for CPU-bound work — they add context-switching and synchronisation cost for nothing — while genuinely helping I/O-bound work because the lock is released around blocking calls. Choosing the wrong primitive therefore produces code that is more complex and no faster, and the mistake is easy to make because both look concurrent. Processes sidestep the lock at the cost of real memory and serialisation, which is the right trade only when the compute is large relative to the data crossing the boundary.",
+      "details": "Use ThreadPoolExecutor for blocking I/O in synchronous code and ProcessPoolExecutor for CPU-bound work, both via concurrent.futures where a pool suffices. Prefer a vectorised library (NumPy, Polars) or a native extension that releases the lock over process parallelism when the work fits. Bound every pool explicitly rather than accepting an unbounded default. Prefer immutable data and queues to shared mutable state; where a lock is unavoidable, keep its scope minimal and acquire in a consistent order. Never mix asyncio and threads casually — cross the boundary with asyncio.to_thread and loop.call_soon_threadsafe. Treat free-threaded builds as an opportunity to evaluate rather than a default to target, and verify the whole dependency stack before relying on one.",
+      "references": [
+        "https://docs.python.org/3/library/concurrent.futures.html",
+        "https://docs.python.org/3/library/asyncio-dev.html#running-blocking-code"
+      ]
+    },
+    {
+      "topic": "python-testing",
+      "decision": "Test with pytest: plain assert, fixtures for setup, parametrize for cases, and one clear behaviour per test.",
+      "rationale": "pytest's rewritten assertions show the actual values on failure, so a failing test explains itself without the assertEqual ceremony unittest requires. Fixtures compose and scope explicitly, which makes shared setup cheap to reuse without the inheritance chains that make xUnit-style suites hard to follow. Parametrisation turns a table of cases into individually named and individually reported tests, so a failure identifies the exact input rather than the first case that broke.",
+      "details": "Use plain assert; reach for pytest.raises(..., match=...) for failures and pytest.approx for floats. Prefer function-scoped fixtures and use conftest.py for genuinely shared ones, keeping session-scoped state rare and read-only. Name tests for the behaviour they pin (test_rejects_expired_token), not for the method they call, and keep one behaviour per test so a failure localises. Cover the boundaries and the error paths, not just the happy path. Use tmp_path, monkeypatch, and caplog rather than hand-rolled equivalents; add hypothesis for properties that should hold across an input space and a deterministic clock (time-machine) rather than sleeping. Keep tests independent and order-agnostic, verify with pytest-randomly, and run them in parallel with pytest-xdist. Track coverage as a signal with a floor that ratchets upward, never as a target to be gamed.",
+      "references": [
+        "https://docs.pytest.org/en/stable/how-to/fixtures.html",
+        "https://hypothesis.readthedocs.io/en/latest/"
+      ]
+    },
+    {
+      "topic": "python-test-doubles-and-isolation",
+      "decision": "Prefer real objects and hand-written fakes to mocks; when patching is unavoidable, patch where the name is used and assert on behaviour rather than on calls.",
+      "rationale": "A mock asserts that a particular implementation was invoked, so a test full of mocks passes after a refactor that broke the behaviour and fails after a refactor that changed nothing — the opposite of what a test is for. `unittest.mock` also accepts any attribute access by default, so a mock of a renamed or removed API keeps passing forever. Patching is additionally position-sensitive: `from x import y` binds y into the importing module, so patching it at its source has no effect on the code under test.",
+      "details": "Design for substitution — inject collaborators so a test can pass a real implementation or a small fake, rather than reaching for patch to reshape a hard-coded dependency. Where you must patch, patch the name in the module under test, not where it was defined, and use autospec so the double matches the real signature. Assert on resulting state and outputs; reserve call assertions for genuine side-effect boundaries such as an email send. Never let unit tests touch the network, the clock, the filesystem outside tmp_path, or a real database: fake HTTP at the transport layer (respx, responses) and use testcontainers or a disposable schema for integration tests that genuinely need the real engine. Keep integration and end-to-end tests marked and separately selectable so the fast suite stays fast.",
+      "references": [
+        "https://docs.python.org/3/library/unittest.mock.html#where-to-patch",
+        "https://testcontainers-python.readthedocs.io/"
+      ]
+    },
+    {
+      "topic": "python-configuration-and-secrets",
+      "decision": "Load configuration from the environment into a single validated settings object at startup, and read it from there — never from os.environ scattered through the code.",
+      "rationale": "Configuration read at the point of use fails late, in the middle of a request or a job, when the process has already been declared healthy; validated once at startup it fails immediately and visibly, before any traffic is accepted. A single typed settings object also makes the full configuration surface discoverable and reviewable rather than something you learn by grepping for getenv. Reading os.environ at import time is worse still: it fixes values at import order and makes the module untestable without mutating global state.",
+      "details": "Define settings as a pydantic-settings BaseSettings model with types, defaults, and validators, instantiate it once in the entry point, and pass or inject it — do not construct it at module import. Give every setting an explicit type and a safe default where one exists, and no default where absence should be fatal. Source from environment variables with a documented prefix, layering a local .env for development only; never read secrets from a committed file, and never log or repr the settings object without redacting secret fields (use SecretStr). Keep an .env.example listing every variable with a non-secret placeholder. Separate configuration from feature flags with runtime lifetimes, and fail startup loudly on an invalid or missing required value rather than falling back to a silent default.",
+      "references": [
+        "https://docs.pydantic.dev/latest/concepts/pydantic_settings/",
+        "https://12factor.net/config"
+      ]
+    },
+    {
+      "topic": "python-cli",
+      "decision": "Build command-line interfaces with a declarative framework wired to a [project.scripts] entry point, and keep the CLI a thin shell over a library API.",
+      "rationale": "A declarative CLI derives parsing, type conversion, help text, and shell completion from the function signature, so the help output cannot drift from the arguments the program actually accepts. An entry point makes the command available on PATH after install on every platform, which hand-rolled `python -m` invocations and shebang scripts do not. Keeping the command thin means the behaviour is testable and reusable without a subprocess, and the same logic can be driven from a job, a service, or another tool.",
+      "details": "Use Typer where the project is typed (it derives the interface from annotations) or Click for richer composition; argparse is fine for a single-command tool with no dependencies. Register commands under [project.scripts] rather than shipping loose scripts. The command function should parse, validate, call into the library, and format — no business logic. Exit with a meaningful status code, write results to stdout and diagnostics to stderr, and offer machine-readable output (--json) for anything scriptable. Respect NO_COLOR and detect whether stdout is a TTY before styling. Read configuration in the documented precedence order — flags, then environment, then config file, then defaults — and never accept a secret as a command-line argument, since it lands in the process list and shell history. Test by invoking the command in-process with the framework's test runner.",
+      "references": [
+        "https://typer.tiangolo.com/",
+        "https://packaging.python.org/en/latest/specifications/entry-points/"
+      ]
+    },
+    {
+      "topic": "python-performance",
+      "decision": "Optimise only what a profiler identifies, and reach for a better algorithm, data structure, or library before reaching for micro-optimisation or a native extension.",
+      "rationale": "Intuition about where a Python program spends its time is unreliable — the cost is usually in a dependency, in serialisation, or in a call made in a loop that nobody expected to be hot. Optimising without a measurement therefore trades readability for no gain, and can lose. Because the interpreter's per-operation overhead is high, the largest wins almost always come from doing fewer operations or moving the loop into a native library, not from making each Python-level operation slightly cheaper.",
+      "details": "Establish a baseline and a representative workload before changing anything. Profile with cProfile for a call-graph view, py-spy to sample a running process without instrumenting it, and a line profiler or memory profiler to narrow a specific function; benchmark microcases with timeit or pytest-benchmark and keep the benchmark. Prefer the right structure — set or dict membership over list scanning, deque for queue behaviour, generators and itertools to avoid materialising large sequences — and hoist repeated work out of loops. Batch I/O and database access to eliminate N+1 patterns, which usually dominate anything the interpreter is doing. Where compute genuinely dominates, move it into NumPy, Polars, or a compiled extension rather than hand-tuning Python. Cache with functools.lru_cache or cached_property only where inputs are bounded and hashable. Keep the optimised version measured, commented with its measurement, and covered by tests.",
+      "references": [
+        "https://docs.python.org/3/library/profile.html",
+        "https://github.com/benfred/py-spy"
+      ]
+    },
+    {
+      "topic": "python-security",
+      "decision": "Never execute, deserialise, or interpolate untrusted input; audit dependencies for known vulnerabilities on every CI run.",
+      "rationale": "Python's dynamism makes several standard-library conveniences directly exploitable: pickle executes arbitrary code by construction during load, eval and exec evaluate whatever they are given, and subprocess with shell=True hands a string to a shell that will happily interpret metacharacters. Each of these is remote code execution rather than a lesser bug. Dependency risk is comparable in impact and easier to manage — vulnerable versions are published and machine-checkable, so an unaudited dependency graph is an avoidable exposure rather than an unknown one.",
+      "details": "Never unpickle untrusted data — use JSON, or msgpack with a schema, for anything crossing a trust boundary; never pass untrusted input to eval, exec, or subprocess with shell=True (pass an argument list). Parse untrusted XML with defusedxml. Use parameterised queries exclusively and never build SQL by string formatting. Hash passwords with argon2 or bcrypt via passlib, generate tokens with the secrets module rather than random, and compare secrets with hmac.compare_digest. Validate and normalise any path derived from input before joining it, and verify TLS certificates always. Run pip-audit or an equivalent against the lockfile in CI and fail on known-vulnerable versions; keep Ruff's S rules on for the static cases. Load secrets from the environment or a secret manager, never from source or a committed file, and keep them out of logs, tracebacks, and error responses.",
+      "references": [
+        "https://docs.python.org/3/library/pickle.html",
+        "https://pypi.org/project/pip-audit/"
+      ]
+    },
+    {
+      "topic": "python-docstrings-and-comments",
+      "decision": "Document the public API with docstrings in one consistent style; use inline comments only for the why. Names and type annotations carry the story.",
+      "rationale": "A docstring is the contract the caller reads through help(), an IDE, and generated documentation, so it belongs on everything a consumer touches — and only there, because a docstring on a private helper is usually restating a signature the reader can already see. A comment that narrates the next line duplicates code that is already precise, drifts out of date on the first edit, and trains readers to skip comments, which is exactly when the comment that mattered gets missed. Annotations already state types, so repeating them in prose adds a second thing to keep true.",
+      "details": "Docstring every public module, class, function, and method: what it does, what the parameters mean beyond their names, what it returns, what it raises, and any non-obvious cost or constraint. Pick one convention (Google, NumPy, or reST) and enforce it with Ruff's pydocstyle rules. Do not restate types that annotations already carry. Write inline comments only for the non-obvious — the reason behind a choice, a constraint that forced it, a workaround with the condition that will let it be removed, a subtlety a future refactor would otherwise delete. Prefer making the code self-explanatory: extract a named function, name the intermediate value, or introduce a type rather than explaining a dense expression in prose. Keep TODOs actionable and attributed to a tracked item, and delete commented-out code — version control already has it.",
+      "references": [
+        "https://peps.python.org/pep-0257/",
+        "https://docs.astral.sh/ruff/rules/#pydocstyle-d"
+      ]
+    },
+    {
+      "topic": "python-imports-and-module-execution",
+      "decision": "Use absolute imports at module top level, keep module import side-effect free, and guard executable entry points with `if __name__ == \"__main__\":`.",
+      "rationale": "Because Python runs a module's top level on first import, work done there happens on import — during test collection, during documentation builds, during a tool merely inspecting the package — which makes import order significant and failures obscure. Absolute imports resolve identically regardless of how a module is reached, avoiding the surprises relative imports produce when a module is run directly or moved. Wildcard imports additionally destroy the ability to tell where a name came from, and silently shadow existing names when a dependency adds an export.",
+      "details": "Put imports at the top of the module in the three standard groups — standard library, third party, first party — and let Ruff's isort rules maintain the order. Use absolute imports; explicit relative imports are acceptable within a package but never implicit ones. Never use `from x import *`, and avoid importing a name that shadows a builtin. Confine module top level to definitions and cheap constants: no network calls, no file or database access, no configuration loading, no logging configuration. Defer a genuinely heavy or optional dependency to a function-local import and say why in a comment. Guard script behaviour with `if __name__ == \"__main__\":` calling a main() so the module stays importable and testable, and expose the runnable form as __main__.py plus a [project.scripts] entry point rather than a loose script.",
+      "references": [
+        "https://docs.python.org/3/reference/import.html",
+        "https://peps.python.org/pep-0008/#imports"
+      ]
+    }
+  ]
+}

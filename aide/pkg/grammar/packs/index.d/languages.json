@@ -79,6 +79,30 @@
       "metadata": { "language": "python", "marker": "setup.cfg" }
     },
     {
+      "file": "requirements.txt",
+      "check": "file",
+      "max_depth": 2,
+      "pack": "python",
+      "kind": "tech_stack",
+      "metadata": { "language": "python", "marker": "requirements.txt" }
+    },
+    {
+      "file": "uv.lock",
+      "check": "file",
+      "max_depth": 2,
+      "pack": "python",
+      "kind": "tech_stack",
+      "metadata": { "language": "python", "marker": "uv.lock" }
+    },
+    {
+      "file": "manage.py",
+      "check": "file",
+      "max_depth": 2,
+      "label": "django",
+      "kind": "tech_stack",
+      "metadata": { "framework": "django", "marker": "manage.py" }
+    },
+    {
       "file": "Cargo.toml",
       "check": "file",
       "max_depth": 3,

@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "name": "python-github-actions",
+  "display_name": "Python CI/CD (GitHub Actions)",
+  "description": "Python continuous integration and release on GitHub Actions: uv-managed toolchain, frozen installs, interpreter matrix, Ruff and strict type checking, coverage, dependency auditing, and PyPI Trusted Publishing",
+  "version": "0.1.13",
+  "tags": [
+    "ci",
+    "github-actions",
+    "python"
+  ],
+  "includes": [
+    "github-actions"
+  ],
+  "decisions": [
+    {
+      "topic": "python-ci-toolchain-setup",
+      "decision": "Install the interpreter and dependencies with astral-sh/setup-uv and a cached, frozen sync; never let CI resolve dependencies and never install into the system interpreter.",
+      "rationale": "A CI run that resolves dependencies produces a different environment on different days from the same commit, so a build can break with no change to the code and a green run is not evidence that the released artefact works. Installing from the committed lockfile removes that variance entirely and makes the CI environment identical to the developer's. Caching the resolved environment turns dependency installation from the dominant cost of a short job into a negligible one, which is what keeps the feedback loop fast enough that people actually wait for it.",
+      "details": "Use astral-sh/setup-uv with enable-cache: true and a cache key derived from uv.lock, then `uv sync --frozen` so the run fails rather than resolving. Let uv install the interpreter from .python-version or requires-python rather than depending on the runner's preinstalled Python. Never run bare `pip install` into the system interpreter, and never install a tool at an unpinned version. Pin every action to a full-length commit SHA. Set an explicit job timeout so a hung install fails fast, and give concurrency a group keyed on the ref with cancel-in-progress so superseded runs stop consuming capacity.",
+      "references": [
+        "https://docs.astral.sh/uv/guides/integration/github/",
+        "https://github.com/astral-sh/setup-uv"
+      ]
+    },
+    {
+      "topic": "python-ci-matrix",
+      "decision": "Run the test job across every interpreter version declared in requires-python and every operating system the project claims to support, with the newest supported version as the required check.",
+      "rationale": "A supported version that is never tested is a claim rather than a fact, and the failures it hides are exactly the ones users hit first: a syntax or standard-library feature that does not exist on the oldest version, or a dependency that silently resolves differently there. Operating system coverage catches the same class of problem in path handling, line endings, and filesystem case sensitivity, none of which appear on a single-platform matrix. Nominating one required check keeps merges unblocked when a peripheral combination is broken for reasons outside the change.",
+      "details": "Derive the matrix from requires-python so the two cannot drift, and include the oldest and newest supported versions at minimum. Add ubuntu, macos, and windows runners where the project supports them, and prune the cross product with exclude rather than running every combination on every push. Make the newest version on Linux the required status check and leave the rest advisory but visible. Set fail-fast: false so one broken combination does not hide the others. Test pre-release interpreters in a scheduled job marked continue-on-error rather than in the pull-request path, so upcoming breakage is visible without blocking merges.",
+      "references": [
+        "https://docs.github.com/en/actions/using-jobs/using-a-matrix-for-your-jobs"
+      ]
+    },
+    {
+      "topic": "python-ci-lint-and-types",
+      "decision": "Run formatting, linting, and strict type checking as separate required jobs so each failure is independently identifiable.",
+      "rationale": "Collapsing checks into one step means the first failure masks the rest, so a formatting nit hides a type error and the contributor discovers it only on the next push — one round trip per problem rather than one for all of them. Separate jobs also run in parallel and fail in seconds, which is what allows a broken change to be caught before the much slower test matrix has finished. Making them required is what stops the codebase accumulating findings nobody has the mandate to clear.",
+      "details": "Three jobs: `ruff format --check .`, `ruff check --output-format=github .` so annotations appear inline on the diff, and the strict type check (mypy --strict or Pyright/basedpyright) over the whole project rather than changed files. Run them without the test matrix, on a single interpreter version, so they complete quickly. Do not pass --fix in CI — CI reports, it does not rewrite. Keep the same tool versions CI uses in the committed lockfile and in the pre-commit configuration so a local run and a CI run cannot disagree. Make all three required status checks.",
+      "references": [
+        "https://docs.astral.sh/ruff/integrations/",
+        "https://mypy.readthedocs.io/en/stable/running_mypy.html"
+      ]
+    },
+    {
+      "topic": "python-ci-testing-and-coverage",
+      "decision": "Run pytest against the installed distribution rather than the source tree, and enforce a coverage floor that only ever ratchets upward.",
+      "rationale": "Testing the source tree passes even when the packaging is broken — a missing subpackage, an unlisted data file, or a module absent from the wheel all fail only after release, when the user installs. Testing the installed distribution catches those in CI, which is the whole reason the src/ layout exists. A coverage floor is useful as a ratchet rather than a target: it stops coverage silently eroding change by change, while a fixed percentage goal invites tests written to touch lines rather than to pin behaviour.",
+      "details": "Install the project into the environment and run pytest from outside the source directory so imports resolve to the installed package. Emit XML or LCOV coverage and upload it to the reporting service; fail the job below the current floor and raise the floor when it is genuinely exceeded. Publish results as a test report or job summary so failures are readable without opening logs. Run the fast suite on every matrix entry and reserve slow integration and end-to-end suites for a separate job using service containers, marked so they can be selected independently. Use pytest-xdist for parallelism and pytest-randomly to catch order dependence. Upload logs and artefacts on failure so a flake can be diagnosed without a re-run.",
+      "references": [
+        "https://docs.pytest.org/en/stable/explanation/goodpractices.html",
+        "https://packaging.python.org/en/latest/discussions/src-layout-vs-flat-layout/"
+      ]
+    },
+    {
+      "topic": "python-ci-security-audit",
+      "decision": "Audit the committed lockfile for known vulnerabilities on every run and on a schedule, and fail on known-vulnerable versions.",
+      "rationale": "Dependency vulnerabilities are published, machine-checkable facts, so an unaudited dependency graph is an avoidable exposure rather than an unknown risk. Auditing on pull requests catches the introduction of a bad version at the moment someone can cheaply choose a different one. The scheduled run matters just as much and is the part usually missed: most advisories are published long after the dependency was added, so a repository that only audits on change stays quiet precisely when a dormant dependency becomes dangerous.",
+      "details": "Run pip-audit against the resolved lockfile on pull requests and on a daily or weekly schedule, and fail the job on known-vulnerable versions. Add GitHub's dependency-review action on pull requests to block a newly introduced vulnerable or incompatibly licensed dependency before merge. Keep Ruff's S (bandit) rules in the lint job for the static cases and add a secret scan. Enable Dependabot or Renovate for both the Python dependencies and the workflow actions themselves, since pinned action SHAs need automated bumping to stay current. Where an advisory genuinely does not apply, record the ignore with its identifier, the reason, and an expiry rather than leaving it permanently.",
+      "references": [
+        "https://pypi.org/project/pip-audit/",
+        "https://github.com/actions/dependency-review-action"
+      ]
+    },
+    {
+      "topic": "python-ci-build-and-publish",
+      "decision": "Build both sdist and wheel in CI, verify the artefacts, and publish to PyPI with Trusted Publishing rather than a stored API token.",
+      "rationale": "Trusted Publishing exchanges a short-lived OpenID Connect identity for a publish credential scoped to that one workflow run, so there is no long-lived secret to leak, rotate, or exfiltrate from a compromised action — which is the single highest-value credential most Python repositories hold. Building both distribution formats matters because an sdist is what lets consumers build on a platform you did not ship a wheel for, and verifying before upload catches a malformed description or missing metadata while it is still fixable, since a released version number can never be reused.",
+      "details": "Build with `uv build` (or python -m build), and use cibuildwheel where a compiled extension needs per-platform wheels. Verify with `twine check --strict` and install the built wheel into a clean environment and import it before publishing. Configure PyPI Trusted Publishing for the repository and use pypa/gh-action-pypi-publish from a job with `permissions: id-token: write` and no API token in secrets. Publish from a tag-triggered job gated behind a GitHub Environment with required reviewers, and upload artefacts to the release. Publish to TestPyPI first for a release candidate where the packaging is changing. Attach build provenance attestations so consumers can verify the artefact came from this workflow.",
+      "references": [
+        "https://docs.pypi.org/trusted-publishers/",
+        "https://github.com/pypa/gh-action-pypi-publish"
+      ]
+    },
+    {
+      "topic": "python-ci-lock-integrity",
+      "decision": "Assert that the lockfile matches pyproject.toml on every run, so a dependency change without a regenerated lock fails CI.",
+      "rationale": "A lockfile only guarantees reproducibility while it agrees with the declared dependencies. When someone edits pyproject.toml without regenerating, a frozen install keeps succeeding against the stale lock, so CI passes while testing an environment that does not match what the project claims to need — and the divergence surfaces later, in a fresh resolution, usually at release. Asserting the relationship in CI converts that silent drift into an immediate, obvious failure with a one-command fix.",
+      "details": "Run `uv lock --check` (or `uv sync --locked`) as an early, fast job so the failure is the first thing a contributor sees, with a message naming the command that fixes it. Keep the same assertion in a pre-commit hook so it usually never reaches CI. Never regenerate the lockfile automatically in CI and commit it back — that hides the change from review and lets an unreviewed transitive upgrade reach main. Let Dependabot or Renovate propose lockfile updates as ordinary reviewable pull requests that run the full matrix. Apply the same check to any other committed manifest the build depends on.",
+      "references": [
+        "https://docs.astral.sh/uv/concepts/projects/sync/",
+        "https://docs.astral.sh/uv/guides/integration/github/"
+      ]
+    }
+  ]
+}

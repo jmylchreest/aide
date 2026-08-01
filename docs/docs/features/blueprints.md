@@ -70,6 +70,8 @@ These blueprints ship with every AIDE release:
 | `c` | 12 | general | Modern C: safety hardening, memory management, testing |
 | `cpp` | 12 | general | Modern C++ (C++20/23): Core Guidelines, RAII, smart pointers |
 | `zig` | 12 | general | Idiomatic Zig: allocator patterns, comptime, error handling |
+| `python` | 20 | general | Idiomatic modern Python: pyproject + uv, strict typing, Ruff, pytest, structured logging, asyncio |
+| `existing-software-project` | 14 | — | Brownfield deference: the repository's own conventions, toolchain, lint config, and VCS style outrank general best practice; minimal blast radius; verification parity with CI. Opt-in: import when working in a codebase you did not create |
 | `i18n` | 10 | — | Internationalisation & localisation: BCP 47 scope, ICU plurals, CLDR locale data, IANA time zones, Unicode handling, RTL layout, pseudo-localisation, translation workflow, HTTP API negotiation. Opt-in: include explicitly when serving more than one locale |
 | `github-actions` | 7 | general | Workflow security: SHA pinning, permissions, OIDC, branch protection |
 | `go-github-actions` | 5 | github-actions | Go CI/CD: golangci-lint, matrix builds, cross-compilation, releases |
@@ -77,6 +79,9 @@ These blueprints ship with every AIDE release:
 | `csharp` | 20 | general | Idiomatic modern C# / .NET: nullable reference types, records, async, DI, System.Text.Json, analysers, tooling |
 | `csharp-github-actions` | 7 | github-actions | C# CI/CD: setup-dotnet, locked restore, warnings-as-errors, NuGet audit, coverage, releases |
 | `csharp-unity` | 15 | general | Unity (C#): thin MonoBehaviours, ScriptableObject architecture, zero-alloc hot paths, Input System, Job System, Addressables, IL2CPP |
+| `python-github-actions` | 7 | github-actions | Python CI/CD: uv, frozen installs, interpreter matrix, Ruff, strict typing, pip-audit, PyPI Trusted Publishing |
+| `python-api` | 11 | python | Python API services: framework selection, ASGI, validated boundaries, SQLAlchemy + Alembic, auth, queues, OpenTelemetry. Opt-in |
+| `python-django` | 16 | python | Django: app layout, env-driven settings, ORM query discipline, DB constraints, reversible migrations, DRF/Ninja, security defaults, deployment |
 
 ### Go Blueprint Decisions
 
@@ -155,6 +160,67 @@ The `csharp-unity` blueprint is **self-contained** (includes only `general`, not
 - **unity-testing** — Unity Test Framework: EditMode (NUnit) + PlayMode ([UnityTest])
 - **unity-assets-and-addressables** — Addressables over Resources; async load + release handles
 - **unity-build-il2cpp-aot** — IL2CPP/AOT-first; preserve stripped types with [Preserve]/link.xml
+
+### Python Blueprint Decisions
+
+The `python` blueprint covers:
+
+- **python-version-policy** — `requires-python` as the supported range; test every version you claim
+- **python-packaging-and-metadata** — All metadata in `pyproject.toml`; `src/` layout; no `setup.py`
+- **python-environments-and-dependencies** — uv-managed interpreter and env; committed lock; frozen installs
+- **python-type-annotations** — Annotate everything; built-in generics and `X | None`; `Protocol` over base classes
+- **python-static-type-checking** — Strict mypy or Pyright as a required CI gate; narrow, justified ignores only
+- **python-linting-and-formatting** — Ruff as the single linter *and* formatter; broad rule selection
+- **python-project-structure** — Domain packages over technical layers; acyclic imports; explicit public surface
+- **python-error-handling** — One exception hierarchy; catch narrowly; always `raise ... from`
+- **python-logging** — stdlib `logging` with `__name__` loggers; no f-strings in log calls; configure only at the entry point
+- **python-data-modelling** — Frozen dataclasses internally, Pydantic at boundaries, enums for closed sets
+- **python-async** — Async only for I/O concurrency; never block the loop; `TaskGroup` + timeouts
+- **python-concurrency-and-parallelism** — Threads for I/O, processes for CPU; bound every pool
+- **python-testing** — pytest, plain asserts, fixtures, parametrize, one behaviour per test
+- **python-test-doubles-and-isolation** — Fakes over mocks; patch where used; no network in unit tests
+- **python-configuration-and-secrets** — One validated settings object built at startup, never `os.environ` inline
+- **python-cli** — Typer/Click behind `[project.scripts]`; the command is a thin shell over a library
+- **python-performance** — Profile first; better algorithm or library before micro-optimisation
+- **python-security** — No `pickle`/`eval`/`shell=True` on untrusted input; `pip-audit` in CI
+- **python-docstrings-and-comments** — Docstrings carry the contract; inline `#` carries the *why*
+- **python-imports-and-module-execution** — Absolute, top-level, side-effect-free; guard with `__main__`
+
+`python-api` (opt-in, includes `python`) covers HTTP API services: framework selection (FastAPI as the
+default for new APIs, Flask where already established, Django via its own blueprint), ASGI serving,
+Pydantic-validated request and response contracts, code-generated OpenAPI with RFC 9457 error bodies,
+lifespan-scoped dependencies, SQLAlchemy 2.0 + Alembic, auth, durable background work, OpenTelemetry,
+in-process testing, and container deployment.
+
+`python-django` (includes `python`) opens with **django-supersession**, which states precisely which
+core Python decisions Django overrides — configuration, persistence, and boundary validation — and which
+still apply unchanged.
+
+### Working in an Existing Codebase
+
+`existing-software-project` is a **modifier**, not a language blueprint. It includes nothing and is
+imported alongside whichever language blueprints apply:
+
+```bash
+aide blueprint import existing-software-project python
+```
+
+Its first decision, **existing-codebase-precedence**, states the ordering every other decision defers to:
+
+1. Explicit instruction in the current task
+2. Recorded `aide` decisions for this project
+3. Conventions observable in the surrounding code and committed config
+4. Language and framework blueprints
+5. General best practice
+
+All 14 decisions carry `precedence: 100` (via the blueprint's `default_precedence`), so they are injected
+in a `## Overriding Decisions` block ahead of every ordinary decision — see [Precedence](#precedence).
+
+**existing-vcs-conventions** is a worked example of that override — it explicitly supersedes the `general`
+blueprint's Conventional Commits default when the repository's own history does not use it. The remaining
+decisions cover convention discovery, toolchain fidelity, linter config as binding, blast radius,
+dependency restraint, test conventions, error and logging idiom, naming and comment idiom, public contract
+stability, generated and vendored code, verification parity with CI, and modernisation as explicit work.
 
 ## Resolution Order
 
@@ -243,7 +309,8 @@ aide blueprint import go    # uses your local override
       "decision": "Short summary of the decision",
       "rationale": "Why this decision was made",
       "details": "Extended guidance on how to apply it",
-      "references": ["https://example.com/docs"]
+      "references": ["https://example.com/docs"],
+      "precedence": 0
     }
   ]
 }
@@ -260,6 +327,7 @@ aide blueprint import go    # uses your local override
 | `version` | Yes | Semver version; used for version-aware upgrade during import |
 | `tags` | No | Searchable tags |
 | `includes` | No | Other blueprints to import first (resolved recursively) |
+| `default_precedence` | No | Injection weight applied to every decision that does not set its own. Defaults to `0`. See [Precedence](#precedence) |
 | `decisions` | Yes | Array of decision objects |
 
 ### Decision Fields
@@ -271,11 +339,49 @@ aide blueprint import go    # uses your local override
 | `rationale` | Yes | The "why" — reasoning behind the decision |
 | `details` | No | Extended guidance — the "how" |
 | `references` | No | URLs to relevant documentation |
+| `precedence` | No | Overrides the blueprint's `default_precedence` for this decision |
+
+## Precedence
+
+Decisions are injected into every session as a flat list. Precedence controls **the order they
+appear in and whether they claim authority over each other**.
+
+Precedence is a plain integer sort key — higher is injected earlier — but one value carries meaning:
+
+| Precedence | Where it renders | What it claims |
+|-----------|------------------|----------------|
+| `>= 100` | `## Overriding Decisions`, ahead of everything else | "Where this conflicts with anything below, this wins" |
+| `1`–`99` | `## Project Decisions`, above the `0`s | Nothing. Ordering only |
+| `0` (default) | `## Project Decisions` | Nothing |
+| negative | `## Project Decisions`, last | Nothing |
+
+So a decision at `200` renders in the overriding block above one at `100`, while a decision at `80`
+stays in the ordinary block — sorted above the defaults, but making no claim over them. Only the
+`100` threshold changes the *claim*; every other value changes only the *order*.
+
+Both halves matter. Sorting alone does not create precedence — putting a decision first does not tell
+an agent that it wins — so the overriding block carries an explicit header stating the relationship,
+and a guardrail decision should still say in its own text what it overrides.
+
+`existing-software-project` is the only shipped blueprint above the threshold
+(`default_precedence: 100`). Language blueprints stay at `0`; if everything were an override, the
+distinction would carry no information.
+
+### Setting precedence on a decision
+
+```bash
+aide decision set house-style "Follow the repo's existing conventions" --precedence=100
+```
+
+**Omitting `--precedence` on an existing topic carries the current value forward.** This matters
+because writes are append-only and only the newest revision is injected: without carry-forward,
+rewording a guardrail — from the CLI, from the web UI, or by any partial update — would silently
+demote it out of the overriding block. Pass `--precedence=0` to demote deliberately.
 
 ## Import Semantics
 
 - **Skip on conflict** (default): If a topic already exists and was set by the user (or a different blueprint), it is skipped.
-- **Version-aware upgrade**: If a topic was previously imported from the same blueprint, and the blueprint version is newer with changed content, a new decision version is appended that supersedes the old one. The old version is preserved in history (`aide decision history <topic>`).
+- **Version-aware upgrade**: If a topic was previously imported from the same blueprint, and the blueprint version is newer with changed content, a new decision version is appended that supersedes the old one. The old version is preserved in history (`aide decision history <topic>`). A change to `precedence` alone counts as changed content, so re-weighting a decision is a real upgrade rather than a silent no-op.
 - **Force overwrite** (`--force`): Overwrites all existing decisions regardless of source or version.
 - **Provenance**: Imported decisions have `decided_by: "blueprint:<name>@<version>"` for traceability (e.g., `blueprint:go@0.1.0`).
 - **Includes**: Resolved recursively with cycle detection. Included blueprints are imported before the parent.

@@ -510,3 +510,59 @@ func searchSubstring(s, sub string) bool {
 	}
 	return false
 }
+
+func TestEffectivePrecedence(t *testing.T) {
+	explicit := 250
+	bp := &Blueprint{
+		DefaultPrecedence: 100,
+		Decisions: []BlueprintDecision{
+			{Topic: "inherits"},
+			{Topic: "overrides", Precedence: &explicit},
+		},
+	}
+	if got := bp.EffectivePrecedence(bp.Decisions[0]); got != 100 {
+		t.Errorf("inherited precedence = %d, want 100", got)
+	}
+	if got := bp.EffectivePrecedence(bp.Decisions[1]); got != 250 {
+		t.Errorf("explicit precedence = %d, want 250", got)
+	}
+
+	// A blueprint with no default leaves every decision at the ordinary weight.
+	plain := &Blueprint{Decisions: []BlueprintDecision{{Topic: "ordinary"}}}
+	if got := plain.EffectivePrecedence(plain.Decisions[0]); got != 0 {
+		t.Errorf("default precedence = %d, want 0", got)
+	}
+}
+
+// The guardrail blueprint is the reason precedence exists; if its weight is
+// lost the overriding block silently empties.
+func TestExistingSoftwareProjectIsOverriding(t *testing.T) {
+	bp, err := LoadEmbedded("existing-software-project")
+	if err != nil {
+		t.Fatalf("LoadEmbedded: %v", err)
+	}
+	if bp.DefaultPrecedence < 100 {
+		t.Errorf("default_precedence = %d, want >= 100", bp.DefaultPrecedence)
+	}
+	for _, d := range bp.Decisions {
+		if got := bp.EffectivePrecedence(d); got < 100 {
+			t.Errorf("%s: effective precedence = %d, want >= 100", d.Topic, got)
+		}
+	}
+}
+
+// Language blueprints must stay in the ordinary band, or everything is an
+// override and the distinction carries no information.
+func TestLanguageBlueprintsAreOrdinary(t *testing.T) {
+	for _, name := range []string{"general", "go", "rust", "python", "python-api", "python-django", "csharp"} {
+		bp, err := LoadEmbedded(name)
+		if err != nil {
+			t.Fatalf("LoadEmbedded(%s): %v", name, err)
+		}
+		for _, d := range bp.Decisions {
+			if got := bp.EffectivePrecedence(d); got != 0 {
+				t.Errorf("%s/%s: precedence = %d, want 0", name, d.Topic, got)
+			}
+		}
+	}
+}
