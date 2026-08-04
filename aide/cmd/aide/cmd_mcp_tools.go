@@ -42,6 +42,12 @@ type MemoryListInput struct {
 	Limit    int    `json:"limit,omitempty" jsonschema:"Maximum results (default 50). Increase for comprehensive review."`
 }
 
+type MemoryAddInput struct {
+	Content  string   `json:"content" jsonschema:"The memory content to store. Should be a short, self-contained, factual statement (e.g. 'The user prefers pytest over unittest', 'Auth middleware lives at src/auth.ts'). Concise, specific, and durable — avoid session-specific noise."`
+	Category string   `json:"category,omitempty" jsonschema:"Category: learning (technical discoveries, default), decision (choices with rationale), issue (known problems/workarounds), discovery (swarm findings), blocker (things that stopped progress), abandoned (failed/rejected approaches). Defaults to learning."`
+	Tags     []string `json:"tags,omitempty" jsonschema:"Optional tags for grouping/lookup, e.g. ['preferences', 'auth']. Can be used as filters in searches and lists."`
+}
+
 type StateGetInput struct {
 	Key     string `json:"key" jsonschema:"State key: 'mode', 'modelTier', 'activeSkill', or custom keys"`
 	AgentID string `json:"agent_id,omitempty" jsonschema:"Agent ID for per-agent state (e.g., 'abc123'). Omit for global state."`
@@ -118,6 +124,22 @@ Prefer most recent when answering questions about preferences or decisions.
 **When to use:** Use this for broad review or when you need to see everything.
 Use memory_search instead when looking for specific topics or keywords.`,
 	}, s.handleMemoryList)
+
+	mcp.AddTool(s.server, &mcp.Tool{
+		Name: "memory_add",
+		Description: `Store a new memory — a persistent, cross-session fact about the user or project.
+
+Memories are short, durable, self-contained factual statements that future sessions
+can recall via memory_search. Record user preferences, coding conventions, architectural
+facts, known issues, and blockers as you discover them.
+
+**When to use:** When you learn a stable fact worth remembering for later sessions
+(e.g. "user prefers X", "we decided on Y", "service Z is deployed at W").
+Prefer memory_add for distilled, lasting facts; formal architectural decisions with
+history should use the decision_* tools (decision_list / decision_get).
+
+Params: content (required), optional category (default learning), optional tags.`,
+	}, s.handleMemoryAdd)
 }
 
 func (s *MCPServer) handleMemorySearch(_ context.Context, _ *mcp.CallToolRequest, input MemorySearchInput) (*mcp.CallToolResult, any, error) {
@@ -187,6 +209,39 @@ func (s *MCPServer) handleMemoryList(_ context.Context, _ *mcp.CallToolRequest, 
 	}
 
 	return textResult(formatMemoriesMarkdown(memories)), nil, nil
+}
+
+func (s *MCPServer) handleMemoryAdd(_ context.Context, _ *mcp.CallToolRequest, input MemoryAddInput) (*mcp.CallToolResult, any, error) {
+	mcpLog.Printf("tool: memory_add category=%q tags=%v", input.Category, input.Tags)
+
+	if strings.TrimSpace(input.Content) == "" {
+		return errorResult("'content' is required"), nil, nil
+	}
+
+	mem := &memory.Memory{
+		Content:  input.Content,
+		Category: memory.Category(input.Category),
+		Tags:     input.Tags,
+	}
+	if mem.Category == "" {
+		mem.Category = memory.CategoryLearning
+	}
+
+	if err := s.store.AddMemory(mem); err != nil {
+		mcpLog.Printf("  error: %v", err)
+		return errorResult(fmt.Sprintf("add memory failed: %v", err)), nil, nil
+	}
+
+	mcpLog.Printf("  added: id=%s category=%s", mem.ID, mem.Category)
+
+	result, _ := json.Marshal(map[string]any{
+		"id":       mem.ID,
+		"category": mem.Category,
+		"content":  mem.Content,
+		"tags":     mem.Tags,
+		"status":   "stored",
+	})
+	return textResult(string(result)), nil, nil
 }
 
 // ============================================================================
