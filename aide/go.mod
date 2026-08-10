@@ -8,11 +8,11 @@ require (
 	github.com/ebitengine/purego v0.10.2
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/go-git/go-git/v5 v5.19.2
-	github.com/knadh/koanf/parsers/json v1.0.0
-	github.com/knadh/koanf/providers/confmap v1.0.0
-	github.com/knadh/koanf/providers/env/v2 v2.0.0
+	github.com/knadh/koanf/parsers/json v1.0.1
+	github.com/knadh/koanf/providers/confmap v1.0.1
+	github.com/knadh/koanf/providers/env/v2 v2.0.1
 	github.com/knadh/koanf/providers/file v1.2.1
-	github.com/knadh/koanf/v2 v2.3.5
+	github.com/knadh/koanf/v2 v2.3.6
 	github.com/modelcontextprotocol/go-sdk v1.7.0
 	github.com/oklog/ulid/v2 v2.1.2
 	github.com/olekukonko/tablewriter v1.1.4
