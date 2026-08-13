@@ -5,7 +5,12 @@ import {
   type StatuslineData,
   type StatuslinePayload,
 } from "../lib/statusline.js";
-import { shouldInstallWrapper, type AgentState } from "../lib/hud.js";
+import {
+  shouldInstallWrapper,
+  hudPointerFile,
+  HUD_POINTER_FILENAME,
+  type AgentState,
+} from "../lib/hud.js";
 
 // These goldens ARE the spec: each scenario pins the exact line the
 // statusline renders for a representative session state.
@@ -275,5 +280,36 @@ describe("shouldInstallWrapper", () => {
     expect(shouldInstallWrapper(shipped, shipped)).toBe(false);
     expect(shouldInstallWrapper(shipped, null)).toBe(true);
     expect(/aide-wrapper-version:\s*\d+/.test(shipped)).toBe(true);
+  });
+});
+
+describe("hud pointer file", () => {
+  it("sits beside the wrapper in ~/.claude/bin", () => {
+    expect(hudPointerFile("/home/u/.claude/bin")).toBe(
+      "/home/u/.claude/bin/aide-hud.path",
+    );
+  });
+
+  // The wrapper cannot import from the plugin — locating the plugin is what
+  // it exists to do — so it inlines the pointer path. These pin the two
+  // copies together; drift means a silently dead statusline.
+  it("the shipped wrapper reads the same filename this module writes", async () => {
+    const { readFileSync } = await import("fs");
+    const shipped = readFileSync("scripts/aide-hud-wrapper.ts", "utf-8");
+    expect(shipped).toContain(`"${HUD_POINTER_FILENAME}"`);
+  });
+
+  it("the shipped wrapper prefers env and pointer over the cache walk", async () => {
+    const { readFileSync } = await import("fs");
+    const shipped = readFileSync("scripts/aide-hud-wrapper.ts", "utf-8");
+    // Cache-only lookup was the v2 bug: it never matches a local-path install.
+    expect(shipped).toMatch(
+      /fromEnv\(\)\s*\?\?\s*fromPointer\(\)\s*\?\?\s*fromCache\(\)/,
+    );
+    expect(shipped).toContain("AIDE_PLUGIN_ROOT");
+    // Failing this lookup says nothing about whether aide is installed —
+    // hooks, MCP and skills resolve independently and can all be working.
+    expect(shipped).not.toContain('console.log("[aide] not installed")');
+    expect(shipped).toContain('console.log("[aide] hud unavailable');
   });
 });

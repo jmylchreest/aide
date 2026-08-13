@@ -34,7 +34,7 @@ import {
 } from "../lib/hook-utils.js";
 import { findAideBinary, ensureAideBinary } from "../lib/aide-downloader.js";
 import { findProjectRoot } from "../lib/project-root.js";
-import { shouldInstallWrapper } from "../lib/hud.js";
+import { shouldInstallWrapper, hudPointerFile } from "../lib/hud.js";
 import {
   resolveAnchorViaBinary,
   writeSessionAnchor,
@@ -168,6 +168,38 @@ function getPluginRoot(): string | null {
 }
 
 /**
+ * Point the installed HUD wrapper at this plugin root.
+ *
+ * The statusline runs as a user-settings command, so it inherits no
+ * CLAUDE_PLUGIN_ROOT and cannot locate the plugin itself — its old
+ * fallback, scanning the marketplace cache, never matched a local-path
+ * or dev install. We know the root here, so we write it down.
+ */
+function writeHudPointer(
+  claudeBinDir: string,
+  pluginRoot: string,
+  log: Logger,
+): void {
+  const pointer = hudPointerFile(claudeBinDir);
+  try {
+    const resolved = realpathSync(pluginRoot);
+    if (readFileSync(pointer, "utf-8").trim() === resolved) return;
+    writeFileSync(pointer, `${resolved}\n`);
+    log.info(`Pointed HUD wrapper at ${resolved}`);
+  } catch {
+    // Absent or unreadable -> write it; a failure here only costs the
+    // statusline its fast path, so never fail the session over it.
+    try {
+      if (!existsSync(claudeBinDir)) mkdirSync(claudeBinDir, { recursive: true });
+      writeFileSync(pointer, `${realpathSync(pluginRoot)}\n`);
+      log.info(`Pointed HUD wrapper at ${pluginRoot}`);
+    } catch (err) {
+      log.warn("Failed to write HUD pointer", err);
+    }
+  }
+}
+
+/**
  * Install the HUD wrapper script to ~/.claude/bin/
  *
  * This installs a thin wrapper that delegates to the real HUD script in the plugin.
@@ -186,6 +218,12 @@ function installHudWrapper(log: Logger): void {
     log.end("installHudWrapper", { skipped: true, reason: "no-plugin-root" });
     return;
   }
+
+  // Record the root before any early return below: the pointer has to track
+  // the current install every session, while the wrapper itself is only
+  // rewritten on a version bump — and an already-installed wrapper still
+  // needs pointing even from a package that ships no wrapper source.
+  writeHudPointer(claudeBinDir, pluginRoot, log);
 
   const wrapperSrc = join(pluginRoot, "scripts", "aide-hud-wrapper.ts");
   if (!existsSync(wrapperSrc)) {
