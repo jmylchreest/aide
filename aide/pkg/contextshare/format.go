@@ -130,7 +130,7 @@ func IsShareableMemory(m *memory.Memory) bool {
 	// Always share gotchas, patterns, and decisions.
 	// Other categories (learning, issue, discovery, blocker) require explicit tags.
 	switch m.Category {
-	case "gotcha", "pattern":
+	case memory.CategoryGotcha, memory.CategoryPattern:
 		return true
 	case memory.CategoryDecision:
 		return true

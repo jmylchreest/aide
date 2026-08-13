@@ -20,11 +20,11 @@ import (
 type MemorySearchInput struct {
 	Query    string `json:"query" jsonschema:"Search query - uses bleve full-text search with: (1) standard word matching, (2) fuzzy matching for typos (fuzziness=1), (3) edge n-grams for prefix matching (2-15 chars), (4) n-grams for substring matching (3-8 chars). Multi-word queries use OR (any word matches). Use up to 10 distinct keywords like 'colour food preferences'. Fuzzy matching handles spelling variants automatically ('color' matches 'colour'), so synonyms are unnecessary."`
 	Limit    int    `json:"limit,omitempty" jsonschema:"Maximum results to return (default 10). Increase for broader recall."`
-	Category string `json:"category,omitempty" jsonschema:"Filter by category: learning, decision, issue, discovery, blocker"`
+	Category string `json:"category,omitempty" jsonschema:"Filter by category: learning, decision, issue, discovery, blocker, abandoned, gotcha, pattern, session, instinct"`
 }
 
 type MemoryListInput struct {
-	Category string `json:"category,omitempty" jsonschema:"Filter by category: learning, decision, issue, discovery, blocker. Leave empty for all."`
+	Category string `json:"category,omitempty" jsonschema:"Filter by category: learning, decision, issue, discovery, blocker, abandoned, gotcha, pattern, session, instinct. Leave empty for all."`
 	Limit    int    `json:"limit,omitempty" jsonschema:"Maximum results (default 50). Increase for comprehensive review."`
 }
 
