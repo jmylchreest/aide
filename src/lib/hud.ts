@@ -85,6 +85,25 @@ export function hudRenderCacheFile(sessionId: string): string | null {
   return join(base, "hud", `${sessionId}.json`);
 }
 
+/**
+ * The wrapper's pointer file: a single line holding the plugin root that
+ * session-start resolved. The statusline runs as a user-settings command,
+ * not a plugin hook, so it gets no CLAUDE_PLUGIN_ROOT in its environment
+ * and cannot find the plugin on its own — session-start knows the answer
+ * and records it here rather than making the wrapper guess.
+ *
+ * Deliberately separate from the wrapper file: the root changes on every
+ * plugin upgrade or reinstall, while the wrapper version changes rarely,
+ * and shouldInstallWrapper() must keep refusing to rewrite a wrapper whose
+ * version isn't strictly lower. Keep the wrapper's inlined reader
+ * (scripts/aide-hud-wrapper.ts) in step with this format.
+ */
+export const HUD_POINTER_FILENAME = "aide-hud.path";
+
+export function hudPointerFile(claudeBinDir: string): string {
+  return join(claudeBinDir, HUD_POINTER_FILENAME);
+}
+
 const WRAPPER_VERSION_RE = /aide-wrapper-version:\s*(\d+)/;
 // Wrappers deployed before the version marker existed all carry this
 // header; treat them as managed v1 so they upgrade exactly once.
