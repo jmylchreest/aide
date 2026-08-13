@@ -5,8 +5,9 @@
 #   make release VERSION=1.2.0       Bump to specific version, commit, and tag
 #   make release-push                Auto-bump, commit, tag, and push
 #   make release-push VERSION=1.2.0  Bump to specific, commit, tag, and push
+#   make hooks                       Install git hooks (lefthook)
 
-.PHONY: release release-push build build-pprof build-web test test-ts test-go lint check-version check-release-needed
+.PHONY: release release-push build build-pprof build-web test test-ts test-go lint check-version check-release-needed hooks hooks-check
 
 VERSION_FILES = package.json .claude-plugin/plugin.json .claude-plugin/marketplace.json .codex-plugin/plugin.json packages/opencode-plugin/package.json $(wildcard packages/aide-binary-*/package.json)
 
@@ -104,14 +105,24 @@ release: check-version check-release-needed test-ts
 release-push: release
 	git push origin main "v$(VERSION)"
 
+# Idempotent. Also runs via package.json `prepare`; this is for Go-only devs.
+hooks:
+	@bunx --bun lefthook install >/dev/null 2>&1 && echo "hooks: lefthook installed" || \
+		echo "hooks: could not install lefthook - run 'bun install', or see docs/getting-started/from-source"
+
+# Warns only - a build must not need network or rewrite .git/hooks silently.
+hooks-check:
+	@[ -f .git/hooks/pre-commit ] || \
+		echo "hooks: git hooks not installed - run 'make hooks' (decisions will not auto-export on commit)"
+
 # Delegate to aide/ Makefile for Go targets
-build:
+build: hooks-check
 	$(MAKE) -C aide build
 
 build-pprof:
 	$(MAKE) -C aide build-pprof
 
-test: test-go test-ts
+test: hooks-check test-go test-ts
 
 test-go:
 	$(MAKE) -C aide test
