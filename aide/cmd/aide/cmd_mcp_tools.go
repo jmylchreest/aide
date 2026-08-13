@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/jmylchreest/aide/aide/pkg/memory"
 	"github.com/jmylchreest/aide/aide/pkg/store"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -17,14 +18,27 @@ import (
 // Input types for memory, state, decision, message, and usage tools
 // ============================================================================
 
+// categoryInputSchema rewrites the category description from AllCategories.
+// Filters pass includeReserved; tools that write memories pass false.
+func categoryInputSchema[In any](lead string, includeReserved bool) any {
+	s, err := jsonschema.For[In](&jsonschema.ForOptions{})
+	if err != nil {
+		return nil
+	}
+	if p := s.Properties["category"]; p != nil {
+		p.Description = lead + " " + memory.CategoryHelp(includeReserved) + "."
+	}
+	return s
+}
+
 type MemorySearchInput struct {
 	Query    string `json:"query" jsonschema:"Search query - uses bleve full-text search with: (1) standard word matching, (2) fuzzy matching for typos (fuzziness=1), (3) edge n-grams for prefix matching (2-15 chars), (4) n-grams for substring matching (3-8 chars). Multi-word queries use OR (any word matches). Use up to 10 distinct keywords like 'colour food preferences'. Fuzzy matching handles spelling variants automatically ('color' matches 'colour'), so synonyms are unnecessary."`
 	Limit    int    `json:"limit,omitempty" jsonschema:"Maximum results to return (default 10). Increase for broader recall."`
-	Category string `json:"category,omitempty" jsonschema:"Filter by category: learning, decision, issue, discovery, blocker, abandoned, gotcha, pattern, session, instinct"`
+	Category string `json:"category,omitempty" jsonschema:"Filter by category. Leave empty for all."`
 }
 
 type MemoryListInput struct {
-	Category string `json:"category,omitempty" jsonschema:"Filter by category: learning, decision, issue, discovery, blocker, abandoned, gotcha, pattern, session, instinct. Leave empty for all."`
+	Category string `json:"category,omitempty" jsonschema:"Filter by category. Leave empty for all."`
 	Limit    int    `json:"limit,omitempty" jsonschema:"Maximum results (default 50). Increase for comprehensive review."`
 }
 
@@ -90,10 +104,12 @@ a testing framework?", "what issues did we hit with auth?", "what are the user's
 - Prefix and substring matching built-in
 
 Results include timestamps — prefer most recent when values conflict.`,
+		InputSchema: categoryInputSchema[MemorySearchInput]("Filter by category:", true),
 	}, s.handleMemorySearch)
 
 	mcp.AddTool(s.server, &mcp.Tool{
-		Name: "memory_list",
+		Name:        "memory_list",
+		InputSchema: categoryInputSchema[MemoryListInput]("Filter by category:", true),
 		Description: `List all stored memories, optionally filtered by category.
 
 Returns all memories (not just matching ones) with timestamps.
