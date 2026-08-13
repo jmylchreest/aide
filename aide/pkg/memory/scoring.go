@@ -66,16 +66,19 @@ func DefaultScoringConfig() ScoringConfig {
 		WeightRecency:    0.25,
 		WeightAccess:     0.10,
 
+		// Every AllCategories entry needs a score here; the fallback is for
+		// unknown categories, not for ones we forgot.
 		CategoryScores: map[Category]float64{
 			CategoryAbandoned: 0.90,
+			CategoryInstinct:  0.85,
 			CategoryBlocker:   0.85,
 			CategoryIssue:     0.80,
+			CategoryGotcha:    0.75,
 			CategoryDiscovery: 0.70,
 			CategoryDecision:  0.65,
 			CategoryLearning:  0.60,
-			"session":         0.40,
-			"pattern":         0.60,
-			"gotcha":          0.75,
+			CategoryPattern:   0.60,
+			CategorySession:   0.40,
 		},
 		DefaultCategoryScore: 0.50,
 		GlobalLearningScore:  1.00,

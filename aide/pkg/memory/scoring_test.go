@@ -76,6 +76,26 @@ func TestScoreMemory_ManualOverrideClamped(t *testing.T) {
 	}
 }
 
+// gotcha, pattern and session were scored for months without ever being
+// declared, and instinct was declared without ever being scored. Pin both
+// directions so neither half can drift again.
+func TestEveryCategoryIsScored(t *testing.T) {
+	cfg := DefaultScoringConfig()
+
+	for _, c := range AllCategories {
+		if _, ok := cfg.CategoryScores[c]; !ok {
+			t.Errorf("category %q is declared but unscored — it would silently fall back to %.2f",
+				c, cfg.DefaultCategoryScore)
+		}
+	}
+
+	for c := range cfg.CategoryScores {
+		if !IsValidCategory(c) {
+			t.Errorf("category %q is scored but missing from AllCategories", c)
+		}
+	}
+}
+
 func TestScoreMemory_CategoryPriorityOrder(t *testing.T) {
 	cfg := DefaultScoringConfig()
 	now := time.Now()
@@ -94,7 +114,7 @@ func TestScoreMemory_CategoryPriorityOrder(t *testing.T) {
 		{CategoryIssue, tags},
 		{CategoryDiscovery, tags},
 		{CategoryLearning, tags}, // project learning (no scope:global)
-		{"session", tags},
+		{CategorySession, tags},
 	}
 
 	var prev = 2.0 // above max

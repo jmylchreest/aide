@@ -13,8 +13,37 @@ const (
 	CategoryDiscovery Category = "discovery" // Swarm findings (shared)
 	CategoryBlocker   Category = "blocker"   // Things that stopped progress
 	CategoryAbandoned Category = "abandoned" // Failed/rejected approaches (prevents loops)
+	CategoryGotcha    Category = "gotcha"    // Traps and footguns that cost time
+	CategoryPattern   Category = "pattern"   // Recurring convention worth following
+	CategorySession   Category = "session"   // Work log for one session; rarely durable
 	CategoryInstinct  Category = "instinct"  // Earned heuristic promoted from a reflect proposal
 )
+
+// AllCategories is the canonical set, ordered by the base importance the
+// scorer gives them. Validate against it rather than hardcoding a list.
+var AllCategories = []Category{
+	CategoryAbandoned,
+	CategoryInstinct,
+	CategoryBlocker,
+	CategoryIssue,
+	CategoryGotcha,
+	CategoryDiscovery,
+	CategoryDecision,
+	CategoryLearning,
+	CategoryPattern,
+	CategorySession,
+}
+
+// IsValidCategory reports whether c is known. Valid is not the same as
+// hand-writable: instinct is valid but only ever produced by reflect.
+func IsValidCategory(c Category) bool {
+	for _, known := range AllCategories {
+		if c == known {
+			return true
+		}
+	}
+	return false
+}
 
 // Memory represents a single memory entry.
 // Memories are short, transient user preferences or instructions.
