@@ -1,48 +1,76 @@
 // Package memory provides the core data types for aide.
 package memory
 
-import "time"
+import (
+	"fmt"
+	"strings"
+	"time"
+)
 
 // Category represents the type of memory entry.
 type Category string
 
 const (
-	CategoryLearning  Category = "learning"  // Technical discoveries
-	CategoryDecision  Category = "decision"  // Choices made with rationale
-	CategoryIssue     Category = "issue"     // Known problems/workarounds
-	CategoryDiscovery Category = "discovery" // Swarm findings (shared)
-	CategoryBlocker   Category = "blocker"   // Things that stopped progress
-	CategoryAbandoned Category = "abandoned" // Failed/rejected approaches (prevents loops)
-	CategoryGotcha    Category = "gotcha"    // Traps and footguns that cost time
-	CategoryPattern   Category = "pattern"   // Recurring convention worth following
-	CategorySession   Category = "session"   // Work log for one session; rarely durable
-	CategoryInstinct  Category = "instinct"  // Earned heuristic promoted from a reflect proposal
+	CategoryLearning  Category = "learning"
+	CategoryDecision  Category = "decision"
+	CategoryIssue     Category = "issue"
+	CategoryDiscovery Category = "discovery"
+	CategoryBlocker   Category = "blocker"
+	CategoryAbandoned Category = "abandoned"
+	CategoryGotcha    Category = "gotcha"
+	CategoryPattern   Category = "pattern"
+	CategorySession   Category = "session"
+	CategoryInstinct  Category = "instinct"
 )
 
+// CategoryInfo pairs a category with the guidance shown to whoever is
+// choosing one — CLI help, MCP tool schemas, skill docs.
+type CategoryInfo struct {
+	Category    Category
+	Description string
+	// Reserved marks a category that only aide itself produces, so callers
+	// offering a choice can leave it out.
+	Reserved bool
+}
+
 // AllCategories is the canonical set, ordered by the base importance the
-// scorer gives them. Validate against it rather than hardcoding a list.
-var AllCategories = []Category{
-	CategoryAbandoned,
-	CategoryInstinct,
-	CategoryBlocker,
-	CategoryIssue,
-	CategoryGotcha,
-	CategoryDiscovery,
-	CategoryDecision,
-	CategoryLearning,
-	CategoryPattern,
-	CategorySession,
+// scorer gives them. Enumerate this rather than hardcoding a list.
+var AllCategories = []CategoryInfo{
+	{Category: CategoryAbandoned, Description: "a failed or rejected approach, recorded so it is not retried"},
+	{Category: CategoryInstinct, Description: "an earned heuristic promoted from a reflect proposal", Reserved: true},
+	{Category: CategoryBlocker, Description: "something that stopped progress"},
+	{Category: CategoryIssue, Description: "a known problem or its workaround"},
+	{Category: CategoryGotcha, Description: "a trap or footgun that cost time"},
+	{Category: CategoryDiscovery, Description: "a swarm finding worth sharing"},
+	{Category: CategoryDecision, Description: "a choice made, with its rationale"},
+	{Category: CategoryLearning, Description: "a technical discovery"},
+	{Category: CategoryPattern, Description: "a recurring convention worth following"},
+	{Category: CategorySession, Description: "a work log for one session; rarely durable"},
 }
 
 // IsValidCategory reports whether c is known. Valid is not the same as
-// hand-writable: instinct is valid but only ever produced by reflect.
+// writable by hand — see CategoryInfo.Reserved.
 func IsValidCategory(c Category) bool {
-	for _, known := range AllCategories {
-		if c == known {
+	for _, info := range AllCategories {
+		if info.Category == c {
 			return true
 		}
 	}
 	return false
+}
+
+// CategoryHelp renders "name (what it is)" for each category, for embedding
+// in help text and tool schemas. Reserved categories are included only when
+// includeReserved is set.
+func CategoryHelp(includeReserved bool) string {
+	parts := make([]string, 0, len(AllCategories))
+	for _, info := range AllCategories {
+		if info.Reserved && !includeReserved {
+			continue
+		}
+		parts = append(parts, fmt.Sprintf("%s (%s)", info.Category, info.Description))
+	}
+	return strings.Join(parts, ", ")
 }
 
 // Memory represents a single memory entry.
