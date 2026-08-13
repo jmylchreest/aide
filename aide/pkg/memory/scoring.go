@@ -66,7 +66,7 @@ func DefaultScoringConfig() ScoringConfig {
 		WeightRecency:    0.25,
 		WeightAccess:     0.10,
 
-		// Every AllCategories entry needs a score here; the fallback is for
+		// Every AllCategories entry needs a score; the fallback is for
 		// unknown categories, not for ones we forgot.
 		CategoryScores: map[Category]float64{
 			CategoryAbandoned: 0.90,

@@ -76,9 +76,7 @@ func TestScoreMemory_ManualOverrideClamped(t *testing.T) {
 	}
 }
 
-// gotcha, pattern and session were scored for months without ever being
-// declared, and instinct was declared without ever being scored. Pin both
-// directions so neither half can drift again.
+// Pin both directions: declared-but-unscored and scored-but-undeclared.
 func TestEveryCategoryIsScored(t *testing.T) {
 	cfg := DefaultScoringConfig()
 

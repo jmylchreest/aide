@@ -8,16 +8,15 @@ import (
 	"github.com/jmylchreest/aide/aide/pkg/memory"
 )
 
-// The category list a model sees is generated from memory.AllCategories.
-// If the override silently returns nil the SDK falls back to the struct tag,
-// which says nothing about which categories exist — so assert it applied.
+// On failure the override returns nil and the SDK falls back to the struct
+// tag, so assert it actually applied.
 func TestCategoryInputSchemaEnumeratesAllCategories(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
 		schema any
 	}{
-		{"memory_search", categoryInputSchema[MemorySearchInput]("Filter by category:")},
-		{"memory_list", categoryInputSchema[MemoryListInput]("Filter by category:")},
+		{"memory_search", categoryInputSchema[MemorySearchInput]("Filter by category:", true)},
+		{"memory_list", categoryInputSchema[MemoryListInput]("Filter by category:", true)},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			s, ok := tc.schema.(*jsonschema.Schema)
@@ -46,5 +45,14 @@ func TestCategoryHelpOmitsReservedByDefault(t *testing.T) {
 	}
 	if !strings.Contains(memory.CategoryHelp(true), string(memory.CategoryInstinct)) {
 		t.Error("instinct should appear when reserved categories are requested")
+	}
+	if !memory.IsReservedCategory(memory.CategoryInstinct) {
+		t.Error("instinct should be reserved")
+	}
+	if memory.IsReservedCategory(memory.CategoryLearning) {
+		t.Error("learning is a caller's to choose")
+	}
+	if memory.IsReservedCategory("nonexistent") {
+		t.Error("unknown categories are not reserved; IsValidCategory covers those")
 	}
 }

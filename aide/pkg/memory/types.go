@@ -23,18 +23,15 @@ const (
 	CategoryInstinct  Category = "instinct"
 )
 
-// CategoryInfo pairs a category with the guidance shown to whoever is
-// choosing one — CLI help, MCP tool schemas, skill docs.
+// CategoryInfo describes a category for help text and tool schemas.
 type CategoryInfo struct {
 	Category    Category
 	Description string
-	// Reserved marks a category that only aide itself produces, so callers
-	// offering a choice can leave it out.
-	Reserved bool
+	Reserved    bool // produced by aide itself, not chosen by a caller
 }
 
-// AllCategories is the canonical set, ordered by the base importance the
-// scorer gives them. Enumerate this rather than hardcoding a list.
+// AllCategories is the canonical set, ordered by scorer importance.
+// Enumerate this rather than hardcoding a list.
 var AllCategories = []CategoryInfo{
 	{Category: CategoryAbandoned, Description: "a failed or rejected approach, recorded so it is not retried"},
 	{Category: CategoryInstinct, Description: "an earned heuristic promoted from a reflect proposal", Reserved: true},
@@ -48,20 +45,28 @@ var AllCategories = []CategoryInfo{
 	{Category: CategorySession, Description: "a work log for one session; rarely durable"},
 }
 
-// IsValidCategory reports whether c is known. Valid is not the same as
-// writable by hand — see CategoryInfo.Reserved.
+// IsValidCategory reports whether c is known.
 func IsValidCategory(c Category) bool {
-	for _, info := range AllCategories {
-		if info.Category == c {
-			return true
-		}
-	}
-	return false
+	_, ok := lookupCategory(c)
+	return ok
 }
 
-// CategoryHelp renders "name (what it is)" for each category, for embedding
-// in help text and tool schemas. Reserved categories are included only when
-// includeReserved is set.
+// IsReservedCategory reports whether c is aide's to set rather than a caller's.
+func IsReservedCategory(c Category) bool {
+	info, ok := lookupCategory(c)
+	return ok && info.Reserved
+}
+
+func lookupCategory(c Category) (CategoryInfo, bool) {
+	for _, info := range AllCategories {
+		if info.Category == c {
+			return info, true
+		}
+	}
+	return CategoryInfo{}, false
+}
+
+// CategoryHelp renders "name (what it is)" for each category.
 func CategoryHelp(includeReserved bool) string {
 	parts := make([]string, 0, len(AllCategories))
 	for _, info := range AllCategories {

@@ -18,17 +18,15 @@ import (
 // Input types for memory, state, decision, message, and usage tools
 // ============================================================================
 
-// categoryInputSchema infers In's schema, then rewrites the category
-// property's description from memory.AllCategories so the list a model sees
-// cannot drift from the declared categories. Returning nil on failure leaves
-// the SDK to infer from the struct tags as before.
-func categoryInputSchema[In any](lead string) any {
+// categoryInputSchema rewrites the category description from AllCategories.
+// Filters pass includeReserved; tools that write memories pass false.
+func categoryInputSchema[In any](lead string, includeReserved bool) any {
 	s, err := jsonschema.For[In](&jsonschema.ForOptions{})
 	if err != nil {
 		return nil
 	}
 	if p := s.Properties["category"]; p != nil {
-		p.Description = lead + " " + memory.CategoryHelp(true) + "."
+		p.Description = lead + " " + memory.CategoryHelp(includeReserved) + "."
 	}
 	return s
 }
@@ -106,12 +104,12 @@ a testing framework?", "what issues did we hit with auth?", "what are the user's
 - Prefix and substring matching built-in
 
 Results include timestamps — prefer most recent when values conflict.`,
-		InputSchema: categoryInputSchema[MemorySearchInput]("Filter by category:"),
+		InputSchema: categoryInputSchema[MemorySearchInput]("Filter by category:", true),
 	}, s.handleMemorySearch)
 
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name:        "memory_list",
-		InputSchema: categoryInputSchema[MemoryListInput]("Filter by category:"),
+		InputSchema: categoryInputSchema[MemoryListInput]("Filter by category:", true),
 		Description: `List all stored memories, optionally filtered by category.
 
 Returns all memories (not just matching ones) with timestamps.
