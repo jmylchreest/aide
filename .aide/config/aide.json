@@ -6,5 +6,8 @@
   },
   "reflect": {
     "enabled": true
+  },
+  "share": {
+    "auto_import": true
   }
 }
