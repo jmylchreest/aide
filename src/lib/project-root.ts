@@ -1,13 +1,15 @@
 /**
  * Project root resolution for the AIDE plugin.
  *
- * Mirrors the Go binary's findProjectRoot() in aide/cmd/aide/main.go so that
+ * Mirrors the Go binary's resolveAnchor() in aide/cmd/aide/cmd_anchor.go — the
+ * single resolution authority, of which main.go's findProjectRoot is only the
+ * root-only accessor (resolveAnchor also returns the anchor chain) — so that
  * the TypeScript hook layer and the Go binary always agree on where `.aide/`
  * lives. Without this, the hook would plant a sibling `.aide/` in whatever
  * subdirectory `claude` was launched from, while the Go binary would walk up
  * and use the real one at the repo root.
  *
- * Resolution order, matching main.go:findProjectRoot:
+ * Resolution order, matching cmd_anchor.go:resolveAnchor:
  *   1. AIDE_PROJECT_ROOT env override (must be an existing directory).
  *   2. Walk the full ancestry from cwd to /, collecting candidates, then
  *      prefer:
