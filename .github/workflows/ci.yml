@@ -32,7 +32,20 @@ jobs:
         run: bun run lint
 
       - name: Resolver guards
-        run: ./scripts/check-resolver-guards.sh
+        run: bun run scripts/check-resolver-guards.ts
+
+  shared-context:
+    name: Shared Context (no local paths)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      # Source store is gitignored, so CI cannot re-export and diff - only lint.
+      - name: No developer home paths in shared context
+        run: bun run scripts/check-shared-context.ts
 
   docs:
     name: Docs Type Check

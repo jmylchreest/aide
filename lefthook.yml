@@ -1,0 +1,20 @@
+# Git hooks for aide developers. Installed by `bun install` or `make hooks`.
+# Bypass with `git commit --no-verify`; CI runs check-shared-context as backstop.
+#
+# Jobs run under bun, not sh, so they work natively on Windows. bun is always
+# present here: installing the hooks at all requires it.
+
+pre-commit:
+  parallel: false
+  jobs:
+    # Publish decisions to .aide/shared/. No-op when unchanged.
+    - name: export-decisions
+      run: bun run scripts/export-decisions.ts
+
+    # Published version files are write-once, so bad text must be caught here.
+    - name: check-shared-context
+      run: bun run scripts/check-shared-context.ts
+
+    # ~10ms, so cheap enough to catch resolver drift at commit rather than CI.
+    - name: check-resolver-guards
+      run: bun run scripts/check-resolver-guards.ts

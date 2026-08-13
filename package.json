@@ -12,7 +12,8 @@
     "test": "vitest --exclude 'dist/**'",
     "lint": "eslint src/ scripts/",
     "format": "prettier --write src/",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepare": "lefthook install || true"
   },
   "keywords": [
     "ai",
@@ -31,6 +32,7 @@
     "@typescript-eslint/eslint-plugin": "^8.66.0",
     "@typescript-eslint/parser": "^8.66.0",
     "eslint": "^10.8.0",
+    "lefthook": "^2.1.10",
     "prettier": "^3.9.6",
     "typescript": "^6.0.3",
     "vitest": "^4.1.10"
@@ -38,6 +40,9 @@
   "engines": {
     "bun": ">=1.0.0"
   },
+  "trustedDependencies": [
+    "lefthook"
+  ],
   "dependencies": {
     "cross-spawn": "^7.0.6",
     "smol-toml": "^1.7.1",
