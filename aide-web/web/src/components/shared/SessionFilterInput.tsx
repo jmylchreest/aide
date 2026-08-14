@@ -18,7 +18,7 @@ export function SessionFilterInput({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       className={
-        "bg-aide-surface border border-aide-border rounded px-2 py-1.5 text-xs text-aide-text placeholder:text-aide-text-dim focus:border-aide-accent outline-none " +
+        "bg-aide-surface border border-aide-border rounded px-2 py-1.5 text-xs text-aide-text placeholder:text-aide-text-dim focus:border-aide-accent outline-hidden " +
         widthClass
       }
     />

@@ -36,7 +36,7 @@ export function FilterBar({
           placeholder={placeholder}
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}
-          className="w-full bg-aide-surface border border-aide-border rounded pl-7 pr-2 py-1.5 text-xs text-aide-text placeholder:text-aide-text-dim focus:border-aide-accent focus:ring-2 focus:ring-aide-accent/20 outline-none transition"
+          className="w-full bg-aide-surface border border-aide-border rounded pl-7 pr-2 py-1.5 text-xs text-aide-text placeholder:text-aide-text-dim focus:border-aide-accent focus:ring-2 focus:ring-aide-accent/20 outline-hidden transition"
         />
       </div>
       {dropdowns?.map((dd, i) => (
@@ -44,7 +44,7 @@ export function FilterBar({
           key={i}
           value={dd.value}
           onChange={(e) => dd.onChange(e.target.value)}
-          className="bg-aide-surface border border-aide-border rounded px-2 py-1.5 text-xs text-aide-text focus:border-aide-accent outline-none"
+          className="bg-aide-surface border border-aide-border rounded px-2 py-1.5 text-xs text-aide-text focus:border-aide-accent outline-hidden"
         >
           <option value="">{dd.placeholder}</option>
           {dd.options.map((opt) => (

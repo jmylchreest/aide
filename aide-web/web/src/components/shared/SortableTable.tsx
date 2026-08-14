@@ -159,7 +159,7 @@ export function SortableTable<T extends Record<string, any>>({
                 setPageSize(Number(e.target.value));
                 setPage(0);
               }}
-              className="bg-aide-bg border border-aide-border rounded px-1.5 py-0.5 text-xs text-aide-text focus:border-aide-accent outline-none"
+              className="bg-aide-bg border border-aide-border rounded px-1.5 py-0.5 text-xs text-aide-text focus:border-aide-accent outline-hidden"
             >
               {PAGE_SIZE_OPTIONS.map((n) => (
                 <option key={n} value={n}>

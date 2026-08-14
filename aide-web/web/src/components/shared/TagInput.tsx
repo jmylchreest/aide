@@ -82,7 +82,7 @@ export function TagInput({
         onKeyDown={handleKeyDown}
         onBlur={() => input.trim() && addTag(input)}
         placeholder={placeholder}
-        className="w-full bg-aide-bg border border-aide-border rounded px-2.5 py-1.5 text-xs text-aide-text placeholder:text-aide-text-dim focus:border-aide-accent focus:ring-2 focus:ring-aide-accent/20 outline-none transition"
+        className="w-full bg-aide-bg border border-aide-border rounded px-2.5 py-1.5 text-xs text-aide-text placeholder:text-aide-text-dim focus:border-aide-accent focus:ring-2 focus:ring-aide-accent/20 outline-hidden transition"
       />
 
       {/* Suggestions */}
