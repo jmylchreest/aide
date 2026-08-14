@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/jmylchreest/aide/aide/pkg/store"
 	"github.com/jmylchreest/aide/aide/pkg/survey"
 	"github.com/jmylchreest/aide/aide/pkg/surveyrun"
 )
@@ -151,7 +152,7 @@ func cmdSurveyStats(dbPath string, _ []string) error {
 		}
 	}
 
-	if lines := surveyFreshnessLines(projectRoot(dbPath), stats.ByAnalyzer, func(analyzer string) []*survey.Entry {
+	if lines := surveyFreshnessLines(store.ProjectRootFromDB(dbPath), stats.ByAnalyzer, func(analyzer string) []*survey.Entry {
 		entries, err := b.ListSurvey(survey.SearchOptions{Analyzer: analyzer, Limit: 1})
 		if err != nil {
 			return nil

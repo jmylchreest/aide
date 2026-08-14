@@ -239,7 +239,7 @@ func sessionEndPublish(backend *Backend, dbPath string) int {
 		return 0
 	}
 	subs := config.Get().Subscriptions
-	root := projectRoot(dbPath)
+	root := store.ProjectRootFromDB(dbPath)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	published := 0
@@ -316,7 +316,7 @@ func sessionInit(dbPath string, args []string) error {
 	// auto-import unless opted in. Share errors never fail session init.
 	shareImport := hasFlag(args, "--share-import") || config.Get().Share.AutoImport
 	if shareImport {
-		sharedDir := filepath.Join(projectRoot(dbPath), ".aide", "shared")
+		sharedDir := filepath.Join(store.ProjectRootFromDB(dbPath), ".aide", "shared")
 		if _, statErr := os.Stat(sharedDir); statErr == nil {
 			result.SharedImported = autoImportShared(backend, sharedDir)
 		}
@@ -405,7 +405,7 @@ func sessionFetchContext(backend *Backend, project string, sessionLimit int, res
 	if err == nil {
 		var filtered []*memory.Memory
 		for _, m := range globalMems {
-			if hasAllTags(m.Tags, []string{"scope:global"}) && !hasAnyTag(m.Tags, []string{"partial"}) {
+			if hasAllTags(m.Tags, []string{"scope:global"}) && !memory.HasAnyTag(m.Tags, []string{"partial"}) {
 				filtered = append(filtered, m)
 			}
 		}
@@ -425,7 +425,7 @@ func sessionFetchContext(backend *Backend, project string, sessionLimit int, res
 			projectTag := "project:" + project
 			var filtered []*memory.Memory
 			for _, m := range projectMems {
-				if hasAllTags(m.Tags, []string{projectTag}) && !hasAnyTag(m.Tags, []string{"partial"}) {
+				if hasAllTags(m.Tags, []string{projectTag}) && !memory.HasAnyTag(m.Tags, []string{"partial"}) {
 					filtered = append(filtered, m)
 				}
 			}
@@ -516,7 +516,7 @@ func cascadeDecisions(dbPath string, seenTopics map[string]bool) []SessionDecisi
 		return nil
 	}
 	var out []SessionDecision
-	a := resolveAnchor(projectRoot(dbPath))
+	a := resolveAnchor(store.ProjectRootFromDB(dbPath))
 	for _, link := range a.Chain[1:] {
 		parentDecisions := fetchAncestorDecisions(link.Root)
 		if len(parentDecisions) == 0 {
@@ -572,7 +572,7 @@ func peerDecisions(dbPath string, seenTopics map[string]bool) []SessionDecision 
 		return nil
 	}
 	var out []SessionDecision
-	root := projectRoot(dbPath)
+	root := store.ProjectRootFromDB(dbPath)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	for _, sub := range subs {
@@ -651,7 +651,7 @@ func fetchAncestorDecisions(root string) []*memory.Decision {
 func sessionFetchEstate(backend *Backend, result *SessionInitResult) {
 	estate := &SessionEstate{}
 
-	a := resolveAnchor(projectRoot(backend.dbPath))
+	a := resolveAnchor(store.ProjectRootFromDB(backend.dbPath))
 	for _, link := range a.Chain[1:] {
 		name, _ := anchor.ProjectIdentity(link.Root)
 		estate.Parents = append(estate.Parents, SessionEstateNode{
@@ -711,7 +711,7 @@ func sessionFetchCodebaseMap(backend *Backend, result *SessionInitResult) {
 
 	if runCommit := survey.RunCommitForEntries(entries); runCommit != "" {
 		note := fmt.Sprintf("as of %.8s", runCommit)
-		if f, ferr := survey.ComputeFreshness(projectRoot(backend.dbPath), runCommit); ferr == nil && f != nil && (f.Behind > 0 || !f.Found) {
+		if f, ferr := survey.ComputeFreshness(store.ProjectRootFromDB(backend.dbPath), runCommit); ferr == nil && f != nil && (f.Behind > 0 || !f.Found) {
 			note += fmt.Sprintf(" — %s; run survey_run to refresh", f)
 		}
 		result.CodebaseMapNote = note
@@ -782,7 +782,7 @@ func scoreAndSort(mems []*memory.Memory, now time.Time, cfg memory.ScoringConfig
 // and returns false — the caller should skip memory injection but still
 // allow the session to start.
 func validateProjectRoot(dbPath string) bool {
-	root := projectRoot(dbPath)
+	root := store.ProjectRootFromDB(dbPath)
 	cwd, err := os.Getwd()
 	if err != nil {
 		return true // can't validate, assume OK
@@ -852,8 +852,8 @@ func fetchRecentSessions(backend *Backend, project string, limit int) []*Session
 			data.lastAt = ts
 		}
 
-		isSummary := hasAnyTag(m.Tags, []string{"session-summary"})
-		isPartial := hasAnyTag(m.Tags, []string{"partial"})
+		isSummary := memory.HasAnyTag(m.Tags, []string{"session-summary"})
+		isPartial := memory.HasAnyTag(m.Tags, []string{"partial"})
 
 		if isSummary && !isPartial {
 			// Non-partial session summary — highest priority

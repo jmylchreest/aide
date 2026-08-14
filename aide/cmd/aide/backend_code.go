@@ -10,6 +10,7 @@ import (
 	"github.com/jmylchreest/aide/aide/pkg/code"
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi"
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi/adapter"
+	"github.com/jmylchreest/aide/aide/pkg/store"
 	"github.com/jmylchreest/aide/aide/pkg/survey"
 )
 
@@ -223,7 +224,7 @@ func (b *Backend) IndexCodeWithProgress(paths []string, force bool, progress fun
 		paths = []string{"."}
 	}
 
-	projRoot := projectRoot(b.dbPath)
+	projRoot := store.ProjectRootFromDB(b.dbPath)
 	ignore, err := aideignore.New(projRoot)
 	if err != nil {
 		ignore = aideignore.NewFromDefaults()
@@ -254,7 +255,7 @@ func (b *Backend) IndexCodeWithProgress(paths []string, force bool, progress fun
 			}
 
 			relPath := path
-			if rel, err := filepath.Rel(projectRoot(b.dbPath), path); err == nil {
+			if rel, err := filepath.Rel(store.ProjectRootFromDB(b.dbPath), path); err == nil {
 				relPath = rel
 			}
 
@@ -360,7 +361,7 @@ func (b *Backend) ReadCheck(filePath string) (*ReadCheckResult, error) {
 	}
 	defer codeStore.Close()
 
-	root := projectRoot(b.dbPath)
+	root := store.ProjectRootFromDB(b.dbPath)
 
 	// Resolve paths
 	absPath := filePath

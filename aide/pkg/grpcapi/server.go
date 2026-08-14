@@ -52,7 +52,7 @@ func SocketPathFromDB(dbPath string) string {
 		return p
 	}
 
-	sum := sha256.Sum256([]byte(projectRoot(dbPath)))
+	sum := sha256.Sum256([]byte(store.ProjectRootFromDB(dbPath)))
 	name := hex.EncodeToString(sum[:])[:16] + ".sock"
 	base := os.Getenv("XDG_RUNTIME_DIR")
 	if base != "" {
@@ -64,12 +64,6 @@ func SocketPathFromDB(dbPath string) string {
 		base = os.TempDir()
 	}
 	return filepath.Join(base, "aide", name)
-}
-
-// projectRoot derives the project root from the database path.
-// dbPath is <root>/.aide/memory/memory.db — three Dir() calls to reach <root>.
-func projectRoot(dbPath string) string {
-	return filepath.Dir(filepath.Dir(filepath.Dir(dbPath)))
 }
 
 // Server manages the gRPC server and all service implementations.
@@ -1286,7 +1280,7 @@ func (s *codeServiceImpl) Index(req *CodeIndexRequest, stream grpc.ServerStreami
 		paths = []string{"."}
 	}
 
-	projRoot := projectRoot(s.server.dbPath)
+	projRoot := store.ProjectRootFromDB(s.server.dbPath)
 	rootPrefix := projRoot + string(filepath.Separator)
 	for _, p := range paths {
 		abs, err := filepath.Abs(p)
@@ -1606,7 +1600,7 @@ func (s *codeServiceImpl) ReadCheck(ctx context.Context, req *CodeReadCheckReque
 	}
 
 	filePath := req.FilePath
-	root := projectRoot(s.server.dbPath)
+	root := store.ProjectRootFromDB(s.server.dbPath)
 
 	// Resolve to absolute path for os.Stat
 	absPath := filePath
@@ -1692,7 +1686,7 @@ func (s *codeServiceImpl) RunDeadCodeAnalysis(ctx context.Context, req *CodeRunD
 			}
 			return len(refs), nil
 		},
-		ProjectRoot:        projectRoot(s.server.dbPath),
+		ProjectRoot:        store.ProjectRootFromDB(s.server.dbPath),
 		PackProvider:       grammar.DefaultPackRegistry().Get,
 		IncludeExported:    req.IncludeExported,
 		ConsumerExtensions: grammar.DefaultPackRegistry().ConsumerExtensions(),
@@ -2063,7 +2057,7 @@ func (s *surveyServiceImpl) Run(ctx context.Context, req *SurveyRunRequest) (*Su
 	if req.Analyzer != "" {
 		analyzers = []string{req.Analyzer}
 	}
-	results := surveyrun.Run(projectRoot(s.server.dbPath), analyzers, surveyStore, s.server.GetCodeStore())
+	results := surveyrun.Run(store.ProjectRootFromDB(s.server.dbPath), analyzers, surveyStore, s.server.GetCodeStore())
 
 	resp := &SurveyRunResponse{}
 	for _, r := range results {
@@ -2275,7 +2269,7 @@ func (s *tombstoneServiceImpl) Add(ctx context.Context, req *TombstoneAddRequest
 		return nil, fmt.Errorf("tombstone store not available")
 	}
 
-	t := protoToTombstone(req.Tombstone)
+	t := ProtoToTombstone(req.Tombstone)
 	if t == nil {
 		return nil, fmt.Errorf("tombstone is required")
 	}
@@ -2285,7 +2279,7 @@ func (s *tombstoneServiceImpl) Add(ctx context.Context, req *TombstoneAddRequest
 	}
 
 	// AddTombstone may stamp DeletedAt when zero; echo the stored value back.
-	return &TombstoneAddResponse{Tombstone: tombstoneToProto(t)}, nil
+	return &TombstoneAddResponse{Tombstone: TombstoneToProto(t)}, nil
 }
 
 func (s *tombstoneServiceImpl) Get(ctx context.Context, req *TombstoneGetRequest) (*TombstoneGetResponse, error) {
@@ -2303,7 +2297,7 @@ func (s *tombstoneServiceImpl) Get(ctx context.Context, req *TombstoneGetRequest
 	}
 
 	return &TombstoneGetResponse{
-		Tombstone: tombstoneToProto(t),
+		Tombstone: TombstoneToProto(t),
 		Found:     true,
 	}, nil
 }
@@ -2321,7 +2315,7 @@ func (s *tombstoneServiceImpl) List(ctx context.Context, req *TombstoneListReque
 
 	protoTombstones := make([]*Tombstone, len(tombstones))
 	for i, t := range tombstones {
-		protoTombstones[i] = tombstoneToProto(t)
+		protoTombstones[i] = TombstoneToProto(t)
 	}
 	return &TombstoneListResponse{Tombstones: protoTombstones}, nil
 }
@@ -2549,7 +2543,7 @@ func getStoreSizes(dbPath string) []*StatusStore {
 	}
 
 	// Derive relative path from project root for display
-	projectRoot := projectRoot(dbPath)
+	projectRoot := store.ProjectRootFromDB(dbPath)
 
 	var stores []*StatusStore
 	for _, e := range entries {
@@ -2665,7 +2659,7 @@ func surveyEntryToProto(e *survey.Entry) *SurveyEntry {
 	}
 }
 
-func tombstoneToProto(t *memory.Tombstone) *Tombstone {
+func TombstoneToProto(t *memory.Tombstone) *Tombstone {
 	if t == nil {
 		return nil
 	}
@@ -2676,7 +2670,7 @@ func tombstoneToProto(t *memory.Tombstone) *Tombstone {
 	}
 }
 
-func protoToTombstone(pt *Tombstone) *memory.Tombstone {
+func ProtoToTombstone(pt *Tombstone) *memory.Tombstone {
 	if pt == nil {
 		return nil
 	}

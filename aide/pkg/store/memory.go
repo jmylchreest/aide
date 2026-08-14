@@ -111,7 +111,7 @@ func (s *BoltStore) ListMemories(opts memory.SearchOptions) ([]*memory.Memory, e
 			if opts.Plan != "" && m.Plan != opts.Plan {
 				return nil
 			}
-			if len(opts.Tags) > 0 && !hasAnyTag(m.Tags, opts.Tags) {
+			if len(opts.Tags) > 0 && !memory.HasAnyTag(m.Tags, opts.Tags) {
 				return nil
 			}
 			// Exclude memories with any excluded tag.

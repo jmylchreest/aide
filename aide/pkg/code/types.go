@@ -90,14 +90,3 @@ type ReferenceSearchOptions struct {
 	FilePath   string // Filter by file path pattern
 	Limit      int    // Max results (0 = default)
 }
-
-// WatcherConfig contains file watcher configuration
-type WatcherConfig struct {
-	Enabled       bool          // Enable file watching
-	Paths         []string      // Paths to watch (empty = cwd)
-	DebounceDelay time.Duration // Delay before reindexing (default 30s)
-}
-
-// DefaultDebounceDelay is the default delay before reindexing after file changes.
-// Set high (30s) to handle Claude's rapid multi-file edit patterns.
-const DefaultDebounceDelay = 30 * time.Second

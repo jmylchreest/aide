@@ -1194,3 +1194,30 @@ func TestExportKeepsPublishedTombstoneAfterRecordRemoved(t *testing.T) {
 		t.Errorf("stats.TombstonesSkipped = %d, want 0", stats.TombstonesSkipped)
 	}
 }
+
+// The escape/unescape pair is the shared-context format's contract: the
+// writer and the reader must agree, so roundtrip is what matters.
+func TestYAMLEscapeUnescape(t *testing.T) {
+	tests := []string{
+		"simple value",
+		"value with: colon",
+		`value with "quotes"`,
+		"value with #hash",
+		"value, with comma",
+		"value with\nnewline",
+	}
+
+	for _, input := range tests {
+		escaped := YAMLEscape(input)
+		unescaped := YAMLUnescape(escaped)
+		if unescaped != input {
+			t.Errorf("roundtrip failed: %q -> %q -> %q", input, escaped, unescaped)
+		}
+	}
+}
+
+func TestYAMLEscapeLeavesPlainValuesAlone(t *testing.T) {
+	if got := YAMLEscape("plain"); got != "plain" {
+		t.Errorf("plain value should not be quoted, got %q", got)
+	}
+}

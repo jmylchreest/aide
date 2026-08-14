@@ -9,6 +9,7 @@ import (
 	"github.com/jmylchreest/aide/aide/pkg/findings"
 	"github.com/jmylchreest/aide/aide/pkg/findings/clone"
 	"github.com/jmylchreest/aide/aide/pkg/grammar"
+	"github.com/jmylchreest/aide/aide/pkg/store"
 )
 
 // getFindingsStorePath returns the directory for findings data.
@@ -181,7 +182,7 @@ func cmdFindingsRun(dbPath string, args []string) error {
 
 	// Defaults come from .aide/config/aide.json, falling back to hardcoded values.
 	// CLI flags override everything.
-	projectRoot := projectRoot(dbPath)
+	projectRoot := store.ProjectRootFromDB(dbPath)
 	cfg := loadFindingsConfig(projectRoot)
 
 	opts, err := parseFindingsRunOpts(subargs, cfg)

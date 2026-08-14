@@ -168,8 +168,11 @@ type codeGrapher struct {
 	codeSearcher
 }
 
-func (a *codeGrapher) GetFileReferences(filePath string) ([]survey.ReferenceHit, error) {
-	refs, err := a.store.GetFileReferences(filePath)
+// fileReferenceHits reads a file's references and converts them to survey
+// hits. Shared by the two interfaces that each need this under a different
+// method name.
+func fileReferenceHits(cs store.CodeIndexStore, filePath string) ([]survey.ReferenceHit, error) {
+	refs, err := cs.GetFileReferences(filePath)
 	if err != nil {
 		return nil, err
 	}
@@ -178,6 +181,10 @@ func (a *codeGrapher) GetFileReferences(filePath string) ([]survey.ReferenceHit,
 		hits = append(hits, survey.ReferenceHit{Symbol: r.SymbolName, Kind: r.Kind, FilePath: r.FilePath, Line: r.Line})
 	}
 	return hits, nil
+}
+
+func (a *codeGrapher) GetFileReferences(filePath string) ([]survey.ReferenceHit, error) {
+	return fileReferenceHits(a.store, filePath)
 }
 
 func (a *codeGrapher) GetContainingSymbol(filePath string, line int) (*survey.SymbolHit, error) {
@@ -266,15 +273,7 @@ func (a *modulesSource) ListSourceFiles() ([]survey.ModuleFile, error) {
 }
 
 func (a *modulesSource) FileReferences(filePath string) ([]survey.ReferenceHit, error) {
-	refs, err := a.store.GetFileReferences(filePath)
-	if err != nil {
-		return nil, err
-	}
-	hits := make([]survey.ReferenceHit, 0, len(refs))
-	for _, r := range refs {
-		hits = append(hits, survey.ReferenceHit{Symbol: r.SymbolName, Kind: r.Kind, FilePath: r.FilePath, Line: r.Line})
-	}
-	return hits, nil
+	return fileReferenceHits(a.store, filePath)
 }
 
 func (a *modulesSource) DefiningFiles(symbolName string) ([]string, error) {

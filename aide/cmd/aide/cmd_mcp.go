@@ -357,7 +357,7 @@ func (s *MCPServer) initMCPSurveyStore(dbPath string, grpcServer *grpcapi.Server
 // index entries (orphan paths, in-file orphans, paths now matching
 // .aideignore) without requiring users to know about `aide code reconcile`.
 func (s *MCPServer) startCodeReconciler(dbPath string) {
-	projRoot := projectRoot(dbPath)
+	projRoot := store.ProjectRootFromDB(dbPath)
 	if !isVCSRoot(projRoot) && !config.Get().IndexNonVCS {
 		// Same VCS guard as startCodeWatcher — don't touch arbitrary dirs.
 		return
@@ -410,7 +410,7 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 		return
 	}
 
-	projRoot := projectRoot(dbPath)
+	projRoot := store.ProjectRootFromDB(dbPath)
 	if !isVCSRoot(projRoot) && !config.Get().IndexNonVCS {
 		mcpLog.Printf("WARNING: code watcher disabled — project root %q has no VCS marker (.git/.hg/.svn/.bzr/.fossil). Set AIDE_INDEX_NON_VCS=1 to allow watching/indexing in non-version-controlled directories.", projRoot)
 		return
@@ -428,7 +428,7 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 
 		var indexer *Indexer
 		if cs := s.getCodeStore(); cs != nil {
-			indexer = NewIndexerFromStore(cs, s.grammarLoader, projectRoot(dbPath))
+			indexer = NewIndexerFromStore(cs, s.grammarLoader, store.ProjectRootFromDB(dbPath))
 		} else {
 			var err error
 			indexer, err = NewIndexer(dbPath)
@@ -458,7 +458,7 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 		var findingsRunner *findings.Runner
 		if s.findingsStore != nil {
 			// Load .aideignore from project root for findings filtering.
-			projectRoot := projectRoot(dbPath)
+			projectRoot := store.ProjectRootFromDB(dbPath)
 			ignore, err := aideignore.New(projectRoot)
 			if err != nil {
 				mcpLog.Printf("WARNING: failed to load .aideignore: %v (using defaults)", err)
@@ -505,7 +505,7 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 
 		// Register grammar install callback: when a new grammar is downloaded,
 		// re-scan the project tree for files matching its extensions.
-		root := projectRoot(dbPath)
+		root := store.ProjectRootFromDB(dbPath)
 		s.grammarLoader.SetOnInstall(func(name string) {
 			// Run re-scan in a goroutine to avoid blocking the parse call
 			// that triggered the download.
@@ -805,7 +805,7 @@ func cmdMCP(dbPath string, args []string) error {
 	defer grpcServer.Stop()
 
 	// Register instance for discovery by aide-web
-	projRoot := projectRoot(dbPath)
+	projRoot := store.ProjectRootFromDB(dbPath)
 	var chainParents []string
 	for _, link := range resolveAnchor(projRoot).Chain[1:] {
 		chainParents = append(chainParents, link.Root)

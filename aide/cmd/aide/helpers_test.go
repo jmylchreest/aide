@@ -14,39 +14,6 @@ import (
 // projectRoot / grammarDir
 // =============================================================================
 
-func TestProjectRoot(t *testing.T) {
-	// dbPath is <root>/.aide/memory/memory.db — three Dir() calls to reach <root>.
-	tests := []struct {
-		name   string
-		dbPath string
-		want   string
-	}{
-		{
-			name:   "standard layout",
-			dbPath: "/home/user/myproject/.aide/memory/memory.db",
-			want:   "/home/user/myproject",
-		},
-		{
-			name:   "nested project",
-			dbPath: "/a/b/c/project/.aide/memory/memory.db",
-			want:   "/a/b/c/project",
-		},
-		{
-			name:   "root-level project",
-			dbPath: "/project/.aide/memory/memory.db",
-			want:   "/project",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := projectRoot(tt.dbPath)
-			if got != tt.want {
-				t.Errorf("projectRoot(%q) = %q, want %q", tt.dbPath, got, tt.want)
-			}
-		})
-	}
-}
-
 func TestIsSubmoduleGitdir(t *testing.T) {
 	tests := []struct {
 		gitdir string

@@ -632,18 +632,6 @@ func hasAllTags(memTags, required []string) bool {
 }
 
 // hasAnyTag checks if memory has any of the given tags
-func hasAnyTag(memTags, check []string) bool {
-	tagSet := make(map[string]bool)
-	for _, t := range memTags {
-		tagSet[t] = true
-	}
-	for _, c := range check {
-		if tagSet[c] {
-			return true
-		}
-	}
-	return false
-}
 
 // keepLatestPerTagGroup filters memories to keep only the most recent per tag group.
 // Tag group is defined as the sorted joined string of all tags.

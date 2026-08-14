@@ -5,10 +5,18 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	bolt "go.etcd.io/bbolt"
 )
+
+// ProjectRootFromDB returns the project root a store path sits under. It is
+// the inverse of the ".aide/memory/memory.db" layout, so the two must change
+// together.
+func ProjectRootFromDB(dbPath string) string {
+	return filepath.Dir(filepath.Dir(filepath.Dir(dbPath)))
+}
 
 // Common errors.
 var (
@@ -142,15 +150,3 @@ func (s *BoltStore) SetMeta(key, value string) error {
 }
 
 // hasAnyTag checks if any of the filter tags exist in the memory tags.
-func hasAnyTag(memoryTags, filterTags []string) bool {
-	tagSet := make(map[string]bool)
-	for _, t := range memoryTags {
-		tagSet[t] = true
-	}
-	for _, t := range filterTags {
-		if tagSet[t] {
-			return true
-		}
-	}
-	return false
-}

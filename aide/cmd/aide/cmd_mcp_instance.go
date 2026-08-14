@@ -9,6 +9,7 @@ import (
 	"github.com/jmylchreest/aide/aide/internal/version"
 	"github.com/jmylchreest/aide/aide/pkg/config"
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi"
+	"github.com/jmylchreest/aide/aide/pkg/store"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -74,7 +75,7 @@ func (s *MCPServer) handleInstanceInfo(ctx context.Context, _ *mcp.CallToolReque
 	mcpLog.Printf("tool: instance_info")
 
 	cwd, _ := os.Getwd()
-	root := projectRoot(s.dbPath)
+	root := store.ProjectRootFromDB(s.dbPath)
 
 	authority := "daemon"
 	if s.grpcClient != nil {

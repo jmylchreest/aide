@@ -2,12 +2,10 @@ package adapter
 
 import (
 	"context"
-	"time"
 
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi"
 	"github.com/jmylchreest/aide/aide/pkg/memory"
 	"github.com/jmylchreest/aide/aide/pkg/store"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // TombstoneAdapter implements store.TombstoneStore by delegating to a gRPC
@@ -35,7 +33,7 @@ func (g *TombstoneAdapter) AddTombstone(t *memory.Tombstone) error {
 	defer cancel()
 
 	resp, err := g.client.Tombstone.Add(ctx, &grpcapi.TombstoneAddRequest{
-		Tombstone: tombstoneToProto(t),
+		Tombstone: grpcapi.TombstoneToProto(t),
 	})
 	if err != nil {
 		return err
@@ -64,7 +62,7 @@ func (g *TombstoneAdapter) GetTombstone(kind, id string) (*memory.Tombstone, err
 		return nil, store.ErrNotFound
 	}
 
-	return protoToTombstone(resp.Tombstone), nil
+	return grpcapi.ProtoToTombstone(resp.Tombstone), nil
 }
 
 func (g *TombstoneAdapter) ListTombstones() ([]*memory.Tombstone, error) {
@@ -78,7 +76,7 @@ func (g *TombstoneAdapter) ListTombstones() ([]*memory.Tombstone, error) {
 
 	result := make([]*memory.Tombstone, len(resp.Tombstones))
 	for i, pt := range resp.Tombstones {
-		result[i] = protoToTombstone(pt)
+		result[i] = grpcapi.ProtoToTombstone(pt)
 	}
 	return result, nil
 }
@@ -92,32 +90,4 @@ func (g *TombstoneAdapter) DeleteTombstone(kind, id string) error {
 		Id:   id,
 	})
 	return err
-}
-
-// tombstoneToProto converts a domain Tombstone to its protobuf form.
-func tombstoneToProto(t *memory.Tombstone) *grpcapi.Tombstone {
-	if t == nil {
-		return nil
-	}
-	return &grpcapi.Tombstone{
-		Id:        t.ID,
-		Kind:      t.Kind,
-		DeletedAt: timestamppb.New(t.DeletedAt),
-	}
-}
-
-// protoToTombstone converts a protobuf Tombstone to the domain type.
-func protoToTombstone(pt *grpcapi.Tombstone) *memory.Tombstone {
-	if pt == nil {
-		return nil
-	}
-	var deletedAt time.Time
-	if pt.DeletedAt != nil {
-		deletedAt = pt.DeletedAt.AsTime()
-	}
-	return &memory.Tombstone{
-		ID:        pt.Id,
-		Kind:      pt.Kind,
-		DeletedAt: deletedAt,
-	}
 }

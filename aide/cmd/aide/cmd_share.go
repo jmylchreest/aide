@@ -27,6 +27,7 @@ import (
 	"github.com/jmylchreest/aide/aide/pkg/config"
 	"github.com/jmylchreest/aide/aide/pkg/contextshare"
 	"github.com/jmylchreest/aide/aide/pkg/memory"
+	"github.com/jmylchreest/aide/aide/pkg/store"
 )
 
 // toFilter maps a config.ShareFilter (already resolved with defaults by the
@@ -130,7 +131,7 @@ Examples:
 // --- Export ---
 
 func cmdShareExport(dbPath string, args []string) error {
-	projectRoot := projectRoot(dbPath)
+	projectRoot := store.ProjectRootFromDB(dbPath)
 	legacy := hasFlag(args, "--legacy")
 
 	decisionsOnly := hasFlag(args, "--decisions")
@@ -520,7 +521,7 @@ func writeDecisionMarkdown(filename string, d *memory.Decision) error {
 	// YAML frontmatter
 	fmt.Fprintln(f, "---")
 	fmt.Fprintf(f, "topic: %s\n", d.Topic)
-	fmt.Fprintf(f, "decision: %s\n", yamlEscape(d.Decision))
+	fmt.Fprintf(f, "decision: %s\n", contextshare.YAMLEscape(d.Decision))
 	if d.DecidedBy != "" {
 		fmt.Fprintf(f, "decided_by: %s\n", d.DecidedBy)
 	}
@@ -749,7 +750,7 @@ func hasLegacyRecords(dir string) bool {
 }
 
 func cmdShareImport(dbPath string, args []string) error {
-	projectRoot := projectRoot(dbPath)
+	projectRoot := store.ProjectRootFromDB(dbPath)
 
 	inputDir := parseFlag(args, "--input=")
 	if inputDir == "" {
@@ -1009,7 +1010,7 @@ func parseFrontmatterLine(line string, d *memory.Decision) {
 	case strings.HasPrefix(line, "topic:"):
 		d.Topic = strings.TrimSpace(strings.TrimPrefix(line, "topic:"))
 	case strings.HasPrefix(line, "decision:"):
-		d.Decision = yamlUnescape(strings.TrimSpace(strings.TrimPrefix(line, "decision:")))
+		d.Decision = contextshare.YAMLUnescape(strings.TrimSpace(strings.TrimPrefix(line, "decision:")))
 	case strings.HasPrefix(line, "decided_by:"):
 		d.DecidedBy = strings.TrimSpace(strings.TrimPrefix(line, "decided_by:"))
 	case strings.HasPrefix(line, "date:"):
@@ -1248,24 +1249,6 @@ func sanitizeFilename(s string) string {
 		safe = "unnamed"
 	}
 	return safe
-}
-
-// yamlEscape wraps a string in quotes if it contains YAML-special characters.
-func yamlEscape(s string) string {
-	if strings.ContainsAny(s, ":#{}[]|>&*!%@`'\"\\,\n") {
-		escaped := strings.ReplaceAll(s, `"`, `\"`)
-		return `"` + escaped + `"`
-	}
-	return s
-}
-
-// yamlUnescape removes surrounding quotes from a YAML string value.
-func yamlUnescape(s string) string {
-	if len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"' {
-		s = s[1 : len(s)-1]
-		s = strings.ReplaceAll(s, `\"`, `"`)
-	}
-	return s
 }
 
 // firstLine returns the first line of a string.

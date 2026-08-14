@@ -72,7 +72,7 @@ func (b *Backend) RunDeadCodeAnalysis(opts DeadCodeAnalysisOptions) (*DeadCodeAn
 			}
 			return len(refs), nil
 		},
-		ProjectRoot:        projectRoot(b.dbPath),
+		ProjectRoot:        store.ProjectRootFromDB(b.dbPath),
 		ProgressFn:         opts.Progress,
 		PackProvider:       registry.Get,
 		IncludeExported:    opts.IncludeExported,

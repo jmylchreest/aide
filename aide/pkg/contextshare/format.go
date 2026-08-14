@@ -191,7 +191,7 @@ func MarshalDecision(d *memory.Decision) []byte {
 	var b strings.Builder
 	b.WriteString("---\n")
 	fmt.Fprintf(&b, "topic: %s\n", d.Topic)
-	fmt.Fprintf(&b, "decision: %s\n", yamlEscape(d.Decision))
+	fmt.Fprintf(&b, "decision: %s\n", YAMLEscape(d.Decision))
 	if d.DecidedBy != "" {
 		fmt.Fprintf(&b, "decided_by: %s\n", d.DecidedBy)
 	}
@@ -242,7 +242,7 @@ func ParseDecision(data []byte) (*memory.Decision, error) {
 			d.Topic = strings.TrimSpace(strings.TrimPrefix(line, "topic:"))
 		case strings.HasPrefix(line, "decision:"):
 			listKey = ""
-			d.Decision = yamlUnescape(strings.TrimSpace(strings.TrimPrefix(line, "decision:")))
+			d.Decision = YAMLUnescape(strings.TrimSpace(strings.TrimPrefix(line, "decision:")))
 		case strings.HasPrefix(line, "decided_by:"):
 			listKey = ""
 			d.DecidedBy = strings.TrimSpace(strings.TrimPrefix(line, "decided_by:"))
@@ -448,8 +448,8 @@ func splitFrontmatter(data []byte) (front []string, body []byte, err error) {
 	return nil, nil, errors.New("missing frontmatter closing delimiter")
 }
 
-// yamlEscape wraps a string in quotes if it contains YAML-special characters.
-func yamlEscape(s string) string {
+// YAMLEscape wraps a string in quotes if it contains YAML-special characters.
+func YAMLEscape(s string) string {
 	if strings.ContainsAny(s, ":#{}[]|>&*!%@`'\"\\,\n") {
 		escaped := strings.ReplaceAll(s, `"`, `\"`)
 		return `"` + escaped + `"`
@@ -457,8 +457,8 @@ func yamlEscape(s string) string {
 	return s
 }
 
-// yamlUnescape removes surrounding quotes from a YAML string value.
-func yamlUnescape(s string) string {
+// YAMLUnescape removes surrounding quotes from a YAML string value.
+func YAMLUnescape(s string) string {
 	if len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"' {
 		s = s[1 : len(s)-1]
 		s = strings.ReplaceAll(s, `\"`, `"`)

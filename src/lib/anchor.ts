@@ -85,7 +85,7 @@ const SESSION_ID_RE = /^[a-zA-Z0-9_-]{1,128}$/;
  * between processes of one session cannot lose the cache. The Go binary's
  * session-end deletion (deleteSessionAnchor) mirrors this list exactly.
  */
-function anchorCacheDirs(): string[] {
+export function anchorCacheDirs(): string[] {
   const dirs: string[] = [];
   const xdg = process.env.XDG_RUNTIME_DIR;
   if (xdg && existsSync(xdg)) dirs.push(join(xdg, "aide", "anchors"));
