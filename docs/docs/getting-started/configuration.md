@@ -14,6 +14,7 @@ AIDE is configured through environment variables. All variables are optional.
 | `AIDE_FORCE_INIT=1`              | Force initialization in non-git directories      |
 | `AIDE_CODE_WATCH=0`              | Disable file watching for auto-reindex (default: on; equivalent to `code.watch` in `.aide/config/aide.json`) |
 | `AIDE_CODE_WATCH_DELAY=30s`      | Delay before re-indexing after file changes      |
+| `AIDE_CODE_RESPECT_GITIGNORE=0`  | Scan paths your `.gitignore` excludes (default: on; equivalent to `code.respect_gitignore` in `.aide/config/aide.json`). See [File Exclusions](#file-exclusions) |
 | `AIDE_INDEX_NON_VCS=1`           | Allow watcher/indexing in non-VCS dirs (default: refuse) |
 | `AIDE_INDEX_WORKERS=N`           | Parallel parser workers for code indexing (default: NumCPU, capped at 32) |
 | `AIDE_MEMORY_INJECT=0`           | Disable memory injection                         |
@@ -130,6 +131,7 @@ Project-level settings can be stored in `.aide/config/aide.json`:
 | `findings.clones.windowSize`    | 50      | Sliding window size in tokens for detection  |
 | `findings.clones.minLines`      | 6       | Minimum clone size in lines to report        |
 
+| `code.respect_gitignore`        | true    | Apply the repo's `.gitignore` rules to analysis — see [File Exclusions](#file-exclusions) |
 | `cleanup.enabled`               | true    | Master switch for retention pruning (daemon loop + session-init sweep) |
 | `cleanup.observe_max_age`       | 2160h   | TTL for observe/telemetry events, 90 days (`0` = keep forever) |
 | `cleanup.task_max_age`          | 2160h   | TTL for completed tasks, 90 days (pending/claimed are never pruned) |
@@ -184,7 +186,30 @@ vendor/
 !vendor/important.go
 ```
 
-Built-in defaults already exclude common generated files, lock files, build artifacts, and directories like `node_modules/`, `.git/`, `vendor/`, etc.
+Patterns are applied in three layers, each able to override the one below it:
+
+1. **Built-in defaults** — common generated files, lock files, build artifacts,
+   and directories like `node_modules/`, `.git/`, `vendor/`.
+2. **Your `.gitignore`** — every `.gitignore` in the tree plus
+   `.git/info/exclude`, on by default. Anything git ignores is excluded from
+   analysis too, so build output and scratch directories don't have to be
+   listed twice. Turn it off with `code.respect_gitignore=false` (or
+   `AIDE_CODE_RESPECT_GITIGNORE=0`) when you deliberately analyse untracked
+   files.
+3. **`.aideignore`** — project overrides, applied last. A `!` line here
+   re-includes something the layers below excluded:
+
+   ```gitignore
+   # .gitignore excludes all of generated/, but this one is worth analysing
+   !generated/schema.go
+   ```
+
+All three use git's own pattern parser, so semantics match `git check-ignore`:
+last match wins, `!` re-includes, a trailing `/` matches directories only, `**`
+spans path segments, and a leading `/` anchors to the directory holding the
+file. Your global (`core.excludesfile`) and system ignore files are
+deliberately **not** consulted — they differ per machine, which would make the
+same repository produce different findings on different checkouts.
 
 ## Troubleshooting
 

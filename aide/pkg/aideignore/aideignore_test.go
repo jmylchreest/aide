@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/jmylchreest/aide/aide/pkg/config"
 )
 
 func TestBuiltinDefaults(t *testing.T) {
@@ -76,9 +78,7 @@ func TestDirOnlyPattern(t *testing.T) {
 }
 
 func TestNegation(t *testing.T) {
-	m := &Matcher{}
-	m.rules = append(m.rules, parsePattern("*.pb.go"))
-	m.rules = append(m.rules, parsePattern("!important.pb.go"))
+	m := newFromPatternStrings("*.pb.go", "!important.pb.go")
 
 	if !m.ShouldIgnoreFile("foo.pb.go") {
 		t.Error("expected foo.pb.go to be ignored")
@@ -89,8 +89,7 @@ func TestNegation(t *testing.T) {
 }
 
 func TestAnchoredPattern(t *testing.T) {
-	m := &Matcher{}
-	m.rules = append(m.rules, parsePattern("/rootfile.txt"))
+	m := newFromPatternStrings("/rootfile.txt")
 
 	if !m.ShouldIgnoreFile("rootfile.txt") {
 		t.Error("expected anchored pattern to match root file")
@@ -101,8 +100,7 @@ func TestAnchoredPattern(t *testing.T) {
 }
 
 func TestUnanchoredPattern(t *testing.T) {
-	m := &Matcher{}
-	m.rules = append(m.rules, parsePattern("*.log"))
+	m := newFromPatternStrings("*.log")
 
 	// Should match at any depth.
 	if !m.ShouldIgnoreFile("error.log") {
@@ -114,8 +112,7 @@ func TestUnanchoredPattern(t *testing.T) {
 }
 
 func TestDoubleStarPrefix(t *testing.T) {
-	m := &Matcher{}
-	m.rules = append(m.rules, parsePattern("**/test/"))
+	m := newFromPatternStrings("**/test/")
 
 	if !m.ShouldIgnoreDir("test") {
 		t.Error("expected **/test/ to match top-level test dir")
@@ -267,8 +264,7 @@ func (f *fakeFileInfo) Sys() any           { return nil }
 func TestAnchoredDirChildPaths(t *testing.T) {
 	// An anchored dir-only pattern like "packages/opencode-plugin/src/"
 	// should match files inside that directory, not just the directory itself.
-	m := &Matcher{}
-	m.rules = append(m.rules, parsePattern("packages/opencode-plugin/src/"))
+	m := newFromPatternStrings("packages/opencode-plugin/src/")
 
 	// Should match the directory itself.
 	if !m.ShouldIgnoreDir("packages/opencode-plugin/src") {
@@ -315,5 +311,171 @@ func TestUnanchoredDirChildPaths(t *testing.T) {
 	// Vendor at root.
 	if !m.ShouldIgnoreFile("vendor/github.com/foo/bar.go") {
 		t.Error("expected unanchored dir pattern to match file inside vendor")
+	}
+}
+
+// writeGitRepo creates a directory that looks enough like a worktree root for
+// the gitignore layer to engage, with the given files written relative to it.
+func writeGitRepo(t *testing.T, files map[string]string) string {
+	t.Helper()
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for name, content := range files {
+		full := filepath.Join(dir, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	InvalidateGitignoreCache()
+	return dir
+}
+
+func TestGitignoreLayer(t *testing.T) {
+	dir := writeGitRepo(t, map[string]string{
+		".gitignore": ".playwright-mcp/\ndesign/\n*.tmp\n",
+	})
+
+	m, err := NewWithOptions(dir, Options{Gitignore: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !m.ShouldIgnoreDir(".playwright-mcp") {
+		t.Error("expected gitignored directory to be ignored")
+	}
+	if !m.ShouldIgnoreFile(".playwright-mcp/page-2026-07-21.yml") {
+		t.Error("expected file inside a gitignored directory to be ignored")
+	}
+	if !m.ShouldIgnoreFile("design/notes.md") {
+		t.Error("expected file inside gitignored design/ to be ignored")
+	}
+	if !m.ShouldIgnoreFile("scratch.tmp") {
+		t.Error("expected *.tmp from .gitignore to be ignored")
+	}
+	if m.ShouldIgnoreFile("main.go") {
+		t.Error("expected an untracked-by-pattern source file to be scanned")
+	}
+}
+
+func TestGitignoreLayerDisabled(t *testing.T) {
+	dir := writeGitRepo(t, map[string]string{
+		".gitignore": ".playwright-mcp/\n",
+	})
+
+	m, err := NewWithOptions(dir, Options{Gitignore: false})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if m.ShouldIgnoreDir(".playwright-mcp") {
+		t.Error("expected gitignore rules to be skipped when the option is off")
+	}
+	// Builtins must still apply.
+	if !m.ShouldIgnoreDir("node_modules") {
+		t.Error("expected builtins to still apply with the gitignore layer off")
+	}
+}
+
+func TestGitignoreNestedDomain(t *testing.T) {
+	// A pattern in docs/.gitignore is scoped to docs/ — flattening the
+	// patterns into one root-level list would wrongly ignore build/ elsewhere.
+	dir := writeGitRepo(t, map[string]string{
+		"docs/.gitignore": "/generated/\n",
+	})
+
+	m, err := NewWithOptions(dir, Options{Gitignore: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !m.ShouldIgnoreDir("docs/generated") {
+		t.Error("expected nested .gitignore to ignore within its own directory")
+	}
+	if m.ShouldIgnoreDir("generated") {
+		t.Error("expected nested .gitignore pattern NOT to escape its directory")
+	}
+}
+
+func TestAideignoreOverridesGitignore(t *testing.T) {
+	// .aideignore is layered last, so a "!" line there wins over .gitignore.
+	dir := writeGitRepo(t, map[string]string{
+		".gitignore":  "generated/\n",
+		".aideignore": "!generated/schema.go\n",
+	})
+
+	m, err := NewWithOptions(dir, Options{Gitignore: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !m.ShouldIgnoreFile("generated/other.go") {
+		t.Error("expected gitignored file to stay ignored")
+	}
+	if m.ShouldIgnoreFile("generated/schema.go") {
+		t.Error("expected .aideignore negation to re-include the file")
+	}
+}
+
+func TestGitignoreSkippedOutsideRepo(t *testing.T) {
+	// No .git — a stray .gitignore must not engage the layer, and the walk
+	// that would discover it is skipped entirely.
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, ".gitignore"), []byte("secret/\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	InvalidateGitignoreCache()
+
+	m, err := NewWithOptions(dir, Options{Gitignore: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if m.ShouldIgnoreDir("secret") {
+		t.Error("expected .gitignore to be skipped when the root is not a worktree")
+	}
+}
+
+func TestNewHonoursConfig(t *testing.T) {
+	dir := writeGitRepo(t, map[string]string{
+		".gitignore": "artifacts/\n",
+	})
+
+	off := false
+	config.Set(&config.Config{Code: config.CodeConfig{RespectGitignore: &off}})
+	t.Cleanup(func() { config.Set(nil) })
+
+	m, err := New(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.ShouldIgnoreDir("artifacts") {
+		t.Error("expected code.respect_gitignore=false to disable the layer")
+	}
+
+	on := true
+	config.Set(&config.Config{Code: config.CodeConfig{RespectGitignore: &on}})
+	InvalidateGitignoreCache()
+
+	m, err = New(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !m.ShouldIgnoreDir("artifacts") {
+		t.Error("expected code.respect_gitignore=true to enable the layer")
+	}
+}
+
+func TestUnloadedConfigDefaultsGitignoreOn(t *testing.T) {
+	// config.Get() returns a zero Config before Load runs; the *bool must
+	// still resolve to on so a fresh process does not silently scan
+	// gitignored paths.
+	config.Set(nil)
+	if !config.Get().Code.RespectGitignoreEnabled() {
+		t.Error("expected RespectGitignore to default on with no config loaded")
 	}
 }
