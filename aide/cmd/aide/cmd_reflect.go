@@ -302,6 +302,25 @@ func loadClassifications(args []string) (map[string]instinct.Classification, err
 // convergence-relevant window (between two edits on the same file). Skill
 // bodies read this, judge intent per prompt, then feed the results back via
 // reflectRun's --classifications flags.
+// mutationWindow is how far either side of a prompt a mutation still counts
+// as surrounding it. Mirrors convergence's window.
+const mutationWindow = 6
+
+// nearestMutation returns the closest mutation event within mutationWindow of
+// from, walking in step direction (-1 back, +1 forward), or nil if none.
+func nearestMutation(events []*observe.Event, from, step int) *observe.Event {
+	for n := 1; n <= mutationWindow; n++ {
+		j := from + n*step
+		if j < 0 || j >= len(events) {
+			return nil
+		}
+		if instinct.IsMutationEvent(events[j]) {
+			return events[j]
+		}
+	}
+	return nil
+}
+
 func reflectCandidates(dbPath string, args []string) error {
 	backend, err := NewBackend(dbPath)
 	if err != nil {
@@ -347,18 +366,10 @@ func reflectCandidates(dbPath string, args []string) error {
 	// Walk forward, pairing prompts with the most recent mutation and the
 	// next mutation on the same file (mirrors convergence's window logic).
 	for i, e := range events {
-		if e.Kind != "hook" || (e.Name != "user_prompt" && e.Name != "UserPromptSubmit") {
+		if !instinct.IsUserPromptEvent(e) {
 			continue
 		}
-		text := ""
-		if e.Attrs != nil {
-			for _, k := range []string{"text", "prompt", "content"} {
-				if v := e.Attrs[k]; v != "" {
-					text = v
-					break
-				}
-			}
-		}
+		text := instinct.UserPromptText(e)
 		if text == "" {
 			continue
 		}
@@ -367,22 +378,12 @@ func reflectCandidates(dbPath string, args []string) error {
 			Timestamp: e.Timestamp.Format(time.RFC3339Nano),
 			Text:      text,
 		}
-		// Most recent mutation before this prompt (within 6 events)
-		for j := i - 1; j >= 0 && j >= i-6; j-- {
-			pe := events[j]
-			if pe.Kind == "tool_call" && (pe.Name == "Edit" || pe.Name == "Write" || pe.Name == "NotebookEdit") {
-				c.PrecedingEdit = pe.Name + " " + pe.FilePath
-				c.FilePath = pe.FilePath
-				break
-			}
+		if pe := nearestMutation(events, i, -1); pe != nil {
+			c.PrecedingEdit = pe.Name + " " + pe.FilePath
+			c.FilePath = pe.FilePath
 		}
-		// Next mutation after this prompt (within 6 events)
-		for j := i + 1; j < len(events) && j <= i+6; j++ {
-			pe := events[j]
-			if pe.Kind == "tool_call" && (pe.Name == "Edit" || pe.Name == "Write" || pe.Name == "NotebookEdit") {
-				c.FollowingEdit = pe.Name + " " + pe.FilePath
-				break
-			}
+		if pe := nearestMutation(events, i, 1); pe != nil {
+			c.FollowingEdit = pe.Name + " " + pe.FilePath
 		}
 		// Only emit if there's at least a surrounding edit — otherwise the
 		// prompt isn't relevant to convergence detection.

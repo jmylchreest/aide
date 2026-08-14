@@ -69,7 +69,7 @@ func (Convergence) Detect(events []*observe.Event, cfgAny any, ctx ParserContext
 
 	var out []Proposal
 	for i, e := range events {
-		if !isMutationEvent(e) {
+		if !IsMutationEvent(e) {
 			continue
 		}
 		// Look ahead for a user-prompt corrective marker within the window.
@@ -135,7 +135,8 @@ func (Convergence) Detect(events []*observe.Event, cfgAny any, ctx ParserContext
 	return out
 }
 
-func isMutationEvent(e *observe.Event) bool {
+// IsMutationEvent reports whether e is a tool call that changed a file.
+func IsMutationEvent(e *observe.Event) bool {
 	if e.Kind != observe.KindToolCall {
 		return false
 	}
@@ -156,10 +157,10 @@ func findCorrectionAhead(events []*observe.Event, from, window int, markers map[
 	end := min(from+1+window, len(events))
 	for j := from + 1; j < end; j++ {
 		ev := events[j]
-		if !isUserPromptEvent(ev) {
+		if !IsUserPromptEvent(ev) {
 			continue
 		}
-		text := userPromptText(ev)
+		text := UserPromptText(ev)
 		if text == "" {
 			continue
 		}
@@ -183,7 +184,7 @@ func findMutationAhead(events []*observe.Event, from, window int, filePath strin
 	end := min(from+1+window, len(events))
 	for j := from + 1; j < end; j++ {
 		ev := events[j]
-		if !isMutationEvent(ev) {
+		if !IsMutationEvent(ev) {
 			continue
 		}
 		if filePath != "" && ev.FilePath != filePath {
@@ -198,7 +199,7 @@ func findPositiveAhead(events []*observe.Event, from, window int, markers map[st
 	end := min(from+1+window, len(events))
 	for j := from + 1; j < end; j++ {
 		ev := events[j]
-		if !isUserPromptEvent(ev) {
+		if !IsUserPromptEvent(ev) {
 			continue
 		}
 		if c, ok := classifications[ev.ID]; ok {
@@ -207,24 +208,25 @@ func findPositiveAhead(events []*observe.Event, from, window int, markers map[st
 			}
 			continue
 		}
-		if containsAnyMarker(userPromptText(ev), markers) {
+		if containsAnyMarker(UserPromptText(ev), markers) {
 			return true
 		}
 	}
 	return false
 }
 
-// isUserPromptEvent identifies the synthetic hook event we emit on
+// IsUserPromptEvent identifies the synthetic hook event we emit on
 // UserPromptSubmit. The hook records kind=hook, name=user_prompt,
 // with the text in attrs.text or attrs.prompt.
-func isUserPromptEvent(e *observe.Event) bool {
+func IsUserPromptEvent(e *observe.Event) bool {
 	if e.Kind == observe.KindHook && (e.Name == "user_prompt" || e.Name == "UserPromptSubmit") {
 		return true
 	}
 	return false
 }
 
-func userPromptText(e *observe.Event) string {
+// UserPromptText returns the prompt text an event carries, or "" if absent.
+func UserPromptText(e *observe.Event) string {
 	if e.Attrs == nil {
 		return ""
 	}
