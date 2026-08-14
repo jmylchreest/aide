@@ -213,6 +213,22 @@ type CodeConfig struct {
 	// StoreSync makes code-store opening synchronous (default false =
 	// lazy-init in the background). AIDE_CODE_STORE_SYNC=1.
 	StoreSync bool `koanf:"store_sync"`
+	// RespectGitignore layers the repository's own ignore rules (.gitignore
+	// files plus .git/info/exclude) into the aideignore matcher, between the
+	// built-in defaults and .aideignore. Without it the analysers scan paths
+	// git ignores unless .aideignore repeats the pattern. nil = on; set
+	// code.respect_gitignore=false or AIDE_CODE_RESPECT_GITIGNORE=0 to scan
+	// gitignored paths anyway.
+	//
+	// Pointer rather than plain bool because Get() returns a zero-valued
+	// Config when Load has not run, and a default-on feature must not read as
+	// off in that window. Resolve it with RespectGitignoreEnabled.
+	RespectGitignore *bool `koanf:"respect_gitignore"`
+}
+
+// RespectGitignoreEnabled resolves RespectGitignore, defaulting to on.
+func (c CodeConfig) RespectGitignoreEnabled() bool {
+	return resolveBool(c.RespectGitignore, true)
 }
 
 // PprofConfig groups pprof http server tunables (AIDE_PPROF_*).

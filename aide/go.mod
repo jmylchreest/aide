@@ -7,6 +7,7 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.10.0
 	github.com/ebitengine/purego v0.10.2
 	github.com/fsnotify/fsnotify v1.10.1
+	github.com/go-git/go-billy/v5 v5.9.0
 	github.com/go-git/go-git/v5 v5.19.2
 	github.com/google/jsonschema-go v0.4.3
 	github.com/knadh/koanf/parsers/json v1.0.1
@@ -88,7 +89,6 @@ require (
 	github.com/fatih/color v1.19.0 // indirect
 	github.com/flier/gohs v1.2.3 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
-	github.com/go-git/go-billy/v5 v5.9.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/goccy/go-json v0.10.6 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
