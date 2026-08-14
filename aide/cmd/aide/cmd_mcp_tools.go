@@ -126,7 +126,7 @@ Use memory_search instead when looking for specific topics or keywords.`,
 	}, s.handleMemoryList)
 
 	mcp.AddTool(s.server, &mcp.Tool{
-		Name: "memory_add",
+		Name:        "memory_add",
 		InputSchema: categoryInputSchema[MemoryAddInput]("Category:", false),
 		Description: `Store a new memory — a persistent, cross-session fact about the user or project.
 

@@ -24,8 +24,8 @@ func newMemoryTestServer(t *testing.T) (*MCPServer, func()) {
 }
 
 func TestHandleMemoryAdd_StoresAndReturnsID(t *testing.T) {
-	s, close := newMemoryTestServer(t)
-	defer close()
+	s, cleanup := newMemoryTestServer(t)
+	defer cleanup()
 
 	result, _, err := s.handleMemoryAdd(context.Background(), nil, MemoryAddInput{
 		Content:  "The tavern keeper always serves ale at room temperature",
@@ -57,8 +57,8 @@ func TestHandleMemoryAdd_StoresAndReturnsID(t *testing.T) {
 }
 
 func TestHandleMemoryAdd_DefaultsToLearningCategory(t *testing.T) {
-	s, close := newMemoryTestServer(t)
-	defer close()
+	s, cleanup := newMemoryTestServer(t)
+	defer cleanup()
 
 	result, _, err := s.handleMemoryAdd(context.Background(), nil, MemoryAddInput{
 		Content: "Default category fact",
@@ -72,8 +72,8 @@ func TestHandleMemoryAdd_DefaultsToLearningCategory(t *testing.T) {
 }
 
 func TestHandleMemoryAdd_EmptyContentIsError(t *testing.T) {
-	s, close := newMemoryTestServer(t)
-	defer close()
+	s, cleanup := newMemoryTestServer(t)
+	defer cleanup()
 
 	result, _, err := s.handleMemoryAdd(context.Background(), nil, MemoryAddInput{
 		Content: "   ",
@@ -85,8 +85,8 @@ func TestHandleMemoryAdd_EmptyContentIsError(t *testing.T) {
 }
 
 func TestHandleMemoryAdd_UnknownCategoryIsError(t *testing.T) {
-	s, close := newMemoryTestServer(t)
-	defer close()
+	s, cleanup := newMemoryTestServer(t)
+	defer cleanup()
 
 	result, _, err := s.handleMemoryAdd(context.Background(), nil, MemoryAddInput{
 		Content:  "A fact with a bogus category",
@@ -112,8 +112,8 @@ func TestHandleMemoryAdd_UnknownCategoryIsError(t *testing.T) {
 }
 
 func TestHandleMemoryAdd_ReservedCategoryIsError(t *testing.T) {
-	s, close := newMemoryTestServer(t)
-	defer close()
+	s, cleanup := newMemoryTestServer(t)
+	defer cleanup()
 
 	result, _, err := s.handleMemoryAdd(context.Background(), nil, MemoryAddInput{
 		Content:  "An instinct a caller shouldn't set",
