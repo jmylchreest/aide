@@ -42,6 +42,12 @@ type MemoryListInput struct {
 	Limit    int    `json:"limit,omitempty" jsonschema:"Maximum results (default 50). Increase for comprehensive review."`
 }
 
+type MemoryAddInput struct {
+	Content  string   `json:"content" jsonschema:"The memory content to store. Should be a short, self-contained, factual statement (e.g. 'The user prefers pytest over unittest', 'Auth middleware lives at src/auth.ts'). Concise, specific, and durable — avoid session-specific noise."`
+	Category string   `json:"category,omitempty" jsonschema:"Category for this memory. Defaults to learning."`
+	Tags     []string `json:"tags,omitempty" jsonschema:"Topic tags plus structured tags that control scoring and sharing — include at least one scope and one provenance tag. Scope (pick one): 'scope:global' for facts true everywhere (also gives learning memories top ranking), or 'project:<name>' for this project only. With neither, the memory won't share across repos. Provenance (pick one): 'source:user' if the user said it, 'source:discovered' if you found it while working. Optional: 'verified:true' when confirmed by running or reading code. Example: ['testing','vitest','project:myapp','source:discovered','verified:true']"`
+}
+
 type StateGetInput struct {
 	Key     string `json:"key" jsonschema:"State key: 'mode', 'modelTier', 'activeSkill', or custom keys"`
 	AgentID string `json:"agent_id,omitempty" jsonschema:"Agent ID for per-agent state (e.g., 'abc123'). Omit for global state."`
@@ -118,6 +124,26 @@ Prefer most recent when answering questions about preferences or decisions.
 **When to use:** Use this for broad review or when you need to see everything.
 Use memory_search instead when looking for specific topics or keywords.`,
 	}, s.handleMemoryList)
+
+	mcp.AddTool(s.server, &mcp.Tool{
+		Name:        "memory_add",
+		InputSchema: categoryInputSchema[MemoryAddInput]("Category:", false),
+		Description: `Store a new memory — a persistent, cross-session fact about the user or project.
+
+Memories are short, durable, self-contained factual statements that future sessions
+can recall via memory_search. Record user preferences, coding conventions, architectural
+facts, known issues, and blockers as you discover them.
+
+**Use memory_search first** to check whether this fact is already stored before adding —
+avoid piling up duplicate memories.
+
+**When to use:** When you learn a stable fact worth remembering for later sessions
+(e.g. "user prefers X", "we decided on Y", "service Z is deployed at W").
+Prefer memory_add for distilled, lasting facts; formal architectural decisions with
+history should use the decision_* tools (decision_list / decision_get).
+
+Params: content (required), optional category (default learning), optional tags.`,
+	}, s.handleMemoryAdd)
 }
 
 func (s *MCPServer) handleMemorySearch(_ context.Context, _ *mcp.CallToolRequest, input MemorySearchInput) (*mcp.CallToolResult, any, error) {
@@ -187,6 +213,48 @@ func (s *MCPServer) handleMemoryList(_ context.Context, _ *mcp.CallToolRequest, 
 	}
 
 	return textResult(formatMemoriesMarkdown(memories)), nil, nil
+}
+
+func (s *MCPServer) handleMemoryAdd(_ context.Context, _ *mcp.CallToolRequest, input MemoryAddInput) (*mcp.CallToolResult, any, error) {
+	mcpLog.Printf("tool: memory_add category=%q tags=%v", input.Category, input.Tags)
+
+	if strings.TrimSpace(input.Content) == "" {
+		return errorResult("'content' is required"), nil, nil
+	}
+
+	cat := memory.Category(input.Category)
+	if cat == "" {
+		cat = memory.CategoryLearning
+	}
+	if !memory.IsValidCategory(cat) {
+		return errorResult(fmt.Sprintf("unknown category %q; valid categories: %s",
+			cat, memory.CategoryHelp(false))), nil, nil
+	}
+	if memory.IsReservedCategory(cat) {
+		return errorResult(fmt.Sprintf("category %q is set by aide, not by callers", cat)), nil, nil
+	}
+
+	mem := &memory.Memory{
+		Content:  input.Content,
+		Category: cat,
+		Tags:     input.Tags,
+	}
+
+	if err := s.store.AddMemory(mem); err != nil {
+		mcpLog.Printf("  error: %v", err)
+		return errorResult(fmt.Sprintf("add memory failed: %v", err)), nil, nil
+	}
+
+	mcpLog.Printf("  added: id=%s category=%s", mem.ID, mem.Category)
+
+	result, _ := json.Marshal(map[string]any{
+		"id":       mem.ID,
+		"category": mem.Category,
+		"content":  mem.Content,
+		"tags":     mem.Tags,
+		"status":   "stored",
+	})
+	return textResult(string(result)), nil, nil
 }
 
 // ============================================================================
