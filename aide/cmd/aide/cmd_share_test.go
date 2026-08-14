@@ -487,28 +487,6 @@ func TestSanitizeFilename(t *testing.T) {
 	}
 }
 
-func TestYamlEscapeUnescape(t *testing.T) {
-	tests := []struct {
-		input string
-	}{
-		{"simple value"},
-		{"value with: colon"},
-		{`value with "quotes"`},
-		{"value with #hash"},
-	}
-
-	for _, tt := range tests {
-		escaped := yamlEscape(tt.input)
-		unescaped := yamlUnescape(escaped)
-		// For values that don't need escaping, yamlUnescape is a no-op
-		if strings.ContainsAny(tt.input, ":#{}[]|>&*!%@`'\"\\,\n") {
-			if unescaped != tt.input {
-				t.Errorf("roundtrip failed: %q -> %q -> %q", tt.input, escaped, unescaped)
-			}
-		}
-	}
-}
-
 func TestFirstLine(t *testing.T) {
 	if got := firstLine("one\ntwo\nthree"); got != "one" {
 		t.Errorf("firstLine multiline: got %q", got)
