@@ -66,8 +66,6 @@ func SocketPathFromDB(dbPath string) string {
 	return filepath.Join(base, "aide", name)
 }
 
-// projectRoot derives the project root from the database path.
-// dbPath is <root>/.aide/memory/memory.db — three Dir() calls to reach <root>.
 // Server manages the gRPC server and all service implementations.
 type Server struct {
 	store         store.Store

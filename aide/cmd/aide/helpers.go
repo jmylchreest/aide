@@ -259,8 +259,6 @@ func loadAideConfig(projectRoot string) aideJSON {
 	return cfg
 }
 
-// projectRoot derives the project root from the database path.
-// dbPath is <root>/.aide/memory/memory.db — three Dir() calls to reach <root>.
 // grammarDir returns the grammar storage directory for the project.
 func grammarDir(dbPath string) string {
 	return filepath.Join(store.ProjectRootFromDB(dbPath), ".aide", "grammars")
