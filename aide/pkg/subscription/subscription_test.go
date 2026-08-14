@@ -42,7 +42,7 @@ func buildTree(t *testing.T, root string) {
 	if err := os.WriteFile(tp, contextshare.MarshalTombstone(tomb), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := contextshare.WriteManifest(root, now); err != nil {
+	if err := contextshare.WriteManifest(root, contextshare.Manifest{Watermark: now}); err != nil {
 		t.Fatal(err)
 	}
 }

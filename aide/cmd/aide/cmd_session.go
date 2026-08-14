@@ -350,7 +350,10 @@ func autoImportShared(backend *Backend, sharedDir string) int {
 
 	imported := 0
 	if hasPerRecordLayout(sharedDir) {
+		now := time.Now()
 		stats, err := contextshare.Import(backend.Store(), backend.TombstoneStore(), sharedDir, contextshare.ImportOptions{
+			Now:            now,
+			LastImport:     lastImportAt(backend, sharedDir),
 			Decisions:      importDecisions,
 			Memories:       importMemories,
 			DecisionFilter: toFilter(share.DecisionImportFilter()),
@@ -360,6 +363,9 @@ func autoImportShared(backend *Backend, sharedDir string) int {
 			fmt.Fprintf(os.Stderr, "warning: shared auto-import skipped: %v\n", err)
 		} else {
 			imported += stats.DecisionsImported + stats.MemoriesImported
+			if err := recordImportAt(backend, sharedDir, now); err != nil {
+				fmt.Fprintf(os.Stderr, "warning: could not record share import time: %v\n", err)
+			}
 		}
 	}
 	if hasLegacyRecords(sharedDir) {

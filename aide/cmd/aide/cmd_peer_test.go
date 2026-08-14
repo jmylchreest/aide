@@ -52,7 +52,7 @@ func peerFixture(t *testing.T) (projectRoot string) {
 	}
 	writePeer(&memory.Decision{Topic: "shared-topic", Decision: "peer-version", CreatedAt: now})
 	writePeer(&memory.Decision{Topic: "peer-only", Decision: "team-rule", DecidedBy: "platform-team", CreatedAt: now})
-	if err := contextshare.WriteManifest(peerDir, now); err != nil {
+	if err := contextshare.WriteManifest(peerDir, contextshare.Manifest{Watermark: now}); err != nil {
 		t.Fatal(err)
 	}
 

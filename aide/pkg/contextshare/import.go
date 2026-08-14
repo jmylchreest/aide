@@ -13,9 +13,10 @@ import (
 	"github.com/jmylchreest/aide/aide/pkg/memory"
 )
 
-// ErrStaleExport is returned when a context tree's manifest is missing or
-// its watermark predates the tombstone TTL. Merging such a tree could
-// resurrect records whose tombstones have already been garbage-collected.
+// ErrStaleExport is returned when a context tree cannot be merged safely:
+// its manifest is missing, or the caller last imported before the tree's
+// deletion horizon and would therefore keep records whose tombstones have
+// since been garbage-collected.
 var ErrStaleExport = errors.New("stale context export")
 
 // Target is the write surface Import needs from the store.
@@ -38,6 +39,7 @@ type Target interface {
 // deletions still propagate and resurrection is prevented.
 type ImportOptions struct {
 	Now            time.Time     // TTL reference; zero = time.Now()
+	LastImport     time.Time     // This target's last successful import of this tree; zero = never
 	TombstoneTTL   time.Duration // Zero = DefaultTombstoneTTL
 	Force          bool          // Bypass the stale-export guard
 	DryRun         bool          // Report what would change without writing
@@ -71,6 +73,12 @@ type ImportStats struct {
 // forget tag: once a clone has soft-deleted a memory, no import strips that
 // tag. Tombstones delete matching local records and are recorded locally so
 // the deletion propagates onward.
+//
+// Callers that keep a store across imports must pass opts.LastImport and
+// persist the import time on success; without it the guard cannot tell a
+// caller that is caught up from one that has been away long enough to have
+// missed a garbage-collected deletion. Store-free readers, which cannot
+// resurrect anything, pass Force instead.
 func Import(tgt Target, tombs TombstoneAccess, root string, opts ImportOptions) (*ImportStats, error) {
 	now := opts.Now
 	if now.IsZero() {
@@ -81,7 +89,7 @@ func Import(tgt Target, tombs TombstoneAccess, root string, opts ImportOptions) 
 		ttl = DefaultTombstoneTTL
 	}
 
-	if err := checkStaleGuard(root, now, ttl, opts.Force); err != nil {
+	if err := checkStaleGuard(root, now, opts.LastImport, ttl, opts.Force); err != nil {
 		return nil, err
 	}
 
@@ -103,10 +111,23 @@ func Import(tgt Target, tombs TombstoneAccess, root string, opts ImportOptions) 
 	return stats, nil
 }
 
-// checkStaleGuard refuses trees whose manifest is missing or older than the
-// tombstone TTL, since tombstones the publisher GC'd may already be gone.
-func checkStaleGuard(root string, now time.Time, ttl time.Duration, force bool) error {
-	_, watermark, err := ReadManifest(root)
+// checkStaleGuard refuses trees this target cannot merge without risking
+// resurrection.
+//
+// The question is never "how old is this tree" — a tree whose context has
+// been settled for a year is perfectly current. It is "has this tree thrown
+// away a deletion I never saw", and that is a comparison between the tree's
+// horizon and how far behind the caller is. A caller that has never imported
+// (zero LastImport) cannot be holding a stale copy of anything, so it is
+// always safe.
+//
+// v1 trees carry no horizon, only an export-time watermark, so they fall back
+// to the guard that shipped with them: refuse once the export itself is older
+// than the TTL. That is the conservative reading — it can refuse a tree that
+// was merely stable — but a v1 publisher bumped its watermark on every export,
+// so in practice an old watermark did mean an abandoned tree.
+func checkStaleGuard(root string, now, lastImport time.Time, ttl time.Duration, force bool) error {
+	m, err := ReadManifest(root)
 	if err != nil {
 		if force {
 			return nil
@@ -118,12 +139,18 @@ func checkStaleGuard(root string, now time.Time, ttl time.Duration, force bool) 
 		return fmt.Errorf("%w: %v — ask the publisher for a fresh `aide share export`, or use --force to import anyway",
 			ErrStaleExport, err)
 	}
-	if now.Sub(watermark) > ttl {
-		if force {
-			return nil
+
+	if m.Version < 2 {
+		if !force && now.Sub(m.Watermark) > ttl {
+			return fmt.Errorf("%w: v1 tree exported %s, more than %s ago, so deletions may have been garbage-collected — ask the publisher for a fresh `aide share export`, or use --force to import anyway",
+				ErrStaleExport, m.Watermark.Format(time.RFC3339), ttl)
 		}
-		return fmt.Errorf("%w: watermark %s is older than %s, so deletions may have been garbage-collected — ask the publisher for a fresh `aide share export`, or use --force to import anyway",
-			ErrStaleExport, watermark.Format(time.RFC3339), ttl)
+		return nil
+	}
+
+	if !force && !lastImport.IsZero() && !m.Horizon.IsZero() && lastImport.Before(m.Horizon) {
+		return fmt.Errorf("%w: deletions up to %s have been garbage-collected from this tree and you last imported it %s, so records deleted in that gap would survive locally — use --force to import anyway and reconcile by hand",
+			ErrStaleExport, m.Horizon.Format(time.RFC3339), lastImport.Format(time.RFC3339))
 	}
 	return nil
 }

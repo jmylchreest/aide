@@ -66,13 +66,23 @@ type ExportStats struct {
 	TombstonesSkipped int
 }
 
+// exportResult is what one per-type pass reports back. Newest is the newest
+// record timestamp the pass published, which Export folds into the manifest
+// watermark.
+type exportResult struct {
+	Count    int
+	Excluded int
+	Newest   time.Time
+}
+
 // Export projects the shareable subset of src into the context tree at root.
 //
 // Record files are write-once: an existing decision version file is never
 // rewritten, and a memory file is only rewritten when its owner's record
 // changed. Nothing is deleted except records shadowed by a tombstone and
-// tombstones past their TTL. The manifest watermark is the only byte that
-// changes across re-exports of unchanged content.
+// tombstones past their TTL. Re-exporting an unchanged store is a complete
+// no-op, manifest included — opts.Now reaches the tree only through the TTL
+// decisions it drives, never as a timestamp of its own.
 func Export(src Source, tombs TombstoneAccess, root string, opts ExportOptions) (*ExportStats, error) {
 	now := opts.Now
 	if now.IsZero() {
@@ -91,10 +101,12 @@ func Export(src Source, tombs TombstoneAccess, root string, opts ExportOptions) 
 
 	stats := &ExportStats{}
 
-	live, err := collectLiveTombstones(tombs, root, now, ttl)
+	live, gcHorizon, err := collectLiveTombstones(tombs, root, now, ttl)
 	if err != nil {
 		return nil, err
 	}
+
+	var newest time.Time
 
 	// Materialise live tombstones and remove the record files they shadow.
 	for _, t := range live {
@@ -118,38 +130,64 @@ func Export(src Source, tombs TombstoneAccess, root string, opts ExportOptions) 
 		if err := removeShadowedRecord(root, t); err != nil {
 			return nil, err
 		}
+		newest = later(newest, t.DeletedAt)
 		stats.Tombstones++
 	}
 
 	if opts.Decisions {
-		n, excluded, err := exportDecisions(src, root, live, opts.DecisionFilter)
+		res, err := exportDecisions(src, root, live, opts.DecisionFilter)
 		if err != nil {
 			return nil, err
 		}
-		stats.Decisions = n
-		stats.DecisionsExcluded = excluded
+		stats.Decisions = res.Count
+		stats.DecisionsExcluded = res.Excluded
+		newest = later(newest, res.Newest)
 	}
 
 	if opts.Memories {
-		n, excluded, err := exportMemories(src, root, live, opts.MemoryFilter)
+		res, err := exportMemories(src, root, live, opts.MemoryFilter)
 		if err != nil {
 			return nil, err
 		}
-		stats.Memories = n
-		stats.MemoriesExcluded = excluded
+		stats.Memories = res.Count
+		stats.MemoriesExcluded = res.Excluded
+		newest = later(newest, res.Newest)
 	}
 
-	if err := WriteManifest(root, now); err != nil {
+	// The horizon only ever moves forward, and a re-export that GCs nothing
+	// must leave it where the previous one put it. A tree whose manifest is
+	// missing or unreadable restarts from whatever this run dropped: the
+	// alternative is refusing to export at all over a file the export is
+	// about to rewrite anyway.
+	horizon := gcHorizon
+	if prev, err := ReadManifest(root); err == nil {
+		horizon = later(horizon, prev.Horizon)
+	}
+
+	if err := WriteManifest(root, Manifest{Watermark: newest, Horizon: horizon}); err != nil {
 		return nil, fmt.Errorf("failed to write manifest: %w", err)
 	}
 	return stats, nil
 }
 
+func later(a, b time.Time) time.Time {
+	if b.After(a) {
+		return b
+	}
+	return a
+}
+
 // collectLiveTombstones merges DB tombstones with tombstone files already in
 // the tree (newest DeletedAt wins per id), garbage-collecting both expired DB
 // rows and expired files along the way.
-func collectLiveTombstones(tombs TombstoneAccess, root string, now time.Time, ttl time.Duration) (map[string]*memory.Tombstone, error) {
+//
+// The second return is the GC horizon: the newest DeletedAt this call dropped,
+// zero when it dropped nothing. Every deletion at or before that point is now
+// unrecoverable from this tree, which is exactly what an importer needs to
+// know to tell whether it can trust the tree's record of deletions.
+func collectLiveTombstones(tombs TombstoneAccess, root string, now time.Time, ttl time.Duration) (map[string]*memory.Tombstone, time.Time, error) {
 	live := make(map[string]*memory.Tombstone)
+	var gcHorizon time.Time
 	keep := func(t *memory.Tombstone) {
 		key := t.Kind + ":" + t.ID
 		if existing, ok := live[key]; !ok || t.DeletedAt.After(existing.DeletedAt) {
@@ -160,13 +198,14 @@ func collectLiveTombstones(tombs TombstoneAccess, root string, now time.Time, tt
 	if tombs != nil {
 		dbTombstones, err := tombs.ListTombstones()
 		if err != nil {
-			return nil, fmt.Errorf("failed to list tombstones: %w", err)
+			return nil, time.Time{}, fmt.Errorf("failed to list tombstones: %w", err)
 		}
 		for _, t := range dbTombstones {
 			if now.Sub(t.DeletedAt) > ttl {
 				if err := tombs.DeleteTombstone(t.Kind, t.ID); err != nil {
-					return nil, fmt.Errorf("failed to GC tombstone %s: %w", t.ID, err)
+					return nil, time.Time{}, fmt.Errorf("failed to GC tombstone %s: %w", t.ID, err)
 				}
+				gcHorizon = later(gcHorizon, t.DeletedAt)
 				continue
 			}
 			keep(t)
@@ -176,7 +215,7 @@ func collectLiveTombstones(tombs TombstoneAccess, root string, now time.Time, tt
 	dir := filepath.Join(root, tombstonesDir)
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return nil, err
+		return nil, time.Time{}, err
 	}
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
@@ -185,7 +224,7 @@ func collectLiveTombstones(tombs TombstoneAccess, root string, now time.Time, tt
 		path := filepath.Join(dir, entry.Name())
 		data, err := os.ReadFile(path)
 		if err != nil {
-			return nil, err
+			return nil, time.Time{}, err
 		}
 		t, err := ParseTombstone(data)
 		if err != nil {
@@ -195,17 +234,18 @@ func collectLiveTombstones(tombs TombstoneAccess, root string, now time.Time, tt
 		if now.Sub(t.DeletedAt) > ttl {
 			// Past TTL: GC the tombstone file and the record it shadowed.
 			if err := os.Remove(path); err != nil {
-				return nil, fmt.Errorf("failed to GC tombstone file %s: %w", entry.Name(), err)
+				return nil, time.Time{}, fmt.Errorf("failed to GC tombstone file %s: %w", entry.Name(), err)
 			}
 			if err := removeShadowedRecord(root, t); err != nil {
-				return nil, err
+				return nil, time.Time{}, err
 			}
+			gcHorizon = later(gcHorizon, t.DeletedAt)
 			continue
 		}
 		keep(t)
 	}
 
-	return live, nil
+	return live, gcHorizon, nil
 }
 
 // removeShadowedRecord deletes the record file(s) a tombstone shadows.
@@ -255,16 +295,16 @@ func removeShadowedRecord(root string, t *memory.Tombstone) error {
 
 // exportDecisions writes one write-once file per decision version that passes
 // the filter.
-func exportDecisions(src Source, root string, live map[string]*memory.Tombstone, filter Filter) (int, int, error) {
+func exportDecisions(src Source, root string, live map[string]*memory.Tombstone, filter Filter) (exportResult, error) {
 	decisions, err := src.ListDecisions()
 	if err != nil {
-		return 0, 0, err
+		return exportResult{}, err
 	}
 
-	count, excluded := 0, 0
+	var res exportResult
 	for _, d := range decisions {
 		if !filter.Match(DecisionTokens(d)) {
-			excluded++
+			res.Excluded++
 			continue
 		}
 		if shadowed(live, memory.TombstoneKindDecisionTopic, d.Topic, recordTimeDecision(d)) {
@@ -272,19 +312,18 @@ func exportDecisions(src Source, root string, live map[string]*memory.Tombstone,
 		}
 		path := DecisionPath(root, d)
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-			return count, excluded, err
+			return res, err
 		}
 		// Write-once: version files are immutable by identity.
-		if _, err := os.Stat(path); err == nil {
-			count++
-			continue
+		if _, err := os.Stat(path); err != nil {
+			if err := os.WriteFile(path, MarshalDecision(d), 0o644); err != nil {
+				return res, fmt.Errorf("failed to write %s: %w", path, err)
+			}
 		}
-		if err := os.WriteFile(path, MarshalDecision(d), 0o644); err != nil {
-			return count, excluded, fmt.Errorf("failed to write %s: %w", path, err)
-		}
-		count++
+		res.Count++
+		res.Newest = later(res.Newest, recordTimeDecision(d))
 	}
-	return count, excluded, nil
+	return res, nil
 }
 
 // exportMemories writes one file per memory that passes the filter.
@@ -294,16 +333,16 @@ func exportDecisions(src Source, root string, live map[string]*memory.Tombstone,
 // converge to the forgotten state instead of keeping (or resurrecting) an
 // unforgotten copy from a stale tree file. Filtering by tokens, not by the old
 // IsShareableMemory gate, is what makes the export policy user-configurable.
-func exportMemories(src Source, root string, live map[string]*memory.Tombstone, filter Filter) (int, int, error) {
+func exportMemories(src Source, root string, live map[string]*memory.Tombstone, filter Filter) (exportResult, error) {
 	memories, err := src.ListMemories(memory.SearchOptions{IncludeAll: true})
 	if err != nil {
-		return 0, 0, err
+		return exportResult{}, err
 	}
 
-	count, excluded := 0, 0
+	var res exportResult
 	for _, m := range memories {
 		if !filter.Match(MemoryTokens(m)) {
-			excluded++
+			res.Excluded++
 			continue
 		}
 		if shadowed(live, memory.TombstoneKindMemory, m.ID, recordTimeMemory(m)) {
@@ -313,16 +352,15 @@ func exportMemories(src Source, root string, live map[string]*memory.Tombstone, 
 		data := MarshalMemory(m)
 		// Rewrite only when the owner's record changed, so unchanged content
 		// stays byte-identical (and mtime-stable) across re-exports.
-		if existing, err := os.ReadFile(path); err == nil && bytes.Equal(existing, data) {
-			count++
-			continue
+		if existing, err := os.ReadFile(path); err != nil || !bytes.Equal(existing, data) {
+			if err := os.WriteFile(path, data, 0o644); err != nil {
+				return res, fmt.Errorf("failed to write %s: %w", path, err)
+			}
 		}
-		if err := os.WriteFile(path, data, 0o644); err != nil {
-			return count, excluded, fmt.Errorf("failed to write %s: %w", path, err)
-		}
-		count++
+		res.Count++
+		res.Newest = later(res.Newest, recordTimeMemory(m))
 	}
-	return count, excluded, nil
+	return res, nil
 }
 
 // shadowed reports whether a live tombstone covers a record. A record
