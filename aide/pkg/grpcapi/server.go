@@ -2271,7 +2271,7 @@ func (s *tombstoneServiceImpl) Add(ctx context.Context, req *TombstoneAddRequest
 		return nil, fmt.Errorf("tombstone store not available")
 	}
 
-	t := protoToTombstone(req.Tombstone)
+	t := ProtoToTombstone(req.Tombstone)
 	if t == nil {
 		return nil, fmt.Errorf("tombstone is required")
 	}
@@ -2281,7 +2281,7 @@ func (s *tombstoneServiceImpl) Add(ctx context.Context, req *TombstoneAddRequest
 	}
 
 	// AddTombstone may stamp DeletedAt when zero; echo the stored value back.
-	return &TombstoneAddResponse{Tombstone: tombstoneToProto(t)}, nil
+	return &TombstoneAddResponse{Tombstone: TombstoneToProto(t)}, nil
 }
 
 func (s *tombstoneServiceImpl) Get(ctx context.Context, req *TombstoneGetRequest) (*TombstoneGetResponse, error) {
@@ -2299,7 +2299,7 @@ func (s *tombstoneServiceImpl) Get(ctx context.Context, req *TombstoneGetRequest
 	}
 
 	return &TombstoneGetResponse{
-		Tombstone: tombstoneToProto(t),
+		Tombstone: TombstoneToProto(t),
 		Found:     true,
 	}, nil
 }
@@ -2317,7 +2317,7 @@ func (s *tombstoneServiceImpl) List(ctx context.Context, req *TombstoneListReque
 
 	protoTombstones := make([]*Tombstone, len(tombstones))
 	for i, t := range tombstones {
-		protoTombstones[i] = tombstoneToProto(t)
+		protoTombstones[i] = TombstoneToProto(t)
 	}
 	return &TombstoneListResponse{Tombstones: protoTombstones}, nil
 }
@@ -2661,7 +2661,7 @@ func surveyEntryToProto(e *survey.Entry) *SurveyEntry {
 	}
 }
 
-func tombstoneToProto(t *memory.Tombstone) *Tombstone {
+func TombstoneToProto(t *memory.Tombstone) *Tombstone {
 	if t == nil {
 		return nil
 	}
@@ -2672,7 +2672,7 @@ func tombstoneToProto(t *memory.Tombstone) *Tombstone {
 	}
 }
 
-func protoToTombstone(pt *Tombstone) *memory.Tombstone {
+func ProtoToTombstone(pt *Tombstone) *memory.Tombstone {
 	if pt == nil {
 		return nil
 	}
