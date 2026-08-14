@@ -36,6 +36,7 @@ import {
   type AgentState,
   type SessionState,
 } from "../src/lib/hud.js";
+import { anchorCacheDirs } from "../src/lib/anchor.js";
 
 const SESSION_ID_RE = /^[a-zA-Z0-9_-]{1,128}$/;
 const STATE_CACHE_TTL_MS = 2000;
@@ -56,20 +57,11 @@ function readStdinRaw(): unknown {
   }
 }
 
-/** Same location contract as lib/anchor.ts anchorCacheDirs. */
-function anchorCacheDirs(): string[] {
-  const dirs: string[] = [];
-  const xdg = process.env.XDG_RUNTIME_DIR;
-  if (xdg && existsSync(xdg)) dirs.push(join(xdg, "aide"));
-  dirs.push(join(homedir(), ".aide"));
-  return dirs;
-}
-
 function readAnchor(sessionId: string, cwd?: string): AnchorIdentity | null {
   try {
     if (!SESSION_ID_RE.test(sessionId)) return null;
     const p = anchorCacheDirs()
-      .map((d) => join(d, "anchors", `${sessionId}.json`))
+      .map((d) => join(d, `${sessionId}.json`))
       .find((f) => existsSync(f));
     if (!p) return null;
     const entry = JSON.parse(readFileSync(p, "utf-8"));

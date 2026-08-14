@@ -243,7 +243,10 @@ export function codeWatchEnabled(cwd: string): boolean {
 /**
  * Get the plugin root directory from environment variables.
  */
-function getPluginRoot(): string | undefined {
+// The env var alone — callers here pass it to clientFindBinary, which does
+// its own validation. Not aide-downloader.getPluginRoot, which validates and
+// falls back to the script location.
+function pluginRootFromEnv(): string | undefined {
   return process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT;
 }
 
@@ -265,14 +268,14 @@ export function findAideBinary(cwd?: string, sessionId?: string): string | null 
     if (anchor) {
       return clientFindBinary({
         cwd: anchor.root,
-        pluginRoot: getPluginRoot(),
+        pluginRoot: pluginRootFromEnv(),
         additionalPaths: anchor.chain
           .slice(1)
           .map((s) => join(s.root, ".aide", "bin")),
       });
     }
   }
-  return clientFindBinary({ cwd, pluginRoot: getPluginRoot() });
+  return clientFindBinary({ cwd, pluginRoot: pluginRootFromEnv() });
 }
 
 /**

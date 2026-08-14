@@ -32,7 +32,11 @@ import {
   emitHookResult,
   installHookSafetyNet,
 } from "../lib/hook-utils.js";
-import { findAideBinary, ensureAideBinary } from "../lib/aide-downloader.js";
+import {
+  findAideBinary,
+  ensureAideBinary,
+  getPluginRoot,
+} from "../lib/aide-downloader.js";
 import { findProjectRoot } from "../lib/project-root.js";
 import { shouldInstallWrapper, hudPointerFile } from "../lib/hud.js";
 import {
@@ -140,31 +144,6 @@ function resetHudState(cwd: string, log: Logger): void {
     log.warn("Failed to reset HUD state", err);
     log.end("resetHudState", { success: false, error: String(err) });
   }
-}
-
-/**
- * Get the plugin root directory
- */
-function getPluginRoot(): string | null {
-  // Check AIDE_PLUGIN_ROOT or CLAUDE_PLUGIN_ROOT env var
-  const envRoot =
-    process.env.AIDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT;
-  if (envRoot && existsSync(join(envRoot, "package.json"))) {
-    return envRoot;
-  }
-
-  // Calculate from this script's location: dist/hooks/session-start.js -> ../../
-  try {
-    const scriptPath = fileURLToPath(import.meta.url);
-    const pluginRoot = join(dirname(scriptPath), "..", "..");
-    if (existsSync(join(pluginRoot, "package.json"))) {
-      return pluginRoot;
-    }
-  } catch {
-    // import.meta.url not available
-  }
-
-  return null;
 }
 
 /**
