@@ -42,7 +42,7 @@ func writeTree(t *testing.T, sharedDir string) {
 		}
 	}
 
-	if err := contextshare.WriteManifest(sharedDir, created); err != nil {
+	if err := contextshare.WriteManifest(sharedDir, contextshare.Manifest{Watermark: created}); err != nil {
 		t.Fatal(err)
 	}
 }

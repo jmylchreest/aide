@@ -807,7 +807,10 @@ func cmdShareImport(dbPath string, args []string) error {
 	fmt.Printf("%s %s\n", action, inputDir)
 
 	if perRecord {
+		now := time.Now()
 		stats, err := contextshare.Import(backend.Store(), backend.TombstoneStore(), inputDir, contextshare.ImportOptions{
+			Now:            now,
+			LastImport:     lastImportAt(backend, inputDir),
 			Force:          hasFlag(args, "--force"),
 			DryRun:         dryRun,
 			Decisions:      importDecisions,
@@ -817,6 +820,13 @@ func cmdShareImport(dbPath string, args []string) error {
 		})
 		if err != nil {
 			return fmt.Errorf("failed to import: %w", err)
+		}
+		// A dry run reports what an import would do without doing it, so it
+		// must not claim the store has caught up.
+		if !dryRun {
+			if err := recordImportAt(backend, inputDir, now); err != nil {
+				fmt.Fprintf(os.Stderr, "warning: could not record share import time: %v\n", err)
+			}
 		}
 		if importDecisions {
 			fmt.Printf("  decisions:  %d imported, %d skipped (already exist)\n", stats.DecisionsImported, stats.DecisionsSkipped)

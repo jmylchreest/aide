@@ -45,7 +45,7 @@ func TestHasPerRecordLayout(t *testing.T) {
 		{
 			name: "manifest marks per-record layout",
 			setup: func(t *testing.T, dir string) {
-				if err := contextshare.WriteManifest(dir, time.Now()); err != nil {
+				if err := contextshare.WriteManifest(dir, contextshare.Manifest{Watermark: time.Now()}); err != nil {
 					t.Fatal(err)
 				}
 			},
@@ -192,17 +192,38 @@ func TestCmdShareContextExportImportRoundTrip(t *testing.T) {
 	})
 }
 
-// Importing a context tree with a missing or stale manifest must fail with a
-// clear error unless --force is given.
+// A tree that has garbage-collected deletions this store was not around to
+// receive must fail with a clear error unless --force is given — and the
+// store's side of that comparison has to survive the round trip through
+// state, since a lost stamp reads as "never imported" and waves the merge
+// through.
 func TestCmdShareImportStaleGuard(t *testing.T) {
 	dbB, tmpB := newShareProject(t)
 	sharedDir := filepath.Join(tmpB, ".aide", "shared")
 	if err := os.MkdirAll(filepath.Join(sharedDir, "tombstones"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := contextshare.WriteManifest(sharedDir, time.Now().Add(-120*24*time.Hour)); err != nil {
+	if err := contextshare.WriteManifest(sharedDir, contextshare.Manifest{
+		Watermark: time.Now(),
+		Horizon:   time.Now().Add(-91 * 24 * time.Hour),
+	}); err != nil {
 		t.Fatal(err)
 	}
+
+	// A store that has never imported cannot be resurrecting anything, so the
+	// horizon alone is not grounds to refuse.
+	if err := cmdShareImport(dbB, nil); err != nil {
+		t.Fatalf("first import refused: %v", err)
+	}
+
+	withBackend(t, dbB, func(b *Backend) {
+		if at := lastImportAt(b, sharedDir); at.IsZero() {
+			t.Fatal("a successful import must record when it happened")
+		}
+		if err := recordImportAt(b, sharedDir, time.Now().Add(-120*24*time.Hour)); err != nil {
+			t.Fatal(err)
+		}
+	})
 
 	err := cmdShareImport(dbB, nil)
 	if err == nil {

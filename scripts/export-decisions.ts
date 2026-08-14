@@ -2,8 +2,9 @@
 /**
  * export-decisions.ts — publish the local decision store to .aide/shared/.
  *
- * Run by the lefthook pre-commit hook. No-op when nothing changed: export is
- * deterministic, so unchanged decisions re-export byte-identically. Skips
+ * Run by the lefthook pre-commit hook. No-op when nothing changed: every byte
+ * of the tree, manifest included, is a function of the records it holds, so an
+ * unchanged store re-exports byte-identically and stages nothing. Skips
  * silently when there is no aide binary or no local store, so a fresh clone
  * mid-bootstrap can still commit.
  *

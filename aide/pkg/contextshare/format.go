@@ -8,7 +8,7 @@
 //	  decisions/<sanitized-topic>-<hash8>/<created-at-unixnano>.md  # one file per decision version, write-once
 //	  memories/<ulid>.md                                            # one file per shareable memory
 //	  tombstones/<ulid-or-topic-name>.md                            # deletions, TTL'd
-//	  manifest.json                                                 # export watermark (the only non-deterministic byte)
+//	  manifest.json                                                 # format version, content watermark, deletion horizon
 //
 // The per-record format coexists with the legacy aggregate layout in the same
 // directory without name collisions: a legacy decision is a file
@@ -22,9 +22,14 @@
 // re-exports of unchanged content are byte-identical and concurrent
 // publishers cannot collide on a path. Deletion happens only via tombstone
 // files — there is no snapshot-style stale-file cleanup in this layout.
+//
+// Every byte of the tree, manifest included, is a function of the records it
+// holds: exporting an unchanged store rewrites nothing, so a context tree
+// under version control only produces a diff when the context actually moved.
 package contextshare
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -41,15 +46,17 @@ import (
 )
 
 const (
-	// ManifestVersion is the current context tree format version.
-	ManifestVersion = 1
+	// ManifestVersion is the current context tree format version. v1 trees
+	// carry an export-time watermark and no horizon; see checkStaleGuard for
+	// how they are still consumed.
+	ManifestVersion = 2
 
 	// ManifestName is the manifest file name at the context tree root.
 	ManifestName = "manifest.json"
 
 	// DefaultTombstoneTTL is how long tombstones are retained and honoured.
-	// Exports older than this are refused by the import stale guard, which is
-	// what makes it safe to garbage-collect tombstones after the same window.
+	// Dropping one is what advances a tree's deletion horizon, so this is
+	// also the longest a consumer may go between imports.
 	DefaultTombstoneTTL = 90 * 24 * time.Hour
 
 	decisionsDir  = "decisions"
@@ -57,41 +64,92 @@ const (
 	tombstonesDir = "tombstones"
 )
 
-// Manifest is the context tree manifest. The watermark records when the tree
-// was last exported and is the only non-deterministic content in the tree.
+// Manifest is the context tree manifest.
+//
+// Watermark is the newest record timestamp in the tree — how current the
+// content is, not when the export ran. Horizon is the deletion horizon: the
+// newest DeletedAt among tombstones this tree has garbage-collected, i.e. the
+// point before which its record of deletions is no longer complete. It is
+// monotonic and zero on a tree that has never dropped one, which reads as
+// "complete since inception".
+//
+// Both are functions of the records, so re-exporting an unchanged store
+// produces an identical manifest.
 type Manifest struct {
-	Version   int    `json:"version"`
-	Watermark string `json:"watermark"` // RFC3339Nano
+	Version   int
+	Watermark time.Time
+	Horizon   time.Time
 }
 
-// WriteManifest writes the manifest with the given watermark time.
-func WriteManifest(root string, watermark time.Time) error {
-	data, err := json.Marshal(Manifest{
-		Version:   ManifestVersion,
-		Watermark: watermark.UTC().Format(time.RFC3339Nano),
-	})
+// manifestWire is the on-disk shape. An absent horizon marshals away
+// entirely, so a v2 tree that has GC'd nothing differs from a v1 one only in
+// its version number.
+type manifestWire struct {
+	Version   int    `json:"version"`
+	Watermark string `json:"watermark"`
+	Horizon   string `json:"horizon,omitempty"`
+}
+
+func (m Manifest) MarshalJSON() ([]byte, error) {
+	w := manifestWire{Version: m.Version, Watermark: m.Watermark.UTC().Format(time.RFC3339Nano)}
+	if !m.Horizon.IsZero() {
+		w.Horizon = m.Horizon.UTC().Format(time.RFC3339Nano)
+	}
+	return json.Marshal(w)
+}
+
+func (m *Manifest) UnmarshalJSON(data []byte) error {
+	var w manifestWire
+	if err := json.Unmarshal(data, &w); err != nil {
+		return err
+	}
+	watermark, err := time.Parse(time.RFC3339Nano, w.Watermark)
+	if err != nil {
+		return fmt.Errorf("malformed watermark %q: %w", w.Watermark, err)
+	}
+	m.Version, m.Watermark = w.Version, watermark
+	if w.Horizon == "" {
+		m.Horizon = time.Time{}
+		return nil
+	}
+	if m.Horizon, err = time.Parse(time.RFC3339Nano, w.Horizon); err != nil {
+		return fmt.Errorf("malformed horizon %q: %w", w.Horizon, err)
+	}
+	return nil
+}
+
+// WriteManifest writes the manifest, leaving the file untouched when it
+// already holds these bytes. Skipping the rewrite keeps mtimes stable for
+// anything watching the tree.
+func WriteManifest(root string, m Manifest) error {
+	if m.Version == 0 {
+		m.Version = ManifestVersion
+	}
+	data, err := json.Marshal(m)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(root, ManifestName), append(data, '\n'), 0o644)
+	data = append(data, '\n')
+
+	path := filepath.Join(root, ManifestName)
+	if existing, err := os.ReadFile(path); err == nil && bytes.Equal(existing, data) {
+		return nil
+	}
+	return os.WriteFile(path, data, 0o644)
 }
 
-// ReadManifest reads and validates the manifest, returning the parsed
-// watermark. A missing file surfaces as fs.ErrNotExist.
-func ReadManifest(root string) (*Manifest, time.Time, error) {
+// ReadManifest reads and validates the manifest. A missing file surfaces as
+// fs.ErrNotExist.
+func ReadManifest(root string) (*Manifest, error) {
 	data, err := os.ReadFile(filepath.Join(root, ManifestName))
 	if err != nil {
-		return nil, time.Time{}, err
+		return nil, err
 	}
 	var m Manifest
 	if err := json.Unmarshal(data, &m); err != nil {
-		return nil, time.Time{}, fmt.Errorf("malformed manifest: %w", err)
+		return nil, fmt.Errorf("malformed manifest: %w", err)
 	}
-	wm, err := time.Parse(time.RFC3339Nano, m.Watermark)
-	if err != nil {
-		return nil, time.Time{}, fmt.Errorf("malformed manifest watermark %q: %w", m.Watermark, err)
-	}
-	return &m, wm, nil
+	return &m, nil
 }
 
 // sanitizeRe matches everything that is not filename-safe.

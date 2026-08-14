@@ -68,8 +68,9 @@ func mustImport(t *testing.T, s *store.BoltStore, root string) *ImportStats {
 	return stats
 }
 
-// treeSnapshot maps relative paths to file contents, excluding the manifest
-// (the only file allowed to differ across re-exports of unchanged content).
+// treeSnapshot maps relative paths to file contents. Nothing is excluded:
+// every byte of a context tree, manifest included, is a function of the
+// records it holds.
 func treeSnapshot(t *testing.T, root string) map[string]string {
 	t.Helper()
 	snap := map[string]string{}
@@ -80,9 +81,6 @@ func treeSnapshot(t *testing.T, root string) map[string]string {
 		rel, err := filepath.Rel(root, path)
 		if err != nil {
 			return err
-		}
-		if rel == ManifestName {
-			return nil
 		}
 		data, err := os.ReadFile(path)
 		if err != nil {
@@ -345,8 +343,9 @@ func TestTopicName(t *testing.T) {
 // =============================================================================
 
 // Test 1: exporting the same store twice into fresh dirs must produce
-// identical bytes everywhere except the manifest watermark, and re-exporting
-// over an existing tree must not change any record file.
+// identical bytes — manifest included, since two exports minutes apart differ
+// only in a wall clock the tree does not record — and re-exporting over an
+// existing tree must change nothing at all.
 func TestExportDeterminism(t *testing.T) {
 	s := newTestStore(t)
 
@@ -355,10 +354,11 @@ func TestExportDeterminism(t *testing.T) {
 	seedDecision(t, s, "testing", "vitest", t1)
 	seedDecision(t, s, "testing", "vitest + playwright", t2)
 	seedMemory(t, s, "01ARZ3NDEKTSV4RRFFQ69G5FAV", "Auth middleware lives at src/auth.ts", []string{"project:myapp"}, t1, t2)
+	deletedAt := time.Now().Add(-time.Hour)
 	if err := s.AddTombstone(&memory.Tombstone{
 		ID:        "01OLDMEMORYAAAAAAAAAAAAAAA",
 		Kind:      memory.TombstoneKindMemory,
-		DeletedAt: time.Now().Add(-time.Hour),
+		DeletedAt: deletedAt,
 	}); err != nil {
 		t.Fatalf("AddTombstone: %v", err)
 	}
@@ -380,12 +380,24 @@ func TestExportDeterminism(t *testing.T) {
 	// Re-export over an existing tree: still byte-identical.
 	mustExport(t, s, dir1)
 	if again := treeSnapshot(t, dir1); !reflect.DeepEqual(again, snap2) {
-		t.Errorf("re-export changed record files:\n%v\nvs\n%v", again, snap2)
+		t.Errorf("re-export changed the tree:\n%v\nvs\n%v", again, snap2)
 	}
 
-	// The manifest is present and is the only intended difference.
-	if _, _, err := ReadManifest(dir1); err != nil {
-		t.Errorf("ReadManifest: %v", err)
+	m, err := ReadManifest(dir1)
+	if err != nil {
+		t.Fatalf("ReadManifest: %v", err)
+	}
+	if m.Version != ManifestVersion {
+		t.Errorf("manifest version = %d, want %d", m.Version, ManifestVersion)
+	}
+	// Nothing has aged out of a tree exported from a store seeded minutes ago.
+	if !m.Horizon.IsZero() {
+		t.Errorf("horizon = %s, want zero on a tree that has GC'd nothing", m.Horizon)
+	}
+	// The live tombstone is the newest record in the fixture, and a deletion
+	// is content: it is the most recent thing this tree has to say.
+	if !m.Watermark.Equal(deletedAt) {
+		t.Errorf("watermark = %s, want the newest record time %s", m.Watermark, deletedAt.UTC())
 	}
 }
 
@@ -436,6 +448,80 @@ func TestExportTombstoneGC(t *testing.T) {
 	}
 	if _, err := s.GetTombstone(memory.TombstoneKindMemory, expired.ID); !errors.Is(err, store.ErrNotFound) {
 		t.Errorf("expired DB tombstone should be pruned, got err=%v", err)
+	}
+
+	// Dropping those two is precisely what makes this tree's account of
+	// deletions incomplete, so the horizon lands on the newer of them —
+	// the point back to which an importer can still trust it.
+	m, err := ReadManifest(root)
+	if err != nil {
+		t.Fatalf("ReadManifest: %v", err)
+	}
+	if !m.Horizon.Equal(expired.DeletedAt) {
+		t.Errorf("horizon = %s, want the newest GC'd deletion %s", m.Horizon, expired.DeletedAt.UTC())
+	}
+}
+
+// The horizon marks what a tree has irrecoverably dropped, so it can never
+// walk back: a later export that collects nothing must leave it exactly where
+// the collecting export put it, or a caller that was away during the GC would
+// be waved through on the next sync.
+func TestExportHorizonIsMonotonic(t *testing.T) {
+	s := newTestStore(t)
+	root := filepath.Join(t.TempDir(), "context")
+
+	expired := &memory.Tombstone{
+		ID:        "01EXPIREDAAAAAAAAAAAAAAAAA",
+		Kind:      memory.TombstoneKindMemory,
+		DeletedAt: time.Now().Add(-91 * 24 * time.Hour),
+	}
+	if err := s.AddTombstone(expired); err != nil {
+		t.Fatalf("AddTombstone: %v", err)
+	}
+
+	mustExport(t, s, root)
+	after := treeSnapshot(t, root)
+
+	// Nothing is left to collect, and nothing else has changed.
+	mustExport(t, s, root)
+	m, err := ReadManifest(root)
+	if err != nil {
+		t.Fatalf("ReadManifest: %v", err)
+	}
+	if !m.Horizon.Equal(expired.DeletedAt) {
+		t.Errorf("horizon = %s after a re-export, want it held at %s", m.Horizon, expired.DeletedAt.UTC())
+	}
+	if again := treeSnapshot(t, root); !reflect.DeepEqual(again, after) {
+		t.Errorf("re-export after a GC changed the tree:\n%v\nvs\n%v", again, after)
+	}
+}
+
+// A tree that has never dropped a tombstone has lost nothing, so it stays
+// importable no matter how long its content has sat still. This is the case
+// the old export-age watermark got wrong, and the reason the pre-commit hook
+// had to rewrite the manifest on every commit to keep it quiet.
+func TestExportNoHorizonWithoutGC(t *testing.T) {
+	s := newTestStore(t)
+	root := filepath.Join(t.TempDir(), "context")
+
+	seedDecision(t, s, "testing", "vitest", time.Now().Add(-400*24*time.Hour))
+	mustExport(t, s, root)
+
+	m, err := ReadManifest(root)
+	if err != nil {
+		t.Fatalf("ReadManifest: %v", err)
+	}
+	if !m.Horizon.IsZero() {
+		t.Fatalf("horizon = %s, want zero on a tree that has GC'd nothing", m.Horizon)
+	}
+
+	b := newTestStore(t)
+	if _, err := Import(b, b, root, ImportOptions{
+		Decisions:      true,
+		DecisionFilter: matchAll,
+		LastImport:     time.Now().Add(-400 * 24 * time.Hour),
+	}); err != nil {
+		t.Errorf("import of a long-settled tree refused: %v", err)
 	}
 }
 
@@ -665,7 +751,7 @@ func TestImportIgnoresExpiredTombstone(t *testing.T) {
 	if err := os.WriteFile(TombstonePath(root, expired), MarshalTombstone(expired), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := WriteManifest(root, time.Now()); err != nil {
+	if err := WriteManifest(root, Manifest{Watermark: time.Now()}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -922,13 +1008,24 @@ func TestTwoCloneConvergence(t *testing.T) {
 // Stale-export guard
 // =============================================================================
 
-// Test 7: imports refuse missing or stale manifests unless forced.
+// Test 7: imports refuse trees they cannot merge safely unless forced.
+//
+// The v2 cases turn on the gap between the tree's horizon and the caller's
+// last import, never on the tree's own age — "stable for a year" and
+// "abandoned a year ago" are the same tree, and only the first two v2 cases
+// distinguish them the way the old export-age guard could not.
 func TestStaleExportGuard(t *testing.T) {
+	long := 400 * 24 * time.Hour
+	writeManifest := func(m Manifest) func(string) error {
+		return func(root string) error { return WriteManifest(root, m) }
+	}
+
 	tests := []struct {
-		name      string
-		manifest  func(root string) error
-		force     bool
-		wantStale bool
+		name       string
+		manifest   func(root string) error
+		lastImport time.Time
+		force      bool
+		wantStale  bool
 	}{
 		{
 			name:      "missing manifest refused",
@@ -942,27 +1039,59 @@ func TestStaleExportGuard(t *testing.T) {
 			wantStale: false,
 		},
 		{
-			name:      "stale watermark refused",
-			manifest:  func(root string) error { return WriteManifest(root, time.Now().Add(-91*24*time.Hour)) },
-			wantStale: true,
-		},
-		{
-			name:      "stale watermark forced",
-			manifest:  func(root string) error { return WriteManifest(root, time.Now().Add(-91*24*time.Hour)) },
-			force:     true,
-			wantStale: false,
-		},
-		{
-			name:      "fresh watermark accepted",
-			manifest:  func(root string) error { return WriteManifest(root, time.Now()) },
-			wantStale: false,
-		},
-		{
 			name: "malformed manifest refused",
 			manifest: func(root string) error {
 				return os.WriteFile(filepath.Join(root, ManifestName), []byte("not json"), 0o644)
 			},
 			wantStale: true,
+		},
+		{
+			name:       "settled tree accepted however old",
+			manifest:   writeManifest(Manifest{Watermark: time.Now().Add(-long)}),
+			lastImport: time.Now().Add(-long),
+			wantStale:  false,
+		},
+		{
+			name:       "GC'd deletion the caller was present for accepted",
+			manifest:   writeManifest(Manifest{Watermark: time.Now(), Horizon: time.Now().Add(-91 * 24 * time.Hour)}),
+			lastImport: time.Now().Add(-time.Hour),
+			wantStale:  false,
+		},
+		{
+			name:       "GC'd deletion the caller missed refused",
+			manifest:   writeManifest(Manifest{Watermark: time.Now(), Horizon: time.Now().Add(-91 * 24 * time.Hour)}),
+			lastImport: time.Now().Add(-long),
+			wantStale:  true,
+		},
+		{
+			name:       "GC'd deletion the caller missed forced",
+			manifest:   writeManifest(Manifest{Watermark: time.Now(), Horizon: time.Now().Add(-91 * 24 * time.Hour)}),
+			lastImport: time.Now().Add(-long),
+			force:      true,
+			wantStale:  false,
+		},
+		{
+			// Nothing to resurrect: a store that has never imported this tree
+			// cannot be holding a stale copy of anything the tree dropped.
+			name:      "first import accepted despite horizon",
+			manifest:  writeManifest(Manifest{Watermark: time.Now(), Horizon: time.Now().Add(-91 * 24 * time.Hour)}),
+			wantStale: false,
+		},
+		{
+			name:      "v1 stale watermark refused",
+			manifest:  writeManifest(Manifest{Version: 1, Watermark: time.Now().Add(-91 * 24 * time.Hour)}),
+			wantStale: true,
+		},
+		{
+			name:      "v1 stale watermark forced",
+			manifest:  writeManifest(Manifest{Version: 1, Watermark: time.Now().Add(-91 * 24 * time.Hour)}),
+			force:     true,
+			wantStale: false,
+		},
+		{
+			name:      "v1 fresh watermark accepted",
+			manifest:  writeManifest(Manifest{Version: 1, Watermark: time.Now()}),
+			wantStale: false,
 		},
 	}
 
@@ -974,7 +1103,7 @@ func TestStaleExportGuard(t *testing.T) {
 				t.Fatalf("manifest setup: %v", err)
 			}
 
-			_, err := Import(s, s, root, ImportOptions{Force: tt.force})
+			_, err := Import(s, s, root, ImportOptions{Force: tt.force, LastImport: tt.lastImport})
 			if tt.wantStale {
 				if !errors.Is(err, ErrStaleExport) {
 					t.Errorf("expected ErrStaleExport, got %v", err)

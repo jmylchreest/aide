@@ -28,7 +28,7 @@ func writeTopic(t *testing.T, topic, value string, at time.Time) func(string) er
 		if err := os.WriteFile(p, contextshare.MarshalDecision(d), 0o644); err != nil {
 			return err
 		}
-		return contextshare.WriteManifest(root, at)
+		return contextshare.WriteManifest(root, contextshare.Manifest{Watermark: at})
 	}
 }
 
@@ -72,12 +72,12 @@ func TestPublishGit(t *testing.T) {
 		t.Fatalf("consumer sees %v, want both from-a and from-b", latest)
 	}
 
-	// Re-publishing identical content (only the manifest watermark moves)
-	// must not commit churn.
+	// Re-publishing identical content rewrites nothing, so there is no commit
+	// to make.
 	if pushed, err = Publish(context.Background(), projA, sub, writeTopic(t, "from-a", "a-rule", now)); err != nil {
 		t.Fatal(err)
 	} else if pushed {
-		t.Error("watermark-only re-publish shipped a commit")
+		t.Error("content-free re-publish shipped a commit")
 	}
 }
 

@@ -13,7 +13,6 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	"github.com/jmylchreest/aide/aide/pkg/config"
-	"github.com/jmylchreest/aide/aide/pkg/contextshare"
 )
 
 // publishRetries bounds the fetch/reset/write/commit/push loop when
@@ -75,7 +74,9 @@ func Publish(ctx context.Context, projectRoot string, sub config.SubscriptionCon
 		if err != nil {
 			return false, err
 		}
-		if onlyManifestChanged(status) {
+		// An export that changed nothing rewrites nothing, so a clean status
+		// is the whole no-op check: there is no watermark to filter out.
+		if status.IsClean() {
 			return false, nil
 		}
 
@@ -174,23 +175,6 @@ func publishRoot(name, dir string) string {
 		return root
 	}
 	return dir
-}
-
-// onlyManifestChanged reports whether the staged changes carry no record
-// content — nothing, or just the manifest watermark, which is the only
-// byte an export of unchanged content rewrites. Publishing a
-// watermark-only commit every sync would be pure churn.
-func onlyManifestChanged(status git.Status) bool {
-	for path, s := range status {
-		if s.Staging == git.Unmodified && s.Worktree == git.Unmodified {
-			continue
-		}
-		if !strings.HasSuffix(path, "/"+contextshare.ManifestName) &&
-			path != contextshare.ManifestName {
-			return false
-		}
-	}
-	return true
 }
 
 // commitAuthor prefers the user's real git identity so context-repo
