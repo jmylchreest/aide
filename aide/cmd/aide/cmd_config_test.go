@@ -202,6 +202,46 @@ func TestConfigGetPtrBoolDefault(t *testing.T) {
 	}
 }
 
+func TestConfigGetRespectGitignoreDefault(t *testing.T) {
+	dbPath, _ := newConfigProject(t)
+	// Nothing set: the gitignore layer is on, so `config get` must say true
+	// rather than the nil *bool's zero value.
+	out := captureStdout(t, func() {
+		if err := cmdConfigGet(dbPath, []string{"code.respect_gitignore"}); err != nil {
+			t.Fatalf("get: %v", err)
+		}
+	})
+	if strings.TrimSpace(out) != "true" {
+		t.Errorf("get code.respect_gitignore = %q, want true", strings.TrimSpace(out))
+	}
+}
+
+// TestPtrBoolDefaultsCoverSchema guards the hand-maintained switch in
+// ptrBoolDefault against the reflection-driven schema. A *bool leaf missing
+// from the switch reports false for an unset key, which is wrong for every
+// *bool whose default is on — the exact bug adding code.respect_gitignore hit.
+func TestPtrBoolDefaultsCoverSchema(t *testing.T) {
+	known := map[string]bool{}
+	for _, k := range ptrBoolKeys {
+		known[k] = true
+	}
+
+	for _, fi := range config.Schema() {
+		if fi.Kind != config.KindPtrBool {
+			continue
+		}
+		if !known[fi.Key] {
+			t.Errorf("*bool key %q has no case in ptrBoolDefault — unset reads as false", fi.Key)
+		}
+	}
+
+	for _, k := range ptrBoolKeys {
+		if _, ok := config.Lookup(k); !ok {
+			t.Errorf("ptrBoolKeys lists %q, which is not in the config schema", k)
+		}
+	}
+}
+
 func TestConfigShowAllHumanAndJSON(t *testing.T) {
 	dbPath, root := newConfigProject(t)
 	if err := cmdConfigSet(dbPath, []string{"share.decisions.export", "false"}); err != nil {

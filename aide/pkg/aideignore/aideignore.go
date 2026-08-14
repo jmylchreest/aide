@@ -12,9 +12,6 @@
 // git's rather than an approximation of them: the last matching pattern wins,
 // "!" re-includes, a trailing "/" restricts a pattern to directories, "**"
 // spans path segments, and a leading "/" anchors to the domain root.
-//
-// A single Matcher exposes ShouldIgnore, used by all findings analysers, the
-// file watcher, and the Runner.
 package aideignore
 
 import (
@@ -216,7 +213,6 @@ func NewEmpty() *Matcher {
 	return newMatcher(nil)
 }
 
-// newMatcher compiles a pattern slice into a Matcher.
 func newMatcher(ps []gitignore.Pattern) *Matcher {
 	return &Matcher{matcher: gitignore.NewMatcher(ps)}
 }
@@ -231,8 +227,6 @@ func newFromPatternStrings(patterns ...string) *Matcher {
 	return newMatcher(ps)
 }
 
-// builtinOnce guards the one-time parse of BuiltinDefaults. Parsed patterns are
-// immutable and shared by every Matcher.
 var (
 	builtinOnce sync.Once
 	builtinPS   []gitignore.Pattern
@@ -245,7 +239,7 @@ func builtinPatterns() []gitignore.Pattern {
 			builtinPS = append(builtinPS, gitignore.ParsePattern(p, nil))
 		}
 	})
-	// Copy so a caller appending later layers cannot write into the shared
+	// Copied so a caller appending later layers cannot write into the shared
 	// backing array.
 	out := make([]gitignore.Pattern, len(builtinPS))
 	copy(out, builtinPS)
@@ -258,13 +252,7 @@ func builtinPatterns() []gitignore.Pattern {
 // The path should use forward slashes and be relative to the project root.
 // Both "foo/bar" and "foo/bar/" are accepted for directories (the trailing
 // slash is stripped internally; use the isDir flag instead).
-//
-// Directory-only patterns also ignore paths beneath them, so a file path like
-// "vendor/github.com/foo/bar.go" is ignored by "vendor/" even when the walk
-// never had a chance to prune the parent directory — the case OnChanges hits
-// when it receives individual file paths.
 func (m *Matcher) ShouldIgnore(path string, isDir bool) bool {
-	// Normalise to forward slashes and strip any trailing slash.
 	path = filepath.ToSlash(path)
 	path = strings.TrimSuffix(path, "/")
 
@@ -318,10 +306,8 @@ func (m *Matcher) WalkFunc(projectRoot string) func(path string, info os.FileInf
 }
 
 // readPatternFile parses one ignore file into patterns rooted at domain. It
-// mirrors go-git's unexported readIgnoreFile, which cannot be called directly:
-// blank lines and "#" comments are skipped, every other line is a pattern.
-// Unlike git, leading whitespace is trimmed — .aideignore has always been
-// lenient about indented patterns and staying compatible costs nothing.
+// mirrors go-git's unexported readIgnoreFile. Unlike git, leading whitespace is
+// trimmed — .aideignore has always been lenient about indented patterns.
 func readPatternFile(path string, domain []string) ([]gitignore.Pattern, error) {
 	f, err := os.Open(path)
 	if err != nil {

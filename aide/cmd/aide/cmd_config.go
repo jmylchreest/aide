@@ -229,11 +229,12 @@ func printResolvedConfig(cfg *config.Config) {
 	fmt.Printf("  index_workers   %d\n", cfg.IndexWorkers)
 
 	fmt.Println("\ncode")
-	fmt.Printf("  watch           %v\n", cfg.Code.Watch)
-	fmt.Printf("  watch_paths     %s\n", emptyDash(cfg.Code.WatchPaths))
-	fmt.Printf("  watch_delay     %s\n", emptyDash(cfg.Code.WatchDelay))
-	fmt.Printf("  store_enabled   %v\n", cfg.Code.StoreEnabled)
-	fmt.Printf("  store_sync      %v\n", cfg.Code.StoreSync)
+	fmt.Printf("  %-17s %v\n", "watch", cfg.Code.Watch)
+	fmt.Printf("  %-17s %s\n", "watch_paths", emptyDash(cfg.Code.WatchPaths))
+	fmt.Printf("  %-17s %s\n", "watch_delay", emptyDash(cfg.Code.WatchDelay))
+	fmt.Printf("  %-17s %v\n", "store_enabled", cfg.Code.StoreEnabled)
+	fmt.Printf("  %-17s %v\n", "store_sync", cfg.Code.StoreSync)
+	fmt.Printf("  %-17s %v\n", "respect_gitignore", cfg.Code.RespectGitignoreEnabled())
 
 	fmt.Println("\npprof")
 	fmt.Printf("  enable          %v\n", cfg.Pprof.Enable)
@@ -533,11 +534,14 @@ func resolveValue(k *koanf.Koanf, cfg *config.Config, fi config.FieldInfo) any {
 	}
 }
 
-// ptrBoolDefault resolves the four share *bool keys through their accessor
-// defaults when neither file nor env set them. Any other *bool key (none today)
-// defaults to false.
+// ptrBoolDefault resolves a *bool key through its accessor default when
+// neither file nor env set it. Every *bool leaf in the schema needs an entry
+// here — a missing one silently reports false for a key whose real default is
+// true, so TestPtrBoolDefaultsCoverSchema fails the build when the two drift.
 func ptrBoolDefault(cfg *config.Config, key string) bool {
 	switch key {
+	case "code.respect_gitignore":
+		return cfg.Code.RespectGitignoreEnabled()
 	case "share.decisions.export":
 		return cfg.Share.DecisionExportEnabled()
 	case "share.decisions.import":
@@ -549,6 +553,16 @@ func ptrBoolDefault(cfg *config.Config, key string) bool {
 	default:
 		return false
 	}
+}
+
+// ptrBoolKeys lists every *bool key ptrBoolDefault knows how to resolve. Kept
+// beside the switch so the guard test can compare it against the schema.
+var ptrBoolKeys = []string{
+	"code.respect_gitignore",
+	"share.decisions.export",
+	"share.decisions.import",
+	"share.memories.export",
+	"share.memories.import",
 }
 
 // formatValue renders a resolved value for human output: bools and ints
