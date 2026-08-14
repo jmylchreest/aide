@@ -44,8 +44,8 @@ type MemoryListInput struct {
 
 type MemoryAddInput struct {
 	Content  string   `json:"content" jsonschema:"The memory content to store. Should be a short, self-contained, factual statement (e.g. 'The user prefers pytest over unittest', 'Auth middleware lives at src/auth.ts'). Concise, specific, and durable — avoid session-specific noise."`
-	Category string   `json:"category,omitempty" jsonschema:"Category: learning (technical discoveries, default), decision (choices with rationale), issue (known problems/workarounds), discovery (swarm findings), blocker (things that stopped progress), abandoned (failed/rejected approaches). Defaults to learning."`
-	Tags     []string `json:"tags,omitempty" jsonschema:"Optional tags for grouping/lookup, e.g. ['preferences', 'auth']. Can be used as filters in searches and lists."`
+	Category string   `json:"category,omitempty" jsonschema:"Category for this memory. Defaults to learning."`
+	Tags     []string `json:"tags,omitempty" jsonschema:"Topic tags plus structured tags that control scoring and sharing — include at least one scope and one provenance tag. Scope (pick one): 'scope:global' for facts true everywhere (also gives learning memories top ranking), or 'project:<name>' for this project only. With neither, the memory won't share across repos. Provenance (pick one): 'source:user' if the user said it, 'source:discovered' if you found it while working. Optional: 'verified:true' when confirmed by running or reading code. Example: ['testing','vitest','project:myapp','source:discovered','verified:true']"`
 }
 
 type StateGetInput struct {
@@ -127,11 +127,15 @@ Use memory_search instead when looking for specific topics or keywords.`,
 
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name: "memory_add",
+		InputSchema: categoryInputSchema[MemoryAddInput]("Category:", false),
 		Description: `Store a new memory — a persistent, cross-session fact about the user or project.
 
 Memories are short, durable, self-contained factual statements that future sessions
 can recall via memory_search. Record user preferences, coding conventions, architectural
 facts, known issues, and blockers as you discover them.
+
+**Use memory_search first** to check whether this fact is already stored before adding —
+avoid piling up duplicate memories.
 
 **When to use:** When you learn a stable fact worth remembering for later sessions
 (e.g. "user prefers X", "we decided on Y", "service Z is deployed at W").
@@ -218,13 +222,22 @@ func (s *MCPServer) handleMemoryAdd(_ context.Context, _ *mcp.CallToolRequest, i
 		return errorResult("'content' is required"), nil, nil
 	}
 
+	cat := memory.Category(input.Category)
+	if cat == "" {
+		cat = memory.CategoryLearning
+	}
+	if !memory.IsValidCategory(cat) {
+		return errorResult(fmt.Sprintf("unknown category %q; valid categories: %s",
+			cat, memory.CategoryHelp(false))), nil, nil
+	}
+	if memory.IsReservedCategory(cat) {
+		return errorResult(fmt.Sprintf("category %q is set by aide, not by callers", cat)), nil, nil
+	}
+
 	mem := &memory.Memory{
 		Content:  input.Content,
-		Category: memory.Category(input.Category),
+		Category: cat,
 		Tags:     input.Tags,
-	}
-	if mem.Category == "" {
-		mem.Category = memory.CategoryLearning
 	}
 
 	if err := s.store.AddMemory(mem); err != nil {

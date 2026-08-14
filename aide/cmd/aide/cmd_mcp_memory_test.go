@@ -83,3 +83,44 @@ func TestHandleMemoryAdd_EmptyContentIsError(t *testing.T) {
 	}
 	assertIsError(t, result, "'content' is required")
 }
+
+func TestHandleMemoryAdd_UnknownCategoryIsError(t *testing.T) {
+	s, close := newMemoryTestServer(t)
+	defer close()
+
+	result, _, err := s.handleMemoryAdd(context.Background(), nil, MemoryAddInput{
+		Content:  "A fact with a bogus category",
+		Category: "learnings",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	assertIsError(t, result, "unknown category")
+	assertIsError(t, result, `"learnings"`)
+
+	// A malformed category must not be persisted — nothing should be searchable.
+	search, _, err := s.handleMemorySearch(context.Background(), nil, MemorySearchInput{
+		Query: "bogus category",
+		Limit: 5,
+	})
+	if err != nil {
+		t.Fatalf("search error: %v", err)
+	}
+	if strings.Contains(extractText(search), "bogus category") {
+		t.Errorf("memory with invalid category should not have been stored: %q", extractText(search))
+	}
+}
+
+func TestHandleMemoryAdd_ReservedCategoryIsError(t *testing.T) {
+	s, close := newMemoryTestServer(t)
+	defer close()
+
+	result, _, err := s.handleMemoryAdd(context.Background(), nil, MemoryAddInput{
+		Content:  "An instinct a caller shouldn't set",
+		Category: string(memory.CategoryInstinct),
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	assertIsError(t, result, "set by aide, not by callers")
+}
