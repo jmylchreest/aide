@@ -27,6 +27,7 @@ import (
 	"github.com/jmylchreest/aide/aide/pkg/config"
 	"github.com/jmylchreest/aide/aide/pkg/contextshare"
 	"github.com/jmylchreest/aide/aide/pkg/memory"
+	"github.com/jmylchreest/aide/aide/pkg/store"
 )
 
 // toFilter maps a config.ShareFilter (already resolved with defaults by the
@@ -130,7 +131,7 @@ Examples:
 // --- Export ---
 
 func cmdShareExport(dbPath string, args []string) error {
-	projectRoot := projectRoot(dbPath)
+	projectRoot := store.ProjectRootFromDB(dbPath)
 	legacy := hasFlag(args, "--legacy")
 
 	decisionsOnly := hasFlag(args, "--decisions")
@@ -749,7 +750,7 @@ func hasLegacyRecords(dir string) bool {
 }
 
 func cmdShareImport(dbPath string, args []string) error {
-	projectRoot := projectRoot(dbPath)
+	projectRoot := store.ProjectRootFromDB(dbPath)
 
 	inputDir := parseFlag(args, "--input=")
 	if inputDir == "" {

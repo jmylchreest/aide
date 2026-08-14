@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/jmylchreest/aide/aide/pkg/config"
+	"github.com/jmylchreest/aide/aide/pkg/store"
 	"github.com/knadh/koanf/v2"
 )
 
@@ -90,7 +91,7 @@ func cmdConfigPath(dbPath string, args []string) error {
 		fmt.Println(path)
 		return nil
 	}
-	fmt.Println(config.FilePath(projectRoot(dbPath)))
+	fmt.Println(config.FilePath(store.ProjectRootFromDB(dbPath)))
 	return nil
 }
 
@@ -111,7 +112,7 @@ func targetConfigPath(dbPath string, args []string) (string, error) {
 		}
 		return path, nil
 	}
-	return config.FilePath(projectRoot(dbPath)), nil
+	return config.FilePath(store.ProjectRootFromDB(dbPath)), nil
 }
 
 // --- get ---
@@ -125,7 +126,7 @@ func cmdConfigGet(dbPath string, args []string) error {
 	if !ok {
 		return unknownKeyError(key)
 	}
-	root := projectRoot(dbPath)
+	root := store.ProjectRootFromDB(dbPath)
 	k, err := config.Resolve(root)
 	if err != nil {
 		return err
@@ -151,7 +152,7 @@ type configKeyView struct {
 
 func cmdConfigShow(dbPath string, args []string) error {
 	all := hasFlag(args, "--all")
-	root := projectRoot(dbPath)
+	root := store.ProjectRootFromDB(dbPath)
 
 	cfg, err := config.Load(root)
 	if err != nil {

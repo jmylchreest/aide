@@ -210,7 +210,7 @@ func (s *MCPServer) handleSurveySearch(ctx context.Context, _ *mcp.CallToolReque
 	}
 
 	respText := sb.String()
-	counterfactual := survey.CounterfactualTokensForEntries(projectRoot(s.dbPath), entries)
+	counterfactual := survey.CounterfactualTokensForEntries(store.ProjectRootFromDB(s.dbPath), entries)
 	recordSurveySavings(span, respText, counterfactual)
 	return textResult(respText), nil, nil
 }
@@ -246,7 +246,7 @@ func (s *MCPServer) handleSurveyList(ctx context.Context, _ *mcp.CallToolRequest
 	}
 
 	respText := sb.String()
-	counterfactual := survey.CounterfactualTokensForEntries(projectRoot(s.dbPath), results)
+	counterfactual := survey.CounterfactualTokensForEntries(store.ProjectRootFromDB(s.dbPath), results)
 	recordSurveySavings(span, respText, counterfactual)
 	return textResult(respText), nil, nil
 }
@@ -281,7 +281,7 @@ func (s *MCPServer) handleSurveyStats(_ context.Context, _ *mcp.CallToolRequest,
 		}
 	}
 
-	if lines := surveyFreshnessLines(projectRoot(s.dbPath), stats.ByAnalyzer, func(analyzer string) []*survey.Entry {
+	if lines := surveyFreshnessLines(store.ProjectRootFromDB(s.dbPath), stats.ByAnalyzer, func(analyzer string) []*survey.Entry {
 		entries, err := s.surveyStore.ListEntries(survey.SearchOptions{Analyzer: analyzer, Limit: 1})
 		if err != nil {
 			return nil
@@ -355,7 +355,7 @@ func (s *MCPServer) handleSurveyRun(ctx context.Context, _ *mcp.CallToolRequest,
 	if input.Analyzer != "" {
 		analyzers = []string{input.Analyzer}
 	}
-	results := surveyrun.Run(projectRoot(s.dbPath), analyzers, s.surveyStore, s.getCodeStore())
+	results := surveyrun.Run(store.ProjectRootFromDB(s.dbPath), analyzers, s.surveyStore, s.getCodeStore())
 	return textResult(surveyrun.FormatResults(results)), nil, nil
 }
 
@@ -420,7 +420,7 @@ func (s *MCPServer) handleSurveyGraph(ctx context.Context, _ *mcp.CallToolReques
 	// trace this neighbourhood manually via code_references + file reads.
 	// Approximated by summing token estimates for distinct files appearing
 	// in the graph's nodes — that's the read workload the graph replaces.
-	counterfactual := graphCounterfactualTokens(projectRoot(s.dbPath), graph.Nodes)
+	counterfactual := graphCounterfactualTokens(store.ProjectRootFromDB(s.dbPath), graph.Nodes)
 	respText := sb.String()
 	recordSurveySavings(span, respText, counterfactual)
 	return textResult(respText), nil, nil

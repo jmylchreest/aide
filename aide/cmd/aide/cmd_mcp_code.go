@@ -278,7 +278,7 @@ func (s *MCPServer) handleCodeSymbols(_ context.Context, _ *mcp.CallToolRequest,
 // getFileSymbolsFresh returns symbols for a file, checking freshness against disk.
 // If the index is stale or missing, it falls back to live tree-sitter parsing.
 func (s *MCPServer) getFileSymbolsFresh(filePath string) ([]*code.Symbol, error) {
-	root := projectRoot(s.dbPath)
+	root := store.ProjectRootFromDB(s.dbPath)
 	// Resolve to absolute path for stat, relative for store lookup
 	absPath := filePath
 	if !filepath.IsAbs(filePath) {
@@ -456,7 +456,7 @@ func (s *MCPServer) handleCodeOutline(ctx context.Context, _ *mcp.CallToolReques
 	// Read the actual file
 	absPath := input.File
 	if !filepath.IsAbs(input.File) {
-		absPath = filepath.Join(projectRoot(s.dbPath), input.File)
+		absPath = filepath.Join(store.ProjectRootFromDB(s.dbPath), input.File)
 	}
 
 	fileContent, err := os.ReadFile(absPath)
@@ -491,7 +491,7 @@ func (s *MCPServer) handleCodeReadCheck(_ context.Context, _ *mcp.CallToolReques
 		return textResult(`{"indexed":false,"fresh":false,"symbols":0,"outline_available":false,"estimated_tokens":0}`), nil, nil
 	}
 
-	root := projectRoot(s.dbPath)
+	root := store.ProjectRootFromDB(s.dbPath)
 
 	// Resolve to absolute path for os.Stat
 	absPath := input.File
@@ -554,7 +554,7 @@ func (s *MCPServer) handleCodeReadSymbol(ctx context.Context, _ *mcp.CallToolReq
 		return errorResult("batch mode supports at most 10 symbols per call"), nil, nil
 	}
 
-	root := projectRoot(s.dbPath)
+	root := store.ProjectRootFromDB(s.dbPath)
 	var sb strings.Builder
 	if len(names) > 1 {
 		sb.WriteString("# Batch Symbol Source\n\n")
@@ -582,7 +582,7 @@ func (s *MCPServer) handleCodeReadSymbol(ctx context.Context, _ *mcp.CallToolReq
 		// straight to the symbol. (Batch mode mixes files; we leave both
 		// empty there.)
 		for _, name := range names {
-			if sym, _, _, _ := s.readOneSymbol(s.getCodeStore(), projectRoot(s.dbPath), name, input.Kind); sym != nil {
+			if sym, _, _, _ := s.readOneSymbol(s.getCodeStore(), store.ProjectRootFromDB(s.dbPath), name, input.Kind); sym != nil {
 				span.FilePath(sym.FilePath)
 				if sym.StartLine > 0 {
 					span.Attr("start_line", strconv.Itoa(sym.StartLine))

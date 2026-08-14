@@ -52,7 +52,7 @@ func SocketPathFromDB(dbPath string) string {
 		return p
 	}
 
-	sum := sha256.Sum256([]byte(projectRoot(dbPath)))
+	sum := sha256.Sum256([]byte(store.ProjectRootFromDB(dbPath)))
 	name := hex.EncodeToString(sum[:])[:16] + ".sock"
 	base := os.Getenv("XDG_RUNTIME_DIR")
 	if base != "" {
@@ -68,10 +68,6 @@ func SocketPathFromDB(dbPath string) string {
 
 // projectRoot derives the project root from the database path.
 // dbPath is <root>/.aide/memory/memory.db — three Dir() calls to reach <root>.
-func projectRoot(dbPath string) string {
-	return filepath.Dir(filepath.Dir(filepath.Dir(dbPath)))
-}
-
 // Server manages the gRPC server and all service implementations.
 type Server struct {
 	store         store.Store
@@ -1286,7 +1282,7 @@ func (s *codeServiceImpl) Index(req *CodeIndexRequest, stream grpc.ServerStreami
 		paths = []string{"."}
 	}
 
-	projRoot := projectRoot(s.server.dbPath)
+	projRoot := store.ProjectRootFromDB(s.server.dbPath)
 	rootPrefix := projRoot + string(filepath.Separator)
 	for _, p := range paths {
 		abs, err := filepath.Abs(p)
@@ -1606,7 +1602,7 @@ func (s *codeServiceImpl) ReadCheck(ctx context.Context, req *CodeReadCheckReque
 	}
 
 	filePath := req.FilePath
-	root := projectRoot(s.server.dbPath)
+	root := store.ProjectRootFromDB(s.server.dbPath)
 
 	// Resolve to absolute path for os.Stat
 	absPath := filePath
@@ -1692,7 +1688,7 @@ func (s *codeServiceImpl) RunDeadCodeAnalysis(ctx context.Context, req *CodeRunD
 			}
 			return len(refs), nil
 		},
-		ProjectRoot:        projectRoot(s.server.dbPath),
+		ProjectRoot:        store.ProjectRootFromDB(s.server.dbPath),
 		PackProvider:       grammar.DefaultPackRegistry().Get,
 		IncludeExported:    req.IncludeExported,
 		ConsumerExtensions: grammar.DefaultPackRegistry().ConsumerExtensions(),
@@ -2063,7 +2059,7 @@ func (s *surveyServiceImpl) Run(ctx context.Context, req *SurveyRunRequest) (*Su
 	if req.Analyzer != "" {
 		analyzers = []string{req.Analyzer}
 	}
-	results := surveyrun.Run(projectRoot(s.server.dbPath), analyzers, surveyStore, s.server.GetCodeStore())
+	results := surveyrun.Run(store.ProjectRootFromDB(s.server.dbPath), analyzers, surveyStore, s.server.GetCodeStore())
 
 	resp := &SurveyRunResponse{}
 	for _, r := range results {
@@ -2549,7 +2545,7 @@ func getStoreSizes(dbPath string) []*StatusStore {
 	}
 
 	// Derive relative path from project root for display
-	projectRoot := projectRoot(dbPath)
+	projectRoot := store.ProjectRootFromDB(dbPath)
 
 	var stores []*StatusStore
 	for _, e := range entries {

@@ -499,13 +499,6 @@ func TestFirstLine(t *testing.T) {
 	}
 }
 
-func TestProjectRootFromDB(t *testing.T) {
-	got := projectRoot("/home/user/myproject/.aide/memory/memory.db")
-	if got != "/home/user/myproject" {
-		t.Errorf("projectRoot: got %q, want /home/user/myproject", got)
-	}
-}
-
 // =============================================================================
 // Memory Import Conflict Resolution
 // =============================================================================

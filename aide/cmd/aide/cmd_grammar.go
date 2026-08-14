@@ -12,6 +12,7 @@ import (
 	"github.com/jmylchreest/aide/aide/pkg/aideignore"
 	"github.com/jmylchreest/aide/aide/pkg/code"
 	"github.com/jmylchreest/aide/aide/pkg/grammar"
+	"github.com/jmylchreest/aide/aide/pkg/store"
 )
 
 // cmdGrammarDispatcher routes grammar subcommands.
@@ -245,7 +246,7 @@ func grammarListJSON(installed []grammar.GrammarInfo, available []string, onlyIn
 
 // cmdGrammarInstall downloads grammar shared libraries.
 func cmdGrammarInstall(dbPath string, args []string) error {
-	root := projectRoot(dbPath)
+	root := store.ProjectRootFromDB(dbPath)
 	loader := newGrammarLoaderNoAuto(dbPath, nil)
 	ctx := context.Background()
 
@@ -374,7 +375,7 @@ func writeGrammarLockFile(loader *grammar.CompositeLoader, root string) {
 
 // cmdGrammarRemove deletes downloaded grammar shared libraries.
 func cmdGrammarRemove(dbPath string, args []string) error {
-	root := projectRoot(dbPath)
+	root := store.ProjectRootFromDB(dbPath)
 	loader := newGrammarLoaderNoAuto(dbPath, nil)
 
 	removeAll := hasFlag(args, "--all")
@@ -450,7 +451,7 @@ func cmdGrammarRemove(dbPath string, args []string) error {
 
 // cmdGrammarScan scans the project for languages and reports grammar status.
 func cmdGrammarScan(dbPath string, args []string) error {
-	root := projectRoot(dbPath)
+	root := store.ProjectRootFromDB(dbPath)
 	jsonOutput := hasFlag(args, "--json")
 
 	// Allow overriding the scan path.

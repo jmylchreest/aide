@@ -7,6 +7,7 @@ import (
 
 	"github.com/jmylchreest/aide/aide/pkg/config"
 	"github.com/jmylchreest/aide/aide/pkg/memory"
+	"github.com/jmylchreest/aide/aide/pkg/store"
 	"github.com/jmylchreest/aide/aide/pkg/subscription"
 )
 
@@ -32,7 +33,7 @@ func decisionAdopt(backend *Backend, dbPath string, args []string) error {
 		return fmt.Errorf("no subscriptions configured — nothing to adopt from")
 	}
 
-	root := projectRoot(dbPath)
+	root := store.ProjectRootFromDB(dbPath)
 	type hit struct {
 		peer string
 		d    *memory.Decision

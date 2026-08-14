@@ -9,6 +9,7 @@ import (
 
 	"github.com/jmylchreest/aide/aide/pkg/config"
 	"github.com/jmylchreest/aide/aide/pkg/contextshare"
+	"github.com/jmylchreest/aide/aide/pkg/store"
 	"github.com/jmylchreest/aide/aide/pkg/subscription"
 )
 
@@ -42,7 +43,7 @@ func cmdSync(dbPath string, args []string) error {
 		return nil
 	}
 
-	root := projectRoot(dbPath)
+	root := store.ProjectRootFromDB(dbPath)
 	var backend *Backend
 	defer func() {
 		if backend != nil {

@@ -321,7 +321,7 @@ func blueprintShow(name, dbPath string) error {
 // detectBlueprints uses the pack index project markers to discover which
 // languages and tools are present, then maps them to available blueprints.
 func detectBlueprints(dbPath string) []string {
-	projectRoot := filepath.Dir(filepath.Dir(filepath.Dir(dbPath)))
+	projectRoot := store.ProjectRootFromDB(dbPath)
 
 	reg := grammar.DefaultPackRegistry()
 	allMarkers := reg.ProjectMarkers()
@@ -442,7 +442,7 @@ func markerExistsWithDepth(root string, marker grammar.ProjectMarker) bool {
 }
 
 func blueprintOverrideDir(dbPath string) string {
-	projectRoot := filepath.Dir(filepath.Dir(filepath.Dir(dbPath)))
+	projectRoot := store.ProjectRootFromDB(dbPath)
 	return filepath.Join(projectRoot, ".aide", "blueprints")
 }
 

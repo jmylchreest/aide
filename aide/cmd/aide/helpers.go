@@ -14,6 +14,7 @@ import (
 	"github.com/jmylchreest/aide/aide/internal/version"
 	"github.com/jmylchreest/aide/aide/pkg/config"
 	"github.com/jmylchreest/aide/aide/pkg/grammar"
+	"github.com/jmylchreest/aide/aide/pkg/store"
 )
 
 // fatal prints an error message and exits with code 1.
@@ -260,13 +261,9 @@ func loadAideConfig(projectRoot string) aideJSON {
 
 // projectRoot derives the project root from the database path.
 // dbPath is <root>/.aide/memory/memory.db — three Dir() calls to reach <root>.
-func projectRoot(dbPath string) string {
-	return filepath.Dir(filepath.Dir(filepath.Dir(dbPath)))
-}
-
 // grammarDir returns the grammar storage directory for the project.
 func grammarDir(dbPath string) string {
-	return filepath.Join(projectRoot(dbPath), ".aide", "grammars")
+	return filepath.Join(store.ProjectRootFromDB(dbPath), ".aide", "grammars")
 }
 
 // grammarVersion returns the version tag to use when downloading grammar assets.
@@ -291,7 +288,7 @@ func grammarVersion() string {
 // grammar CLI subcommands override auto-download explicitly since they manage
 // grammars interactively.
 func newGrammarLoader(dbPath string, logger *log.Logger) *grammar.CompositeLoader {
-	root := projectRoot(dbPath)
+	root := store.ProjectRootFromDB(dbPath)
 	cfg := loadGrammarsConfig(root)
 	opts := []grammar.CompositeLoaderOption{
 		grammar.WithGrammarDir(grammarDir(dbPath)),
@@ -315,7 +312,7 @@ func newGrammarLoader(dbPath string, logger *log.Logger) *grammar.CompositeLoade
 // Used by grammar CLI subcommands that manage grammars explicitly.
 // If logger is non-nil it is wired into the loader for grammar event logging.
 func newGrammarLoaderNoAuto(dbPath string, logger *log.Logger) *grammar.CompositeLoader {
-	root := projectRoot(dbPath)
+	root := store.ProjectRootFromDB(dbPath)
 	cfg := loadGrammarsConfig(root)
 	opts := []grammar.CompositeLoaderOption{
 		grammar.WithGrammarDir(grammarDir(dbPath)),

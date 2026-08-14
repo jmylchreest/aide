@@ -5,10 +5,18 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	bolt "go.etcd.io/bbolt"
 )
+
+// ProjectRootFromDB returns the project root a store path sits under. It is
+// the inverse of the ".aide/memory/memory.db" layout, so the two must change
+// together.
+func ProjectRootFromDB(dbPath string) string {
+	return filepath.Dir(filepath.Dir(filepath.Dir(dbPath)))
+}
 
 // Common errors.
 var (

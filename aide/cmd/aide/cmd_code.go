@@ -46,7 +46,7 @@ func cmdCodeReconcile(dbPath string) error {
 	}
 	defer cs.Close()
 
-	idx := NewIndexerFromStore(cs, newGrammarLoader(dbPath, nil), projectRoot(dbPath))
+	idx := NewIndexerFromStore(cs, newGrammarLoader(dbPath, nil), store.ProjectRootFromDB(dbPath))
 	res, err := idx.Reconcile()
 	if err != nil {
 		return fmt.Errorf("reconcile failed: %w", err)
@@ -459,7 +459,7 @@ func NewIndexer(dbPath string) (*Indexer, error) {
 	return &Indexer{
 		store:   codeStore,
 		parser:  code.NewParser(newGrammarLoader(dbPath, nil)),
-		rootDir: projectRoot(dbPath),
+		rootDir: store.ProjectRootFromDB(dbPath),
 	}, nil
 }
 

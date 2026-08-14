@@ -10,6 +10,7 @@ import (
 	"github.com/jmylchreest/aide/aide/pkg/config"
 	"github.com/jmylchreest/aide/aide/pkg/contextshare"
 	"github.com/jmylchreest/aide/aide/pkg/memory"
+	"github.com/jmylchreest/aide/aide/pkg/store"
 )
 
 // cmdShareShow renders the resolved sharing policy and previews what the current
@@ -18,7 +19,7 @@ import (
 // export, never writes a file, and computes counts directly from the resolved
 // filters rather than by invoking the export/import engines.
 func cmdShareShow(dbPath string, args []string) error {
-	projectRoot := projectRoot(dbPath)
+	projectRoot := store.ProjectRootFromDB(dbPath)
 	sharedDir := filepath.Join(projectRoot, ".aide", "shared")
 
 	share := config.Get().Share

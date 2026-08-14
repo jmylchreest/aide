@@ -43,6 +43,7 @@ beforeAll(() => {
 
   // go-triple-dir
   write("aide/pkg/thing/rogue.go", "root := filepath.Dir(filepath.Dir(filepath.Dir(dbPath)))\n");
+  write("aide/pkg/store/store.go", "return filepath.Dir(filepath.Dir(filepath.Dir(dbPath)))\n");
   write("aide/cmd/aide/helpers.go", "root := filepath.Dir(filepath.Dir(filepath.Dir(dbPath)))\n");
 });
 
@@ -83,9 +84,16 @@ describe("go-triple-dir", () => {
     expect(hits.map((h) => h.file)).toContain("aide/pkg/thing/rogue.go");
   });
 
-  it("allows the existing helpers", () => {
+  it("allows only the canonical definition", () => {
     const hits = scanRule(rule("go-triple-dir"), base);
-    expect(hits.map((h) => h.file)).not.toContain("aide/cmd/aide/helpers.go");
+    expect(hits.map((h) => h.file)).not.toContain("aide/pkg/store/store.go");
+  });
+
+  // The allowlist used to name every file holding a copy, which let the
+  // duplication accumulate. Callers go through store.ProjectRootFromDB now.
+  it("catches a copy in a former allowlist entry", () => {
+    const hits = scanRule(rule("go-triple-dir"), base);
+    expect(hits.map((h) => h.file)).toContain("aide/cmd/aide/helpers.go");
   });
 });
 

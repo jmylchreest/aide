@@ -137,7 +137,7 @@ func cmdStatus(dbPath string, args []string) error {
 		}
 	}
 
-	root := projectRoot(dbPath)
+	root := store.ProjectRootFromDB(dbPath)
 
 	status := StatusOutput{
 		Version:   version.String(),

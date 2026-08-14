@@ -33,7 +33,7 @@ func newConfigProject(t *testing.T) (dbPath, root string) {
 	t.Helper()
 	isolateHome(t)
 	root = t.TempDir()
-	// projectRoot(dbPath) strips three path segments, so this dbPath maps back
+	// store.ProjectRootFromDB(dbPath) strips three path segments, so this dbPath maps back
 	// to root: <root>/.aide/memory/memory.db.
 	return filepath.Join(root, ".aide", "memory", "memory.db"), root
 }

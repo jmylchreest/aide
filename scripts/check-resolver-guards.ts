@@ -53,11 +53,13 @@ export const RULES: Rule[] = [
   },
   {
     name: "go-triple-dir",
-    message: "new triple-Dir dbPath inversion (use projectRoot(dbPath))",
+    message:
+      "new triple-Dir dbPath inversion (use store.ProjectRootFromDB(dbPath))",
     pattern: /Dir\(filepath\.Dir\(filepath\.Dir/,
     roots: ["aide"],
     extension: ".go",
-    allow: /(_test\.go|cmd\/aide\/helpers\.go|pkg\/grpcapi\/server\.go|cmd\/aide\/cmd_init\.go)$/,
+    // Only the canonical definition may spell the inversion out.
+    allow: /(_test\.go|pkg\/store\/store\.go)$/,
   },
 ];
 

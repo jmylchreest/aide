@@ -187,7 +187,7 @@ func (b *Backend) SurveyRun(analyzer string) ([]surveyrun.Result, error) {
 	if analyzer != "" {
 		analyzers = []string{analyzer}
 	}
-	return surveyrun.Run(projectRoot(b.dbPath), analyzers, ss, codeStore), nil
+	return surveyrun.Run(store.ProjectRootFromDB(b.dbPath), analyzers, ss, codeStore), nil
 }
 
 func (b *Backend) ReplaceSurveyForAnalyzer(analyzer string, entries []*survey.Entry) error {

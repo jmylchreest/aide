@@ -199,7 +199,7 @@ func cmdDaemon(dbPath string, args []string) error {
 	go runCleanupLoop(ctx, st, func(format string, args ...any) { fmt.Printf(format, args...) })
 
 	// Register instance for discovery by aide-web
-	projRoot := projectRoot(dbPath)
+	projRoot := store.ProjectRootFromDB(dbPath)
 	var chainParents []string
 	for _, link := range resolveAnchor(projRoot).Chain[1:] {
 		chainParents = append(chainParents, link.Root)
