@@ -479,3 +479,151 @@ func TestUnloadedConfigDefaultsGitignoreOn(t *testing.T) {
 		t.Error("expected RespectGitignore to default on with no config loaded")
 	}
 }
+
+func TestGitInfoExcludeRead(t *testing.T) {
+	// .git/info/exclude is the untracked-but-ignored list. It is documented as
+	// part of the gitignore layer but nothing exercised it.
+	dir := writeGitRepo(t, map[string]string{
+		".git/info/exclude": "scratch/\n",
+	})
+
+	m, err := NewWithOptions(dir, Options{Gitignore: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !m.ShouldIgnoreDir("scratch") {
+		t.Error("expected .git/info/exclude patterns to be honoured")
+	}
+}
+
+func TestLinkedWorktreeGitFile(t *testing.T) {
+	// In a linked worktree .git is a file pointing at the real gitdir, not a
+	// directory. The root .gitignore must still be read, and the failed
+	// .git/info/exclude open must not surface as an error.
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, ".git"), []byte("gitdir: /elsewhere/.git/worktrees/wt\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, ".gitignore"), []byte("artifacts/\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	InvalidateGitignoreCache()
+
+	m, err := NewWithOptions(dir, Options{Gitignore: true})
+	if err != nil {
+		t.Fatalf("linked worktree should not error: %v", err)
+	}
+	if !m.ShouldIgnoreDir("artifacts") {
+		t.Error("expected .gitignore to be read in a linked worktree")
+	}
+}
+
+func TestGitignoreCacheReuseAndInvalidate(t *testing.T) {
+	dir := writeGitRepo(t, map[string]string{".gitignore": "before/\n"})
+
+	m, err := NewWithOptions(dir, Options{Gitignore: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !m.ShouldIgnoreDir("before") {
+		t.Fatal("expected the initial pattern to apply")
+	}
+
+	// Rewrite within the TTL: the cached scan is reused, so the new pattern
+	// must not be visible yet. This is what keeps a findings run from walking
+	// the tree once per analyser.
+	if err := os.WriteFile(filepath.Join(dir, ".gitignore"), []byte("after/\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	m, err = NewWithOptions(dir, Options{Gitignore: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !m.ShouldIgnoreDir("before") || m.ShouldIgnoreDir("after") {
+		t.Error("expected the cached scan to be reused within the TTL")
+	}
+
+	InvalidateGitignoreCache()
+	m, err = NewWithOptions(dir, Options{Gitignore: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m.ShouldIgnoreDir("before") || !m.ShouldIgnoreDir("after") {
+		t.Error("expected InvalidateGitignoreCache to force a re-read")
+	}
+}
+
+func TestGitignoreCacheIsPerRoot(t *testing.T) {
+	a := writeGitRepo(t, map[string]string{".gitignore": "only-a/\n"})
+	b := writeGitRepo(t, map[string]string{".gitignore": "only-b/\n"})
+
+	ma, err := NewWithOptions(a, Options{Gitignore: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	mb, err := NewWithOptions(b, Options{Gitignore: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !ma.ShouldIgnoreDir("only-a") || ma.ShouldIgnoreDir("only-b") {
+		t.Error("first root picked up the wrong cache entry")
+	}
+	if !mb.ShouldIgnoreDir("only-b") || mb.ShouldIgnoreDir("only-a") {
+		t.Error("second root picked up the wrong cache entry")
+	}
+}
+
+func TestRootPathNeverIgnored(t *testing.T) {
+	// filepath.Rel(root, root) yields "." — if that were treated as a match,
+	// a walk would skip the entire project.
+	m := NewFromDefaults()
+	for _, p := range []string{"", ".", "./"} {
+		if m.ShouldIgnoreDir(p) {
+			t.Errorf("ShouldIgnoreDir(%q) = true, want false", p)
+		}
+	}
+
+	root := "/project"
+	skip, _ := m.WalkFunc(root)(root, &fakeFileInfo{name: "project", dir: true})
+	if skip {
+		t.Error("expected WalkFunc not to skip the project root itself")
+	}
+}
+
+func TestWalkFuncUnrelatedPath(t *testing.T) {
+	// A path that is not under projectRoot cannot be made relative; the raw
+	// path is matched instead of silently ignoring everything.
+	m := NewFromDefaults()
+	shouldSkip := m.WalkFunc("relative-root")
+
+	skip, _ := shouldSkip("/elsewhere/node_modules", &fakeFileInfo{name: "node_modules", dir: true})
+	if !skip {
+		t.Error("expected the fallback to still match on the raw path")
+	}
+}
+
+func TestNewEmptyIgnoresNothing(t *testing.T) {
+	m := NewEmpty()
+	for _, p := range []string{"node_modules", ".git", "vendor"} {
+		if m.ShouldIgnoreDir(p) {
+			t.Errorf("NewEmpty should ignore nothing, but ignored %q", p)
+		}
+	}
+	if m.ShouldIgnoreFile("api.pb.go") {
+		t.Error("NewEmpty should not ignore generated files either")
+	}
+}
+
+func TestUnreadableAideignoreErrors(t *testing.T) {
+	// A .aideignore that cannot be read is a real misconfiguration and must
+	// surface, unlike a missing one. A directory in its place reads as EISDIR.
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, IgnoreFileName), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := NewWithOptions(dir, Options{}); err == nil {
+		t.Error("expected an unreadable .aideignore to surface an error")
+	}
+}
