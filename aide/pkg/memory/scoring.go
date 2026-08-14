@@ -183,7 +183,7 @@ func ScoreMemoryDetailed(m *Memory, now time.Time, cfg ScoringConfig) ScoreBreak
 // Learning memories with scope:global get the GlobalLearningScore override.
 func categoryWeight(m *Memory, cfg ScoringConfig) float64 {
 	// Special case: learning + scope:global = user preferences (highest)
-	if m.Category == CategoryLearning && hasTag(m.Tags, "scope:global") {
+	if m.Category == CategoryLearning && HasTag(m.Tags, "scope:global") {
 		return cfg.GlobalLearningScore
 	}
 
@@ -241,10 +241,24 @@ func accessFactor(accessCount uint32, cfg ScoringConfig) float64 {
 	return clamp01(math.Log10(float64(accessCount)+1) / math.Log10(base))
 }
 
-// hasTag checks if a tag slice contains a specific tag.
-func hasTag(tags []string, target string) bool {
+// HasTag reports whether tags contains target.
+func HasTag(tags []string, target string) bool {
 	for _, t := range tags {
 		if t == target {
+			return true
+		}
+	}
+	return false
+}
+
+// HasAnyTag reports whether tags contains at least one of want.
+func HasAnyTag(tags, want []string) bool {
+	set := make(map[string]bool, len(tags))
+	for _, t := range tags {
+		set[t] = true
+	}
+	for _, w := range want {
+		if set[w] {
 			return true
 		}
 	}

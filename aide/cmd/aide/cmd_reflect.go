@@ -679,7 +679,7 @@ func findSupersededInstincts(st store.Store, newTags []string) ([]*memory.Memory
 	}
 	out := make([]*memory.Memory, 0, len(mems))
 	for _, m := range mems {
-		if hasTag(m.Tags, "superseded") {
+		if memory.HasTag(m.Tags, "superseded") {
 			continue
 		}
 		out = append(out, m)
@@ -727,15 +727,6 @@ func splitCSV(s string) []string {
 		}
 	}
 	return out
-}
-
-func hasTag(tags []string, want string) bool {
-	for _, t := range tags {
-		if t == want {
-			return true
-		}
-	}
-	return false
 }
 
 func appendUnique(tags []string, more ...string) []string {

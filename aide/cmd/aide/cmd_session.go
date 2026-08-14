@@ -405,7 +405,7 @@ func sessionFetchContext(backend *Backend, project string, sessionLimit int, res
 	if err == nil {
 		var filtered []*memory.Memory
 		for _, m := range globalMems {
-			if hasAllTags(m.Tags, []string{"scope:global"}) && !hasAnyTag(m.Tags, []string{"partial"}) {
+			if hasAllTags(m.Tags, []string{"scope:global"}) && !memory.HasAnyTag(m.Tags, []string{"partial"}) {
 				filtered = append(filtered, m)
 			}
 		}
@@ -425,7 +425,7 @@ func sessionFetchContext(backend *Backend, project string, sessionLimit int, res
 			projectTag := "project:" + project
 			var filtered []*memory.Memory
 			for _, m := range projectMems {
-				if hasAllTags(m.Tags, []string{projectTag}) && !hasAnyTag(m.Tags, []string{"partial"}) {
+				if hasAllTags(m.Tags, []string{projectTag}) && !memory.HasAnyTag(m.Tags, []string{"partial"}) {
 					filtered = append(filtered, m)
 				}
 			}
@@ -852,8 +852,8 @@ func fetchRecentSessions(backend *Backend, project string, limit int) []*Session
 			data.lastAt = ts
 		}
 
-		isSummary := hasAnyTag(m.Tags, []string{"session-summary"})
-		isPartial := hasAnyTag(m.Tags, []string{"partial"})
+		isSummary := memory.HasAnyTag(m.Tags, []string{"session-summary"})
+		isPartial := memory.HasAnyTag(m.Tags, []string{"partial"})
 
 		if isSummary && !isPartial {
 			// Non-partial session summary — highest priority

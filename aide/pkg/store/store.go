@@ -142,15 +142,3 @@ func (s *BoltStore) SetMeta(key, value string) error {
 }
 
 // hasAnyTag checks if any of the filter tags exist in the memory tags.
-func hasAnyTag(memoryTags, filterTags []string) bool {
-	tagSet := make(map[string]bool)
-	for _, t := range memoryTags {
-		tagSet[t] = true
-	}
-	for _, t := range filterTags {
-		if tagSet[t] {
-			return true
-		}
-	}
-	return false
-}
