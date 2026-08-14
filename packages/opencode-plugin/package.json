@@ -1,6 +1,6 @@
 {
   "name": "@jmylchreest/aide-plugin",
-  "version": "0.1.14",
+  "version": "0.1.15",
   "description": "aide plugin for OpenCode and Codex CLI — multi-agent orchestration, memory, skills, and persistence",
   "type": "module",
   "main": "./src/opencode/index.ts",
@@ -56,11 +56,11 @@
     "which": "^7.0.0"
   },
   "optionalDependencies": {
-    "@jmylchreest/aide-binary-darwin-amd64": "0.1.14",
-    "@jmylchreest/aide-binary-darwin-arm64": "0.1.14",
-    "@jmylchreest/aide-binary-linux-amd64": "0.1.14",
-    "@jmylchreest/aide-binary-linux-arm64": "0.1.14",
-    "@jmylchreest/aide-binary-windows-amd64": "0.1.14",
-    "@jmylchreest/aide-binary-windows-arm64": "0.1.14"
+    "@jmylchreest/aide-binary-darwin-amd64": "0.1.15",
+    "@jmylchreest/aide-binary-darwin-arm64": "0.1.15",
+    "@jmylchreest/aide-binary-linux-amd64": "0.1.15",
+    "@jmylchreest/aide-binary-linux-arm64": "0.1.15",
+    "@jmylchreest/aide-binary-windows-amd64": "0.1.15",
+    "@jmylchreest/aide-binary-windows-arm64": "0.1.15"
   }
 }

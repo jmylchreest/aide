@@ -1,6 +1,6 @@
 {
   "name": "@jmylchreest/aide-binary-darwin-amd64",
-  "version": "0.1.14",
+  "version": "0.1.15",
   "description": "Bundled aide binary for darwin/x64. Companion to @jmylchreest/aide-plugin.",
   "license": "MIT",
   "os": [
