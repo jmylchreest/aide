@@ -1,8 +1,10 @@
 @import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap");
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+/* Keeps the v3 config (aide palette, font stacks, sizing) as the source of
+   truth; v4 supports it directly rather than requiring a @theme port. */
+@config "../../tailwind.config.ts";
 
 @layer base {
   * {
@@ -15,6 +17,18 @@
 
   body {
     @apply bg-aide-bg text-aide-text font-mono text-base antialiased;
+  }
+
+  /* v4 preflight drops cursor:pointer from buttons and makes the default
+     placeholder currentColor. Restore both, using our own token so the
+     pages that never set a placeholder colour match the shared inputs. */
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  ::placeholder {
+    @apply text-aide-text-dim;
   }
 
   /* Scrollbar */

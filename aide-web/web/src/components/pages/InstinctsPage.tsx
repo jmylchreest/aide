@@ -279,7 +279,7 @@ function ProposalRow({ proposal, tab, expanded, onToggle, onChange, project }: P
                 value={editContent ?? proposal.proposed_instinct.content}
                 onChange={(e) => setEditContent(e.target.value)}
                 rows={4}
-                className="w-full bg-aide-surface border border-aide-border rounded px-2 py-1 text-xs text-aide-text font-mono focus:border-aide-accent outline-none"
+                className="w-full bg-aide-surface border border-aide-border rounded px-2 py-1 text-xs text-aide-text font-mono focus:border-aide-accent outline-hidden"
               />
             ) : (
               <p className="text-xs text-aide-text-muted whitespace-pre-wrap font-mono">
@@ -355,7 +355,7 @@ function ProposalRow({ proposal, tab, expanded, onToggle, onChange, project }: P
                 placeholder="Rejection reason (optional)"
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
-                className="bg-aide-surface border border-aide-border rounded px-2 py-1 text-xs flex-1 outline-none focus:border-aide-accent"
+                className="bg-aide-surface border border-aide-border rounded px-2 py-1 text-xs flex-1 outline-hidden focus:border-aide-accent"
               />
               <button
                 type="button"

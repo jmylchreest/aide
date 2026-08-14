@@ -82,7 +82,7 @@ export function SearchPage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-            className="w-full bg-aide-surface border border-aide-border rounded pl-7 pr-2 py-1.5 text-xs text-aide-text placeholder:text-aide-text-dim focus:border-aide-accent focus:ring-2 focus:ring-aide-accent/20 outline-none transition"
+            className="w-full bg-aide-surface border border-aide-border rounded pl-7 pr-2 py-1.5 text-xs text-aide-text placeholder:text-aide-text-dim focus:border-aide-accent focus:ring-2 focus:ring-aide-accent/20 outline-hidden transition"
           />
         </div>
         <button
