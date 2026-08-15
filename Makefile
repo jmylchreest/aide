@@ -7,7 +7,7 @@
 #   make release-push VERSION=1.2.0  Bump to specific, commit, tag, and push
 #   make hooks                       Install git hooks (lefthook)
 
-.PHONY: release release-push build build-pprof build-web test test-ts test-go lint check-version check-release-needed hooks hooks-check
+.PHONY: release release-push build build-pprof build-web test test-ts test-go lint check-version check-release-needed hooks hooks-check bench bench-smoke
 
 VERSION_FILES = package.json .claude-plugin/plugin.json .claude-plugin/marketplace.json .codex-plugin/plugin.json packages/opencode-plugin/package.json $(wildcard packages/aide-binary-*/package.json)
 
@@ -126,6 +126,12 @@ test: hooks-check test-go test-ts
 
 test-go:
 	$(MAKE) -C aide test
+
+bench:
+	$(MAKE) -C aide bench
+
+bench-smoke:
+	$(MAKE) -C aide bench-smoke
 
 test-ts:
 	bunx vitest run --exclude='tests/memory-capture.test.ts' --exclude='dist/**'

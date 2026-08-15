@@ -1,6 +1,6 @@
 # aide Makefile
 
-.PHONY: all build test clean lint fmt install install-plugin proto calibrate-tokens
+.PHONY: all build test clean lint fmt install install-plugin proto calibrate-tokens bench bench-smoke bench-profile
 
 # Binary name
 BINARY=aide
@@ -83,6 +83,38 @@ test-coverage:
 	$(GOTEST) -v -race -coverprofile=coverage.out ./...
 	$(GOCMD) tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report: coverage.html"
+
+# Full benchmark run with allocations, 3 runs for stability. Packages are the
+# hot-path areas that have (or will have) _bench_test.go files: store (bbolt +
+# bleve code index and memory), survey (repo analysis), grammar (project scan),
+# code (parse/tokenize), memory (scoring).
+bench:
+	@echo "Running Go benchmarks..."
+	$(GOTEST) -bench=. -benchmem -benchtime=200ms -count=3 \
+	  ./pkg/store/... ./pkg/survey/... ./pkg/grammar/... ./pkg/code/... ./pkg/memory/...
+
+# Benchmark run with CPU + heap profiles written to pprof-out/. One go test
+# invocation per package, since the profiler disallows writing profiles from
+# multiple packages in a single run. Analyze with:
+#   go tool pprof pprof-out/store.cpu.out
+bench-profile:
+	@mkdir -p pprof-out
+	@for pkg in store survey grammar code memory; do \
+		echo "Profiling pkg/$$pkg ..."; \
+		$(GOTEST) -bench=. -benchmem -benchtime=1s -count=1 \
+			-cpuprofile=pprof-out/$$pkg.cpu.out \
+			-memprofile=pprof-out/$$pkg.mem.out \
+			./pkg/$$pkg/... || exit 1; \
+	done
+	@ls -la pprof-out
+
+# Fast check that every benchmark compiles and executes without error (one
+# iteration each). Used in CI on every PR to catch broken benchmarks cheaply
+# without paying for a meaningful measurement run.
+bench-smoke:
+	@echo "Running Go benchmark smoke test (1 iteration each)..."
+	$(GOTEST) -run XXXNOTHING -bench=. -benchtime=1x -count=1 \
+	  ./pkg/store/... ./pkg/survey/... ./pkg/grammar/... ./pkg/code/... ./pkg/memory/...
 
 lint:
 	@echo "Running linter..."
