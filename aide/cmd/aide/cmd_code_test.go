@@ -66,3 +66,48 @@ func TestIndexerReconcile_RemovesOrphans(t *testing.T) {
 		t.Errorf("real.go should still be indexed: %v", err)
 	}
 }
+
+// TestIndexerReconcile_BootstrapsEmptyIndex verifies that Reconcile populates
+// a store with no entries at all by walking the working tree. Without this,
+// a fresh store surfaces as "code index is empty" to code-index-dependent
+// analyzers (deadcode, modules) even though the reconciler ran.
+func TestIndexerReconcile_BootstrapsEmptyIndex(t *testing.T) {
+	tmpDir := t.TempDir()
+	aideDir := filepath.Join(tmpDir, ".aide", "memory")
+	if err := os.MkdirAll(aideDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	dbPath := filepath.Join(aideDir, "memory.db")
+
+	if err := os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte("package main\n\nfunc Foo() {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	indexPath, searchPath := getCodeStorePaths(dbPath)
+	cs, err := store.NewCodeStore(indexPath, searchPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cs.Close()
+
+	idx := NewIndexerFromStore(cs, newGrammarLoader(dbPath, nil), tmpDir)
+
+	res, err := idx.Reconcile()
+	if err != nil {
+		t.Fatalf("Reconcile: %v", err)
+	}
+	if res.Refreshed == 0 {
+		t.Errorf("expected bootstrap to index files, got %+v", res)
+	}
+
+	stats, err := cs.Stats()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stats.Symbols == 0 {
+		t.Errorf("expected symbols after bootstrap, got %+v", stats)
+	}
+	if _, err := cs.GetFileInfo("main.go"); err != nil {
+		t.Errorf("main.go should be indexed: %v", err)
+	}
+}

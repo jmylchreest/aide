@@ -514,7 +514,7 @@ func (idx *Indexer) IndexFile(filePath string) (int, error) {
 type ReconcileResult struct {
 	Checked   int // Total entries inspected
 	Removed   int // Entries dropped because the file no longer exists on disk
-	Refreshed int // Entries re-indexed because mtime advanced
+	Refreshed int // Entries re-indexed because mtime advanced, or newly indexed during an empty-index bootstrap
 	Errors    int // Stat / index failures (skipped, not fatal)
 }
 
@@ -585,7 +585,51 @@ func (idx *Indexer) Reconcile() (ReconcileResult, error) {
 	}
 
 	idx.sweepOrphans(infos, ignore, &res)
+
+	// Bootstrap an empty index. Reconcile otherwise only refreshes files it
+	// already knows about, so a fresh store (nothing ever indexed) would stay
+	// empty and every code-index-dependent analyzer (deadcode, modules) would
+	// hard-fail with "code index is empty". Populate from the working tree
+	// when there is nothing to reconcile against.
+	if len(infos) == 0 {
+		if err := idx.indexTree(ignore, &res); err != nil {
+			return res, err
+		}
+	}
+
 	return res, nil
+}
+
+// indexTree walks the project root and indexes every supported, non-ignored
+// file. It is the empty-index bootstrap half of Reconcile: the only way a
+// store with no entries can be made usable without a manual `aide code index`.
+func (idx *Indexer) indexTree(ignore *aideignore.Matcher, res *ReconcileResult) error {
+	shouldSkip := ignore.WalkFunc(idx.rootDir)
+	err := filepath.Walk(idx.rootDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		if skip, skipDir := shouldSkip(path, info); skip {
+			if skipDir {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if info.IsDir() {
+			return nil
+		}
+		if !code.SupportedFile(path) {
+			return nil
+		}
+		if _, err := idx.IndexFile(path); err != nil {
+			res.Errors++
+			return nil
+		}
+		res.Checked++
+		res.Refreshed++
+		return nil
+	})
+	return err
 }
 
 // sweepOrphans handles the post-fileinfo cleanup pass: corrupt rows (empty
