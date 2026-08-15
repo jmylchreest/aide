@@ -1,0 +1,70 @@
+name: benchmarks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '23 3 * * *'   # nightly ~03:23 UTC
+  workflow_dispatch:
+
+jobs:
+  bench-smoke:
+    name: Benchmark smoke (compile + run 1x)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: aide
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: aide/go.mod
+          cache-dependency-path: aide/go.sum
+
+      - name: Download dependencies
+        run: go mod download
+
+      # 1x each: proves every benchmark compiles and runs, cheap. This is the
+      # PR gate. NOTE: until the benchmark _test.go files land (dedicated PR),
+      # this passes vacuously (go test -bench=. with no benchmarks exits 0).
+      - name: Benchmark smoke test
+        run: make bench-smoke
+
+  bench-measure:
+    name: Benchmark measurement
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: aide
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: aide/go.mod
+          cache-dependency-path: aide/go.sum
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run benchmarks
+        run: |
+          go test -bench=. -benchmem -benchtime=200ms -count=3 \
+            ./pkg/store/... ./pkg/survey/... ./pkg/grammar/... ./pkg/code/... ./pkg/memory/... \
+            > bench-results.txt 2>&1
+          tail -5 bench-results.txt
+
+      # path is relative to GITHUB_WORKSPACE (repo root), not working-directory,
+      # so the file written inside aide/ is aide/bench-results.txt here.
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v7
+        with:
+          name: go-benchmarks
+          path: aide/bench-results.txt
+          retention-days: 14
+          if-no-files-found: error

@@ -1,6 +1,6 @@
 # aide Makefile
 
-.PHONY: all build test clean lint fmt install install-plugin proto calibrate-tokens
+.PHONY: all build test clean lint fmt install install-plugin proto calibrate-tokens bench bench-smoke
 
 # Binary name
 BINARY=aide
@@ -83,6 +83,23 @@ test-coverage:
 	$(GOTEST) -v -race -coverprofile=coverage.out ./...
 	$(GOCMD) tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report: coverage.html"
+
+# Full benchmark run with allocations, 3 runs for stability. Packages are the
+# hot-path areas that have (or will have) _bench_test.go files: store (bbolt +
+# bleve code index and memory), survey (repo analysis), grammar (project scan),
+# code (parse/tokenize), memory (scoring).
+bench:
+	@echo "Running Go benchmarks..."
+	$(GOTEST) -bench=. -benchmem -benchtime=200ms -count=3 \
+	  ./pkg/store/... ./pkg/survey/... ./pkg/grammar/... ./pkg/code/... ./pkg/memory/...
+
+# Fast check that every benchmark compiles and executes without error (one
+# iteration each). Used in CI on every PR to catch broken benchmarks cheaply
+# without paying for a meaningful measurement run.
+bench-smoke:
+	@echo "Running Go benchmark smoke test (1 iteration each)..."
+	$(GOTEST) -run XXXNOTHING -bench=. -benchtime=1x -count=1 \
+	  ./pkg/store/... ./pkg/survey/... ./pkg/grammar/... ./pkg/code/... ./pkg/memory/...
 
 lint:
 	@echo "Running linter..."
