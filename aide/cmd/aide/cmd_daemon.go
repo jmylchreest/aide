@@ -163,11 +163,21 @@ func cmdDaemon(dbPath string, args []string) error {
 	}
 
 	// Create gRPC server
-	server := grpcapi.NewServer(st, dbPath, socketPath, newGrammarLoader(dbPath, nil))
+	loader := newGrammarLoader(dbPath, nil)
+	server := grpcapi.NewServer(st, dbPath, socketPath, loader)
 
 	// Set code store if available
 	if codeStore != nil {
 		server.SetCodeStore(codeStore)
+		// Install the code reconciler so project-wide analyzers (deadcode,
+		// modules) refresh the index — and bootstrap it when empty — before
+		// they run. Without this, reconcileCode() is a no-op for the standalone
+		// daemon and an empty index surfaces as "code index is empty".
+		indexer := NewIndexerFromStore(codeStore, loader, store.ProjectRootFromDB(dbPath))
+		server.SetCodeReconciler(func() (int, int, error) {
+			res, err := indexer.Reconcile()
+			return res.Removed, res.Refreshed, err
+		})
 	}
 
 	// Set findings store if available
