@@ -93,7 +93,6 @@ var (
 	benchSymbolSink     []*code.Symbol
 	benchCodeSearchSink []*CodeSearchResult
 	benchRefSink        []*code.Reference
-	benchBoolSink       bool
 )
 
 // BenchmarkCodeIndexFileBatch measures the "commit one indexed file" path:
