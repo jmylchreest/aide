@@ -63,13 +63,25 @@ var (
 )
 
 // BenchmarkBoltStoreAddMemories measures the per-op commit cost of the
-// dual-write memory add path (bbolt transaction + bleve index update).
+// dual-write memory add path (bbolt transaction + bleve index update). A
+// fixed pool of memories is rotated so each op rewrites an existing record
+// (AddMemory reuses a non-empty ID), keeping the index at a stable size and
+// measuring steady-state commit cost instead of "add to an ever-growing
+// index".
 func BenchmarkBoltStoreAddMemories(b *testing.B) {
 	cs := setupBenchCombinedStore(b)
 
+	const memPool = 256
+	pool := make([]*memory.Memory, memPool)
+	for i := range pool {
+		m := benchMemory(i)
+		m.ID = fmt.Sprintf("bench-mem-%d", i)
+		pool[i] = m
+	}
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		if err := cs.AddMemory(benchMemory(i)); err != nil {
+		if err := cs.AddMemory(pool[i%memPool]); err != nil {
 			b.Fatalf("AddMemory: %v", err)
 		}
 	}

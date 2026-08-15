@@ -117,14 +117,19 @@ func BenchmarkCodeIndexFileBatch(b *testing.B) {
 }
 
 // BenchmarkAddSymbol measures the ad-hoc single-symbol write path (own bbolt
-// transaction + own bleve index call per symbol).
+// transaction + own bleve index call per symbol). A fixed pool of symbols is
+// rotated so each op rewrites an existing record (AddSymbol reuses a non-empty
+// ID), keeping the index at a stable size and measuring steady-state commit
+// cost instead of "add to an ever-growing index".
 func BenchmarkAddSymbol(b *testing.B) {
 	cs := setupBenchCodeStore(b)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	const addPool = 512
+	pool := make([]*code.Symbol, addPool)
+	for i := range pool {
 		filePath, _, _ := benchFileBatch(i / benchSymbolsPerFile)
-		sym := &code.Symbol{
+		pool[i] = &code.Symbol{
+			ID:        fmt.Sprintf("bench-addr-%d", i),
 			Name:      fmt.Sprintf("solo%d", i),
 			Kind:      code.KindFunction,
 			Signature: fmt.Sprintf("func solo%d() error", i),
@@ -133,7 +138,11 @@ func BenchmarkAddSymbol(b *testing.B) {
 			EndLine:   9,
 			Language:  "go",
 		}
-		if err := cs.AddSymbol(sym); err != nil {
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if err := cs.AddSymbol(pool[i%addPool]); err != nil {
 			b.Fatalf("AddSymbol: %v", err)
 		}
 	}
