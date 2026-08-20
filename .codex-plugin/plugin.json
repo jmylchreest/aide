@@ -6,6 +6,15 @@
     "name": "John Mylchreest"
   },
   "homepage": "https://github.com/jmylchreest/aide",
+  "repository": "https://github.com/jmylchreest/aide",
+  "keywords": [
+    "memory",
+    "code-intelligence",
+    "multi-agent",
+    "orchestration",
+    "claude-code",
+    "opencode"
+  ],
   "license": "MIT",
   "skills": "./skills/",
   "mcpServers": {

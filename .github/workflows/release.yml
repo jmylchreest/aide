@@ -23,7 +23,7 @@ jobs:
       should_skip: ${{ steps.version.outputs.should_skip }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
@@ -92,17 +92,17 @@ jobs:
     if: needs.prepare.outputs.should_skip != 'true'
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Setup Go
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: aide/go.mod
           cache: true
           cache-dependency-path: aide/go.sum
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
 
       - name: Run aide tests
         run: |
@@ -131,7 +131,7 @@ jobs:
       version: ${{ steps.resolve.outputs.version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Resolve Zig version
         id: resolve
@@ -239,7 +239,7 @@ jobs:
           fi
 
       - name: Upload Zig artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: zig-toolchain
           path: zig-x86_64-linux-${{ steps.resolve.outputs.version }}.tar.xz
@@ -285,10 +285,10 @@ jobs:
             zig_target: aarch64-windows-gnu
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Setup Go
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: aide/go.mod
           cache: true
@@ -331,7 +331,7 @@ jobs:
 
       - name: Compress binary with UPX
         if: matrix.goos != 'darwin' && !(matrix.goos == 'windows' && matrix.goarch == 'arm64')
-        uses: svenstaro/upx-action@v3
+        uses: svenstaro/upx-action@daf799fa059e79b583cea3ae4ea39f6f67825112 # v3
         with:
           files: |
             dist/aide-*
@@ -339,7 +339,7 @@ jobs:
           strip: false # Already stripped via -s -w ldflags
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: aide-${{ matrix.goos }}-${{ matrix.goarch }}
           path: dist/aide-*
@@ -381,17 +381,17 @@ jobs:
             zig_target: aarch64-windows-gnu
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Setup Go
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: aide-web/go.mod
           cache: true
           cache-dependency-path: aide-web/go.sum
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
 
       - name: Install Zig
         if: matrix.zig_target
@@ -429,7 +429,7 @@ jobs:
 
       - name: Compress binary with UPX
         if: matrix.goos != 'darwin' && !(matrix.goos == 'windows' && matrix.goarch == 'arm64')
-        uses: svenstaro/upx-action@v3
+        uses: svenstaro/upx-action@daf799fa059e79b583cea3ae4ea39f6f67825112 # v3
         with:
           files: |
             dist/aide-web-*
@@ -437,7 +437,7 @@ jobs:
           strip: false
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: aide-web-${{ matrix.goos }}-${{ matrix.goarch }}
           path: dist/aide-web-*
@@ -486,7 +486,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Install Zig
         if: matrix.zig_target
@@ -677,7 +677,7 @@ jobs:
           fi
 
       - name: Upload grammar artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: grammars-${{ matrix.os_name }}-${{ matrix.arch }}
           path: |
@@ -695,10 +695,10 @@ jobs:
     if: needs.prepare.outputs.should_skip != 'true' && github.event_name == 'push'
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
 
       - name: Install dependencies
         run: bun install
@@ -728,7 +728,7 @@ jobs:
         run: bun pm pack
 
       - name: Upload npm tarball artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: npm-package
           path: packages/opencode-plugin/jmylchreest-aide-plugin-*.tgz
@@ -775,13 +775,13 @@ jobs:
             ext: ".exe"
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
 
       - name: Download Go binary artifact
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: aide-${{ matrix.goos }}-${{ matrix.goarch }}
           path: dist
@@ -804,7 +804,7 @@ jobs:
         run: bun pm pack
 
       - name: Upload per-arch tarball artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: npm-${{ matrix.pkg }}
           path: packages/${{ matrix.pkg }}/jmylchreest-${{ matrix.pkg }}-*.tgz
@@ -822,10 +822,10 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           path: artifacts
 
@@ -856,7 +856,7 @@ jobs:
           cat checksums.txt
 
       - name: Create release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3
         with:
           name: aide ${{ needs.prepare.outputs.version_tag }}
           tag_name: ${{ needs.prepare.outputs.version_tag }}
@@ -885,10 +885,10 @@ jobs:
       id-token: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
@@ -897,7 +897,7 @@ jobs:
         run: npm install -g npm@latest
 
       - name: Download all npm tarballs
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           path: artifacts
 
@@ -981,10 +981,10 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           path: artifacts
 
@@ -1020,7 +1020,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create snapshot release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3
         with:
           name: "Development Snapshot"
           tag_name: snapshot
