@@ -519,6 +519,7 @@ if (!bundledBinary) {
 const execBinary = bundledBinary ?? BINARY;
 log(`Executing: ${execBinary} ${process.argv.slice(2).join(" ")}`);
 
+// Args are passed as an argv array, never through a shell.
 const result = spawnSync(execBinary, process.argv.slice(2), {
   stdio: "inherit",
   env: process.env,

@@ -1,0 +1,9 @@
+# Paths excluded from plugin packaging and scanning.
+node_modules/
+dist/
+build/
+coverage/
+.aide/
+docs/
+aide-web/web/node_modules/
+*.log

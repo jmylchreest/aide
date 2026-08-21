@@ -1,0 +1,14 @@
+# HOL plugin-scanner configuration (https://github.com/hashgraph-online/hol-guard)
+#
+# Paths excluded below are not part of the plugin runtime surface:
+#   - findings/testdata: deliberate vulnerable fixtures used to test the
+#     static-analysis rules that ship with aide; the "secrets" are synthetic.
+#   - htmx.min.js: vendored third-party bundle served by aide-web.
+#   - blueprint/blueprints: language blueprint templates whose example
+#     connection strings trip secret heuristics.
+[scanner]
+ignore_paths = [
+  "aide/pkg/findings/testdata/**",
+  "aide-web/internal/static/js/htmx.min.js",
+  "aide/pkg/blueprint/blueprints/**",
+]

@@ -41,8 +41,8 @@ node --cpu-prof script.js
 # Go - benchmarks
 go test -bench=. -benchmem ./...
 
-# API endpoint
-curl -w "@curl-format.txt" -o /dev/null -s "http://localhost:3000/api/endpoint"
+# API endpoint (ENDPOINT_URL is the URL under test)
+curl -w "@curl-format.txt" -o /dev/null -s "$ENDPOINT_URL"
 ```
 
 **Record baseline metrics:**

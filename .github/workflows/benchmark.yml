@@ -17,10 +17,10 @@ jobs:
       run:
         working-directory: aide
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Setup Go
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: aide/go.mod
           cache-dependency-path: aide/go.sum
@@ -41,10 +41,10 @@ jobs:
       run:
         working-directory: aide
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Setup Go
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: aide/go.mod
           cache-dependency-path: aide/go.sum
@@ -62,7 +62,7 @@ jobs:
       # path is relative to GITHUB_WORKSPACE (repo root), not working-directory,
       # so the file written inside aide/ is aide/bench-results.txt here.
       - name: Upload benchmark results
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: go-benchmarks
           path: aide/bench-results.txt

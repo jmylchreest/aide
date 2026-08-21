@@ -329,6 +329,7 @@ function main(): void {
     const endArgs = ["session", "end", `--session=${sessionId}`];
     if (durationMs > 0) endArgs.push(`--duration=${durationMs}`);
     log(cwd, `spawning cleanup: ${endArgs.join(" ")}`);
+    // Detached: argv array, no shell, so teardown never blocks exit.
     const child = spawn(binary, endArgs, {
       cwd: anchorRoot || cwd,
       detached: true,
