@@ -7,6 +7,23 @@ import (
 	"testing"
 )
 
+// isolatePackRegistry swaps the process-wide pack registry for a pristine one
+// for the duration of the test. DynamicLoader.Download loads a downloaded
+// pack.json into DefaultPackRegistry(), so the integration tests that install
+// fake grammars leave overridden entries behind. Tests that assert on embedded
+// pack data must not see them — without this they pass on the first pass and
+// fail on the second (go test -count=2, or the -bench measurement run).
+func isolatePackRegistry(t *testing.T) {
+	t.Helper()
+	prev := DefaultPackRegistry()
+	fresh, err := NewPackRegistry()
+	if err != nil {
+		t.Fatalf("NewPackRegistry(): %v", err)
+	}
+	defaultRegistry = fresh
+	t.Cleanup(func() { defaultRegistry = prev })
+}
+
 // allExpectedLanguages lists every language that should have a pack.json.
 var allExpectedLanguages = []string{
 	// 10 embedded (built-in)

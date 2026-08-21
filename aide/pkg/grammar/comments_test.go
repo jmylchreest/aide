@@ -3,6 +3,8 @@ package grammar
 import "testing"
 
 func TestIsCommentLine_PackDriven(t *testing.T) {
+	isolatePackRegistry(t)
+
 	cases := []struct {
 		line string
 		lang string
@@ -41,6 +43,8 @@ func TestIsCommentLine_NoCommentsLanguage(t *testing.T) {
 }
 
 func TestExtractCommentText_PackDriven(t *testing.T) {
+	isolatePackRegistry(t)
+
 	cases := []struct {
 		line string
 		lang string
