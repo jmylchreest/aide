@@ -5,10 +5,10 @@ go 1.25.8
 require (
 	github.com/danielgtaylor/huma/v2 v2.39.1
 	github.com/fsnotify/fsnotify v1.10.1
-	github.com/go-chi/chi/v5 v5.3.1
+	github.com/go-chi/chi/v5 v5.3.2
 	github.com/jmylchreest/aide/aide v0.0.0
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
-	google.golang.org/grpc v1.83.0
+	google.golang.org/grpc v1.83.1
 )
 
 require (
