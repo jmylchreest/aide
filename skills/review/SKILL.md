@@ -115,13 +115,13 @@ and mostly re-reports known debt.
 
 **Method.** For each decision, work out what would falsify it, then go looking for that:
 
-| Decision shape                                                             | How to check it                                                                          |
-| -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| Bans a mechanism ("no bash in runtime paths")                              | **Grep** for the mechanism across the reviewed scope                                     |
-| Requires a boundary ("plugin code must not import daemon internals")       | `code_references` on the target symbols, or Grep the import lines                        |
-| Requires a property of all code ("must be reachable from real call paths") | Check the `deadcode` findings for the scope via `findings_list`, then confirm by reading |
-| Mandates a library or approach ("use go-git, not shelling out to git")     | Grep for the banned alternative and for the required one                                 |
-| Constrains a platform or runtime                                           | Read the changed code for platform-specific assumptions                                  |
+| Decision shape                                                             | How to check it                                                                                                                                                                                                       |
+| -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Bans a mechanism ("no bash in runtime paths")                              | **Grep** for the mechanism across the reviewed scope                                                                                                                                                                  |
+| Requires a boundary ("plugin code must not import daemon internals")       | `code_references` on the target symbols, or Grep the import lines                                                                                                                                                     |
+| Requires a property of all code ("must be reachable from real call paths") | `findings_list analyzer=deadcode include_accepted=true` for the scope, then confirm by reading. Accepted findings are hidden by default, and an acceptance predating the decision is exactly what you are looking for |
+| Mandates a library or approach ("use go-git, not shelling out to git")     | Grep for the banned alternative and for the required one                                                                                                                                                              |
+| Constrains a platform or runtime                                           | Read the changed code for platform-specific assumptions                                                                                                                                                               |
 
 A decision whose text gives you nothing falsifiable is not checkable here. Say so plainly
 rather than inventing a check — and mention it to the user, because a decision that cannot
@@ -143,6 +143,13 @@ decision, say), as long as each still has its own line naming it.
 
 **State the count and make it match.** "Decisions loaded: N" must equal the number of lines
 below it. Count them; do not estimate.
+
+**A hidden finding is not an absent one.** Any `findings_*` call made to discharge a
+decision must pass `include_accepted=true`; the default hides accepted findings, so a
+single earlier acceptance turns every later review into a cited, confident, wrong ✅ —
+the exact failure the evidence rule above exists to prevent. When an accepted finding is
+decision-linked, report the acceptance rather than passing over it: it may predate the
+decision, and nothing re-examines it otherwise.
 
 **Reporting.** A confirmed violation is 🔴 Critical regardless of how small the code change
 is, and must name the decision topic. If the code looks right and the decision looks wrong

@@ -32,11 +32,11 @@ Accepted findings are hidden from future output by default.
 
 ### Read-only (shared with `patterns` skill)
 
-| Tool              | Purpose                                                 |
-| ----------------- | ------------------------------------------------------- |
-| `findings_stats`  | Counts by analyzer and severity — start here            |
-| `findings_list`   | Browse findings with filters (analyzer, severity, file) |
-| `findings_search` | Full-text search across finding titles and details      |
+| Tool              | Purpose                                                                                                                                                  |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `findings_stats`  | Counts by analyzer and severity — start here                                                                                                             |
+| `findings_list`   | Browse findings with filters (analyzer, severity, file). Pass `include_accepted=true` when checking a decision — accepted findings are hidden by default |
+| `findings_search` | Full-text search across finding titles and details                                                                                                       |
 
 ### Decisions (conformance context)
 
@@ -110,11 +110,24 @@ recorded decision?**
 A finding is decision-linked when the code it flags contradicts a decision's stated
 commitment. For example:
 
-- a `deadcode` finding on an unreferenced symbol, against a decision requiring all code to
-  be reachable from real call paths
+- a `deadcode` finding on a symbol written ahead of its integration, against a decision
+  requiring all code to be reachable from real call paths
 - a `secrets` finding in a runtime path, against a decision on credential handling
 - a `coupling` finding crossing a boundary a decision declared off-limits
 - a `security` finding using a mechanism a decision ruled out
+
+**Reachability findings turn on intent, not on whether a caller was found.** A `deadcode`
+finding is decision-linked when the symbol is genuinely unused — written ahead of its
+integration, or left behind after it. It is **not** decision-linked when the symbol is
+reached by a mechanism the analyzer cannot see: framework convention (file-based routing,
+dependency injection, reflection), a declared entry point, generated code, or a test
+fixture. Those are analyzer blind spots, and accepting them is the correct resolution —
+name the mechanism that reaches the symbol as the rationale.
+
+`no-aspirational-code` bans code waiting for a caller that does not exist. It does not ban
+code whose caller aide cannot index. Reading every unreferenced symbol as a violation would
+make a framework page component permanently unacceptable, and a finding with no legal
+resolution is one that trains people to ignore the whole gate.
 
 **A decision-linked finding cannot be accepted as noise.** There are exactly two valid
 resolutions:
@@ -124,8 +137,11 @@ resolutions:
    so explicitly and tell the user to run `/decide` on that topic. Do not accept the finding
    on the assumption that the decision will change.
 
-If you are unsure whether a finding is decision-linked, treat it as linked and keep it.
-Report it under "Decision conflicts" in the summary so a human decides.
+If you are unsure whether a finding is decision-linked, name the mechanism you believe
+resolves it — the route that reaches the symbol, the reason the string is not a credential
+— and keep the finding if you cannot name one. "Unsure" is not falsifiable and defaulting
+to linked turns the gate into a ratchet; a named mechanism can be checked and argued with.
+Report anything kept this way under "Decision conflicts" so a human decides.
 
 Note the limits of this gate. It grades findings the analyzers already produced; it cannot
 find a decision violation that no analyzer flagged. For a code-level sweep against the
