@@ -39,10 +39,7 @@ import {
 } from "../lib/aide-downloader.js";
 import { findProjectRoot } from "../lib/project-root.js";
 import { shouldInstallWrapper, hudPointerFile } from "../lib/hud.js";
-import {
-  resolveAnchorViaBinary,
-  writeSessionAnchor,
-} from "../lib/anchor.js";
+import { resolveAnchorViaBinary, writeSessionAnchor } from "../lib/anchor.js";
 import {
   injectionBatchEvent,
   recordObserveEventsBatch,
@@ -169,7 +166,8 @@ function writeHudPointer(
     // Absent or unreadable -> write it; a failure here only costs the
     // statusline its fast path, so never fail the session over it.
     try {
-      if (!existsSync(claudeBinDir)) mkdirSync(claudeBinDir, { recursive: true });
+      if (!existsSync(claudeBinDir))
+        mkdirSync(claudeBinDir, { recursive: true });
       writeFileSync(pointer, `${realpathSync(pluginRoot)}\n`);
       log.info(`Pointed HUD wrapper at ${pluginRoot}`);
     } catch (err) {
@@ -306,7 +304,12 @@ function runSessionInit(
     log.debug("aide binary not found, skipping session init");
     log.end("sessionInit", { skipped: true, reason: "no-binary" });
     return {
-      static: { global: [], project: [], decisions: [], overridingDecisions: [] },
+      static: {
+        global: [],
+        project: [],
+        decisions: [],
+        overridingDecisions: [],
+      },
       dynamic: { sessions: [] },
     };
   }
@@ -371,7 +374,11 @@ async function main(): Promise<void> {
 
     // Resolve the project root so we never plant a sibling .aide/ in a
     // subdirectory of a git repo. Mirrors the Go binary's findProjectRoot().
-    const { root: resolvedRoot, hasMarker } = findProjectRoot(launchedCwd);
+    const {
+      root: resolvedRoot,
+      realRoot: tsRealRoot,
+      hasMarker,
+    } = findProjectRoot(launchedCwd);
     if (!hasMarker) {
       const requireGit = coreLoadGlobalConfig().requireGit ?? true;
       if (requireGit) {
@@ -465,15 +472,9 @@ async function main(): Promise<void> {
         if (anchor) {
           writeSessionAnchor(sessionId, launchedCwd, anchor);
           // Go-vs-TS disagreement is the misanchoring class the anchor
-          // exists to catch. Compare symlink-resolved spellings so path
-          // aliases don't false-warn.
-          const tsRealRoot = (() => {
-            try {
-              return realpathSync(cwd);
-            } catch {
-              return cwd;
-            }
-          })();
+          // exists to catch. Both sides compare symlink-resolved spellings so
+          // path aliases don't false-warn; tsRealRoot comes from the same
+          // findProjectRoot call that produced cwd, so the two cannot drift.
           if (anchor.realRoot !== tsRealRoot) {
             log.warn(
               `anchor mismatch: binary resolved ${anchor.root}, TS walk resolved ${cwd}`,

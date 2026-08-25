@@ -68,33 +68,12 @@ function rootResult(root: string, hasMarker: boolean): ProjectRootResult {
  * Resolve symlinks, falling back to the input when the path cannot be resolved
  * (it does not exist yet, or the OS refuses). Mirrors `anchor.RealPath`.
  */
-export function realPath(p: string): string {
+function realPath(p: string): string {
   try {
     return realpathSync(p);
   } catch {
     return p;
   }
-}
-
-/**
- * Report whether `path` sits inside `root`, or is `root` itself.
- *
- * Both sides are resolved first, so the two spellings of a symlinked tree
- * compare equal. Comparison walks path segments rather than matching a string
- * prefix, so `/src/aide-web` is not inside `/src/aide`. Case is folded on
- * Windows because the filesystem folds it. Mirrors `anchor.Contains`.
- */
-export function containsPath(root: string, path: string): boolean {
-  let a = resolve(realPath(root));
-  let b = resolve(realPath(path));
-  if (process.platform === "win32") {
-    a = a.toLowerCase();
-    b = b.toLowerCase();
-  }
-  if (a === b) return true;
-  const rel = relative(a, b);
-  if (rel === "") return true;
-  return rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel);
 }
 
 /**
