@@ -63,15 +63,7 @@ type anchorInfo struct {
 	Identity        anchorIdentityInfo `json:"identity"`
 	DBPath          string             `json:"dbPath"`
 	SocketPath      string             `json:"socketPath"`
-	// Real* are the symlink-resolved spellings, reported for the same reason
-	// as RealRoot: the aliased path is what is in use, the resolved one is the
-	// identity. Reported, never substituted — SocketPathFromDB already derives
-	// the bound path from the resolved root and falls back to a short hashed
-	// path when sun_path (104 bytes on macOS/BSD, 108 on Linux) would be
-	// exceeded, so a caller swapping these in would only diverge from it.
-	RealDBPath     string       `json:"realDbPath"`
-	RealSocketPath string       `json:"realSocketPath"`
-	Chain          []anchorLink `json:"chain"`
+	Chain           []anchorLink       `json:"chain"`
 }
 
 // resolveAnchor is the single authoritative project-root resolution,
@@ -337,8 +329,6 @@ func finishAnchor(info *anchorInfo, markerDir string) {
 	info.Identity.ProjectName, info.Identity.Source = anchorProjectIdentity(info.Root)
 	info.DBPath = computeDBPath(info.Root)
 	info.SocketPath = grpcapi.SocketPathFromDB(info.DBPath)
-	info.RealDBPath = realPath(info.DBPath)
-	info.RealSocketPath = realPath(info.SocketPath)
 
 	chain := []anchorLink{{
 		Root:     info.Root,

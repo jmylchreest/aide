@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/blevesearch/bleve/v2/mapping"
 	bolt "go.etcd.io/bbolt"
@@ -19,7 +20,7 @@ var SchemaVersion uint64 = 1
 
 // CodeSchemaVersion is the current schema version for the code store.
 // Increment this when adding new migrations to the codeMigrations slice.
-var CodeSchemaVersion uint64 = 2
+var CodeSchemaVersion uint64 = 3
 
 // FindingsSchemaVersion is the current schema version for the findings store.
 // Increment this when adding new migrations to the findingsMigrations slice.
@@ -45,6 +46,53 @@ var migrations = []migration{
 var codeMigrations = []migration{
 	{version: 1, description: "baseline code schema stamp", migrate: func(tx *bolt.Tx) error { return nil }},
 	{version: 2, description: "backfill BucketSymbolsByFile / BucketReferencesByFile and convert BucketRefIndex to composite keys", migrate: migrateCodeV2},
+	{version: 3, description: "clear stored file mtimes so the grammar packs' new import queries are re-extracted", migrate: migrateCodeV3},
+}
+
+// migrateCodeV3 zeroes the recorded ModTime on every indexed file so the next
+// reconcile re-parses all of them.
+//
+// The index is refreshed only when a file's mtime differs from the one stored
+// beside it, which makes it blind to changes in HOW files are parsed: editing
+// a grammar pack's queries touches no source file, so an existing index keeps
+// serving references extracted by the old ones. That is not hypothetical — the
+// packs gained dynamic-import captures (import(), require(), importlib) and
+// the tsx pack gained import captures at all, and survey's module clustering
+// reads those references straight from this index with no fallback.
+//
+// Zeroing the timestamp rather than deleting the rows keeps every symbol and
+// reference queryable until its file is re-read, so the index degrades to
+// stale rather than empty while reconcile catches up. Bumping the schema
+// version is the existing mechanism for "stored data no longer matches how we
+// produce it"; a query fingerprint would be a second, parallel one.
+func migrateCodeV3(tx *bolt.Tx) error {
+	b := tx.Bucket(BucketFileIndex)
+	if b == nil {
+		return nil // nothing indexed yet
+	}
+	type fileInfo struct {
+		Path      string          `json:"path"`
+		ModTime   time.Time       `json:"modTime"`
+		SymbolIDs []string        `json:"symbols"`
+		Tokens    int             `json:"tokens,omitempty"`
+		SizeBytes int64           `json:"size,omitempty"`
+		Rest      json.RawMessage `json:"-"`
+	}
+	return b.ForEach(func(k, v []byte) error {
+		var info fileInfo
+		if err := json.Unmarshal(v, &info); err != nil {
+			return nil // unreadable row: reconcile will replace it
+		}
+		if info.ModTime.IsZero() {
+			return nil
+		}
+		info.ModTime = time.Time{}
+		data, err := json.Marshal(info)
+		if err != nil {
+			return err
+		}
+		return b.Put(k, data)
+	})
 }
 
 // migrateCodeV2 backfills the file-keyed secondary indexes from existing
