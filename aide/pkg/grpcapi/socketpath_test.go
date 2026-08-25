@@ -6,6 +6,24 @@ import (
 	"testing"
 )
 
+// shortBase returns a temp dir short enough to build predictable fixtures on.
+// shortBase(t) is not usable directly: on macOS it is ~140 bytes before any
+// suffix (/var/folders/../T/<test name>/001), already past maxSocketPathLen,
+// which left the deep/shallow distinction these tests rely on meaningless and
+// made deepProject's loop a no-op.
+func shortBase(t *testing.T) string {
+	t.Helper()
+	dir, err := os.MkdirTemp("", "aidesock")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(dir) })
+	if len(filepath.Join(dir, ".aide", "aide.sock")) > maxSocketPathLen {
+		t.Skipf("temp dir %q is already past maxSocketPathLen; cannot build a shallow fixture", dir)
+	}
+	return dir
+}
+
 // deepProject builds a project directory deep enough that its in-project
 // socket path would exceed maxSocketPathLen, forcing the hashed fallback.
 func deepProject(t *testing.T, base string) string {
@@ -13,6 +31,9 @@ func deepProject(t *testing.T, base string) string {
 	dir := base
 	for len(filepath.Join(dir, ".aide", "aide.sock")) <= maxSocketPathLen {
 		dir = filepath.Join(dir, "nested")
+	}
+	if dir == base {
+		t.Fatalf("base %q is already past maxSocketPathLen — use shortBase", base)
 	}
 	if err := os.MkdirAll(filepath.Join(dir, ".aide", "memory"), 0o755); err != nil {
 		t.Fatal(err)
@@ -28,7 +49,7 @@ func dbIn(root string) string {
 // will not let us create one (unprivileged Windows).
 func aliasOf(t *testing.T, real, inner string) string {
 	t.Helper()
-	link := filepath.Join(t.TempDir(), "alias")
+	link := filepath.Join(shortBase(t), "alias")
 	if err := os.Symlink(real, link); err != nil {
 		t.Skipf("symlinks unavailable: %v", err)
 	}
@@ -42,7 +63,7 @@ func aliasOf(t *testing.T, real, inner string) string {
 // daemon" while the daemon was running.
 func TestSocketPathFromDB_AliasAgrees(t *testing.T) {
 	t.Run("deep project (hashed fallback)", func(t *testing.T) {
-		real := t.TempDir()
+		real := shortBase(t)
 		deep := deepProject(t, real)
 		alias := aliasOf(t, real, deep[len(real)+1:])
 
@@ -61,7 +82,7 @@ func TestSocketPathFromDB_AliasAgrees(t *testing.T) {
 	// the resolved path is not would otherwise put one caller in-project and
 	// the other on the hashed path.
 	t.Run("shallow project (in-project socket)", func(t *testing.T) {
-		real := t.TempDir()
+		real := shortBase(t)
 		if err := os.MkdirAll(filepath.Join(real, ".aide", "memory"), 0o755); err != nil {
 			t.Fatal(err)
 		}
@@ -77,7 +98,7 @@ func TestSocketPathFromDB_AliasAgrees(t *testing.T) {
 
 // TestSocketPathFromDB_StaysUnderLimit: the whole point of the fallback.
 func TestSocketPathFromDB_StaysUnderLimit(t *testing.T) {
-	deep := deepProject(t, t.TempDir())
+	deep := deepProject(t, shortBase(t))
 	got := SocketPathFromDB(dbIn(deep))
 	if len(got) > maxSocketPathLen {
 		t.Errorf("socket path %d bytes exceeds maxSocketPathLen %d: %s", len(got), maxSocketPathLen, got)
@@ -87,7 +108,7 @@ func TestSocketPathFromDB_StaysUnderLimit(t *testing.T) {
 // TestSocketPathFromDB_Deterministic: server and client derive independently,
 // so repeated calls must agree.
 func TestSocketPathFromDB_Deterministic(t *testing.T) {
-	deep := deepProject(t, t.TempDir())
+	deep := deepProject(t, shortBase(t))
 	first := SocketPathFromDB(dbIn(deep))
 	for i := 0; i < 3; i++ {
 		if got := SocketPathFromDB(dbIn(deep)); got != first {
@@ -98,8 +119,8 @@ func TestSocketPathFromDB_Deterministic(t *testing.T) {
 
 // TestSocketPathFromDB_DistinctProjects: different projects must not collide.
 func TestSocketPathFromDB_DistinctProjects(t *testing.T) {
-	a := deepProject(t, t.TempDir())
-	b := deepProject(t, t.TempDir())
+	a := deepProject(t, shortBase(t))
+	b := deepProject(t, shortBase(t))
 	if SocketPathFromDB(dbIn(a)) == SocketPathFromDB(dbIn(b)) {
 		t.Error("two distinct projects share one socket path")
 	}

@@ -662,10 +662,14 @@ func TestParseFileNotExist(t *testing.T) {
 // ---------------------------------------------------------------------------
 // TestParseContentImportReferences verifies that each pack's refs query emits
 // RefKindImport for both the static and the dynamic import forms of its
-// language. Dynamic forms matter because the coupling analyzer prefers the
-// code index over the pack's regex fallback and only falls back when the
-// index yields nothing: a file with one static import would otherwise lose
-// every dynamic edge it has.
+// language.
+//
+// These references feed the code index, which survey's module clustering
+// reads directly (pkg/survey/modules.go). The coupling analyzer takes its
+// imports from the pack regexes instead: it would prefer an ImportSource, but
+// nothing constructs one, so extractImportsFromPack is the only live path
+// there. The two extraction routes must therefore cover the same forms — a
+// gap in either shows up in a different consumer.
 func TestParseContentImportReferences(t *testing.T) {
 	tests := []struct {
 		lang    string

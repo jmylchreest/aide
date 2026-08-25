@@ -61,7 +61,7 @@
         "group": 1
       },
       {
-        "regex": "importlib\\.import_module\\s*\\(\\s*['\"]([^'\"]+)['\"]",
+        "regex": "(?:^|[^.\\w])importlib\\.import_module\\s*\\(\\s*['\"]([^'\"]+)['\"]",
         "group": 1
       },
       {

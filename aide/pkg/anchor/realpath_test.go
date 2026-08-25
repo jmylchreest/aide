@@ -59,6 +59,7 @@ func TestContains(t *testing.T) {
 		{"parent is not inside child", inside, root, false},
 		// The bug strings.HasPrefix had: a sibling whose name extends the root.
 		{"sibling sharing a name prefix", filepath.Join(root, "aide"), filepath.Join(root, "aide-web"), false},
+		{"unrelated tree", root, filepath.Dir(root), false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -86,6 +87,29 @@ func TestContains_ThroughAlias(t *testing.T) {
 	cwd := filepath.Join(alias, "project", "pkg") // caller's spelling
 	if !Contains(root, cwd) {
 		t.Errorf("cwd reached through the alias read as outside its own root:\n  root %q\n  cwd  %q", root, cwd)
+	}
+}
+
+// TestContains_SymlinkedSubdirectory: a directory inside the project that is
+// itself a link out to another volume — a vendored or generated tree — is
+// still inside the project as written. Resolving both sides unconditionally
+// rejected it, which the plain prefix comparison this replaced got right.
+func TestContains_SymlinkedSubdirectory(t *testing.T) {
+	proj := t.TempDir()
+	outside := t.TempDir()
+	target := filepath.Join(outside, "services")
+	if err := os.MkdirAll(target, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(proj, "services")
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	if !Contains(proj, link) {
+		t.Errorf("a symlinked directory inside the project read as outside it:\n  root %q\n  path %q", proj, link)
+	}
+	if !Contains(proj, filepath.Join(link, "sub")) {
+		t.Error("a path beneath the symlinked directory read as outside the project")
 	}
 }
 

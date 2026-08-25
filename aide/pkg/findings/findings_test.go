@@ -615,6 +615,19 @@ func TestExtractImportsFromPack_Boundaries(t *testing.T) {
 		{"py dunder import", "python", `x = __import__("pkg.real")`, []string{"pkg.real"}},
 		{"py importlib", "python", `x = importlib.import_module("pkg.real")`, []string{"pkg.real"}},
 
+		// Several imports on one line: stopping at the first dropped the rest.
+		{"static and dynamic on one line", "typescript",
+			`import { lazy } from "react"; const V = lazy(() => import("./View"));`,
+			[]string{"react", "./View"}},
+		{"two dynamic imports on one line", "typescript",
+			`const a = await import("./a"); const b = await import("./b");`,
+			[]string{"./a", "./b"}},
+		{"repeated import is not double counted", "typescript",
+			`const a = await import("./same"); const b = await import("./same");`,
+			[]string{"./same"}},
+		{"py importlib on a method call", "python",
+			`x = self.importlib.import_module("pkg.nope")`, nil},
+
 		// Method calls that merely share the name are not imports.
 		{"ts method named import", "typescript", `const m = registry.import("./nope");`, nil},
 		{"ts identifier ending in import", "typescript", `const m = foo_import("./nope");`, nil},

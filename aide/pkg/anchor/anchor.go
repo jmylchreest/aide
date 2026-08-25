@@ -159,14 +159,33 @@ func RealPath(p string) string {
 
 // Contains reports whether path sits inside root, or is root itself.
 //
-// Both sides are resolved through RealPath first, so the two spellings of a
-// symlinked tree compare equal instead of one looking "outside" the other.
-// Comparison is a path-segment walk via filepath.Rel, not a string prefix:
-// "/src/aide-web" is not inside "/src/aide" even though the prefix matches.
-// On Windows the comparison folds case, because the filesystem does, and Rel
-// reports an error across volumes (C: vs D:) which is correctly "outside".
+// It accepts containment under EITHER the literal spellings or the resolved
+// ones, because the two answer different questions and both are legitimate:
+//
+//   - Literal catches a symlinked directory inside the project — a vendored
+//     or generated tree linked out to another volume. The link is inside the
+//     project as written, so work there belongs to this project, even though
+//     its resolved path lands elsewhere entirely.
+//   - Resolved catches the project itself reached by an alias — a ~/src
+//     symlink onto a data volume, a Windows junction — where the recorded
+//     root and the caller's cwd are two spellings of one directory.
+//
+// Requiring both would reject the first case, which is a containment the
+// plain string comparison this replaced got right.
+//
+// Each comparison walks path segments via filepath.Rel rather than matching a
+// string prefix, so "/src/aide-web" is not inside "/src/aide". Case is folded
+// on Windows because the filesystem folds it, and Rel's error across volumes
+// (C: vs D:) is correctly read as outside.
 func Contains(root, path string) bool {
-	root, path = RealPath(root), RealPath(path)
+	return containsLexical(root, path) ||
+		containsLexical(RealPath(root), RealPath(path))
+}
+
+// containsLexical is Contains without the symlink resolution: a segment-wise
+// containment test on the paths exactly as given.
+func containsLexical(root, path string) bool {
+	root, path = filepath.Clean(root), filepath.Clean(path)
 	if runtime.GOOS == "windows" {
 		root, path = strings.ToLower(root), strings.ToLower(path)
 	}
@@ -174,10 +193,7 @@ func Contains(root, path string) bool {
 	if err != nil {
 		return false // different volumes, or otherwise unrelatable
 	}
-	if rel == "." {
-		return true
-	}
-	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+	return filepath.IsLocal(rel) || rel == "."
 }
 
 // HasAideStore reports whether dir carries its own .aide directory.

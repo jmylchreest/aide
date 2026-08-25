@@ -30,15 +30,7 @@
  * any real repository above it takes priority.
  */
 
-import {
-  basename,
-  dirname,
-  isAbsolute,
-  join,
-  relative,
-  resolve,
-  sep,
-} from "path";
+import { basename, dirname, isAbsolute, join, resolve } from "path";
 import { existsSync, readFileSync, realpathSync, statSync } from "fs";
 import { homedir } from "os";
 
