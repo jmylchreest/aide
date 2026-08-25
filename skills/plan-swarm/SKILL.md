@@ -102,12 +102,18 @@ Output a structured story list. Each story must be:
    ```bash
    ./.aide/bin/aide decision set "swarm-plan" "<N> stories: <story-1>, <story-2>, ..." \
      --details='<JSON object>' \
-     --rationale="<brief description of scope and approach>"
+     --rationale="<brief description of scope and approach>" \
+     --by="<git-username>"
    ```
 3. **Record shared decisions** discovered during planning:
+
    ```bash
-   ./.aide/bin/aide decision set "<topic>" "<decision>"
+   ./.aide/bin/aide decision set "<topic>" "<decision>" --by="<git-username>"
    ```
+
+   `--by` is the git username — the GitHub handle, as in the remote URL, not a display
+   name. Never guess it: omit the flag rather than inventing an identifier, since the
+   store is append-only and a wrong byline can only be superseded, not edited.
 
 **Binary location:** The aide binary is at `.aide/bin/aide`. If it's on your `$PATH`, you can use `aide` directly.
 

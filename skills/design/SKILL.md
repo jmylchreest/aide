@@ -91,11 +91,16 @@ Store architectural decisions for future reference:
 
 ```bash
 ./.aide/bin/aide decision set "<feature>-storage" "PostgreSQL with JSONB for metadata" \
-  --rationale="Need flexible schema for user preferences"
+  --rationale="Need flexible schema for user preferences" --by="<git-username>"
 
 ./.aide/bin/aide decision set "<feature>-auth" "JWT with refresh tokens" \
-  --rationale="Stateless auth, mobile client support"
+  --rationale="Stateless auth, mobile client support" --by="<git-username>"
 ```
+
+**Attribution (`--by`):** use the git username — the GitHub handle, as in the remote
+URL — not a display name. Never guess a person's identifier: if you do not know it, omit
+`--by` rather than inventing one. The store is append-only, so a wrong byline cannot be
+edited, only superseded by a new version whose sole change is the name.
 
 **Binary location:** The aide binary is at `.aide/bin/aide`. If it's on your `$PATH`, you can use `aide` directly.
 
