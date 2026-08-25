@@ -7,6 +7,7 @@ package anchor
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	git "github.com/go-git/go-git/v5"
@@ -142,13 +143,41 @@ func LastURLSegment(url string) string {
 	return s
 }
 
-// RealPath resolves symlinks, falling back to the input on error, so
-// aliased spellings of one project map to one identity.
+// RealPath resolves symlinks so aliased spellings of one project map to one
+// identity — a ~/src tree pointing at a data volume on Unix, a directory
+// junction or mapped drive on Windows. On error (the path does not exist yet,
+// or the OS refuses to resolve it) it falls back to filepath.Clean, which
+// still normalises separators and .. segments rather than handing back a raw
+// string. This is the single implementation: callers needing a canonical root
+// use it rather than calling filepath.EvalSymlinks themselves.
 func RealPath(p string) string {
 	if resolved, err := filepath.EvalSymlinks(p); err == nil {
-		return resolved
+		return filepath.Clean(resolved)
 	}
-	return p
+	return filepath.Clean(p)
+}
+
+// Contains reports whether path sits inside root, or is root itself.
+//
+// Both sides are resolved through RealPath first, so the two spellings of a
+// symlinked tree compare equal instead of one looking "outside" the other.
+// Comparison is a path-segment walk via filepath.Rel, not a string prefix:
+// "/src/aide-web" is not inside "/src/aide" even though the prefix matches.
+// On Windows the comparison folds case, because the filesystem does, and Rel
+// reports an error across volumes (C: vs D:) which is correctly "outside".
+func Contains(root, path string) bool {
+	root, path = RealPath(root), RealPath(path)
+	if runtime.GOOS == "windows" {
+		root, path = strings.ToLower(root), strings.ToLower(path)
+	}
+	rel, err := filepath.Rel(root, path)
+	if err != nil {
+		return false // different volumes, or otherwise unrelatable
+	}
+	if rel == "." {
+		return true
+	}
+	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
 // HasAideStore reports whether dir carries its own .aide directory.

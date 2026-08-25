@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jmylchreest/aide/aide/internal/version"
+	"github.com/jmylchreest/aide/aide/pkg/anchor"
 	"github.com/jmylchreest/aide/aide/pkg/config"
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi"
 	"github.com/jmylchreest/aide/aide/pkg/store"
@@ -15,12 +16,19 @@ import (
 
 // InstanceInfo is the response payload for the instance_info MCP tool.
 type InstanceInfo struct {
-	ProjectRoot string       `json:"project_root"`
-	Cwd         string       `json:"cwd"`
-	Version     version.Info `json:"version"`
-	DBPath      string       `json:"db_path"`
-	SocketPath  string       `json:"socket_path"`
-	Mode        string       `json:"mode,omitempty"`
+	ProjectRoot string `json:"project_root"`
+	// RealProjectRoot is ProjectRoot with symlinks resolved. The two differ
+	// when the project is reached through an alias — a ~/src tree pointing at
+	// a data volume, a Windows junction or mapped drive. Both are reported
+	// because each answers a different question: ProjectRoot is the spelling
+	// in use, RealProjectRoot is the identity the registry and store key on.
+	// Mirrors root/realRoot in `aide anchor --json`.
+	RealProjectRoot string       `json:"real_project_root"`
+	Cwd             string       `json:"cwd"`
+	Version         version.Info `json:"version"`
+	DBPath          string       `json:"db_path"`
+	SocketPath      string       `json:"socket_path"`
+	Mode            string       `json:"mode,omitempty"`
 	// Authority: "daemon" = this process owns the stores and serves the
 	// socket; "client" = attached to another process's daemon over gRPC.
 	// Normally one session means one daemon-mode process — they diverge
@@ -83,17 +91,18 @@ func (s *MCPServer) handleInstanceInfo(ctx context.Context, _ *mcp.CallToolReque
 	}
 
 	info := InstanceInfo{
-		ProjectRoot: root,
-		Cwd:         cwd,
-		Version:     version.GetInfo(),
-		DBPath:      s.dbPath,
-		SocketPath:  grpcapi.SocketPathFromDB(s.dbPath),
-		Mode:        config.Get().Mode,
-		Authority:   authority,
-		PID:         os.Getpid(),
-		PPID:        os.Getppid(),
-		StartedAt:   version.StartTime,
-		PprofURL:    pprofURL(),
+		ProjectRoot:     root,
+		RealProjectRoot: anchor.RealPath(root),
+		Cwd:             cwd,
+		Version:         version.GetInfo(),
+		DBPath:          s.dbPath,
+		SocketPath:      grpcapi.SocketPathFromDB(s.dbPath),
+		Mode:            config.Get().Mode,
+		Authority:       authority,
+		PID:             os.Getpid(),
+		PPID:            os.Getppid(),
+		StartedAt:       version.StartTime,
+		PprofURL:        pprofURL(),
 	}
 
 	if s.grpcClient != nil {

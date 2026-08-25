@@ -22,6 +22,8 @@ import (
 	"io/fs"
 	"path/filepath"
 	"strings"
+
+	"github.com/jmylchreest/aide/aide/pkg/anchor"
 )
 
 // languageResolver resolves imports for one language family. Implementations
@@ -89,9 +91,7 @@ func New(rootDir string) *Resolver {
 	// A symlinked root (common: ~/src trees pointing at a data volume)
 	// breaks filepath.WalkDir, which lstats the root — resolve it first so
 	// manifest discovery sees the real directory.
-	if resolved, err := filepath.EvalSymlinks(rootDir); err == nil {
-		rootDir = resolved
-	}
+	rootDir = anchor.RealPath(rootDir)
 	pfs := newProjectFS(rootDir)
 	resolvers := newLanguageResolvers(pfs)
 
