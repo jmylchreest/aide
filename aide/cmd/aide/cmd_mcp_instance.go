@@ -28,7 +28,12 @@ type InstanceInfo struct {
 	Version         version.Info `json:"version"`
 	DBPath          string       `json:"db_path"`
 	SocketPath      string       `json:"socket_path"`
-	Mode            string       `json:"mode,omitempty"`
+	// Real* are the symlink-resolved spellings — see RealProjectRoot. Reported
+	// only: the daemon keeps using DBPath/SocketPath as written, since
+	// resolving can lengthen a socket path past the sun_path limit.
+	RealDBPath     string `json:"real_db_path"`
+	RealSocketPath string `json:"real_socket_path"`
+	Mode           string `json:"mode,omitempty"`
 	// Authority: "daemon" = this process owns the stores and serves the
 	// socket; "client" = attached to another process's daemon over gRPC.
 	// Normally one session means one daemon-mode process — they diverge
@@ -97,6 +102,8 @@ func (s *MCPServer) handleInstanceInfo(ctx context.Context, _ *mcp.CallToolReque
 		Version:         version.GetInfo(),
 		DBPath:          s.dbPath,
 		SocketPath:      grpcapi.SocketPathFromDB(s.dbPath),
+		RealDBPath:      anchor.RealPath(s.dbPath),
+		RealSocketPath:  anchor.RealPath(grpcapi.SocketPathFromDB(s.dbPath)),
 		Mode:            config.Get().Mode,
 		Authority:       authority,
 		PID:             os.Getpid(),
