@@ -178,12 +178,19 @@ func RealPath(p string) string {
 // on Windows because the filesystem folds it, and Rel's error across volumes
 // (C: vs D:) is correctly read as outside.
 func Contains(root, path string) bool {
-	return containsLexical(root, path) ||
-		containsLexical(RealPath(root), RealPath(path))
+	if containsLexical(root, path) {
+		return true
+	}
+	return containsByIdentity(root, path)
 }
 
-// containsLexical is Contains without the symlink resolution: a segment-wise
-// containment test on the paths exactly as given.
+// containsLexical is a segment-wise containment test on the paths exactly as
+// given. It is the only answer available for a path that does not exist yet,
+// and it is what accepts a symlinked directory inside the project.
+//
+// filepath.Rel walks segments rather than matching a prefix, so "/src/aide-web"
+// is not inside "/src/aide". Case is folded on Windows, where the filesystem
+// folds it and the path may not exist to ask.
 func containsLexical(root, path string) bool {
 	root, path = filepath.Clean(root), filepath.Clean(path)
 	if runtime.GOOS == "windows" {
@@ -193,7 +200,32 @@ func containsLexical(root, path string) bool {
 	if err != nil {
 		return false // different volumes, or otherwise unrelatable
 	}
-	return filepath.IsLocal(rel) || rel == "."
+	return rel == "." || filepath.IsLocal(rel)
+}
+
+// containsByIdentity walks up from path asking the filesystem whether any
+// ancestor IS root, rather than whether it spells the same.
+//
+// os.SameFile compares the underlying file identity, so this gets symlinks,
+// directory junctions, bind mounts and case-insensitive volumes right on every
+// platform without branching on GOOS — macOS and Windows both fold case, and
+// comparing strings could only ever approximate that. Paths that do not exist
+// cannot be identified, so callers depend on containsLexical for those.
+func containsByIdentity(root, path string) bool {
+	rootInfo, err := os.Stat(root)
+	if err != nil {
+		return false
+	}
+	for p := filepath.Clean(path); ; {
+		if info, statErr := os.Stat(p); statErr == nil && os.SameFile(rootInfo, info) {
+			return true
+		}
+		parent := filepath.Dir(p)
+		if parent == p { // reached the volume root
+			return false
+		}
+		p = parent
+	}
 }
 
 // HasAideStore reports whether dir carries its own .aide directory.

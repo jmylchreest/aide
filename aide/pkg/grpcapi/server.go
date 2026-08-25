@@ -1289,14 +1289,16 @@ func (s *codeServiceImpl) Index(req *CodeIndexRequest, stream grpc.ServerStreami
 		paths = []string{"."}
 	}
 
+	// The recorded root carries whatever spelling the daemon was launched
+	// under, while the caller supplies its own; anchor.Contains compares them
+	// by identity so an aliased client is not refused its own project.
 	projRoot := store.ProjectRootFromDB(s.server.dbPath)
-	rootPrefix := projRoot + string(filepath.Separator)
 	for _, p := range paths {
 		abs, err := filepath.Abs(p)
 		if err != nil {
 			return fmt.Errorf("invalid path %q: %w", p, err)
 		}
-		if abs != projRoot && !strings.HasPrefix(abs, rootPrefix) {
+		if !anchor.Contains(projRoot, abs) {
 			return fmt.Errorf("path %q is outside the project directory", p)
 		}
 	}

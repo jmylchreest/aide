@@ -10,6 +10,8 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/jmylchreest/aide/aide/pkg/anchor"
+
 	"github.com/jmylchreest/aide/aide/internal/version"
 )
 
@@ -191,8 +193,10 @@ func aideWebPath() (string, error) {
 	dir := filepath.Dir(self)
 
 	// If the binary is in a temp directory (go run), use .aide/bin/ instead
-	// so the download persists.
-	if strings.HasPrefix(dir, os.TempDir()) {
+	// so the download persists. Compared by identity, not prefix: on macOS
+	// os.TempDir() reports /var/folders/... while the directory really lives
+	// at /private/var/folders/..., so a string prefix never matches there.
+	if anchor.Contains(os.TempDir(), dir) {
 		projectRoot, hasMarker := findProjectRoot()
 		if hasMarker {
 			binDir := filepath.Join(projectRoot, ".aide", "bin")

@@ -3,7 +3,6 @@ package anchor
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 )
@@ -113,16 +112,33 @@ func TestContains_SymlinkedSubdirectory(t *testing.T) {
 	}
 }
 
-// TestContains_CaseFolding: Windows filesystems are case-insensitive, so the
-// comparison must be too — and must NOT be on platforms where case matters.
+// TestContains_CaseFolding asserts Contains agrees with the filesystem rather
+// than with a guess about the platform. macOS is case-insensitive by default
+// and Windows always is, but a case-sensitive APFS volume or a case-folding
+// Linux mount both exist — so the test asks this filesystem what it does, then
+// requires Contains to match. Hardcoding "fold on Windows only" is what this
+// replaces, and it would have failed on darwin once os.SameFile started
+// answering correctly there.
 func TestContains_CaseFolding(t *testing.T) {
 	root := t.TempDir()
-	upper := strings.ToUpper(root)
-	got := Contains(root, upper)
-	if runtime.GOOS == "windows" && !got {
-		t.Errorf("Contains should fold case on Windows: %q vs %q", root, upper)
+	child := filepath.Join(root, "Pkg")
+	if err := os.MkdirAll(child, 0o755); err != nil {
+		t.Fatal(err)
 	}
-	if runtime.GOOS != "windows" && root != upper && got {
-		t.Errorf("Contains must stay case-sensitive on %s: %q vs %q", runtime.GOOS, root, upper)
+	variant := filepath.Join(root, "pkg")
+
+	// Ask the filesystem directly: does the differently-cased spelling reach
+	// the same directory?
+	fsFolds := false
+	if a, err := os.Stat(child); err == nil {
+		if b, err := os.Stat(variant); err == nil {
+			fsFolds = os.SameFile(a, b)
+		}
+	}
+
+	got := Contains(child, variant)
+	if got != fsFolds {
+		t.Errorf("Contains(%q, %q) = %v, but this filesystem reports same-file = %v",
+			child, variant, got, fsFolds)
 	}
 }
