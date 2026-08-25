@@ -65,10 +65,10 @@ type anchorInfo struct {
 	SocketPath      string             `json:"socketPath"`
 	// Real* are the symlink-resolved spellings, reported for the same reason
 	// as RealRoot: the aliased path is what is in use, the resolved one is the
-	// identity. They are reported, never substituted — the daemon must keep
-	// binding SocketPath as written, because resolving can lengthen a path
-	// past the sun_path limit (104 bytes on macOS/BSD, 108 on Linux) and break
-	// a socket that works today.
+	// identity. Reported, never substituted — SocketPathFromDB already derives
+	// the bound path from the resolved root and falls back to a short hashed
+	// path when sun_path (104 bytes on macOS/BSD, 108 on Linux) would be
+	// exceeded, so a caller swapping these in would only diverge from it.
 	RealDBPath     string       `json:"realDbPath"`
 	RealSocketPath string       `json:"realSocketPath"`
 	Chain          []anchorLink `json:"chain"`

@@ -29,8 +29,8 @@ type InstanceInfo struct {
 	DBPath          string       `json:"db_path"`
 	SocketPath      string       `json:"socket_path"`
 	// Real* are the symlink-resolved spellings — see RealProjectRoot. Reported
-	// only: the daemon keeps using DBPath/SocketPath as written, since
-	// resolving can lengthen a socket path past the sun_path limit.
+	// only: SocketPathFromDB owns how the bound path is derived, resolving the
+	// root itself and falling back to a short hashed path past sun_path.
 	RealDBPath     string `json:"real_db_path"`
 	RealSocketPath string `json:"real_socket_path"`
 	Mode           string `json:"mode,omitempty"`
