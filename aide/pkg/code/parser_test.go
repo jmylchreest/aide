@@ -660,6 +660,101 @@ func TestParseFileNotExist(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// TestParseContentImportReferences verifies that each pack's refs query emits
+// RefKindImport for both the static and the dynamic import forms of its
+// language. Dynamic forms matter because the coupling analyzer prefers the
+// code index over the pack's regex fallback and only falls back when the
+// index yields nothing: a file with one static import would otherwise lose
+// every dynamic edge it has.
+func TestParseContentImportReferences(t *testing.T) {
+	tests := []struct {
+		lang    string
+		file    string
+		content string
+		want    []string
+		notWant []string
+	}{
+		{
+			lang: "typescript",
+			file: "app.ts",
+			content: `
+import { a } from "./static";
+export { b } from "./reexport";
+const lazy = await import("./dynamic");
+const legacy = require("./cjs");
+const shadow = registry.import("./methodNamedImport");
+`,
+			want:    []string{"./static", "./reexport", "./dynamic", "./cjs"},
+			notWant: []string{"./methodNamedImport"},
+		},
+		{
+			lang: "tsx",
+			file: "app.tsx",
+			content: `
+import React from "react";
+const Lazy = React.lazy(() => import("./LazyView"));
+const legacy = require("./cjs");
+const shadow = registry.import("./methodNamedImport");
+`,
+			want:    []string{"react", "./LazyView", "./cjs"},
+			notWant: []string{"./methodNamedImport"},
+		},
+		{
+			lang: "javascript",
+			file: "app.js",
+			content: `
+import { a } from "./static";
+const lazy = await import("./dynamic");
+const legacy = require("./cjs");
+const shadow = registry.import("./methodNamedImport");
+`,
+			want:    []string{"./static", "./dynamic", "./cjs"},
+			notWant: []string{"./methodNamedImport"},
+		},
+		{
+			lang: "python",
+			file: "app.py",
+			content: `
+import os
+from pkg.sub import thing
+import importlib
+mod = importlib.import_module("pkg.dynamic")
+other = __import__("pkg.builtin")
+shadow = self.__import__("pkg.methodNamedDunder")
+`,
+			want:    []string{"os", "pkg.sub", "importlib", "pkg.dynamic", "pkg.builtin"},
+			notWant: []string{"pkg.methodNamedDunder"},
+		},
+	}
+
+	p := newTestParser()
+	for _, tt := range tests {
+		t.Run(tt.lang, func(t *testing.T) {
+			refs, err := p.ParseContentReferences([]byte(tt.content), tt.lang, tt.file)
+			if err != nil {
+				t.Fatalf("ParseContentReferences: %v", err)
+			}
+			got := make(map[string]bool)
+			for _, ref := range refs {
+				if ref.Kind == RefKindImport {
+					got[ref.SymbolName] = true
+				}
+			}
+			for _, want := range tt.want {
+				if !got[want] {
+					t.Errorf("missing import reference %q; got %v", want, mapKeys(got))
+				}
+			}
+			for _, notWant := range tt.notWant {
+				if got[notWant] {
+					t.Errorf("unexpected import reference %q; got %v", notWant, mapKeys(got))
+				}
+			}
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
 // TestPackRegistryQueriesCompile verifies that tag/ref queries from the
 // PackRegistry compile against the corresponding grammar for all builtin
 // languages.

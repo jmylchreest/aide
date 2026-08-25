@@ -591,3 +591,50 @@ func TestSeverityRank(t *testing.T) {
 		t.Error("warning should rank below critical")
 	}
 }
+
+// TestExtractImportsFromPack_Boundaries covers the regex fallback used when the
+// code index yields no imports for a file. The import patterns must not treat a
+// method call as an import: `registry.import("x")` and `self.__import__("x")`
+// are calls on an object, not dependencies, and a bogus edge here feeds both the
+// coupling graph and module clustering.
+func TestExtractImportsFromPack_Boundaries(t *testing.T) {
+	tests := []struct {
+		name string
+		lang string
+		line string
+		want []string
+	}{
+		// Real imports must still be found.
+		{"ts dynamic import", "typescript", `const m = await import("./dynamic");`, []string{"./dynamic"}},
+		{"ts dynamic at line start", "typescript", `import("./atstart");`, []string{"./atstart"}},
+		{"ts dynamic in parens", "typescript", `const m = (import("./paren"));`, []string{"./paren"}},
+		{"ts require", "typescript", `const m = require("./cjs");`, []string{"./cjs"}},
+		{"ts static import", "typescript", `import { a } from "./static";`, []string{"./static"}},
+		{"js require", "javascript", `const m = require("./cjs");`, []string{"./cjs"}},
+		{"tsx dynamic import", "tsx", `const m = import("./dynamic");`, []string{"./dynamic"}},
+		{"py dunder import", "python", `x = __import__("pkg.real")`, []string{"pkg.real"}},
+		{"py importlib", "python", `x = importlib.import_module("pkg.real")`, []string{"pkg.real"}},
+
+		// Method calls that merely share the name are not imports.
+		{"ts method named import", "typescript", `const m = registry.import("./nope");`, nil},
+		{"ts identifier ending in import", "typescript", `const m = foo_import("./nope");`, nil},
+		{"ts method named require", "typescript", `const m = loader.require("./nope");`, nil},
+		{"ts identifier ending in require", "typescript", `const m = myrequire("./nope");`, nil},
+		{"js method named require", "javascript", `const m = loader.require("./nope");`, nil},
+		{"tsx method named import", "tsx", `const m = registry.import("./nope");`, nil},
+		{"py method named dunder", "python", `x = self.__import__("nope")`, nil},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pack := grammar.DefaultPackRegistry().Get(tt.lang)
+			if pack == nil || pack.Imports == nil {
+				t.Fatalf("pack %q has no import patterns", tt.lang)
+			}
+			got := extractImportsFromPack([]byte(tt.line+"\n"), tt.lang, pack.Imports)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("extractImportsFromPack(%q) = %v, want %v", tt.line, got, tt.want)
+			}
+		})
+	}
+}
