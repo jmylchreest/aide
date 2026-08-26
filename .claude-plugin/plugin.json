@@ -1,6 +1,6 @@
 {
   "name": "aide",
-  "version": "0.1.15",
+  "version": "0.1.16",
   "description": "AI Development Environment - Multi-agent orchestration for Claude Code",
   "author": {
     "name": "John Mylchreest"
