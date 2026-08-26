@@ -47,10 +47,10 @@ func dbIn(root string) string {
 
 // aliasOf returns real reached through a symlink, skipping when the platform
 // will not let us create one (unprivileged Windows).
-func aliasOf(t *testing.T, real, inner string) string {
+func aliasOf(t *testing.T, realDir, inner string) string {
 	t.Helper()
 	link := filepath.Join(shortBase(t), "alias")
-	if err := os.Symlink(real, link); err != nil {
+	if err := os.Symlink(realDir, link); err != nil {
 		t.Skipf("symlinks unavailable: %v", err)
 	}
 	return filepath.Join(link, inner)
@@ -63,14 +63,14 @@ func aliasOf(t *testing.T, real, inner string) string {
 // daemon" while the daemon was running.
 func TestSocketPathFromDB_AliasAgrees(t *testing.T) {
 	t.Run("deep project (hashed fallback)", func(t *testing.T) {
-		real := shortBase(t)
-		deep := deepProject(t, real)
-		alias := aliasOf(t, real, deep[len(real)+1:])
+		realDir := shortBase(t)
+		deep := deepProject(t, realDir)
+		alias := aliasOf(t, realDir, deep[len(realDir)+1:])
 
 		viaReal := SocketPathFromDB(dbIn(deep))
 		viaAlias := SocketPathFromDB(dbIn(alias))
 		if viaReal != viaAlias {
-			t.Errorf("aliased spellings produced different sockets:\n  real  %s\n  alias %s", viaReal, viaAlias)
+			t.Errorf("aliased spellings produced different sockets:\n  realDir  %s\n  alias %s", viaReal, viaAlias)
 		}
 		if len(viaReal) > maxSocketPathLen {
 			t.Errorf("fallback path is still too long: %d bytes (%s)", len(viaReal), viaReal)
@@ -82,16 +82,16 @@ func TestSocketPathFromDB_AliasAgrees(t *testing.T) {
 	// the resolved path is not would otherwise put one caller in-project and
 	// the other on the hashed path.
 	t.Run("shallow project (in-project socket)", func(t *testing.T) {
-		real := shortBase(t)
-		if err := os.MkdirAll(filepath.Join(real, ".aide", "memory"), 0o755); err != nil {
+		realDir := shortBase(t)
+		if err := os.MkdirAll(filepath.Join(realDir, ".aide", "memory"), 0o755); err != nil {
 			t.Fatal(err)
 		}
-		alias := aliasOf(t, real, "")
+		alias := aliasOf(t, realDir, "")
 
-		viaReal := SocketPathFromDB(dbIn(real))
+		viaReal := SocketPathFromDB(dbIn(realDir))
 		viaAlias := SocketPathFromDB(dbIn(alias))
 		if viaReal != viaAlias {
-			t.Errorf("aliased spellings produced different sockets:\n  real  %s\n  alias %s", viaReal, viaAlias)
+			t.Errorf("aliased spellings produced different sockets:\n  realDir  %s\n  alias %s", viaReal, viaAlias)
 		}
 	})
 }

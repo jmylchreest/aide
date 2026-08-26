@@ -10,20 +10,20 @@ import (
 // TestRealPath_ResolvesAlias covers the shape that keeps confusing readers: one
 // tree reachable by two spellings, because a directory on the way is a symlink.
 func TestRealPath_ResolvesAlias(t *testing.T) {
-	real := t.TempDir()
-	project := filepath.Join(real, "project")
+	realDir := t.TempDir()
+	project := filepath.Join(realDir, "project")
 	if err := os.MkdirAll(project, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	alias := filepath.Join(t.TempDir(), "alias")
-	if err := os.Symlink(real, alias); err != nil {
+	if err := os.Symlink(realDir, alias); err != nil {
 		t.Skipf("symlinks unavailable: %v", err) // unprivileged Windows
 	}
 
 	viaAlias := RealPath(filepath.Join(alias, "project"))
 	viaReal := RealPath(project)
 	if viaAlias != viaReal {
-		t.Errorf("aliased spellings did not converge:\n  alias -> %q\n  real  -> %q", viaAlias, viaReal)
+		t.Errorf("aliased spellings did not converge:\n  alias -> %q\n  realDir  -> %q", viaAlias, viaReal)
 	}
 }
 
@@ -72,17 +72,17 @@ func TestContains(t *testing.T) {
 // TestContains_ThroughAlias is the regression this whole change exists for:
 // cwd reached by the alias spelling, root recorded by the real one.
 func TestContains_ThroughAlias(t *testing.T) {
-	real := t.TempDir()
-	project := filepath.Join(real, "project", "pkg")
+	realDir := t.TempDir()
+	project := filepath.Join(realDir, "project", "pkg")
 	if err := os.MkdirAll(project, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	alias := filepath.Join(t.TempDir(), "alias")
-	if err := os.Symlink(real, alias); err != nil {
+	if err := os.Symlink(realDir, alias); err != nil {
 		t.Skipf("symlinks unavailable: %v", err)
 	}
 
-	root := filepath.Join(real, "project")        // recorded spelling
+	root := filepath.Join(realDir, "project")     // recorded spelling
 	cwd := filepath.Join(alias, "project", "pkg") // caller's spelling
 	if !Contains(root, cwd) {
 		t.Errorf("cwd reached through the alias read as outside its own root:\n  root %q\n  cwd  %q", root, cwd)
