@@ -1,6 +1,6 @@
 ---
 name: assess-findings
-description: Triage static analysis findings, assess merit, and accept noise or irrelevant items
+description: Triage static analysis findings, grade them against recorded decisions, and accept noise or irrelevant items
 triggers:
   - assess findings
   - analyse findings
@@ -32,11 +32,18 @@ Accepted findings are hidden from future output by default.
 
 ### Read-only (shared with `patterns` skill)
 
-| Tool              | Purpose                                                 |
-| ----------------- | ------------------------------------------------------- |
-| `findings_stats`  | Counts by analyzer and severity — start here            |
-| `findings_list`   | Browse findings with filters (analyzer, severity, file) |
-| `findings_search` | Full-text search across finding titles and details      |
+| Tool              | Purpose                                                                                                                                                  |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `findings_stats`  | Counts by analyzer and severity — start here                                                                                                             |
+| `findings_list`   | Browse findings with filters (analyzer, severity, file). Pass `include_accepted=true` when checking a decision — accepted findings are hidden by default |
+| `findings_search` | Full-text search across finding titles and details                                                                                                       |
+
+### Decisions (conformance context)
+
+| Tool            | Purpose                                                     |
+| --------------- | ----------------------------------------------------------- |
+| `decision_list` | List recorded decisions — load these **before** triaging    |
+| `decision_get`  | Fetch one decision by topic when a finding may relate to it |
 
 ### Write (unique to this skill)
 
@@ -52,6 +59,18 @@ Accepted findings are hidden from future output by default.
 | `Read`         | Read specific line ranges to evaluate finding merit |
 
 ## Workflow
+
+### 0. Load the Decisions
+
+Call `decision_list` first — it is authoritative, where the "Project Decisions" block in
+session context is a session-start snapshot that can predate a decision changed since. Fall
+back to the block only if the tool is unavailable. Decisions are the recorded architectural
+commitments for this project; a finding that evidences a decision violation is not noise,
+whatever its analyzer or severity says.
+
+Keep the list to hand for step 3. You are not searching the codebase for violations here —
+that is the `review` skill's job. You are checking whether findings the analyzers **already
+produced** happen to be evidence of one.
 
 ### 1. Get the Landscape
 
@@ -80,7 +99,53 @@ For each finding or group of related findings:
 
 1. **Read the finding details** — note the file, line range, and metric values
 2. **Read the actual code** — use `code_outline` first, then `Read` with offset/limit on the flagged section
-3. **Make a judgement call** using these criteria:
+3. **Check it against the decisions** from step 0 — see "Decision conformance gate" below
+4. **Make a judgement call** using these criteria:
+
+#### Decision conformance gate
+
+Before applying any accept criterion, ask: **does this finding evidence a violation of a
+recorded decision?**
+
+A finding is decision-linked when the code it flags contradicts a decision's stated
+commitment. For example:
+
+- a `deadcode` finding on a symbol written ahead of its integration, against a decision
+  requiring all code to be reachable from real call paths
+- a `secrets` finding in a runtime path, against a decision on credential handling
+- a `coupling` finding crossing a boundary a decision declared off-limits
+- a `security` finding using a mechanism a decision ruled out
+
+**Reachability findings turn on intent, not on whether a caller was found.** A `deadcode`
+finding is decision-linked when the symbol is genuinely unused — written ahead of its
+integration, or left behind after it. It is **not** decision-linked when the symbol is
+reached by a mechanism the analyzer cannot see: framework convention (file-based routing,
+dependency injection, reflection), a declared entry point, generated code, or a test
+fixture. Those are analyzer blind spots, and accepting them is the correct resolution —
+name the mechanism that reaches the symbol as the rationale.
+
+`no-aspirational-code` bans code waiting for a caller that does not exist. It does not ban
+code whose caller aide cannot index. Reading every unreferenced symbol as a violation would
+make a framework page component permanently unacceptable, and a finding with no legal
+resolution is one that trains people to ignore the whole gate.
+
+**A decision-linked finding cannot be accepted as noise.** There are exactly two valid
+resolutions:
+
+1. **Fix the code** so it conforms — the finding disappears on the next `findings run`.
+2. **Amend the decision** — if the decision is genuinely wrong or has been superseded, say
+   so explicitly and tell the user to run `/decide` on that topic. Do not accept the finding
+   on the assumption that the decision will change.
+
+If you are unsure whether a finding is decision-linked, name the mechanism you believe
+resolves it — the route that reaches the symbol, the reason the string is not a credential
+— and keep the finding if you cannot name one. "Unsure" is not falsifiable and defaulting
+to linked turns the gate into a ratchet; a named mechanism can be checked and argued with.
+Report anything kept this way under "Decision conflicts" so a human decides.
+
+Note the limits of this gate. It grades findings the analyzers already produced; it cannot
+find a decision violation that no analyzer flagged. For a code-level sweep against the
+decisions, use the `review` skill.
 
 #### Accept (dismiss) when:
 
@@ -96,6 +161,7 @@ For each finding or group of related findings:
 - Duplication can be resolved by creating a shared utility
 - A coupling cycle exists that indicates poor module boundaries
 - A string looks like it could be a real secret or credential
+- **The finding is decision-linked** (see the conformance gate above) — this overrides every accept criterion
 
 ### 4. Accept Findings
 
@@ -131,6 +197,12 @@ After completing the triage, produce a summary:
   - Coupling: Z (expected for [role])
   - Secrets: W (test fixtures / placeholders)
 
+### Decision Conflicts (must not be accepted)
+
+- K findings evidence a violation of a recorded decision
+  - `<decision-topic>` — file:line — [what the code does vs what the decision requires]
+  - (omit this section entirely when there are none)
+
 ### Remaining (Genuine)
 
 - M findings require attention
@@ -143,12 +215,13 @@ After completing the triage, produce a summary:
 
 ## Decision Criteria Reference
 
-| Analyzer   | Accept If                                                                                                                            | Keep If                                                         |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------- |
-| complexity | Cyclomatic complexity is inherent to the problem domain; function handles unavoidable branching (CLI dispatch, protocol negotiation) | Function can be decomposed into smaller, testable units         |
-| clones     | Duplication is cross-cutting boilerplate (CLI wiring, store CRUD patterns)                                                           | A shared utility or abstraction would reduce maintenance burden |
-| coupling   | File is an intentional integration point (main, facade, registry)                                                                    | Circular dependencies or unexpected transitive coupling exists  |
-| secrets    | Test fixture, documentation example, env var name, or placeholder                                                                    | Looks like a real credential, API key, or connection string     |
+| Analyzer   | Accept If                                                                                                                            | Keep If                                                                             |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- |
+| complexity | Cyclomatic complexity is inherent to the problem domain; function handles unavoidable branching (CLI dispatch, protocol negotiation) | Function can be decomposed into smaller, testable units                             |
+| clones     | Duplication is cross-cutting boilerplate (CLI wiring, store CRUD patterns)                                                           | A shared utility or abstraction would reduce maintenance burden                     |
+| coupling   | File is an intentional integration point (main, facade, registry)                                                                    | Circular dependencies or unexpected transitive coupling exists                      |
+| secrets    | Test fixture, documentation example, env var name, or placeholder                                                                    | Looks like a real credential, API key, or connection string                         |
+| **any**    | **Never** — a decision-linked finding is out of scope for acceptance                                                                 | **The finding evidences a recorded decision violation** (overrides every row above) |
 
 ## Failure Handling
 
@@ -156,12 +229,16 @@ After completing the triage, produce a summary:
 2. **`findings_accept` not available** — The aide MCP server may not expose this tool; tell the user to update aide
 3. **Uncertain about a finding** — When in doubt, **keep it**. It's better to flag a false positive for human review than to dismiss a real issue
 4. **Large number of findings** — Work in batches by analyzer. Accept obvious noise first, then do detailed code review for borderline cases
+5. **`decision_list` returns nothing** — The project has no recorded decisions; skip the conformance gate and say so in the summary. Do not invent decisions
 
 ## Verification
 
+- [ ] Called `decision_list` (or noted the fallback) before triaging
 - [ ] Called `findings_stats` for baseline counts
 - [ ] Reviewed each finding category (secrets, complexity, clones, coupling)
 - [ ] Read actual code for every finding before accepting
+- [ ] Checked every finding against the recorded decisions before accepting it
+- [ ] No decision-linked finding was accepted
 - [ ] Provided rationale for each acceptance
 - [ ] Produced summary with before/after counts
 - [ ] Remaining findings are genuinely actionable

@@ -101,9 +101,17 @@ except Exception:
     pass
 " 2>/dev/null)
 
+    # Resolve before comparing. installPath may be recorded under any spelling
+    # of this tree (a ~/src symlink onto a data volume); enumerating two known
+    # spellings misses a third, so compare resolved identities instead. Falls
+    # back to the raw value when the directory no longer exists.
+    local install_real
+    install_real="$(cd "$install_path" 2>/dev/null && pwd -P)" || install_real=""
+    [[ -z "$install_real" ]] && install_real="$install_path"
+
     if [[ -z "$install_path" ]]; then
         echo "not-installed"
-    elif [[ "$install_path" == "$REPO_ROOT" || "$install_path" == "$REPO_ROOT_PHYS" ]]; then
+    elif [[ "$install_real" == "$REPO_ROOT_PHYS" ]]; then
         echo "dev"
     elif [[ "$install_path" == *"plugins/cache"* ]]; then
         echo "prod"

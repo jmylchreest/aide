@@ -27,7 +27,7 @@
   },
   "queries": {
     "tags": "(function_definition name: (identifier) @name) @definition.function\n(class_definition name: (identifier) @name) @definition.class",
-    "refs": "(call function: (identifier) @name) @reference.call\n(call function: (attribute attribute: (identifier) @name)) @reference.call\n(type (identifier) @name) @reference.type\n(import_statement name: (dotted_name) @name) @reference.import\n(import_from_statement module_name: (dotted_name) @name) @reference.import"
+    "refs": "(call function: (identifier) @name) @reference.call\n(call function: (attribute attribute: (identifier) @name)) @reference.call\n(type (identifier) @name) @reference.type\n(import_statement name: (dotted_name) @name) @reference.import\n(import_from_statement module_name: (dotted_name) @name) @reference.import\n(call function: (attribute object: (identifier) @_mod attribute: (identifier) @_fn) arguments: (argument_list (string (string_content) @name)) (#eq? @_mod \"importlib\") (#eq? @_fn \"import_module\")) @reference.import\n(call function: (identifier) @_fn arguments: (argument_list (string (string_content) @name)) (#eq? @_fn \"__import__\")) @reference.import"
   },
   "complexity": {
     "func_node_types": [
@@ -58,6 +58,14 @@
       },
       {
         "regex": "^\\s*import\\s+(\\S+)",
+        "group": 1
+      },
+      {
+        "regex": "(?:^|[^.\\w])importlib\\.import_module\\s*\\(\\s*['\"]([^'\"]+)['\"]",
+        "group": 1
+      },
+      {
+        "regex": "(?:^|[^.\\w])__import__\\s*\\(\\s*['\"]([^'\"]+)['\"]",
         "group": 1
       }
     ]

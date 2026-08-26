@@ -15,6 +15,7 @@ import (
 
 	"github.com/jmylchreest/aide/aide/internal/version"
 	"github.com/jmylchreest/aide/aide/pkg/aideignore"
+	"github.com/jmylchreest/aide/aide/pkg/anchor"
 	"github.com/jmylchreest/aide/aide/pkg/code"
 	"github.com/jmylchreest/aide/aide/pkg/config"
 	"github.com/jmylchreest/aide/aide/pkg/eventbus"
@@ -45,14 +46,22 @@ const maxSocketPathLen = 100
 // Both server and clients derive the path with this one function, so the
 // fallback must stay deterministic: it depends only on the project root
 // and the user's runtime/temp dir, never on per-process state.
+//
+// The spelling of the incoming dbPath IS per-process state — it depends how
+// the caller reached the project — so the root is resolved through
+// anchor.RealPath before anything is derived from it. Both the length branch
+// and the hash then depend only on the project's identity, not on whether the
+// caller arrived via a ~/src symlink or the volume underneath it. Without
+// that, a daemon started under one spelling and a client invoked under the
+// other hash to two different sockets and never meet.
 func SocketPathFromDB(dbPath string) string {
-	aideDir := filepath.Dir(filepath.Dir(dbPath))
-	p := filepath.Join(aideDir, "aide.sock")
+	root := anchor.RealPath(store.ProjectRootFromDB(dbPath))
+	p := filepath.Join(root, ".aide", "aide.sock")
 	if len(p) <= maxSocketPathLen {
 		return p
 	}
 
-	sum := sha256.Sum256([]byte(store.ProjectRootFromDB(dbPath)))
+	sum := sha256.Sum256([]byte(root))
 	name := hex.EncodeToString(sum[:])[:16] + ".sock"
 	base := os.Getenv("XDG_RUNTIME_DIR")
 	if base != "" {
@@ -1280,14 +1289,16 @@ func (s *codeServiceImpl) Index(req *CodeIndexRequest, stream grpc.ServerStreami
 		paths = []string{"."}
 	}
 
+	// The recorded root carries whatever spelling the daemon was launched
+	// under, while the caller supplies its own; anchor.Contains compares them
+	// by identity so an aliased client is not refused its own project.
 	projRoot := store.ProjectRootFromDB(s.server.dbPath)
-	rootPrefix := projRoot + string(filepath.Separator)
 	for _, p := range paths {
 		abs, err := filepath.Abs(p)
 		if err != nil {
 			return fmt.Errorf("invalid path %q: %w", p, err)
 		}
-		if abs != projRoot && !strings.HasPrefix(abs, rootPrefix) {
+		if !anchor.Contains(projRoot, abs) {
 			return fmt.Errorf("path %q is outside the project directory", p)
 		}
 	}

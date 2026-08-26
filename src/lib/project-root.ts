@@ -31,12 +31,41 @@
  */
 
 import { basename, dirname, isAbsolute, join, resolve } from "path";
-import { existsSync, readFileSync, statSync } from "fs";
+import { existsSync, readFileSync, realpathSync, statSync } from "fs";
 import { homedir } from "os";
 
 export interface ProjectRootResult {
   root: string;
+  /**
+   * `root` with symlinks resolved. The two differ when the project is reached
+   * through an alias — a `~/src` tree pointing at a data volume, a Windows
+   * junction or mapped drive. Both are reported because each answers a
+   * different question: `root` is the spelling in use, `realRoot` is the
+   * identity the registry and store key on. Mirrors `RealPath` in
+   * `aide/pkg/anchor` and `root`/`realRoot` in `aide anchor --json`.
+   */
+  realRoot: string;
   hasMarker: boolean;
+}
+
+/**
+ * Build a ProjectRootResult, resolving `realRoot` from `root`. Every return
+ * path goes through this so none can forget the field.
+ */
+function rootResult(root: string, hasMarker: boolean): ProjectRootResult {
+  return { root, realRoot: realPath(root), hasMarker };
+}
+
+/**
+ * Resolve symlinks, falling back to the input when the path cannot be resolved
+ * (it does not exist yet, or the OS refuses). Mirrors `anchor.RealPath`.
+ */
+function realPath(p: string): string {
+  try {
+    return realpathSync(p);
+  } catch {
+    return p;
+  }
 }
 
 /**
@@ -59,7 +88,7 @@ export function findProjectRoot(cwd: string): ProjectRootResult {
         // marker, or AIDE_FORCE_INIT to say "yes, really". Mirrors the Go
         // resolver's validation.
         if (overrideAllowed(abs)) {
-          return { root: abs, hasMarker: true };
+          return rootResult(abs, true);
         }
         process.stderr.write(
           `aide: AIDE_PROJECT_ROOT=${JSON.stringify(override)} has no .aide/ or VCS marker (set AIDE_FORCE_INIT=1 to use it anyway); falling back to walk-up\n`,
@@ -89,7 +118,12 @@ export function findProjectRoot(cwd: string): ProjectRootResult {
 
   let dir = startCwd;
   for (;;) {
-    const cand: Candidate = { dir, hasAide: false, hasVCS: false, vcsResolved: "" };
+    const cand: Candidate = {
+      dir,
+      hasAide: false,
+      hasVCS: false,
+      vcsResolved: "",
+    };
 
     if (existsSync(join(dir, ".aide"))) {
       // Skip ~/.aide/ unless cwd is $HOME itself.
@@ -111,12 +145,12 @@ export function findProjectRoot(cwd: string): ProjectRootResult {
   }
 
   for (const c of path) {
-    if (c.hasVCS) return { root: c.vcsResolved, hasMarker: true };
+    if (c.hasVCS) return rootResult(c.vcsResolved, true);
   }
   for (const c of path) {
-    if (c.hasAide) return { root: c.dir, hasMarker: true };
+    if (c.hasAide) return rootResult(c.dir, true);
   }
-  return { root: startCwd, hasMarker: false };
+  return rootResult(startCwd, false);
 }
 
 /**

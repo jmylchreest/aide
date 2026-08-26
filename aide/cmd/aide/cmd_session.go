@@ -793,18 +793,14 @@ func validateProjectRoot(dbPath string) bool {
 	if err != nil {
 		return true // can't validate, assume OK
 	}
-	// Resolve symlinks for accurate comparison
-	absRoot, err := filepath.Abs(root)
-	if err != nil {
-		return true
-	}
-	absCwd, err := filepath.Abs(cwd)
-	if err != nil {
-		return true
-	}
-	// cwd must be inside (or equal to) the project root
-	if !strings.HasPrefix(absCwd, absRoot) {
-		fmt.Fprintf(os.Stderr, "warning: cwd %q is not inside project root %q — skipping memory injection\n", absCwd, absRoot)
+	// anchor.Contains resolves symlinks on both sides before comparing, so the
+	// two spellings of one tree (a ~/src symlink onto a data volume, a Windows
+	// junction) agree instead of one looking "outside" the other. It compares
+	// by path segment rather than string prefix, so a sibling whose name merely
+	// extends the root — "/src/aide-web" under "/src/aide" — is correctly
+	// outside, and it folds case on Windows where the filesystem does.
+	if !anchor.Contains(root, cwd) {
+		fmt.Fprintf(os.Stderr, "warning: cwd %q is not inside project root %q — skipping memory injection\n", cwd, root)
 		return false
 	}
 	return true

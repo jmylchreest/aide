@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/jmylchreest/aide/aide/pkg/anchor"
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi/registry"
 )
 
@@ -128,7 +129,7 @@ func (m *Manager) loadFromRegistry() error {
 func (m *Manager) addOrUpdate(reg registry.Instance) {
 	// Collapse symlink-aliased spellings of the same project directory to
 	// one instance — old registry files may carry either spelling.
-	reg.ProjectRoot = registry.NormalizeRoot(reg.ProjectRoot)
+	reg.ProjectRoot = anchor.RealPath(reg.ProjectRoot)
 
 	m.mu.Lock()
 	inst, exists := m.instances[reg.ProjectRoot]

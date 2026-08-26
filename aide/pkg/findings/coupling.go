@@ -483,6 +483,7 @@ func extractImportsFromPack(content []byte, lang string, imports *grammar.PackIm
 	}
 
 	var result []string
+	seen := make(map[string]bool)
 	scanner := bufio.NewScanner(strings.NewReader(string(content)))
 	inBlock := false
 
@@ -511,10 +512,22 @@ func extractImportsFromPack(content []byte, lang string, imports *grammar.PackIm
 				continue
 			}
 
-			m := cp.re.FindStringSubmatch(line)
-			if m != nil && cp.group < len(m) {
+			// Every pattern gets a look, and every occurrence within the line
+			// counts. Stopping at the first match dropped a dynamic import
+			// sharing a line with a static one ("import {x} from 'a'" next to
+			// "await import('b')"), and dropped the second of two dynamic
+			// imports on one line; both are ordinary minified and bundler
+			// output. Duplicates are filtered because callers weight an edge
+			// per occurrence.
+			for _, m := range cp.re.FindAllStringSubmatch(line, -1) {
+				if cp.group >= len(m) || m[cp.group] == "" {
+					continue
+				}
+				if seen[m[cp.group]] {
+					continue
+				}
+				seen[m[cp.group]] = true
 				result = append(result, m[cp.group])
-				break // first match wins per line
 			}
 		}
 	}

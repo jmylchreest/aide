@@ -113,10 +113,15 @@ func RunModules(cfg ModulesConfig) (*ModulesResult, error) {
 		// symbol edges — per-name, not per-call-site, so a hot call in a
 		// loop does not outweigh an import.
 		symbolNames := make(map[string]bool)
-		var imports []string
+		// Imports are deduped for the same reason. A dynamic import is one
+		// reference per call site, so a module lazily loaded from three
+		// branches of a router would otherwise weigh three times a module
+		// imported once at the top of the file, and pull itself into the
+		// wrong Louvain community on nothing but call-site count.
+		importNames := make(map[string]bool)
 		for _, ref := range refs {
 			if ref.Kind == "import" {
-				imports = append(imports, ref.Symbol)
+				importNames[ref.Symbol] = true
 			} else {
 				symbolNames[ref.Symbol] = true
 			}
@@ -126,6 +131,14 @@ func RunModules(cfg ModulesConfig) (*ModulesResult, error) {
 			sortedSymbols = append(sortedSymbols, s)
 		}
 		sort.Strings(sortedSymbols)
+
+		// Sorted, because community assignments are persisted and
+		// stored-id-determinism forbids map-iteration order reaching them.
+		imports := make([]string, 0, len(importNames))
+		for imp := range importNames {
+			imports = append(imports, imp)
+		}
+		sort.Strings(imports)
 
 		for _, imp := range imports {
 			result.ImportsTotal++

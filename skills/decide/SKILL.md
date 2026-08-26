@@ -127,8 +127,14 @@ Wait for explicit user approval before recording:
 Store the decision using the `./.aide/bin/aide decision set` CLI command via Bash:
 
 ```bash
-./.aide/bin/aide decision set "<topic-slug>" "<decision summary>" --rationale="<why this was chosen>"
+./.aide/bin/aide decision set "<topic-slug>" "<decision summary>" \
+  --rationale="<why this was chosen>" --by="<git-username>"
 ```
+
+**Attribution (`--by`):** use the git username — the GitHub handle, as in the remote
+URL — not a display name. Never guess a person's identifier: if you do not know it, omit
+`--by` rather than inventing one. The store is append-only, so a wrong byline cannot be
+edited, only superseded by a new version whose sole change is the name.
 
 **Binary location:** The aide binary is at `.aide/bin/aide`. If it's on your `$PATH`, you can use `aide` directly.
 

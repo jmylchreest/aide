@@ -20,7 +20,7 @@
   },
   "queries": {
     "tags": "(function_declaration name: (identifier) @name) @definition.function\n(method_definition name: (property_identifier) @name) @definition.method\n(class_declaration name: (identifier) @name) @definition.class",
-    "refs": "(call_expression function: (identifier) @name) @reference.call\n(call_expression function: (member_expression property: (property_identifier) @name)) @reference.call\n(new_expression constructor: (identifier) @name) @reference.call\n(import_statement source: (string (string_fragment) @name)) @reference.import\n(export_statement source: (string (string_fragment) @name)) @reference.import"
+    "refs": "(call_expression function: (identifier) @name) @reference.call\n(call_expression function: (member_expression property: (property_identifier) @name)) @reference.call\n(new_expression constructor: (identifier) @name) @reference.call\n(import_statement source: (string (string_fragment) @name)) @reference.import\n(export_statement source: (string (string_fragment) @name)) @reference.import\n(call_expression function: (import) arguments: (arguments (string (string_fragment) @name))) @reference.import\n(call_expression function: (identifier) @_require arguments: (arguments (string (string_fragment) @name)) (#eq? @_require \"require\")) @reference.import"
   },
   "complexity": {
     "func_node_types": [
@@ -49,7 +49,11 @@
         "group": 1
       },
       {
-        "regex": "require\\s*\\(\\s*['\"]([^'\"]+)['\"]",
+        "regex": "(?:^|[^.\\w])require\\s*\\(\\s*['\"]([^'\"]+)['\"]",
+        "group": 1
+      },
+      {
+        "regex": "(?:^|[^.\\w])import\\s*\\(\\s*['\"]([^'\"]+)['\"]",
         "group": 1
       }
     ]

@@ -7,6 +7,7 @@ package anchor
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	git "github.com/go-git/go-git/v5"
@@ -142,13 +143,89 @@ func LastURLSegment(url string) string {
 	return s
 }
 
-// RealPath resolves symlinks, falling back to the input on error, so
-// aliased spellings of one project map to one identity.
+// RealPath resolves symlinks so aliased spellings of one project map to one
+// identity — a ~/src tree pointing at a data volume on Unix, a directory
+// junction or mapped drive on Windows. On error (the path does not exist yet,
+// or the OS refuses to resolve it) it falls back to filepath.Clean, which
+// still normalises separators and .. segments rather than handing back a raw
+// string. This is the single implementation: callers needing a canonical root
+// use it rather than calling filepath.EvalSymlinks themselves.
 func RealPath(p string) string {
 	if resolved, err := filepath.EvalSymlinks(p); err == nil {
-		return resolved
+		return filepath.Clean(resolved)
 	}
-	return p
+	return filepath.Clean(p)
+}
+
+// Contains reports whether path sits inside root, or is root itself.
+//
+// It accepts containment under EITHER the literal spellings or the resolved
+// ones, because the two answer different questions and both are legitimate:
+//
+//   - Literal catches a symlinked directory inside the project — a vendored
+//     or generated tree linked out to another volume. The link is inside the
+//     project as written, so work there belongs to this project, even though
+//     its resolved path lands elsewhere entirely.
+//   - Resolved catches the project itself reached by an alias — a ~/src
+//     symlink onto a data volume, a Windows junction — where the recorded
+//     root and the caller's cwd are two spellings of one directory.
+//
+// Requiring both would reject the first case, which is a containment the
+// plain string comparison this replaced got right.
+//
+// Each comparison walks path segments via filepath.Rel rather than matching a
+// string prefix, so "/src/aide-web" is not inside "/src/aide". Case is folded
+// on Windows because the filesystem folds it, and Rel's error across volumes
+// (C: vs D:) is correctly read as outside.
+func Contains(root, path string) bool {
+	if containsLexical(root, path) {
+		return true
+	}
+	return containsByIdentity(root, path)
+}
+
+// containsLexical is a segment-wise containment test on the paths exactly as
+// given. It is the only answer available for a path that does not exist yet,
+// and it is what accepts a symlinked directory inside the project.
+//
+// filepath.Rel walks segments rather than matching a prefix, so "/src/aide-web"
+// is not inside "/src/aide". Case is folded on Windows, where the filesystem
+// folds it and the path may not exist to ask.
+func containsLexical(root, path string) bool {
+	root, path = filepath.Clean(root), filepath.Clean(path)
+	if runtime.GOOS == "windows" {
+		root, path = strings.ToLower(root), strings.ToLower(path)
+	}
+	rel, err := filepath.Rel(root, path)
+	if err != nil {
+		return false // different volumes, or otherwise unrelatable
+	}
+	return rel == "." || filepath.IsLocal(rel)
+}
+
+// containsByIdentity walks up from path asking the filesystem whether any
+// ancestor IS root, rather than whether it spells the same.
+//
+// os.SameFile compares the underlying file identity, so this gets symlinks,
+// directory junctions, bind mounts and case-insensitive volumes right on every
+// platform without branching on GOOS — macOS and Windows both fold case, and
+// comparing strings could only ever approximate that. Paths that do not exist
+// cannot be identified, so callers depend on containsLexical for those.
+func containsByIdentity(root, path string) bool {
+	rootInfo, err := os.Stat(root)
+	if err != nil {
+		return false
+	}
+	for p := filepath.Clean(path); ; {
+		if info, statErr := os.Stat(p); statErr == nil && os.SameFile(rootInfo, info) {
+			return true
+		}
+		parent := filepath.Dir(p)
+		if parent == p { // reached the volume root
+			return false
+		}
+		p = parent
+	}
 }
 
 // HasAideStore reports whether dir carries its own .aide directory.

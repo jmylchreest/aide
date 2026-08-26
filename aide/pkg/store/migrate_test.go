@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/analysis/analyzer/keyword"
@@ -919,5 +920,80 @@ func TestSurveyStoreRunsMigrationsOnOpen(t *testing.T) {
 	}
 	if v != SurveySchemaVersion {
 		t.Errorf("expected survey schema version %d after NewSurveyStore, got %d", SurveySchemaVersion, v)
+	}
+}
+
+// TestMigrateCodeV3_ClearsModTimes: editing a grammar pack changes no source
+// file mtime, so without this the index keeps serving references extracted by
+// the old queries. The migration zeroes the timestamps to force a reparse
+// while leaving the rest of each row intact.
+func TestMigrateCodeV3_ClearsModTimes(t *testing.T) {
+	dir := t.TempDir()
+	db, err := bolt.Open(filepath.Join(dir, "code.db"), 0o600, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	stamped := time.Now().Add(-time.Hour).UTC().Truncate(time.Second)
+	if err := db.Update(func(tx *bolt.Tx) error {
+		b, err := tx.CreateBucketIfNotExists(BucketFileIndex)
+		if err != nil {
+			return err
+		}
+		row := map[string]any{
+			"path":    "pkg/a.ts",
+			"modTime": stamped,
+			"symbols": []string{"sym-1", "sym-2"},
+			"tokens":  42,
+			"size":    1234,
+		}
+		data, err := json.Marshal(row)
+		if err != nil {
+			return err
+		}
+		return b.Put([]byte("pkg/a.ts"), data)
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := db.Update(migrateCodeV3); err != nil {
+		t.Fatalf("migrateCodeV3: %v", err)
+	}
+
+	if err := db.View(func(tx *bolt.Tx) error {
+		var got struct {
+			Path      string    `json:"path"`
+			ModTime   time.Time `json:"modTime"`
+			SymbolIDs []string  `json:"symbols"`
+			Tokens    int       `json:"tokens"`
+			SizeBytes int64     `json:"size"`
+		}
+		if err := json.Unmarshal(tx.Bucket(BucketFileIndex).Get([]byte("pkg/a.ts")), &got); err != nil {
+			return err
+		}
+		if !got.ModTime.IsZero() {
+			t.Errorf("ModTime = %v, want zero so reconcile re-parses", got.ModTime)
+		}
+		// Everything else must survive: the index degrades to stale, not empty.
+		if got.Path != "pkg/a.ts" || len(got.SymbolIDs) != 2 || got.Tokens != 42 || got.SizeBytes != 1234 {
+			t.Errorf("migration lost row data: %+v", got)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// An empty or absent bucket is a fresh install, not an error.
+func TestMigrateCodeV3_NoBucket(t *testing.T) {
+	dir := t.TempDir()
+	db, err := bolt.Open(filepath.Join(dir, "code.db"), 0o600, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := db.Update(migrateCodeV3); err != nil {
+		t.Errorf("migrateCodeV3 on an unindexed store: %v", err)
 	}
 }

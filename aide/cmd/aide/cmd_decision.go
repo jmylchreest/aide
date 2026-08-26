@@ -55,7 +55,10 @@ Options:
     --rationale=TEXT   Reasoning behind the decision
     --details=TEXT     Extended details or context
     --ref=URL          Reference URL (can be repeated)
-    --by=AGENT         Who made the decision
+    --by=AGENT         Who made the decision. Use the git username (the GitHub
+                       handle, e.g. from the remote URL) unless told otherwise.
+                       Never guess a person's identifier - omit the flag
+                       instead, since the record is append-only
 
   list:
     --format=json      Output as JSON
