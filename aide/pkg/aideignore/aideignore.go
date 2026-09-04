@@ -64,6 +64,20 @@ var BuiltinDefaults = []string{
 	".nuxt/",
 	"coverage/",
 	".cache/",
+	".yarn/cache/",
+	".yarn/unplugged/",
+	".pnpm-store/",
+	".turbo/",
+	".nx/",
+	".parcel-cache/",
+	".nyc_output/",
+	".svelte-kit/",
+	".astro/",
+	".angular/",
+	".docusaurus/",
+	".vercel/",
+	".netlify/",
+	".serverless/",
 
 	// ── Python ───────────────────────────────────────────────────────
 	"__pycache__/",
@@ -72,6 +86,8 @@ var BuiltinDefaults = []string{
 	".tox/",
 	".mypy_cache/",
 	".pytest_cache/",
+	".ruff_cache/",
+	".ipynb_checkpoints/",
 	"*.egg-info/",
 	"site-packages/",
 
@@ -114,6 +130,17 @@ var BuiltinDefaults = []string{
 
 	// ── Swift ────────────────────────────────────────────────────────
 	".build/",
+
+	// ── Dart / Flutter ───────────────────────────────────────────────
+	".dart_tool/",
+
+	// ── Haskell ──────────────────────────────────────────────────────
+	".stack-work/",
+
+	// ── Infrastructure / environment tooling ─────────────────────────
+	".terraform/",
+	".terragrunt-cache/",
+	".direnv/",
 
 	// ── IDE / Editor ─────────────────────────────────────────────────
 	".idea/",

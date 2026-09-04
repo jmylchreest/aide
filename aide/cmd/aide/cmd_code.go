@@ -514,8 +514,11 @@ func (idx *Indexer) IndexFile(filePath string) (int, error) {
 type ReconcileResult struct {
 	Checked   int // Total entries inspected
 	Removed   int // Entries dropped because the file no longer exists on disk
-	Refreshed int // Entries re-indexed because mtime advanced, or newly indexed during an empty-index bootstrap
+	Refreshed int // Entries re-indexed because mtime advanced, or newly discovered on disk
 	Errors    int // Stat / index failures (skipped, not fatal)
+	// Touched holds the absolute paths this pass indexed or re-indexed, so
+	// the caller can re-run the findings analysers over them.
+	Touched []string
 }
 
 // Reconcile walks the file index and brings it back in sync with the working
@@ -523,7 +526,8 @@ type ReconcileResult struct {
 // now matches an aideignore rule are removed, and stale entries (file mtime
 // newer than the indexed mtime) are re-indexed. Then a second sweep walks
 // every symbol and reference bucket entry to catch orphan rows whose fileinfo
-// was already cleared but whose symbol/reference rows survived.
+// was already cleared but whose symbol/reference rows survived. Finally the
+// working tree is walked to pick up files the index has never seen.
 func (idx *Indexer) Reconcile() (ReconcileResult, error) {
 	span := observe.Start("Indexer.Reconcile", observe.KindSpan).Category("indexer").Subtype("reconcile")
 	defer span.End()
@@ -542,6 +546,11 @@ func (idx *Indexer) Reconcile() (ReconcileResult, error) {
 	ignore, _ := aideignore.New(idx.rootDir)
 	if ignore == nil {
 		ignore = aideignore.NewFromDefaults()
+	}
+
+	known := make(map[string]struct{}, len(infos))
+	for _, info := range infos {
+		known[info.Path] = struct{}{}
 	}
 
 	for _, info := range infos {
@@ -578,6 +587,7 @@ func (idx *Indexer) Reconcile() (ReconcileResult, error) {
 		if !stat.ModTime().Equal(info.ModTime) {
 			if _, ixErr := idx.IndexFile(absPath); ixErr == nil {
 				res.Refreshed++
+				res.Touched = append(res.Touched, absPath)
 			} else {
 				res.Errors++
 			}
@@ -586,24 +596,18 @@ func (idx *Indexer) Reconcile() (ReconcileResult, error) {
 
 	idx.sweepOrphans(infos, ignore, &res)
 
-	// Bootstrap an empty index. Reconcile otherwise only refreshes files it
-	// already knows about, so a fresh store (nothing ever indexed) would stay
-	// empty and every code-index-dependent analyzer (deadcode, modules) would
-	// hard-fail with "code index is empty". Populate from the working tree
-	// when there is nothing to reconcile against.
-	if len(infos) == 0 {
-		if err := idx.indexTree(ignore, &res); err != nil {
-			return res, err
-		}
+	if err := idx.indexTree(ignore, &res, known); err != nil {
+		return res, err
 	}
 
 	return res, nil
 }
 
 // indexTree walks the project root and indexes every supported, non-ignored
-// file. It is the empty-index bootstrap half of Reconcile: the only way a
-// store with no entries can be made usable without a manual `aide code index`.
-func (idx *Indexer) indexTree(ignore *aideignore.Matcher, res *ReconcileResult) error {
+// file not already in known. It is the discovery half of Reconcile: the only
+// way a file the watcher never saw enters the index, and the bootstrap for a
+// store with no entries at all.
+func (idx *Indexer) indexTree(ignore *aideignore.Matcher, res *ReconcileResult, known map[string]struct{}) error {
 	shouldSkip := ignore.WalkFunc(idx.rootDir)
 	err := filepath.Walk(idx.rootDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -621,12 +625,19 @@ func (idx *Indexer) indexTree(ignore *aideignore.Matcher, res *ReconcileResult) 
 		if !code.SupportedFile(path) {
 			return nil
 		}
+		// Already handled by the reconcile loop above.
+		if rel, relErr := filepath.Rel(idx.rootDir, path); relErr == nil {
+			if _, seen := known[rel]; seen {
+				return nil
+			}
+		}
 		if _, err := idx.IndexFile(path); err != nil {
 			res.Errors++
 			return nil
 		}
 		res.Checked++
 		res.Refreshed++
+		res.Touched = append(res.Touched, path)
 		return nil
 	})
 	return err

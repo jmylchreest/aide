@@ -11,97 +11,25 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+
+	"github.com/jmylchreest/aide/aide/pkg/aideignore"
 )
 
 var watchLog = log.New(os.Stderr, "[aide:watcher] ", log.Ltime)
 
 const DefaultDebounceDelay = 30 * time.Second
 
-// DefaultSkipDirs contains directories to skip during file watching.
-// Organized by language/ecosystem but applied universally for simplicity.
-var DefaultSkipDirs = map[string]bool{
-	// Version control
-	".git": true, ".svn": true, ".hg": true,
-
-	// Aide internal
-	".aide": true,
-
-	// Node/JavaScript/TypeScript
-	"node_modules": true,
-	"dist":         true,
-	".next":        true,
-	".nuxt":        true,
-	"coverage":     true,
-	".cache":       true,
-
-	// Python
-	"__pycache__":   true,
-	".venv":         true,
-	"venv":          true,
-	".tox":          true,
-	".mypy_cache":   true,
-	".pytest_cache": true,
-	"site-packages": true,
-
-	// Go
-	"vendor": true,
-
-	// Rust
-	"target": true,
-
-	// Java/Kotlin/Gradle
-	"build":   true,
-	".gradle": true,
-	"out":     true,
-
-	// C/C++
-	"cmake-build-debug":   true,
-	"cmake-build-release": true,
-	".cmake":              true,
-	".deps":               true,
-	"Debug":               true,
-	"Release":             true,
-
-	// Ruby
-	".bundle": true,
-
-	// C#
-	"bin": true,
-	"obj": true,
-
-	// Elixir
-	"_build": true,
-	"deps":   true,
-
-	// OCaml
-	"_opam": true,
-
-	// Scala
-	".bloop":  true,
-	".metals": true,
-
-	// Swift
-	".build": true,
-
-	// IDE/Editor
-	".idea":   true,
-	".vscode": true,
-
-	// OS
-	".DS_Store": true,
-}
-
-// DefaultSkipSuffixes contains directory name suffixes to skip during file watching.
-// These require suffix matching because the full directory name is dynamic.
-var DefaultSkipSuffixes = []string{
-	".egg-info", // Python: e.g. "mypackage.egg-info"
-}
-
 type Config struct {
-	Paths         []string
+	Paths []string
+	// ProjectRoot is the absolute path the ignore matcher resolves against.
+	// Defaults to the first entry in Paths, then to the working directory.
+	ProjectRoot   string
 	DebounceDelay time.Duration
-	SkipDirs      []string
 	FileFilter    func(path string) bool
+	// Ignore decides which directories and files are watched. Defaults to
+	// the built-in patterns. Must be the same matcher the indexer and the
+	// analysers use, or incremental and full-scan results diverge.
+	Ignore *aideignore.Matcher
 }
 
 type FileChangeHandler interface {
@@ -115,13 +43,13 @@ func (f FileChangeHandlerFunc) OnChanges(files map[string]fsnotify.Op) {
 }
 
 type Watcher struct {
-	fsnotify  *fsnotify.Watcher
-	config    Config
-	skipSet   map[string]bool // Merged DefaultSkipDirs + Config.SkipDirs
-	stop      chan struct{}
-	stopOnce  sync.Once
-	wg        sync.WaitGroup
-	startTime time.Time
+	fsnotify    *fsnotify.Watcher
+	config      Config
+	projectRoot string
+	stop        chan struct{}
+	stopOnce    sync.Once
+	wg          sync.WaitGroup
+	startTime   time.Time
 
 	mu           sync.Mutex
 	handlers     []FileChangeHandler
@@ -131,21 +59,43 @@ type Watcher struct {
 	dirsWatched  atomic.Int32
 }
 
-// shouldSkipDir returns true if a directory name should be skipped.
-// Checks exact match in skipSet, hidden directories (dot prefix), and suffix patterns.
-func (w *Watcher) shouldSkipDir(name string) bool {
-	if w.skipSet[name] {
-		return true
+// isTransientName matches dotfiles and editor scratch files.
+func isTransientName(name string) bool {
+	return strings.HasPrefix(name, ".") ||
+		strings.HasSuffix(name, "~") ||
+		strings.HasSuffix(name, ".swp") ||
+		strings.HasSuffix(name, ".tmp")
+}
+
+// rel returns path relative to the project root, the form the ignore matcher
+// expects. Paths outside the root are returned unchanged.
+func (w *Watcher) rel(path string) string {
+	r, err := filepath.Rel(w.projectRoot, path)
+	if err != nil {
+		return path
 	}
-	if len(name) > 1 && name[0] == '.' {
-		return true
+	return r
+}
+
+// shouldSkipDir reports whether a directory and its contents go unwatched.
+func (w *Watcher) shouldSkipDir(path string) bool {
+	r := w.rel(path)
+	if r == "." || r == "" {
+		return false
 	}
-	for _, suffix := range DefaultSkipSuffixes {
-		if strings.HasSuffix(name, suffix) {
-			return true
-		}
+	return w.config.Ignore.ShouldIgnoreDir(r)
+}
+
+// shouldWatchFile applies every filter a file must pass to reach a handler.
+// Both the event path and the backfill walk use it.
+func (w *Watcher) shouldWatchFile(path string) bool {
+	if isTransientName(filepath.Base(path)) {
+		return false
 	}
-	return false
+	if w.config.FileFilter != nil && !w.config.FileFilter(path) {
+		return false
+	}
+	return !w.config.Ignore.ShouldIgnoreFile(w.rel(path))
 }
 
 func New(config Config, handlers ...FileChangeHandler) (*Watcher, error) {
@@ -157,22 +107,28 @@ func New(config Config, handlers ...FileChangeHandler) (*Watcher, error) {
 	if config.DebounceDelay == 0 {
 		config.DebounceDelay = DefaultDebounceDelay
 	}
-
-	skipSet := make(map[string]bool)
-	for k, v := range DefaultSkipDirs {
-		skipSet[k] = v
+	if config.Ignore == nil {
+		config.Ignore = aideignore.NewFromDefaults()
 	}
-	for _, d := range config.SkipDirs {
-		skipSet[d] = true
+
+	root := config.ProjectRoot
+	if root == "" && len(config.Paths) > 0 {
+		root = config.Paths[0]
+	}
+	if root == "" {
+		root, _ = os.Getwd()
+	}
+	if abs, err := filepath.Abs(root); err == nil {
+		root = abs
 	}
 
 	return &Watcher{
-		fsnotify: fsWatcher,
-		config:   config,
-		skipSet:  skipSet,
-		handlers: handlers,
-		stop:     make(chan struct{}),
-		pending:  make(map[string]fsnotify.Op),
+		fsnotify:    fsWatcher,
+		config:      config,
+		projectRoot: root,
+		handlers:    handlers,
+		stop:        make(chan struct{}),
+		pending:     make(map[string]fsnotify.Op),
 	}, nil
 }
 
@@ -195,24 +151,9 @@ func (w *Watcher) Start() error {
 	w.watchPaths = paths
 
 	for _, root := range paths {
-		err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return nil
-			}
-			if info.IsDir() {
-				name := info.Name()
-				if w.shouldSkipDir(name) {
-					return filepath.SkipDir
-				}
-				if err := w.fsnotify.Add(path); err == nil {
-					w.dirsWatched.Add(1)
-				}
-			}
-			return nil
-		})
-		if err != nil {
-			return err
-		}
+		// No backfill: reconciling the existing tree is Indexer.Reconcile's
+		// job, and queueing it here would re-analyse the project on every start.
+		w.addTree(root, false)
 	}
 
 	w.startTime = time.Now()
@@ -221,6 +162,37 @@ func (w *Watcher) Start() error {
 
 	watchLog.Printf("watching %d directories in %v (debounce: %v)", w.dirsWatched.Load(), paths, w.config.DebounceDelay)
 	return nil
+}
+
+// addTree watches dir and every non-ignored directory beneath it, recursing
+// because `mkdir -p a/b/c` reports only "a".
+//
+// When backfill is true it also queues the files already present. Nothing
+// else ever sees them: a directory has no watch until it is registered, so
+// anything written before that — a file created right after mkdir, or the
+// contents of a directory renamed into place — emits no event at all.
+func (w *Watcher) addTree(dir string, backfill bool) {
+	_ = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		if info.IsDir() {
+			// The caller vetted dir; skipping it here would make an
+			// explicitly configured watch path unwatchable.
+			if path != dir && w.shouldSkipDir(path) {
+				return filepath.SkipDir
+			}
+			if err := w.fsnotify.Add(path); err == nil {
+				w.dirsWatched.Add(1)
+			}
+			return nil
+		}
+		if !backfill || !w.shouldWatchFile(path) {
+			return nil
+		}
+		w.queueChange(path, fsnotify.Create)
+		return nil
+	})
 }
 
 func (w *Watcher) Stop() error {
@@ -275,24 +247,15 @@ func (w *Watcher) processEvents() {
 
 			if event.Op&fsnotify.Create != 0 {
 				if info, err := os.Stat(event.Name); err == nil && info.IsDir() {
-					name := filepath.Base(event.Name)
-					if !w.shouldSkipDir(name) {
-						if err := w.fsnotify.Add(event.Name); err == nil {
-							w.dirsWatched.Add(1)
-							watchLog.Printf("watching new directory: %s", event.Name)
-						}
+					if !w.shouldSkipDir(event.Name) {
+						watchLog.Printf("watching new directory: %s", event.Name)
+						w.addTree(event.Name, true)
 					}
 					continue
 				}
 			}
 
-			if w.config.FileFilter != nil && !w.config.FileFilter(event.Name) {
-				continue
-			}
-
-			name := filepath.Base(event.Name)
-			if strings.HasPrefix(name, ".") || strings.HasSuffix(name, "~") ||
-				strings.HasSuffix(name, ".swp") || strings.HasSuffix(name, ".tmp") {
+			if !w.shouldWatchFile(event.Name) {
 				continue
 			}
 
@@ -311,7 +274,8 @@ func (w *Watcher) processEvents() {
 
 func (w *Watcher) queueChange(path string, op fsnotify.Op) {
 	w.mu.Lock()
-	w.pending[path] = op
+	// Union, not assignment: a write then a delete in one window is a delete.
+	w.pending[path] |= op
 	w.debounceOnce.Do(func() {
 		w.wg.Add(1)
 		go func() {
@@ -341,6 +305,8 @@ func (w *Watcher) flushPending() {
 		return
 	}
 
+	normaliseRemovals(pending)
+
 	watchLog.Printf("processing %d file changes", len(pending))
 
 	for _, h := range handlers {
@@ -352,6 +318,21 @@ func (w *Watcher) flushPending() {
 			}()
 			h.OnChanges(pending)
 		}()
+	}
+}
+
+// normaliseRemovals marks any renamed-or-removed path that is gone from disk
+// as a removal. fsnotify reports a rename as RENAME on the source path, and
+// backends disagree on which op a delete produces; without this a handler
+// re-indexes a file that no longer exists and keeps its stale rows forever.
+func normaliseRemovals(pending map[string]fsnotify.Op) {
+	for path, op := range pending {
+		if op&(fsnotify.Rename|fsnotify.Remove) == 0 {
+			continue
+		}
+		if _, err := os.Lstat(path); os.IsNotExist(err) {
+			pending[path] = op | fsnotify.Remove
+		}
 	}
 }
 
