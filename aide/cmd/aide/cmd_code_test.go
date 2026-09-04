@@ -111,3 +111,112 @@ func TestIndexerReconcile_BootstrapsEmptyIndex(t *testing.T) {
 		t.Errorf("main.go should be indexed: %v", err)
 	}
 }
+
+// TestIndexerReconcile_DiscoversUnindexedFiles verifies that Reconcile picks
+// up a file that is on disk but has never been indexed, and reports it in
+// Touched. The watcher can miss a file entirely — one created inside a
+// directory before that directory had an inotify watch — and the per-entry
+// reconcile loop cannot see it, because it only inspects paths that are
+// already index entries. Without this walk such a file stays invisible until
+// someone runs `aide code index` by hand.
+func TestIndexerReconcile_DiscoversUnindexedFiles(t *testing.T) {
+	tmpDir := t.TempDir()
+	aideDir := filepath.Join(tmpDir, ".aide", "memory")
+	if err := os.MkdirAll(aideDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	dbPath := filepath.Join(aideDir, "memory.db")
+
+	known := filepath.Join(tmpDir, "known.go")
+	if err := os.WriteFile(known, []byte("package main\n\nfunc Known() {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	knownStat, err := os.Stat(known)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	indexPath, searchPath := getCodeStorePaths(dbPath)
+	cs, err := store.NewCodeStore(indexPath, searchPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cs.Close()
+
+	// Already indexed and unchanged: must not be re-indexed or reported.
+	if err := cs.SetFileInfo(&code.FileInfo{Path: "known.go", ModTime: knownStat.ModTime()}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Never indexed, in a subdirectory — the shape a missed watch produces.
+	missedDir := filepath.Join(tmpDir, "pkg")
+	if err := os.MkdirAll(missedDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(missedDir, "missed.go"), []byte("package pkg\n\nfunc Missed() {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	idx := NewIndexerFromStore(cs, newGrammarLoader(dbPath, nil), tmpDir)
+
+	res, err := idx.Reconcile()
+	if err != nil {
+		t.Fatalf("Reconcile: %v", err)
+	}
+
+	if _, err := cs.GetFileInfo(filepath.Join("pkg", "missed.go")); err != nil {
+		t.Errorf("pkg/missed.go should have been discovered: %v", err)
+	}
+	if res.Refreshed != 1 {
+		t.Errorf("expected 1 refreshed (the discovered file), got %d (%+v)", res.Refreshed, res)
+	}
+	if len(res.Touched) != 1 {
+		t.Fatalf("expected 1 touched path, got %v", res.Touched)
+	}
+	if got := filepath.Base(res.Touched[0]); got != "missed.go" {
+		t.Errorf("Touched = %v, want the discovered file", res.Touched)
+	}
+}
+
+// TestIndexerReconcile_ReportsRefreshedInTouched verifies that a stale entry
+// re-indexed by Reconcile is reported in Touched, so the caller can re-run the
+// findings analysers over it. Healing the index without re-analysing leaves
+// findings stale for exactly the files that changed.
+func TestIndexerReconcile_ReportsRefreshedInTouched(t *testing.T) {
+	tmpDir := t.TempDir()
+	aideDir := filepath.Join(tmpDir, ".aide", "memory")
+	if err := os.MkdirAll(aideDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	dbPath := filepath.Join(aideDir, "memory.db")
+
+	stale := filepath.Join(tmpDir, "stale.go")
+	if err := os.WriteFile(stale, []byte("package main\n\nfunc Stale() {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	indexPath, searchPath := getCodeStorePaths(dbPath)
+	cs, err := store.NewCodeStore(indexPath, searchPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cs.Close()
+
+	// Indexed mtime predates the file on disk, so the entry is stale.
+	if err := cs.SetFileInfo(&code.FileInfo{Path: "stale.go", ModTime: time.Now().Add(-time.Hour)}); err != nil {
+		t.Fatal(err)
+	}
+
+	idx := NewIndexerFromStore(cs, newGrammarLoader(dbPath, nil), tmpDir)
+
+	res, err := idx.Reconcile()
+	if err != nil {
+		t.Fatalf("Reconcile: %v", err)
+	}
+	if res.Refreshed != 1 {
+		t.Errorf("expected 1 refreshed, got %d (%+v)", res.Refreshed, res)
+	}
+	if len(res.Touched) != 1 || filepath.Base(res.Touched[0]) != "stale.go" {
+		t.Errorf("Touched = %v, want the refreshed file", res.Touched)
+	}
+}

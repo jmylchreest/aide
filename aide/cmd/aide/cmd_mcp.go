@@ -400,7 +400,38 @@ func (s *MCPServer) startCodeReconciler(dbPath string) {
 			mcpLog.Printf("startup reconcile: checked %d, removed %d, refreshed %d, errors %d",
 				res.Checked, res.Removed, res.Refreshed, res.Errors)
 		}
+
+		// Analyse what reconcile indexed, or the index heals but findings don't.
+		if len(res.Touched) == 0 {
+			return
+		}
+		runner := s.awaitFindingsRunner()
+		if runner == nil {
+			return
+		}
+		files := make(map[string]fsnotify.Op, len(res.Touched))
+		for _, p := range res.Touched {
+			files[p] = fsnotify.Write
+		}
+		mcpLog.Printf("startup reconcile: analysing %d reconciled file(s)", len(files))
+		runner.OnChanges(files)
 	}()
+}
+
+// awaitFindingsRunner waits for startCodeWatcher to construct the findings
+// runner — both start as independent goroutines. Returns nil when the watcher
+// is disabled or has no findings store.
+func (s *MCPServer) awaitFindingsRunner() *findings.Runner {
+	for i := 0; i < DefaultMCPPollCount; i++ {
+		s.unifiedWatcherMu.Lock()
+		r := s.findingsRunner
+		s.unifiedWatcherMu.Unlock()
+		if r != nil {
+			return r
+		}
+		time.Sleep(DefaultMCPPollInterval)
+	}
+	return nil
 }
 
 // startCodeWatcher launches the file watcher in the background.
@@ -455,16 +486,17 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 		// Build handler list — always include code indexer, add findings runner if store is available
 		handlers := []watcher.FileChangeHandler{codeHandler}
 
+		// One matcher for the whole pipeline: the watcher decides what to
+		// watch with it, the analysers filter with it.
+		projectRoot := store.ProjectRootFromDB(dbPath)
+		ignore, err := aideignore.New(projectRoot)
+		if err != nil {
+			mcpLog.Printf("WARNING: failed to load .aideignore: %v (using defaults)", err)
+			ignore = aideignore.NewFromDefaults()
+		}
+
 		var findingsRunner *findings.Runner
 		if s.findingsStore != nil {
-			// Load .aideignore from project root for findings filtering.
-			projectRoot := store.ProjectRootFromDB(dbPath)
-			ignore, err := aideignore.New(projectRoot)
-			if err != nil {
-				mcpLog.Printf("WARNING: failed to load .aideignore: %v (using defaults)", err)
-				ignore = aideignore.NewFromDefaults()
-			}
-
 			// Load analyser thresholds from .aide/config/aide.json.
 			fcfg := loadFindingsConfig(projectRoot)
 
@@ -505,12 +537,12 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 
 		// Register grammar install callback: when a new grammar is downloaded,
 		// re-scan the project tree for files matching its extensions.
-		root := store.ProjectRootFromDB(dbPath)
+		root := projectRoot
 		s.grammarLoader.SetOnInstall(func(name string) {
 			// Run re-scan in a goroutine to avoid blocking the parse call
 			// that triggered the download.
 			go func() {
-				rescanForGrammar(name, indexer, findingsRunner, root)
+				rescanForGrammar(name, indexer, findingsRunner, root, ignore)
 				// Mark re-scan complete in the manifest so it won't be
 				// re-triggered on restart.
 				s.grammarLoader.MarkRescanComplete(name)
@@ -519,8 +551,10 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 
 		w, err := watcher.New(watcher.Config{
 			Paths:         watchPaths,
+			ProjectRoot:   projectRoot,
 			DebounceDelay: debounceDelay,
 			FileFilter:    code.SupportedFile,
+			Ignore:        ignore,
 		}, handlers...)
 		if err != nil {
 			mcpLog.Printf("WARNING: failed to create unified watcher: %v", err)
@@ -556,7 +590,7 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 			mcpLog.Printf("found %d grammar(s) with pending re-scan: %s", len(pending), strings.Join(pending, ", "))
 			go func() {
 				for _, name := range pending {
-					rescanForGrammar(name, indexer, findingsRunner, root)
+					rescanForGrammar(name, indexer, findingsRunner, root, ignore)
 					s.grammarLoader.MarkRescanComplete(name)
 				}
 			}()
@@ -600,7 +634,7 @@ func (h *codeIndexHandler) OnChanges(files map[string]fsnotify.Op) {
 // the given grammar's extensions. This is called after a grammar is newly
 // installed to pick up files that were previously skipped (zero symbols).
 // It also notifies the findings runner if available.
-func rescanForGrammar(name string, indexer *Indexer, runner *findings.Runner, root string) {
+func rescanForGrammar(name string, indexer *Indexer, runner *findings.Runner, root string, ignore *aideignore.Matcher) {
 	pack := grammar.DefaultPackRegistry().Get(name)
 	if pack == nil {
 		return
@@ -627,15 +661,18 @@ func rescanForGrammar(name string, indexer *Indexer, runner *findings.Runner, ro
 		findingsFiles = make(map[string]fsnotify.Op)
 	}
 
+	shouldSkip := ignore.WalkFunc(root)
 	_ = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil // skip errors
 		}
-		if info.IsDir() {
-			dirName := info.Name()
-			if watcher.DefaultSkipDirs[dirName] || (len(dirName) > 1 && dirName[0] == '.') {
+		if skip, skipDir := shouldSkip(path, info); skip {
+			if skipDir {
 				return filepath.SkipDir
 			}
+			return nil
+		}
+		if info.IsDir() {
 			return nil
 		}
 
