@@ -199,6 +199,13 @@ type findingsConfig struct {
 		MinSimilarity float64 `json:"minSimilarity"`
 		MinSeverity   string  `json:"minSeverity"`
 	} `json:"clones"`
+	DeadCode struct {
+		// Watch enables the dead-code analyser in the file watcher. It is the
+		// most expensive analyser — a whole-index pass plus text verification —
+		// so it can be disabled without losing it from `aide findings scan`.
+		// Defaults to true.
+		Watch *bool `json:"watch,omitempty"`
+	} `json:"deadcode"`
 }
 
 // aideJSON is the top-level structure of .aide/config/aide.json.

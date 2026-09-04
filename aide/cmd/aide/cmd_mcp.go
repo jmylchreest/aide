@@ -530,6 +530,12 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 				f, _, err := clone.DetectClones(cloneCfg)
 				return f, err
 			})
+			if fcfg.DeadCode.Watch == nil || *fcfg.DeadCode.Watch {
+				findingsRunner.SetDeadCodeRunner(func(ctx context.Context) ([]*findings.Finding, error) {
+					return runWatcherDeadCode(s.getCodeStore(), projectRoot)
+				})
+			}
+
 			handlers = append(handlers, findingsRunner)
 		} else {
 			mcpLog.Printf("WARNING: findings store not available, findings analysis disabled in watcher")
@@ -701,6 +707,44 @@ func rescanForGrammar(name string, indexer *Indexer, runner *findings.Runner, ro
 	if runner != nil && len(findingsFiles) > 0 {
 		runner.OnChanges(findingsFiles)
 	}
+}
+
+// runWatcherDeadCode runs the dead-code analyser against the live code index.
+// An empty index is not an error here — the watcher runs before anything has
+// been indexed on a fresh project, and reporting "no dead code" is the honest
+// answer until there are symbols to check.
+func runWatcherDeadCode(cs store.CodeIndexStore, projectRoot string) ([]*findings.Finding, error) {
+	if cs == nil {
+		return nil, nil
+	}
+	stats, err := cs.Stats()
+	if err != nil {
+		return nil, fmt.Errorf("read code stats: %w", err)
+	}
+	if stats.Symbols == 0 {
+		return nil, nil
+	}
+
+	registry := grammar.DefaultPackRegistry()
+	ff, _, err := findings.AnalyzeDeadCode(findings.DeadCodeConfig{
+		GetAllSymbols: func() ([]*code.Symbol, error) {
+			return cs.ListAllSymbols(-1)
+		},
+		GetRefCount: func(name string) (int, error) {
+			refs, err := cs.SearchReferences(code.ReferenceSearchOptions{
+				SymbolName: name,
+				Limit:      1,
+			})
+			if err != nil {
+				return 0, err
+			}
+			return len(refs), nil
+		},
+		ProjectRoot:        projectRoot,
+		PackProvider:       registry.Get,
+		ConsumerExtensions: registry.ConsumerExtensions(),
+	})
+	return ff, err
 }
 
 // stopCodeWatcher gracefully stops the file watcher if running.
