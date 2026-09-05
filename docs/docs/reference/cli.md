@@ -366,8 +366,7 @@ The server line (and `serverState` in `--json`) has three states:
 aide session init                        # Initialize session
 aide session end --session=ID            # End session (teardown + metrics)
 aide upgrade                             # Self-upgrade binary
-aide daemon --socket=/path/to/aide.sock  # Start gRPC daemon
-aide mcp                                 # Start MCP server
+aide mcp                                 # Start MCP server (and gRPC primary)
 aide version                             # Show version
 ```
 
