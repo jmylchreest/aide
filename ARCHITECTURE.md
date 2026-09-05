@@ -48,8 +48,8 @@ aide/
 **CLI & MCP** (`cmd/aide/`):
 
 - `aide memory|decision|state|task|message|code` commands
-- `aide mcp` - Starts MCP server (tools for Claude)
-- `aide daemon` - Background gRPC server (Unix socket)
+- `aide mcp` - Starts MCP server (tools for Claude); the first instance per
+  project also serves gRPC on a Unix socket, later ones attach to it as clients
 
 ### TypeScript Hooks (`src/hooks/`)
 

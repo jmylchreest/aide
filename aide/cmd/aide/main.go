@@ -140,8 +140,6 @@ func runCommand(cmd, dbPath string, args []string) error {
 		return cmdReflect(dbPath, args)
 	case "agent":
 		return cmdAgent(dbPath, args)
-	case "daemon":
-		return cmdDaemon(dbPath, args)
 	case "mcp":
 		return cmdMCP(dbPath, args)
 	case "blueprint":
@@ -202,7 +200,6 @@ Commands:
   sync       Fetch subscribed peer context (decisions only, read-only layer)
   config     Inspect and edit aide configuration (show, get, set, unset, path)
   maintenance Compact bolt stores to reclaim disk (compact)
-  daemon     Start gRPC daemon (Unix socket for IPC)
   mcp        Start MCP server (for Claude Code plugin integration)
   grammar    Manage tree-sitter language grammars (list, install, remove, scan)
   status     Show aide internal status (watcher, stores, analysers)
