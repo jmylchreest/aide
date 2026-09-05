@@ -1,7 +1,11 @@
 package findings
 
 import (
+	"context"
+	"os"
+	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/fsnotify/fsnotify"
@@ -73,8 +77,8 @@ func TestOnChanges_RemoveDeletesFindings(t *testing.T) {
 	calls := store.replacedAnalyzerAndFile
 	store.mu.Unlock()
 
-	if len(calls) != 3 {
-		t.Fatalf("expected 3 ReplaceFindingsForAnalyzerAndFile calls (complexity + secrets + security), got %d", len(calls))
+	if len(calls) != len(perFileAnalyzers()) {
+		t.Fatalf("expected %d ReplaceFindingsForAnalyzerAndFile calls, got %d", len(perFileAnalyzers()), len(calls))
 	}
 
 	analyzers := map[string]bool{}
@@ -96,6 +100,9 @@ func TestOnChanges_RemoveDeletesFindings(t *testing.T) {
 	}
 	if !analyzers[AnalyzerSecurity] {
 		t.Error("expected security analyzer findings to be cleared")
+	}
+	if !analyzers[AnalyzerTodos] {
+		t.Error("expected todos analyzer findings to be cleared")
 	}
 }
 
@@ -216,4 +223,119 @@ func TestOnChanges_UnsupportedFileIgnored(t *testing.T) {
 	if len(calls) != 0 {
 		t.Errorf("expected 0 calls for unsupported file, got %d", len(calls))
 	}
+}
+
+// Todos runs per file on change. Before this it ran only in `aide findings
+// scan`, so a TODO added between full scans never surfaced.
+func TestOnChanges_RunsTodosAnalyzer(t *testing.T) {
+	store := &mockReplaceFindingsStore{}
+
+	tmp := t.TempDir()
+	path := filepath.Join(tmp, "todo.go")
+	src := "package demo\n\n// TODO: tidy this up\n// BUG: panics on empty slice\nfunc demo() {}\n"
+	if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	runner := NewRunner(store, AnalyzerConfig{
+		ProjectRoot: tmp,
+		Ignore:      aideignore.NewEmpty(),
+	}, nil)
+	defer runner.Stop()
+
+	runner.OnChanges(map[string]fsnotify.Op{path: fsnotify.Write})
+	runner.WaitAll()
+
+	store.mu.Lock()
+	calls := store.replacedAnalyzerAndFile
+	store.mu.Unlock()
+
+	var todos []*Finding
+	found := false
+	for _, c := range calls {
+		if c.Analyzer == AnalyzerTodos {
+			found = true
+			todos = c.Findings
+		}
+	}
+	if !found {
+		t.Fatalf("todos analyzer did not run on a changed file (analyzers: %v)", calls)
+	}
+	if len(todos) != 2 {
+		t.Fatalf("expected 2 todo findings, got %d", len(todos))
+	}
+	for _, f := range todos {
+		if f.FilePath != "todo.go" {
+			t.Errorf("finding path = %q, want project-relative todo.go", f.FilePath)
+		}
+	}
+}
+
+// Dead code needs the code index, so it is only scheduled once a runner is
+// wired. Without the guard every change would schedule an analyzer that can
+// only fail.
+func TestProjectAnalyzers_DeadCodeRequiresRunner(t *testing.T) {
+	runner := NewRunner(&mockReplaceFindingsStore{}, AnalyzerConfig{}, nil)
+	defer runner.Stop()
+
+	for _, a := range runner.projectAnalyzers() {
+		if a == AnalyzerDeadCode {
+			t.Fatal("deadcode scheduled without a runner")
+		}
+	}
+
+	runner.SetDeadCodeRunner(func(context.Context) ([]*Finding, error) { return nil, nil })
+
+	var found bool
+	for _, a := range runner.projectAnalyzers() {
+		if a == AnalyzerDeadCode {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("deadcode not scheduled after wiring a runner")
+	}
+}
+
+func TestOnChanges_RunsDeadCodeRunner(t *testing.T) {
+	store := &mockReplaceFindingsStore{}
+
+	tmp := t.TempDir()
+	path := filepath.Join(tmp, "a.go")
+	if err := os.WriteFile(path, []byte("package demo\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	runner := NewRunner(store, AnalyzerConfig{
+		ProjectRoot: tmp,
+		Ignore:      aideignore.NewEmpty(),
+	}, nil)
+	defer runner.Stop()
+
+	var called atomic.Bool
+	runner.SetDeadCodeRunner(func(context.Context) ([]*Finding, error) {
+		called.Store(true)
+		return []*Finding{{Analyzer: AnalyzerDeadCode, FilePath: "a.go", Title: "unused"}}, nil
+	})
+
+	runner.OnChanges(map[string]fsnotify.Op{path: fsnotify.Write})
+	runner.WaitAll()
+
+	if !called.Load() {
+		t.Fatal("deadcode runner was not invoked on a file change")
+	}
+
+	store.mu.Lock()
+	calls := store.replacedAnalyzer
+	store.mu.Unlock()
+
+	for _, c := range calls {
+		if c.Analyzer == AnalyzerDeadCode {
+			if len(c.Findings) != 1 {
+				t.Errorf("expected the runner's finding to be stored, got %d", len(c.Findings))
+			}
+			return
+		}
+	}
+	t.Error("deadcode findings were not stored project-wide")
 }

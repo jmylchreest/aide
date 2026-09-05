@@ -84,11 +84,17 @@ type ClonesRunnerConfig struct {
 
 type ClonesRunner func(ctx context.Context, paths []string, cfg ClonesRunnerConfig) ([]*Finding, error)
 
+// DeadCodeRunner runs the dead-code analyser. Like ClonesRunner it is injected
+// rather than called directly: the analyser needs the code index, which this
+// package cannot import without a cycle.
+type DeadCodeRunner func(ctx context.Context) ([]*Finding, error)
+
 type Runner struct {
-	store        ReplaceFindingsStore
-	config       AnalyzerConfig
-	clonesRunner ClonesRunner
-	loader       grammar.Loader
+	store          ReplaceFindingsStore
+	config         AnalyzerConfig
+	clonesRunner   ClonesRunner
+	deadCodeRunner DeadCodeRunner
+	loader         grammar.Loader
 
 	mu            sync.Mutex
 	runs          map[RunKey]*activeRun
@@ -135,6 +141,40 @@ func (r *Runner) SetClonesRunner(fn ClonesRunner) {
 	r.clonesRunner = fn
 }
 
+func (r *Runner) SetDeadCodeRunner(fn DeadCodeRunner) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.deadCodeRunner = fn
+}
+
+func (r *Runner) clones() ClonesRunner {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.clonesRunner
+}
+
+func (r *Runner) deadCode() DeadCodeRunner {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.deadCodeRunner
+}
+
+// perFileAnalyzers lists the analysers that run against one file's contents.
+func perFileAnalyzers() []string {
+	return []string{AnalyzerComplexity, AnalyzerSecrets, AnalyzerSecurity, AnalyzerTodos}
+}
+
+// projectAnalyzers lists the whole-project analysers to run. Dead code joins
+// them only once a runner is wired, since without the code index it has
+// nothing to analyse.
+func (r *Runner) projectAnalyzers() []string {
+	analyzers := []string{AnalyzerCoupling, AnalyzerClones}
+	if r.deadCode() != nil {
+		analyzers = append(analyzers, AnalyzerDeadCode)
+	}
+	return analyzers
+}
+
 // ignore returns the configured aideignore matcher, falling back to built-in
 // defaults. The default matcher is cached on first use to avoid repeated
 // allocation.
@@ -151,8 +191,8 @@ func (r *Runner) ignore() *aideignore.Matcher {
 }
 
 func (r *Runner) OnChanges(files map[string]fsnotify.Op) {
-	perFileAnalyzers := []string{AnalyzerComplexity, AnalyzerSecrets, AnalyzerSecurity}
-	projectAnalyzers := []string{AnalyzerCoupling, AnalyzerClones}
+	perFileAnalyzers := perFileAnalyzers()
+	projectAnalyzers := r.projectAnalyzers()
 
 	ignore := r.ignore()
 
@@ -318,6 +358,8 @@ func (r *Runner) runPerFileAnalyzer(ctx context.Context, analyzer string, file s
 		return r.analyzeFileSecrets(ctx, relPath, content)
 	case AnalyzerSecurity:
 		return r.analyzeFileSecurity(ctx, relPath, content)
+	case AnalyzerTodos:
+		return analyzeFileTodos(relPath, content), nil
 	default:
 		return nil, fmt.Errorf("unknown analyzer: %s", analyzer)
 	}
@@ -353,8 +395,16 @@ func (r *Runner) runProjectAnalyzer(ctx context.Context, analyzer string) ([]*Fi
 		findings, _, err := AnalyzeCoupling(cfg)
 		return findings, err
 
+	case AnalyzerDeadCode:
+		run := r.deadCode()
+		if run == nil {
+			return nil, fmt.Errorf("deadcode runner not configured")
+		}
+		return run(ctx)
+
 	case AnalyzerClones:
-		if r.clonesRunner == nil {
+		clones := r.clones()
+		if clones == nil {
 			return nil, fmt.Errorf("clones runner not configured")
 		}
 		// Defaults mirror clone.DefaultWindowSize / clone.DefaultMinCloneLines.
@@ -368,7 +418,7 @@ func (r *Runner) runProjectAnalyzer(ctx context.Context, analyzer string) ([]*Fi
 		if minLines <= 0 {
 			minLines = DefaultCloneMinLines
 		}
-		return r.clonesRunner(ctx, paths, ClonesRunnerConfig{
+		return clones(ctx, paths, ClonesRunnerConfig{
 			WindowSize:    windowSize,
 			MinLines:      minLines,
 			MinMatchCount: r.config.CloneMinMatchCount,
@@ -484,10 +534,9 @@ func (r *Runner) Stop() {
 }
 
 // RunAll schedules analysis of all supported files in the configured paths.
-// Per-file analysers (complexity, secrets) are launched per file; project-wide
-// analysers (coupling, clones) are launched once. All analysers run
-// asynchronously via runAnalyzer — use WaitAll() to block until completion,
-// or Stop() to cancel and drain.
+// Per-file analysers are launched per file, project-wide analysers once. All
+// run asynchronously via runAnalyzer — use WaitAll() to block until
+// completion, or Stop() to cancel and drain.
 func (r *Runner) RunAll(ctx context.Context) error {
 	paths := r.config.Paths
 	if len(paths) == 0 {
@@ -518,7 +567,7 @@ func (r *Runner) RunAll(ctx context.Context) error {
 			}
 
 			scopePath := toRelPath(r.config.ProjectRoot, path)
-			for _, analyzer := range []string{AnalyzerComplexity, AnalyzerSecrets, AnalyzerSecurity} {
+			for _, analyzer := range perFileAnalyzers() {
 				key := RunKey{Analyzer: analyzer, Scope: scopePath}
 				r.runAnalyzer(key, func(ctx context.Context) ([]*Finding, error) {
 					return r.runPerFileAnalyzer(ctx, analyzer, path)
@@ -531,7 +580,7 @@ func (r *Runner) RunAll(ctx context.Context) error {
 		}
 	}
 
-	for _, analyzer := range []string{AnalyzerCoupling, AnalyzerClones} {
+	for _, analyzer := range r.projectAnalyzers() {
 		key := RunKey{Analyzer: analyzer, Scope: ScopeProject}
 		r.runAnalyzer(key, func(ctx context.Context) ([]*Finding, error) {
 			return r.runProjectAnalyzer(ctx, analyzer)

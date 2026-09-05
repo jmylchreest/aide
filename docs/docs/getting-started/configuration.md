@@ -118,6 +118,9 @@ Project-level settings can be stored in `.aide/config/aide.json`:
     "clones": {
       "windowSize": 50,
       "minLines": 6
+    },
+    "deadcode": {
+      "watch": true
     }
   }
 }
@@ -130,6 +133,7 @@ Project-level settings can be stored in `.aide/config/aide.json`:
 | `findings.coupling.fanIn`       | 20      | Maximum incoming imports before flagging     |
 | `findings.clones.windowSize`    | 50      | Sliding window size in tokens for detection  |
 | `findings.clones.minLines`      | 6       | Minimum clone size in lines to report        |
+| `findings.deadcode.watch`       | true    | Run the dead-code analyser on file change. It is the most expensive analyser — a whole-index pass plus text verification — so set `false` to leave it to `aide findings scan` |
 
 | `code.respect_gitignore`        | true    | Apply the repo's `.gitignore` rules to analysis — see [File Exclusions](#file-exclusions) |
 | `cleanup.enabled`               | true    | Master switch for retention pruning (daemon loop + session-init sweep) |
