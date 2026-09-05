@@ -1,5 +1,8 @@
 # AIDE - AI Development Environment
 
+[![HOL Trust Score](https://img.shields.io/endpoint?url=https%3A%2F%2Fhol.org%2Fapi%2Fregistry%2Fbadges%2Fplugin%3Fslug%3Djmylchreest%252Faide%26metric%3Dtrust%26label%3Dhol%2520trust)](https://hol.org/registry/plugins/jmylchreest%2Faide)
+[![HOL Security Score](https://img.shields.io/endpoint?url=https%3A%2F%2Fhol.org%2Fapi%2Fregistry%2Fbadges%2Fplugin%3Fslug%3Djmylchreest%252Faide%26metric%3Dsecurity%26label%3Dhol%2520security)](https://hol.org/registry/plugins/jmylchreest%2Faide)
+
 Persistent memory, code intelligence, and multi-agent orchestration for AI coding assistants. Works with **Claude Code**, **OpenCode**, and **Codex CLI**.
 
 **Prerequisite:** [Bun](https://bun.sh/) — the only runtime dependency. The Go binary downloads automatically.

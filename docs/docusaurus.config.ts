@@ -144,6 +144,13 @@ const config: Config = {
             { label: "OpenCode", href: "https://opencode.ai" },
           ],
         },
+        {
+          title: "Legal",
+          items: [
+            { label: "Privacy Policy", to: "/legal/privacy" },
+            { label: "Terms of Service", to: "/legal/terms" },
+          ],
+        },
       ],
       copyright: `Copyright ${new Date().getFullYear()} AIDE. Built with Docusaurus.`,
     },
