@@ -6,6 +6,9 @@
     "name": "John Mylchreest"
   },
   "homepage": "https://github.com/jmylchreest/aide",
+  "websiteURL": "https://jmylchreest.github.io/aide/",
+  "privacyPolicyURL": "https://jmylchreest.github.io/aide/legal/privacy",
+  "termsOfServiceURL": "https://jmylchreest.github.io/aide/legal/terms",
   "repository": "https://github.com/jmylchreest/aide",
   "keywords": [
     "memory",
