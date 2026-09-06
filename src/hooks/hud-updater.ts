@@ -98,7 +98,7 @@ async function main(): Promise<void> {
 
     // Load config and get state
     log.start("loadHudConfig");
-    const config = loadHudConfig(cwd);
+    const config = loadHudConfig(cwd, sessionId);
     log.end("loadHudConfig");
 
     log.start("getSessionState");
@@ -123,7 +123,7 @@ async function main(): Promise<void> {
     log.debug(`HUD output: ${hudOutput}`);
 
     log.start("writeHudOutput");
-    writeHudOutput(cwd, hudOutput);
+    writeHudOutput(cwd, hudOutput, sessionId);
     log.end("writeHudOutput");
 
     log.end("total");
