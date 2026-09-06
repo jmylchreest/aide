@@ -88,12 +88,18 @@ describe("Codex dev toggle", () => {
     skill(join(paths.repo, "skills"), "recall", "dev recall");
 
     expect(codexDevMode(paths)).toBe("prod");
-    expect(switchCodexDev(paths, "dev")).toContain("kept 1 user-owned skills");
+    expect(switchCodexDev(paths, "dev")).toContain(
+      "installed skills unchanged",
+    );
     expect(codexDevMode(paths)).toBe("dev");
     expect(readConfig().mcp_servers.aide.command).toBe(
       join(paths.repo, "bin", binary),
     );
-    expect(readConfig().plugins["aide@aide"].enabled).toBe(false);
+    expect(readConfig().plugins["aide@aide"].enabled).toBe(true);
+    expect(readConfig().plugins["aide@aide"].mcp_servers.aide.enabled).toBe(
+      false,
+    );
+    expect(readConfig().plugins["aide@disabled"].enabled).toBe(false);
     expect(commands()).toContain("other-hook");
     expect(
       commands().some(
@@ -105,9 +111,7 @@ describe("Codex dev toggle", () => {
     expect(
       readFileSync(join(paths.skillsDir, "test", "SKILL.md"), "utf8"),
     ).toBe("user-owned collision");
-    expect(
-      readFileSync(join(paths.skillsDir, "recall", "SKILL.md"), "utf8"),
-    ).toBe("dev recall");
+    expect(existsSync(join(paths.skillsDir, "recall"))).toBe(false);
 
     const config = readConfig();
     config.model = "changed during dev";
@@ -146,7 +150,7 @@ describe("Codex dev toggle", () => {
     expect(existsSync(join(paths.configDir, "aide-dev-toggle"))).toBe(false);
   });
 
-  it("refreshes dev skills without overwriting the original standalone backup", () => {
+  it("leaves standalone skills untouched across repeated toggles", () => {
     const mcp = {
       command: "aide-plugin",
       args: ["mcp"],
@@ -162,12 +166,13 @@ describe("Codex dev toggle", () => {
     const manifest = JSON.stringify({ skills: ["test", "old"] });
     writeFileSync(join(paths.skillsDir, ".aide-skills.json"), manifest);
     switchCodexDev(paths, "dev");
-    expect(existsSync(join(paths.skillsDir, "old"))).toBe(false);
+    expect(existsSync(join(paths.skillsDir, "old"))).toBe(true);
     skill(join(paths.repo, "skills"), "test", "changed local skill");
     switchCodexDev(paths, "dev");
     expect(
       readFileSync(join(paths.skillsDir, "test", "SKILL.md"), "utf8"),
-    ).toBe("changed local skill");
+    ).toBe("published skill");
+    skill(paths.skillsDir, "test", "edited installed skill");
     expect(
       commands().filter((c) => c.endsWith(" hook session-start")),
     ).toHaveLength(1);
@@ -178,7 +183,7 @@ describe("Codex dev toggle", () => {
     });
     expect(
       readFileSync(join(paths.skillsDir, "test", "SKILL.md"), "utf8"),
-    ).toBe("published skill");
+    ).toBe("edited installed skill");
     expect(readFileSync(join(paths.skillsDir, "old", "SKILL.md"), "utf8")).toBe(
       "removed from dev bundle",
     );
@@ -187,6 +192,148 @@ describe("Codex dev toggle", () => {
     ).toBe(manifest);
     expect(commands()).toEqual([]);
     expect(switchCodexDev(paths, "prod")).toBe("already in prod mode");
+  });
+
+  it("does not create a loose skills directory in either scope", () => {
+    for (const configDir of [paths.configDir, join(paths.repo, ".codex")]) {
+      const scoped = {
+        ...paths,
+        configDir,
+        skillsDir: join(configDir, "..", ".agents", "skills"),
+      };
+      mkdirSync(configDir, { recursive: true });
+      writeFileSync(
+        join(configDir, "config.toml"),
+        TOML.stringify({ plugins: { "aide@aide": { enabled: true } } }),
+      );
+      switchCodexDev(scoped, "dev");
+      switchCodexDev(scoped, "dev");
+      expect(codexDevMode(scoped)).toBe("dev");
+      expect(existsSync(scoped.skillsDir)).toBe(false);
+      switchCodexDev(scoped, "prod");
+      expect(existsSync(scoped.skillsDir)).toBe(false);
+    }
+  });
+
+  it.each([true, false, undefined])(
+    "restores bundled MCP enablement (%s) and preserves policy edits",
+    (enabled) => {
+      writeConfig({
+        plugins: {
+          "aide@aide": {
+            enabled: true,
+            mcp_servers: {
+              aide: {
+                ...(enabled === undefined ? {} : { enabled }),
+                disabled_tools: ["old"],
+              },
+            },
+          },
+        },
+      });
+      switchCodexDev(paths, "dev");
+      expect(codexDevMode(paths)).toBe("dev");
+      expect(readConfig().plugins["aide@aide"].mcp_servers.aide.enabled).toBe(
+        false,
+      );
+      const config = readConfig();
+      config.plugins["aide@aide"].mcp_servers.aide.disabled_tools = ["new"];
+      writeConfig(config);
+      switchCodexDev(paths, "dev");
+      switchCodexDev(paths, "prod");
+      expect(readConfig().plugins["aide@aide"].mcp_servers.aide).toEqual({
+        ...(enabled === undefined ? {} : { enabled }),
+        disabled_tools: ["new"],
+      });
+    },
+  );
+
+  it.each(["dev", "prod"] as const)(
+    "migrates old skill-copying snapshots when switching to %s",
+    (mode) => {
+      writeConfig({ plugins: { "aide@aide": { enabled: true } } });
+      switchCodexDev(paths, "dev");
+      const backupDir = join(paths.configDir, "aide-dev-toggle");
+      const statePath = join(backupDir, "state.json");
+      const state = JSON.parse(readFileSync(statePath, "utf8"));
+      delete state.plugins["aide@aide"].mcp;
+      state.skills = ["test"];
+      state.devSkills = ["test", "recall"];
+      state.manifest = JSON.stringify({ skills: ["test"] });
+      skill(join(backupDir, "skills"), "test", "original installed skill");
+      writeFileSync(statePath, JSON.stringify(state));
+      const config = readConfig();
+      config.plugins["aide@aide"] = { enabled: false };
+      writeConfig(config);
+      skill(paths.skillsDir, "test", "old dev copy");
+      skill(paths.skillsDir, "recall", "old dev copy");
+      skill(paths.skillsDir, "personal", "keep this");
+      writeFileSync(
+        join(paths.skillsDir, ".aide-skills.json"),
+        JSON.stringify({ skills: state.devSkills }),
+      );
+
+      switchCodexDev(paths, mode);
+      expect(readConfig().plugins["aide@aide"].enabled).toBe(true);
+      expect(codexDevMode(paths)).toBe(mode);
+      expect(existsSync(join(paths.skillsDir, "recall"))).toBe(false);
+      expect(
+        readFileSync(join(paths.skillsDir, "test", "SKILL.md"), "utf8"),
+      ).toBe("original installed skill");
+      expect(
+        readFileSync(join(paths.skillsDir, "personal", "SKILL.md"), "utf8"),
+      ).toBe("keep this");
+      expect(
+        readFileSync(join(paths.skillsDir, ".aide-skills.json"), "utf8"),
+      ).toBe(state.manifest);
+      if (mode === "dev") {
+        skill(paths.skillsDir, "test", "edited after migration");
+        switchCodexDev(paths, "dev");
+        switchCodexDev(paths, "prod");
+        expect(
+          readFileSync(join(paths.skillsDir, "test", "SKILL.md"), "utf8"),
+        ).toBe("edited after migration");
+        expect(readConfig().plugins["aide@aide"]).toEqual({ enabled: true });
+      }
+    },
+  );
+
+  it("removes old generated copies and their manifest when there were no installed skills", () => {
+    writeConfig({
+      mcp_servers: { aide: { command: "aide-plugin", args: ["mcp"] } },
+    });
+    switchCodexDev(paths, "dev");
+    const statePath = join(paths.configDir, "aide-dev-toggle", "state.json");
+    const state = JSON.parse(readFileSync(statePath, "utf8"));
+    state.devSkills = ["test"];
+    writeFileSync(statePath, JSON.stringify(state));
+    skill(paths.skillsDir, "test", "old generated copy");
+    writeFileSync(
+      join(paths.skillsDir, ".aide-skills.json"),
+      JSON.stringify({ skills: ["test"] }),
+    );
+    switchCodexDev(paths, "dev");
+    expect(existsSync(join(paths.skillsDir, "test"))).toBe(false);
+    expect(existsSync(join(paths.skillsDir, ".aide-skills.json"))).toBe(false);
+    switchCodexDev(paths, "dev");
+    expect(existsSync(join(paths.skillsDir, "test"))).toBe(false);
+    switchCodexDev(paths, "prod");
+    expect(existsSync(join(paths.skillsDir, "test"))).toBe(false);
+  });
+
+  it("restores plugin skills after a migration interrupted before config was written", () => {
+    writeConfig({ plugins: { "aide@aide": { enabled: true } } });
+    switchCodexDev(paths, "dev");
+    const config = readConfig();
+    // Snapshot migration finished, but the old whole-plugin disable is still on disk.
+    config.plugins["aide@aide"].enabled = false;
+    writeConfig(config);
+    switchCodexDev(paths, "dev");
+    expect(readConfig().plugins["aide@aide"].enabled).toBe(true);
+    expect(readConfig().plugins["aide@aide"].mcp_servers.aide.enabled).toBe(
+      false,
+    );
+    expect(codexDevMode(paths)).toBe("dev");
   });
 
   it("does not install aide into an unconfigured scope", () => {

@@ -3,7 +3,6 @@ import {
   cpSync,
   existsSync,
   mkdirSync,
-  readdirSync,
   readFileSync,
   realpathSync,
   rmSync,
@@ -11,11 +10,7 @@ import {
 } from "fs";
 import { join } from "path";
 import * as TOML from "smol-toml";
-import {
-  generateHooksJson,
-  installCodexSkills,
-  isAideHookCommand,
-} from "./codex-config.js";
+import { generateHooksJson, isAideHookCommand } from "./codex-config.js";
 
 type Table = Record<string, any>;
 type Hooks = ReturnType<typeof generateHooksJson>;
@@ -27,7 +22,7 @@ export interface CodexDevPaths {
 interface Snapshot {
   repo: string;
   mcp?: Table;
-  plugins: Record<string, { enabled?: boolean }>;
+  plugins: Record<string, { enabled?: boolean; mcp?: { enabled?: boolean } }>;
   hooksFeature?: boolean;
   hooks: Hooks;
   skills: string[];
@@ -138,11 +133,16 @@ export function codexDevMode(
     states.push(isLocalMcp(mcp, paths));
   }
   for (const [, plugin] of pluginEntries(config)) {
-    if (plugin.enabled !== false) states.push(false);
+    if (plugin.enabled !== false && plugin.mcp_servers?.aide?.enabled !== false)
+      states.push(false);
   }
   states.push(...commands.map((command) => isLocalHook(command, paths)));
-  if (states.length === 0)
-    return existsSync(snapshotPath(paths)) ? "mixed" : "not-installed";
+  if (states.length === 0) {
+    if (existsSync(snapshotPath(paths))) return "mixed";
+    return pluginEntries(config).some(([, plugin]) => plugin.enabled !== false)
+      ? "prod"
+      : "not-installed";
+  }
   return states.every(Boolean)
     ? "dev"
     : states.some(Boolean)
@@ -156,6 +156,26 @@ function validateSkillNames(names: string[]): void {
       "Invalid aide skills manifest; refusing to change skill directories",
     );
   }
+}
+
+// Migrate snapshots from the old toggle, which replaced installed skills with
+// loose development copies. New toggles leave skill installation to the installer.
+function restoreLegacySkills(paths: CodexDevPaths, state: Snapshot): void {
+  validateSkillNames(state.skills);
+  validateSkillNames(state.devSkills);
+  if (state.skills.length === 0 && state.devSkills.length === 0) return;
+  for (const name of new Set([...state.devSkills, ...state.skills])) {
+    rmSync(join(paths.skillsDir, name), { recursive: true, force: true });
+    const backup = join(paths.configDir, STATE_DIR, "skills", name);
+    if (existsSync(backup))
+      cpSync(backup, join(paths.skillsDir, name), { recursive: true });
+  }
+  const manifestPath = join(paths.skillsDir, MANIFEST);
+  if (state.manifest === undefined) rmSync(manifestPath, { force: true });
+  else writeFileSync(manifestPath, state.manifest);
+  state.skills = [];
+  state.devSkills = [];
+  delete state.manifest;
 }
 
 export function switchCodexDev(
@@ -218,32 +238,41 @@ export function switchCodexDev(
       plugins: Object.fromEntries(
         pluginEntries(config).map(([key, value]) => [
           key,
-          { enabled: value.enabled },
+          {
+            enabled: value.enabled,
+            mcp: { enabled: value.mcp_servers?.aide?.enabled },
+          },
         ]),
       ),
       hooksFeature: config.features?.hooks,
       hooks: prodHooks,
-      skills: owned,
+      skills: [],
       devSkills: [],
-      manifest: existsSync(manifestPath)
-        ? readFileSync(manifestPath, "utf8")
-        : undefined,
     };
     mkdirSync(backupDir, { recursive: true, mode: 0o700 });
-    for (const name of owned) {
-      const source = join(paths.skillsDir, name);
-      if (existsSync(source))
-        cpSync(source, join(backupDir, "skills", name), { recursive: true });
-    }
     writeFileSync(snapshotPath(paths), JSON.stringify(state, null, 2) + "\n", {
       mode: 0o600,
     });
   }
+  restoreLegacySkills(paths, state);
   if (mode === "dev") {
     for (const [key, plugin] of pluginEntries(config)) {
       if (!(key in state.plugins))
-        state.plugins[key] = { enabled: plugin.enabled };
-      plugin.enabled = false;
+        state.plugins[key] = {
+          enabled: plugin.enabled,
+          mcp: { enabled: plugin.mcp_servers?.aide?.enabled },
+        };
+      const saved = state.plugins[key];
+      if (!saved.mcp) {
+        saved.mcp = { enabled: plugin.mcp_servers?.aide?.enabled };
+      }
+      // Old toggles disabled the entire plugin. Reapply the saved setting on
+      // every run so migration also recovers if interrupted after saving state.
+      if (saved.enabled === undefined) delete plugin.enabled;
+      else plugin.enabled = saved.enabled;
+      plugin.mcp_servers ??= {};
+      plugin.mcp_servers.aide ??= {};
+      plugin.mcp_servers.aide.enabled = false;
     }
     // Call the build directly: the published wrapper prefers npm's bundled binary.
     config.mcp_servers ??= {};
@@ -257,27 +286,6 @@ export function switchCodexDev(
     delete config.mcp_servers.aide.url;
     config.features ??= {};
     config.features.hooks = true;
-    const skillsSource = join(paths.repo, "skills");
-    // Record ownership before copying so an interrupted sync can be restored.
-    state.devSkills = [
-      ...new Set([
-        ...state.devSkills,
-        ...readdirSync(skillsSource).filter(
-          (name) =>
-            existsSync(join(skillsSource, name, "SKILL.md")) &&
-            (!existsSync(join(paths.skillsDir, name)) || owned.includes(name)),
-        ),
-      ]),
-    ];
-    validateSkillNames(state.devSkills);
-    writeFileSync(snapshotPath(paths), JSON.stringify(state, null, 2) + "\n");
-    const result = installCodexSkills("user", {
-      source: skillsSource,
-      destination: paths.skillsDir,
-    });
-    state.devSkills = readJson<{ skills: string[] }>(manifestPath, {
-      skills: [],
-    }).skills;
     writeFileSync(snapshotPath(paths), JSON.stringify(state, null, 2) + "\n");
     writeFileSync(
       join(paths.configDir, "config.toml"),
@@ -289,7 +297,7 @@ export function switchCodexDev(
       JSON.stringify(mergeHooks(hooks, generateHooksJson(prefix)), null, 2) +
         "\n",
     );
-    return `dev mode (local binary, hooks and skills)${result.skipped.length ? `; kept ${result.skipped.length} user-owned skills` : ""}`;
+    return "dev mode (local binary and hooks; installed skills unchanged)";
   }
 
   if (!state) throw new Error("Missing Codex dev snapshot");
@@ -304,19 +312,20 @@ export function switchCodexDev(
     if (!plugin) continue;
     if (saved.enabled === undefined) delete plugin.enabled;
     else plugin.enabled = saved.enabled;
+    if (saved.mcp && plugin.mcp_servers?.aide) {
+      if (saved.mcp.enabled === undefined)
+        delete plugin.mcp_servers.aide.enabled;
+      else plugin.mcp_servers.aide.enabled = saved.mcp.enabled;
+      if (Object.keys(plugin.mcp_servers.aide).length === 0)
+        delete plugin.mcp_servers.aide;
+      if (Object.keys(plugin.mcp_servers).length === 0)
+        delete plugin.mcp_servers;
+    }
   }
   config.features ??= {};
   if (state.hooksFeature === undefined) delete config.features.hooks;
   else config.features.hooks = state.hooksFeature;
   if (Object.keys(config.features).length === 0) delete config.features;
-  for (const name of new Set([...state.devSkills, ...state.skills])) {
-    rmSync(join(paths.skillsDir, name), { recursive: true, force: true });
-    const backup = join(backupDir, "skills", name);
-    if (existsSync(backup))
-      cpSync(backup, join(paths.skillsDir, name), { recursive: true });
-  }
-  if (state.manifest === undefined) rmSync(manifestPath, { force: true });
-  else writeFileSync(manifestPath, state.manifest);
   writeFileSync(
     join(paths.configDir, "config.toml"),
     TOML.stringify(config) + "\n",
