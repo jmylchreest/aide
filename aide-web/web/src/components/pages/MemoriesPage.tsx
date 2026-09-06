@@ -284,13 +284,13 @@ export function MemoriesPage() {
                 </>
               }
               footer={
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex flex-wrap gap-1">
                     {m.tags?.map((tag) => (
                       <Tag key={tag} label={tag} />
                     ))}
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
                     {m.created_at && (
                       <span className="text-[0.6rem] text-aide-text-dim font-mono">
                         {new Date(m.created_at).toLocaleDateString()}

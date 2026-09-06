@@ -16,6 +16,7 @@ type TokenEventItem struct {
 	EventType   string `json:"event_type"`
 	Tool        string `json:"tool"`
 	FilePath    string `json:"file_path"`
+	DisplayPath string `json:"display_path,omitempty"`
 	Tokens      int    `json:"tokens"`
 	TokensSaved int    `json:"tokens_saved"`
 	// StartLine/EndLine optionally point at a span within FilePath. The
@@ -81,6 +82,7 @@ func (h *Handler) APIListTokenEvents(ctx context.Context, input *struct {
 	}
 
 	out := &ListTokenEventsOutput{}
+	displayPath := newDisplayPath(inst.ProjectRoot())
 	for _, e := range events {
 		out.Body.Events = append(out.Body.Events, TokenEventItem{
 			ID:          e.ID,
@@ -89,6 +91,7 @@ func (h *Handler) APIListTokenEvents(ctx context.Context, input *struct {
 			EventType:   e.EventType,
 			Tool:        e.Tool,
 			FilePath:    e.FilePath,
+			DisplayPath: displayPath(e.FilePath),
 			Tokens:      e.Tokens,
 			TokensSaved: e.TokensSaved,
 			StartLine:   e.StartLine,

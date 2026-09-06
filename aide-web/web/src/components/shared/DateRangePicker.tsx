@@ -244,9 +244,9 @@ export function DateRangePicker({
 
       {/* Popover */}
       {open && (
-        <div className="absolute left-0 top-full mt-1 z-50 flex rounded border border-aide-border bg-aide-surface shadow-lg shadow-black/40">
+        <div className="absolute left-0 top-full mt-1 z-50 flex flex-col sm:flex-row max-w-[calc(100vw-2rem)] rounded border border-aide-border bg-aide-surface shadow-lg shadow-black/40">
           {/* Presets sidebar */}
-          <div className="flex flex-col gap-0.5 p-2 border-r border-aide-border min-w-[120px]">
+          <div className="grid grid-cols-2 sm:flex sm:flex-col gap-0.5 p-2 border-b sm:border-b-0 sm:border-r border-aide-border sm:min-w-[120px]">
             <span className="text-[9px] uppercase tracking-wider text-aide-text-dim mb-1 px-2">Quick select</span>
             {PRESETS.map((p) => (
               <button

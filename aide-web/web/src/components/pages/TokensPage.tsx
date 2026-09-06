@@ -6,7 +6,10 @@ import { FilterBar } from "../shared/FilterBar";
 import { SortableTable, type Column } from "../shared/SortableTable";
 import { DateRangePicker, presetToRange, type DateRangeValue } from "../shared/DateRangePicker";
 import { CodeViewer } from "../shared/CodeViewer";
-import type { InstanceInfo, TokenEventItem } from "@/lib/types";
+import type { TokenEventItem } from "@/lib/types";
+import { useProjectRoot } from "@/context/ProjectRootContext";
+import { relativeToRoot } from "@/lib/paths";
+import { PathLabel } from "../shared/PathLabel";
 
 /**
  * Heuristic: is this `file_path` value likely a real on-disk file (vs. a
@@ -19,17 +22,6 @@ function looksLikeFilePath(s: string): boolean {
   if (s.includes("/")) return true;
   // file.ext form
   return /\.[a-z0-9]+$/i.test(s);
-}
-
-/**
- * Trim the project_root prefix off an absolute path so the visible label
- * is meaningfully short. No-op when the path is already relative or the
- * root doesn't match.
- */
-function relativeToRoot(filePath: string, root?: string): string {
-  if (!root || !filePath.startsWith(root)) return filePath;
-  const rest = filePath.slice(root.length);
-  return rest.startsWith("/") ? rest.slice(1) : rest;
 }
 
 function formatTokens(n: number): string {
@@ -227,15 +219,7 @@ export function TokensPage() {
     endLine?: number;
   } | null>(null);
 
-  // Used to make absolute file paths relative for display in the Source
-  // column. Cheap to fetch and shared across many places in the dashboard.
-  const { data: instances } = useApi(() => api.listInstances());
-  const projectRoot = useMemo(
-    () =>
-      instances?.find((i: InstanceInfo) => i.project_name === project)
-        ?.project_root,
-    [instances, project],
-  );
+  const projectRoot = useProjectRoot();
 
   // Default to last 30 days
   const [dateRange, setDateRange] = useState<DateRangeValue>(() => {
@@ -416,6 +400,7 @@ export function TokensPage() {
       // source label (session-start, skill-injector, ...) — hence "Source".
       key: "file_path",
       label: "Source",
+      width: "45%",
       render: (row) => {
         const value = row.file_path;
         if (!value) {
@@ -424,21 +409,10 @@ export function TokensPage() {
         const clickable = looksLikeFilePath(value) && !!project;
         // Strip the project root prefix so common leading path is gone and
         // the filename is what reads. Tooltip keeps the full absolute value.
-        const display = relativeToRoot(value, projectRoot);
-        // RTL truncation trick: when overflow happens we want the *start*
-        // ellipsised so the filename stays visible. direction:rtl with
-        // unicode-bidi:plaintext keeps the text order untouched while
-        // anchoring the overflow on the left edge.
-        const truncClasses =
-          "font-mono text-[11px] block max-w-[320px] overflow-hidden whitespace-nowrap text-ellipsis [direction:rtl] [unicode-bidi:plaintext] text-left";
+        const display = row.display_path || relativeToRoot(value, projectRoot);
         if (!clickable) {
           return (
-            <span
-              title={value}
-              className={`${truncClasses} text-aide-text-dim`}
-            >
-              {display}
-            </span>
+            <PathLabel path={value} displayPath={row.display_path} className="text-[11px] text-aide-text-dim" />
           );
         }
         const lineSuffix =
@@ -461,12 +435,9 @@ export function TokensPage() {
                 endLine: row.end_line || undefined,
               })
             }
-            className={`${truncClasses} bg-transparent px-0 text-aide-text-dim hover:text-aide-accent transition-colors`}
+            className="block w-full min-w-0 bg-transparent px-0 text-[11px] text-aide-text-dim hover:text-aide-accent transition-colors"
           >
-            {display}
-            {lineSuffix && (
-              <span className="text-aide-text-dim/60">{lineSuffix}</span>
-            )}
+            <PathLabel path={value} displayPath={row.display_path} suffix={lineSuffix} />
           </button>
         );
       },
@@ -487,7 +458,7 @@ export function TokensPage() {
       </div>
 
       {/* Headline stats */}
-      <div className="grid grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-6">
         <StatCard
           label="Est. Tokens Read"
           value={stats ? `~${formatTokens(stats.total_read)}` : "-"}
@@ -582,7 +553,7 @@ export function TokensPage() {
           <p className="text-[10px] text-aide-text-dim mb-2">
             Tokens aide proactively injected so the agent didn't need to search for them.
           </p>
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
             {(stats.by_delivery?.memory ?? 0) > 0 && (
               <DeliveryCard
                 label="Memories"
@@ -663,6 +634,7 @@ export function TokensPage() {
         <SortableTable
           data={filteredEvents}
           columns={columns}
+          minWidth="52rem"
           keyFn={(row) => row.id}
           defaultSortKey="timestamp"
           defaultSortDir="desc"

@@ -8,20 +8,24 @@ import { Badge } from "../shared/ExpandableCard";
 import type { SurveyItem } from "@/lib/types";
 import { SurveyOverview } from "./SurveyOverview";
 import { SurveyGraphView } from "./SurveyGraphView";
+import { PathLabel } from "../shared/PathLabel";
 
 const columns: Column<SurveyItem>[] = [
   {
     key: "analyzer",
     label: "Analyzer",
+    width: "7rem",
   },
   {
     key: "kind",
     label: "Kind",
+    width: "8rem",
     render: (row) => <Badge label={row.kind} variant="accent" />,
   },
   {
     key: "name",
     label: "Name",
+    width: "24%",
     render: (row) => (
       <span className="font-medium text-aide-text">{row.name}</span>
     ),
@@ -29,8 +33,9 @@ const columns: Column<SurveyItem>[] = [
   {
     key: "file_path",
     label: "File",
+    width: "36%",
     render: (row) => (
-      <code className="bg-transparent px-0 break-all">{row.file_path}</code>
+      <PathLabel path={row.file_path} />
     ),
   },
   {
@@ -169,6 +174,7 @@ export function SurveyPage() {
           <SortableTable
             data={filtered}
             columns={columns}
+            minWidth="48rem"
             keyFn={(row) => row.id}
             emptyMessage="No survey entries found."
           />

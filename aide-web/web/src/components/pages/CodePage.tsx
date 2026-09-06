@@ -5,6 +5,7 @@ import { FilterBar } from "../shared/FilterBar";
 import { SortableTable, type Column } from "../shared/SortableTable";
 import { Badge } from "../shared/ExpandableCard";
 import { CodeViewer } from "../shared/CodeViewer";
+import { PathLabel } from "../shared/PathLabel";
 import { api } from "../../lib/api";
 
 interface CodeSymbol {
@@ -44,6 +45,7 @@ export function CodePage() {
     {
       key: "name",
       label: "Name",
+      width: "22%",
       render: (row: IndexedSymbol) => (
         <button
           onClick={() => openViewer(row.file, row.line, row.name)}
@@ -56,31 +58,36 @@ export function CodePage() {
     {
       key: "kind",
       label: "Kind",
+      width: "7rem",
       render: (row: IndexedSymbol) => <Badge label={row.kind} variant="muted" />,
     },
     {
       key: "language",
       label: "Language",
+      width: "6rem",
     },
     {
       key: "file",
       label: "File",
+      width: "32%",
       render: (row: IndexedSymbol) => (
         <button
           onClick={() => openViewer(row.file, row.line, row.name)}
-          className="bg-transparent px-0 break-all text-aide-text-dim hover:text-aide-accent transition-colors text-left font-mono text-[inherit]"
+          className="block w-full min-w-0 bg-transparent px-0 text-aide-text-dim hover:text-aide-accent transition-colors text-left text-[inherit]"
         >
-          {row.file}
+          <PathLabel path={row.file} />
         </button>
       ),
     },
     {
       key: "line",
       label: "Line",
+      width: "4rem",
       sortValue: (row: IndexedSymbol) => row.line,
     },
     {
       key: "_graph",
+      width: "4rem",
       label: "",
       render: (row: IndexedSymbol) => (
         <Link
@@ -95,7 +102,7 @@ export function CodePage() {
     {
       key: "signature",
       label: "Signature",
-      className: "break-all whitespace-pre-wrap max-w-xs",
+      className: "whitespace-pre-wrap",
       render: (row: IndexedSymbol) => (
         <code className="bg-transparent px-0 text-aide-text-dim text-[0.65rem]">
           {row.signature}
@@ -205,6 +212,7 @@ export function CodePage() {
         <SortableTable
           data={indexed}
           columns={columns}
+          minWidth="60rem"
           keyFn={(row) => row._i}
           emptyMessage={
             allSymbols.length === 0

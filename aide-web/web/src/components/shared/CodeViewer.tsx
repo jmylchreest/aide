@@ -4,6 +4,9 @@ import { Modal } from "./Modal";
 import { api } from "@/lib/api";
 import { Badge } from "./ExpandableCard";
 import { Copy, Check } from "lucide-react";
+import { PathLabel } from "./PathLabel";
+import { useProjectRoot } from "@/context/ProjectRootContext";
+import { relativeToRoot } from "@/lib/paths";
 
 interface CodeViewerProps {
   open: boolean;
@@ -32,6 +35,7 @@ export function CodeViewer({
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const targetRef = useRef<HTMLDivElement>(null);
+  const projectRoot = useProjectRoot();
 
   useEffect(() => {
     if (!open || !filePath) return;
@@ -39,14 +43,14 @@ export function CodeViewer({
     setError(null);
     setContent(null);
     api
-      .readFile(project, filePath)
+      .readFile(project, relativeToRoot(filePath, projectRoot))
       .then((r) => {
         setContent(r.content);
         setLanguage(r.language);
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [open, project, filePath]);
+  }, [open, project, filePath, projectRoot]);
 
   // Scroll to target line after content loads
   useEffect(() => {
@@ -73,7 +77,7 @@ export function CodeViewer({
       title={title || filePath}
       className="max-w-5xl max-h-[90vh]"
       footer={
-        <div className="flex items-center justify-between w-full text-xs text-aide-text-dim">
+        <div className="flex flex-wrap items-center justify-between gap-2 w-full min-w-0 text-xs text-aide-text-dim">
           <div className="flex items-center gap-2">
             <Badge label={language} variant="accent" />
             <span className="tabular-nums">{lines.length} lines</span>
@@ -88,14 +92,15 @@ export function CodeViewer({
           </div>
           <button
             onClick={handleCopyPath}
-            className="flex items-center gap-1 px-2 py-1 rounded-sm text-aide-text-dim hover:text-aide-text hover:bg-aide-surface-hover transition-colors"
+            title={`Copy ${filePath}`}
+            className="flex min-w-0 max-w-full sm:max-w-[65%] items-center gap-1 px-2 py-1 rounded-sm text-aide-text-dim hover:text-aide-text hover:bg-aide-surface-hover transition-colors"
           >
             {copied ? (
-              <Check className="w-3 h-3 text-aide-green" />
+              <Check className="w-3 h-3 shrink-0 text-aide-green" />
             ) : (
-              <Copy className="w-3 h-3" />
+              <Copy className="w-3 h-3 shrink-0" />
             )}
-            {filePath}
+            <PathLabel path={filePath} />
           </button>
         </div>
       }

@@ -40,7 +40,7 @@ const columns: Column<SearchResult & { _idx: number }>[] = [
     key: "detail",
     label: "Detail",
     sortable: true,
-    className: "break-all max-w-md",
+    className: "[overflow-wrap:anywhere]",
     render: (row) => <>{row.detail}</>,
   },
 ];

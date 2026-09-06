@@ -46,10 +46,11 @@ export function Modal({
       >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-aide-border shrink-0">
-          <h3 className="text-sm font-semibold text-aide-text">{title}</h3>
+          <h3 className="min-w-0 text-sm font-semibold text-aide-text [overflow-wrap:anywhere]">{title}</h3>
           <button
             onClick={onClose}
-            className="p-1 rounded-sm text-aide-text-dim hover:text-aide-text hover:bg-aide-surface-hover transition-colors"
+            title="Close" aria-label="Close"
+            className="shrink-0 p-1 rounded-sm text-aide-text-dim hover:text-aide-text hover:bg-aide-surface-hover transition-colors"
           >
             <X className="w-4 h-4" />
           </button>

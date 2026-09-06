@@ -15,7 +15,7 @@ function Dt({ children }: { children: React.ReactNode }) {
 
 function Dd({ children, border = true }: { children: React.ReactNode; border?: boolean }) {
   return (
-    <dd className={`text-aide-text-muted text-xs pb-2 break-all ${border ? "border-b border-aide-border" : ""}`}>
+    <dd className={`min-w-0 text-aide-text-muted text-xs pb-2 [overflow-wrap:anywhere] ${border ? "border-b border-aide-border" : ""}`}>
       {children}
     </dd>
   );
@@ -23,7 +23,7 @@ function Dd({ children, border = true }: { children: React.ReactNode; border?: b
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-aide-surface border border-aide-border rounded p-4">
+    <div className="min-w-0 bg-aide-surface border border-aide-border rounded p-4">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-aide-text-dim mb-3 pb-1.5 border-b border-aide-border">
         {title}
       </h3>
@@ -72,10 +72,10 @@ export function StatusPage() {
       <div className="grid gap-3">
         {/* Server Info */}
         <Section title="Server">
-          <dl className="grid grid-cols-[120px_1fr] gap-x-4 gap-y-0.5">
+          <dl className="grid grid-cols-[5rem_minmax(0,1fr)] sm:grid-cols-[120px_minmax(0,1fr)] gap-x-4 gap-y-0.5">
             <Dt>Status</Dt>
             <Dd>
-              <span className="inline-flex items-center gap-1.5">
+              <span className="inline-flex flex-wrap items-center gap-1.5">
                 <StatusBadge status={instance?.status ?? "disconnected"} />
                 {instance?.status ?? "unknown"}
                 {detailed?.uptime && (
@@ -99,7 +99,7 @@ export function StatusPage() {
         {/* File Watcher */}
         {detailed?.watcher && (
           <Section title="File Watcher">
-            <dl className="grid grid-cols-[120px_1fr] gap-x-4 gap-y-0.5">
+            <dl className="grid grid-cols-[5rem_minmax(0,1fr)] sm:grid-cols-[120px_minmax(0,1fr)] gap-x-4 gap-y-0.5">
               <Dt>Status</Dt>
               <Dd>
                 <Badge label={detailed.watcher.enabled ? "enabled" : "disabled"} variant={detailed.watcher.enabled ? "green" : "muted"} />
@@ -123,7 +123,7 @@ export function StatusPage() {
         )}
 
         {/* Code Indexer + Findings + Survey stats row */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
           {/* Code Indexer */}
           {detailed?.code_indexer && (
             <Section title="Code Index">
@@ -177,8 +177,8 @@ export function StatusPage() {
         {/* Findings Analyzers detail table */}
         {detailed?.findings?.analyzers && Object.keys(detailed.findings.analyzers).length > 0 && (
           <Section title="Analyzers">
-            <div className="border border-aide-border rounded overflow-hidden">
-              <table className="w-full text-xs">
+            <div className="border border-aide-border rounded overflow-x-auto">
+              <table className="w-full min-w-[38rem] text-xs">
                 <thead>
                   <tr className="bg-aide-bg">
                     {["Analyzer", "Status", "Scope", "Findings", "Last Run", "Duration"].map((h) => (
@@ -214,7 +214,7 @@ export function StatusPage() {
         {/* Stores */}
         {detailed?.stores && detailed.stores.length > 0 && (
           <Section title="Stores">
-            <div className="border border-aide-border rounded overflow-hidden">
+            <div className="border border-aide-border rounded overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
                   <tr className="bg-aide-bg">

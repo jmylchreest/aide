@@ -32,10 +32,10 @@ export function Header() {
 
   return (
     <header className="w-full border-b border-aide-border mb-6 bg-aide-bg/95 backdrop-blur-md sticky top-0 z-50">
-      <nav className="flex items-center justify-between min-h-12 px-6">
+      <nav className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 min-h-12 px-3 sm:px-6 py-2">
         <Link
           to="/"
-          className="font-mono font-bold text-sm text-aide-text hover:text-aide-accent transition-colors"
+          className="min-w-0 font-mono font-bold text-sm text-aide-text hover:text-aide-accent transition-colors [overflow-wrap:anywhere]"
         >
           aide-web
           {version && (
@@ -45,7 +45,7 @@ export function Header() {
           )}
         </Link>
 
-        <div className="flex items-center gap-0.5">
+        <div className="flex min-w-0 max-w-full items-center gap-0.5 overflow-x-auto whitespace-nowrap">
           {instances
             .filter(
               (inst) =>

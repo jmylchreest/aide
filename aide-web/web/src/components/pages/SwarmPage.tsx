@@ -128,8 +128,8 @@ export function SwarmPage() {
   };
 
   return (
-    <div className="flex gap-6 h-full">
-      <div className="w-[280px] shrink-0 border-r border-aide-border pr-4">
+    <div className="flex flex-col xl:flex-row gap-6 h-full">
+      <div className="w-full xl:w-[280px] shrink-0 xl:border-r border-aide-border xl:pr-4">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold flex items-center gap-2">
             <Network className="w-4 h-4" />
@@ -233,7 +233,7 @@ export function SwarmPage() {
         </ul>
       </div>
 
-      <div className="flex-1 min-w-0">
+      <div className="w-full flex-1 min-w-0">
         <div className="flex items-center justify-between mb-3">
           <div className="flex gap-1">
             {(Object.keys(PANE_LABEL) as Pane[]).map((p) => (

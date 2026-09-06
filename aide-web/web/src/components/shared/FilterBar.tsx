@@ -28,8 +28,8 @@ export function FilterBar({
   right,
 }: FilterBarProps) {
   return (
-    <div className="flex items-center gap-2 mb-3">
-      <div className="relative flex-1">
+    <div className="flex flex-wrap items-center gap-2 mb-3">
+      <div className="relative min-w-0 flex-1 basis-full sm:basis-48">
         <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-aide-text-dim pointer-events-none" />
         <input
           type="search"
@@ -44,7 +44,8 @@ export function FilterBar({
           key={i}
           value={dd.value}
           onChange={(e) => dd.onChange(e.target.value)}
-          className="bg-aide-surface border border-aide-border rounded px-2 py-1.5 text-xs text-aide-text focus:border-aide-accent outline-hidden"
+          aria-label={dd.placeholder}
+          className="min-w-0 max-w-full bg-aide-surface border border-aide-border rounded px-2 py-1.5 text-xs text-aide-text focus:border-aide-accent outline-hidden"
         >
           <option value="">{dd.placeholder}</option>
           {dd.options.map((opt) => (

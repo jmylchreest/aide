@@ -138,6 +138,7 @@ export interface SearchResult {
 }
 
 export interface TokenEventItem {
+  display_path?: string;
   id: string;
   session_id: string;
   timestamp: string;
@@ -153,6 +154,7 @@ export interface TokenEventItem {
 }
 
 export interface ObserveEventItem {
+  display_path?: string;
   id: string;
   timestamp: string;
   kind: string;

@@ -8,6 +8,7 @@ import { LiveTailButton } from "../shared/LiveTailButton";
 import { formatTimestamp } from "@/lib/format";
 import type { InstinctProposalItem, InstinctStatus } from "@/lib/types";
 import { Check, X, ChevronRight, ChevronDown, Sparkles } from "lucide-react";
+import { PathLabel } from "../shared/PathLabel";
 
 type Tab = "open" | "accepted" | "rejected";
 
@@ -256,13 +257,13 @@ function ProposalRow({ proposal, tab, expanded, onToggle, onChange, project }: P
         ) : (
           <ChevronRight className="w-3 h-3 text-aide-text-dim shrink-0" />
         )}
-        <span className="text-[0.6rem] text-aide-text-dim tabular-nums w-44 shrink-0">
+        <span className="hidden sm:inline text-[0.6rem] text-aide-text-dim tabular-nums shrink-0">
           {formatTimestamp(proposal.proposed_at)}
         </span>
         <span className={`text-[0.6rem] rounded px-1.5 py-0.5 shrink-0 ${colourClass}`}>
           {proposal.shape}
         </span>
-        <span className="text-xs text-aide-text flex-1 truncate">{proposal.summary}</span>
+        <span title={proposal.summary} className="min-w-0 text-xs text-aide-text flex-1 truncate">{proposal.summary}</span>
         {proposal.rejection_count ? (
           <span className="text-[0.6rem] text-aide-text-dim shrink-0">×{proposal.rejection_count}</span>
         ) : null}
@@ -308,7 +309,7 @@ function ProposalRow({ proposal, tab, expanded, onToggle, onChange, project }: P
                     </span>
                     <span className="font-mono text-aide-text">{ev.name}</span>
                     {ev.file_path && (
-                      <span className="text-aide-text-dim truncate">{ev.file_path}</span>
+                      <PathLabel path={ev.file_path} className="flex-1 text-aide-text-dim" />
                     )}
                   </li>
                 ))}

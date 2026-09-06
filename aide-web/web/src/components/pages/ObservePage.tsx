@@ -6,6 +6,7 @@ import { SessionFilterInput } from "../shared/SessionFilterInput";
 import { useObserveEvents } from "@/hooks/useObserveEvents";
 import { formatTimestamp } from "@/lib/format";
 import { ChevronRight, ChevronDown } from "lucide-react";
+import { PathLabel } from "../shared/PathLabel";
 
 const KIND_OPTIONS = [
   { value: "tool_call", label: "tool_call" },
@@ -146,21 +147,22 @@ export function ObservePage({ fixedKind, title }: ObservePageProps = {}) {
                 <button
                   type="button"
                   onClick={() => setExpanded((m) => ({ ...m, [ev.id]: !m[ev.id] }))}
-                  className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-aide-accent/5 text-left"
+                  className="w-full flex flex-wrap lg:flex-nowrap items-center gap-x-3 gap-y-1.5 px-3 py-1.5 hover:bg-aide-accent/5 text-left"
                 >
+                  <span className="flex min-w-0 items-center gap-2">
                   {isOpen ? (
                     <ChevronDown className="w-3 h-3 text-aide-text-dim shrink-0" />
                   ) : (
                     <ChevronRight className="w-3 h-3 text-aide-text-dim shrink-0" />
                   )}
-                  <span className="text-[0.6rem] text-aide-text-dim tabular-nums w-44 shrink-0">
+                  <span className="text-[0.6rem] text-aide-text-dim tabular-nums whitespace-nowrap shrink-0">
                     {formatTimestamp(ev.timestamp)}
                   </span>
                   <span className={`text-[0.6rem] rounded px-1.5 py-0.5 shrink-0 ${kindClass}`}>
                     {ev.kind}
                   </span>
                   {ev.category && (
-                    <span className="text-[0.6rem] text-aide-text-dim shrink-0">
+                    <span className="text-[0.6rem] text-aide-text-dim min-w-0 truncate" title={`${ev.category}${ev.subtype ? `/${ev.subtype}` : ""}`}>
                       {ev.category}
                       {ev.subtype ? `/${ev.subtype}` : ""}
                     </span>
@@ -186,19 +188,18 @@ export function ObservePage({ fixedKind, title }: ObservePageProps = {}) {
                       {sessionId.slice(0, 8)}
                     </span>
                   )}
-                  <span className="text-xs text-aide-text font-mono truncate flex-1">
+                  </span>
+                  <span className="flex flex-wrap sm:flex-nowrap min-w-0 flex-1 basis-full lg:basis-0 items-center gap-x-3 gap-y-1 pl-5 lg:pl-0">
+                  <span title={ev.name} className={`text-xs text-aide-text font-mono truncate min-w-0 ${ev.file_path ? "basis-full sm:basis-auto sm:flex-[0_1_auto] sm:max-w-[50%]" : "flex-1"}`}>
                     {ev.name || <em className="text-aide-text-dim">(unnamed)</em>}
                   </span>
+                  {ev.file_path && <PathLabel path={ev.file_path} displayPath={ev.display_path} className="flex-1 text-[0.65rem] text-aide-text-dim" />}
                   {ev.tokens ? (
                     <span className="text-[0.6rem] text-aide-text-dim tabular-nums shrink-0">
                       {ev.tokens}t
                     </span>
                   ) : null}
-                  {ev.file_path && (
-                    <span className="text-[0.6rem] text-aide-text-dim truncate max-w-[18rem] shrink-0">
-                      {ev.file_path}
-                    </span>
-                  )}
+                  </span>
                 </button>
                 {isOpen && (
                   <pre className="bg-aide-surface text-[0.65rem] text-aide-text-muted p-3 overflow-x-auto border-t border-aide-border">

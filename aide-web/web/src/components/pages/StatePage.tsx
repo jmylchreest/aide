@@ -45,7 +45,7 @@ export function StatePage() {
       {
         key: "value",
         label: "Value",
-        className: "break-all whitespace-pre-wrap max-w-md",
+        className: "whitespace-pre-wrap [overflow-wrap:anywhere]",
       },
       {
         key: "agent",

@@ -8,6 +8,7 @@ import { useObserveEvents } from "@/hooks/useObserveEvents";
 import { formatTimestamp, deltaMs } from "@/lib/format";
 import type { ObserveEventItem } from "@/lib/types";
 import { X, ChevronDown, ChevronRight, ExternalLink } from "lucide-react";
+import { PathLabel } from "../shared/PathLabel";
 
 const GROUP_BUCKET_MS = 5000;
 
@@ -175,7 +176,7 @@ export function InjectionLogPage() {
         <div
           className={
             "grid gap-3 items-start " +
-            (selected ? "grid-cols-[1fr_1fr]" : "grid-cols-1")
+            (selected ? "grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" : "grid-cols-1")
           }
         >
           <div className="space-y-2">
@@ -189,19 +190,17 @@ export function InjectionLogPage() {
                   <button
                     type="button"
                     onClick={() => toggleGroup(group.key)}
-                    className="w-full flex items-center gap-2 px-3 py-1.5 text-left bg-aide-surface hover:bg-aide-accent/5"
+                    className="w-full flex flex-wrap sm:flex-nowrap items-center gap-2 px-3 py-1.5 text-left bg-aide-surface hover:bg-aide-accent/5"
                   >
                     {isCollapsed ? (
                       <ChevronRight className="w-3 h-3 text-aide-text-dim shrink-0" />
                     ) : (
                       <ChevronDown className="w-3 h-3 text-aide-text-dim shrink-0" />
                     )}
-                    <span className="text-[0.6rem] text-aide-text-dim tabular-nums w-44 shrink-0">
+                    <span className="text-[0.6rem] text-aide-text-dim tabular-nums shrink-0">
                       {formatTimestamp(group.firstTimestamp)}
                     </span>
-                    <span className="text-xs text-aide-text font-mono truncate flex-1">
-                      {group.source}
-                    </span>
+                    <PathLabel path={group.source} className="text-xs text-aide-text flex-1 basis-full sm:basis-0" />
                     {group.sessionId && (
                       <span
                         role="button"
@@ -255,7 +254,7 @@ export function InjectionLogPage() {
                             <span className={`text-[0.6rem] rounded px-1.5 py-0.5 shrink-0 ${colourClass}`}>
                               {source}
                             </span>
-                            <span className="text-xs text-aide-text font-mono truncate flex-1">
+                            <span title={ev.name} className="text-xs text-aide-text font-mono truncate min-w-0 flex-1">
                               {ev.name || <em className="text-aide-text-dim">(unnamed)</em>}
                             </span>
                             {score && (
@@ -393,11 +392,11 @@ function InjectionDetail({ event, project, onClose }: InjectionDetailProps) {
           Attributes
         </h3>
         {event.attrs && Object.keys(event.attrs).length > 0 ? (
-          <dl className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1 text-xs">
+          <dl className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-x-3 gap-y-1 text-xs">
             {Object.entries(event.attrs).map(([k, v]) => (
               <div key={k} className="contents">
-                <dt className="text-aide-text-dim font-mono">{k}</dt>
-                <dd className="text-aide-text break-words">{v}</dd>
+                <dt className="min-w-0 text-aide-text-dim font-mono [overflow-wrap:anywhere]">{k}</dt>
+                <dd className="min-w-0 text-aide-text [overflow-wrap:anywhere]">{v}</dd>
               </div>
             ))}
           </dl>
@@ -411,7 +410,7 @@ function InjectionDetail({ event, project, onClose }: InjectionDetailProps) {
           Content preview
         </h3>
         {event.attrs?.content_preview ? (
-          <p className="text-xs text-aide-text-muted whitespace-pre-wrap font-mono">
+          <p className="text-xs text-aide-text-muted whitespace-pre-wrap font-mono [overflow-wrap:anywhere]">
             {event.attrs.content_preview}
           </p>
         ) : (
@@ -448,9 +447,7 @@ function InjectionDetail({ event, project, onClose }: InjectionDetailProps) {
                 </span>
                 <span className="font-mono text-aide-text">{call.name}</span>
                 {call.file_path && (
-                  <span className="text-[0.6rem] text-aide-text-dim truncate">
-                    {call.file_path}
-                  </span>
+                  <PathLabel path={call.file_path} displayPath={call.display_path} className="flex-1 text-[0.6rem] text-aide-text-dim" />
                 )}
                 {call.tokens ? (
                   <span className="text-[0.6rem] text-aide-text-dim tabular-nums ml-auto">
@@ -465,4 +462,3 @@ function InjectionDetail({ event, project, onClose }: InjectionDetailProps) {
     </div>
   );
 }
-

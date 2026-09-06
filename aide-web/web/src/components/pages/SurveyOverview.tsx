@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import type { SurveyItem } from "@/lib/types";
+import { PathLabel } from "../shared/PathLabel";
 
 interface Props {
   entries: SurveyItem[];
@@ -104,7 +105,7 @@ export function SurveyOverview({ entries, onModuleSelect }: Props) {
                 key={m.name}
                 onClick={() => onModuleSelect(m.topDir || m.name)}
                 title={`Browse ${m.name}'s files in the list view`}
-                className="text-left p-3 rounded-md bg-aide-surface border border-aide-border hover:border-aide-accent-dim transition-colors"
+                className="min-w-0 text-left p-3 rounded-md bg-aide-surface border border-aide-border hover:border-aide-accent-dim transition-colors"
               >
                 <div className="flex items-baseline justify-between gap-2">
                   <span className="text-sm text-aide-text font-medium truncate">
@@ -114,9 +115,7 @@ export function SurveyOverview({ entries, onModuleSelect }: Props) {
                     {m.size} files
                   </span>
                 </div>
-                <code className="block bg-transparent px-0 text-[11px] text-aide-text-dim truncate mt-0.5">
-                  hub {m.hub}
-                </code>
+                <div className="flex min-w-0 gap-1 text-[11px] text-aide-text-dim mt-0.5"><span>hub</span><PathLabel path={m.hub} /></div>
                 <div
                   className="mt-2 h-1 bg-aide-surface-hover rounded-full overflow-hidden"
                   title={`${Math.round((m.size / total) * 100)}% of clustered files`}
@@ -144,13 +143,9 @@ export function SurveyOverview({ entries, onModuleSelect }: Props) {
             {churn.map((c) => {
               const max = churn[0].commits || 1;
               return (
-                <div key={c.file} className="flex items-center gap-3 text-xs">
-                  <div className="w-40 sm:w-64 shrink-0 truncate">
-                    <code className="bg-transparent px-0 text-aide-text-muted">
-                      {c.file}
-                    </code>
-                  </div>
-                  <div className="flex-1 h-3 bg-aide-surface rounded-sm overflow-hidden">
+                <div key={c.file} className="grid grid-cols-[minmax(0,3fr)_minmax(0,2fr)_auto] items-center gap-3 text-xs">
+                  <PathLabel path={c.file} className="text-aide-text-muted" />
+                  <div className="h-3 bg-aide-surface rounded-sm overflow-hidden">
                     <div
                       className="h-full bg-aide-accent-dim/70 rounded-sm"
                       style={{ width: `${(c.commits / max) * 100}%` }}

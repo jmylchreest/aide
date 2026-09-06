@@ -7,6 +7,7 @@ import { FilterBar } from "../shared/FilterBar";
 import { SortableTable, type Column } from "../shared/SortableTable";
 import { Badge } from "../shared/ExpandableCard";
 import { CodeViewer } from "../shared/CodeViewer";
+import { PathLabel } from "../shared/PathLabel";
 import { Eye, EyeOff, Check } from "lucide-react";
 import type { FindingItem } from "@/lib/types";
 
@@ -60,6 +61,7 @@ export function FindingsPage() {
     {
       key: "severity",
       label: "Severity",
+      width: "6rem",
       sortValue: (row: FindingItem) => severityOrder[row.severity] ?? 99,
       render: (row: FindingItem) => (
         <span className={cn("text-xs", severityStyles[row.severity] ?? "text-aide-text-muted")}>
@@ -70,11 +72,13 @@ export function FindingsPage() {
     {
       key: "analyzer",
       label: "Analyzer",
+      width: "7rem",
       render: (row: FindingItem) => <Badge label={row.analyzer} variant="accent" />,
     },
     {
       key: "category",
       label: "Category",
+      width: "8rem",
       render: (row: FindingItem) => <Badge label={row.category} variant="muted" />,
     },
     {
@@ -89,6 +93,7 @@ export function FindingsPage() {
     {
       key: "file_path",
       label: "File",
+      width: "36%",
       render: (row: FindingItem) => (
         <button
           onClick={() => {
@@ -96,19 +101,21 @@ export function FindingsPage() {
             setViewerLine(row.line);
             setViewerTitle(row.title);
           }}
-          className="bg-transparent px-0 break-all text-aide-text-dim hover:text-aide-accent transition-colors text-left font-mono text-[inherit]"
+          className="block w-full min-w-0 bg-transparent px-0 text-aide-text-dim hover:text-aide-accent transition-colors text-left text-[inherit]"
         >
-          {row.file_path}
+          <PathLabel path={row.file_path} />
         </button>
       ),
     },
     {
       key: "line",
       label: "Line",
+      width: "4rem",
       sortValue: (row: FindingItem) => row.line,
     },
     {
       key: "_actions",
+      width: "3rem",
       label: "",
       sortable: false,
       className: "w-8",
@@ -206,6 +213,7 @@ export function FindingsPage() {
         <SortableTable
           data={filtered}
           columns={columns}
+          minWidth="56rem"
           keyFn={(row) => row.id}
           emptyMessage="No findings match your filters."
         />

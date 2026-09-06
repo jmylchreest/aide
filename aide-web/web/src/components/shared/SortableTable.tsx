@@ -14,6 +14,7 @@ export interface Column<T> {
   sortable?: boolean;
   className?: string;
   headerClassName?: string;
+  width?: string;
   render?: (row: T) => React.ReactNode;
   sortValue?: (row: T) => string | number;
 }
@@ -26,6 +27,7 @@ interface SortableTableProps<T> {
   pageSize?: number;
   defaultSortKey?: string;
   defaultSortDir?: SortDir;
+  minWidth?: string;
 }
 
 type SortDir = "asc" | "desc";
@@ -40,6 +42,7 @@ export function SortableTable<T extends Record<string, any>>({
   pageSize: initialPageSize = 50,
   defaultSortKey,
   defaultSortDir = "asc",
+  minWidth,
 }: SortableTableProps<T>) {
   const [sortKey, setSortKey] = useState<string | null>(defaultSortKey ?? null);
   const [sortDir, setSortDir] = useState<SortDir>(defaultSortDir);
@@ -91,7 +94,9 @@ export function SortableTable<T extends Record<string, any>>({
 
   return (
     <div className="border border-aide-border rounded overflow-hidden mb-6">
-      <table className="w-full text-xs">
+      <div className="overflow-x-auto">
+      <table className="w-full text-xs" style={{ minWidth, tableLayout: columns.some((col) => col.width) ? "fixed" : "auto" }}>
+        <colgroup>{columns.map((col) => <col key={col.key} style={{ width: col.width }} />)}</colgroup>
         <thead>
           <tr className="bg-aide-surface">
             {columns.map((col) => (
@@ -136,7 +141,7 @@ export function SortableTable<T extends Record<string, any>>({
               {columns.map((col) => (
                 <td
                   key={col.key}
-                  className={cn("px-2.5 py-1.5 text-aide-text-muted", col.className)}
+                  className={cn("px-2.5 py-1.5 text-aide-text-muted [overflow-wrap:anywhere]", col.className)}
                 >
                   {col.render ? col.render(row) : String(row[col.key] ?? "")}
                 </td>
@@ -145,6 +150,7 @@ export function SortableTable<T extends Record<string, any>>({
           ))}
         </tbody>
       </table>
+      </div>
 
       {showPagination && (
         <div className="flex items-center justify-between px-2.5 py-2 bg-aide-surface border-t border-aide-border text-xs text-aide-text-dim">

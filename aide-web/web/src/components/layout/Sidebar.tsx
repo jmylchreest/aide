@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import {
   Activity,
@@ -76,8 +76,14 @@ interface SidebarProps {
 }
 
 export function Sidebar({ project }: SidebarProps) {
+  const location = useLocation();
+  const navigate = useNavigate();
   return (
-    <aside className="w-[170px] shrink-0 pr-3 border-r border-aide-border mr-6 sticky top-16 pt-1">
+    <aside className="w-full md:w-[170px] shrink-0 md:pr-3 md:border-r border-aide-border md:mr-6 md:sticky md:top-16 pt-1 mb-3 md:mb-0">
+      <select aria-label="Project view" value={location.pathname.split('/').pop()} onChange={(event) => navigate(`/instances/${encodeURIComponent(project)}/${event.target.value}`)} className="md:hidden w-full bg-aide-surface border border-aide-border rounded px-3 py-2 text-xs text-aide-text">
+        {navGroups.map((group) => <optgroup key={group.label} label={group.label}>{group.items.map((item) => <option key={item.to} value={item.to}>{item.label}</option>)}</optgroup>)}
+      </select>
+      <div className="hidden md:block">
       {navGroups.map((group) => (
         <div key={group.label} className="mb-3 last:mb-0">
           <div className="px-2.5 mb-1 text-[10px] font-semibold uppercase tracking-wider text-aide-text-dim">
@@ -102,6 +108,7 @@ export function Sidebar({ project }: SidebarProps) {
           ))}
         </div>
       ))}
+      </div>
     </aside>
   );
 }

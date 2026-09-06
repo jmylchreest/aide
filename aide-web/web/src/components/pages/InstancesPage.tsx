@@ -4,6 +4,7 @@ import { useApi } from "@/hooks/use-api";
 import { SortableTable, type Column } from "../shared/SortableTable";
 import { StatusBadge } from "../shared/StatusBadge";
 import type { InstanceInfo } from "@/lib/types";
+import { PathLabel } from "../shared/PathLabel";
 
 /** Estate relationships derived from anchor-chain parents. */
 function estateLookup(instances: InstanceInfo[]) {
@@ -86,11 +87,10 @@ function makeColumns(
     {
       key: "project_root",
       label: "Path",
+      width: "40%",
       sortable: true,
       render: (row) => (
-        <code className="text-aide-text-dim bg-transparent px-0">
-          {row.project_root}
-        </code>
+        <PathLabel path={row.project_root} className="text-aide-text-dim" />
       ),
     },
     {
@@ -102,6 +102,7 @@ function makeColumns(
     {
       key: "actions",
       label: "Actions",
+      width: "12rem",
       sortable: false,
       headerClassName: "text-right",
       render: (row) => {
@@ -299,6 +300,7 @@ export function InstancesPage() {
         <SortableTable
           data={instances}
           columns={columns}
+          minWidth="56rem"
           keyFn={(row) => row.slug}
           defaultSortKey="project_name"
           emptyMessage="No aide instances discovered. Start aide in a project to see it here. Instances register automatically when aide starts."

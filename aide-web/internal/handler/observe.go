@@ -24,6 +24,7 @@ type ObserveEventItem struct {
 	Tokens      int               `json:"tokens,omitempty"`
 	TokensSaved int               `json:"tokens_saved,omitempty"`
 	FilePath    string            `json:"file_path,omitempty"`
+	DisplayPath string            `json:"display_path,omitempty"`
 	Parent      string            `json:"parent,omitempty"`
 	SessionID   string            `json:"session_id,omitempty"`
 	Error       string            `json:"error,omitempty"`
@@ -79,8 +80,11 @@ func (h *Handler) APIListObserveEvents(ctx context.Context, input *struct {
 
 	out := &ListObserveEventsOutput{}
 	out.Body.Events = make([]ObserveEventItem, 0, len(events))
+	displayPath := newDisplayPath(inst.ProjectRoot())
 	for _, e := range events {
-		out.Body.Events = append(out.Body.Events, observeEventToItem(e))
+		item := observeEventToItem(e)
+		item.DisplayPath = displayPath(e.FilePath)
+		out.Body.Events = append(out.Body.Events, item)
 	}
 	return out, nil
 }
@@ -124,12 +128,14 @@ func (h *Handler) APIWatchObserveEvents(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	displayPath := newDisplayPath(inst.ProjectRoot())
 	_ = StreamSSE(w, r, func() (*ObserveEventItem, error) {
 		ev, err := stream.Recv()
 		if err != nil {
 			return nil, err
 		}
 		item := protoToObserveEventItem(ev)
+		item.DisplayPath = displayPath(item.FilePath)
 		return &item, nil
 	}, func(item *ObserveEventItem) string {
 		return item.ID
