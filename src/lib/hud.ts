@@ -16,7 +16,8 @@ import { join } from "path";
 import { tmpdir } from "os";
 import { execFileSync } from "child_process";
 import { runAide, findAideBinary } from "./hook-utils.js";
-import { findProjectRoot } from "./project-root.js";
+import { getAnchoredRoot } from "./anchor.js";
+import { loadGlobalConfig } from "../core/session-init.js";
 
 // Cache the aide version for the session (won't change)
 let aideVersionCache: string | null = null;
@@ -263,8 +264,8 @@ export function getAgentStates(cwd: string): AgentState[] {
 /**
  * Load HUD configuration
  */
-export function loadHudConfig(cwd: string): HudConfig {
-  const { root } = findProjectRoot(cwd);
+export function loadHudConfig(cwd: string, sessionId?: string): HudConfig {
+  const { root } = getAnchoredRoot({ sessionId, cwd });
   const configPath = join(root, ".aide", "config", "hud.json");
 
   if (existsSync(configPath)) {
@@ -570,8 +571,17 @@ export function formatHud(
 /**
  * Write HUD output to state file
  */
-export function writeHudOutput(cwd: string, output: string): void {
-  const { root } = findProjectRoot(cwd);
+export function writeHudOutput(
+  cwd: string,
+  output: string,
+  sessionId?: string,
+): void {
+  const { root, hasMarker } = getAnchoredRoot({ sessionId, cwd });
+  // Same gate as skill-injector, session-start and the Go binary: creating
+  // .aide/ in an unmarked directory plants a project root wherever a hook
+  // happened to run, and every later walk-up beneath it resolves there.
+  if (!hasMarker && (loadGlobalConfig().requireGit ?? true)) return;
+
   const stateDir = join(root, ".aide", "state");
   if (!existsSync(stateDir)) {
     try {
@@ -594,7 +604,7 @@ export function writeHudOutput(cwd: string, output: string): void {
  * Can be called from any hook that needs to trigger a HUD update.
  */
 export function refreshHud(cwd: string, sessionId?: string): void {
-  const config = loadHudConfig(cwd);
+  const config = loadHudConfig(cwd, sessionId);
   const state = getSessionState(cwd, sessionId);
   const allAgents = getAgentStates(cwd);
 
@@ -604,5 +614,5 @@ export function refreshHud(cwd: string, sessionId?: string): void {
     : [];
 
   const hudOutput = formatHud(config, state, agents, cwd);
-  writeHudOutput(cwd, hudOutput);
+  writeHudOutput(cwd, hudOutput, sessionId);
 }
