@@ -7,16 +7,22 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
+	"github.com/jmylchreest/aide/aide-web/internal/handler"
 	"github.com/jmylchreest/aide/aide-web/internal/instance"
 	"github.com/jmylchreest/aide/aide-web/internal/server"
 	"github.com/pkg/browser"
 )
 
 func main() {
+	if len(os.Args) > 1 && (os.Args[1] == "version" || os.Args[1] == "--version") {
+		fmt.Println(handler.Version)
+		return
+	}
 	cfg := parseFlags()
 
 	mgr, err := instance.NewManager()

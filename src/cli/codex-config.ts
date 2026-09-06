@@ -25,9 +25,9 @@ const MCP_SERVER_NAME = "aide";
 const AIDE_PLUGIN_BIN_NAME = "aide-plugin";
 
 /** Check if a hook command belongs to aide (matches both global install and local dev paths). */
-function isAideHookCommand(command?: string): boolean {
+export function isAideHookCommand(command?: string): boolean {
   if (!command) return false;
-  return command.includes(AIDE_PLUGIN_BIN_NAME) || command.includes("index.ts hook");
+  return command.includes(AIDE_PLUGIN_BIN_NAME) || /index\.ts["']? hook/.test(command);
 }
 
 /**
@@ -173,7 +173,7 @@ interface CodexHooksJson {
   hooks: Record<string, CodexHookMatcher[]>;
 }
 
-function generateHooksJson(hookPrefix: string): CodexHooksJson {
+export function generateHooksJson(hookPrefix: string): CodexHooksJson {
   return {
     hooks: {
       SessionStart: [
@@ -368,17 +368,20 @@ function dirsEqual(src: string, dest: string): boolean {
  * Skills we previously copied (per the manifest) are updated or removed to
  * match the bundle; directories we don't own are skipped, never overwritten.
  */
-export function installCodexSkills(scope: "user" | "project"): CodexSkillsResult {
+export function installCodexSkills(
+  scope: "user" | "project",
+  paths: { source?: string; destination?: string } = {},
+): CodexSkillsResult {
   const result: CodexSkillsResult = {
     installed: [],
     updated: [],
     removed: [],
     skipped: [],
   };
-  const src = getBundledSkillsDir();
+  const src = paths.source ?? getBundledSkillsDir();
   if (!src) return result;
 
-  const dest = getCodexSkillsDir(scope);
+  const dest = paths.destination ?? getCodexSkillsDir(scope);
   mkdirSync(dest, { recursive: true });
   const owned = new Set(readSkillsManifest(dest));
   const synced: string[] = [];

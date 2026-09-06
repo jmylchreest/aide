@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # aide-dev-toggle.sh — Switch aide between local dev and published/marketplace mode
 #
-# Supports both OpenCode and Claude Code simultaneously.
+# Supports OpenCode, Claude Code, and Codex simultaneously.
 #
 # Usage:
 #   ./aide-dev-toggle.sh          Toggle between dev <-> prod
@@ -18,6 +18,12 @@
 #     - Builds the Go binary to bin/aide with correct LDFLAGS
 #     - Patches installed_plugins.json installPath to this repo
 #     - Symlinks .aide/bin/aide to local build
+#   Codex:
+#     - Points MCP directly at bin/aide and hooks at src/cli/index.ts
+#     - Disables aide marketplace plugins and syncs local skills
+#     - Saves the original setup under each config directory
+#   Dashboard:
+#     - Selects bin/aide-web for aide dashboard (restart required)
 #
 # Prod mode:
 #   OpenCode:
@@ -26,6 +32,10 @@
 #   Claude Code:
 #     - Restores installed_plugins.json installPath to cached marketplace version
 #     - Removes local .aide/bin/aide symlink (wrapper will re-download)
+#   Codex:
+#     - Restores saved MCP, hooks, plugin enablement, and skill copies
+#   Dashboard:
+#     - Removes the local selection so aide dashboard uses its published install
 #
 # Note: A Claude Code marketplace upgrade will overwrite the dev installPath,
 # effectively reverting to prod. Re-run this script to switch back to dev.
@@ -48,6 +58,7 @@ CC_PLUGINS_DIR="$HOME/.claude/plugins"
 CC_INSTALLED="$CC_PLUGINS_DIR/installed_plugins.json"
 CC_PLUGIN_KEY="aide@aide"
 CC_MCP_JSON="$REPO_ROOT/.mcp.json"
+WEB_DEV_PATH="$HOME/.aide/dashboard-dev.path"
 
 # Colors
 RED='\033[0;31m'
@@ -61,6 +72,37 @@ info()  { echo -e "${CYAN}[info]${NC}  $*"; }
 ok()    { echo -e "${GREEN}[ok]${NC}    $*"; }
 warn()  { echo -e "${YELLOW}[warn]${NC}  $*"; }
 err()   { echo -e "${RED}[err]${NC}   $*" >&2; }
+
+cx_run() {
+    if ! command -v bun >/dev/null 2>&1; then
+        err "Bun is required for Codex dev toggle support (run bun install in the repo)"
+        return 1
+    fi
+    bun "$REPO_ROOT/scripts/codex-dev-toggle.ts" "$1" "$REPO_ROOT"
+}
+
+web_validate() {
+    if [[ -f "$WEB_DEV_PATH" ]]; then
+        local selected
+        selected=$(cat "$WEB_DEV_PATH")
+        if [[ "$selected" != "$REPO_ROOT_PHYS/bin/aide-web" && "$selected" != "$REPO_ROOT/bin/aide-web" ]]; then
+            err "Dashboard dev mode belongs to $selected; switch that checkout to prod first"
+            return 1
+        fi
+    fi
+}
+
+web_patch() {
+    web_validate
+    if [[ "$1" == "dev" ]]; then
+        mkdir -p "$(dirname "$WEB_DEV_PATH")"
+        printf '%s\n' "$REPO_ROOT_PHYS/bin/aide-web" > "$WEB_DEV_PATH"
+        ok "Dashboard -> dev (aide dashboard uses bin/aide-web)"
+    else
+        rm -f "$WEB_DEV_PATH"
+        ok "Dashboard -> prod (aide dashboard uses the published install)"
+    fi
+}
 
 # --------------------------------------------------------------------------
 # OpenCode: Detect current mode from a config file
@@ -177,17 +219,21 @@ build_binary() {
     version=$("$REPO_ROOT/bin/aide" version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.+]+)?' | head -1 || echo "unknown")
     ok "Built bin/aide ${BOLD}v${version}${NC}"
 
-    # Update .aide/bin/aide symlink so hooks find the local build
+    info "Building aide-web binary..."
+    if ! make -C "$REPO_ROOT" build-web 2>&1; then
+        err "aide-web build failed"
+        return 1
+    elif [[ -x "$REPO_ROOT/bin/aide-web" ]]; then
+        ok "Built bin/aide-web"
+    else
+        err "Binary not found at bin/aide-web after build"
+        return 1
+    fi
+
+    # Switch hook resolution only after both builds succeed.
     mkdir -p "$REPO_ROOT/.aide/bin"
     ln -sf "$REPO_ROOT/bin/aide" "$REPO_ROOT/.aide/bin/aide"
     ok "Symlinked .aide/bin/aide -> bin/aide"
-
-    info "Building aide-web binary..."
-    if ! make -C "$REPO_ROOT" build-web 2>&1; then
-        warn "aide-web build failed (non-fatal)"
-    elif [[ -x "$REPO_ROOT/bin/aide-web" ]]; then
-        ok "Built bin/aide-web"
-    fi
 }
 
 # --------------------------------------------------------------------------
@@ -586,6 +632,19 @@ show_status() {
         fi
     fi
 
+    # --- Codex ---
+    echo ""
+    echo -e "  ${BOLD}Codex${NC}"
+    cx_run status
+
+    echo ""
+    echo -e "  ${BOLD}Dashboard${NC}"
+    if [[ -f "$WEB_DEV_PATH" ]]; then
+        echo -e "    Mode: ${GREEN}dev${NC} ($(cat "$WEB_DEV_PATH"))"
+    else
+        echo -e "    Mode: ${CYAN}prod${NC} (published install)"
+    fi
+
     # --- Shared ---
     echo ""
     echo -e "  ${BOLD}Shared${NC}"
@@ -631,25 +690,25 @@ case "$ACTION" in
         exit 0
         ;;
     "")
-        # No argument: toggle — but only if both platforms agree on current state
+        # No argument: toggle only when installed platforms agree.
         oc_mode=$(oc_detect_mode "$OC_GLOBAL_CONFIG")
         cc_mode=$(cc_detect_mode)
+        cx_mode=$(cx_run mode)
+        web_mode="prod"
+        [[ -f "$WEB_DEV_PATH" ]] && web_mode="dev"
 
         # Normalise: treat not-installed/unknown as "ignore" for consensus
-        _oc="$oc_mode"; _cc="$cc_mode"
-        [[ "$_oc" == "unknown" ]] && _oc=""
-        [[ "$_cc" == "unknown" || "$_cc" == "not-installed" ]] && _cc=""
-
-        if [[ -n "$_oc" && -n "$_cc" && "$_oc" != "$_cc" ]]; then
-            err "OpenCode is ${BOLD}$oc_mode${NC} but Claude Code is ${BOLD}$cc_mode${NC}"
-            err "Use an explicit target to resolve: $0 dev  OR  $0 prod"
-            echo ""
-            show_status
-            exit 1
-        fi
-
-        # Use whichever has a known state (or both agree)
-        current="${_oc:-$_cc}"
+        current=""
+        for mode in "$oc_mode" "$cc_mode" "$cx_mode" "$web_mode"; do
+            [[ "$mode" == "unknown" || "$mode" == "not-installed" ]] && continue
+            if [[ "$mode" == "mixed" || ( -n "$current" && "$mode" != "$current" ) ]]; then
+                err "Modes disagree: OpenCode=$oc_mode Claude Code=$cc_mode Codex=$cx_mode Dashboard=$web_mode"
+                err "Use an explicit target to resolve: $0 dev  OR  $0 prod"
+                show_status
+                exit 1
+            fi
+            current="$mode"
+        done
         if [[ "$current" == "dev" ]]; then
             TARGET="prod"
         else
@@ -661,6 +720,10 @@ case "$ACTION" in
         exit 1
         ;;
 esac
+
+# Validate Codex config and snapshot ownership before changing other platforms.
+cx_run mode >/dev/null
+web_validate
 
 echo ""
 echo -e "${BOLD}Switching to ${TARGET} mode${NC}"
@@ -683,6 +746,15 @@ echo -e "${BOLD}Claude Code${NC}"
 cc_patch_plugins "$TARGET"
 cc_patch_mcp "$TARGET"
 
+# --- Codex ---
+echo ""
+echo -e "${BOLD}Codex${NC}"
+cx_run "$TARGET"
+
+echo ""
+echo -e "${BOLD}Dashboard${NC}"
+web_patch "$TARGET"
+
 # Clean up .aide/bin/aide symlink when going to prod
 if [[ "$TARGET" == "prod" ]]; then
     if [[ -L "$REPO_ROOT/.aide/bin/aide" ]]; then
@@ -696,10 +768,11 @@ fi
 
 echo ""
 show_status
+info "Restart the dashboard with aide dashboard to pick up its selected build"
 
 if [[ "$TARGET" == "dev" ]]; then
-    info "Restart OpenCode and/or Claude Code to pick up changes"
+    info "Restart OpenCode, Claude Code, and/or Codex to pick up changes"
 else
-    info "Restart OpenCode and/or Claude Code to pick up changes"
+    info "Restart OpenCode, Claude Code, and/or Codex to pick up changes"
     info "Run ${BOLD}./aide-dev-toggle.sh dev${NC} to switch back"
 fi

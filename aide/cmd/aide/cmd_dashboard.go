@@ -2,6 +2,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/jmylchreest/aide/aide/pkg/anchor"
 
@@ -46,7 +48,7 @@ func cmdDashboard(args []string) error {
 // dashboardRun ensures aide-web is installed and executes it, passing through
 // any remaining flags (--port, --addr, --open, etc.).
 func dashboardRun(args []string) error {
-	webPath, err := aideWebPath()
+	webPath, err := aideWebRunPath()
 	if err != nil {
 		return err
 	}
@@ -157,7 +159,7 @@ Options:
 
 // dashboardVersion prints the installed aide-web version.
 func dashboardVersion() error {
-	webPath, err := aideWebPath()
+	webPath, err := aideWebRunPath()
 	if err != nil {
 		return err
 	}
@@ -167,6 +169,54 @@ func dashboardVersion() error {
 		fmt.Println("aide-web: not installed")
 	} else {
 		fmt.Printf("aide-web: %s\n", ver)
+	}
+	return nil
+}
+
+// Running may select a local build independently of the download destination.
+func aideWebRunPath() (string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	devPath, err := readDashboardDevPath(filepath.Join(homeDir, ".aide", "dashboard-dev.path"))
+	if err != nil || devPath != "" {
+		return devPath, err
+	}
+	return aideWebPath()
+}
+
+func readDashboardDevPath(pointer string) (string, error) {
+	data, err := os.ReadFile(pointer)
+	if errors.Is(err, os.ErrNotExist) {
+		return "", nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("read dashboard dev path: %w", err)
+	}
+	path := strings.TrimSpace(string(data))
+	if !filepath.IsAbs(path) {
+		return "", fmt.Errorf("invalid dashboard dev path in %s; re-run aide-dev-toggle.sh dev or prod", pointer)
+	}
+	info, err := os.Stat(path)
+	if err != nil || info.IsDir() {
+		return "", fmt.Errorf("dashboard dev build missing at %s; re-run aide-dev-toggle.sh dev or prod", path)
+	}
+	return path, nil
+}
+
+// A local aide binary can sit beside the selected dashboard. Keep downloads
+// from replacing that build, including when either path uses a symlink.
+func validateDashboardDownloadPath(destPath, pointer string) error {
+	devPath, err := readDashboardDevPath(pointer)
+	if err != nil || devPath == "" {
+		return err
+	}
+	devInfo, devErr := os.Stat(devPath)
+	destInfo, destErr := os.Stat(destPath)
+	if filepath.Clean(destPath) == filepath.Clean(devPath) ||
+		(devErr == nil && destErr == nil && os.SameFile(devInfo, destInfo)) {
+		return fmt.Errorf("refusing to overwrite selected dashboard dev build at %s; switch to prod before downloading", devPath)
 	}
 	return nil
 }
@@ -222,8 +272,14 @@ func getAideWebBinaryName() string {
 // the current aide version when targetVersion is empty) and installs it to
 // destPath.
 func downloadAideWeb(targetVersion, destPath string) error {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return err
+	}
+	if err := validateDashboardDownloadPath(destPath, filepath.Join(homeDir, ".aide", "dashboard-dev.path")); err != nil {
+		return err
+	}
 	var release *GitHubRelease
-	var err error
 
 	switch {
 	case targetVersion != "":
@@ -311,7 +367,10 @@ func getInstalledAideWebVersion(webPath string) string {
 		return ""
 	}
 
-	cmd := exec.Command(webPath, "version")
+	// Older dashboards did not implement `version` and would start a server.
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, webPath, "version")
 	out, err := cmd.Output()
 	if err != nil {
 		return ""

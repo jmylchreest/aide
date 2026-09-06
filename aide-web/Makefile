@@ -12,7 +12,7 @@ GOMOD=$(GOCMD) mod
 GOFMT=gofmt
 GOLINT=golangci-lint
 
-VERSION_PKG=github.com/jmylchreest/aide/aide/internal/version
+VERSION_PKG=github.com/jmylchreest/aide/aide-web/internal/handler
 GIT_COMMIT := $(shell git rev-parse HEAD 2>/dev/null || echo unknown)
 GIT_SHORT  := $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 BUILD_DATE := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
@@ -30,9 +30,7 @@ else
 endif
 
 LDFLAGS=-ldflags "-s -w \
-  -X $(VERSION_PKG).Version=$(DEV_VERSION) \
-  -X $(VERSION_PKG).Commit=$(GIT_COMMIT) \
-  -X $(VERSION_PKG).Date=$(BUILD_DATE)"
+  -X $(VERSION_PKG).Version=$(DEV_VERSION)"
 
 all: fmt lint test web build
 

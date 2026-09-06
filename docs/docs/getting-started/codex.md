@@ -53,6 +53,45 @@ Re-running the installer also repairs stale entries whose commands no longer res
 bunx @jmylchreest/aide-plugin@latest status --platform codex
 ```
 
+## Local Development Builds
+
+From an aide checkout with dependencies installed (`bun install`), use the same
+toggle as OpenCode and Claude Code:
+
+```bash
+./aide-dev-toggle.sh status
+./aide-dev-toggle.sh dev
+./aide-dev-toggle.sh prod
+./aide-dev-toggle.sh       # toggle when installed platforms agree
+```
+
+Dev mode builds the local Go binary and switches configured Codex installations
+to `bin/aide`, local TypeScript hooks, and local skill copies. Marketplace aide
+plugins are temporarily disabled to prevent duplicate MCP servers and skills.
+In dev mode, skills use standalone names rather than the `aide:` namespace.
+Re-run `dev` after changing Go code or skills; hooks run directly from source.
+
+Prod mode restores the saved MCP entry, aide hooks, plugin enablement, and skill
+copies. Unrelated MCP servers, hooks, and config settings are preserved, including
+changes made while dev mode was active. User-owned skills are left alone.
+For older installs already pointing at this checkout without a saved production
+setup, local MCP and hook commands switch to the published npm package.
+
+The toggle checks both `~/.codex` (or `CODEX_HOME`) and the checkout's `.codex`
+directory, skipping installations without aide. Restoration data lives in
+`aide-dev-toggle/` under each affected config directory; keep it until switching
+back to prod. Restart Codex after switching. Any existing aide daemon must also
+exit before a new session can start it with the selected build.
+
+The same toggle also selects the dashboard build. Dev mode builds aide-web's
+frontend and Go server, then records the local binary in
+`~/.aide/dashboard-dev.path`. `aide dashboard` uses that selection; prod removes
+it and returns to the published dashboard beside the running aide binary.
+Downloads and upgrades never overwrite the selected local build. Restart the
+dashboard after switching; the header and `aide-web version` identify its build.
+With an older system aide that predates this selector, launch through the newly
+built `./bin/aide dashboard` in the checkout.
+
 ## Sandboxed Shells and the aide Daemon
 
 aide's daemon is the MCP server process itself: the first `aide mcp` in a project owns the stores and listens on `.aide/aide.sock`; every other aide process (CLI commands, hooks, later MCP servers) attaches to it over that socket.
