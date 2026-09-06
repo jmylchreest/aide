@@ -119,7 +119,7 @@ func (s *MCPServer) handleTaskCreate(_ context.Context, _ *mcp.CallToolRequest, 
 		Status:      memory.TaskStatusPending,
 	}
 
-	if err := s.store.CreateTask(task); err != nil {
+	if err := s.store().CreateTask(task); err != nil {
 		mcpLog.Printf("  error: %v", err)
 		return errorResult(fmt.Sprintf("create task failed: %v", err)), nil, nil
 	}
@@ -135,7 +135,7 @@ func (s *MCPServer) handleTaskGet(_ context.Context, _ *mcp.CallToolRequest, inp
 		return errorResult("'id' is required"), nil, nil
 	}
 
-	task, err := s.store.GetTask(input.ID)
+	task, err := s.store().GetTask(input.ID)
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			return textResult(fmt.Sprintf("Task not found: %s", input.ID)), nil, nil
@@ -151,7 +151,7 @@ func (s *MCPServer) handleTaskGet(_ context.Context, _ *mcp.CallToolRequest, inp
 func (s *MCPServer) handleTaskList(_ context.Context, _ *mcp.CallToolRequest, input TaskListInput) (*mcp.CallToolResult, any, error) {
 	mcpLog.Printf("tool: task_list status=%s", input.Status)
 
-	tasks, err := s.store.ListTasks(memory.TaskStatus(input.Status))
+	tasks, err := s.store().ListTasks(memory.TaskStatus(input.Status))
 	if err != nil {
 		mcpLog.Printf("  error: %v", err)
 		return errorResult(fmt.Sprintf("list tasks failed: %v", err)), nil, nil
@@ -179,7 +179,7 @@ func (s *MCPServer) handleTaskClaim(_ context.Context, _ *mcp.CallToolRequest, i
 		return errorResult("'agent_id' is required"), nil, nil
 	}
 
-	task, err := s.store.ClaimTask(input.TaskID, input.AgentID)
+	task, err := s.store().ClaimTask(input.TaskID, input.AgentID)
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			return errorResult(fmt.Sprintf("task not found: %s", input.TaskID)), nil, nil
@@ -202,7 +202,7 @@ func (s *MCPServer) handleTaskComplete(_ context.Context, _ *mcp.CallToolRequest
 		return errorResult("'task_id' is required"), nil, nil
 	}
 
-	if err := s.store.CompleteTask(input.TaskID, input.Result); err != nil {
+	if err := s.store().CompleteTask(input.TaskID, input.Result); err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			return errorResult(fmt.Sprintf("task not found: %s", input.TaskID)), nil, nil
 		}
@@ -221,7 +221,7 @@ func (s *MCPServer) handleTaskDelete(_ context.Context, _ *mcp.CallToolRequest, 
 		return errorResult("'id' is required"), nil, nil
 	}
 
-	if err := s.store.DeleteTask(input.ID); err != nil {
+	if err := s.store().DeleteTask(input.ID); err != nil {
 		mcpLog.Printf("  error: %v", err)
 		return errorResult(fmt.Sprintf("delete task failed: %v", err)), nil, nil
 	}

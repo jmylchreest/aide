@@ -165,13 +165,11 @@ func (m *mockSurveyStore) Close() error { return nil }
 // =============================================================================
 
 func newTestMCPServer(ss *mockSurveyStore) *MCPServer {
-	return &MCPServer{
-		surveyStore: ss,
-	}
+	return newMCPServer(&mcpBackend{surveyStore: ss})
 }
 
 func TestHandleSurveySearch_NilStore(t *testing.T) {
-	s := &MCPServer{surveyStore: nil}
+	s := newMCPServer(nil)
 	result, _, err := s.handleSurveySearch(context.Background(), nil, SurveySearchInput{Query: "test"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -239,7 +237,7 @@ func TestHandleSurveySearch_WithFilters(t *testing.T) {
 // =============================================================================
 
 func TestHandleSurveyList_NilStore(t *testing.T) {
-	s := &MCPServer{surveyStore: nil}
+	s := newMCPServer(nil)
 	result, _, err := s.handleSurveyList(context.Background(), nil, SurveyListInput{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -305,7 +303,7 @@ func TestHandleSurveyList_Error(t *testing.T) {
 // =============================================================================
 
 func TestHandleSurveyStats_NilStore(t *testing.T) {
-	s := &MCPServer{surveyStore: nil}
+	s := newMCPServer(nil)
 	result, _, err := s.handleSurveyStats(context.Background(), nil, SurveyStatsInput{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -359,7 +357,7 @@ func TestHandleSurveyStats_Error(t *testing.T) {
 // =============================================================================
 
 func TestHandleSurveyGraph_EmptySymbol(t *testing.T) {
-	s := &MCPServer{}
+	s := newMCPServer(nil)
 	result, _, err := s.handleSurveyGraph(context.Background(), nil, SurveyGraphInput{Symbol: ""})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -368,7 +366,7 @@ func TestHandleSurveyGraph_EmptySymbol(t *testing.T) {
 }
 
 func TestHandleSurveyGraph_NoCodeStore(t *testing.T) {
-	s := &MCPServer{}
+	s := newMCPServer(nil)
 	// codeStoreReady is false by default, so getCodeStore returns nil
 	result, _, err := s.handleSurveyGraph(context.Background(), nil, SurveyGraphInput{Symbol: "main"})
 	if err != nil {
@@ -382,7 +380,7 @@ func TestHandleSurveyGraph_NoCodeStore(t *testing.T) {
 // =============================================================================
 
 func TestHandleSurveyRun_NilStore(t *testing.T) {
-	s := &MCPServer{surveyStore: nil}
+	s := newMCPServer(nil)
 	result, _, err := s.handleSurveyRun(context.Background(), nil, SurveyRunInput{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

@@ -154,7 +154,7 @@ func (s *MCPServer) handleMemorySearch(_ context.Context, _ *mcp.CallToolRequest
 		limit = DefaultMemorySearchLimit
 	}
 
-	memories, err := s.store.SearchMemories(input.Query, limit)
+	memories, err := s.store().SearchMemories(input.Query, limit)
 	if err != nil {
 		mcpLog.Printf("  error: %v", err)
 		return errorResult(fmt.Sprintf("search failed: %v", err)), nil, nil
@@ -169,7 +169,7 @@ func (s *MCPServer) handleMemorySearch(_ context.Context, _ *mcp.CallToolRequest
 			ids[i] = m.ID
 		}
 		go func() {
-			if _, err := s.store.TouchMemory(ids); err != nil {
+			if _, err := s.store().TouchMemory(ids); err != nil {
 				mcpLog.Printf("  touch error (search): %v", err)
 			}
 		}()
@@ -191,7 +191,7 @@ func (s *MCPServer) handleMemoryList(_ context.Context, _ *mcp.CallToolRequest, 
 		Limit:    limit,
 	}
 
-	memories, err := s.store.ListMemories(opts)
+	memories, err := s.store().ListMemories(opts)
 	if err != nil {
 		mcpLog.Printf("  error: %v", err)
 		return errorResult(fmt.Sprintf("list failed: %v", err)), nil, nil
@@ -206,7 +206,7 @@ func (s *MCPServer) handleMemoryList(_ context.Context, _ *mcp.CallToolRequest, 
 			ids[i] = m.ID
 		}
 		go func() {
-			if _, err := s.store.TouchMemory(ids); err != nil {
+			if _, err := s.store().TouchMemory(ids); err != nil {
 				mcpLog.Printf("  touch error (list): %v", err)
 			}
 		}()
@@ -240,7 +240,7 @@ func (s *MCPServer) handleMemoryAdd(_ context.Context, _ *mcp.CallToolRequest, i
 		Tags:     input.Tags,
 	}
 
-	if err := s.store.AddMemory(mem); err != nil {
+	if err := s.store().AddMemory(mem); err != nil {
 		mcpLog.Printf("  error: %v", err)
 		return errorResult(fmt.Sprintf("add memory failed: %v", err)), nil, nil
 	}
@@ -299,7 +299,7 @@ func (s *MCPServer) handleStateGet(_ context.Context, _ *mcp.CallToolRequest, in
 		stateKey = fmt.Sprintf("agent:%s:%s", input.AgentID, input.Key)
 	}
 
-	st, err := s.store.GetState(stateKey)
+	st, err := s.store().GetState(stateKey)
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			mcpLog.Printf("  not set")
@@ -316,7 +316,7 @@ func (s *MCPServer) handleStateGet(_ context.Context, _ *mcp.CallToolRequest, in
 func (s *MCPServer) handleStateList(_ context.Context, _ *mcp.CallToolRequest, input StateListInput) (*mcp.CallToolResult, any, error) {
 	mcpLog.Printf("tool: state_list agent=%s", input.AgentID)
 
-	states, err := s.store.ListState(input.AgentID)
+	states, err := s.store().ListState(input.AgentID)
 	if err != nil {
 		mcpLog.Printf("  error: %v", err)
 		return errorResult(fmt.Sprintf("list state failed: %v", err)), nil, nil
@@ -379,7 +379,7 @@ use decision_adopt to copy one into this project.`,
 func (s *MCPServer) handleDecisionGet(_ context.Context, _ *mcp.CallToolRequest, input DecisionGetInput) (*mcp.CallToolResult, any, error) {
 	mcpLog.Printf("tool: decision_get topic=%s", input.Topic)
 
-	dec, err := s.store.GetDecision(input.Topic)
+	dec, err := s.store().GetDecision(input.Topic)
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			mcpLog.Printf("  not found")
@@ -396,7 +396,7 @@ func (s *MCPServer) handleDecisionGet(_ context.Context, _ *mcp.CallToolRequest,
 func (s *MCPServer) handleDecisionHistory(_ context.Context, _ *mcp.CallToolRequest, input DecisionHistoryInput) (*mcp.CallToolResult, any, error) {
 	mcpLog.Printf("tool: decision_history topic=%s", input.Topic)
 
-	history, err := s.store.GetDecisionHistory(input.Topic)
+	history, err := s.store().GetDecisionHistory(input.Topic)
 	if err != nil {
 		mcpLog.Printf("  error: %v", err)
 		return errorResult(fmt.Sprintf("get history failed: %v", err)), nil, nil
@@ -409,7 +409,7 @@ func (s *MCPServer) handleDecisionHistory(_ context.Context, _ *mcp.CallToolRequ
 func (s *MCPServer) handleDecisionList(_ context.Context, _ *mcp.CallToolRequest, input DecisionListInput) (*mcp.CallToolResult, any, error) {
 	mcpLog.Printf("tool: decision_list origin=%s", input.Origin)
 
-	decisions, err := s.store.ListDecisions()
+	decisions, err := s.store().ListDecisions()
 	if err != nil {
 		mcpLog.Printf("  error: %v", err)
 		return errorResult(fmt.Sprintf("list decisions failed: %v", err)), nil, nil
@@ -516,7 +516,7 @@ Acknowledge messages after you've processed them to keep your inbox clean.`,
 func (s *MCPServer) handleMessageList(_ context.Context, _ *mcp.CallToolRequest, input MessageListInput) (*mcp.CallToolResult, any, error) {
 	mcpLog.Printf("tool: message_list agent=%s", input.AgentID)
 
-	messages, err := s.store.GetMessages(input.AgentID)
+	messages, err := s.store().GetMessages(input.AgentID)
 	if err != nil {
 		mcpLog.Printf("  error: %v", err)
 		return errorResult(fmt.Sprintf("list messages failed: %v", err)), nil, nil
@@ -556,7 +556,7 @@ func (s *MCPServer) handleMessageSend(_ context.Context, _ *mcp.CallToolRequest,
 		msg.ExpiresAt = msg.CreatedAt.Add(time.Duration(input.TTLSeconds) * time.Second)
 	}
 
-	if err := s.store.AddMessage(msg); err != nil {
+	if err := s.store().AddMessage(msg); err != nil {
 		mcpLog.Printf("  error: %v", err)
 		return errorResult(fmt.Sprintf("send message failed: %v", err)), nil, nil
 	}
@@ -579,7 +579,7 @@ func (s *MCPServer) handleMessageAck(_ context.Context, _ *mcp.CallToolRequest, 
 		return errorResult("'agent_id' is required"), nil, nil
 	}
 
-	if err := s.store.AckMessage(input.MessageID, input.AgentID); err != nil {
+	if err := s.store().AckMessage(input.MessageID, input.AgentID); err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			return errorResult(fmt.Sprintf("message %d not found", input.MessageID)), nil, nil
 		}
@@ -623,7 +623,7 @@ Use session_id to see stats for a specific session, or leave empty for all-time.
 func (s *MCPServer) handleTokenStats(_ context.Context, _ *mcp.CallToolRequest, input TokenStatsInput) (*mcp.CallToolResult, any, error) {
 	mcpLog.Printf("tool: token_stats session=%s", input.SessionID)
 
-	stats, err := s.store.TokenStats(input.SessionID, time.Time{}, time.Time{})
+	stats, err := s.store().TokenStats(input.SessionID, time.Time{}, time.Time{})
 	if err != nil {
 		mcpLog.Printf("  error: %v", err)
 		return errorResult(fmt.Sprintf("failed to get token stats: %v", err)), nil, nil

@@ -89,6 +89,7 @@ type Server struct {
 	stateBus      *eventbus.Broadcaster[*StateChange]
 	dbPath        string
 	grpcServer    *grpc.Server
+	stopped       bool // set by Stop; guarded by mu, along with grpcServer
 	socketPath    string
 	startTime     time.Time
 	grammarLoader grammar.Loader
@@ -287,34 +288,52 @@ func (s *Server) Start() error {
 		return fmt.Errorf("failed to listen on socket %s: %w (other sessions cannot share this store until a daemon binds; check permissions and stale files)", s.socketPath, err)
 	}
 
-	// Create gRPC server
-	s.grpcServer = grpc.NewServer()
+	// Registered on a local first: Start runs in its own goroutine, so a
+	// half-registered server must never be visible to Stop.
+	srv := grpc.NewServer()
 
 	// Register all services with separate implementations
-	RegisterMemoryServiceServer(s.grpcServer, &memoryServiceImpl{store: s.store})
-	RegisterStateServiceServer(s.grpcServer, &stateServiceImpl{store: s.store, server: s})
-	RegisterDecisionServiceServer(s.grpcServer, &decisionServiceImpl{store: s.store})
-	RegisterMessageServiceServer(s.grpcServer, &messageServiceImpl{store: s.store, server: s})
-	RegisterTaskServiceServer(s.grpcServer, &taskServiceImpl{store: s.store, server: s})
-	RegisterCodeServiceServer(s.grpcServer, &codeServiceImpl{server: s, parser: code.NewParser(s.grammarLoader)})
-	RegisterFindingsServiceServer(s.grpcServer, &findingsServiceImpl{server: s})
-	RegisterSurveyServiceServer(s.grpcServer, &surveyServiceImpl{server: s})
-	RegisterTombstoneServiceServer(s.grpcServer, &tombstoneServiceImpl{server: s})
-	RegisterTokenServiceServer(s.grpcServer, &tokenServiceImpl{store: s.store})
-	RegisterObserveServiceServer(s.grpcServer, &observeServiceImpl{store: s.store, bus: s.observeBus})
-	RegisterInstinctServiceServer(s.grpcServer, &instinctServiceImpl{server: s})
-	RegisterSwarmServiceServer(s.grpcServer, &swarmServiceImpl{server: s})
-	RegisterHealthServiceServer(s.grpcServer, &healthServiceImpl{dbPath: s.dbPath, startTime: s.startTime})
-	RegisterStatusServiceServer(s.grpcServer, &statusServiceImpl{server: s})
+	RegisterMemoryServiceServer(srv, &memoryServiceImpl{store: s.store})
+	RegisterStateServiceServer(srv, &stateServiceImpl{store: s.store, server: s})
+	RegisterDecisionServiceServer(srv, &decisionServiceImpl{store: s.store})
+	RegisterMessageServiceServer(srv, &messageServiceImpl{store: s.store, server: s})
+	RegisterTaskServiceServer(srv, &taskServiceImpl{store: s.store, server: s})
+	RegisterCodeServiceServer(srv, &codeServiceImpl{server: s, parser: code.NewParser(s.grammarLoader)})
+	RegisterFindingsServiceServer(srv, &findingsServiceImpl{server: s})
+	RegisterSurveyServiceServer(srv, &surveyServiceImpl{server: s})
+	RegisterTombstoneServiceServer(srv, &tombstoneServiceImpl{server: s})
+	RegisterTokenServiceServer(srv, &tokenServiceImpl{store: s.store})
+	RegisterObserveServiceServer(srv, &observeServiceImpl{store: s.store, bus: s.observeBus})
+	RegisterInstinctServiceServer(srv, &instinctServiceImpl{server: s})
+	RegisterSwarmServiceServer(srv, &swarmServiceImpl{server: s})
+	RegisterHealthServiceServer(srv, &healthServiceImpl{dbPath: s.dbPath, startTime: s.startTime})
+	RegisterStatusServiceServer(srv, &statusServiceImpl{server: s})
 
-	// Start serving
-	return s.grpcServer.Serve(listener)
+	s.mu.Lock()
+	if s.stopped {
+		// Stop beat us to it; don't start serving on a socket it already removed.
+		s.mu.Unlock()
+		srv.Stop()
+		_ = listener.Close()
+		return nil
+	}
+	s.grpcServer = srv
+	s.mu.Unlock()
+
+	return srv.Serve(listener)
 }
 
-// Stop gracefully stops the gRPC server.
+// Stop gracefully stops the gRPC server. Safe to call before Start, which
+// then declines to serve.
 func (s *Server) Stop() {
-	if s.grpcServer != nil {
-		s.grpcServer.GracefulStop()
+	s.mu.Lock()
+	s.stopped = true
+	srv := s.grpcServer
+	s.grpcServer = nil
+	s.mu.Unlock()
+
+	if srv != nil {
+		srv.GracefulStop()
 	}
 	// Clean up socket file
 	os.Remove(s.socketPath)

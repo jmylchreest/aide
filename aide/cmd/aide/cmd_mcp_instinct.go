@@ -74,7 +74,7 @@ prompts, or commands the detector saw — before deciding whether to accept
 }
 
 func (s *MCPServer) handleInstinctProposalsList(_ context.Context, _ *mcp.CallToolRequest, input InstinctProposalsListInput) (*mcp.CallToolResult, any, error) {
-	if s.instinctStore == nil {
+	if s.instinctStore() == nil {
 		return errorResult("instinct store not available"), nil, nil
 	}
 	statusVal := instinct.Status(input.Status)
@@ -85,7 +85,7 @@ func (s *MCPServer) handleInstinctProposalsList(_ context.Context, _ *mcp.CallTo
 	if limit <= 0 {
 		limit = 50
 	}
-	props, err := s.instinctStore.ListInstinctProposals(store.InstinctFilter{
+	props, err := s.instinctStore().ListInstinctProposals(store.InstinctFilter{
 		Status:    statusVal,
 		Shape:     input.Shape,
 		SessionID: input.SessionID,
@@ -102,13 +102,13 @@ func (s *MCPServer) handleInstinctProposalsList(_ context.Context, _ *mcp.CallTo
 }
 
 func (s *MCPServer) handleInstinctInspect(_ context.Context, _ *mcp.CallToolRequest, input InstinctInspectInput) (*mcp.CallToolResult, any, error) {
-	if s.instinctStore == nil {
+	if s.instinctStore() == nil {
 		return errorResult("instinct store not available"), nil, nil
 	}
 	if input.ID == "" {
 		return errorResult("id required"), nil, nil
 	}
-	p, err := s.instinctStore.GetInstinctProposal(input.ID)
+	p, err := s.instinctStore().GetInstinctProposal(input.ID)
 	if err != nil {
 		return errorResult(err.Error()), nil, nil
 	}

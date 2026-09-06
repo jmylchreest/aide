@@ -129,7 +129,7 @@ Use this to mark known issues as reviewed or intentionally accepted.
 func (s *MCPServer) handleFindingsSearch(_ context.Context, _ *mcp.CallToolRequest, input FindingsSearchInput) (*mcp.CallToolResult, any, error) {
 	mcpLog.Printf("tool: findings_search query=%q analyzer=%s severity=%s", input.Query, input.Analyzer, input.Severity)
 
-	if s.findingsStore == nil {
+	if s.findingsStore() == nil {
 		return errorResult("findings store not available"), nil, nil
 	}
 
@@ -142,7 +142,7 @@ func (s *MCPServer) handleFindingsSearch(_ context.Context, _ *mcp.CallToolReque
 		IncludeAccepted: input.IncludeAccepted,
 	}
 
-	results, err := s.findingsStore.SearchFindings(input.Query, opts)
+	results, err := s.findingsStore().SearchFindings(input.Query, opts)
 	if err != nil {
 		return errorResult(fmt.Sprintf("search failed: %v", err)), nil, nil
 	}
@@ -164,7 +164,7 @@ func (s *MCPServer) handleFindingsSearch(_ context.Context, _ *mcp.CallToolReque
 func (s *MCPServer) handleFindingsList(_ context.Context, _ *mcp.CallToolRequest, input FindingsListInput) (*mcp.CallToolResult, any, error) {
 	mcpLog.Printf("tool: findings_list analyzer=%s severity=%s file=%s", input.Analyzer, input.Severity, input.FilePath)
 
-	if s.findingsStore == nil {
+	if s.findingsStore() == nil {
 		return errorResult("findings store not available"), nil, nil
 	}
 
@@ -177,7 +177,7 @@ func (s *MCPServer) handleFindingsList(_ context.Context, _ *mcp.CallToolRequest
 		IncludeAccepted: input.IncludeAccepted,
 	}
 
-	results, err := s.findingsStore.ListFindings(opts)
+	results, err := s.findingsStore().ListFindings(opts)
 	if err != nil {
 		return errorResult(fmt.Sprintf("list failed: %v", err)), nil, nil
 	}
@@ -198,11 +198,11 @@ func (s *MCPServer) handleFindingsList(_ context.Context, _ *mcp.CallToolRequest
 func (s *MCPServer) handleFindingsStats(_ context.Context, _ *mcp.CallToolRequest, input FindingsStatsInput) (*mcp.CallToolResult, any, error) {
 	mcpLog.Printf("tool: findings_stats")
 
-	if s.findingsStore == nil {
+	if s.findingsStore() == nil {
 		return errorResult("findings store not available"), nil, nil
 	}
 
-	stats, err := s.findingsStore.Stats(findings.SearchOptions{IncludeAccepted: input.IncludeAccepted})
+	stats, err := s.findingsStore().Stats(findings.SearchOptions{IncludeAccepted: input.IncludeAccepted})
 	if err != nil {
 		return errorResult(fmt.Sprintf("stats failed: %v", err)), nil, nil
 	}
@@ -231,7 +231,7 @@ func (s *MCPServer) handleFindingsStats(_ context.Context, _ *mcp.CallToolReques
 func (s *MCPServer) handleFindingsAccept(_ context.Context, _ *mcp.CallToolRequest, input FindingsAcceptInput) (*mcp.CallToolResult, any, error) {
 	mcpLog.Printf("tool: findings_accept ids=%v all=%v analyzer=%s severity=%s", input.IDs, input.All, input.Analyzer, input.Severity)
 
-	if s.findingsStore == nil {
+	if s.findingsStore() == nil {
 		return errorResult("findings store not available"), nil, nil
 	}
 
@@ -247,7 +247,7 @@ func (s *MCPServer) handleFindingsAccept(_ context.Context, _ *mcp.CallToolReque
 	var count int
 	var err error
 	if len(input.IDs) > 0 {
-		count, err = s.findingsStore.AcceptFindings(input.IDs)
+		count, err = s.findingsStore().AcceptFindings(input.IDs)
 	} else {
 		opts := findings.SearchOptions{
 			Analyzer: input.Analyzer,
@@ -255,7 +255,7 @@ func (s *MCPServer) handleFindingsAccept(_ context.Context, _ *mcp.CallToolReque
 			FilePath: input.FilePath,
 			Category: input.Category,
 		}
-		count, err = s.findingsStore.AcceptFindingsByFilter(opts)
+		count, err = s.findingsStore().AcceptFindingsByFilter(opts)
 	}
 	if err != nil {
 		return errorResult(fmt.Sprintf("accept failed: %v", err)), nil, nil

@@ -64,10 +64,20 @@ func NewReadOnlyBoltStore(path string) (*BoltStore, error) {
 	return &BoltStore{db: db}, nil
 }
 
+// DefaultBoltLockTimeout is generous enough to absorb concurrent CLI access
+// from skills and bash commands queueing behind each other.
+const DefaultBoltLockTimeout = 10 * time.Second
+
 // NewBoltStore creates a new bbolt-backed store.
 func NewBoltStore(path string) (*BoltStore, error) {
-	// Increase timeout to handle concurrent CLI access from skills/bash commands
-	db, err := bolt.Open(path, 0o600, indexerBoltOptions(10*time.Second))
+	return NewBoltStoreWithTimeout(path, DefaultBoltLockTimeout)
+}
+
+// NewBoltStoreWithTimeout is NewBoltStore with an explicit lock timeout.
+// Callers racing for the lock rather than queueing for it want a short one,
+// so that losing fails fast instead of blocking.
+func NewBoltStoreWithTimeout(path string, lockTimeout time.Duration) (*BoltStore, error) {
+	db, err := bolt.Open(path, 0o600, indexerBoltOptions(lockTimeout))
 	if err != nil {
 		return nil, err
 	}

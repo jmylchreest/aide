@@ -19,7 +19,7 @@ func newMemoryTestServer(t *testing.T) (*MCPServer, func()) {
 	if err != nil {
 		t.Fatalf("failed to open bolt store: %v", err)
 	}
-	s := &MCPServer{store: st}
+	s := newMCPServer(&mcpBackend{store: st})
 	return s, func() { st.Close() }
 }
 

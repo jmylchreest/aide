@@ -26,7 +26,13 @@ type CombinedStore struct {
 
 // NewCombinedStore creates a store that writes memories to both bbolt and search index.
 func NewCombinedStore(dbPath string) (*CombinedStore, error) {
-	bolt, err := NewBoltStore(dbPath)
+	return NewCombinedStoreWithTimeout(dbPath, DefaultBoltLockTimeout)
+}
+
+// NewCombinedStoreWithTimeout is NewCombinedStore with an explicit bolt lock
+// timeout. See NewBoltStoreWithTimeout.
+func NewCombinedStoreWithTimeout(dbPath string, lockTimeout time.Duration) (*CombinedStore, error) {
+	bolt, err := NewBoltStoreWithTimeout(dbPath, lockTimeout)
 	if err != nil {
 		return nil, err
 	}
