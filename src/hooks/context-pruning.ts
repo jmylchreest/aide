@@ -20,6 +20,7 @@ import {
   installHookSafetyNet,
   findAideBinary,
 } from "../lib/hook-utils.js";
+import { setSessionContext } from "../lib/anchor.js";
 import { debug } from "../lib/logger.js";
 import { ContextPruningTracker } from "../core/context-pruning/index.js";
 import type { ToolRecord } from "../core/context-pruning/types.js";
@@ -117,6 +118,7 @@ async function main(): Promise<void> {
     const toolOutput = data.tool_output || "";
     const cwd = data.cwd || process.cwd();
     const sessionId = data.session_id || "unknown";
+    setSessionContext(sessionId);
 
     // Skip if no tool output to prune
     if (!toolOutput || toolOutput.length < 50) {

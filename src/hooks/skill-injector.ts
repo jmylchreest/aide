@@ -25,6 +25,7 @@ import {
   installHookSafetyNet,
   findAideBinary,
 } from "../lib/hook-utils.js";
+import { setSessionContext } from "../lib/anchor.js";
 import { getAnchoredRoot } from "../lib/anchor.js";
 import { loadGlobalConfig } from "../core/session-init.js";
 import {
@@ -164,6 +165,7 @@ async function main(): Promise<void> {
     const prompt = data.prompt || "";
     const cwd = data.cwd || process.cwd();
     const sessionId = data.session_id || "";
+    setSessionContext(sessionId);
 
     // Switch debug logging to project-local logs
     setDebugCwd(cwd);

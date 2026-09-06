@@ -16,6 +16,7 @@ import {
   installHookSafetyNet,
   findAideBinary,
 } from "../lib/hook-utils.js";
+import { setSessionContext } from "../lib/anchor.js";
 import { saveStateSnapshot as coreSaveStateSnapshot } from "../core/pre-compact-logic.js";
 import {
   buildSessionSummaryFromState,
@@ -54,6 +55,7 @@ async function main(): Promise<void> {
     const data: PreCompactInput = JSON.parse(input);
     const cwd = data.cwd || process.cwd();
     const sessionId = data.session_id || "unknown";
+    setSessionContext(sessionId);
 
     // Save state snapshot before compaction — delegates to core
     const binary = findAideBinary(cwd, data.session_id);

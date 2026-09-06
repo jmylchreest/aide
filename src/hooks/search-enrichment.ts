@@ -17,6 +17,7 @@ import {
   installHookSafetyNet,
   findAideBinary,
 } from "../lib/hook-utils.js";
+import { setSessionContext } from "../lib/anchor.js";
 import { debug } from "../lib/logger.js";
 import { checkSearchEnrichment } from "../core/search-enrichment.js";
 import { emitInjectionEvent } from "../core/read-tracking.js";
@@ -55,6 +56,7 @@ async function main(): Promise<void> {
     const toolInput = data.tool_input || {};
     const cwd = data.cwd || process.cwd();
     const sessionId = data.session_id || "";
+    setSessionContext(sessionId);
 
     const binary = findAideBinary(cwd, data.session_id);
 

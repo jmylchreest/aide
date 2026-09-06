@@ -310,3 +310,33 @@ export function getAnchoredRoot(opts: {
   const walked = findProjectRoot(opts.cwd);
   return { root: walked.root, hasMarker: walked.hasMarker, anchor: null };
 }
+
+/**
+ * The session this process is serving. Root resolution happens deep in the
+ * call graph — config reads, state cleanup, per-tool gates — where threading
+ * a session id through every signature would mean changing callers three
+ * layers up that have no interest in one. A hook records it once from its
+ * input instead, the same way logger.setDebugCwd records the cwd.
+ */
+let ambientSessionId = "";
+
+export function setSessionContext(sessionId: string): void {
+  ambientSessionId = sessionId || "";
+}
+
+/**
+ * Resolve a project root through the anchor, falling back to the TS walk.
+ * The drop-in for findProjectRoot at sites with no session id of their own:
+ * with an ambient session it agrees with the Go resolver, and without one it
+ * behaves exactly as the bare walk did.
+ */
+export function anchoredRoot(cwd: string): {
+  root: string;
+  hasMarker: boolean;
+} {
+  const { root, hasMarker } = getAnchoredRoot({
+    sessionId: ambientSessionId || undefined,
+    cwd,
+  });
+  return { root, hasMarker };
+}

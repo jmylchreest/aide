@@ -15,6 +15,7 @@ import {
   installHookSafetyNet,
   findAideBinary,
 } from "../lib/hook-utils.js";
+import { setSessionContext } from "../lib/anchor.js";
 import { debug } from "../lib/logger.js";
 import {
   checkComments,
@@ -61,6 +62,7 @@ async function main(): Promise<void> {
     const toolInput = data.tool_input || {};
     const cwd = data.cwd || process.cwd();
     const sessionId = data.session_id || "";
+    setSessionContext(sessionId);
 
     // Only check Write/Edit/MultiEdit tool calls
     const filePath = getCheckableFilePath(toolName, toolInput);

@@ -25,6 +25,7 @@ import {
   installHookSafetyNet,
   findAideBinary,
 } from "../lib/hook-utils.js";
+import { setSessionContext } from "../lib/anchor.js";
 import {
   emitInjectionEvent,
   recordObserveEvent,
@@ -331,6 +332,7 @@ async function processSubagentStart(
   data: SubagentStartInput,
 ): Promise<string | undefined> {
   const { agent_id, agent_type, session_id, cwd } = data;
+  setSessionContext(session_id);
 
   log?.info(
     `SubagentStart: agent_id=${agent_id}, type=${agent_type}, session=${session_id}`,

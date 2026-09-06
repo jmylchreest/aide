@@ -16,6 +16,7 @@ import {
   installHookSafetyNet,
   findAideBinary,
 } from "../lib/hook-utils.js";
+import { setSessionContext } from "../lib/anchor.js";
 import { debug } from "../lib/logger.js";
 import { evaluateToolUse } from "../core/tool-enforcement.js";
 import { getState } from "../core/aide-client.js";
@@ -56,6 +57,7 @@ async function main(): Promise<void> {
     const agentName = data.agent_name || "";
     const cwd = data.cwd || process.cwd();
     const sessionId = data.session_id || "";
+    setSessionContext(sessionId);
 
     // Resolve active mode from aide binary (source of truth: BBolt store).
     // Mode is global by design — see the note in core/aide-client.ts.

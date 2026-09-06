@@ -26,7 +26,7 @@ import {
 import { join, dirname } from "path";
 import { homedir } from "os";
 import * as TOML from "smol-toml";
-import { findProjectRoot } from "../lib/project-root.js";
+import { anchoredRoot } from "../lib/anchor.js";
 
 // =============================================================================
 // Types
@@ -179,12 +179,12 @@ function aideUserMcpPath(): string {
 }
 
 function aideProjectMcpPath(cwd: string): string {
-  const { root } = findProjectRoot(cwd);
+  const { root } = anchoredRoot(cwd);
   return join(root, ".aide", "config", "mcp.json");
 }
 
 function journalPath(cwd: string): string {
-  const { root } = findProjectRoot(cwd);
+  const { root } = anchoredRoot(cwd);
   return join(root, ".aide", "config", "mcp-sync.journal.json");
 }
 

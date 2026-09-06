@@ -17,6 +17,7 @@ import {
   installHookSafetyNet,
   findAideBinary,
 } from "../lib/hook-utils.js";
+import { setSessionContext } from "../lib/anchor.js";
 import { debug } from "../lib/logger.js";
 import {
   checkContextGuard,
@@ -60,6 +61,7 @@ async function main(): Promise<void> {
     const toolInput = data.tool_input || {};
     const cwd = data.cwd || process.cwd();
     const sessionId = data.session_id || "unknown";
+    setSessionContext(sessionId);
 
     const result = checkContextGuard(toolName, toolInput, cwd, sessionId);
     const binary = findAideBinary(cwd, data.session_id);

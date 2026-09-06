@@ -16,6 +16,7 @@ import {
   installHookSafetyNet,
   findAideBinary,
 } from "../lib/hook-utils.js";
+import { setSessionContext } from "../lib/anchor.js";
 import {
   buildSessionSummary,
   getSessionCommits,
@@ -110,6 +111,7 @@ async function main(): Promise<void> {
     const data: HookInput = JSON.parse(input);
     const cwd = data.cwd || process.cwd();
     const sessionId = data.session_id || "unknown";
+    setSessionContext(sessionId);
 
     setDebugCwd(cwd);
     debug(SOURCE, `Hook triggered: ${data.hook_event_name}`);
