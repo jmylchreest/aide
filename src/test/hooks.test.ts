@@ -205,6 +205,7 @@ function runHook(hookName: string, input: string): any {
     if (result.status === 0) throw error;
     throw new Error(
       `${jsName} exited ${result.status} with unparseable stdout: ${result.stdout}\n${result.stderr}`,
+      { cause: error },
     );
   }
 }
