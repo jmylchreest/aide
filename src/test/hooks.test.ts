@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { execSync, spawn } from "child_process";
+import { spawnSync } from "child_process";
 import { existsSync, mkdirSync, rmSync, writeFileSync, readFileSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
@@ -184,26 +184,27 @@ describe("Persistence Hook", () => {
   });
 });
 
-// Helper function to run a hook
+// Helper function to run a hook.
+// Input goes over stdin rather than through a shell `echo`, which mangled any
+// payload containing a single quote.
 function runHook(hookName: string, input: string): any {
+  // Use compiled JS files from dist/
+  const jsName = hookName.replace(".ts", ".js");
+  const hookPath = join(PROJECT_ROOT, "dist", "hooks", jsName);
+  const result = spawnSync("node", [hookPath], {
+    input,
+    encoding: "utf-8",
+    timeout: 5000,
+  });
+  if (result.error) throw result.error;
+
+  // A hook that exits non-zero still reports its decision on stdout.
   try {
-    // Use compiled JS files from dist/
-    const jsName = hookName.replace(".ts", ".js");
-    const hookPath = join(PROJECT_ROOT, "dist", "hooks", jsName);
-    const result = execSync(`echo '${input}' | node "${hookPath}"`, {
-      encoding: "utf-8",
-      timeout: 5000,
-    });
-    return JSON.parse(result.trim());
-  } catch (error: any) {
-    // If hook exits with non-zero, try to parse stdout
-    if (error.stdout) {
-      try {
-        return JSON.parse(error.stdout.trim());
-      } catch {
-        throw error;
-      }
-    }
-    throw error;
+    return JSON.parse(result.stdout.trim());
+  } catch (error) {
+    if (result.status === 0) throw error;
+    throw new Error(
+      `${jsName} exited ${result.status} with unparseable stdout: ${result.stdout}\n${result.stderr}`,
+    );
   }
 }
