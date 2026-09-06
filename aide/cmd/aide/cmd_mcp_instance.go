@@ -86,7 +86,7 @@ func (s *MCPServer) handleInstanceInfo(ctx context.Context, _ *mcp.CallToolReque
 	root := store.ProjectRootFromDB(s.dbPath)
 
 	authority := "daemon"
-	if s.grpcClient != nil {
+	if s.grpcClient() != nil {
 		authority = "client"
 	}
 
@@ -105,8 +105,8 @@ func (s *MCPServer) handleInstanceInfo(ctx context.Context, _ *mcp.CallToolReque
 		PprofURL:        pprofURL(),
 	}
 
-	if s.grpcClient != nil {
-		info.Daemon = daemonInfo(ctx, s.grpcClient)
+	if s.grpcClient() != nil {
+		info.Daemon = daemonInfo(ctx, s.grpcClient())
 	}
 
 	data, err := json.MarshalIndent(info, "", "  ")

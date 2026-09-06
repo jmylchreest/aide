@@ -178,15 +178,7 @@ aide status          # Full dashboard: server, watcher, index, findings, stores,
 aide status --json   # Machine-readable JSON output
 ```
 
-## Server Modes
-
-### Daemon (gRPC)
-
-```bash
-aide daemon --socket=/path/to/aide.sock
-```
-
-### MCP Server (Claude Code / OpenCode plugin)
+## MCP Server (Claude Code / OpenCode plugin)
 
 ```bash
 aide mcp                     # Start MCP server
@@ -194,6 +186,10 @@ aide mcp --code-watch        # Start with file watcher for auto-reindex
 ```
 
 The MCP server exposes 18 tools across 6 groups: memory, decisions, state, messaging, code, and findings.
+
+Only one process can hold the store, so the first `aide mcp` for a project opens
+it and serves gRPC on a Unix socket; later instances detect that socket and
+attach as clients over it.
 
 ## Storage
 

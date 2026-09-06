@@ -181,7 +181,7 @@ func (s *MCPServer) handleSurveySearch(ctx context.Context, _ *mcp.CallToolReque
 	mcpLog.Printf("tool: survey_search query=%q analyzer=%s kind=%s", input.Query, input.Analyzer, input.Kind)
 	span := observe.FromContext(ctx)
 
-	if s.surveyStore == nil {
+	if s.surveyStore() == nil {
 		return errorResult("survey store not available"), nil, nil
 	}
 
@@ -192,7 +192,7 @@ func (s *MCPServer) handleSurveySearch(ctx context.Context, _ *mcp.CallToolReque
 		Limit:    input.Limit,
 	}
 
-	results, err := s.surveyStore.SearchEntries(input.Query, opts)
+	results, err := s.surveyStore().SearchEntries(input.Query, opts)
 	if err != nil {
 		return errorResult(fmt.Sprintf("search failed: %v", err)), nil, nil
 	}
@@ -219,7 +219,7 @@ func (s *MCPServer) handleSurveyList(ctx context.Context, _ *mcp.CallToolRequest
 	mcpLog.Printf("tool: survey_list analyzer=%s kind=%s file=%s", input.Analyzer, input.Kind, input.FilePath)
 	span := observe.FromContext(ctx)
 
-	if s.surveyStore == nil {
+	if s.surveyStore() == nil {
 		return errorResult("survey store not available"), nil, nil
 	}
 
@@ -230,7 +230,7 @@ func (s *MCPServer) handleSurveyList(ctx context.Context, _ *mcp.CallToolRequest
 		Limit:    input.Limit,
 	}
 
-	results, err := s.surveyStore.ListEntries(opts)
+	results, err := s.surveyStore().ListEntries(opts)
 	if err != nil {
 		return errorResult(fmt.Sprintf("list failed: %v", err)), nil, nil
 	}
@@ -254,11 +254,11 @@ func (s *MCPServer) handleSurveyList(ctx context.Context, _ *mcp.CallToolRequest
 func (s *MCPServer) handleSurveyStats(_ context.Context, _ *mcp.CallToolRequest, input SurveyStatsInput) (*mcp.CallToolResult, any, error) {
 	mcpLog.Printf("tool: survey_stats")
 
-	if s.surveyStore == nil {
+	if s.surveyStore() == nil {
 		return errorResult("survey store not available"), nil, nil
 	}
 
-	stats, err := s.surveyStore.Stats(survey.SearchOptions{})
+	stats, err := s.surveyStore().Stats(survey.SearchOptions{})
 	if err != nil {
 		return errorResult(fmt.Sprintf("stats failed: %v", err)), nil, nil
 	}
@@ -282,7 +282,7 @@ func (s *MCPServer) handleSurveyStats(_ context.Context, _ *mcp.CallToolRequest,
 	}
 
 	if lines := surveyFreshnessLines(store.ProjectRootFromDB(s.dbPath), stats.ByAnalyzer, func(analyzer string) []*survey.Entry {
-		entries, err := s.surveyStore.ListEntries(survey.SearchOptions{Analyzer: analyzer, Limit: 1})
+		entries, err := s.surveyStore().ListEntries(survey.SearchOptions{Analyzer: analyzer, Limit: 1})
 		if err != nil {
 			return nil
 		}
@@ -334,10 +334,10 @@ func (s *MCPServer) handleSurveyRun(ctx context.Context, _ *mcp.CallToolRequest,
 
 	// Client mode: analyzers must execute on the daemon, where the stores
 	// live — delegate over gRPC.
-	if s.grpcClient != nil {
+	if s.grpcClient() != nil {
 		runCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 		defer cancel()
-		resp, err := s.grpcClient.Survey.Run(runCtx, &grpcapi.SurveyRunRequest{Analyzer: input.Analyzer})
+		resp, err := s.grpcClient().Survey.Run(runCtx, &grpcapi.SurveyRunRequest{Analyzer: input.Analyzer})
 		if err != nil {
 			return errorResult(fmt.Sprintf("survey run on daemon failed: %v", err)), nil, nil
 		}
@@ -348,14 +348,14 @@ func (s *MCPServer) handleSurveyRun(ctx context.Context, _ *mcp.CallToolRequest,
 		return textResult(surveyrun.FormatResults(results)), nil, nil
 	}
 
-	if s.surveyStore == nil {
+	if s.surveyStore() == nil {
 		return errorResult("survey store not available"), nil, nil
 	}
 	var analyzers []string
 	if input.Analyzer != "" {
 		analyzers = []string{input.Analyzer}
 	}
-	results := surveyrun.Run(store.ProjectRootFromDB(s.dbPath), analyzers, s.surveyStore, s.getCodeStore())
+	results := surveyrun.Run(store.ProjectRootFromDB(s.dbPath), analyzers, s.surveyStore(), s.getCodeStore())
 	return textResult(surveyrun.FormatResults(results)), nil, nil
 }
 
