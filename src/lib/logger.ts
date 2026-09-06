@@ -21,7 +21,7 @@
 
 import { existsSync, mkdirSync, appendFileSync } from "fs";
 import { join } from "path";
-import { findProjectRoot } from "./project-root.js";
+import { anchoredRoot } from "./anchor.js";
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
@@ -54,11 +54,14 @@ export class Logger {
     this.cwd = cwd || process.cwd();
     // Resolve to the canonical project root so logs land alongside the
     // real .aide/ store, not in a stray subdir the harness launched from.
-    const { root } = findProjectRoot(this.cwd);
+    const { root, hasMarker } = anchoredRoot(this.cwd);
     // Set debugLogCwd so isDebugEnabled() can check the sentinel file at
     // the resolved root.
     setDebugCwd(root);
-    this.enabled = isDebugEnabled();
+    // No marker means no project here, and creating .aide/_logs would plant
+    // one wherever a hook happened to run. Disabling covers every write:
+    // they all check `enabled` first.
+    this.enabled = hasMarker && isDebugEnabled();
     this.logDir = join(root, ".aide", "_logs");
     this.logFile = join(this.logDir, "startup.log");
     this.sessionStart = Date.now();
@@ -298,7 +301,7 @@ export function isDebugEnabled(): boolean {
   if (debugLogCwd !== debugSentinelCwd) {
     debugSentinelCwd = debugLogCwd;
     try {
-      const { root } = findProjectRoot(debugLogCwd);
+      const { root } = anchoredRoot(debugLogCwd);
       debugSentinelResult = existsSync(join(root, ".aide", ".debug"));
     } catch {
       debugSentinelResult = false;
@@ -337,7 +340,9 @@ export function setDebugCwd(cwd: string): void {
 export function debug(source: string, msg: string): void {
   if (!isDebugEnabled()) return;
 
-  const { root } = findProjectRoot(debugLogCwd);
+  const { root, hasMarker } = anchoredRoot(debugLogCwd);
+  // See the Logger constructor: no marker, no .aide/ planted here.
+  if (!hasMarker) return;
   const logDir = join(root, ".aide", "_logs");
   try {
     if (!existsSync(logDir)) {
