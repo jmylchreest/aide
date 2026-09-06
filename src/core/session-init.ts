@@ -28,7 +28,7 @@ import type {
 } from "./types.js";
 import { DEFAULT_CONFIG, DECISION_PRECEDENCE_OVERRIDE } from "./types.js";
 import { isTruthy, isFalsy } from "../lib/hook-utils.js";
-import { findProjectRoot } from "../lib/project-root.js";
+import { anchoredRoot } from "../lib/anchor.js";
 
 /**
  * Ensure all .aide directories exist
@@ -41,7 +41,7 @@ export function ensureDirectories(cwd: string): {
   // in a subdirectory the harness happened to launch from. When no marker
   // is found, fall back to cwd (caller's hasMarker gate elsewhere refuses
   // bootstrap unless AIDE_FORCE_INIT is set).
-  const { root } = findProjectRoot(cwd);
+  const { root } = anchoredRoot(cwd);
   const dirs = [
     join(root, ".aide"),
     join(root, ".aide", "skills"),
@@ -228,7 +228,7 @@ export function loadGlobalConfig(): AideConfig {
  */
 export function loadConfig(cwd: string): AideConfig {
   const global = loadGlobalConfig();
-  const { root } = findProjectRoot(cwd);
+  const { root } = anchoredRoot(cwd);
   const projectPath = join(root, ".aide", "config", "aide.json");
 
   if (existsSync(projectPath)) {
@@ -274,7 +274,7 @@ export function cleanupStaleStateFiles(cwd: string): {
   scanned: number;
   deleted: number;
 } {
-  const { root } = findProjectRoot(cwd);
+  const { root } = anchoredRoot(cwd);
   const stateDir = join(root, ".aide", "state");
   if (!existsSync(stateDir)) {
     return { scanned: 0, deleted: 0 };
@@ -314,7 +314,7 @@ export function cleanupStaleStateFiles(cwd: string): {
  * Reset HUD state file for clean session start
  */
 export function resetHudState(cwd: string): void {
-  const { root } = findProjectRoot(cwd);
+  const { root } = anchoredRoot(cwd);
   const hudPath = join(root, ".aide", "state", "hud.txt");
   try {
     if (existsSync(hudPath)) {

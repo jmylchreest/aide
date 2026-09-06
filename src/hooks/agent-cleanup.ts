@@ -16,9 +16,10 @@ import {
   installHookSafetyNet,
   findAideBinary,
 } from "../lib/hook-utils.js";
+import { setSessionContext } from "../lib/anchor.js";
 import { cleanupAgent } from "../core/cleanup.js";
 import { debug } from "../lib/logger.js";
-import { findProjectRoot } from "../lib/project-root.js";
+import { anchoredRoot } from "../lib/anchor.js";
 
 const SOURCE = "agent-cleanup";
 
@@ -42,6 +43,7 @@ async function main(): Promise<void> {
     const data: HookInput = JSON.parse(input);
     const cwd = data.cwd || process.cwd();
     const agentId = data.agent_id || data.session_id;
+    setSessionContext(data.session_id || "");
 
     // Clean up agent-specific state — delegates to core
     if (agentId) {
@@ -49,7 +51,7 @@ async function main(): Promise<void> {
       if (binary) {
         const cleared = cleanupAgent(binary, cwd, agentId);
         if (cleared) {
-          const { root } = findProjectRoot(cwd);
+          const { root } = anchoredRoot(cwd);
           const logDir = join(root, ".aide", "_logs");
           if (existsSync(logDir)) {
             const logPath = join(logDir, "agent-cleanup.log");

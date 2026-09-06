@@ -39,7 +39,11 @@ import {
 } from "../lib/aide-downloader.js";
 import { findProjectRoot } from "../lib/project-root.js";
 import { shouldInstallWrapper, hudPointerFile } from "../lib/hud.js";
-import { resolveAnchorViaBinary, writeSessionAnchor } from "../lib/anchor.js";
+import {
+  resolveAnchorViaBinary,
+  setSessionContext,
+  writeSessionAnchor,
+} from "../lib/anchor.js";
 import {
   injectionBatchEvent,
   recordObserveEventsBatch,
@@ -371,6 +375,10 @@ async function main(): Promise<void> {
     const data: HookInput = JSON.parse(input);
     const launchedCwd = data.cwd || process.cwd();
     const sessionId = data.session_id || "unknown";
+    // Recorded up front, but the anchor is only written further down — until
+    // then anchoredRoot falls back to the walk, so early callers behave as
+    // before and later ones (loadConfig, state cleanup) get the anchor.
+    setSessionContext(sessionId);
 
     // Resolve the project root so we never plant a sibling .aide/ in a
     // subdirectory of a git repo. Mirrors the Go binary's findProjectRoot().

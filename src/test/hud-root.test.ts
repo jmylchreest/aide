@@ -12,6 +12,7 @@ import { tmpdir } from "os";
 import { randomBytes } from "crypto";
 
 import { writeHudOutput } from "../lib/hud.js";
+import { Logger } from "../lib/logger.js";
 
 describe("writeHudOutput project-marker gate", () => {
   let dir: string;
@@ -35,6 +36,41 @@ describe("writeHudOutput project-marker gate", () => {
 
   it("leaves an unmarked directory alone", () => {
     writeHudOutput(dir, "hud line");
+
+    expect(existsSync(join(dir, ".aide"))).toBe(false);
+  });
+});
+
+// Logging is the other way .aide/ gets created: the directory itself is the
+// project marker, so a debug log written somewhere unmarked claims it.
+describe("Logger project-marker gate", () => {
+  let dir: string;
+
+  beforeEach(() => {
+    dir = join(tmpdir(), `aide-log-${Date.now()}-${randomBytes(4).toString("hex")}`);
+    mkdirSync(dir);
+    process.env.AIDE_DEBUG = "1";
+  });
+
+  afterEach(() => {
+    delete process.env.AIDE_DEBUG;
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("logs under a marked project root", () => {
+    mkdirSync(join(dir, ".git"));
+
+    const log = new Logger("test", dir);
+    log.debug("hello");
+    log.flush();
+
+    expect(existsSync(join(dir, ".aide", "_logs"))).toBe(true);
+  });
+
+  it("leaves an unmarked directory alone", () => {
+    const log = new Logger("test", dir);
+    log.debug("hello");
+    log.flush();
 
     expect(existsSync(join(dir, ".aide"))).toBe(false);
   });

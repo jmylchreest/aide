@@ -15,6 +15,7 @@ import {
   installHookSafetyNet,
   findAideBinary,
 } from "../lib/hook-utils.js";
+import { setSessionContext } from "../lib/anchor.js";
 
 const SOURCE = "hud-updater";
 import { updateToolStats } from "../core/tool-tracking.js";
@@ -63,6 +64,7 @@ async function main(): Promise<void> {
     const toolName = data.tool_name || "";
     const agentId = data.agent_id || data.session_id;
     const sessionId = data.session_id;
+    setSessionContext(sessionId);
 
     // Initialize logger
     log = new Logger("hud-updater", cwd);

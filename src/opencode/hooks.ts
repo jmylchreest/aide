@@ -61,6 +61,7 @@ import {
 import { getState, setState } from "../core/aide-client.js";
 import {
   resolveAnchorViaBinary,
+  setSessionContext,
   writeSessionAnchor,
 } from "../lib/anchor.js";
 import { isFalsy, reflectEnabled } from "../lib/hook-utils.js";
@@ -436,6 +437,7 @@ async function handleSessionCreated(
   event: OpenCodeEvent,
 ): Promise<void> {
   const sessionId = extractSessionId(event);
+  setSessionContext(sessionId);
 
   if (state.initializedSessions.has(sessionId)) return;
   state.initializedSessions.add(sessionId);

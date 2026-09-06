@@ -80,7 +80,7 @@ function readAnchorRoot(sessionId: string, cwd: string): string | null {
  * here to keep this hook's startup cheap (no extra ES imports). FALLBACK
  * only: the session anchor cache (readAnchorRoot) is consulted first.
  */
-function resolveRoot(cwd: string): string {
+function resolveRoot(cwd: string): { root: string; hasMarker: boolean } {
   const override = process.env.AIDE_PROJECT_ROOT;
   if (override) {
     try {
@@ -91,7 +91,8 @@ function resolveRoot(cwd: string): string {
         [".aide", ".git", ".hg", ".svn", ".bzr", ".fossil"].some((m) =>
           existsSync(join(override, m)),
         );
-      if (marked && statSync(override).isDirectory()) return override;
+      if (marked && statSync(override).isDirectory())
+        return { root: override, hasMarker: true };
     } catch {
       /* fall through */
     }
@@ -150,9 +151,9 @@ function resolveRoot(cwd: string): string {
     if (parent === dir) break;
     dir = parent;
   }
-  for (const c of candidates) if (c.vcsRoot) return c.vcsRoot;
-  for (const c of candidates) if (c.hasAide) return c.dir;
-  return cwd;
+  for (const c of candidates) if (c.vcsRoot) return { root: c.vcsRoot, hasMarker: true };
+  for (const c of candidates) if (c.hasAide) return { root: c.dir, hasMarker: true };
+  return { root: cwd, hasMarker: false };
 }
 
 const SESSION_ID_RE = /^[a-zA-Z0-9_-]{1,128}$/;
@@ -163,12 +164,15 @@ function ms(): string {
 }
 
 /**
- * Always log to .aide/_logs/session-end.log (NOT gated on AIDE_DEBUG).
- * This hook has historically been invisible when it fails — always log.
+ * Log to .aide/_logs/session-end.log. NOT gated on AIDE_DEBUG — this hook has
+ * historically been invisible when it fails — but gated on there being a
+ * project to log into, since creating .aide/ is what marks one.
  */
 function log(cwd: string, msg: string): void {
   try {
-    const logDir = join(resolveRoot(cwd), ".aide", "_logs");
+    const { root, hasMarker } = resolveRoot(cwd);
+    if (!hasMarker) return;
+    const logDir = join(root, ".aide", "_logs");
     if (!existsSync(logDir)) mkdirSync(logDir, { recursive: true });
     const line = `[${new Date().toISOString()}] [session-end] ${ms()} ${msg}\n`;
     appendFileSync(join(logDir, "session-end.log"), line);
@@ -198,7 +202,7 @@ function findBinary(cwd?: string, anchorRoot?: string | null): string | null {
     if (existsSync(p)) return p;
   }
   if (cwd) {
-    const p = join(resolveRoot(cwd), ".aide", "bin", "aide");
+    const p = join(resolveRoot(cwd).root, ".aide", "bin", "aide");
     if (existsSync(p)) return p;
   }
   try {
