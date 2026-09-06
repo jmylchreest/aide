@@ -52,9 +52,11 @@ type MCPServer struct {
 	codeStoreReady atomic.Bool
 	codeInitWg     sync.WaitGroup
 	server         *mcp.Server
-	grpcServer     *grpcapi.Server
-	grammarLoader  *grammar.CompositeLoader
-	dbPath         string // path to the memory database; used to derive project root
+	// grpcServer is nil until this process becomes primary, which on a
+	// promotion happens on the supervisor's goroutine while others read it.
+	grpcServer    atomic.Pointer[grpcapi.Server]
+	grammarLoader *grammar.CompositeLoader
+	dbPath        string // path to the memory database; used to derive project root
 
 	unifiedWatcher   *watcher.Watcher
 	findingsRunner   *findings.Runner
@@ -83,6 +85,8 @@ func (s *MCPServer) getCodeStore() store.CodeIndexStore {
 	}
 	return s.backend.Load().codeStore
 }
+
+func (s *MCPServer) grpcSrv() *grpcapi.Server { return s.grpcServer.Load() }
 
 // newMCPServer returns a server with a backend installed, so every accessor is
 // safe to call before a mode has been chosen. A nil backend means an empty one.
@@ -424,8 +428,8 @@ func (s *MCPServer) startCodeReconciler(dbPath string) {
 			}
 		}
 
-		if s.grpcServer != nil {
-			s.grpcServer.SetCodeReconciler(func() (int, int, error) {
+		if srv := s.grpcSrv(); srv != nil {
+			srv.SetCodeReconciler(func() (int, int, error) {
 				res, err := indexer.Reconcile()
 				return res.Removed, res.Refreshed, err
 			})
@@ -619,9 +623,9 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 
 		// Expose watcher/runner to gRPC services. The reconciler is wired
 		// separately by startCodeReconciler so it runs unconditionally.
-		if s.grpcServer != nil {
-			s.grpcServer.SetWatcher(w)
-			s.grpcServer.SetFindingsRunner(findingsRunner)
+		if srv := s.grpcSrv(); srv != nil {
+			srv.SetWatcher(w)
+			srv.SetFindingsRunner(findingsRunner)
 		}
 
 		if len(watchPaths) > 0 {
@@ -895,7 +899,13 @@ func (s *MCPServer) becomePrimary(dbPath string, cfg *mcpConfig) (func(), error)
 	grpcServer := grpcapi.NewServer(st, dbPath, socketPath, s.grammarLoader)
 	observeSink.SetBus(grpcServer.ObserveBus())
 	grpcServer.SetInstinctStore(st)
-	s.grpcServer = grpcServer
+	s.grpcServer.Store(grpcServer)
+	// Wired here rather than in Run: a process that starts as a client has run
+	// Run already by the time it promotes, so the status service would never
+	// learn its tool list.
+	grpcServer.SetMCPTools(mcpToolList())
+	grpcServer.SetToolCountFunc(s.getToolCounts)
+	grpcServer.SetPprofURLFunc(pprofURL)
 	mcpLog.Printf("gRPC socket: %s", socketPath)
 
 	// Initialize stores BEFORE starting gRPC server.
@@ -1121,13 +1131,6 @@ func (s *MCPServer) Run() error {
 	s.registerInstinctTools()     // Instinct proposals (reflect output) list/accept/reject
 	s.registerInstanceInfoTools() // Instance identity: project root, version, paths
 	s.registerTokenTools()        // Token intelligence and statistics
-
-	// Expose registered MCP tools and count getter to gRPC StatusService
-	if s.grpcServer != nil {
-		s.grpcServer.SetMCPTools(mcpToolList())
-		s.grpcServer.SetToolCountFunc(s.getToolCounts)
-		s.grpcServer.SetPprofURLFunc(pprofURL)
-	}
 
 	// Run over stdio
 	return srv.Run(context.Background(), &mcp.StdioTransport{})

@@ -169,4 +169,9 @@ func TestSupervisorPromotesAfterPrimaryExits(t *testing.T) {
 	if client.store() == nil {
 		t.Error("promoted client has no store")
 	}
+	// Run has long since returned its wiring pass, so the status service is
+	// only populated if becomePrimary does it.
+	if client.grpcSrv() == nil {
+		t.Error("promoted client did not publish a gRPC server")
+	}
 }
