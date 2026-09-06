@@ -71,9 +71,9 @@ func (s *MCPServer) instinctStore() store.InstinctProposalStore {
 	return s.backend.Load().instinctStore
 }
 
-// setBackend installs a new backend set, returning the one it replaced.
-func (s *MCPServer) setBackend(b *mcpBackend) *mcpBackend {
-	return s.backend.Swap(b)
+// setBackend installs a new backend set, replacing the current one wholesale.
+func (s *MCPServer) setBackend(b *mcpBackend) {
+	s.backend.Store(b)
 }
 
 // getCodeStore returns the code store (nil during lazy init).
