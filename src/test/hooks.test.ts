@@ -75,6 +75,32 @@ This is a test skill.
   });
 
   it("should create .aide directories if missing", async () => {
+    const projectDir = join(tmpdir(), `aide-proj-${Date.now()}-${randomBytes(4).toString("hex")}`);
+    mkdirSync(projectDir);
+    // A VCS marker is what makes this a project root; without one the hook
+    // must not bootstrap. See the sibling test below.
+    mkdirSync(join(projectDir, ".git"));
+
+    const input = JSON.stringify({
+      hook_event_name: "UserPromptSubmit",
+      session_id: "test-123",
+      cwd: projectDir,
+      prompt: "test",
+    });
+
+    runHook("skill-injector.ts", input);
+
+    // Directories should now exist
+    expect(existsSync(join(projectDir, ".aide"))).toBe(true);
+    expect(existsSync(join(projectDir, ".aide", "skills"))).toBe(true);
+
+    rmSync(projectDir, { recursive: true, force: true });
+  });
+
+  // Bootstrapping an unmarked directory plants a project root wherever a hook
+  // happened to run: every later walk-up beneath it then resolves there, so a
+  // single stray invocation with cwd=/tmp captures every project under /tmp.
+  it("should not create .aide directories without a project marker", async () => {
     const emptyDir = join(tmpdir(), `aide-empty-${Date.now()}-${randomBytes(4).toString("hex")}`);
     mkdirSync(emptyDir);
 
@@ -87,9 +113,7 @@ This is a test skill.
 
     runHook("skill-injector.ts", input);
 
-    // Directories should now exist
-    expect(existsSync(join(emptyDir, ".aide"))).toBe(true);
-    expect(existsSync(join(emptyDir, ".aide", "skills"))).toBe(true);
+    expect(existsSync(join(emptyDir, ".aide"))).toBe(false);
 
     rmSync(emptyDir, { recursive: true, force: true });
   });

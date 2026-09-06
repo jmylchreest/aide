@@ -25,7 +25,8 @@ import {
   installHookSafetyNet,
   findAideBinary,
 } from "../lib/hook-utils.js";
-import { findProjectRoot } from "../lib/project-root.js";
+import { getAnchoredRoot } from "../lib/anchor.js";
+import { loadGlobalConfig } from "../core/session-init.js";
 import {
   discoverSkills as coreDiscoverSkills,
   matchSkills as coreMatchSkills,
@@ -67,10 +68,22 @@ let log: Logger | null = null;
 /**
  * Ensure .aide directories exist (minimal version for skill-injector)
  */
-function ensureDirectories(cwd: string): void {
-  // Resolve to the canonical project root so we don't plant a stray .aide/
-  // in a subdir the harness happened to launch from. See lib/project-root.ts.
-  const { root } = findProjectRoot(cwd);
+function ensureDirectories(cwd: string, sessionId: string): void {
+  // The anchor is the authoritative root: session-start resolves it via the
+  // Go binary once per session and caches it, so this is a cache read rather
+  // than a subprocess on the prompt path. Falls back to the TS walk.
+  const { root, hasMarker } = getAnchoredRoot({ sessionId, cwd });
+
+  // Same gate as session-start, aide-downloader and the Go binary. Creating
+  // .aide/ in an unmarked directory plants a project root wherever a hook
+  // happened to run, and every later walk-up beneath it resolves there —
+  // which for a shared directory like /tmp captures every project under it.
+  // loadGlobalConfig only runs in the unmarked case, so the hot path is free.
+  if (!hasMarker && (loadGlobalConfig().requireGit ?? true)) {
+    debugLog(`no .git/ or .aide/ marker above ${cwd}; skipping bootstrap`);
+    return;
+  }
+
   const dirs = [
     join(root, ".aide"),
     join(root, ".aide", "skills"),
@@ -166,7 +179,7 @@ async function main(): Promise<void> {
     // Ensure .aide directories exist
     debugLog("ensureDirectories starting...");
     log.start("ensureDirectories");
-    ensureDirectories(cwd);
+    ensureDirectories(cwd, sessionId);
     log.end("ensureDirectories");
     debugLog(`ensureDirectories complete (${Date.now() - hookStart}ms)`);
 
