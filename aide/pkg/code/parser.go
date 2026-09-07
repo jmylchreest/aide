@@ -281,7 +281,11 @@ func (p *Parser) ParseContent(content []byte, lang, filePath string) ([]*Symbol,
 // This is the preferred method as it uses standard tags.scm patterns.
 func (p *Parser) extractWithQuery(query *tree_sitter.Query, root *tree_sitter.Node, content []byte, filePath, lang string) []*Symbol {
 	var symbols []*Symbol
-	seen := make(map[string]bool) // Dedupe by position
+	type definitionKey struct {
+		start, end uint
+		name, kind string
+	}
+	seen := make(map[definitionKey]bool)
 
 	cursor := tree_sitter.NewQueryCursor()
 	defer cursor.Close()
@@ -322,7 +326,7 @@ func (p *Parser) extractWithQuery(query *tree_sitter.Query, root *tree_sitter.No
 		}
 
 		// Dedupe by position
-		key := filePath + ":" + name + ":" + kind
+		key := definitionKey{defNode.StartByte(), defNode.EndByte(), name, kind}
 		if seen[key] {
 			continue
 		}

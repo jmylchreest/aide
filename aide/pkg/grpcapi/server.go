@@ -2722,16 +2722,18 @@ func symbolToProto(s *code.Symbol) *Symbol {
 		return nil
 	}
 	return &Symbol{
-		Id:         s.ID,
-		Name:       s.Name,
-		Kind:       s.Kind,
-		Signature:  s.Signature,
-		DocComment: s.DocComment,
-		FilePath:   s.FilePath,
-		StartLine:  int32(s.StartLine),
-		EndLine:    int32(s.EndLine),
-		Language:   s.Language,
-		CreatedAt:  timestamppb.New(s.CreatedAt),
+		Id:            s.ID,
+		Name:          s.Name,
+		Kind:          s.Kind,
+		Signature:     s.Signature,
+		DocComment:    s.DocComment,
+		FilePath:      s.FilePath,
+		StartLine:     int32(s.StartLine),
+		EndLine:       int32(s.EndLine),
+		BodyStartLine: int32(s.BodyStartLine),
+		BodyEndLine:   int32(s.BodyEndLine),
+		Language:      s.Language,
+		CreatedAt:     timestamppb.New(s.CreatedAt),
 	}
 }
 

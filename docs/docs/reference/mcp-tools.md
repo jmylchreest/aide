@@ -146,9 +146,17 @@ Returns the number of indexed files, symbols, and references. Use to check if th
 
 ### code_outline
 
-Returns a collapsed file outline with signatures preserved and function/method/class bodies replaced by `{ ... }`. Shows ~5-15% of tokens vs the full file. Line numbers are preserved for targeted reads.
+Returns a collapsed file outline with signatures preserved and function/method/class bodies replaced by `{ ... }`. Output size depends on file structure and grammar support. Line numbers are preserved for targeted reads. The outline is parsed and rendered from the same source snapshot.
 
 **Parameters:** `file` (string), `keep_comments` (optional boolean)
+
+### code_read_symbol
+
+Reads current definitions by name. Without `file`, the index locates candidate files; each candidate is parsed from the bytes used to render the result. Duplicate names return an error listing candidates rather than choosing the first match. An explicit `file` works without an index; add `start_line` to distinguish definitions within that file.
+
+**Parameters:** `symbol` (string), `symbols` (optional batch of up to 10 names), `kind` (optional), `file` (optional exact path), `start_line` (optional current definition line; requires `file`).
+
+Outline and symbol observations carry `source_references`: exact file byte sizes and SHA-256 hashes of the retrieved snapshots. A batch records each reference file once. These are conditional full-file comparisons, not proof of avoided reads or provider savings, and do not populate the historical `tokens_saved` field.
 
 ### code_top_references
 
@@ -158,7 +166,7 @@ Ranks symbols by how many times they are referenced across the codebase. Useful 
 
 ### code_read_check
 
-Checks whether a file is indexed and whether its content has changed since last indexing. Returns freshness status and an estimated token count so you can decide whether to use `code_outline` or `code_symbols` instead of re-reading the full file.
+Checks whether a file is indexed and whether its modification time matches the index. This does not prove that its content is unchanged or that the agent has read the current version. Returns index status and a calibrated full-file token estimate.
 
 **Parameters:** `file` (string)
 

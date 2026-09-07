@@ -3628,6 +3628,8 @@ type Symbol struct {
 	EndLine       int32                  `protobuf:"varint,8,opt,name=end_line,json=endLine,proto3" json:"end_line,omitempty"`
 	Language      string                 `protobuf:"bytes,9,opt,name=language,proto3" json:"language,omitempty"`
 	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	BodyStartLine int32                  `protobuf:"varint,11,opt,name=body_start_line,json=bodyStartLine,proto3" json:"body_start_line,omitempty"`
+	BodyEndLine   int32                  `protobuf:"varint,12,opt,name=body_end_line,json=bodyEndLine,proto3" json:"body_end_line,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3730,6 +3732,20 @@ func (x *Symbol) GetCreatedAt() *timestamppb.Timestamp {
 		return x.CreatedAt
 	}
 	return nil
+}
+
+func (x *Symbol) GetBodyStartLine() int32 {
+	if x != nil {
+		return x.BodyStartLine
+	}
+	return 0
+}
+
+func (x *Symbol) GetBodyEndLine() int32 {
+	if x != nil {
+		return x.BodyEndLine
+	}
+	return 0
 }
 
 type CodeSearchRequest struct {
@@ -11222,7 +11238,7 @@ const file_aidememory_proto_rawDesc = "" +
 	"\x10TaskClearRequest\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\")\n" +
 	"\x11TaskClearResponse\x12\x14\n" +
-	"\x05count\x18\x01 \x01(\x05R\x05count\"\xad\x02\n" +
+	"\x05count\x18\x01 \x01(\x05R\x05count\"\xf9\x02\n" +
 	"\x06Symbol\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
@@ -11237,7 +11253,9 @@ const file_aidememory_proto_rawDesc = "" +
 	"\blanguage\x18\t \x01(\tR\blanguage\x129\n" +
 	"\n" +
 	"created_at\x18\n" +
-	" \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\x8c\x01\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12&\n" +
+	"\x0fbody_start_line\x18\v \x01(\x05R\rbodyStartLine\x12\"\n" +
+	"\rbody_end_line\x18\f \x01(\x05R\vbodyEndLine\"\x8c\x01\n" +
 	"\x11CodeSearchRequest\x12\x14\n" +
 	"\x05query\x18\x01 \x01(\tR\x05query\x12\x12\n" +
 	"\x04kind\x18\x02 \x01(\tR\x04kind\x12\x1a\n" +

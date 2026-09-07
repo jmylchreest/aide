@@ -55,9 +55,11 @@ type CodeReadCheckInput struct {
 }
 
 type CodeReadSymbolInput struct {
-	Symbol  string   `json:"symbol" jsonschema:"Name of the symbol to read (e.g., 'getUserById', 'AuthConfig'). Required if symbols is empty."`
-	Symbols []string `json:"symbols,omitempty" jsonschema:"Batch mode: list of symbol names to read (max 10). If set, symbol is ignored."`
-	Kind    string   `json:"kind,omitempty" jsonschema:"Filter by symbol kind: function, method, class, interface, type"`
+	Symbol    string   `json:"symbol" jsonschema:"Name of the symbol to read (e.g., 'getUserById', 'AuthConfig'). Required if symbols is empty."`
+	Symbols   []string `json:"symbols,omitempty" jsonschema:"Batch mode: list of symbol names to read (max 10). If set, symbol is ignored."`
+	Kind      string   `json:"kind,omitempty" jsonschema:"Filter by symbol kind: function, method, class, interface, type"`
+	File      string   `json:"file,omitempty" jsonschema:"Exact file path. Reads current source directly, including files not yet indexed. Use to resolve ambiguous names."`
+	StartLine int      `json:"start_line,omitempty" jsonschema:"Current definition start line, used with file to resolve duplicate names within a file."`
 }
 
 // ============================================================================
@@ -140,7 +142,7 @@ references for several symbols in a single call.
 		Description: `Get a collapsed outline of a file with bodies replaced by { ... }.
 
 Returns the file structure with signatures preserved and function/method/class bodies
-collapsed, showing ~5-15% of the tokens of the full file. Line numbers are preserved
+collapsed. Output size depends on file structure and grammar support. Line numbers are preserved
 so you can later use Read with offset/limit for specific sections.
 
 **Use this BEFORE reading a file** to understand its structure, then read only the
@@ -201,8 +203,10 @@ symbols in a single call, eliminating round-trip overhead.
 - Batch: {"symbols": ["getUserById", "createUser", "deleteUser"]}
 - Filtered: {"symbol": "handle", "kind": "method"}
 
-**Note:** Requires the code index (run 'aide code index'). If the symbol isn't found
-in the index, check the name with code_search first.`,
+**Disambiguation:** Set file to read from an exact path; this also works without an index.
+If a file has multiple definitions with the same name, also set start_line to the
+current definition line. Ambiguous names return candidates instead of choosing one.
+Without file, uses the code index to locate candidate files, then reads current source.`,
 	}, s.handleCodeReadSymbol)
 
 	mcp.AddTool(s.server, &mcp.Tool{
@@ -219,9 +223,8 @@ code_outline/code_symbols/code_references instead.
 - outline_available: whether code_outline would return useful data
 - estimated_tokens: estimated token count for the full file (calibrated per-language)
 
-**Use this before re-reading a file** to check if the version you already read
-is still current. If fresh=true and outline_available=true, prefer code_outline
-or code_symbols over a full Read to save context window tokens.`,
+This checks index modification times, not the version previously delivered to
+the agent. A matching timestamp does not prove unchanged content or prior coverage.`,
 	}, s.handleCodeReadCheck)
 }
 
@@ -300,7 +303,7 @@ func (s *MCPServer) getFileSymbolsFresh(filePath string) ([]*code.Symbol, error)
 			if statErr == nil && fileInfo.ModTime.Equal(stat.ModTime()) {
 				// Index is current — use cached symbols
 				symbols, err := codeStore.GetFileSymbols(relPath)
-				if err == nil {
+				if err == nil && completeFileSymbols(fileInfo, symbols) {
 					return symbols, nil
 				}
 			}
@@ -310,7 +313,29 @@ func (s *MCPServer) getFileSymbolsFresh(filePath string) ([]*code.Symbol, error)
 	// Index is stale, missing, or unavailable — parse on demand
 	mcpLog.Printf("  freshness: parsing %s on demand", relPath)
 	parser := code.NewParser(s.grammarLoader)
+	defer parser.Close()
 	return parser.ParseFile(absPath)
+}
+
+// A file record can outlive its symbol records. Never treat a partial index as
+// evidence that a file has no more definitions.
+func completeFileSymbols(info *code.FileInfo, symbols []*code.Symbol) bool {
+	if len(info.SymbolIDs) != len(symbols) {
+		return false
+	}
+	ids := make(map[string]bool, len(symbols))
+	for _, sym := range symbols {
+		if sym == nil {
+			return false
+		}
+		ids[sym.ID] = true
+	}
+	for _, id := range info.SymbolIDs {
+		if !ids[id] {
+			return false
+		}
+	}
+	return true
 }
 
 func (s *MCPServer) handleCodeStats(_ context.Context, _ *mcp.CallToolRequest, _ CodeStatsInput) (*mcp.CallToolResult, any, error) {
@@ -446,35 +471,16 @@ func (s *MCPServer) handleCodeOutline(ctx context.Context, _ *mcp.CallToolReques
 		return errorResult("file path is required"), nil, nil
 	}
 
-	// Get fresh symbols with body ranges
-	symbols, err := s.getFileSymbolsFresh(input.File)
+	// Parse the same byte snapshot we render. Cached mtimes do not prove that
+	// symbol ranges describe these bytes (editors can preserve timestamps).
+	snapshot, err := s.readSourceSnapshot(input.File)
 	if err != nil {
 		mcpLog.Printf("  error getting symbols: %v", err)
 		return errorResult(fmt.Sprintf("failed to parse file: %v", err)), nil, nil
 	}
 
-	// Read the actual file
-	absPath := input.File
-	if !filepath.IsAbs(input.File) {
-		absPath = filepath.Join(store.ProjectRootFromDB(s.dbPath), input.File)
-	}
-
-	fileContent, err := os.ReadFile(absPath)
-	if err != nil {
-		mcpLog.Printf("  error reading file: %v", err)
-		return errorResult(fmt.Sprintf("failed to read file: %v", err)), nil, nil
-	}
-
-	outline := buildOutline(fileContent, symbols, !input.KeepComments)
-	mcpLog.Printf("  outline: %d symbols, %d/%d lines", len(symbols), countLines(outline), countLines(string(fileContent)))
-
-	fullTokens := code.EstimateTokensFromSize(input.File, int64(len(fileContent)))
-	outlineTokens := code.EstimateTokens(input.File, len(outline))
-	saved := fullTokens - outlineTokens
-	if saved < 0 {
-		saved = 0
-	}
-	span.Tokens(outlineTokens).Saved(saved)
+	outline := buildOutline(snapshot.content, snapshot.symbols, !input.KeepComments)
+	recordSourceReferences(span, map[string]*sourceSnapshot{snapshot.path: snapshot})
 
 	return textResult(outline), nil, nil
 }
@@ -543,7 +549,7 @@ func (s *MCPServer) handleCodeReadSymbol(ctx context.Context, _ *mcp.CallToolReq
 	mcpLog.Printf("tool: code_read_symbol symbols=%v kind=%s", names, input.Kind)
 
 	codeStore := s.getCodeStore()
-	if codeStore == nil {
+	if codeStore == nil && input.File == "" {
 		return errorResult("code store not available (still initializing or disabled)"), nil, nil
 	}
 
@@ -553,114 +559,44 @@ func (s *MCPServer) handleCodeReadSymbol(ctx context.Context, _ *mcp.CallToolReq
 	if len(names) > 10 {
 		return errorResult("batch mode supports at most 10 symbols per call"), nil, nil
 	}
+	if input.StartLine < 0 || (input.StartLine > 0 && input.File == "") {
+		return errorResult("start_line must be non-negative and requires file"), nil, nil
+	}
 
-	root := store.ProjectRootFromDB(s.dbPath)
 	var sb strings.Builder
 	if len(names) > 1 {
 		sb.WriteString("# Batch Symbol Source\n\n")
 	}
 
-	totalTokens := 0
-	totalSaved := 0
 	found := 0
+	var single *code.Symbol
+	// One immutable snapshot per file for the entire batch; each full-file
+	// reference appears once even when several definitions are requested.
+	snapshots := make(map[string]*sourceSnapshot)
+	references := make(map[string]*sourceSnapshot)
 
 	for _, name := range names {
-		sym, symbolTokens, saved, text := s.readOneSymbol(codeStore, root, name, input.Kind)
+		sym, snapshot, text := s.readOneSymbol(codeStore, name, input, snapshots)
 		sb.WriteString(text)
 		if sym == nil {
 			continue
 		}
 		found++
-		totalTokens += symbolTokens
-		totalSaved += saved
+		single = sym
+		references[snapshot.path] = snapshot
 	}
 
-	span.Tokens(totalTokens).Saved(totalSaved).Attr("symbols", fmt.Sprintf("%d/%d", found, len(names)))
+	span.Attr("symbols", fmt.Sprintf("%d/%d", found, len(names)))
+	recordSourceReferences(span, references)
 	if found == 1 {
 		// Single-symbol mode: surface the file path AND symbol body line
 		// range on the span so the dashboard's file viewer can scroll
 		// straight to the symbol. (Batch mode mixes files; we leave both
 		// empty there.)
-		for _, name := range names {
-			if sym, _, _, _ := s.readOneSymbol(s.getCodeStore(), store.ProjectRootFromDB(s.dbPath), name, input.Kind); sym != nil {
-				span.FilePath(sym.FilePath)
-				if sym.StartLine > 0 {
-					span.Attr("start_line", strconv.Itoa(sym.StartLine))
-				}
-				if sym.EndLine > 0 {
-					span.Attr("end_line", strconv.Itoa(sym.EndLine))
-				}
-				break
-			}
-		}
+		span.FilePath(single.FilePath).Attr("start_line", strconv.Itoa(single.StartLine)).Attr("end_line", strconv.Itoa(single.EndLine))
 	}
 
-	mcpLog.Printf("  returned %d/%d symbols, %d tokens, %d saved", found, len(names), totalTokens, totalSaved)
-	return textResult(sb.String()), nil, nil
-}
-
-// readOneSymbol looks up a symbol by name in the code index and extracts its source lines.
-// Returns the matched symbol (nil if not found), token count, tokens saved, and formatted output.
-func (s *MCPServer) readOneSymbol(codeStore store.CodeIndexStore, root, name, kind string) (*code.Symbol, int, int, string) {
-	query := name
-	if !containsBleveSyntax(query) {
-		query = "\"" + query + "\""
-	}
-	opts := code.SearchOptions{
-		Kind:  kind,
-		Limit: 20,
-	}
-	results, err := codeStore.SearchSymbols(query, opts)
-	if err != nil {
-		return nil, 0, 0, fmt.Sprintf("## `%s` — search error: %v\n\n", name, err)
-	}
-
-	var match *code.Symbol
-	for _, r := range results {
-		if r.Symbol.Name == name {
-			match = r.Symbol
-			break
-		}
-	}
-	if match == nil {
-		return nil, 0, 0, fmt.Sprintf("## `%s` — not found in index\n\n", name)
-	}
-
-	absPath := filepath.Join(root, match.FilePath)
-	symbolLines, err := readFileLines(absPath, match.StartLine, match.EndLine)
-	if err != nil {
-		return nil, 0, 0, fmt.Sprintf("## `%s` — file error: %v\n\n", name, err)
-	}
-
-	if len(symbolLines) == 0 {
-		return nil, 0, 0, fmt.Sprintf("## `%s` — no source lines at %s:%d-%d\n\n", name, match.FilePath, match.StartLine, match.EndLine)
-	}
-
-	var sb strings.Builder
-	fmt.Fprintf(&sb, "## `%s` [%s]\n", match.Name, match.Kind)
-	fmt.Fprintf(&sb, "**File:** `%s:%d-%d`", match.FilePath, match.StartLine, match.EndLine)
-	if match.Signature != "" {
-		fmt.Fprintf(&sb, " | **Signature:** `%s`", match.Signature)
-	}
-	sb.WriteString("\n")
-	if match.DocComment != "" {
-		fmt.Fprintf(&sb, "**Doc:** %s\n", match.DocComment)
-	}
-	sb.WriteString("\n```\n")
-	for i, line := range symbolLines {
-		fmt.Fprintf(&sb, "%-4d: %s\n", match.StartLine+i, line)
-	}
-	sb.WriteString("```\n\n")
-
-	symbolContent := strings.Join(symbolLines, "\n")
-	symbolTokens := code.EstimateTokens(match.FilePath, len(symbolContent))
-	saved := 0
-	if stat, err := os.Stat(absPath); err == nil {
-		fileTokens := code.EstimateTokensFromSize(match.FilePath, stat.Size())
-		if fileTokens > symbolTokens {
-			saved = fileTokens - symbolTokens
-		}
-	}
-
-	return match, symbolTokens, saved, sb.String()
+	result := textResult(sb.String())
+	result.IsError = found != len(names)
+	return result, nil, nil
 }

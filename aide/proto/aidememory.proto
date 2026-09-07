@@ -459,6 +459,8 @@ message Symbol {
   int32 end_line = 8;
   string language = 9;
   google.protobuf.Timestamp created_at = 10;
+  int32 body_start_line = 11;
+  int32 body_end_line = 12;
 }
 
 message CodeSearchRequest {
