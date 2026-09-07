@@ -350,7 +350,7 @@ Existing JSON fields remain available. `total_saved`, `saved_by_tool` and `by_sa
 
 Both `stats` and `summary` accept `--session`, `--since` (RFC3339 timestamp or duration such as `24h`) and `--until` (inclusive RFC3339 timestamp). `summary --last=N` remains a deprecated alias for `--limit=N`: its historical implementation limits events, not sessions.
 
-In aide-web, **Telemetry → Tokens** uses the same backend accounting and offers date/session filters and per-event evidence. Headline totals are independent of the recent-events page size. Historical estimates remain separately labelled.
+In aide-web, **Telemetry → Tokens** opens on an Overview with headline estimates and a compact recorded-activity chart. Details contains tool/source breakdowns and event evidence; Accounting contains collection diagnostics, measurement methods and historical estimates. Date/session filters apply across all three views. Headline totals and the activity chart are aggregated centrally over every selected event, independently of the recent-events page size. Chart gaps mean no measured data; activity is not a savings or context-budget burndown. Host and server results are selectable, never added together. Historical estimates remain separately labelled.
 
 ## Status
 

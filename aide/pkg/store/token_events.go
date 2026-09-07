@@ -59,6 +59,7 @@ func (s *BoltStore) TokenStats(sessionID string, since, until time.Time) (*memor
 		ByDelivery:   make(map[string]int),
 	}
 	sessions := make(map[string]bool)
+	activity := newTokenActivity(since, until)
 
 	tally := func(e *memory.TokenEvent) {
 		if !since.IsZero() && e.Timestamp.Before(since) {
@@ -76,6 +77,7 @@ func (s *BoltStore) TokenStats(sessionID string, since, until time.Time) (*memor
 			sessions[e.SessionID] = true
 		}
 		stats.Accounting.Add(e)
+		activity.add(e)
 
 		// Every event with a tool counts as one call. Injection events
 		// reuse Tool for the source name; the chart filters those out.
@@ -149,6 +151,7 @@ func (s *BoltStore) TokenStats(sessionID string, since, until time.Time) (*memor
 	}
 
 	stats.Sessions = len(sessions)
+	stats.Accounting.Activity = activity.result()
 	return stats, nil
 }
 

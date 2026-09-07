@@ -1217,6 +1217,15 @@ message TokenQuantity {
   int64 estimated_tokens = 2;
   int64 events = 3;
 }
+message TokenActivityBucket {
+ google.protobuf.Timestamp start = 1;
+ map<string, TokenQuantity> by_stage = 2;
+ int64 unmeasured = 3;
+}
+message TokenActivity {
+ int64 interval_seconds = 1;
+ repeated TokenActivityBucket buckets = 2;
+}
 message TokenAccounting {
   int32 version = 1;
   string estimator = 2;
@@ -1225,6 +1234,7 @@ message TokenAccounting {
   int64 legacy_events = 5;
   int64 missing_payload = 6;
   int64 missing_identity = 7;
+  TokenActivity activity = 8;
 }
 message TokenStatsResponse {
   int32 total_read = 1;      // estimated tokens consumed by reads

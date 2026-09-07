@@ -1,6 +1,9 @@
 package memory
 
-import "strconv"
+import (
+	"strconv"
+	"time"
+)
 
 // TokenQuantity describes observed UTF-8 text at one boundary. It excludes
 // opaque media, transport framing and provider usage. Tokens are estimates.
@@ -10,9 +13,24 @@ type TokenQuantity struct {
 	Events          int   `json:"events"`
 }
 
+// TokenActivityBucket contains recorded measurements for one UTC interval.
+// Unmeasured observations are counted separately, never imputed as zero.
+type TokenActivityBucket struct {
+	Start      time.Time                 `json:"start"`
+	ByStage    map[string]*TokenQuantity `json:"by_stage"`
+	Unmeasured int                       `json:"unmeasured"`
+}
+
+// TokenActivity is a bounded, sparse time series of recorded result text.
+type TokenActivity struct {
+	IntervalSeconds int64                  `json:"interval_seconds"`
+	Buckets         []*TokenActivityBucket `json:"buckets"`
+}
+
 // TokenAccounting is additive to the legacy statistics. Stages must not be
 // summed: server and host observations can describe the same unjoined call.
 type TokenAccounting struct {
+	Activity        *TokenActivity            `json:"activity,omitempty"`
 	Version         int                       `json:"version"`
 	Estimator       string                    `json:"estimator"`
 	ByStage         map[string]*TokenQuantity `json:"by_stage"`

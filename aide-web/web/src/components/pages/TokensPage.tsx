@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "@/lib/api";
 import { useApi } from "@/hooks/use-api";
+import { TokenOverview } from "../shared/TokenOverview";
 import { TokenAccountingSummary } from "../shared/TokenAccountingSummary";
 import { SessionFilterInput } from "../shared/SessionFilterInput";
 import { FilterBar } from "../shared/FilterBar";
@@ -160,7 +161,10 @@ function PerToolObservations({ stats }: { stats: PerToolStat[] }) {
   );
 }
 
+type ReportView = "overview" | "details" | "accounting";
+
 export function TokensPage() {
+  const [view, setView] = useState<ReportView>("overview");
   const { project } = useParams<{ project: string }>();
   const [session, setSession] = useState("");
   const [dateRange, setDateRange] = useState<DateRangeValue>(() => ({
@@ -180,17 +184,19 @@ export function TokensPage() {
       <h2 className="text-base font-semibold pb-1.5 border-b border-aide-border mb-3">
         Token Intelligence
       </h2>
-      <p className="text-[11px] text-aide-text-dim mb-4">
-        Observed text sizes and estimated tokens, with evidence coverage.
-        Provider usage and savings require separate evidence.
-      </p>
       <div className="mb-4 flex items-center gap-3 flex-wrap">
         <label className="text-[11px] text-aide-text-muted">
           Session <SessionFilterInput value={session} onChange={setSession} />
         </label>
         <DateRangePicker value={dateRange} onChange={setDateRange} />
       </div>
-      <TokenReport key={selection} session={session} dateRange={dateRange} />
+      <TokenReport
+        key={selection}
+        session={session}
+        dateRange={dateRange}
+        view={view}
+        setView={setView}
+      />
     </div>
   );
 }
@@ -198,9 +204,13 @@ export function TokensPage() {
 function TokenReport({
   session,
   dateRange,
+  view,
+  setView,
 }: {
   session: string;
   dateRange: DateRangeValue;
+  view: ReportView;
+  setView: (view: ReportView) => void;
 }) {
   const { project } = useParams<{ project: string }>();
   const [query, setQuery] = useState("");
@@ -230,14 +240,16 @@ function TokenReport({
 
   const { data: events, loading: eventsLoading } = useApi(
     () =>
-      api.listTokenEvents(
-        project!,
-        session || undefined,
-        200,
-        dateRange.since || undefined,
-        dateRange.until || undefined,
-      ),
-    [project, session, dateRange.since, dateRange.until],
+      view === "details"
+        ? api.listTokenEvents(
+            project!,
+            session || undefined,
+            200,
+            dateRange.since || undefined,
+            dateRange.until || undefined,
+          )
+        : Promise.resolve([] as TokenEventItem[]),
+    [project, session, dateRange.since, dateRange.until, view === "details"],
   );
 
   const filteredEvents = useMemo(() => {
@@ -446,159 +458,185 @@ function TokenReport({
 
   return (
     <div>
+      <nav
+        aria-label="Token report views"
+        className="flex gap-1 border-b border-aide-border mb-4"
+      >
+        {(["overview", "details", "accounting"] as const).map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            aria-pressed={view === tab}
+            onClick={() => setView(tab)}
+            className={`px-3 py-2 text-xs border-b-2 capitalize ${view === tab ? "text-aide-accent border-aide-accent" : "text-aide-text-muted border-transparent hover:text-aide-text"}`}
+          >
+            {tab}
+          </button>
+        ))}
+      </nav>
       {statsError ? (
         <p role="alert" className="text-xs text-red-400 mb-4">
           Unable to load accounting: {statsError}
         </p>
       ) : statsLoading ? (
         <p className="text-xs text-aide-text-muted mb-4">Loading accounting…</p>
-      ) : (
-        <TokenAccountingSummary accounting={stats?.accounting} />
-      )}
-      <h3 className="text-xs font-semibold text-aide-text mb-2">
-        Historical and compatibility estimates
-      </h3>
-      {/* Legacy totals remain visible, independently of measured text. */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-6">
-        <StatCard
-          label="Result token estimates"
-          value={stats ? `~${formatTokens(stats.total_read)}` : "-"}
-          sub={`${stats?.event_count ?? 0} events`}
+      ) : view === "overview" && stats ? (
+        <TokenOverview
+          stats={stats}
+          onDetails={() => setView("details")}
+          onAccounting={() => setView("accounting")}
         />
-        <StatCard
-          label="Legacy comparison estimate"
-          value={stats ? `~${formatTokens(stats.total_saved)}` : "-"}
-          sub="Not verified savings; may overlap"
-        />
-        <StatCard
-          label="Context Delivered"
-          value={stats ? `~${formatTokens(stats.total_delivered)}` : "-"}
-          sub="proactive injections"
-        />
-        <StatCard
-          label="Sessions Tracked"
-          value={stats ? String(stats.sessions) : "-"}
-          sub={adoptionPct ? `${adoptionPct}% code tool adoption` : undefined}
-        />
+      ) : null}
+      <div hidden={view !== "accounting"}>
+        {!statsLoading && !statsError && (
+          <TokenAccountingSummary accounting={stats?.accounting} />
+        )}
+        <h3 className="text-xs font-semibold text-aide-text mb-2">
+          Historical and compatibility estimates
+        </h3>
+        {/* Legacy totals remain visible, independently of measured text. */}
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-6">
+          <StatCard
+            label="Result token estimates"
+            value={stats ? `~${formatTokens(stats.total_read)}` : "-"}
+            sub={`${stats?.event_count ?? 0} events`}
+          />
+          <StatCard
+            label="Legacy comparison estimate"
+            value={stats ? `~${formatTokens(stats.total_saved)}` : "-"}
+            sub="Not verified savings; may overlap"
+          />
+          <StatCard
+            label="Context Delivered"
+            value={stats ? `~${formatTokens(stats.total_delivered)}` : "-"}
+            sub="proactive injections"
+          />
+          <StatCard
+            label="Sessions Tracked"
+            value={stats ? String(stats.sessions) : "-"}
+            sub={adoptionPct ? `${adoptionPct}% code tool adoption` : undefined}
+          />
+        </div>
       </div>
-
-      {perToolStats.length > 0 && (
-        <div className="mb-6">
-          <h3 className="text-xs font-semibold text-aide-text mb-2">
-            Per-tool observations
-          </h3>
-          <p className="text-[11px] text-aide-text-dim mb-2">
-            All recorded observations in the selected period. Estimates mix
-            historical methods and observed text; these are not provider totals.
-          </p>
-          <PerToolObservations stats={perToolStats} />
-        </div>
-      )}
-
-      {/* Context delivery breakdown */}
-      {stats && stats.total_delivered > 0 && (
-        <div className="mb-6">
-          <h3 className="text-xs font-semibold text-aide-text mb-2">
-            Context Delivered
-          </h3>
-          <p className="text-[10px] text-aide-text-dim mb-2">
-            Historical estimates of guidance injected by aide; delivery does not
-            establish avoided searches.
-          </p>
-          <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-            {(stats.by_delivery?.memory ?? 0) > 0 && (
-              <DeliveryCard
-                label="Memories"
-                value={stats.by_delivery.memory}
-                tooltip="Tokens from project and global memories injected at session start."
-              />
-            )}
-            {(stats.by_delivery?.decision ?? 0) > 0 && (
-              <DeliveryCard
-                label="Decisions"
-                value={stats.by_delivery.decision}
-                tooltip="Tokens from architectural decisions injected at session start."
-              />
-            )}
-            {(stats.by_delivery?.skill ?? 0) > 0 && (
-              <DeliveryCard
-                label="Skills"
-                value={stats.by_delivery.skill}
-                tooltip="Tokens from matched skill instructions injected on user prompts."
-              />
-            )}
-            {(stats.by_delivery?.enrichment ?? 0) > 0 && (
-              <DeliveryCard
-                label="Search Enrichment"
-                value={stats.by_delivery.enrichment}
-                tooltip="Tokens from code index context appended to Grep searches."
-              />
-            )}
+      <div hidden={view !== "details"}>
+        {perToolStats.length > 0 && (
+          <div className="mb-6">
+            <h3 className="text-xs font-semibold text-aide-text mb-2">
+              Per-tool observations
+            </h3>
+            <p className="text-[11px] text-aide-text-dim mb-2">
+              All recorded observations in the selected period. Estimates mix
+              historical methods and observed text; these are not provider
+              totals.
+            </p>
+            <PerToolObservations stats={perToolStats} />
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Tool adoption */}
-      {stats && totalFileInteractions > 0 && (
-        <div className="mb-6">
-          <h3 className="text-xs font-semibold text-aide-text mb-2">
-            Tool Adoption
-          </h3>
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-2 rounded-full bg-aide-surface overflow-hidden">
-              <div
-                className="h-full rounded-full bg-aide-accent"
-                style={{ width: `${adoptionPct}%` }}
-              />
+        {/* Context delivery breakdown */}
+        {stats && stats.total_delivered > 0 && (
+          <div className="mb-6">
+            <h3 className="text-xs font-semibold text-aide-text mb-2">
+              Context Delivered
+            </h3>
+            <p className="text-[10px] text-aide-text-dim mb-2">
+              Historical estimates of guidance injected by aide; delivery does
+              not establish avoided searches.
+            </p>
+            <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+              {(stats.by_delivery?.memory ?? 0) > 0 && (
+                <DeliveryCard
+                  label="Memories"
+                  value={stats.by_delivery.memory}
+                  tooltip="Tokens from project and global memories injected at session start."
+                />
+              )}
+              {(stats.by_delivery?.decision ?? 0) > 0 && (
+                <DeliveryCard
+                  label="Decisions"
+                  value={stats.by_delivery.decision}
+                  tooltip="Tokens from architectural decisions injected at session start."
+                />
+              )}
+              {(stats.by_delivery?.skill ?? 0) > 0 && (
+                <DeliveryCard
+                  label="Skills"
+                  value={stats.by_delivery.skill}
+                  tooltip="Tokens from matched skill instructions injected on user prompts."
+                />
+              )}
+              {(stats.by_delivery?.enrichment ?? 0) > 0 && (
+                <DeliveryCard
+                  label="Search Enrichment"
+                  value={stats.by_delivery.enrichment}
+                  tooltip="Tokens from code index context appended to Grep searches."
+                />
+              )}
             </div>
-            <span className="text-xs text-aide-text-muted whitespace-nowrap">
-              {stats.code_tool_count} code tools / {stats.read_count} reads (
-              {adoptionPct}%)
-            </span>
           </div>
-          <p className="text-[10px] text-aide-text-dim mt-1">
-            Recorded outline and symbol-read calls as a share of file retrieval
-            calls. Adoption alone does not establish savings.
-          </p>
-        </div>
-      )}
+        )}
 
-      {/* Events table */}
-      <h3 className="text-xs font-semibold text-aide-text mb-2">
-        Recent Events
-      </h3>
-      <FilterBar
-        query={query}
-        onQueryChange={setQuery}
-        placeholder="Filter events..."
-        dropdowns={[
-          {
-            value: toolFilter,
-            onChange: setToolFilter,
-            options: toolOptions,
-            placeholder: "All tools",
-          },
-        ]}
-      />
-      {(statsLoading || eventsLoading) && (
-        <p className="text-xs text-aide-text-dim py-4">Loading...</p>
-      )}
-      {!statsLoading && !eventsLoading && filteredEvents.length === 0 && (
-        <p className="text-xs text-aide-text-dim py-4">
-          No token events recorded yet.
-        </p>
-      )}
-      {filteredEvents.length > 0 && (
-        <SortableTable
-          data={filteredEvents}
-          columns={columns}
-          minWidth="75rem"
-          keyFn={(row) => row.id}
-          defaultSortKey="timestamp"
-          defaultSortDir="desc"
+        {/* Tool adoption */}
+        {stats && totalFileInteractions > 0 && (
+          <div className="mb-6">
+            <h3 className="text-xs font-semibold text-aide-text mb-2">
+              Tool Adoption
+            </h3>
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-2 rounded-full bg-aide-surface overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-aide-accent"
+                  style={{ width: `${adoptionPct}%` }}
+                />
+              </div>
+              <span className="text-xs text-aide-text-muted whitespace-nowrap">
+                {stats.code_tool_count} code tools / {stats.read_count} reads (
+                {adoptionPct}%)
+              </span>
+            </div>
+            <p className="text-[10px] text-aide-text-dim mt-1">
+              Recorded outline and symbol-read calls as a share of file
+              retrieval calls. Adoption alone does not establish savings.
+            </p>
+          </div>
+        )}
+
+        {/* Events table */}
+        <h3 className="text-xs font-semibold text-aide-text mb-2">
+          Recent Events
+        </h3>
+        <FilterBar
+          query={query}
+          onQueryChange={setQuery}
+          placeholder="Filter events..."
+          dropdowns={[
+            {
+              value: toolFilter,
+              onChange: setToolFilter,
+              options: toolOptions,
+              placeholder: "All tools",
+            },
+          ]}
         />
-      )}
-
+        {(statsLoading || eventsLoading) && (
+          <p className="text-xs text-aide-text-dim py-4">Loading...</p>
+        )}
+        {!statsLoading && !eventsLoading && filteredEvents.length === 0 && (
+          <p className="text-xs text-aide-text-dim py-4">
+            No token events recorded yet.
+          </p>
+        )}
+        {filteredEvents.length > 0 && (
+          <SortableTable
+            data={filteredEvents}
+            columns={columns}
+            minWidth="75rem"
+            keyFn={(row) => row.id}
+            defaultSortKey="timestamp"
+            defaultSortDir="desc"
+          />
+        )}
+      </div>
       {viewer && project && (
         <CodeViewer
           open={!!viewer}

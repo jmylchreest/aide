@@ -178,7 +178,13 @@ export interface TokenQuantity {
   estimated_tokens: number;
   events: number;
 }
+export interface TokenActivityBucket {
+  start: string;
+  by_stage: Record<string, TokenQuantity>;
+  unmeasured: number;
+}
 export interface TokenAccounting {
+  activity?: { interval_seconds: number; buckets: TokenActivityBucket[] };
   version: number;
   estimator: string;
   by_stage: Record<string, TokenQuantity>;
