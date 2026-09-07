@@ -15,6 +15,7 @@ import {
   emitHookResult,
   installHookSafetyNet,
   findAideBinary,
+  detectPlatform,
 } from "../lib/hook-utils.js";
 import { setSessionContext } from "../lib/anchor.js";
 import { saveStateSnapshot as coreSaveStateSnapshot } from "../core/pre-compact-logic.js";
@@ -34,6 +35,7 @@ import {
 } from "../core/session-checkpoint-logic.js";
 import { debug } from "../lib/logger.js";
 import { recordObserveEvent } from "../core/read-tracking.js";
+import { updateContextWindow } from "../core/context-window.js";
 
 const SOURCE = "pre-compact";
 
@@ -60,6 +62,16 @@ async function main(): Promise<void> {
     // Save state snapshot before compaction — delegates to core
     const binary = findAideBinary(cwd, data.session_id);
     if (binary) {
+      const window = updateContextWindow(
+        binary,
+        cwd,
+        {
+          host: detectPlatform(),
+          sessionId: data.session_id,
+          actorId: data.session_id,
+        },
+        "compact_pending",
+      );
       // Emit a lifecycle trigger so PreCompact is traceable in the dashboard,
       // symmetric with session-start and subagent-start/stop.
       recordObserveEvent(binary, cwd, {
@@ -68,6 +80,10 @@ async function main(): Promise<void> {
         category: "lifecycle",
         subtype: (data as { trigger?: string }).trigger || "compact",
         session: sessionId,
+        attrs: {
+          context_status: window?.status ?? "unknown",
+          ...(window ? { context_epoch: window.id } : {}),
+        },
       });
 
       coreSaveStateSnapshot(binary, cwd, sessionId);

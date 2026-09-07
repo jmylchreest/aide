@@ -13,6 +13,7 @@
 import { execFileSync } from "child_process";
 import { debug } from "../lib/logger.js";
 import { recordFileRead } from "./read-tracking.js";
+import { contextWindow } from "./context-window.js";
 
 const SOURCE = "tool-observe";
 
@@ -235,6 +236,12 @@ export function recordToolEvent(
     (input.errorText && input.errorText.slice(0, 500)) ||
     toolFailureText(input.success, input.toolResponse);
   const text = extractOutputText(input.toolResponse);
+  const identity = {
+    host: input.host,
+    sessionId: input.sessionId,
+    actorId: input.actorId || input.sessionId,
+  };
+  const window = contextWindow(binary, cwd, identity);
   const generated = toolInput[CONTENT_WRITE_TOOLS[name]];
   let startLine: number | undefined;
   let endLine: number | undefined;
@@ -243,7 +250,7 @@ export function recordToolEvent(
     const limit = toolInput.limit;
     startLine = typeof offset === "number" && offset > 0 ? offset : 1;
     if (typeof limit === "number" && limit > 0) endLine = startLine + limit - 1;
-    recordFileRead(binary, cwd, filePath);
+    recordFileRead(binary, cwd, filePath, { identity, content: text });
   }
 
   try {
@@ -269,6 +276,12 @@ export function recordToolEvent(
         `--attr=argument_bytes=${Buffer.byteLength(generated, "utf8")}`,
       );
     if (input.host) args.push(`--attr=host=${input.host}`);
+    args.push(`--attr=context_status=${window?.status ?? "unknown"}`);
+    if (window)
+      args.push(
+        `--attr=context_epoch=${window.id}`,
+        `--attr=context_continuity=${window.continuity}`,
+      );
     if (input.invocationId)
       args.push(`--attr=invocation_id=${input.invocationId}`);
     if (input.actorId || input.sessionId)

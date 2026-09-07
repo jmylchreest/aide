@@ -7,20 +7,17 @@
  *
  * Behaviour:
  *   - Triggers on Read tool calls for files > 5KB (~150 lines)
- *   - Tracks which files have been outlined (code_outline/code_symbols)
  *   - Returns an advisory message (never blocks)
- *   - Also tracks code_outline/code_symbols calls to mark files as "known"
  *
  * Used by both Claude Code hooks (PreToolUse) and OpenCode plugin.
  */
 
-import { statSync, readFileSync, writeFileSync, existsSync } from "fs";
+import { statSync } from "fs";
 import { resolve, isAbsolute, normalize, extname } from "path";
-import { tmpdir } from "os";
-import { join } from "path";
 import { debug } from "../lib/logger.js";
 import { codeWatchEnabled } from "../lib/hook-utils.js";
 import { getPreviousRead, checkFileReadFreshness } from "./read-tracking.js";
+import type { ContextIdentity } from "./context-window.js";
 
 const SOURCE = "context-guard";
 
@@ -61,47 +58,6 @@ export interface ContextGuardResult {
 }
 
 /**
- * Get the path to the tracking file for this session.
- */
-function getTrackingPath(sessionId: string): string {
-  return join(tmpdir(), `aide-context-guard-${sessionId}.json`);
-}
-
-/**
- * Load the set of files that have been outlined in this session.
- */
-function loadOutlinedFiles(sessionId: string): Set<string> {
-  const trackingPath = getTrackingPath(sessionId);
-  try {
-    if (existsSync(trackingPath)) {
-      const data = JSON.parse(readFileSync(trackingPath, "utf-8"));
-      return new Set(data.files || []);
-    }
-  } catch {
-    // Corrupted file, start fresh
-  }
-  return new Set();
-}
-
-/**
- * Save a file as "outlined" in the tracking file.
- */
-function trackOutlinedFile(sessionId: string, filePath: string): void {
-  const files = loadOutlinedFiles(sessionId);
-  files.add(filePath);
-  const trackingPath = getTrackingPath(sessionId);
-  try {
-    writeFileSync(
-      trackingPath,
-      JSON.stringify({ files: Array.from(files) }),
-      "utf-8",
-    );
-  } catch (err) {
-    debug(SOURCE, `Failed to write tracking file: ${err}`);
-  }
-}
-
-/**
  * Estimate line count from file size (rough: ~35 bytes per line average).
  */
 function estimateLines(sizeBytes: number): number {
@@ -111,34 +67,15 @@ function estimateLines(sizeBytes: number): number {
 /**
  * Check whether a Read call should receive a context-efficiency advisory.
  *
- * Also handles tracking code_outline/code_symbols calls.
+ * PreToolUse cannot establish that an outline was successfully delivered.
  */
 export function checkContextGuard(
   toolName: string,
   toolInput: Record<string, unknown>,
   cwd: string,
-  sessionId: string,
+  _sessionId: string,
 ): ContextGuardResult {
   const normalizedTool = toolName.toLowerCase();
-
-  // Track code_outline and code_symbols calls
-  if (
-    normalizedTool.includes("code_outline") ||
-    normalizedTool.includes("code_symbols")
-  ) {
-    const filePath =
-      (toolInput.file as string) ||
-      (toolInput.filePath as string) ||
-      (toolInput.file_path as string);
-    if (filePath && sessionId) {
-      const resolved = normalize(
-        isAbsolute(filePath) ? filePath : resolve(cwd, filePath),
-      );
-      trackOutlinedFile(sessionId, resolved);
-      debug(SOURCE, `Tracked outline for: ${filePath}`);
-    }
-    return { shouldAdvise: false, tracked: true };
-  }
 
   // Only advise on Read tool calls
   if (normalizedTool !== "read") {
@@ -193,15 +130,6 @@ export function checkContextGuard(
     return { shouldAdvise: false };
   }
 
-  // Check if this file has already been outlined in this session
-  if (sessionId) {
-    const outlinedFiles = loadOutlinedFiles(sessionId);
-    if (outlinedFiles.has(resolvedPath)) {
-      debug(SOURCE, `File already outlined, skipping advisory: ${filePath}`);
-      return { shouldAdvise: false };
-    }
-  }
-
   // Generate advisory
   const estLines = estimateLines(fileSize);
   const sizeKB = (fileSize / 1024).toFixed(1);
@@ -231,8 +159,8 @@ export interface SmartReadHintResult {
  * the agent use code_outline/code_symbols/code_references instead.
  *
  * Triggers when:
- *   1. The file was already read this session (tracked via state store)
- *   2. The file hasn't changed since last indexing (mtime comparison)
+ *   1. Full-file text was observed in the current context window
+ *   2. The file still matches those observed bytes (content hash)
  *   3. The file is indexed with symbols (code_outline would be useful)
  *
  * Gated on code.watch (default on) and requires a valid aide binary.
@@ -242,6 +170,7 @@ export function checkSmartReadHint(
   toolInput: Record<string, unknown>,
   cwd: string,
   binary: string | null,
+  identity?: ContextIdentity,
 ): SmartReadHintResult {
   // Only advise on Read tool calls (case-insensitive for OpenCode compat)
   if (toolName.toLowerCase() !== "read") {
@@ -286,7 +215,7 @@ export function checkSmartReadHint(
   }
 
   // Check if this file was already read this session
-  const previousRead = getPreviousRead(binary, cwd, filePath);
+  const previousRead = getPreviousRead(binary, cwd, filePath, identity);
   if (!previousRead) {
     // First read — no hint needed
     return { shouldHint: false };
@@ -302,8 +231,8 @@ export function checkSmartReadHint(
     const tokens = readCheck.estimated_tokens;
     const tokenInfo = tokens > 0 ? ` (~${tokens} tokens)` : "";
     const hint =
-      `[aide:smart-read] This file was already read this session and hasn't changed${tokenInfo}. ` +
-      `Consider using code_outline (for structure, ~5-15% of full tokens), ` +
+      `[aide:smart-read] Matching full-file text was observed in this context window${tokenInfo}. ` +
+      `Consider using code_outline (for structure), ` +
       `code_symbols (for API surface), or code_references (for call sites) ` +
       `to avoid re-reading the full file.`;
 

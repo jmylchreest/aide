@@ -186,6 +186,8 @@ Returns observed UTF-8 text accounting and historical token estimates. The versi
 
 **Response fields:** `accounting`, `total_read`, `total_saved`, `event_count`, `by_tool`, `by_saving_type`, `sessions`. Existing totals remain compatibility estimates; `total_saved` and related saved fields are explicitly legacy comparison estimates, not verified savings.
 
+Native tool event attributes include `context_status` and, when known, `context_epoch` and `context_continuity`. Windows are isolated by host, session and actor within the project. Confirmed clear/compaction starts a new window; pending compaction suspends prior-read hints. Resume without verified continuity starts a new observation window labelled `unknown`, without asserting that context was lost. Cache expiry alone does not reset it. Hosts without the required lifecycle evidence retain unknown coverage. These attributes are available in CLI event JSON; window comparison totals and a web window drilldown are not yet implemented.
+
 ## Findings Tools
 
 | Tool              | Purpose                          |

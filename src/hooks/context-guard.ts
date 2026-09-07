@@ -16,6 +16,7 @@ import {
   emitHookResult,
   installHookSafetyNet,
   findAideBinary,
+  detectPlatform,
 } from "../lib/hook-utils.js";
 import { setSessionContext } from "../lib/anchor.js";
 import { debug } from "../lib/logger.js";
@@ -92,7 +93,11 @@ async function main(): Promise<void> {
       emitHookResult(output);
     } else {
       // Smart read hint: suggest code index for re-reads of unchanged files
-      const hintResult = checkSmartReadHint(toolName, toolInput, cwd, binary);
+      const hintResult = checkSmartReadHint(toolName, toolInput, cwd, binary, {
+        host: detectPlatform(),
+        sessionId: data.session_id,
+        actorId: data.agent_id || data.session_id,
+      });
       if (hintResult.shouldHint && hintResult.hint) {
         debug(SOURCE, `Smart read hint triggered`);
         if (binary) {

@@ -50,6 +50,8 @@ import { evaluateToolUse, isToolDenied } from "../core/tool-enforcement.js";
 import { checkPersistence, getActiveMode } from "../core/persistence-logic.js";
 import { checkWriteGuard } from "../core/write-guard.js";
 import { checkSmartReadHint } from "../core/context-guard.js";
+import { updateContextWindow } from "../core/context-window.js";
+import { SessionPruningTrackers } from "../core/context-pruning/sessions.js";
 import { checkSearchEnrichment } from "../core/search-enrichment.js";
 import { recordToolEvent } from "../core/tool-observe.js";
 import { recordObserveEvent, previewContent } from "../core/read-tracking.js";
@@ -77,7 +79,6 @@ import {
   buildSummaryFromPartials,
   cleanupPartials,
 } from "../core/partial-memory.js";
-import { ContextPruningTracker } from "../core/context-pruning/index.js";
 import type { MemoryInjection, SessionState } from "../core/types.js";
 import type {
   Hooks,
@@ -127,7 +128,8 @@ interface AideState {
   sessionInfoMap: Map<string, SessionInfo>;
   client: OpenCodeClient;
   /** Context pruning tracker for dedup/supersede/purge of tool outputs */
-  pruningTracker: ContextPruningTracker;
+  pruningTrackers: SessionPruningTrackers;
+  contextSessions: Set<string>;
 }
 
 /**
@@ -156,7 +158,8 @@ export async function createHooks(
     lastUserPrompt: null,
     sessionInfoMap: new Map(),
     client,
-    pruningTracker: new ContextPruningTracker(cwd),
+    pruningTrackers: new SessionPruningTrackers(cwd),
+    contextSessions: new Set(),
   };
 
   // Run one-time initialization (directories, binary, config)
@@ -202,8 +205,7 @@ function createConfigHandler(
       // Register our skill directories with OpenCode's native skill discovery
       // as a fallback, so the native `skill` tool can also find them.
       const skillsConfig = (input as Record<string, unknown>).skills as
-        | { paths?: string[]; urls?: string[] }
-        | undefined;
+        { paths?: string[]; urls?: string[] } | undefined;
       const existingPaths = skillsConfig?.paths ?? [];
       const aidePaths = [
         join(state.cwd, ".aide", "skills"),
@@ -386,14 +388,51 @@ function initializeAide(state: AideState): void {
 // Event handler (session lifecycle + message events)
 // =============================================================================
 
+function establishContext(
+  state: AideState,
+  session: string,
+  reason: "startup" | "unknown",
+): void {
+  if (
+    !state.binary ||
+    !session ||
+    session === "unknown" ||
+    state.contextSessions.has(session)
+  )
+    return;
+  if (
+    updateContextWindow(
+      state.binary,
+      state.cwd,
+      { host: "opencode", sessionId: session, actorId: session },
+      reason,
+    )
+  )
+    state.contextSessions.add(session);
+}
+
 function createEventHandler(
   state: AideState,
 ): (input: { event: OpenCodeEvent }) => Promise<void> {
   return async ({ event }) => {
     switch (event.type) {
       case "session.created":
+        establishContext(state, extractSessionId(event), "startup");
         await handleSessionCreated(state, event);
         break;
+      case "session.compacted": {
+        const session = extractSessionId(event);
+        establishContext(state, session, "unknown");
+        state.pruningTrackers.complete(session);
+        if (state.binary)
+          updateContextWindow(
+            state.binary,
+            state.cwd,
+            { host: "opencode", sessionId: session, actorId: session },
+            "compact",
+          );
+        break;
+      }
       case "session.idle":
         await handleSessionIdle(state, event);
         break;
@@ -643,11 +682,11 @@ async function handleSessionDeleted(
   // in Go (`aide session end`) instead of a hand-synchronized TS copy.
   if (state.binary) {
     try {
-      execFileSync(
-        state.binary,
-        ["session", "end", `--session=${sessionId}`],
-        { cwd: state.cwd, timeout: 10000, stdio: ["pipe", "pipe", "pipe"] },
-      );
+      execFileSync(state.binary, ["session", "end", `--session=${sessionId}`], {
+        cwd: state.cwd,
+        timeout: 10000,
+        stdio: ["pipe", "pipe", "pipe"],
+      });
       debug(SOURCE, `session end ${sessionId.slice(0, 8)} ok`);
     } catch (err) {
       // Surface through OpenCode's log, not just debug: a stale binary
@@ -669,6 +708,8 @@ async function handleSessionDeleted(
   }
 
   state.initializedSessions.delete(sessionId);
+  state.contextSessions.delete(sessionId);
+  state.pruningTrackers.complete(sessionId);
   state.sessionInfoMap.delete(sessionId);
   state.processedMessageParts.clear();
 }
@@ -764,6 +805,7 @@ function createToolBeforeHandler(
   output: { args: Record<string, unknown> },
 ) => Promise<void> {
   return async (input, _output) => {
+    establishContext(state, input.sessionID, "unknown");
     // Write guard: block Write tool on existing files
     try {
       const guardResult = checkWriteGuard(
@@ -814,6 +856,11 @@ function createToolBeforeHandler(
         (_output.args || {}) as Record<string, unknown>,
         state.cwd,
         state.binary,
+        {
+          host: "opencode",
+          sessionId: input.sessionID,
+          actorId: input.sessionID,
+        },
       );
       if (hintResult.shouldHint && hintResult.hint) {
         debug(SOURCE, `Smart read hint for ${input.tool}: ${hintResult.hint}`);
@@ -831,7 +878,10 @@ function createToolBeforeHandler(
         state.binary,
       );
       if (enrichResult.shouldEnrich && enrichResult.enrichment) {
-        debug(SOURCE, `Search enrichment for ${input.tool}: ${enrichResult.enrichment.length} chars`);
+        debug(
+          SOURCE,
+          `Search enrichment for ${input.tool}: ${enrichResult.enrichment.length} chars`,
+        );
       }
     } catch (err) {
       debug(SOURCE, `Search enrichment check failed (non-fatal): ${err}`);
@@ -855,11 +905,17 @@ function createToolBeforeHandler(
 function createToolAfterHandler(
   state: AideState,
 ): (
-  input: { tool: string; sessionID: string; callID: string; args?: Record<string, unknown> },
+  input: {
+    tool: string;
+    sessionID: string;
+    callID: string;
+    args?: Record<string, unknown>;
+  },
   output: { title: string; output: string; metadata: Record<string, unknown> },
 ) => Promise<void> {
   return async (input, _output) => {
     if (!state.binary) return;
+    establishContext(state, input.sessionID, "unknown");
 
     // sessionID doubles as the agentId here: tool.execute.before registers
     // currentTool under agentId=input.sessionID, so the same scope must be
@@ -924,7 +980,8 @@ function createToolAfterHandler(
         string,
         unknown
       >;
-      const pruneResult = state.pruningTracker.process(
+      const pruneResult = state.pruningTrackers.process(
+        input.sessionID,
         input.callID,
         input.tool,
         toolArgs,
@@ -979,9 +1036,21 @@ function createCompactionHandler(
   output: { context: string[]; prompt?: string },
 ) => Promise<void> {
   return async (input, output) => {
-    // Reset context pruning tracker — compaction clears the conversation
-    // history, so dedup/supersede references would be stale.
-    state.pruningTracker.reset();
+    // A request is not confirmation that compaction succeeded. Suspend reuse
+    // until session.compacted; absent that event, keep continuity unknown.
+    establishContext(state, input.sessionID, "unknown");
+    state.pruningTrackers.pending(input.sessionID);
+    if (state.binary)
+      updateContextWindow(
+        state.binary,
+        state.cwd,
+        {
+          host: "opencode",
+          sessionId: input.sessionID,
+          actorId: input.sessionID,
+        },
+        "compact_pending",
+      );
 
     // Save state snapshot before compaction
     if (state.binary) {
@@ -1093,7 +1162,7 @@ function createSystemTransformHandler(
 
     // Inject context pruning notes only after the first prune fires.
     // Avoids adding ~280 bytes to every session that never triggers pruning.
-    if (state.pruningTracker.getStats().prunedCalls > 0) {
+    if (state.pruningTrackers.hasPruned(_input.sessionID)) {
       output.system.push(`<aide-context-pruning>
 Tool outputs may contain these tags from aide's context optimization:
 - [aide:dedup] — This output is identical to a previous call. Refer to the earlier result.

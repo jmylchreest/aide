@@ -1,8 +1,9 @@
 /**
  * Read tracking — platform-agnostic core logic.
  *
- * Tracks file reads per session and checks file freshness against
- * the aide code index. Used by both Claude Code hooks and OpenCode plugin
+ * Tracks matching full-file results per host/session/actor/context window.
+ * The independent index check is advisory, never evidence of prior coverage.
+ * Used by both Claude Code hooks and OpenCode plugin
  * to provide smart read hints (suggest code_outline/code_symbols over
  * redundant file re-reads).
  *
@@ -10,15 +11,48 @@
  */
 
 import { execFileSync } from "child_process";
+import { createHash } from "crypto";
+import { readFileSync } from "fs";
 import { isAbsolute, relative, resolve } from "path";
 import { setState, getState } from "./aide-client.js";
 import { debug } from "../lib/logger.js";
 import { codeWatchEnabled } from "../lib/hook-utils.js";
+import {
+  contextScope,
+  contextWindow,
+  type ContextIdentity,
+} from "./context-window.js";
 
 const SOURCE = "read-tracking";
 
 /** Prefix for state keys tracking file reads */
-const STATE_KEY_PREFIX = "file-read:";
+const STATE_KEY_PREFIX = "verified-file-read:";
+
+function readKey(
+  cwd: string,
+  file: string,
+  identity: ContextIdentity,
+  epoch: string,
+): string {
+  return (
+    STATE_KEY_PREFIX +
+    createHash("sha256")
+      .update(
+        JSON.stringify([
+          contextScope(identity),
+          epoch,
+          toRelativePath(cwd, file),
+        ]),
+      )
+      .digest("hex")
+  );
+}
+
+export interface ReadEvidence {
+  identity: ContextIdentity;
+  /** Raw returned source text, without line numbers or host decorations. */
+  content?: string;
+}
 
 /**
  * Result from checking file freshness against the code index.
@@ -41,8 +75,9 @@ function toRelativePath(cwd: string, filePath: string): string {
 }
 
 /**
- * Record that a file was read in this session.
- * Sets a state key so subsequent reads can be detected.
+ * Record full-file coverage only when returned text matches current bytes.
+ * Formatted/partial results are still measured by tool-observe, but do not
+ * establish full-file coverage here. Missing context identity is unknown.
  *
  * No-op if code.watch is disabled.
  */
@@ -50,36 +85,60 @@ export function recordFileRead(
   binary: string,
   cwd: string,
   filePath: string,
+  evidence?: ReadEvidence,
 ): void {
-  if (!codeWatchEnabled(cwd)) return;
+  if (!codeWatchEnabled(cwd) || !evidence || evidence.content === undefined)
+    return;
 
   try {
-    const relPath = toRelativePath(cwd, filePath);
-    const key = STATE_KEY_PREFIX + relPath;
-    setState(binary, cwd, key, new Date().toISOString());
-    debug(SOURCE, `Recorded read: ${relPath}`);
+    const window = contextWindow(binary, cwd, evidence.identity);
+    if (!window || window.status !== "active") return;
+    const current = readFileSync(resolve(cwd, filePath));
+    // Only establish full coverage when returned bytes exactly match the
+    // file. Requested ranges, formatted output and opaque results prove less.
+    if (!current.equals(Buffer.from(evidence.content, "utf8"))) return;
+    const key = readKey(cwd, filePath, evidence.identity, window.id);
+    setState(
+      binary,
+      cwd,
+      key,
+      JSON.stringify({
+        version: 1,
+        hash: createHash("sha256").update(current).digest("hex"),
+        at: new Date().toISOString(),
+      }),
+    );
   } catch (err) {
     debug(SOURCE, `Failed to record read: ${err}`);
   }
 }
 
 /**
- * Check if a file was previously read in this session.
+ * Check for matching full-file text in the current active context window.
  * Returns the ISO timestamp of the last read, or null if not read.
  *
- * Returns null if code.watch is disabled.
+ * Returns null when disabled, changed, incomplete or continuity is unknown.
  */
 export function getPreviousRead(
   binary: string,
   cwd: string,
   filePath: string,
+  identity?: ContextIdentity,
 ): string | null {
-  if (!codeWatchEnabled(cwd)) return null;
+  if (!codeWatchEnabled(cwd) || !identity) return null;
 
   try {
-    const relPath = toRelativePath(cwd, filePath);
-    const key = STATE_KEY_PREFIX + relPath;
-    return getState(binary, cwd, key);
+    const window = contextWindow(binary, cwd, identity);
+    if (!window || window.status !== "active") return null;
+    const record = JSON.parse(
+      getState(binary, cwd, readKey(cwd, filePath, identity, window.id)) ??
+        "null",
+    );
+    if (record?.version !== 1 || typeof record.at !== "string") return null;
+    const hash = createHash("sha256")
+      .update(readFileSync(resolve(cwd, filePath)))
+      .digest("hex");
+    return hash === record.hash ? record.at : null;
   } catch (err) {
     debug(SOURCE, `Failed to check previous read: ${err}`);
     return null;
@@ -99,14 +158,21 @@ export function checkFileReadFreshness(
 ): ReadCheckResult | null {
   try {
     const relPath = toRelativePath(cwd, filePath);
-    const output = execFileSync(binary, ["code", "read-check", relPath, "--json"], {
-      cwd,
-      encoding: "utf-8",
-      timeout: 5000,
-      stdio: ["pipe", "pipe", "pipe"],
-    });
+    const output = execFileSync(
+      binary,
+      ["code", "read-check", relPath, "--json"],
+      {
+        cwd,
+        encoding: "utf-8",
+        timeout: 5000,
+        stdio: ["pipe", "pipe", "pipe"],
+      },
+    );
     const result = JSON.parse(output.trim()) as ReadCheckResult;
-    debug(SOURCE, `Read check ${relPath}: indexed=${result.indexed} fresh=${result.fresh} symbols=${result.symbols}`);
+    debug(
+      SOURCE,
+      `Read check ${relPath}: indexed=${result.indexed} fresh=${result.fresh} symbols=${result.symbols}`,
+    );
     return result;
   } catch (err) {
     debug(SOURCE, `Read check failed: ${err}`);
@@ -214,7 +280,12 @@ export function recordObserveEvent(
   },
 ): void {
   try {
-    const args = ["observe", "record", `--kind=${opts.kind}`, `--name=${opts.name}`];
+    const args = [
+      "observe",
+      "record",
+      `--kind=${opts.kind}`,
+      `--name=${opts.name}`,
+    ];
     if (opts.category) args.push(`--category=${opts.category}`);
     if (opts.subtype) args.push(`--subtype=${opts.subtype}`);
     if (opts.tokens !== undefined) args.push(`--tokens=${opts.tokens}`);
@@ -229,7 +300,10 @@ export function recordObserveEvent(
       timeout: 3000,
       stdio: ["pipe", "pipe", "pipe"],
     });
-    debug(SOURCE, `Observe event: ${opts.kind} ${opts.name} subtype=${opts.subtype ?? ""} tokens=${opts.tokens ?? 0}`);
+    debug(
+      SOURCE,
+      `Observe event: ${opts.kind} ${opts.name} subtype=${opts.subtype ?? ""} tokens=${opts.tokens ?? 0}`,
+    );
   } catch (err) {
     debug(SOURCE, `Failed to record observe event: ${err}`);
   }

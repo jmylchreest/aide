@@ -25,6 +25,7 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { homedir } from "os";
 import { Logger, debug, setDebugCwd } from "../lib/logger.js";
+import { updateContextWindow } from "../core/context-window.js";
 import {
   readStdin,
   detectPlatform,
@@ -474,6 +475,18 @@ async function main(): Promise<void> {
     // instead of re-deriving the root. Best-effort: readers fall back to
     // shelling out, then to the TS walk.
     if (resolvedBinary && sessionId !== "unknown") {
+      const source = data.source;
+      updateContextWindow(
+        resolvedBinary,
+        cwd,
+        { host: detectPlatform(), sessionId, actorId: sessionId },
+        source === "startup" ||
+          source === "compact" ||
+          source === "clear" ||
+          source === "resume"
+          ? source
+          : "unknown",
+      );
       debugLog("anchor resolve/persist starting...");
       try {
         const anchor = resolveAnchorViaBinary(resolvedBinary, launchedCwd);
