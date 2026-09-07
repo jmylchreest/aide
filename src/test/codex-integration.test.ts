@@ -6,6 +6,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { isolatedTmpFs } from "./helpers/isolated-tmp-fs.js";
 import {
   actualOs,
   resetModules,
@@ -20,6 +21,8 @@ import {
 } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
+
+vi.mock("fs", () => isolatedTmpFs());
 
 let tempHome = "";
 

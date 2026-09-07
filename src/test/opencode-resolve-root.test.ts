@@ -11,6 +11,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { isolatedTmpFs } from "./helpers/isolated-tmp-fs.js";
 import {
   actualOs,
   resetModules,
@@ -19,6 +20,8 @@ import { mkdtempSync, rmSync, mkdirSync, writeFileSync, realpathSync } from "fs"
 import { join } from "path";
 import { tmpdir } from "os";
 import type { PluginInput } from "../opencode/types.js";
+
+vi.mock("fs", () => isolatedTmpFs());
 
 let tempHome = "";
 
