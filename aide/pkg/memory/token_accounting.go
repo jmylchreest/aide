@@ -30,6 +30,7 @@ type TokenActivity struct {
 // TokenAccounting is additive to the legacy statistics. Stages must not be
 // summed: server and host observations can describe the same unjoined call.
 type TokenAccounting struct {
+	Transformations *TokenTransformations     `json:"transformations,omitempty"`
 	Activity        *TokenActivity            `json:"activity,omitempty"`
 	Version         int                       `json:"version"`
 	Estimator       string                    `json:"estimator"`
@@ -54,7 +55,7 @@ func MeasuredBytes(attrs map[string]string, key string) (int64, bool) {
 func EstimateTextTokens(bytes int64) int64 { return bytes/3 + (bytes%3+1)/3 }
 
 func NewTokenAccounting() *TokenAccounting {
-	return &TokenAccounting{Version: 1, Estimator: TextEstimator, ByStage: make(map[string]*TokenQuantity)}
+	return &TokenAccounting{Version: 1, Estimator: TextEstimator, ByStage: make(map[string]*TokenQuantity), Transformations: NewTokenTransformations()}
 }
 
 func HasObservationIdentity(session string, attrs map[string]string) bool {
@@ -63,6 +64,13 @@ func HasObservationIdentity(session string, attrs map[string]string) bool {
 }
 
 func (a *TokenAccounting) Add(e *TokenEvent) {
+	if e.EventType == "transformation" {
+		if a.Transformations == nil {
+			a.Transformations = NewTokenTransformations()
+		}
+		a.Transformations.Add(e)
+		return
+	}
 	if !HasObservationIdentity(e.SessionID, e.Attrs) {
 		a.MissingIdentity++
 	}

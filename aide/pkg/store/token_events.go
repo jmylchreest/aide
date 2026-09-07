@@ -77,6 +77,9 @@ func (s *BoltStore) TokenStats(sessionID string, since, until time.Time) (*memor
 			sessions[e.SessionID] = true
 		}
 		stats.Accounting.Add(e)
+		if e.EventType == "transformation" {
+			return
+		}
 		activity.add(e)
 
 		// Every event with a tool counts as one call. Injection events

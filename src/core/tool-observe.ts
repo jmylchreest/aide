@@ -93,7 +93,7 @@ const CONTENT_WRITE_TOOLS: Record<string, string> = {
  * Undefined means unmeasured; an empty string is a known empty text result.
  * Alternate wrappers are preferred in order rather than counted twice.
  */
-function extractOutputText(payload: unknown): string | undefined {
+export function extractOutputText(payload: unknown): string | undefined {
   if (typeof payload === "string") return payload;
   if (Array.isArray(payload)) {
     const parts = payload

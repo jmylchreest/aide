@@ -50,8 +50,14 @@ import { evaluateToolUse, isToolDenied } from "../core/tool-enforcement.js";
 import { checkPersistence, getActiveMode } from "../core/persistence-logic.js";
 import { checkWriteGuard } from "../core/write-guard.js";
 import { checkSmartReadHint } from "../core/context-guard.js";
-import { updateContextWindow } from "../core/context-window.js";
+import {
+  contextScope,
+  contextWindow,
+  updateContextWindow,
+} from "../core/context-window.js";
 import { SessionPruningTrackers } from "../core/context-pruning/sessions.js";
+import { recoverablePrune } from "../core/context-pruning/recovery.js";
+import { transformationEvent } from "../core/context-pruning/observation.js";
 import { checkSearchEnrichment } from "../core/search-enrichment.js";
 import { recordToolEvent } from "../core/tool-observe.js";
 import { recordObserveEvent, previewContent } from "../core/read-tracking.js";
@@ -902,9 +908,7 @@ function createToolBeforeHandler(
   };
 }
 
-function createToolAfterHandler(
-  state: AideState,
-): (
+function createToolAfterHandler(state: AideState): (
   input: {
     tool: string;
     sessionID: string;
@@ -916,6 +920,14 @@ function createToolAfterHandler(
   return async (input, _output) => {
     if (!state.binary) return;
     establishContext(state, input.sessionID, "unknown");
+    const originalOutput = _output.output;
+    const identity = {
+      host: "opencode",
+      sessionId: input.sessionID,
+      actorId: input.sessionID,
+    };
+    const window = contextWindow(state.binary, state.cwd, identity);
+    let recoveryPath: string | undefined;
 
     // sessionID doubles as the agentId here: tool.execute.before registers
     // currentTool under agentId=input.sessionID, so the same scope must be
@@ -986,12 +998,22 @@ function createToolAfterHandler(
         input.tool,
         toolArgs,
         _output.output,
+        (candidate) =>
+          window?.status === "active"
+            ? recoverablePrune(
+                state.cwd,
+                `${contextScope(identity)}:${window.id}`,
+                input.callID,
+                _output.output,
+              )(candidate)
+            : { output: _output.output, modified: false, bytesSaved: 0 },
       );
       if (pruneResult.modified) {
         _output.output = pruneResult.output;
+        recoveryPath = pruneResult.recoveryPath;
         debug(
           SOURCE,
-          `Context pruning [${pruneResult.strategy}]: saved ${pruneResult.bytesSaved} bytes for ${input.tool}`,
+          `Context pruning [${pruneResult.strategy}]: adapter text delta ${pruneResult.bytesSaved} bytes for ${input.tool}`,
         );
       }
     } catch (err) {
@@ -1022,6 +1044,19 @@ function createToolAfterHandler(
     } catch (err) {
       debug(SOURCE, `Comment checker failed (non-fatal): ${err}`);
     }
+    // Include all changes made by this adapter, including annotations. Later
+    // plugins and provider rendering remain outside this measured boundary.
+    const event = transformationEvent(
+      identity,
+      window,
+      input.callID,
+      input.tool,
+      originalOutput,
+      _output.output,
+      "adapter_change",
+      recoveryPath,
+    );
+    if (event) recordObserveEvent(state.binary, state.cwd, event);
   };
 }
 
@@ -1167,7 +1202,7 @@ function createSystemTransformHandler(
 Tool outputs may contain these tags from aide's context optimization:
 - [aide:dedup] — This output is identical to a previous call. Refer to the earlier result.
 - [aide:supersede] — A prior Read of this file is now stale after a Write/Edit.
-- [aide:purge] — Large error output was trimmed. Re-run the command for full output.
+- [aide:purge] — Large error output was trimmed; use its retained-original path to recover details.
 </aide-context-pruning>`);
     }
 

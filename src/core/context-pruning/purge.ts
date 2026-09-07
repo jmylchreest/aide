@@ -2,9 +2,8 @@
  * Purge-errors strategy: replace large error outputs (stack traces, build
  * failures) with a compact summary.
  *
- * When a Bash command fails and produces a large error output, most of the
- * context is stack frames that aren't useful for the model. This strategy
- * trims the output to the first meaningful error lines.
+ * Preserve opening context and final diagnostics. Adapters retain the full
+ * original before applying this shortening, since omitted lines can matter.
  */
 
 import type { PruneResult, PruneStrategy, ToolRecord } from "./types.js";
@@ -48,7 +47,7 @@ export class PurgeErrorsStrategy implements PruneStrategy {
     }
 
     // Only purge if output is large enough to matter
-    if (output.length < MIN_SIZE_FOR_PURGE) {
+    if (Buffer.byteLength(output) < MIN_SIZE_FOR_PURGE) {
       return { output, modified: false, bytesSaved: 0 };
     }
 
@@ -58,23 +57,25 @@ export class PurgeErrorsStrategy implements PruneStrategy {
       return { output, modified: false, bytesSaved: 0 };
     }
 
-    // Trim to first MAX_ERROR_LINES lines + a note
+    // Keep both ends: Python exceptions and build summaries often appear last.
     const lines = output.split("\n");
     if (lines.length <= MAX_ERROR_LINES) {
       return { output, modified: false, bytesSaved: 0 };
     }
 
-    const kept = lines.slice(0, MAX_ERROR_LINES).join("\n");
+    const head = lines.slice(0, MAX_ERROR_LINES - 10).join("\n");
+    const tail = lines.slice(-10).join("\n");
     const trimmedCount = lines.length - MAX_ERROR_LINES;
     const replacement =
-      kept +
-      `\n\n[aide:purge] ... ${trimmedCount} additional error lines trimmed. Re-run the command to see full output.`;
+      head +
+      `\n[aide:purge] ... ${trimmedCount} middle lines trimmed.\n` +
+      tail;
 
     return {
       output: replacement,
       modified: true,
       strategy: "purge",
-      bytesSaved: output.length - replacement.length,
+      bytesSaved: Buffer.byteLength(output) - Buffer.byteLength(replacement),
     };
   }
 }

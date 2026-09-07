@@ -61,7 +61,7 @@ export class SupersedeStrategy implements PruneStrategy {
       output: output + note,
       modified: true,
       strategy: "supersede",
-      bytesSaved: 0, // We're adding, not saving bytes
+      bytesSaved: -Buffer.byteLength(note),
     };
   }
 }

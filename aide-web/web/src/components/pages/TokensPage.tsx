@@ -4,6 +4,7 @@ import { api } from "@/lib/api";
 import { useApi } from "@/hooks/use-api";
 import { TokenOverview } from "../shared/TokenOverview";
 import { TokenAccountingSummary } from "../shared/TokenAccountingSummary";
+import { TokenTransformationWindows } from "../shared/TokenTransformations";
 import { SessionFilterInput } from "../shared/SessionFilterInput";
 import { FilterBar } from "../shared/FilterBar";
 import { SortableTable, type Column } from "../shared/SortableTable";
@@ -348,12 +349,14 @@ function TokenReport({
       width: "9rem",
       render: (row) => (
         <span className="font-mono text-xs">
-          {row.attrs?.accounting_version === "1" &&
-          row.attrs?.payload_bytes === undefined
-            ? "Unknown"
-            : row.tokens > 0 || row.attrs?.payload_bytes === "0"
-              ? `~${row.tokens}`
-              : "Unknown"}
+          {row.event_type === "transformation"
+            ? "See pair"
+            : row.attrs?.accounting_version === "1" &&
+                row.attrs?.payload_bytes === undefined
+              ? "Unknown"
+              : row.tokens > 0 || row.attrs?.payload_bytes === "0"
+                ? `~${row.tokens}`
+                : "Unknown"}
         </span>
       ),
       sortValue: (row) => row.tokens,
@@ -366,19 +369,29 @@ function TokenReport({
       render: (row) => (
         <details className="text-[11px] text-aide-text-muted">
           <summary className="cursor-pointer">
-            {row.attrs?.accounting_version === "1"
-              ? "Observed text"
-              : "Legacy estimate"}
+            {row.event_type === "transformation"
+              ? "Paired output"
+              : row.attrs?.accounting_version === "1"
+                ? "Observed text"
+                : "Legacy estimate"}
           </summary>
           <div className="mt-1 max-w-64 break-words">
             {row.attrs?.accounting_version === "1" ? (
               <>
                 <div>
                   {row.attrs.observation_stage} ·{" "}
-                  {row.attrs.payload_bytes ?? "Unknown"} bytes
+                  {row.event_type === "transformation"
+                    ? `${row.attrs.before_bytes ?? "Unknown"} → ${row.attrs.after_bytes ?? "Unknown"}`
+                    : (row.attrs.payload_bytes ?? "Unknown")}{" "}
+                  bytes
                 </div>
                 <div>UTF-8 text estimate: bytes / 3 (v1)</div>
                 <div>Invocation: {row.attrs.invocation_id ?? "Unknown"}</div>
+                {row.attrs.raw_tool && <div>Tool: {row.attrs.raw_tool}</div>}
+                <div>Window: {row.attrs.context_epoch ?? "Unknown"}</div>
+                {row.attrs.recovery_path && (
+                  <div>Retained original: {row.attrs.recovery_path}</div>
+                )}
               </>
             ) : (
               <div>Measurement method and delivery coverage unknown.</div>
@@ -519,6 +532,11 @@ function TokenReport({
         </div>
       </div>
       <div hidden={view !== "details"}>
+        {!statsLoading && !statsError && (
+          <TokenTransformationWindows
+            report={stats?.accounting?.transformations}
+          />
+        )}
         {perToolStats.length > 0 && (
           <div className="mb-6">
             <h3 className="text-xs font-semibold text-aide-text mb-2">

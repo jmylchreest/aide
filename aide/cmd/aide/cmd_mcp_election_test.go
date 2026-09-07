@@ -56,6 +56,9 @@ func TestClientObservationsAndTokenAccountingRoundTrip(t *testing.T) {
 	span := observe.Start("code_search", observe.KindToolCall)
 	span.Category("navigate").Session("s").Attr("accounting_version", "1").Attr("observation_stage", "server_result").Attr("payload_bytes", "12").Attr("start_line", "4")
 	span.End()
+	transformation := observe.Start("output-transform", observe.KindHook)
+	transformation.Category("transform").Session("s").Attr("accounting_version", "1").Attr("observation_stage", "adapter_change").Attr("host", "opencode").Attr("actor_id", "s").Attr("invocation_id", "call").Attr("context_status", "active").Attr("context_epoch", "epoch").Attr("before_bytes", "30").Attr("after_bytes", "90")
+	transformation.End()
 	events, err := primary.store().ListObserveEvents(store.ObserveFilter{Name: "code_search"})
 	if err != nil || len(events) != 1 {
 		t.Fatalf("client observation lost: %v, %v", events, err)
@@ -72,7 +75,7 @@ func TestClientObservationsAndTokenAccountingRoundTrip(t *testing.T) {
 		t.Fatalf("accounting transport mismatch: %+v / %+v", direct, remote)
 	}
 	projected, err := client.store().ListTokenEvents("s", 10, time.Time{}, time.Time{})
-	if err != nil || len(projected) != 1 || projected[0].Attrs["payload_bytes"] != "12" || projected[0].StartLine != 4 {
+	if err != nil || len(projected) != 2 || projected[1].Attrs["payload_bytes"] != "12" || projected[1].StartLine != 4 {
 		t.Fatalf("event evidence lost: %+v, %v", projected, err)
 	}
 }

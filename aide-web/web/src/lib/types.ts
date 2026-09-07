@@ -184,6 +184,7 @@ export interface TokenActivityBucket {
   unmeasured: number;
 }
 export interface TokenAccounting {
+  transformations?: TokenTransformations;
   activity?: { interval_seconds: number; buckets: TokenActivityBucket[] };
   version: number;
   estimator: string;
@@ -192,6 +193,29 @@ export interface TokenAccounting {
   legacy_events: number;
   missing_payload: number;
   missing_identity: number;
+}
+export interface TokenChange {
+  before_bytes: number;
+  after_bytes: number;
+  delta_bytes: number;
+  estimated_token_delta: number;
+  events: number;
+}
+export interface TokenTransformations {
+  by_stage: Record<string, TokenChange>;
+  windows: {
+    host: string;
+    session_id: string;
+    actor_id: string;
+    epoch: string;
+    stage: string;
+    first: string;
+    last: string;
+    change: TokenChange;
+  }[];
+  windows_limited: boolean;
+  unwindowed_events: number;
+  invalid_events: number;
 }
 export interface TokenStats {
   accounting?: TokenAccounting;

@@ -1,228 +1,63 @@
 #!/usr/bin/env node
-/**
- * Context Pruning Hook (PostToolUse)
- *
- * Reduces context usage by deduplicating repeated tool outputs,
- * annotating superseded reads, and purging large error outputs.
- *
- * For MCP tools: uses `updatedMCPToolOutput` to replace the output.
- * For built-in tools: uses `additionalContext` to add dedup notes.
- *
- * Tracker state is persisted to a temp file per session so it survives
- * across separate hook process invocations.
- *
- * Core logic is in src/core/context-pruning/ for cross-platform reuse.
- */
-
+/** Claude-compatible PostToolUse adapter. Rewrites are proposals, not delivery receipts. */
 import {
   readStdin,
   emitHookResult,
   installHookSafetyNet,
   findAideBinary,
+  detectPlatform,
 } from "../lib/hook-utils.js";
 import { setSessionContext } from "../lib/anchor.js";
 import { debug } from "../lib/logger.js";
-import { ContextPruningTracker } from "../core/context-pruning/index.js";
-import type { ToolRecord } from "../core/context-pruning/types.js";
-import { tmpdir } from "os";
-import { join } from "path";
-import { existsSync, readFileSync, writeFileSync } from "fs";
-import { emitInjectionEvent } from "../core/read-tracking.js";
+import { contextWindow } from "../core/context-window.js";
+import { recordObserveEventsBatch } from "../core/read-tracking.js";
+import {
+  processPruningHook,
+  type PruningHookInput,
+} from "../core/context-pruning/claude.js";
 
 const SOURCE = "context-pruning";
-
-interface HookInput {
-  hook_event_name: string;
-  session_id: string;
-  cwd: string;
-  tool_name?: string;
-  tool_input?: Record<string, unknown>;
-  tool_output?: string;
-  mcp_server_name?: string;
-  transcript_path?: string;
-}
-
-interface HookOutput {
-  continue: boolean;
-  hookSpecificOutput?: {
-    hookEventName: string;
-    additionalContext?: string;
-    updatedMCPToolOutput?: string;
-  };
-}
-
-/** Path to the persisted tracker history for a session. */
-function historyPath(sessionId: string): string {
-  return join(tmpdir(), `aide-context-pruning-${sessionId}.json`);
-}
-
-/** Load tracker history from disk. */
-function loadHistory(sessionId: string): {
-  history: ToolRecord[];
-  hasExplainedPruning: boolean;
-} {
-  const path = historyPath(sessionId);
-  try {
-    if (existsSync(path)) {
-      const data = JSON.parse(readFileSync(path, "utf-8"));
-      return {
-        history: data.history || [],
-        hasExplainedPruning: data.hasExplainedPruning || false,
-      };
-    }
-  } catch {
-    // Corrupt file — start fresh
-  }
-  return { history: [], hasExplainedPruning: false };
-}
-
-/** Save tracker history to disk. */
-function saveHistory(
-  sessionId: string,
-  history: ToolRecord[],
-  hasExplainedPruning: boolean,
-): void {
-  const path = historyPath(sessionId);
-  try {
-    // Keep only last 200 entries to prevent unbounded growth
-    const trimmed = history.length > 200 ? history.slice(-200) : history;
-    writeFileSync(
-      path,
-      JSON.stringify({ history: trimmed, hasExplainedPruning }),
-      "utf-8",
-    );
-  } catch (err) {
-    debug(SOURCE, `Failed to save history: ${err}`);
-  }
-}
-
-/** Check if a tool is an MCP tool (aide or other MCP server). */
-function isMCPTool(toolName: string, mcpServerName?: string): boolean {
-  if (mcpServerName) return true;
-  // Convention: MCP tools often have mcp__ prefix or are aide tools
-  if (toolName.startsWith("mcp__")) return true;
-  return false;
-}
-
 async function main(): Promise<void> {
   try {
-    const input = await readStdin();
-    if (!input.trim()) {
-      emitHookResult({ continue: true });
-      return;
-    }
-
-    const data: HookInput = JSON.parse(input);
-    const toolName = data.tool_name || "";
-    const toolInput = data.tool_input || {};
-    const toolOutput = data.tool_output || "";
+    const data = JSON.parse(await readStdin()) as PruningHookInput;
     const cwd = data.cwd || process.cwd();
-    const sessionId = data.session_id || "unknown";
-    setSessionContext(sessionId);
-
-    // Skip if no tool output to prune
-    if (!toolOutput || toolOutput.length < 50) {
-      emitHookResult({ continue: true });
+    const host = detectPlatform();
+    // Codex does not establish this Claude-specific replacement contract.
+    if (host !== "claude-code" || !data.session_id) {
+      emitHookResult();
       return;
     }
-
-    // Create tracker with loaded history
-    const tracker = new ContextPruningTracker(cwd);
-    const { history: priorHistory, hasExplainedPruning } =
-      loadHistory(sessionId);
-    tracker.loadHistory(priorHistory);
-
-    // Use a synthetic callId since CC doesn't provide one
-    const callId = `cc-${sessionId}-${Date.now()}`;
-
-    // Process through pruning strategies
-    const result = tracker.process(callId, toolName, toolInput, toolOutput);
-
-    // Track whether we've explained pruning tags to the model
-    let explained = hasExplainedPruning;
-
-    // Save updated history
-    saveHistory(sessionId, tracker.getHistory(), explained);
-
-    if (result.modified) {
-      debug(
-        SOURCE,
-        `Pruned [${result.strategy}]: saved ${result.bytesSaved} bytes for ${toolName}`,
-      );
-
-      const output: HookOutput = {
+    setSessionContext(data.session_id);
+    const binary = findAideBinary(cwd, data.session_id);
+    if (!binary) {
+      emitHookResult();
+      return;
+    }
+    const identity = {
+      host,
+      sessionId: data.session_id,
+      actorId: data.agent_id || data.session_id,
+    };
+    const result = processPruningHook(
+      cwd,
+      identity,
+      contextWindow(binary, cwd, identity),
+      data,
+    );
+    if (result) {
+      if (result.event) recordObserveEventsBatch(binary, cwd, [result.event]);
+      emitHookResult({
         continue: true,
         hookSpecificOutput: {
           hookEventName: "PostToolUse",
+          updatedToolOutput: result.replacement,
         },
-      };
-
-      if (isMCPTool(toolName, data.mcp_server_name)) {
-        // For MCP tools, replace the output entirely
-        output.hookSpecificOutput!.updatedMCPToolOutput = result.output;
-      } else {
-        // For built-in tools, add context note about the dedup
-        output.hookSpecificOutput!.additionalContext = result.output.includes(
-          "[aide:dedup]",
-        )
-          ? `Note: This tool output is identical to a previous call. The full content was already provided earlier.`
-          : result.output.includes("[aide:purge]")
-            ? `Note: Error output was truncated. Re-run the command to see full output.`
-            : undefined;
-      }
-
-      // On first prune, inject explanation of pruning tags via additionalContext
-      if (!explained) {
-        const pruningNotes = [
-          "<aide-context-pruning>",
-          "Tool outputs may contain these tags from aide's context optimization:",
-          "- [aide:dedup] — This output is identical to a previous call. Refer to the earlier result.",
-          "- [aide:supersede] — A prior Read of this file is now stale after a Write/Edit.",
-          "- [aide:purge] — Large error output was trimmed. Re-run the command for full output.",
-          "</aide-context-pruning>",
-        ].join("\n");
-
-        const existing = output.hookSpecificOutput!.additionalContext || "";
-        output.hookSpecificOutput!.additionalContext = existing
-          ? `${existing}\n\n${pruningNotes}`
-          : pruningNotes;
-
-        explained = true;
-        // Persist the flag
-        saveHistory(sessionId, tracker.getHistory(), explained);
-      }
-
-      try {
-        const binary = findAideBinary(cwd, data.session_id);
-        const injected = output.hookSpecificOutput?.additionalContext;
-        if (binary && injected) {
-          emitInjectionEvent(binary, cwd, {
-            source: SOURCE,
-            subtype: "pruning",
-            name: result.strategy || "prune",
-            content: injected,
-            sessionId,
-            attrs: {
-              tool: toolName,
-              strategy: result.strategy ?? "",
-              bytes_saved: String(result.bytesSaved ?? 0),
-            },
-          });
-        }
-      } catch {
-        // Non-fatal
-      }
-
-      emitHookResult(output);
-    } else {
-      emitHookResult({ continue: true });
-    }
-  } catch (error) {
-    debug(SOURCE, `Hook error: ${error}`);
-    emitHookResult({ continue: true });
+      });
+    } else emitHookResult();
+  } catch (err) {
+    debug(SOURCE, `Hook error: ${err}`);
+    emitHookResult();
   }
 }
-
 installHookSafetyNet(SOURCE);
-
 main();

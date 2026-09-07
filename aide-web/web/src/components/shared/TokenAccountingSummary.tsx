@@ -1,4 +1,5 @@
 import type { TokenAccounting, TokenQuantity } from "../../lib/types";
+import { TokenTransformationSummary } from "./TokenTransformations";
 
 function Quantity({
   label,
@@ -63,8 +64,9 @@ export function TokenAccountingSummary({
         <div className="mt-2 space-y-2 border-l border-aide-border pl-3">
           <p>
             Bytes count supported UTF-8 text at the observed hook or server
-            boundary. Opaque media and provider framing are excluded. Generated argument text covers edit/write content fields, not all tool arguments. Token
-            estimates use {accounting.estimator}.
+            boundary. Opaque media and provider framing are excluded. Generated
+            argument text covers edit/write content fields, not all tool
+            arguments. Token estimates use {accounting.estimator}.
           </p>
           <p>
             Server and host observations can overlap; do not add them. A hook
@@ -72,13 +74,13 @@ export function TokenAccountingSummary({
             transformations or reached the model.
           </p>
           <p>
-            Verified delivery reductions, bounded full-file comparisons and
-            inferred avoidance are unavailable in this report. Historical
-            comparison estimates below do not establish avoided calls or
-            provider savings.
+            Final delivery, full-file episode comparisons and inferred avoidance
+            remain unavailable in this report. Historical comparison estimates
+            below do not establish avoided calls or provider savings.
           </p>
         </div>
       </details>
+      <TokenTransformationSummary report={accounting.transformations} />
     </section>
   );
 }

@@ -1228,6 +1228,30 @@ message TokenActivity {
  int64 interval_seconds = 1;
  repeated TokenActivityBucket buckets = 2;
 }
+message TokenChange {
+ int64 before_bytes = 1;
+ int64 after_bytes = 2;
+ int64 delta_bytes = 3;
+ int64 estimated_token_delta = 4;
+ int64 events = 5;
+}
+message TokenChangeWindow {
+ string host = 1;
+ string session_id = 2;
+ string actor_id = 3;
+ string epoch = 4;
+ string stage = 5;
+ google.protobuf.Timestamp first = 6;
+ google.protobuf.Timestamp last = 7;
+ TokenChange change = 8;
+}
+message TokenTransformations {
+ map<string, TokenChange> by_stage = 1;
+ repeated TokenChangeWindow windows = 2;
+ bool windows_limited = 3;
+ int64 unwindowed_events = 4;
+ int64 invalid_events = 5;
+}
 message TokenAccounting {
   int32 version = 1;
   string estimator = 2;
@@ -1237,6 +1261,7 @@ message TokenAccounting {
   int64 missing_payload = 6;
   int64 missing_identity = 7;
   TokenActivity activity = 8;
+  TokenTransformations transformations = 9;
 }
 message TokenStatsResponse {
   int32 total_read = 1;      // estimated tokens consumed by reads

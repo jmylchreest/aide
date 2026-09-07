@@ -25,6 +25,8 @@ export interface ToolRecord {
 
 /** Result of applying pruning strategies to a tool output. */
 export interface PruneResult {
+  /** Immutable original retained locally before shortening. */
+  recoveryPath?: string;
   /** The (possibly modified) output string. */
   output: string;
   /** Whether the output was modified. */

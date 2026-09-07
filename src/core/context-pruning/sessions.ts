@@ -14,6 +14,7 @@ export class SessionPruningTrackers {
     tool: string,
     args: Record<string, unknown>,
     output: string,
+    finalize?: (candidate: PruneResult) => PruneResult,
   ): PruneResult {
     if (!session || session === "unknown" || this.suspended.has(session))
       return { output, modified: false, bytesSaved: 0 };
@@ -22,7 +23,7 @@ export class SessionPruningTrackers {
       tracker = new ContextPruningTracker(this.cwd);
       this.trackers.set(session, tracker);
     }
-    return tracker.process(call, tool, args, output);
+    return tracker.process(call, tool, args, output, finalize);
   }
 
   pending(session: string): void {

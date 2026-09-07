@@ -168,7 +168,8 @@ export class DedupStrategy implements PruneStrategy {
           output: replacement,
           modified: true,
           strategy: "dedup",
-          bytesSaved: output.length - replacement.length,
+          bytesSaved:
+            Buffer.byteLength(output) - Buffer.byteLength(replacement),
         };
       }
     }

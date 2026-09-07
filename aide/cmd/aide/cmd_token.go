@@ -43,6 +43,7 @@ Options:
     --json           Output as JSON
 
   stats:
+    --details        Include windows, coverage and historical breakdowns
     --session=ID     Filter by session
     --since=TIME     RFC3339 timestamp or duration ago
     --until=TIME     RFC3339 upper bound (inclusive)
@@ -189,10 +190,15 @@ func cmdTokenStats(dbPath string, args []string) error {
 		printTokenQuantity("generated_arguments", &a.Arguments)
 		fmt.Printf("  Coverage: %d legacy; %d missing text; %d missing identity\n", a.LegacyEvents, a.MissingPayload, a.MissingIdentity)
 		fmt.Println("  Stages can overlap; do not sum. Unseen calls and final delivery are unknown.")
+		fmt.Print(formatTransformationSummary(a.Transformations, hasFlag(args, "--details")))
 	} else {
 		fmt.Println("  Accounting unavailable from this server.")
 	}
-	fmt.Println("  Verified reductions / bounded comparisons / inferred avoidance: unavailable")
+	fmt.Println("  Provider savings / full-file episode comparisons / inferred avoidance: unavailable")
+	if !hasFlag(args, "--details") {
+		fmt.Println("  Use --details for window and historical breakdowns, or --json for all evidence.")
+		return nil
+	}
 	fmt.Println("\nHistorical and compatibility estimates (mixed methods)")
 	fmt.Printf("  Result tokens: ~%d; generated tokens: ~%d; guidance: ~%d\n", stats.TotalRead, stats.TotalWritten, stats.TotalDelivered)
 	fmt.Printf("  Legacy comparison estimate: ~%d (not verified savings; may overlap)\n", stats.TotalSaved)

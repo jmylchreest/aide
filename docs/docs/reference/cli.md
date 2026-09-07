@@ -327,7 +327,8 @@ per session under `~/.aide/anchors/` and `.aide/state/anchor.json`).
 ## Token (Experimental)
 
 ```bash
-aide token stats                         # Observed text accounting and legacy estimates
+aide token stats                         # Observed text and paired output changes
+aide token stats --details               # Context windows and historical breakdowns
 aide token stats --json                  # JSON output
 aide token summary                       # Recent token events
 aide token summary --limit=20            # Last 20 events
@@ -346,11 +347,17 @@ Token tracking is experimental. New observations record supported UTF-8 text byt
 
 `stats --json` adds a versioned `accounting` object with `by_stage`, `arguments`, `legacy_events`, `missing_payload`, `missing_identity`, and `estimator`. Missing payload is unknown, distinct from a known empty result. Coverage counts describe recorded observations, not the unknown number of unseen calls. An absent accounting object means the server does not support this report.
 
-Existing JSON fields remain available. `total_saved`, `saved_by_tool` and `by_saving_type` are legacy comparison estimates, not verified savings or inferred avoided calls. `total_read` includes result estimates from shell/search/network tools; `total_written` covers generated argument text where measured, and historical modification estimates. Historical methods remain mixed. Provider usage, context-window comparisons and avoidance inference are not included in this report.
+`accounting.transformations` reports paired before/after UTF-8 text, with central token estimates and signed reductions (negative means added text). `rewrite_candidate` is a Claude-compatible replacement proposal; `adapter_change` measures the output changed by aide's OpenCode adapter, including added annotations. Keep these stages separate. Neither proves host acceptance, final model delivery or provider savings. The report includes at most 64 recently recorded context-window/stage groups; `windows_limited` signals omitted groups while stage totals still cover every selected pair. Missing/pending context identity stays unwindowed. Malformed pairs are counted separately. Transform observations are not counted as additional tool calls or result consumption.
+
+Existing JSON fields remain available. `total_saved`, `saved_by_tool` and `by_saving_type` are legacy comparison estimates, not verified savings or inferred avoided calls. `total_read` includes result estimates from shell/search/network tools; `total_written` covers generated argument text where measured, and historical modification estimates. Historical methods remain mixed. Provider usage, full-file episode comparisons and avoidance inference are not included in this report.
 
 Both `stats` and `summary` accept `--session`, `--since` (RFC3339 timestamp or duration such as `24h`) and `--until` (inclusive RFC3339 timestamp). `summary --last=N` remains a deprecated alias for `--limit=N`: its historical implementation limits events, not sessions.
 
 In aide-web, **Telemetry → Tokens** opens on an Overview with headline estimates and a compact recorded-activity chart. Details contains tool/source breakdowns and event evidence; Accounting contains collection diagnostics, measurement methods and historical estimates. Date/session filters apply across all three views. Headline totals and the activity chart are aggregated centrally over every selected event, independently of the recent-events page size. Chart gaps mean no measured data; activity is not a savings or context-budget burndown. Host and server results are selectable, never added together. Historical estimates remain separately labelled.
+
+Accounting also shows small before/after bars for each transformation boundary. Details holds the context-window table and per-event recovery paths. The Overview remains compact. Each paired result counts once, without multiplying by subsequent turns or cache reuse.
+
+Before shortening output, aide retains the original under `.aide/artifacts/tool-output/` and includes its path in the replacement. Failed retention leaves the output intact. Error shortening preserves opening context and final diagnostic lines. Claude replacements support documented Bash objects and pure-text MCP results; unsupported native or mixed-media results remain intact. Missing session/invocation/window evidence prevents Claude pruning. Recovery artifacts are separate from token-event retention and are not removed by `token cleanup`.
 
 ## Status
 

@@ -1,9 +1,20 @@
 package main
 
 import (
+	"github.com/jmylchreest/aide/aide/pkg/memory"
+	"strings"
 	"testing"
 	"time"
 )
+
+func TestTransformationSummaryKeepsEvidenceAndOverheadExplicit(t *testing.T) {
+	report := memory.NewTokenTransformations()
+	report.ByStage["adapter_change"] = &memory.TokenChange{BeforeBytes: 30, AfterBytes: 90, DeltaBytes: -60, EstimatedTokenDelta: -20, Events: 1}
+	text := formatTransformationSummary(report, false)
+	if !strings.Contains(text, "-60 bytes") || !strings.Contains(text, "~-20 tokens") || !strings.Contains(text, "Proposed rewrites: unknown") || !strings.Contains(text, "final delivery") {
+		t.Fatalf("misleading evidence: %s", text)
+	}
+}
 
 func TestTokenTimeRange(t *testing.T) {
 	now := time.Date(2026, 9, 7, 12, 0, 0, 0, time.UTC)

@@ -81,6 +81,11 @@ func tokenEventToObserve(t *memory.TokenEvent) *observe.Event {
 func observeToTokenEvent(e *observe.Event) *memory.TokenEvent {
 	var eventType string
 	switch e.Kind {
+	case observe.KindHook:
+		if e.Name != "output-transform" || e.Category != "transform" {
+			return nil
+		}
+		eventType = "transformation"
 	case observe.KindToolCall:
 		switch {
 		case e.Category == "consume" && e.Subtype == "outline":
