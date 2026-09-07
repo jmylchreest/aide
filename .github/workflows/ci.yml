@@ -121,6 +121,9 @@ jobs:
       - name: Type check Astro frontend
         run: cd web && bun run check
 
+      - name: Test Astro frontend
+        run: cd web && bun run test
+
       - name: Build Astro frontend
         run: cd web && bun run build
 
