@@ -509,6 +509,7 @@ func (g *StoreAdapter) ListTokenEvents(sessionID string, limit int, since, until
 			continue
 		}
 		events = append(events, &memory.TokenEvent{
+			Attrs: e.Attrs, StartLine: int(e.StartLine), EndLine: int(e.EndLine),
 			ID:          e.Id,
 			SessionID:   e.SessionId,
 			Timestamp:   ts,
@@ -564,6 +565,7 @@ func (g *StoreAdapter) TokenStats(sessionID string, since, until time.Time) (*me
 		savedByTool[k] = int(v)
 	}
 	return &memory.TokenStats{
+		Accounting:     grpcapi.TokenAccountingFromProto(resp.Accounting),
 		TotalRead:      int(resp.TotalRead),
 		TotalSaved:     int(resp.TotalSaved),
 		TotalWritten:   int(resp.TotalWritten),
@@ -611,9 +613,7 @@ func (g *StoreAdapter) AddObserveEvent(e *observe.Event) error {
 	if err != nil {
 		return err
 	}
-	if e.ID == "" {
-		e.ID = resp.Id
-	}
+	e.ID = resp.Id
 	return nil
 }
 
@@ -669,3 +669,6 @@ func (g *StoreAdapter) CleanupObserveEvents(maxAge time.Duration) (int, error) {
 func (g *StoreAdapter) PruneCompletedTasks(maxAge time.Duration) (int, error) {
 	return 0, fmt.Errorf("task prune not supported via gRPC (daemon runs it directly)")
 }
+
+// Emit forwards MCP observations in client mode. Telemetry never fails a tool.
+func (g *StoreAdapter) Emit(e *observe.Event) { _ = g.AddObserveEvent(e) }

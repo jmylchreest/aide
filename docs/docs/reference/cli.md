@@ -327,21 +327,30 @@ per session under `~/.aide/anchors/` and `.aide/state/anchor.json`).
 ## Token (Experimental)
 
 ```bash
-aide token stats                         # Estimated all-time token statistics
+aide token stats                         # Observed text accounting and legacy estimates
 aide token stats --json                  # JSON output
 aide token summary                       # Recent token events
-aide token summary --last=20             # Last 20 events
+aide token summary --limit=20            # Last 20 events
+aide token stats --session=ID --since=24h # Selected session and period
 aide token cleanup                       # Remove events older than 90 days (cleanup.token_max_age)
 aide token cleanup --max-age=168h        # Custom retention
 ```
 
 | Command         | Description                                   |
 | --------------- | --------------------------------------------- |
-| `token stats`   | Show estimated token read/saved statistics    |
+| `token stats`   | Show text accounting and evidence coverage    |
 | `token summary` | List recent token events                      |
 | `token cleanup` | Remove old token events (default 90 days)     |
 
-Token tracking is experimental. All counts are estimates based on calibrated per-language character ratios — useful for relative comparisons, not exact cost accounting.
+Token tracking is experimental. New observations record supported UTF-8 text bytes at a host-hook or MCP-server boundary, with token estimates computed centrally using `utf8-bytes/3-v1`. Opaque media and provider framing are excluded. Generated argument text covers edit/write content fields, not all tool arguments. Host and server observations can overlap and must not be summed; neither alone confirms final delivery to the model.
+
+`stats --json` adds a versioned `accounting` object with `by_stage`, `arguments`, `legacy_events`, `missing_payload`, `missing_identity`, and `estimator`. Missing payload is unknown, distinct from a known empty result. Coverage counts describe recorded observations, not the unknown number of unseen calls. An absent accounting object means the server does not support this report.
+
+Existing JSON fields remain available. `total_saved`, `saved_by_tool` and `by_saving_type` are legacy comparison estimates, not verified savings or inferred avoided calls. `total_read` includes result estimates from shell/search/network tools; `total_written` covers generated argument text where measured, and historical modification estimates. Historical methods remain mixed. Provider usage, context-window comparisons and avoidance inference are not included in this report.
+
+Both `stats` and `summary` accept `--session`, `--since` (RFC3339 timestamp or duration such as `24h`) and `--until` (inclusive RFC3339 timestamp). `summary --last=N` remains a deprecated alias for `--limit=N`: its historical implementation limits events, not sessions.
+
+In aide-web, **Telemetry → Tokens** uses the same backend accounting and offers date/session filters and per-event evidence. Headline totals are independent of the recent-events page size. Historical estimates remain separately labelled.
 
 ## Status
 

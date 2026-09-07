@@ -1212,6 +1212,20 @@ message TokenStatsRequest {
   google.protobuf.Timestamp until = 3;    // optional: upper time bound (inclusive)
 }
 
+message TokenQuantity {
+  int64 bytes = 1;
+  int64 estimated_tokens = 2;
+  int64 events = 3;
+}
+message TokenAccounting {
+  int32 version = 1;
+  string estimator = 2;
+  map<string, TokenQuantity> by_stage = 3;
+  TokenQuantity arguments = 4;
+  int64 legacy_events = 5;
+  int64 missing_payload = 6;
+  int64 missing_identity = 7;
+}
 message TokenStatsResponse {
   int32 total_read = 1;      // estimated tokens consumed by reads
   int32 total_saved = 2;     // estimated tokens saved
@@ -1225,7 +1239,8 @@ message TokenStatsResponse {
   int32 total_delivered = 10;            // estimated tokens proactively delivered (memories, decisions, skills, enrichment)
   map<string, int32> by_delivery = 11;   // delivered tokens by source
   map<string, int32> calls_by_tool = 12; // call counts per tool — feeds per-tool efficiency chart
-  map<string, int32> saved_by_tool = 13; // estimated saved tokens per tool
+  map<string, int32> saved_by_tool = 13; // legacy estimates; not verified savings
+  TokenAccounting accounting = 14;
 }
 
 message TokenEventListRequest {
@@ -1246,6 +1261,9 @@ message TokenEventItem {
   string file_path = 6;
   int32 tokens = 7;
   int32 tokens_saved = 8;
+  map<string, string> attrs = 9;
+  int32 start_line = 10;
+  int32 end_line = 11;
 }
 
 // =============================================================================

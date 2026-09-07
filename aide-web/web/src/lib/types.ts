@@ -1,4 +1,5 @@
-export type InstanceStatus = "connected" | "disconnected" | "connecting" | "idle";
+export type InstanceStatus =
+  "connected" | "disconnected" | "connecting" | "idle";
 
 export interface InstanceInfo {
   /** Disambiguated routing id (project_name + short root hash). Use for links/keys. */
@@ -138,6 +139,7 @@ export interface SearchResult {
 }
 
 export interface TokenEventItem {
+  attrs?: Record<string, string>;
   display_path?: string;
   id: string;
   session_id: string;
@@ -171,7 +173,22 @@ export interface ObserveEventItem {
   attrs?: Record<string, string>;
 }
 
+export interface TokenQuantity {
+  bytes: number;
+  estimated_tokens: number;
+  events: number;
+}
+export interface TokenAccounting {
+  version: number;
+  estimator: string;
+  by_stage: Record<string, TokenQuantity>;
+  arguments: TokenQuantity;
+  legacy_events: number;
+  missing_payload: number;
+  missing_identity: number;
+}
 export interface TokenStats {
+  accounting?: TokenAccounting;
   total_read: number;
   total_saved: number;
   total_written: number;
@@ -211,13 +228,16 @@ export interface DetailedStatus {
     total: number;
     by_analyzer: Record<string, number>;
     by_severity: Record<string, number>;
-    analyzers: Record<string, {
-      status: string;
-      scope: string;
-      last_run: string;
-      findings: number;
-      last_duration: string;
-    }>;
+    analyzers: Record<
+      string,
+      {
+        status: string;
+        scope: string;
+        last_run: string;
+        findings: number;
+        last_duration: string;
+      }
+    >;
   };
   survey?: {
     available: boolean;

@@ -7,12 +7,10 @@
  * Mirror image of the MCP-side mcpToolTaxonomy in cmd_mcp.go: native tools
  * (Read, Edit, Bash, ...) flow through here; MCP tools (code_outline,
  * findings_search, ...) flow through the middleware. Together they give
- * complete tool-call coverage in the observe store.
+ * observations at distinct boundaries; missing identity or payload stays unknown.
  */
 
 import { execFileSync } from "child_process";
-import { statSync } from "fs";
-import { isAbsolute, resolve } from "path";
 import { debug } from "../lib/logger.js";
 import { recordFileRead } from "./read-tracking.js";
 
@@ -72,12 +70,11 @@ const TOOL_ALIASES: Record<string, string> = {
   create: "Write",
   shell: "Bash",
   exec: "Bash",
+  exec_command: "Bash",
+  write_stdin: "Bash",
   fetch: "WebFetch",
   search_web: "WebSearch",
 };
-
-/** Tools whose tokens we estimate from on-disk file size (the Read path). */
-const FILE_SIZED_TOOLS = new Set(["Read"]);
 
 /**
  * Tools whose token cost is the size of content the agent *writes* — the
@@ -91,31 +88,42 @@ const CONTENT_WRITE_TOOLS: Record<string, string> = {
   NotebookEdit: "new_source",
 };
 
-/**
- * Tools whose cost is the size of the *output* they produce — Bash stdout,
- * WebFetch page body, WebSearch results, Grep match lines. The PostToolUse
- * payload carries the tool's response so we can estimate the tokens that
- * flowed back into the agent's context.
+/** Extract supported textual components, not serialized metadata or opaque media.
+ * Undefined means unmeasured; an empty string is a known empty text result.
+ * Alternate wrappers are preferred in order rather than counted twice.
  */
-const OUTPUT_SIZED_TOOLS = new Set(["Bash", "WebFetch", "WebSearch", "Grep"]);
-
-/**
- * Pull the textual output from a tool_response / tool_result payload. The
- * shape varies by tool and by harness (Claude Code passes string for Bash,
- * objects for others; OpenCode wraps things differently), so we try the
- * common keys defensively and return "" when there's no text to count.
- */
-function extractOutputText(payload: unknown): string {
-  if (!payload) return "";
+function extractOutputText(payload: unknown): string | undefined {
   if (typeof payload === "string") return payload;
-  if (typeof payload === "object") {
-    const obj = payload as Record<string, unknown>;
-    for (const key of ["output", "stdout", "content", "text", "result"]) {
-      const v = obj[key];
-      if (typeof v === "string") return v;
-    }
+  if (Array.isArray(payload)) {
+    const parts = payload
+      .map(extractOutputText)
+      .filter((v): v is string => v !== undefined);
+    return parts.length ? parts.join("") : undefined;
   }
-  return "";
+  if (!payload || typeof payload !== "object") return undefined;
+  const obj = payload as Record<string, unknown>;
+  if (typeof obj.type === "string" && !["text", "resource"].includes(obj.type))
+    return undefined;
+  const output = extractOutputText(obj.output);
+  if (output !== undefined) return output;
+  if (typeof obj.stdout === "string" || typeof obj.stderr === "string") {
+    return (
+      (typeof obj.stdout === "string" ? obj.stdout : "") +
+      (typeof obj.stderr === "string" ? obj.stderr : "")
+    );
+  }
+  for (const key of [
+    "content",
+    "text",
+    "result",
+    "file",
+    "resource",
+    "error",
+  ]) {
+    const text = extractOutputText(obj[key]);
+    if (text !== undefined) return text;
+  }
+  return undefined;
 }
 
 /**
@@ -182,6 +190,9 @@ export interface ToolObserveInput {
    */
   errorText?: string;
   sessionId?: string;
+  host?: string;
+  invocationId?: string;
+  actorId?: string;
 }
 
 /**
@@ -191,43 +202,12 @@ export interface ToolObserveInput {
  *
  * Lookup order: exact → case-insensitive → cross-harness alias.
  */
-function lookupTool(name: string): ToolTax | null {
-  if (NATIVE_TOOL_TAXONOMY[name]) return NATIVE_TOOL_TAXONOMY[name];
-  const lower = name.toLowerCase();
-  for (const [k, v] of Object.entries(NATIVE_TOOL_TAXONOMY)) {
-    if (k.toLowerCase() === lower) return v;
-  }
-  const canonical = TOOL_ALIASES[lower];
-  if (canonical && NATIVE_TOOL_TAXONOMY[canonical]) {
-    return NATIVE_TOOL_TAXONOMY[canonical];
-  }
-  return null;
-}
-
-/**
- * Estimate tokens for the Read tool. If offset/limit are present, scale by
- * the portion actually read. Returns 0 on stat failure (caller still records
- * the event so the call shows up in the timeline).
- */
-function estimateReadTokens(
-  cwd: string,
-  filePath: string,
-  offset?: number,
-  limit?: number,
-): number {
-  try {
-    const abs = isAbsolute(filePath) ? filePath : resolve(cwd, filePath);
-    const stat = statSync(abs);
-    const fullTokens = Math.round(stat.size / 3.0);
-    if (limit !== undefined && limit > 0 && stat.size > 0) {
-      const estTotalLines = Math.max(1, Math.round(stat.size / 35));
-      const linesRead = Math.min(limit, estTotalLines - (offset || 0));
-      return Math.round(fullTokens * (linesRead / estTotalLines));
-    }
-    return fullTokens;
-  } catch {
-    return 0;
-  }
+function canonicalTool(name: string): string | undefined {
+  return (
+    Object.keys(NATIVE_TOOL_TAXONOMY).find(
+      (k) => k.toLowerCase() === name.toLowerCase(),
+    ) ?? TOOL_ALIASES[name.toLowerCase()]
+  );
 }
 
 /**
@@ -241,47 +221,29 @@ export function recordToolEvent(
   cwd: string,
   input: ToolObserveInput,
 ): void {
-  const tax = lookupTool(input.toolName);
-  if (!tax) {
+  const name = canonicalTool(input.toolName);
+  const tax = name ? NATIVE_TOOL_TAXONOMY[name] : undefined;
+  if (!tax || !name) {
     debug(SOURCE, `Skipping unclassified tool: ${input.toolName}`);
     return;
   }
 
-  const filePath = input.toolInput?.file_path as string | undefined;
-  let tokens = 0;
+  const toolInput = input.toolInput ?? {};
+  const path = toolInput.file_path ?? toolInput.filePath;
+  const filePath = typeof path === "string" ? path : undefined;
+  const errText =
+    (input.errorText && input.errorText.slice(0, 500)) ||
+    toolFailureText(input.success, input.toolResponse);
+  const text = extractOutputText(input.toolResponse);
+  const generated = toolInput[CONTENT_WRITE_TOOLS[name]];
   let startLine: number | undefined;
   let endLine: number | undefined;
-  if (FILE_SIZED_TOOLS.has(input.toolName) && filePath) {
-    const offset = input.toolInput?.offset as number | undefined;
-    const limit = input.toolInput?.limit as number | undefined;
-    tokens = estimateReadTokens(cwd, filePath, offset, limit);
-    // Read tool offset/limit are line-based (1-based when present, default
-    // 1..end). Persist the range so the dashboard's file viewer can
-    // scroll/highlight the slice the agent actually consumed.
-    startLine = offset && offset > 0 ? offset : 1;
-    if (limit && limit > 0) {
-      endLine = startLine + limit - 1;
-    }
-    // Smart-read-hint state: record that this file was read so subsequent
-    // re-reads can be flagged as candidates for code_outline/code_symbols.
-    // No-op when code.watch is disabled.
+  if (name === "Read" && filePath && !errText && text !== undefined) {
+    const offset = toolInput.offset;
+    const limit = toolInput.limit;
+    startLine = typeof offset === "number" && offset > 0 ? offset : 1;
+    if (typeof limit === "number" && limit > 0) endLine = startLine + limit - 1;
     recordFileRead(binary, cwd, filePath);
-  } else if (CONTENT_WRITE_TOOLS[input.toolName]) {
-    // Modify tools: the cost is the new content the agent generates,
-    // not the existing file. Same chars/3 estimator the Read path uses.
-    const field = CONTENT_WRITE_TOOLS[input.toolName];
-    const content = input.toolInput?.[field];
-    if (typeof content === "string" && content.length > 0) {
-      tokens = Math.round(content.length / 3.0);
-    }
-  } else if (OUTPUT_SIZED_TOOLS.has(input.toolName)) {
-    // Output-sized tools: cost = how much text came back into context.
-    // Stays 0 when the harness didn't pass a tool_response (some hooks
-    // strip it for size). That's still useful — we get the call count.
-    const text = extractOutputText(input.toolResponse);
-    if (text.length > 0) {
-      tokens = Math.round(text.length / 3.0);
-    }
   }
 
   try {
@@ -289,11 +251,28 @@ export function recordToolEvent(
       "observe",
       "record",
       "--kind=tool_call",
-      `--name=${input.toolName}`,
+      `--name=${name}`,
       `--category=${tax.category}`,
       `--subtype=${tax.subtype}`,
     ];
-    if (tokens > 0) args.push(`--tokens=${tokens}`);
+    args.push(
+      "--attr=accounting_version=1",
+      "--attr=observation_stage=host_result",
+      `--attr=raw_tool=${input.toolName}`,
+    );
+    // Conversion is owned by the backend. These are exact UTF-8 text bytes at
+    // this hook boundary, not provider tokens or proof of final delivery.
+    if (text !== undefined)
+      args.push(`--attr=payload_bytes=${Buffer.byteLength(text, "utf8")}`);
+    if (typeof generated === "string")
+      args.push(
+        `--attr=argument_bytes=${Buffer.byteLength(generated, "utf8")}`,
+      );
+    if (input.host) args.push(`--attr=host=${input.host}`);
+    if (input.invocationId)
+      args.push(`--attr=invocation_id=${input.invocationId}`);
+    if (input.actorId || input.sessionId)
+      args.push(`--attr=actor_id=${input.actorId || input.sessionId}`);
     if (filePath) args.push(`--file=${filePath}`);
     if (input.sessionId) args.push(`--session=${input.sessionId}`);
     if (startLine !== undefined) args.push(`--attr=start_line=${startLine}`);
@@ -302,7 +281,7 @@ export function recordToolEvent(
     // detector can group calls by canonical signature instead of lumping
     // every Bash invocation under a single "Bash" bucket. Truncated to keep
     // the attr cheap; the normaliser only uses the first token anyway.
-    const cmd = input.toolInput?.command;
+    const cmd = toolInput.command ?? toolInput.cmd;
     if (typeof cmd === "string" && cmd.length > 0) {
       args.push(`--attr=command=${cmd.slice(0, 500)}`);
     }
@@ -314,9 +293,6 @@ export function recordToolEvent(
     // obstacle (the same tool failing on the same target). An explicit
     // errorText from a harness failure event wins; otherwise we infer from the
     // response. Empty when the call succeeded, so successes record as before.
-    const errText =
-      (input.errorText && input.errorText.slice(0, 500)) ||
-      toolFailureText(input.success, input.toolResponse);
     if (errText) {
       args.push(`--error=${errText}`);
     }
@@ -327,7 +303,7 @@ export function recordToolEvent(
     });
     debug(
       SOURCE,
-      `Recorded ${input.toolName} ${tax.category}/${tax.subtype} tokens=${tokens}`,
+      `Recorded ${input.toolName} ${tax.category}/${tax.subtype} textBytes=${text === undefined ? "unknown" : Buffer.byteLength(text, "utf8")}`,
     );
   } catch (err) {
     debug(SOURCE, `Failed to record ${input.toolName}: ${err}`);

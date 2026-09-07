@@ -24,7 +24,7 @@ func (s *BoltStore) ListTokenEvents(sessionID string, limit int, since, until ti
 				continue
 			}
 			if !since.IsZero() && oe.Timestamp.Before(since) {
-				break
+				continue
 			}
 			if !until.IsZero() && oe.Timestamp.After(until) {
 				continue
@@ -51,6 +51,7 @@ func (s *BoltStore) ListTokenEvents(sessionID string, limit int, since, until ti
 // Zero-value since/until are ignored (no bound).
 func (s *BoltStore) TokenStats(sessionID string, since, until time.Time) (*memory.TokenStats, error) {
 	stats := &memory.TokenStats{
+		Accounting:   memory.NewTokenAccounting(),
 		ByTool:       make(map[string]int),
 		CallsByTool:  make(map[string]int),
 		SavedByTool:  make(map[string]int),
@@ -71,7 +72,10 @@ func (s *BoltStore) TokenStats(sessionID string, since, until time.Time) (*memor
 		}
 
 		stats.EventCount++
-		sessions[e.SessionID] = true
+		if e.SessionID != "" {
+			sessions[e.SessionID] = true
+		}
+		stats.Accounting.Add(e)
 
 		// Every event with a tool counts as one call. Injection events
 		// reuse Tool for the source name; the chart filters those out.
@@ -107,11 +111,19 @@ func (s *BoltStore) TokenStats(sessionID string, since, until time.Time) (*memor
 			if e.Tool != "" {
 				stats.ByDelivery[e.Tool] += e.Tokens
 			}
-		default:
-			if e.Tokens > 0 {
+		case "modify", "write", "edit":
+			if e.Attrs["accounting_version"] == "1" {
+				if n, ok := memory.MeasuredBytes(e.Attrs, "argument_bytes"); ok {
+					stats.TotalWritten += int(memory.EstimateTextTokens(n))
+				}
+				stats.TotalRead += e.Tokens
+			} else {
 				stats.TotalWritten += e.Tokens
-				stats.ByTool[e.Tool] += e.Tokens
 			}
+			stats.ByTool[e.Tool] += e.Tokens
+		default:
+			stats.TotalRead += e.Tokens
+			stats.ByTool[e.Tool] += e.Tokens
 		}
 	}
 
@@ -124,7 +136,7 @@ func (s *BoltStore) TokenStats(sessionID string, since, until time.Time) (*memor
 				continue
 			}
 			if !since.IsZero() && oe.Timestamp.Before(since) {
-				break
+				continue
 			}
 			if te := observeToTokenEvent(&oe); te != nil {
 				tally(te)

@@ -1,7 +1,9 @@
 package store
 
 import (
+	"crypto/sha256"
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -100,6 +102,7 @@ func observeToTokenEvent(e *observe.Event) *memory.TokenEvent {
 		return nil
 	}
 	te := &memory.TokenEvent{
+		Attrs:       e.Attrs,
 		ID:          e.ID,
 		SessionID:   e.SessionID,
 		Timestamp:   e.Timestamp,
@@ -129,6 +132,20 @@ func observeToTokenEvent(e *observe.Event) *memory.TokenEvent {
 // CLI) — the in-process Recorder always sets them, but defending here keeps
 // the bolt layer from rejecting the write with "key required".
 func (s *BoltStore) AddObserveEvent(e *observe.Event) error {
+	// New measurements use one estimator, independently of legacy handler estimates.
+	if e.Attrs["accounting_version"] == "1" {
+		e.Tokens = 0
+		e.Attrs["token_estimator"] = memory.TextEstimator
+		for _, key := range []string{"payload_bytes", "argument_bytes"} {
+			if _, ok := memory.MeasuredBytes(e.Attrs, key); !ok {
+				delete(e.Attrs, key)
+			}
+		}
+		if n, ok := memory.MeasuredBytes(e.Attrs, "payload_bytes"); ok {
+			e.Tokens = int(memory.EstimateTextTokens(n))
+		}
+	}
+
 	if e.ID == "" {
 		e.ID = ulid.Make().String()
 	}
@@ -137,6 +154,27 @@ func (s *BoltStore) AddObserveEvent(e *observe.Event) error {
 	}
 	return s.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(BucketObserveEvents)
+		// Only explicit origin identity deduplicates; equal commands are valid calls.
+		if memory.HasObservationIdentity(e.SessionID, e.Attrs) {
+			identity, err := json.Marshal([]string{e.SessionID, e.Attrs["host"], e.Attrs["actor_id"], e.Attrs["invocation_id"], e.Attrs["observation_stage"]})
+			if err != nil {
+				return err
+			}
+			key := []byte(fmt.Sprintf("%x", sha256.Sum256(identity)))
+			origins, err := tx.CreateBucketIfNotExists([]byte("observe_origins"))
+			if err != nil {
+				return err
+			}
+			if id := origins.Get(key); id != nil {
+				if data := b.Get(id); data != nil {
+					// Keep the first observation and its timestamp stable on retries.
+					return json.Unmarshal(data, e)
+				}
+			}
+			if err := origins.Put(key, []byte(e.ID)); err != nil {
+				return err
+			}
+		}
 		data, err := json.Marshal(e)
 		if err != nil {
 			return err
@@ -232,6 +270,17 @@ func (s *BoltStore) CleanupObserveEvents(maxAge time.Duration) (int, error) {
 				return err
 			}
 			count++
+		}
+		// The identity index follows event retention rather than growing forever.
+		if origins := tx.Bucket([]byte("observe_origins")); origins != nil {
+			c := origins.Cursor()
+			for key, id := c.First(); key != nil; key, id = c.Next() {
+				if b.Get(id) == nil {
+					if err := c.Delete(); err != nil {
+						return err
+					}
+				}
+			}
 		}
 		return nil
 	})

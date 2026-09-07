@@ -1783,6 +1783,7 @@ func (s *tokenServiceImpl) GetTokenStats(ctx context.Context, req *TokenStatsReq
 	}
 
 	return &TokenStatsResponse{
+		Accounting:     TokenAccountingToProto(stats.Accounting),
 		TotalRead:      int32(stats.TotalRead),
 		TotalSaved:     int32(stats.TotalSaved),
 		TotalWritten:   int32(stats.TotalWritten),
@@ -1819,6 +1820,7 @@ func (s *tokenServiceImpl) ListTokenEvents(ctx context.Context, req *TokenEventL
 	protoEvents := make([]*TokenEventItem, len(events))
 	for i, e := range events {
 		protoEvents[i] = &TokenEventItem{
+			Attrs: e.Attrs, StartLine: int32(e.StartLine), EndLine: int32(e.EndLine),
 			Id:          e.ID,
 			SessionId:   e.SessionID,
 			Timestamp:   timestamppb.New(e.Timestamp),

@@ -207,7 +207,12 @@ export interface Hooks {
 
   /** React after tool completes */
   "tool.execute.after"?: (
-    input: { tool: string; sessionID: string; callID: string },
+    input: {
+      tool: string;
+      sessionID: string;
+      callID: string;
+      args?: Record<string, unknown>;
+    },
     output: {
       title: string;
       output: string;

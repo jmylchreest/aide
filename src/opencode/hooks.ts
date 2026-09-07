@@ -855,7 +855,7 @@ function createToolBeforeHandler(
 function createToolAfterHandler(
   state: AideState,
 ): (
-  input: { tool: string; sessionID: string; callID: string },
+  input: { tool: string; sessionID: string; callID: string; args?: Record<string, unknown> },
   output: { title: string; output: string; metadata: Record<string, unknown> },
 ) => Promise<void> {
   return async (input, _output) => {
@@ -874,7 +874,7 @@ function createToolAfterHandler(
 
     // Write a partial memory for significant tool uses
     try {
-      const toolArgs = (_output.metadata?.args || {}) as Record<
+      const toolArgs = (input.args || _output.metadata?.args || {}) as Record<
         string,
         unknown
       >;
@@ -893,7 +893,7 @@ function createToolAfterHandler(
     // Go side — together they give complete tool-call coverage). Also handles
     // smart-read-hint state via recordFileRead inside the core module.
     try {
-      const toolArgs = (_output.metadata?.args || {}) as Record<
+      const toolArgs = (input.args || _output.metadata?.args || {}) as Record<
         string,
         unknown
       >;
@@ -911,6 +911,8 @@ function createToolAfterHandler(
         // right thing to estimate output-sized tool cost from.
         toolResponse: _output.output,
         sessionId: input.sessionID,
+        host: "opencode",
+        invocationId: input.callID,
       });
     } catch (err) {
       debug(SOURCE, `Tool observe recording failed (non-fatal): ${err}`);
@@ -918,7 +920,7 @@ function createToolAfterHandler(
 
     // Context pruning: dedup/supersede/purge tool outputs
     try {
-      const toolArgs = (_output.metadata?.args || {}) as Record<
+      const toolArgs = (input.args || _output.metadata?.args || {}) as Record<
         string,
         unknown
       >;
@@ -941,7 +943,7 @@ function createToolAfterHandler(
 
     // Comment checker: detect excessive comments in Write/Edit output
     try {
-      const toolArgs = (_output.metadata?.args || {}) as Record<
+      const toolArgs = (input.args || _output.metadata?.args || {}) as Record<
         string,
         unknown
       >;

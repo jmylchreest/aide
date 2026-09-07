@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"fmt"
+	"github.com/jmylchreest/aide/aide/pkg/memory"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -10,15 +11,16 @@ import (
 
 // TokenEventItem is the JSON representation of a token event.
 type TokenEventItem struct {
-	ID          string `json:"id"`
-	SessionID   string `json:"session_id"`
-	Timestamp   string `json:"timestamp"`
-	EventType   string `json:"event_type"`
-	Tool        string `json:"tool"`
-	FilePath    string `json:"file_path"`
-	DisplayPath string `json:"display_path,omitempty"`
-	Tokens      int    `json:"tokens"`
-	TokensSaved int    `json:"tokens_saved"`
+	Attrs       map[string]string `json:"attrs,omitempty"`
+	ID          string            `json:"id"`
+	SessionID   string            `json:"session_id"`
+	Timestamp   string            `json:"timestamp"`
+	EventType   string            `json:"event_type"`
+	Tool        string            `json:"tool"`
+	FilePath    string            `json:"file_path"`
+	DisplayPath string            `json:"display_path,omitempty"`
+	Tokens      int               `json:"tokens"`
+	TokensSaved int               `json:"tokens_saved"`
 	// StartLine/EndLine optionally point at a span within FilePath. The
 	// dashboard uses these to scroll the file viewer to the right region.
 	StartLine int `json:"start_line,omitempty"`
@@ -27,19 +29,20 @@ type TokenEventItem struct {
 
 // TokenStatsItem is the JSON representation of token stats.
 type TokenStatsItem struct {
-	TotalRead      int            `json:"total_read"`
-	TotalSaved     int            `json:"total_saved"`
-	TotalWritten   int            `json:"total_written"`
-	TotalDelivered int            `json:"total_delivered"`
-	EventCount     int            `json:"event_count"`
-	ByTool         map[string]int `json:"by_tool"`
-	CallsByTool    map[string]int `json:"calls_by_tool"`
-	SavedByTool    map[string]int `json:"saved_by_tool"`
-	BySavingType   map[string]int `json:"by_saving_type"`
-	ByDelivery     map[string]int `json:"by_delivery"`
-	Sessions       int            `json:"sessions"`
-	ReadCount      int            `json:"read_count"`
-	CodeToolCount  int            `json:"code_tool_count"`
+	Accounting     *memory.TokenAccounting `json:"accounting,omitempty"`
+	TotalRead      int                     `json:"total_read"`
+	TotalSaved     int                     `json:"total_saved"`
+	TotalWritten   int                     `json:"total_written"`
+	TotalDelivered int                     `json:"total_delivered"`
+	EventCount     int                     `json:"event_count"`
+	ByTool         map[string]int          `json:"by_tool"`
+	CallsByTool    map[string]int          `json:"calls_by_tool"`
+	SavedByTool    map[string]int          `json:"saved_by_tool"`
+	BySavingType   map[string]int          `json:"by_saving_type"`
+	ByDelivery     map[string]int          `json:"by_delivery"`
+	Sessions       int                     `json:"sessions"`
+	ReadCount      int                     `json:"read_count"`
+	CodeToolCount  int                     `json:"code_tool_count"`
 }
 
 // ListTokenEventsOutput is the response body for APIListTokenEvents.
@@ -85,7 +88,7 @@ func (h *Handler) APIListTokenEvents(ctx context.Context, input *struct {
 	displayPath := newDisplayPath(inst.ProjectRoot())
 	for _, e := range events {
 		out.Body.Events = append(out.Body.Events, TokenEventItem{
-			ID:          e.ID,
+			Attrs: e.Attrs, ID: e.ID,
 			SessionID:   e.SessionID,
 			Timestamp:   e.Timestamp.UTC().Format(time.RFC3339),
 			EventType:   e.EventType,
@@ -129,6 +132,7 @@ func (h *Handler) APIGetTokenStats(ctx context.Context, input *struct {
 
 	out := &GetTokenStatsOutput{}
 	out.Body = TokenStatsItem{
+		Accounting:     stats.Accounting,
 		TotalRead:      stats.TotalRead,
 		TotalSaved:     stats.TotalSaved,
 		TotalWritten:   stats.TotalWritten,

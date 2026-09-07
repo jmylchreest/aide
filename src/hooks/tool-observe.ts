@@ -21,6 +21,7 @@ import {
   emitHookResult,
   installHookSafetyNet,
   findAideBinary,
+  detectPlatform,
 } from "../lib/hook-utils.js";
 import { recordToolEvent } from "../core/tool-observe.js";
 import { debug } from "../lib/logger.js";
@@ -32,6 +33,8 @@ interface HookInput {
   session_id: string;
   cwd: string;
   tool_name?: string;
+  tool_use_id?: string;
+  agent_id?: string;
   tool_input?: Record<string, unknown>;
   tool_result?: { success: boolean };
   // Claude Code passes the tool's actual output payload as tool_response.
@@ -69,9 +72,15 @@ async function main(): Promise<void> {
       toolResponse: data.tool_response,
       // PostToolUseFailure marks failure at the top level; PostToolUse omits
       // these (success only). Map both into the shared recorder.
-      success: data.is_error === true ? false : data.tool_result?.success,
+      success:
+        data.hook_event_name === "PostToolUseFailure" || data.is_error === true
+          ? false
+          : data.tool_result?.success,
       errorText: data.error,
       sessionId: data.session_id,
+      host: detectPlatform(),
+      invocationId: data.tool_use_id,
+      actorId: data.agent_id,
     });
   } catch (err) {
     debug(SOURCE, `Hook error: ${err}`);

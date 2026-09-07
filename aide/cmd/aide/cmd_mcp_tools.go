@@ -604,17 +604,17 @@ func (s *MCPServer) registerTokenTools() {
 		Name: "token_stats",
 		Description: `Get estimated token usage statistics.
 
-Returns aggregated estimates of tokens consumed and saved by aide features.
-All values are **estimates** based on calibrated per-language character ratios.
+Returns observed text accounting and historical estimates, not provider billing.
 
-**Response fields:**
-- total_read: estimated tokens consumed by Read operations
-- total_saved: estimated tokens saved (outline substitutions, avoided re-reads)
-- total_written: estimated tokens from write operations
-- event_count: total recorded events
-- by_tool: estimated token breakdown per tool
-- by_saving_type: estimated savings breakdown (outline, read_avoided)
-- sessions: number of unique sessions tracked
+- accounting: versioned UTF-8 text bytes, estimated tokens with estimator identity,
+  separate host/server observations and generated arguments, and missing-evidence counts.
+  Host/server stages may overlap and must not be summed. Missing accounting means an older server.
+- total_read / total_written / total_delivered / by_tool: compatibility estimates,
+  mixing historical measurement methods; not provider usage.
+- total_saved / saved_by_tool / by_saving_type: legacy comparison estimates,
+  not verified avoided calls or measured causal savings.
+- event_count / sessions / calls_by_tool: recorded observations and known sessions;
+  missing telemetry is not proof that no call occurred.
 
 Use session_id to see stats for a specific session, or leave empty for all-time.`,
 	}, s.handleTokenStats)

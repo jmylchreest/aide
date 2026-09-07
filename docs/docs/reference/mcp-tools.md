@@ -172,11 +172,11 @@ Checks whether a file is indexed and whether its content has changed since last 
 
 ### token_stats
 
-Returns aggregated estimates of tokens consumed and saved by aide features. All values are **estimates** based on calibrated per-language character ratios — use for relative comparisons, not exact cost accounting.
+Returns observed UTF-8 text accounting and historical token estimates. The versioned `accounting` object separates host/server observations and generated arguments, identifies the token estimator, and reports legacy events and missing evidence. Stages can overlap; do not sum them. Missing accounting means an older server. These observations do not establish final delivery, avoided calls or provider savings.
 
 **Parameters:** `session_id` (optional, filter by session)
 
-**Response fields:** `total_read`, `total_saved`, `event_count`, `by_tool`, `by_saving_type`, `sessions`
+**Response fields:** `accounting`, `total_read`, `total_saved`, `event_count`, `by_tool`, `by_saving_type`, `sessions`. Existing totals remain compatibility estimates; `total_saved` and related saved fields are explicitly legacy comparison estimates, not verified savings.
 
 ## Findings Tools
 
