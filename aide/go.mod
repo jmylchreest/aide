@@ -1,11 +1,11 @@
 module github.com/jmylchreest/aide/aide
 
-go 1.25.8
+go 1.27.0
 
 require (
 	github.com/blevesearch/bleve/v2 v2.6.1
 	github.com/bmatcuk/doublestar/v4 v4.10.0
-	github.com/ebitengine/purego v0.10.2
+	github.com/ebitengine/purego v0.11.0
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/go-git/go-billy/v5 v5.9.1
 	github.com/go-git/go-git/v5 v5.19.2
@@ -18,7 +18,7 @@ require (
 	github.com/modelcontextprotocol/go-sdk v1.7.0
 	github.com/oklog/ulid/v2 v2.1.2
 	github.com/olekukonko/tablewriter v1.1.4
-	github.com/praetorian-inc/titus v1.2.8
+	github.com/praetorian-inc/titus v1.2.9
 	github.com/tree-sitter-grammars/tree-sitter-zig v1.1.2
 	github.com/tree-sitter/go-tree-sitter v0.25.0
 	github.com/tree-sitter/tree-sitter-c v0.24.1
