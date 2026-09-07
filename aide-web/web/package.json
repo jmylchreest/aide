@@ -28,6 +28,6 @@
     "@types/react-dom": "^19.2.7",
     "postcss": "^8.5.28",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.0"
   }
 }
