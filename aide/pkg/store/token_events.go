@@ -2,6 +2,7 @@ package store
 
 import (
 	"encoding/json"
+	"sort"
 	"time"
 
 	"github.com/jmylchreest/aide/aide/pkg/memory"
@@ -45,12 +46,18 @@ func (s *BoltStore) ListTokenEvents(sessionID string, limit int, since, until ti
 				continue
 			}
 			events = append(events, te)
-			if limit > 0 && len(events) >= limit {
-				break
-			}
 		}
 		return nil
 	})
+	sort.Slice(events, func(i, j int) bool {
+		if events[i].Timestamp.Equal(events[j].Timestamp) {
+			return events[i].ID > events[j].ID
+		}
+		return events[i].Timestamp.After(events[j].Timestamp)
+	})
+	if limit > 0 && len(events) > limit {
+		events = events[:limit]
+	}
 	return events, err
 }
 
@@ -70,6 +77,7 @@ func (s *BoltStore) TokenStats(sessionID string, since, until time.Time) (*memor
 	activity := newTokenActivity(since, until)
 	retrievals := newTokenRetrievals(sessionID, since, until)
 	stats.Accounting.Work = memory.NewTokenWork()
+	usage := newModelUsage()
 
 	tally := func(e *memory.TokenEvent) {
 		if !since.IsZero() && e.Timestamp.Before(since) {
@@ -150,6 +158,7 @@ func (s *BoltStore) TokenStats(sessionID string, since, until time.Time) (*memor
 			var oe observe.Event
 			if json.Unmarshal(v, &oe) == nil {
 				attribution.observe(&oe)
+				usage.observe(&oe)
 			}
 		}
 		for k, v := c.Last(); k != nil; k, v = c.Prev() {
@@ -179,7 +188,12 @@ func (s *BoltStore) TokenStats(sessionID string, since, until time.Time) (*memor
 		return nil, err
 	}
 
+	modelUsage, usageSessions := usage.resultWithSessions(sessionID, since, until)
+	for session := range usageSessions {
+		sessions[session] = true
+	}
 	stats.Sessions = len(sessions)
+	stats.Accounting.ModelUsage = modelUsage
 	stats.Accounting.Activity = activity.result()
 	stats.Accounting.Retrievals = retrievals.result()
 	return stats, nil

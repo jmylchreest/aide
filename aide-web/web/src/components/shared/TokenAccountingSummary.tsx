@@ -1,6 +1,7 @@
 import type { TokenAccounting, TokenQuantity } from "../../lib/types";
 import { TokenTransformationSummary } from "./TokenTransformations";
 import { TokenWorkAccounting } from "./TokenWork";
+import { ModelUsageAccounting } from "./TokenModelUsage";
 
 function Quantity({
   label,
@@ -41,6 +42,7 @@ export function TokenAccountingSummary({
     );
   return (
     <section aria-label="Observed text accounting" className="mb-6">
+      <ModelUsageAccounting report={accounting.model_usage} />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <Quantity
           label="Host result text"

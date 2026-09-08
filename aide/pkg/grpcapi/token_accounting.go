@@ -27,6 +27,7 @@ func TokenAccountingToProto(a *memory.TokenAccounting) *TokenAccounting {
 	p.Transformations = tokenTransformationsToProto(a.Transformations)
 	p.Retrievals = tokenRetrievalsToProto(a.Retrievals)
 	p.Work = tokenWorkToProto(a.Work)
+	p.ModelUsage = tokenModelUsageToProto(a.ModelUsage)
 	for k, v := range a.ByStage {
 		p.ByStage[k] = tokenQuantityToProto(v)
 	}
@@ -51,6 +52,7 @@ func TokenAccountingFromProto(p *TokenAccounting) *memory.TokenAccounting {
 	a.Transformations = tokenTransformationsFromProto(p.Transformations)
 	a.Retrievals = tokenRetrievalsFromProto(p.Retrievals)
 	a.Work = tokenWorkFromProto(p.Work)
+	a.ModelUsage = tokenModelUsageFromProto(p.ModelUsage)
 	for k, v := range p.ByStage {
 		q := tokenQuantityFromProto(v)
 		a.ByStage[k] = &q

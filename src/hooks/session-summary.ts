@@ -15,7 +15,12 @@ import {
   emitHookResult,
   installHookSafetyNet,
   findAideBinary,
+  detectPlatform,
 } from "../lib/hook-utils.js";
+import {
+  collectTranscriptUsage,
+  recordModelUsage,
+} from "../core/model-usage.js";
 import { setSessionContext } from "../lib/anchor.js";
 import {
   buildSessionSummary,
@@ -118,6 +123,21 @@ async function main(): Promise<void> {
 
     // For Stop hook, capture session summary
     if (data.hook_event_name === "Stop" && data.transcript_path) {
+      // The transcript is an explicitly supplied source, not a discovery path.
+      // Stop can precede its flush; every scan remains partial coverage.
+      const binary = findAideBinary(cwd, sessionId);
+      if (binary) {
+        const usage = collectTranscriptUsage(
+          data.transcript_path,
+          detectPlatform(),
+          sessionId,
+        );
+        recordModelUsage(binary, cwd, usage.events);
+        debug(
+          SOURCE,
+          `Usage scan: ${usage.status}; limited=${usage.limited}; malformed=${usage.malformed}; records=${usage.events.length}`,
+        );
+      }
       // Don't capture if stop hook is already active (avoid recursion)
       if (!data.stop_hook_active) {
         debug(SOURCE, "Stop hook - capturing session summary");

@@ -217,16 +217,17 @@ type bucket struct {
 
 // observeBatchLine is one JSON Lines record for `observe record --stdin`.
 type observeBatchLine struct {
-	Kind     string            `json:"kind"`
-	Name     string            `json:"name"`
-	Category string            `json:"category,omitempty"`
-	Subtype  string            `json:"subtype,omitempty"`
-	Tokens   int               `json:"tokens,omitempty"`
-	Saved    int               `json:"saved,omitempty"`
-	File     string            `json:"file,omitempty"`
-	Session  string            `json:"session,omitempty"`
-	Error    string            `json:"error,omitempty"`
-	Attrs    map[string]string `json:"attrs,omitempty"`
+	Timestamp *time.Time        `json:"ts,omitempty"`
+	Kind      string            `json:"kind"`
+	Name      string            `json:"name"`
+	Category  string            `json:"category,omitempty"`
+	Subtype   string            `json:"subtype,omitempty"`
+	Tokens    int               `json:"tokens,omitempty"`
+	Saved     int               `json:"saved,omitempty"`
+	File      string            `json:"file,omitempty"`
+	Session   string            `json:"session,omitempty"`
+	Error     string            `json:"error,omitempty"`
+	Attrs     map[string]string `json:"attrs,omitempty"`
 }
 
 // cmdObserveRecordBatch ingests JSON Lines from stdin under ONE store
@@ -249,7 +250,7 @@ func cmdObserveRecordBatch(dbPath string) error {
 			continue
 		}
 		var l observeBatchLine
-		if err := json.Unmarshal([]byte(line), &l); err != nil || l.Kind == "" || l.Name == "" {
+		if err := json.Unmarshal([]byte(line), &l); err != nil || l.Kind == "" || l.Name == "" || (l.Timestamp != nil && l.Timestamp.IsZero()) {
 			skipped++
 			continue
 		}
@@ -264,6 +265,9 @@ func cmdObserveRecordBatch(dbPath string) error {
 			SessionID:   l.Session,
 			Error:       l.Error,
 			Attrs:       l.Attrs,
+		}
+		if l.Timestamp != nil {
+			ev.Timestamp = *l.Timestamp
 		}
 		if err := backend.Store().AddObserveEvent(ev); err != nil {
 			skipped++

@@ -596,7 +596,7 @@ func (g *StoreAdapter) AddObserveEvent(e *observe.Event) error {
 	if attrs == nil {
 		attrs = map[string]string{}
 	}
-	resp, err := g.client.Observe.RecordEvent(ctx, &grpcapi.ObserveRecordRequest{
+	req := &grpcapi.ObserveRecordRequest{
 		Kind:        string(e.Kind),
 		Name:        e.Name,
 		Category:    e.Category,
@@ -609,7 +609,11 @@ func (g *StoreAdapter) AddObserveEvent(e *observe.Event) error {
 		SessionId:   e.SessionID,
 		Error:       e.Error,
 		Attrs:       attrs,
-	})
+	}
+	if !e.Timestamp.IsZero() {
+		req.Timestamp = timestamppb.New(e.Timestamp)
+	}
+	resp, err := g.client.Observe.RecordEvent(ctx, req)
 	if err != nil {
 		return err
 	}

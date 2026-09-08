@@ -60,6 +60,7 @@ import { recoverablePrune } from "../core/context-pruning/recovery.js";
 import { transformationEvent } from "../core/context-pruning/observation.js";
 import { checkSearchEnrichment } from "../core/search-enrichment.js";
 import { recordToolEvent } from "../core/tool-observe.js";
+import { createOpenCodeUsageRecorder } from "../core/model-usage.js";
 import {
   recordObserveEvent,
   previewContent,
@@ -428,6 +429,7 @@ function establishContext(
 function createEventHandler(
   state: AideState,
 ): (input: { event: OpenCodeEvent }) => Promise<void> {
+  const recordUsage = createOpenCodeUsageRecorder();
   return async ({ event }) => {
     switch (event.type) {
       case "session.created":
@@ -454,6 +456,8 @@ function createEventHandler(
         await handleSessionDeleted(state, event);
         break;
       case "message.part.updated":
+        if (state.binary)
+          recordUsage(state.binary, state.cwd, event.properties.part);
         await handleMessagePartUpdated(state, event);
         break;
       default:

@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strconv"
 	"time"
 
@@ -151,6 +152,11 @@ func (s *BoltStore) AddObserveEvent(e *observe.Event) error {
 		}
 	}
 
+	if isModelUsage(e) && e.Attrs["usage_time_basis"] == "source" {
+		if at, err := time.Parse(time.RFC3339Nano, e.Attrs["usage_source_time"]); err == nil && !at.IsZero() {
+			e.Timestamp = at
+		}
+	}
 	if e.ID == "" {
 		e.ID = ulid.Make().String()
 	}
@@ -160,12 +166,15 @@ func (s *BoltStore) AddObserveEvent(e *observe.Event) error {
 	return s.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(BucketObserveEvents)
 		// Only explicit origin identity deduplicates; equal commands are valid calls.
-		if memory.HasObservationIdentity(e.SessionID, e.Attrs) {
+		if usageOrigin(e) != "" || memory.HasObservationIdentity(e.SessionID, e.Attrs) {
 			origin := []string{e.SessionID, e.Attrs["host"], e.Attrs["actor_id"], e.Attrs["invocation_id"], e.Attrs["observation_stage"]}
 			if claim, ok := workHostClaim(e); ok {
 				// Equal receipt retries still deduplicate. Contradictory receipts
 				// must survive so attribution cannot silently select the first.
 				origin = append(origin, "aide/work:1", claim.id, claim.tool, claim.hash)
+			}
+			if usage := usageOrigin(e); usage != "" {
+				origin = []string{usage}
 			}
 			identity, err := json.Marshal(origin)
 			if err != nil {
@@ -178,6 +187,20 @@ func (s *BoltStore) AddObserveEvent(e *observe.Event) error {
 			}
 			if id := origins.Get(key); id != nil {
 				if data := b.Get(id); data != nil {
+					if isModelUsage(e) {
+						var prior observe.Event
+						if err := json.Unmarshal(data, &prior); err != nil {
+							return err
+						}
+						if e.Timestamp.Before(prior.Timestamp) {
+							e.ID = prior.ID
+							updated, err := json.Marshal(e)
+							if err != nil {
+								return err
+							}
+							return b.Put([]byte(e.ID), updated)
+						}
+					}
 					// Keep the first observation and its timestamp stable on retries.
 					return json.Unmarshal(data, e)
 				}
@@ -218,7 +241,7 @@ func (s *BoltStore) ListObserveEvents(f ObserveFilter) ([]*observe.Event, error)
 				continue
 			}
 			if !f.Since.IsZero() && e.Timestamp.Before(f.Since) {
-				break
+				continue
 			}
 			if !f.Until.IsZero() && e.Timestamp.After(f.Until) {
 				continue
@@ -236,12 +259,18 @@ func (s *BoltStore) ListObserveEvents(f ObserveFilter) ([]*observe.Event, error)
 				continue
 			}
 			out = append(out, &e)
-			if f.Limit > 0 && len(out) >= f.Limit {
-				break
-			}
 		}
 		return nil
 	})
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Timestamp.Equal(out[j].Timestamp) {
+			return out[i].ID > out[j].ID
+		}
+		return out[i].Timestamp.After(out[j].Timestamp)
+	})
+	if f.Limit > 0 && len(out) > f.Limit {
+		out = out[:f.Limit]
+	}
 	return out, err
 }
 

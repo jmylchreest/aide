@@ -2837,6 +2837,14 @@ type observeServiceImpl struct {
 }
 
 func (s *observeServiceImpl) RecordEvent(ctx context.Context, req *ObserveRecordRequest) (*ObserveRecordResponse, error) {
+	if req.Timestamp != nil {
+		if err := req.Timestamp.CheckValid(); err != nil {
+			return nil, status.Error(codes.InvalidArgument, "invalid observation timestamp")
+		}
+		if req.Timestamp.AsTime().IsZero() {
+			return nil, status.Error(codes.InvalidArgument, "zero observation timestamp")
+		}
+	}
 	e := &observe.Event{
 		Kind:        observe.Kind(req.Kind),
 		Name:        req.Name,
@@ -2850,6 +2858,9 @@ func (s *observeServiceImpl) RecordEvent(ctx context.Context, req *ObserveRecord
 		SessionID:   req.SessionId,
 		Error:       req.Error,
 		Attrs:       req.Attrs,
+	}
+	if req.Timestamp != nil {
+		e.Timestamp = req.Timestamp.AsTime()
 	}
 	if err := s.store.AddObserveEvent(e); err != nil {
 		return nil, err

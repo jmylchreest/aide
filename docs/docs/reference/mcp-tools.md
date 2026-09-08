@@ -187,7 +187,7 @@ Returns observed UTF-8 text accounting and historical token estimates. The versi
 
 **Parameters:** `session_id` (optional, filter by session)
 
-**Response fields:** `accounting`, `total_read`, `total_saved`, `event_count`, `by_tool`, `by_saving_type`, `sessions`. Existing totals remain compatibility estimates; `total_saved` and related saved fields are explicitly legacy comparison estimates, not verified savings.
+**Response fields:** `accounting`, `total_read`, `total_saved`, `event_count`, `by_tool`, `by_saving_type`, `sessions`. Existing totals remain compatibility estimates; `total_saved` and related saved fields are explicitly legacy comparison estimates, not verified savings. `accounting.model_usage` is a separate versioned report of captured host usage counters, with source groups, field availability and excluded conflicting/invalid evidence. It does not change the legacy totals or text estimates. See [Model usage accounting](./model-usage.md).
 
 Native tool event attributes include `context_status` and, when known, `context_epoch` and `context_continuity`. Windows are isolated by host, session and actor within the project. Confirmed clear/compaction starts a new window; pending compaction suspends prior-read hints. Resume without verified continuity starts a new observation window labelled `unknown`, without asserting that context was lost. Cache expiry alone does not reset it. Hosts without the required lifecycle evidence retain unknown coverage.
 

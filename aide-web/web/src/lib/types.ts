@@ -200,6 +200,7 @@ export interface TokenWork extends TokenWorkQuantity {
   by_tool: Record<string, TokenWorkQuantity>;
 }
 export interface TokenAccounting {
+  model_usage?: ModelUsage | null;
   work?: TokenWork | null;
   retrievals?: TokenRetrievals;
   transformations?: TokenTransformations;
@@ -211,6 +212,23 @@ export interface TokenAccounting {
   legacy_events: number;
   missing_payload: number;
   missing_identity: number;
+}
+export interface ModelUsageSource {
+  host: string;
+  source: string;
+  model?: string;
+  provider?: string;
+  observations: number;
+  source_timed: number;
+  observed_timed: number;
+  counters: Record<string, { tokens: number; observations: number }>;
+}
+export interface ModelUsage {
+  version: number;
+  observations: number;
+  conflicts: number;
+  invalid: number;
+  by_source: ModelUsageSource[];
 }
 export interface RetrievalWindow {
   host: string;

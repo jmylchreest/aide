@@ -197,6 +197,8 @@ export function previewContent(text: string, maxChars = 300): string {
 export interface ObserveBatchEvent {
   kind: string;
   name: string;
+  /** Source event time. Timestamped imports must use an acknowledged batch writer. */
+  ts?: string;
   category?: string;
   subtype?: string;
   tokens?: number;

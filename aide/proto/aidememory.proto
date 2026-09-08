@@ -1075,6 +1075,7 @@ message ObserveRecordRequest {
   string session_id = 10;
   string error = 11;
   map<string, string> attrs = 12;
+  google.protobuf.Timestamp timestamp = 13;
 }
 
 message ObserveRecordResponse {
@@ -1265,6 +1266,29 @@ message TokenAccounting {
   TokenTransformations transformations = 9;
   TokenRetrievals retrievals = 10;
   TokenWork work = 11;
+  TokenModelUsage model_usage = 12;
+}
+// Captured host usage counters; partial coverage and no inferred savings.
+message ModelUsageCounter {
+ int64 tokens = 1;
+ int64 observations = 2;
+}
+message ModelUsageSource {
+ string host = 1;
+ string source = 2;
+ string model = 3;
+ string provider = 4;
+ int64 observations = 5;
+ int64 source_timed = 6;
+ int64 observed_timed = 7;
+ map<string, ModelUsageCounter> counters = 8;
+}
+message TokenModelUsage {
+ int32 version = 1;
+ int64 observations = 2;
+ int64 conflicts = 3;
+ int64 invalid = 4;
+ repeated ModelUsageSource by_source = 5;
 }
 // Recorded aide MCP calls, not inferred model work or task success.
 message TokenWorkCounters {
