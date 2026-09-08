@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "source_commit": "4896081054ce1b2f11c6985721915b2a8de6ad9e",
+  "run": "2026-09-08-outcomes",
+  "trial_order": [
+    {
+      "id": "t01",
+      "task": "navigation",
+      "treatment": "ordinary"
+    },
+    {
+      "id": "t02",
+      "task": "navigation",
+      "treatment": "assisted"
+    },
+    {
+      "id": "t03",
+      "task": "debug",
+      "treatment": "assisted"
+    },
+    {
+      "id": "t04",
+      "task": "debug",
+      "treatment": "ordinary"
+    },
+    {
+      "id": "t05",
+      "task": "edit",
+      "treatment": "ordinary"
+    },
+    {
+      "id": "t06",
+      "task": "edit",
+      "treatment": "assisted"
+    }
+  ],
+  "shared_instructions": "You are completing one isolated evaluation task. Your task root is ROOT. Work only in that root. Mandatory host instruction/bootstrap reads are allowed separately. Every shell command must start with rtk; use rtk proxy for unfiltered source reads and tests. Normal source exploration is allowed: regex/literal searches, file listings, line/byte counts, full or bounded reads. The root is in an ignored directory; use rg --hidden --no-ignore when needed. Edit and run tests only as the task permits. Do not read other trial roots, repository source outside your root, fixture/reference/grader packages, memories, prior results or runtime logs. Do not use internet, subagents or global/index-based code search. Prefer a natural efficient workflow; there is no requirement to use any specific retrieval tool. Aim for no more than 24 source/edit/test tool calls (nested tool calls count individually); instruction/bootstrap and tool-discovery calls are excluded from that target but remain measured. If more work is needed to finish correctly, finish and report why. Do not commit. End with the task answer, implemented change if any, and verification; do not speculate about token savings.",
+  "treatments": {
+    "ordinary": "Use ordinary shell/file tools for source exploration. Do not use aide retrieval tools.",
+    "assisted": "You may additionally use aide code_outline and code_read_symbol with an explicit file path inside your task root. They are optional: a direct read can be preferable for small files or when most contents are needed. No other aide tools."
+  },
+  "grading": "Navigation: five frozen rubric checks, independent grader blinded to treatment and usage, source references verified. Debug/edit: frozen hidden functional checks plus scope/visible-test integrity audit. Extra correct checks are allowed in candidate scratch files. Failure to use aide is not protocol-invalid. Budget overruns are reported, not silently discarded. All six trials retained, no replacement runs.",
+  "metrics": "Runtime-reported input/cached input/output/reasoning/total tokens, response count and task duration; not billing or saved-provider-token claims. Source retrieval result text bytes separately from tool protocol/rendering wrappers, bootstrap, test/edit output; unknown values remain null. Record assisted tool uptake. Pair comparisons only when protocol-valid and runtime model/provider/effort/CLI comparable. Small fixed sample is descriptive, not causal generalisation.",
+  "preflight": "Seed visible checks fail and reference hidden checks pass before freeze. MCP outline/symbol reads on explicit ignored-copy paths work. No production restart required; live 4d91e72 has outline fix and conditional description, read-check estimator change at source 4896081 unused."
+}

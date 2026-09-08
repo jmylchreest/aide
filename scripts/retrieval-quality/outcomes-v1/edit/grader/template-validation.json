@@ -1,0 +1,45 @@
+{
+  "task": "edit",
+  "exit_code": 1,
+  "checks": [
+    {
+      "name": "valid adapter exit statuses and casing preserve all metadata",
+      "pass": false
+    },
+    {
+      "name": "known empty output is supported",
+      "pass": false
+    },
+    {
+      "name": "malformed output or exit metadata is unsupported",
+      "pass": true
+    },
+    {
+      "name": "adapter envelopes with additional representations are unsupported",
+      "pass": true
+    },
+    {
+      "name": "legacy bash keeps longest-stream selection and ties favor stdout",
+      "pass": true
+    },
+    {
+      "name": "legacy invalid media stays unsupported",
+      "pass": true
+    },
+    {
+      "name": "MCP text behavior and block metadata survive",
+      "pass": true
+    },
+    {
+      "name": "mixed MCP media and structured content remain unsupported",
+      "pass": true
+    },
+    {
+      "name": "native unrelated tools remain unsupported",
+      "pass": true
+    }
+  ],
+  "passed": false,
+  "stdout": "bun test v1.4.0 (34cbb9a40)\n",
+  "stderr": "\n../../../../../../../tmp/aide-outcome-fixtures/edit/grader/hidden.test.ts:\n3 | const { replacementTarget: target } = await import(join(process.env.AIDE_TRIAL_ROOT!, 'src/core/context-pruning/replacement.ts'));\n4 | test('valid adapter exit statuses and casing preserve all metadata', () => {\n5 |   for (const exit of [0,1,2,-1]) for (const tool of ['Bash','bash','BASH']) {\n6 |     const payload={output:'original',metadata:{exit,duration:14,custom:{x:1}},id:'a'};\n7 |     const picked=target(tool,payload);\n8 |     expect(picked?.text).toBe('original');\n                             ^\nerror: expect(received).toBe(expected)\n\nExpected: \"original\"\nReceived: undefined\n\n      at <anonymous> (/tmp/aide-outcome-fixtures/edit/grader/hidden.test.ts:8:26)\n(fail) valid adapter exit statuses and casing preserve all metadata [0.29ms]\nerror: expect(received).toBe(expected)\n\nExpected: \"\"\nReceived: undefined\n\n(fail) known empty output is supported [0.03ms]\n(pass) malformed output or exit metadata is unsupported [0.05ms]\n(pass) adapter envelopes with additional representations are unsupported [0.04ms]\n(pass) legacy bash keeps longest-stream selection and ties favor stdout [0.05ms]\n(pass) legacy invalid media stays unsupported\n(pass) MCP text behavior and block metadata survive [0.11ms]\n(pass) mixed MCP media and structured content remain unsupported [0.02ms]\n(pass) native unrelated tools remain unsupported\n\n 7 pass\n 2 fail\n 28 expect() calls\nRan 9 tests across 1 file. [5.00ms]\n"
+}

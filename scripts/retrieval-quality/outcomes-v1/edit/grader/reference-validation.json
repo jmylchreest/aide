@@ -1,0 +1,45 @@
+{
+  "task": "edit",
+  "exit_code": 0,
+  "checks": [
+    {
+      "name": "valid adapter exit statuses and casing preserve all metadata",
+      "pass": true
+    },
+    {
+      "name": "known empty output is supported",
+      "pass": true
+    },
+    {
+      "name": "malformed output or exit metadata is unsupported",
+      "pass": true
+    },
+    {
+      "name": "adapter envelopes with additional representations are unsupported",
+      "pass": true
+    },
+    {
+      "name": "legacy bash keeps longest-stream selection and ties favor stdout",
+      "pass": true
+    },
+    {
+      "name": "legacy invalid media stays unsupported",
+      "pass": true
+    },
+    {
+      "name": "MCP text behavior and block metadata survive",
+      "pass": true
+    },
+    {
+      "name": "mixed MCP media and structured content remain unsupported",
+      "pass": true
+    },
+    {
+      "name": "native unrelated tools remain unsupported",
+      "pass": true
+    }
+  ],
+  "passed": true,
+  "stdout": "bun test v1.4.0 (34cbb9a40)\n",
+  "stderr": "\n../../../../../../../tmp/aide-outcome-fixtures/edit/grader/hidden.test.ts:\n(pass) valid adapter exit statuses and casing preserve all metadata [0.22ms]\n(pass) known empty output is supported [0.02ms]\n(pass) malformed output or exit metadata is unsupported [0.04ms]\n(pass) adapter envelopes with additional representations are unsupported [0.03ms]\n(pass) legacy bash keeps longest-stream selection and ties favor stdout [0.04ms]\n(pass) legacy invalid media stays unsupported\n(pass) MCP text behavior and block metadata survive [0.11ms]\n(pass) mixed MCP media and structured content remain unsupported [0.04ms]\n(pass) native unrelated tools remain unsupported\n\n 9 pass\n 0 fail\n 63 expect() calls\nRan 9 tests across 1 file. [4.00ms]\n"
+}

@@ -1,0 +1,57 @@
+{
+  "task": "debug",
+  "exit_code": 0,
+  "checks": [
+    {
+      "name": "no-match: rg absent sample.txt",
+      "pass": true
+    },
+    {
+      "name": "no-match: grep -n absent sample.txt",
+      "pass": true
+    },
+    {
+      "name": "no-match: rtk rg absent sample.txt",
+      "pass": true
+    },
+    {
+      "name": "no-match: rtk proxy grep absent sample.txt",
+      "pass": true
+    },
+    {
+      "name": "hook and camelCase exit statuses support no-match",
+      "pass": true
+    },
+    {
+      "name": "real search errors still fail",
+      "pass": true
+    },
+    {
+      "name": "explicit failure, timeout and interruption dominate no-match",
+      "pass": true
+    },
+    {
+      "name": "a nonsearch status one is a failure",
+      "pass": true
+    },
+    {
+      "name": "conflicting and malformed success signals stay unverified",
+      "pass": true
+    },
+    {
+      "name": "search evidence never certifies a full source baseline",
+      "pass": true
+    },
+    {
+      "name": "full and bounded reads still verify against current source",
+      "pass": true
+    },
+    {
+      "name": "unrecognized shell syntax cannot gain search certification",
+      "pass": true
+    }
+  ],
+  "passed": true,
+  "stdout": "bun test v1.4.0 (34cbb9a40)\n",
+  "stderr": "\n../../../../../../../tmp/aide-outcome-fixtures/debug/grader/hidden.test.ts:\n(pass) no-match: rg absent sample.txt [0.45ms]\n(pass) no-match: grep -n absent sample.txt [0.02ms]\n(pass) no-match: rtk rg absent sample.txt [0.01ms]\n(pass) no-match: rtk proxy grep absent sample.txt\n(pass) hook and camelCase exit statuses support no-match [0.03ms]\n(pass) real search errors still fail [0.01ms]\n(pass) explicit failure, timeout and interruption dominate no-match [0.04ms]\n(pass) a nonsearch status one is a failure [0.01ms]\n(pass) conflicting and malformed success signals stay unverified [0.03ms]\n(pass) search evidence never certifies a full source baseline [0.02ms]\n(pass) full and bounded reads still verify against current source [0.42ms]\n(pass) unrecognized shell syntax cannot gain search certification [0.02ms]\n\n 12 pass\n 0 fail\n 18 expect() calls\nRan 12 tests across 1 file. [10.00ms]\n"
+}

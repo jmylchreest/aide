@@ -1,0 +1,21 @@
+--- a/src/core/context-pruning/replacement.ts
++++ b/src/core/context-pruning/replacement.ts
+@@ -6,6 +6,18 @@
+ ): { text: string; replace: (text: string) => unknown } | null {
+   if (tool.toLowerCase() === "bash" && payload && typeof payload === "object") {
+     const p = payload as Record<string, unknown>;
++    if ("output" in p) {
++      const metadata = p.metadata;
++      if (
++        typeof p.output !== "string" ||
++        !metadata || typeof metadata !== "object" || Array.isArray(metadata) ||
++        !Number.isSafeInteger((metadata as Record<string, unknown>).exit) ||
++        p.stdout !== undefined || p.stderr !== undefined ||
++        p.content !== undefined || p.structuredContent !== undefined ||
++        p.isImage === true
++      ) return null;
++      return { text: p.output, replace: (text) => ({ ...p, output: text }) };
++    }
+     if (
+       typeof p.stdout !== "string" ||
+       typeof p.stderr !== "string" ||

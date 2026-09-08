@@ -1,0 +1,22 @@
+[
+  {
+    "id": "hook",
+    "criterion": "Identifies tool.execute.after registration and createToolAfterHandler in src/opencode/hooks.ts with supporting references."
+  },
+  {
+    "id": "shared",
+    "criterion": "Traces recordToolEvent in src/core/tool-observe.ts to retrievalEvidence in src/core/retrieval-evidence.ts, with supporting references."
+  },
+  {
+    "id": "hosts",
+    "criterion": "Identifies src/hooks/tool-observe.ts as Claude entry, exit_code forwarded as exitCode; contrasts OpenCode _output.metadata.exit for bash, with references."
+  },
+  {
+    "id": "boundary",
+    "criterion": "Explains OpenCode records raw handler result before later pruning/result modifications; byte count is UTF-8 extracted tool text at hook boundary, not provider tokens/final delivery, with supporting references."
+  },
+  {
+    "id": "design",
+    "criterion": "Keeps host envelope extraction in adapter/shared extraction as appropriate and common retrieval classification in shared collector/retrieval-evidence; does not duplicate classification across host adapters."
+  }
+]

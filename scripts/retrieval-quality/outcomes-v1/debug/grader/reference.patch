@@ -1,0 +1,14 @@
+--- a/src/core/retrieval-evidence.ts
++++ b/src/core/retrieval-evidence.ts
+@@ -200,7 +200,10 @@
+       (value) =>
+         typeof value === "number" &&
+         Number.isSafeInteger(value) &&
+-        value !== 0,
++        value !== 0 &&
++        // grep/rg status 1 means no selected matches, not a retrieval error.
++        // Explicit host failures and interruption markers above still win.
++        !(shell?.search && value === 1),
+     );
+   const pending =
+     name === "Bash" &&
