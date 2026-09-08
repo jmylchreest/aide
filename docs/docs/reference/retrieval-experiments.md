@@ -162,3 +162,27 @@ and dramatic reduction claim were replaced with conditional navigation guidance.
 That prose change was not part of the measured run. Its pinned source now differs
 from the experiment snapshot: use checkout `7da2150` to verify those old hashes,
 and freeze new sources before another model trial.
+
+## Navigation, debugging and editing outcomes
+
+The next protocol, frozen in `c665740`, uses isolated real-code copies for one
+navigation task, one seeded bug fix and one small behavioural change, each with
+ordinary retrieval or optional aide outlines/symbol reads. Regex searches,
+listings and size checks are explicitly permitted. All six trials remain in
+`scripts/retrieval-quality/results/2026-09-08-outcomes/`; the reproducible task
+package is `scripts/retrieval-quality/outcomes-v1/`.
+
+Both navigation answers passed five independently graded criteria. Both bug fixes
+passed 12 frozen regression tests, and both edits passed nine. Supplemental review
+also records an ambiguous error-precedence requirement and an additional behaviour
+change that the frozen tests did not distinguish. Passing these checks is not an
+exhaustive correctness guarantee.
+
+None of the three participants with aide retrieval available used it. Their
+runtime differences therefore do not estimate savings from aide retrieval.
+Whole-task counters, cached-input subsets, call counts and hook-boundary bytes are
+reported separately. An outer truncation in one trial shows why hook bytes cannot
+be equated with final model delivery. A working-directory attribution issue also
+produced unreliable source receipts while leaving measured text bytes intact.
+The result README and independent audit preserve these limits; no savings figure
+from this run belongs in the CLI or web Overview.

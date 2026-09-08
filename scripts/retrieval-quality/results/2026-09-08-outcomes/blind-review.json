@@ -1,0 +1,162 @@
+{
+  "R7": {
+    "checks": [
+      {
+        "id": "hook",
+        "pass": true,
+        "reason": "Identifies the tool.execute.after registration, createToolAfterHandler, and its shared recording call; cited locations support the navigation.",
+        "evidence": [
+          "src/opencode/hooks.ts:192",
+          "src/opencode/hooks.ts:912",
+          "src/opencode/hooks.ts:968"
+        ]
+      },
+      {
+        "id": "shared",
+        "pass": true,
+        "reason": "Correctly traces recordToolEvent through text extraction to retrievalEvidence, including canonical tool taxonomy and shared retrieval/exit classification.",
+        "evidence": [
+          "src/core/tool-observe.ts:47",
+          "src/core/tool-observe.ts:209",
+          "src/core/tool-observe.ts:223",
+          "src/core/tool-observe.ts:252",
+          "src/core/tool-observe.ts:253",
+          "src/core/retrieval-evidence.ts:175",
+          "src/core/retrieval-evidence.ts:187",
+          "src/core/retrieval-evidence.ts:204",
+          "src/core/retrieval-evidence.ts:277"
+        ]
+      },
+      {
+        "id": "hosts",
+        "pass": true,
+        "reason": "Correctly identifies the Claude hook and its forwarding of tool_response and top-level exit_code as exitCode, contrasted with OpenCode reading metadata.exit only for bash. Failure forwarding is also supported.",
+        "evidence": [
+          "src/hooks/tool-observe.ts:50",
+          "src/hooks/tool-observe.ts:69",
+          "src/hooks/tool-observe.ts:72",
+          "src/hooks/tool-observe.ts:73",
+          "src/hooks/tool-observe.ts:76",
+          "src/opencode/hooks.ts:979",
+          "src/opencode/hooks.ts:982"
+        ]
+      },
+      {
+        "id": "boundary",
+        "pass": true,
+        "reason": "Correctly places observation before pruning and comment-warning changes, distinguishes the later adapter_change event, and describes UTF-8 extracted-text bytes rather than provider tokens or final delivery. Wrapper precedence and unknown-versus-empty measurement are supported.",
+        "evidence": [
+          "src/opencode/hooks.ts:968",
+          "src/opencode/hooks.ts:991",
+          "src/opencode/hooks.ts:1019",
+          "src/opencode/hooks.ts:1047",
+          "src/opencode/hooks.ts:1054",
+          "src/opencode/hooks.ts:1063",
+          "src/core/tool-observe.ts:92",
+          "src/core/tool-observe.ts:96",
+          "src/core/tool-observe.ts:109",
+          "src/core/tool-observe.ts:301",
+          "src/core/tool-observe.ts:304"
+        ]
+      },
+      {
+        "id": "design",
+        "pass": true,
+        "reason": "Recommends extending shared envelope/text extraction while retaining host-specific field forwarding in adapters and retrieval semantics in retrievalEvidence. This preserves the existing common collector and avoids duplicate classification.",
+        "evidence": [
+          "src/core/tool-observe.ts:2",
+          "src/core/tool-observe.ts:96",
+          "src/core/tool-observe.ts:144",
+          "src/core/tool-observe.ts:166",
+          "src/core/tool-observe.ts:253",
+          "src/core/retrieval-evidence.ts:175",
+          "src/hooks/tool-observe.ts:69",
+          "src/opencode/hooks.ts:968"
+        ]
+      }
+    ],
+    "unsupported_claims": [],
+    "passed": true
+  },
+  "L4": {
+    "checks": [
+      {
+        "id": "hook",
+        "pass": true,
+        "reason": "Identifies the tool.execute.after registration, createToolAfterHandler, and its shared recording call; cited locations support the navigation.",
+        "evidence": [
+          "src/opencode/index.ts:87",
+          "src/opencode/hooks.ts:192",
+          "src/opencode/hooks.ts:912",
+          "src/opencode/hooks.ts:968"
+        ]
+      },
+      {
+        "id": "shared",
+        "pass": true,
+        "reason": "Correctly traces recordToolEvent through text extraction to retrievalEvidence, including canonical tool taxonomy and shared retrieval/exit classification.",
+        "evidence": [
+          "src/core/tool-observe.ts:47",
+          "src/core/tool-observe.ts:209",
+          "src/core/tool-observe.ts:223",
+          "src/core/tool-observe.ts:252",
+          "src/core/tool-observe.ts:253",
+          "src/core/retrieval-evidence.ts:175",
+          "src/core/retrieval-evidence.ts:187",
+          "src/core/retrieval-evidence.ts:204",
+          "src/core/retrieval-evidence.ts:277"
+        ]
+      },
+      {
+        "id": "hosts",
+        "pass": true,
+        "reason": "Correctly identifies the Claude hook and its forwarding of tool_response and top-level exit_code as exitCode, contrasted with OpenCode reading metadata.exit only for bash. Failure forwarding is also supported.",
+        "evidence": [
+          "src/hooks/tool-observe.ts:50",
+          "src/hooks/tool-observe.ts:69",
+          "src/hooks/tool-observe.ts:72",
+          "src/hooks/tool-observe.ts:73",
+          "src/hooks/tool-observe.ts:76",
+          "src/opencode/hooks.ts:979",
+          "src/opencode/hooks.ts:982"
+        ]
+      },
+      {
+        "id": "boundary",
+        "pass": true,
+        "reason": "Correctly places observation before pruning and comment-warning changes, distinguishes the later adapter_change event, and describes UTF-8 extracted-text bytes rather than provider tokens or final delivery. Wrapper precedence and unknown-versus-empty measurement are supported. Its additional stdout/stderr concatenation and backend conversion statements are explicit in the shared collector.",
+        "evidence": [
+          "src/opencode/hooks.ts:968",
+          "src/opencode/hooks.ts:991",
+          "src/opencode/hooks.ts:1019",
+          "src/opencode/hooks.ts:1047",
+          "src/opencode/hooks.ts:1054",
+          "src/opencode/hooks.ts:1063",
+          "src/core/tool-observe.ts:92",
+          "src/core/tool-observe.ts:96",
+          "src/core/tool-observe.ts:109",
+          "src/core/tool-observe.ts:301",
+          "src/core/tool-observe.ts:304",
+          "src/core/tool-observe.ts:111"
+        ]
+      },
+      {
+        "id": "design",
+        "pass": true,
+        "reason": "Recommends extending shared envelope/text extraction while retaining host-specific field forwarding in adapters and retrieval semantics in retrievalEvidence. This preserves the existing common collector and avoids duplicate classification.",
+        "evidence": [
+          "src/core/tool-observe.ts:2",
+          "src/core/tool-observe.ts:96",
+          "src/core/tool-observe.ts:144",
+          "src/core/tool-observe.ts:166",
+          "src/core/tool-observe.ts:253",
+          "src/core/retrieval-evidence.ts:175",
+          "src/hooks/tool-observe.ts:69",
+          "src/opencode/hooks.ts:968"
+        ]
+      }
+    ],
+    "unsupported_claims": [],
+    "passed": true
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "run": "2026-09-08-outcomes",
+  "protocol": "../../outcomes-v1/protocol.json",
+  "freeze_commit": "c665740",
+  "trial_count": 6,
+  "frozen_checks": {
+    "navigation": {
+      "passed": 10,
+      "total": 10
+    },
+    "debug": {
+      "passed": 24,
+      "total": 24
+    },
+    "edit": {
+      "passed": 18,
+      "total": 18
+    }
+  },
+  "assisted_uptake": {
+    "trials_using_aide_retrieval": 0,
+    "assisted_trials": 3,
+    "calls": 0
+  },
+  "aide_attributable_token_savings": null,
+  "attribution_unknown_reason": "No assisted participant used aide retrieval. Treatment availability differed but actual retrieval was ordinary throughout; this fixed small sample cannot establish causal savings.",
+  "comparisons": [
+    {
+      "task": "navigation",
+      "ordinary": "t01",
+      "assisted_available": "t02",
+      "runtime_settings_match": true,
+      "descriptive_assisted_minus_ordinary": {
+        "host_retrieval_bytes": 2945,
+        "runtime_input_tokens": 24203,
+        "runtime_cached_input_tokens": 22528,
+        "model_responses": 1,
+        "duration_ms": 9510
+      },
+      "aide_retrieval_effect": null
+    },
+    {
+      "task": "debug",
+      "ordinary": "t04",
+      "assisted_available": "t03",
+      "runtime_settings_match": true,
+      "descriptive_assisted_minus_ordinary": {
+        "host_retrieval_bytes": -393,
+        "runtime_input_tokens": -835,
+        "runtime_cached_input_tokens": 384,
+        "model_responses": 0,
+        "duration_ms": -13897
+      },
+      "aide_retrieval_effect": null
+    },
+    {
+      "task": "edit",
+      "ordinary": "t05",
+      "assisted_available": "t06",
+      "runtime_settings_match": true,
+      "descriptive_assisted_minus_ordinary": {
+        "host_retrieval_bytes": -1490,
+        "runtime_input_tokens": 18046,
+        "runtime_cached_input_tokens": 18304,
+        "model_responses": 1,
+        "duration_ms": 10654
+      },
+      "aide_retrieval_effect": null
+    }
+  ],
+  "protocol_audit": "all six valid; independently audited",
+  "limits": [
+    "These are fixture-based real-code tasks, not live production incidents.",
+    "Frozen test passes are not exhaustive correctness proof; debugging prompt ambiguity and additional t04 behavior retained in supplemental review.",
+    "Host retrieval bytes include listings, source, fixture docs and visible tests, before orchestration rendering/truncation.",
+    "Runtime tool-result text bytes include wrappers and all output categories; they are not source-only or a token estimate.",
+    "Cached input is a subset of input; reasoning output is a subset of output in these runtime counters. No billing verification.",
+    "All child host observations have context_status unknown; no compounding or KV-cache-window claims.",
+    "Alternate working directories were not reliably preserved in Codex source receipts (t03/t06); byte and runtime accounting remains valid, file baseline attribution does not."
+  ],
+  "source_receipt_attribution_verified": false
+}
