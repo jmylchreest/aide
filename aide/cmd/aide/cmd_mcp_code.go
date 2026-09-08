@@ -180,8 +180,8 @@ the symbol name, reference count, and definition location when available.
 		Description: `Read the full source code of a symbol by name — without reading the entire file.
 
 Returns the complete source (signature + body) for a function, method, class, or type,
-extracted from the indexed file using the symbol's known line range. This is dramatically
-cheaper than reading the whole file when you only need one symbol.
+extracted from current file contents. A focused symbol read can reduce returned text
+for large files; headers and additional calls can outweigh that reduction for small files.
 
 **Batch mode:** Pass multiple names in the "symbols" array (max 10) to read several
 symbols in a single call, eliminating round-trip overhead.
@@ -190,7 +190,7 @@ symbols in a single call, eliminating round-trip overhead.
 - The symbol's source code with line numbers preserved
 - File path and line range for navigation
 - Doc comment if present
-- Estimated token savings vs reading the full file
+- Source-version receipt in protocol metadata for conditional text comparisons
 
 **Use this when:**
 - You know the symbol name (from code_search, code_outline, or code_references)
