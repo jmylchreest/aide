@@ -23,6 +23,87 @@ afterEach(() =>
 const hash = (text: string) => createHash("sha256").update(text).digest("hex");
 
 describe("retrieval evidence", () => {
+  it("keeps completed no-match searches as searches, without overriding explicit failures", () => {
+    for (const command of [
+      "rg -n absent source.ts",
+      "grep absent source.ts",
+      "rtk proxy rg absent source.ts",
+    ]) {
+      for (const field of ["exit_code", "exitCode"]) {
+        const result = { output: "", [field]: 1 };
+        expect(
+          retrievalEvidence("/tmp", "Bash", { command }, "", result, false),
+        ).toMatchObject({
+          retrieval_status: "search",
+          retrieval_method: "shell_search",
+        });
+        expect(
+          retrievalEvidence("/tmp", "Bash", { command }, "", result, true)
+            .retrieval_status,
+        ).toBe("failed");
+        expect(
+          retrievalEvidence(
+            "/tmp",
+            "Bash",
+            { command },
+            "",
+            { ...result, interrupted: true },
+            false,
+          ).retrieval_status,
+        ).toBe("failed");
+        expect(
+          retrievalEvidence(
+            "/tmp",
+            "Bash",
+            { command },
+            "",
+            { ...result, [field]: 2 },
+            false,
+          ).retrieval_status,
+        ).toBe("failed");
+      }
+    }
+    expect(
+      retrievalEvidence(
+        "/tmp",
+        "Bash",
+        { cmd: "cat source.ts" },
+        "",
+        { exit_code: 1 },
+        false,
+      ).retrieval_status,
+    ).toBe("failed");
+    expect(
+      retrievalEvidence(
+        "/tmp",
+        "Bash",
+        { cmd: "rg absent source.ts | cat" },
+        "",
+        { exit_code: 1 },
+        false,
+      ).retrieval_status,
+    ).toBe("unclassified_shell");
+  });
+  it("does not certify a full read from malformed or conflicting exit codes", () => {
+    const cwd = fixture();
+    for (const response of [
+      { exit_code: "0" },
+      { exit_code: null },
+      { exit_code: 0.5 },
+      { exit_code: 0, exitCode: 2 },
+    ]) {
+      const result = retrievalEvidence(
+        cwd,
+        "Bash",
+        { cmd: "cat source.ts" },
+        "first\né\nlast\n",
+        response,
+        false,
+      );
+      expect(result.source_references).toBeUndefined();
+      expect(result.retrieval_status).not.toBe("full_file");
+    }
+  });
   it("keeps an explicit MCP failure target relative to the project for window attribution", () => {
     const cwd = fixture();
     const evidence = retrievalEvidence(

@@ -183,6 +183,8 @@ export interface ToolObserveInput {
    */
   toolResponse?: unknown;
   success?: boolean;
+  /** Some hooks put the command exit status beside, not inside, tool_response. */
+  exitCode?: unknown;
   /**
    * Explicit error text from a harness failure event (Claude Code's
    * PostToolUseFailure, OpenCode tool errors). When set, it's used verbatim as
@@ -255,6 +257,7 @@ export function recordToolEvent(
     text,
     input.toolResponse,
     !!errText,
+    input.exitCode,
   );
   const identity = {
     host: input.host,

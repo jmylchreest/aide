@@ -4,7 +4,7 @@
  *
  * Single-purpose: record every Claude-native tool invocation as an
  * observe.KindToolCall event. Mirror image of the MCP middleware on the Go
- * side — together they give the dashboard complete tool-call coverage.
+ * side. Coverage depends on which events and payloads the host exposes.
  *
  * Claude Code fires PostToolUse only on success and PostToolUseFailure on
  * failure (the latter carries top-level is_error/error/exit_code). This hook is
@@ -70,6 +70,7 @@ async function main(): Promise<void> {
       toolName,
       toolInput: data.tool_input as ToolInput,
       toolResponse: data.tool_response,
+      exitCode: data.exit_code,
       // PostToolUseFailure marks failure at the top level; PostToolUse omits
       // these (success only). Map both into the shared recorder.
       success:

@@ -21,6 +21,42 @@ import { createHooks } from "../opencode/hooks.js";
 import type { OpenCodeClient } from "../opencode/types.js";
 
 describe("OpenCode MCP observations", () => {
+  it.each([
+    ["cat source.ts", 2, "failed"],
+    ["rg absent source.ts", 1, "search"],
+    ["rg absent source.ts", 2, "failed"],
+    ["rg absent source.ts", "1", "unverified"],
+  ])(
+    "uses shell metadata exit status for %s / %s",
+    async (command, exit, status) => {
+      vi.mocked(execFileSync).mockClear();
+      const hooks = await createHooks("/tmp", "/tmp", {} as OpenCodeClient);
+      const output = {
+        output: "",
+        metadata: { exit, output: "a separate UI copy" },
+      };
+      await hooks["tool.execute.after"]!(
+        {
+          tool: "bash",
+          sessionID: "session",
+          callID: "call",
+          args: { command },
+        },
+        output,
+      );
+      const event = vi
+        .mocked(execFileSync)
+        .mock.calls.map((call) => call[1] as string[])
+        .find((args) => args?.includes("--name=Bash"));
+      expect(event).toEqual(
+        expect.arrayContaining([
+          `--attr=retrieval_status=${status}`,
+          "--attr=payload_bytes=0",
+        ]),
+      );
+      expect(output.metadata).toEqual({ exit, output: "a separate UI copy" });
+    },
+  );
   it("observes content-block results without assuming a rendered output property", async () => {
     const hooks = await createHooks("/tmp", "/tmp", {} as OpenCodeClient);
     const output = { content: [{ type: "text", text: "é" }], isError: true };

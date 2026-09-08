@@ -11,6 +11,25 @@ function recorded() {
 }
 beforeEach(() => vi.clearAllMocks());
 describe("observed tool accounting", () => {
+  it("preserves hook exit codes independently of the returned text", () => {
+    recordToolEvent("aide", "/tmp", {
+      toolName: "Bash",
+      toolInput: { command: "cat source.ts" },
+      toolResponse: "partial text",
+      exitCode: 2,
+    });
+    expect(recorded()).toContain("--attr=retrieval_status=failed");
+    expect(recorded()).toContain("--attr=payload_bytes=12");
+    recordToolEvent("aide", "/tmp", {
+      toolName: "Bash",
+      toolInput: { command: "rg absent source.ts" },
+      toolResponse: "",
+      exitCode: 1,
+    });
+    expect(recorded()).toContain("--attr=retrieval_status=search");
+    expect(recorded()).toContain("--attr=payload_bytes=0");
+    expect(recorded().some((arg) => arg.startsWith("--error="))).toBe(false);
+  });
   it("observes aide MCP results under host identity with exact receipt evidence", () => {
     recordToolEvent("aide", "/tmp", {
       toolName: "mcp__aide__code_outline",

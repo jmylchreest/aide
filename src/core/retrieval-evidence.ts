@@ -179,17 +179,36 @@ export function retrievalEvidence(
   text: string | undefined,
   response: unknown,
   failed: boolean,
+  hookExitCode?: unknown,
 ): Record<string, string> {
   const result = object(response);
-  const exitCode = result?.exit_code ?? result?.exitCode;
+  const shell =
+    name === "Bash" ? shellTarget(args.command ?? args.cmd) : undefined;
+  const exitCodes = [hookExitCode, result?.exit_code, result?.exitCode].filter(
+    (value) => value !== undefined,
+  );
+  // Do not coerce malformed values or choose a successful value over conflicting
+  // host evidence. Missing exit codes are allowed for hosts that omit them.
+  const invalidExit =
+    exitCodes.some(
+      (value) => typeof value !== "number" || !Number.isSafeInteger(value),
+    ) || new Set(exitCodes).size > 1;
   failed ||=
     result?.interrupted === true ||
     result?.timed_out === true ||
-    (typeof exitCode === "number" && exitCode !== 0);
+    exitCodes.some(
+      (value) =>
+        typeof value === "number" &&
+        Number.isSafeInteger(value) &&
+        value !== 0 &&
+        // grep/rg status 1 means no selected matches, not a retrieval error.
+        // Explicit host failures and interruption markers above still win.
+        !(shell?.search && value === 1),
+    );
   const pending =
     name === "Bash" &&
     result?.session_id !== undefined &&
-    exitCode === undefined;
+    exitCodes.every((value) => value === null);
   if (name === "code_outline" || name === "code_read_symbol") {
     const receipt = receiptEvidence(name, text, response);
     return {
@@ -199,7 +218,7 @@ export function retrievalEvidence(
         : {}),
       retrieval_status: failed
         ? "failed"
-        : receipt
+        : receipt && !invalidExit
           ? "referenced"
           : "unverified",
       ...receipt,
@@ -216,7 +235,7 @@ export function retrievalEvidence(
           search: false,
         }
       : name === "Bash"
-        ? shellTarget(args.command ?? args.cmd)
+        ? shell
         : name === "Grep"
           ? {
               method: "native_search",
@@ -238,13 +257,22 @@ export function retrievalEvidence(
       ? "failed"
       : pending
         ? "pending"
-        : target.search
-          ? "search"
-          : "unverified",
+        : invalidExit
+          ? "unverified"
+          : target.search
+            ? "search"
+            : "unverified",
   };
   if (target.file)
     attrs.retrieval_target = relative(cwd, resolve(cwd, target.file));
-  if (failed || pending || target.search || !target.file || text === undefined)
+  if (
+    failed ||
+    invalidExit ||
+    pending ||
+    target.search ||
+    !target.file ||
+    text === undefined
+  )
     return attrs;
   const current = snapshot(cwd, target.file);
   if (!current) return attrs;

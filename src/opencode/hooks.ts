@@ -977,6 +977,9 @@ function createToolAfterHandler(state: AideState): (
         // Preserve MCP content and receipt metadata when present. The host
         // can still format/truncate these after this hook returns.
         toolResponse: _output,
+        // The existing OpenCode bash hook puts status in metadata.exit. Keep
+        // raw values for validation; never read a same-named MCP metadata key.
+        exitCode: input.tool === "bash" ? _output.metadata?.exit : undefined,
         sessionId: input.sessionID,
         host: "opencode",
         invocationId: input.callID,
