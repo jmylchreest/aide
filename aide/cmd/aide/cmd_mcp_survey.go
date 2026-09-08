@@ -345,7 +345,7 @@ func (s *MCPServer) handleSurveyRun(ctx context.Context, _ *mcp.CallToolRequest,
 		for _, r := range resp.Results {
 			results = append(results, surveyrun.Result{Analyzer: r.Analyzer, Entries: int(r.Entries), Err: r.Error, Summary: r.Summary})
 		}
-		return textResult(surveyrun.FormatResults(results)), nil, nil
+		return surveyRunResult(results), nil, nil
 	}
 
 	if s.surveyStore() == nil {
@@ -356,7 +356,20 @@ func (s *MCPServer) handleSurveyRun(ctx context.Context, _ *mcp.CallToolRequest,
 		analyzers = []string{input.Analyzer}
 	}
 	results := surveyrun.Run(store.ProjectRootFromDB(s.dbPath), analyzers, s.surveyStore(), s.getCodeStore())
-	return textResult(surveyrun.FormatResults(results)), nil, nil
+	return surveyRunResult(results), nil, nil
+}
+
+// Keep successful analyzer output visible when a run is partial, while making
+// any analyzer or storage failure part of the MCP result contract as well.
+func surveyRunResult(results []surveyrun.Result) *mcp.CallToolResult {
+	result := textResult(surveyrun.FormatResults(results))
+	for _, analyzer := range results {
+		if analyzer.Err != "" {
+			result.IsError = true
+			break
+		}
+	}
+	return result
 }
 
 func (s *MCPServer) handleSurveyGraph(ctx context.Context, _ *mcp.CallToolRequest, input SurveyGraphInput) (*mcp.CallToolResult, any, error) {

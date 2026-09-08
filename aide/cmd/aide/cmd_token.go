@@ -44,7 +44,7 @@ Options:
     --json           Output as JSON
 
   stats:
-    --details        Include windows, coverage and historical breakdowns
+    --details        Include aide work, windows, coverage and historical breakdowns
     --session=ID     Filter by session
     --since=TIME     RFC3339 timestamp or duration ago
     --until=TIME     RFC3339 upper bound (inclusive)
@@ -196,6 +196,9 @@ func cmdTokenStats(dbPath string, args []string) error {
 		fmt.Println("  Stages can overlap; do not sum. Unseen calls and final delivery are unknown.")
 		fmt.Print(formatTransformationSummary(a.Transformations, hasFlag(args, "--details")))
 		fmt.Print(formatRetrievalWindows(a.Retrievals, hasFlag(args, "--details")))
+		if hasFlag(args, "--details") {
+			fmt.Print(formatTokenWork(a.Work))
+		}
 	} else {
 		fmt.Println("  Accounting unavailable from this server.")
 	}

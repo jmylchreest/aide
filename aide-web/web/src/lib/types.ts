@@ -183,7 +183,24 @@ export interface TokenActivityBucket {
   by_stage: Record<string, TokenQuantity>;
   unmeasured: number;
 }
+export interface TokenWorkQuantity {
+  calls: number;
+  returned: number;
+  reported_errors: number;
+  unknown_outcomes: number;
+  elapsed_ms: number;
+  measured_durations: number;
+  missing_durations: number;
+  unassigned_sessions: number;
+  returned_text: TokenQuantity;
+  missing_payload: number;
+}
+export interface TokenWork extends TokenWorkQuantity {
+  version: number;
+  by_tool: Record<string, TokenWorkQuantity>;
+}
 export interface TokenAccounting {
+  work?: TokenWork | null;
   retrievals?: TokenRetrievals;
   transformations?: TokenTransformations;
   activity?: { interval_seconds: number; buckets: TokenActivityBucket[] };

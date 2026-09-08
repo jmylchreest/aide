@@ -61,6 +61,7 @@ func (s *BoltStore) TokenStats(sessionID string, since, until time.Time) (*memor
 	sessions := make(map[string]bool)
 	activity := newTokenActivity(since, until)
 	retrievals := newTokenRetrievals(sessionID, since, until)
+	stats.Accounting.Work = memory.NewTokenWork()
 
 	tally := func(e *memory.TokenEvent) {
 		if !since.IsZero() && e.Timestamp.Before(since) {
@@ -142,6 +143,7 @@ func (s *BoltStore) TokenStats(sessionID string, since, until time.Time) (*memor
 				continue
 			}
 			retrievals.add(&oe)
+			addTokenWork(stats.Accounting.Work, &oe, sessionID, since, until)
 			if te := observeToTokenEvent(&oe); te != nil {
 				tally(te)
 			}

@@ -193,6 +193,8 @@ Native tool event attributes include `context_status` and, when known, `context_
 
 `accounting.transformations` contains paired text changes, separated into `rewrite_candidate` (proposed Claude-compatible replacements) and `adapter_change` (changes made by aide's OpenCode adapter). Each pair contributes its measured before/after bytes and centrally estimated token delta once. Negative reductions preserve annotation overhead. Window details are bounded to 64 groups, with omitted-window and missing-evidence indicators; stage totals cover all selected pairs. The same data reaches CLI `token stats --details` and web Details/Accounting. Final delivery, provider savings and inferred avoided calls remain unverified. `accounting.retrievals` separately reports conditional full-file comparisons grouped by context window, with source versions counted once and result costs counted once per call. Gaps and clipped windows suppress the comparison; see the CLI token reference for scope and limits.
 
+`accounting.work` (version 1) reports recorded MCP server operations by tool, with explicit returned/error/unknown outcomes, measured elapsed milliseconds, returned text and missing-measurement counts. Host observations and background activity are excluded from this subtotal. Text overlaps existing server-stage accounting; elapsed time is tool wall time, not CPU consumption or model time saved. A returned response is not proof of task quality. Session filters exclude unattributed calls, and absent older-server work data remains unavailable. See [CLI token accounting](./cli.md#token-experimental) for the report's measurement boundaries.
+
 ## Findings Tools
 
 | Tool              | Purpose                          |

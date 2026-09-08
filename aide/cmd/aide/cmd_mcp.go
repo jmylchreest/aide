@@ -228,15 +228,24 @@ func (s *MCPServer) toolObserveMiddleware() mcp.Middleware {
 			ctx, span := observe.StartCtx(ctx, params.Name, observe.KindToolCall)
 			span.Category(category).Subtype(subtype)
 			defer span.End()
+			started := time.Now()
 			result, err := next(ctx, method, req)
+			// Explicit duration evidence preserves a measured zero. This is
+			// handler wall time, not CPU time or avoided model execution.
+			span.Attr("work_version", "1").Attr("work_elapsed_ms", strconv.FormatInt(time.Since(started).Milliseconds(), 10))
+			outcome := "unknown"
 			if err != nil {
 				span.Err(err)
+				outcome = "reported_error"
 			}
 			// Measure all returned text, including handler headers and formatting.
 			// This is a server observation, not confirmation of host delivery. No
 			// host session/call identity is guessed from process or transport state.
 			span.Attr("accounting_version", "1").Attr("observation_stage", "server_result")
 			if call, ok := result.(*mcp.CallToolResult); ok && call != nil {
+				if err == nil {
+					outcome = "returned"
+				}
 				total := 0
 				hasText := len(call.Content) == 0
 				for _, c := range call.Content {
@@ -250,8 +259,10 @@ func (s *MCPServer) toolObserveMiddleware() mcp.Middleware {
 				}
 				if call.IsError {
 					span.Err(fmt.Errorf("tool reported failure"))
+					outcome = "reported_error"
 				}
 			}
+			span.Attr("work_outcome", outcome)
 			return result, err
 		}
 	}

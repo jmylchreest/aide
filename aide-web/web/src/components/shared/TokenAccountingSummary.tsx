@@ -1,5 +1,6 @@
 import type { TokenAccounting, TokenQuantity } from "../../lib/types";
 import { TokenTransformationSummary } from "./TokenTransformations";
+import { TokenWorkAccounting } from "./TokenWork";
 
 function Quantity({
   label,
@@ -81,6 +82,7 @@ export function TokenAccountingSummary({
           </p>
         </div>
       </details>
+      <TokenWorkAccounting report={accounting.work} />
       <TokenTransformationSummary report={accounting.transformations} />
     </section>
   );

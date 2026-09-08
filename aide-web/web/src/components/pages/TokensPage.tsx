@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { api } from "@/lib/api";
 import { useApi } from "@/hooks/use-api";
 import { TokenOverview } from "../shared/TokenOverview";
+import { TokenWorkDetails } from "../shared/TokenWork";
 import { TokenAccountingSummary } from "../shared/TokenAccountingSummary";
 import { TokenTransformationWindows } from "../shared/TokenTransformations";
 import { TokenRetrievalEvidence } from "../shared/TokenRetrievalEvidence";
@@ -527,6 +528,9 @@ function TokenReport({
         </div>
       </div>
       <div hidden={view !== "details"}>
+        {!statsLoading && !statsError && (
+          <TokenWorkDetails report={stats?.accounting?.work} />
+        )}
         {!statsLoading && !statsError && (
           <TokenRetrievalWindows report={stats?.accounting?.retrievals} />
         )}

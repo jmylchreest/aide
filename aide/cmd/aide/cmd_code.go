@@ -479,9 +479,11 @@ func (idx *Indexer) Close() error {
 }
 
 // IndexFile indexes a single file (symbols and references).
-func (idx *Indexer) IndexFile(filePath string) (int, error) {
+func (idx *Indexer) IndexFile(filePath string) (count int, err error) {
 	span := observe.Start("Indexer.IndexFile", observe.KindSpan).Category("indexer").Subtype("index_file").FilePath(filePath)
-	defer span.End()
+	defer func() {
+		span.Err(err).End()
+	}()
 	// Get relative path from project root
 	relPath := filePath
 	if abs, err := filepath.Abs(filePath); err == nil {
@@ -494,7 +496,12 @@ func (idx *Indexer) IndexFile(filePath string) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	refs, _ := idx.parser.ParseFileReferences(filePath)
+	refs, refsErr := idx.parser.ParseFileReferences(filePath)
+	if refsErr != nil {
+		// Preserve the existing best-effort symbol index, while making the
+		// incomplete reference extraction visible in the work observation.
+		span.Err(refsErr).Attr("reference_parse_error", refsErr.Error())
+	}
 
 	info, _ := os.Stat(filePath)
 	modTime := time.Now()
@@ -507,6 +514,8 @@ func (idx *Indexer) IndexFile(filePath string) (int, error) {
 	if err := idx.store.IndexFileBatch(relPath, symbols, refs, modTime, sizeBytes); err != nil {
 		return 0, err
 	}
+	span.Attr("stored_symbols", strconv.Itoa(len(symbols))).
+		Attr("stored_references", strconv.Itoa(len(refs)))
 	return len(symbols), nil
 }
 
@@ -528,14 +537,19 @@ type ReconcileResult struct {
 // every symbol and reference bucket entry to catch orphan rows whose fileinfo
 // was already cleared but whose symbol/reference rows survived. Finally the
 // working tree is walked to pick up files the index has never seen.
-func (idx *Indexer) Reconcile() (ReconcileResult, error) {
+func (idx *Indexer) Reconcile() (res ReconcileResult, err error) {
 	span := observe.Start("Indexer.Reconcile", observe.KindSpan).Category("indexer").Subtype("reconcile")
 	defer span.End()
-	var res ReconcileResult
 	defer func() {
 		span.Attr("checked", strconv.Itoa(res.Checked)).
 			Attr("removed", strconv.Itoa(res.Removed)).
-			Attr("refreshed", strconv.Itoa(res.Refreshed))
+			Attr("refreshed", strconv.Itoa(res.Refreshed)).
+			Attr("errors", strconv.Itoa(res.Errors))
+		if err != nil {
+			span.Err(err)
+		} else if res.Errors > 0 {
+			span.Err(fmt.Errorf("%d reconciliation operations failed", res.Errors))
+		}
 	}()
 
 	infos, err := idx.store.ListAllFileInfo()

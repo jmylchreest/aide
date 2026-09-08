@@ -1264,6 +1264,25 @@ message TokenAccounting {
   TokenActivity activity = 8;
   TokenTransformations transformations = 9;
   TokenRetrievals retrievals = 10;
+  TokenWork work = 11;
+}
+// Recorded aide MCP calls, not inferred model work or task success.
+message TokenWorkCounters {
+ int64 calls = 1;
+ int64 returned = 2;
+ int64 reported_errors = 3;
+ int64 unknown_outcomes = 4;
+ int64 elapsed_ms = 5;
+ int64 measured_durations = 6;
+ int64 missing_durations = 7;
+ int64 unassigned_sessions = 8;
+ TokenQuantity returned_text = 9;
+ int64 missing_payload = 10;
+}
+message TokenWork {
+ int32 version = 1;
+ TokenWorkCounters totals = 2;
+ map<string, TokenWorkCounters> by_tool = 3;
 }
 message RetrievalSource {
  string file = 1;
