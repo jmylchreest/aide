@@ -1,0 +1,102 @@
+{
+  "answers": {
+    "a_status": "search",
+    "b_status": "failed",
+    "c_status": "pending",
+    "d_status": "failed",
+    "e_status": "unverified",
+    "e_has_source_reference": false,
+    "a_payload_bytes": 0,
+    "a_has_tool_error": false
+  },
+  "evidence": {
+    "a_status": [
+      {
+        "source": "src/core/retrieval-evidence.ts:79-88",
+        "explanation": "Recognizes rg as a search."
+      },
+      {
+        "source": "src/core/retrieval-evidence.ts:187-207",
+        "explanation": "Numeric exit code 1 is valid and does not mark an rg search as failed."
+      },
+      {
+        "source": "src/core/retrieval-evidence.ts:254-264",
+        "explanation": "With no failure, pending session, or invalid exit code, the search receives status search."
+      }
+    ],
+    "b_status": [
+      {
+        "source": "src/core/tool-observe.ts:148-163",
+        "explanation": "success=false produces the fallback error text 'tool reported failure' for empty output."
+      },
+      {
+        "source": "src/core/tool-observe.ts:249-260",
+        "explanation": "Passes the nonempty error text as failed=true to retrievalEvidence."
+      },
+      {
+        "source": "src/core/retrieval-evidence.ts:254-264",
+        "explanation": "Failure takes precedence over all other status choices."
+      }
+    ],
+    "c_status": [
+      {
+        "source": "src/core/retrieval-evidence.ts:187-211",
+        "explanation": "null is retained and considered invalid, but session_id is present and every exit code is null, so pending is also true."
+      },
+      {
+        "source": "src/core/retrieval-evidence.ts:254-264",
+        "explanation": "Pending takes precedence over invalidExit when failed is false."
+      }
+    ],
+    "d_status": [
+      {
+        "source": "src/core/retrieval-evidence.ts:187-207",
+        "explanation": "Both exit_code=0 and exitCode=2 are considered. They conflict, and numeric exit code 2 independently sets failed=true."
+      },
+      {
+        "source": "src/core/retrieval-evidence.ts:254-264",
+        "explanation": "Failure takes precedence over the conflicting-code invalidity."
+      }
+    ],
+    "e_status": [
+      {
+        "source": "src/core/retrieval-evidence.ts:187-207",
+        "explanation": "String '0' is invalid because it is not a number; it does not itself set failed=true."
+      },
+      {
+        "source": "src/core/retrieval-evidence.ts:254-264",
+        "explanation": "Without failure or a pending session, invalidExit selects unverified."
+      }
+    ],
+    "e_has_source_reference": [
+      {
+        "source": "src/core/retrieval-evidence.ts:268-277",
+        "explanation": "invalidExit returns the attributes before snapshotting or matching the file."
+      },
+      {
+        "source": "src/core/retrieval-evidence.ts:311-318",
+        "explanation": "Source references are assigned only later, so this response receives none."
+      }
+    ],
+    "a_payload_bytes": [
+      {
+        "source": "src/core/tool-observe.ts:96-110",
+        "explanation": "The empty output string is extracted as known text rather than undefined."
+      },
+      {
+        "source": "src/core/tool-observe.ts:303-304",
+        "explanation": "The UTF-8 byte length of the empty string is recorded as 0."
+      }
+    ],
+    "a_has_tool_error": [
+      {
+        "source": "src/core/tool-observe.ts:148-159",
+        "explanation": "No explicit failure or recognized error marker is present; exit_code alone is not checked by toolFailureText, which returns an empty string."
+      },
+      {
+        "source": "src/core/tool-observe.ts:340-342",
+        "explanation": "An error is attached only when errText is nonempty."
+      }
+    ]
+  }
+}

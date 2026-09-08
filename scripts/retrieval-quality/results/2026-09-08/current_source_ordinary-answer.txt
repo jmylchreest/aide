@@ -1,0 +1,61 @@
+{
+  "answers": {
+    "a_succeeds": true,
+    "b_returns_replacement": false,
+    "c_outcome": "ambiguity_error",
+    "d_selects_second": true,
+    "e_requires_file": true
+  },
+  "evidence": {
+    "a_succeeds": [
+      {
+        "file": "aide/cmd/aide/cmd_mcp_code.go",
+        "lines": "549-552",
+        "explanation": "A missing code store rejects the request only when file is empty."
+      },
+      {
+        "file": "aide/cmd/aide/cmd_mcp_source.go",
+        "lines": "103-106, 132-140, 144-175",
+        "explanation": "An explicit file bypasses index search. Current source is parsed, and its single matching definition is rendered."
+      }
+    ],
+    "b_returns_replacement": [
+      {
+        "file": "aide/cmd/aide/cmd_mcp_source.go",
+        "lines": "115-119, 132-145",
+        "explanation": "Index results identify candidate files; current parsed symbols must have the requested name. Replacement cannot match Target, so the request reports not found."
+      }
+    ],
+    "c_outcome": [
+      {
+        "file": "aide/cmd/aide/cmd_mcp_source.go",
+        "lines": "138-153",
+        "explanation": "With start_line omitted, both current Target methods match. Multiple matches return an ambiguity message and no symbol."
+      },
+      {
+        "file": "aide/cmd/aide/cmd_mcp_code.go",
+        "lines": "576-582, 596-598",
+        "explanation": "The failed symbol lookup is not counted as found, and the result is marked IsError."
+      }
+    ],
+    "d_selects_second": [
+      {
+        "file": "aide/cmd/aide/cmd_mcp_code.go",
+        "lines": "560-562",
+        "explanation": "A positive start_line is permitted when file is supplied."
+      },
+      {
+        "file": "aide/cmd/aide/cmd_mcp_source.go",
+        "lines": "138-140, 144-175",
+        "explanation": "start_line=5 filters matches to the definition starting at line 5; the sole match is rendered."
+      }
+    ],
+    "e_requires_file": [
+      {
+        "file": "aide/cmd/aide/cmd_mcp_source.go",
+        "lines": "107-120",
+        "explanation": "The implementation rejects 100 or more search results and requests file selection before filtering candidates for exact name matches."
+      }
+    ]
+  }
+}

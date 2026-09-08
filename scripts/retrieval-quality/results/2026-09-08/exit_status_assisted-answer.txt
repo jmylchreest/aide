@@ -1,0 +1,66 @@
+{
+  "answers": {
+    "a_status": "search",
+    "b_status": "failed",
+    "c_status": "pending",
+    "d_status": "failed",
+    "e_status": "unverified",
+    "e_has_source_reference": false,
+    "a_payload_bytes": 0,
+    "a_has_tool_error": false
+  },
+  "evidence": {
+    "a_status": [
+      {
+        "source": "src/core/retrieval-evidence.ts:79-88,187-207,254-264",
+        "explanation": "rg is recognized as a search. Numeric exit code 1 is exempted from retrieval failure for searches; the resulting status is search."
+      }
+    ],
+    "b_status": [
+      {
+        "source": "src/core/tool-observe.ts:144-163,249-260",
+        "explanation": "success=false produces the fallback error text 'tool reported failure', which is passed to retrievalEvidence as failed=true."
+      },
+      {
+        "source": "src/core/retrieval-evidence.ts:196-207,254-264",
+        "explanation": "The search exit-code exception does not clear an explicit failure, and failed takes precedence."
+      }
+    ],
+    "c_status": [
+      {
+        "source": "src/core/retrieval-evidence.ts:187-211,254-276",
+        "explanation": "null remains in exitCodes and is invalid, but session_id is present and every exit code is null, so pending is true. Pending takes precedence over invalidExit, and source comparison is skipped."
+      }
+    ],
+    "d_status": [
+      {
+        "source": "src/core/retrieval-evidence.ts:187-207,254-264",
+        "explanation": "Both exit_code=0 and exitCode=2 are collected. Their conflict makes invalidExit true, and numeric exit code 2 sets failed. Failed takes precedence."
+      }
+    ],
+    "e_status": [
+      {
+        "source": "src/core/retrieval-evidence.ts:187-211,254-276",
+        "explanation": "String '0' is invalid because exit codes must be safe-integer numbers. It does not itself set failed, and no session_id establishes pending, so the status is unverified."
+      }
+    ],
+    "e_has_source_reference": [
+      {
+        "source": "src/core/retrieval-evidence.ts:268-281,311-318",
+        "explanation": "invalidExit returns the attributes before snapshot comparison and before source_references is assigned, even when output equals the full current file."
+      }
+    ],
+    "a_payload_bytes": [
+      {
+        "source": "src/core/tool-observe.ts:96-110,252,303-304",
+        "explanation": "extractOutputText preserves output='', and recordToolEvent records its UTF-8 byte length because it is not undefined. The length is 0."
+      }
+    ],
+    "a_has_tool_error": [
+      {
+        "source": "src/core/tool-observe.ts:144-163,249-251,340-342",
+        "explanation": "toolFailureText does not treat exit_code as a tool-level failure. With no explicit failure or error marker, errText is empty and no --error argument is recorded."
+      }
+    ]
+  }
+}

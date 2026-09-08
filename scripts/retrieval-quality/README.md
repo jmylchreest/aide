@@ -45,3 +45,46 @@ implementation quality, representative debugging performance, other hosts, or
 production cost savings. Broader tasks and repeated runs remain necessary before
 changing retrieval steering. No model trials have been run when this pilot is
 first committed.
+
+## Offline automation
+
+Python 3.10+ is required. These commands read local files and never launch a model
+or call a provider. Run them from the repository root:
+
+```sh
+python3 -B -m unittest discover -s scripts/retrieval-quality -p 'test_*.py'
+python3 -B scripts/retrieval-quality/report.py verify-sources --root . --output /tmp/aide-pilot-sources.json
+python3 -B scripts/retrieval-quality/collect_codex.py --log /path/to/one-trial.jsonl --output /tmp/aide-pilot-capture.json
+python3 -B scripts/retrieval-quality/report.py grade --input scripts/retrieval-quality/results/2026-09-08/trials.json --output /tmp/aide-pilot-grade.json
+```
+
+Use new output paths; both scripts refuse to overwrite files. The collector accepts
+one explicitly selected Codex runtime log. It extracts final answers, runtime
+identity, call inputs and usage counters; it omits reasoning, encrypted content
+and base instructions. Call inputs and answers may still contain project data, so
+review a capture before sharing it. This is a diagnostic adapter for the observed
+runtime schema, not a cross-host usage collection path in the plugin.
+
+The collector sums per-response usage once per response ID and checks the final
+cumulative counters. Missing, conflicting or incomplete evidence leaves usage
+unknown. Runtime-reported input, cache and output counters are separate from
+returned-text measurements and from billing. Cached input is not added to input.
+
+The grader accepts an array of records with `id`, `task`, `treatment`, `answers`,
+`evidence`, `source_validity`, `trace_validity` and a per-field `evidence_review`.
+It checks exact JSON values and types against the frozen oracle. Source and trace
+validity and citation support require a separate audit; the script does not infer
+them from answers. Optional `observed_text_bytes` and `provider_usage` require
+explicit verification flags. Here `provider_usage_verified` means the supplied
+runtime counters were checked, **not** that an invoice was verified. Preserve a
+`usage_verification_basis` with each record. Failed, invalid and unverified trials
+remain visible; unknown quantities remain null.
+
+## Completed pilot
+
+The [September 8 results](results/2026-09-08/README.md) retain all six answers,
+audited host observations, runtime captures, blinded citation reviews and the
+generated report. All 46 answer fields passed, but aide-assisted runs used more
+total model input in all three pairs. Smaller source results alone did not predict
+lower whole-task input. This is evidence to investigate round trips and retrieval
+quality, not a general savings or cost claim.

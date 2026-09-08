@@ -90,7 +90,8 @@ It defines three read-only code-understanding tasks, two retrieval treatments,
 six fresh sessions, a 12-call retrieval limit per session, pinned source hashes
 and 23 exact answer checks per treatment. Grading material is kept out of trial
 prompts. This small pilot does not cover edits or representative workload quality;
-no model trials were run when its task package was first committed.
+no model trials were run when its task package was first committed. The first six
+trials have since completed; results are described below.
 
 The next stage requires fresh model contexts, not another pass by a model that
 already knows these answers. Freeze repository snapshots, task prompts and hidden
@@ -113,5 +114,27 @@ text reduction across later turns.
 
 Publish raw trial results, sample counts and uncertainty before drawing a
 recommendation. Do not promote steering based on text reduction alone if answers
-or edits worsen. No independent model-quality comparison has been run by this
-test harness.
+or edits worsen. The deterministic test harness does not run model-quality trials.
+
+## First model pilot results
+
+The September 8 pilot passed all 46 answer-and-citation checks across six fresh
+agents. Aide-assisted retrieval returned less source text in two of three pairs,
+but used more model responses and more total runtime input tokens in all three.
+Cache-hit counts differed, so these observations do not establish a billing saving
+or increase. Narrow comprehension results also do not establish general quality.
+
+The repository retains the complete dated result in
+`scripts/retrieval-quality/results/2026-09-08/`: per-trial measurements, exact
+answers, selected runtime captures, host observations and blinded citation reviews.
+Source-result bytes and runtime-reported input/output/cache counters have different
+boundaries and are reported separately. Unknown child context epochs prevent a
+product context-window comparison; explicit runtime trial boundaries support this
+separate pilot report.
+
+Offline Python helpers in `scripts/retrieval-quality/` verify frozen source hashes,
+extract selected data from an explicitly named Codex runtime log and grade recorded
+answers. They do not call a provider. Missing or conflicting usage stays unknown;
+failed and invalid trials stay visible. The directory README includes runnable
+commands and the input schema. These diagnostic reports belong alongside the
+experiment evidence, not in the web Overview as a savings claim.
