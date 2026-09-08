@@ -205,7 +205,19 @@ func buildOutline(content []byte, symbols []*code.Symbol, stripComments bool) st
 
 		if r, ok := collapseStart[lineNum]; ok {
 			indent := extractIndent(line)
-			fmt.Fprintf(&sb, "%s%s{ ... }  // lines %d-%d\n", lineNumPrefix(lineNum), indent, r.startLine, r.endLine)
+			// The body can begin on the declaration's final line. Preserve that
+			// line's signature using the parser's AST boundary: an earlier brace
+			// may belong to a parameter type, return type, comment or string.
+			prefix := ""
+			signatureLines := strings.Split(r.symbol.Signature, "\n")
+			signatureLine := lineNum - r.symbol.StartLine
+			if signatureLine >= 0 && signatureLine < len(signatureLines) {
+				prefix = strings.TrimSpace(signatureLines[signatureLine])
+				if prefix != "" {
+					prefix += " "
+				}
+			}
+			fmt.Fprintf(&sb, "%s%s%s{ ... }  // lines %d-%d\n", lineNumPrefix(lineNum), indent, prefix, r.startLine, r.endLine)
 			continue
 		}
 
