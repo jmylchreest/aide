@@ -197,6 +197,8 @@ func cmdTokenStats(dbPath string, args []string) error {
 		fmt.Print(formatTransformationSummary(a.Transformations, hasFlag(args, "--details")))
 		fmt.Print(formatRetrievalWindows(a.Retrievals, hasFlag(args, "--details")))
 		if hasFlag(args, "--details") {
+			printTokenQuantity("prepared_aide_context", a.ByStage["aide_context"])
+			fmt.Println("  Prepared source or appended text; not full prompt usage or confirmed delivery. Source excerpts can omit formatting; repeated preparations can overlap.")
 			fmt.Print(formatTokenWork(a.Work))
 		}
 	} else {

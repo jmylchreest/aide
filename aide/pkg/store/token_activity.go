@@ -32,6 +32,10 @@ func newTokenActivity(since, until time.Time) *tokenActivity {
 }
 
 func (a *tokenActivity) add(e *memory.TokenEvent) {
+	// This series describes tool-result observations, not prepared context.
+	if e.EventType == memory.TokenEventContextInjected {
+		return
+	}
 	key := e.Timestamp.Unix() / a.interval * a.interval
 	b := a.buckets[key]
 	if b == nil {

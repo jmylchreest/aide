@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { createHash } from "crypto";
 vi.mock("child_process", () => ({ execFileSync: vi.fn(() => "") }));
 vi.mock("../core/mcp-sync.js", () => ({ syncMcpServers: vi.fn() }));
 vi.mock("../core/session-init.js", async (original) => ({
@@ -21,6 +22,50 @@ import { createHooks } from "../opencode/hooks.js";
 import type { OpenCodeClient } from "../opencode/types.js";
 
 describe("OpenCode MCP observations", () => {
+  it.each([false, true])(
+    "preserves work attribution when a result is %s rendered",
+    async (rendered) => {
+      vi.mocked(execFileSync).mockClear();
+      const hooks = await createHooks("/tmp", "/tmp", {} as OpenCodeClient);
+      const text = "é";
+      const meta = {
+        "aide/work": {
+          version: 1,
+          id: "opencode-work",
+          tool: "code_search",
+          text_sha256: createHash("sha256").update(text).digest("hex"),
+        },
+      };
+      const output = rendered
+        ? { output: text, _meta: meta }
+        : { content: [{ type: "text", text }], _meta: meta };
+      const before = structuredClone(output);
+      await hooks["tool.execute.after"]!(
+        {
+          tool: "aide_code_search",
+          sessionID: "s",
+          callID: "call",
+          args: { query: "x" },
+        },
+        output,
+      );
+      const event = vi
+        .mocked(execFileSync)
+        .mock.calls.map((call) => call[1] as string[])
+        .find((args) => args?.includes("--name=code_search"));
+      expect(event).toEqual(
+        expect.arrayContaining([
+          "--attr=work_receipt_version=1",
+          "--attr=work_id=opencode-work",
+          "--attr=host=opencode",
+          "--session=s",
+          "--attr=invocation_id=call",
+          "--attr=payload_bytes=2",
+        ]),
+      );
+      expect(output).toEqual(before);
+    },
+  );
   it.each([
     ["cat source.ts", 2, "failed"],
     ["rg absent source.ts", 1, "search"],

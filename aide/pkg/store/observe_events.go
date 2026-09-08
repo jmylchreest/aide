@@ -161,7 +161,13 @@ func (s *BoltStore) AddObserveEvent(e *observe.Event) error {
 		b := tx.Bucket(BucketObserveEvents)
 		// Only explicit origin identity deduplicates; equal commands are valid calls.
 		if memory.HasObservationIdentity(e.SessionID, e.Attrs) {
-			identity, err := json.Marshal([]string{e.SessionID, e.Attrs["host"], e.Attrs["actor_id"], e.Attrs["invocation_id"], e.Attrs["observation_stage"]})
+			origin := []string{e.SessionID, e.Attrs["host"], e.Attrs["actor_id"], e.Attrs["invocation_id"], e.Attrs["observation_stage"]}
+			if claim, ok := workHostClaim(e); ok {
+				// Equal receipt retries still deduplicate. Contradictory receipts
+				// must survive so attribution cannot silently select the first.
+				origin = append(origin, "aide/work:1", claim.id, claim.tool, claim.hash)
+			}
+			identity, err := json.Marshal(origin)
 			if err != nil {
 				return err
 			}

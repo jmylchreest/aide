@@ -60,7 +60,12 @@ import { recoverablePrune } from "../core/context-pruning/recovery.js";
 import { transformationEvent } from "../core/context-pruning/observation.js";
 import { checkSearchEnrichment } from "../core/search-enrichment.js";
 import { recordToolEvent } from "../core/tool-observe.js";
-import { recordObserveEvent, previewContent } from "../core/read-tracking.js";
+import {
+  recordObserveEvent,
+  previewContent,
+  injectionBatchEvent,
+  recordObserveEventsBatch,
+} from "../core/read-tracking.js";
 import {
   checkComments,
   getCheckableFilePath,
@@ -305,10 +310,12 @@ function createCommandHandler(state: AideState): (
         // instructions directly in the user message. This avoids reliance
         // on the system transform alone and prevents the model from trying
         // to call the native "skill" tool to find the instructions.
+        const instruction = `<aide-instructions>\n${context}\n</aide-instructions>`;
         output.parts.push({
           type: "text",
-          text: `<aide-instructions>\n${context}\n</aide-instructions>`,
+          text: instruction,
         });
+        recordPreparedContext(state, "command", input.sessionID, [instruction]);
 
         // Also store the arguments as the user prompt for the transform
         if (args) {
@@ -1182,6 +1189,9 @@ function createCompactionHandler(
     // Inject preserved context into compaction
     if (state.welcomeContext) {
       output.context.push(state.welcomeContext);
+      recordPreparedContext(state, "compaction", input.sessionID, [
+        state.welcomeContext,
+      ]);
     }
   };
 }
@@ -1190,6 +1200,29 @@ function createCompactionHandler(
 // System prompt transform (memory + skill injection)
 // =============================================================================
 
+// Count the exact strings this adapter adds. These observations can recur on
+// each transform; they are neither unique source counts nor provider usage.
+function recordPreparedContext(
+  state: AideState,
+  source: string,
+  sessionId: string | undefined,
+  contents: string[],
+): void {
+  if (!state.binary || contents.length === 0) return;
+  recordObserveEventsBatch(
+    state.binary,
+    state.cwd,
+    contents.map((content) => injectionBatchEvent({
+      source: `opencode-${source}`,
+      subtype: "context",
+      sessionId,
+      content,
+      contentBoundary: "appended_text",
+      attrs: { host: "opencode" },
+    })),
+  );
+}
+
 function createSystemTransformHandler(
   state: AideState,
 ): (
@@ -1197,6 +1230,7 @@ function createSystemTransformHandler(
   output: { system: string[] },
 ) => Promise<void> {
   return async (_input, output) => {
+    const previousLength = output.system.length;
     // Inject welcome context (memories, decisions, etc.) into system prompt
     if (state.welcomeContext) {
       output.system.push(state.welcomeContext);
@@ -1303,6 +1337,12 @@ Use aide MCP tools to coordinate with other agents or sessions:
 
 </aide-messaging>`);
     }
+    recordPreparedContext(
+      state,
+      "system",
+      _input.sessionID,
+      output.system.slice(previousLength),
+    );
   };
 }
 

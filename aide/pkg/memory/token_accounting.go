@@ -81,6 +81,23 @@ func (a *TokenAccounting) Add(e *TokenEvent) {
 		return
 	}
 	stage := e.Attrs["observation_stage"]
+	if e.EventType == TokenEventContextInjected {
+		// Prepared context sources are neither tool results nor generated
+		// tool arguments. Source excerpts need not cover the output envelope.
+		if n, ok := MeasuredBytes(e.Attrs, "payload_bytes"); ok && stage == "aide_context" {
+			q := a.ByStage[stage]
+			if q == nil {
+				q = &TokenQuantity{}
+				a.ByStage[stage] = q
+			}
+			q.Bytes += n
+			q.EstimatedTokens += EstimateTextTokens(n)
+			q.Events++
+		} else {
+			a.MissingPayload++
+		}
+		return
+	}
 	if n, ok := MeasuredBytes(e.Attrs, "payload_bytes"); ok && (stage == "host_result" || stage == "server_result") {
 		q := a.ByStage[stage]
 		if q == nil {

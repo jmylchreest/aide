@@ -4,7 +4,7 @@
  * tool.execute.after handler so dashboard categorisation stays consistent
  * across plugins.
  *
- * Native tools and recognised aide source retrievals are observed here at the
+ * Native tools and recognised aide MCP calls are observed here at the
  * host boundary. MCP middleware independently observes server results; those
  * stages must never be added together as if they were separate deliveries.
  */
@@ -14,6 +14,7 @@ import { debug } from "../lib/logger.js";
 import { recordFileRead } from "./read-tracking.js";
 import { contextWindow } from "./context-window.js";
 import { aideRetrievalTool, retrievalEvidence } from "./retrieval-evidence.js";
+import { aideWorkTool, workReceiptEvidence } from "./work-receipt.js";
 
 const SOURCE = "tool-observe";
 
@@ -226,15 +227,18 @@ export function recordToolEvent(
   input: ToolObserveInput,
 ): void {
   const retrieval = aideRetrievalTool(input.toolName);
-  const name = canonicalTool(input.toolName) ?? retrieval;
+  const aideTool = aideWorkTool(input.toolName);
+  const name = canonicalTool(input.toolName) ?? aideTool;
   const tax = retrieval
     ? {
         category: "consume",
         subtype: retrieval === "code_outline" ? "outline" : "symbol",
       }
-    : name
-      ? NATIVE_TOOL_TAXONOMY[name]
-      : undefined;
+    : aideTool
+      ? { category: "other", subtype: "mcp" }
+      : name
+        ? NATIVE_TOOL_TAXONOMY[name]
+        : undefined;
   if (!tax || !name) {
     debug(SOURCE, `Skipping unclassified tool: ${input.toolName}`);
     return;
@@ -300,6 +304,10 @@ export function recordToolEvent(
       `--attr=raw_tool=${input.toolName}`,
     );
     for (const [key, value] of Object.entries(retrievalAttrs))
+      args.push(`--attr=${key}=${value}`);
+    for (const [key, value] of Object.entries(
+      workReceiptEvidence(aideTool, text, input.toolResponse),
+    ))
       args.push(`--attr=${key}=${value}`);
     // Conversion is owned by the backend. These are exact UTF-8 text bytes at
     // this hook boundary, not provider tokens or proof of final delivery.

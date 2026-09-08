@@ -195,6 +195,8 @@ Native tool event attributes include `context_status` and, when known, `context_
 
 `accounting.work` (version 1) reports recorded MCP server operations by tool, with explicit returned/error/unknown outcomes, measured elapsed milliseconds, returned text and missing-measurement counts. Host observations and background activity are excluded from this subtotal. Text overlaps existing server-stage accounting; elapsed time is tool wall time, not CPU consumption or model time saved. A returned response is not proof of task quality. Session filters exclude unattributed calls, and absent older-server work data remains unavailable. See [CLI token accounting](./cli.md#token-experimental) for the report's measurement boundaries.
 
+Measured-text MCP results also carry an `aide/work` metadata receipt (version, operation ID, tool and text SHA-256). When a host observer preserves that receipt with matching text and complete invocation identity, reports can attribute the server operation to its session. Missing or conflicting evidence stays unknown; text observations at host and server boundaries remain separate. The receipt does not change the model-facing text or establish successful task completion. `accounting.by_stage.aide_context` separately exposes prepared context source/appended-text measurements, not complete prompt usage or verified delivery.
+
 ## Findings Tools
 
 | Tool              | Purpose                          |

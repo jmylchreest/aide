@@ -40,6 +40,14 @@ func TestMCPWorkRecordsReportedOutcomes(t *testing.T) {
 				t.Fatalf("events: %v %v", events, err)
 			}
 			e := events[0]
+			if tc.result != nil {
+				receipt, ok := tc.result.Meta["aide/work"].(map[string]any)
+				if !ok || e.Attrs["work_id"] != receipt["id"] || e.Attrs["work_text_sha256"] != receipt["text_sha256"] {
+					t.Fatalf("server and host receipt evidence differ: %+v %+v", e.Attrs, receipt)
+				}
+			} else if e.Attrs["work_id"] != "" {
+				t.Fatal("absent result claimed a receipt")
+			}
 			if e.Attrs["work_version"] != "1" || e.Attrs["work_outcome"] != tc.outcome || e.Attrs["payload_bytes"] != tc.payload {
 				t.Fatalf("work evidence: %+v", e)
 			}

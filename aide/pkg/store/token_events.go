@@ -18,11 +18,19 @@ func (s *BoltStore) ListTokenEvents(sessionID string, limit int, since, until ti
 	err := s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(BucketObserveEvents)
 		c := b.Cursor()
+		attribution := newWorkAttribution()
+		for k, v := c.First(); k != nil; k, v = c.Next() {
+			var oe observe.Event
+			if json.Unmarshal(v, &oe) == nil {
+				attribution.observe(&oe)
+			}
+		}
 		for k, v := c.Last(); k != nil; k, v = c.Prev() {
 			var oe observe.Event
 			if err := json.Unmarshal(v, &oe); err != nil {
 				continue
 			}
+			oe = *attribution.project(&oe)
 			if !since.IsZero() && oe.Timestamp.Before(since) {
 				continue
 			}
@@ -137,14 +145,22 @@ func (s *BoltStore) TokenStats(sessionID string, since, until time.Time) (*memor
 	err := s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(BucketObserveEvents)
 		c := b.Cursor()
+		attribution := newWorkAttribution()
+		for k, v := c.First(); k != nil; k, v = c.Next() {
+			var oe observe.Event
+			if json.Unmarshal(v, &oe) == nil {
+				attribution.observe(&oe)
+			}
+		}
 		for k, v := c.Last(); k != nil; k, v = c.Prev() {
 			var oe observe.Event
 			if err := json.Unmarshal(v, &oe); err != nil {
 				continue
 			}
-			retrievals.add(&oe)
-			addTokenWork(stats.Accounting.Work, &oe, sessionID, since, until)
-			if te := observeToTokenEvent(&oe); te != nil {
+			projected := attribution.project(&oe)
+			retrievals.add(projected)
+			addTokenWork(stats.Accounting.Work, projected, sessionID, since, until)
+			if te := observeToTokenEvent(projected); te != nil {
 				tally(te)
 			}
 		}

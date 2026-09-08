@@ -82,6 +82,20 @@ export function TokenAccountingSummary({
           </p>
         </div>
       </details>
+      <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3 items-center">
+        <Quantity
+          label="Prepared aide context"
+          quantity={accounting.by_stage.aide_context}
+        />
+        <p className="md:col-span-2 text-[11px] text-aide-text-muted">
+          Measured context strings or source excerpts prepared by aide,
+          including memories, skills and guidance. Coverage can omit formatting
+          and other context sources; this does not confirm final delivery or
+          full prompt cost. Repeated observations count again. This text can
+          also appear in host observations; do not add the stages. Historical
+          context estimates remain separate below.
+        </p>
+      </div>
       <TokenWorkAccounting report={accounting.work} />
       <TokenTransformationSummary report={accounting.transformations} />
     </section>

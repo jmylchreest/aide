@@ -237,13 +237,15 @@ export function recordObserveEventsBatch(
 }
 
 /**
- * Build the `kind=injection` batch event for one injected source — the
- * batch counterpart of emitInjectionEvent, sharing its field naming.
+ * Measure one prepared context source. Callers may supply a source excerpt
+ * rather than the complete formatted hook output; this is not a delivery
+ * receipt or a measurement of the full model prompt.
  */
 export function injectionBatchEvent(opts: {
   source: string;
   subtype: string;
   content: string;
+  contentBoundary?: "source_text" | "appended_text";
   sessionId?: string;
   name?: string;
   attrs?: Record<string, string>;
@@ -253,7 +255,6 @@ export function injectionBatchEvent(opts: {
     name: opts.name ?? opts.source,
     category: "inject",
     subtype: opts.subtype,
-    tokens: Math.round(opts.content.length / 3.0),
     file: opts.source,
     session: opts.sessionId,
     attrs: {
@@ -261,6 +262,12 @@ export function injectionBatchEvent(opts: {
       source_kind: opts.subtype,
       content_preview: previewContent(opts.content, 2000),
       ...(opts.attrs ?? {}),
+      // Protect the measurement from descriptive caller metadata. The Go
+      // store computes estimates with the same estimator as other stages.
+      accounting_version: "1",
+      observation_stage: "aide_context",
+      payload_bytes: String(Buffer.byteLength(opts.content, "utf8")),
+      content_boundary: opts.contentBoundary ?? "source_text",
     },
   };
 }
@@ -338,6 +345,7 @@ export function emitInjectionEvent(
     source: string;
     subtype: string;
     content: string;
+    contentBoundary?: "source_text" | "appended_text";
     sessionId?: string;
     name?: string;
     attrs?: Record<string, string>;

@@ -243,13 +243,14 @@ func (s *MCPServer) toolObserveMiddleware() mcp.Middleware {
 			// host session/call identity is guessed from process or transport state.
 			span.Attr("accounting_version", "1").Attr("observation_stage", "server_result")
 			if call, ok := result.(*mcp.CallToolResult); ok && call != nil {
+				recordWorkReceipt(span, params.Name, call)
 				if err == nil {
 					outcome = "returned"
 				}
 				total := 0
 				hasText := len(call.Content) == 0
 				for _, c := range call.Content {
-					if tc, ok := c.(*mcp.TextContent); ok {
+					if tc, ok := c.(*mcp.TextContent); ok && tc != nil {
 						total += len(tc.Text)
 						hasText = true
 					}

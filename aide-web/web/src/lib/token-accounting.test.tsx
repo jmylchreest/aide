@@ -3,6 +3,32 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { TokenAccountingSummary } from "../components/shared/TokenAccountingSummary";
 
 describe("token accounting presentation", () => {
+  it.each([
+    undefined,
+    { bytes: 0, estimated_tokens: 0, events: 1 },
+    { bytes: 6, estimated_tokens: 2, events: 1 },
+  ])(
+    "keeps prepared context separate with missing versus zero: %j",
+    (quantity) => {
+      const html = renderToStaticMarkup(
+        <TokenAccountingSummary
+          accounting={{
+            version: 1,
+            estimator: "utf8-bytes/3-v1",
+            by_stage: quantity ? { aide_context: quantity } : {},
+            arguments: { bytes: 0, estimated_tokens: 0, events: 0 },
+            legacy_events: 0,
+            missing_payload: 0,
+            missing_identity: 0,
+          }}
+        />,
+      );
+      expect(html).toContain("Prepared aide context");
+      expect(html).toContain("source excerpts");
+      expect(html).toContain("does not confirm final delivery");
+      expect(html).toContain(quantity ? `${quantity.bytes} bytes` : "Unknown");
+    },
+  );
   it("keeps unavailable evidence unknown for older servers", () => {
     const html = renderToStaticMarkup(<TokenAccountingSummary />);
     expect(html).toContain("Accounting unavailable");

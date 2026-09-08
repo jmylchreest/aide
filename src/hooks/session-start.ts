@@ -590,13 +590,15 @@ async function main(): Promise<void> {
         if (resume) {
           context = `${context}\n\n${resume}`;
           debugLog(`Injected resume checkpoint (source=${data.source})`);
-          observeBatch.push({
-            kind: "injection",
-            name: "resume-checkpoint",
-            category: "resume",
-            subtype: data.source || "resume",
-            session: sessionId,
-          });
+          observeBatch.push(
+            injectionBatchEvent({
+              source: "resume-checkpoint",
+              subtype: "session_memory",
+              content: resume,
+              sessionId,
+              attrs: { trigger: data.source || "resume" },
+            }),
+          );
         }
       }
     } catch (err) {
