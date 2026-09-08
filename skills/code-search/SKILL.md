@@ -63,8 +63,10 @@ What functions are in src/auth.ts?
 ### 4. File Outline (`mcp__plugin_aide_aide__code_outline`)
 
 Get a collapsed structural outline of a file — signatures preserved, bodies replaced with `{ ... }`.
-Uses ~5-15% of the tokens of the full file. **Use this before reading a file** to understand its
-structure, then use `Read` with offset/limit for specific sections.
+Use an outline to navigate an unfamiliar large file when its structure will help select what to read.
+Read known line ranges directly; read the full file when it is small or most of its contents are needed.
+When several symbol names are known, `code_read_symbol` supports a `symbols` batch (up to 10).
+Smaller returned text does not guarantee fewer whole-task tokens: an extra navigation round has overhead.
 
 **Example usage:**
 

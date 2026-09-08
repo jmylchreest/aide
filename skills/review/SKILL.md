@@ -71,12 +71,15 @@ a conformance violation outranks any style or quality issue below.
 
 ## Context-Efficient Reading
 
-Prefer lightweight tools first, then read in detail where needed:
+Choose retrieval from the review evidence already available. Inspect the diff and known ranges directly;
+read full files when they are small or most contents are relevant. Use navigation tools when they resolve
+missing context, since extra rounds can outweigh smaller responses:
 
-- **`code_outline`** -- Collapsed skeleton with signatures and line ranges. Great first step for unfamiliar files.
+- **`code_outline`** -- Collapsed skeleton with signatures and line ranges. Useful for navigating unfamiliar large files.
 - **`code_symbols`** -- Quick symbol list when you only need names and kinds.
 - **`code_search`** / **`code_references`** -- Find symbol definitions or callers across the codebase.
-- **`Read` with offset/limit** -- Read specific functions using line numbers from the outline.
+- **`Read` with offset/limit** -- Read known ranges from the diff, search results, or an outline.
+- **`code_read_symbol`** -- Read known symbols; batch several names with `symbols` (up to 10).
 - **Grep** -- Find patterns in code content (loops, queries, string literals) that the index doesn't cover.
 
 For reviews spanning many files, consider using **Task sub-agents** (`explore` type) which run in their
@@ -91,10 +94,10 @@ own context and return summaries.
    unavailable, never the source you check against. Use `decision_get` for one decision's
    full text when the list entry is not enough to judge conformance.
    See "Decision Conformance Pass" below for how to check them.
-2. **Outline changed files** - Use `code_outline` on each changed file to understand structure.
-   Identify areas of concern from signatures and line ranges.
-3. **Read targeted sections** - Use `Read` with `offset`/`limit` to read only the specific
-   functions/sections that need detailed review (use line numbers from the outline).
+2. **Inspect changed files** - Read the diff and identify areas needing surrounding context.
+   Use `code_outline` when unfamiliar large-file structure would help locate that context.
+3. **Read relevant code** - Read the functions/sections needed for detailed review, using known
+   ranges or symbol reads. Read a full file when its size or the review scope warrants it.
 4. **Search for context** - Use `code_search`, `code_references`, and **Grep**:
    - `code_search` — Find related function/class/type _definitions_ by name
    - `code_references` — Find all callers/usages of a modified symbol (exact name match)
@@ -159,7 +162,7 @@ or stale, say that instead of forcing a violation — recommend `/decide` on tha
 
 Use these tools during review:
 
-- `mcp__plugin_aide_aide__code_outline` - **Start here.** Get collapsed file skeleton with signatures and line ranges
+- `mcp__plugin_aide_aide__code_outline` - Navigate unfamiliar large files with signatures and line ranges when needed
 - `mcp__plugin_aide_aide__code_search` - Find symbols related to changes (e.g., `code_search query="getUserById"`)
 - `mcp__plugin_aide_aide__code_symbols` - List all symbols in a file being reviewed
 - `mcp__plugin_aide_aide__code_references` - Find all callers/usages of a modified symbol
@@ -266,16 +269,16 @@ Decisions sharing one piece of evidence still get one line each.
 
 A complete code review must:
 
-1. **Outline all changed files** - Use `code_outline` on every file in scope
-2. **Read critical sections** - Use targeted `Read` with offset/limit on flagged areas
+1. **Inspect all changed files** - Examine every file in the diff/scope
+2. **Read critical sections** - Read flagged areas and enough surrounding code to evaluate their behavior
 3. **Check for related code** - Use `code_search` and `code_references` to find callers/callees
 4. **Verify test coverage** - Check if tests exist for critical paths
 5. **Document all findings** - Even if no issues found, state that explicitly
 
 ### Checklist before submitting review:
 
-- [ ] All files in diff/scope have been outlined
-- [ ] Critical functions/sections read in detail (with offset/limit)
+- [ ] All files in diff/scope have been examined
+- [ ] Critical functions/sections and necessary context read in detail
 - [ ] Related symbols searched (callers, implementations)
 - [ ] Security checklist evaluated
 - [ ] Findings documented with file:line references

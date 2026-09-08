@@ -38,6 +38,40 @@ function record(content = "const value = 1;\n") {
 }
 
 describe("context windows and verified read coverage", () => {
+  it.each([1, 99, 100, 200, 1000])(
+    "does not advise an explicitly bounded read of %i lines",
+    (limit) => {
+      writeFileSync(join(cwd, "large.ts"), "const value = 1;\n".repeat(2000));
+      expect(
+        checkContextGuard(
+          "Read",
+          { file_path: "large.ts", offset: 1, limit },
+          cwd,
+          "session",
+        ).shouldAdvise,
+      ).toBe(false);
+    },
+  );
+  it.each([
+    { limit: 0 },
+    { limit: -1 },
+    { limit: "20" },
+    { limit: 1.5 },
+    { limit: NaN },
+    { limit: Infinity },
+    { offset: "50" },
+    { offset: 2.5 },
+  ])("does not interpret a malformed range as a targeted read: %j", (range) => {
+    writeFileSync(join(cwd, "large.ts"), "const value = 1;\n".repeat(2000));
+    expect(
+      checkContextGuard(
+        "Read",
+        { file_path: "large.ts", ...range },
+        cwd,
+        "session",
+      ).shouldAdvise,
+    ).toBe(true);
+  });
   it("does not treat an outline request as a successful delivered outline", () => {
     writeFileSync(join(cwd, "large.ts"), "const value = 1;\n".repeat(500));
     const session = cwd.split(/[\\/]/).pop()!;

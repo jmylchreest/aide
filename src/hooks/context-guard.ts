@@ -2,9 +2,8 @@
 /**
  * Context Guard Hook (PreToolUse)
  *
- * Monitors Read tool calls and advises agents to use code_outline
- * before reading large files. Also tracks code_outline/code_symbols
- * calls so it knows which files have been outlined.
+ * Offers conditional navigation advice for large unbounded reads, and reuse
+ * hints when matching full-file text was observed in the current context window.
  *
  * This is a soft warning — it never blocks, only injects advisory context.
  *

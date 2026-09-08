@@ -59,19 +59,40 @@ The watcher also triggers findings analysers on changed files.
 
 ## Smart Read Hints
 
-When the file watcher is enabled, aide tracks which files the AI has read during a session. If the AI attempts to re-read a file that hasn't changed, a soft hint suggests using `code_outline`, `code_symbols`, or `code_references` instead. This avoids redundant full-file reads and preserves context window tokens.
+With the file watcher enabled, aide can recognize matching full-file text observed
+in a known host/session/actor/context window. When the source still matches and its
+index is fresh, a soft hint suggests reusing that text if it remains available, or
+retrieving specific missing sections. This is advice, not a recorded avoided read
+or a guarantee of token savings. Unknown context windows do not establish reuse.
 
-The hint includes an estimated token count for the file, based on calibrated per-language character ratios.
+Valid bounded reads bypass both the large-file advisory and smart-read lookups,
+including ranges of 100 lines or more. Unbounded large source reads can receive
+conditional outline advice; reading directly remains appropriate when most of the
+file is needed. Hints never block the read. The Claude Code hook emits advisory
+context; the current OpenCode adapter only debug-logs the smart-read result.
+
+The smart-read hint labels the index's per-language token estimate as estimated
+text tokens. It is not measured provider usage.
 
 ## Token Estimation (Experimental)
 
 :::note
-Token tracking is **experimental** and all values are **estimates**. Token counts are approximations based on calibrated character ratios, not exact tokenizer output. Use them for relative comparisons and trend analysis, not precise cost accounting.
+Token estimates are **experimental**, not exact tokenizer or billing counts.
+Recorded text bytes and runtime-reported usage have separate measurement boundaries;
+neither should be presented as an inferred saving.
 :::
 
-Each indexed file stores an estimated token count alongside its symbols. Estimates are calibrated against the Anthropic `count_tokens` API with per-language ratios (e.g., Go ~2.8 chars/token, TypeScript ~3.2, Markdown ~3.7). These estimates are used by the smart read hints and the Token Intelligence dashboard in aide-web.
+Index metadata retains per-language token estimates, used by read-check and
+smart-read hints. These legacy estimates are separate from the central
+`utf8-bytes/3-v1` estimator used for measured-text accounting and conditional
+retrieval comparisons in the CLI and aide-web. Neither estimate is a live
+tokenizer call. Provider/runtime counters, when available, must remain separately
+identified rather than combined with estimated text totals.
 
-Token events (reads, outline substitutions, avoided re-reads) are recorded in the store and can be viewed with `aide token stats` or the aide-web Tokens page.
+Recorded tool results and hint injections can be viewed with `aide token stats`
+or the aide-web Tokens page. A suggested outline or an absence of a later read does
+not itself create a measured saved-token event. See [retrieval experiments](../reference/retrieval-experiments.md)
+for the evidence boundaries and independent task comparisons.
 
 ## File Exclusions
 

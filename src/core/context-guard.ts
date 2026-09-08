@@ -1,9 +1,8 @@
 /**
  * Context Guard — platform-agnostic core logic.
  *
- * Monitors Read tool calls and advises agents to use code_outline
- * before reading large files. This preserves context window for
- * the actual task by avoiding dumping entire files into conversation.
+ * Offers conditional navigation advice for large, unbounded Read calls.
+ * A bounded read already expresses a retrieval choice; it needs no extra hint.
  *
  * Behaviour:
  *   - Triggers on Read tool calls for files > 5KB (~150 lines)
@@ -57,11 +56,15 @@ export interface ContextGuardResult {
   tracked?: boolean;
 }
 
-/**
- * Estimate line count from file size (rough: ~35 bytes per line average).
- */
-function estimateLines(sizeBytes: number): number {
-  return Math.round(sizeBytes / 35);
+/** Valid explicit bounds identify a targeted read, regardless of its length. */
+function isTargetedRead(toolInput: Record<string, unknown>): boolean {
+  const { offset, limit } = toolInput;
+  return (
+    (typeof offset === "number" &&
+      Number.isSafeInteger(offset) &&
+      offset > 1) ||
+    (typeof limit === "number" && Number.isSafeInteger(limit) && limit > 0)
+  );
 }
 
 /**
@@ -104,14 +107,7 @@ export function checkContextGuard(
   }
 
   // Check if the agent is already using offset/limit (targeted read)
-  const offset = toolInput.offset as number | undefined;
-  const limit = toolInput.limit as number | undefined;
-  if (offset !== undefined && offset > 1) {
-    // Agent is doing a targeted read — no advisory needed
-    return { shouldAdvise: false };
-  }
-  if (limit !== undefined && limit < 100) {
-    // Agent is limiting the read — no advisory needed
+  if (isTargetedRead(toolInput)) {
     return { shouldAdvise: false };
   }
 
@@ -131,15 +127,13 @@ export function checkContextGuard(
   }
 
   // Generate advisory
-  const estLines = estimateLines(fileSize);
   const sizeKB = (fileSize / 1024).toFixed(1);
 
   const advisory =
-    `[aide:context] This file is ~${estLines} lines (${sizeKB}KB). Consider using \`code_outline\` ` +
-    `first to see its structure, then \`Read\` with offset/limit for specific sections. ` +
-    `This preserves your context window for the full task.`;
+    `[aide:context] This file is ${sizeKB} KiB. If you need only selected definitions, ` +
+    `\`code_outline\` can help locate them. Read the file directly when most of its contents are needed.`;
 
-  debug(SOURCE, `Advisory for ${filePath}: ${estLines} lines, ${sizeKB}KB`);
+  debug(SOURCE, `Advisory for ${filePath}: ${sizeKB} KiB`);
   return { shouldAdvise: true, advisory };
 }
 
@@ -155,8 +149,8 @@ export interface SmartReadHintResult {
 }
 
 /**
- * Check whether a Read call should receive a smart-read hint suggesting
- * the agent use code_outline/code_symbols/code_references instead.
+ * Check whether an unbounded Read should receive a hint to reuse matching text
+ * if it is still available, or retrieve only the missing evidence.
  *
  * Triggers when:
  *   1. Full-file text was observed in the current context window
@@ -199,12 +193,7 @@ export function checkSmartReadHint(
   }
 
   // Skip targeted reads (agent already using offset/limit)
-  const offset = toolInput.offset as number | undefined;
-  const limit = toolInput.limit as number | undefined;
-  if (offset !== undefined && offset > 1) {
-    return { shouldHint: false };
-  }
-  if (limit !== undefined && limit < 100) {
+  if (isTargetedRead(toolInput)) {
     return { shouldHint: false };
   }
 
@@ -229,12 +218,10 @@ export function checkSmartReadHint(
 
   if (readCheck.indexed && readCheck.fresh && readCheck.outline_available) {
     const tokens = readCheck.estimated_tokens;
-    const tokenInfo = tokens > 0 ? ` (~${tokens} tokens)` : "";
+    const tokenInfo = tokens > 0 ? ` (~${tokens} estimated text tokens)` : "";
     const hint =
       `[aide:smart-read] Matching full-file text was observed in this context window${tokenInfo}. ` +
-      `Consider using code_outline (for structure), ` +
-      `code_symbols (for API surface), or code_references (for call sites) ` +
-      `to avoid re-reading the full file.`;
+      `Reuse it if still available; retrieve specific missing sections or symbols when needed.`;
 
     debug(SOURCE, `Smart read hint for: ${filePath} (${tokens} tokens)`);
     return { shouldHint: true, hint };
