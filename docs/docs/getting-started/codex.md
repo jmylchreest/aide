@@ -66,14 +66,25 @@ toggle as OpenCode and Claude Code:
 ```
 
 Dev mode builds the local Go binary and switches configured Codex installations
-to `bin/aide`, local TypeScript hooks, and local skill copies. Marketplace aide
-plugins are temporarily disabled to prevent duplicate MCP servers and skills.
-In dev mode, skills use standalone names rather than the `aide:` namespace.
-Re-run `dev` after changing Go code or skills; hooks run directly from source.
+to `bin/aide` and local TypeScript hooks. It disables the marketplace plugin's
+MCP entry while preserving the plugin and its installed skills. Skill discovery
+remains managed by the installer. Re-run `dev` after changing Go code; hooks run
+directly from source.
 
-Prod mode restores the saved MCP entry, aide hooks, plugin enablement, and skill
-copies. Unrelated MCP servers, hooks, and config settings are preserved, including
+When both user and project installations exist, user configuration owns the dev
+hooks. The project keeps its MCP selection and unrelated hooks, but removes its
+aide hook registrations so Codex does not run the same source hook twice.
+Project-only installations keep project hooks. `status` reports overlapping
+user/project aide registrations; the toggle does not hide repeated events in
+the telemetry or suppress legitimate repeated calls at runtime.
+
+Prod mode restores the saved MCP entry, aide hooks and plugin MCP enablement.
+Older snapshots can also restore skill copies changed by an earlier toggle.
+Unrelated MCP servers, hooks, and config settings are preserved, including
 changes made while dev mode was active. User-owned skills are left alone.
+Restoration can bring back an originally overlapping hook setup; `status`
+reports it so the installation scopes can be corrected deliberately. Separate
+user/project installer invocations remain scoped to their requested location.
 For older installs already pointing at this checkout without a saved production
 setup, local MCP and hook commands switch to the published npm package.
 

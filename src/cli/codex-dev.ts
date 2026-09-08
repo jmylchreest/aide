@@ -8,7 +8,7 @@ import {
   rmSync,
   writeFileSync,
 } from "fs";
-import { join } from "path";
+import { isAbsolute, join } from "path";
 import * as TOML from "smol-toml";
 import { generateHooksJson, isAideHookCommand } from "./codex-config.js";
 
@@ -40,19 +40,44 @@ function quoteArgument(value: string): string {
     : `'${value.replace(/'/g, "'\\''")}'`;
 }
 
+/** Compare explicit configured files; never infer a root or resolve on PATH. */
+function sameLocalFile(candidate: unknown, expected: string): boolean {
+  if (typeof candidate !== "string" || !isAbsolute(candidate)) return false;
+  if (candidate === expected) return true;
+  try {
+    return realpathSync(candidate) === realpathSync(expected);
+  } catch {
+    return false;
+  }
+}
+
 function isLocalHook(command: string, paths: CodexDevPaths): boolean {
   const cli = join(paths.repo, "src", "cli", "index.ts");
-  return command.includes(cli) || command.includes(quoteArgument(cli));
+  if (command.includes(cli) || command.includes(quoteArgument(cli)))
+    return true;
+  // Recognize the explicit script argument in aide's generated runner command.
+  // Decode only our quoting form, without shell execution or interpolation.
+  const argument = command.match(/^\S+\s+(.+?)\s+hook(?:\s|$)/)?.[1];
+  if (!argument) return false;
+  let candidate = argument;
+  if (argument.startsWith("'") && argument.endsWith("'")) {
+    candidate = argument.slice(1, -1).replace(/'\\''/g, "'");
+    if (quoteArgument(candidate) !== argument) return false;
+  } else if (argument.startsWith('"') && argument.endsWith('"')) {
+    candidate = argument.slice(1, -1).replace(/\\"/g, '"');
+    if (quoteArgument(candidate) !== argument) return false;
+  }
+  return sameLocalFile(candidate, cli);
 }
 
 function isLocalMcp(mcp: Table, paths: CodexDevPaths): boolean {
   return (
-    mcp.command === join(paths.repo, "bin", BINARY) ||
+    sameLocalFile(mcp.command, join(paths.repo, "bin", BINARY)) ||
     (mcp.args ?? []).some((arg: string) =>
       [
         join(paths.repo, "bin", "aide-wrapper.ts"),
         join(paths.repo, "src", "cli", "index.ts"),
-      ].includes(arg),
+      ].some((expected) => sameLocalFile(arg, expected)),
     )
   );
 }
@@ -113,6 +138,24 @@ function readSnapshot(paths: CodexDevPaths): Snapshot | null {
     );
   }
   return state;
+}
+
+/** Exact event/matcher/hook identities; different regexes may still overlap. */
+export function codexAideHookRegistrations(paths: CodexDevPaths): string[] {
+  const hooks = readJson<Hooks>(join(paths.configDir, "hooks.json"), {
+    hooks: {},
+  });
+  return Object.entries(selectHooks(hooks, true).hooks).flatMap(
+    ([event, groups]) =>
+      groups.flatMap((group) =>
+        group.hooks.flatMap((hook) => {
+          const name = hook.command.match(/\bhook\s+([\w-]+)(?:\s|$)/)?.[1];
+          return name
+            ? [JSON.stringify([event, group.matcher ?? null, name])]
+            : [];
+        }),
+      ),
+  );
 }
 
 export function codexDevMode(
@@ -181,6 +224,7 @@ function restoreLegacySkills(paths: CodexDevPaths, state: Snapshot): void {
 export function switchCodexDev(
   paths: CodexDevPaths,
   mode: "dev" | "prod",
+  hookPolicy: "local" | "inherit" = "local",
 ): string {
   const config = readConfig(paths);
   const hooksPath = join(paths.configDir, "hooks.json");
@@ -294,10 +338,18 @@ export function switchCodexDev(
     const prefix = `bun ${quoteArgument(join(paths.repo, "src", "cli", "index.ts"))} hook`;
     writeFileSync(
       hooksPath,
-      JSON.stringify(mergeHooks(hooks, generateHooksJson(prefix)), null, 2) +
-        "\n",
+      JSON.stringify(
+        mergeHooks(
+          hooks,
+          hookPolicy === "inherit" ? { hooks: {} } : generateHooksJson(prefix),
+        ),
+        null,
+        2,
+      ) + "\n",
     );
-    return "dev mode (local binary and hooks; installed skills unchanged)";
+    return hookPolicy === "inherit"
+      ? "dev mode (local binary; hooks inherited from Global; installed skills unchanged)"
+      : "dev mode (local binary and hooks; installed skills unchanged)";
   }
 
   if (!state) throw new Error("Missing Codex dev snapshot");
