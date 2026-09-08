@@ -23,6 +23,171 @@ afterEach(() =>
 const hash = (text: string) => createHash("sha256").update(text).digest("hex");
 
 describe("retrieval evidence", () => {
+  describe("shell execution directory evidence", () => {
+    const options = { requireShellWorkdir: true };
+    it.each([
+      ["cat source.ts", "first\né\nlast\n", "first\né\nlast\n"],
+      ["sed -n '2,2p' source.ts", "é\n", "different\né\nsource\n"],
+    ])(
+      "cannot certify coincidentally matching root bytes for %s",
+      (cmd, text, nested) => {
+        const cwd = fixture();
+        mkdirSync(join(cwd, "nested"));
+        writeFileSync(join(cwd, "nested", "source.ts"), nested);
+        for (const workdir of [
+          undefined,
+          null,
+          "",
+          " ",
+          42,
+          {},
+          "bad\0dir",
+          "missing",
+          "source.ts",
+          "missing/..",
+        ]) {
+          const evidence = retrievalEvidence(
+            cwd,
+            "Bash",
+            { cmd, workdir },
+            text,
+            { exit_code: 0 },
+            false,
+            undefined,
+            options,
+          );
+          expect(evidence).toEqual({
+            retrieval_method: cmd.startsWith("cat") ? "shell_cat" : "shell_sed",
+            retrieval_status: "unverified",
+            retrieval_reason: "unknown_shell_workdir",
+          });
+        }
+      },
+    );
+    it("resolves valid workdir and cwd evidence to the nested source", () => {
+      const cwd = fixture();
+      mkdirSync(join(cwd, "nested"));
+      const nested = "different\né\nsource\n";
+      writeFileSync(join(cwd, "nested", "source.ts"), nested);
+      for (const args of [
+        { workdir: "nested" },
+        { workdir: join(cwd, "nested") },
+        { cwd: "nested" },
+      ]) {
+        const evidence = retrievalEvidence(
+          cwd,
+          "Bash",
+          { cmd: "sed -n '2,2p' source.ts", ...args },
+          "é\n",
+          { exit_code: 0 },
+          false,
+          undefined,
+          options,
+        );
+        expect(evidence).toMatchObject({
+          retrieval_target: join("nested", "source.ts"),
+          retrieval_status: "range",
+          delivered_start_line: "2",
+          delivered_end_line: "2",
+        });
+        expect(JSON.parse(evidence.source_references)).toEqual([
+          {
+            file: join("nested", "source.ts"),
+            sha256: hash(nested),
+            bytes: Buffer.byteLength(nested),
+          },
+        ]);
+      }
+    });
+    it("allows absolute shell targets without workdir evidence", () => {
+      const cwd = fixture();
+      for (const workdir of [undefined, "", 42]) {
+        const evidence = retrievalEvidence(
+          cwd,
+          "Bash",
+          { cmd: `cat '${join(cwd, "source.ts")}'`, workdir },
+          "first\né\nlast\n",
+          undefined,
+          false,
+          undefined,
+          options,
+        );
+        expect(evidence).toMatchObject({
+          retrieval_status: "full_file",
+          retrieval_target: "source.ts",
+        });
+        expect(evidence.source_references).toBeDefined();
+        expect(evidence.retrieval_reason).toBeUndefined();
+      }
+    });
+    it.each([
+      ["cat source.ts", { exit_code: 2 }, false, "failed", "shell_cat"],
+      ["cat source.ts", { exit_code: 0 }, true, "failed", "shell_cat"],
+      [
+        "cat source.ts",
+        { session_id: 12, exit_code: null },
+        false,
+        "pending",
+        "shell_cat",
+      ],
+      [
+        "rg absent source.ts",
+        { exit_code: 1 },
+        false,
+        "search",
+        "shell_search",
+      ],
+      [
+        "rg absent source.ts",
+        { exit_code: 2 },
+        false,
+        "failed",
+        "shell_search",
+      ],
+      [
+        "rg absent source.ts",
+        { exit_code: "0" },
+        false,
+        "unverified",
+        "shell_search",
+      ],
+    ])(
+      "retains shell status without directory evidence: %s %j",
+      (cmd, response, failed, status, method) => {
+        expect(
+          retrievalEvidence(
+            "/tmp",
+            "Bash",
+            { cmd },
+            "",
+            response,
+            failed,
+            undefined,
+            options,
+          ),
+        ).toEqual({
+          retrieval_method: method,
+          retrieval_status: status,
+          retrieval_reason: "unknown_shell_workdir",
+        });
+      },
+    );
+    it("does not infer an unrequested range even with a known workdir", () => {
+      const evidence = retrievalEvidence(
+        fixture(),
+        "Bash",
+        { cmd: "cat source.ts", workdir: "." },
+        "é\n",
+        undefined,
+        false,
+        undefined,
+        options,
+      );
+      expect(evidence.retrieval_status).toBe("unverified");
+      expect(evidence.source_references).toBeUndefined();
+      expect(evidence.delivered_start_line).toBeUndefined();
+    });
+  });
   it("keeps completed no-match searches as searches, without overriding explicit failures", () => {
     for (const command of [
       "rg -n absent source.ts",

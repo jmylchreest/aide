@@ -124,6 +124,20 @@ function snapshot(
   }
 }
 
+function validShellWorkdir(cwd: string, workdir: unknown): workdir is string {
+  if (typeof workdir !== "string" || !workdir.trim() || workdir.includes("\0"))
+    return false;
+  try {
+    // Check the supplied path before normalising away components such as a
+    // nonexistent directory followed by "..".
+    return statSync(
+      isAbsolute(workdir) ? workdir : `${cwd}${sep}${workdir}`,
+    ).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
 function receiptEvidence(
   name: string,
   text: string | undefined,
@@ -180,6 +194,7 @@ export function retrievalEvidence(
   response: unknown,
   failed: boolean,
   hookExitCode?: unknown,
+  options: { requireShellWorkdir?: boolean } = {},
 ): Record<string, string> {
   const result = object(response);
   const shell =
@@ -245,12 +260,6 @@ export function retrievalEvidence(
           : undefined;
   if (!target)
     return name === "Bash" ? { retrieval_status: "unclassified_shell" } : {};
-  if (name === "Bash" && target.file) {
-    const workdir = args.workdir ?? args.cwd;
-    if (workdir !== undefined && typeof workdir !== "string")
-      return { retrieval_status: "unclassified_shell" };
-    target.file = resolve(cwd, workdir ?? ".", target.file);
-  }
   const attrs: Record<string, string> = {
     retrieval_method: target.method,
     retrieval_status: failed
@@ -263,6 +272,24 @@ export function retrievalEvidence(
             ? "search"
             : "unverified",
   };
+  if (name === "Bash" && target.file) {
+    const workdir = args.workdir ?? args.cwd;
+    // Some hosts omit the shell's execution directory from hook input. A
+    // matching project-root file cannot establish where a relative read ran.
+    if (
+      options.requireShellWorkdir &&
+      !isAbsolute(target.file) &&
+      !validShellWorkdir(cwd, workdir)
+    ) {
+      attrs.retrieval_reason = "unknown_shell_workdir";
+      return attrs;
+    }
+    if (!(options.requireShellWorkdir && isAbsolute(target.file))) {
+      if (workdir !== undefined && typeof workdir !== "string")
+        return { retrieval_status: "unclassified_shell" };
+      target.file = resolve(cwd, workdir ?? ".", target.file);
+    }
+  }
   if (target.file)
     attrs.retrieval_target = relative(cwd, resolve(cwd, target.file));
   if (

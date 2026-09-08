@@ -75,10 +75,17 @@ Optional availability produced no uptake here; the traces contain no aide retrie
 or discovery calls. They do not establish why the agents chose direct reads. A small
 file can reasonably favour a direct read, so this is not evidence to mandate outlines.
 
-The immediate production follow-up is to refuse relative shell source baselines
-when Codex hooks do not preserve the command working directory. Existing explicit
-workdir handling already resolves correctly when that field reaches aide. Exact
-text bytes should remain available even when file attribution is unknown.
+The production follow-up now refuses relative shell source baselines when Codex
+hooks do not preserve the command working directory. Existing explicit workdir
+handling resolves correctly when that field reaches aide. Exact text bytes remain
+available when file attribution is unknown. The change was made after all trials;
+it does not rewrite their recorded evidence or grades.
+
+[Live verification](cwd-guard-verification.json) confirms an ambiguous relative
+read has no source baseline, while an absolute read identifies the actual isolated
+copy. Both record 1,678 bytes. The full plugin suite passes 461 tests, and the fix
+passed independent review. The configured hooks load this checkout on each event,
+so no rebuild or restart was needed.
 
 The next retrieval investigation should examine how existing host guidance presents
 selective retrieval at a useful decision point. Then test one explicit, targeted

@@ -1,0 +1,80 @@
+{
+  "phase": "post-evaluation live verification; outside all six frozen trials",
+  "requested_workdir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-08-outcomes/t02",
+  "events": [
+    {
+      "id": "01M20PP5Q04RTY68Z4065CFMPE",
+      "ts": "2026-09-08T14:27:54.208354987Z",
+      "kind": "tool_call",
+      "name": "Bash",
+      "category": "execute",
+      "subtype": "shell",
+      "tokens": 559,
+      "session": "01a07b15-668c-7453-b59c-9be3d32b2005",
+      "attrs": {
+        "accounting_version": "1",
+        "actor_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+        "command": "rtk proxy cat ./src/core/context-pruning/replacement.ts",
+        "context_continuity": "reset",
+        "context_epoch": "ffb44202-5619-4725-9461-dc7c506732c5",
+        "context_status": "active",
+        "host": "codex",
+        "invocation_id": "exec-f6e4764e-857d-442c-ab73-c0648f6696f3",
+        "observation_stage": "host_result",
+        "payload_bytes": "1678",
+        "raw_tool": "Bash",
+        "retrieval_method": "shell_cat",
+        "retrieval_reason": "unknown_shell_workdir",
+        "retrieval_status": "unverified",
+        "token_estimator": "utf8-bytes/3-v1"
+      }
+    },
+    {
+      "id": "01M20PP5Q8MYTD09EWQ14MSAS2",
+      "ts": "2026-09-08T14:27:54.216250061Z",
+      "kind": "tool_call",
+      "name": "Bash",
+      "category": "execute",
+      "subtype": "shell",
+      "tokens": 559,
+      "session": "01a07b15-668c-7453-b59c-9be3d32b2005",
+      "attrs": {
+        "accounting_version": "1",
+        "actor_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+        "command": "rtk proxy cat /mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-08-outcomes/t02/src/core/context-pruning/replacement.ts",
+        "context_continuity": "reset",
+        "context_epoch": "ffb44202-5619-4725-9461-dc7c506732c5",
+        "context_status": "active",
+        "host": "codex",
+        "invocation_id": "exec-465d53b9-72b3-4954-bc96-8ac7be3b0cb2",
+        "observation_stage": "host_result",
+        "payload_bytes": "1678",
+        "raw_tool": "Bash",
+        "reference_kind": "full_file",
+        "retrieval_method": "shell_cat",
+        "retrieval_status": "full_file",
+        "retrieval_target": ".aide/state/evaluation/2026-09-08-outcomes/t02/src/core/context-pruning/replacement.ts",
+        "source_references": "[{\"file\":\".aide/state/evaluation/2026-09-08-outcomes/t02/src/core/context-pruning/replacement.ts\",\"sha256\":\"398ab0e1008cafc8213b5c6d2909e0883fb65f323eb61b63b792369d9dd7c78b\",\"bytes\":1678}]",
+        "source_verification": "current_file_match",
+        "token_estimator": "utf8-bytes/3-v1"
+      }
+    }
+  ],
+  "assertions": {
+    "relative_read_without_preserved_hook_workdir_has_no_baseline": true,
+    "absolute_read_references_actual_copy": true,
+    "both_retain_1678_measured_bytes": true
+  },
+  "tests": {
+    "plugin_suite_passed": 461,
+    "focused_accounting_passed": 34,
+    "offline_evaluation_helpers_passed": 39
+  },
+  "independent_source_review": "Approved; no blockers.",
+  "guard_source_sha256": {
+    "src/core/retrieval-evidence.ts": "3c04ef3140d574a7e6311120174d7163283f105d79a4d8ed2adda6fd1b134b5f",
+    "src/core/tool-observe.ts": "208fb36165d6d284ef63a6f590b5e4b283ec196f4969cc5b8bf18911fc8fed3f"
+  },
+  "rebuild_or_restart_required": false,
+  "basis": "Configured Codex hooks invoke this source checkout for each event; verified using fresh native tool events."
+}

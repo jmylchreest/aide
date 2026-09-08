@@ -258,6 +258,9 @@ export function recordToolEvent(
     input.toolResponse,
     !!errText,
     input.exitCode,
+    // Codex hook input can omit the actual exec working directory. Relative
+    // shell reads need that evidence before attributing them to project files.
+    { requireShellWorkdir: input.host === "codex" },
   );
   const identity = {
     host: input.host,
