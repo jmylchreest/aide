@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
@@ -12,6 +13,7 @@ import (
 	"github.com/jmylchreest/aide/aide/pkg/code"
 	"github.com/jmylchreest/aide/aide/pkg/observe"
 	"github.com/jmylchreest/aide/aide/pkg/store"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 type sourceSnapshot struct {
@@ -52,22 +54,43 @@ func (s *MCPServer) readSourceSnapshot(file string) (*sourceSnapshot, error) {
 // These are conditional full-file reference bytes, not observed avoided reads.
 // Keep the versioned evidence out of the historical TokensSaved accumulator.
 // Rendered output bytes are measured separately by the tool middleware.
-func recordSourceReferences(span *observe.Span, snapshots map[string]*sourceSnapshot) {
+type sourceReference struct {
+	File   string `json:"file"`
+	SHA256 string `json:"sha256"`
+	Bytes  int    `json:"bytes"`
+}
+
+func recordSourceReferences(span *observe.Span, snapshots map[string]*sourceSnapshot) []sourceReference {
 	if len(snapshots) == 0 {
-		return
+		return nil
 	}
-	type reference struct {
-		File   string `json:"file"`
-		SHA256 string `json:"sha256"`
-		Bytes  int    `json:"bytes"`
-	}
-	refs := make([]reference, 0, len(snapshots))
+	refs := make([]sourceReference, 0, len(snapshots))
 	for _, snapshot := range snapshots {
-		refs = append(refs, reference{snapshot.path, fmt.Sprintf("%x", sha256.Sum256(snapshot.content)), len(snapshot.content)})
+		refs = append(refs, sourceReference{snapshot.path, fmt.Sprintf("%x", sha256.Sum256(snapshot.content)), len(snapshot.content)})
 	}
 	sort.Slice(refs, func(i, j int) bool { return refs[i].File < refs[j].File })
 	encoded, _ := json.Marshal(refs)
 	span.Attr("reference_kind", "full_file").Attr("source_references", string(encoded))
+	return refs
+}
+
+// The host may preserve protocol metadata or drop it. Only a surviving receipt
+// with a matching text digest can attach these references to a host call/window.
+// No session identity is inferred here and no receipt is added to model text.
+func sourceResult(span *observe.Span, tool string, snapshots map[string]*sourceSnapshot, text string) *mcp.CallToolResult {
+	result := textResult(text)
+	refs := recordSourceReferences(span, snapshots)
+	if len(refs) == 0 {
+		return result
+	}
+	id := rand.Text()
+	span.Attr("retrieval_id", id)
+	result.Meta = mcp.Meta{"aide/retrieval": map[string]any{
+		"version": 1, "id": id, "tool": tool,
+		"text_sha256": fmt.Sprintf("%x", sha256.Sum256([]byte(text))),
+		"references":  refs,
+	}}
+	return result
 }
 
 // Candidate locations come from the index; definitions and ranges come only

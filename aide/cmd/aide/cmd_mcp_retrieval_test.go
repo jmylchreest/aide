@@ -151,6 +151,38 @@ func TestRetrievalBatchRecordsOneVersionedReferencePerFile(t *testing.T) {
 	if events[0].TokensSaved != 0 {
 		t.Fatal("conditional reference must not be recorded as observed savings")
 	}
+	assertRetrievalReceipt(t, r, "code_read_symbol", events[0].Attrs["retrieval_id"], events[0].Attrs["source_references"])
+}
+
+func assertRetrievalReceipt(t *testing.T, result *mcp.CallToolResult, tool, id, references string) {
+	t.Helper()
+	encoded, err := json.Marshal(result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wire struct {
+		Meta map[string]struct {
+			Version    int             `json:"version"`
+			ID         string          `json:"id"`
+			Tool       string          `json:"tool"`
+			TextSHA256 string          `json:"text_sha256"`
+			References json.RawMessage `json:"references"`
+		} `json:"_meta"`
+	}
+	if err := json.Unmarshal(encoded, &wire); err != nil {
+		t.Fatal(err)
+	}
+	r := wire.Meta["aide/retrieval"]
+	var text strings.Builder
+	for _, content := range result.Content {
+		text.WriteString(content.(*mcp.TextContent).Text)
+	}
+	if r.Version != 1 || r.ID == "" || r.ID != id || r.Tool != tool || r.TextSHA256 != fmt.Sprintf("%x", sha256.Sum256([]byte(text.String()))) || string(r.References) != references {
+		t.Fatalf("receipt does not bind server source evidence to returned text: %s", encoded)
+	}
+	if strings.Contains(text.String(), "aide/retrieval") || strings.Contains(text.String(), id) {
+		t.Fatal("receipt leaked into model text")
+	}
 }
 
 func TestRetrievalRejectsAmbiguousNames(t *testing.T) {
@@ -176,6 +208,26 @@ func TestRetrievalExplicitFileWorksWithoutIndex(t *testing.T) {
 	r, text := retrievalText(t, s, `{"symbol":"Fresh","file":"fresh.go"}`)
 	if r.IsError || !strings.Contains(text, "func Fresh()") {
 		t.Fatalf("explicit file requires index: %s", text)
+	}
+}
+
+func TestRetrievalOutlineReceiptSurvivesWireEncoding(t *testing.T) {
+	s, cs, root := retrievalFixture(t)
+	indexRetrievalFile(t, s, cs, root, "source.go", "package demo\nfunc Target() {}\n")
+	result, _, err := s.handleCodeOutline(context.Background(), nil, CodeOutlineInput{File: "source.go"})
+	if err != nil || result.IsError {
+		t.Fatalf("outline: %v %v", result, err)
+	}
+	receipt := result.Meta["aide/retrieval"].(map[string]any)
+	refs, _ := json.Marshal(receipt["references"])
+	assertRetrievalReceipt(t, result, "code_outline", receipt["id"].(string), string(refs))
+	missing, _, _ := s.handleCodeOutline(context.Background(), nil, CodeOutlineInput{File: "missing.go"})
+	if !missing.IsError || missing.Meta["aide/retrieval"] != nil {
+		t.Fatal("failed outline must not claim a source receipt")
+	}
+	partial, _ := retrievalText(t, s, `{"symbols":["Target","Missing"],"file":"source.go"}`)
+	if !partial.IsError || partial.Meta["aide/retrieval"] == nil {
+		t.Fatal("partial batch must keep its failure and successful source evidence")
 	}
 }
 

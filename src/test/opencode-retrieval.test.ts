@@ -1,0 +1,53 @@
+import { describe, expect, it, vi } from "vitest";
+vi.mock("child_process", () => ({ execFileSync: vi.fn(() => "") }));
+vi.mock("../core/mcp-sync.js", () => ({ syncMcpServers: vi.fn() }));
+vi.mock("../core/session-init.js", async (original) => ({
+  ...(await original<object>()),
+  ensureDirectories: vi.fn(),
+  loadConfig: () => ({}),
+  cleanupStaleStateFiles: vi.fn(),
+  resetHudState: vi.fn(),
+  runSessionInit: () => null,
+  getProjectName: () => "test",
+}));
+vi.mock("../core/aide-client.js", async (original) => ({
+  ...(await original<object>()),
+  findAideBinary: () => "aide",
+  getState: () => null,
+  setState: vi.fn(),
+}));
+import { execFileSync } from "child_process";
+import { createHooks } from "../opencode/hooks.js";
+import type { OpenCodeClient } from "../opencode/types.js";
+
+describe("OpenCode MCP observations", () => {
+  it("observes content-block results without assuming a rendered output property", async () => {
+    const hooks = await createHooks("/tmp", "/tmp", {} as OpenCodeClient);
+    const output = { content: [{ type: "text", text: "é" }], isError: true };
+    await hooks["tool.execute.after"]!(
+      {
+        tool: "aide_code_outline",
+        sessionID: "session",
+        callID: "call",
+        args: { file: "source.ts" },
+      },
+      output,
+    );
+    const calls = vi
+      .mocked(execFileSync)
+      .mock.calls.map((call) => call[1] as string[]);
+    const event = calls.find((args) => args?.includes("--name=code_outline"));
+    expect(event).toEqual(
+      expect.arrayContaining([
+        "--attr=payload_bytes=2",
+        "--attr=retrieval_status=failed",
+        "--session=session",
+        "--attr=invocation_id=call",
+      ]),
+    );
+    expect(output).toEqual({
+      content: [{ type: "text", text: "é" }],
+      isError: true,
+    });
+  });
+});

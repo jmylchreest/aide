@@ -480,9 +480,7 @@ func (s *MCPServer) handleCodeOutline(ctx context.Context, _ *mcp.CallToolReques
 	}
 
 	outline := buildOutline(snapshot.content, snapshot.symbols, !input.KeepComments)
-	recordSourceReferences(span, map[string]*sourceSnapshot{snapshot.path: snapshot})
-
-	return textResult(outline), nil, nil
+	return sourceResult(span, "code_outline", map[string]*sourceSnapshot{snapshot.path: snapshot}, outline), nil, nil
 }
 
 func (s *MCPServer) handleCodeReadCheck(_ context.Context, _ *mcp.CallToolRequest, input CodeReadCheckInput) (*mcp.CallToolResult, any, error) {
@@ -587,7 +585,6 @@ func (s *MCPServer) handleCodeReadSymbol(ctx context.Context, _ *mcp.CallToolReq
 	}
 
 	span.Attr("symbols", fmt.Sprintf("%d/%d", found, len(names)))
-	recordSourceReferences(span, references)
 	if found == 1 {
 		// Single-symbol mode: surface the file path AND symbol body line
 		// range on the span so the dashboard's file viewer can scroll
@@ -596,7 +593,7 @@ func (s *MCPServer) handleCodeReadSymbol(ctx context.Context, _ *mcp.CallToolReq
 		span.FilePath(single.FilePath).Attr("start_line", strconv.Itoa(single.StartLine)).Attr("end_line", strconv.Itoa(single.EndLine))
 	}
 
-	result := textResult(sb.String())
+	result := sourceResult(span, "code_read_symbol", references, sb.String())
 	result.IsError = found != len(names)
 	return result, nil, nil
 }

@@ -4,16 +4,16 @@
  * tool.execute.after handler so dashboard categorisation stays consistent
  * across plugins.
  *
- * Mirror image of the MCP-side mcpToolTaxonomy in cmd_mcp.go: native tools
- * (Read, Edit, Bash, ...) flow through here; MCP tools (code_outline,
- * findings_search, ...) flow through the middleware. Together they give
- * observations at distinct boundaries; missing identity or payload stays unknown.
+ * Native tools and recognised aide source retrievals are observed here at the
+ * host boundary. MCP middleware independently observes server results; those
+ * stages must never be added together as if they were separate deliveries.
  */
 
 import { execFileSync } from "child_process";
 import { debug } from "../lib/logger.js";
 import { recordFileRead } from "./read-tracking.js";
 import { contextWindow } from "./context-window.js";
+import { aideRetrievalTool, retrievalEvidence } from "./retrieval-evidence.js";
 
 const SOURCE = "tool-observe";
 
@@ -96,6 +96,7 @@ const CONTENT_WRITE_TOOLS: Record<string, string> = {
 export function extractOutputText(payload: unknown): string | undefined {
   if (typeof payload === "string") return payload;
   if (Array.isArray(payload)) {
+    if (payload.length === 0) return "";
     const parts = payload
       .map(extractOutputText)
       .filter((v): v is string => v !== undefined);
@@ -222,20 +223,39 @@ export function recordToolEvent(
   cwd: string,
   input: ToolObserveInput,
 ): void {
-  const name = canonicalTool(input.toolName);
-  const tax = name ? NATIVE_TOOL_TAXONOMY[name] : undefined;
+  const retrieval = aideRetrievalTool(input.toolName);
+  const name = canonicalTool(input.toolName) ?? retrieval;
+  const tax = retrieval
+    ? {
+        category: "consume",
+        subtype: retrieval === "code_outline" ? "outline" : "symbol",
+      }
+    : name
+      ? NATIVE_TOOL_TAXONOMY[name]
+      : undefined;
   if (!tax || !name) {
     debug(SOURCE, `Skipping unclassified tool: ${input.toolName}`);
     return;
   }
 
   const toolInput = input.toolInput ?? {};
-  const path = toolInput.file_path ?? toolInput.filePath;
+  const path =
+    toolInput.file_path ??
+    toolInput.filePath ??
+    (retrieval ? toolInput.file : undefined);
   const filePath = typeof path === "string" ? path : undefined;
   const errText =
     (input.errorText && input.errorText.slice(0, 500)) ||
     toolFailureText(input.success, input.toolResponse);
   const text = extractOutputText(input.toolResponse);
+  const retrievalAttrs = retrievalEvidence(
+    cwd,
+    name,
+    toolInput,
+    text,
+    input.toolResponse,
+    !!errText,
+  );
   const identity = {
     host: input.host,
     sessionId: input.sessionId,
@@ -245,7 +265,13 @@ export function recordToolEvent(
   const generated = toolInput[CONTENT_WRITE_TOOLS[name]];
   let startLine: number | undefined;
   let endLine: number | undefined;
-  if (name === "Read" && filePath && !errText && text !== undefined) {
+  if (
+    name === "Read" &&
+    filePath &&
+    !errText &&
+    text !== undefined &&
+    retrievalAttrs.retrieval_status !== "failed"
+  ) {
     const offset = toolInput.offset;
     const limit = toolInput.limit;
     startLine = typeof offset === "number" && offset > 0 ? offset : 1;
@@ -267,6 +293,8 @@ export function recordToolEvent(
       "--attr=observation_stage=host_result",
       `--attr=raw_tool=${input.toolName}`,
     );
+    for (const [key, value] of Object.entries(retrievalAttrs))
+      args.push(`--attr=${key}=${value}`);
     // Conversion is owned by the backend. These are exact UTF-8 text bytes at
     // this hook boundary, not provider tokens or proof of final delivery.
     if (text !== undefined)

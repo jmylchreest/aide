@@ -213,11 +213,7 @@ export interface Hooks {
       callID: string;
       args?: Record<string, unknown>;
     },
-    output: {
-      title: string;
-      output: string;
-      metadata: Record<string, unknown>;
-    },
+    output: OpenCodeToolResult,
   ) => Promise<void>;
 
   /** Modify system prompt */
@@ -249,3 +245,13 @@ export interface Hooks {
 }
 
 export type Plugin = (input: PluginInput) => Promise<Hooks>;
+/** Native tools supply output text; MCP hooks may receive protocol content
+ * before OpenCode formats/truncates it. Both are observation boundaries. */
+export interface OpenCodeToolResult {
+  title?: string;
+  output?: string;
+  metadata?: Record<string, unknown>;
+  content?: unknown[];
+  _meta?: Record<string, unknown>;
+  isError?: boolean;
+}

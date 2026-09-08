@@ -4,12 +4,48 @@ vi.mock("../core/read-tracking.js", () => ({ recordFileRead: vi.fn() }));
 import { execFileSync } from "child_process";
 import { recordFileRead } from "../core/read-tracking.js";
 import { recordToolEvent } from "../core/tool-observe.js";
+import { createHash } from "crypto";
 
 function recorded() {
   return vi.mocked(execFileSync).mock.calls.at(-1)?.[1] as string[];
 }
 beforeEach(() => vi.clearAllMocks());
 describe("observed tool accounting", () => {
+  it("observes aide MCP results under host identity with exact receipt evidence", () => {
+    recordToolEvent("aide", "/tmp", {
+      toolName: "mcp__aide__code_outline",
+      toolInput: { file: "source.ts" },
+      toolResponse: {
+        content: [{ type: "text", text: "é" }],
+        _meta: {
+          "aide/retrieval": {
+            version: 1,
+            id: "receipt",
+            tool: "code_outline",
+            text_sha256: createHash("sha256").update("é").digest("hex"),
+            references: [
+              { file: "source.ts", sha256: "a".repeat(64), bytes: 900 },
+            ],
+          },
+        },
+      },
+      host: "claude-code",
+      sessionId: "s",
+      invocationId: "call",
+    });
+    expect(recorded()).toEqual(
+      expect.arrayContaining([
+        "--name=code_outline",
+        "--attr=observation_stage=host_result",
+        "--attr=payload_bytes=2",
+        "--attr=invocation_id=call",
+        "--session=s",
+        "--attr=retrieval_id=receipt",
+        "--attr=retrieval_status=referenced",
+      ]),
+    );
+    expect(recorded().some((arg) => arg.startsWith("--saved="))).toBe(false);
+  });
   it("normalizes aliases and measures UTF-8 stdout and stderr together", () => {
     recordToolEvent("aide", "/tmp", {
       toolName: "exec_command",
@@ -89,5 +125,19 @@ describe("observed tool accounting", () => {
     expect(recorded().some((a) => a.startsWith("--attr=payload_bytes="))).toBe(
       false,
     );
+  });
+  it("records a known empty MCP content list but leaves opaque-only content unknown", () => {
+    recordToolEvent("aide", "/tmp", {
+      toolName: "aide_code_outline",
+      toolResponse: { content: [] },
+    });
+    expect(recorded()).toContain("--attr=payload_bytes=0");
+    recordToolEvent("aide", "/tmp", {
+      toolName: "aide_code_outline",
+      toolResponse: { content: [{ type: "image", data: "opaque" }] },
+    });
+    expect(
+      recorded().some((arg) => arg.startsWith("--attr=payload_bytes=")),
+    ).toBe(false);
   });
 });

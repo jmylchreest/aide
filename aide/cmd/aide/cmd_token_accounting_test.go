@@ -28,3 +28,16 @@ func TestTokenTimeRange(t *testing.T) {
 		}
 	}
 }
+
+func TestRetrievalSummaryKeepsDeliveryLimitsExplicit(t *testing.T) {
+	text := formatRetrievalEvidence(map[string]string{"retrieval_status": "range", "source_verification": "current_range_match", "delivered_start_line": "2", "delivered_end_line": "3", "retrieval_method": "shell_sed"})
+	if !strings.Contains(text, "lines 2-3") || !strings.Contains(text, "undisplayed source version unverified") || strings.Contains(text, "saved") {
+		t.Fatalf("misleading range evidence: %s", text)
+	}
+	if text := formatRetrievalEvidence(map[string]string{"retrieval_status": "unclassified_shell"}); !strings.Contains(text, "coverage unknown") {
+		t.Fatalf("misleading shell coverage: %s", text)
+	}
+	if formatRetrievalEvidence(nil) != "" {
+		t.Fatal("legacy event should not acquire evidence")
+	}
+}

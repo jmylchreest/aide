@@ -156,7 +156,7 @@ Reads current definitions by name. Without `file`, the index locates candidate f
 
 **Parameters:** `symbol` (string), `symbols` (optional batch of up to 10 names), `kind` (optional), `file` (optional exact path), `start_line` (optional current definition line; requires `file`).
 
-Outline and symbol observations carry `source_references`: exact file byte sizes and SHA-256 hashes of the retrieved snapshots. A batch records each reference file once. These are conditional full-file comparisons, not proof of avoided reads or provider savings, and do not populate the historical `tokens_saved` field.
+Outline and symbol observations carry `source_references`: exact file byte sizes and SHA-256 hashes of the retrieved snapshots. A batch records each reference file once. These are conditional full-file comparisons, not proof of avoided reads or provider savings, and do not populate the historical `tokens_saved` field. The result also carries an `aide/retrieval` protocol metadata receipt with a unique ID, tool name, source references and a checksum of its text. Host observers attach this evidence to their real invocation/session/window only when the receipt survives and the returned text matches. Hosts may drop metadata or transform output, so a missing match remains unverified; the receipt is not added to the textual result. OpenCode protocol results are observed before any subsequent host formatting or truncation.
 
 ### code_top_references
 

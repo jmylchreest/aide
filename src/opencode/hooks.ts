@@ -93,6 +93,7 @@ import type {
   OpenCodeEvent,
   OpenCodeSession,
   OpenCodePart,
+  OpenCodeToolResult,
 } from "./types.js";
 import { debug } from "../lib/logger.js";
 
@@ -915,12 +916,11 @@ function createToolAfterHandler(state: AideState): (
     callID: string;
     args?: Record<string, unknown>;
   },
-  output: { title: string; output: string; metadata: Record<string, unknown> },
+  output: OpenCodeToolResult,
 ) => Promise<void> {
   return async (input, _output) => {
     if (!state.binary) return;
     establishContext(state, input.sessionID, "unknown");
-    const originalOutput = _output.output;
     const identity = {
       host: "opencode",
       sessionId: input.sessionID,
@@ -957,8 +957,8 @@ function createToolAfterHandler(state: AideState): (
       debug(SOURCE, `Partial memory write failed (non-fatal): ${err}`);
     }
 
-    // Record tool call as an observe event (mirror of MCP middleware on the
-    // Go side — together they give complete tool-call coverage). Also handles
+    // Record supported calls at the host hook boundary, separately from the
+    // MCP middleware's server observations. Also handles
     // smart-read-hint state via recordFileRead inside the core module.
     try {
       const toolArgs = (input.args || _output.metadata?.args || {}) as Record<
@@ -974,10 +974,9 @@ function createToolAfterHandler(state: AideState): (
           command?: string;
           pattern?: string;
         },
-        // OpenCode's tool.execute.after gives us the rendered output text
-        // directly — that's what gets fed back to the model, so it's the
-        // right thing to estimate output-sized tool cost from.
-        toolResponse: _output.output,
+        // Preserve MCP content and receipt metadata when present. The host
+        // can still format/truncate these after this hook returns.
+        toolResponse: _output,
         sessionId: input.sessionID,
         host: "opencode",
         invocationId: input.callID,
@@ -985,6 +984,11 @@ function createToolAfterHandler(state: AideState): (
     } catch (err) {
       debug(SOURCE, `Tool observe recording failed (non-fatal): ${err}`);
     }
+
+    // Existing mutations apply only to the rendered-string contract. Never
+    // invent an output property on a protocol result or count that as a change.
+    if (typeof _output.output !== "string") return;
+    const originalOutput = _output.output;
 
     // Context pruning: dedup/supersede/purge tool outputs
     try {
@@ -1004,9 +1008,9 @@ function createToolAfterHandler(state: AideState): (
                 state.cwd,
                 `${contextScope(identity)}:${window.id}`,
                 input.callID,
-                _output.output,
+                originalOutput,
               )(candidate)
-            : { output: _output.output, modified: false, bytesSaved: 0 },
+            : { output: originalOutput, modified: false, bytesSaved: 0 },
       );
       if (pruneResult.modified) {
         _output.output = pruneResult.output;

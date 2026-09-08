@@ -332,6 +332,7 @@ aide token stats --details               # Context windows and historical breakd
 aide token stats --json                  # JSON output
 aide token summary                       # Recent token events
 aide token summary --limit=20            # Last 20 events
+aide token summary --details             # Retrieval status and evidence limits
 aide token stats --session=ID --since=24h # Selected session and period
 aide token cleanup                       # Remove events older than 90 days (cleanup.token_max_age)
 aide token cleanup --max-age=168h        # Custom retention
@@ -352,6 +353,8 @@ Token tracking is experimental. New observations record supported UTF-8 text byt
 Existing JSON fields remain available. `total_saved`, `saved_by_tool` and `by_saving_type` are legacy comparison estimates, not verified savings or inferred avoided calls. `total_read` includes result estimates from shell/search/network tools; `total_written` covers generated argument text where measured, and historical modification estimates. Historical methods remain mixed. Provider usage, full-file episode comparisons and avoidance inference are not included in this report.
 
 Both `stats` and `summary` accept `--session`, `--since` (RFC3339 timestamp or duration such as `24h`) and `--until` (inclusive RFC3339 timestamp). `summary --last=N` remains a deprecated alias for `--limit=N`: its historical implementation limits events, not sessions.
+
+Retrieval evidence appears in `token summary --details`, event JSON attributes, and expandable web Details rows. Recognised aide outline/symbol calls are also observed at the host hook boundary. A surviving `aide/retrieval` MCP metadata receipt binds source hashes to matching returned text; missing or mismatched metadata stays unverified. Native reads and simple `cat`/`sed -n` shell reads are checked against regular project files up to 8 MiB. A full-file match proves matching text was observed; a range match only verifies those lines against a current snapshot, not the undisplayed version. Recognised `rg`/`grep` searches are search observations, not file delivery. Unsupported shell syntax, command continuations without their original command, missing payloads, failures and pending executions do not establish coverage. These events are evidence for future episode comparisons, not inferred avoided calls.
 
 In aide-web, **Telemetry → Tokens** opens on an Overview with headline estimates and a compact recorded-activity chart. Details contains tool/source breakdowns and event evidence; Accounting contains collection diagnostics, measurement methods and historical estimates. Date/session filters apply across all three views. Headline totals and the activity chart are aggregated centrally over every selected event, independently of the recent-events page size. Chart gaps mean no measured data; activity is not a savings or context-budget burndown. Host and server results are selectable, never added together. Historical estimates remain separately labelled.
 

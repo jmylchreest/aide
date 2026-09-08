@@ -5,6 +5,7 @@ import { useApi } from "@/hooks/use-api";
 import { TokenOverview } from "../shared/TokenOverview";
 import { TokenAccountingSummary } from "../shared/TokenAccountingSummary";
 import { TokenTransformationWindows } from "../shared/TokenTransformations";
+import { TokenRetrievalEvidence } from "../shared/TokenRetrievalEvidence";
 import { SessionFilterInput } from "../shared/SessionFilterInput";
 import { FilterBar } from "../shared/FilterBar";
 import { SortableTable, type Column } from "../shared/SortableTable";
@@ -306,13 +307,6 @@ function TokenReport({
     return rows.sort((a, b) => a.tool.localeCompare(b.tool));
   }, [stats]);
 
-  const totalFileInteractions =
-    (stats?.read_count ?? 0) + (stats?.code_tool_count ?? 0);
-  const adoptionPct =
-    totalFileInteractions > 0
-      ? ((stats!.code_tool_count / totalFileInteractions) * 100).toFixed(0)
-      : null;
-
   const columns: Column<TokenEventItem>[] = [
     {
       key: "timestamp",
@@ -392,6 +386,7 @@ function TokenReport({
                 {row.attrs.recovery_path && (
                   <div>Retained original: {row.attrs.recovery_path}</div>
                 )}
+                <TokenRetrievalEvidence attrs={row.attrs} />
               </>
             ) : (
               <div>Measurement method and delivery coverage unknown.</div>
@@ -527,7 +522,6 @@ function TokenReport({
           <StatCard
             label="Sessions Tracked"
             value={stats ? String(stats.sessions) : "-"}
-            sub={adoptionPct ? `${adoptionPct}% code tool adoption` : undefined}
           />
         </div>
       </div>
@@ -591,31 +585,6 @@ function TokenReport({
                 />
               )}
             </div>
-          </div>
-        )}
-
-        {/* Tool adoption */}
-        {stats && totalFileInteractions > 0 && (
-          <div className="mb-6">
-            <h3 className="text-xs font-semibold text-aide-text mb-2">
-              Tool Adoption
-            </h3>
-            <div className="flex items-center gap-3">
-              <div className="flex-1 h-2 rounded-full bg-aide-surface overflow-hidden">
-                <div
-                  className="h-full rounded-full bg-aide-accent"
-                  style={{ width: `${adoptionPct}%` }}
-                />
-              </div>
-              <span className="text-xs text-aide-text-muted whitespace-nowrap">
-                {stats.code_tool_count} code tools / {stats.read_count} reads (
-                {adoptionPct}%)
-              </span>
-            </div>
-            <p className="text-[10px] text-aide-text-dim mt-1">
-              Recorded outline and symbol-read calls as a share of file
-              retrieval calls. Adoption alone does not establish savings.
-            </p>
           </div>
         )}
 

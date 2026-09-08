@@ -35,6 +35,7 @@ Subcommands:
 
 Options:
   summary:
+    --details        Include retrieval status and evidence limits
     --session=ID     Specific session (default: all)
     --limit=N        Most recent N events (default: 100)
     --last=N         Deprecated alias for --limit (historically limits events)
@@ -145,6 +146,9 @@ func cmdTokenSummary(dbPath string, args []string) error {
 				invocation = "unknown"
 			}
 			fmt.Printf("  %s: %s UTF-8 text bytes; estimator=%s; invocation=%s\n", e.Attrs["observation_stage"], bytes, memory.TextEstimator, invocation)
+			if hasFlag(args, "--details") {
+				fmt.Print(formatRetrievalEvidence(e.Attrs))
+			}
 		} else {
 			fmt.Println("  Legacy estimate; measurement and delivery coverage unknown")
 		}
