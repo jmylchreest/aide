@@ -85,6 +85,13 @@ That limitation must remain visible in the CLI and web Details view.
 
 ## Independent task comparison protocol
 
+The first frozen pilot is in `scripts/retrieval-quality/` in the repository.
+It defines three read-only code-understanding tasks, two retrieval treatments,
+six fresh sessions, a 12-call retrieval limit per session, pinned source hashes
+and 23 exact answer checks per treatment. Grading material is kept out of trial
+prompts. This small pilot does not cover edits or representative workload quality;
+no model trials were run when its task package was first committed.
+
 The next stage requires fresh model contexts, not another pass by a model that
 already knows these answers. Freeze repository snapshots, task prompts and hidden
 answer/test checks before running trials. Include navigation, debugging and edits,

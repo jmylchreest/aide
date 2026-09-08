@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "visibility": "grader_only_do_not_include_in_agent_prompt",
+  "rules": [
+    "Grade the answers object by exact JSON value and type for each required key.",
+    "A task passes only when every required answer is correct and its cited allowed-source evidence supports the answer.",
+    "Report correct fields separately from task pass/fail. Missing or null answers fail their field; they are not silently omitted.",
+    "Invalid source hashes, disallowed retrievals, reading grading material, shared task history or exceeded call limits invalidate the trial; retain it in the report with the reason.",
+    "Separate invalid trials, incorrect answers and infrastructure failures. Never substitute a successful retry for a failed original trial.",
+    "Remove treatment names before grading. Check source citations against the frozen files, not against the trial's own assertions.",
+    "Retain original answers. Provider usage and unverified text totals remain null. Do not infer calls avoided from absent full-file reads."
+  ],
+  "answers": {
+    "exit_status": {
+      "a_status": "search",
+      "b_status": "failed",
+      "c_status": "pending",
+      "d_status": "failed",
+      "e_status": "unverified",
+      "e_has_source_reference": false,
+      "a_payload_bytes": 0,
+      "a_has_tool_error": false
+    },
+    "window_cost": {
+      "reference_bytes": 1000,
+      "observed_bytes": 1315,
+      "byte_delta": -315,
+      "estimated_token_delta": -105,
+      "full_read_events": 1,
+      "failed_events": 1,
+      "comparison_available": true,
+      "after_unclassified_comparison_available": false,
+      "after_unclassified_observed_bytes": 1315,
+      "after_unclassified_unattributed_bytes": 90
+    },
+    "current_source": {
+      "a_succeeds": true,
+      "b_returns_replacement": false,
+      "c_outcome": "ambiguity_error",
+      "d_selects_second": true,
+      "e_requires_file": true
+    }
+  }
+}
