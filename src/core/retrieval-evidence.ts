@@ -194,6 +194,9 @@ export function retrievalEvidence(
     const receipt = receiptEvidence(name, text, response);
     return {
       retrieval_method: name,
+      ...(typeof args.file === "string" && args.file
+        ? { retrieval_target: relative(cwd, resolve(cwd, args.file)) }
+        : {}),
       retrieval_status: failed
         ? "failed"
         : receipt

@@ -23,6 +23,19 @@ afterEach(() =>
 const hash = (text: string) => createHash("sha256").update(text).digest("hex");
 
 describe("retrieval evidence", () => {
+  it("keeps an explicit MCP failure target relative to the project for window attribution", () => {
+    const cwd = fixture();
+    const evidence = retrievalEvidence(
+      cwd,
+      "code_read_symbol",
+      { file: join(cwd, "source.ts") },
+      "Missing symbol",
+      undefined,
+      true,
+    );
+    expect(evidence.retrieval_target).toBe("source.ts");
+    expect(evidence.retrieval_status).toBe("failed");
+  });
   it("respects an explicit shell working directory instead of attributing the root file", () => {
     const cwd = fixture();
     mkdirSync(join(cwd, "nested"));

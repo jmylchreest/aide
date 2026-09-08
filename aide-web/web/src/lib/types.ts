@@ -184,6 +184,7 @@ export interface TokenActivityBucket {
   unmeasured: number;
 }
 export interface TokenAccounting {
+  retrievals?: TokenRetrievals;
   transformations?: TokenTransformations;
   activity?: { interval_seconds: number; buckets: TokenActivityBucket[] };
   version: number;
@@ -193,6 +194,42 @@ export interface TokenAccounting {
   legacy_events: number;
   missing_payload: number;
   missing_identity: number;
+}
+export interface RetrievalWindow {
+  host: string;
+  session_id: string;
+  actor_id: string;
+  epoch: string;
+  first: string;
+  last: string;
+  boundary: string;
+  events: number;
+  observed: TokenQuantity;
+  unattributed: TokenQuantity;
+  reference: TokenQuantity;
+  comparison?: TokenChange;
+  full_read_events: number;
+  search_events: number;
+  failed_events: number;
+  missing_payload: number;
+  clipped: boolean;
+  issues: string[];
+  sources: { file: string; sha256: string; bytes: number }[];
+  steps: {
+    id: string;
+    invocation_id: string;
+    at: string;
+    tool: string;
+    status: string;
+    target?: string;
+    text?: TokenQuantity;
+  }[];
+  steps_limited: boolean;
+}
+export interface TokenRetrievals {
+  windows: RetrievalWindow[];
+  windows_limited: boolean;
+  unwindowed_events: number;
 }
 export interface TokenChange {
   before_bytes: number;

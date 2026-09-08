@@ -74,9 +74,10 @@ export function TokenAccountingSummary({
             transformations or reached the model.
           </p>
           <p>
-            Final delivery, full-file episode comparisons and inferred avoidance
-            remain unavailable in this report. Historical comparison estimates
-            below do not establish avoided calls or provider savings.
+            Final delivery and inferred avoided calls remain unavailable.
+            Conditional retrieval comparisons, where evidence permits, appear in
+            Details. Historical comparison estimates below do not establish
+            avoided calls or provider savings.
           </p>
         </div>
       </details>

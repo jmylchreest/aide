@@ -30,6 +30,7 @@ type TokenActivity struct {
 // TokenAccounting is additive to the legacy statistics. Stages must not be
 // summed: server and host observations can describe the same unjoined call.
 type TokenAccounting struct {
+	Retrievals      *TokenRetrievals          `json:"retrievals,omitempty"`
 	Transformations *TokenTransformations     `json:"transformations,omitempty"`
 	Activity        *TokenActivity            `json:"activity,omitempty"`
 	Version         int                       `json:"version"`

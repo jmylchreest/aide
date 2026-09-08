@@ -41,3 +41,15 @@ func TestRetrievalSummaryKeepsDeliveryLimitsExplicit(t *testing.T) {
 		t.Fatal("legacy event should not acquire evidence")
 	}
 }
+
+func TestRetrievalWindowSummaryDoesNotClaimSavings(t *testing.T) {
+	report := &memory.TokenRetrievals{Windows: []*memory.RetrievalWindow{{Host: "host", SessionID: "s", Epoch: "w", Events: 2, Comparison: &memory.TokenChange{DeltaBytes: -90, EstimatedTokenDelta: -30}}, {Host: "host", SessionID: "s", Epoch: "gap", Issues: []string{"missing_payload"}}}}
+	compact := formatRetrievalWindows(report, false)
+	if !strings.Contains(compact, "2 windows") || !strings.Contains(compact, "1 conditional comparison") || strings.Contains(compact, "-90") {
+		t.Fatalf("verbose or misleading summary: %s", compact)
+	}
+	details := formatRetrievalWindows(report, true)
+	if !strings.Contains(details, "90 more bytes") || !strings.Contains(details, "~30 more tokens") || !strings.Contains(details, "comparison unavailable") || strings.Contains(details, "tokens saved") {
+		t.Fatalf("misleading detail: %s", details)
+	}
+}

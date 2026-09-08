@@ -1262,6 +1262,49 @@ message TokenAccounting {
   int64 missing_identity = 7;
   TokenActivity activity = 8;
   TokenTransformations transformations = 9;
+  TokenRetrievals retrievals = 10;
+}
+message RetrievalSource {
+ string file = 1;
+ string sha256 = 2;
+ int64 bytes = 3;
+}
+message RetrievalStep {
+ string id = 1;
+ string invocation_id = 2;
+ google.protobuf.Timestamp at = 3;
+ string tool = 4;
+ string status = 5;
+ string target = 6;
+ TokenQuantity text = 7;
+}
+message RetrievalWindow {
+ string host = 1;
+ string session_id = 2;
+ string actor_id = 3;
+ string epoch = 4;
+ google.protobuf.Timestamp first = 5;
+ google.protobuf.Timestamp last = 6;
+ string boundary = 7;
+ int64 events = 8;
+ TokenQuantity observed = 9;
+ TokenQuantity unattributed = 10;
+ TokenQuantity reference = 11;
+ TokenChange comparison = 12;
+ int64 full_read_events = 13;
+ int64 search_events = 14;
+ int64 failed_events = 15;
+ int64 missing_payload = 16;
+ bool clipped = 17;
+ repeated string issues = 18;
+ repeated RetrievalSource sources = 19;
+ repeated RetrievalStep steps = 20;
+ bool steps_limited = 21;
+}
+message TokenRetrievals {
+ repeated RetrievalWindow windows = 1;
+ bool windows_limited = 2;
+ int64 unwindowed_events = 3;
 }
 message TokenStatsResponse {
   int32 total_read = 1;      // estimated tokens consumed by reads

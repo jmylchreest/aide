@@ -10570,6 +10570,7 @@ type TokenAccounting struct {
 	MissingIdentity int64                     `protobuf:"varint,7,opt,name=missing_identity,json=missingIdentity,proto3" json:"missing_identity,omitempty"`
 	Activity        *TokenActivity            `protobuf:"bytes,8,opt,name=activity,proto3" json:"activity,omitempty"`
 	Transformations *TokenTransformations     `protobuf:"bytes,9,opt,name=transformations,proto3" json:"transformations,omitempty"`
+	Retrievals      *TokenRetrievals          `protobuf:"bytes,10,opt,name=retrievals,proto3" json:"retrievals,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -10667,6 +10668,429 @@ func (x *TokenAccounting) GetTransformations() *TokenTransformations {
 	return nil
 }
 
+func (x *TokenAccounting) GetRetrievals() *TokenRetrievals {
+	if x != nil {
+		return x.Retrievals
+	}
+	return nil
+}
+
+type RetrievalSource struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	File          string                 `protobuf:"bytes,1,opt,name=file,proto3" json:"file,omitempty"`
+	Sha256        string                 `protobuf:"bytes,2,opt,name=sha256,proto3" json:"sha256,omitempty"`
+	Bytes         int64                  `protobuf:"varint,3,opt,name=bytes,proto3" json:"bytes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RetrievalSource) Reset() {
+	*x = RetrievalSource{}
+	mi := &file_aidememory_proto_msgTypes[182]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RetrievalSource) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RetrievalSource) ProtoMessage() {}
+
+func (x *RetrievalSource) ProtoReflect() protoreflect.Message {
+	mi := &file_aidememory_proto_msgTypes[182]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RetrievalSource.ProtoReflect.Descriptor instead.
+func (*RetrievalSource) Descriptor() ([]byte, []int) {
+	return file_aidememory_proto_rawDescGZIP(), []int{182}
+}
+
+func (x *RetrievalSource) GetFile() string {
+	if x != nil {
+		return x.File
+	}
+	return ""
+}
+
+func (x *RetrievalSource) GetSha256() string {
+	if x != nil {
+		return x.Sha256
+	}
+	return ""
+}
+
+func (x *RetrievalSource) GetBytes() int64 {
+	if x != nil {
+		return x.Bytes
+	}
+	return 0
+}
+
+type RetrievalStep struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	InvocationId  string                 `protobuf:"bytes,2,opt,name=invocation_id,json=invocationId,proto3" json:"invocation_id,omitempty"`
+	At            *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=at,proto3" json:"at,omitempty"`
+	Tool          string                 `protobuf:"bytes,4,opt,name=tool,proto3" json:"tool,omitempty"`
+	Status        string                 `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
+	Target        string                 `protobuf:"bytes,6,opt,name=target,proto3" json:"target,omitempty"`
+	Text          *TokenQuantity         `protobuf:"bytes,7,opt,name=text,proto3" json:"text,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RetrievalStep) Reset() {
+	*x = RetrievalStep{}
+	mi := &file_aidememory_proto_msgTypes[183]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RetrievalStep) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RetrievalStep) ProtoMessage() {}
+
+func (x *RetrievalStep) ProtoReflect() protoreflect.Message {
+	mi := &file_aidememory_proto_msgTypes[183]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RetrievalStep.ProtoReflect.Descriptor instead.
+func (*RetrievalStep) Descriptor() ([]byte, []int) {
+	return file_aidememory_proto_rawDescGZIP(), []int{183}
+}
+
+func (x *RetrievalStep) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *RetrievalStep) GetInvocationId() string {
+	if x != nil {
+		return x.InvocationId
+	}
+	return ""
+}
+
+func (x *RetrievalStep) GetAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.At
+	}
+	return nil
+}
+
+func (x *RetrievalStep) GetTool() string {
+	if x != nil {
+		return x.Tool
+	}
+	return ""
+}
+
+func (x *RetrievalStep) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *RetrievalStep) GetTarget() string {
+	if x != nil {
+		return x.Target
+	}
+	return ""
+}
+
+func (x *RetrievalStep) GetText() *TokenQuantity {
+	if x != nil {
+		return x.Text
+	}
+	return nil
+}
+
+type RetrievalWindow struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Host           string                 `protobuf:"bytes,1,opt,name=host,proto3" json:"host,omitempty"`
+	SessionId      string                 `protobuf:"bytes,2,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	ActorId        string                 `protobuf:"bytes,3,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
+	Epoch          string                 `protobuf:"bytes,4,opt,name=epoch,proto3" json:"epoch,omitempty"`
+	First          *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=first,proto3" json:"first,omitempty"`
+	Last           *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=last,proto3" json:"last,omitempty"`
+	Boundary       string                 `protobuf:"bytes,7,opt,name=boundary,proto3" json:"boundary,omitempty"`
+	Events         int64                  `protobuf:"varint,8,opt,name=events,proto3" json:"events,omitempty"`
+	Observed       *TokenQuantity         `protobuf:"bytes,9,opt,name=observed,proto3" json:"observed,omitempty"`
+	Unattributed   *TokenQuantity         `protobuf:"bytes,10,opt,name=unattributed,proto3" json:"unattributed,omitempty"`
+	Reference      *TokenQuantity         `protobuf:"bytes,11,opt,name=reference,proto3" json:"reference,omitempty"`
+	Comparison     *TokenChange           `protobuf:"bytes,12,opt,name=comparison,proto3" json:"comparison,omitempty"`
+	FullReadEvents int64                  `protobuf:"varint,13,opt,name=full_read_events,json=fullReadEvents,proto3" json:"full_read_events,omitempty"`
+	SearchEvents   int64                  `protobuf:"varint,14,opt,name=search_events,json=searchEvents,proto3" json:"search_events,omitempty"`
+	FailedEvents   int64                  `protobuf:"varint,15,opt,name=failed_events,json=failedEvents,proto3" json:"failed_events,omitempty"`
+	MissingPayload int64                  `protobuf:"varint,16,opt,name=missing_payload,json=missingPayload,proto3" json:"missing_payload,omitempty"`
+	Clipped        bool                   `protobuf:"varint,17,opt,name=clipped,proto3" json:"clipped,omitempty"`
+	Issues         []string               `protobuf:"bytes,18,rep,name=issues,proto3" json:"issues,omitempty"`
+	Sources        []*RetrievalSource     `protobuf:"bytes,19,rep,name=sources,proto3" json:"sources,omitempty"`
+	Steps          []*RetrievalStep       `protobuf:"bytes,20,rep,name=steps,proto3" json:"steps,omitempty"`
+	StepsLimited   bool                   `protobuf:"varint,21,opt,name=steps_limited,json=stepsLimited,proto3" json:"steps_limited,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *RetrievalWindow) Reset() {
+	*x = RetrievalWindow{}
+	mi := &file_aidememory_proto_msgTypes[184]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RetrievalWindow) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RetrievalWindow) ProtoMessage() {}
+
+func (x *RetrievalWindow) ProtoReflect() protoreflect.Message {
+	mi := &file_aidememory_proto_msgTypes[184]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RetrievalWindow.ProtoReflect.Descriptor instead.
+func (*RetrievalWindow) Descriptor() ([]byte, []int) {
+	return file_aidememory_proto_rawDescGZIP(), []int{184}
+}
+
+func (x *RetrievalWindow) GetHost() string {
+	if x != nil {
+		return x.Host
+	}
+	return ""
+}
+
+func (x *RetrievalWindow) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *RetrievalWindow) GetActorId() string {
+	if x != nil {
+		return x.ActorId
+	}
+	return ""
+}
+
+func (x *RetrievalWindow) GetEpoch() string {
+	if x != nil {
+		return x.Epoch
+	}
+	return ""
+}
+
+func (x *RetrievalWindow) GetFirst() *timestamppb.Timestamp {
+	if x != nil {
+		return x.First
+	}
+	return nil
+}
+
+func (x *RetrievalWindow) GetLast() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Last
+	}
+	return nil
+}
+
+func (x *RetrievalWindow) GetBoundary() string {
+	if x != nil {
+		return x.Boundary
+	}
+	return ""
+}
+
+func (x *RetrievalWindow) GetEvents() int64 {
+	if x != nil {
+		return x.Events
+	}
+	return 0
+}
+
+func (x *RetrievalWindow) GetObserved() *TokenQuantity {
+	if x != nil {
+		return x.Observed
+	}
+	return nil
+}
+
+func (x *RetrievalWindow) GetUnattributed() *TokenQuantity {
+	if x != nil {
+		return x.Unattributed
+	}
+	return nil
+}
+
+func (x *RetrievalWindow) GetReference() *TokenQuantity {
+	if x != nil {
+		return x.Reference
+	}
+	return nil
+}
+
+func (x *RetrievalWindow) GetComparison() *TokenChange {
+	if x != nil {
+		return x.Comparison
+	}
+	return nil
+}
+
+func (x *RetrievalWindow) GetFullReadEvents() int64 {
+	if x != nil {
+		return x.FullReadEvents
+	}
+	return 0
+}
+
+func (x *RetrievalWindow) GetSearchEvents() int64 {
+	if x != nil {
+		return x.SearchEvents
+	}
+	return 0
+}
+
+func (x *RetrievalWindow) GetFailedEvents() int64 {
+	if x != nil {
+		return x.FailedEvents
+	}
+	return 0
+}
+
+func (x *RetrievalWindow) GetMissingPayload() int64 {
+	if x != nil {
+		return x.MissingPayload
+	}
+	return 0
+}
+
+func (x *RetrievalWindow) GetClipped() bool {
+	if x != nil {
+		return x.Clipped
+	}
+	return false
+}
+
+func (x *RetrievalWindow) GetIssues() []string {
+	if x != nil {
+		return x.Issues
+	}
+	return nil
+}
+
+func (x *RetrievalWindow) GetSources() []*RetrievalSource {
+	if x != nil {
+		return x.Sources
+	}
+	return nil
+}
+
+func (x *RetrievalWindow) GetSteps() []*RetrievalStep {
+	if x != nil {
+		return x.Steps
+	}
+	return nil
+}
+
+func (x *RetrievalWindow) GetStepsLimited() bool {
+	if x != nil {
+		return x.StepsLimited
+	}
+	return false
+}
+
+type TokenRetrievals struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Windows          []*RetrievalWindow     `protobuf:"bytes,1,rep,name=windows,proto3" json:"windows,omitempty"`
+	WindowsLimited   bool                   `protobuf:"varint,2,opt,name=windows_limited,json=windowsLimited,proto3" json:"windows_limited,omitempty"`
+	UnwindowedEvents int64                  `protobuf:"varint,3,opt,name=unwindowed_events,json=unwindowedEvents,proto3" json:"unwindowed_events,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *TokenRetrievals) Reset() {
+	*x = TokenRetrievals{}
+	mi := &file_aidememory_proto_msgTypes[185]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TokenRetrievals) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TokenRetrievals) ProtoMessage() {}
+
+func (x *TokenRetrievals) ProtoReflect() protoreflect.Message {
+	mi := &file_aidememory_proto_msgTypes[185]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TokenRetrievals.ProtoReflect.Descriptor instead.
+func (*TokenRetrievals) Descriptor() ([]byte, []int) {
+	return file_aidememory_proto_rawDescGZIP(), []int{185}
+}
+
+func (x *TokenRetrievals) GetWindows() []*RetrievalWindow {
+	if x != nil {
+		return x.Windows
+	}
+	return nil
+}
+
+func (x *TokenRetrievals) GetWindowsLimited() bool {
+	if x != nil {
+		return x.WindowsLimited
+	}
+	return false
+}
+
+func (x *TokenRetrievals) GetUnwindowedEvents() int64 {
+	if x != nil {
+		return x.UnwindowedEvents
+	}
+	return 0
+}
+
 type TokenStatsResponse struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	TotalRead      int32                  `protobuf:"varint,1,opt,name=total_read,json=totalRead,proto3" json:"total_read,omitempty"`          // estimated tokens consumed by reads
@@ -10689,7 +11113,7 @@ type TokenStatsResponse struct {
 
 func (x *TokenStatsResponse) Reset() {
 	*x = TokenStatsResponse{}
-	mi := &file_aidememory_proto_msgTypes[182]
+	mi := &file_aidememory_proto_msgTypes[186]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10701,7 +11125,7 @@ func (x *TokenStatsResponse) String() string {
 func (*TokenStatsResponse) ProtoMessage() {}
 
 func (x *TokenStatsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[182]
+	mi := &file_aidememory_proto_msgTypes[186]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10714,7 +11138,7 @@ func (x *TokenStatsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TokenStatsResponse.ProtoReflect.Descriptor instead.
 func (*TokenStatsResponse) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{182}
+	return file_aidememory_proto_rawDescGZIP(), []int{186}
 }
 
 func (x *TokenStatsResponse) GetTotalRead() int32 {
@@ -10825,7 +11249,7 @@ type TokenEventListRequest struct {
 
 func (x *TokenEventListRequest) Reset() {
 	*x = TokenEventListRequest{}
-	mi := &file_aidememory_proto_msgTypes[183]
+	mi := &file_aidememory_proto_msgTypes[187]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10837,7 +11261,7 @@ func (x *TokenEventListRequest) String() string {
 func (*TokenEventListRequest) ProtoMessage() {}
 
 func (x *TokenEventListRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[183]
+	mi := &file_aidememory_proto_msgTypes[187]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10850,7 +11274,7 @@ func (x *TokenEventListRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TokenEventListRequest.ProtoReflect.Descriptor instead.
 func (*TokenEventListRequest) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{183}
+	return file_aidememory_proto_rawDescGZIP(), []int{187}
 }
 
 func (x *TokenEventListRequest) GetSessionId() string {
@@ -10876,7 +11300,7 @@ type TokenEventListResponse struct {
 
 func (x *TokenEventListResponse) Reset() {
 	*x = TokenEventListResponse{}
-	mi := &file_aidememory_proto_msgTypes[184]
+	mi := &file_aidememory_proto_msgTypes[188]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10888,7 +11312,7 @@ func (x *TokenEventListResponse) String() string {
 func (*TokenEventListResponse) ProtoMessage() {}
 
 func (x *TokenEventListResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[184]
+	mi := &file_aidememory_proto_msgTypes[188]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10901,7 +11325,7 @@ func (x *TokenEventListResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TokenEventListResponse.ProtoReflect.Descriptor instead.
 func (*TokenEventListResponse) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{184}
+	return file_aidememory_proto_rawDescGZIP(), []int{188}
 }
 
 func (x *TokenEventListResponse) GetEvents() []*TokenEventItem {
@@ -10930,7 +11354,7 @@ type TokenEventItem struct {
 
 func (x *TokenEventItem) Reset() {
 	*x = TokenEventItem{}
-	mi := &file_aidememory_proto_msgTypes[185]
+	mi := &file_aidememory_proto_msgTypes[189]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10942,7 +11366,7 @@ func (x *TokenEventItem) String() string {
 func (*TokenEventItem) ProtoMessage() {}
 
 func (x *TokenEventItem) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[185]
+	mi := &file_aidememory_proto_msgTypes[189]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10955,7 +11379,7 @@ func (x *TokenEventItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TokenEventItem.ProtoReflect.Descriptor instead.
 func (*TokenEventItem) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{185}
+	return file_aidememory_proto_rawDescGZIP(), []int{189}
 }
 
 func (x *TokenEventItem) GetId() string {
@@ -11045,7 +11469,7 @@ type SwarmWatchTasksRequest struct {
 
 func (x *SwarmWatchTasksRequest) Reset() {
 	*x = SwarmWatchTasksRequest{}
-	mi := &file_aidememory_proto_msgTypes[186]
+	mi := &file_aidememory_proto_msgTypes[190]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11057,7 +11481,7 @@ func (x *SwarmWatchTasksRequest) String() string {
 func (*SwarmWatchTasksRequest) ProtoMessage() {}
 
 func (x *SwarmWatchTasksRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[186]
+	mi := &file_aidememory_proto_msgTypes[190]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11070,7 +11494,7 @@ func (x *SwarmWatchTasksRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SwarmWatchTasksRequest.ProtoReflect.Descriptor instead.
 func (*SwarmWatchTasksRequest) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{186}
+	return file_aidememory_proto_rawDescGZIP(), []int{190}
 }
 
 func (x *SwarmWatchTasksRequest) GetParentSessionId() string {
@@ -11098,7 +11522,7 @@ type SwarmWatchMessagesRequest struct {
 
 func (x *SwarmWatchMessagesRequest) Reset() {
 	*x = SwarmWatchMessagesRequest{}
-	mi := &file_aidememory_proto_msgTypes[187]
+	mi := &file_aidememory_proto_msgTypes[191]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11110,7 +11534,7 @@ func (x *SwarmWatchMessagesRequest) String() string {
 func (*SwarmWatchMessagesRequest) ProtoMessage() {}
 
 func (x *SwarmWatchMessagesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[187]
+	mi := &file_aidememory_proto_msgTypes[191]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11123,7 +11547,7 @@ func (x *SwarmWatchMessagesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SwarmWatchMessagesRequest.ProtoReflect.Descriptor instead.
 func (*SwarmWatchMessagesRequest) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{187}
+	return file_aidememory_proto_rawDescGZIP(), []int{191}
 }
 
 func (x *SwarmWatchMessagesRequest) GetParentSessionId() string {
@@ -11157,7 +11581,7 @@ type SwarmWatchStateRequest struct {
 
 func (x *SwarmWatchStateRequest) Reset() {
 	*x = SwarmWatchStateRequest{}
-	mi := &file_aidememory_proto_msgTypes[188]
+	mi := &file_aidememory_proto_msgTypes[192]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11169,7 +11593,7 @@ func (x *SwarmWatchStateRequest) String() string {
 func (*SwarmWatchStateRequest) ProtoMessage() {}
 
 func (x *SwarmWatchStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[188]
+	mi := &file_aidememory_proto_msgTypes[192]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11182,7 +11606,7 @@ func (x *SwarmWatchStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SwarmWatchStateRequest.ProtoReflect.Descriptor instead.
 func (*SwarmWatchStateRequest) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{188}
+	return file_aidememory_proto_rawDescGZIP(), []int{192}
 }
 
 func (x *SwarmWatchStateRequest) GetAgentId() string {
@@ -11209,7 +11633,7 @@ type StateChange struct {
 
 func (x *StateChange) Reset() {
 	*x = StateChange{}
-	mi := &file_aidememory_proto_msgTypes[189]
+	mi := &file_aidememory_proto_msgTypes[193]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11221,7 +11645,7 @@ func (x *StateChange) String() string {
 func (*StateChange) ProtoMessage() {}
 
 func (x *StateChange) ProtoReflect() protoreflect.Message {
-	mi := &file_aidememory_proto_msgTypes[189]
+	mi := &file_aidememory_proto_msgTypes[193]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11234,7 +11658,7 @@ func (x *StateChange) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StateChange.ProtoReflect.Descriptor instead.
 func (*StateChange) Descriptor() ([]byte, []int) {
-	return file_aidememory_proto_rawDescGZIP(), []int{189}
+	return file_aidememory_proto_rawDescGZIP(), []int{193}
 }
 
 func (x *StateChange) GetState() *State {
@@ -12066,7 +12490,7 @@ const file_aidememory_proto_rawDesc = "" +
 	"\x0einvalid_events\x18\x05 \x01(\x03R\rinvalidEvents\x1aS\n" +
 	"\fByStageEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12-\n" +
-	"\x05value\x18\x02 \x01(\v2\x17.aidememory.TokenChangeR\x05value:\x028\x01\"\x9a\x04\n" +
+	"\x05value\x18\x02 \x01(\v2\x17.aidememory.TokenChangeR\x05value:\x028\x01\"\xd7\x04\n" +
 	"\x0fTokenAccounting\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\x05R\aversion\x12\x1c\n" +
 	"\testimator\x18\x02 \x01(\tR\testimator\x12C\n" +
@@ -12076,10 +12500,56 @@ const file_aidememory_proto_rawDesc = "" +
 	"\x0fmissing_payload\x18\x06 \x01(\x03R\x0emissingPayload\x12)\n" +
 	"\x10missing_identity\x18\a \x01(\x03R\x0fmissingIdentity\x125\n" +
 	"\bactivity\x18\b \x01(\v2\x19.aidememory.TokenActivityR\bactivity\x12J\n" +
-	"\x0ftransformations\x18\t \x01(\v2 .aidememory.TokenTransformationsR\x0ftransformations\x1aU\n" +
+	"\x0ftransformations\x18\t \x01(\v2 .aidememory.TokenTransformationsR\x0ftransformations\x12;\n" +
+	"\n" +
+	"retrievals\x18\n" +
+	" \x01(\v2\x1b.aidememory.TokenRetrievalsR\n" +
+	"retrievals\x1aU\n" +
 	"\fByStageEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12/\n" +
-	"\x05value\x18\x02 \x01(\v2\x19.aidememory.TokenQuantityR\x05value:\x028\x01\"\xb6\b\n" +
+	"\x05value\x18\x02 \x01(\v2\x19.aidememory.TokenQuantityR\x05value:\x028\x01\"S\n" +
+	"\x0fRetrievalSource\x12\x12\n" +
+	"\x04file\x18\x01 \x01(\tR\x04file\x12\x16\n" +
+	"\x06sha256\x18\x02 \x01(\tR\x06sha256\x12\x14\n" +
+	"\x05bytes\x18\x03 \x01(\x03R\x05bytes\"\xe3\x01\n" +
+	"\rRetrievalStep\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12#\n" +
+	"\rinvocation_id\x18\x02 \x01(\tR\finvocationId\x12*\n" +
+	"\x02at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x02at\x12\x12\n" +
+	"\x04tool\x18\x04 \x01(\tR\x04tool\x12\x16\n" +
+	"\x06status\x18\x05 \x01(\tR\x06status\x12\x16\n" +
+	"\x06target\x18\x06 \x01(\tR\x06target\x12-\n" +
+	"\x04text\x18\a \x01(\v2\x19.aidememory.TokenQuantityR\x04text\"\xcf\x06\n" +
+	"\x0fRetrievalWindow\x12\x12\n" +
+	"\x04host\x18\x01 \x01(\tR\x04host\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x02 \x01(\tR\tsessionId\x12\x19\n" +
+	"\bactor_id\x18\x03 \x01(\tR\aactorId\x12\x14\n" +
+	"\x05epoch\x18\x04 \x01(\tR\x05epoch\x120\n" +
+	"\x05first\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\x05first\x12.\n" +
+	"\x04last\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\x04last\x12\x1a\n" +
+	"\bboundary\x18\a \x01(\tR\bboundary\x12\x16\n" +
+	"\x06events\x18\b \x01(\x03R\x06events\x125\n" +
+	"\bobserved\x18\t \x01(\v2\x19.aidememory.TokenQuantityR\bobserved\x12=\n" +
+	"\funattributed\x18\n" +
+	" \x01(\v2\x19.aidememory.TokenQuantityR\funattributed\x127\n" +
+	"\treference\x18\v \x01(\v2\x19.aidememory.TokenQuantityR\treference\x127\n" +
+	"\n" +
+	"comparison\x18\f \x01(\v2\x17.aidememory.TokenChangeR\n" +
+	"comparison\x12(\n" +
+	"\x10full_read_events\x18\r \x01(\x03R\x0efullReadEvents\x12#\n" +
+	"\rsearch_events\x18\x0e \x01(\x03R\fsearchEvents\x12#\n" +
+	"\rfailed_events\x18\x0f \x01(\x03R\ffailedEvents\x12'\n" +
+	"\x0fmissing_payload\x18\x10 \x01(\x03R\x0emissingPayload\x12\x18\n" +
+	"\aclipped\x18\x11 \x01(\bR\aclipped\x12\x16\n" +
+	"\x06issues\x18\x12 \x03(\tR\x06issues\x125\n" +
+	"\asources\x18\x13 \x03(\v2\x1b.aidememory.RetrievalSourceR\asources\x12/\n" +
+	"\x05steps\x18\x14 \x03(\v2\x19.aidememory.RetrievalStepR\x05steps\x12#\n" +
+	"\rsteps_limited\x18\x15 \x01(\bR\fstepsLimited\"\x9e\x01\n" +
+	"\x0fTokenRetrievals\x125\n" +
+	"\awindows\x18\x01 \x03(\v2\x1b.aidememory.RetrievalWindowR\awindows\x12'\n" +
+	"\x0fwindows_limited\x18\x02 \x01(\bR\x0ewindowsLimited\x12+\n" +
+	"\x11unwindowed_events\x18\x03 \x01(\x03R\x10unwindowedEvents\"\xb6\b\n" +
 	"\x12TokenStatsResponse\x12\x1d\n" +
 	"\n" +
 	"total_read\x18\x01 \x01(\x05R\ttotalRead\x12\x1f\n" +
@@ -12272,7 +12742,7 @@ func file_aidememory_proto_rawDescGZIP() []byte {
 	return file_aidememory_proto_rawDescData
 }
 
-var file_aidememory_proto_msgTypes = make([]protoimpl.MessageInfo, 214)
+var file_aidememory_proto_msgTypes = make([]protoimpl.MessageInfo, 218)
 var file_aidememory_proto_goTypes = []any{
 	(*Memory)(nil),                          // 0: aidememory.Memory
 	(*MemoryAddRequest)(nil),                // 1: aidememory.MemoryAddRequest
@@ -12456,102 +12926,106 @@ var file_aidememory_proto_goTypes = []any{
 	(*TokenChangeWindow)(nil),               // 179: aidememory.TokenChangeWindow
 	(*TokenTransformations)(nil),            // 180: aidememory.TokenTransformations
 	(*TokenAccounting)(nil),                 // 181: aidememory.TokenAccounting
-	(*TokenStatsResponse)(nil),              // 182: aidememory.TokenStatsResponse
-	(*TokenEventListRequest)(nil),           // 183: aidememory.TokenEventListRequest
-	(*TokenEventListResponse)(nil),          // 184: aidememory.TokenEventListResponse
-	(*TokenEventItem)(nil),                  // 185: aidememory.TokenEventItem
-	(*SwarmWatchTasksRequest)(nil),          // 186: aidememory.SwarmWatchTasksRequest
-	(*SwarmWatchMessagesRequest)(nil),       // 187: aidememory.SwarmWatchMessagesRequest
-	(*SwarmWatchStateRequest)(nil),          // 188: aidememory.SwarmWatchStateRequest
-	(*StateChange)(nil),                     // 189: aidememory.StateChange
-	nil,                                     // 190: aidememory.Finding.MetadataEntry
-	nil,                                     // 191: aidememory.FindingAddRequest.MetadataEntry
-	nil,                                     // 192: aidememory.FindingStatsResponse.ByAnalyzerEntry
-	nil,                                     // 193: aidememory.FindingStatsResponse.BySeverityEntry
-	nil,                                     // 194: aidememory.SurveyEntry.MetadataEntry
-	nil,                                     // 195: aidememory.SurveyAddRequest.MetadataEntry
-	nil,                                     // 196: aidememory.SurveyStatsResponse.ByAnalyzerEntry
-	nil,                                     // 197: aidememory.SurveyStatsResponse.ByKindEntry
-	nil,                                     // 198: aidememory.StatusFindings.ByAnalyzerEntry
-	nil,                                     // 199: aidememory.StatusFindings.BySeverityEntry
-	nil,                                     // 200: aidememory.StatusFindings.AnalyzersEntry
-	nil,                                     // 201: aidememory.StatusSurvey.ByAnalyzerEntry
-	nil,                                     // 202: aidememory.StatusSurvey.ByKindEntry
-	nil,                                     // 203: aidememory.ObserveRecordRequest.AttrsEntry
-	nil,                                     // 204: aidememory.ObserveEvent.AttrsEntry
-	nil,                                     // 205: aidememory.TokenActivityBucket.ByStageEntry
-	nil,                                     // 206: aidememory.TokenTransformations.ByStageEntry
-	nil,                                     // 207: aidememory.TokenAccounting.ByStageEntry
-	nil,                                     // 208: aidememory.TokenStatsResponse.ByToolEntry
-	nil,                                     // 209: aidememory.TokenStatsResponse.BySavingTypeEntry
-	nil,                                     // 210: aidememory.TokenStatsResponse.ByDeliveryEntry
-	nil,                                     // 211: aidememory.TokenStatsResponse.CallsByToolEntry
-	nil,                                     // 212: aidememory.TokenStatsResponse.SavedByToolEntry
-	nil,                                     // 213: aidememory.TokenEventItem.AttrsEntry
-	(*timestamppb.Timestamp)(nil),           // 214: google.protobuf.Timestamp
+	(*RetrievalSource)(nil),                 // 182: aidememory.RetrievalSource
+	(*RetrievalStep)(nil),                   // 183: aidememory.RetrievalStep
+	(*RetrievalWindow)(nil),                 // 184: aidememory.RetrievalWindow
+	(*TokenRetrievals)(nil),                 // 185: aidememory.TokenRetrievals
+	(*TokenStatsResponse)(nil),              // 186: aidememory.TokenStatsResponse
+	(*TokenEventListRequest)(nil),           // 187: aidememory.TokenEventListRequest
+	(*TokenEventListResponse)(nil),          // 188: aidememory.TokenEventListResponse
+	(*TokenEventItem)(nil),                  // 189: aidememory.TokenEventItem
+	(*SwarmWatchTasksRequest)(nil),          // 190: aidememory.SwarmWatchTasksRequest
+	(*SwarmWatchMessagesRequest)(nil),       // 191: aidememory.SwarmWatchMessagesRequest
+	(*SwarmWatchStateRequest)(nil),          // 192: aidememory.SwarmWatchStateRequest
+	(*StateChange)(nil),                     // 193: aidememory.StateChange
+	nil,                                     // 194: aidememory.Finding.MetadataEntry
+	nil,                                     // 195: aidememory.FindingAddRequest.MetadataEntry
+	nil,                                     // 196: aidememory.FindingStatsResponse.ByAnalyzerEntry
+	nil,                                     // 197: aidememory.FindingStatsResponse.BySeverityEntry
+	nil,                                     // 198: aidememory.SurveyEntry.MetadataEntry
+	nil,                                     // 199: aidememory.SurveyAddRequest.MetadataEntry
+	nil,                                     // 200: aidememory.SurveyStatsResponse.ByAnalyzerEntry
+	nil,                                     // 201: aidememory.SurveyStatsResponse.ByKindEntry
+	nil,                                     // 202: aidememory.StatusFindings.ByAnalyzerEntry
+	nil,                                     // 203: aidememory.StatusFindings.BySeverityEntry
+	nil,                                     // 204: aidememory.StatusFindings.AnalyzersEntry
+	nil,                                     // 205: aidememory.StatusSurvey.ByAnalyzerEntry
+	nil,                                     // 206: aidememory.StatusSurvey.ByKindEntry
+	nil,                                     // 207: aidememory.ObserveRecordRequest.AttrsEntry
+	nil,                                     // 208: aidememory.ObserveEvent.AttrsEntry
+	nil,                                     // 209: aidememory.TokenActivityBucket.ByStageEntry
+	nil,                                     // 210: aidememory.TokenTransformations.ByStageEntry
+	nil,                                     // 211: aidememory.TokenAccounting.ByStageEntry
+	nil,                                     // 212: aidememory.TokenStatsResponse.ByToolEntry
+	nil,                                     // 213: aidememory.TokenStatsResponse.BySavingTypeEntry
+	nil,                                     // 214: aidememory.TokenStatsResponse.ByDeliveryEntry
+	nil,                                     // 215: aidememory.TokenStatsResponse.CallsByToolEntry
+	nil,                                     // 216: aidememory.TokenStatsResponse.SavedByToolEntry
+	nil,                                     // 217: aidememory.TokenEventItem.AttrsEntry
+	(*timestamppb.Timestamp)(nil),           // 218: google.protobuf.Timestamp
 }
 var file_aidememory_proto_depIdxs = []int32{
-	214, // 0: aidememory.Memory.created_at:type_name -> google.protobuf.Timestamp
-	214, // 1: aidememory.Memory.updated_at:type_name -> google.protobuf.Timestamp
-	214, // 2: aidememory.Memory.last_accessed:type_name -> google.protobuf.Timestamp
-	214, // 3: aidememory.MemoryAddRequest.created_at:type_name -> google.protobuf.Timestamp
-	214, // 4: aidememory.MemoryAddRequest.updated_at:type_name -> google.protobuf.Timestamp
+	218, // 0: aidememory.Memory.created_at:type_name -> google.protobuf.Timestamp
+	218, // 1: aidememory.Memory.updated_at:type_name -> google.protobuf.Timestamp
+	218, // 2: aidememory.Memory.last_accessed:type_name -> google.protobuf.Timestamp
+	218, // 3: aidememory.MemoryAddRequest.created_at:type_name -> google.protobuf.Timestamp
+	218, // 4: aidememory.MemoryAddRequest.updated_at:type_name -> google.protobuf.Timestamp
 	0,   // 5: aidememory.MemoryAddResponse.memory:type_name -> aidememory.Memory
 	0,   // 6: aidememory.MemoryGetResponse.memory:type_name -> aidememory.Memory
 	0,   // 7: aidememory.MemorySearchResponse.memories:type_name -> aidememory.Memory
 	0,   // 8: aidememory.MemoryListResponse.memories:type_name -> aidememory.Memory
-	214, // 9: aidememory.State.updated_at:type_name -> google.protobuf.Timestamp
+	218, // 9: aidememory.State.updated_at:type_name -> google.protobuf.Timestamp
 	15,  // 10: aidememory.StateGetResponse.state:type_name -> aidememory.State
-	214, // 11: aidememory.StateSetRequest.updated_at:type_name -> google.protobuf.Timestamp
+	218, // 11: aidememory.StateSetRequest.updated_at:type_name -> google.protobuf.Timestamp
 	15,  // 12: aidememory.StateSetResponse.state:type_name -> aidememory.State
 	15,  // 13: aidememory.StateListResponse.states:type_name -> aidememory.State
-	214, // 14: aidememory.Decision.created_at:type_name -> google.protobuf.Timestamp
-	214, // 15: aidememory.DecisionSetRequest.created_at:type_name -> google.protobuf.Timestamp
+	218, // 14: aidememory.Decision.created_at:type_name -> google.protobuf.Timestamp
+	218, // 15: aidememory.DecisionSetRequest.created_at:type_name -> google.protobuf.Timestamp
 	28,  // 16: aidememory.DecisionSetResponse.decision:type_name -> aidememory.Decision
 	28,  // 17: aidememory.DecisionGetResponse.decision:type_name -> aidememory.Decision
 	28,  // 18: aidememory.DecisionListResponse.decisions:type_name -> aidememory.Decision
 	28,  // 19: aidememory.DecisionHistoryResponse.decisions:type_name -> aidememory.Decision
-	214, // 20: aidememory.Message.created_at:type_name -> google.protobuf.Timestamp
-	214, // 21: aidememory.Message.expires_at:type_name -> google.protobuf.Timestamp
+	218, // 20: aidememory.Message.created_at:type_name -> google.protobuf.Timestamp
+	218, // 21: aidememory.Message.expires_at:type_name -> google.protobuf.Timestamp
 	41,  // 22: aidememory.MessageSendResponse.message:type_name -> aidememory.Message
 	41,  // 23: aidememory.MessageListResponse.messages:type_name -> aidememory.Message
-	214, // 24: aidememory.Task.created_at:type_name -> google.protobuf.Timestamp
-	214, // 25: aidememory.Task.claimed_at:type_name -> google.protobuf.Timestamp
-	214, // 26: aidememory.Task.completed_at:type_name -> google.protobuf.Timestamp
+	218, // 24: aidememory.Task.created_at:type_name -> google.protobuf.Timestamp
+	218, // 25: aidememory.Task.claimed_at:type_name -> google.protobuf.Timestamp
+	218, // 26: aidememory.Task.completed_at:type_name -> google.protobuf.Timestamp
 	50,  // 27: aidememory.TaskCreateResponse.task:type_name -> aidememory.Task
 	50,  // 28: aidememory.TaskGetResponse.task:type_name -> aidememory.Task
 	50,  // 29: aidememory.TaskListResponse.tasks:type_name -> aidememory.Task
 	50,  // 30: aidememory.TaskClaimResponse.task:type_name -> aidememory.Task
 	50,  // 31: aidememory.TaskCompleteResponse.task:type_name -> aidememory.Task
 	50,  // 32: aidememory.TaskUpdateResponse.task:type_name -> aidememory.Task
-	214, // 33: aidememory.Symbol.created_at:type_name -> google.protobuf.Timestamp
+	218, // 33: aidememory.Symbol.created_at:type_name -> google.protobuf.Timestamp
 	67,  // 34: aidememory.CodeSearchResponse.symbols:type_name -> aidememory.Symbol
 	67,  // 35: aidememory.CodeSymbolsResponse.symbols:type_name -> aidememory.Symbol
 	76,  // 36: aidememory.CodeIndexEvent.progress:type_name -> aidememory.CodeIndexProgress
 	75,  // 37: aidememory.CodeIndexEvent.summary:type_name -> aidememory.CodeIndexResponse
 	82,  // 38: aidememory.CodeTopReferencesResponse.symbols:type_name -> aidememory.SymbolRefCount
-	214, // 39: aidememory.CodeReference.created_at:type_name -> google.protobuf.Timestamp
+	218, // 39: aidememory.CodeReference.created_at:type_name -> google.protobuf.Timestamp
 	83,  // 40: aidememory.CodeSearchReferencesResponse.references:type_name -> aidememory.CodeReference
 	67,  // 41: aidememory.CodeGetContainingSymbolResponse.symbol:type_name -> aidememory.Symbol
-	214, // 42: aidememory.CodeGetFileInfoResponse.mod_time:type_name -> google.protobuf.Timestamp
-	190, // 43: aidememory.Finding.metadata:type_name -> aidememory.Finding.MetadataEntry
-	214, // 44: aidememory.Finding.created_at:type_name -> google.protobuf.Timestamp
-	191, // 45: aidememory.FindingAddRequest.metadata:type_name -> aidememory.FindingAddRequest.MetadataEntry
+	218, // 42: aidememory.CodeGetFileInfoResponse.mod_time:type_name -> google.protobuf.Timestamp
+	194, // 43: aidememory.Finding.metadata:type_name -> aidememory.Finding.MetadataEntry
+	218, // 44: aidememory.Finding.created_at:type_name -> google.protobuf.Timestamp
+	195, // 45: aidememory.FindingAddRequest.metadata:type_name -> aidememory.FindingAddRequest.MetadataEntry
 	95,  // 46: aidememory.FindingAddResponse.finding:type_name -> aidememory.Finding
 	95,  // 47: aidememory.FindingGetResponse.finding:type_name -> aidememory.Finding
 	95,  // 48: aidememory.FindingSearchResponse.findings:type_name -> aidememory.Finding
-	192, // 49: aidememory.FindingStatsResponse.by_analyzer:type_name -> aidememory.FindingStatsResponse.ByAnalyzerEntry
-	193, // 50: aidememory.FindingStatsResponse.by_severity:type_name -> aidememory.FindingStatsResponse.BySeverityEntry
+	196, // 49: aidememory.FindingStatsResponse.by_analyzer:type_name -> aidememory.FindingStatsResponse.ByAnalyzerEntry
+	197, // 50: aidememory.FindingStatsResponse.by_severity:type_name -> aidememory.FindingStatsResponse.BySeverityEntry
 	116, // 51: aidememory.SurveyRunResponse.results:type_name -> aidememory.SurveyRunResult
-	194, // 52: aidememory.SurveyEntry.metadata:type_name -> aidememory.SurveyEntry.MetadataEntry
-	214, // 53: aidememory.SurveyEntry.created_at:type_name -> google.protobuf.Timestamp
-	195, // 54: aidememory.SurveyAddRequest.metadata:type_name -> aidememory.SurveyAddRequest.MetadataEntry
+	198, // 52: aidememory.SurveyEntry.metadata:type_name -> aidememory.SurveyEntry.MetadataEntry
+	218, // 53: aidememory.SurveyEntry.created_at:type_name -> google.protobuf.Timestamp
+	199, // 54: aidememory.SurveyAddRequest.metadata:type_name -> aidememory.SurveyAddRequest.MetadataEntry
 	118, // 55: aidememory.SurveyAddResponse.entry:type_name -> aidememory.SurveyEntry
 	118, // 56: aidememory.SurveyGetResponse.entry:type_name -> aidememory.SurveyEntry
 	118, // 57: aidememory.SurveySearchResponse.entries:type_name -> aidememory.SurveyEntry
-	196, // 58: aidememory.SurveyStatsResponse.by_analyzer:type_name -> aidememory.SurveyStatsResponse.ByAnalyzerEntry
-	197, // 59: aidememory.SurveyStatsResponse.by_kind:type_name -> aidememory.SurveyStatsResponse.ByKindEntry
-	214, // 60: aidememory.Tombstone.deleted_at:type_name -> google.protobuf.Timestamp
+	200, // 58: aidememory.SurveyStatsResponse.by_analyzer:type_name -> aidememory.SurveyStatsResponse.ByAnalyzerEntry
+	201, // 59: aidememory.SurveyStatsResponse.by_kind:type_name -> aidememory.SurveyStatsResponse.ByKindEntry
+	218, // 60: aidememory.Tombstone.deleted_at:type_name -> google.protobuf.Timestamp
 	135, // 61: aidememory.TombstoneAddRequest.tombstone:type_name -> aidememory.Tombstone
 	135, // 62: aidememory.TombstoneAddResponse.tombstone:type_name -> aidememory.Tombstone
 	135, // 63: aidememory.TombstoneGetResponse.tombstone:type_name -> aidememory.Tombstone
@@ -12563,225 +13037,237 @@ var file_aidememory_proto_depIdxs = []int32{
 	153, // 69: aidememory.StatusResponse.survey:type_name -> aidememory.StatusSurvey
 	154, // 70: aidememory.StatusResponse.stores:type_name -> aidememory.StatusStore
 	155, // 71: aidememory.StatusResponse.grammars:type_name -> aidememory.StatusGrammar
-	198, // 72: aidememory.StatusFindings.by_analyzer:type_name -> aidememory.StatusFindings.ByAnalyzerEntry
-	199, // 73: aidememory.StatusFindings.by_severity:type_name -> aidememory.StatusFindings.BySeverityEntry
-	200, // 74: aidememory.StatusFindings.analyzers:type_name -> aidememory.StatusFindings.AnalyzersEntry
-	201, // 75: aidememory.StatusSurvey.by_analyzer:type_name -> aidememory.StatusSurvey.ByAnalyzerEntry
-	202, // 76: aidememory.StatusSurvey.by_kind:type_name -> aidememory.StatusSurvey.ByKindEntry
-	203, // 77: aidememory.ObserveRecordRequest.attrs:type_name -> aidememory.ObserveRecordRequest.AttrsEntry
-	214, // 78: aidememory.ObserveEvent.timestamp:type_name -> google.protobuf.Timestamp
-	204, // 79: aidememory.ObserveEvent.attrs:type_name -> aidememory.ObserveEvent.AttrsEntry
+	202, // 72: aidememory.StatusFindings.by_analyzer:type_name -> aidememory.StatusFindings.ByAnalyzerEntry
+	203, // 73: aidememory.StatusFindings.by_severity:type_name -> aidememory.StatusFindings.BySeverityEntry
+	204, // 74: aidememory.StatusFindings.analyzers:type_name -> aidememory.StatusFindings.AnalyzersEntry
+	205, // 75: aidememory.StatusSurvey.by_analyzer:type_name -> aidememory.StatusSurvey.ByAnalyzerEntry
+	206, // 76: aidememory.StatusSurvey.by_kind:type_name -> aidememory.StatusSurvey.ByKindEntry
+	207, // 77: aidememory.ObserveRecordRequest.attrs:type_name -> aidememory.ObserveRecordRequest.AttrsEntry
+	218, // 78: aidememory.ObserveEvent.timestamp:type_name -> google.protobuf.Timestamp
+	208, // 79: aidememory.ObserveEvent.attrs:type_name -> aidememory.ObserveEvent.AttrsEntry
 	159, // 80: aidememory.ObserveListResponse.events:type_name -> aidememory.ObserveEvent
 	159, // 81: aidememory.InstinctEvidence.snapshot:type_name -> aidememory.ObserveEvent
-	214, // 82: aidememory.InstinctProposal.proposed_at:type_name -> google.protobuf.Timestamp
+	218, // 82: aidememory.InstinctProposal.proposed_at:type_name -> google.protobuf.Timestamp
 	161, // 83: aidememory.InstinctProposal.evidence:type_name -> aidememory.InstinctEvidence
 	162, // 84: aidememory.InstinctProposal.proposed_instinct:type_name -> aidememory.InstinctProposedMemory
-	214, // 85: aidememory.InstinctProposal.last_reproposal_at:type_name -> google.protobuf.Timestamp
-	214, // 86: aidememory.InstinctProposal.expires_at:type_name -> google.protobuf.Timestamp
+	218, // 85: aidememory.InstinctProposal.last_reproposal_at:type_name -> google.protobuf.Timestamp
+	218, // 86: aidememory.InstinctProposal.expires_at:type_name -> google.protobuf.Timestamp
 	163, // 87: aidememory.InstinctListResponse.proposals:type_name -> aidememory.InstinctProposal
 	163, // 88: aidememory.InstinctGetResponse.proposal:type_name -> aidememory.InstinctProposal
 	163, // 89: aidememory.InstinctAddRequest.proposal:type_name -> aidememory.InstinctProposal
 	163, // 90: aidememory.InstinctAddResponse.proposal:type_name -> aidememory.InstinctProposal
 	163, // 91: aidememory.InstinctUpdateStatusResponse.proposal:type_name -> aidememory.InstinctProposal
-	214, // 92: aidememory.TokenStatsRequest.since:type_name -> google.protobuf.Timestamp
-	214, // 93: aidememory.TokenStatsRequest.until:type_name -> google.protobuf.Timestamp
-	214, // 94: aidememory.TokenActivityBucket.start:type_name -> google.protobuf.Timestamp
-	205, // 95: aidememory.TokenActivityBucket.by_stage:type_name -> aidememory.TokenActivityBucket.ByStageEntry
+	218, // 92: aidememory.TokenStatsRequest.since:type_name -> google.protobuf.Timestamp
+	218, // 93: aidememory.TokenStatsRequest.until:type_name -> google.protobuf.Timestamp
+	218, // 94: aidememory.TokenActivityBucket.start:type_name -> google.protobuf.Timestamp
+	209, // 95: aidememory.TokenActivityBucket.by_stage:type_name -> aidememory.TokenActivityBucket.ByStageEntry
 	176, // 96: aidememory.TokenActivity.buckets:type_name -> aidememory.TokenActivityBucket
-	214, // 97: aidememory.TokenChangeWindow.first:type_name -> google.protobuf.Timestamp
-	214, // 98: aidememory.TokenChangeWindow.last:type_name -> google.protobuf.Timestamp
+	218, // 97: aidememory.TokenChangeWindow.first:type_name -> google.protobuf.Timestamp
+	218, // 98: aidememory.TokenChangeWindow.last:type_name -> google.protobuf.Timestamp
 	178, // 99: aidememory.TokenChangeWindow.change:type_name -> aidememory.TokenChange
-	206, // 100: aidememory.TokenTransformations.by_stage:type_name -> aidememory.TokenTransformations.ByStageEntry
+	210, // 100: aidememory.TokenTransformations.by_stage:type_name -> aidememory.TokenTransformations.ByStageEntry
 	179, // 101: aidememory.TokenTransformations.windows:type_name -> aidememory.TokenChangeWindow
-	207, // 102: aidememory.TokenAccounting.by_stage:type_name -> aidememory.TokenAccounting.ByStageEntry
+	211, // 102: aidememory.TokenAccounting.by_stage:type_name -> aidememory.TokenAccounting.ByStageEntry
 	175, // 103: aidememory.TokenAccounting.arguments:type_name -> aidememory.TokenQuantity
 	177, // 104: aidememory.TokenAccounting.activity:type_name -> aidememory.TokenActivity
 	180, // 105: aidememory.TokenAccounting.transformations:type_name -> aidememory.TokenTransformations
-	208, // 106: aidememory.TokenStatsResponse.by_tool:type_name -> aidememory.TokenStatsResponse.ByToolEntry
-	209, // 107: aidememory.TokenStatsResponse.by_saving_type:type_name -> aidememory.TokenStatsResponse.BySavingTypeEntry
-	210, // 108: aidememory.TokenStatsResponse.by_delivery:type_name -> aidememory.TokenStatsResponse.ByDeliveryEntry
-	211, // 109: aidememory.TokenStatsResponse.calls_by_tool:type_name -> aidememory.TokenStatsResponse.CallsByToolEntry
-	212, // 110: aidememory.TokenStatsResponse.saved_by_tool:type_name -> aidememory.TokenStatsResponse.SavedByToolEntry
-	181, // 111: aidememory.TokenStatsResponse.accounting:type_name -> aidememory.TokenAccounting
-	185, // 112: aidememory.TokenEventListResponse.events:type_name -> aidememory.TokenEventItem
-	214, // 113: aidememory.TokenEventItem.timestamp:type_name -> google.protobuf.Timestamp
-	213, // 114: aidememory.TokenEventItem.attrs:type_name -> aidememory.TokenEventItem.AttrsEntry
-	15,  // 115: aidememory.StateChange.state:type_name -> aidememory.State
-	151, // 116: aidememory.StatusFindings.AnalyzersEntry.value:type_name -> aidememory.StatusAnalyzer
-	175, // 117: aidememory.TokenActivityBucket.ByStageEntry.value:type_name -> aidememory.TokenQuantity
-	178, // 118: aidememory.TokenTransformations.ByStageEntry.value:type_name -> aidememory.TokenChange
-	175, // 119: aidememory.TokenAccounting.ByStageEntry.value:type_name -> aidememory.TokenQuantity
-	1,   // 120: aidememory.MemoryService.Add:input_type -> aidememory.MemoryAddRequest
-	3,   // 121: aidememory.MemoryService.Get:input_type -> aidememory.MemoryGetRequest
-	5,   // 122: aidememory.MemoryService.Search:input_type -> aidememory.MemorySearchRequest
-	7,   // 123: aidememory.MemoryService.List:input_type -> aidememory.MemoryListRequest
-	9,   // 124: aidememory.MemoryService.Delete:input_type -> aidememory.MemoryDeleteRequest
-	11,  // 125: aidememory.MemoryService.Clear:input_type -> aidememory.MemoryClearRequest
-	13,  // 126: aidememory.MemoryService.Touch:input_type -> aidememory.MemoryTouchRequest
-	16,  // 127: aidememory.StateService.Get:input_type -> aidememory.StateGetRequest
-	18,  // 128: aidememory.StateService.Set:input_type -> aidememory.StateSetRequest
-	20,  // 129: aidememory.StateService.List:input_type -> aidememory.StateListRequest
-	22,  // 130: aidememory.StateService.Delete:input_type -> aidememory.StateDeleteRequest
-	24,  // 131: aidememory.StateService.Clear:input_type -> aidememory.StateClearRequest
-	26,  // 132: aidememory.StateService.Cleanup:input_type -> aidememory.StateCleanupRequest
-	29,  // 133: aidememory.DecisionService.Set:input_type -> aidememory.DecisionSetRequest
-	31,  // 134: aidememory.DecisionService.Get:input_type -> aidememory.DecisionGetRequest
-	33,  // 135: aidememory.DecisionService.List:input_type -> aidememory.DecisionListRequest
-	35,  // 136: aidememory.DecisionService.History:input_type -> aidememory.DecisionHistoryRequest
-	37,  // 137: aidememory.DecisionService.Delete:input_type -> aidememory.DecisionDeleteRequest
-	39,  // 138: aidememory.DecisionService.Clear:input_type -> aidememory.DecisionClearRequest
-	42,  // 139: aidememory.MessageService.Send:input_type -> aidememory.MessageSendRequest
-	44,  // 140: aidememory.MessageService.List:input_type -> aidememory.MessageListRequest
-	46,  // 141: aidememory.MessageService.Ack:input_type -> aidememory.MessageAckRequest
-	48,  // 142: aidememory.MessageService.Prune:input_type -> aidememory.MessagePruneRequest
-	51,  // 143: aidememory.TaskService.Create:input_type -> aidememory.TaskCreateRequest
-	53,  // 144: aidememory.TaskService.Get:input_type -> aidememory.TaskGetRequest
-	55,  // 145: aidememory.TaskService.List:input_type -> aidememory.TaskListRequest
-	57,  // 146: aidememory.TaskService.Claim:input_type -> aidememory.TaskClaimRequest
-	59,  // 147: aidememory.TaskService.Complete:input_type -> aidememory.TaskCompleteRequest
-	61,  // 148: aidememory.TaskService.Update:input_type -> aidememory.TaskUpdateRequest
-	63,  // 149: aidememory.TaskService.Delete:input_type -> aidememory.TaskDeleteRequest
-	65,  // 150: aidememory.TaskService.Clear:input_type -> aidememory.TaskClearRequest
-	68,  // 151: aidememory.CodeService.Search:input_type -> aidememory.CodeSearchRequest
-	70,  // 152: aidememory.CodeService.Symbols:input_type -> aidememory.CodeSymbolsRequest
-	72,  // 153: aidememory.CodeService.Stats:input_type -> aidememory.CodeStatsRequest
-	74,  // 154: aidememory.CodeService.Index:input_type -> aidememory.CodeIndexRequest
-	78,  // 155: aidememory.CodeService.Clear:input_type -> aidememory.CodeClearRequest
-	80,  // 156: aidememory.CodeService.TopReferences:input_type -> aidememory.CodeTopReferencesRequest
-	84,  // 157: aidememory.CodeService.SearchReferences:input_type -> aidememory.CodeSearchReferencesRequest
-	86,  // 158: aidememory.CodeService.GetFileReferences:input_type -> aidememory.CodeGetFileReferencesRequest
-	87,  // 159: aidememory.CodeService.GetContainingSymbol:input_type -> aidememory.CodeGetContainingSymbolRequest
-	89,  // 160: aidememory.CodeService.GetFileInfo:input_type -> aidememory.CodeGetFileInfoRequest
-	91,  // 161: aidememory.CodeService.ReadCheck:input_type -> aidememory.CodeReadCheckRequest
-	93,  // 162: aidememory.CodeService.RunDeadCodeAnalysis:input_type -> aidememory.CodeRunDeadCodeAnalysisRequest
-	96,  // 163: aidememory.FindingsService.Add:input_type -> aidememory.FindingAddRequest
-	98,  // 164: aidememory.FindingsService.Get:input_type -> aidememory.FindingGetRequest
-	100, // 165: aidememory.FindingsService.Delete:input_type -> aidememory.FindingDeleteRequest
-	102, // 166: aidememory.FindingsService.Search:input_type -> aidememory.FindingSearchRequest
-	104, // 167: aidememory.FindingsService.List:input_type -> aidememory.FindingListRequest
-	105, // 168: aidememory.FindingsService.GetFileFindings:input_type -> aidememory.FindingFileRequest
-	106, // 169: aidememory.FindingsService.ClearAnalyzer:input_type -> aidememory.FindingClearAnalyzerRequest
-	108, // 170: aidememory.FindingsService.Stats:input_type -> aidememory.FindingStatsRequest
-	110, // 171: aidememory.FindingsService.Clear:input_type -> aidememory.FindingClearRequest
-	112, // 172: aidememory.FindingsService.Accept:input_type -> aidememory.FindingAcceptRequest
-	113, // 173: aidememory.FindingsService.AcceptByFilter:input_type -> aidememory.FindingAcceptByFilterRequest
-	119, // 174: aidememory.SurveyService.Add:input_type -> aidememory.SurveyAddRequest
-	121, // 175: aidememory.SurveyService.Get:input_type -> aidememory.SurveyGetRequest
-	123, // 176: aidememory.SurveyService.Delete:input_type -> aidememory.SurveyDeleteRequest
-	125, // 177: aidememory.SurveyService.Search:input_type -> aidememory.SurveySearchRequest
-	127, // 178: aidememory.SurveyService.List:input_type -> aidememory.SurveyListRequest
-	128, // 179: aidememory.SurveyService.GetFileEntries:input_type -> aidememory.SurveyFileRequest
-	129, // 180: aidememory.SurveyService.ClearAnalyzer:input_type -> aidememory.SurveyClearAnalyzerRequest
-	131, // 181: aidememory.SurveyService.Stats:input_type -> aidememory.SurveyStatsRequest
-	133, // 182: aidememory.SurveyService.Clear:input_type -> aidememory.SurveyClearRequest
-	115, // 183: aidememory.SurveyService.Run:input_type -> aidememory.SurveyRunRequest
-	136, // 184: aidememory.TombstoneService.Add:input_type -> aidememory.TombstoneAddRequest
-	138, // 185: aidememory.TombstoneService.Get:input_type -> aidememory.TombstoneGetRequest
-	140, // 186: aidememory.TombstoneService.List:input_type -> aidememory.TombstoneListRequest
-	142, // 187: aidememory.TombstoneService.Delete:input_type -> aidememory.TombstoneDeleteRequest
-	144, // 188: aidememory.HealthService.Check:input_type -> aidememory.HealthCheckRequest
-	146, // 189: aidememory.StatusService.GetStatus:input_type -> aidememory.StatusRequest
-	174, // 190: aidememory.TokenService.GetTokenStats:input_type -> aidememory.TokenStatsRequest
-	183, // 191: aidememory.TokenService.ListTokenEvents:input_type -> aidememory.TokenEventListRequest
-	156, // 192: aidememory.ObserveService.RecordEvent:input_type -> aidememory.ObserveRecordRequest
-	158, // 193: aidememory.ObserveService.ListEvents:input_type -> aidememory.ObserveListRequest
-	173, // 194: aidememory.ObserveService.WatchEvents:input_type -> aidememory.ObserveWatchRequest
-	164, // 195: aidememory.InstinctService.List:input_type -> aidememory.InstinctListRequest
-	166, // 196: aidememory.InstinctService.Get:input_type -> aidememory.InstinctGetRequest
-	168, // 197: aidememory.InstinctService.Add:input_type -> aidememory.InstinctAddRequest
-	170, // 198: aidememory.InstinctService.UpdateStatus:input_type -> aidememory.InstinctUpdateStatusRequest
-	172, // 199: aidememory.InstinctService.Watch:input_type -> aidememory.InstinctWatchRequest
-	186, // 200: aidememory.SwarmService.WatchTasks:input_type -> aidememory.SwarmWatchTasksRequest
-	187, // 201: aidememory.SwarmService.WatchMessages:input_type -> aidememory.SwarmWatchMessagesRequest
-	188, // 202: aidememory.SwarmService.WatchState:input_type -> aidememory.SwarmWatchStateRequest
-	2,   // 203: aidememory.MemoryService.Add:output_type -> aidememory.MemoryAddResponse
-	4,   // 204: aidememory.MemoryService.Get:output_type -> aidememory.MemoryGetResponse
-	6,   // 205: aidememory.MemoryService.Search:output_type -> aidememory.MemorySearchResponse
-	8,   // 206: aidememory.MemoryService.List:output_type -> aidememory.MemoryListResponse
-	10,  // 207: aidememory.MemoryService.Delete:output_type -> aidememory.MemoryDeleteResponse
-	12,  // 208: aidememory.MemoryService.Clear:output_type -> aidememory.MemoryClearResponse
-	14,  // 209: aidememory.MemoryService.Touch:output_type -> aidememory.MemoryTouchResponse
-	17,  // 210: aidememory.StateService.Get:output_type -> aidememory.StateGetResponse
-	19,  // 211: aidememory.StateService.Set:output_type -> aidememory.StateSetResponse
-	21,  // 212: aidememory.StateService.List:output_type -> aidememory.StateListResponse
-	23,  // 213: aidememory.StateService.Delete:output_type -> aidememory.StateDeleteResponse
-	25,  // 214: aidememory.StateService.Clear:output_type -> aidememory.StateClearResponse
-	27,  // 215: aidememory.StateService.Cleanup:output_type -> aidememory.StateCleanupResponse
-	30,  // 216: aidememory.DecisionService.Set:output_type -> aidememory.DecisionSetResponse
-	32,  // 217: aidememory.DecisionService.Get:output_type -> aidememory.DecisionGetResponse
-	34,  // 218: aidememory.DecisionService.List:output_type -> aidememory.DecisionListResponse
-	36,  // 219: aidememory.DecisionService.History:output_type -> aidememory.DecisionHistoryResponse
-	38,  // 220: aidememory.DecisionService.Delete:output_type -> aidememory.DecisionDeleteResponse
-	40,  // 221: aidememory.DecisionService.Clear:output_type -> aidememory.DecisionClearResponse
-	43,  // 222: aidememory.MessageService.Send:output_type -> aidememory.MessageSendResponse
-	45,  // 223: aidememory.MessageService.List:output_type -> aidememory.MessageListResponse
-	47,  // 224: aidememory.MessageService.Ack:output_type -> aidememory.MessageAckResponse
-	49,  // 225: aidememory.MessageService.Prune:output_type -> aidememory.MessagePruneResponse
-	52,  // 226: aidememory.TaskService.Create:output_type -> aidememory.TaskCreateResponse
-	54,  // 227: aidememory.TaskService.Get:output_type -> aidememory.TaskGetResponse
-	56,  // 228: aidememory.TaskService.List:output_type -> aidememory.TaskListResponse
-	58,  // 229: aidememory.TaskService.Claim:output_type -> aidememory.TaskClaimResponse
-	60,  // 230: aidememory.TaskService.Complete:output_type -> aidememory.TaskCompleteResponse
-	62,  // 231: aidememory.TaskService.Update:output_type -> aidememory.TaskUpdateResponse
-	64,  // 232: aidememory.TaskService.Delete:output_type -> aidememory.TaskDeleteResponse
-	66,  // 233: aidememory.TaskService.Clear:output_type -> aidememory.TaskClearResponse
-	69,  // 234: aidememory.CodeService.Search:output_type -> aidememory.CodeSearchResponse
-	71,  // 235: aidememory.CodeService.Symbols:output_type -> aidememory.CodeSymbolsResponse
-	73,  // 236: aidememory.CodeService.Stats:output_type -> aidememory.CodeStatsResponse
-	77,  // 237: aidememory.CodeService.Index:output_type -> aidememory.CodeIndexEvent
-	79,  // 238: aidememory.CodeService.Clear:output_type -> aidememory.CodeClearResponse
-	81,  // 239: aidememory.CodeService.TopReferences:output_type -> aidememory.CodeTopReferencesResponse
-	85,  // 240: aidememory.CodeService.SearchReferences:output_type -> aidememory.CodeSearchReferencesResponse
-	85,  // 241: aidememory.CodeService.GetFileReferences:output_type -> aidememory.CodeSearchReferencesResponse
-	88,  // 242: aidememory.CodeService.GetContainingSymbol:output_type -> aidememory.CodeGetContainingSymbolResponse
-	90,  // 243: aidememory.CodeService.GetFileInfo:output_type -> aidememory.CodeGetFileInfoResponse
-	92,  // 244: aidememory.CodeService.ReadCheck:output_type -> aidememory.CodeReadCheckResponse
-	94,  // 245: aidememory.CodeService.RunDeadCodeAnalysis:output_type -> aidememory.CodeRunDeadCodeAnalysisResponse
-	97,  // 246: aidememory.FindingsService.Add:output_type -> aidememory.FindingAddResponse
-	99,  // 247: aidememory.FindingsService.Get:output_type -> aidememory.FindingGetResponse
-	101, // 248: aidememory.FindingsService.Delete:output_type -> aidememory.FindingDeleteResponse
-	103, // 249: aidememory.FindingsService.Search:output_type -> aidememory.FindingSearchResponse
-	103, // 250: aidememory.FindingsService.List:output_type -> aidememory.FindingSearchResponse
-	103, // 251: aidememory.FindingsService.GetFileFindings:output_type -> aidememory.FindingSearchResponse
-	107, // 252: aidememory.FindingsService.ClearAnalyzer:output_type -> aidememory.FindingClearAnalyzerResponse
-	109, // 253: aidememory.FindingsService.Stats:output_type -> aidememory.FindingStatsResponse
-	111, // 254: aidememory.FindingsService.Clear:output_type -> aidememory.FindingClearResponse
-	114, // 255: aidememory.FindingsService.Accept:output_type -> aidememory.FindingAcceptResponse
-	114, // 256: aidememory.FindingsService.AcceptByFilter:output_type -> aidememory.FindingAcceptResponse
-	120, // 257: aidememory.SurveyService.Add:output_type -> aidememory.SurveyAddResponse
-	122, // 258: aidememory.SurveyService.Get:output_type -> aidememory.SurveyGetResponse
-	124, // 259: aidememory.SurveyService.Delete:output_type -> aidememory.SurveyDeleteResponse
-	126, // 260: aidememory.SurveyService.Search:output_type -> aidememory.SurveySearchResponse
-	126, // 261: aidememory.SurveyService.List:output_type -> aidememory.SurveySearchResponse
-	126, // 262: aidememory.SurveyService.GetFileEntries:output_type -> aidememory.SurveySearchResponse
-	130, // 263: aidememory.SurveyService.ClearAnalyzer:output_type -> aidememory.SurveyClearAnalyzerResponse
-	132, // 264: aidememory.SurveyService.Stats:output_type -> aidememory.SurveyStatsResponse
-	134, // 265: aidememory.SurveyService.Clear:output_type -> aidememory.SurveyClearResponse
-	117, // 266: aidememory.SurveyService.Run:output_type -> aidememory.SurveyRunResponse
-	137, // 267: aidememory.TombstoneService.Add:output_type -> aidememory.TombstoneAddResponse
-	139, // 268: aidememory.TombstoneService.Get:output_type -> aidememory.TombstoneGetResponse
-	141, // 269: aidememory.TombstoneService.List:output_type -> aidememory.TombstoneListResponse
-	143, // 270: aidememory.TombstoneService.Delete:output_type -> aidememory.TombstoneDeleteResponse
-	145, // 271: aidememory.HealthService.Check:output_type -> aidememory.HealthCheckResponse
-	147, // 272: aidememory.StatusService.GetStatus:output_type -> aidememory.StatusResponse
-	182, // 273: aidememory.TokenService.GetTokenStats:output_type -> aidememory.TokenStatsResponse
-	184, // 274: aidememory.TokenService.ListTokenEvents:output_type -> aidememory.TokenEventListResponse
-	157, // 275: aidememory.ObserveService.RecordEvent:output_type -> aidememory.ObserveRecordResponse
-	160, // 276: aidememory.ObserveService.ListEvents:output_type -> aidememory.ObserveListResponse
-	159, // 277: aidememory.ObserveService.WatchEvents:output_type -> aidememory.ObserveEvent
-	165, // 278: aidememory.InstinctService.List:output_type -> aidememory.InstinctListResponse
-	167, // 279: aidememory.InstinctService.Get:output_type -> aidememory.InstinctGetResponse
-	169, // 280: aidememory.InstinctService.Add:output_type -> aidememory.InstinctAddResponse
-	171, // 281: aidememory.InstinctService.UpdateStatus:output_type -> aidememory.InstinctUpdateStatusResponse
-	163, // 282: aidememory.InstinctService.Watch:output_type -> aidememory.InstinctProposal
-	50,  // 283: aidememory.SwarmService.WatchTasks:output_type -> aidememory.Task
-	41,  // 284: aidememory.SwarmService.WatchMessages:output_type -> aidememory.Message
-	189, // 285: aidememory.SwarmService.WatchState:output_type -> aidememory.StateChange
-	203, // [203:286] is the sub-list for method output_type
-	120, // [120:203] is the sub-list for method input_type
-	120, // [120:120] is the sub-list for extension type_name
-	120, // [120:120] is the sub-list for extension extendee
-	0,   // [0:120] is the sub-list for field type_name
+	185, // 106: aidememory.TokenAccounting.retrievals:type_name -> aidememory.TokenRetrievals
+	218, // 107: aidememory.RetrievalStep.at:type_name -> google.protobuf.Timestamp
+	175, // 108: aidememory.RetrievalStep.text:type_name -> aidememory.TokenQuantity
+	218, // 109: aidememory.RetrievalWindow.first:type_name -> google.protobuf.Timestamp
+	218, // 110: aidememory.RetrievalWindow.last:type_name -> google.protobuf.Timestamp
+	175, // 111: aidememory.RetrievalWindow.observed:type_name -> aidememory.TokenQuantity
+	175, // 112: aidememory.RetrievalWindow.unattributed:type_name -> aidememory.TokenQuantity
+	175, // 113: aidememory.RetrievalWindow.reference:type_name -> aidememory.TokenQuantity
+	178, // 114: aidememory.RetrievalWindow.comparison:type_name -> aidememory.TokenChange
+	182, // 115: aidememory.RetrievalWindow.sources:type_name -> aidememory.RetrievalSource
+	183, // 116: aidememory.RetrievalWindow.steps:type_name -> aidememory.RetrievalStep
+	184, // 117: aidememory.TokenRetrievals.windows:type_name -> aidememory.RetrievalWindow
+	212, // 118: aidememory.TokenStatsResponse.by_tool:type_name -> aidememory.TokenStatsResponse.ByToolEntry
+	213, // 119: aidememory.TokenStatsResponse.by_saving_type:type_name -> aidememory.TokenStatsResponse.BySavingTypeEntry
+	214, // 120: aidememory.TokenStatsResponse.by_delivery:type_name -> aidememory.TokenStatsResponse.ByDeliveryEntry
+	215, // 121: aidememory.TokenStatsResponse.calls_by_tool:type_name -> aidememory.TokenStatsResponse.CallsByToolEntry
+	216, // 122: aidememory.TokenStatsResponse.saved_by_tool:type_name -> aidememory.TokenStatsResponse.SavedByToolEntry
+	181, // 123: aidememory.TokenStatsResponse.accounting:type_name -> aidememory.TokenAccounting
+	189, // 124: aidememory.TokenEventListResponse.events:type_name -> aidememory.TokenEventItem
+	218, // 125: aidememory.TokenEventItem.timestamp:type_name -> google.protobuf.Timestamp
+	217, // 126: aidememory.TokenEventItem.attrs:type_name -> aidememory.TokenEventItem.AttrsEntry
+	15,  // 127: aidememory.StateChange.state:type_name -> aidememory.State
+	151, // 128: aidememory.StatusFindings.AnalyzersEntry.value:type_name -> aidememory.StatusAnalyzer
+	175, // 129: aidememory.TokenActivityBucket.ByStageEntry.value:type_name -> aidememory.TokenQuantity
+	178, // 130: aidememory.TokenTransformations.ByStageEntry.value:type_name -> aidememory.TokenChange
+	175, // 131: aidememory.TokenAccounting.ByStageEntry.value:type_name -> aidememory.TokenQuantity
+	1,   // 132: aidememory.MemoryService.Add:input_type -> aidememory.MemoryAddRequest
+	3,   // 133: aidememory.MemoryService.Get:input_type -> aidememory.MemoryGetRequest
+	5,   // 134: aidememory.MemoryService.Search:input_type -> aidememory.MemorySearchRequest
+	7,   // 135: aidememory.MemoryService.List:input_type -> aidememory.MemoryListRequest
+	9,   // 136: aidememory.MemoryService.Delete:input_type -> aidememory.MemoryDeleteRequest
+	11,  // 137: aidememory.MemoryService.Clear:input_type -> aidememory.MemoryClearRequest
+	13,  // 138: aidememory.MemoryService.Touch:input_type -> aidememory.MemoryTouchRequest
+	16,  // 139: aidememory.StateService.Get:input_type -> aidememory.StateGetRequest
+	18,  // 140: aidememory.StateService.Set:input_type -> aidememory.StateSetRequest
+	20,  // 141: aidememory.StateService.List:input_type -> aidememory.StateListRequest
+	22,  // 142: aidememory.StateService.Delete:input_type -> aidememory.StateDeleteRequest
+	24,  // 143: aidememory.StateService.Clear:input_type -> aidememory.StateClearRequest
+	26,  // 144: aidememory.StateService.Cleanup:input_type -> aidememory.StateCleanupRequest
+	29,  // 145: aidememory.DecisionService.Set:input_type -> aidememory.DecisionSetRequest
+	31,  // 146: aidememory.DecisionService.Get:input_type -> aidememory.DecisionGetRequest
+	33,  // 147: aidememory.DecisionService.List:input_type -> aidememory.DecisionListRequest
+	35,  // 148: aidememory.DecisionService.History:input_type -> aidememory.DecisionHistoryRequest
+	37,  // 149: aidememory.DecisionService.Delete:input_type -> aidememory.DecisionDeleteRequest
+	39,  // 150: aidememory.DecisionService.Clear:input_type -> aidememory.DecisionClearRequest
+	42,  // 151: aidememory.MessageService.Send:input_type -> aidememory.MessageSendRequest
+	44,  // 152: aidememory.MessageService.List:input_type -> aidememory.MessageListRequest
+	46,  // 153: aidememory.MessageService.Ack:input_type -> aidememory.MessageAckRequest
+	48,  // 154: aidememory.MessageService.Prune:input_type -> aidememory.MessagePruneRequest
+	51,  // 155: aidememory.TaskService.Create:input_type -> aidememory.TaskCreateRequest
+	53,  // 156: aidememory.TaskService.Get:input_type -> aidememory.TaskGetRequest
+	55,  // 157: aidememory.TaskService.List:input_type -> aidememory.TaskListRequest
+	57,  // 158: aidememory.TaskService.Claim:input_type -> aidememory.TaskClaimRequest
+	59,  // 159: aidememory.TaskService.Complete:input_type -> aidememory.TaskCompleteRequest
+	61,  // 160: aidememory.TaskService.Update:input_type -> aidememory.TaskUpdateRequest
+	63,  // 161: aidememory.TaskService.Delete:input_type -> aidememory.TaskDeleteRequest
+	65,  // 162: aidememory.TaskService.Clear:input_type -> aidememory.TaskClearRequest
+	68,  // 163: aidememory.CodeService.Search:input_type -> aidememory.CodeSearchRequest
+	70,  // 164: aidememory.CodeService.Symbols:input_type -> aidememory.CodeSymbolsRequest
+	72,  // 165: aidememory.CodeService.Stats:input_type -> aidememory.CodeStatsRequest
+	74,  // 166: aidememory.CodeService.Index:input_type -> aidememory.CodeIndexRequest
+	78,  // 167: aidememory.CodeService.Clear:input_type -> aidememory.CodeClearRequest
+	80,  // 168: aidememory.CodeService.TopReferences:input_type -> aidememory.CodeTopReferencesRequest
+	84,  // 169: aidememory.CodeService.SearchReferences:input_type -> aidememory.CodeSearchReferencesRequest
+	86,  // 170: aidememory.CodeService.GetFileReferences:input_type -> aidememory.CodeGetFileReferencesRequest
+	87,  // 171: aidememory.CodeService.GetContainingSymbol:input_type -> aidememory.CodeGetContainingSymbolRequest
+	89,  // 172: aidememory.CodeService.GetFileInfo:input_type -> aidememory.CodeGetFileInfoRequest
+	91,  // 173: aidememory.CodeService.ReadCheck:input_type -> aidememory.CodeReadCheckRequest
+	93,  // 174: aidememory.CodeService.RunDeadCodeAnalysis:input_type -> aidememory.CodeRunDeadCodeAnalysisRequest
+	96,  // 175: aidememory.FindingsService.Add:input_type -> aidememory.FindingAddRequest
+	98,  // 176: aidememory.FindingsService.Get:input_type -> aidememory.FindingGetRequest
+	100, // 177: aidememory.FindingsService.Delete:input_type -> aidememory.FindingDeleteRequest
+	102, // 178: aidememory.FindingsService.Search:input_type -> aidememory.FindingSearchRequest
+	104, // 179: aidememory.FindingsService.List:input_type -> aidememory.FindingListRequest
+	105, // 180: aidememory.FindingsService.GetFileFindings:input_type -> aidememory.FindingFileRequest
+	106, // 181: aidememory.FindingsService.ClearAnalyzer:input_type -> aidememory.FindingClearAnalyzerRequest
+	108, // 182: aidememory.FindingsService.Stats:input_type -> aidememory.FindingStatsRequest
+	110, // 183: aidememory.FindingsService.Clear:input_type -> aidememory.FindingClearRequest
+	112, // 184: aidememory.FindingsService.Accept:input_type -> aidememory.FindingAcceptRequest
+	113, // 185: aidememory.FindingsService.AcceptByFilter:input_type -> aidememory.FindingAcceptByFilterRequest
+	119, // 186: aidememory.SurveyService.Add:input_type -> aidememory.SurveyAddRequest
+	121, // 187: aidememory.SurveyService.Get:input_type -> aidememory.SurveyGetRequest
+	123, // 188: aidememory.SurveyService.Delete:input_type -> aidememory.SurveyDeleteRequest
+	125, // 189: aidememory.SurveyService.Search:input_type -> aidememory.SurveySearchRequest
+	127, // 190: aidememory.SurveyService.List:input_type -> aidememory.SurveyListRequest
+	128, // 191: aidememory.SurveyService.GetFileEntries:input_type -> aidememory.SurveyFileRequest
+	129, // 192: aidememory.SurveyService.ClearAnalyzer:input_type -> aidememory.SurveyClearAnalyzerRequest
+	131, // 193: aidememory.SurveyService.Stats:input_type -> aidememory.SurveyStatsRequest
+	133, // 194: aidememory.SurveyService.Clear:input_type -> aidememory.SurveyClearRequest
+	115, // 195: aidememory.SurveyService.Run:input_type -> aidememory.SurveyRunRequest
+	136, // 196: aidememory.TombstoneService.Add:input_type -> aidememory.TombstoneAddRequest
+	138, // 197: aidememory.TombstoneService.Get:input_type -> aidememory.TombstoneGetRequest
+	140, // 198: aidememory.TombstoneService.List:input_type -> aidememory.TombstoneListRequest
+	142, // 199: aidememory.TombstoneService.Delete:input_type -> aidememory.TombstoneDeleteRequest
+	144, // 200: aidememory.HealthService.Check:input_type -> aidememory.HealthCheckRequest
+	146, // 201: aidememory.StatusService.GetStatus:input_type -> aidememory.StatusRequest
+	174, // 202: aidememory.TokenService.GetTokenStats:input_type -> aidememory.TokenStatsRequest
+	187, // 203: aidememory.TokenService.ListTokenEvents:input_type -> aidememory.TokenEventListRequest
+	156, // 204: aidememory.ObserveService.RecordEvent:input_type -> aidememory.ObserveRecordRequest
+	158, // 205: aidememory.ObserveService.ListEvents:input_type -> aidememory.ObserveListRequest
+	173, // 206: aidememory.ObserveService.WatchEvents:input_type -> aidememory.ObserveWatchRequest
+	164, // 207: aidememory.InstinctService.List:input_type -> aidememory.InstinctListRequest
+	166, // 208: aidememory.InstinctService.Get:input_type -> aidememory.InstinctGetRequest
+	168, // 209: aidememory.InstinctService.Add:input_type -> aidememory.InstinctAddRequest
+	170, // 210: aidememory.InstinctService.UpdateStatus:input_type -> aidememory.InstinctUpdateStatusRequest
+	172, // 211: aidememory.InstinctService.Watch:input_type -> aidememory.InstinctWatchRequest
+	190, // 212: aidememory.SwarmService.WatchTasks:input_type -> aidememory.SwarmWatchTasksRequest
+	191, // 213: aidememory.SwarmService.WatchMessages:input_type -> aidememory.SwarmWatchMessagesRequest
+	192, // 214: aidememory.SwarmService.WatchState:input_type -> aidememory.SwarmWatchStateRequest
+	2,   // 215: aidememory.MemoryService.Add:output_type -> aidememory.MemoryAddResponse
+	4,   // 216: aidememory.MemoryService.Get:output_type -> aidememory.MemoryGetResponse
+	6,   // 217: aidememory.MemoryService.Search:output_type -> aidememory.MemorySearchResponse
+	8,   // 218: aidememory.MemoryService.List:output_type -> aidememory.MemoryListResponse
+	10,  // 219: aidememory.MemoryService.Delete:output_type -> aidememory.MemoryDeleteResponse
+	12,  // 220: aidememory.MemoryService.Clear:output_type -> aidememory.MemoryClearResponse
+	14,  // 221: aidememory.MemoryService.Touch:output_type -> aidememory.MemoryTouchResponse
+	17,  // 222: aidememory.StateService.Get:output_type -> aidememory.StateGetResponse
+	19,  // 223: aidememory.StateService.Set:output_type -> aidememory.StateSetResponse
+	21,  // 224: aidememory.StateService.List:output_type -> aidememory.StateListResponse
+	23,  // 225: aidememory.StateService.Delete:output_type -> aidememory.StateDeleteResponse
+	25,  // 226: aidememory.StateService.Clear:output_type -> aidememory.StateClearResponse
+	27,  // 227: aidememory.StateService.Cleanup:output_type -> aidememory.StateCleanupResponse
+	30,  // 228: aidememory.DecisionService.Set:output_type -> aidememory.DecisionSetResponse
+	32,  // 229: aidememory.DecisionService.Get:output_type -> aidememory.DecisionGetResponse
+	34,  // 230: aidememory.DecisionService.List:output_type -> aidememory.DecisionListResponse
+	36,  // 231: aidememory.DecisionService.History:output_type -> aidememory.DecisionHistoryResponse
+	38,  // 232: aidememory.DecisionService.Delete:output_type -> aidememory.DecisionDeleteResponse
+	40,  // 233: aidememory.DecisionService.Clear:output_type -> aidememory.DecisionClearResponse
+	43,  // 234: aidememory.MessageService.Send:output_type -> aidememory.MessageSendResponse
+	45,  // 235: aidememory.MessageService.List:output_type -> aidememory.MessageListResponse
+	47,  // 236: aidememory.MessageService.Ack:output_type -> aidememory.MessageAckResponse
+	49,  // 237: aidememory.MessageService.Prune:output_type -> aidememory.MessagePruneResponse
+	52,  // 238: aidememory.TaskService.Create:output_type -> aidememory.TaskCreateResponse
+	54,  // 239: aidememory.TaskService.Get:output_type -> aidememory.TaskGetResponse
+	56,  // 240: aidememory.TaskService.List:output_type -> aidememory.TaskListResponse
+	58,  // 241: aidememory.TaskService.Claim:output_type -> aidememory.TaskClaimResponse
+	60,  // 242: aidememory.TaskService.Complete:output_type -> aidememory.TaskCompleteResponse
+	62,  // 243: aidememory.TaskService.Update:output_type -> aidememory.TaskUpdateResponse
+	64,  // 244: aidememory.TaskService.Delete:output_type -> aidememory.TaskDeleteResponse
+	66,  // 245: aidememory.TaskService.Clear:output_type -> aidememory.TaskClearResponse
+	69,  // 246: aidememory.CodeService.Search:output_type -> aidememory.CodeSearchResponse
+	71,  // 247: aidememory.CodeService.Symbols:output_type -> aidememory.CodeSymbolsResponse
+	73,  // 248: aidememory.CodeService.Stats:output_type -> aidememory.CodeStatsResponse
+	77,  // 249: aidememory.CodeService.Index:output_type -> aidememory.CodeIndexEvent
+	79,  // 250: aidememory.CodeService.Clear:output_type -> aidememory.CodeClearResponse
+	81,  // 251: aidememory.CodeService.TopReferences:output_type -> aidememory.CodeTopReferencesResponse
+	85,  // 252: aidememory.CodeService.SearchReferences:output_type -> aidememory.CodeSearchReferencesResponse
+	85,  // 253: aidememory.CodeService.GetFileReferences:output_type -> aidememory.CodeSearchReferencesResponse
+	88,  // 254: aidememory.CodeService.GetContainingSymbol:output_type -> aidememory.CodeGetContainingSymbolResponse
+	90,  // 255: aidememory.CodeService.GetFileInfo:output_type -> aidememory.CodeGetFileInfoResponse
+	92,  // 256: aidememory.CodeService.ReadCheck:output_type -> aidememory.CodeReadCheckResponse
+	94,  // 257: aidememory.CodeService.RunDeadCodeAnalysis:output_type -> aidememory.CodeRunDeadCodeAnalysisResponse
+	97,  // 258: aidememory.FindingsService.Add:output_type -> aidememory.FindingAddResponse
+	99,  // 259: aidememory.FindingsService.Get:output_type -> aidememory.FindingGetResponse
+	101, // 260: aidememory.FindingsService.Delete:output_type -> aidememory.FindingDeleteResponse
+	103, // 261: aidememory.FindingsService.Search:output_type -> aidememory.FindingSearchResponse
+	103, // 262: aidememory.FindingsService.List:output_type -> aidememory.FindingSearchResponse
+	103, // 263: aidememory.FindingsService.GetFileFindings:output_type -> aidememory.FindingSearchResponse
+	107, // 264: aidememory.FindingsService.ClearAnalyzer:output_type -> aidememory.FindingClearAnalyzerResponse
+	109, // 265: aidememory.FindingsService.Stats:output_type -> aidememory.FindingStatsResponse
+	111, // 266: aidememory.FindingsService.Clear:output_type -> aidememory.FindingClearResponse
+	114, // 267: aidememory.FindingsService.Accept:output_type -> aidememory.FindingAcceptResponse
+	114, // 268: aidememory.FindingsService.AcceptByFilter:output_type -> aidememory.FindingAcceptResponse
+	120, // 269: aidememory.SurveyService.Add:output_type -> aidememory.SurveyAddResponse
+	122, // 270: aidememory.SurveyService.Get:output_type -> aidememory.SurveyGetResponse
+	124, // 271: aidememory.SurveyService.Delete:output_type -> aidememory.SurveyDeleteResponse
+	126, // 272: aidememory.SurveyService.Search:output_type -> aidememory.SurveySearchResponse
+	126, // 273: aidememory.SurveyService.List:output_type -> aidememory.SurveySearchResponse
+	126, // 274: aidememory.SurveyService.GetFileEntries:output_type -> aidememory.SurveySearchResponse
+	130, // 275: aidememory.SurveyService.ClearAnalyzer:output_type -> aidememory.SurveyClearAnalyzerResponse
+	132, // 276: aidememory.SurveyService.Stats:output_type -> aidememory.SurveyStatsResponse
+	134, // 277: aidememory.SurveyService.Clear:output_type -> aidememory.SurveyClearResponse
+	117, // 278: aidememory.SurveyService.Run:output_type -> aidememory.SurveyRunResponse
+	137, // 279: aidememory.TombstoneService.Add:output_type -> aidememory.TombstoneAddResponse
+	139, // 280: aidememory.TombstoneService.Get:output_type -> aidememory.TombstoneGetResponse
+	141, // 281: aidememory.TombstoneService.List:output_type -> aidememory.TombstoneListResponse
+	143, // 282: aidememory.TombstoneService.Delete:output_type -> aidememory.TombstoneDeleteResponse
+	145, // 283: aidememory.HealthService.Check:output_type -> aidememory.HealthCheckResponse
+	147, // 284: aidememory.StatusService.GetStatus:output_type -> aidememory.StatusResponse
+	186, // 285: aidememory.TokenService.GetTokenStats:output_type -> aidememory.TokenStatsResponse
+	188, // 286: aidememory.TokenService.ListTokenEvents:output_type -> aidememory.TokenEventListResponse
+	157, // 287: aidememory.ObserveService.RecordEvent:output_type -> aidememory.ObserveRecordResponse
+	160, // 288: aidememory.ObserveService.ListEvents:output_type -> aidememory.ObserveListResponse
+	159, // 289: aidememory.ObserveService.WatchEvents:output_type -> aidememory.ObserveEvent
+	165, // 290: aidememory.InstinctService.List:output_type -> aidememory.InstinctListResponse
+	167, // 291: aidememory.InstinctService.Get:output_type -> aidememory.InstinctGetResponse
+	169, // 292: aidememory.InstinctService.Add:output_type -> aidememory.InstinctAddResponse
+	171, // 293: aidememory.InstinctService.UpdateStatus:output_type -> aidememory.InstinctUpdateStatusResponse
+	163, // 294: aidememory.InstinctService.Watch:output_type -> aidememory.InstinctProposal
+	50,  // 295: aidememory.SwarmService.WatchTasks:output_type -> aidememory.Task
+	41,  // 296: aidememory.SwarmService.WatchMessages:output_type -> aidememory.Message
+	193, // 297: aidememory.SwarmService.WatchState:output_type -> aidememory.StateChange
+	215, // [215:298] is the sub-list for method output_type
+	132, // [132:215] is the sub-list for method input_type
+	132, // [132:132] is the sub-list for extension type_name
+	132, // [132:132] is the sub-list for extension extendee
+	0,   // [0:132] is the sub-list for field type_name
 }
 
 func init() { file_aidememory_proto_init() }
@@ -12800,7 +13286,7 @@ func file_aidememory_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_aidememory_proto_rawDesc), len(file_aidememory_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   214,
+			NumMessages:   218,
 			NumExtensions: 0,
 			NumServices:   15,
 		},

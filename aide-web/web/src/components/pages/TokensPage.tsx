@@ -6,6 +6,7 @@ import { TokenOverview } from "../shared/TokenOverview";
 import { TokenAccountingSummary } from "../shared/TokenAccountingSummary";
 import { TokenTransformationWindows } from "../shared/TokenTransformations";
 import { TokenRetrievalEvidence } from "../shared/TokenRetrievalEvidence";
+import { TokenRetrievalWindows } from "../shared/TokenRetrievalWindows";
 import { SessionFilterInput } from "../shared/SessionFilterInput";
 import { FilterBar } from "../shared/FilterBar";
 import { SortableTable, type Column } from "../shared/SortableTable";
@@ -526,6 +527,9 @@ function TokenReport({
         </div>
       </div>
       <div hidden={view !== "details"}>
+        {!statsLoading && !statsError && (
+          <TokenRetrievalWindows report={stats?.accounting?.retrievals} />
+        )}
         {!statsLoading && !statsError && (
           <TokenTransformationWindows
             report={stats?.accounting?.transformations}

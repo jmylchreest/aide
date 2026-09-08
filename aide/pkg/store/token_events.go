@@ -60,6 +60,7 @@ func (s *BoltStore) TokenStats(sessionID string, since, until time.Time) (*memor
 	}
 	sessions := make(map[string]bool)
 	activity := newTokenActivity(since, until)
+	retrievals := newTokenRetrievals(sessionID, since, until)
 
 	tally := func(e *memory.TokenEvent) {
 		if !since.IsZero() && e.Timestamp.Before(since) {
@@ -140,11 +141,18 @@ func (s *BoltStore) TokenStats(sessionID string, since, until time.Time) (*memor
 			if err := json.Unmarshal(v, &oe); err != nil {
 				continue
 			}
-			if !since.IsZero() && oe.Timestamp.Before(since) {
-				continue
-			}
+			retrievals.add(&oe)
 			if te := observeToTokenEvent(&oe); te != nil {
 				tally(te)
+			}
+		}
+		if len(retrievals.windows) == 0 {
+			return nil
+		}
+		for k, v := c.First(); k != nil; k, v = c.Next() {
+			var oe observe.Event
+			if json.Unmarshal(v, &oe) == nil {
+				retrievals.context(&oe)
 			}
 		}
 		return nil
@@ -155,6 +163,7 @@ func (s *BoltStore) TokenStats(sessionID string, since, until time.Time) (*memor
 
 	stats.Sessions = len(sessions)
 	stats.Accounting.Activity = activity.result()
+	stats.Accounting.Retrievals = retrievals.result()
 	return stats, nil
 }
 

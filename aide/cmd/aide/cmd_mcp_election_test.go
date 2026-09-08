@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -59,6 +60,9 @@ func TestClientObservationsAndTokenAccountingRoundTrip(t *testing.T) {
 	transformation := observe.Start("output-transform", observe.KindHook)
 	transformation.Category("transform").Session("s").Attr("accounting_version", "1").Attr("observation_stage", "adapter_change").Attr("host", "opencode").Attr("actor_id", "s").Attr("invocation_id", "call").Attr("context_status", "active").Attr("context_epoch", "epoch").Attr("before_bytes", "30").Attr("after_bytes", "90")
 	transformation.End()
+	retrieval := observe.Start("code_outline", observe.KindToolCall)
+	retrieval.Category("consume").Session("s").Attr("accounting_version", "1").Attr("observation_stage", "host_result").Attr("host", "opencode").Attr("actor_id", "s").Attr("invocation_id", "outline").Attr("context_status", "active").Attr("context_epoch", "epoch").Attr("payload_bytes", "12").Attr("retrieval_status", "referenced").Attr("source_verification", "server_receipt").Attr("retrieval_id", "receipt").Attr("source_references", `[{"file":"source.go","sha256":"`+strings.Repeat("a", 64)+`","bytes":500}]`)
+	retrieval.End()
 	events, err := primary.store().ListObserveEvents(store.ObserveFilter{Name: "code_search"})
 	if err != nil || len(events) != 1 {
 		t.Fatalf("client observation lost: %v, %v", events, err)
@@ -75,8 +79,11 @@ func TestClientObservationsAndTokenAccountingRoundTrip(t *testing.T) {
 		t.Fatalf("accounting transport mismatch: %+v / %+v", direct, remote)
 	}
 	projected, err := client.store().ListTokenEvents("s", 10, time.Time{}, time.Time{})
-	if err != nil || len(projected) != 2 || projected[1].Attrs["payload_bytes"] != "12" || projected[1].StartLine != 4 {
+	if err != nil || len(projected) != 3 || projected[2].Attrs["payload_bytes"] != "12" || projected[2].StartLine != 4 {
 		t.Fatalf("event evidence lost: %+v, %v", projected, err)
+	}
+	if len(remote.Accounting.Retrievals.Windows) != 1 || remote.Accounting.Retrievals.Windows[0].Comparison == nil {
+		t.Fatal("non-empty retrieval window lost across daemon transport")
 	}
 }
 

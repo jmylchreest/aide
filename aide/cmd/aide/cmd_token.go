@@ -195,10 +195,11 @@ func cmdTokenStats(dbPath string, args []string) error {
 		fmt.Printf("  Coverage: %d legacy; %d missing text; %d missing identity\n", a.LegacyEvents, a.MissingPayload, a.MissingIdentity)
 		fmt.Println("  Stages can overlap; do not sum. Unseen calls and final delivery are unknown.")
 		fmt.Print(formatTransformationSummary(a.Transformations, hasFlag(args, "--details")))
+		fmt.Print(formatRetrievalWindows(a.Retrievals, hasFlag(args, "--details")))
 	} else {
 		fmt.Println("  Accounting unavailable from this server.")
 	}
-	fmt.Println("  Provider savings / full-file episode comparisons / inferred avoidance: unavailable")
+	fmt.Println("  Provider savings / inferred avoided calls: unavailable")
 	if !hasFlag(args, "--details") {
 		fmt.Println("  Use --details for window and historical breakdowns, or --json for all evidence.")
 		return nil
