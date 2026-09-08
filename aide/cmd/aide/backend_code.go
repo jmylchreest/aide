@@ -324,16 +324,10 @@ func (b *Backend) ClearCode() (int, int, error) {
 }
 
 // ReadCheckResult holds the result of a file read-check operation.
-type ReadCheckResult struct {
-	Indexed          bool `json:"indexed"`
-	Fresh            bool `json:"fresh"`
-	Symbols          int  `json:"symbols"`
-	OutlineAvailable bool `json:"outline_available"`
-	EstimatedTokens  int  `json:"estimated_tokens"`
-}
+type ReadCheckResult = code.ReadCheckResult
 
 // ReadCheck checks whether a file is indexed and whether its index is fresh
-// (i.e., the file hasn't changed on disk since it was last indexed).
+// by mtime. A matching timestamp does not verify identical contents.
 func (b *Backend) ReadCheck(filePath string) (*ReadCheckResult, error) {
 	ctx, cancel := b.rpcCtx()
 	defer cancel()
@@ -351,6 +345,7 @@ func (b *Backend) ReadCheck(filePath string) (*ReadCheckResult, error) {
 			Symbols:          int(resp.Symbols),
 			OutlineAvailable: resp.OutlineAvailable,
 			EstimatedTokens:  int(resp.EstimatedTokens),
+			TextEstimate:     grpcapi.ProtoToReadCheckTextEstimate(resp.TextEstimate),
 		}, nil
 	}
 
@@ -380,29 +375,7 @@ func (b *Backend) ReadCheck(filePath string) (*ReadCheckResult, error) {
 		return &ReadCheckResult{}, nil
 	}
 
-	stat, err := os.Stat(absPath)
-	if err != nil {
-		return &ReadCheckResult{
-			Indexed:         true,
-			Symbols:         len(fileInfo.SymbolIDs),
-			EstimatedTokens: fileInfo.Tokens,
-		}, nil
-	}
-
-	fresh := fileInfo.ModTime.Equal(stat.ModTime())
-	symbolCount := len(fileInfo.SymbolIDs)
-	tokens := fileInfo.Tokens
-	if tokens == 0 && stat.Size() > 0 {
-		tokens = code.EstimateTokensFromSize(relPath, stat.Size())
-	}
-
-	return &ReadCheckResult{
-		Indexed:          true,
-		Fresh:            fresh,
-		Symbols:          symbolCount,
-		OutlineAvailable: symbolCount > 0,
-		EstimatedTokens:  tokens,
-	}, nil
+	return code.CheckIndexedFile(absPath, fileInfo), nil
 }
 
 // CodeSearcher returns a survey.CodeSearcher backed by gRPC (when the MCP

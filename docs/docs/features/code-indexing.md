@@ -71,8 +71,9 @@ conditional outline advice; reading directly remains appropriate when most of th
 file is needed. Hints never block the read. The Claude Code hook emits advisory
 context; the current OpenCode adapter only debug-logs the smart-read result.
 
-The smart-read hint labels the index's per-language token estimate as estimated
-text tokens. It is not measured provider usage.
+The smart-read hint uses an explicitly labelled current-file estimate from
+read-check. Older daemons without that field still support reuse advice, but no
+numeric estimate is shown. The estimate is not measured provider usage.
 
 ## Token Estimation (Experimental)
 
@@ -82,12 +83,24 @@ Recorded text bytes and runtime-reported usage have separate measurement boundar
 neither should be presented as an inferred saving.
 :::
 
-Index metadata retains per-language token estimates, used by read-check and
-smart-read hints. These legacy estimates are separate from the central
-`utf8-bytes/3-v1` estimator used for measured-text accounting and conditional
-retrieval comparisons in the CLI and aide-web. Neither estimate is a live
-tokenizer call. Provider/runtime counters, when available, must remain separately
-identified rather than combined with estimated text totals.
+Read-check and smart-read hints use the same central `utf8-bytes/3-v1` estimator
+as measured-text accounting and conditional retrieval comparisons in the CLI and
+aide-web. Read-check takes the current regular-file byte size from filesystem
+metadata; it does not read the file to estimate it or use a stored index token
+value. This aligns estimation arithmetic, not measurement boundaries: a file's
+size is different from the text actually delivered in a tool result.
+
+The CLI and MCP read-check response includes `text_estimate` with `bytes`,
+`estimated_tokens` and `estimator`. An empty regular file has a known zero estimate.
+Unavailable, unindexed or nonregular files have `text_estimate: null`. The older
+`estimated_tokens` field remains for compatibility; its zero cannot distinguish
+unknown from empty or an estimate outside its 32-bit range. Use `text_estimate`.
+Index freshness still compares modification times; it is not proof of content
+identity or that a previous read remains in context.
+
+Older per-language index values and historical reports are not rewritten. No
+estimate is a live tokenizer call. Provider/runtime counters, when available,
+remain separately identified rather than combined with estimated text totals.
 
 Recorded tool results and hint injections can be viewed with `aide token stats`
 or the aide-web Tokens page. A suggested outline or an absence of a later read does

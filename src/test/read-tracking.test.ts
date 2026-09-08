@@ -30,6 +30,7 @@ import {
   getPreviousRead,
   checkFileReadFreshness,
   recordFileRead,
+  type ReadCheckResult,
 } from "../core/read-tracking.js";
 import { setState } from "../core/aide-client.js";
 
@@ -202,8 +203,13 @@ describe("checkSmartReadHint", () => {
       fresh: true,
       symbols: 5,
       outline_available: true,
-      estimated_tokens: 1200,
-    });
+      estimated_tokens: 9999,
+      text_estimate: {
+        bytes: 3600,
+        estimated_tokens: 1200,
+        estimator: "utf8-bytes/3-v1",
+      },
+    } as ReadCheckResult);
 
     const result = checkSmartReadHint(
       "Read",
@@ -215,7 +221,69 @@ describe("checkSmartReadHint", () => {
     expect(result.hint).toContain("[aide:smart-read]");
     expect(result.hint).toContain("Matching full-file text was observed");
     expect(result.hint).toContain("~1200 estimated text tokens");
+    expect(result.hint).not.toContain("9999");
   });
+
+  it("preserves a known zero estimate for an empty file", () => {
+    mockGetPreviousRead.mockReturnValue("2026-04-03T10:00:00.000Z");
+    mockCheckFreshness.mockReturnValue({
+      indexed: true,
+      fresh: true,
+      symbols: 1,
+      outline_available: true,
+      estimated_tokens: 0,
+      text_estimate: {
+        bytes: 0,
+        estimated_tokens: 0,
+        estimator: "utf8-bytes/3-v1",
+      },
+    } as ReadCheckResult);
+    const result = checkSmartReadHint(
+      "Read",
+      { file_path: "src/auth.ts" },
+      cwd,
+      binary,
+    );
+    expect(result.shouldHint).toBe(true);
+    expect(result.hint).toContain("~0 estimated text tokens");
+  });
+
+  it.each([
+    undefined,
+    null,
+    { bytes: 3600, estimated_tokens: 1200, estimator: "legacy" },
+    { bytes: 3600, estimated_tokens: "1200", estimator: "utf8-bytes/3-v1" },
+    { bytes: -1, estimated_tokens: 1200, estimator: "utf8-bytes/3-v1" },
+    {
+      bytes: Number.MAX_SAFE_INTEGER + 1,
+      estimated_tokens: 1200,
+      estimator: "utf8-bytes/3-v1",
+    },
+    { bytes: 3600, estimated_tokens: -1, estimator: "utf8-bytes/3-v1" },
+    { bytes: 3600, estimated_tokens: 1.5, estimator: "utf8-bytes/3-v1" },
+  ])(
+    "keeps reuse advice without presenting unavailable or incompatible estimates: %j",
+    (text_estimate) => {
+      mockGetPreviousRead.mockReturnValue("2026-04-03T10:00:00.000Z");
+      mockCheckFreshness.mockReturnValue({
+        indexed: true,
+        fresh: true,
+        symbols: 1,
+        outline_available: true,
+        estimated_tokens: 9999,
+        text_estimate,
+      } as unknown as ReadCheckResult);
+      const result = checkSmartReadHint(
+        "Read",
+        { file_path: "src/auth.ts" },
+        cwd,
+        binary,
+      );
+      expect(result.shouldHint).toBe(true);
+      expect(result.hint).not.toContain("estimated text tokens");
+      expect(result.hint).not.toContain("9999");
+    },
+  );
 
   it("should not hint when file changed since indexing (not fresh)", () => {
     mockGetPreviousRead.mockReturnValue("2026-04-03T10:00:00.000Z");

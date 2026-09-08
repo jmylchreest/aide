@@ -217,8 +217,19 @@ export function checkSmartReadHint(
   }
 
   if (readCheck.indexed && readCheck.fresh && readCheck.outline_available) {
-    const tokens = readCheck.estimated_tokens;
-    const tokenInfo = tokens > 0 ? ` (~${tokens} estimated text tokens)` : "";
+    // Older daemons expose only an unlabelled index estimate. Keep reuse advice,
+    // but show a number only for the supported, explicitly identified estimator.
+    const estimate = readCheck.text_estimate;
+    const tokens =
+      estimate?.estimator === "utf8-bytes/3-v1" &&
+      Number.isSafeInteger(estimate.bytes) &&
+      estimate.bytes >= 0 &&
+      Number.isSafeInteger(estimate.estimated_tokens) &&
+      estimate.estimated_tokens >= 0
+        ? estimate.estimated_tokens
+        : null;
+    const tokenInfo =
+      tokens !== null ? ` (~${tokens} estimated text tokens)` : "";
     const hint =
       `[aide:smart-read] Matching full-file text was observed in this context window${tokenInfo}. ` +
       `Reuse it if still available; retrieve specific missing sections or symbols when needed.`;

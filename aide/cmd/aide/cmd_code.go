@@ -67,7 +67,7 @@ Subcommands:
   search     Search for symbols by name/signature
   symbols    List symbols in a file
   references Find all call sites/usages of a symbol
-  read-check Check if a file is indexed and unchanged
+  read-check Check index presence and current file mtime
   clear      Clear the code index
   stats      Show indexing statistics
   reconcile  Drop stale index entries (deleted files, newly-ignored paths) and refresh modified ones
@@ -102,7 +102,7 @@ Examples:
   aide code search "User" --kind=interface
   aide code symbols src/auth.ts       # List symbols in file
   aide code refs getUserById          # Find all calls to getUserById
-  aide code read-check src/auth.ts    # Check if file is indexed and fresh
+  aide code read-check src/auth.ts    # Check index presence and mtime match
   aide code clear                     # Clear all indexed data`)
 }
 
@@ -432,7 +432,7 @@ func cmdCodeReadCheck(dbPath string, args []string) error {
 	case !result.Indexed:
 		fmt.Println("not indexed")
 	case result.Fresh:
-		fmt.Printf("indexed (fresh): %d symbols\n", result.Symbols)
+		fmt.Printf("indexed (mtime matches): %d symbols\n", result.Symbols)
 	default:
 		fmt.Printf("indexed (stale): %d symbols\n", result.Symbols)
 	}

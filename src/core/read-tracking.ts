@@ -62,7 +62,14 @@ export interface ReadCheckResult {
   fresh: boolean;
   symbols: number;
   outline_available: boolean;
+  /** Legacy compatibility field; do not use it as a labelled current estimate. */
   estimated_tokens: number;
+  /** Current regular-file byte estimate; absent on older daemons, null if unknown. */
+  text_estimate?: {
+    bytes: number;
+    estimated_tokens: number;
+    estimator: string;
+  } | null;
 }
 
 /**
@@ -146,8 +153,8 @@ export function getPreviousRead(
 }
 
 /**
- * Check whether a file is indexed and whether its content is fresh
- * (unchanged since last indexing) by calling `aide code read-check`.
+ * Check index presence and its modification-time match via `aide code read-check`.
+ * This check alone does not establish unchanged content or prior read coverage.
  *
  * Returns null on any error (binary not found, command failed, etc.).
  */

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -212,17 +213,19 @@ Without file, uses the code index to locate candidate files, then reads current 
 
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name: "code_read_check",
-		Description: `Check if a file is indexed and whether its content has changed since indexing.
+		Description: `Check if a file is indexed and whether its current mtime matches the index.
 
 Returns freshness status so you can decide whether to re-read a file or use
 code_outline/code_symbols/code_references instead.
 
 **Response fields:**
 - indexed: whether the file exists in the code index
-- fresh: whether the file hasn't changed since last indexing (mtime match)
+- fresh: whether a current regular file has the indexed mtime
 - symbols: number of symbols indexed for this file
 - outline_available: whether code_outline would return useful data
-- estimated_tokens: estimated token count for the full file (calibrated per-language)
+- text_estimate: current regular-file stat bytes, estimated_tokens, and estimator
+  (utf8-bytes/3-v1); null when the file is unindexed or its size is unavailable
+- estimated_tokens: compatibility integer alias; zero when unknown or outside int32
 
 This checks index modification times, not the version previously delivered to
 the agent. A matching timestamp does not prove unchanged content or prior coverage.`,
@@ -493,7 +496,7 @@ func (s *MCPServer) handleCodeReadCheck(_ context.Context, _ *mcp.CallToolReques
 
 	codeStore := s.getCodeStore()
 	if codeStore == nil {
-		return textResult(`{"indexed":false,"fresh":false,"symbols":0,"outline_available":false,"estimated_tokens":0}`), nil, nil
+		return textResult(`{"indexed":false,"fresh":false,"symbols":0,"outline_available":false,"estimated_tokens":0,"text_estimate":null}`), nil, nil
 	}
 
 	root := store.ProjectRootFromDB(s.dbPath)
@@ -514,27 +517,15 @@ func (s *MCPServer) handleCodeReadCheck(_ context.Context, _ *mcp.CallToolReques
 
 	fileInfo, err := codeStore.GetFileInfo(relPath)
 	if err != nil {
-		return textResult(`{"indexed":false,"fresh":false,"symbols":0,"outline_available":false,"estimated_tokens":0}`), nil, nil
+		return textResult(`{"indexed":false,"fresh":false,"symbols":0,"outline_available":false,"estimated_tokens":0,"text_estimate":null}`), nil, nil
 	}
 
-	stat, err := os.Stat(absPath)
+	result, err := json.Marshal(code.CheckIndexedFile(absPath, fileInfo))
 	if err != nil {
-		result := fmt.Sprintf(`{"indexed":true,"fresh":false,"symbols":%d,"outline_available":%t,"estimated_tokens":%d}`,
-			len(fileInfo.SymbolIDs), len(fileInfo.SymbolIDs) > 0, fileInfo.Tokens)
-		return textResult(result), nil, nil
+		return errorResult(err.Error()), nil, nil
 	}
-
-	fresh := fileInfo.ModTime.Equal(stat.ModTime())
-	symbolCount := len(fileInfo.SymbolIDs)
-	tokens := fileInfo.Tokens
-	if tokens == 0 && stat.Size() > 0 {
-		tokens = code.EstimateTokensFromSize(relPath, stat.Size())
-	}
-
-	result := fmt.Sprintf(`{"indexed":true,"fresh":%t,"symbols":%d,"outline_available":%t,"estimated_tokens":%d}`,
-		fresh, symbolCount, symbolCount > 0, tokens)
 	mcpLog.Printf("  result: %s", result)
-	return textResult(result), nil, nil
+	return textResult(string(result)), nil, nil
 }
 
 func (s *MCPServer) handleCodeReadSymbol(ctx context.Context, _ *mcp.CallToolRequest, input CodeReadSymbolInput) (*mcp.CallToolResult, any, error) {

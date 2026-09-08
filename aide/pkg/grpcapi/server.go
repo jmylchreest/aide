@@ -1651,30 +1651,14 @@ func (s *codeServiceImpl) ReadCheck(ctx context.Context, req *CodeReadCheckReque
 		return &CodeReadCheckResponse{}, nil
 	}
 
-	stat, err := os.Stat(absPath)
-	if err != nil {
-		return &CodeReadCheckResponse{
-			Indexed:         true,
-			Symbols:         int32(len(fileInfo.SymbolIDs)),
-			EstimatedTokens: int32(fileInfo.Tokens),
-		}, nil
-	}
-
-	fresh := fileInfo.ModTime.Equal(stat.ModTime())
-	symbolCount := int32(len(fileInfo.SymbolIDs))
-	tokens := int32(fileInfo.Tokens)
-
-	// If tokens weren't stored at index time, estimate from current size
-	if tokens == 0 && stat.Size() > 0 {
-		tokens = int32(code.EstimateTokensFromSize(relPath, stat.Size()))
-	}
-
+	result := code.CheckIndexedFile(absPath, fileInfo)
 	return &CodeReadCheckResponse{
-		Indexed:          true,
-		Fresh:            fresh,
-		Symbols:          symbolCount,
-		OutlineAvailable: symbolCount > 0,
-		EstimatedTokens:  tokens,
+		Indexed:          result.Indexed,
+		Fresh:            result.Fresh,
+		Symbols:          int32(result.Symbols),
+		OutlineAvailable: result.OutlineAvailable,
+		EstimatedTokens:  int32(result.EstimatedTokens),
+		TextEstimate:     ReadCheckTextEstimateToProto(result.TextEstimate),
 	}, nil
 }
 
