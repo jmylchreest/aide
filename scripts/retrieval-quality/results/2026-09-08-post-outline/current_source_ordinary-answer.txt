@@ -1,0 +1,61 @@
+{
+  "answers": {
+    "a_succeeds": true,
+    "b_returns_replacement": false,
+    "c_outcome": "ambiguity_error",
+    "d_selects_second": true,
+    "e_requires_file": true
+  },
+  "evidence": {
+    "a_succeeds": [
+      {
+        "source": "aide/cmd/aide/cmd_mcp_code.go:549-552",
+        "explanation": "An unavailable code store is rejected only when file is empty."
+      },
+      {
+        "source": "aide/cmd/aide/cmd_mcp_source.go:103-106,128-155",
+        "explanation": "An explicit file bypasses index search. Current source is parsed and the unique matching definition is selected."
+      },
+      {
+        "source": "aide/cmd/aide/cmd_mcp_source.go:157-175",
+        "explanation": "The selected definition's valid current source range is returned."
+      }
+    ],
+    "b_returns_replacement": [
+      {
+        "source": "aide/cmd/aide/cmd_mcp_source.go:115-119,128-145",
+        "explanation": "Index results supply candidate file paths. Parsed current symbols must match the requested name exactly; Replacement cannot match Target, so a file containing only Replacement produces no match."
+      },
+      {
+        "source": "aide/cmd/aide/cmd_mcp_source.go:39-51",
+        "explanation": "The snapshot reads and parses current file content."
+      }
+    ],
+    "c_outcome": [
+      {
+        "source": "aide/cmd/aide/cmd_mcp_source.go:138-153",
+        "explanation": "With start_line omitted, both same-name definitions match. Multiple matches return an ambiguity message with candidate locations."
+      },
+      {
+        "source": "aide/cmd/aide/cmd_mcp_code.go:576-582,596-598",
+        "explanation": "The failed symbol lookup does not increment found, and the returned result is marked IsError."
+      }
+    ],
+    "d_selects_second": [
+      {
+        "source": "aide/cmd/aide/cmd_mcp_code.go:560-562",
+        "explanation": "A positive start_line is accepted when file is provided."
+      },
+      {
+        "source": "aide/cmd/aide/cmd_mcp_source.go:138-155,171-175",
+        "explanation": "start_line=5 filters matches by exact current definition start line, leaving the second definition and returning its source."
+      }
+    ],
+    "e_requires_file": [
+      {
+        "source": "aide/cmd/aide/cmd_mcp_source.go:107-120",
+        "explanation": "The implementation rejects results with length greater than or equal to 100 before examining exact-name matches, asking the caller to set file."
+      }
+    ]
+  }
+}

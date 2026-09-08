@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "kind": "pinned_source_verification",
+  "source_revision": "0840d4b9a80023e3fd931ccd0f40102f55c922e6",
+  "valid": true,
+  "files": [
+    {
+      "file": "aide/cmd/aide/cmd_mcp_code.go",
+      "valid": true,
+      "bytes": 22214,
+      "sha256": "7cfa2777b1dde69e8e247692901470064e647fab683c71722006cb8979313e1f"
+    },
+    {
+      "file": "aide/cmd/aide/cmd_mcp_source.go",
+      "valid": true,
+      "bytes": 5782,
+      "sha256": "9ec1f98a9eef13ff2585c986e3c8e29d78c83fcbd659682468ff164684d86e7e"
+    },
+    {
+      "file": "aide/pkg/memory/token_accounting.go",
+      "valid": true,
+      "bytes": 3527,
+      "sha256": "0cd9e567cd268151341527b30d1232b939ab027829ae0fe0ed01b79ecbf4aea8"
+    },
+    {
+      "file": "aide/pkg/store/token_retrieval.go",
+      "valid": true,
+      "bytes": 9908,
+      "sha256": "13b78791c49e7a36c775d9d9aaeadd05c9b64247aad6fca908eb8549f2824f43"
+    },
+    {
+      "file": "src/core/retrieval-evidence.ts",
+      "valid": true,
+      "bytes": 10292,
+      "sha256": "968b910ba6ac9cbb39a2df51dd6a99ade378e471e6b86a8755234694562ceb23"
+    },
+    {
+      "file": "src/core/tool-observe.ts",
+      "valid": true,
+      "bytes": 13010,
+      "sha256": "7ced682c0a48ec85a35b3d7474a2b9cd0f5346f8f5c279e19161e145a59d77f1"
+    }
+  ]
+}

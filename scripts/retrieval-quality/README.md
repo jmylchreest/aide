@@ -88,3 +88,25 @@ generated report. All 46 answer fields passed, but aide-assisted runs used more
 total model input in all three pairs. Smaller source results alone did not predict
 lower whole-task input. This is evidence to investigate round trips and retrieval
 quality, not a general savings or cost claim.
+
+The [post-outline repetition](results/2026-09-08-post-outline/README.md) uses the
+same frozen tasks and retrieval instructions with the repaired outline renderer.
+Its report can be compared with the first run using the offline helper:
+
+```sh
+python3 -B scripts/retrieval-quality/compare.py --before scripts/retrieval-quality/results/2026-09-08/report.json --after scripts/retrieval-quality/results/2026-09-08-post-outline/report.json --output /tmp/aide-pilot-comparison.json
+```
+
+`compare.py` matches trial identities and task/treatment pairs, retains both rows
+and emits signed after-minus-before deltas only for eligible measurements. Failed
+or unverified trials remain visible and suppress deltas. Runtime-related deltas
+also require matching nonempty model, effort, provider and CLI metadata; missing
+or conflicting conditions have explicit reasons. Matching metadata does not verify
+cache equivalence, source identity or complete host conditions. Those need the
+separate run manifest and trace audit. No percent saving or causal effect is inferred.
+
+After these trials, the outline tool description was changed to conditional
+guidance. Consequently the current checkout no longer matches the old frozen
+`cmd_mcp_code.go` hash. The source verifier must fail on that mismatch. Reproduce
+the old source check in a checkout of `7da2150`; freeze a new package before a new
+model trial. Offline grading and comparison of the retained reports still work.

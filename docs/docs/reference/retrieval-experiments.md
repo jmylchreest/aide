@@ -138,3 +138,27 @@ answers. They do not call a provider. Missing or conflicting usage stays unknown
 failed and invalid trials stay visible. The directory README includes runnable
 commands and the input schema. These diagnostic reports belong alongside the
 experiment evidence, not in the web Overview as a savings claim.
+
+## Repetition after the outline fix
+
+A second six-agent run used the same tasks and instructions with daemon
+`0.1.18-dev.12+7da2150`. All 46 answer/citation checks passed again, but two ordinary
+trials violated the frozen literal-search restriction. They remain visible with
+invalid protocol status and suppressed comparison deltas. The sole valid
+ordinary/assisted pair returned less source text with aide while total runtime input
+remained higher. The valid assisted window-accounting trial used symbol batches without
+its previous full-file fallback: 15,530 source-result bytes versus 19,150 in the
+first assisted run, with four model responses in both. Uncontrolled cache state,
+bootstrap and ordinary-treatment variation prevent attributing that difference
+solely to the fix.
+
+The dated evidence and an offline before/after comparison are retained under
+`scripts/retrieval-quality/results/2026-09-08-post-outline/`. `compare.py` preserves
+both trial records and unknown values, and requires matching runtime metadata for
+runtime-related deltas. These measurements remain separate from billing.
+
+After the repetition, the outline tool's unconditional outline-first instruction
+and dramatic reduction claim were replaced with conditional navigation guidance.
+That prose change was not part of the measured run. Its pinned source now differs
+from the experiment snapshot: use checkout `7da2150` to verify those old hashes,
+and freeze new sources before another model trial.

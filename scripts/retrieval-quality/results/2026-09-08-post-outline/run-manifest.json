@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "kind": "post_outline_replication",
+  "source_checkout": "7da215067323f57df861a3e1e6475a2e7bb512dc",
+  "daemon_version": "0.1.18-dev.12+7da2150",
+  "daemon_pid": 1660474,
+  "protocol_files": {
+    "scripts/retrieval-quality/tasks.json": "2ffde9390bda0e9f4621c44188ef8ba454c221fc5a3b8839eca74ff22087e0f7",
+    "scripts/retrieval-quality/grading.json": "fb028d8a9979d0c9b1ac479b20610f0e05ee4ca6fdb05bb3840f29efa9c246a2",
+    "scripts/retrieval-quality/sources.json": "2d9420a0886ea1d71635f8b6fb253ecf65b5dbef6dd17b9e23239862f782e49c"
+  },
+  "design": "Repeat frozen six trials in original order, fresh contexts, original prompts/treatments and source files. Same retrieval instructions, no new steering. Compare observed outcomes; caches/bootstrap/uncontrolled host state prevent causal attribution to the outline fix.",
+  "preflight": "Live token_retrieval.go outline preserves method declarations."
+}

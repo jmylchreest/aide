@@ -1,0 +1,67 @@
+{
+  "answers": {
+    "reference_bytes": 1000,
+    "observed_bytes": 1315,
+    "byte_delta": -315,
+    "estimated_token_delta": -105,
+    "full_read_events": 1,
+    "failed_events": 1,
+    "comparison_available": true,
+    "after_unclassified_comparison_available": false,
+    "after_unclassified_observed_bytes": 1315,
+    "after_unclassified_unattributed_bytes": 90
+  },
+  "evidence": {
+    "reference_bytes": {
+      "source": "aide/pkg/store/token_retrieval.go:176-205",
+      "explanation": "Both references are trusted, but sources are deduplicated by file and SHA256. The same 1000-byte source contributes once."
+    },
+    "observed_bytes": {
+      "source": "aide/pkg/store/token_retrieval.go:105-114",
+      "explanation": "All three classified payloads contribute to Observed: 300 + 1000 + 15 = 1315."
+    },
+    "byte_delta": {
+      "source": "aide/pkg/store/token_retrieval.go:280-281",
+      "explanation": "DeltaBytes is Reference.Bytes minus Observed.Bytes: 1000 - 1315 = -315."
+    },
+    "estimated_token_delta": {
+      "source": [
+        "aide/pkg/memory/token_accounting.go:56",
+        "aide/pkg/store/token_retrieval.go:57-65",
+        "aide/pkg/store/token_retrieval.go:280-281"
+      ],
+      "explanation": "Each quantity is estimated separately with integer arithmetic. Reference estimate is 333; observed estimates are 100 + 333 + 5 = 438. The delta is -105."
+    },
+    "full_read_events": {
+      "source": "aide/pkg/store/token_retrieval.go:177-180",
+      "explanation": "The full_file result has current_file_match and one reference whose bytes equal its payload, incrementing FullReadEvents once."
+    },
+    "failed_events": {
+      "source": "aide/pkg/store/token_retrieval.go:124-139",
+      "explanation": "The failed result increments FailedEvents once."
+    },
+    "comparison_available": {
+      "source": [
+        "aide/pkg/store/token_retrieval.go:176-186",
+        "aide/pkg/store/token_retrieval.go:208-217",
+        "aide/pkg/store/token_retrieval.go:259-281"
+      ],
+      "explanation": "The outline establishes an assisted reference. The failed read's target matches that source, and failure alone creates no issue. With the stated valid window and no gaps, Issues is empty and Comparison is populated."
+    },
+    "after_unclassified_comparison_available": {
+      "source": [
+        "aide/pkg/store/token_retrieval.go:130-131",
+        "aide/pkg/store/token_retrieval.go:276-281"
+      ],
+      "explanation": "The fourth result adds an unclassified_shell issue, preventing comparison creation for the four-event window."
+    },
+    "after_unclassified_observed_bytes": {
+      "source": "aide/pkg/store/token_retrieval.go:105-114",
+      "explanation": "The shell payload is routed to Unattributed, leaving Observed at 1315."
+    },
+    "after_unclassified_unattributed_bytes": {
+      "source": "aide/pkg/store/token_retrieval.go:105-114",
+      "explanation": "The 90-byte unclassified_shell payload contributes to Unattributed."
+    }
+  }
+}
