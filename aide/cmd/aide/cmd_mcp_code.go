@@ -145,8 +145,9 @@ Returns the file structure with signatures preserved and function/method/class b
 collapsed. Output size depends on file structure and grammar support. Line numbers are preserved
 so you can later use Read with offset/limit for specific sections.
 
-**Use this BEFORE reading a file** to understand its structure, then read only the
-sections you need. This dramatically reduces context window usage.
+Use this to locate declarations when you need only part of an unfamiliar file.
+For a small file or when most of its contents are needed, a direct read can avoid
+outline overhead. An outline does not guarantee lower whole-task token usage.
 
 By default, comments are stripped. Set keep_comments=true to preserve them.
 
