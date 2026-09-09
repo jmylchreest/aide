@@ -1,0 +1,38 @@
+{
+  "reviewer": "v3_trace_audit",
+  "all_assertions_passed": true,
+  "rows": 18,
+  "passing_grades_transcribed": 18,
+  "quality_gated_comparisons": 18,
+  "totals": {
+    "input_tokens": 3139132,
+    "cached_input_tokens": 2861824,
+    "cache_write_input_tokens": 0,
+    "output_tokens": 43773,
+    "reasoning_output_tokens": 6170,
+    "total_tokens": 3182905
+  },
+  "bridge_tool_counts": {
+    "code_read_symbol": 2,
+    "code_symbols": 1,
+    "code_outline": 2
+  },
+  "bridge_returned_text_bytes": 27600,
+  "verified_handler_elapsed_ms": 35,
+  "bridge_elapsed_ms": 409.20570400339784,
+  "unknown_complete_source_bytes_trials": [
+    "t01",
+    "t04",
+    "t13",
+    "t16"
+  ],
+  "checked_sha256": {
+    "report.json": "5d69a1131fe0c350a1e6476d96e24524778e97211873188004a5af027b92fa05",
+    "reviewed-ledger.json": "63943681426ef3750d414da377a2276cac3f02b0ef005c8ac512cc79f172e631",
+    "index.html": "66244a5037d209e2eacda51b4deda173eb3bde4645a71b5aa0aad2be2257cee8",
+    "README.md": "7cca086bd99e32bb30a819a7448f3184eb40df5cb30bb4cb21e509619e192937",
+    "blind-grading.json": "9f6ba55c69620625688a9d6c4c3ac54fba71f153ac7eeeff2e003e23e952268c",
+    "execution-review.json": "9dedeb78e5928c54e5266e7b607dac30732b718e67cbdc486bd8683ab239a298",
+    "trace-overview.json": "f20cb53cdf479b1e0e44ac58d45131730b53428ea83a1572734380017812b836"
+  }
+}

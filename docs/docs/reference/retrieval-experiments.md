@@ -257,3 +257,34 @@ Failed reference lookups are shown as unavailable, rather than zero. Counts are
 labelled as indexed matches by name, with a lower-bound marker at the request
 limit. Search enrichment performs local subprocess work and can add latency.
 Neither guidance delivery nor tool uptake establishes a token or quality benefit.
+
+
+## Broader retrieval pilot (v3)
+
+The v3 protocol was frozen before execution in `44f25ec` and `51d42ec`. It keeps
+18 fresh sequential trials, adds five isolated aide retrieval capabilities and
+uses the shared welcome guide in the guided condition. The navigation question
+now explicitly requests the warning its rubric requires. These changes prevent
+interpreting v3 as a causal before/after comparison with v2.
+
+All 18 trials completed with known runtime counters and pass their frozen quality
+checks: 12 code-change test suites and six independently blinded navigation grades.
+These checks are not exhaustive correctness proof. Explicit retrieval uptake
+remains two of the 12 eligible trials, both guided navigation: one file-symbol
+listing, two outlines and two batched implementation reads. Definition and
+reference search were unused. All conditions retained installed aide hooks;
+zero explicit retrieval calls do not mean zero aide involvement.
+
+The navigation input differences change direction across repetitions; guided
+elapsed time is higher in both. There is no demonstrated consistent efficiency
+gain. Code-task differences have no explicit retrieval uptake and cannot estimate
+retrieval benefit. The new choices remain optional. Repository-wide definition
+and impact tasks are a possible future workload, outside this frozen retest.
+
+The compact report, quality evidence and separate preparation/review usage snapshot
+are in `scripts/retrieval-quality/results/2026-09-09-outcomes-v3/`. Source bytes,
+returned text, runtime counters, verified handler elapsed time and isolated bridge
+setup/transport are separate measurements. No savings estimate from this pilot
+is added to the product Overview. These Codex trials do not establish performance
+on Claude Code or OpenCode; the shared guidance and host delivery need separate
+live-host coverage.

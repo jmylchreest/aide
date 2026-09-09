@@ -1,0 +1,13 @@
+--- a/src/core/context-pruning/replacement.ts
++++ b/src/core/context-pruning/replacement.ts
+@@ -19,7 +19,9 @@
+       replace: (text) => ({ ...p, [key]: text }),
+     };
+   }
+-  if (!tool.toLowerCase().startsWith("mcp__")) return null;
++  // Use a strict end assertion so trailing line breaks are not accepted.
++  const isAideTool = /^aide_[a-z][a-z0-9_]{0,127}(?![\s\S])/i.test(tool);
++  if (!tool.toLowerCase().startsWith("mcp__") && !isAideTool) return null;
+   if (typeof payload === "string")
+     return { text: payload, replace: (text) => text };
+   if (!payload || typeof payload !== "object" || Array.isArray(payload))

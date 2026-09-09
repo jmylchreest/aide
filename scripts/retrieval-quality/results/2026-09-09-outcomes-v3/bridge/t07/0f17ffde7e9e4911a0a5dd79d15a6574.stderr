@@ -1,0 +1,20 @@
+[aide-mcp] 02:07:42 aide MCP server starting
+[aide-mcp] 02:07:42 version: aide version 0.0.0 (commit: 4d15db8d, built: 2026-09-09T00:52:07Z, go1.27.0-X:nodwarf5, linux/amd64)
+[aide-mcp] 02:07:42 database: /mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t07/root/.aide/memory/memory.db
+[aide-mcp] 02:07:42 database opened in 2.54306ms (bolt + bleve search)
+[aide-mcp] 02:07:42 gRPC socket: /tmp/aide/b89241c3fd5429d6.sock
+[aide-mcp] 02:07:42 cleanup loop disabled (cleanup.enabled=false)
+[aide-mcp] 02:07:42 code index opened in 3.133143ms: /mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t07/root/.aide/memory/code/index.db
+[aide-mcp] 02:07:42 findings store opened in 3.217182ms: /mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t07/root/.aide/memory/findings
+[aide-mcp] 02:07:42 survey store opened in 2.824977ms: /mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t07/root/.aide/memory/survey
+[aide-mcp] 02:07:42 warning: failed to register instance: cannot determine home directory: $HOME is not defined
+[aide-mcp] 02:07:42 primary mode: holding the store, serving gRPC
+[aide-mcp] 02:07:42 gRPC server error: failed to listen on socket /tmp/aide/b89241c3fd5429d6.sock: listen unix /tmp/aide/b89241c3fd5429d6.sock: setsockopt: operation not permitted (other sessions cannot share this store until a daemon binds; check permissions and stale files)
+[aide-mcp] 02:07:42 MCP server ready in 11.905021ms, listening on stdio
+[aide-mcp] 02:07:42 code tools: registered (store may initialize lazily)
+[aide-mcp] 02:07:42 findings tools: registered
+[aide-mcp] 02:07:42 survey tools: registered
+[aide-mcp] 02:07:42 instinct tools: registered (read-only)
+[aide-mcp] 02:07:42 tool: instance_info
+[aide-mcp] 02:07:42   project_root=/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t07/root authority=daemon
+[aide-mcp] 02:07:42 tool: code_read_symbol symbols=[createHooks createEventHandler] kind=

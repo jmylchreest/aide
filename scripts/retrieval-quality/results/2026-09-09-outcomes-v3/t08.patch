@@ -1,0 +1,36 @@
+--- a/src/core/context-pruning/dedup.ts
++++ b/src/core/context-pruning/dedup.ts
+@@ -140,9 +140,11 @@
+ 
+     const key = dedupKey(toolName, args);
+ 
+-    // Find the most recent matching call in history
++    // Find the most recent matching call that emitted its full output
+     for (let i = history.length - 1; i >= 0; i--) {
+       const prev = history[i];
++      // A shortened result cannot serve as a full-output baseline.
++      if (prev.prunedOutput !== null) continue;
+       const prevKey = dedupKey(prev.toolName, prev.args);
+ 
+       if (prevKey !== key) continue;
+@@ -161,8 +163,7 @@
+       }
+ 
+       // Check if output is identical
+-      const prevOutput = prev.prunedOutput ?? prev.originalOutput;
+-      if (output === prevOutput) {
++      if (output === prev.originalOutput) {
+         const replacement = `[aide:dedup] Identical to previous ${toolName} call (callId: ${prev.callId}). Output unchanged.`;
+         return {
+           output: replacement,
+--- a/src/core/context-pruning/tracker.ts
++++ b/src/core/context-pruning/tracker.ts
+@@ -109,7 +109,7 @@
+       toolName,
+       args,
+       originalOutput: output,
+-      prunedOutput: null,
++      prunedOutput: result.modified ? result.output : null,
+       timestamp: Date.now(),
+     };
+ 

@@ -1,0 +1,127 @@
+{
+  "trial": "t18",
+  "reviewer": "v3_trace_audit",
+  "scope_verified": true,
+  "trace_reviewed": true,
+  "protocol_violations": [],
+  "aide_operations": 0,
+  "aide_operation_details": {},
+  "aide_uptake": false,
+  "source_edit_test_calls": 6,
+  "mandatory_bootstrap_calls": 1,
+  "discovery_calls": 0,
+  "discovery_operations": 0,
+  "total_nested_calls": 7,
+  "call_target_exceeded": false,
+  "tool_failure_details": {
+    "nonzero_shell_exits": 0,
+    "expected_pre_fix_test_failures": 0,
+    "retry_after_tool_error_calls": 0
+  },
+  "retrieval_output_bytes": 3960,
+  "byte_evidence": {
+    "method": "Decode captured input_text JSON and nested fulfilled/value/result wrappers. Count UTF-8 bytes of attributable exec_command.output only; bridge payload unwrapping is applied where present. Exclude bootstrap, discovery, edit/test output and protocol wrappers. Inputs are inspected as text, never executed.",
+    "captured_attributable_retrieval_bytes": 3960,
+    "partial": false,
+    "items": [
+      {
+        "call_id": "call_s17fjiiCNbkiSKIjf4O4Jjqr",
+        "content_index": 1,
+        "part_index": 0,
+        "category": "bootstrap",
+        "utf8_bytes": 482,
+        "exit_code": 0,
+        "truncated": false,
+        "unattributable": false
+      },
+      {
+        "call_id": "call_K9QAloSjBTwjPibEuLYKy0x8",
+        "content_index": 1,
+        "part_index": 0,
+        "category": "source",
+        "utf8_bytes": 2209,
+        "exit_code": 0,
+        "truncated": false,
+        "unattributable": false
+      },
+      {
+        "call_id": "call_nkdNEvfOJqEwYZw0o6B21hjh",
+        "content_index": 1,
+        "part_index": 0,
+        "category": "edit",
+        "utf8_bytes": 0,
+        "exit_code": 0,
+        "truncated": false,
+        "unattributable": false
+      },
+      {
+        "call_id": "call_nkdNEvfOJqEwYZw0o6B21hjh",
+        "content_index": 2,
+        "part_index": 0,
+        "category": "test",
+        "utf8_bytes": 184,
+        "exit_code": 0,
+        "truncated": false,
+        "unattributable": false
+      },
+      {
+        "call_id": "call_V4xBDYIXh8lgR2AeCCwToDu9",
+        "content_index": 1,
+        "part_index": 0,
+        "category": "edit",
+        "utf8_bytes": 0,
+        "exit_code": 0,
+        "truncated": false,
+        "unattributable": false
+      },
+      {
+        "call_id": "call_V4xBDYIXh8lgR2AeCCwToDu9",
+        "content_index": 2,
+        "part_index": 0,
+        "category": "test",
+        "utf8_bytes": 420,
+        "exit_code": 0,
+        "truncated": false,
+        "unattributable": false
+      },
+      {
+        "call_id": "call_ans5lKvux0rZXoh32gqvV6tn",
+        "content_index": 1,
+        "part_index": 0,
+        "category": "source",
+        "utf8_bytes": 1751,
+        "exit_code": 0,
+        "truncated": false,
+        "unattributable": false
+      }
+    ],
+    "boundary": "Captured result bodies, not original source size, provider-delivered bytes or token savings. Any captured truncation leaves complete retrieval_output_bytes unknown. Bridge full-return receipts are a separate boundary summarized independently."
+  },
+  "prepared_prompt_verified": true,
+  "prepared_prompt_sha256": "7451c5cbbc3ed65fce2621b0c9f005e94cd601ab0f36a1f9584b1a786ae2de28",
+  "source_integrity": {
+    "passed": true,
+    "missing": [],
+    "modified_immutable": [],
+    "symlinks": [],
+    "excluded_controller_paths": [
+      ".aide"
+    ],
+    "unexpected_files": [],
+    "scratch_tests": [],
+    "changed_allowed_sources": [
+      "src/core/context-pruning/replacement.ts"
+    ]
+  },
+  "aide_duration_ms": null,
+  "hook_metrics": null,
+  "notes": [
+    "Five functions wrappers expand as 1+1+2+2+1 = seven exec_command invocations. All commands begin rtk proxy and all source/test workdirs are assigned root; mandatory RTK read is separately permitted.",
+    "Guided condition chooses direct reads for a small file and zero optional aide operations, as allowed. Bridge copy is setup-only. Aide/MCP/Bash strings in tests are fixture inputs, not real tool operations.",
+    "Only allowed replacement.ts changed. A permitted replacement-boundaries.test.ts scratch file was created, executed and deleted; the full creation input is retained in the captured trace. Provided reproducer unchanged.",
+    "Final call removes only its own scratch file and prints current source; all of its returned text is attributable source, counted once, with no edit output/wrapper/test bytes included.",
+    "No controller .aide, bridge implementation/binary/evidence, other-trial/source, reference/grader, memory, internet or delegation observed. No pre-fix test run, failures, retries or retrieval fallbacks; visible and combined tests exit successfully.",
+    "Scope verification describes observed calls and source provenance; it is not syscall-level proof. Mandatory RTK bootstrap is separately allowed. Controller-created .aide exclusion from immutable-file grading does not authorize participant access.",
+    "Prepared prompt matches the frozen protocol expansion. Actual spawn-message equality is not established by this review; see separate controller evidence/attestation. Raw log SHA256 matches capture provenance."
+  ]
+}

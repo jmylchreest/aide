@@ -1,0 +1,116 @@
+{
+  "trial": "t03",
+  "reviewer": "v3_trace_audit",
+  "scope_verified": true,
+  "trace_reviewed": true,
+  "protocol_violations": [],
+  "aide_operations": 0,
+  "aide_operation_details": {},
+  "aide_uptake": false,
+  "source_edit_test_calls": 5,
+  "mandatory_bootstrap_calls": 1,
+  "discovery_calls": 0,
+  "discovery_operations": 0,
+  "total_nested_calls": 6,
+  "call_target_exceeded": false,
+  "tool_failure_details": {
+    "nonzero_shell_exits": 0,
+    "expected_pre_fix_test_failures": 0,
+    "retry_after_tool_error_calls": 0
+  },
+  "retrieval_output_bytes": 4057,
+  "byte_evidence": {
+    "method": "Decode captured input_text JSON and nested fulfilled/value/result wrappers. Count UTF-8 bytes of attributable exec_command.output only; bridge payload unwrapping is applied where present. Exclude bootstrap, discovery, edit/test output and protocol wrappers. Inputs are inspected as text, never executed.",
+    "captured_attributable_retrieval_bytes": 4057,
+    "partial": false,
+    "items": [
+      {
+        "call_id": "call_XP0BKhUPbnz9DlprXKnvdYxL",
+        "content_index": 1,
+        "part_index": 0,
+        "category": "bootstrap",
+        "utf8_bytes": 482,
+        "exit_code": 0,
+        "truncated": false,
+        "unattributable": false
+      },
+      {
+        "call_id": "call_WdNcp6mCiJgQ2r4OXpM6b19g",
+        "content_index": 1,
+        "part_index": 0,
+        "category": "source",
+        "utf8_bytes": 2209,
+        "exit_code": 0,
+        "truncated": false,
+        "unattributable": false
+      },
+      {
+        "call_id": "call_ugtFCZT69DR2GBtt2JNAQEKQ",
+        "content_index": 1,
+        "part_index": 0,
+        "category": "edit",
+        "utf8_bytes": 0,
+        "exit_code": 0,
+        "truncated": false,
+        "unattributable": false
+      },
+      {
+        "call_id": "call_ugtFCZT69DR2GBtt2JNAQEKQ",
+        "content_index": 2,
+        "part_index": 0,
+        "category": "test",
+        "utf8_bytes": 184,
+        "exit_code": 0,
+        "truncated": false,
+        "unattributable": false
+      },
+      {
+        "call_id": "call_Q6bivlqmJ91Hb46rreLVRXeK",
+        "content_index": 1,
+        "part_index": 0,
+        "category": "test",
+        "utf8_bytes": 84,
+        "exit_code": 0,
+        "truncated": false,
+        "unattributable": false
+      },
+      {
+        "call_id": "call_Q6bivlqmJ91Hb46rreLVRXeK",
+        "content_index": 2,
+        "part_index": 0,
+        "category": "source",
+        "utf8_bytes": 1848,
+        "exit_code": 0,
+        "truncated": false,
+        "unattributable": false
+      }
+    ],
+    "boundary": "Captured result bodies, not original source size, provider-delivered bytes or token savings. Any captured truncation leaves complete retrieval_output_bytes unknown. Bridge full-return receipts are a separate boundary summarized independently."
+  },
+  "prepared_prompt_verified": true,
+  "prepared_prompt_sha256": "dd76779f170cecfc45c029ca71d1e4a4adf53e585d832dbaa27a93600547d502",
+  "source_integrity": {
+    "passed": true,
+    "missing": [],
+    "modified_immutable": [],
+    "symlinks": [],
+    "excluded_controller_paths": [
+      ".aide"
+    ],
+    "unexpected_files": [],
+    "scratch_tests": [],
+    "changed_allowed_sources": [
+      "src/core/context-pruning/replacement.ts"
+    ]
+  },
+  "aide_duration_ms": null,
+  "hook_metrics": null,
+  "notes": [
+    "Four functions wrappers expand to six exec_command calls (1+1+2+2); all shell commands use rtk proxy. Source exploration, edit and test imports are confined to assigned root; the only external read is mandatory RTK bootstrap.",
+    "Guided condition used direct reads for its small file and zero optional aide operations, as permitted. Copied bridge evidence contains setup only. Aide/MCP-like names inside regex/payload assertions are test strings, not global tool calls.",
+    "Only replacement.ts changed; provided reproducer remains immutable. Inline bun assertions create no source file and exercise the imported fixture. No .aide, other-trial, reference/grader, external source, bridge implementation/binary/evidence, memory, internet or delegation access observed.",
+    "No pre-fix test invocation, failure, retry or retrieval fallback. Visible reproducer and inline assertions exit successfully.",
+    "Scope verification describes observed calls and source provenance; it is not syscall-level proof. Mandatory RTK bootstrap is separately allowed. Controller-created .aide exclusion from immutable-file grading does not authorize participant access.",
+    "Prepared prompt matches the frozen protocol expansion. Actual spawn-message equality is not established by this review; see separate controller evidence/attestation. Raw log SHA256 matches capture provenance."
+  ]
+}

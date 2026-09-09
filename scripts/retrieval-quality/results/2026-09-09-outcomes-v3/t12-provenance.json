@@ -1,0 +1,20 @@
+{
+  "raw_log": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T02-14-21-01a083ba-efba-7c62-8e48-7c03021f7609.jsonl",
+  "raw_log_sha256": "7f9511ebf681fc99b6c601b4208025257617371e89f9c69850a7620195988f4b",
+  "agent_path": "/root/v3_execution/t12",
+  "runtime_actor_id": "01a083ba-efba-7c62-8e48-7c03021f7609",
+  "integrity": {
+    "passed": true,
+    "missing": [],
+    "modified_immutable": [],
+    "symlinks": [],
+    "excluded_controller_paths": [
+      ".aide"
+    ],
+    "unexpected_files": [],
+    "scratch_tests": [],
+    "changed_allowed_sources": [
+      "src/core/context-pruning/replacement.ts"
+    ]
+  }
+}

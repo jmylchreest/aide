@@ -1,0 +1,20 @@
+[aide-mcp] 02:07:35 aide MCP server starting
+[aide-mcp] 02:07:35 version: aide version 0.0.0 (commit: 4d15db8d, built: 2026-09-09T00:52:07Z, go1.27.0-X:nodwarf5, linux/amd64)
+[aide-mcp] 02:07:35 database: /mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t07/root/.aide/memory/memory.db
+[aide-mcp] 02:07:35 database opened in 2.167704ms (bolt + bleve search)
+[aide-mcp] 02:07:35 gRPC socket: /tmp/aide/b89241c3fd5429d6.sock
+[aide-mcp] 02:07:35 cleanup loop disabled (cleanup.enabled=false)
+[aide-mcp] 02:07:35 code index opened in 3.161273ms: /mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t07/root/.aide/memory/code/index.db
+[aide-mcp] 02:07:35 findings store opened in 2.837797ms: /mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t07/root/.aide/memory/findings
+[aide-mcp] 02:07:35 survey store opened in 2.637849ms: /mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t07/root/.aide/memory/survey
+[aide-mcp] 02:07:35 warning: failed to register instance: cannot determine home directory: $HOME is not defined
+[aide-mcp] 02:07:35 gRPC server error: failed to listen on socket /tmp/aide/b89241c3fd5429d6.sock: listen unix /tmp/aide/b89241c3fd5429d6.sock: setsockopt: operation not permitted (other sessions cannot share this store until a daemon binds; check permissions and stale files)
+[aide-mcp] 02:07:35 primary mode: holding the store, serving gRPC
+[aide-mcp] 02:07:35 MCP server ready in 10.981572ms, listening on stdio
+[aide-mcp] 02:07:35 code tools: registered (store may initialize lazily)
+[aide-mcp] 02:07:35 findings tools: registered
+[aide-mcp] 02:07:35 survey tools: registered
+[aide-mcp] 02:07:35 instinct tools: registered (read-only)
+[aide-mcp] 02:07:35 tool: instance_info
+[aide-mcp] 02:07:35   project_root=/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t07/root authority=daemon
+[aide-mcp] 02:07:35 tool: code_outline file=src/opencode/hooks.ts keep_comments=false

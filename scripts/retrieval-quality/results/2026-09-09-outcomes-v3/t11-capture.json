@@ -1,0 +1,178 @@
+{
+  "schema_version": 1,
+  "runtime": {
+    "actor_id": "01a083b9-583f-7ee0-be09-5ab3e6357f7c",
+    "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+    "agent_path": "/root/v3_execution/t11",
+    "cli_version": "0.153.4",
+    "model_provider": "openai",
+    "model": "gpt-6-astra",
+    "effort": "high"
+  },
+  "completion": {
+    "complete": true,
+    "started_at": 1788916357,
+    "completed_at": 1788916434,
+    "duration_ms": 77243
+  },
+  "answer": {
+    "raw_text": "Fixed shortened calls being recorded as full-output baselines. History now preserves the finalizer’s emitted output, and dedup selects only the most recent matching full result. Argument matching also preserves all arguments.\n\nVerified the required reproducer and seven additional regression tests: 8 passed, 0 failed. Checks cover recovery rejection, retained originals, history reload/eviction, byte accounting, and side-effecting tools.",
+    "parsed_json": null,
+    "parse_error": "Final answer is not valid JSON"
+  },
+  "tool_calls": [
+    {
+      "call_id": "call_TaKxVJnnLGY0kt3jwZjRpoRZ",
+      "name": "exec",
+      "type": "custom_tool_call",
+      "input": "text(await tools.exec_command({cmd:\"rtk proxy cat /home/johnm/.codex/RTK.md\",max_output_tokens:4000}));\n"
+    },
+    {
+      "call_id": "call_h2ET0ILfVhN5nucWis4rR3eg",
+      "name": "exec",
+      "type": "custom_tool_call",
+      "input": "text(await tools.exec_command({cmd:\"rtk proxy cat src/core/context-pruning/tracker.ts src/core/context-pruning/dedup.ts src/core/context-pruning/recovery.ts src/core/context-pruning/types.ts reproduce.test.ts\",workdir:\"/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t11/root\",max_output_tokens:19000}));\n"
+    },
+    {
+      "call_id": "call_CROzCmG0M8VNyDRwJtTnhMls",
+      "name": "exec",
+      "type": "custom_tool_call",
+      "input": "const r = await Promise.allSettled([\ntools.exec_command({cmd:\"rtk proxy rg --files --hidden --no-ignore --glob '!.aide/**' --glob '!node_modules/**' --glob AGENTS.md --glob package.json --glob '*.test.ts' --glob tsconfig.json\",workdir:\"/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t11/root\",max_output_tokens:3000}),\ntools.exec_command({cmd:\"rtk proxy bun test ./reproduce.test.ts\",workdir:\"/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t11/root\",max_output_tokens:3000})]);r.forEach(text);\n"
+    },
+    {
+      "call_id": "call_fedQ01ntMi0IT4RfaSZ3jqXj",
+      "name": "exec",
+      "type": "custom_tool_call",
+      "input": "text(await tools.exec_command({cmd:\"rtk proxy python3 - <<'PY'\\nfrom pathlib import Path\\np = Path('src/core/context-pruning/tracker.ts')\\ns = p.read_text().replace('      prunedOutput: null,', '      prunedOutput: result.modified ? result.output : null,')\\np.write_text(s)\\np = Path('src/core/context-pruning/dedup.ts')\\ns = p.read_text()\\na = s.index('  // For Read, the key is filePath + offset + limit')\\nb = s.index('\\\\n}\\\\n', a)\\ns = s[:a] + '''  // Normalize Read aliases/defaults while retaining every other argument.\\n  let keyArgs = args;\\n  if (normalized === \\\"read\\\") {\\n    const { filePath, file_path, path, offset, limit, ...rest } = args;\\n    keyArgs = {\\n      ...rest,\\n      filePath: filePath ?? file_path ?? path,\\n      offset: offset ?? 0,\\n      limit: limit ?? 2000,\\n    };\\n  }\\n  // Sort object keys so equivalent arguments match regardless of insertion\\n  // order. Keep the tool outside args so an argument cannot override it.\\n  return JSON.stringify({ tool: normalized, args: keyArgs }, (_key, value) =>\\n    value !== null && typeof value === \\\"object\\\" && !Array.isArray(value)\\n      ? Object.fromEntries(\\n          Object.keys(value).sort().map((key) => [key, value[key]]),\\n        )\\n      : value,\\n  );''' + s[b:]\\ns = s.replace('// Find the most recent matching call in history', '// Find the most recent matching full-output call in retained history')\\ns = s.replace('      const prev = history[i];\\\\n', '      const prev = history[i];\\\\n      if (prev.prunedOutput !== null) continue;\\\\n')\\ns = s.replace('      const prevOutput = prev.prunedOutput ?? prev.originalOutput;\\\\n      if (output === prevOutput) {', '      if (output === prev.originalOutput) {')\\np.write_text(s)\\np = Path('src/core/context-pruning/types.ts')\\ns = p.read_text().replace('/** The pruned output (after dedup/supersede applied), or null if unchanged. */', '/** The emitted output after pruning and finalization, or null if unchanged.\\\\n   * Only unchanged records may serve as full-output dedup targets. */')\\np.write_text(s)\\nPY\",\"workdir\":\"/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t11/root\",\"max_output_tokens\":2000}));\n"
+    },
+    {
+      "call_id": "call_dcmXzl2aK4Qlf5StzX80stxx",
+      "name": "exec",
+      "type": "custom_tool_call",
+      "input": "text(await tools.exec_command({cmd:\"rtk proxy python3 - <<'PY'\\nfrom pathlib import Path\\nPath('context-pruning-regression.test.ts').write_text('''import { afterAll, expect, test } from \\\"bun:test\\\";\\nimport { mkdtempSync, readFileSync, rmSync, writeFileSync } from \\\"node:fs\\\";\\nimport { tmpdir } from \\\"node:os\\\";\\nimport { join } from \\\"node:path\\\";\\nimport { ContextPruningTracker } from \\\"./src/core/context-pruning/tracker.ts\\\";\\nimport { recoverablePrune } from \\\"./src/core/context-pruning/recovery.ts\\\";\\n\\nconst root = mkdtempSync(join(tmpdir(), \\\"aide-pruning-regression-\\\"));\\nafterAll(() => rmSync(root, { recursive: true, force: true }));\\nconst output = \\\"résultat 🔎\\\\\\\\n\\\".repeat(500);\\nconst args = { query: \\\"example\\\" };\\nconst run = (tracker: ContextPruningTracker, call: string) =>\\n  tracker.process(call, \\\"code_search\\\", args, output,\\n    recoverablePrune(root, \\\"session\\\", call, output));\\n\\ntest(\\\"final emitted output and retained originals survive history reload with byte accounting\\\", () => {\\n  const tracker = new ContextPruningTracker(root);\\n  const first = run(tracker, \\\"first\\\");\\n  const second = run(tracker, \\\"second\\\");\\n  const third = run(tracker, \\\"third\\\");\\n  expect(third.output).toContain(\\\"callId: first\\\");\\n  expect(readFileSync(second.recoveryPath!, \\\"utf8\\\")).toBe(output);\\n  expect(tracker.getHistory().map(r => r.prunedOutput)).toEqual([null, second.output, third.output]);\\n  expect(tracker.getHistory().every(r => r.originalOutput === output)).toBe(true);\\n  const saved = Buffer.byteLength(output) * 2 - Buffer.byteLength(second.output) - Buffer.byteLength(third.output);\\n  expect(tracker.getStats()).toEqual({\\n    totalCalls: 3, prunedCalls: 2, totalBytesSaved: saved,\\n    estimatedContextBytes: [first, second, third].reduce((sum, r) => sum + Buffer.byteLength(r.output), 0),\\n  });\\n  const restored = new ContextPruningTracker(root);\\n  restored.loadHistory(JSON.parse(JSON.stringify(tracker.getHistory())));\\n  expect(restored.getStats()).toEqual(tracker.getStats());\\n  expect(run(restored, \\\"fourth\\\").output).toContain(\\\"callId: first\\\");\\n});\\n\\ntest(\\\"evicted full result is replaced by a new full baseline, including after reload\\\", () => {\\n  const tracker = new ContextPruningTracker(root, 2);\\n  run(tracker, \\\"a\\\"); run(tracker, \\\"b\\\"); run(tracker, \\\"c\\\");\\n  const restored = new ContextPruningTracker(root, 2);\\n  restored.loadHistory(tracker.getHistory());\\n  expect(run(restored, \\\"d\\\").modified).toBe(false);\\n  expect(run(restored, \\\"e\\\").output).toContain(\\\"callId: d\\\");\\n});\\n\\ntest(\\\"recovery rejection records the emitted full result as the latest baseline\\\", () => {\\n  const tracker = new ContextPruningTracker(root);\\n  run(tracker, \\\"a\\\");\\n  const rejected = tracker.process(\\\"b\\\", \\\"code_search\\\", args, output,\\n    recoverablePrune(root, \\\"\\\", \\\"b\\\", output));\\n  expect(rejected).toEqual({ output, modified: false, bytesSaved: 0 });\\n  expect(tracker.getHistory()[1].prunedOutput).toBeNull();\\n  expect(tracker.getStats()).toEqual({totalCalls: 2, prunedCalls: 0, totalBytesSaved: 0,\\n    estimatedContextBytes: Buffer.byteLength(output) * 2});\\n  expect(run(tracker, \\\"c\\\").output).toContain(\\\"callId: b\\\");\\n});\\n\\ntest(\\\"recovery keeps small outputs and failed retention unchanged\\\", () => {\\n  const blocked = join(root, \\\"blocked\\\");\\n  writeFileSync(blocked, \\\"not a directory\\\");\\n  for (const [cwd, original] of [[root, \\\"short\\\"], [blocked, output]]) {\\n    const tracker = new ContextPruningTracker(root);\\n    tracker.process(\\\"a\\\", \\\"code_search\\\", args, original);\\n    const result = tracker.process(\\\"b\\\", \\\"code_search\\\", args, original,\\n      recoverablePrune(cwd, \\\"session\\\", \\\"b\\\", original));\\n    expect(result).toEqual({ output: original, modified: false, bytesSaved: 0 });\\n    expect(tracker.getHistory()[1].prunedOutput).toBeNull();\\n    const restored = new ContextPruningTracker(root);\\n    restored.loadHistory(tracker.getHistory());\\n    expect(restored.getStats()).toEqual(tracker.getStats());\\n  }\\n});\\n\\ntest(\\\"shortened output is never a target even when a new original equals it\\\", () => {\\n  const tracker = new ContextPruningTracker(root);\\n  run(tracker, \\\"a\\\");\\n  const second = run(tracker, \\\"b\\\");\\n  const third = tracker.process(\\\"c\\\", \\\"code_search\\\", args, second.output);\\n  expect(third.modified).toBe(false);\\n});\\n\\ntest(\\\"different arguments and outputs stay distinct; equivalent reordered arguments deduplicate\\\", () => {\\n  const tracker = new ContextPruningTracker(root);\\n  tracker.process(\\\"a\\\", \\\"Grep\\\", {pattern: \\\"x\\\", path: \\\".\\\", output_mode: \\\"content\\\"}, output);\\n  expect(tracker.process(\\\"b\\\", \\\"Grep\\\", {pattern: \\\"x\\\", path: \\\".\\\", output_mode: \\\"files\\\"}, output).modified).toBe(false);\\n  expect(tracker.process(\\\"c\\\", \\\"Grep\\\", {path: \\\".\\\", output_mode: \\\"content\\\", pattern: \\\"x\\\"}, output).output).toContain(\\\"callId: a\\\");\\n  expect(tracker.process(\\\"d\\\", \\\"Grep\\\", {pattern: \\\"x\\\", path: \\\".\\\", output_mode: \\\"content\\\"}, output + \\\"changed\\\").modified).toBe(false);\\n  expect(tracker.process(\\\"e\\\", \\\"Grep\\\", {pattern: \\\"x\\\", path: \\\".\\\", output_mode: \\\"content\\\"}, output).output).toContain(\\\"callId: a\\\");\\n  tracker.process(\\\"f\\\", \\\"code_search\\\", {tool: \\\"same\\\", query: \\\"x\\\"}, output);\\n  expect(tracker.process(\\\"g\\\", \\\"code_outline\\\", {tool: \\\"same\\\", query: \\\"x\\\"}, output).modified).toBe(false);\\n});\\n\\ntest(\\\"safe calls still deduplicate while side effects remain unchanged\\\", () => {\\n  for (const tool of [\\\"Read\\\", \\\"Glob\\\", \\\"Grep\\\", \\\"code_search\\\", \\\"mcp__aide__code_search\\\"]) {\\n    const tracker = new ContextPruningTracker(root);\\n    tracker.process(\\\"a\\\", tool, args, output);\\n    expect(tracker.process(\\\"b\\\", tool, args, output).modified).toBe(true);\\n  }\\n  for (const tool of [\\\"Bash\\\", \\\"Write\\\", \\\"Edit\\\", \\\"task_update\\\", \\\"mcp__aide__task_update\\\"]) {\\n    const tracker = new ContextPruningTracker(root);\\n    tracker.process(\\\"a\\\", tool, args, output);\\n    expect(tracker.process(\\\"b\\\", tool, args, output).modified).toBe(false);\\n  }\\n});\\n''')\\nPY\",\"workdir\":\"/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t11/root\",\"max_output_tokens\":1000}));\n"
+    },
+    {
+      "call_id": "call_FB52GafaoNk7ER02AIOAm5tV",
+      "name": "exec",
+      "type": "custom_tool_call",
+      "input": "text(await tools.exec_command({cmd:\"rtk proxy bun test ./reproduce.test.ts ./context-pruning-regression.test.ts\",workdir:\"/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t11/root\",\"max_output_tokens\":4000}));\n"
+    },
+    {
+      "call_id": "call_nOnkXZqDfcLRQzhvrF08t2Vi",
+      "name": "exec",
+      "type": "custom_tool_call",
+      "input": "const results = await Promise.allSettled([\ntools.exec_command({cmd:\"rtk proxy bun test ./reproduce.test.ts\",workdir:\"/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t11/root\",\"max_output_tokens\":2000}),\ntools.exec_command({cmd:\"rtk proxy sed -n '65,185p' src/core/context-pruning/dedup.ts\",workdir:\"/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t11/root\",\"max_output_tokens\":2500})\n]); results.forEach(text);\n"
+    }
+  ],
+  "runtime_usage": {
+    "basis": "runtime_reported; not billing or provider savings",
+    "counters": {
+      "input_tokens": 193433,
+      "cached_input_tokens": 180736,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 3821,
+      "reasoning_output_tokens": 591,
+      "total_tokens": 197254
+    },
+    "responses": [
+      {
+        "response_id": "resp_07c4a77c39207c41016aa0b286efa487d2b5b235720bfdd485",
+        "counters": {
+          "input_tokens": 18619,
+          "cached_input_tokens": 17664,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 92,
+          "reasoning_output_tokens": 15,
+          "total_tokens": 18711
+        }
+      },
+      {
+        "response_id": "resp_07c4a77c39207c41016aa0b289e77487d2807f4bb1c31efaf7",
+        "counters": {
+          "input_tokens": 18913,
+          "cached_input_tokens": 18432,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 104,
+          "reasoning_output_tokens": 0,
+          "total_tokens": 19017
+        }
+      },
+      {
+        "response_id": "resp_07c4a77c39207c41016aa0b28cdbdc87d289f0e655b2da0505",
+        "counters": {
+          "input_tokens": 23363,
+          "cached_input_tokens": 18688,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 230,
+          "reasoning_output_tokens": 41,
+          "total_tokens": 23593
+        }
+      },
+      {
+        "response_id": "resp_07c4a77c39207c41016aa0b292205087d28f1ec81b0916f9b0",
+        "counters": {
+          "input_tokens": 24048,
+          "cached_input_tokens": 23168,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 960,
+          "reasoning_output_tokens": 275,
+          "total_tokens": 25008
+        }
+      },
+      {
+        "response_id": "resp_07c4a77c39207c41016aa0b2a3b6b887d2a3753b3fa343879f",
+        "counters": {
+          "input_tokens": 25064,
+          "cached_input_tokens": 23808,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1985,
+          "reasoning_output_tokens": 201,
+          "total_tokens": 27049
+        }
+      },
+      {
+        "response_id": "resp_07c4a77c39207c41016aa0b2c4fb9887d2a9bf95d80a58e3d8",
+        "counters": {
+          "input_tokens": 27105,
+          "cached_input_tokens": 24832,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 83,
+          "reasoning_output_tokens": 0,
+          "total_tokens": 27188
+        }
+      },
+      {
+        "response_id": "resp_07c4a77c39207c41016aa0b2c8ca0887d2b7709a346877218c",
+        "counters": {
+          "input_tokens": 27471,
+          "cached_input_tokens": 26880,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 281,
+          "reasoning_output_tokens": 59,
+          "total_tokens": 27752
+        }
+      },
+      {
+        "response_id": "resp_07c4a77c39207c41016aa0b2cf055887d2838480186e3676a6",
+        "counters": {
+          "input_tokens": 28850,
+          "cached_input_tokens": 27264,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 86,
+          "reasoning_output_tokens": 0,
+          "total_tokens": 28936
+        }
+      }
+    ],
+    "unique_responses": 8,
+    "final_cumulative_counters": {
+      "input_tokens": 193433,
+      "cached_input_tokens": 180736,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 3821,
+      "reasoning_output_tokens": 591,
+      "total_tokens": 197254
+    },
+    "unknown_reasons": []
+  }
+}

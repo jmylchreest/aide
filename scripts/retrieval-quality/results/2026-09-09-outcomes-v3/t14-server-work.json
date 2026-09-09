@@ -1,0 +1,42 @@
+[
+  {
+    "id": "01M21TS0GE0G3QMQ7XR0QAQ6HW",
+    "ts": "2026-09-09T01:58:35.918195263+01:00",
+    "kind": "tool_call",
+    "name": "code_stats",
+    "category": "navigate",
+    "subtype": "stats",
+    "tokens": 30,
+    "attrs": {
+      "accounting_version": "1",
+      "observation_stage": "server_result",
+      "payload_bytes": "89",
+      "token_estimator": "utf8-bytes/3-v1",
+      "work_elapsed_ms": "0",
+      "work_id": "7H3VFBXPLF4DPBT4BUHAVFLR3K",
+      "work_outcome": "returned",
+      "work_text_sha256": "5a4613f1691e438b64247430a78971ab1c9804ffc36d74ba3cd47d5e18d2b8b1",
+      "work_version": "1"
+    }
+  },
+  {
+    "id": "01M21TS0GC38TSXG10VB06M3J5",
+    "ts": "2026-09-09T01:58:35.916410282+01:00",
+    "kind": "tool_call",
+    "name": "instance_info",
+    "category": "navigate",
+    "subtype": "instance",
+    "tokens": 311,
+    "attrs": {
+      "accounting_version": "1",
+      "observation_stage": "server_result",
+      "payload_bytes": "934",
+      "token_estimator": "utf8-bytes/3-v1",
+      "work_elapsed_ms": "0",
+      "work_id": "G7ML36W4LCQ4X6JQ7PXLIRMVMW",
+      "work_outcome": "returned",
+      "work_text_sha256": "bb09b8ebfe9701aba6caf7e0e5f498da501bfb35eae4496d59c8f9368692b5a6",
+      "work_version": "1"
+    }
+  }
+]

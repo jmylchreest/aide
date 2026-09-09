@@ -1,0 +1,23 @@
+{
+  "operation": "prepare",
+  "binding": {
+    "schema_version": 1,
+    "id": "07ed57a7f01a4d6fb88d766cdfe26cc9",
+    "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t15/root",
+    "binary": "/tmp/aide-retrieval-v3-next",
+    "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+    "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t15/bridge-evidence",
+    "seed_files": {
+      "reproduce.test.ts": "9c245d2f865302c8e8aa98c5426031d37f9adad886cc63afd1ac434f3d8a570b",
+      "README.md": "6f8cadffcadaacf21fdf00af4779581aadb1746f542105680c496baad5ccc403",
+      "src/core/context-pruning/replacement.ts": "398ab0e1008cafc8213b5c6d2909e0883fb65f323eb61b63b792369d9dd7c78b"
+    },
+    "index_policy": "seeded; no automatic refresh after participant edits"
+  },
+  "error": null,
+  "returncode": 0,
+  "stdout": "Indexed 1 symbols from 3 files\n",
+  "stderr": "2026/09/09 01:57:58 store: applying migration v1: baseline schema stamp\n2026/09/09 01:57:58 store: applying migration v1: baseline code schema stamp\n2026/09/09 01:57:58 store: applying migration v2: backfill BucketSymbolsByFile / BucketReferencesByFile and convert BucketRefIndex to composite keys\n2026/09/09 01:57:58 store: applying migration v3: clear stored file mtimes so the grammar packs' new import queries are re-extracted\n\r\u001b[K⠋ README.md (0 symbols)\r\u001b[K⠙ reproduce.test.ts (0 symbols)\r\u001b[K⠹ src/core/context-pruning/replacement.ts (1 symbols)\r\u001b[K",
+  "index_elapsed_ms": 74.51663999745506,
+  "total_elapsed_ms": 111.52098199818283
+}

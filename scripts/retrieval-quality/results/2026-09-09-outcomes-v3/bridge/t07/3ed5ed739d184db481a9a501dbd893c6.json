@@ -1,0 +1,187 @@
+{
+  "operation": "call",
+  "id": "3ed5ed739d184db481a9a501dbd893c6",
+  "binding_id": "0327e6ee13c647d498500cc36da206be",
+  "request": "{\"name\":\"code_symbols\",\"arguments\":{\"file\":\"aide/pkg/store/token_model_usage.go\"}}",
+  "transcript": [
+    {
+      "direction": "request",
+      "message": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+          "protocolVersion": "2024-11-05",
+          "capabilities": {},
+          "clientInfo": {
+            "name": "aide-outcomes-v3-bridge",
+            "version": "1"
+          }
+        }
+      }
+    },
+    {
+      "direction": "response",
+      "message": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "capabilities": {
+            "logging": {},
+            "tools": {
+              "listChanged": true
+            }
+          },
+          "protocolVersion": "2024-11-05",
+          "serverInfo": {
+            "name": "aide",
+            "version": "0.0.0 (4d15db8d)"
+          }
+        }
+      }
+    },
+    {
+      "direction": "request",
+      "message": {
+        "jsonrpc": "2.0",
+        "method": "notifications/initialized"
+      }
+    },
+    {
+      "direction": "request",
+      "message": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "tools/call",
+        "params": {
+          "name": "instance_info",
+          "arguments": {}
+        }
+      }
+    },
+    {
+      "direction": "response",
+      "message": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "result": {
+          "_meta": {
+            "aide/work": {
+              "id": "YQWXD3GHZLC4HXB4IQJSFK2BDQ",
+              "text_sha256": "bdfb27df78cf950f9f61b01903ddfcda2c0db1e0ef85266fb935f024e5eeb636",
+              "tool": "instance_info",
+              "version": 1
+            }
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": "{\n  \"project_root\": \"/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t07/root\",\n  \"real_project_root\": \"/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t07/root\",\n  \"cwd\": \"/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t07/root\",\n  \"version\": {\n    \"version\": \"0.0.0\",\n    \"commit\": \"4d15db8d4d79c114043b83afa3aa3a1a3cdaf28a\",\n    \"commit_sha\": \"4d15db8d\",\n    \"date\": \"2026-09-09T00:52:07Z\",\n    \"go_version\": \"go1.27.0-X:nodwarf5\",\n    \"platform\": \"linux/amd64\",\n    \"os\": \"linux\",\n    \"arch\": \"amd64\"\n  },\n  \"db_path\": \"/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t07/root/.aide/memory/memory.db\",\n  \"socket_path\": \"/tmp/aide/b89241c3fd5429d6.sock\",\n  \"authority\": \"daemon\",\n  \"pid\": 6,\n  \"ppid\": 3,\n  \"started_at\": \"2026-09-09T02:07:25.982613657+01:00\"\n}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "direction": "request",
+      "message": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "tools/call",
+        "params": {
+          "name": "code_symbols",
+          "arguments": {
+            "file": "aide/pkg/store/token_model_usage.go"
+          }
+        }
+      }
+    },
+    {
+      "direction": "response",
+      "message": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "result": {
+          "_meta": {
+            "aide/work": {
+              "id": "6HEONXBKIL47EB75LDOLNPMEN6",
+              "text_sha256": "71055b66a1d9b80752c22f97e9ad931ca502f710f0b1dee872d3f3bbcc77bfc8",
+              "tool": "code_symbols",
+              "version": 1
+            }
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": "# Symbols in `aide/pkg/store/token_model_usage.go`\n\n_Total: 15 symbols_\n\n## Classs\n\n- **usageRecord** (line 19): `type usageRecord struct {\n\tevent       *observe.Event\n\tfingerprint string\n\tcounters    map[string]int64\n\tvalid       bool\n\tconflict    bool\n\tselected    []*observe.Event\n}`\n- **modelUsage** (line 27): `type modelUsage struct{ records map[string]*usageRecord }`\n\n## Types\n\n- **usageRecord** (line 19): `type usageRecord struct {\n\tevent       *observe.Event\n\tfingerprint string\n\tcounters    map[string]int64\n\tvalid       bool\n\tconflict    bool\n\tselected    []*observe.Event\n}`\n- **modelUsage** (line 27): `type modelUsage struct{ records map[string]*usageRecord }`\n\n## Functions\n\n- **newModelUsage** (line 29): `func newModelUsage() *modelUsage`\n- **isModelUsage** (line 30): `func isModelUsage(e *observe.Event) bool`\n- **usageText** (line 33): `func usageText(s string) bool`\n- **usageIdentity** (line 36): `func usageIdentity(e *observe.Event) string`\n- **usageFingerprint** (line 46): `func usageFingerprint(e *observe.Event) string`\n- **usageOrigin** (line 59): `func usageOrigin(e *observe.Event) string`\n- **parseUsage** (line 70): `func parseUsage(e *observe.Event) (map[string]int64, bool)`\n- **usageSelected** (line 165): `func usageSelected(e *observe.Event, session string, since, until time.Time) bool`\n\n## Methods\n\n- **observe** (line 135): `func (m *modelUsage) observe(e *observe.Event)`\n- **result** (line 168): `func (m *modelUsage) result(session string, since, until time.Time) *memory.TokenModelUsage`\n- **resultWithSessions** (line 172): `func (m *modelUsage) resultWithSessions(session string, since, until time.Time) (*memory.TokenModelUsage, map[string]bool)`\n\n"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "result": {
+    "_meta": {
+      "aide/work": {
+        "id": "6HEONXBKIL47EB75LDOLNPMEN6",
+        "text_sha256": "71055b66a1d9b80752c22f97e9ad931ca502f710f0b1dee872d3f3bbcc77bfc8",
+        "tool": "code_symbols",
+        "version": 1
+      }
+    },
+    "content": [
+      {
+        "type": "text",
+        "text": "# Symbols in `aide/pkg/store/token_model_usage.go`\n\n_Total: 15 symbols_\n\n## Classs\n\n- **usageRecord** (line 19): `type usageRecord struct {\n\tevent       *observe.Event\n\tfingerprint string\n\tcounters    map[string]int64\n\tvalid       bool\n\tconflict    bool\n\tselected    []*observe.Event\n}`\n- **modelUsage** (line 27): `type modelUsage struct{ records map[string]*usageRecord }`\n\n## Types\n\n- **usageRecord** (line 19): `type usageRecord struct {\n\tevent       *observe.Event\n\tfingerprint string\n\tcounters    map[string]int64\n\tvalid       bool\n\tconflict    bool\n\tselected    []*observe.Event\n}`\n- **modelUsage** (line 27): `type modelUsage struct{ records map[string]*usageRecord }`\n\n## Functions\n\n- **newModelUsage** (line 29): `func newModelUsage() *modelUsage`\n- **isModelUsage** (line 30): `func isModelUsage(e *observe.Event) bool`\n- **usageText** (line 33): `func usageText(s string) bool`\n- **usageIdentity** (line 36): `func usageIdentity(e *observe.Event) string`\n- **usageFingerprint** (line 46): `func usageFingerprint(e *observe.Event) string`\n- **usageOrigin** (line 59): `func usageOrigin(e *observe.Event) string`\n- **parseUsage** (line 70): `func parseUsage(e *observe.Event) (map[string]int64, bool)`\n- **usageSelected** (line 165): `func usageSelected(e *observe.Event, session string, since, until time.Time) bool`\n\n## Methods\n\n- **observe** (line 135): `func (m *modelUsage) observe(e *observe.Event)`\n- **result** (line 168): `func (m *modelUsage) result(session string, since, until time.Time) *memory.TokenModelUsage`\n- **resultWithSessions** (line 172): `func (m *modelUsage) resultWithSessions(session string, since, until time.Time) (*memory.TokenModelUsage, map[string]bool)`\n\n"
+      }
+    ]
+  },
+  "error": null,
+  "timings_ms": {
+    "guard": 38.62061600375455,
+    "startup_initialize": 20.398360000399407,
+    "identity": 7.8459979995386675,
+    "request": 2.0976949963369407,
+    "exit": 1.0798180010169744,
+    "total": 70.07267700100783
+  },
+  "index_policy": "seeded; no automatic refresh after participant edits",
+  "source_changed_since_seed": false,
+  "source_files": {
+    "README.md": "8dc2fe3a77e2d09302d6bbf532b2ae97746d2561c4329457bc47e0a7bc2ddadd",
+    "aide/pkg/store/observe_events.go": "c1fc06d8813b238643a8d2bf54474609e3d078701fcd24cf83ee8405b5f41d18",
+    "aide/pkg/store/token_events.go": "28629e5d7aa52cb17e5b4cb7a97d1194dc7f206a2be99ddbcb8a021ae740aeef",
+    "aide/pkg/store/token_model_usage.go": "c449bbd2e886f12e84fc25d5eb3977aa5e5ae61bffdea10d3b09300eea262faf",
+    "aide/pkg/memory/token_model_usage.go": "536287aae876951c2b6304724cc804f19a5ec84f8ff5632efb74f8e7967c2443",
+    "src/opencode/hooks.ts": "ff1817bf732925eb3266ba35bb0f9f7e29537707fc27d0b6ac5003f18f4ba590",
+    "src/core/model-usage.ts": "5f8ceb868f06aa5b6c2da0328469c0ee82f720715c492574eed8986c7f308309"
+  },
+  "forwarded_request": {
+    "name": "code_symbols",
+    "arguments": {
+      "file": "aide/pkg/store/token_model_usage.go"
+    }
+  },
+  "identity": {
+    "project_root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t07/root",
+    "real_project_root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t07/root",
+    "cwd": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t07/root",
+    "version": {
+      "version": "0.0.0",
+      "commit": "4d15db8d4d79c114043b83afa3aa3a1a3cdaf28a",
+      "commit_sha": "4d15db8d",
+      "date": "2026-09-09T00:52:07Z",
+      "go_version": "go1.27.0-X:nodwarf5",
+      "platform": "linux/amd64",
+      "os": "linux",
+      "arch": "amd64"
+    },
+    "db_path": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t07/root/.aide/memory/memory.db",
+    "socket_path": "/tmp/aide/b89241c3fd5429d6.sock",
+    "authority": "daemon",
+    "pid": 6,
+    "ppid": 3,
+    "started_at": "2026-09-09T02:07:25.982613657+01:00"
+  },
+  "returncode": 0
+}

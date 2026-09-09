@@ -1,0 +1,201 @@
+{
+  "trial": "t01",
+  "reviewer": "v3_trace_audit",
+  "scope_verified": true,
+  "trace_reviewed": true,
+  "protocol_violations": [],
+  "aide_operations": 0,
+  "aide_operation_details": {},
+  "aide_uptake": false,
+  "source_edit_test_calls": 10,
+  "mandatory_bootstrap_calls": 1,
+  "discovery_calls": 1,
+  "discovery_operations": 1,
+  "total_nested_calls": 12,
+  "call_target_exceeded": false,
+  "tool_failure_details": {
+    "nonzero_shell_exits": 0,
+    "expected_pre_fix_test_failures": 0,
+    "retry_after_tool_error_calls": 0
+  },
+  "retrieval_output_bytes": null,
+  "byte_evidence": {
+    "method": "Decode captured input_text JSON and nested fulfilled/value/result wrappers. Count UTF-8 bytes of attributable exec_command.output only; bridge payload unwrapping is applied where present. Exclude bootstrap, discovery, edit/test output and protocol wrappers. Inputs are inspected as text, never executed.",
+    "captured_attributable_retrieval_bytes": 68938,
+    "partial": true,
+    "items": [
+      {
+        "call_id": "call_oForJFfodSSac4ddNz3NgFru",
+        "content_index": 1,
+        "part_index": 0,
+        "category": "bootstrap",
+        "utf8_bytes": 482,
+        "exit_code": 0,
+        "truncated": false,
+        "unattributable": false
+      },
+      {
+        "call_id": "call_oForJFfodSSac4ddNz3NgFru",
+        "content_index": 2,
+        "part_index": 0,
+        "category": "discovery",
+        "utf8_bytes": 99,
+        "exit_code": 0,
+        "truncated": false,
+        "unattributable": false
+      },
+      {
+        "call_id": "call_UfxN2VdfzeoP0knomRSh7b0Z",
+        "content_index": 1,
+        "part_index": 0,
+        "category": "listing",
+        "utf8_bytes": 193,
+        "exit_code": 0,
+        "truncated": false,
+        "unattributable": false
+      },
+      {
+        "call_id": "call_0TJMM66Zubhd9VBuyhd0O6Fy",
+        "content_index": 1,
+        "part_index": 0,
+        "category": "wrapper",
+        "utf8_bytes": 55,
+        "exit_code": null,
+        "truncated": true,
+        "unattributable": true
+      },
+      {
+        "call_id": "call_0TJMM66Zubhd9VBuyhd0O6Fy",
+        "content_index": 1,
+        "part_index": 1,
+        "category": "wrapper",
+        "utf8_bytes": 21,
+        "exit_code": null,
+        "truncated": false,
+        "unattributable": true
+      },
+      {
+        "call_id": "call_0TJMM66Zubhd9VBuyhd0O6Fy",
+        "content_index": 1,
+        "part_index": 2,
+        "category": "source",
+        "utf8_bytes": 245,
+        "exit_code": 0,
+        "truncated": false,
+        "unattributable": false
+      },
+      {
+        "call_id": "call_0TJMM66Zubhd9VBuyhd0O6Fy",
+        "content_index": 1,
+        "part_index": 3,
+        "category": "source",
+        "utf8_bytes": 23947,
+        "exit_code": 0,
+        "truncated": true,
+        "unattributable": false
+      },
+      {
+        "call_id": "call_0TJMM66Zubhd9VBuyhd0O6Fy",
+        "content_index": 1,
+        "part_index": 4,
+        "category": "source",
+        "utf8_bytes": 13261,
+        "exit_code": 0,
+        "truncated": false,
+        "unattributable": false
+      },
+      {
+        "call_id": "call_QK7JqtJ44p9FXJD2Hozx3qMy",
+        "content_index": 1,
+        "part_index": 0,
+        "category": "source",
+        "utf8_bytes": 3202,
+        "exit_code": 0,
+        "truncated": false,
+        "unattributable": false
+      },
+      {
+        "call_id": "call_QK7JqtJ44p9FXJD2Hozx3qMy",
+        "content_index": 2,
+        "part_index": 0,
+        "category": "source",
+        "utf8_bytes": 1582,
+        "exit_code": 0,
+        "truncated": false,
+        "unattributable": false
+      },
+      {
+        "call_id": "call_QK7JqtJ44p9FXJD2Hozx3qMy",
+        "content_index": 3,
+        "part_index": 0,
+        "category": "source",
+        "utf8_bytes": 9200,
+        "exit_code": 0,
+        "truncated": false,
+        "unattributable": false
+      },
+      {
+        "call_id": "call_QK7JqtJ44p9FXJD2Hozx3qMy",
+        "content_index": 4,
+        "part_index": 0,
+        "category": "search",
+        "utf8_bytes": 5187,
+        "exit_code": 0,
+        "truncated": false,
+        "unattributable": false
+      },
+      {
+        "call_id": "call_ftIjaodARmbxxTjjOHYj9iBo",
+        "content_index": 1,
+        "part_index": 0,
+        "category": "source",
+        "utf8_bytes": 5131,
+        "exit_code": 0,
+        "truncated": false,
+        "unattributable": false
+      },
+      {
+        "call_id": "call_ftIjaodARmbxxTjjOHYj9iBo",
+        "content_index": 2,
+        "part_index": 0,
+        "category": "source",
+        "utf8_bytes": 6990,
+        "exit_code": 0,
+        "truncated": false,
+        "unattributable": false
+      }
+    ],
+    "boundary": "Captured result bodies, not original source size, provider-delivered bytes or token savings. Any captured truncation leaves complete retrieval_output_bytes unknown. Bridge full-return receipts are a separate boundary summarized independently."
+  },
+  "prepared_prompt_verified": true,
+  "prepared_prompt_sha256": "c7c8539e74ebd760d8db4017fdbd8ade81df1bcaf64b1f7627407ca0c92c42d9",
+  "source_integrity": {
+    "passed": true,
+    "missing": [],
+    "modified_immutable": [],
+    "symlinks": [],
+    "excluded_controller_paths": [
+      ".aide"
+    ],
+    "unexpected_files": [],
+    "scratch_tests": [],
+    "changed_allowed_sources": []
+  },
+  "aide_duration_ms": null,
+  "hook_metrics": null,
+  "notes": [
+    "All 12 exec_command invocations manually expanded from five functions wrappers: 2+1+3+4+2. No aide calls or bridge call records; copied bridge directory contains setup only.",
+    "All source commands use the assigned root workdir and rtk proxy. The recursive file listing explicitly excludes .aide; remaining reads/searches target explicit fixture files. Source mentions of .aide, runtime logs, commands and memories were read as source text, not executed.",
+    "No edits, tests, shell failures or retries. Bounded hooks.ts read follows a truncated full read to recover a needed region.",
+    "One functions wrapper and the hooks.ts shell body carry truncation markers. Decodable body bytes are retained only as a partial captured total; complete retrieval bytes remain unknown.",
+    "Scope verification describes observed calls and source provenance; it is not syscall-level proof. Mandatory RTK bootstrap is separately allowed. Controller-created .aide exclusion from immutable-file grading does not authorize participant access.",
+    "Prepared prompt matches the frozen protocol expansion. Actual spawn-message equality is not established by this review; see separate controller evidence/attestation. Raw log SHA256 matches capture provenance."
+  ],
+  "review_corrections": [
+    {
+      "previous_phrase": "Actual spawn delivery is independently verified from controller evidence.",
+      "replacement": "Actual spawn-message equality is not established by this review; see separate controller evidence/attestation.",
+      "reason": "Clarify delegated delivery check is pending/unknown; only prepared prompt composition has been verified. Parent authorized wording correction; no protocol decision or metric changed."
+    }
+  ]
+}

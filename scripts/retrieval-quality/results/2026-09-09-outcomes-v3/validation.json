@@ -1,0 +1,42 @@
+{
+  "implementation": {
+    "commits": [
+      "4d15db8",
+      "c59f59a"
+    ],
+    "plugin_vitest_tests_passed": 545,
+    "go_schema_and_retrieval_tests_passed": 49,
+    "build_and_focused_eslint": "passed; see production-review.md"
+  },
+  "frozen_package": {
+    "commits": [
+      "44f25ec",
+      "51d42ec"
+    ],
+    "python_tests_passed_with_real_binary": 38,
+    "manifest_files_verified_after_trials": 45
+  },
+  "results": {
+    "bridge_summary_tests_passed": 12,
+    "trial_rows": 18,
+    "quality_passes": 18,
+    "protocol_valid": 18,
+    "qualified_descriptive_comparisons": 18,
+    "browser_verification": "visual-verification.json",
+    "independent_review": "final-review.md",
+    "complete_retrieval_bytes_unknown": [
+      "t01",
+      "t04",
+      "t13",
+      "t16"
+    ]
+  },
+  "diff_check": {
+    "edited_scripts_and_documentation": "pass",
+    "preserved_evidence_whitespace": "Raw answers, anonymous candidate, captured unified-patch context and copied production review retain original whitespace; full staged diff --check warns on these evidence files."
+  },
+  "delivery": {
+    "live_binary_or_daemon_replaced": false,
+    "results_commit": "blocked: configured SSH signing agent has no identities; signing was not bypassed"
+  }
+}

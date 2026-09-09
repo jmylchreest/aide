@@ -1,0 +1,130 @@
+{
+  "trial": "t05",
+  "reviewer": "v3_trace_audit",
+  "scope_verified": true,
+  "trace_reviewed": true,
+  "protocol_violations": [],
+  "aide_operations": 0,
+  "aide_operation_details": {},
+  "aide_uptake": false,
+  "source_edit_test_calls": 6,
+  "mandatory_bootstrap_calls": 1,
+  "discovery_calls": 0,
+  "discovery_operations": 0,
+  "total_nested_calls": 7,
+  "call_target_exceeded": false,
+  "tool_failure_details": {
+    "nonzero_shell_exits": 1,
+    "expected_pre_fix_test_failures": 1,
+    "retry_after_tool_error_calls": 0
+  },
+  "retrieval_output_bytes": 15241,
+  "byte_evidence": {
+    "method": "Decode captured input_text JSON and nested fulfilled/value/result wrappers. Count UTF-8 bytes of attributable exec_command.output only; bridge payload unwrapping is applied where present. Exclude bootstrap, discovery, edit/test output and protocol wrappers. Inputs are inspected as text, never executed.",
+    "captured_attributable_retrieval_bytes": 15241,
+    "partial": false,
+    "items": [
+      {
+        "call_id": "call_aq5anmcoBridJEojvpdFAeEc",
+        "content_index": 1,
+        "part_index": 0,
+        "category": "bootstrap",
+        "utf8_bytes": 482,
+        "exit_code": 0,
+        "truncated": false,
+        "unattributable": false
+      },
+      {
+        "call_id": "call_tLiK8sstEzkaINoLsc8G5f33",
+        "content_index": 1,
+        "part_index": 0,
+        "category": "listing",
+        "utf8_bytes": 169,
+        "exit_code": 0,
+        "truncated": false,
+        "unattributable": false
+      },
+      {
+        "call_id": "call_5qwYBx2b7Bcqxxx3HTE8gOh1",
+        "content_index": 1,
+        "part_index": 0,
+        "category": "source",
+        "utf8_bytes": 15072,
+        "exit_code": 0,
+        "truncated": false,
+        "unattributable": false
+      },
+      {
+        "call_id": "call_s13sxAtoFrXzyZj67WGMXPEE",
+        "content_index": 1,
+        "part_index": 0,
+        "category": "test",
+        "utf8_bytes": 1006,
+        "exit_code": 1,
+        "truncated": false,
+        "unattributable": false
+      },
+      {
+        "call_id": "call_v84HBSMOf0lQMvUR2yQKMXKr",
+        "content_index": 1,
+        "part_index": 0,
+        "category": "edit",
+        "utf8_bytes": 0,
+        "exit_code": 0,
+        "truncated": false,
+        "unattributable": false
+      },
+      {
+        "call_id": "call_YLxNBLXHhQGy8MFj05NCu7Eg",
+        "content_index": 1,
+        "part_index": 0,
+        "category": "edit",
+        "utf8_bytes": 0,
+        "exit_code": 0,
+        "truncated": false,
+        "unattributable": false
+      },
+      {
+        "call_id": "call_PJWNy51NrVgvjxxMJGMRxHw8",
+        "content_index": 1,
+        "part_index": 0,
+        "category": "test",
+        "utf8_bytes": 820,
+        "exit_code": 0,
+        "truncated": false,
+        "unattributable": false
+      }
+    ],
+    "boundary": "Captured result bodies, not original source size, provider-delivered bytes or token savings. Any captured truncation leaves complete retrieval_output_bytes unknown. Bridge full-return receipts are a separate boundary summarized independently."
+  },
+  "prepared_prompt_verified": true,
+  "prepared_prompt_sha256": "31c640d5471af2712b6d8665456d550512eed02e9fe87b8a41c1ad1469f4dd07",
+  "source_integrity": {
+    "passed": true,
+    "missing": [],
+    "modified_immutable": [],
+    "symlinks": [],
+    "excluded_controller_paths": [
+      ".aide"
+    ],
+    "unexpected_files": [],
+    "scratch_tests": [
+      "dedup-regression.test.ts"
+    ],
+    "changed_allowed_sources": [
+      "src/core/context-pruning/dedup.ts",
+      "src/core/context-pruning/tracker.ts"
+    ]
+  },
+  "aide_duration_ms": null,
+  "hook_metrics": null,
+  "notes": [
+    "Seven wrappers each contain one exec_command. All shell commands start rtk proxy; source work uses assigned-root workdir. Listing explicitly excludes .aide. The full source-read output exactly matches the concatenation of six declared fixture files.",
+    "Guided treatment elects direct reads and zero optional aide calls, as permitted. Bridge copy contains setup only; aide tool-name strings in tests are inert inputs to fixture functions.",
+    "Only allowed dedup.ts/tracker.ts changed and permitted dedup-regression.test.ts was added; immutable reproducer unchanged. No controller .aide, bridge, binary, evidence, other trial, external source, grader/reference, native aide, memory, internet or delegation access observed.",
+    "Required reproducer and scratch test use their own temporary directories, generated recovery files and cleanup. Scratch also writes a generated not-a-directory file to test recovery rejection. This follows required reproducer temporary-artifact behavior, does not access controller .aide, and is treated as permitted functional test I/O; not all runtime I/O stays within source root.",
+    "One expected pre-fix visible failure; combined visible and scratch tests subsequently exit successfully. No retrieval retries, transport errors or fallback.",
+    "Scope verification describes observed calls and source provenance; it is not syscall-level proof. Mandatory RTK bootstrap is separately allowed. Controller-created .aide exclusion from immutable-file grading does not authorize participant access.",
+    "Prepared prompt matches the frozen protocol expansion. Actual spawn-message equality is not established by this review; see separate controller evidence/attestation. Raw log SHA256 matches capture provenance."
+  ]
+}

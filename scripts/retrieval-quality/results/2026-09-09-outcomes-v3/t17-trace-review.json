@@ -1,0 +1,150 @@
+{
+  "trial": "t17",
+  "reviewer": "v3_trace_audit",
+  "scope_verified": true,
+  "trace_reviewed": true,
+  "protocol_violations": [],
+  "aide_operations": 0,
+  "aide_operation_details": {},
+  "aide_uptake": false,
+  "source_edit_test_calls": 8,
+  "mandatory_bootstrap_calls": 1,
+  "discovery_calls": 0,
+  "discovery_operations": 0,
+  "total_nested_calls": 9,
+  "call_target_exceeded": false,
+  "tool_failure_details": {
+    "nonzero_shell_exits": 1,
+    "expected_pre_fix_test_failures": 1,
+    "retry_after_tool_error_calls": 0
+  },
+  "retrieval_output_bytes": 18789,
+  "byte_evidence": {
+    "method": "Decode captured input_text JSON and nested fulfilled/value/result wrappers. Count UTF-8 bytes of attributable exec_command.output only; bridge payload unwrapping is applied where present. Exclude bootstrap, discovery, edit/test output and protocol wrappers. Inputs are inspected as text, never executed.",
+    "captured_attributable_retrieval_bytes": 18789,
+    "partial": false,
+    "items": [
+      {
+        "call_id": "call_5VMWI8qIhGMwYMOw7TFQzOtF",
+        "content_index": 1,
+        "part_index": 0,
+        "category": "bootstrap",
+        "utf8_bytes": 482,
+        "exit_code": 0,
+        "truncated": false,
+        "unattributable": false
+      },
+      {
+        "call_id": "call_vUboDAMsRnm2QUxlf87sBbBf",
+        "content_index": 1,
+        "part_index": 0,
+        "category": "listing",
+        "utf8_bytes": 169,
+        "exit_code": 0,
+        "truncated": false,
+        "unattributable": false
+      },
+      {
+        "call_id": "call_IZC8c7JNjAJP9ylmzRuY0Is8",
+        "content_index": 1,
+        "part_index": 0,
+        "category": "source",
+        "utf8_bytes": 15072,
+        "exit_code": 0,
+        "truncated": false,
+        "unattributable": false
+      },
+      {
+        "call_id": "call_Vl0PFDEpeI8Fw9YZqwk6cW41",
+        "content_index": 1,
+        "part_index": 0,
+        "category": "test",
+        "utf8_bytes": 1005,
+        "exit_code": 1,
+        "truncated": false,
+        "unattributable": false
+      },
+      {
+        "call_id": "call_5ppOHzUnB5zSukf7q1OXiaVl",
+        "content_index": 1,
+        "part_index": 0,
+        "category": "edit",
+        "utf8_bytes": 0,
+        "exit_code": 0,
+        "truncated": false,
+        "unattributable": false
+      },
+      {
+        "call_id": "call_iHDTLjjZOzUq5PFrUotYo1L3",
+        "content_index": 1,
+        "part_index": 0,
+        "category": "edit",
+        "utf8_bytes": 0,
+        "exit_code": 0,
+        "truncated": false,
+        "unattributable": false
+      },
+      {
+        "call_id": "call_J2I0zBortR4VZj0GhVlMmWly",
+        "content_index": 1,
+        "part_index": 0,
+        "category": "test",
+        "utf8_bytes": 762,
+        "exit_code": 0,
+        "truncated": false,
+        "unattributable": false
+      },
+      {
+        "call_id": "call_UdfKhGxNAB70BXWn7uNZNFqJ",
+        "content_index": 1,
+        "part_index": 0,
+        "category": "test",
+        "utf8_bytes": 192,
+        "exit_code": 0,
+        "truncated": false,
+        "unattributable": false
+      },
+      {
+        "call_id": "call_UdfKhGxNAB70BXWn7uNZNFqJ",
+        "content_index": 2,
+        "part_index": 0,
+        "category": "search",
+        "utf8_bytes": 3548,
+        "exit_code": 0,
+        "truncated": false,
+        "unattributable": false
+      }
+    ],
+    "boundary": "Captured result bodies, not original source size, provider-delivered bytes or token savings. Any captured truncation leaves complete retrieval_output_bytes unknown. Bridge full-return receipts are a separate boundary summarized independently."
+  },
+  "prepared_prompt_verified": true,
+  "prepared_prompt_sha256": "df22ebb3c23c97e387a8fa0ffbe92bf5f6e2759edac794d6d6d5c8fbc49d8bf6",
+  "source_integrity": {
+    "passed": true,
+    "missing": [],
+    "modified_immutable": [],
+    "symlinks": [],
+    "excluded_controller_paths": [
+      ".aide"
+    ],
+    "unexpected_files": [],
+    "scratch_tests": [
+      "dedup-regression.test.ts"
+    ],
+    "changed_allowed_sources": [
+      "src/core/context-pruning/dedup.ts",
+      "src/core/context-pruning/tracker.ts",
+      "src/core/context-pruning/types.ts"
+    ]
+  },
+  "aide_duration_ms": null,
+  "hook_metrics": null,
+  "notes": [
+    "Eight functions wrappers contain seven individual calls then one pair, nine exec_command invocations total. All commands begin rtk proxy and all workdirs are assigned root, including permitted bootstrap. Recursive listing/search excludes .aide; source paths remain explicit fixture targets.",
+    "Available treatment chooses zero optional aide calls; copied bridge contains setup only. Tool-name inputs to unit tests, including memory_add, are inert fixture data rather than real native/global calls.",
+    "Only permitted tracker.ts/dedup.ts/types.ts changed and dedup-regression.test.ts added. Required reproducer unchanged. Scratch test creates check-output-* under its own import.meta.dir (assigned root), then generated recovery artifacts below that scratch directory and deletes it after tests. It never accesses the controller-created root/.aide. Required reproducer retains its explicitly authorized independent tmpdir behavior.",
+    "No direct controller .aide, bridge/binary/evidence, foreign source/trial, grader/reference, memories, internet or delegation observed. One expected pre-fix visible failure; combined tests and repeated visible run then succeed, followed by bounded source search. Repeated successful verification is not an error retry.",
+    "Scope verification describes observed calls and source provenance; it is not syscall-level proof. Mandatory RTK bootstrap is separately allowed. Controller-created .aide exclusion from immutable-file grading does not authorize participant access.",
+    "Prepared prompt matches the frozen protocol expansion. Actual spawn-message equality is not established by this review; see separate controller evidence/attestation. Raw log SHA256 matches capture provenance."
+  ]
+}

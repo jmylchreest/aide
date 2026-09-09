@@ -1,0 +1,69 @@
+{
+  "reviewer": "v3_trace_audit",
+  "window_start": "2026-09-09T00:44:28.065Z",
+  "window_end": "2026-09-09T01:26:16.960100Z",
+  "unique_nonparticipant_actors": 7,
+  "all_raw_window_rows_match": true,
+  "all_cumulative_counts_match": true,
+  "runtime_usage": {
+    "input_tokens": 57502050,
+    "cached_input_tokens": 56452352,
+    "cache_write_input_tokens": 0,
+    "output_tokens": 217246,
+    "reasoning_output_tokens": 42060,
+    "total_tokens": 57719296
+  },
+  "actors": [
+    {
+      "agent_path": "/root",
+      "actor_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+      "responses": 179,
+      "input_tokens": 19473226,
+      "output_tokens": 73554
+    },
+    {
+      "agent_path": "/root/retrieval_guidance",
+      "actor_id": "01a083a0-23d8-7ba1-8be6-f162b4daf75f",
+      "responses": 65,
+      "input_tokens": 6472586,
+      "output_tokens": 26646
+    },
+    {
+      "agent_path": "/root/isolated_index_plan",
+      "actor_id": "01a083a0-3ff6-7260-bb20-248df89e47ad",
+      "responses": 52,
+      "input_tokens": 4496123,
+      "output_tokens": 33854
+    },
+    {
+      "agent_path": "/root/opencode_hint_delivery",
+      "actor_id": "01a083a0-f828-78b0-871b-a639ac419067",
+      "responses": 69,
+      "input_tokens": 5003354,
+      "output_tokens": 23174
+    },
+    {
+      "agent_path": "/root/v3_execution",
+      "actor_id": "01a083ac-c594-7e80-b48b-792d83214a57",
+      "responses": 128,
+      "input_tokens": 7888808,
+      "output_tokens": 31223
+    },
+    {
+      "agent_path": "/root/v3_trace_audit",
+      "actor_id": "01a083ad-0ca9-77a3-952f-b867b5cfd1e1",
+      "responses": 113,
+      "input_tokens": 13646280,
+      "output_tokens": 24717
+    },
+    {
+      "agent_path": "/root/v3_execution/blind_grade",
+      "actor_id": "01a083c3-4df3-79e1-8955-5be7424bbf33",
+      "responses": 12,
+      "input_tokens": 521673,
+      "output_tokens": 4078
+    }
+  ],
+  "overhead_sha256": "daa323206b8a1aeee7e6d70e3d84994d6bea3266533f396bd5853cfdb95dda1a",
+  "boundary": "Selected-actor response completions within timestamp window only; excludes eighteen participant actors and completions after cutoff. Root includes replayed earlier context. Not billed usage or complete final end-to-end resources."
+}

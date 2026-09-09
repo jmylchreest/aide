@@ -1,0 +1,1037 @@
+{
+  "trials": [
+    {
+      "id": "t01",
+      "identity": {
+        "project_root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t01/root",
+        "real_project_root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t01/root",
+        "cwd": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t01/root",
+        "version": {
+          "version": "0.0.0",
+          "commit": "4d15db8d4d79c114043b83afa3aa3a1a3cdaf28a",
+          "commit_sha": "4d15db8d",
+          "date": "2026-09-09T00:52:07Z",
+          "go_version": "go1.27.0-X:nodwarf5",
+          "platform": "linux/amd64",
+          "os": "linux",
+          "arch": "amd64"
+        },
+        "db_path": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t01/root/.aide/memory/memory.db",
+        "socket_path": "/tmp/aide/82d4e363290183bd.sock",
+        "authority": "daemon",
+        "pid": 6,
+        "ppid": 3,
+        "started_at": "2026-09-09T01:58:34.549271244+01:00"
+      },
+      "stats": {
+        "_meta": {
+          "aide/work": {
+            "id": "HHZVEGVNFOMZ56M5N7VUBKIIA6",
+            "text_sha256": "08afe49e57d17f412ebf2dcaff2e5b95a09d2cbdf405e1099f187f65e75b59cd",
+            "tool": "code_stats",
+            "version": 1
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Code Index Statistics:\n- Files indexed: 7\n- Symbols indexed: 73\n- References indexed: 973"
+          }
+        ]
+      },
+      "controller_elapsed_ms": 63.69638300020597,
+      "binding": {
+        "schema_version": 1,
+        "id": "a6aa414ddcd54abfad384d14f01f6d46",
+        "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t01/root",
+        "binary": "/tmp/aide-retrieval-v3-next",
+        "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+        "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t01/bridge-evidence",
+        "seed_files": {
+          "README.md": "8dc2fe3a77e2d09302d6bbf532b2ae97746d2561c4329457bc47e0a7bc2ddadd",
+          "aide/pkg/store/observe_events.go": "c1fc06d8813b238643a8d2bf54474609e3d078701fcd24cf83ee8405b5f41d18",
+          "aide/pkg/store/token_events.go": "28629e5d7aa52cb17e5b4cb7a97d1194dc7f206a2be99ddbcb8a021ae740aeef",
+          "aide/pkg/store/token_model_usage.go": "c449bbd2e886f12e84fc25d5eb3977aa5e5ae61bffdea10d3b09300eea262faf",
+          "aide/pkg/memory/token_model_usage.go": "536287aae876951c2b6304724cc804f19a5ec84f8ff5632efb74f8e7967c2443",
+          "src/opencode/hooks.ts": "ff1817bf732925eb3266ba35bb0f9f7e29537707fc27d0b6ac5003f18f4ba590",
+          "src/core/model-usage.ts": "5f8ceb868f06aa5b6c2da0328469c0ee82f720715c492574eed8986c7f308309"
+        },
+        "index_policy": "seeded; no automatic refresh after participant edits"
+      }
+    },
+    {
+      "id": "t02",
+      "identity": {
+        "project_root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t02/root",
+        "real_project_root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t02/root",
+        "cwd": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t02/root",
+        "version": {
+          "version": "0.0.0",
+          "commit": "4d15db8d4d79c114043b83afa3aa3a1a3cdaf28a",
+          "commit_sha": "4d15db8d",
+          "date": "2026-09-09T00:52:07Z",
+          "go_version": "go1.27.0-X:nodwarf5",
+          "platform": "linux/amd64",
+          "os": "linux",
+          "arch": "amd64"
+        },
+        "db_path": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t02/root/.aide/memory/memory.db",
+        "socket_path": "/tmp/aide/4c66d445bd51af37.sock",
+        "authority": "daemon",
+        "pid": 22,
+        "ppid": 3,
+        "started_at": "2026-09-09T01:58:34.650121488+01:00"
+      },
+      "stats": {
+        "_meta": {
+          "aide/work": {
+            "id": "TCFFXZFS7A2DDE5IGN2MVB7F55",
+            "text_sha256": "5a4613f1691e438b64247430a78971ab1c9804ffc36d74ba3cd47d5e18d2b8b1",
+            "tool": "code_stats",
+            "version": 1
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Code Index Statistics:\n- Files indexed: 6\n- Symbols indexed: 17\n- References indexed: 129"
+          }
+        ]
+      },
+      "controller_elapsed_ms": 60.3769769986684,
+      "binding": {
+        "schema_version": 1,
+        "id": "31ba1cdf918a4760b897cdca73095d3d",
+        "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t02/root",
+        "binary": "/tmp/aide-retrieval-v3-next",
+        "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+        "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t02/bridge-evidence",
+        "seed_files": {
+          "reproduce.test.ts": "c3a8c6c661ac0d586ea65a09470d3c76593bf9499c0faf31643ab28a624ad969",
+          "README.md": "d22f089e1eb9d1bbebcf545f63fc7e742bfe76ad036faa355240636f20cbfeb1",
+          "src/core/context-pruning/recovery.ts": "993c586083a32d7216659c264e2446506555b525282e38b0f5d653b6d4de9428",
+          "src/core/context-pruning/dedup.ts": "cbc15fb5bb44f99efd20c82280b8a7da2af757291bbe7e87fae1f13a570a15c9",
+          "src/core/context-pruning/types.ts": "599cf79a721e33adf96cf0c89333f302102de3b2b4adcef5ba0cda5c77ae1065",
+          "src/core/context-pruning/tracker.ts": "ba4e633ae724623f6ba93d3757c41de2a47367db7ca51b5519711d449daace01"
+        },
+        "index_policy": "seeded; no automatic refresh after participant edits"
+      }
+    },
+    {
+      "id": "t03",
+      "identity": {
+        "project_root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t03/root",
+        "real_project_root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t03/root",
+        "cwd": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t03/root",
+        "version": {
+          "version": "0.0.0",
+          "commit": "4d15db8d4d79c114043b83afa3aa3a1a3cdaf28a",
+          "commit_sha": "4d15db8d",
+          "date": "2026-09-09T00:52:07Z",
+          "go_version": "go1.27.0-X:nodwarf5",
+          "platform": "linux/amd64",
+          "os": "linux",
+          "arch": "amd64"
+        },
+        "db_path": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t03/root/.aide/memory/memory.db",
+        "socket_path": "/tmp/aide/7403a29d442c7fad.sock",
+        "authority": "daemon",
+        "pid": 38,
+        "ppid": 3,
+        "started_at": "2026-09-09T01:58:34.747836814+01:00"
+      },
+      "stats": {
+        "_meta": {
+          "aide/work": {
+            "id": "4GGCGOJEW6GEYJIZIPBZI3HRL2",
+            "text_sha256": "da2f91367e35a66bdd4a784426f3348718723c670d6544e82e07b20c9c9ff7d4",
+            "tool": "code_stats",
+            "version": 1
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Code Index Statistics:\n- Files indexed: 3\n- Symbols indexed: 1\n- References indexed: 23"
+          }
+        ]
+      },
+      "controller_elapsed_ms": 65.49515399819938,
+      "binding": {
+        "schema_version": 1,
+        "id": "55501569e89243a8b89f6da3ffb60cea",
+        "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t03/root",
+        "binary": "/tmp/aide-retrieval-v3-next",
+        "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+        "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t03/bridge-evidence",
+        "seed_files": {
+          "reproduce.test.ts": "9c245d2f865302c8e8aa98c5426031d37f9adad886cc63afd1ac434f3d8a570b",
+          "README.md": "6f8cadffcadaacf21fdf00af4779581aadb1746f542105680c496baad5ccc403",
+          "src/core/context-pruning/replacement.ts": "398ab0e1008cafc8213b5c6d2909e0883fb65f323eb61b63b792369d9dd7c78b"
+        },
+        "index_policy": "seeded; no automatic refresh after participant edits"
+      }
+    },
+    {
+      "id": "t04",
+      "identity": {
+        "project_root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t04/root",
+        "real_project_root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t04/root",
+        "cwd": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t04/root",
+        "version": {
+          "version": "0.0.0",
+          "commit": "4d15db8d4d79c114043b83afa3aa3a1a3cdaf28a",
+          "commit_sha": "4d15db8d",
+          "date": "2026-09-09T00:52:07Z",
+          "go_version": "go1.27.0-X:nodwarf5",
+          "platform": "linux/amd64",
+          "os": "linux",
+          "arch": "amd64"
+        },
+        "db_path": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t04/root/.aide/memory/memory.db",
+        "socket_path": "/tmp/aide/be7f9c4dc19a035a.sock",
+        "authority": "daemon",
+        "pid": 52,
+        "ppid": 3,
+        "started_at": "2026-09-09T01:58:34.850610727+01:00"
+      },
+      "stats": {
+        "_meta": {
+          "aide/work": {
+            "id": "TZQB453RW4AMVAJET7VFRZZ2XN",
+            "text_sha256": "08afe49e57d17f412ebf2dcaff2e5b95a09d2cbdf405e1099f187f65e75b59cd",
+            "tool": "code_stats",
+            "version": 1
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Code Index Statistics:\n- Files indexed: 7\n- Symbols indexed: 73\n- References indexed: 973"
+          }
+        ]
+      },
+      "controller_elapsed_ms": 62.74337300055777,
+      "binding": {
+        "schema_version": 1,
+        "id": "53c86d27ef934d888dc9db2ef2ddae79",
+        "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t04/root",
+        "binary": "/tmp/aide-retrieval-v3-next",
+        "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+        "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t04/bridge-evidence",
+        "seed_files": {
+          "README.md": "8dc2fe3a77e2d09302d6bbf532b2ae97746d2561c4329457bc47e0a7bc2ddadd",
+          "aide/pkg/store/observe_events.go": "c1fc06d8813b238643a8d2bf54474609e3d078701fcd24cf83ee8405b5f41d18",
+          "aide/pkg/store/token_events.go": "28629e5d7aa52cb17e5b4cb7a97d1194dc7f206a2be99ddbcb8a021ae740aeef",
+          "aide/pkg/store/token_model_usage.go": "c449bbd2e886f12e84fc25d5eb3977aa5e5ae61bffdea10d3b09300eea262faf",
+          "aide/pkg/memory/token_model_usage.go": "536287aae876951c2b6304724cc804f19a5ec84f8ff5632efb74f8e7967c2443",
+          "src/opencode/hooks.ts": "ff1817bf732925eb3266ba35bb0f9f7e29537707fc27d0b6ac5003f18f4ba590",
+          "src/core/model-usage.ts": "5f8ceb868f06aa5b6c2da0328469c0ee82f720715c492574eed8986c7f308309"
+        },
+        "index_policy": "seeded; no automatic refresh after participant edits"
+      }
+    },
+    {
+      "id": "t05",
+      "identity": {
+        "project_root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t05/root",
+        "real_project_root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t05/root",
+        "cwd": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t05/root",
+        "version": {
+          "version": "0.0.0",
+          "commit": "4d15db8d4d79c114043b83afa3aa3a1a3cdaf28a",
+          "commit_sha": "4d15db8d",
+          "date": "2026-09-09T00:52:07Z",
+          "go_version": "go1.27.0-X:nodwarf5",
+          "platform": "linux/amd64",
+          "os": "linux",
+          "arch": "amd64"
+        },
+        "db_path": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t05/root/.aide/memory/memory.db",
+        "socket_path": "/tmp/aide/547d4d25392ded94.sock",
+        "authority": "daemon",
+        "pid": 66,
+        "ppid": 3,
+        "started_at": "2026-09-09T01:58:34.950466971+01:00"
+      },
+      "stats": {
+        "_meta": {
+          "aide/work": {
+            "id": "ZMED2FZJ6UAF7BLYYI33UIJUUO",
+            "text_sha256": "5a4613f1691e438b64247430a78971ab1c9804ffc36d74ba3cd47d5e18d2b8b1",
+            "tool": "code_stats",
+            "version": 1
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Code Index Statistics:\n- Files indexed: 6\n- Symbols indexed: 17\n- References indexed: 129"
+          }
+        ]
+      },
+      "controller_elapsed_ms": 63.1853980012238,
+      "binding": {
+        "schema_version": 1,
+        "id": "1d50c1a0896f461cb6822da364d4b409",
+        "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t05/root",
+        "binary": "/tmp/aide-retrieval-v3-next",
+        "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+        "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t05/bridge-evidence",
+        "seed_files": {
+          "reproduce.test.ts": "c3a8c6c661ac0d586ea65a09470d3c76593bf9499c0faf31643ab28a624ad969",
+          "README.md": "d22f089e1eb9d1bbebcf545f63fc7e742bfe76ad036faa355240636f20cbfeb1",
+          "src/core/context-pruning/recovery.ts": "993c586083a32d7216659c264e2446506555b525282e38b0f5d653b6d4de9428",
+          "src/core/context-pruning/dedup.ts": "cbc15fb5bb44f99efd20c82280b8a7da2af757291bbe7e87fae1f13a570a15c9",
+          "src/core/context-pruning/types.ts": "599cf79a721e33adf96cf0c89333f302102de3b2b4adcef5ba0cda5c77ae1065",
+          "src/core/context-pruning/tracker.ts": "ba4e633ae724623f6ba93d3757c41de2a47367db7ca51b5519711d449daace01"
+        },
+        "index_policy": "seeded; no automatic refresh after participant edits"
+      }
+    },
+    {
+      "id": "t06",
+      "identity": {
+        "project_root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t06/root",
+        "real_project_root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t06/root",
+        "cwd": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t06/root",
+        "version": {
+          "version": "0.0.0",
+          "commit": "4d15db8d4d79c114043b83afa3aa3a1a3cdaf28a",
+          "commit_sha": "4d15db8d",
+          "date": "2026-09-09T00:52:07Z",
+          "go_version": "go1.27.0-X:nodwarf5",
+          "platform": "linux/amd64",
+          "os": "linux",
+          "arch": "amd64"
+        },
+        "db_path": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t06/root/.aide/memory/memory.db",
+        "socket_path": "/tmp/aide/bc48d5ce6195c26c.sock",
+        "authority": "daemon",
+        "pid": 80,
+        "ppid": 3,
+        "started_at": "2026-09-09T01:58:35.051156677+01:00"
+      },
+      "stats": {
+        "_meta": {
+          "aide/work": {
+            "id": "QM4OKFHDBBPDCTEHEK44ZPNVQ3",
+            "text_sha256": "da2f91367e35a66bdd4a784426f3348718723c670d6544e82e07b20c9c9ff7d4",
+            "tool": "code_stats",
+            "version": 1
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Code Index Statistics:\n- Files indexed: 3\n- Symbols indexed: 1\n- References indexed: 23"
+          }
+        ]
+      },
+      "controller_elapsed_ms": 60.520214999996824,
+      "binding": {
+        "schema_version": 1,
+        "id": "64246c4486ef48f5a245701f330377c7",
+        "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t06/root",
+        "binary": "/tmp/aide-retrieval-v3-next",
+        "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+        "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t06/bridge-evidence",
+        "seed_files": {
+          "reproduce.test.ts": "9c245d2f865302c8e8aa98c5426031d37f9adad886cc63afd1ac434f3d8a570b",
+          "README.md": "6f8cadffcadaacf21fdf00af4779581aadb1746f542105680c496baad5ccc403",
+          "src/core/context-pruning/replacement.ts": "398ab0e1008cafc8213b5c6d2909e0883fb65f323eb61b63b792369d9dd7c78b"
+        },
+        "index_policy": "seeded; no automatic refresh after participant edits"
+      }
+    },
+    {
+      "id": "t07",
+      "identity": {
+        "project_root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t07/root",
+        "real_project_root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t07/root",
+        "cwd": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t07/root",
+        "version": {
+          "version": "0.0.0",
+          "commit": "4d15db8d4d79c114043b83afa3aa3a1a3cdaf28a",
+          "commit_sha": "4d15db8d",
+          "date": "2026-09-09T00:52:07Z",
+          "go_version": "go1.27.0-X:nodwarf5",
+          "platform": "linux/amd64",
+          "os": "linux",
+          "arch": "amd64"
+        },
+        "db_path": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t07/root/.aide/memory/memory.db",
+        "socket_path": "/tmp/aide/b89241c3fd5429d6.sock",
+        "authority": "daemon",
+        "pid": 94,
+        "ppid": 3,
+        "started_at": "2026-09-09T01:58:35.148936962+01:00"
+      },
+      "stats": {
+        "_meta": {
+          "aide/work": {
+            "id": "C3OMJ66KTJ65LQ5IGRDI3KEMT3",
+            "text_sha256": "08afe49e57d17f412ebf2dcaff2e5b95a09d2cbdf405e1099f187f65e75b59cd",
+            "tool": "code_stats",
+            "version": 1
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Code Index Statistics:\n- Files indexed: 7\n- Symbols indexed: 73\n- References indexed: 973"
+          }
+        ]
+      },
+      "controller_elapsed_ms": 69.33775400102604,
+      "binding": {
+        "schema_version": 1,
+        "id": "0327e6ee13c647d498500cc36da206be",
+        "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t07/root",
+        "binary": "/tmp/aide-retrieval-v3-next",
+        "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+        "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t07/bridge-evidence",
+        "seed_files": {
+          "README.md": "8dc2fe3a77e2d09302d6bbf532b2ae97746d2561c4329457bc47e0a7bc2ddadd",
+          "aide/pkg/store/observe_events.go": "c1fc06d8813b238643a8d2bf54474609e3d078701fcd24cf83ee8405b5f41d18",
+          "aide/pkg/store/token_events.go": "28629e5d7aa52cb17e5b4cb7a97d1194dc7f206a2be99ddbcb8a021ae740aeef",
+          "aide/pkg/store/token_model_usage.go": "c449bbd2e886f12e84fc25d5eb3977aa5e5ae61bffdea10d3b09300eea262faf",
+          "aide/pkg/memory/token_model_usage.go": "536287aae876951c2b6304724cc804f19a5ec84f8ff5632efb74f8e7967c2443",
+          "src/opencode/hooks.ts": "ff1817bf732925eb3266ba35bb0f9f7e29537707fc27d0b6ac5003f18f4ba590",
+          "src/core/model-usage.ts": "5f8ceb868f06aa5b6c2da0328469c0ee82f720715c492574eed8986c7f308309"
+        },
+        "index_policy": "seeded; no automatic refresh after participant edits"
+      }
+    },
+    {
+      "id": "t08",
+      "identity": {
+        "project_root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t08/root",
+        "real_project_root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t08/root",
+        "cwd": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t08/root",
+        "version": {
+          "version": "0.0.0",
+          "commit": "4d15db8d4d79c114043b83afa3aa3a1a3cdaf28a",
+          "commit_sha": "4d15db8d",
+          "date": "2026-09-09T00:52:07Z",
+          "go_version": "go1.27.0-X:nodwarf5",
+          "platform": "linux/amd64",
+          "os": "linux",
+          "arch": "amd64"
+        },
+        "db_path": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t08/root/.aide/memory/memory.db",
+        "socket_path": "/tmp/aide/7fd4b0e257739c53.sock",
+        "authority": "daemon",
+        "pid": 108,
+        "ppid": 3,
+        "started_at": "2026-09-09T01:58:35.255614885+01:00"
+      },
+      "stats": {
+        "_meta": {
+          "aide/work": {
+            "id": "6YYMDP5TAPWLW5FPGZOAXJPCYP",
+            "text_sha256": "5a4613f1691e438b64247430a78971ab1c9804ffc36d74ba3cd47d5e18d2b8b1",
+            "tool": "code_stats",
+            "version": 1
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Code Index Statistics:\n- Files indexed: 6\n- Symbols indexed: 17\n- References indexed: 129"
+          }
+        ]
+      },
+      "controller_elapsed_ms": 61.83527200118988,
+      "binding": {
+        "schema_version": 1,
+        "id": "be0f18a9a5e840c690d2458c3865865f",
+        "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t08/root",
+        "binary": "/tmp/aide-retrieval-v3-next",
+        "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+        "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t08/bridge-evidence",
+        "seed_files": {
+          "reproduce.test.ts": "c3a8c6c661ac0d586ea65a09470d3c76593bf9499c0faf31643ab28a624ad969",
+          "README.md": "d22f089e1eb9d1bbebcf545f63fc7e742bfe76ad036faa355240636f20cbfeb1",
+          "src/core/context-pruning/recovery.ts": "993c586083a32d7216659c264e2446506555b525282e38b0f5d653b6d4de9428",
+          "src/core/context-pruning/dedup.ts": "cbc15fb5bb44f99efd20c82280b8a7da2af757291bbe7e87fae1f13a570a15c9",
+          "src/core/context-pruning/types.ts": "599cf79a721e33adf96cf0c89333f302102de3b2b4adcef5ba0cda5c77ae1065",
+          "src/core/context-pruning/tracker.ts": "ba4e633ae724623f6ba93d3757c41de2a47367db7ca51b5519711d449daace01"
+        },
+        "index_policy": "seeded; no automatic refresh after participant edits"
+      }
+    },
+    {
+      "id": "t09",
+      "identity": {
+        "project_root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t09/root",
+        "real_project_root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t09/root",
+        "cwd": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t09/root",
+        "version": {
+          "version": "0.0.0",
+          "commit": "4d15db8d4d79c114043b83afa3aa3a1a3cdaf28a",
+          "commit_sha": "4d15db8d",
+          "date": "2026-09-09T00:52:07Z",
+          "go_version": "go1.27.0-X:nodwarf5",
+          "platform": "linux/amd64",
+          "os": "linux",
+          "arch": "amd64"
+        },
+        "db_path": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t09/root/.aide/memory/memory.db",
+        "socket_path": "/tmp/aide/630a4b0694453b47.sock",
+        "authority": "daemon",
+        "pid": 123,
+        "ppid": 3,
+        "started_at": "2026-09-09T01:58:35.355453929+01:00"
+      },
+      "stats": {
+        "_meta": {
+          "aide/work": {
+            "id": "FC4M5R7JE6FODMMEVSV3I2ZNNG",
+            "text_sha256": "da2f91367e35a66bdd4a784426f3348718723c670d6544e82e07b20c9c9ff7d4",
+            "tool": "code_stats",
+            "version": 1
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Code Index Statistics:\n- Files indexed: 3\n- Symbols indexed: 1\n- References indexed: 23"
+          }
+        ]
+      },
+      "controller_elapsed_ms": 64.74047200026689,
+      "binding": {
+        "schema_version": 1,
+        "id": "f1e786c81cda41c093fb295fc96425df",
+        "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t09/root",
+        "binary": "/tmp/aide-retrieval-v3-next",
+        "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+        "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t09/bridge-evidence",
+        "seed_files": {
+          "reproduce.test.ts": "9c245d2f865302c8e8aa98c5426031d37f9adad886cc63afd1ac434f3d8a570b",
+          "README.md": "6f8cadffcadaacf21fdf00af4779581aadb1746f542105680c496baad5ccc403",
+          "src/core/context-pruning/replacement.ts": "398ab0e1008cafc8213b5c6d2909e0883fb65f323eb61b63b792369d9dd7c78b"
+        },
+        "index_policy": "seeded; no automatic refresh after participant edits"
+      }
+    },
+    {
+      "id": "t10",
+      "identity": {
+        "project_root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t10/root",
+        "real_project_root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t10/root",
+        "cwd": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t10/root",
+        "version": {
+          "version": "0.0.0",
+          "commit": "4d15db8d4d79c114043b83afa3aa3a1a3cdaf28a",
+          "commit_sha": "4d15db8d",
+          "date": "2026-09-09T00:52:07Z",
+          "go_version": "go1.27.0-X:nodwarf5",
+          "platform": "linux/amd64",
+          "os": "linux",
+          "arch": "amd64"
+        },
+        "db_path": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t10/root/.aide/memory/memory.db",
+        "socket_path": "/tmp/aide/ee4c954dcd603740.sock",
+        "authority": "daemon",
+        "pid": 137,
+        "ppid": 3,
+        "started_at": "2026-09-09T01:58:35.458326091+01:00"
+      },
+      "stats": {
+        "_meta": {
+          "aide/work": {
+            "id": "TGUGESH6OXVTNGLVCZCSUHN35P",
+            "text_sha256": "08afe49e57d17f412ebf2dcaff2e5b95a09d2cbdf405e1099f187f65e75b59cd",
+            "tool": "code_stats",
+            "version": 1
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Code Index Statistics:\n- Files indexed: 7\n- Symbols indexed: 73\n- References indexed: 973"
+          }
+        ]
+      },
+      "controller_elapsed_ms": 62.39682600062224,
+      "binding": {
+        "schema_version": 1,
+        "id": "df206a8db7f44bf29f326d7acf1740ca",
+        "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t10/root",
+        "binary": "/tmp/aide-retrieval-v3-next",
+        "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+        "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t10/bridge-evidence",
+        "seed_files": {
+          "README.md": "8dc2fe3a77e2d09302d6bbf532b2ae97746d2561c4329457bc47e0a7bc2ddadd",
+          "aide/pkg/store/observe_events.go": "c1fc06d8813b238643a8d2bf54474609e3d078701fcd24cf83ee8405b5f41d18",
+          "aide/pkg/store/token_events.go": "28629e5d7aa52cb17e5b4cb7a97d1194dc7f206a2be99ddbcb8a021ae740aeef",
+          "aide/pkg/store/token_model_usage.go": "c449bbd2e886f12e84fc25d5eb3977aa5e5ae61bffdea10d3b09300eea262faf",
+          "aide/pkg/memory/token_model_usage.go": "536287aae876951c2b6304724cc804f19a5ec84f8ff5632efb74f8e7967c2443",
+          "src/opencode/hooks.ts": "ff1817bf732925eb3266ba35bb0f9f7e29537707fc27d0b6ac5003f18f4ba590",
+          "src/core/model-usage.ts": "5f8ceb868f06aa5b6c2da0328469c0ee82f720715c492574eed8986c7f308309"
+        },
+        "index_policy": "seeded; no automatic refresh after participant edits"
+      }
+    },
+    {
+      "id": "t11",
+      "identity": {
+        "project_root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t11/root",
+        "real_project_root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t11/root",
+        "cwd": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t11/root",
+        "version": {
+          "version": "0.0.0",
+          "commit": "4d15db8d4d79c114043b83afa3aa3a1a3cdaf28a",
+          "commit_sha": "4d15db8d",
+          "date": "2026-09-09T00:52:07Z",
+          "go_version": "go1.27.0-X:nodwarf5",
+          "platform": "linux/amd64",
+          "os": "linux",
+          "arch": "amd64"
+        },
+        "db_path": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t11/root/.aide/memory/memory.db",
+        "socket_path": "/tmp/aide/2327f6e934342df3.sock",
+        "authority": "daemon",
+        "pid": 152,
+        "ppid": 3,
+        "started_at": "2026-09-09T01:58:35.558091716+01:00"
+      },
+      "stats": {
+        "_meta": {
+          "aide/work": {
+            "id": "BEU34QZSO7YMCER2EWJAMQAW6M",
+            "text_sha256": "5a4613f1691e438b64247430a78971ab1c9804ffc36d74ba3cd47d5e18d2b8b1",
+            "tool": "code_stats",
+            "version": 1
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Code Index Statistics:\n- Files indexed: 6\n- Symbols indexed: 17\n- References indexed: 129"
+          }
+        ]
+      },
+      "controller_elapsed_ms": 62.56163500074763,
+      "binding": {
+        "schema_version": 1,
+        "id": "8e15bf06aded4601988e19075d95221a",
+        "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t11/root",
+        "binary": "/tmp/aide-retrieval-v3-next",
+        "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+        "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t11/bridge-evidence",
+        "seed_files": {
+          "reproduce.test.ts": "c3a8c6c661ac0d586ea65a09470d3c76593bf9499c0faf31643ab28a624ad969",
+          "README.md": "d22f089e1eb9d1bbebcf545f63fc7e742bfe76ad036faa355240636f20cbfeb1",
+          "src/core/context-pruning/recovery.ts": "993c586083a32d7216659c264e2446506555b525282e38b0f5d653b6d4de9428",
+          "src/core/context-pruning/dedup.ts": "cbc15fb5bb44f99efd20c82280b8a7da2af757291bbe7e87fae1f13a570a15c9",
+          "src/core/context-pruning/types.ts": "599cf79a721e33adf96cf0c89333f302102de3b2b4adcef5ba0cda5c77ae1065",
+          "src/core/context-pruning/tracker.ts": "ba4e633ae724623f6ba93d3757c41de2a47367db7ca51b5519711d449daace01"
+        },
+        "index_policy": "seeded; no automatic refresh after participant edits"
+      }
+    },
+    {
+      "id": "t12",
+      "identity": {
+        "project_root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t12/root",
+        "real_project_root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t12/root",
+        "cwd": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t12/root",
+        "version": {
+          "version": "0.0.0",
+          "commit": "4d15db8d4d79c114043b83afa3aa3a1a3cdaf28a",
+          "commit_sha": "4d15db8d",
+          "date": "2026-09-09T00:52:07Z",
+          "go_version": "go1.27.0-X:nodwarf5",
+          "platform": "linux/amd64",
+          "os": "linux",
+          "arch": "amd64"
+        },
+        "db_path": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t12/root/.aide/memory/memory.db",
+        "socket_path": "/tmp/aide/c4e5476c3d64f57d.sock",
+        "authority": "daemon",
+        "pid": 167,
+        "ppid": 3,
+        "started_at": "2026-09-09T01:58:35.658517984+01:00"
+      },
+      "stats": {
+        "_meta": {
+          "aide/work": {
+            "id": "EJ5SVU3SD3VQ7YBQ5QIWHK33KG",
+            "text_sha256": "da2f91367e35a66bdd4a784426f3348718723c670d6544e82e07b20c9c9ff7d4",
+            "tool": "code_stats",
+            "version": 1
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Code Index Statistics:\n- Files indexed: 3\n- Symbols indexed: 1\n- References indexed: 23"
+          }
+        ]
+      },
+      "controller_elapsed_ms": 61.50898600026267,
+      "binding": {
+        "schema_version": 1,
+        "id": "8b38608652ec42fe91561b2c854d621c",
+        "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t12/root",
+        "binary": "/tmp/aide-retrieval-v3-next",
+        "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+        "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t12/bridge-evidence",
+        "seed_files": {
+          "reproduce.test.ts": "9c245d2f865302c8e8aa98c5426031d37f9adad886cc63afd1ac434f3d8a570b",
+          "README.md": "6f8cadffcadaacf21fdf00af4779581aadb1746f542105680c496baad5ccc403",
+          "src/core/context-pruning/replacement.ts": "398ab0e1008cafc8213b5c6d2909e0883fb65f323eb61b63b792369d9dd7c78b"
+        },
+        "index_policy": "seeded; no automatic refresh after participant edits"
+      }
+    },
+    {
+      "id": "t13",
+      "identity": {
+        "project_root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t13/root",
+        "real_project_root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t13/root",
+        "cwd": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t13/root",
+        "version": {
+          "version": "0.0.0",
+          "commit": "4d15db8d4d79c114043b83afa3aa3a1a3cdaf28a",
+          "commit_sha": "4d15db8d",
+          "date": "2026-09-09T00:52:07Z",
+          "go_version": "go1.27.0-X:nodwarf5",
+          "platform": "linux/amd64",
+          "os": "linux",
+          "arch": "amd64"
+        },
+        "db_path": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t13/root/.aide/memory/memory.db",
+        "socket_path": "/tmp/aide/937d9a2a3ed0e8f2.sock",
+        "authority": "daemon",
+        "pid": 181,
+        "ppid": 3,
+        "started_at": "2026-09-09T01:58:35.758298668+01:00"
+      },
+      "stats": {
+        "_meta": {
+          "aide/work": {
+            "id": "VGG3HYHRM5VHQWYMNKQA735MEY",
+            "text_sha256": "08afe49e57d17f412ebf2dcaff2e5b95a09d2cbdf405e1099f187f65e75b59cd",
+            "tool": "code_stats",
+            "version": 1
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Code Index Statistics:\n- Files indexed: 7\n- Symbols indexed: 73\n- References indexed: 973"
+          }
+        ]
+      },
+      "controller_elapsed_ms": 63.995040000008885,
+      "binding": {
+        "schema_version": 1,
+        "id": "c9051a43362b428cb4969733aa0fbea3",
+        "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t13/root",
+        "binary": "/tmp/aide-retrieval-v3-next",
+        "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+        "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t13/bridge-evidence",
+        "seed_files": {
+          "README.md": "8dc2fe3a77e2d09302d6bbf532b2ae97746d2561c4329457bc47e0a7bc2ddadd",
+          "aide/pkg/store/observe_events.go": "c1fc06d8813b238643a8d2bf54474609e3d078701fcd24cf83ee8405b5f41d18",
+          "aide/pkg/store/token_events.go": "28629e5d7aa52cb17e5b4cb7a97d1194dc7f206a2be99ddbcb8a021ae740aeef",
+          "aide/pkg/store/token_model_usage.go": "c449bbd2e886f12e84fc25d5eb3977aa5e5ae61bffdea10d3b09300eea262faf",
+          "aide/pkg/memory/token_model_usage.go": "536287aae876951c2b6304724cc804f19a5ec84f8ff5632efb74f8e7967c2443",
+          "src/opencode/hooks.ts": "ff1817bf732925eb3266ba35bb0f9f7e29537707fc27d0b6ac5003f18f4ba590",
+          "src/core/model-usage.ts": "5f8ceb868f06aa5b6c2da0328469c0ee82f720715c492574eed8986c7f308309"
+        },
+        "index_policy": "seeded; no automatic refresh after participant edits"
+      }
+    },
+    {
+      "id": "t14",
+      "identity": {
+        "project_root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t14/root",
+        "real_project_root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t14/root",
+        "cwd": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t14/root",
+        "version": {
+          "version": "0.0.0",
+          "commit": "4d15db8d4d79c114043b83afa3aa3a1a3cdaf28a",
+          "commit_sha": "4d15db8d",
+          "date": "2026-09-09T00:52:07Z",
+          "go_version": "go1.27.0-X:nodwarf5",
+          "platform": "linux/amd64",
+          "os": "linux",
+          "arch": "amd64"
+        },
+        "db_path": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t14/root/.aide/memory/memory.db",
+        "socket_path": "/tmp/aide/bb54bdd17ac4b48b.sock",
+        "authority": "daemon",
+        "pid": 196,
+        "ppid": 3,
+        "started_at": "2026-09-09T01:58:35.859926834+01:00"
+      },
+      "stats": {
+        "_meta": {
+          "aide/work": {
+            "id": "7H3VFBXPLF4DPBT4BUHAVFLR3K",
+            "text_sha256": "5a4613f1691e438b64247430a78971ab1c9804ffc36d74ba3cd47d5e18d2b8b1",
+            "tool": "code_stats",
+            "version": 1
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Code Index Statistics:\n- Files indexed: 6\n- Symbols indexed: 17\n- References indexed: 129"
+          }
+        ]
+      },
+      "controller_elapsed_ms": 63.278066998464055,
+      "binding": {
+        "schema_version": 1,
+        "id": "653923e74f7d499da2cb63561f800ded",
+        "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t14/root",
+        "binary": "/tmp/aide-retrieval-v3-next",
+        "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+        "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t14/bridge-evidence",
+        "seed_files": {
+          "reproduce.test.ts": "c3a8c6c661ac0d586ea65a09470d3c76593bf9499c0faf31643ab28a624ad969",
+          "README.md": "d22f089e1eb9d1bbebcf545f63fc7e742bfe76ad036faa355240636f20cbfeb1",
+          "src/core/context-pruning/recovery.ts": "993c586083a32d7216659c264e2446506555b525282e38b0f5d653b6d4de9428",
+          "src/core/context-pruning/dedup.ts": "cbc15fb5bb44f99efd20c82280b8a7da2af757291bbe7e87fae1f13a570a15c9",
+          "src/core/context-pruning/types.ts": "599cf79a721e33adf96cf0c89333f302102de3b2b4adcef5ba0cda5c77ae1065",
+          "src/core/context-pruning/tracker.ts": "ba4e633ae724623f6ba93d3757c41de2a47367db7ca51b5519711d449daace01"
+        },
+        "index_policy": "seeded; no automatic refresh after participant edits"
+      }
+    },
+    {
+      "id": "t15",
+      "identity": {
+        "project_root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t15/root",
+        "real_project_root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t15/root",
+        "cwd": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t15/root",
+        "version": {
+          "version": "0.0.0",
+          "commit": "4d15db8d4d79c114043b83afa3aa3a1a3cdaf28a",
+          "commit_sha": "4d15db8d",
+          "date": "2026-09-09T00:52:07Z",
+          "go_version": "go1.27.0-X:nodwarf5",
+          "platform": "linux/amd64",
+          "os": "linux",
+          "arch": "amd64"
+        },
+        "db_path": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t15/root/.aide/memory/memory.db",
+        "socket_path": "/tmp/aide/1656aa7fead6512d.sock",
+        "authority": "daemon",
+        "pid": 211,
+        "ppid": 3,
+        "started_at": "2026-09-09T01:58:35.961862906+01:00"
+      },
+      "stats": {
+        "_meta": {
+          "aide/work": {
+            "id": "DZQ7JORJCFRY522ZTRNYWFKZAP",
+            "text_sha256": "da2f91367e35a66bdd4a784426f3348718723c670d6544e82e07b20c9c9ff7d4",
+            "tool": "code_stats",
+            "version": 1
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Code Index Statistics:\n- Files indexed: 3\n- Symbols indexed: 1\n- References indexed: 23"
+          }
+        ]
+      },
+      "controller_elapsed_ms": 65.53673400048865,
+      "binding": {
+        "schema_version": 1,
+        "id": "07ed57a7f01a4d6fb88d766cdfe26cc9",
+        "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t15/root",
+        "binary": "/tmp/aide-retrieval-v3-next",
+        "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+        "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t15/bridge-evidence",
+        "seed_files": {
+          "reproduce.test.ts": "9c245d2f865302c8e8aa98c5426031d37f9adad886cc63afd1ac434f3d8a570b",
+          "README.md": "6f8cadffcadaacf21fdf00af4779581aadb1746f542105680c496baad5ccc403",
+          "src/core/context-pruning/replacement.ts": "398ab0e1008cafc8213b5c6d2909e0883fb65f323eb61b63b792369d9dd7c78b"
+        },
+        "index_policy": "seeded; no automatic refresh after participant edits"
+      }
+    },
+    {
+      "id": "t16",
+      "identity": {
+        "project_root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t16/root",
+        "real_project_root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t16/root",
+        "cwd": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t16/root",
+        "version": {
+          "version": "0.0.0",
+          "commit": "4d15db8d4d79c114043b83afa3aa3a1a3cdaf28a",
+          "commit_sha": "4d15db8d",
+          "date": "2026-09-09T00:52:07Z",
+          "go_version": "go1.27.0-X:nodwarf5",
+          "platform": "linux/amd64",
+          "os": "linux",
+          "arch": "amd64"
+        },
+        "db_path": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t16/root/.aide/memory/memory.db",
+        "socket_path": "/tmp/aide/5507fe2eeb2a83d5.sock",
+        "authority": "daemon",
+        "pid": 225,
+        "ppid": 3,
+        "started_at": "2026-09-09T01:58:36.065120914+01:00"
+      },
+      "stats": {
+        "_meta": {
+          "aide/work": {
+            "id": "XC46XJY7MKQ2GHX4VXN6VCJSXU",
+            "text_sha256": "08afe49e57d17f412ebf2dcaff2e5b95a09d2cbdf405e1099f187f65e75b59cd",
+            "tool": "code_stats",
+            "version": 1
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Code Index Statistics:\n- Files indexed: 7\n- Symbols indexed: 73\n- References indexed: 973"
+          }
+        ]
+      },
+      "controller_elapsed_ms": 64.88338000053773,
+      "binding": {
+        "schema_version": 1,
+        "id": "762a465425c141d8b28f63418817375e",
+        "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t16/root",
+        "binary": "/tmp/aide-retrieval-v3-next",
+        "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+        "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t16/bridge-evidence",
+        "seed_files": {
+          "README.md": "8dc2fe3a77e2d09302d6bbf532b2ae97746d2561c4329457bc47e0a7bc2ddadd",
+          "aide/pkg/store/observe_events.go": "c1fc06d8813b238643a8d2bf54474609e3d078701fcd24cf83ee8405b5f41d18",
+          "aide/pkg/store/token_events.go": "28629e5d7aa52cb17e5b4cb7a97d1194dc7f206a2be99ddbcb8a021ae740aeef",
+          "aide/pkg/store/token_model_usage.go": "c449bbd2e886f12e84fc25d5eb3977aa5e5ae61bffdea10d3b09300eea262faf",
+          "aide/pkg/memory/token_model_usage.go": "536287aae876951c2b6304724cc804f19a5ec84f8ff5632efb74f8e7967c2443",
+          "src/opencode/hooks.ts": "ff1817bf732925eb3266ba35bb0f9f7e29537707fc27d0b6ac5003f18f4ba590",
+          "src/core/model-usage.ts": "5f8ceb868f06aa5b6c2da0328469c0ee82f720715c492574eed8986c7f308309"
+        },
+        "index_policy": "seeded; no automatic refresh after participant edits"
+      }
+    },
+    {
+      "id": "t17",
+      "identity": {
+        "project_root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t17/root",
+        "real_project_root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t17/root",
+        "cwd": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t17/root",
+        "version": {
+          "version": "0.0.0",
+          "commit": "4d15db8d4d79c114043b83afa3aa3a1a3cdaf28a",
+          "commit_sha": "4d15db8d",
+          "date": "2026-09-09T00:52:07Z",
+          "go_version": "go1.27.0-X:nodwarf5",
+          "platform": "linux/amd64",
+          "os": "linux",
+          "arch": "amd64"
+        },
+        "db_path": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t17/root/.aide/memory/memory.db",
+        "socket_path": "/tmp/aide/5ffe2d179aa1ea79.sock",
+        "authority": "daemon",
+        "pid": 240,
+        "ppid": 3,
+        "started_at": "2026-09-09T01:58:36.167873698+01:00"
+      },
+      "stats": {
+        "_meta": {
+          "aide/work": {
+            "id": "NQBXYRM3JCU4ARVDD6GRRRDGFO",
+            "text_sha256": "5a4613f1691e438b64247430a78971ab1c9804ffc36d74ba3cd47d5e18d2b8b1",
+            "tool": "code_stats",
+            "version": 1
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Code Index Statistics:\n- Files indexed: 6\n- Symbols indexed: 17\n- References indexed: 129"
+          }
+        ]
+      },
+      "controller_elapsed_ms": 60.250299000472296,
+      "binding": {
+        "schema_version": 1,
+        "id": "ce0f1a88270e4db38decb37ae79fd11b",
+        "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t17/root",
+        "binary": "/tmp/aide-retrieval-v3-next",
+        "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+        "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t17/bridge-evidence",
+        "seed_files": {
+          "reproduce.test.ts": "c3a8c6c661ac0d586ea65a09470d3c76593bf9499c0faf31643ab28a624ad969",
+          "README.md": "d22f089e1eb9d1bbebcf545f63fc7e742bfe76ad036faa355240636f20cbfeb1",
+          "src/core/context-pruning/recovery.ts": "993c586083a32d7216659c264e2446506555b525282e38b0f5d653b6d4de9428",
+          "src/core/context-pruning/dedup.ts": "cbc15fb5bb44f99efd20c82280b8a7da2af757291bbe7e87fae1f13a570a15c9",
+          "src/core/context-pruning/types.ts": "599cf79a721e33adf96cf0c89333f302102de3b2b4adcef5ba0cda5c77ae1065",
+          "src/core/context-pruning/tracker.ts": "ba4e633ae724623f6ba93d3757c41de2a47367db7ca51b5519711d449daace01"
+        },
+        "index_policy": "seeded; no automatic refresh after participant edits"
+      }
+    },
+    {
+      "id": "t18",
+      "identity": {
+        "project_root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t18/root",
+        "real_project_root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t18/root",
+        "cwd": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t18/root",
+        "version": {
+          "version": "0.0.0",
+          "commit": "4d15db8d4d79c114043b83afa3aa3a1a3cdaf28a",
+          "commit_sha": "4d15db8d",
+          "date": "2026-09-09T00:52:07Z",
+          "go_version": "go1.27.0-X:nodwarf5",
+          "platform": "linux/amd64",
+          "os": "linux",
+          "arch": "amd64"
+        },
+        "db_path": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t18/root/.aide/memory/memory.db",
+        "socket_path": "/tmp/aide/3b456fca635df8cc.sock",
+        "authority": "daemon",
+        "pid": 255,
+        "ppid": 3,
+        "started_at": "2026-09-09T01:58:36.265224738+01:00"
+      },
+      "stats": {
+        "_meta": {
+          "aide/work": {
+            "id": "LVNANNXEGN2RVDEMEPAX3DLADC",
+            "text_sha256": "da2f91367e35a66bdd4a784426f3348718723c670d6544e82e07b20c9c9ff7d4",
+            "tool": "code_stats",
+            "version": 1
+          }
+        },
+        "content": [
+          {
+            "type": "text",
+            "text": "Code Index Statistics:\n- Files indexed: 3\n- Symbols indexed: 1\n- References indexed: 23"
+          }
+        ]
+      },
+      "controller_elapsed_ms": 63.722812999913,
+      "binding": {
+        "schema_version": 1,
+        "id": "536444b6d56c41be81f204d502febc82",
+        "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t18/root",
+        "binary": "/tmp/aide-retrieval-v3-next",
+        "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+        "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t18/bridge-evidence",
+        "seed_files": {
+          "reproduce.test.ts": "9c245d2f865302c8e8aa98c5426031d37f9adad886cc63afd1ac434f3d8a570b",
+          "README.md": "6f8cadffcadaacf21fdf00af4779581aadb1746f542105680c496baad5ccc403",
+          "src/core/context-pruning/replacement.ts": "398ab0e1008cafc8213b5c6d2909e0883fb65f323eb61b63b792369d9dd7c78b"
+        },
+        "index_policy": "seeded; no automatic refresh after participant edits"
+      }
+    }
+  ],
+  "boundary": "Controller preflight before participants; instance_info and code_stats only."
+}

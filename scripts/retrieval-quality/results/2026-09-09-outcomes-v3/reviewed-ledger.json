@@ -1,0 +1,3378 @@
+{
+  "schema_version": 3,
+  "protocol_sha256": "545e57ee5fc4bf16e41beb98022e46c2de07a83ebfab8264414eb4671d686731",
+  "trials": [
+    {
+      "id": "t01",
+      "task": "navigation",
+      "treatment": "ordinary",
+      "repetition": 1,
+      "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t01/root",
+      "prompt_path": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t01/participant-prompt.md",
+      "status": "completed",
+      "agent_id": "/root/v3_execution/t01",
+      "runtime_session_id": "01a083ad-43bb-7c83-8330-22ccebb67ec7",
+      "log_path": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T01-59-25-01a083ad-43bb-7c83-8330-22ccebb67ec7.jsonl",
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "quality_verified": true,
+      "quality": {
+        "candidate": "B",
+        "passed": true,
+        "checks": [
+          {
+            "id": "route",
+            "passed": true,
+            "evidence": [
+              "src/opencode/hooks.ts:194 registers createEventHandler; :429\u2013432 constructs the usage recorder; :458\u2013460 forwards properties.part only when state.binary exists. The complete switch at :434\u2013465 has no message.updated branch and its default ignores other events.",
+              "src/core/model-usage.ts:203\u2013216 accepts only step-finish parts with valid session, part, and message IDs and a tokens object; :22\u201328 defines ID validation. :350\u2013358 converts the part and invokes the writer with an event array. :319\u2013345 writes newline-delimited JSON using observe record --stdin and requires acknowledgment."
+            ],
+            "omissions": [],
+            "incorrect_or_unsupported": []
+          },
+          {
+            "id": "normalization",
+            "passed": true,
+            "evidence": [
+              "src/core/model-usage.ts:99\u2013118 creates kind=session/name=model_usage, version=1, host/source/usage ID attributes, observed time basis without a source timestamp, and partial coverage. :217\u2013222 supplies opencode, opencode.step_finish.v1, session-1, and step-7.",
+              "src/core/model-usage.ts:224\u2013229 maps uncached input=11, cache read=17, cache write=3, reported output=13, and reasoning output=5. :41\u201351 sums input to 31, already including cache components. :33\u201339 serializes valid counters as strings. The complete OpenCode converter at :203\u2013232 does not supply output_tokens, total_tokens, model, or provider.",
+              "aide/pkg/store/token_model_usage.go:36\u201341 defines logical identity as [session, host, usage_id], excluding message and storage row IDs. aide/pkg/store/observe_events.go:160\u2013165 supplies a ULID and time.Now() for absent event ID/timestamp.",
+              "aide/pkg/memory/token_model_usage.go:3\u20134 explicitly distinguishes absent counters from reported zero; :12\u201313 omits absent model/provider in reports."
+            ],
+            "omissions": [],
+            "incorrect_or_unsupported": []
+          },
+          {
+            "id": "retries",
+            "passed": true,
+            "evidence": [
+              "src/core/model-usage.ts:353\u2013361 caches only acknowledged JSON fingerprints of [cwd, normalized event]. A failed writer returns before caching; the successful second broadcast is cached; the unchanged third is skipped. Changing input on the fourth changes uncached/input counters to 12/32 and changes the fingerprint. Thus broadcasts 1, 2, and 4 attempt writing: three attempts.",
+              "aide/pkg/store/token_model_usage.go:44\u201368 fingerprints metadata/counters and combines that fingerprint with logical usage identity, so changed counters form a distinct durable origin. aide/pkg/store/observe_events.go:166\u2013216 stores that origin in a Bolt transaction, reuses equivalent retained observations, and retains distinct variants. Given the task's explicit no-persistence first failure, exactly two distinct variants remain.",
+              "aide/pkg/store/observe_events.go:188\u2013205 retains an earlier equivalent timestamp if supplied; usageFingerprint at aide/pkg/store/token_model_usage.go:46\u201357 excludes observation ID and timestamp values. This supports the answers' additional durable retry/timestamp statements."
+            ],
+            "omissions": [],
+            "incorrect_or_unsupported": []
+          },
+          {
+            "id": "conflict",
+            "passed": true,
+            "evidence": [
+              "aide/pkg/store/token_model_usage.go:36\u201341 keys the usage identity by session, host, and usage_id independently of storage IDs. :150\u2013163 marks differing fingerprints for that identity as a conflict and retains variant evidence.",
+              "aide/pkg/store/token_events.go:153\u2013163 passes all stored events into usage.observe before report filters; :191\u2013196 obtains the filtered model usage result separately.",
+              "aide/pkg/store/token_model_usage.go:174 initializes an empty BySource; :183\u2013190 counts one conflict if any retained variant matches the filter and continues before validity checks and counter aggregation. :196\u2013220 therefore contributes neither invalid nor accepted observation counts and no source counters for this sole conflicted identity: observations=0, conflicts=1, invalid=0, empty by_source. Selecting just the earlier variant cannot remove the known conflict.",
+              "aide/pkg/memory/token_model_usage.go:23\u201328 verifies the report JSON names version, observations, conflicts, invalid, and by_source."
+            ],
+            "omissions": [],
+            "incorrect_or_unsupported": []
+          },
+          {
+            "id": "boundaries",
+            "passed": true,
+            "evidence": [
+              "aide/pkg/store/observe_events.go:82\u2013109 has no session-kind TokenEvent projection and returns nil. aide/pkg/store/token_events.go:93\u2013106 tallies only converted token events; :172\u2013174 guards tally on a non-nil projection; :196 attaches model usage separately. Session usage therefore adds no tool-event count or legacy byte-based estimate.",
+              "src/core/model-usage.ts:41\u201351 and :224\u2013229 show normalized input already includes both cache components. :227\u2013230 explicitly keeps raw reported output separate because output/reasoning overlap changed across versions. The candidate explicitly states both required double-counting cautions.",
+              "src/core/model-usage.ts:1 describes host-reported counters as neither text estimates nor savings; :111 marks partial coverage. The candidate states all required limits on completeness, billed cost, savings, and output quality.",
+              "aide/pkg/memory/token_model_usage.go:3\u20134 identifies counters as host-reported usage, never text estimates or savings; :20\u201322 states captured records only, partial session coverage, separate sources, and no establishment of cost, savings, or quality. The candidate's cited contract and all required limiting claims are verified."
+            ],
+            "omissions": [],
+            "incorrect_or_unsupported": []
+          }
+        ],
+        "notes": [
+          "All five frozen criteria pass. Every required fact is stated, and the cited source supports the claims. No incorrect numerical totals, retry counts, completeness/billing/savings guarantees, or date-filter conflict claims were found.",
+          "Only the assigned frozen task, rubric, candidates, and source were inspected, plus the mandatory RTK bootstrap. No source code was executed and no candidate, rubric, or source file was edited.",
+          "Single-line references to function starts are accepted as minor line-span variations where the named function body supports the claim. Process statements in answer footers are outside the five criteria and were not used to infer retrieval treatment or affect grading.",
+          "The initial default rg file listing hid aide/pkg/memory/token_model_usage.go through ignore rules. An explicit read and an inventory using --hidden --no-ignore confirmed that the file is present, and its cited lines were verified before this grade was written."
+        ],
+        "grade_file": "grade-B.json"
+      },
+      "aide_operations": 0,
+      "aide_uptake": false,
+      "bridge_evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t01/bridge-evidence",
+      "bridge_setup": {
+        "operation": "prepare",
+        "binding": {
+          "schema_version": 1,
+          "id": "a6aa414ddcd54abfad384d14f01f6d46",
+          "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t01/root",
+          "binary": "/tmp/aide-retrieval-v3-next",
+          "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+          "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t01/bridge-evidence",
+          "seed_files": {
+            "README.md": "8dc2fe3a77e2d09302d6bbf532b2ae97746d2561c4329457bc47e0a7bc2ddadd",
+            "aide/pkg/store/observe_events.go": "c1fc06d8813b238643a8d2bf54474609e3d078701fcd24cf83ee8405b5f41d18",
+            "aide/pkg/store/token_events.go": "28629e5d7aa52cb17e5b4cb7a97d1194dc7f206a2be99ddbcb8a021ae740aeef",
+            "aide/pkg/store/token_model_usage.go": "c449bbd2e886f12e84fc25d5eb3977aa5e5ae61bffdea10d3b09300eea262faf",
+            "aide/pkg/memory/token_model_usage.go": "536287aae876951c2b6304724cc804f19a5ec84f8ff5632efb74f8e7967c2443",
+            "src/opencode/hooks.ts": "ff1817bf732925eb3266ba35bb0f9f7e29537707fc27d0b6ac5003f18f4ba590",
+            "src/core/model-usage.ts": "5f8ceb868f06aa5b6c2da0328469c0ee82f720715c492574eed8986c7f308309"
+          },
+          "index_policy": "seeded; no automatic refresh after participant edits"
+        },
+        "error": null,
+        "returncode": 0,
+        "stdout": "Indexed 73 symbols from 7 files\n",
+        "stderr": "2026/09/09 01:57:56 store: applying migration v1: baseline schema stamp\n2026/09/09 01:57:56 store: applying migration v1: baseline code schema stamp\n2026/09/09 01:57:56 store: applying migration v2: backfill BucketSymbolsByFile / BucketReferencesByFile and convert BucketRefIndex to composite keys\n2026/09/09 01:57:56 store: applying migration v3: clear stored file mtimes so the grammar packs' new import queries are re-extracted\n\r\u001b[K\u280b README.md (0 symbols)\r\u001b[K\u2819 aide/pkg/memory/token_model_usage.go (6 symbols)\r\u001b[K\u2839 aide/pkg/store/observe_events.go (13 symbols)\r\u001b[K\u2838 aide/pkg/store/token_events.go (3 symbols)\r\u001b[K\u283c aide/pkg/store/token_model_usage.go (15 symbols)\r\u001b[K\u2834 src/core/model-usage.ts (16 symbols)\r\u001b[K\u2826 src/opencode/hooks.ts (20 symbols)\r\u001b[K",
+        "index_elapsed_ms": 135.58109899895499,
+        "total_elapsed_ms": 173.65081099706003
+      },
+      "protocol_violations": [],
+      "retrieval_output_bytes": null,
+      "aide_duration_ms": null,
+      "bridge_metrics": {
+        "schema_version": 1,
+        "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/results/2026-09-09-outcomes-v3/bridge/t01",
+        "evidence_complete_for_host_attempts": null,
+        "setup": {
+          "valid": true,
+          "errors": [],
+          "binding": {
+            "schema_version": 1,
+            "id": "a6aa414ddcd54abfad384d14f01f6d46",
+            "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t01/root",
+            "binary": "/tmp/aide-retrieval-v3-next",
+            "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+            "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t01/bridge-evidence",
+            "seed_files": {
+              "README.md": "8dc2fe3a77e2d09302d6bbf532b2ae97746d2561c4329457bc47e0a7bc2ddadd",
+              "aide/pkg/store/observe_events.go": "c1fc06d8813b238643a8d2bf54474609e3d078701fcd24cf83ee8405b5f41d18",
+              "aide/pkg/store/token_events.go": "28629e5d7aa52cb17e5b4cb7a97d1194dc7f206a2be99ddbcb8a021ae740aeef",
+              "aide/pkg/store/token_model_usage.go": "c449bbd2e886f12e84fc25d5eb3977aa5e5ae61bffdea10d3b09300eea262faf",
+              "aide/pkg/memory/token_model_usage.go": "536287aae876951c2b6304724cc804f19a5ec84f8ff5632efb74f8e7967c2443",
+              "src/opencode/hooks.ts": "ff1817bf732925eb3266ba35bb0f9f7e29537707fc27d0b6ac5003f18f4ba590",
+              "src/core/model-usage.ts": "5f8ceb868f06aa5b6c2da0328469c0ee82f720715c492574eed8986c7f308309"
+            },
+            "index_policy": "seeded; no automatic refresh after participant edits"
+          },
+          "index_elapsed_ms": 135.58109899895499,
+          "total_elapsed_ms": 173.65081099706003,
+          "expected_binding_verified": true,
+          "expected_binary_digest_verified": true
+        },
+        "attempts": 0,
+        "successful": 0,
+        "tool_errors": 0,
+        "bridge_errors": 0,
+        "rejected": 0,
+        "invalid_evidence": 0,
+        "timings_ms": {
+          "guard": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "startup_initialize": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "identity": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "request": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "exit": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "total": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          }
+        },
+        "result_text_utf8_bytes": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "emitted_text_utf8_bytes": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "handler_duration_ms": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "calls": [],
+        "limitations": [
+          "Bridge process timings include orchestration; request roundtrip is not handler compute or CPU time.",
+          "Setup indexing and controller observe export costs are separate from participant bridge calls.",
+          "Emitted bytes follow the bridge's successful return path; host delivery/truncation and omitted attempts require trace review.",
+          "Setup stores a binary digest; call records bind to setup but do not contain an independently repeated binary digest.",
+          "Source receipt SHA256 is checked against pre-call inventory. Full-file bytes are independently verified only for supplied snapshots matching that exact hash; other versions remain unknown.",
+          "Static seed search/references can be stale after edits; source_changed_since_seed is recorded without assuming result freshness."
+        ]
+      }
+    },
+    {
+      "id": "t02",
+      "task": "debug",
+      "treatment": "available",
+      "repetition": 1,
+      "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t02/root",
+      "prompt_path": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t02/participant-prompt.md",
+      "status": "completed",
+      "agent_id": "/root/v3_execution/t02",
+      "runtime_session_id": "01a083ae-58f1-72b3-9686-e14eb1ba22ef",
+      "log_path": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T02-00-36-01a083ae-58f1-72b3-9686-e14eb1ba22ef.jsonl",
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "quality_verified": true,
+      "quality": {
+        "passed": true,
+        "visible_passed": true,
+        "hidden_passed": true,
+        "immutable_files_preserved": true
+      },
+      "aide_operations": 0,
+      "aide_uptake": false,
+      "bridge_evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t02/bridge-evidence",
+      "bridge_setup": {
+        "operation": "prepare",
+        "binding": {
+          "schema_version": 1,
+          "id": "31ba1cdf918a4760b897cdca73095d3d",
+          "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t02/root",
+          "binary": "/tmp/aide-retrieval-v3-next",
+          "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+          "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t02/bridge-evidence",
+          "seed_files": {
+            "reproduce.test.ts": "c3a8c6c661ac0d586ea65a09470d3c76593bf9499c0faf31643ab28a624ad969",
+            "README.md": "d22f089e1eb9d1bbebcf545f63fc7e742bfe76ad036faa355240636f20cbfeb1",
+            "src/core/context-pruning/recovery.ts": "993c586083a32d7216659c264e2446506555b525282e38b0f5d653b6d4de9428",
+            "src/core/context-pruning/dedup.ts": "cbc15fb5bb44f99efd20c82280b8a7da2af757291bbe7e87fae1f13a570a15c9",
+            "src/core/context-pruning/types.ts": "599cf79a721e33adf96cf0c89333f302102de3b2b4adcef5ba0cda5c77ae1065",
+            "src/core/context-pruning/tracker.ts": "ba4e633ae724623f6ba93d3757c41de2a47367db7ca51b5519711d449daace01"
+          },
+          "index_policy": "seeded; no automatic refresh after participant edits"
+        },
+        "error": null,
+        "returncode": 0,
+        "stdout": "Indexed 17 symbols from 6 files\n",
+        "stderr": "2026/09/09 01:57:56 store: applying migration v1: baseline schema stamp\n2026/09/09 01:57:56 store: applying migration v1: baseline code schema stamp\n2026/09/09 01:57:56 store: applying migration v2: backfill BucketSymbolsByFile / BucketReferencesByFile and convert BucketRefIndex to composite keys\n2026/09/09 01:57:56 store: applying migration v3: clear stored file mtimes so the grammar packs' new import queries are re-extracted\n\r\u001b[K\u280b README.md (0 symbols)\r\u001b[K\u2819 reproduce.test.ts (0 symbols)\r\u001b[K\u2839 src/core/context-pruning/dedup.ts (5 symbols)\r\u001b[K\u2838 src/core/context-pruning/recovery.ts (1 symbols)\r\u001b[K\u283c src/core/context-pruning/tracker.ts (7 symbols)\r\u001b[K\u2834 src/core/context-pruning/types.ts (4 symbols)\r\u001b[K",
+        "index_elapsed_ms": 104.60675400099717,
+        "total_elapsed_ms": 142.3103289998835
+      },
+      "protocol_violations": [],
+      "retrieval_output_bytes": 14792,
+      "aide_duration_ms": null,
+      "bridge_metrics": {
+        "schema_version": 1,
+        "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/results/2026-09-09-outcomes-v3/bridge/t02",
+        "evidence_complete_for_host_attempts": null,
+        "setup": {
+          "valid": true,
+          "errors": [],
+          "binding": {
+            "schema_version": 1,
+            "id": "31ba1cdf918a4760b897cdca73095d3d",
+            "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t02/root",
+            "binary": "/tmp/aide-retrieval-v3-next",
+            "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+            "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t02/bridge-evidence",
+            "seed_files": {
+              "reproduce.test.ts": "c3a8c6c661ac0d586ea65a09470d3c76593bf9499c0faf31643ab28a624ad969",
+              "README.md": "d22f089e1eb9d1bbebcf545f63fc7e742bfe76ad036faa355240636f20cbfeb1",
+              "src/core/context-pruning/recovery.ts": "993c586083a32d7216659c264e2446506555b525282e38b0f5d653b6d4de9428",
+              "src/core/context-pruning/dedup.ts": "cbc15fb5bb44f99efd20c82280b8a7da2af757291bbe7e87fae1f13a570a15c9",
+              "src/core/context-pruning/types.ts": "599cf79a721e33adf96cf0c89333f302102de3b2b4adcef5ba0cda5c77ae1065",
+              "src/core/context-pruning/tracker.ts": "ba4e633ae724623f6ba93d3757c41de2a47367db7ca51b5519711d449daace01"
+            },
+            "index_policy": "seeded; no automatic refresh after participant edits"
+          },
+          "index_elapsed_ms": 104.60675400099717,
+          "total_elapsed_ms": 142.3103289998835,
+          "expected_binding_verified": true,
+          "expected_binary_digest_verified": true
+        },
+        "attempts": 0,
+        "successful": 0,
+        "tool_errors": 0,
+        "bridge_errors": 0,
+        "rejected": 0,
+        "invalid_evidence": 0,
+        "timings_ms": {
+          "guard": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "startup_initialize": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "identity": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "request": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "exit": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "total": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          }
+        },
+        "result_text_utf8_bytes": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "emitted_text_utf8_bytes": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "handler_duration_ms": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "calls": [],
+        "limitations": [
+          "Bridge process timings include orchestration; request roundtrip is not handler compute or CPU time.",
+          "Setup indexing and controller observe export costs are separate from participant bridge calls.",
+          "Emitted bytes follow the bridge's successful return path; host delivery/truncation and omitted attempts require trace review.",
+          "Setup stores a binary digest; call records bind to setup but do not contain an independently repeated binary digest.",
+          "Source receipt SHA256 is checked against pre-call inventory. Full-file bytes are independently verified only for supplied snapshots matching that exact hash; other versions remain unknown.",
+          "Static seed search/references can be stale after edits; source_changed_since_seed is recorded without assuming result freshness."
+        ]
+      }
+    },
+    {
+      "id": "t03",
+      "task": "edit",
+      "treatment": "guided",
+      "repetition": 1,
+      "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t03/root",
+      "prompt_path": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t03/participant-prompt.md",
+      "status": "completed",
+      "agent_id": "/root/v3_execution/t03",
+      "runtime_session_id": "01a083af-b1c6-71d2-b8e4-7ceb1386c63c",
+      "log_path": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T02-02-04-01a083af-b1c6-71d2-b8e4-7ceb1386c63c.jsonl",
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "quality_verified": true,
+      "quality": {
+        "passed": true,
+        "visible_passed": true,
+        "hidden_passed": true,
+        "immutable_files_preserved": true
+      },
+      "aide_operations": 0,
+      "aide_uptake": false,
+      "bridge_evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t03/bridge-evidence",
+      "bridge_setup": {
+        "operation": "prepare",
+        "binding": {
+          "schema_version": 1,
+          "id": "55501569e89243a8b89f6da3ffb60cea",
+          "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t03/root",
+          "binary": "/tmp/aide-retrieval-v3-next",
+          "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+          "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t03/bridge-evidence",
+          "seed_files": {
+            "reproduce.test.ts": "9c245d2f865302c8e8aa98c5426031d37f9adad886cc63afd1ac434f3d8a570b",
+            "README.md": "6f8cadffcadaacf21fdf00af4779581aadb1746f542105680c496baad5ccc403",
+            "src/core/context-pruning/replacement.ts": "398ab0e1008cafc8213b5c6d2909e0883fb65f323eb61b63b792369d9dd7c78b"
+          },
+          "index_policy": "seeded; no automatic refresh after participant edits"
+        },
+        "error": null,
+        "returncode": 0,
+        "stdout": "Indexed 1 symbols from 3 files\n",
+        "stderr": "2026/09/09 01:57:56 store: applying migration v1: baseline schema stamp\n2026/09/09 01:57:56 store: applying migration v1: baseline code schema stamp\n2026/09/09 01:57:56 store: applying migration v2: backfill BucketSymbolsByFile / BucketReferencesByFile and convert BucketRefIndex to composite keys\n2026/09/09 01:57:56 store: applying migration v3: clear stored file mtimes so the grammar packs' new import queries are re-extracted\n\r\u001b[K\u280b README.md (0 symbols)\r\u001b[K\u2819 reproduce.test.ts (0 symbols)\r\u001b[K\u2839 src/core/context-pruning/replacement.ts (1 symbols)\r\u001b[K",
+        "index_elapsed_ms": 73.55552899753093,
+        "total_elapsed_ms": 110.88096800085623
+      },
+      "protocol_violations": [],
+      "retrieval_output_bytes": 4057,
+      "aide_duration_ms": null,
+      "bridge_metrics": {
+        "schema_version": 1,
+        "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/results/2026-09-09-outcomes-v3/bridge/t03",
+        "evidence_complete_for_host_attempts": null,
+        "setup": {
+          "valid": true,
+          "errors": [],
+          "binding": {
+            "schema_version": 1,
+            "id": "55501569e89243a8b89f6da3ffb60cea",
+            "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t03/root",
+            "binary": "/tmp/aide-retrieval-v3-next",
+            "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+            "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t03/bridge-evidence",
+            "seed_files": {
+              "reproduce.test.ts": "9c245d2f865302c8e8aa98c5426031d37f9adad886cc63afd1ac434f3d8a570b",
+              "README.md": "6f8cadffcadaacf21fdf00af4779581aadb1746f542105680c496baad5ccc403",
+              "src/core/context-pruning/replacement.ts": "398ab0e1008cafc8213b5c6d2909e0883fb65f323eb61b63b792369d9dd7c78b"
+            },
+            "index_policy": "seeded; no automatic refresh after participant edits"
+          },
+          "index_elapsed_ms": 73.55552899753093,
+          "total_elapsed_ms": 110.88096800085623,
+          "expected_binding_verified": true,
+          "expected_binary_digest_verified": true
+        },
+        "attempts": 0,
+        "successful": 0,
+        "tool_errors": 0,
+        "bridge_errors": 0,
+        "rejected": 0,
+        "invalid_evidence": 0,
+        "timings_ms": {
+          "guard": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "startup_initialize": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "identity": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "request": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "exit": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "total": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          }
+        },
+        "result_text_utf8_bytes": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "emitted_text_utf8_bytes": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "handler_duration_ms": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "calls": [],
+        "limitations": [
+          "Bridge process timings include orchestration; request roundtrip is not handler compute or CPU time.",
+          "Setup indexing and controller observe export costs are separate from participant bridge calls.",
+          "Emitted bytes follow the bridge's successful return path; host delivery/truncation and omitted attempts require trace review.",
+          "Setup stores a binary digest; call records bind to setup but do not contain an independently repeated binary digest.",
+          "Source receipt SHA256 is checked against pre-call inventory. Full-file bytes are independently verified only for supplied snapshots matching that exact hash; other versions remain unknown.",
+          "Static seed search/references can be stale after edits; source_changed_since_seed is recorded without assuming result freshness."
+        ]
+      }
+    },
+    {
+      "id": "t04",
+      "task": "navigation",
+      "treatment": "available",
+      "repetition": 1,
+      "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t04/root",
+      "prompt_path": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t04/participant-prompt.md",
+      "status": "completed",
+      "agent_id": "/root/v3_execution/t04",
+      "runtime_session_id": "01a083b0-c5ab-75b0-8f19-0c700c1f182f",
+      "log_path": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T02-03-15-01a083b0-c5ab-75b0-8f19-0c700c1f182f.jsonl",
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "quality_verified": true,
+      "quality": {
+        "candidate": "E",
+        "passed": true,
+        "checks": [
+          {
+            "id": "route",
+            "passed": true,
+            "evidence": [
+              "src/opencode/hooks.ts:194 registers createEventHandler; :429\u2013432 constructs the usage recorder; :458\u2013460 forwards properties.part only when state.binary exists. The complete switch at :434\u2013465 has no message.updated branch and its default ignores other events.",
+              "src/core/model-usage.ts:203\u2013216 accepts only step-finish parts with valid session, part, and message IDs and a tokens object; :22\u201328 defines ID validation. :350\u2013358 converts the part and invokes the writer with an event array. :319\u2013345 writes newline-delimited JSON using observe record --stdin and requires acknowledgment."
+            ],
+            "omissions": [],
+            "incorrect_or_unsupported": []
+          },
+          {
+            "id": "normalization",
+            "passed": true,
+            "evidence": [
+              "src/core/model-usage.ts:99\u2013118 creates kind=session/name=model_usage, version=1, host/source/usage ID attributes, observed time basis without a source timestamp, and partial coverage. :217\u2013222 supplies opencode, opencode.step_finish.v1, session-1, and step-7.",
+              "src/core/model-usage.ts:224\u2013229 maps uncached input=11, cache read=17, cache write=3, reported output=13, and reasoning output=5. :41\u201351 sums input to 31, already including cache components. :33\u201339 serializes valid counters as strings. The complete OpenCode converter at :203\u2013232 does not supply output_tokens, total_tokens, model, or provider.",
+              "aide/pkg/store/token_model_usage.go:36\u201341 defines logical identity as [session, host, usage_id], excluding message and storage row IDs. aide/pkg/store/observe_events.go:160\u2013165 supplies a ULID and time.Now() for absent event ID/timestamp.",
+              "aide/pkg/memory/token_model_usage.go:3\u20134 explicitly distinguishes absent counters from reported zero; :12\u201313 omits absent model/provider in reports."
+            ],
+            "omissions": [],
+            "incorrect_or_unsupported": []
+          },
+          {
+            "id": "retries",
+            "passed": true,
+            "evidence": [
+              "src/core/model-usage.ts:353\u2013361 caches only acknowledged JSON fingerprints of [cwd, normalized event]. A failed writer returns before caching; the successful second broadcast is cached; the unchanged third is skipped. Changing input on the fourth changes uncached/input counters to 12/32 and changes the fingerprint. Thus broadcasts 1, 2, and 4 attempt writing: three attempts.",
+              "aide/pkg/store/token_model_usage.go:44\u201368 fingerprints metadata/counters and combines that fingerprint with logical usage identity, so changed counters form a distinct durable origin. aide/pkg/store/observe_events.go:166\u2013216 stores that origin in a Bolt transaction, reuses equivalent retained observations, and retains distinct variants. Given the task's explicit no-persistence first failure, exactly two distinct variants remain.",
+              "aide/pkg/store/observe_events.go:188\u2013205 retains an earlier equivalent timestamp if supplied; usageFingerprint at aide/pkg/store/token_model_usage.go:46\u201357 excludes observation ID and timestamp values. This supports the answers' additional durable retry/timestamp statements."
+            ],
+            "omissions": [],
+            "incorrect_or_unsupported": []
+          },
+          {
+            "id": "conflict",
+            "passed": true,
+            "evidence": [
+              "aide/pkg/store/token_model_usage.go:36\u201341 keys the usage identity by session, host, and usage_id independently of storage IDs. :150\u2013163 marks differing fingerprints for that identity as a conflict and retains variant evidence.",
+              "aide/pkg/store/token_events.go:153\u2013163 passes all stored events into usage.observe before report filters; :191\u2013196 obtains the filtered model usage result separately.",
+              "aide/pkg/store/token_model_usage.go:174 initializes an empty BySource; :183\u2013190 counts one conflict if any retained variant matches the filter and continues before validity checks and counter aggregation. :196\u2013220 therefore contributes neither invalid nor accepted observation counts and no source counters for this sole conflicted identity: observations=0, conflicts=1, invalid=0, empty by_source. Selecting just the earlier variant cannot remove the known conflict.",
+              "aide/pkg/memory/token_model_usage.go:23\u201328 verifies the report JSON names version, observations, conflicts, invalid, and by_source."
+            ],
+            "omissions": [],
+            "incorrect_or_unsupported": []
+          },
+          {
+            "id": "boundaries",
+            "passed": true,
+            "evidence": [
+              "aide/pkg/store/observe_events.go:82\u2013109 has no session-kind TokenEvent projection and returns nil. aide/pkg/store/token_events.go:93\u2013106 tallies only converted token events; :172\u2013174 guards tally on a non-nil projection; :196 attaches model usage separately. Session usage therefore adds no tool-event count or legacy byte-based estimate.",
+              "src/core/model-usage.ts:41\u201351 and :224\u2013229 show normalized input already includes both cache components. :227\u2013230 explicitly keeps raw reported output separate because output/reasoning overlap changed across versions. The candidate explicitly states both required double-counting cautions.",
+              "src/core/model-usage.ts:1 describes host-reported counters as neither text estimates nor savings; :111 marks partial coverage. The candidate states all required limits on completeness, billed cost, savings, and output quality.",
+              "aide/pkg/memory/token_model_usage.go:3\u20134 identifies counters as host-reported usage, never text estimates or savings; :20\u201322 states captured records only, partial session coverage, separate sources, and no establishment of cost, savings, or quality. The candidate's cited contract and all required limiting claims are verified."
+            ],
+            "omissions": [],
+            "incorrect_or_unsupported": []
+          }
+        ],
+        "notes": [
+          "All five frozen criteria pass. Every required fact is stated, and the cited source supports the claims. No incorrect numerical totals, retry counts, completeness/billing/savings guarantees, or date-filter conflict claims were found.",
+          "Only the assigned frozen task, rubric, candidates, and source were inspected, plus the mandatory RTK bootstrap. No source code was executed and no candidate, rubric, or source file was edited.",
+          "Single-line references to function starts are accepted as minor line-span variations where the named function body supports the claim. Process statements in answer footers are outside the five criteria and were not used to infer retrieval treatment or affect grading.",
+          "The initial default rg file listing hid aide/pkg/memory/token_model_usage.go through ignore rules. An explicit read and an inventory using --hidden --no-ignore confirmed that the file is present, and its cited lines were verified before this grade was written."
+        ],
+        "grade_file": "grade-E.json"
+      },
+      "aide_operations": 0,
+      "aide_uptake": false,
+      "bridge_evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t04/bridge-evidence",
+      "bridge_setup": {
+        "operation": "prepare",
+        "binding": {
+          "schema_version": 1,
+          "id": "53c86d27ef934d888dc9db2ef2ddae79",
+          "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t04/root",
+          "binary": "/tmp/aide-retrieval-v3-next",
+          "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+          "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t04/bridge-evidence",
+          "seed_files": {
+            "README.md": "8dc2fe3a77e2d09302d6bbf532b2ae97746d2561c4329457bc47e0a7bc2ddadd",
+            "aide/pkg/store/observe_events.go": "c1fc06d8813b238643a8d2bf54474609e3d078701fcd24cf83ee8405b5f41d18",
+            "aide/pkg/store/token_events.go": "28629e5d7aa52cb17e5b4cb7a97d1194dc7f206a2be99ddbcb8a021ae740aeef",
+            "aide/pkg/store/token_model_usage.go": "c449bbd2e886f12e84fc25d5eb3977aa5e5ae61bffdea10d3b09300eea262faf",
+            "aide/pkg/memory/token_model_usage.go": "536287aae876951c2b6304724cc804f19a5ec84f8ff5632efb74f8e7967c2443",
+            "src/opencode/hooks.ts": "ff1817bf732925eb3266ba35bb0f9f7e29537707fc27d0b6ac5003f18f4ba590",
+            "src/core/model-usage.ts": "5f8ceb868f06aa5b6c2da0328469c0ee82f720715c492574eed8986c7f308309"
+          },
+          "index_policy": "seeded; no automatic refresh after participant edits"
+        },
+        "error": null,
+        "returncode": 0,
+        "stdout": "Indexed 73 symbols from 7 files\n",
+        "stderr": "2026/09/09 01:57:56 store: applying migration v1: baseline schema stamp\n2026/09/09 01:57:56 store: applying migration v1: baseline code schema stamp\n2026/09/09 01:57:56 store: applying migration v2: backfill BucketSymbolsByFile / BucketReferencesByFile and convert BucketRefIndex to composite keys\n2026/09/09 01:57:56 store: applying migration v3: clear stored file mtimes so the grammar packs' new import queries are re-extracted\n\r\u001b[K\u280b README.md (0 symbols)\r\u001b[K\u2819 aide/pkg/memory/token_model_usage.go (6 symbols)\r\u001b[K\u2839 aide/pkg/store/observe_events.go (13 symbols)\r\u001b[K\u2838 aide/pkg/store/token_events.go (3 symbols)\r\u001b[K\u283c aide/pkg/store/token_model_usage.go (15 symbols)\r\u001b[K\u2834 src/core/model-usage.ts (16 symbols)\r\u001b[K\u2826 src/opencode/hooks.ts (20 symbols)\r\u001b[K",
+        "index_elapsed_ms": 137.90965599764604,
+        "total_elapsed_ms": 175.3801930026384
+      },
+      "protocol_violations": [],
+      "retrieval_output_bytes": null,
+      "aide_duration_ms": null,
+      "bridge_metrics": {
+        "schema_version": 1,
+        "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/results/2026-09-09-outcomes-v3/bridge/t04",
+        "evidence_complete_for_host_attempts": null,
+        "setup": {
+          "valid": true,
+          "errors": [],
+          "binding": {
+            "schema_version": 1,
+            "id": "53c86d27ef934d888dc9db2ef2ddae79",
+            "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t04/root",
+            "binary": "/tmp/aide-retrieval-v3-next",
+            "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+            "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t04/bridge-evidence",
+            "seed_files": {
+              "README.md": "8dc2fe3a77e2d09302d6bbf532b2ae97746d2561c4329457bc47e0a7bc2ddadd",
+              "aide/pkg/store/observe_events.go": "c1fc06d8813b238643a8d2bf54474609e3d078701fcd24cf83ee8405b5f41d18",
+              "aide/pkg/store/token_events.go": "28629e5d7aa52cb17e5b4cb7a97d1194dc7f206a2be99ddbcb8a021ae740aeef",
+              "aide/pkg/store/token_model_usage.go": "c449bbd2e886f12e84fc25d5eb3977aa5e5ae61bffdea10d3b09300eea262faf",
+              "aide/pkg/memory/token_model_usage.go": "536287aae876951c2b6304724cc804f19a5ec84f8ff5632efb74f8e7967c2443",
+              "src/opencode/hooks.ts": "ff1817bf732925eb3266ba35bb0f9f7e29537707fc27d0b6ac5003f18f4ba590",
+              "src/core/model-usage.ts": "5f8ceb868f06aa5b6c2da0328469c0ee82f720715c492574eed8986c7f308309"
+            },
+            "index_policy": "seeded; no automatic refresh after participant edits"
+          },
+          "index_elapsed_ms": 137.90965599764604,
+          "total_elapsed_ms": 175.3801930026384,
+          "expected_binding_verified": true,
+          "expected_binary_digest_verified": true
+        },
+        "attempts": 0,
+        "successful": 0,
+        "tool_errors": 0,
+        "bridge_errors": 0,
+        "rejected": 0,
+        "invalid_evidence": 0,
+        "timings_ms": {
+          "guard": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "startup_initialize": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "identity": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "request": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "exit": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "total": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          }
+        },
+        "result_text_utf8_bytes": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "emitted_text_utf8_bytes": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "handler_duration_ms": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "calls": [],
+        "limitations": [
+          "Bridge process timings include orchestration; request roundtrip is not handler compute or CPU time.",
+          "Setup indexing and controller observe export costs are separate from participant bridge calls.",
+          "Emitted bytes follow the bridge's successful return path; host delivery/truncation and omitted attempts require trace review.",
+          "Setup stores a binary digest; call records bind to setup but do not contain an independently repeated binary digest.",
+          "Source receipt SHA256 is checked against pre-call inventory. Full-file bytes are independently verified only for supplied snapshots matching that exact hash; other versions remain unknown.",
+          "Static seed search/references can be stale after edits; source_changed_since_seed is recorded without assuming result freshness."
+        ]
+      }
+    },
+    {
+      "id": "t05",
+      "task": "debug",
+      "treatment": "guided",
+      "repetition": 1,
+      "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t05/root",
+      "prompt_path": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t05/participant-prompt.md",
+      "status": "completed",
+      "agent_id": "/root/v3_execution/t05",
+      "runtime_session_id": "01a083b2-06fa-73b3-8cd6-ebe6a5ff8623",
+      "log_path": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T02-04-37-01a083b2-06fa-73b3-8cd6-ebe6a5ff8623.jsonl",
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "quality_verified": true,
+      "quality": {
+        "passed": true,
+        "visible_passed": true,
+        "hidden_passed": true,
+        "immutable_files_preserved": true
+      },
+      "aide_operations": 0,
+      "aide_uptake": false,
+      "bridge_evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t05/bridge-evidence",
+      "bridge_setup": {
+        "operation": "prepare",
+        "binding": {
+          "schema_version": 1,
+          "id": "1d50c1a0896f461cb6822da364d4b409",
+          "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t05/root",
+          "binary": "/tmp/aide-retrieval-v3-next",
+          "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+          "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t05/bridge-evidence",
+          "seed_files": {
+            "reproduce.test.ts": "c3a8c6c661ac0d586ea65a09470d3c76593bf9499c0faf31643ab28a624ad969",
+            "README.md": "d22f089e1eb9d1bbebcf545f63fc7e742bfe76ad036faa355240636f20cbfeb1",
+            "src/core/context-pruning/recovery.ts": "993c586083a32d7216659c264e2446506555b525282e38b0f5d653b6d4de9428",
+            "src/core/context-pruning/dedup.ts": "cbc15fb5bb44f99efd20c82280b8a7da2af757291bbe7e87fae1f13a570a15c9",
+            "src/core/context-pruning/types.ts": "599cf79a721e33adf96cf0c89333f302102de3b2b4adcef5ba0cda5c77ae1065",
+            "src/core/context-pruning/tracker.ts": "ba4e633ae724623f6ba93d3757c41de2a47367db7ca51b5519711d449daace01"
+          },
+          "index_policy": "seeded; no automatic refresh after participant edits"
+        },
+        "error": null,
+        "returncode": 0,
+        "stdout": "Indexed 17 symbols from 6 files\n",
+        "stderr": "2026/09/09 01:57:57 store: applying migration v1: baseline schema stamp\n2026/09/09 01:57:57 store: applying migration v1: baseline code schema stamp\n2026/09/09 01:57:57 store: applying migration v2: backfill BucketSymbolsByFile / BucketReferencesByFile and convert BucketRefIndex to composite keys\n2026/09/09 01:57:57 store: applying migration v3: clear stored file mtimes so the grammar packs' new import queries are re-extracted\n\r\u001b[K\u280b README.md (0 symbols)\r\u001b[K\u2819 reproduce.test.ts (0 symbols)\r\u001b[K\u2839 src/core/context-pruning/dedup.ts (5 symbols)\r\u001b[K\u2838 src/core/context-pruning/recovery.ts (1 symbols)\r\u001b[K\u283c src/core/context-pruning/tracker.ts (7 symbols)\r\u001b[K\u2834 src/core/context-pruning/types.ts (4 symbols)\r\u001b[K",
+        "index_elapsed_ms": 109.33328499959316,
+        "total_elapsed_ms": 147.62359400265268
+      },
+      "protocol_violations": [],
+      "retrieval_output_bytes": 15241,
+      "aide_duration_ms": null,
+      "bridge_metrics": {
+        "schema_version": 1,
+        "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/results/2026-09-09-outcomes-v3/bridge/t05",
+        "evidence_complete_for_host_attempts": null,
+        "setup": {
+          "valid": true,
+          "errors": [],
+          "binding": {
+            "schema_version": 1,
+            "id": "1d50c1a0896f461cb6822da364d4b409",
+            "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t05/root",
+            "binary": "/tmp/aide-retrieval-v3-next",
+            "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+            "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t05/bridge-evidence",
+            "seed_files": {
+              "reproduce.test.ts": "c3a8c6c661ac0d586ea65a09470d3c76593bf9499c0faf31643ab28a624ad969",
+              "README.md": "d22f089e1eb9d1bbebcf545f63fc7e742bfe76ad036faa355240636f20cbfeb1",
+              "src/core/context-pruning/recovery.ts": "993c586083a32d7216659c264e2446506555b525282e38b0f5d653b6d4de9428",
+              "src/core/context-pruning/dedup.ts": "cbc15fb5bb44f99efd20c82280b8a7da2af757291bbe7e87fae1f13a570a15c9",
+              "src/core/context-pruning/types.ts": "599cf79a721e33adf96cf0c89333f302102de3b2b4adcef5ba0cda5c77ae1065",
+              "src/core/context-pruning/tracker.ts": "ba4e633ae724623f6ba93d3757c41de2a47367db7ca51b5519711d449daace01"
+            },
+            "index_policy": "seeded; no automatic refresh after participant edits"
+          },
+          "index_elapsed_ms": 109.33328499959316,
+          "total_elapsed_ms": 147.62359400265268,
+          "expected_binding_verified": true,
+          "expected_binary_digest_verified": true
+        },
+        "attempts": 0,
+        "successful": 0,
+        "tool_errors": 0,
+        "bridge_errors": 0,
+        "rejected": 0,
+        "invalid_evidence": 0,
+        "timings_ms": {
+          "guard": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "startup_initialize": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "identity": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "request": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "exit": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "total": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          }
+        },
+        "result_text_utf8_bytes": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "emitted_text_utf8_bytes": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "handler_duration_ms": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "calls": [],
+        "limitations": [
+          "Bridge process timings include orchestration; request roundtrip is not handler compute or CPU time.",
+          "Setup indexing and controller observe export costs are separate from participant bridge calls.",
+          "Emitted bytes follow the bridge's successful return path; host delivery/truncation and omitted attempts require trace review.",
+          "Setup stores a binary digest; call records bind to setup but do not contain an independently repeated binary digest.",
+          "Source receipt SHA256 is checked against pre-call inventory. Full-file bytes are independently verified only for supplied snapshots matching that exact hash; other versions remain unknown.",
+          "Static seed search/references can be stale after edits; source_changed_since_seed is recorded without assuming result freshness."
+        ]
+      }
+    },
+    {
+      "id": "t06",
+      "task": "edit",
+      "treatment": "ordinary",
+      "repetition": 1,
+      "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t06/root",
+      "prompt_path": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t06/participant-prompt.md",
+      "status": "completed",
+      "agent_id": "/root/v3_execution/t06",
+      "runtime_session_id": "01a083b3-4fe1-7e83-aa0c-630b15649703",
+      "log_path": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T02-06-01-01a083b3-4fe1-7e83-aa0c-630b15649703.jsonl",
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "quality_verified": true,
+      "quality": {
+        "passed": true,
+        "visible_passed": true,
+        "hidden_passed": true,
+        "immutable_files_preserved": true
+      },
+      "aide_operations": 0,
+      "aide_uptake": false,
+      "bridge_evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t06/bridge-evidence",
+      "bridge_setup": {
+        "operation": "prepare",
+        "binding": {
+          "schema_version": 1,
+          "id": "64246c4486ef48f5a245701f330377c7",
+          "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t06/root",
+          "binary": "/tmp/aide-retrieval-v3-next",
+          "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+          "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t06/bridge-evidence",
+          "seed_files": {
+            "reproduce.test.ts": "9c245d2f865302c8e8aa98c5426031d37f9adad886cc63afd1ac434f3d8a570b",
+            "README.md": "6f8cadffcadaacf21fdf00af4779581aadb1746f542105680c496baad5ccc403",
+            "src/core/context-pruning/replacement.ts": "398ab0e1008cafc8213b5c6d2909e0883fb65f323eb61b63b792369d9dd7c78b"
+          },
+          "index_policy": "seeded; no automatic refresh after participant edits"
+        },
+        "error": null,
+        "returncode": 0,
+        "stdout": "Indexed 1 symbols from 3 files\n",
+        "stderr": "2026/09/09 01:57:57 store: applying migration v1: baseline schema stamp\n2026/09/09 01:57:57 store: applying migration v1: baseline code schema stamp\n2026/09/09 01:57:57 store: applying migration v2: backfill BucketSymbolsByFile / BucketReferencesByFile and convert BucketRefIndex to composite keys\n2026/09/09 01:57:57 store: applying migration v3: clear stored file mtimes so the grammar packs' new import queries are re-extracted\n\r\u001b[K\u280b README.md (0 symbols)\r\u001b[K\u2819 reproduce.test.ts (0 symbols)\r\u001b[K\u2839 src/core/context-pruning/replacement.ts (1 symbols)\r\u001b[K",
+        "index_elapsed_ms": 76.67144699735218,
+        "total_elapsed_ms": 113.60378000244964
+      },
+      "protocol_violations": [],
+      "retrieval_output_bytes": 2968,
+      "aide_duration_ms": null,
+      "bridge_metrics": {
+        "schema_version": 1,
+        "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/results/2026-09-09-outcomes-v3/bridge/t06",
+        "evidence_complete_for_host_attempts": null,
+        "setup": {
+          "valid": true,
+          "errors": [],
+          "binding": {
+            "schema_version": 1,
+            "id": "64246c4486ef48f5a245701f330377c7",
+            "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t06/root",
+            "binary": "/tmp/aide-retrieval-v3-next",
+            "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+            "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t06/bridge-evidence",
+            "seed_files": {
+              "reproduce.test.ts": "9c245d2f865302c8e8aa98c5426031d37f9adad886cc63afd1ac434f3d8a570b",
+              "README.md": "6f8cadffcadaacf21fdf00af4779581aadb1746f542105680c496baad5ccc403",
+              "src/core/context-pruning/replacement.ts": "398ab0e1008cafc8213b5c6d2909e0883fb65f323eb61b63b792369d9dd7c78b"
+            },
+            "index_policy": "seeded; no automatic refresh after participant edits"
+          },
+          "index_elapsed_ms": 76.67144699735218,
+          "total_elapsed_ms": 113.60378000244964,
+          "expected_binding_verified": true,
+          "expected_binary_digest_verified": true
+        },
+        "attempts": 0,
+        "successful": 0,
+        "tool_errors": 0,
+        "bridge_errors": 0,
+        "rejected": 0,
+        "invalid_evidence": 0,
+        "timings_ms": {
+          "guard": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "startup_initialize": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "identity": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "request": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "exit": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "total": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          }
+        },
+        "result_text_utf8_bytes": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "emitted_text_utf8_bytes": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "handler_duration_ms": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "calls": [],
+        "limitations": [
+          "Bridge process timings include orchestration; request roundtrip is not handler compute or CPU time.",
+          "Setup indexing and controller observe export costs are separate from participant bridge calls.",
+          "Emitted bytes follow the bridge's successful return path; host delivery/truncation and omitted attempts require trace review.",
+          "Setup stores a binary digest; call records bind to setup but do not contain an independently repeated binary digest.",
+          "Source receipt SHA256 is checked against pre-call inventory. Full-file bytes are independently verified only for supplied snapshots matching that exact hash; other versions remain unknown.",
+          "Static seed search/references can be stale after edits; source_changed_since_seed is recorded without assuming result freshness."
+        ]
+      }
+    },
+    {
+      "id": "t07",
+      "task": "navigation",
+      "treatment": "guided",
+      "repetition": 1,
+      "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t07/root",
+      "prompt_path": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t07/participant-prompt.md",
+      "status": "completed",
+      "agent_id": "/root/v3_execution/t07",
+      "runtime_session_id": "01a083b4-59db-7fa3-b93f-990a3faa134a",
+      "log_path": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T02-07-09-01a083b4-59db-7fa3-b93f-990a3faa134a.jsonl",
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "quality_verified": true,
+      "quality": {
+        "candidate": "F",
+        "passed": true,
+        "checks": [
+          {
+            "id": "route",
+            "passed": true,
+            "evidence": [
+              "src/opencode/hooks.ts:194 registers createEventHandler; :429\u2013432 constructs the usage recorder; :458\u2013460 forwards properties.part only when state.binary exists. The complete switch at :434\u2013465 has no message.updated branch and its default ignores other events.",
+              "src/core/model-usage.ts:203\u2013216 accepts only step-finish parts with valid session, part, and message IDs and a tokens object; :22\u201328 defines ID validation. :350\u2013358 converts the part and invokes the writer with an event array. :319\u2013345 writes newline-delimited JSON using observe record --stdin and requires acknowledgment."
+            ],
+            "omissions": [],
+            "incorrect_or_unsupported": []
+          },
+          {
+            "id": "normalization",
+            "passed": true,
+            "evidence": [
+              "src/core/model-usage.ts:99\u2013118 creates kind=session/name=model_usage, version=1, host/source/usage ID attributes, observed time basis without a source timestamp, and partial coverage. :217\u2013222 supplies opencode, opencode.step_finish.v1, session-1, and step-7.",
+              "src/core/model-usage.ts:224\u2013229 maps uncached input=11, cache read=17, cache write=3, reported output=13, and reasoning output=5. :41\u201351 sums input to 31, already including cache components. :33\u201339 serializes valid counters as strings. The complete OpenCode converter at :203\u2013232 does not supply output_tokens, total_tokens, model, or provider.",
+              "aide/pkg/store/token_model_usage.go:36\u201341 defines logical identity as [session, host, usage_id], excluding message and storage row IDs. aide/pkg/store/observe_events.go:160\u2013165 supplies a ULID and time.Now() for absent event ID/timestamp.",
+              "aide/pkg/memory/token_model_usage.go:3\u20134 explicitly distinguishes absent counters from reported zero; :12\u201313 omits absent model/provider in reports."
+            ],
+            "omissions": [],
+            "incorrect_or_unsupported": []
+          },
+          {
+            "id": "retries",
+            "passed": true,
+            "evidence": [
+              "src/core/model-usage.ts:353\u2013361 caches only acknowledged JSON fingerprints of [cwd, normalized event]. A failed writer returns before caching; the successful second broadcast is cached; the unchanged third is skipped. Changing input on the fourth changes uncached/input counters to 12/32 and changes the fingerprint. Thus broadcasts 1, 2, and 4 attempt writing: three attempts.",
+              "aide/pkg/store/token_model_usage.go:44\u201368 fingerprints metadata/counters and combines that fingerprint with logical usage identity, so changed counters form a distinct durable origin. aide/pkg/store/observe_events.go:166\u2013216 stores that origin in a Bolt transaction, reuses equivalent retained observations, and retains distinct variants. Given the task's explicit no-persistence first failure, exactly two distinct variants remain.",
+              "aide/pkg/store/observe_events.go:188\u2013205 retains an earlier equivalent timestamp if supplied; usageFingerprint at aide/pkg/store/token_model_usage.go:46\u201357 excludes observation ID and timestamp values. This supports the answers' additional durable retry/timestamp statements."
+            ],
+            "omissions": [],
+            "incorrect_or_unsupported": []
+          },
+          {
+            "id": "conflict",
+            "passed": true,
+            "evidence": [
+              "aide/pkg/store/token_model_usage.go:36\u201341 keys the usage identity by session, host, and usage_id independently of storage IDs. :150\u2013163 marks differing fingerprints for that identity as a conflict and retains variant evidence.",
+              "aide/pkg/store/token_events.go:153\u2013163 passes all stored events into usage.observe before report filters; :191\u2013196 obtains the filtered model usage result separately.",
+              "aide/pkg/store/token_model_usage.go:174 initializes an empty BySource; :183\u2013190 counts one conflict if any retained variant matches the filter and continues before validity checks and counter aggregation. :196\u2013220 therefore contributes neither invalid nor accepted observation counts and no source counters for this sole conflicted identity: observations=0, conflicts=1, invalid=0, empty by_source. Selecting just the earlier variant cannot remove the known conflict.",
+              "aide/pkg/memory/token_model_usage.go:23\u201328 verifies the report JSON names version, observations, conflicts, invalid, and by_source."
+            ],
+            "omissions": [],
+            "incorrect_or_unsupported": []
+          },
+          {
+            "id": "boundaries",
+            "passed": true,
+            "evidence": [
+              "aide/pkg/store/observe_events.go:82\u2013109 has no session-kind TokenEvent projection and returns nil. aide/pkg/store/token_events.go:93\u2013106 tallies only converted token events; :172\u2013174 guards tally on a non-nil projection; :196 attaches model usage separately. Session usage therefore adds no tool-event count or legacy byte-based estimate.",
+              "src/core/model-usage.ts:41\u201351 and :224\u2013229 show normalized input already includes both cache components. :227\u2013230 explicitly keeps raw reported output separate because output/reasoning overlap changed across versions. The candidate explicitly states both required double-counting cautions.",
+              "src/core/model-usage.ts:1 describes host-reported counters as neither text estimates nor savings; :111 marks partial coverage. The candidate states all required limits on completeness, billed cost, savings, and output quality.",
+              "aide/pkg/memory/token_model_usage.go:3\u20134 identifies counters as host-reported usage, never text estimates or savings; :20\u201322 states captured records only, partial session coverage, separate sources, and no establishment of cost, savings, or quality. The candidate's cited contract and all required limiting claims are verified."
+            ],
+            "omissions": [],
+            "incorrect_or_unsupported": []
+          }
+        ],
+        "notes": [
+          "All five frozen criteria pass. Every required fact is stated, and the cited source supports the claims. No incorrect numerical totals, retry counts, completeness/billing/savings guarantees, or date-filter conflict claims were found.",
+          "Only the assigned frozen task, rubric, candidates, and source were inspected, plus the mandatory RTK bootstrap. No source code was executed and no candidate, rubric, or source file was edited.",
+          "Single-line references to function starts are accepted as minor line-span variations where the named function body supports the claim. Process statements in answer footers are outside the five criteria and were not used to infer retrieval treatment or affect grading.",
+          "The initial default rg file listing hid aide/pkg/memory/token_model_usage.go through ignore rules. An explicit read and an inventory using --hidden --no-ignore confirmed that the file is present, and its cited lines were verified before this grade was written."
+        ],
+        "grade_file": "grade-F.json"
+      },
+      "aide_operations": 3,
+      "aide_uptake": true,
+      "bridge_evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t07/bridge-evidence",
+      "bridge_setup": {
+        "operation": "prepare",
+        "binding": {
+          "schema_version": 1,
+          "id": "0327e6ee13c647d498500cc36da206be",
+          "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t07/root",
+          "binary": "/tmp/aide-retrieval-v3-next",
+          "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+          "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t07/bridge-evidence",
+          "seed_files": {
+            "README.md": "8dc2fe3a77e2d09302d6bbf532b2ae97746d2561c4329457bc47e0a7bc2ddadd",
+            "aide/pkg/store/observe_events.go": "c1fc06d8813b238643a8d2bf54474609e3d078701fcd24cf83ee8405b5f41d18",
+            "aide/pkg/store/token_events.go": "28629e5d7aa52cb17e5b4cb7a97d1194dc7f206a2be99ddbcb8a021ae740aeef",
+            "aide/pkg/store/token_model_usage.go": "c449bbd2e886f12e84fc25d5eb3977aa5e5ae61bffdea10d3b09300eea262faf",
+            "aide/pkg/memory/token_model_usage.go": "536287aae876951c2b6304724cc804f19a5ec84f8ff5632efb74f8e7967c2443",
+            "src/opencode/hooks.ts": "ff1817bf732925eb3266ba35bb0f9f7e29537707fc27d0b6ac5003f18f4ba590",
+            "src/core/model-usage.ts": "5f8ceb868f06aa5b6c2da0328469c0ee82f720715c492574eed8986c7f308309"
+          },
+          "index_policy": "seeded; no automatic refresh after participant edits"
+        },
+        "error": null,
+        "returncode": 0,
+        "stdout": "Indexed 73 symbols from 7 files\n",
+        "stderr": "2026/09/09 01:57:57 store: applying migration v1: baseline schema stamp\n2026/09/09 01:57:57 store: applying migration v1: baseline code schema stamp\n2026/09/09 01:57:57 store: applying migration v2: backfill BucketSymbolsByFile / BucketReferencesByFile and convert BucketRefIndex to composite keys\n2026/09/09 01:57:57 store: applying migration v3: clear stored file mtimes so the grammar packs' new import queries are re-extracted\n\r\u001b[K\u280b README.md (0 symbols)\r\u001b[K\u2819 aide/pkg/memory/token_model_usage.go (6 symbols)\r\u001b[K\u2839 aide/pkg/store/observe_events.go (13 symbols)\r\u001b[K\u2838 aide/pkg/store/token_events.go (3 symbols)\r\u001b[K\u283c aide/pkg/store/token_model_usage.go (15 symbols)\r\u001b[K\u2834 src/core/model-usage.ts (16 symbols)\r\u001b[K\u2826 src/opencode/hooks.ts (20 symbols)\r\u001b[K",
+        "index_elapsed_ms": 140.2214109984925,
+        "total_elapsed_ms": 177.44679099996574
+      },
+      "protocol_violations": [],
+      "retrieval_output_bytes": 67003,
+      "aide_duration_ms": 18,
+      "bridge_metrics": {
+        "schema_version": 1,
+        "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/results/2026-09-09-outcomes-v3/bridge/t07",
+        "evidence_complete_for_host_attempts": null,
+        "setup": {
+          "valid": true,
+          "errors": [],
+          "binding": {
+            "schema_version": 1,
+            "id": "0327e6ee13c647d498500cc36da206be",
+            "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t07/root",
+            "binary": "/tmp/aide-retrieval-v3-next",
+            "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+            "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t07/bridge-evidence",
+            "seed_files": {
+              "README.md": "8dc2fe3a77e2d09302d6bbf532b2ae97746d2561c4329457bc47e0a7bc2ddadd",
+              "aide/pkg/store/observe_events.go": "c1fc06d8813b238643a8d2bf54474609e3d078701fcd24cf83ee8405b5f41d18",
+              "aide/pkg/store/token_events.go": "28629e5d7aa52cb17e5b4cb7a97d1194dc7f206a2be99ddbcb8a021ae740aeef",
+              "aide/pkg/store/token_model_usage.go": "c449bbd2e886f12e84fc25d5eb3977aa5e5ae61bffdea10d3b09300eea262faf",
+              "aide/pkg/memory/token_model_usage.go": "536287aae876951c2b6304724cc804f19a5ec84f8ff5632efb74f8e7967c2443",
+              "src/opencode/hooks.ts": "ff1817bf732925eb3266ba35bb0f9f7e29537707fc27d0b6ac5003f18f4ba590",
+              "src/core/model-usage.ts": "5f8ceb868f06aa5b6c2da0328469c0ee82f720715c492574eed8986c7f308309"
+            },
+            "index_policy": "seeded; no automatic refresh after participant edits"
+          },
+          "index_elapsed_ms": 140.2214109984925,
+          "total_elapsed_ms": 177.44679099996574,
+          "expected_binding_verified": true,
+          "expected_binary_digest_verified": true
+        },
+        "attempts": 3,
+        "successful": 3,
+        "tool_errors": 0,
+        "bridge_errors": 0,
+        "rejected": 0,
+        "invalid_evidence": 0,
+        "timings_ms": {
+          "guard": {
+            "known_count": 3,
+            "unknown_count": 0,
+            "known_sum": 115.43966500175884,
+            "total": 115.43966500175884
+          },
+          "startup_initialize": {
+            "known_count": 3,
+            "unknown_count": 0,
+            "known_sum": 59.94836700119777,
+            "total": 59.94836700119777
+          },
+          "identity": {
+            "known_count": 3,
+            "unknown_count": 0,
+            "known_sum": 14.160972998070065,
+            "total": 14.160972998070065
+          },
+          "request": {
+            "known_count": 3,
+            "unknown_count": 0,
+            "known_sum": 24.44360299705295,
+            "total": 24.44360299705295
+          },
+          "exit": {
+            "known_count": 3,
+            "unknown_count": 0,
+            "known_sum": 3.245772997615859,
+            "total": 3.245772997615859
+          },
+          "total": {
+            "known_count": 3,
+            "unknown_count": 0,
+            "known_sum": 217.34081000613514,
+            "total": 217.34081000613514
+          }
+        },
+        "result_text_utf8_bytes": {
+          "known_count": 3,
+          "unknown_count": 0,
+          "known_sum": 12987,
+          "total": 12987
+        },
+        "emitted_text_utf8_bytes": {
+          "known_count": 3,
+          "unknown_count": 0,
+          "known_sum": 12987,
+          "total": 12987
+        },
+        "handler_duration_ms": {
+          "known_count": 3,
+          "unknown_count": 0,
+          "known_sum": 18,
+          "total": 18
+        },
+        "calls": [
+          {
+            "evidence_file": "0f17ffde7e9e4911a0a5dd79d15a6574.json",
+            "valid": true,
+            "errors": [],
+            "outcome": "success",
+            "tool": "code_read_symbol",
+            "timings_ms": {
+              "guard": 38.7048060001689,
+              "startup_initialize": 20.06042499851901,
+              "identity": 3.2819010011735372,
+              "request": 11.519524996401742,
+              "exit": 1.0818979935720563,
+              "total": 74.68357500329148
+            },
+            "result_text_utf8_bytes": 4002,
+            "emitted_text_utf8_bytes": 4002,
+            "handler_elapsed_ms": 9,
+            "receipts": {
+              "work": {
+                "valid": true,
+                "id": "JWWIWHA4C5EADIAIPWDPZ5UBGX",
+                "text_sha256_matches": true,
+                "server_event_match_count": 1,
+                "server_event_valid": true,
+                "server_event_id": "01M21V9NX4NYFSESDM5Q1YQBVY"
+              },
+              "retrieval": {
+                "valid": true,
+                "id": "NDKAMP5B32ZKDQHX2TZTG24VSB",
+                "source_references": [
+                  {
+                    "file": "src/opencode/hooks.ts",
+                    "inside_root": true,
+                    "sha256_matches_call_inventory": true,
+                    "reference_bytes": 48736,
+                    "byte_count_independently_verified": true
+                  }
+                ],
+                "verification_boundary": "Source SHA256 checked against pre-call inventory; byte counts independently verified only when a controller-supplied full snapshot has the same SHA256."
+              },
+              "handler_elapsed_ms": 9,
+              "handler_duration_reason": "verified_server_work_elapsed_ms"
+            },
+            "id": "0f17ffde7e9e4911a0a5dd79d15a6574",
+            "handler_requested": true,
+            "identity_verified": true,
+            "source_changed_since_seed": false
+          },
+          {
+            "evidence_file": "3ed5ed739d184db481a9a501dbd893c6.json",
+            "valid": true,
+            "errors": [],
+            "outcome": "success",
+            "tool": "code_symbols",
+            "timings_ms": {
+              "guard": 38.62061600375455,
+              "startup_initialize": 20.398360000399407,
+              "identity": 7.8459979995386675,
+              "request": 2.0976949963369407,
+              "exit": 1.0798180010169744,
+              "total": 70.07267700100783
+            },
+            "result_text_utf8_bytes": 1698,
+            "emitted_text_utf8_bytes": 1698,
+            "handler_elapsed_ms": 0,
+            "receipts": {
+              "work": {
+                "valid": true,
+                "id": "6HEONXBKIL47EB75LDOLNPMEN6",
+                "text_sha256_matches": true,
+                "server_event_match_count": 1,
+                "server_event_valid": true,
+                "server_event_id": "01M21V965R6AM8WTJ246JQG0BS"
+              },
+              "retrieval": null,
+              "handler_elapsed_ms": 0,
+              "handler_duration_reason": "verified_server_work_elapsed_ms"
+            },
+            "id": "3ed5ed739d184db481a9a501dbd893c6",
+            "handler_requested": true,
+            "identity_verified": true,
+            "source_changed_since_seed": false
+          },
+          {
+            "evidence_file": "c62cd93406d9428981b96ed9d1f54c93.json",
+            "valid": true,
+            "errors": [],
+            "outcome": "success",
+            "tool": "code_outline",
+            "timings_ms": {
+              "guard": 38.11424299783539,
+              "startup_initialize": 19.48958200227935,
+              "identity": 3.03307399735786,
+              "request": 10.826383004314266,
+              "exit": 1.0840570030268282,
+              "total": 72.58455800183583
+            },
+            "result_text_utf8_bytes": 7287,
+            "emitted_text_utf8_bytes": 7287,
+            "handler_elapsed_ms": 9,
+            "receipts": {
+              "work": {
+                "valid": true,
+                "id": "CTNTEN6YG5HOPXQMPEDLTEG32O",
+                "text_sha256_matches": true,
+                "server_event_match_count": 1,
+                "server_event_valid": true,
+                "server_event_id": "01M21V9FC16E25HNXK357V2EJK"
+              },
+              "retrieval": {
+                "valid": true,
+                "id": "YV7J3CK4LT3KIJBITPQM6DJBCJ",
+                "source_references": [
+                  {
+                    "file": "src/opencode/hooks.ts",
+                    "inside_root": true,
+                    "sha256_matches_call_inventory": true,
+                    "reference_bytes": 48736,
+                    "byte_count_independently_verified": true
+                  }
+                ],
+                "verification_boundary": "Source SHA256 checked against pre-call inventory; byte counts independently verified only when a controller-supplied full snapshot has the same SHA256."
+              },
+              "handler_elapsed_ms": 9,
+              "handler_duration_reason": "verified_server_work_elapsed_ms"
+            },
+            "id": "c62cd93406d9428981b96ed9d1f54c93",
+            "handler_requested": true,
+            "identity_verified": true,
+            "source_changed_since_seed": false
+          }
+        ],
+        "limitations": [
+          "Bridge process timings include orchestration; request roundtrip is not handler compute or CPU time.",
+          "Setup indexing and controller observe export costs are separate from participant bridge calls.",
+          "Emitted bytes follow the bridge's successful return path; host delivery/truncation and omitted attempts require trace review.",
+          "Setup stores a binary digest; call records bind to setup but do not contain an independently repeated binary digest.",
+          "Source receipt SHA256 is checked against pre-call inventory. Full-file bytes are independently verified only for supplied snapshots matching that exact hash; other versions remain unknown.",
+          "Static seed search/references can be stale after edits; source_changed_since_seed is recorded without assuming result freshness."
+        ]
+      }
+    },
+    {
+      "id": "t08",
+      "task": "debug",
+      "treatment": "ordinary",
+      "repetition": 1,
+      "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t08/root",
+      "prompt_path": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t08/participant-prompt.md",
+      "status": "completed",
+      "agent_id": "/root/v3_execution/t08",
+      "runtime_session_id": "01a083b5-89a0-7953-a390-cc52c757de66",
+      "log_path": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T02-08-27-01a083b5-89a0-7953-a390-cc52c757de66.jsonl",
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "quality_verified": true,
+      "quality": {
+        "passed": true,
+        "visible_passed": true,
+        "hidden_passed": true,
+        "immutable_files_preserved": true
+      },
+      "aide_operations": 0,
+      "aide_uptake": false,
+      "bridge_evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t08/bridge-evidence",
+      "bridge_setup": {
+        "operation": "prepare",
+        "binding": {
+          "schema_version": 1,
+          "id": "be0f18a9a5e840c690d2458c3865865f",
+          "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t08/root",
+          "binary": "/tmp/aide-retrieval-v3-next",
+          "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+          "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t08/bridge-evidence",
+          "seed_files": {
+            "reproduce.test.ts": "c3a8c6c661ac0d586ea65a09470d3c76593bf9499c0faf31643ab28a624ad969",
+            "README.md": "d22f089e1eb9d1bbebcf545f63fc7e742bfe76ad036faa355240636f20cbfeb1",
+            "src/core/context-pruning/recovery.ts": "993c586083a32d7216659c264e2446506555b525282e38b0f5d653b6d4de9428",
+            "src/core/context-pruning/dedup.ts": "cbc15fb5bb44f99efd20c82280b8a7da2af757291bbe7e87fae1f13a570a15c9",
+            "src/core/context-pruning/types.ts": "599cf79a721e33adf96cf0c89333f302102de3b2b4adcef5ba0cda5c77ae1065",
+            "src/core/context-pruning/tracker.ts": "ba4e633ae724623f6ba93d3757c41de2a47367db7ca51b5519711d449daace01"
+          },
+          "index_policy": "seeded; no automatic refresh after participant edits"
+        },
+        "error": null,
+        "returncode": 0,
+        "stdout": "Indexed 17 symbols from 6 files\n",
+        "stderr": "2026/09/09 01:57:57 store: applying migration v1: baseline schema stamp\n2026/09/09 01:57:57 store: applying migration v1: baseline code schema stamp\n2026/09/09 01:57:57 store: applying migration v2: backfill BucketSymbolsByFile / BucketReferencesByFile and convert BucketRefIndex to composite keys\n2026/09/09 01:57:57 store: applying migration v3: clear stored file mtimes so the grammar packs' new import queries are re-extracted\n\r\u001b[K\u280b README.md (0 symbols)\r\u001b[K\u2819 reproduce.test.ts (0 symbols)\r\u001b[K\u2839 src/core/context-pruning/dedup.ts (5 symbols)\r\u001b[K\u2838 src/core/context-pruning/recovery.ts (1 symbols)\r\u001b[K\u283c src/core/context-pruning/tracker.ts (7 symbols)\r\u001b[K\u2834 src/core/context-pruning/types.ts (4 symbols)\r\u001b[K",
+        "index_elapsed_ms": 106.71770200133324,
+        "total_elapsed_ms": 143.9271519993781
+      },
+      "protocol_violations": [],
+      "retrieval_output_bytes": 17076,
+      "aide_duration_ms": null,
+      "bridge_metrics": {
+        "schema_version": 1,
+        "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/results/2026-09-09-outcomes-v3/bridge/t08",
+        "evidence_complete_for_host_attempts": null,
+        "setup": {
+          "valid": true,
+          "errors": [],
+          "binding": {
+            "schema_version": 1,
+            "id": "be0f18a9a5e840c690d2458c3865865f",
+            "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t08/root",
+            "binary": "/tmp/aide-retrieval-v3-next",
+            "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+            "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t08/bridge-evidence",
+            "seed_files": {
+              "reproduce.test.ts": "c3a8c6c661ac0d586ea65a09470d3c76593bf9499c0faf31643ab28a624ad969",
+              "README.md": "d22f089e1eb9d1bbebcf545f63fc7e742bfe76ad036faa355240636f20cbfeb1",
+              "src/core/context-pruning/recovery.ts": "993c586083a32d7216659c264e2446506555b525282e38b0f5d653b6d4de9428",
+              "src/core/context-pruning/dedup.ts": "cbc15fb5bb44f99efd20c82280b8a7da2af757291bbe7e87fae1f13a570a15c9",
+              "src/core/context-pruning/types.ts": "599cf79a721e33adf96cf0c89333f302102de3b2b4adcef5ba0cda5c77ae1065",
+              "src/core/context-pruning/tracker.ts": "ba4e633ae724623f6ba93d3757c41de2a47367db7ca51b5519711d449daace01"
+            },
+            "index_policy": "seeded; no automatic refresh after participant edits"
+          },
+          "index_elapsed_ms": 106.71770200133324,
+          "total_elapsed_ms": 143.9271519993781,
+          "expected_binding_verified": true,
+          "expected_binary_digest_verified": true
+        },
+        "attempts": 0,
+        "successful": 0,
+        "tool_errors": 0,
+        "bridge_errors": 0,
+        "rejected": 0,
+        "invalid_evidence": 0,
+        "timings_ms": {
+          "guard": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "startup_initialize": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "identity": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "request": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "exit": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "total": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          }
+        },
+        "result_text_utf8_bytes": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "emitted_text_utf8_bytes": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "handler_duration_ms": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "calls": [],
+        "limitations": [
+          "Bridge process timings include orchestration; request roundtrip is not handler compute or CPU time.",
+          "Setup indexing and controller observe export costs are separate from participant bridge calls.",
+          "Emitted bytes follow the bridge's successful return path; host delivery/truncation and omitted attempts require trace review.",
+          "Setup stores a binary digest; call records bind to setup but do not contain an independently repeated binary digest.",
+          "Source receipt SHA256 is checked against pre-call inventory. Full-file bytes are independently verified only for supplied snapshots matching that exact hash; other versions remain unknown.",
+          "Static seed search/references can be stale after edits; source_changed_since_seed is recorded without assuming result freshness."
+        ]
+      }
+    },
+    {
+      "id": "t09",
+      "task": "edit",
+      "treatment": "available",
+      "repetition": 1,
+      "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t09/root",
+      "prompt_path": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t09/participant-prompt.md",
+      "status": "completed",
+      "agent_id": "/root/v3_execution/t09",
+      "runtime_session_id": "01a083b6-fcd2-7cc0-8c09-4e19535b6d4b",
+      "log_path": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T02-10-02-01a083b6-fcd2-7cc0-8c09-4e19535b6d4b.jsonl",
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "quality_verified": true,
+      "quality": {
+        "passed": true,
+        "visible_passed": true,
+        "hidden_passed": true,
+        "immutable_files_preserved": true
+      },
+      "aide_operations": 0,
+      "aide_uptake": false,
+      "bridge_evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t09/bridge-evidence",
+      "bridge_setup": {
+        "operation": "prepare",
+        "binding": {
+          "schema_version": 1,
+          "id": "f1e786c81cda41c093fb295fc96425df",
+          "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t09/root",
+          "binary": "/tmp/aide-retrieval-v3-next",
+          "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+          "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t09/bridge-evidence",
+          "seed_files": {
+            "reproduce.test.ts": "9c245d2f865302c8e8aa98c5426031d37f9adad886cc63afd1ac434f3d8a570b",
+            "README.md": "6f8cadffcadaacf21fdf00af4779581aadb1746f542105680c496baad5ccc403",
+            "src/core/context-pruning/replacement.ts": "398ab0e1008cafc8213b5c6d2909e0883fb65f323eb61b63b792369d9dd7c78b"
+          },
+          "index_policy": "seeded; no automatic refresh after participant edits"
+        },
+        "error": null,
+        "returncode": 0,
+        "stdout": "Indexed 1 symbols from 3 files\n",
+        "stderr": "2026/09/09 01:57:57 store: applying migration v1: baseline schema stamp\n2026/09/09 01:57:57 store: applying migration v1: baseline code schema stamp\n2026/09/09 01:57:57 store: applying migration v2: backfill BucketSymbolsByFile / BucketReferencesByFile and convert BucketRefIndex to composite keys\n2026/09/09 01:57:57 store: applying migration v3: clear stored file mtimes so the grammar packs' new import queries are re-extracted\n\r\u001b[K\u280b README.md (0 symbols)\r\u001b[K\u2819 reproduce.test.ts (0 symbols)\r\u001b[K\u2839 src/core/context-pruning/replacement.ts (1 symbols)\r\u001b[K",
+        "index_elapsed_ms": 74.9657650012523,
+        "total_elapsed_ms": 112.03430700334138
+      },
+      "protocol_violations": [],
+      "retrieval_output_bytes": 4050,
+      "aide_duration_ms": null,
+      "bridge_metrics": {
+        "schema_version": 1,
+        "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/results/2026-09-09-outcomes-v3/bridge/t09",
+        "evidence_complete_for_host_attempts": null,
+        "setup": {
+          "valid": true,
+          "errors": [],
+          "binding": {
+            "schema_version": 1,
+            "id": "f1e786c81cda41c093fb295fc96425df",
+            "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t09/root",
+            "binary": "/tmp/aide-retrieval-v3-next",
+            "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+            "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t09/bridge-evidence",
+            "seed_files": {
+              "reproduce.test.ts": "9c245d2f865302c8e8aa98c5426031d37f9adad886cc63afd1ac434f3d8a570b",
+              "README.md": "6f8cadffcadaacf21fdf00af4779581aadb1746f542105680c496baad5ccc403",
+              "src/core/context-pruning/replacement.ts": "398ab0e1008cafc8213b5c6d2909e0883fb65f323eb61b63b792369d9dd7c78b"
+            },
+            "index_policy": "seeded; no automatic refresh after participant edits"
+          },
+          "index_elapsed_ms": 74.9657650012523,
+          "total_elapsed_ms": 112.03430700334138,
+          "expected_binding_verified": true,
+          "expected_binary_digest_verified": true
+        },
+        "attempts": 0,
+        "successful": 0,
+        "tool_errors": 0,
+        "bridge_errors": 0,
+        "rejected": 0,
+        "invalid_evidence": 0,
+        "timings_ms": {
+          "guard": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "startup_initialize": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "identity": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "request": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "exit": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "total": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          }
+        },
+        "result_text_utf8_bytes": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "emitted_text_utf8_bytes": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "handler_duration_ms": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "calls": [],
+        "limitations": [
+          "Bridge process timings include orchestration; request roundtrip is not handler compute or CPU time.",
+          "Setup indexing and controller observe export costs are separate from participant bridge calls.",
+          "Emitted bytes follow the bridge's successful return path; host delivery/truncation and omitted attempts require trace review.",
+          "Setup stores a binary digest; call records bind to setup but do not contain an independently repeated binary digest.",
+          "Source receipt SHA256 is checked against pre-call inventory. Full-file bytes are independently verified only for supplied snapshots matching that exact hash; other versions remain unknown.",
+          "Static seed search/references can be stale after edits; source_changed_since_seed is recorded without assuming result freshness."
+        ]
+      }
+    },
+    {
+      "id": "t10",
+      "task": "navigation",
+      "treatment": "guided",
+      "repetition": 2,
+      "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t10/root",
+      "prompt_path": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t10/participant-prompt.md",
+      "status": "completed",
+      "agent_id": "/root/v3_execution/t10",
+      "runtime_session_id": "01a083b8-0f41-7101-967e-80faec798f91",
+      "log_path": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T02-11-12-01a083b8-0f41-7101-967e-80faec798f91.jsonl",
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "quality_verified": true,
+      "quality": {
+        "candidate": "C",
+        "passed": true,
+        "checks": [
+          {
+            "id": "route",
+            "passed": true,
+            "evidence": [
+              "src/opencode/hooks.ts:194 registers createEventHandler; :429\u2013432 constructs the usage recorder; :458\u2013460 forwards properties.part only when state.binary exists. The complete switch at :434\u2013465 has no message.updated branch and its default ignores other events.",
+              "src/core/model-usage.ts:203\u2013216 accepts only step-finish parts with valid session, part, and message IDs and a tokens object; :22\u201328 defines ID validation. :350\u2013358 converts the part and invokes the writer with an event array. :319\u2013345 writes newline-delimited JSON using observe record --stdin and requires acknowledgment."
+            ],
+            "omissions": [],
+            "incorrect_or_unsupported": []
+          },
+          {
+            "id": "normalization",
+            "passed": true,
+            "evidence": [
+              "src/core/model-usage.ts:99\u2013118 creates kind=session/name=model_usage, version=1, host/source/usage ID attributes, observed time basis without a source timestamp, and partial coverage. :217\u2013222 supplies opencode, opencode.step_finish.v1, session-1, and step-7.",
+              "src/core/model-usage.ts:224\u2013229 maps uncached input=11, cache read=17, cache write=3, reported output=13, and reasoning output=5. :41\u201351 sums input to 31, already including cache components. :33\u201339 serializes valid counters as strings. The complete OpenCode converter at :203\u2013232 does not supply output_tokens, total_tokens, model, or provider.",
+              "aide/pkg/store/token_model_usage.go:36\u201341 defines logical identity as [session, host, usage_id], excluding message and storage row IDs. aide/pkg/store/observe_events.go:160\u2013165 supplies a ULID and time.Now() for absent event ID/timestamp.",
+              "aide/pkg/memory/token_model_usage.go:3\u20134 explicitly distinguishes absent counters from reported zero; :12\u201313 omits absent model/provider in reports."
+            ],
+            "omissions": [],
+            "incorrect_or_unsupported": []
+          },
+          {
+            "id": "retries",
+            "passed": true,
+            "evidence": [
+              "src/core/model-usage.ts:353\u2013361 caches only acknowledged JSON fingerprints of [cwd, normalized event]. A failed writer returns before caching; the successful second broadcast is cached; the unchanged third is skipped. Changing input on the fourth changes uncached/input counters to 12/32 and changes the fingerprint. Thus broadcasts 1, 2, and 4 attempt writing: three attempts.",
+              "aide/pkg/store/token_model_usage.go:44\u201368 fingerprints metadata/counters and combines that fingerprint with logical usage identity, so changed counters form a distinct durable origin. aide/pkg/store/observe_events.go:166\u2013216 stores that origin in a Bolt transaction, reuses equivalent retained observations, and retains distinct variants. Given the task's explicit no-persistence first failure, exactly two distinct variants remain.",
+              "aide/pkg/store/observe_events.go:188\u2013205 retains an earlier equivalent timestamp if supplied; usageFingerprint at aide/pkg/store/token_model_usage.go:46\u201357 excludes observation ID and timestamp values. This supports the answers' additional durable retry/timestamp statements."
+            ],
+            "omissions": [],
+            "incorrect_or_unsupported": []
+          },
+          {
+            "id": "conflict",
+            "passed": true,
+            "evidence": [
+              "aide/pkg/store/token_model_usage.go:36\u201341 keys the usage identity by session, host, and usage_id independently of storage IDs. :150\u2013163 marks differing fingerprints for that identity as a conflict and retains variant evidence.",
+              "aide/pkg/store/token_events.go:153\u2013163 passes all stored events into usage.observe before report filters; :191\u2013196 obtains the filtered model usage result separately.",
+              "aide/pkg/store/token_model_usage.go:174 initializes an empty BySource; :183\u2013190 counts one conflict if any retained variant matches the filter and continues before validity checks and counter aggregation. :196\u2013220 therefore contributes neither invalid nor accepted observation counts and no source counters for this sole conflicted identity: observations=0, conflicts=1, invalid=0, empty by_source. Selecting just the earlier variant cannot remove the known conflict.",
+              "aide/pkg/memory/token_model_usage.go:23\u201328 verifies the report JSON names version, observations, conflicts, invalid, and by_source."
+            ],
+            "omissions": [],
+            "incorrect_or_unsupported": []
+          },
+          {
+            "id": "boundaries",
+            "passed": true,
+            "evidence": [
+              "aide/pkg/store/observe_events.go:82\u2013109 has no session-kind TokenEvent projection and returns nil. aide/pkg/store/token_events.go:93\u2013106 tallies only converted token events; :172\u2013174 guards tally on a non-nil projection; :196 attaches model usage separately. Session usage therefore adds no tool-event count or legacy byte-based estimate.",
+              "src/core/model-usage.ts:41\u201351 and :224\u2013229 show normalized input already includes both cache components. :227\u2013230 explicitly keeps raw reported output separate because output/reasoning overlap changed across versions. The candidate explicitly states both required double-counting cautions.",
+              "src/core/model-usage.ts:1 describes host-reported counters as neither text estimates nor savings; :111 marks partial coverage. The candidate states all required limits on completeness, billed cost, savings, and output quality.",
+              "aide/pkg/memory/token_model_usage.go:3\u20134 identifies counters as host-reported usage, never text estimates or savings; :20\u201322 states captured records only, partial session coverage, separate sources, and no establishment of cost, savings, or quality. The candidate's cited contract and all required limiting claims are verified."
+            ],
+            "omissions": [],
+            "incorrect_or_unsupported": []
+          }
+        ],
+        "notes": [
+          "All five frozen criteria pass. Every required fact is stated, and the cited source supports the claims. No incorrect numerical totals, retry counts, completeness/billing/savings guarantees, or date-filter conflict claims were found.",
+          "Only the assigned frozen task, rubric, candidates, and source were inspected, plus the mandatory RTK bootstrap. No source code was executed and no candidate, rubric, or source file was edited.",
+          "Single-line references to function starts are accepted as minor line-span variations where the named function body supports the claim. Process statements in answer footers are outside the five criteria and were not used to infer retrieval treatment or affect grading.",
+          "The initial default rg file listing hid aide/pkg/memory/token_model_usage.go through ignore rules. An explicit read and an inventory using --hidden --no-ignore confirmed that the file is present, and its cited lines were verified before this grade was written."
+        ],
+        "grade_file": "grade-C.json"
+      },
+      "aide_operations": 2,
+      "aide_uptake": true,
+      "bridge_evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t10/bridge-evidence",
+      "bridge_setup": {
+        "operation": "prepare",
+        "binding": {
+          "schema_version": 1,
+          "id": "df206a8db7f44bf29f326d7acf1740ca",
+          "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t10/root",
+          "binary": "/tmp/aide-retrieval-v3-next",
+          "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+          "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t10/bridge-evidence",
+          "seed_files": {
+            "README.md": "8dc2fe3a77e2d09302d6bbf532b2ae97746d2561c4329457bc47e0a7bc2ddadd",
+            "aide/pkg/store/observe_events.go": "c1fc06d8813b238643a8d2bf54474609e3d078701fcd24cf83ee8405b5f41d18",
+            "aide/pkg/store/token_events.go": "28629e5d7aa52cb17e5b4cb7a97d1194dc7f206a2be99ddbcb8a021ae740aeef",
+            "aide/pkg/store/token_model_usage.go": "c449bbd2e886f12e84fc25d5eb3977aa5e5ae61bffdea10d3b09300eea262faf",
+            "aide/pkg/memory/token_model_usage.go": "536287aae876951c2b6304724cc804f19a5ec84f8ff5632efb74f8e7967c2443",
+            "src/opencode/hooks.ts": "ff1817bf732925eb3266ba35bb0f9f7e29537707fc27d0b6ac5003f18f4ba590",
+            "src/core/model-usage.ts": "5f8ceb868f06aa5b6c2da0328469c0ee82f720715c492574eed8986c7f308309"
+          },
+          "index_policy": "seeded; no automatic refresh after participant edits"
+        },
+        "error": null,
+        "returncode": 0,
+        "stdout": "Indexed 73 symbols from 7 files\n",
+        "stderr": "2026/09/09 01:57:57 store: applying migration v1: baseline schema stamp\n2026/09/09 01:57:57 store: applying migration v1: baseline code schema stamp\n2026/09/09 01:57:57 store: applying migration v2: backfill BucketSymbolsByFile / BucketReferencesByFile and convert BucketRefIndex to composite keys\n2026/09/09 01:57:57 store: applying migration v3: clear stored file mtimes so the grammar packs' new import queries are re-extracted\n\r\u001b[K\u280b README.md (0 symbols)\r\u001b[K\u2819 aide/pkg/memory/token_model_usage.go (6 symbols)\r\u001b[K\u2839 aide/pkg/store/observe_events.go (13 symbols)\r\u001b[K\u2838 aide/pkg/store/token_events.go (3 symbols)\r\u001b[K\u283c aide/pkg/store/token_model_usage.go (15 symbols)\r\u001b[K\u2834 src/core/model-usage.ts (16 symbols)\r\u001b[K\u2826 src/opencode/hooks.ts (20 symbols)\r\u001b[K",
+        "index_elapsed_ms": 140.71796599819208,
+        "total_elapsed_ms": 178.6187890029396
+      },
+      "protocol_violations": [],
+      "retrieval_output_bytes": 65110,
+      "aide_duration_ms": 17,
+      "bridge_metrics": {
+        "schema_version": 1,
+        "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/results/2026-09-09-outcomes-v3/bridge/t10",
+        "evidence_complete_for_host_attempts": null,
+        "setup": {
+          "valid": true,
+          "errors": [],
+          "binding": {
+            "schema_version": 1,
+            "id": "df206a8db7f44bf29f326d7acf1740ca",
+            "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t10/root",
+            "binary": "/tmp/aide-retrieval-v3-next",
+            "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+            "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t10/bridge-evidence",
+            "seed_files": {
+              "README.md": "8dc2fe3a77e2d09302d6bbf532b2ae97746d2561c4329457bc47e0a7bc2ddadd",
+              "aide/pkg/store/observe_events.go": "c1fc06d8813b238643a8d2bf54474609e3d078701fcd24cf83ee8405b5f41d18",
+              "aide/pkg/store/token_events.go": "28629e5d7aa52cb17e5b4cb7a97d1194dc7f206a2be99ddbcb8a021ae740aeef",
+              "aide/pkg/store/token_model_usage.go": "c449bbd2e886f12e84fc25d5eb3977aa5e5ae61bffdea10d3b09300eea262faf",
+              "aide/pkg/memory/token_model_usage.go": "536287aae876951c2b6304724cc804f19a5ec84f8ff5632efb74f8e7967c2443",
+              "src/opencode/hooks.ts": "ff1817bf732925eb3266ba35bb0f9f7e29537707fc27d0b6ac5003f18f4ba590",
+              "src/core/model-usage.ts": "5f8ceb868f06aa5b6c2da0328469c0ee82f720715c492574eed8986c7f308309"
+            },
+            "index_policy": "seeded; no automatic refresh after participant edits"
+          },
+          "index_elapsed_ms": 140.71796599819208,
+          "total_elapsed_ms": 178.6187890029396,
+          "expected_binding_verified": true,
+          "expected_binary_digest_verified": true
+        },
+        "attempts": 2,
+        "successful": 2,
+        "tool_errors": 0,
+        "bridge_errors": 0,
+        "rejected": 0,
+        "invalid_evidence": 0,
+        "timings_ms": {
+          "guard": {
+            "known_count": 2,
+            "unknown_count": 0,
+            "known_sum": 76.40967399493093,
+            "total": 76.40967399493093
+          },
+          "startup_initialize": {
+            "known_count": 2,
+            "unknown_count": 0,
+            "known_sum": 67.75501199444989,
+            "total": 67.75501199444989
+          },
+          "identity": {
+            "known_count": 2,
+            "unknown_count": 0,
+            "known_sum": 20.464328001253307,
+            "total": 20.464328001253307
+          },
+          "request": {
+            "known_count": 2,
+            "unknown_count": 0,
+            "known_sum": 24.99683600035496,
+            "total": 24.99683600035496
+          },
+          "exit": {
+            "known_count": 2,
+            "unknown_count": 0,
+            "known_sum": 2.166665995900985,
+            "total": 2.166665995900985
+          },
+          "total": {
+            "known_count": 2,
+            "unknown_count": 0,
+            "known_sum": 191.8648939972627,
+            "total": 191.8648939972627
+          }
+        },
+        "result_text_utf8_bytes": {
+          "known_count": 2,
+          "unknown_count": 0,
+          "known_sum": 14613,
+          "total": 14613
+        },
+        "emitted_text_utf8_bytes": {
+          "known_count": 2,
+          "unknown_count": 0,
+          "known_sum": 14613,
+          "total": 14613
+        },
+        "handler_duration_ms": {
+          "known_count": 2,
+          "unknown_count": 0,
+          "known_sum": 17,
+          "total": 17
+        },
+        "calls": [
+          {
+            "evidence_file": "5e294d3bc89b41489591046753208ab0.json",
+            "valid": true,
+            "errors": [],
+            "outcome": "success",
+            "tool": "code_outline",
+            "timings_ms": {
+              "guard": 38.09430799447,
+              "startup_initialize": 31.72513999743387,
+              "identity": 15.978768999048043,
+              "request": 13.989770995976869,
+              "exit": 1.0939979983959347,
+              "total": 100.91606499918271
+            },
+            "result_text_utf8_bytes": 7287,
+            "emitted_text_utf8_bytes": 7287,
+            "handler_elapsed_ms": 9,
+            "receipts": {
+              "work": {
+                "valid": true,
+                "id": "WIO5PB2I4XUGBKGLGDTTZNE3SR",
+                "text_sha256_matches": true,
+                "server_event_match_count": 1,
+                "server_event_valid": true,
+                "server_event_id": "01M21VGPK897MAXB2FYXJN60VE"
+              },
+              "retrieval": {
+                "valid": true,
+                "id": "OPPFDKWWBSILEJQAF623WK3VW3",
+                "source_references": [
+                  {
+                    "file": "src/opencode/hooks.ts",
+                    "inside_root": true,
+                    "sha256_matches_call_inventory": true,
+                    "reference_bytes": 48736,
+                    "byte_count_independently_verified": true
+                  }
+                ],
+                "verification_boundary": "Source SHA256 checked against pre-call inventory; byte counts independently verified only when a controller-supplied full snapshot has the same SHA256."
+              },
+              "handler_elapsed_ms": 9,
+              "handler_duration_reason": "verified_server_work_elapsed_ms"
+            },
+            "id": "5e294d3bc89b41489591046753208ab0",
+            "handler_requested": true,
+            "identity_verified": true,
+            "source_changed_since_seed": false
+          },
+          {
+            "evidence_file": "ada287ab4362476cb2d4676394c96059.json",
+            "valid": true,
+            "errors": [],
+            "outcome": "success",
+            "tool": "code_read_symbol",
+            "timings_ms": {
+              "guard": 38.315366000460926,
+              "startup_initialize": 36.029871997016016,
+              "identity": 4.485559002205264,
+              "request": 11.007065004378092,
+              "exit": 1.0726679975050502,
+              "total": 90.94882899807999
+            },
+            "result_text_utf8_bytes": 7326,
+            "emitted_text_utf8_bytes": 7326,
+            "handler_elapsed_ms": 8,
+            "receipts": {
+              "work": {
+                "valid": true,
+                "id": "BU7QRCWKXQGEO7UQSEWCILWSKH",
+                "text_sha256_matches": true,
+                "server_event_match_count": 1,
+                "server_event_valid": true,
+                "server_event_id": "01M21VGXNTB2C18EM99VX7RYSK"
+              },
+              "retrieval": {
+                "valid": true,
+                "id": "NCBOM2SQDQZH6J2UXGPTXSPXI6",
+                "source_references": [
+                  {
+                    "file": "src/opencode/hooks.ts",
+                    "inside_root": true,
+                    "sha256_matches_call_inventory": true,
+                    "reference_bytes": 48736,
+                    "byte_count_independently_verified": true
+                  }
+                ],
+                "verification_boundary": "Source SHA256 checked against pre-call inventory; byte counts independently verified only when a controller-supplied full snapshot has the same SHA256."
+              },
+              "handler_elapsed_ms": 8,
+              "handler_duration_reason": "verified_server_work_elapsed_ms"
+            },
+            "id": "ada287ab4362476cb2d4676394c96059",
+            "handler_requested": true,
+            "identity_verified": true,
+            "source_changed_since_seed": false
+          }
+        ],
+        "limitations": [
+          "Bridge process timings include orchestration; request roundtrip is not handler compute or CPU time.",
+          "Setup indexing and controller observe export costs are separate from participant bridge calls.",
+          "Emitted bytes follow the bridge's successful return path; host delivery/truncation and omitted attempts require trace review.",
+          "Setup stores a binary digest; call records bind to setup but do not contain an independently repeated binary digest.",
+          "Source receipt SHA256 is checked against pre-call inventory. Full-file bytes are independently verified only for supplied snapshots matching that exact hash; other versions remain unknown.",
+          "Static seed search/references can be stale after edits; source_changed_since_seed is recorded without assuming result freshness."
+        ]
+      }
+    },
+    {
+      "id": "t11",
+      "task": "debug",
+      "treatment": "ordinary",
+      "repetition": 2,
+      "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t11/root",
+      "prompt_path": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t11/participant-prompt.md",
+      "status": "completed",
+      "agent_id": "/root/v3_execution/t11",
+      "runtime_session_id": "01a083b9-583f-7ee0-be09-5ab3e6357f7c",
+      "log_path": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T02-12-37-01a083b9-583f-7ee0-be09-5ab3e6357f7c.jsonl",
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "quality_verified": true,
+      "quality": {
+        "passed": true,
+        "visible_passed": true,
+        "hidden_passed": true,
+        "immutable_files_preserved": true
+      },
+      "aide_operations": 0,
+      "aide_uptake": false,
+      "bridge_evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t11/bridge-evidence",
+      "bridge_setup": {
+        "operation": "prepare",
+        "binding": {
+          "schema_version": 1,
+          "id": "8e15bf06aded4601988e19075d95221a",
+          "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t11/root",
+          "binary": "/tmp/aide-retrieval-v3-next",
+          "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+          "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t11/bridge-evidence",
+          "seed_files": {
+            "reproduce.test.ts": "c3a8c6c661ac0d586ea65a09470d3c76593bf9499c0faf31643ab28a624ad969",
+            "README.md": "d22f089e1eb9d1bbebcf545f63fc7e742bfe76ad036faa355240636f20cbfeb1",
+            "src/core/context-pruning/recovery.ts": "993c586083a32d7216659c264e2446506555b525282e38b0f5d653b6d4de9428",
+            "src/core/context-pruning/dedup.ts": "cbc15fb5bb44f99efd20c82280b8a7da2af757291bbe7e87fae1f13a570a15c9",
+            "src/core/context-pruning/types.ts": "599cf79a721e33adf96cf0c89333f302102de3b2b4adcef5ba0cda5c77ae1065",
+            "src/core/context-pruning/tracker.ts": "ba4e633ae724623f6ba93d3757c41de2a47367db7ca51b5519711d449daace01"
+          },
+          "index_policy": "seeded; no automatic refresh after participant edits"
+        },
+        "error": null,
+        "returncode": 0,
+        "stdout": "Indexed 17 symbols from 6 files\n",
+        "stderr": "2026/09/09 01:57:57 store: applying migration v1: baseline schema stamp\n2026/09/09 01:57:57 store: applying migration v1: baseline code schema stamp\n2026/09/09 01:57:57 store: applying migration v2: backfill BucketSymbolsByFile / BucketReferencesByFile and convert BucketRefIndex to composite keys\n2026/09/09 01:57:57 store: applying migration v3: clear stored file mtimes so the grammar packs' new import queries are re-extracted\n\r\u001b[K\u280b README.md (0 symbols)\r\u001b[K\u2819 reproduce.test.ts (0 symbols)\r\u001b[K\u2839 src/core/context-pruning/dedup.ts (5 symbols)\r\u001b[K\u2838 src/core/context-pruning/recovery.ts (1 symbols)\r\u001b[K\u283c src/core/context-pruning/tracker.ts (7 symbols)\r\u001b[K\u2834 src/core/context-pruning/types.ts (4 symbols)\r\u001b[K",
+        "index_elapsed_ms": 105.74499299764284,
+        "total_elapsed_ms": 142.97469300072407
+      },
+      "protocol_violations": [],
+      "retrieval_output_bytes": 17839,
+      "aide_duration_ms": null,
+      "bridge_metrics": {
+        "schema_version": 1,
+        "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/results/2026-09-09-outcomes-v3/bridge/t11",
+        "evidence_complete_for_host_attempts": null,
+        "setup": {
+          "valid": true,
+          "errors": [],
+          "binding": {
+            "schema_version": 1,
+            "id": "8e15bf06aded4601988e19075d95221a",
+            "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t11/root",
+            "binary": "/tmp/aide-retrieval-v3-next",
+            "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+            "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t11/bridge-evidence",
+            "seed_files": {
+              "reproduce.test.ts": "c3a8c6c661ac0d586ea65a09470d3c76593bf9499c0faf31643ab28a624ad969",
+              "README.md": "d22f089e1eb9d1bbebcf545f63fc7e742bfe76ad036faa355240636f20cbfeb1",
+              "src/core/context-pruning/recovery.ts": "993c586083a32d7216659c264e2446506555b525282e38b0f5d653b6d4de9428",
+              "src/core/context-pruning/dedup.ts": "cbc15fb5bb44f99efd20c82280b8a7da2af757291bbe7e87fae1f13a570a15c9",
+              "src/core/context-pruning/types.ts": "599cf79a721e33adf96cf0c89333f302102de3b2b4adcef5ba0cda5c77ae1065",
+              "src/core/context-pruning/tracker.ts": "ba4e633ae724623f6ba93d3757c41de2a47367db7ca51b5519711d449daace01"
+            },
+            "index_policy": "seeded; no automatic refresh after participant edits"
+          },
+          "index_elapsed_ms": 105.74499299764284,
+          "total_elapsed_ms": 142.97469300072407,
+          "expected_binding_verified": true,
+          "expected_binary_digest_verified": true
+        },
+        "attempts": 0,
+        "successful": 0,
+        "tool_errors": 0,
+        "bridge_errors": 0,
+        "rejected": 0,
+        "invalid_evidence": 0,
+        "timings_ms": {
+          "guard": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "startup_initialize": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "identity": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "request": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "exit": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "total": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          }
+        },
+        "result_text_utf8_bytes": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "emitted_text_utf8_bytes": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "handler_duration_ms": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "calls": [],
+        "limitations": [
+          "Bridge process timings include orchestration; request roundtrip is not handler compute or CPU time.",
+          "Setup indexing and controller observe export costs are separate from participant bridge calls.",
+          "Emitted bytes follow the bridge's successful return path; host delivery/truncation and omitted attempts require trace review.",
+          "Setup stores a binary digest; call records bind to setup but do not contain an independently repeated binary digest.",
+          "Source receipt SHA256 is checked against pre-call inventory. Full-file bytes are independently verified only for supplied snapshots matching that exact hash; other versions remain unknown.",
+          "Static seed search/references can be stale after edits; source_changed_since_seed is recorded without assuming result freshness."
+        ]
+      }
+    },
+    {
+      "id": "t12",
+      "task": "edit",
+      "treatment": "available",
+      "repetition": 2,
+      "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t12/root",
+      "prompt_path": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t12/participant-prompt.md",
+      "status": "completed",
+      "agent_id": "/root/v3_execution/t12",
+      "runtime_session_id": "01a083ba-efba-7c62-8e48-7c03021f7609",
+      "log_path": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T02-14-21-01a083ba-efba-7c62-8e48-7c03021f7609.jsonl",
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "quality_verified": true,
+      "quality": {
+        "passed": true,
+        "visible_passed": true,
+        "hidden_passed": true,
+        "immutable_files_preserved": true
+      },
+      "aide_operations": 0,
+      "aide_uptake": false,
+      "bridge_evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t12/bridge-evidence",
+      "bridge_setup": {
+        "operation": "prepare",
+        "binding": {
+          "schema_version": 1,
+          "id": "8b38608652ec42fe91561b2c854d621c",
+          "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t12/root",
+          "binary": "/tmp/aide-retrieval-v3-next",
+          "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+          "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t12/bridge-evidence",
+          "seed_files": {
+            "reproduce.test.ts": "9c245d2f865302c8e8aa98c5426031d37f9adad886cc63afd1ac434f3d8a570b",
+            "README.md": "6f8cadffcadaacf21fdf00af4779581aadb1746f542105680c496baad5ccc403",
+            "src/core/context-pruning/replacement.ts": "398ab0e1008cafc8213b5c6d2909e0883fb65f323eb61b63b792369d9dd7c78b"
+          },
+          "index_policy": "seeded; no automatic refresh after participant edits"
+        },
+        "error": null,
+        "returncode": 0,
+        "stdout": "Indexed 1 symbols from 3 files\n",
+        "stderr": "2026/09/09 01:57:58 store: applying migration v1: baseline schema stamp\n2026/09/09 01:57:58 store: applying migration v1: baseline code schema stamp\n2026/09/09 01:57:58 store: applying migration v2: backfill BucketSymbolsByFile / BucketReferencesByFile and convert BucketRefIndex to composite keys\n2026/09/09 01:57:58 store: applying migration v3: clear stored file mtimes so the grammar packs' new import queries are re-extracted\n\r\u001b[K\u280b README.md (0 symbols)\r\u001b[K\u2819 reproduce.test.ts (0 symbols)\r\u001b[K\u2839 src/core/context-pruning/replacement.ts (1 symbols)\r\u001b[K",
+        "index_elapsed_ms": 77.06495300226379,
+        "total_elapsed_ms": 114.3729319992417
+      },
+      "protocol_violations": [],
+      "retrieval_output_bytes": 3176,
+      "aide_duration_ms": null,
+      "bridge_metrics": {
+        "schema_version": 1,
+        "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/results/2026-09-09-outcomes-v3/bridge/t12",
+        "evidence_complete_for_host_attempts": null,
+        "setup": {
+          "valid": true,
+          "errors": [],
+          "binding": {
+            "schema_version": 1,
+            "id": "8b38608652ec42fe91561b2c854d621c",
+            "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t12/root",
+            "binary": "/tmp/aide-retrieval-v3-next",
+            "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+            "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t12/bridge-evidence",
+            "seed_files": {
+              "reproduce.test.ts": "9c245d2f865302c8e8aa98c5426031d37f9adad886cc63afd1ac434f3d8a570b",
+              "README.md": "6f8cadffcadaacf21fdf00af4779581aadb1746f542105680c496baad5ccc403",
+              "src/core/context-pruning/replacement.ts": "398ab0e1008cafc8213b5c6d2909e0883fb65f323eb61b63b792369d9dd7c78b"
+            },
+            "index_policy": "seeded; no automatic refresh after participant edits"
+          },
+          "index_elapsed_ms": 77.06495300226379,
+          "total_elapsed_ms": 114.3729319992417,
+          "expected_binding_verified": true,
+          "expected_binary_digest_verified": true
+        },
+        "attempts": 0,
+        "successful": 0,
+        "tool_errors": 0,
+        "bridge_errors": 0,
+        "rejected": 0,
+        "invalid_evidence": 0,
+        "timings_ms": {
+          "guard": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "startup_initialize": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "identity": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "request": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "exit": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "total": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          }
+        },
+        "result_text_utf8_bytes": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "emitted_text_utf8_bytes": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "handler_duration_ms": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "calls": [],
+        "limitations": [
+          "Bridge process timings include orchestration; request roundtrip is not handler compute or CPU time.",
+          "Setup indexing and controller observe export costs are separate from participant bridge calls.",
+          "Emitted bytes follow the bridge's successful return path; host delivery/truncation and omitted attempts require trace review.",
+          "Setup stores a binary digest; call records bind to setup but do not contain an independently repeated binary digest.",
+          "Source receipt SHA256 is checked against pre-call inventory. Full-file bytes are independently verified only for supplied snapshots matching that exact hash; other versions remain unknown.",
+          "Static seed search/references can be stale after edits; source_changed_since_seed is recorded without assuming result freshness."
+        ]
+      }
+    },
+    {
+      "id": "t13",
+      "task": "navigation",
+      "treatment": "available",
+      "repetition": 2,
+      "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t13/root",
+      "prompt_path": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t13/participant-prompt.md",
+      "status": "completed",
+      "agent_id": "/root/v3_execution/t13",
+      "runtime_session_id": "01a083bb-f779-7572-b347-fdc9d3a13899",
+      "log_path": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T02-15-29-01a083bb-f779-7572-b347-fdc9d3a13899.jsonl",
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "quality_verified": true,
+      "quality": {
+        "candidate": "A",
+        "passed": true,
+        "checks": [
+          {
+            "id": "route",
+            "passed": true,
+            "evidence": [
+              "src/opencode/hooks.ts:194 registers createEventHandler; :429\u2013432 constructs the usage recorder; :458\u2013460 forwards properties.part only when state.binary exists. The complete switch at :434\u2013465 has no message.updated branch and its default ignores other events.",
+              "src/core/model-usage.ts:203\u2013216 accepts only step-finish parts with valid session, part, and message IDs and a tokens object; :22\u201328 defines ID validation. :350\u2013358 converts the part and invokes the writer with an event array. :319\u2013345 writes newline-delimited JSON using observe record --stdin and requires acknowledgment."
+            ],
+            "omissions": [],
+            "incorrect_or_unsupported": []
+          },
+          {
+            "id": "normalization",
+            "passed": true,
+            "evidence": [
+              "src/core/model-usage.ts:99\u2013118 creates kind=session/name=model_usage, version=1, host/source/usage ID attributes, observed time basis without a source timestamp, and partial coverage. :217\u2013222 supplies opencode, opencode.step_finish.v1, session-1, and step-7.",
+              "src/core/model-usage.ts:224\u2013229 maps uncached input=11, cache read=17, cache write=3, reported output=13, and reasoning output=5. :41\u201351 sums input to 31, already including cache components. :33\u201339 serializes valid counters as strings. The complete OpenCode converter at :203\u2013232 does not supply output_tokens, total_tokens, model, or provider.",
+              "aide/pkg/store/token_model_usage.go:36\u201341 defines logical identity as [session, host, usage_id], excluding message and storage row IDs. aide/pkg/store/observe_events.go:160\u2013165 supplies a ULID and time.Now() for absent event ID/timestamp.",
+              "aide/pkg/memory/token_model_usage.go:3\u20134 explicitly distinguishes absent counters from reported zero; :12\u201313 omits absent model/provider in reports."
+            ],
+            "omissions": [],
+            "incorrect_or_unsupported": []
+          },
+          {
+            "id": "retries",
+            "passed": true,
+            "evidence": [
+              "src/core/model-usage.ts:353\u2013361 caches only acknowledged JSON fingerprints of [cwd, normalized event]. A failed writer returns before caching; the successful second broadcast is cached; the unchanged third is skipped. Changing input on the fourth changes uncached/input counters to 12/32 and changes the fingerprint. Thus broadcasts 1, 2, and 4 attempt writing: three attempts.",
+              "aide/pkg/store/token_model_usage.go:44\u201368 fingerprints metadata/counters and combines that fingerprint with logical usage identity, so changed counters form a distinct durable origin. aide/pkg/store/observe_events.go:166\u2013216 stores that origin in a Bolt transaction, reuses equivalent retained observations, and retains distinct variants. Given the task's explicit no-persistence first failure, exactly two distinct variants remain.",
+              "aide/pkg/store/observe_events.go:188\u2013205 retains an earlier equivalent timestamp if supplied; usageFingerprint at aide/pkg/store/token_model_usage.go:46\u201357 excludes observation ID and timestamp values. This supports the answers' additional durable retry/timestamp statements."
+            ],
+            "omissions": [],
+            "incorrect_or_unsupported": []
+          },
+          {
+            "id": "conflict",
+            "passed": true,
+            "evidence": [
+              "aide/pkg/store/token_model_usage.go:36\u201341 keys the usage identity by session, host, and usage_id independently of storage IDs. :150\u2013163 marks differing fingerprints for that identity as a conflict and retains variant evidence.",
+              "aide/pkg/store/token_events.go:153\u2013163 passes all stored events into usage.observe before report filters; :191\u2013196 obtains the filtered model usage result separately.",
+              "aide/pkg/store/token_model_usage.go:174 initializes an empty BySource; :183\u2013190 counts one conflict if any retained variant matches the filter and continues before validity checks and counter aggregation. :196\u2013220 therefore contributes neither invalid nor accepted observation counts and no source counters for this sole conflicted identity: observations=0, conflicts=1, invalid=0, empty by_source. Selecting just the earlier variant cannot remove the known conflict.",
+              "aide/pkg/memory/token_model_usage.go:23\u201328 verifies the report JSON names version, observations, conflicts, invalid, and by_source."
+            ],
+            "omissions": [],
+            "incorrect_or_unsupported": []
+          },
+          {
+            "id": "boundaries",
+            "passed": true,
+            "evidence": [
+              "aide/pkg/store/observe_events.go:82\u2013109 has no session-kind TokenEvent projection and returns nil. aide/pkg/store/token_events.go:93\u2013106 tallies only converted token events; :172\u2013174 guards tally on a non-nil projection; :196 attaches model usage separately. Session usage therefore adds no tool-event count or legacy byte-based estimate.",
+              "src/core/model-usage.ts:41\u201351 and :224\u2013229 show normalized input already includes both cache components. :227\u2013230 explicitly keeps raw reported output separate because output/reasoning overlap changed across versions. The candidate explicitly states both required double-counting cautions.",
+              "src/core/model-usage.ts:1 describes host-reported counters as neither text estimates nor savings; :111 marks partial coverage. The candidate states all required limits on completeness, billed cost, savings, and output quality.",
+              "aide/pkg/memory/token_model_usage.go:3\u20134 identifies counters as host-reported usage, never text estimates or savings; :20\u201322 states captured records only, partial session coverage, separate sources, and no establishment of cost, savings, or quality. The candidate's cited contract and all required limiting claims are verified."
+            ],
+            "omissions": [],
+            "incorrect_or_unsupported": []
+          }
+        ],
+        "notes": [
+          "All five frozen criteria pass. Every required fact is stated, and the cited source supports the claims. No incorrect numerical totals, retry counts, completeness/billing/savings guarantees, or date-filter conflict claims were found.",
+          "Only the assigned frozen task, rubric, candidates, and source were inspected, plus the mandatory RTK bootstrap. No source code was executed and no candidate, rubric, or source file was edited.",
+          "Single-line references to function starts are accepted as minor line-span variations where the named function body supports the claim. Process statements in answer footers are outside the five criteria and were not used to infer retrieval treatment or affect grading.",
+          "The initial default rg file listing hid aide/pkg/memory/token_model_usage.go through ignore rules. An explicit read and an inventory using --hidden --no-ignore confirmed that the file is present, and its cited lines were verified before this grade was written."
+        ],
+        "grade_file": "grade-A.json"
+      },
+      "aide_operations": 0,
+      "aide_uptake": false,
+      "bridge_evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t13/bridge-evidence",
+      "bridge_setup": {
+        "operation": "prepare",
+        "binding": {
+          "schema_version": 1,
+          "id": "c9051a43362b428cb4969733aa0fbea3",
+          "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t13/root",
+          "binary": "/tmp/aide-retrieval-v3-next",
+          "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+          "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t13/bridge-evidence",
+          "seed_files": {
+            "README.md": "8dc2fe3a77e2d09302d6bbf532b2ae97746d2561c4329457bc47e0a7bc2ddadd",
+            "aide/pkg/store/observe_events.go": "c1fc06d8813b238643a8d2bf54474609e3d078701fcd24cf83ee8405b5f41d18",
+            "aide/pkg/store/token_events.go": "28629e5d7aa52cb17e5b4cb7a97d1194dc7f206a2be99ddbcb8a021ae740aeef",
+            "aide/pkg/store/token_model_usage.go": "c449bbd2e886f12e84fc25d5eb3977aa5e5ae61bffdea10d3b09300eea262faf",
+            "aide/pkg/memory/token_model_usage.go": "536287aae876951c2b6304724cc804f19a5ec84f8ff5632efb74f8e7967c2443",
+            "src/opencode/hooks.ts": "ff1817bf732925eb3266ba35bb0f9f7e29537707fc27d0b6ac5003f18f4ba590",
+            "src/core/model-usage.ts": "5f8ceb868f06aa5b6c2da0328469c0ee82f720715c492574eed8986c7f308309"
+          },
+          "index_policy": "seeded; no automatic refresh after participant edits"
+        },
+        "error": null,
+        "returncode": 0,
+        "stdout": "Indexed 73 symbols from 7 files\n",
+        "stderr": "2026/09/09 01:57:58 store: applying migration v1: baseline schema stamp\n2026/09/09 01:57:58 store: applying migration v1: baseline code schema stamp\n2026/09/09 01:57:58 store: applying migration v2: backfill BucketSymbolsByFile / BucketReferencesByFile and convert BucketRefIndex to composite keys\n2026/09/09 01:57:58 store: applying migration v3: clear stored file mtimes so the grammar packs' new import queries are re-extracted\n\r\u001b[K\u280b README.md (0 symbols)\r\u001b[K\u2819 aide/pkg/memory/token_model_usage.go (6 symbols)\r\u001b[K\u2839 aide/pkg/store/observe_events.go (13 symbols)\r\u001b[K\u2838 aide/pkg/store/token_events.go (3 symbols)\r\u001b[K\u283c aide/pkg/store/token_model_usage.go (15 symbols)\r\u001b[K\u2834 src/core/model-usage.ts (16 symbols)\r\u001b[K\u2826 src/opencode/hooks.ts (20 symbols)\r\u001b[K",
+        "index_elapsed_ms": 136.96942599926842,
+        "total_elapsed_ms": 174.36296400046558
+      },
+      "protocol_violations": [],
+      "retrieval_output_bytes": null,
+      "aide_duration_ms": null,
+      "bridge_metrics": {
+        "schema_version": 1,
+        "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/results/2026-09-09-outcomes-v3/bridge/t13",
+        "evidence_complete_for_host_attempts": null,
+        "setup": {
+          "valid": true,
+          "errors": [],
+          "binding": {
+            "schema_version": 1,
+            "id": "c9051a43362b428cb4969733aa0fbea3",
+            "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t13/root",
+            "binary": "/tmp/aide-retrieval-v3-next",
+            "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+            "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t13/bridge-evidence",
+            "seed_files": {
+              "README.md": "8dc2fe3a77e2d09302d6bbf532b2ae97746d2561c4329457bc47e0a7bc2ddadd",
+              "aide/pkg/store/observe_events.go": "c1fc06d8813b238643a8d2bf54474609e3d078701fcd24cf83ee8405b5f41d18",
+              "aide/pkg/store/token_events.go": "28629e5d7aa52cb17e5b4cb7a97d1194dc7f206a2be99ddbcb8a021ae740aeef",
+              "aide/pkg/store/token_model_usage.go": "c449bbd2e886f12e84fc25d5eb3977aa5e5ae61bffdea10d3b09300eea262faf",
+              "aide/pkg/memory/token_model_usage.go": "536287aae876951c2b6304724cc804f19a5ec84f8ff5632efb74f8e7967c2443",
+              "src/opencode/hooks.ts": "ff1817bf732925eb3266ba35bb0f9f7e29537707fc27d0b6ac5003f18f4ba590",
+              "src/core/model-usage.ts": "5f8ceb868f06aa5b6c2da0328469c0ee82f720715c492574eed8986c7f308309"
+            },
+            "index_policy": "seeded; no automatic refresh after participant edits"
+          },
+          "index_elapsed_ms": 136.96942599926842,
+          "total_elapsed_ms": 174.36296400046558,
+          "expected_binding_verified": true,
+          "expected_binary_digest_verified": true
+        },
+        "attempts": 0,
+        "successful": 0,
+        "tool_errors": 0,
+        "bridge_errors": 0,
+        "rejected": 0,
+        "invalid_evidence": 0,
+        "timings_ms": {
+          "guard": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "startup_initialize": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "identity": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "request": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "exit": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "total": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          }
+        },
+        "result_text_utf8_bytes": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "emitted_text_utf8_bytes": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "handler_duration_ms": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "calls": [],
+        "limitations": [
+          "Bridge process timings include orchestration; request roundtrip is not handler compute or CPU time.",
+          "Setup indexing and controller observe export costs are separate from participant bridge calls.",
+          "Emitted bytes follow the bridge's successful return path; host delivery/truncation and omitted attempts require trace review.",
+          "Setup stores a binary digest; call records bind to setup but do not contain an independently repeated binary digest.",
+          "Source receipt SHA256 is checked against pre-call inventory. Full-file bytes are independently verified only for supplied snapshots matching that exact hash; other versions remain unknown.",
+          "Static seed search/references can be stale after edits; source_changed_since_seed is recorded without assuming result freshness."
+        ]
+      }
+    },
+    {
+      "id": "t14",
+      "task": "debug",
+      "treatment": "guided",
+      "repetition": 2,
+      "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t14/root",
+      "prompt_path": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t14/participant-prompt.md",
+      "status": "completed",
+      "agent_id": "/root/v3_execution/t14",
+      "runtime_session_id": "01a083bd-2ef0-70f3-a91b-8f63567d7b67",
+      "log_path": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T02-16-48-01a083bd-2ef0-70f3-a91b-8f63567d7b67.jsonl",
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "quality_verified": true,
+      "quality": {
+        "passed": true,
+        "visible_passed": true,
+        "hidden_passed": true,
+        "immutable_files_preserved": true
+      },
+      "aide_operations": 0,
+      "aide_uptake": false,
+      "bridge_evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t14/bridge-evidence",
+      "bridge_setup": {
+        "operation": "prepare",
+        "binding": {
+          "schema_version": 1,
+          "id": "653923e74f7d499da2cb63561f800ded",
+          "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t14/root",
+          "binary": "/tmp/aide-retrieval-v3-next",
+          "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+          "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t14/bridge-evidence",
+          "seed_files": {
+            "reproduce.test.ts": "c3a8c6c661ac0d586ea65a09470d3c76593bf9499c0faf31643ab28a624ad969",
+            "README.md": "d22f089e1eb9d1bbebcf545f63fc7e742bfe76ad036faa355240636f20cbfeb1",
+            "src/core/context-pruning/recovery.ts": "993c586083a32d7216659c264e2446506555b525282e38b0f5d653b6d4de9428",
+            "src/core/context-pruning/dedup.ts": "cbc15fb5bb44f99efd20c82280b8a7da2af757291bbe7e87fae1f13a570a15c9",
+            "src/core/context-pruning/types.ts": "599cf79a721e33adf96cf0c89333f302102de3b2b4adcef5ba0cda5c77ae1065",
+            "src/core/context-pruning/tracker.ts": "ba4e633ae724623f6ba93d3757c41de2a47367db7ca51b5519711d449daace01"
+          },
+          "index_policy": "seeded; no automatic refresh after participant edits"
+        },
+        "error": null,
+        "returncode": 0,
+        "stdout": "Indexed 17 symbols from 6 files\n",
+        "stderr": "2026/09/09 01:57:58 store: applying migration v1: baseline schema stamp\n2026/09/09 01:57:58 store: applying migration v1: baseline code schema stamp\n2026/09/09 01:57:58 store: applying migration v2: backfill BucketSymbolsByFile / BucketReferencesByFile and convert BucketRefIndex to composite keys\n2026/09/09 01:57:58 store: applying migration v3: clear stored file mtimes so the grammar packs' new import queries are re-extracted\n\r\u001b[K\u280b README.md (0 symbols)\r\u001b[K\u2819 reproduce.test.ts (0 symbols)\r\u001b[K\u2839 src/core/context-pruning/dedup.ts (5 symbols)\r\u001b[K\u2838 src/core/context-pruning/recovery.ts (1 symbols)\r\u001b[K\u283c src/core/context-pruning/tracker.ts (7 symbols)\r\u001b[K\u2834 src/core/context-pruning/types.ts (4 symbols)\r\u001b[K",
+        "index_elapsed_ms": 107.49889399812673,
+        "total_elapsed_ms": 144.9353220014018
+      },
+      "protocol_violations": [],
+      "retrieval_output_bytes": 14842,
+      "aide_duration_ms": null,
+      "bridge_metrics": {
+        "schema_version": 1,
+        "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/results/2026-09-09-outcomes-v3/bridge/t14",
+        "evidence_complete_for_host_attempts": null,
+        "setup": {
+          "valid": true,
+          "errors": [],
+          "binding": {
+            "schema_version": 1,
+            "id": "653923e74f7d499da2cb63561f800ded",
+            "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t14/root",
+            "binary": "/tmp/aide-retrieval-v3-next",
+            "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+            "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t14/bridge-evidence",
+            "seed_files": {
+              "reproduce.test.ts": "c3a8c6c661ac0d586ea65a09470d3c76593bf9499c0faf31643ab28a624ad969",
+              "README.md": "d22f089e1eb9d1bbebcf545f63fc7e742bfe76ad036faa355240636f20cbfeb1",
+              "src/core/context-pruning/recovery.ts": "993c586083a32d7216659c264e2446506555b525282e38b0f5d653b6d4de9428",
+              "src/core/context-pruning/dedup.ts": "cbc15fb5bb44f99efd20c82280b8a7da2af757291bbe7e87fae1f13a570a15c9",
+              "src/core/context-pruning/types.ts": "599cf79a721e33adf96cf0c89333f302102de3b2b4adcef5ba0cda5c77ae1065",
+              "src/core/context-pruning/tracker.ts": "ba4e633ae724623f6ba93d3757c41de2a47367db7ca51b5519711d449daace01"
+            },
+            "index_policy": "seeded; no automatic refresh after participant edits"
+          },
+          "index_elapsed_ms": 107.49889399812673,
+          "total_elapsed_ms": 144.9353220014018,
+          "expected_binding_verified": true,
+          "expected_binary_digest_verified": true
+        },
+        "attempts": 0,
+        "successful": 0,
+        "tool_errors": 0,
+        "bridge_errors": 0,
+        "rejected": 0,
+        "invalid_evidence": 0,
+        "timings_ms": {
+          "guard": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "startup_initialize": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "identity": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "request": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "exit": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "total": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          }
+        },
+        "result_text_utf8_bytes": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "emitted_text_utf8_bytes": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "handler_duration_ms": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "calls": [],
+        "limitations": [
+          "Bridge process timings include orchestration; request roundtrip is not handler compute or CPU time.",
+          "Setup indexing and controller observe export costs are separate from participant bridge calls.",
+          "Emitted bytes follow the bridge's successful return path; host delivery/truncation and omitted attempts require trace review.",
+          "Setup stores a binary digest; call records bind to setup but do not contain an independently repeated binary digest.",
+          "Source receipt SHA256 is checked against pre-call inventory. Full-file bytes are independently verified only for supplied snapshots matching that exact hash; other versions remain unknown.",
+          "Static seed search/references can be stale after edits; source_changed_since_seed is recorded without assuming result freshness."
+        ]
+      }
+    },
+    {
+      "id": "t15",
+      "task": "edit",
+      "treatment": "ordinary",
+      "repetition": 2,
+      "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t15/root",
+      "prompt_path": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t15/participant-prompt.md",
+      "status": "completed",
+      "agent_id": "/root/v3_execution/t15",
+      "runtime_session_id": "01a083be-8300-7470-bc0e-d11208757443",
+      "log_path": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T02-18-15-01a083be-8300-7470-bc0e-d11208757443.jsonl",
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "quality_verified": true,
+      "quality": {
+        "passed": true,
+        "visible_passed": true,
+        "hidden_passed": true,
+        "immutable_files_preserved": true
+      },
+      "aide_operations": 0,
+      "aide_uptake": false,
+      "bridge_evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t15/bridge-evidence",
+      "bridge_setup": {
+        "operation": "prepare",
+        "binding": {
+          "schema_version": 1,
+          "id": "07ed57a7f01a4d6fb88d766cdfe26cc9",
+          "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t15/root",
+          "binary": "/tmp/aide-retrieval-v3-next",
+          "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+          "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t15/bridge-evidence",
+          "seed_files": {
+            "reproduce.test.ts": "9c245d2f865302c8e8aa98c5426031d37f9adad886cc63afd1ac434f3d8a570b",
+            "README.md": "6f8cadffcadaacf21fdf00af4779581aadb1746f542105680c496baad5ccc403",
+            "src/core/context-pruning/replacement.ts": "398ab0e1008cafc8213b5c6d2909e0883fb65f323eb61b63b792369d9dd7c78b"
+          },
+          "index_policy": "seeded; no automatic refresh after participant edits"
+        },
+        "error": null,
+        "returncode": 0,
+        "stdout": "Indexed 1 symbols from 3 files\n",
+        "stderr": "2026/09/09 01:57:58 store: applying migration v1: baseline schema stamp\n2026/09/09 01:57:58 store: applying migration v1: baseline code schema stamp\n2026/09/09 01:57:58 store: applying migration v2: backfill BucketSymbolsByFile / BucketReferencesByFile and convert BucketRefIndex to composite keys\n2026/09/09 01:57:58 store: applying migration v3: clear stored file mtimes so the grammar packs' new import queries are re-extracted\n\r\u001b[K\u280b README.md (0 symbols)\r\u001b[K\u2819 reproduce.test.ts (0 symbols)\r\u001b[K\u2839 src/core/context-pruning/replacement.ts (1 symbols)\r\u001b[K",
+        "index_elapsed_ms": 74.51663999745506,
+        "total_elapsed_ms": 111.52098199818283
+      },
+      "protocol_violations": [],
+      "retrieval_output_bytes": 4044,
+      "aide_duration_ms": null,
+      "bridge_metrics": {
+        "schema_version": 1,
+        "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/results/2026-09-09-outcomes-v3/bridge/t15",
+        "evidence_complete_for_host_attempts": null,
+        "setup": {
+          "valid": true,
+          "errors": [],
+          "binding": {
+            "schema_version": 1,
+            "id": "07ed57a7f01a4d6fb88d766cdfe26cc9",
+            "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t15/root",
+            "binary": "/tmp/aide-retrieval-v3-next",
+            "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+            "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t15/bridge-evidence",
+            "seed_files": {
+              "reproduce.test.ts": "9c245d2f865302c8e8aa98c5426031d37f9adad886cc63afd1ac434f3d8a570b",
+              "README.md": "6f8cadffcadaacf21fdf00af4779581aadb1746f542105680c496baad5ccc403",
+              "src/core/context-pruning/replacement.ts": "398ab0e1008cafc8213b5c6d2909e0883fb65f323eb61b63b792369d9dd7c78b"
+            },
+            "index_policy": "seeded; no automatic refresh after participant edits"
+          },
+          "index_elapsed_ms": 74.51663999745506,
+          "total_elapsed_ms": 111.52098199818283,
+          "expected_binding_verified": true,
+          "expected_binary_digest_verified": true
+        },
+        "attempts": 0,
+        "successful": 0,
+        "tool_errors": 0,
+        "bridge_errors": 0,
+        "rejected": 0,
+        "invalid_evidence": 0,
+        "timings_ms": {
+          "guard": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "startup_initialize": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "identity": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "request": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "exit": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "total": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          }
+        },
+        "result_text_utf8_bytes": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "emitted_text_utf8_bytes": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "handler_duration_ms": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "calls": [],
+        "limitations": [
+          "Bridge process timings include orchestration; request roundtrip is not handler compute or CPU time.",
+          "Setup indexing and controller observe export costs are separate from participant bridge calls.",
+          "Emitted bytes follow the bridge's successful return path; host delivery/truncation and omitted attempts require trace review.",
+          "Setup stores a binary digest; call records bind to setup but do not contain an independently repeated binary digest.",
+          "Source receipt SHA256 is checked against pre-call inventory. Full-file bytes are independently verified only for supplied snapshots matching that exact hash; other versions remain unknown.",
+          "Static seed search/references can be stale after edits; source_changed_since_seed is recorded without assuming result freshness."
+        ]
+      }
+    },
+    {
+      "id": "t16",
+      "task": "navigation",
+      "treatment": "ordinary",
+      "repetition": 2,
+      "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t16/root",
+      "prompt_path": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t16/participant-prompt.md",
+      "status": "completed",
+      "agent_id": "/root/v3_execution/t16",
+      "runtime_session_id": "01a083bf-9084-7711-a514-ddcca6203d78",
+      "log_path": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T02-19-24-01a083bf-9084-7711-a514-ddcca6203d78.jsonl",
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "quality_verified": true,
+      "quality": {
+        "candidate": "D",
+        "passed": true,
+        "checks": [
+          {
+            "id": "route",
+            "passed": true,
+            "evidence": [
+              "src/opencode/hooks.ts:194 registers createEventHandler; :429\u2013432 constructs the usage recorder; :458\u2013460 forwards properties.part only when state.binary exists. The complete switch at :434\u2013465 has no message.updated branch and its default ignores other events.",
+              "src/core/model-usage.ts:203\u2013216 accepts only step-finish parts with valid session, part, and message IDs and a tokens object; :22\u201328 defines ID validation. :350\u2013358 converts the part and invokes the writer with an event array. :319\u2013345 writes newline-delimited JSON using observe record --stdin and requires acknowledgment."
+            ],
+            "omissions": [],
+            "incorrect_or_unsupported": []
+          },
+          {
+            "id": "normalization",
+            "passed": true,
+            "evidence": [
+              "src/core/model-usage.ts:99\u2013118 creates kind=session/name=model_usage, version=1, host/source/usage ID attributes, observed time basis without a source timestamp, and partial coverage. :217\u2013222 supplies opencode, opencode.step_finish.v1, session-1, and step-7.",
+              "src/core/model-usage.ts:224\u2013229 maps uncached input=11, cache read=17, cache write=3, reported output=13, and reasoning output=5. :41\u201351 sums input to 31, already including cache components. :33\u201339 serializes valid counters as strings. The complete OpenCode converter at :203\u2013232 does not supply output_tokens, total_tokens, model, or provider.",
+              "aide/pkg/store/token_model_usage.go:36\u201341 defines logical identity as [session, host, usage_id], excluding message and storage row IDs. aide/pkg/store/observe_events.go:160\u2013165 supplies a ULID and time.Now() for absent event ID/timestamp.",
+              "aide/pkg/memory/token_model_usage.go:3\u20134 explicitly distinguishes absent counters from reported zero; :12\u201313 omits absent model/provider in reports."
+            ],
+            "omissions": [],
+            "incorrect_or_unsupported": []
+          },
+          {
+            "id": "retries",
+            "passed": true,
+            "evidence": [
+              "src/core/model-usage.ts:353\u2013361 caches only acknowledged JSON fingerprints of [cwd, normalized event]. A failed writer returns before caching; the successful second broadcast is cached; the unchanged third is skipped. Changing input on the fourth changes uncached/input counters to 12/32 and changes the fingerprint. Thus broadcasts 1, 2, and 4 attempt writing: three attempts.",
+              "aide/pkg/store/token_model_usage.go:44\u201368 fingerprints metadata/counters and combines that fingerprint with logical usage identity, so changed counters form a distinct durable origin. aide/pkg/store/observe_events.go:166\u2013216 stores that origin in a Bolt transaction, reuses equivalent retained observations, and retains distinct variants. Given the task's explicit no-persistence first failure, exactly two distinct variants remain.",
+              "aide/pkg/store/observe_events.go:188\u2013205 retains an earlier equivalent timestamp if supplied; usageFingerprint at aide/pkg/store/token_model_usage.go:46\u201357 excludes observation ID and timestamp values. This supports the answers' additional durable retry/timestamp statements."
+            ],
+            "omissions": [],
+            "incorrect_or_unsupported": []
+          },
+          {
+            "id": "conflict",
+            "passed": true,
+            "evidence": [
+              "aide/pkg/store/token_model_usage.go:36\u201341 keys the usage identity by session, host, and usage_id independently of storage IDs. :150\u2013163 marks differing fingerprints for that identity as a conflict and retains variant evidence.",
+              "aide/pkg/store/token_events.go:153\u2013163 passes all stored events into usage.observe before report filters; :191\u2013196 obtains the filtered model usage result separately.",
+              "aide/pkg/store/token_model_usage.go:174 initializes an empty BySource; :183\u2013190 counts one conflict if any retained variant matches the filter and continues before validity checks and counter aggregation. :196\u2013220 therefore contributes neither invalid nor accepted observation counts and no source counters for this sole conflicted identity: observations=0, conflicts=1, invalid=0, empty by_source. Selecting just the earlier variant cannot remove the known conflict.",
+              "aide/pkg/memory/token_model_usage.go:23\u201328 verifies the report JSON names version, observations, conflicts, invalid, and by_source."
+            ],
+            "omissions": [],
+            "incorrect_or_unsupported": []
+          },
+          {
+            "id": "boundaries",
+            "passed": true,
+            "evidence": [
+              "aide/pkg/store/observe_events.go:82\u2013109 has no session-kind TokenEvent projection and returns nil. aide/pkg/store/token_events.go:93\u2013106 tallies only converted token events; :172\u2013174 guards tally on a non-nil projection; :196 attaches model usage separately. Session usage therefore adds no tool-event count or legacy byte-based estimate.",
+              "src/core/model-usage.ts:41\u201351 and :224\u2013229 show normalized input already includes both cache components. :227\u2013230 explicitly keeps raw reported output separate because output/reasoning overlap changed across versions. The candidate explicitly states both required double-counting cautions.",
+              "src/core/model-usage.ts:1 describes host-reported counters as neither text estimates nor savings; :111 marks partial coverage. The candidate states all required limits on completeness, billed cost, savings, and output quality.",
+              "aide/pkg/memory/token_model_usage.go:3\u20134 identifies counters as host-reported usage, never text estimates or savings; :20\u201322 states captured records only, partial session coverage, separate sources, and no establishment of cost, savings, or quality. The candidate's cited contract and all required limiting claims are verified."
+            ],
+            "omissions": [],
+            "incorrect_or_unsupported": []
+          }
+        ],
+        "notes": [
+          "All five frozen criteria pass. Every required fact is stated, and the cited source supports the claims. No incorrect numerical totals, retry counts, completeness/billing/savings guarantees, or date-filter conflict claims were found.",
+          "Only the assigned frozen task, rubric, candidates, and source were inspected, plus the mandatory RTK bootstrap. No source code was executed and no candidate, rubric, or source file was edited.",
+          "Single-line references to function starts are accepted as minor line-span variations where the named function body supports the claim. Process statements in answer footers are outside the five criteria and were not used to infer retrieval treatment or affect grading.",
+          "The initial default rg file listing hid aide/pkg/memory/token_model_usage.go through ignore rules. An explicit read and an inventory using --hidden --no-ignore confirmed that the file is present, and its cited lines were verified before this grade was written."
+        ],
+        "grade_file": "grade-D.json"
+      },
+      "aide_operations": 0,
+      "aide_uptake": false,
+      "bridge_evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t16/bridge-evidence",
+      "bridge_setup": {
+        "operation": "prepare",
+        "binding": {
+          "schema_version": 1,
+          "id": "762a465425c141d8b28f63418817375e",
+          "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t16/root",
+          "binary": "/tmp/aide-retrieval-v3-next",
+          "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+          "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t16/bridge-evidence",
+          "seed_files": {
+            "README.md": "8dc2fe3a77e2d09302d6bbf532b2ae97746d2561c4329457bc47e0a7bc2ddadd",
+            "aide/pkg/store/observe_events.go": "c1fc06d8813b238643a8d2bf54474609e3d078701fcd24cf83ee8405b5f41d18",
+            "aide/pkg/store/token_events.go": "28629e5d7aa52cb17e5b4cb7a97d1194dc7f206a2be99ddbcb8a021ae740aeef",
+            "aide/pkg/store/token_model_usage.go": "c449bbd2e886f12e84fc25d5eb3977aa5e5ae61bffdea10d3b09300eea262faf",
+            "aide/pkg/memory/token_model_usage.go": "536287aae876951c2b6304724cc804f19a5ec84f8ff5632efb74f8e7967c2443",
+            "src/opencode/hooks.ts": "ff1817bf732925eb3266ba35bb0f9f7e29537707fc27d0b6ac5003f18f4ba590",
+            "src/core/model-usage.ts": "5f8ceb868f06aa5b6c2da0328469c0ee82f720715c492574eed8986c7f308309"
+          },
+          "index_policy": "seeded; no automatic refresh after participant edits"
+        },
+        "error": null,
+        "returncode": 0,
+        "stdout": "Indexed 73 symbols from 7 files\n",
+        "stderr": "2026/09/09 01:57:58 store: applying migration v1: baseline schema stamp\n2026/09/09 01:57:58 store: applying migration v1: baseline code schema stamp\n2026/09/09 01:57:58 store: applying migration v2: backfill BucketSymbolsByFile / BucketReferencesByFile and convert BucketRefIndex to composite keys\n2026/09/09 01:57:58 store: applying migration v3: clear stored file mtimes so the grammar packs' new import queries are re-extracted\n\r\u001b[K\u280b README.md (0 symbols)\r\u001b[K\u2819 aide/pkg/memory/token_model_usage.go (6 symbols)\r\u001b[K\u2839 aide/pkg/store/observe_events.go (13 symbols)\r\u001b[K\u2838 aide/pkg/store/token_events.go (3 symbols)\r\u001b[K\u283c aide/pkg/store/token_model_usage.go (15 symbols)\r\u001b[K\u2834 src/core/model-usage.ts (16 symbols)\r\u001b[K\u2826 src/opencode/hooks.ts (20 symbols)\r\u001b[K",
+        "index_elapsed_ms": 138.7294970008952,
+        "total_elapsed_ms": 176.06297599922982
+      },
+      "protocol_violations": [],
+      "retrieval_output_bytes": null,
+      "aide_duration_ms": null,
+      "bridge_metrics": {
+        "schema_version": 1,
+        "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/results/2026-09-09-outcomes-v3/bridge/t16",
+        "evidence_complete_for_host_attempts": null,
+        "setup": {
+          "valid": true,
+          "errors": [],
+          "binding": {
+            "schema_version": 1,
+            "id": "762a465425c141d8b28f63418817375e",
+            "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t16/root",
+            "binary": "/tmp/aide-retrieval-v3-next",
+            "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+            "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t16/bridge-evidence",
+            "seed_files": {
+              "README.md": "8dc2fe3a77e2d09302d6bbf532b2ae97746d2561c4329457bc47e0a7bc2ddadd",
+              "aide/pkg/store/observe_events.go": "c1fc06d8813b238643a8d2bf54474609e3d078701fcd24cf83ee8405b5f41d18",
+              "aide/pkg/store/token_events.go": "28629e5d7aa52cb17e5b4cb7a97d1194dc7f206a2be99ddbcb8a021ae740aeef",
+              "aide/pkg/store/token_model_usage.go": "c449bbd2e886f12e84fc25d5eb3977aa5e5ae61bffdea10d3b09300eea262faf",
+              "aide/pkg/memory/token_model_usage.go": "536287aae876951c2b6304724cc804f19a5ec84f8ff5632efb74f8e7967c2443",
+              "src/opencode/hooks.ts": "ff1817bf732925eb3266ba35bb0f9f7e29537707fc27d0b6ac5003f18f4ba590",
+              "src/core/model-usage.ts": "5f8ceb868f06aa5b6c2da0328469c0ee82f720715c492574eed8986c7f308309"
+            },
+            "index_policy": "seeded; no automatic refresh after participant edits"
+          },
+          "index_elapsed_ms": 138.7294970008952,
+          "total_elapsed_ms": 176.06297599922982,
+          "expected_binding_verified": true,
+          "expected_binary_digest_verified": true
+        },
+        "attempts": 0,
+        "successful": 0,
+        "tool_errors": 0,
+        "bridge_errors": 0,
+        "rejected": 0,
+        "invalid_evidence": 0,
+        "timings_ms": {
+          "guard": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "startup_initialize": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "identity": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "request": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "exit": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "total": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          }
+        },
+        "result_text_utf8_bytes": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "emitted_text_utf8_bytes": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "handler_duration_ms": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "calls": [],
+        "limitations": [
+          "Bridge process timings include orchestration; request roundtrip is not handler compute or CPU time.",
+          "Setup indexing and controller observe export costs are separate from participant bridge calls.",
+          "Emitted bytes follow the bridge's successful return path; host delivery/truncation and omitted attempts require trace review.",
+          "Setup stores a binary digest; call records bind to setup but do not contain an independently repeated binary digest.",
+          "Source receipt SHA256 is checked against pre-call inventory. Full-file bytes are independently verified only for supplied snapshots matching that exact hash; other versions remain unknown.",
+          "Static seed search/references can be stale after edits; source_changed_since_seed is recorded without assuming result freshness."
+        ]
+      }
+    },
+    {
+      "id": "t17",
+      "task": "debug",
+      "treatment": "available",
+      "repetition": 2,
+      "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t17/root",
+      "prompt_path": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t17/participant-prompt.md",
+      "status": "completed",
+      "agent_id": "/root/v3_execution/t17",
+      "runtime_session_id": "01a083c0-d89e-7020-9f69-a1a6d4b85e7a",
+      "log_path": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T02-20-48-01a083c0-d89e-7020-9f69-a1a6d4b85e7a.jsonl",
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "quality_verified": true,
+      "quality": {
+        "passed": true,
+        "visible_passed": true,
+        "hidden_passed": true,
+        "immutable_files_preserved": true
+      },
+      "aide_operations": 0,
+      "aide_uptake": false,
+      "bridge_evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t17/bridge-evidence",
+      "bridge_setup": {
+        "operation": "prepare",
+        "binding": {
+          "schema_version": 1,
+          "id": "ce0f1a88270e4db38decb37ae79fd11b",
+          "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t17/root",
+          "binary": "/tmp/aide-retrieval-v3-next",
+          "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+          "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t17/bridge-evidence",
+          "seed_files": {
+            "reproduce.test.ts": "c3a8c6c661ac0d586ea65a09470d3c76593bf9499c0faf31643ab28a624ad969",
+            "README.md": "d22f089e1eb9d1bbebcf545f63fc7e742bfe76ad036faa355240636f20cbfeb1",
+            "src/core/context-pruning/recovery.ts": "993c586083a32d7216659c264e2446506555b525282e38b0f5d653b6d4de9428",
+            "src/core/context-pruning/dedup.ts": "cbc15fb5bb44f99efd20c82280b8a7da2af757291bbe7e87fae1f13a570a15c9",
+            "src/core/context-pruning/types.ts": "599cf79a721e33adf96cf0c89333f302102de3b2b4adcef5ba0cda5c77ae1065",
+            "src/core/context-pruning/tracker.ts": "ba4e633ae724623f6ba93d3757c41de2a47367db7ca51b5519711d449daace01"
+          },
+          "index_policy": "seeded; no automatic refresh after participant edits"
+        },
+        "error": null,
+        "returncode": 0,
+        "stdout": "Indexed 17 symbols from 6 files\n",
+        "stderr": "2026/09/09 01:57:58 store: applying migration v1: baseline schema stamp\n2026/09/09 01:57:58 store: applying migration v1: baseline code schema stamp\n2026/09/09 01:57:58 store: applying migration v2: backfill BucketSymbolsByFile / BucketReferencesByFile and convert BucketRefIndex to composite keys\n2026/09/09 01:57:58 store: applying migration v3: clear stored file mtimes so the grammar packs' new import queries are re-extracted\n\r\u001b[K\u280b README.md (0 symbols)\r\u001b[K\u2819 reproduce.test.ts (0 symbols)\r\u001b[K\u2839 src/core/context-pruning/dedup.ts (5 symbols)\r\u001b[K\u2838 src/core/context-pruning/recovery.ts (1 symbols)\r\u001b[K\u283c src/core/context-pruning/tracker.ts (7 symbols)\r\u001b[K\u2834 src/core/context-pruning/types.ts (4 symbols)\r\u001b[K",
+        "index_elapsed_ms": 108.04187800022191,
+        "total_elapsed_ms": 145.08516999921994
+      },
+      "protocol_violations": [],
+      "retrieval_output_bytes": 18789,
+      "aide_duration_ms": null,
+      "bridge_metrics": {
+        "schema_version": 1,
+        "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/results/2026-09-09-outcomes-v3/bridge/t17",
+        "evidence_complete_for_host_attempts": null,
+        "setup": {
+          "valid": true,
+          "errors": [],
+          "binding": {
+            "schema_version": 1,
+            "id": "ce0f1a88270e4db38decb37ae79fd11b",
+            "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t17/root",
+            "binary": "/tmp/aide-retrieval-v3-next",
+            "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+            "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t17/bridge-evidence",
+            "seed_files": {
+              "reproduce.test.ts": "c3a8c6c661ac0d586ea65a09470d3c76593bf9499c0faf31643ab28a624ad969",
+              "README.md": "d22f089e1eb9d1bbebcf545f63fc7e742bfe76ad036faa355240636f20cbfeb1",
+              "src/core/context-pruning/recovery.ts": "993c586083a32d7216659c264e2446506555b525282e38b0f5d653b6d4de9428",
+              "src/core/context-pruning/dedup.ts": "cbc15fb5bb44f99efd20c82280b8a7da2af757291bbe7e87fae1f13a570a15c9",
+              "src/core/context-pruning/types.ts": "599cf79a721e33adf96cf0c89333f302102de3b2b4adcef5ba0cda5c77ae1065",
+              "src/core/context-pruning/tracker.ts": "ba4e633ae724623f6ba93d3757c41de2a47367db7ca51b5519711d449daace01"
+            },
+            "index_policy": "seeded; no automatic refresh after participant edits"
+          },
+          "index_elapsed_ms": 108.04187800022191,
+          "total_elapsed_ms": 145.08516999921994,
+          "expected_binding_verified": true,
+          "expected_binary_digest_verified": true
+        },
+        "attempts": 0,
+        "successful": 0,
+        "tool_errors": 0,
+        "bridge_errors": 0,
+        "rejected": 0,
+        "invalid_evidence": 0,
+        "timings_ms": {
+          "guard": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "startup_initialize": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "identity": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "request": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "exit": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "total": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          }
+        },
+        "result_text_utf8_bytes": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "emitted_text_utf8_bytes": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "handler_duration_ms": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "calls": [],
+        "limitations": [
+          "Bridge process timings include orchestration; request roundtrip is not handler compute or CPU time.",
+          "Setup indexing and controller observe export costs are separate from participant bridge calls.",
+          "Emitted bytes follow the bridge's successful return path; host delivery/truncation and omitted attempts require trace review.",
+          "Setup stores a binary digest; call records bind to setup but do not contain an independently repeated binary digest.",
+          "Source receipt SHA256 is checked against pre-call inventory. Full-file bytes are independently verified only for supplied snapshots matching that exact hash; other versions remain unknown.",
+          "Static seed search/references can be stale after edits; source_changed_since_seed is recorded without assuming result freshness."
+        ]
+      }
+    },
+    {
+      "id": "t18",
+      "task": "edit",
+      "treatment": "guided",
+      "repetition": 2,
+      "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t18/root",
+      "prompt_path": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t18/participant-prompt.md",
+      "status": "completed",
+      "agent_id": "/root/v3_execution/t18",
+      "runtime_session_id": "01a083c2-502b-7a00-b568-148516939142",
+      "log_path": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T02-22-24-01a083c2-502b-7a00-b568-148516939142.jsonl",
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "quality_verified": true,
+      "quality": {
+        "passed": true,
+        "visible_passed": true,
+        "hidden_passed": true,
+        "immutable_files_preserved": true
+      },
+      "aide_operations": 0,
+      "aide_uptake": false,
+      "bridge_evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t18/bridge-evidence",
+      "bridge_setup": {
+        "operation": "prepare",
+        "binding": {
+          "schema_version": 1,
+          "id": "536444b6d56c41be81f204d502febc82",
+          "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t18/root",
+          "binary": "/tmp/aide-retrieval-v3-next",
+          "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+          "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t18/bridge-evidence",
+          "seed_files": {
+            "reproduce.test.ts": "9c245d2f865302c8e8aa98c5426031d37f9adad886cc63afd1ac434f3d8a570b",
+            "README.md": "6f8cadffcadaacf21fdf00af4779581aadb1746f542105680c496baad5ccc403",
+            "src/core/context-pruning/replacement.ts": "398ab0e1008cafc8213b5c6d2909e0883fb65f323eb61b63b792369d9dd7c78b"
+          },
+          "index_policy": "seeded; no automatic refresh after participant edits"
+        },
+        "error": null,
+        "returncode": 0,
+        "stdout": "Indexed 1 symbols from 3 files\n",
+        "stderr": "2026/09/09 01:57:58 store: applying migration v1: baseline schema stamp\n2026/09/09 01:57:58 store: applying migration v1: baseline code schema stamp\n2026/09/09 01:57:58 store: applying migration v2: backfill BucketSymbolsByFile / BucketReferencesByFile and convert BucketRefIndex to composite keys\n2026/09/09 01:57:58 store: applying migration v3: clear stored file mtimes so the grammar packs' new import queries are re-extracted\n\r\u001b[K\u280b README.md (0 symbols)\r\u001b[K\u2819 reproduce.test.ts (0 symbols)\r\u001b[K\u2839 src/core/context-pruning/replacement.ts (1 symbols)\r\u001b[K",
+        "index_elapsed_ms": 75.81901500088861,
+        "total_elapsed_ms": 112.96423699968727
+      },
+      "protocol_violations": [],
+      "retrieval_output_bytes": 3960,
+      "aide_duration_ms": null,
+      "bridge_metrics": {
+        "schema_version": 1,
+        "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/results/2026-09-09-outcomes-v3/bridge/t18",
+        "evidence_complete_for_host_attempts": null,
+        "setup": {
+          "valid": true,
+          "errors": [],
+          "binding": {
+            "schema_version": 1,
+            "id": "536444b6d56c41be81f204d502febc82",
+            "root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t18/root",
+            "binary": "/tmp/aide-retrieval-v3-next",
+            "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+            "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t18/bridge-evidence",
+            "seed_files": {
+              "reproduce.test.ts": "9c245d2f865302c8e8aa98c5426031d37f9adad886cc63afd1ac434f3d8a570b",
+              "README.md": "6f8cadffcadaacf21fdf00af4779581aadb1746f542105680c496baad5ccc403",
+              "src/core/context-pruning/replacement.ts": "398ab0e1008cafc8213b5c6d2909e0883fb65f323eb61b63b792369d9dd7c78b"
+            },
+            "index_policy": "seeded; no automatic refresh after participant edits"
+          },
+          "index_elapsed_ms": 75.81901500088861,
+          "total_elapsed_ms": 112.96423699968727,
+          "expected_binding_verified": true,
+          "expected_binary_digest_verified": true
+        },
+        "attempts": 0,
+        "successful": 0,
+        "tool_errors": 0,
+        "bridge_errors": 0,
+        "rejected": 0,
+        "invalid_evidence": 0,
+        "timings_ms": {
+          "guard": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "startup_initialize": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "identity": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "request": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "exit": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          },
+          "total": {
+            "known_count": 0,
+            "unknown_count": 0,
+            "known_sum": 0,
+            "total": 0
+          }
+        },
+        "result_text_utf8_bytes": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "emitted_text_utf8_bytes": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "handler_duration_ms": {
+          "known_count": 0,
+          "unknown_count": 0,
+          "known_sum": 0,
+          "total": 0
+        },
+        "calls": [],
+        "limitations": [
+          "Bridge process timings include orchestration; request roundtrip is not handler compute or CPU time.",
+          "Setup indexing and controller observe export costs are separate from participant bridge calls.",
+          "Emitted bytes follow the bridge's successful return path; host delivery/truncation and omitted attempts require trace review.",
+          "Setup stores a binary digest; call records bind to setup but do not contain an independently repeated binary digest.",
+          "Source receipt SHA256 is checked against pre-call inventory. Full-file bytes are independently verified only for supplied snapshots matching that exact hash; other versions remain unknown.",
+          "Static seed search/references can be stale after edits; source_changed_since_seed is recorded without assuming result freshness."
+        ]
+      }
+    }
+  ],
+  "retrieval_bridge": {
+    "path": "/mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/outcomes-v3/bridge.py",
+    "binary": "/tmp/aide-retrieval-v3-next",
+    "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13"
+  },
+  "notes": [
+    "Runtime_session_id denotes actor ID, even when nested actors share the parent host session ID.",
+    "Quality and trace evidence are stored in per-trial artifacts.",
+    "Expected pre-fix test failures are distinct from transport/retrieval failures.",
+    "Tool invocation counts and bytes do not establish avoided operations or provider savings."
+  ]
+}

@@ -1,0 +1,23 @@
+[aide-mcp] 01:58:34 aide MCP server starting
+[aide-mcp] 01:58:34 version: aide version 0.0.0 (commit: 4d15db8d, built: 2026-09-09T00:52:07Z, go1.27.0-X:nodwarf5, linux/amd64)
+[aide-mcp] 01:58:34 database: /mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t04/root/.aide/memory/memory.db
+[aide-mcp] 01:58:34 database opened in 1.737692ms (bolt + bleve search)
+[aide-mcp] 01:58:34 cleanup loop disabled (cleanup.enabled=false)
+[aide-mcp] 01:58:34 gRPC socket: /tmp/aide/be7f9c4dc19a035a.sock
+[aide-mcp] 01:58:34 code index opened in 1.89991ms: /mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t04/root/.aide/memory/code/index.db
+2026/09/09 01:58:34 store: applying migration v1: baseline findings schema stamp
+[aide-mcp] 01:58:34 findings store opened in 24.687461ms: /mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t04/root/.aide/memory/findings
+2026/09/09 01:58:34 store: applying migration v1: baseline survey schema stamp
+[aide-mcp] 01:58:34 survey store opened in 18.585805ms: /mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t04/root/.aide/memory/survey
+[aide-mcp] 01:58:34 gRPC server error: failed to listen on socket /tmp/aide/be7f9c4dc19a035a.sock: listen unix /tmp/aide/be7f9c4dc19a035a.sock: setsockopt: operation not permitted (other sessions cannot share this store until a daemon binds; check permissions and stale files)
+[aide-mcp] 01:58:34 warning: failed to register instance: cannot determine home directory: $HOME is not defined
+[aide-mcp] 01:58:34 primary mode: holding the store, serving gRPC
+[aide-mcp] 01:58:34 MCP server ready in 50.047325ms, listening on stdio
+[aide-mcp] 01:58:34 code tools: registered (store may initialize lazily)
+[aide-mcp] 01:58:34 findings tools: registered
+[aide-mcp] 01:58:34 survey tools: registered
+[aide-mcp] 01:58:34 instinct tools: registered (read-only)
+[aide-mcp] 01:58:34 tool: instance_info
+[aide-mcp] 01:58:34   project_root=/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-09-outcomes-v3/t04/root authority=daemon
+[aide-mcp] 01:58:34 tool: code_stats
+[aide-mcp] 01:58:34   files=7 symbols=73 references=973

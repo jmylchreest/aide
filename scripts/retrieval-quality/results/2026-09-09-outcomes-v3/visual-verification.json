@@ -1,0 +1,37 @@
+{
+  "browser": "Vivaldi via Playwright",
+  "checks": [
+    {
+      "name": "desktop",
+      "cards": [
+        "18/18\nPassed frozen quality checks",
+        "2/12\nOptional/guided retrieval uptake",
+        "3,139,132\nTask input tokens",
+        "43,773\nTask output tokens"
+      ],
+      "mainRows": 18,
+      "details": 3,
+      "bodyWidth": 1168,
+      "viewportWidth": 1440,
+      "initialOpenDetails": 0,
+      "keyboardOpensDetails": true,
+      "errors": []
+    },
+    {
+      "name": "mobile",
+      "cards": [
+        "18/18\nPassed frozen quality checks",
+        "2/12\nOptional/guided retrieval uptake",
+        "3,139,132\nTask input tokens",
+        "43,773\nTask output tokens"
+      ],
+      "mainRows": 18,
+      "details": 3,
+      "bodyWidth": 390,
+      "viewportWidth": 390,
+      "initialOpenDetails": 0,
+      "keyboardOpensDetails": true,
+      "errors": []
+    }
+  ]
+}

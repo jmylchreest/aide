@@ -1,0 +1,22 @@
+1. **Trigger and writer path.** The `event` hook uses `createEventHandler`; `message.part.updated` passes `event.properties.part` to the usage recorder when a binary exists. Only a `step-finish` part with valid session, part, and message IDs and a tokens object is accepted. The recorder normalizes it and calls `recordModelUsage`, which sends newline-delimited JSON to `observe record --stdin` and checks the acknowledgment. **`message.updated` itself contributes no usage**; it falls through the ignored-event default. Evidence: `src/opencode/hooks.ts:194`, `src/opencode/hooks.ts:429`, `src/opencode/hooks.ts:458`, `src/core/model-usage.ts:203`, `src/core/model-usage.ts:319`, `src/core/model-usage.ts:350`.
+
+2. **Persisted observation.** It has `kind="session"`, `name="model_usage"`, session `session-1`, host `opencode`, source `opencode.step_finish.v1`, version `"1"`, and `usage_id="step-7"`. Its logical identity is `["session-1","opencode","step-7"]`; `message-2` is validated but is not persisted or included in that identity. The storage row ID is separate; the store generates a ULID if absent. Evidence: `src/core/model-usage.ts:92`, `src/core/model-usage.ts:209`, `aide/pkg/store/token_model_usage.go:36`, `aide/pkg/store/observe_events.go:160`.
+
+   | Counter | Value |
+   |---|---:|
+   | `uncached_input_tokens` | 11 |
+   | `cache_read_input_tokens` | 17 |
+   | `cache_write_input_tokens` | 3 |
+   | `input_tokens` | **31** |
+   | `reported_output_tokens` | 13 |
+   | `reasoning_output_tokens` | 5 |
+
+   Attributes serialize these values as strings. Normalized `output_tokens`, `total_tokens`, model, and provider remain absent/unknown, not zero. Coverage is `"partial"` and time basis is `"observed"`: this adapter supplies no source timestamp; storage fills a missing timestamp with `time.Now()`. Evidence: `src/core/model-usage.ts:33`, `src/core/model-usage.ts:41`, `src/core/model-usage.ts:99`, `src/core/model-usage.ts:217`, `aide/pkg/store/observe_events.go:155`, `aide/pkg/memory/token_model_usage.go:3`.
+
+3. **Three writer attempts; two distinct stored variants.** Broadcast 1 fails and is not cached. Broadcast 2 retries successfully and is cached. Broadcast 3 matches the acknowledged fingerprint and skips writing. Broadcast 4 changes uncached input to 12 and normalized input to 32, producing a new fingerprint and successful write. The in-memory cache fingerprints `[cwd, normalized event]`, retains only acknowledged writes, and caps itself at 1,024 entries. Durable deduplication combines logical identity with the usage fingerprint, suppressing identical retries while retaining changed variants; equal variants retain the earliest timestamp. Evidence: `src/core/model-usage.ts:349`, `aide/pkg/store/token_model_usage.go:44`, `aide/pkg/store/token_model_usage.go:59`, `aide/pkg/store/observe_events.go:166`.
+
+4. **The report counts one conflicting identity and excludes its counters.** For this identity alone, model usage has `conflicts=1`, `observations=0`, `invalid=0`, and no source aggregate. Neither variant wins or gets summed. A date filter selecting only the earlier variant **cannot restore its counters**: aggregation scans all stored observations before filtering, and a conflicting identity contributes one conflict if any variant matches the filter. Evidence: `aide/pkg/store/token_events.go:153`, `aide/pkg/store/token_events.go:191`, `aide/pkg/store/token_model_usage.go:150`, `aide/pkg/store/token_model_usage.go:183`.
+
+5. **Separate accounting and limited conclusions.** Session usage observations do not become legacy token events, so they do not increase tool-call/event counts or byte-based token estimates; model usage is attached separately to accounting. These counters establish captured host-reported usage only, with partial coverage—not complete session usage, billed cost, savings, or output quality. **Do not add cache counters again to normalized `input_tokens`**: they are already included. **Do not sum `reported_output_tokens` with `reasoning_output_tokens` when overlap is unknown**; the adapter explicitly keeps raw output separate for that reason. Evidence: `aide/pkg/store/observe_events.go:82`, `aide/pkg/store/token_events.go:93`, `aide/pkg/store/token_events.go:172`, `aide/pkg/store/token_events.go:196`, `aide/pkg/memory/token_model_usage.go:20`, `src/core/model-usage.ts:41`, `src/core/model-usage.ts:224`.
+
+No files changed. Verified against the supplied source; no tests run because this is a read-only, non-standalone snapshot (`README.md:1`).
