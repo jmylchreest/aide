@@ -58,6 +58,40 @@ describe("Codex dev toggle", () => {
 
   afterEach(() => rmSync(root, { recursive: true, force: true }));
 
+  it("refreshes missing child and compaction hooks in an existing dev install", () => {
+    writeConfig({ plugins: { "aide@aide": { enabled: true } } });
+    switchCodexDev(paths, "dev");
+    const oldHooks = readHooks();
+    delete oldHooks.hooks.SubagentStart;
+    delete oldHooks.hooks.PreCompact;
+    delete oldHooks.hooks.PostCompact;
+    const user = {
+      matcher: "worker",
+      hooks: [{ type: "command", command: "user-child-hook" }],
+    };
+    oldHooks.hooks.SubagentStart = [user];
+    writeHooks(oldHooks);
+
+    switchCodexDev(paths, "dev");
+    const refreshed = readHooks();
+    expect(refreshed.hooks.SubagentStart).toContainEqual(user);
+    for (const [event, handler] of [
+      ["SubagentStart", "subagent-tracker"],
+      ["PreCompact", "pre-compact"],
+      ["PostCompact", "post-compact"],
+    ]) {
+      const generated = refreshed.hooks[event]
+        .flatMap((group: any) => group.hooks)
+        .filter((hook: any) => hook.command.endsWith(` hook ${handler}`));
+      expect(generated).toHaveLength(1);
+      expect(generated[0].command).toContain(
+        join(paths.repo, "src", "cli", "index.ts"),
+      );
+    }
+    switchCodexDev(paths, "dev");
+    expect(readHooks()).toEqual(refreshed);
+  });
+
   it("switches a marketplace install and restores it without losing unrelated edits", () => {
     writeConfig({
       model: "original",

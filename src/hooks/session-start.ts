@@ -25,7 +25,7 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { homedir } from "os";
 import { Logger, debug, setDebugCwd } from "../lib/logger.js";
-import { updateContextWindow } from "../core/context-window.js";
+import { updateHookContextWindow } from "../core/hook-context.js";
 import {
   readStdin,
   detectPlatform,
@@ -78,6 +78,7 @@ debug(SOURCE, `Hook started (AIDE_DEBUG=${process.env.AIDE_DEBUG || "unset"})`);
 interface HookInput {
   hook_event_name: string;
   session_id: string;
+  agent_id?: string;
   cwd: string;
   transcript_path?: string;
   permission_mode?: string;
@@ -476,10 +477,11 @@ async function main(): Promise<void> {
     // shelling out, then to the TS walk.
     if (resolvedBinary && sessionId !== "unknown") {
       const source = data.source;
-      updateContextWindow(
+      updateHookContextWindow(
         resolvedBinary,
         cwd,
-        { host: detectPlatform(), sessionId, actorId: sessionId },
+        detectPlatform(),
+        data,
         source === "startup" ||
           source === "compact" ||
           source === "clear" ||

@@ -12,6 +12,7 @@ vi.mock("../lib/hook-utils.js", () => ({
 import { codeWatchEnabled } from "../lib/hook-utils.js";
 import { setState, getState } from "../core/aide-client.js";
 import { contextWindow, updateContextWindow } from "../core/context-window.js";
+import { updateHookContextWindow } from "../core/hook-context.js";
 import { recordFileRead, getPreviousRead } from "../core/read-tracking.js";
 import { checkContextGuard } from "../core/context-guard.js";
 
@@ -42,6 +43,52 @@ function record(content = "const value = 1;\n") {
 }
 
 describe("context windows and verified read coverage", () => {
+  it.each(["claude-code", "codex"])(
+    "scopes %s child compaction and completion to the observed actor",
+    (host) => {
+      const parent = { host, sessionId: "session", actorId: "session" };
+      const child = { ...parent, actorId: "child" };
+      const parentWindow = updateContextWindow("aide", cwd, parent, "startup")!;
+      const childWindow = updateContextWindow("aide", cwd, child, "startup")!;
+      const content = "const value = 1;\n";
+      for (const scope of [parent, child])
+        recordFileRead("aide", cwd, "file.ts", { identity: scope, content });
+
+      updateHookContextWindow(
+        "aide",
+        cwd,
+        host,
+        { session_id: "session", agent_id: "child" },
+        "compact_pending",
+      );
+      expect(contextWindow("aide", cwd, child)?.status).toBe("pending");
+      expect(getPreviousRead("aide", cwd, "file.ts", child)).toBeNull();
+      expect(contextWindow("aide", cwd, parent)).toEqual(parentWindow);
+      expect(getPreviousRead("aide", cwd, "file.ts", parent)).not.toBeNull();
+
+      const completed = updateHookContextWindow(
+        "aide",
+        cwd,
+        host,
+        { session_id: "session", agent_id: "child" },
+        "compact",
+      )!;
+      expect(completed.id).not.toBe(childWindow.id);
+      expect(completed.continuity).toBe("reset");
+      expect(getPreviousRead("aide", cwd, "file.ts", child)).toBeNull();
+      expect(contextWindow("aide", cwd, parent)).toEqual(parentWindow);
+
+      updateHookContextWindow(
+        "aide",
+        cwd,
+        host,
+        { session_id: "session" },
+        "compact_pending",
+      );
+      expect(contextWindow("aide", cwd, parent)?.status).toBe("pending");
+      expect(contextWindow("aide", cwd, child)).toEqual(completed);
+    },
+  );
   it("keeps large-file navigation advice quiet when code watching is disabled", () => {
     writeFileSync(join(cwd, "large.ts"), "const value = 1;\n".repeat(2000));
     vi.mocked(codeWatchEnabled).mockReturnValue(false);

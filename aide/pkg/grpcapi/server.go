@@ -573,6 +573,32 @@ func (s *stateServiceImpl) List(ctx context.Context, req *StateListRequest) (*St
 	}, nil
 }
 
+func (s *stateServiceImpl) Init(ctx context.Context, req *StateSetRequest) (*StateSetResponse, error) {
+	initializer, ok := s.store.(memory.StateInitializer)
+	if !ok {
+		return nil, status.Error(codes.Unimplemented, "atomic state initialization is unavailable")
+	}
+	if req.Key == "" {
+		return nil, status.Error(codes.InvalidArgument, "state key is required")
+	}
+	key := req.Key
+	if req.AgentId != "" {
+		key = fmt.Sprintf("agent:%s:%s", req.AgentId, key)
+	}
+	proposed := &memory.State{Key: key, Value: req.Value, Agent: req.AgentId}
+	if req.UpdatedAt != nil {
+		proposed.UpdatedAt = req.UpdatedAt.AsTime()
+	}
+	st, created, err := initializer.InitState(proposed)
+	if err != nil {
+		return nil, err
+	}
+	if created {
+		s.publish(st, "set")
+	}
+	return &StateSetResponse{State: stateToProto(st), Created: created}, nil
+}
+
 func (s *stateServiceImpl) Delete(ctx context.Context, req *StateDeleteRequest) (*StateDeleteResponse, error) {
 	if err := s.store.DeleteState(req.Key); err != nil {
 		return nil, err

@@ -18,6 +18,9 @@ import { readStdin, normalizeHookInput } from "../lib/hook-utils.js";
 /** Maps hook CLI names to their script files in src/hooks/. */
 const HOOK_MAP: Record<string, string> = {
   "session-start": "session-start.ts",
+  "subagent-tracker": "subagent-tracker.ts",
+  "pre-compact": "pre-compact.ts",
+  "post-compact": "post-compact.ts",
   "skill-injector": "skill-injector.ts",
   "tool-tracker": "tool-tracker.ts",
   "write-guard": "write-guard.ts",
@@ -28,7 +31,7 @@ const HOOK_MAP: Record<string, string> = {
   "tool-observe": "tool-observe.ts",
   "comment-checker": "comment-checker.ts",
   "context-pruning": "context-pruning.ts",
-  "persistence": "persistence.ts",
+  persistence: "persistence.ts",
   "session-summary": "session-summary.ts",
   "agent-cleanup": "agent-cleanup.ts",
   "session-end": "session-end.ts",

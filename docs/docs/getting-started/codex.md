@@ -138,8 +138,7 @@ codex plugin remove aide@aide
 
 ## Limitations vs Claude Code
 
-- No `SubagentStart`/`SubagentStop` hooks — swarm mode is limited
-- No `PreCompact` hook
-- No dedicated `SessionEnd` event — cleanup is folded into the `Stop` hook
+- aide registers `SubagentStart`, `PreCompact`, and `PostCompact` for context attribution. Refresh existing hook configuration after upgrading; rebuilding alone does not add these registrations.
+- aide's generated configuration currently folds cleanup into `Stop`; it does not yet register Codex's `SubagentStop` or `SessionEnd` events.
 - HUD is file-based only (no native status line)
 - Sandboxed shell commands and hooks cannot reach the aide daemon unless `network_access = true` is set (see [Sandboxed Shells and the aide Daemon](#sandboxed-shells-and-the-aide-daemon))

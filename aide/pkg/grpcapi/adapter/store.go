@@ -3,6 +3,7 @@ package adapter
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -202,6 +203,35 @@ func (g *StoreAdapter) GetState(key string) (*memory.State, error) {
 		return nil, store.ErrNotFound
 	}
 	return ProtoToState(resp.State), nil
+}
+
+func (g *StoreAdapter) InitState(st *memory.State) (*memory.State, bool, error) {
+	if st == nil || st.Key == "" {
+		return nil, false, fmt.Errorf("state key is required")
+	}
+	ctx, cancel := g.rpcCtx()
+	defer cancel()
+	// Store keys are already canonical; avoid applying the RPC agent prefix twice.
+	key := st.Key
+	if st.Agent != "" {
+		prefix := fmt.Sprintf("agent:%s:", st.Agent)
+		if !strings.HasPrefix(key, prefix) {
+			return nil, false, fmt.Errorf("agent state key must start with %q", prefix)
+		}
+		key = strings.TrimPrefix(key, prefix)
+	}
+	req := &grpcapi.StateSetRequest{Key: key, Value: st.Value, AgentId: st.Agent}
+	if !st.UpdatedAt.IsZero() {
+		req.UpdatedAt = timestamppb.New(st.UpdatedAt)
+	}
+	resp, err := g.client.State.Init(ctx, req)
+	if err != nil {
+		return nil, false, err
+	}
+	if resp.State == nil {
+		return nil, false, fmt.Errorf("atomic state initialization returned no state")
+	}
+	return ProtoToState(resp.State), resp.Created, nil
 }
 
 func (g *StoreAdapter) DeleteState(key string) error {

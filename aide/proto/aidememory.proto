@@ -109,6 +109,8 @@ message MemoryTouchResponse {
 service StateService {
   rpc Get(StateGetRequest) returns (StateGetResponse);
   rpc Set(StateSetRequest) returns (StateSetResponse);
+  // Atomically create state only if absent; always returns the persisted state.
+  rpc Init(StateSetRequest) returns (StateSetResponse);
   rpc List(StateListRequest) returns (StateListResponse);
   rpc Delete(StateDeleteRequest) returns (StateDeleteResponse);
   rpc Clear(StateClearRequest) returns (StateClearResponse);
@@ -144,6 +146,7 @@ message StateSetRequest {
 
 message StateSetResponse {
   State state = 1;
+  bool created = 2; // Init only: false when the existing state was returned.
 }
 
 message StateListRequest {

@@ -292,6 +292,22 @@ describe("Codex config generator", () => {
     rmSync(tempHome, { recursive: true, force: true });
   });
 
+  it("registers only handlers available through the hook dispatcher", async () => {
+    const { generateHooksJson } = await import("../cli/codex-config.js");
+    const { listHooks } = await import("../cli/hook.js");
+    const generated = Object.values(generateHooksJson("aide-plugin hook").hooks)
+      .flatMap((groups) => groups.flatMap((group) => group.hooks))
+      .map((hook) => hook.command.replace("aide-plugin hook ", ""));
+    expect(generated).toEqual(
+      expect.arrayContaining([
+        "subagent-tracker",
+        "pre-compact",
+        "post-compact",
+      ]),
+    );
+    expect(listHooks()).toEqual(expect.arrayContaining(generated));
+  });
+
   it("installs MCP config and hooks for Codex", async () => {
     const { installCodex, isCodexConfigured, getCodexConfigTomlPath, getCodexHooksJsonPath } =
       await import("../cli/codex-config.js");
@@ -317,6 +333,22 @@ describe("Codex config generator", () => {
     expect(hooks.hooks.PostToolUse).toBeDefined();
     expect(hooks.hooks.UserPromptSubmit).toBeDefined();
     expect(hooks.hooks.Stop).toBeDefined();
+    for (const [event, handler] of [
+      ["SubagentStart", "subagent-tracker"],
+      ["PreCompact", "pre-compact"],
+      ["PostCompact", "post-compact"],
+    ]) {
+      expect(hooks.hooks[event]).toEqual([
+        expect.objectContaining({
+          matcher: "*",
+          hooks: [
+            expect.objectContaining({
+              command: expect.stringMatching(new RegExp(` hook ${handler}$`)),
+            }),
+          ],
+        }),
+      ]);
+    }
 
     // Verify Stop includes session-end
     const stopHooks = hooks.hooks.Stop[0].hooks;
@@ -341,6 +373,68 @@ describe("Codex config generator", () => {
     const status = isCodexConfigured("user");
     expect(status.mcp).toBe(true);
     expect(status.hooks).toBe(true);
+  });
+
+  it("upgrades missing lifecycle events without duplicating or replacing existing hooks", async () => {
+    const { installCodex, getCodexHooksJsonPath } =
+      await import("../cli/codex-config.js");
+    installCodex("user");
+    const path = getCodexHooksJsonPath("user");
+    const before = readJson(path);
+    before.description = "User-owned metadata";
+    before.hooks.SessionStart[0].hooks[0].timeout = 90;
+    const user = {
+      matcher: "worker",
+      hooks: [{ type: "command", command: "user-subagent-hook", timeout: 11 }],
+    };
+    before.hooks.SubagentStart = [user];
+    delete before.hooks.PreCompact;
+    delete before.hooks.PostCompact;
+    writeFileSync(path, JSON.stringify(before));
+
+    expect(installCodex("user").hooksWritten).toBe(true);
+    const after = readJson(path);
+    expect(after.description).toBe(before.description);
+    expect(after.hooks.SessionStart).toEqual(before.hooks.SessionStart);
+    expect(after.hooks.Stop).toEqual(before.hooks.Stop);
+    expect(after.hooks.SubagentStart[0]).toEqual(user);
+    expect(after.hooks.SubagentStart).toHaveLength(2);
+    expect(after.hooks.SubagentStart[1].hooks[0].command).toMatch(
+      / hook subagent-tracker$/,
+    );
+    expect(after.hooks.PreCompact).toHaveLength(1);
+    expect(after.hooks.PostCompact).toHaveLength(1);
+    expect(installCodex("user").hooksWritten).toBe(false);
+    expect(readJson(path)).toEqual(after);
+  });
+
+  it("preserves user commands sharing a matcher when repairing obsolete aide hooks", async () => {
+    const { installCodex, getCodexHooksJsonPath } =
+      await import("../cli/codex-config.js");
+    installCodex("user");
+    const path = getCodexHooksJsonPath("user");
+    const hooks = readJson(path);
+    const user = { type: "command", command: "user-start-hook", timeout: 17 };
+    hooks.hooks.SubagentStart = [
+      {
+        matcher: "worker",
+        hooks: [
+          {
+            type: "command",
+            command: `${join(tempHome, "missing", "aide-plugin")} hook subagent-tracker`,
+          },
+          user,
+        ],
+      },
+    ];
+    writeFileSync(path, JSON.stringify(hooks));
+    const result = installCodex("user");
+    expect(result.hooksRepaired).toBe(true);
+    expect(readJson(path).hooks.SubagentStart).toContainEqual({
+      matcher: "worker",
+      hooks: [user],
+    });
+    expect(readJson(path).hooks.SubagentStart).toHaveLength(2);
   });
 
   it("uninstalls cleanly", async () => {

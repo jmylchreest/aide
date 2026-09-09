@@ -189,6 +189,43 @@ export function generateHooksJson(hookPrefix: string): CodexHooksJson {
           ],
         },
       ],
+      SubagentStart: [
+        {
+          matcher: "*",
+          hooks: [
+            {
+              type: "command",
+              command: `${hookPrefix} subagent-tracker`,
+              timeout: 30,
+              statusMessage: "Initializing aide subagent",
+            },
+          ],
+        },
+      ],
+      PreCompact: [
+        {
+          matcher: "*",
+          hooks: [
+            {
+              type: "command",
+              command: `${hookPrefix} pre-compact`,
+              timeout: 10,
+            },
+          ],
+        },
+      ],
+      PostCompact: [
+        {
+          matcher: "*",
+          hooks: [
+            {
+              type: "command",
+              command: `${hookPrefix} post-compact`,
+              timeout: 10,
+            },
+          ],
+        },
+      ],
       UserPromptSubmit: [
         {
           matcher: "*",
@@ -563,12 +600,18 @@ export function installCodex(scope: "user" | "project"): {
       .flatMap((m) => m.hooks ?? [])
       .map((h) => h.command)
       .filter(isAideHookCommand);
-    if (aideCommands.length > 0 && aideCommands.some((c) => !isHookCommandRunnable(c))) {
+    if (
+      aideCommands.length > 0 &&
+      aideCommands.some((c) => !isHookCommandRunnable(c))
+    ) {
       hooksRepaired = true;
       for (const [event, matchers] of Object.entries(existingHooks.hooks)) {
-        existingHooks.hooks[event] = matchers.filter(
-          (m) => !m.hooks?.some((h) => isAideHookCommand(h.command)),
-        );
+        existingHooks.hooks[event] = matchers
+          .map((m) => ({
+            ...m,
+            hooks: m.hooks?.filter((h) => !isAideHookCommand(h.command)),
+          }))
+          .filter((m) => m.hooks?.length);
         if (existingHooks.hooks[event].length === 0) {
           delete existingHooks.hooks[event];
         }
@@ -580,16 +623,18 @@ export function installCodex(scope: "user" | "project"): {
     existingHooks?.hooks?.[event]?.some((m) =>
       m.hooks?.some((h) => isAideHookCommand(h.command)),
     ) ?? false;
-  const hasAideHooks = hasAideHook("SessionStart") && hasAideHook("Stop");
+  const missingEvents = Object.entries(
+    generateHooksJson(resolved.hookPrefix).hooks,
+  ).filter(([event]) => !hasAideHook(event));
 
-  if (!hasAideHooks) {
+  if (missingEvents.length > 0) {
     const dir = dirname(hooksPath);
     mkdirSync(dir, { recursive: true });
 
     if (existingHooks?.hooks) {
-      // Merge: add aide hooks to existing hooks.json
-      const aideHooks = generateHooksJson(resolved.hookPrefix).hooks;
-      for (const [event, matchers] of Object.entries(aideHooks)) {
+      // Upgrade missing lifecycle groups without replacing user edits or
+      // duplicating aide hooks already present in other events.
+      for (const [event, matchers] of missingEvents) {
         if (!existingHooks.hooks[event]) {
           existingHooks.hooks[event] = matchers;
         } else {
@@ -597,10 +642,7 @@ export function installCodex(scope: "user" | "project"): {
           existingHooks.hooks[event].push(...matchers);
         }
       }
-      writeFileSync(
-        hooksPath,
-        JSON.stringify(existingHooks, null, 2) + "\n",
-      );
+      writeFileSync(hooksPath, JSON.stringify(existingHooks, null, 2) + "\n");
     } else {
       writeFileSync(
         hooksPath,
