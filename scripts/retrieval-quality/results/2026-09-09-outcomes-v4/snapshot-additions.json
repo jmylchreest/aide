@@ -1,0 +1,34 @@
+[
+  {
+    "id": "t01",
+    "preserved_files": [],
+    "final_inventory_count": 50,
+    "additive": true,
+    "prior_provenance_sha256": "be2cfa719937e9e351249ac0da964f91109455662ebbe7d4d01dff83eab07102",
+    "original_fields_preserved": true
+  },
+  {
+    "id": "t02",
+    "preserved_files": [],
+    "final_inventory_count": 50,
+    "additive": true,
+    "prior_provenance_sha256": "7a2c9eb69d851745cc6c9385ad50f750d070bef3602ea229f0ce6884d4ba8ab6",
+    "original_fields_preserved": true
+  },
+  {
+    "id": "t03",
+    "preserved_files": [],
+    "final_inventory_count": 50,
+    "additive": true,
+    "prior_provenance_sha256": "4379c5ecd7a4a384050d03c11d10886fb003c7b8bf321aa9755495003f44e0f5",
+    "original_fields_preserved": true
+  },
+  {
+    "id": "t04",
+    "preserved_files": [],
+    "final_inventory_count": 50,
+    "additive": true,
+    "prior_provenance_sha256": "0d2e4129ee698633b435f63ef4ce573646c8f3a6806fc96263e679df69626ec9",
+    "original_fields_preserved": true
+  }
+]

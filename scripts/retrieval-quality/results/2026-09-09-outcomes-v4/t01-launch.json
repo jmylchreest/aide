@@ -1,0 +1,11 @@
+{
+  "trial": "t01",
+  "agent_path": "/root/v4_t01",
+  "message": "Read the complete frozen task instructions at /tmp/aide-outcomes-v4-trials/t01/participant-prompt.md and carry them out. This instruction-file read is explicitly authorized. Your task workspace is /tmp/aide-outcomes-v4-trials/t01/root. Follow the prepared prompt exactly; do not inspect other experiment/controller files. Finish with your requested answer.",
+  "fork_turns": "none",
+  "model_override": null,
+  "effort_override": null,
+  "prompt_sha256": "63dbddb8f40ae92f6c9853e57fdfe228398029cb0c31dc8208d95a13747bfa07",
+  "launch_timestamp_from_session_meta": "2026-09-09T17:09:44 Europe/London",
+  "prelaunch_validation": "Root verified frozen package, prompt digest and seeded all12roots before launch; setup binding evidence retained."
+}

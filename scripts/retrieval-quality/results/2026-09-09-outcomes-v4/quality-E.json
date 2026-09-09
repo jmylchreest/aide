@@ -1,0 +1,72 @@
+{
+  "candidate": "E",
+  "task": "trace",
+  "reviewer": "v4_quality",
+  "checks": [
+    {
+      "id": "host_routes",
+      "passed": true,
+      "evidence": "Candidate E section 1 traces createHooks -> createEventHandler -> retained recorder, binary-gated message.part.updated forwarding, step-finish/stable-ID/tokens guards and exclusion of message.updated/text skills. It correctly traces Stop stdin, explicit transcript/binary gates, detectPlatform selection and collectTranscriptUsage -> recordModelUsage, with ignored writer boolean, summary-only recursion suppression and later rescan retry. Supported by source/src/opencode/hooks.ts:154,197,351,432,461,738; source/src/core/model-usage.ts:203,350; source/src/hooks/session-summary.ts:108,125-157; source/src/lib/hook-utils.ts:145.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "scan_boundaries",
+      "passed": true,
+      "evidence": "Candidate E section 1 correctly gives explicit absolute regular-file/session restrictions without discovery/cursor, partial versus unavailable including empty scans, 4 MiB tail plus boundary byte, 1,000 matching-event cap, cut leading and unfinished trailing lines, newest-first processing then reversal, malformed versus irrelevant rows and limited flags. Supported by source/src/core/model-usage.ts:241-315.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "normalization",
+      "passed": true,
+      "evidence": "Candidate E section 2 gives exact session/model_usage metadata, partial coverage, identities/hosts/sources/timestamps and absent provider; exact string-valued counter tables match OpenCode 31/11/17/3 with reported output 13/reasoning 5, Claude 30/10/20/0 without output, and Codex 12/7/5/0 with output 8/reasoning 3/total 20. It correctly omits ambiguous/placeholder/cumulative counters, avoids double additions, distinguishes zero from absent/invalid values and explains invalid source-time flags/observed basis. Supported by source/src/core/model-usage.ts:30,53,92,121,153,203 and source/aide/pkg/store/token_model_usage.go:70.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "writer_and_cache",
+      "passed": true,
+      "evidence": "Candidate E sections 1 and 3 correctly describe synchronous observe record --stdin, supplied cwd, newline-terminated JSONL, piped stdio, 10-second timeout, empty success/no spawn, exact case-insensitive full-count/zero-skips acknowledgment, failure false and no fallback. It gives attempts 1/2/4, skip 3, two persisted variants, revised uncached=12/input=32, full normalized-event plus cwd fingerprint, /work/b write attempt, acknowledged-only caching and oldest insertion eviction above 1,024 without hit refresh. Supported by source/src/core/model-usage.ts:319-365. Omission of catch-path logging is nonblocking under the preserved prompt-scope adjudication: trace does not request that detail and E makes no contrary logging claim.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "durable_route_and_identity",
+      "passed": true,
+      "evidence": "Candidate E section 4 correctly traces cmdObserveDispatcher -> cmdObserveRecord -> cmdObserveRecordBatch -> backend.Store().AddObserveEvent, while leaving NewBackend/concrete transport as an explicit boundary. It explains successful-line acknowledgment versus insertion, identity session/host/usage_id, semantic/presence fingerprint excluding actual timestamps, origin indexing, earliest-time equal dedup and separate conflicting revisions. Supported by source/aide/cmd/aide/cmd_observe.go:18,237-294; source/aide/pkg/store/observe_events.go:140-217; source/aide/pkg/store/token_model_usage.go:36-68.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "conflict_accounting",
+      "passed": true,
+      "evidence": "Candidate E section 4 correctly identifies retained-evidence observation before query selection, conflicting-identity exclusion, scenario observations=0/conflicts=1/invalid=0/by_source=[], and persistence of the conflict for a window containing t1 but excluding t2. It does not sum conflicting counters or relabel the conflict invalid. Supported by source/aide/pkg/store/token_events.go:153-196 and source/aide/pkg/store/token_model_usage.go:135-198.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "measurement_limits",
+      "passed": true,
+      "evidence": "Candidate E section 4 correctly excludes session/model_usage from legacy TokenEvent counts, text estimates, savings and TokenAccounting.Add, placing it in separate model-usage accounting. It limits conclusions to captured partial host quantities and explicitly rejects billing, complete session/provider/subagent usage, savings or task-quality inference. Supported by source/aide/pkg/store/observe_events.go:82-111; source/aide/pkg/store/token_events.go:172-196; source/aide/pkg/memory/token_model_usage.go:20-22.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    }
+  ],
+  "passed_checks": 7,
+  "total_checks": 7,
+  "passed": true,
+  "notes": [
+    "No material omission of requested facts, wrong normalized counter/scenario arithmetic, unsupported runtime connection or unrun-test success claim found.",
+    "Applied preserved adjudication consistently: the frozen check_scoring instruction against unrequested facts makes omitted trace writer-error logging nonblocking. E explicitly supplies newline-terminated JSONL in any event.",
+    "Source references use nearby lines or named symbols and support the substantive claims; no exact prose or duplicate restatement requirement was added.",
+    "Reviewed only the blinded answer, frozen trace materials and supplied baseline source. No candidate code/tests executed and no condition/resource information used."
+  ]
+}

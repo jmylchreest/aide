@@ -1,0 +1,71 @@
+{
+  "candidate": "D",
+  "task": "trace",
+  "reviewer": "v4_quality",
+  "checks": [
+    {
+      "id": "host_routes",
+      "passed": true,
+      "evidence": "Candidate D, section 1, correctly traces createHooks -> createEventHandler -> recorder, the binary-gated part branch, stable IDs/tokens guards, and exclusion of message.updated and text skills. It also traces explicit Stop/platform/collector/writer ordering, ignored boolean, summary-only recursion guard and later retry. Verified in source/src/opencode/hooks.ts:154,432,461,738; source/src/core/model-usage.ts:203,350; source/src/hooks/session-summary.ts:108,125; source/src/lib/hook-utils.ts:145.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "scan_boundaries",
+      "passed": true,
+      "evidence": "Candidate D, section 1 collector description, gives explicit absolute regular-file/session guards, no discovery/cursor, 4 MiB/1,000 matching-event limits, tail handling, malformed versus irrelevant rows, and partial/unavailable distinction. Supported by source/src/core/model-usage.ts:245-315.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "normalization",
+      "passed": true,
+      "evidence": "Candidate D, section 2, supplies the correct event metadata/identities/source/time and exact counter tables: OpenCode 31/11/17/3 plus reported 13/reasoning 5; Claude 30/10/20/0 with output absent; Codex 12/7/5/0 plus output 8/reasoning 3/total 20. Correctly omits ambiguous/cumulative counters, preserves zero and rejects invalid counters/time. The listed metadata emits no provider. Verified against source/src/core/model-usage.ts:30,53,92,121,153,203.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "writer_and_cache",
+      "passed": true,
+      "evidence": "Candidate D, sections 1 and 3, correctly identifies the synchronous observe record --stdin process with cwd, JSONL, 10-second timeout and piped stdio; empty success; matching count/zero-skips acknowledgment and failure return; no fallback; attempts 1/2/4, skip 3, two variants; revised normalized input 32; cwd-sensitive normalized-event key; and oldest eviction above 1,024. Its normalization mapping plus revised raw input 12 substantively establishes revised uncached input 12. Supported by source/src/core/model-usage.ts:319-365. The omitted catch-path log is not requested by trace prompt sections 1/3 and cannot independently fail this check under grading.check_scoring. D describes the input as newline-delimited JSON. The prompt asks what the writer spawns, not exact byte-level payload termination; absent an incorrect payload claim, omission of an explicit final-newline statement does not independently fail the requested process trace.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "durable_route_and_identity",
+      "passed": true,
+      "evidence": "Candidate D, section 4, correctly traces record/--stdin/batch/AddObserveEvent, treats NewBackend/transport as an opaque boundary, explains accepted-line acknowledgment versus insertion, identity [session,host,usage_id], semantic/presence fingerprint excluding actual time, earliest-time equal dedup, and persistence of revisions. Supported by source/aide/cmd/aide/cmd_observe.go:18,237,292; source/aide/pkg/store/observe_events.go:140-217; source/aide/pkg/store/token_model_usage.go:36-68.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "conflict_accounting",
+      "passed": true,
+      "evidence": "Candidate D, section 4, correctly reports observations=0, conflicts=1, invalid=0, by_source=[] and retains the conflict in a t1-only window because all retained evidence is observed before query selection. Supported by source/aide/pkg/store/token_events.go:153-196 and source/aide/pkg/store/token_model_usage.go:135-198.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "measurement_limits",
+      "passed": true,
+      "evidence": "Candidate D, section 4, correctly excludes these session events from legacy TokenEvent counts, text estimates and savings, and limits conclusions to partial captured host quantities rather than complete usage, billing or task quality. Supported by source/aide/pkg/store/observe_events.go:82-111; source/aide/pkg/store/token_events.go:172-196; source/aide/pkg/memory/token_model_usage.go:20-22.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    }
+  ],
+  "notes": [
+    "No incorrect substantive route, scenario arithmetic, normalization counter or accounting claim found.",
+    "Equivalent wording accepted: normalization field enumeration implies absent provider metadata; section 2's mapping plus revised raw input 12 implies revised uncached_input_tokens=12. No demand for duplicate explicit restatement.",
+    "Adjudication: the frozen check_scoring limitation against requiring unrequested facts governs the required-fact list. Trace error logging is unrequested. For D, the requested spawn description is substantively correct without separately restating the final payload byte. Initial review is preserved in initial-quality-D.json; see adjudication.md."
+  ],
+  "passed_checks": 7,
+  "total_checks": 7,
+  "passed": true
+}

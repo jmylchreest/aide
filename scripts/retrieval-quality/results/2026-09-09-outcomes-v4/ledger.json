@@ -1,0 +1,471 @@
+{
+  "schema_version": 4,
+  "protocol_sha256": "668e539bfa63704214b567065e53ba2347149e2c963f9a0036b1d86fc85925fa",
+  "trials": [
+    {
+      "id": "t01",
+      "task": "trace",
+      "treatment": "ordinary",
+      "repetition": 1,
+      "root": "/tmp/aide-outcomes-v4-trials/t01/root",
+      "prompt_path": "/tmp/aide-outcomes-v4-trials/t01/participant-prompt.md",
+      "prompt_sha256": "63dbddb8f40ae92f6c9853e57fdfe228398029cb0c31dc8208d95a13747bfa07",
+      "status": "completed",
+      "agent_id": "01a086ee-ad4c-7692-9661-2a8114ed6523",
+      "runtime_session_id": "01a086ee-ad4c-7692-9661-2a8114ed6523",
+      "log_path": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T17-09-44-01a086ee-ad4c-7692-9661-2a8114ed6523.jsonl",
+      "scope_verified": null,
+      "trace_reviewed": null,
+      "quality_verified": false,
+      "quality": null,
+      "aide_operations": null,
+      "aide_uptake": null,
+      "bridge_evidence_dir": "/tmp/aide-outcomes-v4-trials/t01/bridge-evidence",
+      "agent_path": "/root/v4_t01",
+      "integrity": {
+        "passed": true,
+        "missing": [],
+        "modified_immutable": [],
+        "symlinks": [],
+        "excluded_controller_paths": [
+          ".aide"
+        ],
+        "unexpected_files": [],
+        "scratch_tests": [],
+        "changed_allowed_sources": []
+      }
+    },
+    {
+      "id": "t02",
+      "task": "trace",
+      "treatment": "assisted",
+      "repetition": 1,
+      "root": "/tmp/aide-outcomes-v4-trials/t02/root",
+      "prompt_path": "/tmp/aide-outcomes-v4-trials/t02/participant-prompt.md",
+      "prompt_sha256": "78aa8855e1995cbf7bbf6e22b593cbb758c4d3cf3ffe582373255f26f81e88a8",
+      "status": "completed",
+      "agent_id": "01a086f0-9c7a-70c1-bee9-0dedd09e125b",
+      "runtime_session_id": "01a086f0-9c7a-70c1-bee9-0dedd09e125b",
+      "log_path": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T17-11-50-01a086f0-9c7a-70c1-bee9-0dedd09e125b.jsonl",
+      "scope_verified": null,
+      "trace_reviewed": null,
+      "quality_verified": false,
+      "quality": null,
+      "aide_operations": null,
+      "aide_uptake": null,
+      "bridge_evidence_dir": "/tmp/aide-outcomes-v4-trials/t02/bridge-evidence",
+      "agent_path": "/root/v4_execution/v4_t02",
+      "integrity": {
+        "passed": true,
+        "missing": [],
+        "modified_immutable": [],
+        "symlinks": [],
+        "excluded_controller_paths": [
+          ".aide"
+        ],
+        "unexpected_files": [],
+        "scratch_tests": [],
+        "changed_allowed_sources": []
+      }
+    },
+    {
+      "id": "t03",
+      "task": "impact",
+      "treatment": "ordinary",
+      "repetition": 1,
+      "root": "/tmp/aide-outcomes-v4-trials/t03/root",
+      "prompt_path": "/tmp/aide-outcomes-v4-trials/t03/participant-prompt.md",
+      "prompt_sha256": "11d39d2bd6037103e9134e4a2f5abcc5d947f6c00018ef15bc25cb16c1f403d0",
+      "status": "completed",
+      "agent_id": "01a086f2-6c95-74a1-87d4-01f6d72f23ee",
+      "runtime_session_id": "01a086f2-6c95-74a1-87d4-01f6d72f23ee",
+      "log_path": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T17-13-49-01a086f2-6c95-74a1-87d4-01f6d72f23ee.jsonl",
+      "scope_verified": null,
+      "trace_reviewed": null,
+      "quality_verified": false,
+      "quality": null,
+      "aide_operations": null,
+      "aide_uptake": null,
+      "bridge_evidence_dir": "/tmp/aide-outcomes-v4-trials/t03/bridge-evidence",
+      "agent_path": "/root/v4_execution/v4_t03",
+      "integrity": {
+        "passed": true,
+        "missing": [],
+        "modified_immutable": [],
+        "symlinks": [],
+        "excluded_controller_paths": [
+          ".aide"
+        ],
+        "unexpected_files": [],
+        "scratch_tests": [],
+        "changed_allowed_sources": []
+      }
+    },
+    {
+      "id": "t04",
+      "task": "impact",
+      "treatment": "assisted",
+      "repetition": 1,
+      "root": "/tmp/aide-outcomes-v4-trials/t04/root",
+      "prompt_path": "/tmp/aide-outcomes-v4-trials/t04/participant-prompt.md",
+      "prompt_sha256": "7473ef6f61998fbad4ff253aa7efc625d20d255d03bae0b823b1e30b5eed5da3",
+      "status": "completed",
+      "agent_id": "01a086f4-176b-7492-9734-45ad3fd1b067",
+      "runtime_session_id": "01a086f4-176b-7492-9734-45ad3fd1b067",
+      "log_path": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T17-15-38-01a086f4-176b-7492-9734-45ad3fd1b067.jsonl",
+      "scope_verified": null,
+      "trace_reviewed": null,
+      "quality_verified": false,
+      "quality": null,
+      "aide_operations": null,
+      "aide_uptake": null,
+      "bridge_evidence_dir": "/tmp/aide-outcomes-v4-trials/t04/bridge-evidence",
+      "agent_path": "/root/v4_execution/v4_t04",
+      "integrity": {
+        "passed": true,
+        "missing": [],
+        "modified_immutable": [],
+        "symlinks": [],
+        "excluded_controller_paths": [
+          ".aide"
+        ],
+        "unexpected_files": [],
+        "scratch_tests": [],
+        "changed_allowed_sources": []
+      }
+    },
+    {
+      "id": "t05",
+      "task": "implement",
+      "treatment": "ordinary",
+      "repetition": 1,
+      "root": "/tmp/aide-outcomes-v4-trials/t05/root",
+      "prompt_path": "/tmp/aide-outcomes-v4-trials/t05/participant-prompt.md",
+      "prompt_sha256": "bc4b4f2cef0425c92c145518553b258aa1307996dbc99450e3799524583c13ee",
+      "status": "completed",
+      "agent_id": "01a086f6-1ea4-7452-a956-20888f8cb791",
+      "runtime_session_id": "01a086f6-1ea4-7452-a956-20888f8cb791",
+      "log_path": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T17-17-51-01a086f6-1ea4-7452-a956-20888f8cb791.jsonl",
+      "scope_verified": null,
+      "trace_reviewed": null,
+      "quality_verified": false,
+      "quality": null,
+      "aide_operations": null,
+      "aide_uptake": null,
+      "bridge_evidence_dir": "/tmp/aide-outcomes-v4-trials/t05/bridge-evidence",
+      "agent_path": "/root/v4_execution/v4_t05",
+      "functional_quality_verified": true,
+      "functional_quality": {
+        "passed": true,
+        "visible_passed": true,
+        "hidden_passed": true,
+        "immutable_files_preserved": true
+      },
+      "integrity": {
+        "passed": true,
+        "missing": [],
+        "modified_immutable": [],
+        "symlinks": [],
+        "excluded_controller_paths": [
+          ".aide"
+        ],
+        "unexpected_files": [],
+        "scratch_tests": [
+          "tests/usage-contract-scratch.test.ts"
+        ],
+        "changed_allowed_sources": [
+          "src/core/model-usage.ts",
+          "src/hooks/session-summary.ts",
+          "src/opencode/hooks.ts",
+          "src/test/model-usage-hooks.test.ts",
+          "src/test/model-usage-recording.test.ts",
+          "src/test/model-usage.test.ts"
+        ]
+      }
+    },
+    {
+      "id": "t06",
+      "task": "implement",
+      "treatment": "assisted",
+      "repetition": 1,
+      "root": "/tmp/aide-outcomes-v4-trials/t06/root",
+      "prompt_path": "/tmp/aide-outcomes-v4-trials/t06/participant-prompt.md",
+      "prompt_sha256": "67391dc9f2932065a54dea52eee9a87d03efe551cb04c53136c7475cd7ec7aac",
+      "status": "completed",
+      "agent_id": "01a086f8-3bf4-7931-baa9-9d8c17ed0619",
+      "runtime_session_id": "01a086f8-3bf4-7931-baa9-9d8c17ed0619",
+      "log_path": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T17-20-10-01a086f8-3bf4-7931-baa9-9d8c17ed0619.jsonl",
+      "scope_verified": null,
+      "trace_reviewed": null,
+      "quality_verified": false,
+      "quality": null,
+      "aide_operations": null,
+      "aide_uptake": null,
+      "bridge_evidence_dir": "/tmp/aide-outcomes-v4-trials/t06/bridge-evidence",
+      "agent_path": "/root/v4_execution/v4_t06",
+      "functional_quality_verified": true,
+      "functional_quality": {
+        "passed": true,
+        "visible_passed": true,
+        "hidden_passed": true,
+        "immutable_files_preserved": true
+      },
+      "integrity": {
+        "passed": true,
+        "missing": [],
+        "modified_immutable": [],
+        "symlinks": [],
+        "excluded_controller_paths": [
+          ".aide"
+        ],
+        "unexpected_files": [],
+        "scratch_tests": [
+          "tests/usage-write-contract.test.ts"
+        ],
+        "changed_allowed_sources": [
+          "src/core/model-usage.ts",
+          "src/hooks/session-summary.ts",
+          "src/opencode/hooks.ts",
+          "src/test/model-usage-hooks.test.ts",
+          "src/test/model-usage-recording.test.ts",
+          "src/test/model-usage.test.ts"
+        ]
+      }
+    },
+    {
+      "id": "t07",
+      "task": "implement",
+      "treatment": "assisted",
+      "repetition": 2,
+      "root": "/tmp/aide-outcomes-v4-trials/t07/root",
+      "prompt_path": "/tmp/aide-outcomes-v4-trials/t07/participant-prompt.md",
+      "prompt_sha256": "c0886a62b95fbbf5bac91a7fa6e3da3605f01e5d9e56a99d1e3d499c108e479d",
+      "status": "completed",
+      "agent_id": "01a086f9-fcd9-7142-8506-39b4bd6d5ad1",
+      "runtime_session_id": "01a086f9-fcd9-7142-8506-39b4bd6d5ad1",
+      "log_path": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T17-22-05-01a086f9-fcd9-7142-8506-39b4bd6d5ad1.jsonl",
+      "scope_verified": null,
+      "trace_reviewed": null,
+      "quality_verified": false,
+      "quality": null,
+      "aide_operations": null,
+      "aide_uptake": null,
+      "bridge_evidence_dir": "/tmp/aide-outcomes-v4-trials/t07/bridge-evidence",
+      "agent_path": "/root/v4_execution/v4_t07",
+      "functional_quality_verified": true,
+      "functional_quality": {
+        "passed": true,
+        "visible_passed": true,
+        "hidden_passed": true,
+        "immutable_files_preserved": true
+      },
+      "integrity": {
+        "passed": true,
+        "missing": [],
+        "modified_immutable": [],
+        "symlinks": [],
+        "excluded_controller_paths": [
+          ".aide"
+        ],
+        "unexpected_files": [],
+        "scratch_tests": [
+          "tests/usage-contract.test.ts"
+        ],
+        "changed_allowed_sources": [
+          "src/core/model-usage.ts",
+          "src/hooks/session-summary.ts",
+          "src/opencode/hooks.ts",
+          "src/test/model-usage-hooks.test.ts",
+          "src/test/model-usage-recording.test.ts",
+          "src/test/model-usage.test.ts"
+        ]
+      }
+    },
+    {
+      "id": "t08",
+      "task": "implement",
+      "treatment": "ordinary",
+      "repetition": 2,
+      "root": "/tmp/aide-outcomes-v4-trials/t08/root",
+      "prompt_path": "/tmp/aide-outcomes-v4-trials/t08/participant-prompt.md",
+      "prompt_sha256": "63553d7e3b7196f26423a62016c202cd5cea61c6b4ce5583003f0bdb59def7c0",
+      "status": "completed",
+      "agent_id": "01a086fb-d7cf-7da3-b1c4-bd6bdca443f6",
+      "runtime_session_id": "01a086fb-d7cf-7da3-b1c4-bd6bdca443f6",
+      "log_path": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T17-24-06-01a086fb-d7cf-7da3-b1c4-bd6bdca443f6.jsonl",
+      "scope_verified": null,
+      "trace_reviewed": null,
+      "quality_verified": false,
+      "quality": null,
+      "aide_operations": null,
+      "aide_uptake": null,
+      "bridge_evidence_dir": "/tmp/aide-outcomes-v4-trials/t08/bridge-evidence",
+      "agent_path": "/root/v4_execution/v4_t08",
+      "functional_quality_verified": true,
+      "functional_quality": {
+        "passed": true,
+        "visible_passed": true,
+        "hidden_passed": true,
+        "immutable_files_preserved": true
+      },
+      "integrity": {
+        "passed": true,
+        "missing": [],
+        "modified_immutable": [],
+        "symlinks": [],
+        "excluded_controller_paths": [
+          ".aide"
+        ],
+        "unexpected_files": [],
+        "scratch_tests": [
+          "tests/usage-write-contract.test.ts"
+        ],
+        "changed_allowed_sources": [
+          "src/core/model-usage.ts",
+          "src/hooks/session-summary.ts",
+          "src/opencode/hooks.ts",
+          "src/test/model-usage-hooks.test.ts",
+          "src/test/model-usage-recording.test.ts",
+          "src/test/model-usage.test.ts"
+        ]
+      }
+    },
+    {
+      "id": "t09",
+      "task": "impact",
+      "treatment": "assisted",
+      "repetition": 2,
+      "root": "/tmp/aide-outcomes-v4-trials/t09/root",
+      "prompt_path": "/tmp/aide-outcomes-v4-trials/t09/participant-prompt.md",
+      "prompt_sha256": "408cd0a49017b2ce7e39ee56ddb9306d40cb4d5f36f298112387f200495b91a2",
+      "status": "completed",
+      "agent_id": "01a086fd-a62c-7250-b399-665368234b8e",
+      "runtime_session_id": "01a086fd-a62c-7250-b399-665368234b8e",
+      "log_path": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T17-26-05-01a086fd-a62c-7250-b399-665368234b8e.jsonl",
+      "scope_verified": null,
+      "trace_reviewed": null,
+      "quality_verified": false,
+      "quality": null,
+      "aide_operations": null,
+      "aide_uptake": null,
+      "bridge_evidence_dir": "/tmp/aide-outcomes-v4-trials/t09/bridge-evidence",
+      "agent_path": "/root/v4_execution/v4_t09",
+      "integrity": {
+        "passed": true,
+        "missing": [],
+        "modified_immutable": [],
+        "symlinks": [],
+        "excluded_controller_paths": [
+          ".aide"
+        ],
+        "unexpected_files": [],
+        "scratch_tests": [],
+        "changed_allowed_sources": []
+      }
+    },
+    {
+      "id": "t10",
+      "task": "impact",
+      "treatment": "ordinary",
+      "repetition": 2,
+      "root": "/tmp/aide-outcomes-v4-trials/t10/root",
+      "prompt_path": "/tmp/aide-outcomes-v4-trials/t10/participant-prompt.md",
+      "prompt_sha256": "f1b8c532c9660c8d2b089ce4d1beb32722637110ec87aeac3883c913ba52c214",
+      "status": "completed",
+      "agent_id": "01a086ff-924c-79a0-adab-9c806735a1c1",
+      "runtime_session_id": "01a086ff-924c-79a0-adab-9c806735a1c1",
+      "log_path": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T17-28-11-01a086ff-924c-79a0-adab-9c806735a1c1.jsonl",
+      "scope_verified": null,
+      "trace_reviewed": null,
+      "quality_verified": false,
+      "quality": null,
+      "aide_operations": null,
+      "aide_uptake": null,
+      "bridge_evidence_dir": "/tmp/aide-outcomes-v4-trials/t10/bridge-evidence",
+      "agent_path": "/root/v4_execution/v4_t10",
+      "integrity": {
+        "passed": true,
+        "missing": [],
+        "modified_immutable": [],
+        "symlinks": [],
+        "excluded_controller_paths": [
+          ".aide"
+        ],
+        "unexpected_files": [],
+        "scratch_tests": [],
+        "changed_allowed_sources": []
+      }
+    },
+    {
+      "id": "t11",
+      "task": "trace",
+      "treatment": "assisted",
+      "repetition": 2,
+      "root": "/tmp/aide-outcomes-v4-trials/t11/root",
+      "prompt_path": "/tmp/aide-outcomes-v4-trials/t11/participant-prompt.md",
+      "prompt_sha256": "4b32f72b05b5d36f09d9858e9726914c9c78bfcaba615f67f4b88ee5c75622ad",
+      "status": "completed",
+      "agent_id": "01a08701-6c7b-7071-93a2-bce7c3d18e11",
+      "runtime_session_id": "01a08701-6c7b-7071-93a2-bce7c3d18e11",
+      "log_path": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T17-30-12-01a08701-6c7b-7071-93a2-bce7c3d18e11.jsonl",
+      "scope_verified": null,
+      "trace_reviewed": null,
+      "quality_verified": false,
+      "quality": null,
+      "aide_operations": null,
+      "aide_uptake": null,
+      "bridge_evidence_dir": "/tmp/aide-outcomes-v4-trials/t11/bridge-evidence",
+      "agent_path": "/root/v4_execution/v4_t11",
+      "integrity": {
+        "passed": true,
+        "missing": [],
+        "modified_immutable": [],
+        "symlinks": [],
+        "excluded_controller_paths": [
+          ".aide"
+        ],
+        "unexpected_files": [],
+        "scratch_tests": [],
+        "changed_allowed_sources": []
+      }
+    },
+    {
+      "id": "t12",
+      "task": "trace",
+      "treatment": "ordinary",
+      "repetition": 2,
+      "root": "/tmp/aide-outcomes-v4-trials/t12/root",
+      "prompt_path": "/tmp/aide-outcomes-v4-trials/t12/participant-prompt.md",
+      "prompt_sha256": "374b8cfbcc35f12140a26dabb146d9bb6109c499b9a8d5080c1d67748ca4830a",
+      "status": "completed",
+      "agent_id": "01a08703-2ba9-7243-81a4-6340639396a4",
+      "runtime_session_id": "01a08703-2ba9-7243-81a4-6340639396a4",
+      "log_path": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T17-32-07-01a08703-2ba9-7243-81a4-6340639396a4.jsonl",
+      "scope_verified": null,
+      "trace_reviewed": null,
+      "quality_verified": false,
+      "quality": null,
+      "aide_operations": null,
+      "aide_uptake": null,
+      "bridge_evidence_dir": "/tmp/aide-outcomes-v4-trials/t12/bridge-evidence",
+      "agent_path": "/root/v4_execution/v4_t12",
+      "integrity": {
+        "passed": true,
+        "missing": [],
+        "modified_immutable": [],
+        "symlinks": [],
+        "excluded_controller_paths": [
+          ".aide"
+        ],
+        "unexpected_files": [],
+        "scratch_tests": [],
+        "changed_allowed_sources": []
+      }
+    }
+  ],
+  "retrieval_bridge": {
+    "path": "/mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/outcomes-v3/bridge.py",
+    "binary": "/tmp/aide-retrieval-v4",
+    "binary_sha256": "38ad788faab22d2f0376b5b53488c69fdbc8eb5991dda054772da2369fd7a5f0"
+  }
+}

@@ -1,0 +1,395 @@
+{
+  "trial": "t02",
+  "reviewer": "v4_trace_audit",
+  "review_type": "protocol_and_tool_trace_only",
+  "trace_reviewed": true,
+  "scope_verified": true,
+  "protocol_violations": [
+    "RTK prefix: call_o48YXy9gbmDfMtNVZAil0jb6 nested call 1 executed raw cat for RTK.md and the authorized prepared prompt."
+  ],
+  "aide_operations": 1,
+  "aide_uptake": true,
+  "aide_operation_details": {
+    "code_search": 0,
+    "code_references": 0,
+    "code_symbols": 0,
+    "code_outline": 1,
+    "code_read_symbol": 0,
+    "bridge_calls": 1,
+    "native_global_calls": 0,
+    "direct_aide_cli_calls": 0,
+    "controller_prepare_calls_by_participant": 0,
+    "bridge_internal_identity_checks": 1
+  },
+  "counts": {
+    "outer_tool_calls": 8,
+    "nested_tool_calls": 21,
+    "bootstrap": 1,
+    "discovery": 1,
+    "source_edit_test": 19,
+    "source": 19,
+    "edit": 0,
+    "test_execution": 0,
+    "advisory_source_edit_test_target": 40,
+    "advisory_target_exceeded": false,
+    "basis": "Each tools.exec_command invocation counts once. One bootstrap command reads two instruction files; one discovery command lists source paths. The 19 source calls include one scoped code_outline request and 18 ordinary source reads/searches. Source-test searches are retrieval, not test execution.",
+    "discovery_definition": "Initial source-path inventory only (rg --files); all content searches, outlines, source reads, edits and tests count as source/edit/test. Discovery is an advisory-target classification; all nested calls remain counted."
+  },
+  "retrieval_output_bytes": 112848,
+  "byte_evidence": {
+    "methodology": "Inspect all captured output items against actual tool inputs. For the first four outer calls, inputs explicitly emit only r.output or (await exec_command(...)).output; each complete sequential content item maps one-to-one to a nested command. These plain strings are attributable despite trace_bodies marking non-JSON lines unattributable. For later calls unwrap fulfilled result JSON and measure only output. Sum len(text.encode(\"utf-8\")); exclude wrapper and JSON serialization bytes. No captured commands are executed.",
+    "attributable_source_lower_bound_bytes": 112848,
+    "attributable_bootstrap_bytes": 7723,
+    "attributable_discovery_bytes": 1419,
+    "attributable_all_categories_lower_bound_bytes": 121990,
+    "included_boundaries": [
+      {
+        "call_id": "call_o48YXy9gbmDfMtNVZAil0jb6",
+        "content_index": 1,
+        "utf8_bytes": 7723,
+        "category": "bootstrap",
+        "boundary": "Exact text(output) emission; input maps each sequential output item to one nested command."
+      },
+      {
+        "call_id": "call_DIZbuce7DZ57hIsbJHbqzc79",
+        "content_index": 1,
+        "utf8_bytes": 1419,
+        "category": "discovery",
+        "boundary": "Exact text(output) emission; input maps each sequential output item to one nested command."
+      },
+      {
+        "call_id": "call_JgYxpYGn2PiRK4MubtUZhwoE",
+        "content_index": 1,
+        "utf8_bytes": 2470,
+        "category": "source",
+        "boundary": "Exact text(output) emission; input maps each sequential output item to one nested command."
+      },
+      {
+        "call_id": "call_9xTYleZi6aPKhFE7oaJ3FktD",
+        "content_index": 1,
+        "utf8_bytes": 13261,
+        "category": "source",
+        "boundary": "Exact text(output) emission; input maps each sequential output item to one nested command."
+      },
+      {
+        "call_id": "call_9xTYleZi6aPKhFE7oaJ3FktD",
+        "content_index": 2,
+        "utf8_bytes": 9494,
+        "category": "source",
+        "boundary": "Exact text(output) emission; input maps each sequential output item to one nested command."
+      },
+      {
+        "call_id": "call_FLdAxklgHBITfKlk64XZp9Ac",
+        "content_index": 1,
+        "utf8_bytes": 8359,
+        "category": "source",
+        "boundary": "Decoded fulfilled exec_command output; JSON/tool wrapper excluded."
+      },
+      {
+        "call_id": "call_FLdAxklgHBITfKlk64XZp9Ac",
+        "content_index": 2,
+        "utf8_bytes": 5942,
+        "category": "source",
+        "boundary": "Decoded fulfilled exec_command output; JSON/tool wrapper excluded."
+      },
+      {
+        "call_id": "call_FLdAxklgHBITfKlk64XZp9Ac",
+        "content_index": 3,
+        "utf8_bytes": 5827,
+        "category": "source",
+        "boundary": "Decoded fulfilled exec_command output; JSON/tool wrapper excluded."
+      },
+      {
+        "call_id": "call_9E83l13WAj0Bud8hdzDquxkd",
+        "content_index": 1,
+        "utf8_bytes": 9200,
+        "category": "source",
+        "boundary": "Decoded fulfilled exec_command output; JSON/tool wrapper excluded."
+      },
+      {
+        "call_id": "call_9E83l13WAj0Bud8hdzDquxkd",
+        "content_index": 2,
+        "utf8_bytes": 4665,
+        "category": "source",
+        "boundary": "Decoded fulfilled exec_command output; JSON/tool wrapper excluded."
+      },
+      {
+        "call_id": "call_9E83l13WAj0Bud8hdzDquxkd",
+        "content_index": 3,
+        "utf8_bytes": 603,
+        "category": "source",
+        "boundary": "Decoded fulfilled exec_command output; JSON/tool wrapper excluded."
+      },
+      {
+        "call_id": "call_9E83l13WAj0Bud8hdzDquxkd",
+        "content_index": 4,
+        "utf8_bytes": 15244,
+        "category": "source",
+        "boundary": "Decoded fulfilled exec_command output; JSON/tool wrapper excluded."
+      },
+      {
+        "call_id": "call_HakccxF0TzYmfbt38Qr4nwp3",
+        "content_index": 1,
+        "utf8_bytes": 8606,
+        "category": "source",
+        "boundary": "Decoded fulfilled exec_command output; JSON/tool wrapper excluded."
+      },
+      {
+        "call_id": "call_HakccxF0TzYmfbt38Qr4nwp3",
+        "content_index": 2,
+        "utf8_bytes": 3638,
+        "category": "source",
+        "boundary": "Decoded fulfilled exec_command output; JSON/tool wrapper excluded."
+      },
+      {
+        "call_id": "call_HakccxF0TzYmfbt38Qr4nwp3",
+        "content_index": 3,
+        "utf8_bytes": 4188,
+        "category": "source",
+        "boundary": "Decoded fulfilled exec_command output; JSON/tool wrapper excluded."
+      },
+      {
+        "call_id": "call_HakccxF0TzYmfbt38Qr4nwp3",
+        "content_index": 4,
+        "utf8_bytes": 2143,
+        "category": "source",
+        "boundary": "Decoded fulfilled exec_command output; JSON/tool wrapper excluded."
+      },
+      {
+        "call_id": "call_HakccxF0TzYmfbt38Qr4nwp3",
+        "content_index": 5,
+        "utf8_bytes": 3378,
+        "category": "source",
+        "boundary": "Decoded fulfilled exec_command output; JSON/tool wrapper excluded."
+      },
+      {
+        "call_id": "call_IExv2StPzFxvxUNoKit3u2x4",
+        "content_index": 1,
+        "utf8_bytes": 5283,
+        "category": "source",
+        "boundary": "Decoded fulfilled exec_command output; JSON/tool wrapper excluded."
+      },
+      {
+        "call_id": "call_IExv2StPzFxvxUNoKit3u2x4",
+        "content_index": 2,
+        "utf8_bytes": 4999,
+        "category": "source",
+        "boundary": "Decoded fulfilled exec_command output; JSON/tool wrapper excluded."
+      },
+      {
+        "call_id": "call_IExv2StPzFxvxUNoKit3u2x4",
+        "content_index": 3,
+        "utf8_bytes": 2884,
+        "category": "source",
+        "boundary": "Decoded fulfilled exec_command output; JSON/tool wrapper excluded."
+      },
+      {
+        "call_id": "call_IExv2StPzFxvxUNoKit3u2x4",
+        "content_index": 4,
+        "utf8_bytes": 2664,
+        "category": "source",
+        "boundary": "Decoded fulfilled exec_command output; JSON/tool wrapper excluded."
+      }
+    ],
+    "excluded_outer_calls": [],
+    "bridge_stdout_bytes": 2470,
+    "limits": "No participant output truncation marker or missing command/output mapping observed. Exact source-returned byte sum is supported at these captured text boundaries; this is not a token estimate. Shell status metadata was deliberately not emitted by the first four outer calls."
+  },
+  "tool_failures": [],
+  "tool_failure_evidence": "No errors observed. All 16 structured exec_command statuses are zero. The five earlier plain-output emissions omit status metadata; the bridge evidence independently confirms its successful result. Missing shell statuses are not inferred from text.",
+  "scope_evidence": {
+    "outside_root_reads": [
+      {
+        "path": "/home/johnm/.codex/RTK.md",
+        "basis": "Mandatory host bootstrap read."
+      },
+      {
+        "path": "/tmp/aide-outcomes-v4-trials/t02/participant-prompt.md",
+        "basis": "Launcher expressly authorizes prompt read."
+      }
+    ],
+    "all_workdirs": "First bootstrap command omits workdir and uses the actor default live-repository cwd, but reads only two authorized absolute instruction paths. Every later command specifies /tmp/aide-outcomes-v4-trials/t02/root.",
+    "source_access": "All ordinary source listing/search/read paths remain within the trial root. Broad listings and searches exclude .aide. The single bridge command uses exactly the supplied root/binary/evidence flags and allowed code_outline argument shape; permission to execute the bridge was not used to read its implementation or evidence. No native/global calls, other-trial, runtime-log, memory or grading/reference reads occur.",
+    "forbidden_operations_observed": [],
+    "controller_state": "No participant .aide access, alteration or reindex command observed; controller-only index preparation is separately recorded in bridge/t01/setup.json.",
+    "boundary": "Verifies observed tool inputs and immutable-source evidence, not unobservable host internals."
+  },
+  "integrity_evidence": {
+    "grade_file": "t02-grade.json",
+    "integrity_passed": true,
+    "candidate_unchanged": true,
+    "patch_bytes": 0,
+    "seed_files_checked": 50,
+    "seed_hash_mismatches": [],
+    "raw_capture_inputs_match": true,
+    "raw_log_sha256_verified": "a55ca6ce1907e4675e4a6b7e49814634f1b637034029459d0865d339958fb5c5"
+  },
+  "launcher_evidence": {
+    "file": "t02-launch.json",
+    "fork_turns": "none",
+    "model_override": null,
+    "effort_override": null,
+    "agent_path": "/root/v4_execution/v4_t02",
+    "prepared_prompt_sha256_verified": "78aa8855e1995cbf7bbf6e22b593cbb758c4d3cf3ffe582373255f26f81e88a8",
+    "seed_binding_root_verified": true,
+    "seed_binary_hash_matches_protocol": true,
+    "scope_authorization": "Launcher grants only the prepared prompt and task root; it does not waive RTK prefix. Launcher record is inspected as evidence, not rewritten.",
+    "actual_launcher_text_comparison": "Unavailable: raw ordinal 9 records NEW_TASK from /root/v4_execution to /root/v4_execution/v4_t02 with encrypted_content task payload. Saved launch and prelaunch messages agree, but cannot be compared verbatim to encrypted raw payload.",
+    "actual_launcher_message_verified": null,
+    "prelaunch_file": "t02-prelaunch.json"
+  },
+  "runtime": {
+    "actor_id": "01a086f0-9c7a-70c1-bee9-0dedd09e125b",
+    "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+    "agent_path": "/root/v4_execution/v4_t02",
+    "cli_version": "0.153.4",
+    "model_provider": "openai",
+    "model": "gpt-6-astra",
+    "effort": "high"
+  },
+  "input_review": [
+    {
+      "call_id": "call_o48YXy9gbmDfMtNVZAil0jb6",
+      "nested_calls": 1,
+      "commands_reviewed": [
+        "cat /home/johnm/.codex/RTK.md /tmp/aide-outcomes-v4-trials/t02/participant-prompt.md"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": false
+    },
+    {
+      "call_id": "call_DIZbuce7DZ57hIsbJHbqzc79",
+      "nested_calls": 1,
+      "commands_reviewed": [
+        "rtk proxy rg --files --hidden --glob '!.aide/**' --glob '!.git/**'"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": true
+    },
+    {
+      "call_id": "call_JgYxpYGn2PiRK4MubtUZhwoE",
+      "nested_calls": 1,
+      "commands_reviewed": [
+        "rtk proxy python3 /mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/outcomes-v3/bridge.py call --root /tmp/aide-outcomes-v4-trials/t02/root --binary /tmp/aide-retrieval-v4 --evidence-dir /tmp/aide-outcomes-v4-trials/t02/bridge-evidence --tool-json '{\"name\":\"code_outline\",\"arguments\":{\"file\":\"src/core/model-usage.ts\"}}'"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": true
+    },
+    {
+      "call_id": "call_9xTYleZi6aPKhFE7oaJ3FktD",
+      "nested_calls": 2,
+      "commands_reviewed": [
+        "rtk proxy nl -ba src/core/model-usage.ts",
+        "rtk proxy rg -n 'usage|Usage|message.updated|message.part|create.*Hook|step-finish' src/opencode/hooks.ts src/hooks/session-summary.ts src/core/session-summary-logic.ts src/core/types.ts src/lib/hook-utils.ts src/core/read-tracking.ts aide/cmd/aide/cmd_observe.go aide/pkg/{store,memory}/*.go aide/pkg/observe/observe.go"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": true
+    },
+    {
+      "call_id": "call_FLdAxklgHBITfKlk64XZp9Ac",
+      "nested_calls": 3,
+      "commands_reviewed": [
+        "rtk proxy sed -n '120,250p;415,530p' src/opencode/hooks.ts",
+        "rtk proxy nl -ba src/hooks/session-summary.ts",
+        "rtk proxy rg -n 'handleMessagePart|message.updated|platform|Stop|transcript_path|stop_hook_active|batch|Record|record' src/opencode/hooks.ts src/core/types.ts src/lib/hook-utils.ts aide/cmd/aide/cmd_observe.go"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": true
+    },
+    {
+      "call_id": "call_9E83l13WAj0Bud8hdzDquxkd",
+      "nested_calls": 4,
+      "commands_reviewed": [
+        "rtk proxy nl -ba aide/pkg/store/token_model_usage.go",
+        "rtk proxy sed -n '218,365p' aide/cmd/aide/cmd_observe.go",
+        "rtk proxy rg -n 'detectPlatform|readStdin|initializeAide|function findAideBinary|function detect' src/lib/hook-utils.ts src/core/aide-client.ts src/opencode/hooks.ts",
+        "rtk proxy nl -ba aide/pkg/store/observe_events.go"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": true
+    },
+    {
+      "call_id": "call_HakccxF0TzYmfbt38Qr4nwp3",
+      "nested_calls": 5,
+      "commands_reviewed": [
+        "rtk proxy nl -ba aide/pkg/store/token_events.go",
+        "rtk proxy sed -n '78,160p;255,277p' src/lib/hook-utils.ts",
+        "rtk proxy sed -n '351,408p;738,810p' src/opencode/hooks.ts",
+        "rtk proxy cat aide/pkg/memory/token_model_usage.go README.md",
+        "rtk proxy rg -n '^export|^function|^func|^type|accounting|KindSession' aide/pkg/memory/token_accounting.go aide/pkg/observe/observe.go src/test/model-usage*.test.ts"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": true
+    },
+    {
+      "call_id": "call_IExv2StPzFxvxUNoKit3u2x4",
+      "nested_calls": 4,
+      "commands_reviewed": [
+        "rtk proxy rg -n 'it\\(|test\\(|describe\\(|expect\\(|message.updated|stop_hook_active|Stop' src/test/model-usage.test.ts src/test/model-usage-recording.test.ts src/test/model-usage-hooks.test.ts",
+        "rtk proxy nl -ba aide/pkg/memory/token_accounting.go",
+        "rtk proxy sed -n '1,90p' src/core/aide-client.ts",
+        "rtk proxy rg -n --hidden --no-ignore --glob '!.aide/**' 'NewBackend|RecordEvent|model_usage|recordModelUsage|MAX_STDIN_BYTES' ."
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": true
+    }
+  ],
+  "notes": [
+    "Answer quality is outside this review.",
+    "All eight captured tool-call inputs and raw-log hash verified; every nested command reviewed.",
+    "The code_outline call returned successfully through the bound bridge; subsequent direct source reads are permitted.",
+    "The 19 source/edit/test calls remain below the advisory target.",
+    "Exact launcher plaintext is unavailable in encrypted raw task payload.",
+    "No savings, billing, token-estimation or causal treatment claim is made."
+  ],
+  "protocol_violation_details": [
+    {
+      "rule": "Every shell command must start with rtk",
+      "call_id": "call_o48YXy9gbmDfMtNVZAil0jb6",
+      "nested_call": 1,
+      "observed_command": "cat /home/johnm/.codex/RTK.md /tmp/aide-outcomes-v4-trials/t02/participant-prompt.md",
+      "detail": "Both instruction paths are authorized bootstrap reads; the first combined shell command still lacks the mandatory prefix. No retrospective bootstrap exemption is applied."
+    }
+  ],
+  "bridge_evidence": {
+    "file": "bridge/t02/724564328a144f05bbbbb15ea6380845.json",
+    "binding_id": "9c48b569dcd948dc8a5f90da35294cd5",
+    "request": {
+      "name": "code_outline",
+      "arguments": {
+        "file": "src/core/model-usage.ts"
+      }
+    },
+    "identity": {
+      "project_root": "/tmp/aide-outcomes-v4-trials/t02/root",
+      "real_project_root": "/tmp/aide-outcomes-v4-trials/t02/root",
+      "cwd": "/tmp/aide-outcomes-v4-trials/t02/root",
+      "version": {
+        "version": "0.1.18-dev.32+58816d9",
+        "commit": "58816d991ef7172304f3eef594844d79e995a5e1",
+        "commit_sha": "58816d99",
+        "date": "2026-09-09T15:52:00Z",
+        "go_version": "go1.27.0-X:nodwarf5",
+        "platform": "linux/amd64",
+        "os": "linux",
+        "arch": "amd64"
+      },
+      "db_path": "/tmp/aide-outcomes-v4-trials/t02/root/.aide/memory/memory.db",
+      "socket_path": "/tmp/aide-outcomes-v4-trials/t02/root/.aide/aide.sock",
+      "authority": "daemon",
+      "pid": 16,
+      "ppid": 13,
+      "started_at": "2026-09-09T17:12:04.020108069+01:00"
+    },
+    "returncode": 0,
+    "error": null,
+    "source_changed_since_seed": false,
+    "forwarded_request": {
+      "name": "code_outline",
+      "arguments": {
+        "file": "src/core/model-usage.ts"
+      }
+    },
+    "note": "One internal instance_info identity check is bridge setup work, not a second participant retrieval operation."
+  }
+}

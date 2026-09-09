@@ -1,0 +1,20 @@
+[aide-mcp] 17:30:34 aide MCP server starting
+[aide-mcp] 17:30:34 version: aide version 0.1.18-dev.32+58816d9 (commit: 58816d99, built: 2026-09-09T15:52:00Z, go1.27.0-X:nodwarf5, linux/amd64)
+[aide-mcp] 17:30:34 database: /tmp/aide-outcomes-v4-trials/t11/root/.aide/memory/memory.db
+[aide-mcp] 17:30:34 database opened in 338.136µs (bolt + bleve search)
+[aide-mcp] 17:30:34 gRPC socket: /tmp/aide-outcomes-v4-trials/t11/root/.aide/aide.sock
+[aide-mcp] 17:30:34 cleanup loop disabled (cleanup.enabled=false)
+[aide-mcp] 17:30:34 code index opened in 249.818µs: /tmp/aide-outcomes-v4-trials/t11/root/.aide/memory/code/index.db
+[aide-mcp] 17:30:34 findings store opened in 574.065µs: /tmp/aide-outcomes-v4-trials/t11/root/.aide/memory/findings
+[aide-mcp] 17:30:34 survey store opened in 199.888µs: /tmp/aide-outcomes-v4-trials/t11/root/.aide/memory/survey
+[aide-mcp] 17:30:34 warning: failed to register instance: cannot determine home directory: $HOME is not defined
+[aide-mcp] 17:30:34 primary mode: holding the store, serving gRPC
+[aide-mcp] 17:30:34 MCP server ready in 1.520626ms, listening on stdio
+[aide-mcp] 17:30:34 gRPC server error: failed to listen on socket /tmp/aide-outcomes-v4-trials/t11/root/.aide/aide.sock: listen unix /tmp/aide-outcomes-v4-trials/t11/root/.aide/aide.sock: setsockopt: operation not permitted (other sessions cannot share this store until a daemon binds; check permissions and stale files)
+[aide-mcp] 17:30:34 code tools: registered (store may initialize lazily)
+[aide-mcp] 17:30:34 findings tools: registered
+[aide-mcp] 17:30:34 survey tools: registered
+[aide-mcp] 17:30:34 instinct tools: registered (read-only)
+[aide-mcp] 17:30:34 tool: instance_info
+[aide-mcp] 17:30:34   project_root=/tmp/aide-outcomes-v4-trials/t11/root authority=daemon
+[aide-mcp] 17:30:34 tool: code_read_symbol symbols=[event claudeUsageEvent codexUsageEvent openCodeUsageEvent collectTranscriptUsage recordModelUsage createOpenCodeUsageRecorder sourceTime summedInput count] kind=

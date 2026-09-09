@@ -1,0 +1,18 @@
+{
+  "headline": "12/12 outcomes passed the frozen quality checks; 6/6 assisted trials chose aide.",
+  "qualification": "12/12 trials have recorded protocol deviations; the frozen reporter permits 0 paired comparisons. Individual counters remain visible. No token-saving percentage is established.",
+  "known_task_usage": {
+    "input_tokens": 3542763,
+    "cached_input_tokens": 3091584,
+    "cache_write_input_tokens": 0,
+    "output_tokens": 62246,
+    "reasoning_output_tokens": 3440,
+    "total_tokens": 3605009
+  },
+  "known_usage_trials": 12,
+  "tool_calls": {
+    "code_outline": 2,
+    "code_symbols": 14,
+    "code_read_symbol": 14
+  }
+}

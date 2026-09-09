@@ -1,0 +1,72 @@
+{
+  "candidate": "G",
+  "task": "trace",
+  "reviewer": "v4_quality",
+  "checks": [
+    {
+      "id": "host_routes",
+      "passed": true,
+      "evidence": "Candidate G section 1 correctly traces createHooks -> createEventHandler -> retained recorder, binary-gated message.part.updated forwarding, step-finish/session/part/message-ID/tokens guards, and ignored message.updated plus separate text-only skills. Stop stdin/platform/explicit-transcript/binary/collector/shared-writer flow is correct, including discarded writer boolean, recursion suppression applying only to summary, fail-open completion and later retries. Supported by source/src/opencode/hooks.ts:154,197,351,432,461,738; source/src/core/model-usage.ts:203,350; source/src/hooks/session-summary.ts:108-157; source/src/lib/hook-utils.ts:145.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "scan_boundaries",
+      "passed": true,
+      "evidence": "Candidate G section 1 describes explicit absolute regular-file/session guards and before/after-open regularity checks, unavailable versus partial including empty/no-match scans, bounded 4 MiB/1,000-event limits, discarded cut-leading and unfinished-trailing lines, newest-first/reversal handling, malformed parse counts versus irrelevant rows, limited flags and absence of cursor/ack cache enabling later rescan. Supported by source/src/core/model-usage.ts:241-315.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "normalization",
+      "passed": true,
+      "evidence": "Candidate G section 2 gives exact common session/model_usage/version/partial metadata and prompt identities, hosts, sources and time fields. Its string-valued counter table correctly gives OpenCode input=31/uncached=11/read=17/write=3/reported-output=13/reasoning=5, Claude 30/10/20/0 without output, and Codex 12/7/5/0/output=8/reasoning=3/total=20. It identifies missing model/provider metadata, placeholder/ambiguous/cumulative omissions, zero-versus-absence/invalid semantics, invalid-time observed basis/flag/no timestamp and avoids double-counting output/reasoning or caches. Supported by source/src/core/model-usage.ts:30,53,92,121,153,203.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "writer_and_cache",
+      "passed": true,
+      "evidence": "Candidate G sections 1 and 3 accurately give synchronous observe record --stdin with cwd, JSONL final newline, piped stdio and 10-second timeout; empty success/no spawn; exact full-count/zero-skips acknowledgment, failure false and no fallback; attempts 1/2/4, skip 3, two persisted variants; revised uncached=12/input=32; normalized-event/cwd fingerprints and /work/b attempt; acknowledged-only insertion and oldest-first 1,024-entry cap without hit refresh. Supported by source/src/core/model-usage.ts:319-365. Unrequested catch-path logging is not independently required under the preserved prompt-scope adjudication, and no incorrect logging claim is made.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "durable_route_and_identity",
+      "passed": true,
+      "evidence": "Candidate G section 4 correctly traces the requested CLI batch path from cmdObserveRecord selecting --stdin through cmdObserveRecordBatch and backend.Store().AddObserveEvent, preserving its opaque NewBackend/concrete-store/RPC boundary. It explains successful accepted-line acknowledgment rather than insert count, durable identity [session,host,usage_id], semantic/presence fingerprint excluding actual timestamp, origin indexing, earliest-time equal dedup and retained conflicting revisions. Supported by source/aide/cmd/aide/cmd_observe.go:237-294; source/aide/pkg/store/observe_events.go:140-217; source/aide/pkg/store/token_model_usage.go:36-68. The prompt asks for the CLI batch path, which this establishes; no extra requirement to separately name the outer dispatcher is imposed.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "conflict_accounting",
+      "passed": true,
+      "evidence": "Candidate G section 4 correctly gives retained-event observation before query selection, conflicting-identity exclusion from observations/counters, scenario observations=0/conflicts=1/invalid=0/by_source=[], and the same conflict in a t1-selected/t2-excluded window. It distinguishes valid per-variant counters from the identity conflict. Supported by source/aide/pkg/store/token_events.go:153-196 and source/aide/pkg/store/token_model_usage.go:135-198.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "measurement_limits",
+      "passed": true,
+      "evidence": "Candidate G section 4 correctly states session events lack legacy TokenEvent projection and do not add legacy tool counts, text estimates or savings, with usage attached separately. It confines conclusions to retained valid partial host reports and excludes billing, complete session/provider/subagent usage, savings and task quality. Supported by source/aide/pkg/store/observe_events.go:82-111; source/aide/pkg/store/token_events.go:172-196; source/aide/pkg/memory/token_model_usage.go:20-22.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    }
+  ],
+  "passed_checks": 7,
+  "total_checks": 7,
+  "passed": true,
+  "notes": [
+    "No material omission of requested facts, incorrect counter/scenario/conflict total, invented backend link or unrun-test success claim found.",
+    "Applied preserved prompt-scope adjudication: omission of trace catch-path logging is nonblocking; final-newline payload handling is explicitly described.",
+    "The requested CLI batch route is established through cmdObserveRecord --stdin, cmdObserveRecordBatch and Store.AddObserveEvent. The answer does not separately name cmdObserveDispatcher; the rubric phrase CLI dispatcher/record --stdin is satisfied substantively by the demonstrated record dispatch and batch route, without requiring unrequested outer-entry enumeration.",
+    "Reviewed only the blinded answer, frozen trace materials and supplied baseline source. No code/tests executed and no condition/resource information used."
+  ]
+}

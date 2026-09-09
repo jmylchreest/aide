@@ -1,0 +1,483 @@
+{
+  "trial": "t06",
+  "reviewer": "v4_trace_audit",
+  "review_type": "protocol_and_tool_trace_only",
+  "trace_reviewed": true,
+  "scope_verified": true,
+  "protocol_violations": [
+    "RTK prefix: call_rUm7elnkaCjin1zFp5Gu9CTZ nested call 1 executed raw cat for the authorized prepared-prompt read."
+  ],
+  "aide_operations": 2,
+  "aide_uptake": true,
+  "aide_operation_details": {
+    "code_search": 0,
+    "code_references": 0,
+    "code_symbols": 0,
+    "code_outline": 1,
+    "code_read_symbol": 1,
+    "bridge_calls": 2,
+    "native_global_calls": 0,
+    "direct_aide_cli_calls": 0,
+    "controller_prepare_calls_by_participant": 0,
+    "bridge_internal_identity_checks": 2
+  },
+  "counts": {
+    "outer_tool_calls": 8,
+    "nested_tool_calls": 19,
+    "bootstrap": 2,
+    "discovery": 1,
+    "source_edit_test": 16,
+    "source": 11,
+    "edit": 3,
+    "test_execution": 2,
+    "advisory_source_edit_test_target": 40,
+    "advisory_target_exceeded": false,
+    "basis": "Each tools.exec_command invocation counts once; combined reads remain one invocation. The first source-path inventory (rg --files at outer call index 3) is discovery, content searches and both aide retrievals are source, and Python writes/test invocations are edit/test respectively.",
+    "discovery_definition": "Initial source-path inventory only (rg --files); all content searches, outlines, source reads, edits and tests count as source/edit/test. Discovery is an advisory-target classification; all nested calls remain counted."
+  },
+  "retrieval_output_bytes": 37750,
+  "byte_evidence": {
+    "methodology": "Every nested literal command and inline Python body inspected without executing captured inputs. All 19 captured result bodies decode completely one-to-one with commands; sum len(output.encode(\"utf-8\")), excluding wrappers/JSON serialization and separating source, bootstrap, discovery, edit and test output.",
+    "attributable_source_lower_bound_bytes": 37750,
+    "attributable_bootstrap_bytes": 7725,
+    "attributable_discovery_bytes": 33,
+    "attributable_edit_output_bytes": 0,
+    "attributable_test_output_bytes": 1659,
+    "attributable_all_categories_lower_bound_bytes": 47167,
+    "included_boundaries": [
+      {
+        "call_id": "call_rUm7elnkaCjin1zFp5Gu9CTZ",
+        "content_index": 1,
+        "chunk_id": "b67941",
+        "utf8_bytes": 7243,
+        "category": "bootstrap"
+      },
+      {
+        "call_id": "call_3TA8Jja6Z6dH8ol0cT4qJRMc",
+        "content_index": 1,
+        "chunk_id": "b410d2",
+        "utf8_bytes": 482,
+        "category": "bootstrap"
+      },
+      {
+        "call_id": "call_3TA8Jja6Z6dH8ol0cT4qJRMc",
+        "content_index": 2,
+        "chunk_id": "6999d1",
+        "utf8_bytes": 1394,
+        "category": "source"
+      },
+      {
+        "call_id": "call_O6H50mUnuNbdcCJUzaTcMH4V",
+        "content_index": 1,
+        "chunk_id": "9d0086",
+        "utf8_bytes": 2470,
+        "category": "source"
+      },
+      {
+        "call_id": "call_O6H50mUnuNbdcCJUzaTcMH4V",
+        "content_index": 2,
+        "chunk_id": "3b4a42",
+        "utf8_bytes": 16823,
+        "category": "source"
+      },
+      {
+        "call_id": "call_O6H50mUnuNbdcCJUzaTcMH4V",
+        "content_index": 3,
+        "chunk_id": "bc3697",
+        "utf8_bytes": 616,
+        "category": "source"
+      },
+      {
+        "call_id": "call_hJDQROSSJBTiQONcS3SLCBrW",
+        "content_index": 1,
+        "chunk_id": "263a53",
+        "utf8_bytes": 2057,
+        "category": "source"
+      },
+      {
+        "call_id": "call_hJDQROSSJBTiQONcS3SLCBrW",
+        "content_index": 2,
+        "chunk_id": "c095be",
+        "utf8_bytes": 1481,
+        "category": "source"
+      },
+      {
+        "call_id": "call_hJDQROSSJBTiQONcS3SLCBrW",
+        "content_index": 3,
+        "chunk_id": "b90bd9",
+        "utf8_bytes": 33,
+        "category": "discovery"
+      },
+      {
+        "call_id": "call_gkqiIwNFAav3jYacOnNpeGCO",
+        "content_index": 1,
+        "chunk_id": "d4de15",
+        "utf8_bytes": 1503,
+        "category": "source"
+      },
+      {
+        "call_id": "call_gkqiIwNFAav3jYacOnNpeGCO",
+        "content_index": 2,
+        "chunk_id": "0d9468",
+        "utf8_bytes": 2890,
+        "category": "source"
+      },
+      {
+        "call_id": "call_mwahRZTHAdmSoiyjKZDjAw6B",
+        "content_index": 1,
+        "chunk_id": "552e15",
+        "utf8_bytes": 0,
+        "category": "edit"
+      },
+      {
+        "call_id": "call_mwahRZTHAdmSoiyjKZDjAw6B",
+        "content_index": 2,
+        "chunk_id": "dc9d08",
+        "utf8_bytes": 531,
+        "category": "test"
+      },
+      {
+        "call_id": "call_mwahRZTHAdmSoiyjKZDjAw6B",
+        "content_index": 3,
+        "chunk_id": "bb7520",
+        "utf8_bytes": 1655,
+        "category": "source"
+      },
+      {
+        "call_id": "call_CNUQSLUXhvTDmezJurc47Pwo",
+        "content_index": 1,
+        "chunk_id": "e02ad5",
+        "utf8_bytes": 0,
+        "category": "edit"
+      },
+      {
+        "call_id": "call_CNUQSLUXhvTDmezJurc47Pwo",
+        "content_index": 2,
+        "chunk_id": "6725eb",
+        "utf8_bytes": 1128,
+        "category": "test"
+      },
+      {
+        "call_id": "call_CNUQSLUXhvTDmezJurc47Pwo",
+        "content_index": 3,
+        "chunk_id": "761a06",
+        "utf8_bytes": 2233,
+        "category": "source"
+      },
+      {
+        "call_id": "call_CNUQSLUXhvTDmezJurc47Pwo",
+        "content_index": 4,
+        "chunk_id": "8ab93e",
+        "utf8_bytes": 4628,
+        "category": "source"
+      },
+      {
+        "call_id": "call_PYLye5JaJXSlyPn0iahsbfcW",
+        "content_index": 1,
+        "chunk_id": "51efb3",
+        "utf8_bytes": 0,
+        "category": "edit"
+      }
+    ],
+    "excluded_outer_calls": [],
+    "limits": "No truncation markers or unattributable payloads observed. Exact source returned-text total excludes test/edits; these are separately measured and remain included in all-category output. No byte-to-token estimate."
+  },
+  "tool_failures": [],
+  "tool_failure_evidence": "All 19 nested command results have zero exit status. Both test runs succeeded.",
+  "scope_evidence": {
+    "outside_root_reads": [
+      {
+        "path": "/tmp/aide-outcomes-v4-trials/t06/participant-prompt.md",
+        "basis": "Launcher expressly authorizes prompt read."
+      },
+      {
+        "path": "/home/johnm/.codex/RTK.md",
+        "basis": "Mandatory host bootstrap read."
+      }
+    ],
+    "all_workdirs": "/tmp/aide-outcomes-v4-trials/t06/root",
+    "source_access": "All direct retrieval/edit/test paths stay inside the fixture; broad hidden searches exclude .aide. Three Python edits touch only allowed TypeScript under src and the added tests/usage-write-contract.test.ts. Two bridge calls use exactly supplied executable/root/binary/evidence flags and allowed shapes before any edits. No native/global aide, implementation/binary/evidence reads, outside-source reads, protected file edits, controller-state access or reindex observed.",
+    "forbidden_operations_observed": [],
+    "controller_state": "No participant .aide access, alteration or reindex command observed; controller-only index preparation is separately recorded in bridge/t01/setup.json.",
+    "boundary": "Verifies observed tool inputs and immutable-source evidence, not unobservable host internals."
+  },
+  "integrity_evidence": {
+    "grade_file": "t06-grade.json",
+    "integrity_passed": true,
+    "candidate_unchanged": true,
+    "patch_bytes": 8190,
+    "seed_files_checked": 55,
+    "seed_hash_mismatches": [
+      "src/core/model-usage.ts",
+      "src/hooks/session-summary.ts",
+      "src/opencode/hooks.ts",
+      "src/test/model-usage-hooks.test.ts",
+      "src/test/model-usage-recording.test.ts",
+      "src/test/model-usage.test.ts"
+    ],
+    "raw_capture_inputs_match": true,
+    "raw_log_sha256_verified": "3572f8b9b145118a4b8cbb056e5b17399bc7a847f42b7402465748cf4d87d4aa",
+    "all_seed_differences_allowed": true,
+    "scratch_tests": [
+      "tests/usage-write-contract.test.ts"
+    ],
+    "changed_allowed_sources": [
+      "src/core/model-usage.ts",
+      "src/hooks/session-summary.ts",
+      "src/opencode/hooks.ts",
+      "src/test/model-usage-hooks.test.ts",
+      "src/test/model-usage-recording.test.ts",
+      "src/test/model-usage.test.ts"
+    ]
+  },
+  "launcher_evidence": {
+    "file": "t06-launch.json",
+    "fork_turns": "none",
+    "model_override": null,
+    "effort_override": null,
+    "agent_path": "/root/v4_execution/v4_t06",
+    "prepared_prompt_sha256_verified": "67391dc9f2932065a54dea52eee9a87d03efe551cb04c53136c7475cd7ec7aac",
+    "seed_binding_root_verified": true,
+    "seed_binary_hash_matches_protocol": true,
+    "scope_authorization": "Launcher grants only the prepared prompt and task root; it does not waive RTK prefix. Launcher record is inspected as evidence, not rewritten.",
+    "actual_launcher_text_comparison": "Raw ordinal 9 records NEW_TASK from /root/v4_execution to /root/v4_execution/v4_t06 with encrypted_content payload. Saved launch/prelaunch messages agree; actual launcher plaintext comparison unavailable.",
+    "actual_launcher_message_verified": null,
+    "prelaunch_file": "t06-prelaunch.json"
+  },
+  "runtime": {
+    "actor_id": "01a086f8-3bf4-7931-baa9-9d8c17ed0619",
+    "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+    "agent_path": "/root/v4_execution/v4_t06",
+    "cli_version": "0.153.4",
+    "model_provider": "openai",
+    "model": "gpt-6-astra",
+    "effort": "high"
+  },
+  "input_review": [
+    {
+      "call_id": "call_rUm7elnkaCjin1zFp5Gu9CTZ",
+      "nested_calls": 1,
+      "commands_reviewed": [
+        "cat /tmp/aide-outcomes-v4-trials/t06/participant-prompt.md"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": false
+    },
+    {
+      "call_id": "call_3TA8Jja6Z6dH8ol0cT4qJRMc",
+      "nested_calls": 2,
+      "commands_reviewed": [
+        "rtk proxy cat /home/johnm/.codex/RTK.md",
+        "rtk proxy rg --hidden --no-ignore --glob '!.aide/**' -n 'recordModelUsage|createOpenCodeUsageRecorder|Usage scan:' src"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": true
+    },
+    {
+      "call_id": "call_O6H50mUnuNbdcCJUzaTcMH4V",
+      "nested_calls": 3,
+      "commands_reviewed": [
+        "rtk proxy python3 /mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/outcomes-v3/bridge.py call --root /tmp/aide-outcomes-v4-trials/t06/root --binary /tmp/aide-retrieval-v4 --evidence-dir /tmp/aide-outcomes-v4-trials/t06/bridge-evidence --tool-json '{\"name\":\"code_outline\",\"arguments\":{\"file\":\"src/core/model-usage.ts\"}}'",
+        "rtk proxy cat src/test/model-usage-recording.test.ts src/test/model-usage.test.ts src/test/model-usage-hooks.test.ts src/hooks/session-summary.ts",
+        "rtk proxy rg -n 'recordUsage|message.part|model-usage' src/opencode/hooks.ts"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": true
+    },
+    {
+      "call_id": "call_hJDQROSSJBTiQONcS3SLCBrW",
+      "nested_calls": 3,
+      "commands_reviewed": [
+        "rtk proxy python3 /mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/outcomes-v3/bridge.py call --root /tmp/aide-outcomes-v4-trials/t06/root --binary /tmp/aide-retrieval-v4 --evidence-dir /tmp/aide-outcomes-v4-trials/t06/bridge-evidence --tool-json '{\"name\":\"code_read_symbol\",\"arguments\":{\"file\":\"src/core/model-usage.ts\",\"symbols\":[\"recordModelUsage\",\"createOpenCodeUsageRecorder\"]}}'",
+        "rtk proxy sed -n '426,475p' src/opencode/hooks.ts",
+        "rtk proxy rg --files --hidden --no-ignore --glob '!.aide/**' -g 'AGENTS.md' -g 'tests/**' -g 'tsconfig*' -g 'package.json'"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": true
+    },
+    {
+      "call_id": "call_gkqiIwNFAav3jYacOnNpeGCO",
+      "nested_calls": 2,
+      "commands_reviewed": [
+        "rtk proxy sed -n '317,365p' src/core/model-usage.ts",
+        "rtk proxy cat tests/usage.test.ts package.json"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": true
+    },
+    {
+      "call_id": "call_mwahRZTHAdmSoiyjKZDjAw6B",
+      "nested_calls": 3,
+      "commands_reviewed": [
+        "rtk proxy python3 - <<'PY'\nfrom pathlib import Path\np=Path('src/core/model-usage.ts')\ns=p.read_text().replace('/** Acknowledged batch only: older CLI fallback cannot preserve source timestamps. */','''export interface UsageWriteRequest {\n  binary: string;\n  cwd: string;\n  events: ObserveBatchEvent[];\n}\n\nexport type UsageWriteResult =\n  | { status: \"acknowledged\"; recorded: number }\n  | { status: \"unacknowledged\"; reason: \"invalid-ack\" | \"write-error\" };\n\n/** Acknowledged batch only: older CLI fallback cannot preserve source timestamps. */''')\ns=s.replace('''  binary: string,\n  cwd: string,\n  events: ObserveBatchEvent[],\n): boolean {\n  if (!events.length) return true;''','''  { binary, cwd, events }: UsageWriteRequest,\n): UsageWriteResult {\n  if (!events.length) return { status: \"acknowledged\", recorded: 0 };''')\ns=s.replace('''    }).toString();\n    const ack''','''    });\n    if (typeof output !== \"string\" && !Buffer.isBuffer(output))\n      return { status: \"unacknowledged\", reason: \"invalid-ack\" };\n    const ack''')\ns=s.replace('''      output.trim(),''','''      output.toString().trim(),''')\ns=s.replace('''    return (\n      ack !== null &&\n      Number(ack[1]) === events.length &&\n      Number(ack[2] ?? 0) === 0\n    );''','''    if (\n      ack !== null &&\n      Number(ack[1]) === events.length &&\n      Number(ack[2] ?? 0) === 0\n    )\n      return { status: \"acknowledged\", recorded: events.length };\n    return { status: \"unacknowledged\", reason: \"invalid-ack\" };''')\ns=s.replace('''    return false;\n  }\n}\n\n/** Keep repeated''','''    return { status: \"unacknowledged\", reason: \"write-error\" };\n  }\n}\n\n/** Keep repeated''')\ns=s.replace('''  write = recordModelUsage,\n): (binary: string, cwd: string, part: unknown) => void {''','''  write: (request: UsageWriteRequest) => UsageWriteResult = recordModelUsage,\n): (request: { binary: string; cwd: string; part: unknown }) => void {''')\ns=s.replace('''  return (binary, cwd, part) => {''','''  return ({ binary, cwd, part }) => {''')\ns=s.replace('''    if (acknowledged.has(fingerprint) || !write(binary, cwd, [next])) return;''','''    if (acknowledged.has(fingerprint)) return;\n    const result = write({ binary, cwd, events: [next] });\n    if (result.status !== \"acknowledged\") return;''')\np.write_text(s)\np=Path('src/opencode/hooks.ts'); s=p.read_text().replace('recordUsage(state.binary, state.cwd, event.properties.part);','''recordUsage({\n            binary: state.binary,\n            cwd: state.cwd,\n            part: event.properties.part,\n          });'''); p.write_text(s)\np=Path('src/hooks/session-summary.ts'); s=p.read_text().replace('recordModelUsage(binary, cwd, usage.events);','const result = recordModelUsage({ binary, cwd, events: usage.events });').replace('records=${usage.events.length}`','records=${usage.events.length}; write=${result.status}`'); p.write_text(s)\np=Path('src/test/model-usage.test.ts'); s=p.read_text().replace('(_binary, _cwd, events) => {','({ events }) => {').replace('return batches.length !== 1;','''return batches.length === 1\n        ? { status: \"unacknowledged\", reason: \"write-error\" }\n        : { status: \"acknowledged\", recorded: events.length };''').replace('record(\"bin\", \"/cwd\", part);','record({ binary: \"bin\", cwd: \"/cwd\", part });').replace('record(\"bin\", \"/cwd\", { ...part, tokens: { input: 2 } });','record({ binary: \"bin\", cwd: \"/cwd\", part: { ...part, tokens: { input: 2 } } });'); p.write_text(s)\np=Path('src/test/model-usage-recording.test.ts'); s=p.read_text().replace('recordModelUsage(\"bin\", \"/cwd\", events)','recordModelUsage({ binary: \"bin\", cwd: \"/cwd\", events })').replace('.toBe(false)', '.toEqual({ status: \"unacknowledged\", reason: \"invalid-ack\" })').replace('.toBe(true)', '.toEqual({ status: \"acknowledged\", recorded: 1 })'); p.write_text(s)\np=Path('src/test/model-usage-hooks.test.ts'); s=p.read_text().replace('const mocks = vi.hoisted', 'import type { UsageWriteRequest, UsageWriteResult } from \"../core/model-usage.js\";\\n\\nconst mocks = vi.hoisted').replace('write: vi.fn(() => true),','''write: vi.fn(({ events }: UsageWriteRequest): UsageWriteResult => ({\n    status: \"acknowledged\",\n    recorded: events.length,\n  })),''').replace('toHaveBeenCalledWith(\"/fake-aide\", cwd, [','toHaveBeenCalledWith({ binary: \"/fake-aide\", cwd, events: [').replace('''    ]);\n    await hooks.event''','''    ] });\n    await hooks.event''').replace('''        ]),''','''        ] }),'''); p.write_text(s)\nPY",
+        "rtk proxy bun test tests",
+        "rtk proxy rg --hidden --no-ignore --glob '!.aide/**' -n 'recordModelUsage|createOpenCodeUsageRecorder|recordUsage\\(|Usage scan:' src"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": true
+    },
+    {
+      "call_id": "call_CNUQSLUXhvTDmezJurc47Pwo",
+      "nested_calls": 4,
+      "commands_reviewed": [
+        "rtk proxy python3 - <<'PY'\nfrom pathlib import Path\nPath('tests/usage-write-contract.test.ts').write_text('''import { afterEach, describe, expect, spyOn, test } from \"bun:test\";\nimport * as childProcess from \"node:child_process\";\nimport {\n  recordModelUsage,\n  createOpenCodeUsageRecorder,\n  type UsageWriteRequest,\n  type UsageWriteResult,\n} from \"../src/core/model-usage.ts\";\n\nconst exec = spyOn(childProcess, \"execFileSync\");\nafterEach(() => exec.mockReset());\nconst request: UsageWriteRequest = {\n  binary: \"unused-binary\",\n  cwd: \"/cwd\",\n  events: [{ kind: \"session\", name: \"model_usage\", session: \"s\" }],\n};\n\ndescribe(\"explicit usage write contract\", () => {\n  test(\"empty batches bypass the binary\", () => {\n    expect(recordModelUsage({ ...request, events: [] })).toEqual({\n      status: \"acknowledged\", recorded: 0,\n    });\n    expect(exec).not.toHaveBeenCalled();\n  });\n  test(\"accepts exact acknowledgments and preserves process options\", () => {\n    for (const output of [\"Recorded 1 event(s)\\\\n\", \" \\\\nrEcOrDeD 1 event(s), skipped 0\\\\t\"]) {\n      exec.mockReturnValue(Buffer.from(output));\n      expect(recordModelUsage(request)).toEqual({ status: \"acknowledged\", recorded: 1 });\n    }\n    expect(exec).toHaveBeenLastCalledWith(request.binary, [\"observe\", \"record\", \"--stdin\"], {\n      cwd: request.cwd,\n      input: JSON.stringify(request.events[0]) + \"\\\\n\",\n      timeout: 10000,\n      stdio: [\"pipe\", \"pipe\", \"pipe\"],\n    });\n  });\n  test(\"rejects missing, malformed, mismatched and skipped acknowledgments\", () => {\n    for (const output of [undefined, null, \"\", \"Recorded 0 event(s)\", \"Recorded 2 event(s)\",\n      \"Recorded 1 event(s), skipped 1\", \"Recorded 1 event(s) junk\"]) {\n      exec.mockReturnValue(output as any);\n      expect(recordModelUsage(request)).toEqual({ status: \"unacknowledged\", reason: \"invalid-ack\" });\n    }\n  });\n  test(\"write and serialization exceptions are best effort failures\", () => {\n    exec.mockImplementation(() => { throw new Error(\"write failed\"); });\n    expect(recordModelUsage(request)).toEqual({ status: \"unacknowledged\", reason: \"write-error\" });\n    exec.mockClear();\n    const circular: any = { ...request.events[0] };\n    circular.attrs = circular;\n    expect(recordModelUsage({ ...request, events: [circular] })).toEqual({\n      status: \"unacknowledged\", reason: \"write-error\",\n    });\n    expect(exec).not.toHaveBeenCalled();\n  });\n});\n\nconst part = { id: \"p\", sessionID: \"s\", messageID: \"m\", type: \"step-finish\", tokens: { input: 1 } };\ntest(\"recorder forwards requests and only caches acknowledgments\", () => {\n  const calls: UsageWriteRequest[] = [];\n  const writer = (request: UsageWriteRequest): UsageWriteResult => {\n    calls.push(request);\n    return calls.length === 1\n      ? { status: \"unacknowledged\", reason: \"invalid-ack\" }\n      : { status: \"acknowledged\", recorded: request.events.length };\n  };\n  const record = createOpenCodeUsageRecorder(writer);\n  const input = { binary: \"bin\", cwd: \"/a\", part };\n  record({ ...input, part: { ...part, type: \"text\" } });\n  expect(calls).toHaveLength(0);\n  record(input);\n  record(input);\n  record(input);\n  expect(calls).toHaveLength(2);\n  expect(calls[0]).toMatchObject({ binary: \"bin\", cwd: \"/a\", events: [{ name: \"model_usage\", session: \"s\" }] });\n  record({ ...input, part: { ...part, tokens: { input: 2 } } });\n  record({ ...input, cwd: \"/b\" });\n  createOpenCodeUsageRecorder(writer)(input);\n  expect(calls).toHaveLength(5);\n});\ntest(\"recorder evicts oldest acknowledgments at 1024 entries\", () => {\n  let writes = 0;\n  const record = createOpenCodeUsageRecorder(({ events }) => {\n    writes++;\n    return { status: \"acknowledged\", recorded: events.length };\n  });\n  const submit = (id: number) => record({ binary: \"bin\", cwd: \"/a\", part: { ...part, id: String(id) } });\n  for (let id = 0; id < 1024; id++) submit(id);\n  submit(0); // Reading an existing entry must not refresh insertion order.\n  expect(writes).toBe(1024);\n  submit(1024);\n  submit(0);\n  expect(writes).toBe(1026);\n});\n''')\nPY",
+        "rtk proxy bun test tests",
+        "rtk proxy sed -n '317,390p' src/core/model-usage.ts",
+        "rtk proxy cat src/test/model-usage-hooks.test.ts"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": true
+    },
+    {
+      "call_id": "call_PYLye5JaJXSlyPn0iahsbfcW",
+      "nested_calls": 1,
+      "commands_reviewed": [
+        "rtk proxy python3 - <<'PY'\nfrom pathlib import Path\np=Path('src/core/model-usage.ts'); s=p.read_text().replace('''export function recordModelUsage(\n  { binary, cwd, events }: UsageWriteRequest,\n): UsageWriteResult {''','''export function recordModelUsage({\n  binary,\n  cwd,\n  events,\n}: UsageWriteRequest): UsageWriteResult {'''); p.write_text(s)\np=Path('src/test/model-usage-recording.test.ts'); s=p.read_text().replace('''      expect(recordModelUsage({ binary: \"bin\", cwd: \"/cwd\", events })).toEqual({ status: \"unacknowledged\", reason: \"invalid-ack\" });''','''      expect(recordModelUsage({ binary: \"bin\", cwd: \"/cwd\", events })).toEqual({\n        status: \"unacknowledged\",\n        reason: \"invalid-ack\",\n      });''').replace('''    expect(recordModelUsage({ binary: \"bin\", cwd: \"/cwd\", events })).toEqual({ status: \"acknowledged\", recorded: 1 });''','''    expect(recordModelUsage({ binary: \"bin\", cwd: \"/cwd\", events })).toEqual({\n      status: \"acknowledged\",\n      recorded: 1,\n    });'''); p.write_text(s)\np=Path('src/test/model-usage.test.ts'); s=p.read_text().replace('''    record({ binary: \"bin\", cwd: \"/cwd\", part: { ...part, tokens: { input: 2 } } }); // conflict reaches store''','''    record({\n      binary: \"bin\",\n      cwd: \"/cwd\",\n      part: { ...part, tokens: { input: 2 } },\n    }); // conflict reaches store'''); p.write_text(s)\np=Path('src/test/model-usage-hooks.test.ts'); s=p.read_text().replace('''    expect(mocks.write).toHaveBeenCalledWith({ binary: \"/fake-aide\", cwd, events: [\n      expect.objectContaining({\n        session: \"s\",\n        name: \"model_usage\",\n        attrs: expect.objectContaining({\n          usage_id: \"p\",\n          uncached_input_tokens: \"12\",\n        }),\n      }),\n    ] });''','''    expect(mocks.write).toHaveBeenCalledWith({\n      binary: \"/fake-aide\",\n      cwd,\n      events: [\n        expect.objectContaining({\n          session: \"s\",\n          name: \"model_usage\",\n          attrs: expect.objectContaining({\n            usage_id: \"p\",\n            uncached_input_tokens: \"12\",\n          }),\n        }),\n      ],\n    });''').replace('''        expect(mocks.write).toHaveBeenCalledWith({ binary: \"/fake-aide\", cwd, events: [\n          expect.objectContaining({\n            session: \"s\",\n            attrs: expect.objectContaining({ host, usage_id: \"r\" }),\n          }),\n        ] }),''','''        expect(mocks.write).toHaveBeenCalledWith({\n          binary: \"/fake-aide\",\n          cwd,\n          events: [\n            expect.objectContaining({\n              session: \"s\",\n              attrs: expect.objectContaining({ host, usage_id: \"r\" }),\n            }),\n          ],\n        }),'''); p.write_text(s)\nPY"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": true
+    }
+  ],
+  "notes": [
+    "Answer quality is outside this review.",
+    "Raw-log hash/complete inputs, prompt digest, launch/prelaunch consistency and all 55 seeded file hashes checked. Exactly six allowed sources differ and one scratch test is added.",
+    "Both scoped bridge calls precede edits; source was read directly before and after changes. All bridge bindings/root/database/socket identities checked.",
+    "Initial raw cat prefix violation is separate from permitted bootstrap scope.",
+    "Sixteen source/edit/test calls remain below the advisory target.",
+    "Tests passed twice: 4/0 before scratch addition, then 10/0. Final formatting edits follow last test run, without another captured execution.",
+    "No savings, billing, token-estimation or causal treatment claim is made."
+  ],
+  "protocol_violation_details": [
+    {
+      "rule": "Every shell command must start with rtk",
+      "call_id": "call_rUm7elnkaCjin1zFp5Gu9CTZ",
+      "nested_call": 1,
+      "observed_command": "cat /tmp/aide-outcomes-v4-trials/t06/participant-prompt.md",
+      "detail": "Authorized instruction path, mandatory prefix missing; no retrospective bootstrap exemption."
+    }
+  ],
+  "execution_verification": [
+    {
+      "command": "rtk proxy bun test tests",
+      "workdir": "/tmp/aide-outcomes-v4-trials/t06/root",
+      "call_id": "call_mwahRZTHAdmSoiyjKZDjAw6B",
+      "content_index": 2,
+      "chunk_id": "dc9d08",
+      "exit_code": 0,
+      "tests_passed": 4,
+      "tests_failed": 0,
+      "tests_total": 4,
+      "test_files": 1,
+      "expect_calls": 13,
+      "suite_scope": "Four original visible tests.",
+      "post_run_changes": "After the second run, the final captured command reformatted writer parameters and original test expectations; no further test run is captured. Neither original Vitest suites nor a TypeScript type check was executed.",
+      "output": "bun test v1.4.0 (34cbb9a40)\n\ntests/usage.test.ts:\n(pass) existing usage behavior > Claude inputs are disjoint; placeholder output is omitted [0.33ms]\n(pass) existing usage behavior > Codex rejects cumulative records and mismatched sessions [0.08ms]\n(pass) existing usage behavior > OpenCode retains ambiguous raw output without adding it [0.06ms]\n(pass) existing usage behavior > transcript scanner skips incomplete trailing lines and stays partial [0.48ms]\n\n 4 pass\n 0 fail\n 13 expect() calls\nRan 4 tests across 1 file. [11.00ms]\n"
+    },
+    {
+      "command": "rtk proxy bun test tests",
+      "workdir": "/tmp/aide-outcomes-v4-trials/t06/root",
+      "call_id": "call_CNUQSLUXhvTDmezJurc47Pwo",
+      "content_index": 2,
+      "chunk_id": "6725eb",
+      "exit_code": 0,
+      "tests_passed": 10,
+      "tests_failed": 0,
+      "tests_total": 10,
+      "test_files": 2,
+      "expect_calls": 34,
+      "suite_scope": "Four original visible tests plus six added scratch tests.",
+      "post_run_changes": "After the second run, the final captured command reformatted writer parameters and original test expectations; no further test run is captured. Neither original Vitest suites nor a TypeScript type check was executed.",
+      "output": "bun test v1.4.0 (34cbb9a40)\n\ntests/usage-write-contract.test.ts:\n(pass) explicit usage write contract > empty batches bypass the binary [0.13ms]\n(pass) explicit usage write contract > accepts exact acknowledgments and preserves process options [0.22ms]\n(pass) explicit usage write contract > rejects missing, malformed, mismatched and skipped acknowledgments [0.04ms]\n(pass) explicit usage write contract > write and serialization exceptions are best effort failures [2.62ms]\n(pass) recorder forwards requests and only caches acknowledgments [0.30ms]\n(pass) recorder evicts oldest acknowledgments at 1024 entries [1.34ms]\n\ntests/usage.test.ts:\n(pass) existing usage behavior > Claude inputs are disjoint; placeholder output is omitted [0.24ms]\n(pass) existing usage behavior > Codex rejects cumulative records and mismatched sessions [0.10ms]\n(pass) existing usage behavior > OpenCode retains ambiguous raw output without adding it [0.07ms]\n(pass) existing usage behavior > transcript scanner skips incomplete trailing lines and stays partial [0.73ms]\n\n 10 pass\n 0 fail\n 34 expect() calls\nRan 10 tests across 2 files. [17.00ms]\n"
+    }
+  ],
+  "bridge_evidence": [
+    {
+      "file": "bridge/t06/c34b6ff4db2d49b5b1bd9c23da96e098.json",
+      "binding_id": "0a1110a6bf5e4f9e90a3798e5606bf96",
+      "request": {
+        "name": "code_read_symbol",
+        "arguments": {
+          "file": "src/core/model-usage.ts",
+          "symbols": [
+            "recordModelUsage",
+            "createOpenCodeUsageRecorder"
+          ]
+        }
+      },
+      "forwarded_request": {
+        "name": "code_read_symbol",
+        "arguments": {
+          "file": "src/core/model-usage.ts",
+          "symbols": [
+            "recordModelUsage",
+            "createOpenCodeUsageRecorder"
+          ]
+        }
+      },
+      "identity": {
+        "project_root": "/tmp/aide-outcomes-v4-trials/t06/root",
+        "real_project_root": "/tmp/aide-outcomes-v4-trials/t06/root",
+        "cwd": "/tmp/aide-outcomes-v4-trials/t06/root",
+        "version": {
+          "version": "0.1.18-dev.32+58816d9",
+          "commit": "58816d991ef7172304f3eef594844d79e995a5e1",
+          "commit_sha": "58816d99",
+          "date": "2026-09-09T15:52:00Z",
+          "go_version": "go1.27.0-X:nodwarf5",
+          "platform": "linux/amd64",
+          "os": "linux",
+          "arch": "amd64"
+        },
+        "db_path": "/tmp/aide-outcomes-v4-trials/t06/root/.aide/memory/memory.db",
+        "socket_path": "/tmp/aide-outcomes-v4-trials/t06/root/.aide/aide.sock",
+        "authority": "daemon",
+        "pid": 16,
+        "ppid": 13,
+        "started_at": "2026-09-09T17:20:32.041287692+01:00"
+      },
+      "returncode": 0,
+      "error": null,
+      "source_changed_since_seed": false
+    },
+    {
+      "file": "bridge/t06/e8c33ec0a12d4f2aac4246a02b45697e.json",
+      "binding_id": "0a1110a6bf5e4f9e90a3798e5606bf96",
+      "request": {
+        "name": "code_outline",
+        "arguments": {
+          "file": "src/core/model-usage.ts"
+        }
+      },
+      "forwarded_request": {
+        "name": "code_outline",
+        "arguments": {
+          "file": "src/core/model-usage.ts"
+        }
+      },
+      "identity": {
+        "project_root": "/tmp/aide-outcomes-v4-trials/t06/root",
+        "real_project_root": "/tmp/aide-outcomes-v4-trials/t06/root",
+        "cwd": "/tmp/aide-outcomes-v4-trials/t06/root",
+        "version": {
+          "version": "0.1.18-dev.32+58816d9",
+          "commit": "58816d991ef7172304f3eef594844d79e995a5e1",
+          "commit_sha": "58816d99",
+          "date": "2026-09-09T15:52:00Z",
+          "go_version": "go1.27.0-X:nodwarf5",
+          "platform": "linux/amd64",
+          "os": "linux",
+          "arch": "amd64"
+        },
+        "db_path": "/tmp/aide-outcomes-v4-trials/t06/root/.aide/memory/memory.db",
+        "socket_path": "/tmp/aide-outcomes-v4-trials/t06/root/.aide/aide.sock",
+        "authority": "daemon",
+        "pid": 16,
+        "ppid": 13,
+        "started_at": "2026-09-09T17:20:25.309947862+01:00"
+      },
+      "returncode": 0,
+      "error": null,
+      "source_changed_since_seed": false
+    }
+  ]
+}

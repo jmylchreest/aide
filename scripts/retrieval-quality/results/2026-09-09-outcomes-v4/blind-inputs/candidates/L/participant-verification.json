@@ -1,0 +1,32 @@
+[
+  {
+    "command": "rtk proxy bun test tests",
+    "workdir": "<workspace>",
+    "call_id": "call_SxPPItjufEl7pPssnXUQwove",
+    "content_index": 2,
+    "chunk_id": "dadcba",
+    "exit_code": 1,
+    "tests_passed": 8,
+    "tests_failed": 2,
+    "tests_total": 10,
+    "test_files": 2,
+    "expect_calls": 25,
+    "suite_scope": "Four original visible tests plus six participant-added scratch tests. No original Vitest suite or TypeScript type-check execution observed.",
+    "output": "bun test v1.4.0 (34cbb9a40)\n\ntests/usage-contract-scratch.test.ts:\n(pass) usage request/result contract > empty batches acknowledge without invoking the binary [0.10ms]\n27 |       ] as const) {\n28 |         writeFileSync(binary, \"#!/bin/sh\\ncat > payload\\npwd > location\\nprintf '%s' \" + quote(response) + \"\\n\", { mode: 0o755 });\n29 |         expect(recordModelUsage({ binary, cwd, events })).toEqual(acknowledged\n30 |           ? { status: \"acknowledged\", recorded: 1 }\n31 |           : { status: \"unacknowledged\", reason: \"invalid-ack\" });\n32 |         expect(readFileSync(join(cwd, \"payload\"), \"utf8\")).toBe(JSON.stringify(events[0]) + \"\\n\");\n                    ^\nerror: ENOENT: no such file or directory, open '<workspace>/tests/usage-contract-BWGjBR/payload'\n      at <anonymous> (<workspace>/tests/usage-contract-scratch.test.ts:32:16)\n(fail) usage request/result contract > accepts only full acknowledgments and preserves JSONL and cwd [0.50ms]\n35 |     } finally { rmSync(cwd, { recursive: true, force: true }); }\n36 |   });\n37 | \n38 |   test(\"write and serialization exceptions report write-error\", () => {\n39 |     const request = { binary: \"/does-not-exist\", cwd: process.cwd(), events };\n40 |     expect(recordModelUsage(request)).toEqual({ status: \"unacknowledged\", reason: \"write-error\" });\n                                           ^\nerror: expect(received).toEqual(expected)\n\n  {\n-   \"reason\": \"write-error\",\n-   \"status\": \"unacknowledged\",\n+   \"recorded\": 1,\n+   \"status\": \"acknowledged\",\n  }\n\n- Expected  - 2\n+ Received  + 2\n\n      at <anonymous> (<workspace>/tests/usage-contract-scratch.test.ts:40:39)\n(fail) usage request/result contract > write and serialization exceptions report write-error [0.08ms]\n(pass) usage request/result contract > both unacknowledged results retry and changed counters forward [0.37ms]\n(pass) usage request/result contract > filters invalid parts, scopes cwd and keeps instances independent [0.09ms]\n(pass) usage request/result contract > evicts oldest acknowledgments at 1,024 without refreshing duplicates [1.47ms]\n\ntests/usage.test.ts:\n(pass) existing usage behavior > Claude inputs are disjoint; placeholder output is omitted [0.20ms]\n(pass) existing usage behavior > Codex rejects cumulative records and mismatched sessions [0.09ms]\n(pass) existing usage behavior > OpenCode retains ambiguous raw output without adding it [0.06ms]\n(pass) existing usage behavior > transcript scanner skips incomplete trailing lines and stays partial [0.39ms]\n\n 8 pass\n 2 fail\n 25 expect() calls\nRan 10 tests across 2 files. [14.00ms]\n"
+  },
+  {
+    "command": "rtk proxy bun test tests",
+    "workdir": "<workspace>",
+    "call_id": "call_Edake1SxBV9Ecw2FYZjQtbeQ",
+    "content_index": 2,
+    "chunk_id": "86e3b5",
+    "exit_code": 0,
+    "tests_passed": 10,
+    "tests_failed": 0,
+    "tests_total": 10,
+    "test_files": 2,
+    "expect_calls": 43,
+    "suite_scope": "Four original visible tests plus six participant-added scratch tests. No original Vitest suite or TypeScript type-check execution observed.",
+    "output": "bun test v1.4.0 (34cbb9a40)\n\ntests/usage-contract-scratch.test.ts:\n(pass) usage request/result contract > empty batches acknowledge without invoking the binary [0.10ms]\n(pass) usage request/result contract > accepts only full acknowledgments and preserves JSONL and cwd [0.31ms]\n(pass) usage request/result contract > write and serialization exceptions report write-error [2.43ms]\n(pass) usage request/result contract > both unacknowledged results retry and changed counters forward [0.37ms]\n(pass) usage request/result contract > filters invalid parts, scopes cwd and keeps instances independent [0.09ms]\n(pass) usage request/result contract > evicts oldest acknowledgments at 1,024 without refreshing duplicates [1.39ms]\n\ntests/usage.test.ts:\n(pass) existing usage behavior > Claude inputs are disjoint; placeholder output is omitted [0.21ms]\n(pass) existing usage behavior > Codex rejects cumulative records and mismatched sessions [0.09ms]\n(pass) existing usage behavior > OpenCode retains ambiguous raw output without adding it [0.06ms]\n(pass) existing usage behavior > transcript scanner skips incomplete trailing lines and stays partial [0.48ms]\n\n 10 pass\n 0 fail\n 43 expect() calls\nRan 10 tests across 2 files. [17.00ms]\n"
+  }
+]

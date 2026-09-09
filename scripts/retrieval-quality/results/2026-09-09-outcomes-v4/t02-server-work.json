@@ -1,0 +1,47 @@
+[
+  {
+    "id": "01M23F1M1XEEZAWP25PC95Y0XY",
+    "ts": "2026-09-09T17:12:04.029521459+01:00",
+    "kind": "tool_call",
+    "name": "code_outline",
+    "category": "consume",
+    "subtype": "outline",
+    "dur_ms": 6,
+    "tokens": 823,
+    "file": "src/core/model-usage.ts",
+    "attrs": {
+      "accounting_version": "1",
+      "observation_stage": "server_result",
+      "payload_bytes": "2470",
+      "reference_kind": "full_file",
+      "retrieval_id": "BIGJFMYTXQ5U7UK6X62TDBUA3H",
+      "source_references": "[{\"file\":\"src/core/model-usage.ts\",\"sha256\":\"5f8ceb868f06aa5b6c2da0328469c0ee82f720715c492574eed8986c7f308309\",\"bytes\":10720}]",
+      "token_estimator": "utf8-bytes/3-v1",
+      "work_elapsed_ms": "6",
+      "work_id": "ZI3E5APPS4YJL2K27KHZSJUWDV",
+      "work_outcome": "returned",
+      "work_text_sha256": "f4aa8560c63928744e38e59648cd1190e2e6f6e6de1d2ca51e0359e451adfe44",
+      "work_version": "1"
+    }
+  },
+  {
+    "id": "01M23F1M1XEEZAWP25PB7E7JXN",
+    "ts": "2026-09-09T17:12:04.029234352+01:00",
+    "kind": "tool_call",
+    "name": "instance_info",
+    "category": "navigate",
+    "subtype": "instance",
+    "tokens": 243,
+    "attrs": {
+      "accounting_version": "1",
+      "observation_stage": "server_result",
+      "payload_bytes": "728",
+      "token_estimator": "utf8-bytes/3-v1",
+      "work_elapsed_ms": "0",
+      "work_id": "KGTFWOGK7AQTUBO6DCZAEW7IXN",
+      "work_outcome": "returned",
+      "work_text_sha256": "7b4e734e422c1f1d85015ff5929843b53736d740dc771bded60dc0088f3b07e3",
+      "work_version": "1"
+    }
+  }
+]

@@ -1,0 +1,23 @@
+[aide-mcp] 17:22:21 aide MCP server starting
+[aide-mcp] 17:22:21 version: aide version 0.1.18-dev.32+58816d9 (commit: 58816d99, built: 2026-09-09T15:52:00Z, go1.27.0-X:nodwarf5, linux/amd64)
+[aide-mcp] 17:22:21 database: /tmp/aide-outcomes-v4-trials/t07/root/.aide/memory/memory.db
+[aide-mcp] 17:22:21 database opened in 328.887µs (bolt + bleve search)
+[aide-mcp] 17:22:21 cleanup loop disabled (cleanup.enabled=false)
+[aide-mcp] 17:22:21 gRPC socket: /tmp/aide-outcomes-v4-trials/t07/root/.aide/aide.sock
+[aide-mcp] 17:22:21 code index opened in 252.988µs: /tmp/aide-outcomes-v4-trials/t07/root/.aide/memory/code/index.db
+2026/09/09 17:22:21 store: applying migration v1: baseline findings schema stamp
+[aide-mcp] 17:22:21 findings store opened in 1.144018ms: /tmp/aide-outcomes-v4-trials/t07/root/.aide/memory/findings
+2026/09/09 17:22:21 store: applying migration v1: baseline survey schema stamp
+[aide-mcp] 17:22:21 survey store opened in 367.626µs: /tmp/aide-outcomes-v4-trials/t07/root/.aide/memory/survey
+[aide-mcp] 17:22:21 warning: failed to register instance: cannot determine home directory: $HOME is not defined
+[aide-mcp] 17:22:21 gRPC server error: failed to listen on socket /tmp/aide-outcomes-v4-trials/t07/root/.aide/aide.sock: listen unix /tmp/aide-outcomes-v4-trials/t07/root/.aide/aide.sock: setsockopt: operation not permitted (other sessions cannot share this store until a daemon binds; check permissions and stale files)
+[aide-mcp] 17:22:21 primary mode: holding the store, serving gRPC
+[aide-mcp] 17:22:21 MCP server ready in 2.251256ms, listening on stdio
+[aide-mcp] 17:22:21 code tools: registered (store may initialize lazily)
+[aide-mcp] 17:22:21 findings tools: registered
+[aide-mcp] 17:22:21 survey tools: registered
+[aide-mcp] 17:22:21 instinct tools: registered (read-only)
+[aide-mcp] 17:22:21 tool: instance_info
+[aide-mcp] 17:22:21   project_root=/tmp/aide-outcomes-v4-trials/t07/root authority=daemon
+[aide-mcp] 17:22:21 tool: code_symbols file=src/core/model-usage.ts
+[aide-mcp] 17:22:21   found: 16 symbols

@@ -1,0 +1,8 @@
+{
+  "phase": "execution",
+  "started_at": "2026-09-09T16:09:35.037382+00:00",
+  "freeze_commit": "032b074",
+  "prepared_ledger": "/tmp/aide-outcomes-v4-trials/ledger.json",
+  "launcher": "Fresh sequential collaboration agents, fork_turns=none, no overrides. Uniform bootstrap message points to the frozen prepared prompt; reading this instruction file is authorized and measured.",
+  "participant_count": 12
+}

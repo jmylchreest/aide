@@ -1,0 +1,243 @@
+{
+  "reviewer": "v4_trace_audit",
+  "scope": "Protocol/tool traces only; no answer or source-quality grading.",
+  "created_at": "2026-09-09T16:35:49.035685+00:00",
+  "planned": 12,
+  "reviewed": 12,
+  "schema_and_reconciliation_passed": true,
+  "issues": [],
+  "rows": [
+    {
+      "trial": "t01",
+      "trace_review": "t01-trace-review.json",
+      "scope_verified": true,
+      "source_integrity_verified": true,
+      "clear_protocol_violations": 1,
+      "nested_calls": 23,
+      "source_edit_test_calls": 20,
+      "advisory_target_exceeded": false,
+      "bridge_attempts": 0,
+      "aide_uptake": false,
+      "aide_operations_by_name": {},
+      "retrieval_output_bytes": null,
+      "source_byte_lower_bound": 88471,
+      "protocol_valid": false
+    },
+    {
+      "trial": "t02",
+      "trace_review": "t02-trace-review.json",
+      "scope_verified": true,
+      "source_integrity_verified": true,
+      "clear_protocol_violations": 1,
+      "nested_calls": 21,
+      "source_edit_test_calls": 19,
+      "advisory_target_exceeded": false,
+      "bridge_attempts": 1,
+      "aide_uptake": true,
+      "aide_operations_by_name": {
+        "code_outline": 1
+      },
+      "retrieval_output_bytes": 112848,
+      "source_byte_lower_bound": 112848,
+      "protocol_valid": false
+    },
+    {
+      "trial": "t03",
+      "trace_review": "t03-trace-review.json",
+      "scope_verified": true,
+      "source_integrity_verified": true,
+      "clear_protocol_violations": 2,
+      "nested_calls": 17,
+      "source_edit_test_calls": 14,
+      "advisory_target_exceeded": false,
+      "bridge_attempts": 0,
+      "aide_uptake": false,
+      "aide_operations_by_name": {},
+      "retrieval_output_bytes": 107787,
+      "source_byte_lower_bound": 107787,
+      "protocol_valid": false
+    },
+    {
+      "trial": "t04",
+      "trace_review": "t04-trace-review.json",
+      "scope_verified": true,
+      "source_integrity_verified": true,
+      "clear_protocol_violations": 1,
+      "nested_calls": 30,
+      "source_edit_test_calls": 27,
+      "advisory_target_exceeded": false,
+      "bridge_attempts": 13,
+      "aide_uptake": true,
+      "aide_operations_by_name": {
+        "code_symbols": 7,
+        "code_read_symbol": 6
+      },
+      "retrieval_output_bytes": 108442,
+      "source_byte_lower_bound": 108442,
+      "protocol_valid": false
+    },
+    {
+      "trial": "t05",
+      "trace_review": "t05-trace-review.json",
+      "scope_verified": true,
+      "source_integrity_verified": true,
+      "clear_protocol_violations": 1,
+      "nested_calls": 15,
+      "source_edit_test_calls": 12,
+      "advisory_target_exceeded": false,
+      "bridge_attempts": 0,
+      "aide_uptake": false,
+      "aide_operations_by_name": {},
+      "retrieval_output_bytes": 42784,
+      "source_byte_lower_bound": 42784,
+      "protocol_valid": false
+    },
+    {
+      "trial": "t06",
+      "trace_review": "t06-trace-review.json",
+      "scope_verified": true,
+      "source_integrity_verified": true,
+      "clear_protocol_violations": 1,
+      "nested_calls": 19,
+      "source_edit_test_calls": 16,
+      "advisory_target_exceeded": false,
+      "bridge_attempts": 2,
+      "aide_uptake": true,
+      "aide_operations_by_name": {
+        "code_read_symbol": 1,
+        "code_outline": 1
+      },
+      "retrieval_output_bytes": 37750,
+      "source_byte_lower_bound": 37750,
+      "protocol_valid": false
+    },
+    {
+      "trial": "t07",
+      "trace_review": "t07-trace-review.json",
+      "scope_verified": true,
+      "source_integrity_verified": true,
+      "clear_protocol_violations": 1,
+      "nested_calls": 19,
+      "source_edit_test_calls": 16,
+      "advisory_target_exceeded": false,
+      "bridge_attempts": 2,
+      "aide_uptake": true,
+      "aide_operations_by_name": {
+        "code_read_symbol": 1,
+        "code_symbols": 1
+      },
+      "retrieval_output_bytes": 44148,
+      "source_byte_lower_bound": 44148,
+      "protocol_valid": false
+    },
+    {
+      "trial": "t08",
+      "trace_review": "t08-trace-review.json",
+      "scope_verified": true,
+      "source_integrity_verified": true,
+      "clear_protocol_violations": 1,
+      "nested_calls": 17,
+      "source_edit_test_calls": 13,
+      "advisory_target_exceeded": false,
+      "bridge_attempts": 0,
+      "aide_uptake": false,
+      "aide_operations_by_name": {},
+      "retrieval_output_bytes": 50691,
+      "source_byte_lower_bound": 50691,
+      "protocol_valid": false
+    },
+    {
+      "trial": "t09",
+      "trace_review": "t09-trace-review.json",
+      "scope_verified": true,
+      "source_integrity_verified": true,
+      "clear_protocol_violations": 2,
+      "nested_calls": 32,
+      "source_edit_test_calls": 29,
+      "advisory_target_exceeded": false,
+      "bridge_attempts": 10,
+      "aide_uptake": true,
+      "aide_operations_by_name": {
+        "code_symbols": 5,
+        "code_read_symbol": 5
+      },
+      "retrieval_output_bytes": 100561,
+      "source_byte_lower_bound": 100561,
+      "protocol_valid": false
+    },
+    {
+      "trial": "t10",
+      "trace_review": "t10-trace-review.json",
+      "scope_verified": true,
+      "source_integrity_verified": true,
+      "clear_protocol_violations": 2,
+      "nested_calls": 24,
+      "source_edit_test_calls": 21,
+      "advisory_target_exceeded": false,
+      "bridge_attempts": 0,
+      "aide_uptake": false,
+      "aide_operations_by_name": {},
+      "retrieval_output_bytes": 114963,
+      "source_byte_lower_bound": 114963,
+      "protocol_valid": false
+    },
+    {
+      "trial": "t11",
+      "trace_review": "t11-trace-review.json",
+      "scope_verified": true,
+      "source_integrity_verified": true,
+      "clear_protocol_violations": 2,
+      "nested_calls": 23,
+      "source_edit_test_calls": 20,
+      "advisory_target_exceeded": false,
+      "bridge_attempts": 2,
+      "aide_uptake": true,
+      "aide_operations_by_name": {
+        "code_symbols": 1,
+        "code_read_symbol": 1
+      },
+      "retrieval_output_bytes": 118598,
+      "source_byte_lower_bound": 118598,
+      "protocol_valid": false
+    },
+    {
+      "trial": "t12",
+      "trace_review": "t12-trace-review.json",
+      "scope_verified": true,
+      "source_integrity_verified": true,
+      "clear_protocol_violations": 1,
+      "nested_calls": 26,
+      "source_edit_test_calls": 23,
+      "advisory_target_exceeded": false,
+      "bridge_attempts": 0,
+      "aide_uptake": false,
+      "aide_operations_by_name": {},
+      "retrieval_output_bytes": null,
+      "source_byte_lower_bound": 84347,
+      "protocol_valid": false
+    }
+  ],
+  "summary": {
+    "scope_verified_trials": 12,
+    "source_integrity_verified_trials": 12,
+    "trials_with_clear_prefix_violations": 12,
+    "clear_prefix_violations": 16,
+    "aide_uptake_trials": 6,
+    "bridge_attempts": 30,
+    "unattributable_complete_retrieval_totals": [
+      "t01",
+      "t12"
+    ],
+    "trials_exceeding_advisory_target": [],
+    "protocol_valid_trials": 0
+  },
+  "limitations": [
+    "Every trial has at least one clear raw-bootstrap prefix violation; strict frozen protocol-valid pair comparisons remain ineligible regardless of quality.",
+    "Actual launcher task plaintext is encrypted in raw actor logs, so saved-launcher text cannot be independently compared verbatim. Prepared prompt hashes, saved launch/prelaunch consistency where available, actor identities, actual tool inputs and source integrity were checked.",
+    "t01 and t12 outer truncation splice source result bodies; complete retrieval bytes remain null with conservative attributable bounds.",
+    "t09 pipeline-stage observations are interpretation ambiguity, not demonstrated additional violations, because frozen wording does not explicitly require separate rtk on each stage. Initial review preserved separately.",
+    "t08 root listing shows .aide name only; no state-content read/traversal observed.",
+    "Null observe exports on zero-aide trials are normal; bridge attempts and successful scoped requests reconcile without treating them as missing measurements.",
+    "No runtime usage, savings, billing, answer-quality or causal-effect conclusion is derived from byte counts or this audit."
+  ]
+}

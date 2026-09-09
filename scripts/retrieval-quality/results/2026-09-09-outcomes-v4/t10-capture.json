@@ -1,0 +1,178 @@
+{
+  "schema_version": 1,
+  "runtime": {
+    "actor_id": "01a086ff-924c-79a0-adab-9c806735a1c1",
+    "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+    "agent_path": "/root/v4_execution/v4_t10",
+    "cli_version": "0.153.4",
+    "model_provider": "openai",
+    "model": "gpt-6-astra",
+    "effort": "high"
+  },
+  "completion": {
+    "complete": true,
+    "started_at": 1788971291,
+    "completed_at": 1788971397,
+    "duration_ms": 106049
+  },
+  "answer": {
+    "raw_text": "Within the supplied snapshot, the migration affects **two production writer invocation sites and one OpenCode recorder invocation site**, across three TypeScript files. No code was edited and no tests were run.\n\nThe writer implementation, [recordModelUsage](/tmp/aide-outcomes-v4-trials/t10/root/src/core/model-usage.ts:319), must change from three positional arguments and a boolean result to `UsageWriteRequest` and `UsageWriteResult`.\n\n| Production consumer | Existing call and required migration | Consequence if missed |\n|---|---|---|\n| `main()`, Stop branch in [session-summary.ts:125](/tmp/aide-outcomes-v4-trials/t10/root/src/hooks/session-summary.ts:125) | Line 135 calls `recordModelUsage(binary, cwd, usage.events)`. Change to `const result = recordModelUsage({ binary, cwd, events: usage.events })` and append the required status to its debug message. | The positional call violates the new signature; unchecked execution supplies no valid request fields. Omitting result handling also loses the requested write-status diagnostic. |\n| Returned closure inside [createOpenCodeUsageRecorder:350](/tmp/aide-outcomes-v4-trials/t10/root/src/core/model-usage.ts:350) | Line 358 calls captured `write(binary, cwd, [next])` and tests its boolean value. Change to `write({ binary, cwd, events: [next] })`, accepting only `result.status === \"acknowledged\"` for caching. The injected writer parameter must have the new contract. | The old argument shape breaks the writer contract. Merely fixing arguments while retaining the truthiness test incorrectly caches failed writes. |\n| Returned event handler from `createEventHandler`, `message.part.updated` branch in [hooks.ts:461](/tmp/aide-outcomes-v4-trials/t10/root/src/opencode/hooks.ts:461) | Line 463 calls `recordUsage(state.binary, state.cwd, event.properties.part)`. Change to `recordUsage({ binary: state.binary, cwd: state.cwd, part: event.properties.part })`. | The call violates the new recorder signature; unchecked execution can supply an undefined `part` to normalization and silently drop usage. |\n\nThe OpenCode edge has two distinct stages. [createEventHandler:435](/tmp/aide-outcomes-v4-trials/t10/root/src/opencode/hooks.ts:435) calls `createOpenCodeUsageRecorder()` once, capturing the returned recorder. The factory’s default parameter binds `write` to `recordModelUsage`; **factory construction itself does not write**. Later, the event branch invokes the recorder, whose closure normalizes the part, checks its cache, and dynamically invokes the captured writer. An explicitly injected writer replaces that default. Supplied tests exercise injection, but no production injection is visible.\n\nFor entry context, [createHooks:154](/tmp/aide-outcomes-v4-trials/t10/root/src/opencode/hooks.ts:154) initializes state and exposes `event: createEventHandler(state)` at line 197. Its public signature stays unchanged, as do `createEventHandler(state)` and the host callback shape `{ event } => Promise<void>` declared in [Hooks:187](/tmp/aide-outcomes-v4-trials/t10/root/src/opencode/types.ts:187). The factory call with no arguments also remains valid. Only the returned recorder’s input changes; its output remains `void`.\n\nStop enters through the module’s [main() invocation:157](/tmp/aide-outcomes-v4-trials/t10/root/src/hooks/session-summary.ts:157). `main(): Promise<void>` and `HookInput` stay unchanged. Usage collection requires a Stop event, an explicit transcript path and a discovered binary. It occurs before the `stop_hook_active` guard, which guards summary capture, not usage recording.\n\nBoth new result variants are objects and therefore truthy. Leaving `!write(...)` in the recorder makes an `unacknowledged` response pass through to `acknowledged.add(...)`. An identical later broadcast then gets suppressed, losing the retry opportunity. The existing [cache logic:353–361](/tmp/aide-outcomes-v4-trials/t10/root/src/core/model-usage.ts:353) establishes these behaviors to preserve:\n\n- Invalid or irrelevant parts produce no write.\n- Either unacknowledged reason leaves the attempted fingerprint uncached, allowing a later broadcast to retry.\n- An acknowledged identical normalized event in the same cwd is suppressed.\n- Changed counters produce a different normalized event and must reach the writer, even with the same usage identity.\n- Changed cwd must forward the event because the fingerprint includes cwd.\n- Successful insertions beyond 1,024 entries evict the oldest entry. Duplicate hits do not refresh insertion order.\n- Cache state belongs to each factory-created recorder. It is an optimization; durable deduplication remains downstream.\n\nFor Stop, [lines 135–138](/tmp/aide-outcomes-v4-trials/t10/root/src/hooks/session-summary.ts:135) currently **discard the boolean result** and report only scan status, limits, malformed rows and collected-record count. The message must become exactly:\n\n```ts\n`Usage scan: ${usage.status}; limited=${usage.limited}; malformed=${usage.malformed}; records=${usage.events.length}; write=${result.status}`\n```\n\nThe writer’s existing [transport and acknowledgment logic:324–345](/tmp/aide-outcomes-v4-trials/t10/root/src/core/model-usage.ts:324) maps to the proposed outcomes as follows:\n\n| Condition | Required result |\n|---|---|\n| Empty events | `{ status: \"acknowledged\", recorded: 0 }`, without spawning |\n| Matching complete acknowledgment | `{ status: \"acknowledged\", recorded: events.length }` |\n| Malformed acknowledgment, count mismatch, nonzero skipped count | `{ status: \"unacknowledged\", reason: \"invalid-ack\" }` |\n| Thrown write | `{ status: \"unacknowledged\", reason: \"write-error\" }` |\n\nPreserve `observe record --stdin`, JSONL event serialization with a trailing newline, cwd, 10,000 ms timeout, piped stdio, and the case-insensitive acknowledgment regex with optional skipped count. Preserve the existing exception debug message and no-fallback behavior. An invalid acknowledgment currently returns failure without that exception log.\n\nThe following supplied code does **not** consume this TypeScript request/result API:\n\n| Nonconsumer | Source evidence and reason |\n|---|---|\n| Usage normalization | [claudeUsageEvent:121](/tmp/aide-outcomes-v4-trials/t10/root/src/core/model-usage.ts:121), `codexUsageEvent:153`, and `openCodeUsageEvent:203` produce events; they do not call the writer. Their validation, timestamps, counter normalization and omission rules remain unchanged. |\n| Transcript collector | [collectTranscriptUsage:245](/tmp/aide-outcomes-v4-trials/t10/root/src/core/model-usage.ts:245) reads the explicit file and returns `UsageCollection`. Lines 294–297 invoke normalizers, not the writer. Its bounded scanning and cursor-free rescanning remain unchanged. |\n| Generic observe writers | [recordObserveEventsBatch:218](/tmp/aide-outcomes-v4-trials/t10/root/src/core/read-tracking.ts:218) independently spawns the CLI and falls back to `recordObserveEvent` on exceptions. [recordObserveEvent:283](/tmp/aide-outcomes-v4-trials/t10/root/src/core/read-tracking.ts:283) independently constructs flag arguments. Neither delegates to `recordModelUsage`; both retain positional, `void` APIs. Sharing `ObserveBatchEvent` does not require migration. |\n| OpenCode text-part handler | [handleMessagePartUpdated:738](/tmp/aide-outcomes-v4-trials/t10/root/src/opencode/hooks.ts:738) handles text parts and uses generic `recordObserveEvent` at line 781. It is a sibling call after usage recording, not the usage recorder’s enclosing function. Its separate part cache is unrelated. |\n| Summary capture | [captureSessionSummary:54](/tmp/aide-outcomes-v4-trials/t10/root/src/hooks/session-summary.ts:54) gathers/builds/stores summaries. The usage call belongs to `main()`, outside this function. Its signature needs no migration. |\n| Go CLI | [observeBatchLine:219 and cmdObserveRecordBatch:237](/tmp/aide-outcomes-v4-trials/t10/root/aide/cmd/aide/cmd_observe.go:219) consume JSONL fields, call `backend.Store().AddObserveEvent`, and print recorded/skipped counts. `cmdObserveRecord:292` selects this path with `--stdin`. These wire contracts remain unchanged. |\n| Go event API | [observe.Event:22](/tmp/aide-outcomes-v4-trials/t10/root/aide/pkg/observe/observe.go:22) and [Recorder.Record:176](/tmp/aide-outcomes-v4-trials/t10/root/aide/pkg/observe/observe.go:176) operate on Go events and sinks, not TypeScript result objects. |\n| Durable store | [BoltStore.AddObserveEvent:140](/tmp/aide-outcomes-v4-trials/t10/root/aide/pkg/store/observe_events.go:140) preserves source time, assigns missing identity/time, and persists/deduplicates events. [usageOrigin:59](/tmp/aide-outcomes-v4-trials/t10/root/aide/pkg/store/token_model_usage.go:59) incorporates usage identity and fingerprint, retaining distinct revisions. No API migration is needed. |\n| Go accounting | [modelUsage.observe:135](/tmp/aide-outcomes-v4-trials/t10/root/aide/pkg/store/token_model_usage.go:135) detects conflicting revisions; `resultWithSessions:172` excludes conflicts and invalid records from totals. [TokenStats:153–196](/tmp/aide-outcomes-v4-trials/t10/root/aide/pkg/store/token_events.go:153) reads stored events and assigns model usage. [TokenModelUsage:23](/tmp/aide-outcomes-v4-trials/t10/root/aide/pkg/memory/token_model_usage.go:23) and [TokenAccounting:32, Add:69](/tmp/aide-outcomes-v4-trials/t10/root/aide/pkg/memory/token_accounting.go:32) retain their existing data contracts. |\n\nThe supplied original tests require these specific changes:\n\n| Test evidence | Existing purpose and migration |\n|---|---|\n| [model-usage-recording.test.ts:8](/tmp/aide-outcomes-v4-trials/t10/root/src/test/model-usage-recording.test.ts:8) | Tests empty output, too-small/too-large recorded counts, nonzero skipped count, and a matching acknowledgment. Change positional calls at lines 16/19 and boolean assertions to request objects and exact result objects. It does **not** test empty event input, thrown writes, or subprocess options. |\n| [model-usage.test.ts:44](/tmp/aide-outcomes-v4-trials/t10/root/src/test/model-usage.test.ts:44) | Tests first-write failure, successful retry, identical-repeat suppression and changed-counter forwarding through a three-batch assertion. Change the injected writer’s positional parameters/boolean return at lines 46–48 and recorder calls at lines 57–60. It does **not** exercise changed cwd or eviction. |\n| [model-usage-hooks.test.ts:6](/tmp/aide-outcomes-v4-trials/t10/root/src/test/model-usage-hooks.test.ts:6) | The shared mock returns `true`; change it to an acknowledged result. Lines 16–18 replace the direct export and explicitly inject the mock into the actual factory. Change positional writer expectations at lines 79 and 136 to request objects. |\n| Same host tests, [line 61](/tmp/aide-outcomes-v4-trials/t10/root/src/test/model-usage-hooks.test.ts:61) and [line 105](/tmp/aide-outcomes-v4-trials/t10/root/src/test/model-usage-hooks.test.ts:105) | Preserve the real OpenCode event-handler check, ignored `message.updated` check, and parameterized Claude/Codex Stop transcript checks. These tests do not assert Stop logging or prove the production factory’s default-writer binding. |\n| Remaining [model-usage.test.ts:20](/tmp/aide-outcomes-v4-trials/t10/root/src/test/model-usage.test.ts:20) tests | Preserve malformed/precise source-time tests (20–43), normalization and identity tests (63–176), and bounded transcript/malformed-row/directory-source test (178–200). Their calls and expectations do not consume the changed API. |\n\nAdditional meaningful checks should cover:\n\n- Empty input returns exact acknowledged/zero and never invokes `execFileSync`.\n- Both exact failure reasons; exceptions preserve error logging and never trigger per-event fallback.\n- Exact CLI arguments/options and multi-event JSONL payload, including source timestamp precision and unchanged attrs; accepted lowercase output and optional `skipped 0`; rejected extra output.\n- Both failure variants remain retryable, followed by successful caching; changed counters and cwd forward exact requests; invalid parts do not write; recorder returns `undefined`.\n- A cache containing 1,024 acknowledgments retains them; the 1,025th evicts the oldest. Repeating a cached entry does not refresh its age, and unacknowledged writes do not consume capacity.\n- A factory constructed without injection reaches the real writer using a mocked subprocess boundary. Host tests should assert request fields, repeated-event behavior and binary gating.\n- Stop emits the exact appended status for acknowledged and unacknowledged writes, including an empty collection, while preserving scan fields and usage recording when `stop_hook_active` is true.\n\nCompleteness is limited to the supplied files. Literal searches for the writer, factory, module imports and `recordUsage`, followed by source inspection, found the sites listed above; they do not establish whole-repository caller completeness. The [fixture README](/tmp/aide-outcomes-v4-trials/t10/root/README.md:1) explicitly describes a bounded navigation fixture, not a complete application build.\n\nThe unresolved edges are:\n\n- External OpenCode plugin registration and actual host event delivery are outside the supplied production entry path.\n- External users of the exported writer/factory and runtime-injected writer implementations cannot be enumerated or validated here.\n- The actual executable selected by `binary`, its deployed version, and top-level executable routing are not proved by this snapshot.\n- `NewBackend` and the concrete implementation returned by `backend.Store()` are absent. The CLI’s method call and the supplied Bolt implementation are visible, but their runtime binding is not established.\n\nFinally, CLI acknowledgment counts successful `AddObserveEvent` calls, including deduplicated retries; it does not promise that every event created a new row. An unacknowledged batch can already have partially persisted, which makes preserved retry and durable deduplication important. Neither acknowledgment nor transcript scanning establishes complete provider/session usage coverage. Verification here was source inspection only.",
+    "parsed_json": null,
+    "parse_error": "Final answer is not valid JSON"
+  },
+  "tool_calls": [
+    {
+      "call_id": "call_TfB8c9oYqIiaI1oLg4at1xgU",
+      "name": "exec",
+      "type": "custom_tool_call",
+      "input": "text(await tools.exec_command({cmd:\"cat /home/johnm/.codex/RTK.md\",max_output_tokens:6000}));\ntext(await tools.exec_command({cmd:\"cat /tmp/aide-outcomes-v4-trials/t10/participant-prompt.md\",max_output_tokens:12000}));\n"
+    },
+    {
+      "call_id": "call_7EARuh565fGhbZewtCMFC6Ll",
+      "name": "exec",
+      "type": "custom_tool_call",
+      "input": "text(await tools.exec_command({cmd:\"rtk proxy rg --files --hidden --no-ignore --glob '!.aide/**' --glob '!.git/**'\",workdir:\"/tmp/aide-outcomes-v4-trials/t10/root\",max_output_tokens:10000}));\n"
+    },
+    {
+      "call_id": "call_YSZIUUg1oR0i0x1teDr7Ax3H",
+      "name": "exec",
+      "type": "custom_tool_call",
+      "input": "const results=await Promise.allSettled([\ntools.exec_command({cmd:\"rtk proxy rg -n --hidden --no-ignore --glob '!.aide/**' --glob '!.git/**' 'recordModelUsage|createOpenCodeUsageRecorder|recordObserveEventsBatch|recordObserveEvent|Usage scan' .\",workdir:\"/tmp/aide-outcomes-v4-trials/t10/root\",max_output_tokens:11000}),\ntools.exec_command({cmd:\"rtk proxy cat README.md\",workdir:\"/tmp/aide-outcomes-v4-trials/t10/root\",max_output_tokens:4000}),\ntools.exec_command({cmd:\"rtk proxy nl -ba src/core/model-usage.ts\",workdir:\"/tmp/aide-outcomes-v4-trials/t10/root\",max_output_tokens:14000})\n]);results.forEach(text);\n"
+    },
+    {
+      "call_id": "call_xgMUi5YrirZfGgp3DONWIJHV",
+      "name": "exec",
+      "type": "custom_tool_call",
+      "input": "const r=await Promise.allSettled([\ntools.exec_command({cmd:\"rtk proxy nl -ba src/hooks/session-summary.ts\",workdir:\"/tmp/aide-outcomes-v4-trials/t10/root\",max_output_tokens:11000}),\ntools.exec_command({cmd:\"rtk proxy rg -n '^(export |async |function |const )|recordUsage|message.part.updated|createHooks|session-summary|sessionSummary|handleStop' src/opencode/hooks.ts src/opencode/types.ts src/lib/hook-utils.ts src/core/session-summary-logic.ts\",workdir:\"/tmp/aide-outcomes-v4-trials/t10/root\",max_output_tokens:6500}),\ntools.exec_command({cmd:\"rtk proxy nl -ba src/test/model-usage-hooks.test.ts\",workdir:\"/tmp/aide-outcomes-v4-trials/t10/root\",max_output_tokens:14000}),\ntools.exec_command({cmd:\"rtk proxy nl -ba src/test/model-usage-recording.test.ts\",workdir:\"/tmp/aide-outcomes-v4-trials/t10/root\",max_output_tokens:4000}),\ntools.exec_command({cmd:\"rtk proxy nl -ba src/test/model-usage.test.ts\",workdir:\"/tmp/aide-outcomes-v4-trials/t10/root\",max_output_tokens:13000})\n]);r.forEach(text);\n"
+    },
+    {
+      "call_id": "call_Ob0CmtwWi8GFGlrM0XI50qE4",
+      "name": "exec",
+      "type": "custom_tool_call",
+      "input": "const r=await Promise.allSettled([\ntools.exec_command({cmd:\"rtk proxy sed -n '150,212p;409,475p' src/opencode/hooks.ts\",workdir:\"/tmp/aide-outcomes-v4-trials/t10/root\",max_output_tokens:5000}),\ntools.exec_command({cmd:\"rtk proxy nl -ba src/core/read-tracking.ts\",workdir:\"/tmp/aide-outcomes-v4-trials/t10/root\",max_output_tokens:12000}),\ntools.exec_command({cmd:\"rtk proxy rg -n 'func |model_usage|ModelUsage|Recorded|skipped|recordStdin|stdin|RecordBatch|RecordEvent|Token' aide/cmd/aide/cmd_observe.go aide/pkg/observe/observe.go aide/pkg/store/observe_events.go aide/pkg/store/token_events.go aide/pkg/store/token_model_usage.go aide/pkg/memory/token_accounting.go aide/pkg/memory/token_model_usage.go\",workdir:\"/tmp/aide-outcomes-v4-trials/t10/root\",max_output_tokens:13000})\n]);r.forEach(text);\n"
+    },
+    {
+      "call_id": "call_hc82zQCctGGoeRpZvtlacUeP",
+      "name": "exec",
+      "type": "custom_tool_call",
+      "input": "const r=await Promise.allSettled([\ntools.exec_command({cmd:\"rtk proxy awk 'NR>=218 && NR<=296 {printf \\\"%5d %s\\\\n\\\", NR, $0}' aide/cmd/aide/cmd_observe.go\",workdir:\"/tmp/aide-outcomes-v4-trials/t10/root\",max_output_tokens:5000}),\ntools.exec_command({cmd:\"rtk proxy awk 'NR>=134 && NR<=227 {printf \\\"%5d %s\\\\n\\\", NR, $0}' aide/pkg/store/observe_events.go\",workdir:\"/tmp/aide-outcomes-v4-trials/t10/root\",max_output_tokens:6000}),\ntools.exec_command({cmd:\"rtk proxy nl -ba aide/pkg/store/token_model_usage.go\",workdir:\"/tmp/aide-outcomes-v4-trials/t10/root\",max_output_tokens:9000}),\ntools.exec_command({cmd:\"rtk proxy awk 'NR>=150 && NR<=200 {printf \\\"%5d %s\\\\n\\\", NR, $0}' aide/pkg/store/token_events.go\",workdir:\"/tmp/aide-outcomes-v4-trials/t10/root\",max_output_tokens:3500}),\ntools.exec_command({cmd:\"rtk proxy nl -ba aide/pkg/memory/token_model_usage.go\",workdir:\"/tmp/aide-outcomes-v4-trials/t10/root\",max_output_tokens:2500}),\ntools.exec_command({cmd:\"rtk proxy awk 'NR<=50 || NR>=172 {printf \\\"%5d %s\\\\n\\\", NR, $0}' aide/pkg/observe/observe.go\",workdir:\"/tmp/aide-outcomes-v4-trials/t10/root\",max_output_tokens:3500}),\ntools.exec_command({cmd:\"rtk proxy awk 'NR>=30 && NR<=120 {printf \\\"%5d %s\\\\n\\\", NR, $0}' aide/pkg/memory/token_accounting.go\",workdir:\"/tmp/aide-outcomes-v4-trials/t10/root\",max_output_tokens:4000})\n]);r.forEach(text);\n"
+    },
+    {
+      "call_id": "call_t4SPz1Ojy4YZ6SVOU5W1Fd2z",
+      "name": "exec",
+      "type": "custom_tool_call",
+      "input": "const r=await Promise.allSettled([\ntools.exec_command({cmd:\"rtk proxy rg -n --hidden --no-ignore --glob '!.aide/**' --glob '!.git/**' 'model-usage|recordUsage|createHooks\\\\(|NewBackend|func .*Store\\\\(' .\",workdir:\"/tmp/aide-outcomes-v4-trials/t10/root\",max_output_tokens:5000}),\ntools.exec_command({cmd:\"rtk proxy awk 'NR>=154 && NR<=205 || NR>=351 && NR<=375 || NR>=432 && NR<=471 || NR>=738 && NR<=791 {printf \\\"%5d %s\\\\n\\\", NR, $0}' src/opencode/hooks.ts\",workdir:\"/tmp/aide-outcomes-v4-trials/t10/root\",max_output_tokens:6500}),\ntools.exec_command({cmd:\"rtk proxy awk 'NR>=130 && NR<=168 || NR>=185 && NR<=201 || NR>=243 && NR<=248 {printf \\\"%5d %s\\\\n\\\", NR, $0}' src/opencode/types.ts\",workdir:\"/tmp/aide-outcomes-v4-trials/t10/root\",max_output_tokens:2500})\n]);r.forEach(text);\n"
+    }
+  ],
+  "runtime_usage": {
+    "basis": "runtime_reported; not billing or provider savings",
+    "counters": {
+      "input_tokens": 282135,
+      "cached_input_tokens": 237824,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 5050,
+      "reasoning_output_tokens": 216,
+      "total_tokens": 287185
+    },
+    "responses": [
+      {
+        "response_id": "resp_085bf5b3caffb27f016aa1891d1da487d289a71d26932d16ce",
+        "counters": {
+          "input_tokens": 17983,
+          "cached_input_tokens": 17664,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 94,
+          "reasoning_output_tokens": 0,
+          "total_tokens": 18077
+        }
+      },
+      {
+        "response_id": "resp_085bf5b3caffb27f016aa18923f48087d2abad2c87d9a2684b",
+        "counters": {
+          "input_tokens": 19363,
+          "cached_input_tokens": 17792,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 68,
+          "reasoning_output_tokens": 0,
+          "total_tokens": 19431
+        }
+      },
+      {
+        "response_id": "resp_085bf5b3caffb27f016aa1892792cc87d2b982e6ee7edfd5c8",
+        "counters": {
+          "input_tokens": 19873,
+          "cached_input_tokens": 19200,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 186,
+          "reasoning_output_tokens": 0,
+          "total_tokens": 20059
+        }
+      },
+      {
+        "response_id": "resp_085bf5b3caffb27f016aa1892dc52887d2922524fc0dfbd72a",
+        "counters": {
+          "input_tokens": 25703,
+          "cached_input_tokens": 19712,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 292,
+          "reasoning_output_tokens": 0,
+          "total_tokens": 25995
+        }
+      },
+      {
+        "response_id": "resp_085bf5b3caffb27f016aa18935137887d2b922f01d225f261f",
+        "counters": {
+          "input_tokens": 34791,
+          "cached_input_tokens": 25472,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 239,
+          "reasoning_output_tokens": 0,
+          "total_tokens": 35030
+        }
+      },
+      {
+        "response_id": "resp_085bf5b3caffb27f016aa1893c68d087d2ba5fd8f4ac0464ed",
+        "counters": {
+          "input_tokens": 46724,
+          "cached_input_tokens": 34560,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 538,
+          "reasoning_output_tokens": 22,
+          "total_tokens": 47262
+        }
+      },
+      {
+        "response_id": "resp_085bf5b3caffb27f016aa189475cc087d2abb852a51bf0702b",
+        "counters": {
+          "input_tokens": 57074,
+          "cached_input_tokens": 46592,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 296,
+          "reasoning_output_tokens": 25,
+          "total_tokens": 57370
+        }
+      },
+      {
+        "response_id": "resp_085bf5b3caffb27f016aa1894ebae487d297b968e9ee5019eb",
+        "counters": {
+          "input_tokens": 60624,
+          "cached_input_tokens": 56832,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 3337,
+          "reasoning_output_tokens": 169,
+          "total_tokens": 63961
+        }
+      }
+    ],
+    "unique_responses": 8,
+    "final_cumulative_counters": {
+      "input_tokens": 282135,
+      "cached_input_tokens": 237824,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 5050,
+      "reasoning_output_tokens": 216,
+      "total_tokens": 287185
+    },
+    "unknown_reasons": []
+  }
+}

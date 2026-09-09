@@ -1,0 +1,483 @@
+{
+  "trial": "t11",
+  "reviewer": "v4_trace_audit",
+  "review_type": "protocol_and_tool_trace_only",
+  "trace_reviewed": true,
+  "scope_verified": true,
+  "protocol_violations": [
+    "RTK prefix: call_Shw4CJFOZcwtRQCyQNKrpWsT nested call 1 executed raw cat for /home/johnm/.codex/RTK.md.",
+    "RTK prefix: call_Shw4CJFOZcwtRQCyQNKrpWsT nested call 2 executed raw cat for /tmp/aide-outcomes-v4-trials/t11/participant-prompt.md."
+  ],
+  "aide_operations": 2,
+  "aide_uptake": true,
+  "aide_operation_details": {
+    "code_search": 0,
+    "code_references": 0,
+    "code_symbols": 1,
+    "code_outline": 0,
+    "code_read_symbol": 1,
+    "bridge_calls": 2,
+    "native_global_calls": 0,
+    "direct_aide_cli_calls": 0,
+    "controller_prepare_calls_by_participant": 0,
+    "bridge_internal_identity_checks": 2
+  },
+  "counts": {
+    "outer_tool_calls": 8,
+    "nested_tool_calls": 23,
+    "bootstrap": 2,
+    "discovery": 1,
+    "source_edit_test": 20,
+    "source": 20,
+    "edit": 0,
+    "test_execution": 0,
+    "advisory_source_edit_test_target": 40,
+    "advisory_target_exceeded": false,
+    "basis": "Individual tools.exec_command invocations. Prefix conformance is assessed on the submitted cmd shell-command string, consistently with compound/heredoc handling. Source line-count and test-source reads are retrieval, not test execution.",
+    "discovery_definition": "Initial source-path inventory only (rg --files); all content searches, outlines, source reads, edits and tests count as source/edit/test. Discovery is an advisory-target classification; all nested calls remain counted."
+  },
+  "retrieval_output_bytes": 118598,
+  "byte_evidence": {
+    "methodology": "All actual nested command inputs inspected without executing captured inputs. Every complete decoded result maps one-to-one to an invocation. Sum len(output.encode(\"utf-8\")), excluding wrapper and JSON serialization; bootstrap/discovery bytes kept separate. No truncation marker or missing payload observed.",
+    "attributable_source_lower_bound_bytes": 118598,
+    "attributable_bootstrap_bytes": 7723,
+    "attributable_discovery_bytes": 1419,
+    "attributable_all_categories_lower_bound_bytes": 127740,
+    "included_boundaries": [
+      {
+        "call_id": "call_Shw4CJFOZcwtRQCyQNKrpWsT",
+        "content_index": 1,
+        "chunk_id": "9cb1ba",
+        "utf8_bytes": 482,
+        "category": "bootstrap"
+      },
+      {
+        "call_id": "call_Shw4CJFOZcwtRQCyQNKrpWsT",
+        "content_index": 2,
+        "chunk_id": "d6efef",
+        "utf8_bytes": 7241,
+        "category": "bootstrap"
+      },
+      {
+        "call_id": "call_eaecovpHiQ1Kz6Vrzsw5fdhP",
+        "content_index": 1,
+        "chunk_id": "27d8f4",
+        "utf8_bytes": 1419,
+        "category": "discovery"
+      },
+      {
+        "call_id": "call_QfnJJIe5vqIupw3aqwDiYxSu",
+        "content_index": 1,
+        "chunk_id": "9cc294",
+        "utf8_bytes": 1894,
+        "category": "source"
+      },
+      {
+        "call_id": "call_QfnJJIe5vqIupw3aqwDiYxSu",
+        "content_index": 2,
+        "chunk_id": "7e326b",
+        "utf8_bytes": 4276,
+        "category": "source"
+      },
+      {
+        "call_id": "call_wGHWD8DuQ0mLpvOaFMONhQ8S",
+        "content_index": 1,
+        "chunk_id": "e932c3",
+        "utf8_bytes": 12954,
+        "category": "source"
+      },
+      {
+        "call_id": "call_wGHWD8DuQ0mLpvOaFMONhQ8S",
+        "content_index": 2,
+        "chunk_id": "f96dad",
+        "utf8_bytes": 2141,
+        "category": "source"
+      },
+      {
+        "call_id": "call_wGHWD8DuQ0mLpvOaFMONhQ8S",
+        "content_index": 3,
+        "chunk_id": "cefb16",
+        "utf8_bytes": 10356,
+        "category": "source"
+      },
+      {
+        "call_id": "call_Au8oNLBckjfUn20Mxv4rzPUu",
+        "content_index": 1,
+        "chunk_id": "5482bf",
+        "utf8_bytes": 342,
+        "category": "source"
+      },
+      {
+        "call_id": "call_Au8oNLBckjfUn20Mxv4rzPUu",
+        "content_index": 2,
+        "chunk_id": "b5db63",
+        "utf8_bytes": 4612,
+        "category": "source"
+      },
+      {
+        "call_id": "call_Au8oNLBckjfUn20Mxv4rzPUu",
+        "content_index": 3,
+        "chunk_id": "5eb08d",
+        "utf8_bytes": 13261,
+        "category": "source"
+      },
+      {
+        "call_id": "call_VetyA0lQU9DHnt7nDP5H91Bc",
+        "content_index": 1,
+        "chunk_id": "c3a1fa",
+        "utf8_bytes": 9200,
+        "category": "source"
+      },
+      {
+        "call_id": "call_VetyA0lQU9DHnt7nDP5H91Bc",
+        "content_index": 2,
+        "chunk_id": "c29367",
+        "utf8_bytes": 5750,
+        "category": "source"
+      },
+      {
+        "call_id": "call_VetyA0lQU9DHnt7nDP5H91Bc",
+        "content_index": 3,
+        "chunk_id": "e35be6",
+        "utf8_bytes": 4742,
+        "category": "source"
+      },
+      {
+        "call_id": "call_VetyA0lQU9DHnt7nDP5H91Bc",
+        "content_index": 4,
+        "chunk_id": "4783ce",
+        "utf8_bytes": 5953,
+        "category": "source"
+      },
+      {
+        "call_id": "call_JNMwu1GdvwOU4g9efrCE3CaR",
+        "content_index": 1,
+        "chunk_id": "b80a9d",
+        "utf8_bytes": 2650,
+        "category": "source"
+      },
+      {
+        "call_id": "call_JNMwu1GdvwOU4g9efrCE3CaR",
+        "content_index": 2,
+        "chunk_id": "a0eacd",
+        "utf8_bytes": 2110,
+        "category": "source"
+      },
+      {
+        "call_id": "call_JNMwu1GdvwOU4g9efrCE3CaR",
+        "content_index": 3,
+        "chunk_id": "bb1460",
+        "utf8_bytes": 5545,
+        "category": "source"
+      },
+      {
+        "call_id": "call_JNMwu1GdvwOU4g9efrCE3CaR",
+        "content_index": 4,
+        "chunk_id": "01ed3c",
+        "utf8_bytes": 5223,
+        "category": "source"
+      },
+      {
+        "call_id": "call_JNMwu1GdvwOU4g9efrCE3CaR",
+        "content_index": 5,
+        "chunk_id": "ebf894",
+        "utf8_bytes": 764,
+        "category": "source"
+      },
+      {
+        "call_id": "call_S6sDHMUxi1rmwaNWldaNj9f4",
+        "content_index": 1,
+        "chunk_id": "cde30d",
+        "utf8_bytes": 12719,
+        "category": "source"
+      },
+      {
+        "call_id": "call_S6sDHMUxi1rmwaNWldaNj9f4",
+        "content_index": 2,
+        "chunk_id": "bd688d",
+        "utf8_bytes": 8164,
+        "category": "source"
+      },
+      {
+        "call_id": "call_S6sDHMUxi1rmwaNWldaNj9f4",
+        "content_index": 3,
+        "chunk_id": "7f80e2",
+        "utf8_bytes": 5942,
+        "category": "source"
+      }
+    ],
+    "excluded_outer_calls": [],
+    "limits": "Exact returned-source-text boundary supported; no byte-to-token estimate."
+  },
+  "tool_failures": [],
+  "tool_failure_evidence": "All 23 captured nested command statuses zero; all result boundaries complete.",
+  "scope_evidence": {
+    "outside_root_reads": [
+      {
+        "path": "/home/johnm/.codex/RTK.md",
+        "basis": "Mandatory bootstrap instruction read."
+      },
+      {
+        "path": "/tmp/aide-outcomes-v4-trials/t11/participant-prompt.md",
+        "basis": "Launcher expressly authorizes prompt read."
+      }
+    ],
+    "all_workdirs": "Two initial bootstrap reads omit workdir and access only authorized absolute instruction paths; all later commands use /tmp/aide-outcomes-v4-trials/t11/root.",
+    "source_access": "All inventories, literal/regex searches, source line counts and source reads stay within supplied fixture. Broad hidden listing excludes .aide; explicit source globs are confined to ordinary source directories. Both scoped bridge calls use supplied executable/root/binary/evidence flags and allowed request shapes. No native/global aide, bridge/binary/evidence inspection, source edits, test execution, outside-source/controller-state access or reindex observed.",
+    "forbidden_operations_observed": [],
+    "controller_state": "No participant .aide access, alteration or reindex command observed; controller-only index preparation is separately recorded in bridge/t01/setup.json.",
+    "boundary": "Verifies observed tool inputs and immutable-source evidence, not unobservable host internals."
+  },
+  "integrity_evidence": {
+    "grade_file": "t11-grade.json",
+    "integrity_passed": true,
+    "candidate_unchanged": true,
+    "patch_bytes": 0,
+    "seed_files_checked": 50,
+    "seed_hash_mismatches": [],
+    "raw_capture_inputs_match": true,
+    "raw_log_sha256_verified": "b5256bdf754329730933b6fe50bb4b3052aef503a46cdae89c32e40380f8b13c"
+  },
+  "launcher_evidence": {
+    "file": "t11-launch.json",
+    "fork_turns": "none",
+    "model_override": null,
+    "effort_override": null,
+    "agent_path": "/root/v4_execution/v4_t11",
+    "prepared_prompt_sha256_verified": "4b32f72b05b5d36f09d9858e9726914c9c78bfcaba615f67f4b88ee5c75622ad",
+    "seed_binding_root_verified": true,
+    "seed_binary_hash_matches_protocol": true,
+    "scope_authorization": "Launcher grants only the prepared prompt and task root; it does not waive RTK prefix. Launcher record is inspected as evidence, not rewritten.",
+    "actual_launcher_text_comparison": "Raw ordinal 9 records NEW_TASK from /root/v4_execution to /root/v4_execution/v4_t11 with encrypted_content payload. Saved launch/prelaunch messages agree; actual launcher plaintext comparison unavailable.",
+    "actual_launcher_message_verified": null,
+    "prelaunch_file": "t11-prelaunch.json"
+  },
+  "runtime": {
+    "actor_id": "01a08701-6c7b-7071-93a2-bce7c3d18e11",
+    "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+    "agent_path": "/root/v4_execution/v4_t11",
+    "cli_version": "0.153.4",
+    "model_provider": "openai",
+    "model": "gpt-6-astra",
+    "effort": "high"
+  },
+  "input_review": [
+    {
+      "call_id": "call_Shw4CJFOZcwtRQCyQNKrpWsT",
+      "nested_calls": 2,
+      "commands_reviewed": [
+        "cat /home/johnm/.codex/RTK.md",
+        "cat /tmp/aide-outcomes-v4-trials/t11/participant-prompt.md"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": false
+    },
+    {
+      "call_id": "call_eaecovpHiQ1Kz6Vrzsw5fdhP",
+      "nested_calls": 1,
+      "commands_reviewed": [
+        "rtk proxy rg --files --hidden --no-ignore --glob '!.aide/**'"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": true
+    },
+    {
+      "call_id": "call_QfnJJIe5vqIupw3aqwDiYxSu",
+      "nested_calls": 2,
+      "commands_reviewed": [
+        "rtk proxy python3 /mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/outcomes-v3/bridge.py call --root /tmp/aide-outcomes-v4-trials/t11/root --binary /tmp/aide-retrieval-v4 --evidence-dir /tmp/aide-outcomes-v4-trials/t11/bridge-evidence --tool-json '{\"name\":\"code_symbols\",\"arguments\":{\"file\":\"src/core/model-usage.ts\"}}'",
+        "rtk proxy rg -n 'recordModelUsage|model.usage|step-finish|message.updated|message.part|stop_hook_active|transcript|platform' src/opencode/hooks.ts src/hooks/session-summary.ts src/core/aide-client.ts aide/cmd/aide/cmd_observe.go aide/pkg/{store,memory}/* src/test/model-usage-recording.test.ts"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": true
+    },
+    {
+      "call_id": "call_wGHWD8DuQ0mLpvOaFMONhQ8S",
+      "nested_calls": 3,
+      "commands_reviewed": [
+        "rtk proxy python3 /mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/outcomes-v3/bridge.py call --root /tmp/aide-outcomes-v4-trials/t11/root --binary /tmp/aide-retrieval-v4 --evidence-dir /tmp/aide-outcomes-v4-trials/t11/bridge-evidence --tool-json '{\"name\":\"code_read_symbol\",\"arguments\":{\"file\":\"src/core/model-usage.ts\",\"symbols\":[\"event\",\"claudeUsageEvent\",\"codexUsageEvent\",\"openCodeUsageEvent\",\"collectTranscriptUsage\",\"recordModelUsage\",\"createOpenCodeUsageRecorder\",\"sourceTime\",\"summedInput\",\"count\"]}}'",
+        "rtk proxy sed -n '90,175p' src/hooks/session-summary.ts",
+        "rtk proxy sed -n '90,185p;375,495p;740,855p' src/opencode/hooks.ts"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": true
+    },
+    {
+      "call_id": "call_Au8oNLBckjfUn20Mxv4rzPUu",
+      "nested_calls": 3,
+      "commands_reviewed": [
+        "rtk proxy wc -l aide/cmd/aide/cmd_observe.go aide/pkg/store/*.go aide/pkg/memory/*.go aide/pkg/observe/observe.go src/lib/hook-utils.ts src/core/model-usage.ts",
+        "rtk proxy rg -n 'func |detectPlatform|createEventHandler|skipInit|recordBatch|ObserveBatchEvent' aide/cmd/aide/cmd_observe.go aide/pkg/store/*.go aide/pkg/memory/*.go src/lib/hook-utils.ts src/opencode/hooks.ts src/core/tool-observe.ts",
+        "rtk proxy nl -ba src/core/model-usage.ts"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": true
+    },
+    {
+      "call_id": "call_VetyA0lQU9DHnt7nDP5H91Bc",
+      "nested_calls": 4,
+      "commands_reviewed": [
+        "rtk proxy nl -ba aide/pkg/store/token_model_usage.go",
+        "rtk proxy sed -n '1,44p;211,346p' aide/cmd/aide/cmd_observe.go",
+        "rtk proxy sed -n '80,231p' aide/pkg/store/observe_events.go",
+        "rtk proxy sed -n '1,203p' aide/pkg/store/token_events.go"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": true
+    },
+    {
+      "call_id": "call_JNMwu1GdvwOU4g9efrCE3CaR",
+      "nested_calls": 5,
+      "commands_reviewed": [
+        "rtk proxy sed -n '1,48p;130,165p' src/lib/hook-utils.ts",
+        "rtk proxy sed -n '185,203p;344,369p;732,750p' src/opencode/hooks.ts",
+        "rtk proxy cat aide/pkg/memory/token_model_usage.go aide/pkg/memory/token_accounting.go",
+        "rtk proxy cat src/test/model-usage-recording.test.ts src/test/model-usage-hooks.test.ts",
+        "rtk proxy cat README.md"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": true
+    },
+    {
+      "call_id": "call_S6sDHMUxi1rmwaNWldaNj9f4",
+      "nested_calls": 3,
+      "commands_reviewed": [
+        "rtk proxy nl -ba src/lib/hook-utils.ts",
+        "rtk proxy nl -ba src/test/model-usage.test.ts",
+        "rtk proxy nl -ba src/hooks/session-summary.ts"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": true
+    }
+  ],
+  "notes": [
+    "Answer quality is outside this review.",
+    "Raw-log hash/complete inputs, prompt digest, launch/prelaunch consistency and all 50 seed source hashes checked; source unchanged.",
+    "Two raw bootstrap command strings are clear prefix violations independently of permitted scope.",
+    "One symbols request and one ten-symbol batched read succeeded through the scoped bridge. Ten names meets the frozen batch maximum. Binding, root, database and socket identity checked.",
+    "Twenty source/edit/test calls remain below advisory target.",
+    "No savings, billing, token-estimation or causal treatment claim is made."
+  ],
+  "protocol_violation_details": [
+    {
+      "rule": "Every shell command must start with rtk",
+      "call_id": "call_Shw4CJFOZcwtRQCyQNKrpWsT",
+      "nested_call": 1,
+      "observed_command": "cat /home/johnm/.codex/RTK.md",
+      "detail": "Authorized bootstrap path, mandatory submitted-command prefix missing; no retrospective exemption."
+    },
+    {
+      "rule": "Every shell command must start with rtk",
+      "call_id": "call_Shw4CJFOZcwtRQCyQNKrpWsT",
+      "nested_call": 2,
+      "observed_command": "cat /tmp/aide-outcomes-v4-trials/t11/participant-prompt.md",
+      "detail": "Authorized bootstrap path, mandatory submitted-command prefix missing; no retrospective exemption."
+    }
+  ],
+  "bridge_evidence": [
+    {
+      "file": "bridge/t11/acee13cf20dc4d90ba09a79568c335c4.json",
+      "binding_id": "ca5b8cb60f10433292e53bf8aa9973c4",
+      "request": {
+        "name": "code_symbols",
+        "arguments": {
+          "file": "src/core/model-usage.ts"
+        }
+      },
+      "forwarded_request": {
+        "name": "code_symbols",
+        "arguments": {
+          "file": "src/core/model-usage.ts"
+        }
+      },
+      "identity": {
+        "project_root": "/tmp/aide-outcomes-v4-trials/t11/root",
+        "real_project_root": "/tmp/aide-outcomes-v4-trials/t11/root",
+        "cwd": "/tmp/aide-outcomes-v4-trials/t11/root",
+        "version": {
+          "version": "0.1.18-dev.32+58816d9",
+          "commit": "58816d991ef7172304f3eef594844d79e995a5e1",
+          "commit_sha": "58816d99",
+          "date": "2026-09-09T15:52:00Z",
+          "go_version": "go1.27.0-X:nodwarf5",
+          "platform": "linux/amd64",
+          "os": "linux",
+          "arch": "amd64"
+        },
+        "db_path": "/tmp/aide-outcomes-v4-trials/t11/root/.aide/memory/memory.db",
+        "socket_path": "/tmp/aide-outcomes-v4-trials/t11/root/.aide/aide.sock",
+        "authority": "daemon",
+        "pid": 17,
+        "ppid": 14,
+        "started_at": "2026-09-09T17:30:27.74204143+01:00"
+      },
+      "returncode": 0,
+      "error": null,
+      "source_changed_since_seed": false
+    },
+    {
+      "file": "bridge/t11/2189bede29ae4457a9be1247c8c9da2a.json",
+      "binding_id": "ca5b8cb60f10433292e53bf8aa9973c4",
+      "request": {
+        "name": "code_read_symbol",
+        "arguments": {
+          "file": "src/core/model-usage.ts",
+          "symbols": [
+            "event",
+            "claudeUsageEvent",
+            "codexUsageEvent",
+            "openCodeUsageEvent",
+            "collectTranscriptUsage",
+            "recordModelUsage",
+            "createOpenCodeUsageRecorder",
+            "sourceTime",
+            "summedInput",
+            "count"
+          ]
+        }
+      },
+      "forwarded_request": {
+        "name": "code_read_symbol",
+        "arguments": {
+          "file": "src/core/model-usage.ts",
+          "symbols": [
+            "event",
+            "claudeUsageEvent",
+            "codexUsageEvent",
+            "openCodeUsageEvent",
+            "collectTranscriptUsage",
+            "recordModelUsage",
+            "createOpenCodeUsageRecorder",
+            "sourceTime",
+            "summedInput",
+            "count"
+          ]
+        }
+      },
+      "identity": {
+        "project_root": "/tmp/aide-outcomes-v4-trials/t11/root",
+        "real_project_root": "/tmp/aide-outcomes-v4-trials/t11/root",
+        "cwd": "/tmp/aide-outcomes-v4-trials/t11/root",
+        "version": {
+          "version": "0.1.18-dev.32+58816d9",
+          "commit": "58816d991ef7172304f3eef594844d79e995a5e1",
+          "commit_sha": "58816d99",
+          "date": "2026-09-09T15:52:00Z",
+          "go_version": "go1.27.0-X:nodwarf5",
+          "platform": "linux/amd64",
+          "os": "linux",
+          "arch": "amd64"
+        },
+        "db_path": "/tmp/aide-outcomes-v4-trials/t11/root/.aide/memory/memory.db",
+        "socket_path": "/tmp/aide-outcomes-v4-trials/t11/root/.aide/aide.sock",
+        "authority": "daemon",
+        "pid": 17,
+        "ppid": 14,
+        "started_at": "2026-09-09T17:30:34.708723461+01:00"
+      },
+      "returncode": 0,
+      "error": null,
+      "source_changed_since_seed": false
+    }
+  ]
+}

@@ -1,0 +1,205 @@
+{
+  "viewport": {
+    "width": 390,
+    "height": 844
+  },
+  "documentWidth": 390,
+  "detailsInitiallyCollapsed": true,
+  "links": [
+    {
+      "href": "overhead.json",
+      "status": 200
+    },
+    {
+      "href": "t01-answer.md",
+      "status": 200
+    },
+    {
+      "href": "t02-answer.md",
+      "status": 200
+    },
+    {
+      "href": "t12-answer.md",
+      "status": 200
+    },
+    {
+      "href": "t11-answer.md",
+      "status": 200
+    },
+    {
+      "href": "t03-answer.md",
+      "status": 200
+    },
+    {
+      "href": "t04-answer.md",
+      "status": 200
+    },
+    {
+      "href": "t10-answer.md",
+      "status": 200
+    },
+    {
+      "href": "t09-answer.md",
+      "status": 200
+    },
+    {
+      "href": "t05-answer.md",
+      "status": 200
+    },
+    {
+      "href": "t06-answer.md",
+      "status": 200
+    },
+    {
+      "href": "t08-answer.md",
+      "status": 200
+    },
+    {
+      "href": "t07-answer.md",
+      "status": 200
+    },
+    {
+      "href": "quality-D.json",
+      "status": 200
+    },
+    {
+      "href": "t01-trace-review.json",
+      "status": 200
+    },
+    {
+      "href": "quality-K.json",
+      "status": 200
+    },
+    {
+      "href": "t02-trace-review.json",
+      "status": 200
+    },
+    {
+      "href": "quality-B.json",
+      "status": 200
+    },
+    {
+      "href": "t03-trace-review.json",
+      "status": 200
+    },
+    {
+      "href": "quality-H.json",
+      "status": 200
+    },
+    {
+      "href": "t04-trace-review.json",
+      "status": 200
+    },
+    {
+      "href": "quality-L.json",
+      "status": 200
+    },
+    {
+      "href": "t05-trace-review.json",
+      "status": 200
+    },
+    {
+      "href": "quality-C.json",
+      "status": 200
+    },
+    {
+      "href": "t06-trace-review.json",
+      "status": 200
+    },
+    {
+      "href": "quality-I.json",
+      "status": 200
+    },
+    {
+      "href": "t07-trace-review.json",
+      "status": 200
+    },
+    {
+      "href": "quality-F.json",
+      "status": 200
+    },
+    {
+      "href": "t08-trace-review.json",
+      "status": 200
+    },
+    {
+      "href": "quality-A.json",
+      "status": 200
+    },
+    {
+      "href": "t09-trace-review.json",
+      "status": 200
+    },
+    {
+      "href": "quality-J.json",
+      "status": 200
+    },
+    {
+      "href": "t10-trace-review.json",
+      "status": 200
+    },
+    {
+      "href": "quality-E.json",
+      "status": 200
+    },
+    {
+      "href": "t11-trace-review.json",
+      "status": 200
+    },
+    {
+      "href": "quality-G.json",
+      "status": 200
+    },
+    {
+      "href": "t12-trace-review.json",
+      "status": 200
+    },
+    {
+      "href": "quality-adjudication.md",
+      "status": 200
+    },
+    {
+      "href": "overhead.json",
+      "status": 200
+    },
+    {
+      "href": "README.md",
+      "status": 200
+    },
+    {
+      "href": "report.json",
+      "status": 200
+    },
+    {
+      "href": "reviewed-ledger.json",
+      "status": 200
+    },
+    {
+      "href": "execution-start.json",
+      "status": 200
+    },
+    {
+      "href": "../../outcomes-v4/README.md",
+      "status": 200
+    }
+  ],
+  "desktop": {
+    "width": 1280,
+    "height": 900,
+    "visually_inspected": true,
+    "screenshot": ".playwright-mcp/page-2026-09-09T16-36-57-214Z.png"
+  },
+  "mobile": {
+    "width": 390,
+    "height": 844,
+    "visually_inspected": true,
+    "screenshot": ".playwright-mcp/page-2026-09-09T16-38-37-029Z.png"
+  },
+  "disclosure_click": {
+    "opened": true,
+    "measurement_note_present": true,
+    "document_width": 390
+  },
+  "console_errors": 0,
+  "notes": "Desktop and mobile screenshots were inspected before adding only the collapsed measurement-field note; the final note, link responses and mobile document width were checked after regeneration. Wide tables scroll within their containers."
+}

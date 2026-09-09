@@ -1,0 +1,262 @@
+{
+  "operation": "call",
+  "id": "86d71156f5184af1b0bc41acbf77d6b8",
+  "binding_id": "a4ad42b0042540f69f93758da2df4eba",
+  "request": "{\"name\":\"code_read_symbol\",\"arguments\":{\"file\":\"aide/pkg/store/token_events.go\",\"symbols\":[\"TokenStats\"]}}",
+  "transcript": [
+    {
+      "direction": "request",
+      "message": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+          "protocolVersion": "2024-11-05",
+          "capabilities": {},
+          "clientInfo": {
+            "name": "aide-outcomes-v3-bridge",
+            "version": "1"
+          }
+        }
+      }
+    },
+    {
+      "direction": "response",
+      "message": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "capabilities": {
+            "logging": {},
+            "tools": {
+              "listChanged": true
+            }
+          },
+          "protocolVersion": "2024-11-05",
+          "serverInfo": {
+            "name": "aide",
+            "version": "0.1.18-dev.32+58816d9 (58816d99)"
+          }
+        }
+      }
+    },
+    {
+      "direction": "request",
+      "message": {
+        "jsonrpc": "2.0",
+        "method": "notifications/initialized"
+      }
+    },
+    {
+      "direction": "request",
+      "message": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "tools/call",
+        "params": {
+          "name": "instance_info",
+          "arguments": {}
+        }
+      }
+    },
+    {
+      "direction": "response",
+      "message": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "result": {
+          "_meta": {
+            "aide/work": {
+              "id": "2XPWU2IZUWNJI5OBZ2E2PNYGPF",
+              "text_sha256": "735d2dfb95f54d00eaecb5beb0e869fdf25fbb25bbe81655811539b32bf56960",
+              "tool": "instance_info",
+              "version": 1
+            }
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": "{\n  \"project_root\": \"/tmp/aide-outcomes-v4-trials/t04/root\",\n  \"real_project_root\": \"/tmp/aide-outcomes-v4-trials/t04/root\",\n  \"cwd\": \"/tmp/aide-outcomes-v4-trials/t04/root\",\n  \"version\": {\n    \"version\": \"0.1.18-dev.32+58816d9\",\n    \"commit\": \"58816d991ef7172304f3eef594844d79e995a5e1\",\n    \"commit_sha\": \"58816d99\",\n    \"date\": \"2026-09-09T15:52:00Z\",\n    \"go_version\": \"go1.27.0-X:nodwarf5\",\n    \"platform\": \"linux/amd64\",\n    \"os\": \"linux\",\n    \"arch\": \"amd64\"\n  },\n  \"db_path\": \"/tmp/aide-outcomes-v4-trials/t04/root/.aide/memory/memory.db\",\n  \"socket_path\": \"/tmp/aide-outcomes-v4-trials/t04/root/.aide/aide.sock\",\n  \"authority\": \"daemon\",\n  \"pid\": 16,\n  \"ppid\": 13,\n  \"started_at\": \"2026-09-09T17:16:29.584819629+01:00\"\n}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "direction": "request",
+      "message": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "tools/call",
+        "params": {
+          "name": "code_read_symbol",
+          "arguments": {
+            "file": "aide/pkg/store/token_events.go",
+            "symbols": [
+              "TokenStats"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "direction": "response",
+      "message": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "result": {
+          "_meta": {
+            "aide/retrieval": {
+              "id": "TL2KGFTCRL2QRHOVFDNGPYSI4S",
+              "references": [
+                {
+                  "file": "aide/pkg/store/token_events.go",
+                  "sha256": "28629e5d7aa52cb17e5b4cb7a97d1194dc7f206a2be99ddbcb8a021ae740aeef",
+                  "bytes": 6891
+                }
+              ],
+              "text_sha256": "1531362053100356e56ed99ae5e185410ef92b7e8a2d8cd5b3e8473fd14b7067",
+              "tool": "code_read_symbol",
+              "version": 1
+            },
+            "aide/work": {
+              "id": "VFMFANFIX5CSULLAFPBU4BX526",
+              "text_sha256": "1531362053100356e56ed99ae5e185410ef92b7e8a2d8cd5b3e8473fd14b7067",
+              "tool": "code_read_symbol",
+              "version": 1
+            }
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": "## `TokenStats` [method]\n**File:** `aide/pkg/store/token_events.go:67-200` | **Signature:** `func (s *BoltStore) TokenStats(sessionID string, since, until time.Time) (*memory.TokenStats, error)`\n**Doc:** Zero-value since/until are ignored (no bound).\n\n```\n67  : func (s *BoltStore) TokenStats(sessionID string, since, until time.Time) (*memory.TokenStats, error) {\n68  : \tstats := &memory.TokenStats{\n69  : \t\tAccounting:   memory.NewTokenAccounting(),\n70  : \t\tByTool:       make(map[string]int),\n71  : \t\tCallsByTool:  make(map[string]int),\n72  : \t\tSavedByTool:  make(map[string]int),\n73  : \t\tBySavingType: make(map[string]int),\n74  : \t\tByDelivery:   make(map[string]int),\n75  : \t}\n76  : \tsessions := make(map[string]bool)\n77  : \tactivity := newTokenActivity(since, until)\n78  : \tretrievals := newTokenRetrievals(sessionID, since, until)\n79  : \tstats.Accounting.Work = memory.NewTokenWork()\n80  : \tusage := newModelUsage()\n81  : \n82  : \ttally := func(e *memory.TokenEvent) {\n83  : \t\tif !since.IsZero() && e.Timestamp.Before(since) {\n84  : \t\t\treturn\n85  : \t\t}\n86  : \t\tif !until.IsZero() && e.Timestamp.After(until) {\n87  : \t\t\treturn\n88  : \t\t}\n89  : \t\tif sessionID != \"\" && e.SessionID != sessionID {\n90  : \t\t\treturn\n91  : \t\t}\n92  : \n93  : \t\tstats.EventCount++\n94  : \t\tif e.SessionID != \"\" {\n95  : \t\t\tsessions[e.SessionID] = true\n96  : \t\t}\n97  : \t\tstats.Accounting.Add(e)\n98  : \t\tif e.EventType == \"transformation\" {\n99  : \t\t\treturn\n100 : \t\t}\n101 : \t\tactivity.add(e)\n102 : \n103 : \t\t// Every event with a tool counts as one call. Injection events\n104 : \t\t// reuse Tool for the source name; the chart filters those out.\n105 : \t\tif e.Tool != \"\" && e.EventType != memory.TokenEventContextInjected {\n106 : \t\t\tstats.CallsByTool[e.Tool]++\n107 : \t\t\tif e.TokensSaved > 0 {\n108 : \t\t\t\tstats.SavedByTool[e.Tool] += e.TokensSaved\n109 : \t\t\t}\n110 : \t\t}\n111 : \n112 : \t\tswitch e.EventType {\n113 : \t\tcase memory.TokenEventRead:\n114 : \t\t\tstats.TotalRead += e.Tokens\n115 : \t\t\tstats.ByTool[e.Tool] += e.Tokens\n116 : \t\t\tstats.ReadCount++\n117 : \t\tcase memory.TokenEventOutlineUsed:\n118 : \t\t\tstats.TotalRead += e.Tokens\n119 : \t\t\tstats.TotalSaved += e.TokensSaved\n120 : \t\t\tstats.ByTool[e.Tool] += e.Tokens\n121 : \t\t\tstats.BySavingType[\"outline\"] += e.TokensSaved\n122 : \t\t\tstats.CodeToolCount++\n123 : \t\tcase memory.TokenEventSymbolRead:\n124 : \t\t\tstats.TotalRead += e.Tokens\n125 : \t\t\tstats.TotalSaved += e.TokensSaved\n126 : \t\t\tstats.ByTool[e.Tool] += e.Tokens\n127 : \t\t\tstats.BySavingType[\"symbol_read\"] += e.TokensSaved\n128 : \t\t\tstats.CodeToolCount++\n129 : \t\tcase memory.TokenEventReadAvoided:\n130 : \t\t\tstats.TotalSaved += e.TokensSaved\n131 : \t\t\tstats.BySavingType[\"read_avoided\"] += e.TokensSaved\n132 : \t\tcase memory.TokenEventContextInjected:\n133 : \t\t\tstats.TotalDelivered += e.Tokens\n134 : \t\t\tif e.Tool != \"\" {\n135 : \t\t\t\tstats.ByDelivery[e.Tool] += e.Tokens\n136 : \t\t\t}\n137 : \t\tcase \"modify\", \"write\", \"edit\":\n138 : \t\t\tif e.Attrs[\"accounting_version\"] == \"1\" {\n139 : \t\t\t\tif n, ok := memory.MeasuredBytes(e.Attrs, \"argument_bytes\"); ok {\n140 : \t\t\t\t\tstats.TotalWritten += int(memory.EstimateTextTokens(n))\n141 : \t\t\t\t}\n142 : \t\t\t\tstats.TotalRead += e.Tokens\n143 : \t\t\t} else {\n144 : \t\t\t\tstats.TotalWritten += e.Tokens\n145 : \t\t\t}\n146 : \t\t\tstats.ByTool[e.Tool] += e.Tokens\n147 : \t\tdefault:\n148 : \t\t\tstats.TotalRead += e.Tokens\n149 : \t\t\tstats.ByTool[e.Tool] += e.Tokens\n150 : \t\t}\n151 : \t}\n152 : \n153 : \terr := s.db.View(func(tx *bolt.Tx) error {\n154 : \t\tb := tx.Bucket(BucketObserveEvents)\n155 : \t\tc := b.Cursor()\n156 : \t\tattribution := newWorkAttribution()\n157 : \t\tfor k, v := c.First(); k != nil; k, v = c.Next() {\n158 : \t\t\tvar oe observe.Event\n159 : \t\t\tif json.Unmarshal(v, &oe) == nil {\n160 : \t\t\t\tattribution.observe(&oe)\n161 : \t\t\t\tusage.observe(&oe)\n162 : \t\t\t}\n163 : \t\t}\n164 : \t\tfor k, v := c.Last(); k != nil; k, v = c.Prev() {\n165 : \t\t\tvar oe observe.Event\n166 : \t\t\tif err := json.Unmarshal(v, &oe); err != nil {\n167 : \t\t\t\tcontinue\n168 : \t\t\t}\n169 : \t\t\tprojected := attribution.project(&oe)\n170 : \t\t\tretrievals.add(projected)\n171 : \t\t\taddTokenWork(stats.Accounting.Work, projected, sessionID, since, until)\n172 : \t\t\tif te := observeToTokenEvent(projected); te != nil {\n173 : \t\t\t\ttally(te)\n174 : \t\t\t}\n175 : \t\t}\n176 : \t\tif len(retrievals.windows) == 0 {\n177 : \t\t\treturn nil\n178 : \t\t}\n179 : \t\tfor k, v := c.First(); k != nil; k, v = c.Next() {\n180 : \t\t\tvar oe observe.Event\n181 : \t\t\tif json.Unmarshal(v, &oe) == nil {\n182 : \t\t\t\tretrievals.context(&oe)\n183 : \t\t\t}\n184 : \t\t}\n185 : \t\treturn nil\n186 : \t})\n187 : \tif err != nil {\n188 : \t\treturn nil, err\n189 : \t}\n190 : \n191 : \tmodelUsage, usageSessions := usage.resultWithSessions(sessionID, since, until)\n192 : \tfor session := range usageSessions {\n193 : \t\tsessions[session] = true\n194 : \t}\n195 : \tstats.Sessions = len(sessions)\n196 : \tstats.Accounting.ModelUsage = modelUsage\n197 : \tstats.Accounting.Activity = activity.result()\n198 : \tstats.Accounting.Retrievals = retrievals.result()\n199 : \treturn stats, nil\n200 : }\n```\n\n"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "result": {
+    "_meta": {
+      "aide/retrieval": {
+        "id": "TL2KGFTCRL2QRHOVFDNGPYSI4S",
+        "references": [
+          {
+            "file": "aide/pkg/store/token_events.go",
+            "sha256": "28629e5d7aa52cb17e5b4cb7a97d1194dc7f206a2be99ddbcb8a021ae740aeef",
+            "bytes": 6891
+          }
+        ],
+        "text_sha256": "1531362053100356e56ed99ae5e185410ef92b7e8a2d8cd5b3e8473fd14b7067",
+        "tool": "code_read_symbol",
+        "version": 1
+      },
+      "aide/work": {
+        "id": "VFMFANFIX5CSULLAFPBU4BX526",
+        "text_sha256": "1531362053100356e56ed99ae5e185410ef92b7e8a2d8cd5b3e8473fd14b7067",
+        "tool": "code_read_symbol",
+        "version": 1
+      }
+    },
+    "content": [
+      {
+        "type": "text",
+        "text": "## `TokenStats` [method]\n**File:** `aide/pkg/store/token_events.go:67-200` | **Signature:** `func (s *BoltStore) TokenStats(sessionID string, since, until time.Time) (*memory.TokenStats, error)`\n**Doc:** Zero-value since/until are ignored (no bound).\n\n```\n67  : func (s *BoltStore) TokenStats(sessionID string, since, until time.Time) (*memory.TokenStats, error) {\n68  : \tstats := &memory.TokenStats{\n69  : \t\tAccounting:   memory.NewTokenAccounting(),\n70  : \t\tByTool:       make(map[string]int),\n71  : \t\tCallsByTool:  make(map[string]int),\n72  : \t\tSavedByTool:  make(map[string]int),\n73  : \t\tBySavingType: make(map[string]int),\n74  : \t\tByDelivery:   make(map[string]int),\n75  : \t}\n76  : \tsessions := make(map[string]bool)\n77  : \tactivity := newTokenActivity(since, until)\n78  : \tretrievals := newTokenRetrievals(sessionID, since, until)\n79  : \tstats.Accounting.Work = memory.NewTokenWork()\n80  : \tusage := newModelUsage()\n81  : \n82  : \ttally := func(e *memory.TokenEvent) {\n83  : \t\tif !since.IsZero() && e.Timestamp.Before(since) {\n84  : \t\t\treturn\n85  : \t\t}\n86  : \t\tif !until.IsZero() && e.Timestamp.After(until) {\n87  : \t\t\treturn\n88  : \t\t}\n89  : \t\tif sessionID != \"\" && e.SessionID != sessionID {\n90  : \t\t\treturn\n91  : \t\t}\n92  : \n93  : \t\tstats.EventCount++\n94  : \t\tif e.SessionID != \"\" {\n95  : \t\t\tsessions[e.SessionID] = true\n96  : \t\t}\n97  : \t\tstats.Accounting.Add(e)\n98  : \t\tif e.EventType == \"transformation\" {\n99  : \t\t\treturn\n100 : \t\t}\n101 : \t\tactivity.add(e)\n102 : \n103 : \t\t// Every event with a tool counts as one call. Injection events\n104 : \t\t// reuse Tool for the source name; the chart filters those out.\n105 : \t\tif e.Tool != \"\" && e.EventType != memory.TokenEventContextInjected {\n106 : \t\t\tstats.CallsByTool[e.Tool]++\n107 : \t\t\tif e.TokensSaved > 0 {\n108 : \t\t\t\tstats.SavedByTool[e.Tool] += e.TokensSaved\n109 : \t\t\t}\n110 : \t\t}\n111 : \n112 : \t\tswitch e.EventType {\n113 : \t\tcase memory.TokenEventRead:\n114 : \t\t\tstats.TotalRead += e.Tokens\n115 : \t\t\tstats.ByTool[e.Tool] += e.Tokens\n116 : \t\t\tstats.ReadCount++\n117 : \t\tcase memory.TokenEventOutlineUsed:\n118 : \t\t\tstats.TotalRead += e.Tokens\n119 : \t\t\tstats.TotalSaved += e.TokensSaved\n120 : \t\t\tstats.ByTool[e.Tool] += e.Tokens\n121 : \t\t\tstats.BySavingType[\"outline\"] += e.TokensSaved\n122 : \t\t\tstats.CodeToolCount++\n123 : \t\tcase memory.TokenEventSymbolRead:\n124 : \t\t\tstats.TotalRead += e.Tokens\n125 : \t\t\tstats.TotalSaved += e.TokensSaved\n126 : \t\t\tstats.ByTool[e.Tool] += e.Tokens\n127 : \t\t\tstats.BySavingType[\"symbol_read\"] += e.TokensSaved\n128 : \t\t\tstats.CodeToolCount++\n129 : \t\tcase memory.TokenEventReadAvoided:\n130 : \t\t\tstats.TotalSaved += e.TokensSaved\n131 : \t\t\tstats.BySavingType[\"read_avoided\"] += e.TokensSaved\n132 : \t\tcase memory.TokenEventContextInjected:\n133 : \t\t\tstats.TotalDelivered += e.Tokens\n134 : \t\t\tif e.Tool != \"\" {\n135 : \t\t\t\tstats.ByDelivery[e.Tool] += e.Tokens\n136 : \t\t\t}\n137 : \t\tcase \"modify\", \"write\", \"edit\":\n138 : \t\t\tif e.Attrs[\"accounting_version\"] == \"1\" {\n139 : \t\t\t\tif n, ok := memory.MeasuredBytes(e.Attrs, \"argument_bytes\"); ok {\n140 : \t\t\t\t\tstats.TotalWritten += int(memory.EstimateTextTokens(n))\n141 : \t\t\t\t}\n142 : \t\t\t\tstats.TotalRead += e.Tokens\n143 : \t\t\t} else {\n144 : \t\t\t\tstats.TotalWritten += e.Tokens\n145 : \t\t\t}\n146 : \t\t\tstats.ByTool[e.Tool] += e.Tokens\n147 : \t\tdefault:\n148 : \t\t\tstats.TotalRead += e.Tokens\n149 : \t\t\tstats.ByTool[e.Tool] += e.Tokens\n150 : \t\t}\n151 : \t}\n152 : \n153 : \terr := s.db.View(func(tx *bolt.Tx) error {\n154 : \t\tb := tx.Bucket(BucketObserveEvents)\n155 : \t\tc := b.Cursor()\n156 : \t\tattribution := newWorkAttribution()\n157 : \t\tfor k, v := c.First(); k != nil; k, v = c.Next() {\n158 : \t\t\tvar oe observe.Event\n159 : \t\t\tif json.Unmarshal(v, &oe) == nil {\n160 : \t\t\t\tattribution.observe(&oe)\n161 : \t\t\t\tusage.observe(&oe)\n162 : \t\t\t}\n163 : \t\t}\n164 : \t\tfor k, v := c.Last(); k != nil; k, v = c.Prev() {\n165 : \t\t\tvar oe observe.Event\n166 : \t\t\tif err := json.Unmarshal(v, &oe); err != nil {\n167 : \t\t\t\tcontinue\n168 : \t\t\t}\n169 : \t\t\tprojected := attribution.project(&oe)\n170 : \t\t\tretrievals.add(projected)\n171 : \t\t\taddTokenWork(stats.Accounting.Work, projected, sessionID, since, until)\n172 : \t\t\tif te := observeToTokenEvent(projected); te != nil {\n173 : \t\t\t\ttally(te)\n174 : \t\t\t}\n175 : \t\t}\n176 : \t\tif len(retrievals.windows) == 0 {\n177 : \t\t\treturn nil\n178 : \t\t}\n179 : \t\tfor k, v := c.First(); k != nil; k, v = c.Next() {\n180 : \t\t\tvar oe observe.Event\n181 : \t\t\tif json.Unmarshal(v, &oe) == nil {\n182 : \t\t\t\tretrievals.context(&oe)\n183 : \t\t\t}\n184 : \t\t}\n185 : \t\treturn nil\n186 : \t})\n187 : \tif err != nil {\n188 : \t\treturn nil, err\n189 : \t}\n190 : \n191 : \tmodelUsage, usageSessions := usage.resultWithSessions(sessionID, since, until)\n192 : \tfor session := range usageSessions {\n193 : \t\tsessions[session] = true\n194 : \t}\n195 : \tstats.Sessions = len(sessions)\n196 : \tstats.Accounting.ModelUsage = modelUsage\n197 : \tstats.Accounting.Activity = activity.result()\n198 : \tstats.Accounting.Retrievals = retrievals.result()\n199 : \treturn stats, nil\n200 : }\n```\n\n"
+      }
+    ]
+  },
+  "error": null,
+  "timings_ms": {
+    "guard": 31.684203990153037,
+    "startup_initialize": 61.59442599164322,
+    "identity": 0.30355599301401526,
+    "request": 3.7056409928482026,
+    "exit": 1.1202480091014877,
+    "total": 98.44116499880329
+  },
+  "index_policy": "seeded; no automatic refresh after participant edits",
+  "source_changed_since_seed": false,
+  "source_files": {
+    "README.md": "072ee62412bae47d9d9810b0b0f24c2d49040d0bd106f10c3b1d163fde080eef",
+    "src/core/comment-checker.ts": "cfac4f9372de775a087e2b06403fe113a36867075e5e97bdb01e4c3796d4b98f",
+    "src/core/memory-query.ts": "d6f86d692caa197668bbe840db603593d1fc7ec6b5a18b2e27cde72679f257a4",
+    "src/core/tool-enforcement.ts": "c6cb04fb0f103836efc3c94875d7136fe0a8a5bfc6ae1363dbc7af06917aaf58",
+    "src/core/model-usage.ts": "5f8ceb868f06aa5b6c2da0328469c0ee82f720715c492574eed8986c7f308309",
+    "src/core/mcp-sync.ts": "4d2ea8c604410dd399c977e150ffeb94ed503215431adc0ea95dda0e5875ab69",
+    "src/core/search-enrichment.ts": "5252ddbd1c8e8fae99cb104e1ffc0f2774f13efcb69a435821f14272ff495a5c",
+    "src/core/skill-matcher.ts": "2b061eb5742fe1be9aca82e860dc1ae0d1a42b1a996ebe6611ec9cbc290dba7a",
+    "src/core/write-guard.ts": "3c0aa5993af64132b94ec1e395fabcd40f2bd3747e96c02f00070770e5cbb9ea",
+    "src/core/todo-checker.ts": "d4ea6c0e8612e3d879022c7e086b01635be88e9a65d9173c3fe90244dfcb035a",
+    "src/core/session-init.ts": "166b2a6cd1544be578590fe24fff941a8ffda22a03243549908743b1c58d60c8",
+    "src/core/session-summary-logic.ts": "3956abf0875c871738707c778e4f8370ff352bd0172ad150179d245f8b54904a",
+    "src/core/tool-tracking.ts": "1ba749fb98d567405595c8ccd31ef29beac51a525aeb663240177b5637681681",
+    "src/core/tool-observe.ts": "43e67888aec861f553d107abfab34c67d4134018dec3eb689a33e910041be2e5",
+    "src/core/context-window.ts": "da7abafb26e09b1bdd64f947330403cd727ddac7ded1e6479322a1e68f67ed7a",
+    "src/core/context-guard.ts": "839f3c2b36472c52f10d8ce6c5f18836341454f6bdd0e74618f4694382a0130f",
+    "src/core/read-tracking.ts": "afecccb8e697d34b0486b12a5c46a300953633c7e89bcfc0f1e9eefae366d06c",
+    "src/core/aide-client.ts": "1f03f98beae735fc1ef4205ab2e5fcbd502e11835414453adc2e461dcbbaf743",
+    "src/core/types.ts": "87aec582ab17f899dfba76b5833247b8fecd433ccf11ba97330b4564fad72cad",
+    "src/core/pre-compact-logic.ts": "275379ed7bee936b7c3b055cb4109dad3552e5e52f48aaf7cb27802c8057585d",
+    "src/core/persistence-logic.ts": "b1d51a2a579c218bb9e95f200df007c7dd795a69d533c241337b9b8d35d20493",
+    "src/core/session-text.ts": "f5a881bca5e4c5d2d15340b49d0b335f90c608c3138d57dc75a56994abe742fe",
+    "src/core/partial-memory.ts": "936be74befec892b29fff7ea6a30fb9689acfb5083215d132f4813a0149a9135",
+    "src/core/work-receipt.ts": "15557e1320441d54f8c549a1e1d61f011d94b0ce4c70ccfb672b135bc6530738",
+    "src/core/retrieval-evidence.ts": "3c04ef3140d574a7e6311120174d7163283f105d79a4d8ed2adda6fd1b134b5f",
+    "src/core/context-pruning/purge.ts": "59d9a29df1c8a106ac431d1a409c86fc851747a77c481347b5729daec8d7e258",
+    "src/core/context-pruning/supersede.ts": "b247ee8456f808a841609a3791141d3d30c7333ba6f9c2586827f44aa91980ba",
+    "src/core/context-pruning/observation.ts": "be423c8ac3ee74c19943e5650a7eb6edbed3b8a5180efaee441c9d65d01781dc",
+    "src/core/context-pruning/tracker.ts": "390acc0b40fe0f5aaa9f781f4ff0237228d2200c263af6c46a4b1d02df991dc8",
+    "src/core/context-pruning/sessions.ts": "09d18cffbe7a4d70b914165f1466ae970640dc1267267c5908835a06164e76e9",
+    "src/core/context-pruning/types.ts": "599cf79a721e33adf96cf0c89333f302102de3b2b4adcef5ba0cda5c77ae1065",
+    "src/core/context-pruning/dedup.ts": "cbc15fb5bb44f99efd20c82280b8a7da2af757291bbe7e87fae1f13a570a15c9",
+    "src/core/context-pruning/recovery.ts": "993c586083a32d7216659c264e2446506555b525282e38b0f5d653b6d4de9428",
+    "src/lib/anchor.ts": "db7aac8d9e250882702b7d990414b3379b0b56eef5eb09caa7c40276343d9789",
+    "src/lib/hook-utils.ts": "f9be7f87164ac379c0321f7ff8dd2f82f2eee21e86e138b767f0c48a1084ef85",
+    "src/lib/project-root.ts": "0798e691dfd3213676c1043d068109857ebfadea9e79a14b74050a18db62c784",
+    "src/lib/logger.ts": "e651533681affa45e9608d3cce5e02c2bded512ad97b5574d55410d41d19afd1",
+    "src/test/model-usage-recording.test.ts": "3c1fa035f81b33226b10de306de5a673affbcf3f039b3944e5d902171713b841",
+    "src/test/model-usage.test.ts": "0c322db315442b36cd58a67b1d9addca1b974744f725b2c2c7681457524041eb",
+    "src/test/model-usage-hooks.test.ts": "8fa5351ca11e8ab58b9cfce3db18a38c4264ae414ad96fa03e16edf88d279637",
+    "src/opencode/hooks.ts": "1382a01aeceab636140619d2b4b889a0e5c13a4b686b0b4291850c9f5a14ed50",
+    "src/opencode/types.ts": "5895c295a2fb82ca270f52406e84f3ee2bcf8c75ca8aa231c8080cea5bc492d5",
+    "src/hooks/session-summary.ts": "859b5e96af497b2f933efd7ee0260d7449b35bed628848d07c0f946d65487d53",
+    "aide/cmd/aide/cmd_observe.go": "dfbb79e1f385d20783fc3ade783d9870fbb868b9c618bf9caf58cf57dcc051a5",
+    "aide/pkg/memory/token_model_usage.go": "536287aae876951c2b6304724cc804f19a5ec84f8ff5632efb74f8e7967c2443",
+    "aide/pkg/memory/token_accounting.go": "0123e658b4a51a064c6bb0dc5dc223da44f1ac7904f10a894c6c15c5301d822f",
+    "aide/pkg/store/token_model_usage.go": "c449bbd2e886f12e84fc25d5eb3977aa5e5ae61bffdea10d3b09300eea262faf",
+    "aide/pkg/store/token_events.go": "28629e5d7aa52cb17e5b4cb7a97d1194dc7f206a2be99ddbcb8a021ae740aeef",
+    "aide/pkg/store/observe_events.go": "c1fc06d8813b238643a8d2bf54474609e3d078701fcd24cf83ee8405b5f41d18",
+    "aide/pkg/observe/observe.go": "e4861debed7469ec430d2f934a9a7c2590b7c359a3110624796d89f458916c85"
+  },
+  "forwarded_request": {
+    "name": "code_read_symbol",
+    "arguments": {
+      "file": "aide/pkg/store/token_events.go",
+      "symbols": [
+        "TokenStats"
+      ]
+    }
+  },
+  "identity": {
+    "project_root": "/tmp/aide-outcomes-v4-trials/t04/root",
+    "real_project_root": "/tmp/aide-outcomes-v4-trials/t04/root",
+    "cwd": "/tmp/aide-outcomes-v4-trials/t04/root",
+    "version": {
+      "version": "0.1.18-dev.32+58816d9",
+      "commit": "58816d991ef7172304f3eef594844d79e995a5e1",
+      "commit_sha": "58816d99",
+      "date": "2026-09-09T15:52:00Z",
+      "go_version": "go1.27.0-X:nodwarf5",
+      "platform": "linux/amd64",
+      "os": "linux",
+      "arch": "amd64"
+    },
+    "db_path": "/tmp/aide-outcomes-v4-trials/t04/root/.aide/memory/memory.db",
+    "socket_path": "/tmp/aide-outcomes-v4-trials/t04/root/.aide/aide.sock",
+    "authority": "daemon",
+    "pid": 16,
+    "ppid": 13,
+    "started_at": "2026-09-09T17:16:29.584819629+01:00"
+  },
+  "returncode": 0
+}

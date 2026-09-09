@@ -1,0 +1,31 @@
+[
+  {
+    "command": "rtk proxy bun test tests",
+    "workdir": "<workspace>",
+    "call_id": "call_kvg5x8ufDZX8y592bBHRO35j",
+    "content_index": 2,
+    "chunk_id": "f43629",
+    "exit_code": 0,
+    "tests_passed": 9,
+    "tests_failed": 0,
+    "tests_total": 9,
+    "test_files": 2,
+    "expect_calls": 43,
+    "suite_scope": "Four original visible tests plus five added scratch tests; original Vitest suites not executed.",
+    "post_run_changes": "Original Vitest test files were reformatted after runtime tests, then all six changed source files were syntax-transpiled. No second runtime test run is captured.",
+    "output": "bun test v1.4.0 (34cbb9a40)\n\ntests/usage-write-contract.test.ts:\n(pass) usage write request/result contract > empty batches do not invoke the binary [0.17ms]\n(pass) usage write request/result contract > accepts only complete acknowledgments and preserves invocation options [0.35ms]\n(pass) usage write request/result contract > classifies execution and serialization failures without retrying [2.57ms]\n(pass) OpenCode acknowledgment cache > failed results retry; changed counters and cwd are forwarded; instances are independent [0.36ms]\n(pass) OpenCode acknowledgment cache > evicts oldest acknowledgments after 1,024 entries without refreshing repeats [1.28ms]\n\ntests/usage.test.ts:\n(pass) existing usage behavior > Claude inputs are disjoint; placeholder output is omitted [0.21ms]\n(pass) existing usage behavior > Codex rejects cumulative records and mismatched sessions [0.10ms]\n(pass) existing usage behavior > OpenCode retains ambiguous raw output without adding it [0.07ms]\n(pass) existing usage behavior > transcript scanner skips incomplete trailing lines and stays partial [0.51ms]\n\n 9 pass\n 0 fail\n 43 expect() calls\nRan 9 tests across 2 files. [16.00ms]\n"
+  },
+  {
+    "command": "rtk proxy bun -e 'const files = [\"src/core/model-usage.ts\", \"src/opencode/hooks.ts\", \"src/hooks/session-summary.ts\", \"src/test/model-usage-recording.test.ts\", \"src/test/model-usage.test.ts\", \"src/test/model-usage-hooks.test.ts\"]; const transpiler = new Bun.Transpiler({loader: \"ts\"}); for (const file of files) { transpiler.transformSync(await Bun.file(file).text()); } console.log(\"Syntax transpilation passed for all six changed source files; no type checking performed.\");'",
+    "workdir": "<workspace>",
+    "call_id": "call_Dzy0UXcvAK1ATWzL2ULQpHp5",
+    "content_index": 2,
+    "chunk_id": "7128bc",
+    "exit_code": 0,
+    "check_kind": "Bun.Transpiler transformSync syntax/transpilation check",
+    "files_parsed": 6,
+    "typecheck": false,
+    "suite_scope": "Six changed TypeScript files, including original test files. Parse/transpile success does not establish Vitest execution or semantic TypeScript type checking.",
+    "output": "Syntax transpilation passed for all six changed source files; no type checking performed.\n"
+  }
+]

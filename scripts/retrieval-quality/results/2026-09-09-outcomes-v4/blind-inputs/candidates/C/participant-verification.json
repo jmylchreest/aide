@@ -1,0 +1,34 @@
+[
+  {
+    "command": "rtk proxy bun test tests",
+    "workdir": "<workspace>",
+    "call_id": "call_mwahRZTHAdmSoiyjKZDjAw6B",
+    "content_index": 2,
+    "chunk_id": "dc9d08",
+    "exit_code": 0,
+    "tests_passed": 4,
+    "tests_failed": 0,
+    "tests_total": 4,
+    "test_files": 1,
+    "expect_calls": 13,
+    "suite_scope": "Four original visible tests.",
+    "post_run_changes": "After the second run, the final captured command reformatted writer parameters and original test expectations; no further test run is captured. Neither original Vitest suites nor a TypeScript type check was executed.",
+    "output": "bun test v1.4.0 (34cbb9a40)\n\ntests/usage.test.ts:\n(pass) existing usage behavior > Claude inputs are disjoint; placeholder output is omitted [0.33ms]\n(pass) existing usage behavior > Codex rejects cumulative records and mismatched sessions [0.08ms]\n(pass) existing usage behavior > OpenCode retains ambiguous raw output without adding it [0.06ms]\n(pass) existing usage behavior > transcript scanner skips incomplete trailing lines and stays partial [0.48ms]\n\n 4 pass\n 0 fail\n 13 expect() calls\nRan 4 tests across 1 file. [11.00ms]\n"
+  },
+  {
+    "command": "rtk proxy bun test tests",
+    "workdir": "<workspace>",
+    "call_id": "call_CNUQSLUXhvTDmezJurc47Pwo",
+    "content_index": 2,
+    "chunk_id": "6725eb",
+    "exit_code": 0,
+    "tests_passed": 10,
+    "tests_failed": 0,
+    "tests_total": 10,
+    "test_files": 2,
+    "expect_calls": 34,
+    "suite_scope": "Four original visible tests plus six added scratch tests.",
+    "post_run_changes": "After the second run, the final captured command reformatted writer parameters and original test expectations; no further test run is captured. Neither original Vitest suites nor a TypeScript type check was executed.",
+    "output": "bun test v1.4.0 (34cbb9a40)\n\ntests/usage-write-contract.test.ts:\n(pass) explicit usage write contract > empty batches bypass the binary [0.13ms]\n(pass) explicit usage write contract > accepts exact acknowledgments and preserves process options [0.22ms]\n(pass) explicit usage write contract > rejects missing, malformed, mismatched and skipped acknowledgments [0.04ms]\n(pass) explicit usage write contract > write and serialization exceptions are best effort failures [2.62ms]\n(pass) recorder forwards requests and only caches acknowledgments [0.30ms]\n(pass) recorder evicts oldest acknowledgments at 1024 entries [1.34ms]\n\ntests/usage.test.ts:\n(pass) existing usage behavior > Claude inputs are disjoint; placeholder output is omitted [0.24ms]\n(pass) existing usage behavior > Codex rejects cumulative records and mismatched sessions [0.10ms]\n(pass) existing usage behavior > OpenCode retains ambiguous raw output without adding it [0.07ms]\n(pass) existing usage behavior > transcript scanner skips incomplete trailing lines and stays partial [0.73ms]\n\n 10 pass\n 0 fail\n 34 expect() calls\nRan 10 tests across 2 files. [17.00ms]\n"
+  }
+]

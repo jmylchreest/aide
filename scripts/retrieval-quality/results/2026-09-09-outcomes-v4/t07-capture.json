@@ -1,0 +1,212 @@
+{
+  "schema_version": 1,
+  "runtime": {
+    "actor_id": "01a086f9-fcd9-7142-8506-39b4bd6d5ad1",
+    "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+    "agent_path": "/root/v4_execution/v4_t07",
+    "cli_version": "0.153.4",
+    "model_provider": "openai",
+    "model": "gpt-6-astra",
+    "effort": "high"
+  },
+  "completion": {
+    "complete": true,
+    "started_at": 1788970925,
+    "completed_at": 1788971033,
+    "duration_ms": 108373
+  },
+  "answer": {
+    "raw_text": "Implemented the request/result API, migrated both adapters and original Vitest consumers, and added write-status logging. Unacknowledged writes remain retryable.\n\nValidation: `bun test tests` passed all 8 tests—4 existing and 4 added. All six changed source files passed syntax parsing. Vitest execution and TypeScript type-checking were not performed.",
+    "parsed_json": null,
+    "parse_error": "Final answer is not valid JSON"
+  },
+  "tool_calls": [
+    {
+      "call_id": "call_ZnaMbyOL7on7NrFAOTvQrGK5",
+      "name": "exec",
+      "type": "custom_tool_call",
+      "input": "text(await tools.exec_command({cmd:\"cat /tmp/aide-outcomes-v4-trials/t07/participant-prompt.md\",max_output_tokens:12000}));\n"
+    },
+    {
+      "call_id": "call_GVoc6dHKHklUKGkVuNia9Azd",
+      "name": "exec",
+      "type": "custom_tool_call",
+      "input": "text(await tools.exec_command({cmd:\"rtk proxy cat /home/johnm/.codex/RTK.md\",workdir:\"/tmp/aide-outcomes-v4-trials/t07/root\",max_output_tokens:6000}));\ntext(await tools.exec_command({cmd:\"rtk proxy rg --files --hidden --no-ignore --glob '!.aide/**' --glob '!*node_modules*' --glob '*AGENTS.md' --glob '*usage*' --glob '*session*' --glob '*opencode*' src tests .\",workdir:\"/tmp/aide-outcomes-v4-trials/t07/root\",max_output_tokens:6000}));\n"
+    },
+    {
+      "call_id": "call_BardlJIXw0hVnBvH4L8SgNND",
+      "name": "exec",
+      "type": "custom_tool_call",
+      "input": "text(await tools.exec_command({cmd:\"rtk proxy rg --hidden --no-ignore --glob '!.aide/**' -n 'recordModelUsage|createOpenCodeUsageRecorder|Usage scan:' src tests\",workdir:\"/tmp/aide-outcomes-v4-trials/t07/root\",max_output_tokens:6000}));\ntext(await tools.exec_command({cmd:\"rtk proxy python3 /mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/outcomes-v3/bridge.py call --root /tmp/aide-outcomes-v4-trials/t07/root --binary /tmp/aide-retrieval-v4 --evidence-dir /tmp/aide-outcomes-v4-trials/t07/bridge-evidence --tool-json '{\\\"name\\\":\\\"code_symbols\\\",\\\"arguments\\\":{\\\"file\\\":\\\"src/core/model-usage.ts\\\"}}'\",workdir:\"/tmp/aide-outcomes-v4-trials/t07/root\",max_output_tokens:6000}));\n"
+    },
+    {
+      "call_id": "call_AwuQCkoP4GkMLspm5p9JMQuy",
+      "name": "exec",
+      "type": "custom_tool_call",
+      "input": "const results = await Promise.allSettled([\ntools.exec_command({cmd:\"rtk proxy python3 /mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/outcomes-v3/bridge.py call --root /tmp/aide-outcomes-v4-trials/t07/root --binary /tmp/aide-retrieval-v4 --evidence-dir /tmp/aide-outcomes-v4-trials/t07/bridge-evidence --tool-json '{\\\"name\\\":\\\"code_read_symbol\\\",\\\"arguments\\\":{\\\"file\\\":\\\"src/core/model-usage.ts\\\",\\\"symbols\\\":[\\\"recordModelUsage\\\",\\\"createOpenCodeUsageRecorder\\\"]}}'\",workdir:\"/tmp/aide-outcomes-v4-trials/t07/root\",max_output_tokens:6000}),\ntools.exec_command({cmd:\"rtk proxy cat src/test/model-usage-recording.test.ts src/test/model-usage-hooks.test.ts src/hooks/session-summary.ts\",workdir:\"/tmp/aide-outcomes-v4-trials/t07/root\",max_output_tokens:12000}),\ntools.exec_command({cmd:\"rtk proxy cat src/test/model-usage.test.ts tests/usage.test.ts\",workdir:\"/tmp/aide-outcomes-v4-trials/t07/root\",max_output_tokens:12000}),\ntools.exec_command({cmd:\"rtk proxy rg -n -C 14 'recordUsage' src/opencode/hooks.ts\",workdir:\"/tmp/aide-outcomes-v4-trials/t07/root\",max_output_tokens:4000})\n]); for (const r of results) text(r);\n"
+    },
+    {
+      "call_id": "call_HsE4dB1PXhivxs1BTNGG3GZ4",
+      "name": "exec",
+      "type": "custom_tool_call",
+      "input": "text(await tools.exec_command({cmd:\"rtk proxy sed -n '305,375p' src/core/model-usage.ts\",workdir:\"/tmp/aide-outcomes-v4-trials/t07/root\",max_output_tokens:4000}));\n"
+    },
+    {
+      "call_id": "call_cX2iwX8kspJGPUFv9v8YfBEc",
+      "name": "exec",
+      "type": "custom_tool_call",
+      "input": "text(await tools.exec_command({cmd:\"rtk proxy python3 - <<'PY'\\nfrom pathlib import Path\\np=Path('src/core/model-usage.ts')\\ns=p.read_text(); s=s.replace('''/** Acknowledged batch only: older CLI fallback cannot preserve source timestamps. */\\nexport function recordModelUsage(\\n  binary: string,\\n  cwd: string,\\n  events: ObserveBatchEvent[],\\n): boolean {\\n  if (!events.length) return true;''','''export interface UsageWriteRequest {\\n  binary: string;\\n  cwd: string;\\n  events: ObserveBatchEvent[];\\n}\\n\\nexport type UsageWriteResult =\\n  | { status: \\\"acknowledged\\\"; recorded: number }\\n  | { status: \\\"unacknowledged\\\"; reason: \\\"invalid-ack\\\" | \\\"write-error\\\" };\\n\\n/** Acknowledged batch only: older CLI fallback cannot preserve source timestamps. */\\nexport function recordModelUsage({\\n  binary,\\n  cwd,\\n  events,\\n}: UsageWriteRequest): UsageWriteResult {\\n  if (!events.length) return { status: \\\"acknowledged\\\", recorded: 0 };''')\\ns=s.replace('''    }).toString();\\n    const ack = /^Recorded (\\\\\\\\d+) event\\\\\\\\(s\\\\\\\\)(?:, skipped (\\\\\\\\d+))?\\\\\\\\s*$/i.exec(\\n      output.trim(),\\n    );\\n    return (\\n      ack !== null &&\\n      Number(ack[1]) === events.length &&\\n      Number(ack[2] ?? 0) === 0\\n    );''','''    });\\n    const ack =\\n      typeof output === \\\"string\\\" || Buffer.isBuffer(output)\\n        ? /^Recorded (\\\\\\\\d+) event\\\\\\\\(s\\\\\\\\)(?:, skipped (\\\\\\\\d+))?\\\\\\\\s*$/i.exec(\\n            output.toString().trim(),\\n          )\\n        : null;\\n    if (\\n      ack !== null &&\\n      Number(ack[1]) === events.length &&\\n      Number(ack[2] ?? 0) === 0\\n    ) {\\n      return { status: \\\"acknowledged\\\", recorded: events.length };\\n    }\\n    return { status: \\\"unacknowledged\\\", reason: \\\"invalid-ack\\\" };''')\\ns=s.replace('''    return false;\\n  }\\n}\\n\\n/** Keep repeated part broadcasts''','''    return { status: \\\"unacknowledged\\\", reason: \\\"write-error\\\" };\\n  }\\n}\\n\\n/** Keep repeated part broadcasts''')\\ns=s.replace('''  write = recordModelUsage,\\n): (binary: string, cwd: string, part: unknown) => void {\\n  const acknowledged = new Set<string>();\\n  return (binary, cwd, part) => {''','''  write: (request: UsageWriteRequest) => UsageWriteResult = recordModelUsage,\\n): (request: { binary: string; cwd: string; part: unknown }) => void {\\n  const acknowledged = new Set<string>();\\n  return ({ binary, cwd, part }) => {''')\\ns=s.replace('''    if (acknowledged.has(fingerprint) || !write(binary, cwd, [next])) return;''','''    if (acknowledged.has(fingerprint)) return;\\n    const result = write({ binary, cwd, events: [next] });\\n    if (result.status !== \\\"acknowledged\\\") return;'''); p.write_text(s)\\np=Path('src/opencode/hooks.ts'); s=p.read_text().replace('''          recordUsage(state.binary, state.cwd, event.properties.part);''','''          recordUsage({\\n            binary: state.binary,\\n            cwd: state.cwd,\\n            part: event.properties.part,\\n          });'''); p.write_text(s)\\np=Path('src/hooks/session-summary.ts'); s=p.read_text().replace('''        recordModelUsage(binary, cwd, usage.events);''','''        const result = recordModelUsage({ binary, cwd, events: usage.events });''').replace('''records=${usage.events.length}`''','''records=${usage.events.length}; write=${result.status}`'''); p.write_text(s)\\np=Path('src/test/model-usage-recording.test.ts'); s=p.read_text().replace('recordModelUsage(\\\"bin\\\", \\\"/cwd\\\", events)', 'recordModelUsage({ binary: \\\"bin\\\", cwd: \\\"/cwd\\\", events })').replace('.toBe(false)', '.toEqual({ status: \\\"unacknowledged\\\", reason: \\\"invalid-ack\\\" })').replace('.toBe(true)', '.toEqual({ status: \\\"acknowledged\\\", recorded: 1 })'); p.write_text(s)\\np=Path('src/test/model-usage.test.ts'); s=p.read_text().replace('createOpenCodeUsageRecorder((_binary, _cwd, events) => {', 'createOpenCodeUsageRecorder(({ events }) => {').replace('''      return batches.length !== 1;''','''      return batches.length === 1\\n        ? { status: \\\"unacknowledged\\\", reason: \\\"write-error\\\" }\\n        : { status: \\\"acknowledged\\\", recorded: events.length };''').replace('record(\\\"bin\\\", \\\"/cwd\\\", part)', 'record({ binary: \\\"bin\\\", cwd: \\\"/cwd\\\", part })').replace('record(\\\"bin\\\", \\\"/cwd\\\", { ...part, tokens: { input: 2 } })', 'record({ binary: \\\"bin\\\", cwd: \\\"/cwd\\\", part: { ...part, tokens: { input: 2 } } })'); p.write_text(s)\\np=Path('src/test/model-usage-hooks.test.ts'); s=p.read_text().replace('''import { join } from \\\"node:path\\\";''','''import { join } from \\\"node:path\\\";\\nimport type { UsageWriteRequest, UsageWriteResult } from \\\"../core/model-usage.js\\\";''').replace('''  write: vi.fn(() => true),''','''  write: vi.fn(({ events }: UsageWriteRequest): UsageWriteResult => ({\\n    status: \\\"acknowledged\\\",\\n    recorded: events.length,\\n  })),''').replace('''toHaveBeenCalledWith(\\\"/fake-aide\\\", cwd, [''','''toHaveBeenCalledWith({ binary: \\\"/fake-aide\\\", cwd, events: [''').replace('''    ]);''','''    ] });''').replace('''        ]),''','''        ] }),'''); p.write_text(s)\\nPY\",workdir:\"/tmp/aide-outcomes-v4-trials/t07/root\",max_output_tokens:4000}));\n"
+    },
+    {
+      "call_id": "call_8UyB8HYVFPn1drJbqPde6ReU",
+      "name": "exec",
+      "type": "custom_tool_call",
+      "input": "text(await tools.exec_command({cmd:\"rtk proxy cat src/test/model-usage-recording.test.ts src/test/model-usage-hooks.test.ts\",workdir:\"/tmp/aide-outcomes-v4-trials/t07/root\",max_output_tokens:5000}));\ntext(await tools.exec_command({cmd:\"rtk proxy sed -n '318,395p' src/core/model-usage.ts\",workdir:\"/tmp/aide-outcomes-v4-trials/t07/root\",max_output_tokens:4000}));\ntext(await tools.exec_command({cmd:\"rtk proxy rg --files --hidden --no-ignore --glob '!.aide/**' --glob '!node_modules/**' tests\",workdir:\"/tmp/aide-outcomes-v4-trials/t07/root\",max_output_tokens:2000}));\n"
+    },
+    {
+      "call_id": "call_kKttK9fCZg4weWIxMptF4Czs",
+      "name": "exec",
+      "type": "custom_tool_call",
+      "input": "text(await tools.exec_command({cmd:\"rtk proxy python3 - <<'PY'\\nfrom pathlib import Path\\np=Path('src/test/model-usage-recording.test.ts'); s=p.read_text().replace('''toEqual({ status: \\\"unacknowledged\\\", reason: \\\"invalid-ack\\\" });''','''toEqual({\\n        status: \\\"unacknowledged\\\",\\n        reason: \\\"invalid-ack\\\",\\n      });''').replace('''toEqual({ status: \\\"acknowledged\\\", recorded: 1 });''','''toEqual({\\n      status: \\\"acknowledged\\\",\\n      recorded: 1,\\n    });'''); p.write_text(s)\\np=Path('src/test/model-usage.test.ts'); s=p.read_text().replace('''    record({ binary: \\\"bin\\\", cwd: \\\"/cwd\\\", part: { ...part, tokens: { input: 2 } } }); // conflict reaches store''','''    record({\\n      binary: \\\"bin\\\",\\n      cwd: \\\"/cwd\\\",\\n      part: { ...part, tokens: { input: 2 } },\\n    }); // conflict reaches store'''); p.write_text(s)\\np=Path('src/test/model-usage-hooks.test.ts'); s=p.read_text().replace('''    expect(mocks.write).toHaveBeenCalledWith({ binary: \\\"/fake-aide\\\", cwd, events: [\\n      expect.objectContaining({\\n        session: \\\"s\\\",\\n        name: \\\"model_usage\\\",\\n        attrs: expect.objectContaining({\\n          usage_id: \\\"p\\\",\\n          uncached_input_tokens: \\\"12\\\",\\n        }),\\n      }),\\n    ] });''','''    expect(mocks.write).toHaveBeenCalledWith({\\n      binary: \\\"/fake-aide\\\",\\n      cwd,\\n      events: [\\n        expect.objectContaining({\\n          session: \\\"s\\\",\\n          name: \\\"model_usage\\\",\\n          attrs: expect.objectContaining({\\n            usage_id: \\\"p\\\",\\n            uncached_input_tokens: \\\"12\\\",\\n          }),\\n        }),\\n      ],\\n    });''').replace('''        expect(mocks.write).toHaveBeenCalledWith({ binary: \\\"/fake-aide\\\", cwd, events: [\\n          expect.objectContaining({\\n            session: \\\"s\\\",\\n            attrs: expect.objectContaining({ host, usage_id: \\\"r\\\" }),\\n          }),\\n        ] }),''','''        expect(mocks.write).toHaveBeenCalledWith({\\n          binary: \\\"/fake-aide\\\",\\n          cwd,\\n          events: [\\n            expect.objectContaining({\\n              session: \\\"s\\\",\\n              attrs: expect.objectContaining({ host, usage_id: \\\"r\\\" }),\\n            }),\\n          ],\\n        }),'''); p.write_text(s)\\nPY\",workdir:\"/tmp/aide-outcomes-v4-trials/t07/root\",max_output_tokens:1000}));\ntext(await tools.exec_command({cmd:\"rtk proxy python3 - <<'PY'\\nfrom pathlib import Path\\nPath('tests/usage-contract.test.ts').write_text('''import { afterEach, expect, spyOn, test } from \\\"bun:test\\\";\\nimport * as childProcess from \\\"node:child_process\\\";\\nimport {\\n  createOpenCodeUsageRecorder,\\n  recordModelUsage,\\n  type UsageWriteRequest,\\n  type UsageWriteResult,\\n} from \\\"../src/core/model-usage.ts\\\";\\n\\nlet exec: ReturnType<typeof spyOn> | undefined;\\nafterEach(() => exec?.mockRestore());\\nconst request = {\\n  binary: \\\"bin\\\",\\n  cwd: \\\"/cwd\\\",\\n  events: [{ kind: \\\"session\\\", name: \\\"model_usage\\\", session: \\\"s\\\" }],\\n};\\n\\ntest(\\\"writer reports exact acknowledgments and preserves subprocess options\\\", () => {\\n  exec = spyOn(childProcess, \\\"execFileSync\\\").mockReturnValue(Buffer.from(\\\"\\\"));\\n  expect(recordModelUsage({ ...request, events: [] })).toEqual({ status: \\\"acknowledged\\\", recorded: 0 });\\n  expect(exec).not.toHaveBeenCalled();\\n  for (const output of [undefined, null, Buffer.from(\\\"\\\"), Buffer.from(\\\"garbage\\\"), Buffer.from(\\\"Recorded 0 event(s)\\\"), Buffer.from(\\\"Recorded 2 event(s)\\\"), Buffer.from(\\\"Recorded 1 event(s), skipped 1\\\")]) {\\n    exec.mockReturnValue(output);\\n    expect(recordModelUsage(request)).toEqual({ status: \\\"unacknowledged\\\", reason: \\\"invalid-ack\\\" });\\n  }\\n  for (const output of [\\\"Recorded 1 event(s)\\\\\\\\n\\\", \\\" \\\\\\\\n rEcOrDeD 1 event(s), skipped 0 \\\\\\\\n\\\"]) {\\n    exec.mockReturnValue(Buffer.from(output));\\n    expect(recordModelUsage(request)).toEqual({ status: \\\"acknowledged\\\", recorded: 1 });\\n  }\\n  expect(exec).toHaveBeenLastCalledWith(\\\"bin\\\", [\\\"observe\\\", \\\"record\\\", \\\"--stdin\\\"], {\\n    cwd: \\\"/cwd\\\",\\n    input: JSON.stringify(request.events[0]) + \\\"\\\\\\\\n\\\",\\n    timeout: 10000,\\n    stdio: [\\\"pipe\\\", \\\"pipe\\\", \\\"pipe\\\"],\\n  });\\n});\\n\\ntest(\\\"write and serialization errors are best effort\\\", () => {\\n  exec = spyOn(childProcess, \\\"execFileSync\\\").mockImplementation(() => { throw new Error(\\\"failed\\\"); });\\n  expect(recordModelUsage(request)).toEqual({ status: \\\"unacknowledged\\\", reason: \\\"write-error\\\" });\\n  exec.mockClear();\\n  const circular: any = { ...request.events[0] };\\n  circular.self = circular;\\n  expect(recordModelUsage({ ...request, events: [circular] })).toEqual({ status: \\\"unacknowledged\\\", reason: \\\"write-error\\\" });\\n  expect(exec).not.toHaveBeenCalled();\\n});\\n\\nconst part = { type: \\\"step-finish\\\", id: \\\"p\\\", sessionID: \\\"s\\\", messageID: \\\"m\\\", tokens: { input: 1 } };\\ntest(\\\"recorder retries unacknowledged objects and scopes normalized snapshots\\\", () => {\\n  const calls: UsageWriteRequest[] = [];\\n  const write = (request: UsageWriteRequest): UsageWriteResult => {\\n    calls.push(request);\\n    return calls.length === 1 ? { status: \\\"unacknowledged\\\", reason: \\\"invalid-ack\\\" } : { status: \\\"acknowledged\\\", recorded: request.events.length };\\n  };\\n  const record = createOpenCodeUsageRecorder(write);\\n  const input = { binary: \\\"bin\\\", cwd: \\\"/cwd\\\", part };\\n  expect(record({ ...input, part: null })).toBeUndefined();\\n  expect(calls).toHaveLength(0);\\n  record(input);\\n  record(input);\\n  record(input);\\n  expect(calls).toHaveLength(2);\\n  expect(calls[0]).toMatchObject({ binary: \\\"bin\\\", cwd: \\\"/cwd\\\", events: [{ name: \\\"model_usage\\\", attrs: { uncached_input_tokens: \\\"1\\\" } }] });\\n  record({ ...input, part: { ...part, tokens: { input: 2 } } });\\n  record({ ...input, cwd: \\\"/other\\\" });\\n  createOpenCodeUsageRecorder(write)(input);\\n  expect(calls).toHaveLength(5);\\n});\\n\\ntest(\\\"recorder evicts oldest acknowledged entry at 1024\\\", () => {\\n  let writes = 0;\\n  const record = createOpenCodeUsageRecorder(({ events }) => {\\n    writes++;\\n    return { status: \\\"acknowledged\\\", recorded: events.length };\\n  });\\n  const input = { binary: \\\"bin\\\", cwd: \\\"/cwd\\\", part };\\n  for (let i = 0; i < 1024; i++) record({ ...input, part: { ...part, id: String(i) } });\\n  record({ ...input, part: { ...part, id: \\\"0\\\" } });\\n  expect(writes).toBe(1024);\\n  record({ ...input, part: { ...part, id: \\\"1024\\\" } });\\n  record({ ...input, part: { ...part, id: \\\"1\\\" } });\\n  expect(writes).toBe(1025);\\n  record({ ...input, part: { ...part, id: \\\"0\\\" } });\\n  expect(writes).toBe(1026);\\n});\\n''')\\nPY\",workdir:\"/tmp/aide-outcomes-v4-trials/t07/root\",max_output_tokens:1000}));\ntext(await tools.exec_command({cmd:\"rtk proxy bun test tests\",workdir:\"/tmp/aide-outcomes-v4-trials/t07/root\",max_output_tokens:5000}));\n"
+    },
+    {
+      "call_id": "call_2AfUNuLVXW3CESaIKOVtv00v",
+      "name": "exec",
+      "type": "custom_tool_call",
+      "input": "const results = await Promise.allSettled([\ntools.exec_command({cmd:\"rtk proxy rg --hidden --no-ignore --glob '!.aide/**' -n -C 3 'recordModelUsage|createOpenCodeUsageRecorder|recordUsage\\\\(|Usage scan:|toHaveBeenCalledWith' src/core/model-usage.ts src/opencode/hooks.ts src/hooks/session-summary.ts src/test/model-usage-recording.test.ts src/test/model-usage-hooks.test.ts src/test/model-usage.test.ts\",workdir:\"/tmp/aide-outcomes-v4-trials/t07/root\",max_output_tokens:7000}),\ntools.exec_command({cmd:\"rtk proxy bun -e 'const transpiler = new Bun.Transpiler({loader: \\\"ts\\\"}); for (const file of [\\\"src/core/model-usage.ts\\\", \\\"src/opencode/hooks.ts\\\", \\\"src/hooks/session-summary.ts\\\", \\\"src/test/model-usage-recording.test.ts\\\", \\\"src/test/model-usage-hooks.test.ts\\\", \\\"src/test/model-usage.test.ts\\\"]) { transpiler.transformSync(await Bun.file(file).text()); console.log(`Parsed ${file}`); }'\",workdir:\"/tmp/aide-outcomes-v4-trials/t07/root\",max_output_tokens:2000})\n]);for(const result of results) text(result);\n"
+    }
+  ],
+  "runtime_usage": {
+    "basis": "runtime_reported; not billing or provider savings",
+    "counters": {
+      "input_tokens": 280939,
+      "cached_input_tokens": 257280,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 5256,
+      "reasoning_output_tokens": 328,
+      "total_tokens": 286195
+    },
+    "responses": [
+      {
+        "response_id": "resp_0a56f3bfbe733de1016aa187aeb98087d291ed8a6e043cc972",
+        "counters": {
+          "input_tokens": 17983,
+          "cached_input_tokens": 17664,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 44,
+          "reasoning_output_tokens": 0,
+          "total_tokens": 18027
+        }
+      },
+      {
+        "response_id": "resp_0a56f3bfbe733de1016aa187b3d6ac87d282c0328c2014a0cf",
+        "counters": {
+          "input_tokens": 19687,
+          "cached_input_tokens": 17792,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 188,
+          "reasoning_output_tokens": 10,
+          "total_tokens": 19875
+        }
+      },
+      {
+        "response_id": "resp_0a56f3bfbe733de1016aa187b9167c87d29de4d99d2df92bb1",
+        "counters": {
+          "input_tokens": 20290,
+          "cached_input_tokens": 19456,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 212,
+          "reasoning_output_tokens": 0,
+          "total_tokens": 20502
+        }
+      },
+      {
+        "response_id": "resp_0a56f3bfbe733de1016aa187be6ffc87d29b5f01b9536ad7bf",
+        "counters": {
+          "input_tokens": 21547,
+          "cached_input_tokens": 20096,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 331,
+          "reasoning_output_tokens": 0,
+          "total_tokens": 21878
+        }
+      },
+      {
+        "response_id": "resp_0a56f3bfbe733de1016aa187c557cc87d2b0c8a043e5e7fbc1",
+        "counters": {
+          "input_tokens": 29263,
+          "cached_input_tokens": 21376,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 61,
+          "reasoning_output_tokens": 0,
+          "total_tokens": 29324
+        }
+      },
+      {
+        "response_id": "resp_0a56f3bfbe733de1016aa187c8edbc87d29cb490cadaffe1af",
+        "counters": {
+          "input_tokens": 29915,
+          "cached_input_tokens": 29056,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1576,
+          "reasoning_output_tokens": 74,
+          "total_tokens": 31491
+        }
+      },
+      {
+        "response_id": "resp_0a56f3bfbe733de1016aa187e43d6487d2877fa28606f7c323",
+        "counters": {
+          "input_tokens": 31547,
+          "cached_input_tokens": 29696,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 318,
+          "reasoning_output_tokens": 141,
+          "total_tokens": 31865
+        }
+      },
+      {
+        "response_id": "resp_0a56f3bfbe733de1016aa187ebcd7c87d29902103b6f47bb9c",
+        "counters": {
+          "input_tokens": 34385,
+          "cached_input_tokens": 31360,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 2029,
+          "reasoning_output_tokens": 24,
+          "total_tokens": 36414
+        }
+      },
+      {
+        "response_id": "resp_0a56f3bfbe733de1016aa1880eb0f087d296b5261e10419d3e",
+        "counters": {
+          "input_tokens": 36766,
+          "cached_input_tokens": 34176,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 421,
+          "reasoning_output_tokens": 79,
+          "total_tokens": 37187
+        }
+      },
+      {
+        "response_id": "resp_0a56f3bfbe733de1016aa1881731c487d2966ebb4df7d2f7c6",
+        "counters": {
+          "input_tokens": 39556,
+          "cached_input_tokens": 36608,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 76,
+          "reasoning_output_tokens": 0,
+          "total_tokens": 39632
+        }
+      }
+    ],
+    "unique_responses": 10,
+    "final_cumulative_counters": {
+      "input_tokens": 280939,
+      "cached_input_tokens": 257280,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 5256,
+      "reasoning_output_tokens": 328,
+      "total_tokens": 286195
+    },
+    "unknown_reasons": []
+  }
+}

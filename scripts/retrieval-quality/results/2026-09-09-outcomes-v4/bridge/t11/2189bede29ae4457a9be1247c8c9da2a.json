@@ -1,0 +1,280 @@
+{
+  "operation": "call",
+  "id": "2189bede29ae4457a9be1247c8c9da2a",
+  "binding_id": "ca5b8cb60f10433292e53bf8aa9973c4",
+  "request": "{\"name\":\"code_read_symbol\",\"arguments\":{\"file\":\"src/core/model-usage.ts\",\"symbols\":[\"event\",\"claudeUsageEvent\",\"codexUsageEvent\",\"openCodeUsageEvent\",\"collectTranscriptUsage\",\"recordModelUsage\",\"createOpenCodeUsageRecorder\",\"sourceTime\",\"summedInput\",\"count\"]}}",
+  "transcript": [
+    {
+      "direction": "request",
+      "message": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+          "protocolVersion": "2024-11-05",
+          "capabilities": {},
+          "clientInfo": {
+            "name": "aide-outcomes-v3-bridge",
+            "version": "1"
+          }
+        }
+      }
+    },
+    {
+      "direction": "response",
+      "message": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {
+          "capabilities": {
+            "logging": {},
+            "tools": {
+              "listChanged": true
+            }
+          },
+          "protocolVersion": "2024-11-05",
+          "serverInfo": {
+            "name": "aide",
+            "version": "0.1.18-dev.32+58816d9 (58816d99)"
+          }
+        }
+      }
+    },
+    {
+      "direction": "request",
+      "message": {
+        "jsonrpc": "2.0",
+        "method": "notifications/initialized"
+      }
+    },
+    {
+      "direction": "request",
+      "message": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "tools/call",
+        "params": {
+          "name": "instance_info",
+          "arguments": {}
+        }
+      }
+    },
+    {
+      "direction": "response",
+      "message": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "result": {
+          "_meta": {
+            "aide/work": {
+              "id": "FAKDCQ5BGI2ZFLECI3MTGBCNFN",
+              "text_sha256": "9d7deab25695040070ce9b4c2c2156d598309dd9b04caa7ff657d2eed2205fb9",
+              "tool": "instance_info",
+              "version": 1
+            }
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": "{\n  \"project_root\": \"/tmp/aide-outcomes-v4-trials/t11/root\",\n  \"real_project_root\": \"/tmp/aide-outcomes-v4-trials/t11/root\",\n  \"cwd\": \"/tmp/aide-outcomes-v4-trials/t11/root\",\n  \"version\": {\n    \"version\": \"0.1.18-dev.32+58816d9\",\n    \"commit\": \"58816d991ef7172304f3eef594844d79e995a5e1\",\n    \"commit_sha\": \"58816d99\",\n    \"date\": \"2026-09-09T15:52:00Z\",\n    \"go_version\": \"go1.27.0-X:nodwarf5\",\n    \"platform\": \"linux/amd64\",\n    \"os\": \"linux\",\n    \"arch\": \"amd64\"\n  },\n  \"db_path\": \"/tmp/aide-outcomes-v4-trials/t11/root/.aide/memory/memory.db\",\n  \"socket_path\": \"/tmp/aide-outcomes-v4-trials/t11/root/.aide/aide.sock\",\n  \"authority\": \"daemon\",\n  \"pid\": 17,\n  \"ppid\": 14,\n  \"started_at\": \"2026-09-09T17:30:34.708723461+01:00\"\n}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "direction": "request",
+      "message": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "method": "tools/call",
+        "params": {
+          "name": "code_read_symbol",
+          "arguments": {
+            "file": "src/core/model-usage.ts",
+            "symbols": [
+              "event",
+              "claudeUsageEvent",
+              "codexUsageEvent",
+              "openCodeUsageEvent",
+              "collectTranscriptUsage",
+              "recordModelUsage",
+              "createOpenCodeUsageRecorder",
+              "sourceTime",
+              "summedInput",
+              "count"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "direction": "response",
+      "message": {
+        "jsonrpc": "2.0",
+        "id": 3,
+        "result": {
+          "_meta": {
+            "aide/retrieval": {
+              "id": "SZYU54UCPXNFNRSX5AEK4XKVCH",
+              "references": [
+                {
+                  "file": "src/core/model-usage.ts",
+                  "sha256": "5f8ceb868f06aa5b6c2da0328469c0ee82f720715c492574eed8986c7f308309",
+                  "bytes": 10720
+                }
+              ],
+              "text_sha256": "8ad75e4217e3c0e2979b31fdc83d5496e10de53578566c43cd26e52958567a35",
+              "tool": "code_read_symbol",
+              "version": 1
+            },
+            "aide/work": {
+              "id": "EH6Z3SPKUOCVORIOBOV2XNZZYE",
+              "text_sha256": "8ad75e4217e3c0e2979b31fdc83d5496e10de53578566c43cd26e52958567a35",
+              "tool": "code_read_symbol",
+              "version": 1
+            }
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": "# Batch Symbol Source\n\n## `event` [function]\n**File:** `src/core/model-usage.ts:92-119` | **Signature:** `function event(\n  host: Host,\n  source: string,\n  session: string,\n  usageId: string,\n  timestamp?: unknown,\n): ObserveBatchEvent`\n\n```\n92  : function event(\n93  :   host: Host,\n94  :   source: string,\n95  :   session: string,\n96  :   usageId: string,\n97  :   timestamp?: unknown,\n98  : ): ObserveBatchEvent {\n99  :   const validTime = sourceTime(timestamp);\n100 :   return {\n101 :     kind: \"session\",\n102 :     name: \"model_usage\",\n103 :     session,\n104 :     ...(validTime ? { ts: timestamp } : {}),\n105 :     attrs: {\n106 :       model_usage_version: \"1\",\n107 :       host,\n108 :       usage_source: source,\n109 :       usage_id: usageId,\n110 :       usage_time_basis: validTime ? \"source\" : \"observed\",\n111 :       usage_coverage: \"partial\",\n112 :       ...(validTime\n113 :         ? { usage_source_time: timestamp }\n114 :         : timestamp !== undefined\n115 :           ? { usage_invalid: \"1\" }\n116 :           : {}),\n117 :     },\n118 :   };\n119 : }\n```\n\n## `claudeUsageEvent` [function]\n**File:** `src/core/model-usage.ts:121-151` | **Signature:** `function claudeUsageEvent(\n  rowValue: unknown,\n  session: string,\n): ObserveBatchEvent | null`\n\n```\n121 : export function claudeUsageEvent(\n122 :   rowValue: unknown,\n123 :   session: string,\n124 : ): ObserveBatchEvent | null {\n125 :   const row = object(rowValue),\n126 :     message = object(row?.message),\n127 :     usage = object(message?.usage);\n128 :   if (\n129 :     !id(session) ||\n130 :     row?.type !== \"assistant\" ||\n131 :     row.sessionId !== session ||\n132 :     !id(message?.id) ||\n133 :     !usage\n134 :   )\n135 :     return null;\n136 :   const result = event(\n137 :     \"claude-code\",\n138 :     \"claude.assistant_usage.v1\",\n139 :     session,\n140 :     message.id,\n141 :     row.timestamp,\n142 :   );\n143 :   const attrs = result.attrs!;\n144 :   if (id(message.model)) attrs.model = message.model;\n145 :   counter(attrs, \"uncached_input_tokens\", usage.input_tokens);\n146 :   counter(attrs, \"cache_read_input_tokens\", usage.cache_read_input_tokens);\n147 :   counter(attrs, \"cache_write_input_tokens\", usage.cache_creation_input_tokens);\n148 :   summedInput(attrs);\n149 :   // Assistant output_tokens can be a message_start placeholder. Do not report it.\n150 :   return result;\n151 : }\n```\n\n## `codexUsageEvent` [function]\n**File:** `src/core/model-usage.ts:153-201` | **Signature:** `function codexUsageEvent(\n  rowValue: unknown,\n  session: string,\n): ObserveBatchEvent | null`\n\n```\n153 : export function codexUsageEvent(\n154 :   rowValue: unknown,\n155 :   session: string,\n156 : ): ObserveBatchEvent | null {\n157 :   const row = object(rowValue),\n158 :     payload = object(row?.payload),\n159 :     usage = object(payload?.usage);\n160 :   if (\n161 :     !id(session) ||\n162 :     row?.type !== \"token_usage_record\" ||\n163 :     payload?.thread_id !== session ||\n164 :     !id(payload.response_id) ||\n165 :     !usage\n166 :   )\n167 :     return null;\n168 :   const result = event(\n169 :     \"codex\",\n170 :     \"codex.token_usage_record.v1\",\n171 :     session,\n172 :     payload.response_id,\n173 :     row.timestamp,\n174 :   );\n175 :   const attrs = result.attrs!;\n176 :   for (const key of [\n177 :     \"input_tokens\",\n178 :     \"output_tokens\",\n179 :     \"reasoning_output_tokens\",\n180 :     \"total_tokens\",\n181 :   ])\n182 :     counter(attrs, key, usage[key]);\n183 :   counter(attrs, \"cache_read_input_tokens\", usage.cached_input_tokens);\n184 :   counter(attrs, \"cache_write_input_tokens\", usage.cache_write_input_tokens);\n185 :   if (\n186 :     [\n187 :       \"input_tokens\",\n188 :       \"cache_read_input_tokens\",\n189 :       \"cache_write_input_tokens\",\n190 :     ].every((key) => attrs[key] !== undefined)\n191 :   ) {\n192 :     const uncached =\n193 :       Number(attrs.input_tokens) -\n194 :       Number(attrs.cache_read_input_tokens) -\n195 :       Number(attrs.cache_write_input_tokens);\n196 :     if (count(uncached)) attrs.uncached_input_tokens = String(uncached);\n197 :     else attrs.usage_invalid = \"1\";\n198 :   }\n199 :   // thread_token_usage is cumulative and must never be added to these counters.\n200 :   return result;\n201 : }\n```\n\n## `openCodeUsageEvent` [function]\n**File:** `src/core/model-usage.ts:203-232` | **Signature:** `function openCodeUsageEvent(\n  partValue: unknown,\n): ObserveBatchEvent | null`\n\n```\n203 : export function openCodeUsageEvent(\n204 :   partValue: unknown,\n205 : ): ObserveBatchEvent | null {\n206 :   const part = object(partValue),\n207 :     tokens = object(part?.tokens),\n208 :     cache = object(tokens?.cache);\n209 :   if (\n210 :     part?.type !== \"step-finish\" ||\n211 :     !id(part.sessionID) ||\n212 :     !id(part.id) ||\n213 :     !id(part.messageID) ||\n214 :     !tokens\n215 :   )\n216 :     return null;\n217 :   const result = event(\n218 :     \"opencode\",\n219 :     \"opencode.step_finish.v1\",\n220 :     part.sessionID,\n221 :     part.id,\n222 :   );\n223 :   const attrs = result.attrs!;\n224 :   counter(attrs, \"uncached_input_tokens\", tokens.input);\n225 :   counter(attrs, \"cache_read_input_tokens\", cache?.read);\n226 :   counter(attrs, \"cache_write_input_tokens\", cache?.write);\n227 :   counter(attrs, \"reported_output_tokens\", tokens.output);\n228 :   counter(attrs, \"reasoning_output_tokens\", tokens.reasoning);\n229 :   summedInput(attrs);\n230 :   // Output/reasoning overlap changed across OpenCode versions. Keep raw output separate.\n231 :   return result;\n232 : }\n```\n\n## `collectTranscriptUsage` [function]\n**File:** `src/core/model-usage.ts:245-316` | **Signature:** `function collectTranscriptUsage(\n  path: string,\n  host: \"claude-code\" | \"codex\",\n  session: string,\n  limits: { maxBytes?: number; maxEvents?: number } = {},\n): UsageCollection`\n\n```\n245 : export function collectTranscriptUsage(\n246 :   path: string,\n247 :   host: \"claude-code\" | \"codex\",\n248 :   session: string,\n249 :   limits: { maxBytes?: number; maxEvents?: number } = {},\n250 : ): UsageCollection {\n251 :   const result: UsageCollection = {\n252 :     events: [],\n253 :     status: \"unavailable\",\n254 :     limited: false,\n255 :     malformed: 0,\n256 :   };\n257 :   if (!isAbsolute(path) || !id(session)) return result;\n258 :   const maxBytes = Math.min(\n259 :     4 * 1024 * 1024,\n260 :     Math.max(1, Math.floor(limits.maxBytes ?? 4 * 1024 * 1024)),\n261 :   );\n262 :   const maxEvents = Math.min(\n263 :     1000,\n264 :     Math.max(1, Math.floor(limits.maxEvents ?? 1000)),\n265 :   );\n266 :   let fd: number | undefined;\n267 :   try {\n268 :     if (!statSync(path).isFile()) return result;\n269 :     fd = openSync(path, constants.O_RDONLY | (constants.O_NONBLOCK ?? 0));\n270 :     const stat = fstatSync(fd);\n271 :     if (!stat.isFile()) return result;\n272 :     const start = Math.max(0, stat.size - maxBytes);\n273 :     const buffer = Buffer.alloc(Math.min(stat.size, maxBytes));\n274 :     const bytes = readSync(fd, buffer, 0, buffer.length, start);\n275 :     let text = buffer.subarray(0, bytes).toString(\"utf8\");\n276 :     result.limited = start > 0 || bytes !== buffer.length;\n277 :     if (start > 0) {\n278 :       const previous = Buffer.alloc(1);\n279 :       readSync(fd, previous, 0, 1, start - 1);\n280 :       if (previous[0] !== 10) {\n281 :         const boundary = text.indexOf(\"\\n\");\n282 :         text = boundary < 0 ? \"\" : text.slice(boundary + 1);\n283 :       }\n284 :     }\n285 :     const end = text.lastIndexOf(\"\\n\");\n286 :     if (end !== text.length - 1) result.limited = true;\n287 :     text = end < 0 ? \"\" : text.slice(0, end);\n288 :     const lines = text.split(\"\\n\");\n289 :     result.status = \"partial\";\n290 :     for (let i = lines.length - 1; i >= 0; i--) {\n291 :       if (!lines[i].trim()) continue;\n292 :       try {\n293 :         const row: unknown = JSON.parse(lines[i]);\n294 :         const next =\n295 :           host === \"codex\"\n296 :             ? codexUsageEvent(row, session)\n297 :             : claudeUsageEvent(row, session);\n298 :         if (next) {\n299 :           if (result.events.length === maxEvents) {\n300 :             result.limited = true;\n301 :             break;\n302 :           }\n303 :           result.events.push(next);\n304 :         }\n305 :       } catch {\n306 :         result.malformed++;\n307 :       }\n308 :     }\n309 :     result.events.reverse();\n310 :   } catch {\n311 :     /* Missing, unreadable or unsupported source stays unavailable. */\n312 :   } finally {\n313 :     if (fd !== undefined) closeSync(fd);\n314 :   }\n315 :   return result;\n316 : }\n```\n\n## `recordModelUsage` [function]\n**File:** `src/core/model-usage.ts:319-347` | **Signature:** `function recordModelUsage(\n  binary: string,\n  cwd: string,\n  events: ObserveBatchEvent[],\n): boolean`\n\n```\n319 : export function recordModelUsage(\n320 :   binary: string,\n321 :   cwd: string,\n322 :   events: ObserveBatchEvent[],\n323 : ): boolean {\n324 :   if (!events.length) return true;\n325 :   try {\n326 :     const output = execFileSync(binary, [\"observe\", \"record\", \"--stdin\"], {\n327 :       cwd,\n328 :       input: events.map((e) => JSON.stringify(e)).join(\"\\n\") + \"\\n\",\n329 :       timeout: 10000,\n330 :       stdio: [\"pipe\", \"pipe\", \"pipe\"],\n331 :     }).toString();\n332 :     const ack = /^Recorded (\\d+) event\\(s\\)(?:, skipped (\\d+))?\\s*$/i.exec(\n333 :       output.trim(),\n334 :     );\n335 :     return (\n336 :       ack !== null &&\n337 :       Number(ack[1]) === events.length &&\n338 :       Number(ack[2] ?? 0) === 0\n339 :     );\n340 :   } catch (error) {\n341 :     debug(\n342 :       \"model-usage\",\n343 :       `Usage batch was not acknowledged: ${error instanceof Error ? error.name : \"error\"}`,\n344 :     );\n345 :     return false;\n346 :   }\n347 : }\n```\n\n## `createOpenCodeUsageRecorder` [function]\n**File:** `src/core/model-usage.ts:350-363` | **Signature:** `function createOpenCodeUsageRecorder(\n  write = recordModelUsage,\n): (binary: string, cwd: string, part: unknown) => void`\n\n```\n350 : export function createOpenCodeUsageRecorder(\n351 :   write = recordModelUsage,\n352 : ): (binary: string, cwd: string, part: unknown) => void {\n353 :   const acknowledged = new Set<string>();\n354 :   return (binary, cwd, part) => {\n355 :     const next = openCodeUsageEvent(part);\n356 :     if (!next) return;\n357 :     const fingerprint = JSON.stringify([cwd, next]);\n358 :     if (acknowledged.has(fingerprint) || !write(binary, cwd, [next])) return;\n359 :     acknowledged.add(fingerprint);\n360 :     if (acknowledged.size > 1024)\n361 :       acknowledged.delete(acknowledged.values().next().value!);\n362 :   };\n363 : }\n```\n\n## `sourceTime` [function]\n**File:** `src/core/model-usage.ts:54-90` | **Signature:** `function sourceTime(value: unknown): value is string`\n**Doc:** * Validate before parsing: Date.parse normalizes impossible dates and accepts local time.\n\n```\n54  : function sourceTime(value: unknown): value is string {\n55  :   if (typeof value !== \"string\") return false;\n56  :   const parts =\n57  :     /^(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2}):(\\d{2}):(\\d{2})(?:\\.\\d+)?(?:Z|([+-])(\\d{2}):(\\d{2}))$/.exec(\n58  :       value,\n59  :     );\n60  :   if (!parts) return false;\n61  :   const [\n62  :     ,\n63  :     yearText,\n64  :     monthText,\n65  :     dayText,\n66  :     hourText,\n67  :     minuteText,\n68  :     secondText,\n69  :     ,\n70  :     zoneHourText,\n71  :     zoneMinuteText,\n72  :   ] = parts;\n73  :   const year = Number(yearText),\n74  :     month = Number(monthText),\n75  :     day = Number(dayText);\n76  :   const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);\n77  :   const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];\n78  :   return (\n79  :     month >= 1 &&\n80  :     month <= 12 &&\n81  :     day >= 1 &&\n82  :     day <= days[month - 1] &&\n83  :     Number(hourText) <= 23 &&\n84  :     Number(minuteText) <= 59 &&\n85  :     Number(secondText) <= 59 &&\n86  :     Number(zoneHourText ?? 0) <= 23 &&\n87  :     Number(zoneMinuteText ?? 0) <= 59 &&\n88  :     Number.isFinite(Date.parse(value))\n89  :   );\n90  : }\n```\n\n## `summedInput` [function]\n**File:** `src/core/model-usage.ts:41-52` | **Signature:** `function summedInput(attrs: Record<string, string>): void`\n\n```\n41  : function summedInput(attrs: Record<string, string>): void {\n42  :   const fields = [\n43  :     \"uncached_input_tokens\",\n44  :     \"cache_read_input_tokens\",\n45  :     \"cache_write_input_tokens\",\n46  :   ];\n47  :   if (fields.every((key) => attrs[key] !== undefined)) {\n48  :     const total = fields.reduce((sum, key) => sum + Number(attrs[key]), 0);\n49  :     if (count(total)) attrs.input_tokens = String(total);\n50  :     else attrs.usage_invalid = \"1\";\n51  :   }\n52  : }\n```\n\n## `count` [function]\n**File:** `src/core/model-usage.ts:30-32` | **Signature:** `function count(value: unknown): value is number`\n\n```\n30  : function count(value: unknown): value is number {\n31  :   return typeof value === \"number\" && Number.isSafeInteger(value) && value >= 0;\n32  : }\n```\n\n"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "result": {
+    "_meta": {
+      "aide/retrieval": {
+        "id": "SZYU54UCPXNFNRSX5AEK4XKVCH",
+        "references": [
+          {
+            "file": "src/core/model-usage.ts",
+            "sha256": "5f8ceb868f06aa5b6c2da0328469c0ee82f720715c492574eed8986c7f308309",
+            "bytes": 10720
+          }
+        ],
+        "text_sha256": "8ad75e4217e3c0e2979b31fdc83d5496e10de53578566c43cd26e52958567a35",
+        "tool": "code_read_symbol",
+        "version": 1
+      },
+      "aide/work": {
+        "id": "EH6Z3SPKUOCVORIOBOV2XNZZYE",
+        "text_sha256": "8ad75e4217e3c0e2979b31fdc83d5496e10de53578566c43cd26e52958567a35",
+        "tool": "code_read_symbol",
+        "version": 1
+      }
+    },
+    "content": [
+      {
+        "type": "text",
+        "text": "# Batch Symbol Source\n\n## `event` [function]\n**File:** `src/core/model-usage.ts:92-119` | **Signature:** `function event(\n  host: Host,\n  source: string,\n  session: string,\n  usageId: string,\n  timestamp?: unknown,\n): ObserveBatchEvent`\n\n```\n92  : function event(\n93  :   host: Host,\n94  :   source: string,\n95  :   session: string,\n96  :   usageId: string,\n97  :   timestamp?: unknown,\n98  : ): ObserveBatchEvent {\n99  :   const validTime = sourceTime(timestamp);\n100 :   return {\n101 :     kind: \"session\",\n102 :     name: \"model_usage\",\n103 :     session,\n104 :     ...(validTime ? { ts: timestamp } : {}),\n105 :     attrs: {\n106 :       model_usage_version: \"1\",\n107 :       host,\n108 :       usage_source: source,\n109 :       usage_id: usageId,\n110 :       usage_time_basis: validTime ? \"source\" : \"observed\",\n111 :       usage_coverage: \"partial\",\n112 :       ...(validTime\n113 :         ? { usage_source_time: timestamp }\n114 :         : timestamp !== undefined\n115 :           ? { usage_invalid: \"1\" }\n116 :           : {}),\n117 :     },\n118 :   };\n119 : }\n```\n\n## `claudeUsageEvent` [function]\n**File:** `src/core/model-usage.ts:121-151` | **Signature:** `function claudeUsageEvent(\n  rowValue: unknown,\n  session: string,\n): ObserveBatchEvent | null`\n\n```\n121 : export function claudeUsageEvent(\n122 :   rowValue: unknown,\n123 :   session: string,\n124 : ): ObserveBatchEvent | null {\n125 :   const row = object(rowValue),\n126 :     message = object(row?.message),\n127 :     usage = object(message?.usage);\n128 :   if (\n129 :     !id(session) ||\n130 :     row?.type !== \"assistant\" ||\n131 :     row.sessionId !== session ||\n132 :     !id(message?.id) ||\n133 :     !usage\n134 :   )\n135 :     return null;\n136 :   const result = event(\n137 :     \"claude-code\",\n138 :     \"claude.assistant_usage.v1\",\n139 :     session,\n140 :     message.id,\n141 :     row.timestamp,\n142 :   );\n143 :   const attrs = result.attrs!;\n144 :   if (id(message.model)) attrs.model = message.model;\n145 :   counter(attrs, \"uncached_input_tokens\", usage.input_tokens);\n146 :   counter(attrs, \"cache_read_input_tokens\", usage.cache_read_input_tokens);\n147 :   counter(attrs, \"cache_write_input_tokens\", usage.cache_creation_input_tokens);\n148 :   summedInput(attrs);\n149 :   // Assistant output_tokens can be a message_start placeholder. Do not report it.\n150 :   return result;\n151 : }\n```\n\n## `codexUsageEvent` [function]\n**File:** `src/core/model-usage.ts:153-201` | **Signature:** `function codexUsageEvent(\n  rowValue: unknown,\n  session: string,\n): ObserveBatchEvent | null`\n\n```\n153 : export function codexUsageEvent(\n154 :   rowValue: unknown,\n155 :   session: string,\n156 : ): ObserveBatchEvent | null {\n157 :   const row = object(rowValue),\n158 :     payload = object(row?.payload),\n159 :     usage = object(payload?.usage);\n160 :   if (\n161 :     !id(session) ||\n162 :     row?.type !== \"token_usage_record\" ||\n163 :     payload?.thread_id !== session ||\n164 :     !id(payload.response_id) ||\n165 :     !usage\n166 :   )\n167 :     return null;\n168 :   const result = event(\n169 :     \"codex\",\n170 :     \"codex.token_usage_record.v1\",\n171 :     session,\n172 :     payload.response_id,\n173 :     row.timestamp,\n174 :   );\n175 :   const attrs = result.attrs!;\n176 :   for (const key of [\n177 :     \"input_tokens\",\n178 :     \"output_tokens\",\n179 :     \"reasoning_output_tokens\",\n180 :     \"total_tokens\",\n181 :   ])\n182 :     counter(attrs, key, usage[key]);\n183 :   counter(attrs, \"cache_read_input_tokens\", usage.cached_input_tokens);\n184 :   counter(attrs, \"cache_write_input_tokens\", usage.cache_write_input_tokens);\n185 :   if (\n186 :     [\n187 :       \"input_tokens\",\n188 :       \"cache_read_input_tokens\",\n189 :       \"cache_write_input_tokens\",\n190 :     ].every((key) => attrs[key] !== undefined)\n191 :   ) {\n192 :     const uncached =\n193 :       Number(attrs.input_tokens) -\n194 :       Number(attrs.cache_read_input_tokens) -\n195 :       Number(attrs.cache_write_input_tokens);\n196 :     if (count(uncached)) attrs.uncached_input_tokens = String(uncached);\n197 :     else attrs.usage_invalid = \"1\";\n198 :   }\n199 :   // thread_token_usage is cumulative and must never be added to these counters.\n200 :   return result;\n201 : }\n```\n\n## `openCodeUsageEvent` [function]\n**File:** `src/core/model-usage.ts:203-232` | **Signature:** `function openCodeUsageEvent(\n  partValue: unknown,\n): ObserveBatchEvent | null`\n\n```\n203 : export function openCodeUsageEvent(\n204 :   partValue: unknown,\n205 : ): ObserveBatchEvent | null {\n206 :   const part = object(partValue),\n207 :     tokens = object(part?.tokens),\n208 :     cache = object(tokens?.cache);\n209 :   if (\n210 :     part?.type !== \"step-finish\" ||\n211 :     !id(part.sessionID) ||\n212 :     !id(part.id) ||\n213 :     !id(part.messageID) ||\n214 :     !tokens\n215 :   )\n216 :     return null;\n217 :   const result = event(\n218 :     \"opencode\",\n219 :     \"opencode.step_finish.v1\",\n220 :     part.sessionID,\n221 :     part.id,\n222 :   );\n223 :   const attrs = result.attrs!;\n224 :   counter(attrs, \"uncached_input_tokens\", tokens.input);\n225 :   counter(attrs, \"cache_read_input_tokens\", cache?.read);\n226 :   counter(attrs, \"cache_write_input_tokens\", cache?.write);\n227 :   counter(attrs, \"reported_output_tokens\", tokens.output);\n228 :   counter(attrs, \"reasoning_output_tokens\", tokens.reasoning);\n229 :   summedInput(attrs);\n230 :   // Output/reasoning overlap changed across OpenCode versions. Keep raw output separate.\n231 :   return result;\n232 : }\n```\n\n## `collectTranscriptUsage` [function]\n**File:** `src/core/model-usage.ts:245-316` | **Signature:** `function collectTranscriptUsage(\n  path: string,\n  host: \"claude-code\" | \"codex\",\n  session: string,\n  limits: { maxBytes?: number; maxEvents?: number } = {},\n): UsageCollection`\n\n```\n245 : export function collectTranscriptUsage(\n246 :   path: string,\n247 :   host: \"claude-code\" | \"codex\",\n248 :   session: string,\n249 :   limits: { maxBytes?: number; maxEvents?: number } = {},\n250 : ): UsageCollection {\n251 :   const result: UsageCollection = {\n252 :     events: [],\n253 :     status: \"unavailable\",\n254 :     limited: false,\n255 :     malformed: 0,\n256 :   };\n257 :   if (!isAbsolute(path) || !id(session)) return result;\n258 :   const maxBytes = Math.min(\n259 :     4 * 1024 * 1024,\n260 :     Math.max(1, Math.floor(limits.maxBytes ?? 4 * 1024 * 1024)),\n261 :   );\n262 :   const maxEvents = Math.min(\n263 :     1000,\n264 :     Math.max(1, Math.floor(limits.maxEvents ?? 1000)),\n265 :   );\n266 :   let fd: number | undefined;\n267 :   try {\n268 :     if (!statSync(path).isFile()) return result;\n269 :     fd = openSync(path, constants.O_RDONLY | (constants.O_NONBLOCK ?? 0));\n270 :     const stat = fstatSync(fd);\n271 :     if (!stat.isFile()) return result;\n272 :     const start = Math.max(0, stat.size - maxBytes);\n273 :     const buffer = Buffer.alloc(Math.min(stat.size, maxBytes));\n274 :     const bytes = readSync(fd, buffer, 0, buffer.length, start);\n275 :     let text = buffer.subarray(0, bytes).toString(\"utf8\");\n276 :     result.limited = start > 0 || bytes !== buffer.length;\n277 :     if (start > 0) {\n278 :       const previous = Buffer.alloc(1);\n279 :       readSync(fd, previous, 0, 1, start - 1);\n280 :       if (previous[0] !== 10) {\n281 :         const boundary = text.indexOf(\"\\n\");\n282 :         text = boundary < 0 ? \"\" : text.slice(boundary + 1);\n283 :       }\n284 :     }\n285 :     const end = text.lastIndexOf(\"\\n\");\n286 :     if (end !== text.length - 1) result.limited = true;\n287 :     text = end < 0 ? \"\" : text.slice(0, end);\n288 :     const lines = text.split(\"\\n\");\n289 :     result.status = \"partial\";\n290 :     for (let i = lines.length - 1; i >= 0; i--) {\n291 :       if (!lines[i].trim()) continue;\n292 :       try {\n293 :         const row: unknown = JSON.parse(lines[i]);\n294 :         const next =\n295 :           host === \"codex\"\n296 :             ? codexUsageEvent(row, session)\n297 :             : claudeUsageEvent(row, session);\n298 :         if (next) {\n299 :           if (result.events.length === maxEvents) {\n300 :             result.limited = true;\n301 :             break;\n302 :           }\n303 :           result.events.push(next);\n304 :         }\n305 :       } catch {\n306 :         result.malformed++;\n307 :       }\n308 :     }\n309 :     result.events.reverse();\n310 :   } catch {\n311 :     /* Missing, unreadable or unsupported source stays unavailable. */\n312 :   } finally {\n313 :     if (fd !== undefined) closeSync(fd);\n314 :   }\n315 :   return result;\n316 : }\n```\n\n## `recordModelUsage` [function]\n**File:** `src/core/model-usage.ts:319-347` | **Signature:** `function recordModelUsage(\n  binary: string,\n  cwd: string,\n  events: ObserveBatchEvent[],\n): boolean`\n\n```\n319 : export function recordModelUsage(\n320 :   binary: string,\n321 :   cwd: string,\n322 :   events: ObserveBatchEvent[],\n323 : ): boolean {\n324 :   if (!events.length) return true;\n325 :   try {\n326 :     const output = execFileSync(binary, [\"observe\", \"record\", \"--stdin\"], {\n327 :       cwd,\n328 :       input: events.map((e) => JSON.stringify(e)).join(\"\\n\") + \"\\n\",\n329 :       timeout: 10000,\n330 :       stdio: [\"pipe\", \"pipe\", \"pipe\"],\n331 :     }).toString();\n332 :     const ack = /^Recorded (\\d+) event\\(s\\)(?:, skipped (\\d+))?\\s*$/i.exec(\n333 :       output.trim(),\n334 :     );\n335 :     return (\n336 :       ack !== null &&\n337 :       Number(ack[1]) === events.length &&\n338 :       Number(ack[2] ?? 0) === 0\n339 :     );\n340 :   } catch (error) {\n341 :     debug(\n342 :       \"model-usage\",\n343 :       `Usage batch was not acknowledged: ${error instanceof Error ? error.name : \"error\"}`,\n344 :     );\n345 :     return false;\n346 :   }\n347 : }\n```\n\n## `createOpenCodeUsageRecorder` [function]\n**File:** `src/core/model-usage.ts:350-363` | **Signature:** `function createOpenCodeUsageRecorder(\n  write = recordModelUsage,\n): (binary: string, cwd: string, part: unknown) => void`\n\n```\n350 : export function createOpenCodeUsageRecorder(\n351 :   write = recordModelUsage,\n352 : ): (binary: string, cwd: string, part: unknown) => void {\n353 :   const acknowledged = new Set<string>();\n354 :   return (binary, cwd, part) => {\n355 :     const next = openCodeUsageEvent(part);\n356 :     if (!next) return;\n357 :     const fingerprint = JSON.stringify([cwd, next]);\n358 :     if (acknowledged.has(fingerprint) || !write(binary, cwd, [next])) return;\n359 :     acknowledged.add(fingerprint);\n360 :     if (acknowledged.size > 1024)\n361 :       acknowledged.delete(acknowledged.values().next().value!);\n362 :   };\n363 : }\n```\n\n## `sourceTime` [function]\n**File:** `src/core/model-usage.ts:54-90` | **Signature:** `function sourceTime(value: unknown): value is string`\n**Doc:** * Validate before parsing: Date.parse normalizes impossible dates and accepts local time.\n\n```\n54  : function sourceTime(value: unknown): value is string {\n55  :   if (typeof value !== \"string\") return false;\n56  :   const parts =\n57  :     /^(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2}):(\\d{2}):(\\d{2})(?:\\.\\d+)?(?:Z|([+-])(\\d{2}):(\\d{2}))$/.exec(\n58  :       value,\n59  :     );\n60  :   if (!parts) return false;\n61  :   const [\n62  :     ,\n63  :     yearText,\n64  :     monthText,\n65  :     dayText,\n66  :     hourText,\n67  :     minuteText,\n68  :     secondText,\n69  :     ,\n70  :     zoneHourText,\n71  :     zoneMinuteText,\n72  :   ] = parts;\n73  :   const year = Number(yearText),\n74  :     month = Number(monthText),\n75  :     day = Number(dayText);\n76  :   const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);\n77  :   const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];\n78  :   return (\n79  :     month >= 1 &&\n80  :     month <= 12 &&\n81  :     day >= 1 &&\n82  :     day <= days[month - 1] &&\n83  :     Number(hourText) <= 23 &&\n84  :     Number(minuteText) <= 59 &&\n85  :     Number(secondText) <= 59 &&\n86  :     Number(zoneHourText ?? 0) <= 23 &&\n87  :     Number(zoneMinuteText ?? 0) <= 59 &&\n88  :     Number.isFinite(Date.parse(value))\n89  :   );\n90  : }\n```\n\n## `summedInput` [function]\n**File:** `src/core/model-usage.ts:41-52` | **Signature:** `function summedInput(attrs: Record<string, string>): void`\n\n```\n41  : function summedInput(attrs: Record<string, string>): void {\n42  :   const fields = [\n43  :     \"uncached_input_tokens\",\n44  :     \"cache_read_input_tokens\",\n45  :     \"cache_write_input_tokens\",\n46  :   ];\n47  :   if (fields.every((key) => attrs[key] !== undefined)) {\n48  :     const total = fields.reduce((sum, key) => sum + Number(attrs[key]), 0);\n49  :     if (count(total)) attrs.input_tokens = String(total);\n50  :     else attrs.usage_invalid = \"1\";\n51  :   }\n52  : }\n```\n\n## `count` [function]\n**File:** `src/core/model-usage.ts:30-32` | **Signature:** `function count(value: unknown): value is number`\n\n```\n30  : function count(value: unknown): value is number {\n31  :   return typeof value === \"number\" && Number.isSafeInteger(value) && value >= 0;\n32  : }\n```\n\n"
+      }
+    ]
+  },
+  "error": null,
+  "timings_ms": {
+    "guard": 31.700430990895256,
+    "startup_initialize": 11.923521000426263,
+    "identity": 0.28247799491509795,
+    "request": 7.22721399506554,
+    "exit": 1.099929999327287,
+    "total": 52.25944299309049
+  },
+  "index_policy": "seeded; no automatic refresh after participant edits",
+  "source_changed_since_seed": false,
+  "source_files": {
+    "README.md": "072ee62412bae47d9d9810b0b0f24c2d49040d0bd106f10c3b1d163fde080eef",
+    "src/core/comment-checker.ts": "cfac4f9372de775a087e2b06403fe113a36867075e5e97bdb01e4c3796d4b98f",
+    "src/core/memory-query.ts": "d6f86d692caa197668bbe840db603593d1fc7ec6b5a18b2e27cde72679f257a4",
+    "src/core/tool-enforcement.ts": "c6cb04fb0f103836efc3c94875d7136fe0a8a5bfc6ae1363dbc7af06917aaf58",
+    "src/core/model-usage.ts": "5f8ceb868f06aa5b6c2da0328469c0ee82f720715c492574eed8986c7f308309",
+    "src/core/mcp-sync.ts": "4d2ea8c604410dd399c977e150ffeb94ed503215431adc0ea95dda0e5875ab69",
+    "src/core/search-enrichment.ts": "5252ddbd1c8e8fae99cb104e1ffc0f2774f13efcb69a435821f14272ff495a5c",
+    "src/core/skill-matcher.ts": "2b061eb5742fe1be9aca82e860dc1ae0d1a42b1a996ebe6611ec9cbc290dba7a",
+    "src/core/write-guard.ts": "3c0aa5993af64132b94ec1e395fabcd40f2bd3747e96c02f00070770e5cbb9ea",
+    "src/core/todo-checker.ts": "d4ea6c0e8612e3d879022c7e086b01635be88e9a65d9173c3fe90244dfcb035a",
+    "src/core/session-init.ts": "166b2a6cd1544be578590fe24fff941a8ffda22a03243549908743b1c58d60c8",
+    "src/core/session-summary-logic.ts": "3956abf0875c871738707c778e4f8370ff352bd0172ad150179d245f8b54904a",
+    "src/core/tool-tracking.ts": "1ba749fb98d567405595c8ccd31ef29beac51a525aeb663240177b5637681681",
+    "src/core/tool-observe.ts": "43e67888aec861f553d107abfab34c67d4134018dec3eb689a33e910041be2e5",
+    "src/core/context-window.ts": "da7abafb26e09b1bdd64f947330403cd727ddac7ded1e6479322a1e68f67ed7a",
+    "src/core/context-guard.ts": "839f3c2b36472c52f10d8ce6c5f18836341454f6bdd0e74618f4694382a0130f",
+    "src/core/read-tracking.ts": "afecccb8e697d34b0486b12a5c46a300953633c7e89bcfc0f1e9eefae366d06c",
+    "src/core/aide-client.ts": "1f03f98beae735fc1ef4205ab2e5fcbd502e11835414453adc2e461dcbbaf743",
+    "src/core/types.ts": "87aec582ab17f899dfba76b5833247b8fecd433ccf11ba97330b4564fad72cad",
+    "src/core/pre-compact-logic.ts": "275379ed7bee936b7c3b055cb4109dad3552e5e52f48aaf7cb27802c8057585d",
+    "src/core/persistence-logic.ts": "b1d51a2a579c218bb9e95f200df007c7dd795a69d533c241337b9b8d35d20493",
+    "src/core/session-text.ts": "f5a881bca5e4c5d2d15340b49d0b335f90c608c3138d57dc75a56994abe742fe",
+    "src/core/partial-memory.ts": "936be74befec892b29fff7ea6a30fb9689acfb5083215d132f4813a0149a9135",
+    "src/core/work-receipt.ts": "15557e1320441d54f8c549a1e1d61f011d94b0ce4c70ccfb672b135bc6530738",
+    "src/core/retrieval-evidence.ts": "3c04ef3140d574a7e6311120174d7163283f105d79a4d8ed2adda6fd1b134b5f",
+    "src/core/context-pruning/purge.ts": "59d9a29df1c8a106ac431d1a409c86fc851747a77c481347b5729daec8d7e258",
+    "src/core/context-pruning/supersede.ts": "b247ee8456f808a841609a3791141d3d30c7333ba6f9c2586827f44aa91980ba",
+    "src/core/context-pruning/observation.ts": "be423c8ac3ee74c19943e5650a7eb6edbed3b8a5180efaee441c9d65d01781dc",
+    "src/core/context-pruning/tracker.ts": "390acc0b40fe0f5aaa9f781f4ff0237228d2200c263af6c46a4b1d02df991dc8",
+    "src/core/context-pruning/sessions.ts": "09d18cffbe7a4d70b914165f1466ae970640dc1267267c5908835a06164e76e9",
+    "src/core/context-pruning/types.ts": "599cf79a721e33adf96cf0c89333f302102de3b2b4adcef5ba0cda5c77ae1065",
+    "src/core/context-pruning/dedup.ts": "cbc15fb5bb44f99efd20c82280b8a7da2af757291bbe7e87fae1f13a570a15c9",
+    "src/core/context-pruning/recovery.ts": "993c586083a32d7216659c264e2446506555b525282e38b0f5d653b6d4de9428",
+    "src/lib/anchor.ts": "db7aac8d9e250882702b7d990414b3379b0b56eef5eb09caa7c40276343d9789",
+    "src/lib/hook-utils.ts": "f9be7f87164ac379c0321f7ff8dd2f82f2eee21e86e138b767f0c48a1084ef85",
+    "src/lib/project-root.ts": "0798e691dfd3213676c1043d068109857ebfadea9e79a14b74050a18db62c784",
+    "src/lib/logger.ts": "e651533681affa45e9608d3cce5e02c2bded512ad97b5574d55410d41d19afd1",
+    "src/test/model-usage-recording.test.ts": "3c1fa035f81b33226b10de306de5a673affbcf3f039b3944e5d902171713b841",
+    "src/test/model-usage.test.ts": "0c322db315442b36cd58a67b1d9addca1b974744f725b2c2c7681457524041eb",
+    "src/test/model-usage-hooks.test.ts": "8fa5351ca11e8ab58b9cfce3db18a38c4264ae414ad96fa03e16edf88d279637",
+    "src/opencode/hooks.ts": "1382a01aeceab636140619d2b4b889a0e5c13a4b686b0b4291850c9f5a14ed50",
+    "src/opencode/types.ts": "5895c295a2fb82ca270f52406e84f3ee2bcf8c75ca8aa231c8080cea5bc492d5",
+    "src/hooks/session-summary.ts": "859b5e96af497b2f933efd7ee0260d7449b35bed628848d07c0f946d65487d53",
+    "aide/cmd/aide/cmd_observe.go": "dfbb79e1f385d20783fc3ade783d9870fbb868b9c618bf9caf58cf57dcc051a5",
+    "aide/pkg/memory/token_model_usage.go": "536287aae876951c2b6304724cc804f19a5ec84f8ff5632efb74f8e7967c2443",
+    "aide/pkg/memory/token_accounting.go": "0123e658b4a51a064c6bb0dc5dc223da44f1ac7904f10a894c6c15c5301d822f",
+    "aide/pkg/store/token_model_usage.go": "c449bbd2e886f12e84fc25d5eb3977aa5e5ae61bffdea10d3b09300eea262faf",
+    "aide/pkg/store/token_events.go": "28629e5d7aa52cb17e5b4cb7a97d1194dc7f206a2be99ddbcb8a021ae740aeef",
+    "aide/pkg/store/observe_events.go": "c1fc06d8813b238643a8d2bf54474609e3d078701fcd24cf83ee8405b5f41d18",
+    "aide/pkg/observe/observe.go": "e4861debed7469ec430d2f934a9a7c2590b7c359a3110624796d89f458916c85"
+  },
+  "forwarded_request": {
+    "name": "code_read_symbol",
+    "arguments": {
+      "file": "src/core/model-usage.ts",
+      "symbols": [
+        "event",
+        "claudeUsageEvent",
+        "codexUsageEvent",
+        "openCodeUsageEvent",
+        "collectTranscriptUsage",
+        "recordModelUsage",
+        "createOpenCodeUsageRecorder",
+        "sourceTime",
+        "summedInput",
+        "count"
+      ]
+    }
+  },
+  "identity": {
+    "project_root": "/tmp/aide-outcomes-v4-trials/t11/root",
+    "real_project_root": "/tmp/aide-outcomes-v4-trials/t11/root",
+    "cwd": "/tmp/aide-outcomes-v4-trials/t11/root",
+    "version": {
+      "version": "0.1.18-dev.32+58816d9",
+      "commit": "58816d991ef7172304f3eef594844d79e995a5e1",
+      "commit_sha": "58816d99",
+      "date": "2026-09-09T15:52:00Z",
+      "go_version": "go1.27.0-X:nodwarf5",
+      "platform": "linux/amd64",
+      "os": "linux",
+      "arch": "amd64"
+    },
+    "db_path": "/tmp/aide-outcomes-v4-trials/t11/root/.aide/memory/memory.db",
+    "socket_path": "/tmp/aide-outcomes-v4-trials/t11/root/.aide/aide.sock",
+    "authority": "daemon",
+    "pid": 17,
+    "ppid": 14,
+    "started_at": "2026-09-09T17:30:34.708723461+01:00"
+  },
+  "returncode": 0
+}
