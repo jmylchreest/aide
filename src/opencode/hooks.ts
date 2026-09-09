@@ -13,7 +13,7 @@
  *   event(session.deleted)     → final cleanup
  *   event(message.part.updated)→ skill matching (user messages)
  *   tool.execute.before        → tool tracking + tool enforcement
- *   tool.execute.after         → tool stats update
+ *   tool.execute.after         → tool stats, retrieval guidance, output pruning
  *   permission.ask             → agent role-based tool access control
  *   shell.env                  → inject AIDE_* env vars into shell commands
  *   experimental.session.compacting → state snapshot, context inject
@@ -49,7 +49,10 @@ import { trackToolUse, updateToolStats } from "../core/tool-tracking.js";
 import { evaluateToolUse, isToolDenied } from "../core/tool-enforcement.js";
 import { checkPersistence, getActiveMode } from "../core/persistence-logic.js";
 import { checkWriteGuard } from "../core/write-guard.js";
-import { checkSmartReadHint } from "../core/context-guard.js";
+import {
+  checkContextGuard,
+  checkSmartReadHint,
+} from "../core/context-guard.js";
 import {
   contextScope,
   contextWindow,
@@ -59,7 +62,7 @@ import { SessionPruningTrackers } from "../core/context-pruning/sessions.js";
 import { recoverablePrune } from "../core/context-pruning/recovery.js";
 import { transformationEvent } from "../core/context-pruning/observation.js";
 import { checkSearchEnrichment } from "../core/search-enrichment.js";
-import { recordToolEvent } from "../core/tool-observe.js";
+import { recordToolEvent, toolFailureText } from "../core/tool-observe.js";
 import { createOpenCodeUsageRecorder } from "../core/model-usage.js";
 import {
   recordObserveEvent,
@@ -867,44 +870,6 @@ function createToolBeforeHandler(
       debug(SOURCE, `Tool enforcement check failed (non-fatal): ${err}`);
     }
 
-    // Smart read hint: suggest code index for re-reads of unchanged files
-    try {
-      const hintResult = checkSmartReadHint(
-        input.tool,
-        (_output.args || {}) as Record<string, unknown>,
-        state.cwd,
-        state.binary,
-        {
-          host: "opencode",
-          sessionId: input.sessionID,
-          actorId: input.sessionID,
-        },
-      );
-      if (hintResult.shouldHint && hintResult.hint) {
-        debug(SOURCE, `Smart read hint for ${input.tool}: ${hintResult.hint}`);
-      }
-    } catch (err) {
-      debug(SOURCE, `Smart read hint check failed (non-fatal): ${err}`);
-    }
-
-    // Search enrichment: append code index context for grep calls
-    try {
-      const enrichResult = checkSearchEnrichment(
-        input.tool,
-        (_output.args || {}) as Record<string, unknown>,
-        state.cwd,
-        state.binary,
-      );
-      if (enrichResult.shouldEnrich && enrichResult.enrichment) {
-        debug(
-          SOURCE,
-          `Search enrichment for ${input.tool}: ${enrichResult.enrichment.length} chars`,
-        );
-      }
-    } catch (err) {
-      debug(SOURCE, `Search enrichment check failed (non-fatal): ${err}`);
-    }
-
     // Track tool use
     if (!state.binary) return;
 
@@ -939,6 +904,50 @@ function createToolAfterHandler(state: AideState): (
     };
     const window = contextWindow(state.binary, state.cwd, identity);
     let recoveryPath: string | undefined;
+    const toolArgs = (input.args || _output.metadata?.args || {}) as Record<
+      string,
+      unknown
+    >;
+    let retrievalHint: string | undefined;
+    // OpenCode's before hook can change arguments, but cannot add model
+    // context. Prepare advice here, before recording this read as earlier
+    // evidence, and append it with the result after pruning below.
+    if (
+      typeof _output.output === "string" &&
+      !toolFailureText(undefined, _output)
+    ) {
+      try {
+        const smartRead = checkSmartReadHint(
+          input.tool,
+          toolArgs,
+          state.cwd,
+          state.binary,
+          identity,
+        );
+        if (smartRead.shouldHint && smartRead.hint) {
+          retrievalHint = smartRead.hint;
+        } else {
+          const guard = checkContextGuard(
+            input.tool,
+            toolArgs,
+            state.cwd,
+            input.sessionID,
+          );
+          if (guard.shouldAdvise) retrievalHint = guard.advisory;
+        }
+        const search = checkSearchEnrichment(
+          input.tool,
+          toolArgs,
+          state.cwd,
+          state.binary,
+        );
+        if (search.shouldEnrich && search.enrichment) {
+          retrievalHint = search.enrichment;
+        }
+      } catch (err) {
+        debug(SOURCE, `Retrieval hint check failed (non-fatal): ${err}`);
+      }
+    }
 
     // sessionID doubles as the agentId here: tool.execute.before registers
     // currentTool under agentId=input.sessionID, so the same scope must be
@@ -1061,6 +1070,25 @@ function createToolAfterHandler(state: AideState): (
       }
     } catch (err) {
       debug(SOURCE, `Comment checker failed (non-fatal): ${err}`);
+    }
+    if (retrievalHint) {
+      const appended = "\n\n" + retrievalHint;
+      _output.output += appended;
+      recordObserveEventsBatch(state.binary, state.cwd, [
+        injectionBatchEvent({
+          source: "opencode-retrieval-hint",
+          subtype: "context",
+          sessionId: input.sessionID,
+          content: appended,
+          contentBoundary: "appended_text",
+          attrs: {
+            host: "opencode",
+            actor_id: input.sessionID,
+            invocation_id: input.callID,
+            raw_tool: input.tool,
+          },
+        }),
+      ]);
     }
     // Include all changes made by this adapter, including annotations. Later
     // plugins and provider rendering remain outside this measured boundary.

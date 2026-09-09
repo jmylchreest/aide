@@ -235,3 +235,25 @@ The compact visual report and complete evidence are in
 actual input/output/cache counters, source-return and host boundaries, truncation
 qualifications, blind grades, and a separate snapshot of experiment overhead.
 No savings percentage from this pilot belongs in the CLI or web Overview.
+
+## Broader retrieval suggestions
+
+The shared session-start context now introduces definitions (`code_search`),
+callers and impact candidates (`code_references`), file structure
+(`code_symbols`/`code_outline`) and batched implementation reads
+(`code_read_symbol`). It also preserves text search for literals/imports and
+direct reads for small files. Indexed matches require source verification;
+empty results do not prove absence.
+
+Conditional read and symbol-search hints use the same choices. Claude Code and
+Codex emit these through their hook context; Codex shell searches do not trigger
+the native Grep hint, so session-start guidance also matters. OpenCode now appends
+eligible hints to the rendered result after pruning, before recording the final
+adapter change. That advice arrives after the read/search has happened and cannot
+be credited as avoiding that operation. Added text has a separate injection
+observation; do not sum it again with the adapter's overall text change.
+
+Failed reference lookups are shown as unavailable, rather than zero. Counts are
+labelled as indexed matches by name, with a lower-bound marker at the request
+limit. Search enrichment performs local subprocess work and can add latency.
+Neither guidance delivery nor tool uptake establishes a token or quality benefit.

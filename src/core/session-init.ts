@@ -578,6 +578,16 @@ export function buildWelcomeContext(
   );
   lines.push("");
 
+  lines.push("## Code Retrieval");
+  lines.push("");
+  lines.push(
+    "For code tasks, discover aide's code tools when available: `code_search` for definitions by name/signature; `code_references` for callers and impact candidates; `code_symbols` or `code_outline` for file structure; `code_read_symbol` for relevant implementations (batch related symbols when useful).",
+  );
+  lines.push(
+    "Use text search for literals/imports and direct reads for small files or when most contents matter. Verify indexed candidates against current source; empty or stale results are not proof of absence. Choose retrieval that helps correctness and avoids redundant work.",
+  );
+  lines.push("");
+
   if (memories.static.global.length > 0) {
     lines.push("## Preferences (Global)");
     lines.push("");

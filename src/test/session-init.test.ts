@@ -138,6 +138,22 @@ describe("buildWelcomeContext codebase map", () => {
     dynamic: { sessions: [] },
   });
 
+  it("offers code retrieval choices before exploration without requiring an index", async () => {
+    const { buildWelcomeContext } = await import("../core/session-init.js");
+    const ctx = buildWelcomeContext(state as never, emptyInjection() as never);
+    const guide = ctx.split("## Code Retrieval")[1]?.split("## ")[0];
+    expect(guide).toBeDefined();
+    for (const tool of ["code_search", "code_references", "code_symbols", "code_outline", "code_read_symbol"]) {
+      expect(guide).toContain(tool);
+    }
+    expect(guide).toContain("when available");
+    expect(guide).toContain("small files");
+    expect(guide).toContain("literals/imports");
+    expect(guide).toContain("not proof of absence");
+    expect(guide).not.toMatch(/saved|savings|must use/i);
+    expect(ctx.match(/## Code Retrieval/g)).toHaveLength(1);
+  });
+
   it("renders the map section with freshness note after content sections", async () => {
     const { buildWelcomeContext } = await import("../core/session-init.js");
     const injection = {

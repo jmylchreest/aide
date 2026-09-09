@@ -222,6 +222,9 @@ describe("checkSmartReadHint", () => {
     expect(result.hint).toContain("Matching full-file text was observed");
     expect(result.hint).toContain("~1200 estimated text tokens");
     expect(result.hint).not.toContain("9999");
+    expect(result.hint).toContain("code_read_symbol");
+    expect(result.hint).toContain("symbols");
+    expect(result.hint).toContain("Read directly");
   });
 
   it("preserves a known zero estimate for an empty file", () => {

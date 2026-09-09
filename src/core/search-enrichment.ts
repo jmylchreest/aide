@@ -4,15 +4,15 @@
  * Enriches Grep tool calls with structural context from the code index.
  * When an agent greps for a symbol name, this appends metadata about
  * matching symbol definitions (file, kind, ref count) so the agent
- * knows where the symbol is defined and how widely it's used — without
- * making additional tool calls.
+ * gets definition and reference candidates without additional agent tool calls.
+ * The synchronous index lookups still incur latency and local work.
  *
  * Behaviour:
  *   - Triggers on Grep tool calls where the pattern looks like a symbol name
  *   - Calls `aide code search <pattern> --json --limit=5` to find definitions
- *   - For each match, calls `aide code references <name> --json --limit=0` for ref count
- *   - Returns a compact enrichment string (~50-150 tokens)
- *   - Never blocks — purely additive context
+ *   - For each match, requests up to 100 indexed references by name
+ *   - Returns a bounded list of matches and retrieval guidance
+ *   - Never denies the request; up to six synchronous lookups can each wait 3s
  *
  * Gated on code.watch (default on; requires code index to be populated).
  *
@@ -97,8 +97,8 @@ export function checkSearchEnrichment(
     return { shouldEnrich: false };
   }
 
-  // Skip patterns with spaces (likely searching for phrases, not symbols)
-  if (pattern.includes(" ")) {
+  // Phrases, import paths and quoted literals belong in text search.
+  if (/[\s/"'`]/.test(pattern)) {
     return { shouldEnrich: false };
   }
 
@@ -114,15 +114,18 @@ export function checkSearchEnrichment(
 
   for (const sym of symbols) {
     const refCount = countReferences(binary, cwd, sym.name);
-    const refs = refCount > 0 ? `, ${refCount} refs` : ", 0 refs";
+    const refs =
+      refCount === null
+        ? ", refs unavailable"
+        : `, ${refCount >= 100 ? "100+" : refCount} indexed refs by name`;
     lines.push(`  ${sym.kind} ${sym.name} — ${sym.file}:${sym.start}${refs}`);
   }
 
-  if (symbols.length > 0) {
-    lines.push(
-      `Use code_read_symbol for source, code_references for call sites.`,
-    );
-  }
+  lines.push(
+    `For definitions, use code_search; for callers or change impact, code_references. ` +
+      `For source, batch code_read_symbol with symbols (up to 10 names); add file to disambiguate. ` +
+      `Keep Grep for literals and imports. Indexed matches are candidates; verify current source.`,
+  );
 
   const enrichment = lines.join("\n");
   debug(SOURCE, `Enriching grep for "${pattern}": ${symbols.length} symbols`);
@@ -158,17 +161,15 @@ function searchSymbols(
     const parsed = JSON.parse(trimmed);
     if (!Array.isArray(parsed)) return [];
 
-    return parsed.map(
-      (s: Record<string, unknown>): SymbolHit => ({
-        name: (s.name as string) || "",
-        kind: (s.kind as string) || "",
-        file: (s.file as string) || "",
-        start: (s.start as number) || 0,
-        end: (s.end as number) || 0,
-        signature: (s.signature as string) || "",
-        lang: (s.lang as string) || "",
-      }),
-    );
+    return parsed.map((s: Record<string, unknown>): SymbolHit => ({
+      name: (s.name as string) || "",
+      kind: (s.kind as string) || "",
+      file: (s.file as string) || "",
+      start: (s.start as number) || 0,
+      end: (s.end as number) || 0,
+      signature: (s.signature as string) || "",
+      lang: (s.lang as string) || "",
+    }));
   } catch (err) {
     debug(SOURCE, `Symbol search failed: ${err}`);
     return [];
@@ -177,13 +178,13 @@ function searchSymbols(
 
 /**
  * Count references to a symbol name in the code index.
- * Returns the count, or 0 on error.
+ * Returns the bounded result count, or null when the lookup is unavailable.
  */
 function countReferences(
   binary: string,
   cwd: string,
   symbolName: string,
-): number {
+): number | null {
   try {
     const output = execFileSync(
       binary,
@@ -197,13 +198,15 @@ function countReferences(
     );
 
     const trimmed = output.trim();
-    if (!trimmed || trimmed.startsWith("No references")) {
+    if (trimmed.startsWith("No references")) {
       return 0;
     }
 
+    if (!trimmed) return null;
+
     const parsed = JSON.parse(trimmed);
-    return Array.isArray(parsed) ? parsed.length : 0;
+    return Array.isArray(parsed) ? parsed.length : null;
   } catch {
-    return 0;
+    return null;
   }
 }

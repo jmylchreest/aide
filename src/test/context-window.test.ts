@@ -6,7 +6,10 @@ vi.mock("../core/aide-client.js", () => ({
   setState: vi.fn(),
   getState: vi.fn(),
 }));
-vi.mock("../lib/hook-utils.js", () => ({ codeWatchEnabled: () => true }));
+vi.mock("../lib/hook-utils.js", () => ({
+  codeWatchEnabled: vi.fn(() => true),
+}));
+import { codeWatchEnabled } from "../lib/hook-utils.js";
 import { setState, getState } from "../core/aide-client.js";
 import { contextWindow, updateContextWindow } from "../core/context-window.js";
 import { recordFileRead, getPreviousRead } from "../core/read-tracking.js";
@@ -20,6 +23,7 @@ const identity = {
 let cwd: string;
 const states = new Map<string, string>();
 beforeEach(() => {
+  vi.mocked(codeWatchEnabled).mockReturnValue(true);
   states.clear();
   cwd = mkdtempSync(join(tmpdir(), "aide-context-window-"));
   vi.mocked(setState).mockImplementation((_binary, project, key, value) => {
@@ -38,6 +42,39 @@ function record(content = "const value = 1;\n") {
 }
 
 describe("context windows and verified read coverage", () => {
+  it("keeps large-file navigation advice quiet when code watching is disabled", () => {
+    writeFileSync(join(cwd, "large.ts"), "const value = 1;\n".repeat(2000));
+    vi.mocked(codeWatchEnabled).mockReturnValue(false);
+    expect(
+      checkContextGuard("Read", { file_path: "large.ts" }, cwd, "session"),
+    ).toEqual({ shouldAdvise: false });
+  });
+  it.each([
+    ["Read", "file_path"],
+    ["read", "filePath"],
+  ])(
+    "offers file structure and batched source retrieval for %s",
+    (tool, key) => {
+      writeFileSync(join(cwd, "large.ts"), "const value = 1;\n".repeat(2000));
+      const result = checkContextGuard(
+        tool,
+        { [key]: "large.ts" },
+        cwd,
+        "session",
+      );
+      expect(result.shouldAdvise).toBe(true);
+      expect(result.advisory).toContain("code_symbols");
+      expect(result.advisory).toContain("code_outline");
+      expect(result.advisory).toContain("code_read_symbol");
+      expect(result.advisory).toContain("symbols");
+      expect(result.advisory).toContain("most of its contents");
+    },
+  );
+  it("keeps direct reads of small source files quiet", () => {
+    expect(
+      checkContextGuard("Read", { file_path: "file.ts" }, cwd, "session"),
+    ).toEqual({ shouldAdvise: false });
+  });
   it.each([1, 99, 100, 200, 1000])(
     "does not advise an explicitly bounded read of %i lines",
     (limit) => {

@@ -126,12 +126,18 @@ export function checkContextGuard(
     return { shouldAdvise: false };
   }
 
+  if (!codeWatchEnabled(cwd)) {
+    return { shouldAdvise: false };
+  }
+
   // Generate advisory
   const sizeKB = (fileSize / 1024).toFixed(1);
 
   const advisory =
     `[aide:context] This file is ${sizeKB} KiB. If you need only selected definitions, ` +
-    `\`code_outline\` can help locate them. Read the file directly when most of its contents are needed.`;
+    `use \`code_symbols\` or \`code_outline\` with \`file\` for structure, then ` +
+    `\`code_read_symbol\` with \`file\` and \`symbols\` (up to 10 names) for source. ` +
+    `Read the file directly when most of its contents are needed.`;
 
   debug(SOURCE, `Advisory for ${filePath}: ${sizeKB} KiB`);
   return { shouldAdvise: true, advisory };
@@ -232,7 +238,9 @@ export function checkSmartReadHint(
       tokens !== null ? ` (~${tokens} estimated text tokens)` : "";
     const hint =
       `[aide:smart-read] Matching full-file text was observed in this context window${tokenInfo}. ` +
-      `Reuse it if still available; retrieve specific missing sections or symbols when needed.`;
+      `Reuse it if still available. For missing bodies, use \`code_read_symbol\` with \`file\` ` +
+      `and \`symbols\` (up to 10 names), or a bounded Read for surrounding context. ` +
+      `Read directly when the file is small or most of it is needed.`;
 
     debug(SOURCE, `Smart read hint for: ${filePath} (${tokens} tokens)`);
     return { shouldHint: true, hint };

@@ -74,6 +74,10 @@ func (s *MCPServer) registerCodeTools() {
 		Name: "code_search",
 		Description: `Search indexed code symbol DEFINITIONS (functions, methods, classes, interfaces, types).
 
+Use this to locate implementation candidates by name or signature during debugging,
+review, or refactoring. For callers/change impact use code_references; after finding
+names, batch code_read_symbol with symbols (max 10) to inspect current source.
+
 **What gets indexed?**
 Symbols are extracted from source files using tree-sitter parsing:
 - Functions and methods with their signatures
@@ -94,18 +98,22 @@ Symbols are extracted from source files using tree-sitter parsing:
 - Import/require statements
 - Variable declarations
 
-**Note:** Run 'aide code index' to index your codebase first.`,
+Results are best-effort indexed candidates, not exhaustive or necessarily current.
+Verify relevant definitions in current source; empty results do not prove absence.
+If indexing appears unavailable or stale, inspect code_stats or run 'aide code index'.`,
 	}, s.handleCodeSearch)
 
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name: "code_symbols",
-		Description: `List all symbols defined in a specific file.
+		Description: `List parsed symbol definitions in a specific file.
 
-Returns all indexed symbols (functions, methods, classes, interfaces, types)
+Returns supported symbols (functions, methods, classes, interfaces, types)
 with their signatures, line numbers, and doc comments.
 
-Use this to understand a file's API surface without reading the entire file.
-If the file isn't indexed yet, it will be parsed on-demand.`,
+Use this for a file's API surface; use code_outline for a collapsed structural view.
+Then read selected bodies with code_read_symbol (batch symbols, max 10, with file).
+Read the file directly when it is small or most of its contents are needed.
+If the index is missing or stale, the file is parsed on demand; coverage depends on grammar support.`,
 	}, s.handleCodeSymbols)
 
 	mcp.AddTool(s.server, &mcp.Tool{
@@ -113,14 +121,16 @@ If the file isn't indexed yet, it will be parsed on-demand.`,
 		Description: `Get code index statistics.
 
 Returns the number of indexed files, symbols, and references.
-Use this to check if the codebase has been indexed.
+Use this when troubleshooting missing results or indexing status; it is not a
+required preflight before each search or source read.
 
-If counts are zero, the codebase needs indexing: run 'aide code index'.`,
+Zero counts can mean no supported files are indexed. Run 'aide code index' when
+indexing is needed; counts alone do not establish freshness or complete coverage.`,
 	}, s.handleCodeStats)
 
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name: "code_references",
-		Description: `Find all references (call sites) for a symbol.
+		Description: `Find indexed reference candidates (call sites and type uses) by symbol name.
 
 **What are references?**
 References are places where a symbol is used, indexed by tree-sitter:
@@ -128,14 +138,19 @@ References are places where a symbol is used, indexed by tree-sitter:
 - Type references (kind: type_ref)
 
 **Use cases:**
-- Find all callers of a function
+- Investigate callers of a function
 - Understand how a type is used
 - Impact analysis before refactoring — "what breaks if I change this?"
 
 **Batch mode:** Pass multiple names in the "symbols" array (max 10) to find
 references for several symbols in a single call.
 
-**Note:** Run 'aide code index' to index your codebase first.`,
+Results are best-effort name matches from the index, not a complete semantic call graph.
+Same-name symbols, dynamic calls, unsupported syntax, stale files and result limits
+can affect coverage. Verify relevant callers in current source before concluding
+change impact; empty results do not prove no callers exist. Use Grep for literals,
+imports, or content patterns. If indexing appears unavailable or stale, inspect
+code_stats or run 'aide code index'.`,
 	}, s.handleCodeReferences)
 
 	mcp.AddTool(s.server, &mcp.Tool{
@@ -147,6 +162,8 @@ collapsed. Output size depends on file structure and grammar support. Line numbe
 so you can later use Read with offset/limit for specific sections.
 
 Use this to locate declarations when you need only part of an unfamiliar file.
+Once names are known, batch code_read_symbol with symbols (max 10) and file for
+current bodies, or use bounded Read for surrounding context.
 For a small file or when most of its contents are needed, a direct read can avoid
 outline overhead. An outline does not guarantee lower whole-task token usage.
 
@@ -164,7 +181,7 @@ By default, comments are stripped. Set keep_comments=true to preserve them.
 
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name: "code_top_references",
-		Description: `Rank symbols by how many times they are referenced across the codebase.
+		Description: `Rank symbols by indexed reference count.
 
 Returns symbols sorted by reference count (descending). Each result includes
 the symbol name, reference count, and definition location when available.
@@ -174,7 +191,9 @@ the symbol name, reference count, and definition location when available.
 - Identify core APIs and shared utilities
 - Understand codebase coupling — heavily-referenced symbols are high-impact change targets
 
-**Note:** Run 'aide code index' to index your codebase first.`,
+Counts are best-effort indexed name matches, not complete usage or semantic impact.
+Verify candidates in current source. If indexing appears unavailable or stale,
+inspect code_stats or run 'aide code index'.`,
 	}, s.handleCodeTopReferences)
 
 	mcp.AddTool(s.server, &mcp.Tool{
@@ -186,7 +205,10 @@ extracted from current file contents. A focused symbol read can reduce returned 
 for large files; headers and additional calls can outweigh that reduction for small files.
 
 **Batch mode:** Pass multiple names in the "symbols" array (max 10) to read several
-symbols in a single call, eliminating round-trip overhead.
+symbols in a single call, avoiding separate calls per symbol.
+When names are unknown, use code_search for definition candidates or code_symbols /
+code_outline for a known file. Read directly when the file is small or most of it
+is needed; use bounded Read for imports or surrounding context outside the symbol.
 
 **What you get:**
 - The symbol's source code with line numbers preserved
@@ -195,7 +217,7 @@ symbols in a single call, eliminating round-trip overhead.
 - Source-version receipt in protocol metadata for conditional text comparisons
 
 **Use this when:**
-- You know the symbol name (from code_search, code_outline, or code_references)
+- You know the symbol name (from code_search, code_symbols, code_outline, or code_references)
 - You need to read the implementation of a specific function
 - You want to review a class or type definition
 - You need several symbol bodies at once (use batch mode)
