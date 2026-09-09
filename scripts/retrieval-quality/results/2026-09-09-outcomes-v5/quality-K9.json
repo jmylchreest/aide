@@ -1,0 +1,56 @@
+{
+  "reviewer": "/root/v5_quality",
+  "label": "K9",
+  "task": "impact",
+  "checks": [
+    {
+      "id": "affected_callers",
+      "passed": true,
+      "evidence": "Section1 correctly inventories Stop direct call, closure invocation of captured default/injected write, and OpenCode message.part.updated recordUsage call with positional and object forms, result migration and omission consequences. It distinguishes dependency capture from invocation, unchanged createHooks/event wrapper signatures, no-argument factory call, and Stop module entry. Evidence matches model-usage.ts:350-362, hooks.ts:154,432-465 and session-summary.ts:108-157.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "result_and_cache_contract",
+      "passed": true,
+      "evidence": "Section2 correctly explains truthy unacknowledged objects would be cached under old guard and requires acknowledgment status. It preserves void return, invalid filtering, retry/dedup, changed counters/cwd, per-instance cache and oldest acknowledged1024 cap. Empty0/no-spawn, full events.length acknowledgment, invalid-ack/write-error and original grammar/logging are specified; section3 explicitly identifies malformed/empty, count mismatch and nonzero-skips rejection. Exact Stop message and ignored previous boolean, fields and recursion placement match source.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "nonconsumers_and_wire",
+      "passed": true,
+      "evidence": "Section2 correctly excludes normalizers, scanner, shared type, independent positional generic writers, text-part sibling, Go CLI/store/accounting and types. It preserves command and event-only JSONL/final newline, cwd/timeout/stdio, trimmed case-insensitive ack grammar, catch debug and no fallback. Each exclusion has a supplied source relationship: model-usage.ts; read-tracking.ts:197-239,283-325; hooks.ts:738; cited Go CLI/store/accounting.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "existing_tests",
+      "passed": true,
+      "evidence": "Section3 accurately inventories original writer calls/boolean assertions; dynamic boolean injected retry callback and four positional recorder deliveries; host export mock plus actual-factory injection and positional assertions; OpenCode real handler/message.updated exclusion and both Stop transcript platforms. It correctly distinguishes unchanged converter/time/scanner tests from absent empty-input/throw/wire/cwd/eviction/logging cases and makes no execution claim. Verified against all three supplied original usage test files.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "meaningful_validation",
+      "passed": true,
+      "evidence": "Proposed tests cover exact empty0/no-spawn, both reasons, matching counts and grammar variants; exact command/options/event JSONL/ts/final newline and no fallback/logging; each failure retry, acknowledged dedup, counters/cwd/void; actual1024/1025 oldest retransmission and retained suppression; real host/default-writer and injected wiring; and exact Stop status suffix with preserved scan fields and recursion behavior.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "bounded_evidence",
+      "passed": true,
+      "evidence": "Section4 bounds inventory to provided files and identifies returned alias/dynamic dependency edges beyond literal calls. It explicitly leaves external injected implementations, exported entry registration, runtime binary provenance and opaque NewBackend/Store dispatch unresolved. No invented additional affected consumers or whole-repository/RPC completeness claims found.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    }
+  ],
+  "summary": "6/6 frozen impact checks pass. Correct source-bounded consumer inventory, preserved behavior and wire requirements, accurate original-test coverage and meaningful proposed validation."
+}

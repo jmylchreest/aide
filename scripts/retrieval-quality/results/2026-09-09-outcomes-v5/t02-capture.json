@@ -1,0 +1,178 @@
+{
+  "schema_version": 1,
+  "runtime": {
+    "actor_id": "01a08733-1317-7ad1-ba61-5424c9935f73",
+    "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+    "agent_path": "/root/v5_execution/v5_t02",
+    "cli_version": "0.153.4",
+    "model_provider": "openai",
+    "model": "gpt-6-astra",
+    "effort": "high"
+  },
+  "completion": {
+    "complete": true,
+    "started_at": 1788974666,
+    "completed_at": 1788974773,
+    "duration_ms": 106887
+  },
+  "answer": {
+    "raw_text": "This trace applies only to the supplied snapshot pinned to `58816d991ef7172304f3eef594844d79e995a5e1`. No code was changed.\n\n**1. Host entry points and writer**\n\nOpenCode’s `createHooks` initializes state and returns `event: createEventHandler(state)`. That handler creates one `createOpenCodeUsageRecorder` closure. On **`message.part.updated`**, it calls the recorder with `event.properties.part` when `state.binary` exists, then calls the separate text-part handler. `message.updated` has no case and is ignored. `handleMessagePartUpdated` requires a nonempty `text` part; it handles skill matching and optionally records a `hook/user_prompt` estimate, not model usage. See [createHooks](/tmp/aide-outcomes-v5-trials/t02/root/src/opencode/hooks.ts:154), [createEventHandler](/tmp/aide-outcomes-v5-trials/t02/root/src/opencode/hooks.ts:432), and [handleMessagePartUpdated](/tmp/aide-outcomes-v5-trials/t02/root/src/opencode/hooks.ts:738).\n\nThe usage adapter requires `type: \"step-finish\"`, valid session/part/message IDs, and a tokens object. Its ID validator requires a nonblank string, not `\"unknown\"`, at most 1,024 characters. `messageID` is required but is not emitted as usage identity. The recorder skips rejected parts and previously acknowledged normalized snapshots. See [openCodeUsageEvent](/tmp/aide-outcomes-v5-trials/t02/root/src/core/model-usage.ts:203).\n\nThe shared `recordModelUsage` synchronously spawns the supplied binary with:\n\n```text\nobserve record --stdin\n```\n\nIt supplies newline-terminated JSONL, uses the supplied cwd, pipes stdin/stdout/stderr, and sets a 10-second timeout. Empty batches return `true` without spawning. Success requires a whole-output acknowledgment matching `Recorded N event(s)` case-insensitively, with `N` equal to batch length and zero skipped records. Exceptions return `false`; exit zero alone is insufficient. There is no older-CLI fallback. See [recordModelUsage](/tmp/aide-outcomes-v5-trials/t02/root/src/core/model-usage.ts:319).\n\nFor Claude Code/Codex, Stop’s `main` reads and parses JSON stdin, takes `cwd` or `process.cwd()`, and `session_id` or `\"unknown\"`. With `hook_event_name === \"Stop\"`, a supplied `transcript_path`, and a found binary, it calls `collectTranscriptUsage` and then the same writer. `detectPlatform()` selects Codex only when `AIDE_PLATFORM === \"codex\"`; otherwise it selects Claude Code. The hook itself does not call the available input-normalization helper. See [Stop main](/tmp/aide-outcomes-v5-trials/t02/root/src/hooks/session-summary.ts:108) and [detectPlatform](/tmp/aide-outcomes-v5-trials/t02/root/src/lib/hook-utils.ts:145).\n\n**`stop_hook_active` does not suppress usage scanning**: it guards only subsequent summary capture. Stop ignores the writer’s boolean and emits `continue: true`. Scanning has no cursor or acknowledgment cache, so a later Stop can retry a failed write or discover subsequently flushed rows, provided they remain within the bounded scan.\n\n`collectTranscriptUsage` behaves as follows:\n\n- Requires an absolute path, valid session ID, and a regular file, checked both before and after opening. Missing, unreadable, unsupported, or rejected inputs remain `unavailable`.\n- Reads only the explicitly supplied file. Defaults and caps are **4 MiB of tail bytes** and **1,000 matching usage events**; supplied ordinary numeric limits are floored and clamped to at least one.\n- Discards an incomplete leading line when the tail begins inside a line. Discards any trailing content without a newline, even if that content would parse as JSON.\n- Reports `limited` for tail truncation, short reads, unfinished trailing content, or encountering another matching event beyond the event cap.\n- Walks complete lines backward, retains the newest matching records, then reverses them into file order. Blank lines are ignored. JSON parse failures increment `malformed`; well-formed unrelated or wrong-session rows are simply ignored.\n- A successful scan is always `partial`, including a full-file scan or one producing no events. It cannot establish complete provider/subagent coverage.\n\nSee [collectTranscriptUsage](/tmp/aide-outcomes-v5-trials/t02/root/src/core/model-usage.ts:245).\n\n**2. Normalized independent records**\n\nAll three emit `kind: \"session\"`, `name: \"model_usage\"`, `model_usage_version: \"1\"`, and `usage_coverage: \"partial\"`. Counter values below are emitted as **decimal strings in `attrs`**, not top-level legacy `tokens`.\n\n| Field | OpenCode | Claude Code | Codex |\n|---|---|---|---|\n| Session | `oc-s` | `cc-s` | `cx-s` |\n| `usage_id` | `part-7` | `cc-r` | `cx-r` |\n| `host` | `opencode` | `claude-code` | `codex` |\n| `usage_source` | `opencode.step_finish.v1` | `claude.assistant_usage.v1` | `codex.token_usage_record.v1` |\n| `usage_time_basis` | `observed` | `source` | `source` |\n| `ts` and `usage_source_time` | Both absent | Both `2026-09-08T12:00:00Z` | Both `2026-09-08T12:00:00Z` |\n| Model/provider | Both absent | `model: \"m\"`; provider absent | Both absent |\n| `input_tokens` | `31` | `30` | `12` |\n| `uncached_input_tokens` | `11` | `10` | `7` |\n| `cache_read_input_tokens` | `17` | `20` | `5` |\n| `cache_write_input_tokens` | `3` | `0` | `0` |\n| `output_tokens` | Absent | Absent | `8` |\n| `reported_output_tokens` | `13` | Absent | Absent |\n| `reasoning_output_tokens` | `5` | Absent | `3` |\n| `total_tokens` | Absent | Absent | `20` |\n\nOpenCode sums the three disjoint input counters. It deliberately ignores `tokens.total: 49` and keeps raw output under `reported_output_tokens` because output/reasoning overlap varies across versions. Claude deliberately ignores `output_tokens: 1`, which can be a message-start placeholder. Codex ignores cumulative `thread_token_usage.input_tokens: 999`; its uncached input is `12−5−0=7`. Nothing adds reasoning to raw output. See [Claude adapter](/tmp/aide-outcomes-v5-trials/t02/root/src/core/model-usage.ts:121), [Codex adapter](/tmp/aide-outcomes-v5-trials/t02/root/src/core/model-usage.ts:153), and [OpenCode adapter](/tmp/aide-outcomes-v5-trials/t02/root/src/core/model-usage.ts:203).\n\nFor counters the adapters consume:\n\n- Absent values remain absent, without automatically invalidating the event.\n- Explicit zero becomes `\"0\"`, preserving a measured zero.\n- Negative, noninteger, unsafe, or otherwise invalid supplied values are omitted and set `usage_invalid: \"1\"`.\n- Derived inputs require all components; unsafe sums or invalid differences set the invalid marker.\n\nInvalid supplied source timestamps produce no `ts` or `usage_source_time`, select `usage_time_basis: \"observed\"`, and set `usage_invalid: \"1\"`. Missing timestamps select observed time without that marker. Valid timestamps retain their original string, including offsets and precision. These rules apply to timestamps passed into the common event builder; the OpenCode adapter supplies none. See [counter helpers and event builder](/tmp/aide-outcomes-v5-trials/t02/root/src/core/model-usage.ts:30).\n\nThe Go validator excludes invalid records from counter aggregation; it also rejects inconsistent totals, invalid counter strings, empty counter sets, and unsafe values. Explicit zero contributes a counter observation with zero tokens; absence contributes no observation for that counter. See [parseUsage](/tmp/aide-outcomes-v5-trials/t02/root/aide/pkg/store/token_model_usage.go:70).\n\n**3. Four OpenCode deliveries**\n\nThe recorder caches `JSON.stringify([cwd, normalizedEvent])` only after the writer returns `true`. See [createOpenCodeUsageRecorder](/tmp/aide-outcomes-v5-trials/t02/root/src/core/model-usage.ts:350).\n\n| Delivery at `/work/a` | Writer attempt? | Result |\n|---|---|---|\n| Original; CLI error | Yes | Not cached; no persistence by assumption |\n| Original; matching acknowledgment | Yes | Original variant persisted and cached |\n| Original unchanged | No | Previously acknowledged snapshot skipped |\n| Input changed to 12; matching acknowledgment | Yes | Revised variant persisted and cached |\n\nTherefore: **three writer attempts, one skipped delivery, two persisted distinct variants**. The revision changes both `uncached_input_tokens` from `11` to `12` and derived `input_tokens` from `31` to `32`.\n\nDelivering the revised part at **`/work/b` does attempt a write**, because cwd participates in the in-memory fingerprint. This establishes an attempt, not which durable backend/store that cwd selects.\n\nThe cache retains at most **1,024 acknowledged fingerprints**. Adding a 1,025th evicts the oldest insertion; cache hits do not refresh insertion order. Evicted snapshots can be attempted again, leaving durable deduplication to the store.\n\n**4. CLI, durable deduplication, and accounting**\n\nThe demonstrated CLI route is `cmdObserveDispatcher` → `cmdObserveRecord` → `cmdObserveRecordBatch` for `--stdin`. The batch opens one backend, scans stdin with a 1 MiB scanner-token limit, decodes each nonblank row, and calls `backend.Store().AddObserveEvent`. Malformed rows, missing kind/name, explicitly zero timestamps, and store errors increment `skipped`. Scanner errors abort with an error; earlier writes are not shown being rolled back. See [CLI dispatcher](/tmp/aide-outcomes-v5-trials/t02/root/aide/cmd/aide/cmd_observe.go:18) and [batch implementation](/tmp/aide-outcomes-v5-trials/t02/root/aide/cmd/aide/cmd_observe.go:237).\n\n**Boundary:** `NewBackend`, its concrete store selection, and any RPC implementation are absent from the supplied snapshot. Thus the CLI interface call and the supplied `BoltStore` behavior are demonstrated separately; an actual backend/RPC connection between them is not established here.\n\nWithin the supplied store:\n\n- **Usage identity** is `(session, host, usage_id)`. It excludes cwd, source, model, and timestamps.\n- **Fingerprint** includes version, source, time basis, model/provider values and presence, invalid marker, and every recognized counter’s presence/value. Source-time validity participates, but the timestamp value itself does not.\n- `usageOrigin` combines identity and fingerprint. `AddObserveEvent` hashes that origin into its origin index. Equal retries reuse the retained event, preserving the earliest timestamp; a conflicting fingerprint gets a separate stored event.\n\nSee [identity, fingerprint, and origin](/tmp/aide-outcomes-v5-trials/t02/root/aide/pkg/store/token_model_usage.go:36) and [AddObserveEvent](/tmp/aide-outcomes-v5-trials/t02/root/aide/pkg/store/observe_events.go:140). Missing event IDs receive ULIDs; missing timestamps receive `time.Now()`. Valid source-time attributes override event timestamps.\n\n`TokenStats` first feeds **all retained events** into `modelUsage.observe`, before applying the requested usage time window. Different fingerprints under one identity mark that identity conflicted. `resultWithSessions` counts a selected conflict once and excludes all its variants from observations and counters. See [TokenStats](/tmp/aide-outcomes-v5-trials/t02/root/aide/pkg/store/token_events.go:153) and [modelUsage aggregation](/tmp/aide-outcomes-v5-trials/t02/root/aide/pkg/store/token_model_usage.go:135).\n\nFor the first four deliveries in the stipulated otherwise-empty store:\n\n```json\n{\n  \"version\": 1,\n  \"observations\": 0,\n  \"conflicts\": 1,\n  \"invalid\": 0,\n  \"by_source\": []\n}\n```\n\nThere are two stored variants but one conflicted identity. Neither contributes counters. A query selecting `t1` and excluding `t2` **still reports that conflict**, because conflict detection sees both retained variants first, and selecting either variant makes the conflict relevant.\n\nCLI `recorded` counts successful `AddObserveEvent` returns, including deduplicated retries. Consequently, acknowledgment count is not necessarily newly inserted event count.\n\nFinally, `observeToTokenEvent` returns `nil` for session events. These usage events therefore do not increase legacy token event counts, tool-call counts, text estimates, or savings; model usage is attached separately to accounting. See [observeToTokenEvent](/tmp/aide-outcomes-v5-trials/t02/root/aide/pkg/store/observe_events.go:82) and [model-usage accounting types](/tmp/aide-outcomes-v5-trials/t02/root/aide/pkg/memory/token_model_usage.go:3).\n\nValid, unconflicted records establish only the captured host-reported counters and their per-counter observation coverage. They do not establish billing, complete session usage, savings, or task quality.\n\nVerification was source-based: indexed hook/CLI excerpts were checked against current files, calculations were checked against adapter logic, and the supplied normalization, retry, acknowledgment, and hook tests were inspected. Tests were not executed.",
+    "parsed_json": null,
+    "parse_error": "Final answer is not valid JSON"
+  },
+  "tool_calls": [
+    {
+      "call_id": "call_uNxdusMv5u1N67gjD50Lbqlc",
+      "name": "exec",
+      "type": "custom_tool_call",
+      "input": "text(await tools.exec_command({cmd:\"rtk proxy cat /home/johnm/.codex/RTK.md\",max_output_tokens:5000}));\ntext(await tools.exec_command({cmd:\"rtk proxy rg --files --hidden --no-ignore --glob '!.aide/**'\",\"workdir\":\"/tmp/aide-outcomes-v5-trials/t02/root\",\"max_output_tokens\":9000}));\n"
+    },
+    {
+      "call_id": "call_3QPqKPnMIyAW0VL6JMLl7Tif",
+      "name": "exec",
+      "type": "custom_tool_call",
+      "input": "text(await tools.exec_command({cmd:\"rtk proxy rg -n 'recordModelUsage|model.usage|message.updated|step-finish|stop_hook_active|scan.*Usage|transcript' src/opencode/hooks.ts src/core/model-usage.ts src/hooks/session-summary.ts src/core/session-summary-logic.ts aide/cmd/aide/cmd_observe.go aide/pkg/{observe/observe.go,store/token_model_usage.go,memory/token_model_usage.go}\",\"workdir\":\"/tmp/aide-outcomes-v5-trials/t02/root\",\"max_output_tokens\":10000}));\ntext(await tools.exec_command({cmd:\"rtk proxy wc -l src/core/model-usage.ts src/opencode/hooks.ts src/hooks/session-summary.ts aide/pkg/store/token_model_usage.go aide/pkg/memory/token_model_usage.go aide/pkg/memory/token_accounting.go aide/cmd/aide/cmd_observe.go aide/pkg/observe/observe.go aide/pkg/store/observe_events.go aide/pkg/store/token_events.go\",\"workdir\":\"/tmp/aide-outcomes-v5-trials/t02/root\",\"max_output_tokens\":2000}));\n"
+    },
+    {
+      "call_id": "call_fGQ7Bu0ORShaY01p0fHOuzeX",
+      "name": "exec",
+      "type": "custom_tool_call",
+      "input": "text(await tools.exec_command({cmd:\"rtk proxy python3 /mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/outcomes-v3/bridge.py call --root /tmp/aide-outcomes-v5-trials/t02/root --binary /tmp/aide-retrieval-v4 --evidence-dir /tmp/aide-outcomes-v5-trials/t02/bridge-evidence --tool-json '{\\\"name\\\":\\\"code_symbols\\\",\\\"arguments\\\":{\\\"file\\\":\\\"src/opencode/hooks.ts\\\"}}'\",\"workdir\":\"/tmp/aide-outcomes-v5-trials/t02/root\",\"max_output_tokens\":6000}));\ntext(await tools.exec_command({cmd:\"rtk proxy nl -ba src/core/model-usage.ts\",\"workdir\":\"/tmp/aide-outcomes-v5-trials/t02/root\",\"max_output_tokens\":15000}));\ntext(await tools.exec_command({cmd:\"rtk proxy nl -ba src/hooks/session-summary.ts\",\"workdir\":\"/tmp/aide-outcomes-v5-trials/t02/root\",\"max_output_tokens\":6000}));\n"
+    },
+    {
+      "call_id": "call_HLY562BYkOH4JrjMzU0xM0hy",
+      "name": "exec",
+      "type": "custom_tool_call",
+      "input": "text(await tools.exec_command({cmd:\"rtk proxy python3 /mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/outcomes-v3/bridge.py call --root /tmp/aide-outcomes-v5-trials/t02/root --binary /tmp/aide-retrieval-v4 --evidence-dir /tmp/aide-outcomes-v5-trials/t02/bridge-evidence --tool-json '{\\\"name\\\":\\\"code_read_symbol\\\",\\\"arguments\\\":{\\\"file\\\":\\\"src/opencode/hooks.ts\\\",\\\"symbols\\\":[\\\"createHooks\\\",\\\"createEventHandler\\\",\\\"handleMessagePartUpdated\\\"]}}'\",\"workdir\":\"/tmp/aide-outcomes-v5-trials/t02/root\",\"max_output_tokens\":9000}));\ntext(await tools.exec_command({cmd:\"rtk proxy rg -n 'detectPlatform|func |modelUsage|ModelUsage|RecordBatch|Recorded |batch|Backend|backend|RPC' src/lib/hook-utils.ts aide/cmd/aide/cmd_observe.go aide/pkg/observe/observe.go aide/pkg/store/{observe_events.go,token_events.go,token_model_usage.go} aide/pkg/memory/{token_accounting.go,token_model_usage.go}\",\"workdir\":\"/tmp/aide-outcomes-v5-trials/t02/root\",\"max_output_tokens\":7000}));\ntext(await tools.exec_command({cmd:\"rtk proxy nl -ba aide/pkg/store/token_model_usage.go\",\"workdir\":\"/tmp/aide-outcomes-v5-trials/t02/root\",\"max_output_tokens\":10000}));\n"
+    },
+    {
+      "call_id": "call_RgvpzyBxSHMlvj2f0S2wQu6x",
+      "name": "exec",
+      "type": "custom_tool_call",
+      "input": "text(await tools.exec_command({cmd:\"rtk proxy sed -n '145,207p;432,471p;738,754p' src/opencode/hooks.ts\",\"workdir\":\"/tmp/aide-outcomes-v5-trials/t02/root\",\"max_output_tokens\":4000}));\ntext(await tools.exec_command({cmd:\"rtk proxy sed -n '120,170p' src/lib/hook-utils.ts\",\"workdir\":\"/tmp/aide-outcomes-v5-trials/t02/root\",\"max_output_tokens\":2000}));\ntext(await tools.exec_command({cmd:\"rtk proxy python3 /mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/outcomes-v3/bridge.py call --root /tmp/aide-outcomes-v5-trials/t02/root --binary /tmp/aide-retrieval-v4 --evidence-dir /tmp/aide-outcomes-v5-trials/t02/bridge-evidence --tool-json '{\\\"name\\\":\\\"code_outline\\\",\\\"arguments\\\":{\\\"file\\\":\\\"aide/cmd/aide/cmd_observe.go\\\"}}'\",\"workdir\":\"/tmp/aide-outcomes-v5-trials/t02/root\",\"max_output_tokens\":4000}));\ntext(await tools.exec_command({cmd:\"rtk proxy nl -ba aide/pkg/store/token_events.go\",\"workdir\":\"/tmp/aide-outcomes-v5-trials/t02/root\",\"max_output_tokens\":8000}));\ntext(await tools.exec_command({cmd:\"rtk proxy nl -ba aide/pkg/memory/token_accounting.go\",\"workdir\":\"/tmp/aide-outcomes-v5-trials/t02/root\",\"max_output_tokens\":5000}));\ntext(await tools.exec_command({cmd:\"rtk proxy nl -ba aide/pkg/memory/token_model_usage.go\",\"workdir\":\"/tmp/aide-outcomes-v5-trials/t02/root\",\"max_output_tokens\":2000}));\n"
+    },
+    {
+      "call_id": "call_mrls6N1bp9cFJc3SBlwRmDq2",
+      "name": "exec",
+      "type": "custom_tool_call",
+      "input": "text(await tools.exec_command({cmd:\"rtk proxy python3 /mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/outcomes-v3/bridge.py call --root /tmp/aide-outcomes-v5-trials/t02/root --binary /tmp/aide-retrieval-v4 --evidence-dir /tmp/aide-outcomes-v5-trials/t02/bridge-evidence --tool-json '{\\\"name\\\":\\\"code_read_symbol\\\",\\\"arguments\\\":{\\\"file\\\":\\\"aide/cmd/aide/cmd_observe.go\\\",\\\"symbols\\\":[\\\"cmdObserveDispatcher\\\",\\\"cmdObserveRecord\\\",\\\"cmdObserveRecordBatch\\\"]}}'\",\"workdir\":\"/tmp/aide-outcomes-v5-trials/t02/root\",\"max_output_tokens\":6500}));\ntext(await tools.exec_command({cmd:\"rtk proxy nl -ba aide/pkg/store/observe_events.go | sed -n '75,230p'\",\"workdir\":\"/tmp/aide-outcomes-v5-trials/t02/root\",\"max_output_tokens\":6500}));\ntext(await tools.exec_command({cmd:\"rtk proxy nl -ba src/lib/hook-utils.ts | sed -n '40,151p'\",\"workdir\":\"/tmp/aide-outcomes-v5-trials/t02/root\",\"max_output_tokens\":4000}));\ntext(await tools.exec_command({cmd:\"rtk proxy rg -n 'test\\\\(|it\\\\(|describe\\\\(|acknow|1024|retry|stop_hook|message.updated|malformed|limited|timestamp' src/test/model-usage*.test.ts\",\"workdir\":\"/tmp/aide-outcomes-v5-trials/t02/root\",\"max_output_tokens\":6500}));\n"
+    },
+    {
+      "call_id": "call_zVVZIdoFIJVRr44glxg5FTEa",
+      "name": "exec",
+      "type": "custom_tool_call",
+      "input": "text(await tools.exec_command({cmd:\"rtk proxy nl -ba aide/cmd/aide/cmd_observe.go | sed -n '18,26p;219,297p'\",\"workdir\":\"/tmp/aide-outcomes-v5-trials/t02/root\",\"max_output_tokens\":4000}));\ntext(await tools.exec_command({cmd:\"rtk proxy nl -ba src/test/model-usage-recording.test.ts\",\"workdir\":\"/tmp/aide-outcomes-v5-trials/t02/root\",\"max_output_tokens\":4000}));\ntext(await tools.exec_command({cmd:\"rtk proxy nl -ba src/test/model-usage.test.ts\",\"workdir\":\"/tmp/aide-outcomes-v5-trials/t02/root\",\"max_output_tokens\":7000}));\ntext(await tools.exec_command({cmd:\"rtk proxy nl -ba src/test/model-usage-hooks.test.ts | sed -n '60,135p'\",\"workdir\":\"/tmp/aide-outcomes-v5-trials/t02/root\",\"max_output_tokens\":3000}));\ntext(await tools.exec_command({cmd:\"rtk proxy nl -ba src/opencode/hooks.ts | sed -n '351,403p'\",\"workdir\":\"/tmp/aide-outcomes-v5-trials/t02/root\",\"max_output_tokens\":3000}));\n"
+    }
+  ],
+  "runtime_usage": {
+    "basis": "runtime_reported; not billing or provider savings",
+    "counters": {
+      "input_tokens": 292992,
+      "cached_input_tokens": 248448,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 5163,
+      "reasoning_output_tokens": 172,
+      "total_tokens": 298155
+    },
+    "responses": [
+      {
+        "response_id": "resp_000183dc04103382016aa1964c9fd887d29a33be3fb9e1182c",
+        "counters": {
+          "input_tokens": 19556,
+          "cached_input_tokens": 17664,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 140,
+          "reasoning_output_tokens": 10,
+          "total_tokens": 19696
+        }
+      },
+      {
+        "response_id": "resp_000183dc04103382016aa19651d1ec87d2a9d421ff246cb398",
+        "counters": {
+          "input_tokens": 20317,
+          "cached_input_tokens": 19328,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 237,
+          "reasoning_output_tokens": 0,
+          "total_tokens": 20554
+        }
+      },
+      {
+        "response_id": "resp_000183dc04103382016aa196578e1c87d2b56ab8c49b2e1d22",
+        "counters": {
+          "input_tokens": 21785,
+          "cached_input_tokens": 20096,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 233,
+          "reasoning_output_tokens": 0,
+          "total_tokens": 22018
+        }
+      },
+      {
+        "response_id": "resp_000183dc04103382016aa1965de5bc87d2a1b370258753e3d7",
+        "counters": {
+          "input_tokens": 29912,
+          "cached_input_tokens": 21632,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 326,
+          "reasoning_output_tokens": 0,
+          "total_tokens": 30238
+        }
+      },
+      {
+        "response_id": "resp_000183dc04103382016aa19665e9e087d2b74652818a2146de",
+        "counters": {
+          "input_tokens": 38963,
+          "cached_input_tokens": 29696,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 474,
+          "reasoning_output_tokens": 19,
+          "total_tokens": 39437
+        }
+      },
+      {
+        "response_id": "resp_000183dc04103382016aa19670d02c87d2837294d1a99a9013",
+        "counters": {
+          "input_tokens": 47420,
+          "cached_input_tokens": 38784,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 357,
+          "reasoning_output_tokens": 0,
+          "total_tokens": 47777
+        }
+      },
+      {
+        "response_id": "resp_000183dc04103382016aa19679703087d284317fc1a7854192",
+        "counters": {
+          "input_tokens": 54138,
+          "cached_input_tokens": 47232,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 345,
+          "reasoning_output_tokens": 64,
+          "total_tokens": 54483
+        }
+      },
+      {
+        "response_id": "resp_000183dc04103382016aa19682b52087d28debf3c232c19101",
+        "counters": {
+          "input_tokens": 60901,
+          "cached_input_tokens": 54016,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 3051,
+          "reasoning_output_tokens": 79,
+          "total_tokens": 63952
+        }
+      }
+    ],
+    "unique_responses": 8,
+    "final_cumulative_counters": {
+      "input_tokens": 292992,
+      "cached_input_tokens": 248448,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 5163,
+      "reasoning_output_tokens": 172,
+      "total_tokens": 298155
+    },
+    "unknown_reasons": []
+  }
+}

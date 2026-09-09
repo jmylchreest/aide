@@ -1,0 +1,64 @@
+{
+  "reviewer": "/root/v5_quality",
+  "label": "W4",
+  "task": "trace",
+  "checks": [
+    {
+      "id": "host_routes",
+      "passed": true,
+      "evidence": "Section1 traces createHooks/initializeAide/createEventHandler/retained recorder and binary-gated message.part.updated properties.part; correctly describes step-finish and ID/tokens guards, ignored message.updated and separate text skill path. Stop stdin/platform/explicit transcript/shared writer route, ignored boolean, recursion-only summary guard and later retry opportunity agree with hooks.ts:154,351,432,738; model-usage.ts:203,350; session-summary.ts:108-151; hook-utils.ts:145,264.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "scan_boundaries",
+      "passed": true,
+      "evidence": "Section1 describes explicit absolute regular-file and valid-session requirements, no discovery/cursor, unavailable versus always-partial readable scans,4 MiB/1000 normalized-event maxima, leading truncation/trailing unfinished-line handling, malformed/irrelevant distinction and limited flags. All match collectTranscriptUsage at model-usage.ts:245-315.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "normalization",
+      "passed": true,
+      "evidence": "Section2 gives correct session/name/version/coverage and exact identities/sources/times/model/provider plus all counters: OpenCode31/11/17/3/reported13/reasoning5, Claude30/10/20/0 without output, Codex12/7/5/0/output8/reasoning3/total20. Deliberate output/total/cumulative omissions, explicit zero versus missing/invalid safe integers, source-time invalid marker and no overlapping additions agree with model-usage.ts:30-231.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "writer_and_cache",
+      "passed": true,
+      "evidence": "Sections1/3 correctly specify command, event JSONL final newline, cwd/piped stdio/10-second timeout, empty true/no spawn, matching count/zero-skips acknowledgment, failure false and no fallback. Scenario attempts1,2,4, skip3 and two retained variants are correct; revised input12 is mapped by the stated adapter semantics to uncached12 and summed input32. cwd change writes; only acknowledged fingerprints populate oldest-first1024 cache. Supported by model-usage.ts:319-362. Catch debug wording omission is permitted by frozen clarification.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "durable_route_and_identity",
+      "passed": true,
+      "evidence": "Section4 correctly traces dispatcher/record --stdin/batch/Store().AddObserveEvent and separately bounds absent NewBackend/backend/RPC link. It identifies session+host+usage_id identity and semantic fingerprint/presence excluding actual timestamp, earliest equal retry preservation and retained conflicting variants; CLI count is successful adds including dedup. Matches cmd_observe.go:18,237-295, observe_events.go:140-216 and token_model_usage.go:36-68.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "conflict_accounting",
+      "passed": true,
+      "evidence": "Section4 accurately gives observations0/conflicts1/invalid0/by_source[] and explains why selecting t1 without t2 retains conflict after full retained evidence is observed before selection. Supported by token_events.go:153-196 and token_model_usage.go:modelUsage.observe/resultWithSessions.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "measurement_limits",
+      "passed": true,
+      "evidence": "Section4 correctly excludes session/model_usage from legacy tool-token counts/estimates/read totals/savings via nil projection and distinguishes separate partial host accounting from billing, complete usage and quality. Source references observe_events.go:82-109, token_events.go:82-150 and memory/token_model_usage.go:3-28 support it.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    }
+  ],
+  "summary": "7/7 frozen trace checks pass. Correct source-grounded routes, normalization, retry/durable conflict scenario and measurement limits with explicit backend evidence boundary."
+}

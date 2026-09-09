@@ -1,0 +1,20 @@
+{
+  "reviewer": "/root/v5_quality",
+  "label": "H3",
+  "task": "implement",
+  "checks": {
+    "public_types": true,
+    "production_consumers": true,
+    "original_test_consumers": true,
+    "bounded_behavior_change": true,
+    "validation_report": true
+  },
+  "evidence": {
+    "public_types": "src/core/model-usage.ts:318-333 exports exact request fields and result variants and explicitly types recordModelUsage with one request and UsageWriteResult return. Lines364-367 explicitly type injected request/result writer and object-part recorder returning void. No boolean compatibility or untyped bypass.",
+    "production_consumers": "All relevant production references were checked in candidate source. src/core/model-usage.ts:373 passes object writer request and374 gates insertion by result.status; src/opencode/hooks.ts:463 passes binary/cwd/part object; src/hooks/session-summary.ts:135 captures object writer result and138 appends exact requested suffix. Existing Stop/binary/transcript and recursion gates remain; unacknowledged result does not interrupt summary capture or continue:true.",
+    "original_test_consumers": "Complete patch migrates all affected original test consumers without removing cases or weakening expectations: model-usage-recording.test.ts:16,22 uses object requests and exact reason/count results; model-usage.test.ts:46-67 updates injection and all four recorder calls, preserving the three-batch assertion; model-usage-hooks.test.ts:6-23 provides typed matching acknowledged result through the same actual-factory injection and replaces both host positional expectations with object assertions retaining all nested event checks. Normalization/collector/source-time tests, message.updated exclusion and both Stop hosts remain. Original Vitest execution is not claimed.",
+    "bounded_behavior_change": "Complete change.patch is limited to the three requested production files and three original tests. Writer lines334-359 preserve JSONL final newline, command/cwd/10-second timeout/piped stdio, trimmed case-insensitive grammar, exact matching count/zero skips, exception debug logging and no fallback; serialization stays inside try and missing output becomes invalid-ack. Recorder preserves filtering, normalized event+cwd key, per-instance acknowledged Set and oldest-first1024 eviction. Normalizers, scanner, timestamp/coverage, unrelated hook behavior and Go files are unchanged. runtime-checks.json confirms integrity,4/4 visible and20/20 hidden runtime checks.",
+    "validation_report": "Participant report accurately gives rtk proxy bun test tests:10 passed, comprising4 visible and6 added tests, matching independent participant-verification.json exit0/10 tests/37 expectations. It explicitly says Vitest was not executed and Bun does not type-check TypeScript; evidence likewise shows no Vitest/typecheck. Evidence notes later formatting edits to shared module and original tests with no participant rerun; report does not claim a post-format rerun. Controller mandatory runtime tests are separate evidence, not credited as participant execution."
+  },
+  "summary": "5/5 frozen implementation criteria pass; controller integrity and24 mandatory runtime checks pass. Validation report matches actual participant run and states Vitest/typecheck limits. Participant run preceded final formatting edits, a documented verification limit rather than an invented execution claim."
+}

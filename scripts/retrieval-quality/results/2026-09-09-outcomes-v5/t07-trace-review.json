@@ -1,0 +1,891 @@
+{
+  "trial": "t07",
+  "experiment_version": 5,
+  "reviewer": "v5_trace_audit",
+  "review_type": "protocol_and_tool_trace_only",
+  "trace_reviewed": true,
+  "scope_verified": true,
+  "protocol_violations": [],
+  "protocol_violation_details": [],
+  "aide_operations": 2,
+  "aide_uptake": true,
+  "aide_operation_details": {
+    "code_outline": 0,
+    "code_read_symbol": 1,
+    "code_references": 0,
+    "code_search": 0,
+    "code_symbols": 1,
+    "bridge_calls": 2,
+    "native_global_calls": 0,
+    "direct_aide_cli_calls": 0,
+    "controller_prepare_calls_by_participant": 0,
+    "bridge_internal_identity_checks": 2
+  },
+  "counts": {
+    "outer_tool_calls": 7,
+    "nested_tool_calls": 19,
+    "bootstrap": 1,
+    "discovery": 1,
+    "source_edit_test": 17,
+    "source": 10,
+    "edit": 4,
+    "test_execution": 3,
+    "transpile_execution": 0,
+    "typecheck_execution": 0,
+    "advisory_source_edit_test_target": 40,
+    "advisory_target_exceeded": false,
+    "basis": "Each executed tools.exec_command counts once, including individually awaited and Promise.allSettled calls. All captured inline edit and scratch-test bodies inspected without executing participant inputs.",
+    "discovery_definition": "First source-file inventory; focused content searches count as source even when they are the first source operation."
+  },
+  "retrieval_output_bytes": 43635,
+  "byte_evidence": {
+    "methodology": "All returned command bodies decode completely and map one-to-one to executed calls; no outer truncation or unattributable emission. Sum UTF-8 output payload bytes excluding wrappers and JSON serialization.",
+    "attributable_source_lower_bound_bytes": 43635,
+    "attributable_bootstrap_bytes": 482,
+    "attributable_discovery_bytes": 20,
+    "attributable_edit_output_bytes": 0,
+    "attributable_test_output_bytes": 2377,
+    "attributable_all_categories_lower_bound_bytes": 46514,
+    "included_boundaries": [
+      {
+        "call_id": "call_fhpsf1SfmSA4x1E2pWAuXiC7",
+        "content_index": 1,
+        "chunk_id": "288220",
+        "utf8_bytes": 482,
+        "category": "bootstrap"
+      },
+      {
+        "call_id": "call_fhpsf1SfmSA4x1E2pWAuXiC7",
+        "content_index": 2,
+        "chunk_id": "3552e7",
+        "utf8_bytes": 1394,
+        "category": "source"
+      },
+      {
+        "call_id": "call_4zNZ7tISh8QyHH2IkJdJLnGo",
+        "content_index": 1,
+        "chunk_id": "5083d4",
+        "utf8_bytes": 1894,
+        "category": "source"
+      },
+      {
+        "call_id": "call_4zNZ7tISh8QyHH2IkJdJLnGo",
+        "content_index": 2,
+        "chunk_id": "f5d3d2",
+        "utf8_bytes": 16823,
+        "category": "source"
+      },
+      {
+        "call_id": "call_4zNZ7tISh8QyHH2IkJdJLnGo",
+        "content_index": 3,
+        "chunk_id": "2d26f1",
+        "utf8_bytes": 2030,
+        "category": "source"
+      },
+      {
+        "call_id": "call_CCFUJsaAKyW0QAdQFK6CANVf",
+        "content_index": 1,
+        "chunk_id": "620dcb",
+        "utf8_bytes": 3334,
+        "category": "source"
+      },
+      {
+        "call_id": "call_CCFUJsaAKyW0QAdQFK6CANVf",
+        "content_index": 2,
+        "chunk_id": "29c45f",
+        "utf8_bytes": 2315,
+        "category": "source"
+      },
+      {
+        "call_id": "call_CCFUJsaAKyW0QAdQFK6CANVf",
+        "content_index": 3,
+        "chunk_id": "7e98a4",
+        "utf8_bytes": 20,
+        "category": "discovery"
+      },
+      {
+        "call_id": "call_0r7iTJcoFpVBJ0Ws3Fwl7cE3",
+        "content_index": 1,
+        "chunk_id": "84c346",
+        "utf8_bytes": 0,
+        "category": "edit"
+      },
+      {
+        "call_id": "call_0r7iTJcoFpVBJ0Ws3Fwl7cE3",
+        "content_index": 2,
+        "chunk_id": "8c6b29",
+        "utf8_bytes": 2757,
+        "category": "source"
+      },
+      {
+        "call_id": "call_hhCGiAMa5Rr9cNqFN9tMnL9Y",
+        "content_index": 1,
+        "chunk_id": "790508",
+        "utf8_bytes": 2252,
+        "category": "source"
+      },
+      {
+        "call_id": "call_hhCGiAMa5Rr9cNqFN9tMnL9Y",
+        "content_index": 2,
+        "chunk_id": "3cd513",
+        "utf8_bytes": 5614,
+        "category": "source"
+      },
+      {
+        "call_id": "call_hhCGiAMa5Rr9cNqFN9tMnL9Y",
+        "content_index": 3,
+        "chunk_id": "66cbee",
+        "utf8_bytes": 531,
+        "category": "test"
+      },
+      {
+        "call_id": "call_uslqBXbzCSsL5olUQ7jAUn3G",
+        "content_index": 1,
+        "chunk_id": "df656f",
+        "utf8_bytes": 0,
+        "category": "edit"
+      },
+      {
+        "call_id": "call_uslqBXbzCSsL5olUQ7jAUn3G",
+        "content_index": 2,
+        "chunk_id": "fcbd5e",
+        "utf8_bytes": 0,
+        "category": "edit"
+      },
+      {
+        "call_id": "call_uslqBXbzCSsL5olUQ7jAUn3G",
+        "content_index": 3,
+        "chunk_id": "01a974",
+        "utf8_bytes": 923,
+        "category": "test"
+      },
+      {
+        "call_id": "call_eQFuD9r72x08EBGSHCKfSCnB",
+        "content_index": 1,
+        "chunk_id": "0afd37",
+        "utf8_bytes": 0,
+        "category": "edit"
+      },
+      {
+        "call_id": "call_eQFuD9r72x08EBGSHCKfSCnB",
+        "content_index": 2,
+        "chunk_id": "e47e97",
+        "utf8_bytes": 5222,
+        "category": "source"
+      },
+      {
+        "call_id": "call_eQFuD9r72x08EBGSHCKfSCnB",
+        "content_index": 3,
+        "chunk_id": "e65221",
+        "utf8_bytes": 923,
+        "category": "test"
+      }
+    ],
+    "excluded_outer_calls": [],
+    "limits": "Exact captured attributable source payload bytes only, not total model-delivered context. Runtime counters are a separate boundary; no byte estimator is used as observed tokens."
+  },
+  "hook_metrics": {
+    "participant_hook_duration_ms": null,
+    "boundary": "Installed hook execution is not separately observed in these participant traces. Scoped retrieval server handler elapsed is recorded in bridge_metrics, and controller observe export is separate. Server token fields are byte estimates, not runtime token usage.",
+    "observe_export_file": "t07-observe-export.json",
+    "observe_export_valid": true,
+    "observe_export_returncode": 0,
+    "observe_export_elapsed_ms": 8.166978004737757,
+    "observe_event_count": 4,
+    "zero_use_null_export_valid": false
+  },
+  "tool_failures": [],
+  "tool_failure_evidence": "All 19 decoded command results have exit_code zero. All test invocations and their exact outputs are recorded in execution_verification.",
+  "scope_evidence": {
+    "outside_root_reads": [
+      {
+        "path": "/home/johnm/.codex/RTK.md",
+        "basis": "Explicitly allowed mandatory host bootstrap."
+      }
+    ],
+    "all_workdirs": "/tmp/aide-outcomes-v5-trials/t07/root",
+    "source_access": "All reads, searches, inventories, inline writes and scratch tests stay in the fixture. Scoped bridge execution uses only supplied arguments; bridge implementation, binary, evidence and controller .aide state are not read by participant. No native/global aide, direct aide CLI, outside-source/grader/reference/runtime-log reads, web, subagents, commits or reindex observed.",
+    "controller_state": "No participant .aide traversal or mutation observed. Broad source inventories exclude .aide.",
+    "boundary": "Observed tool inputs and independently checked source evidence; encrypted delivered task plaintext remains unknown."
+  },
+  "integrity_evidence": {
+    "grade_file": "t07-grade.json",
+    "integrity_passed": true,
+    "candidate_unchanged_from_seed": false,
+    "grading_did_not_mutate_candidate": true,
+    "patch_bytes": 8251,
+    "seed_files_checked": 55,
+    "seed_hash_mismatches": [
+      "src/core/model-usage.ts",
+      "src/hooks/session-summary.ts",
+      "src/opencode/hooks.ts",
+      "src/test/model-usage-hooks.test.ts",
+      "src/test/model-usage-recording.test.ts",
+      "src/test/model-usage.test.ts"
+    ],
+    "all_seed_differences_allowed": true,
+    "changed_allowed_sources": [
+      "src/core/model-usage.ts",
+      "src/hooks/session-summary.ts",
+      "src/opencode/hooks.ts",
+      "src/test/model-usage-hooks.test.ts",
+      "src/test/model-usage-recording.test.ts",
+      "src/test/model-usage.test.ts"
+    ],
+    "scratch_tests": [
+      "tests/usage-contract.test.ts"
+    ],
+    "initial_seed_inventories_match": true,
+    "captured_final_inventory_matches_current_source": true,
+    "preserved_changed_and_scratch_files_verified": true,
+    "raw_capture_inputs_match": true,
+    "raw_capture_results_match": true,
+    "raw_log_sha256_verified": "f7885e6cbeceedd4b2040e735a3a47194b597ab5073d3a2739b2154b75910099",
+    "candidate_snapshot_verified": true,
+    "source_sha256_evidence": {
+      "baseline_and_initial_seed": {
+        "package.json": "80a95f20d5805c480b12d50519abb6fc877d09a3c8c64c11026eea5a1a2dda46",
+        "bunfig.toml": "01bf2bfb94729375142ae836682de22f72760bd5596e7f60110bb4c34e56d978",
+        "README.md": "072ee62412bae47d9d9810b0b0f24c2d49040d0bd106f10c3b1d163fde080eef",
+        "tests/usage.test.ts": "1f897bc24c62795e9f087b58f275a45c81db1c50f0601fdc0b24c3606eb08d01",
+        "harness/preload.ts": "a942e216e7c0080aa0d2c06d04b2f464bfd537293912eee2774bfab74c74721f",
+        "harness/README.md": "b41f4cde47e0d50a2b871f34b2d0a6d27a65912a1c65f2467add464196ba510e",
+        "src/core/comment-checker.ts": "cfac4f9372de775a087e2b06403fe113a36867075e5e97bdb01e4c3796d4b98f",
+        "src/core/memory-query.ts": "d6f86d692caa197668bbe840db603593d1fc7ec6b5a18b2e27cde72679f257a4",
+        "src/core/tool-enforcement.ts": "c6cb04fb0f103836efc3c94875d7136fe0a8a5bfc6ae1363dbc7af06917aaf58",
+        "src/core/model-usage.ts": "5f8ceb868f06aa5b6c2da0328469c0ee82f720715c492574eed8986c7f308309",
+        "src/core/mcp-sync.ts": "4d2ea8c604410dd399c977e150ffeb94ed503215431adc0ea95dda0e5875ab69",
+        "src/core/search-enrichment.ts": "5252ddbd1c8e8fae99cb104e1ffc0f2774f13efcb69a435821f14272ff495a5c",
+        "src/core/skill-matcher.ts": "2b061eb5742fe1be9aca82e860dc1ae0d1a42b1a996ebe6611ec9cbc290dba7a",
+        "src/core/write-guard.ts": "3c0aa5993af64132b94ec1e395fabcd40f2bd3747e96c02f00070770e5cbb9ea",
+        "src/core/todo-checker.ts": "d4ea6c0e8612e3d879022c7e086b01635be88e9a65d9173c3fe90244dfcb035a",
+        "src/core/session-init.ts": "166b2a6cd1544be578590fe24fff941a8ffda22a03243549908743b1c58d60c8",
+        "src/core/session-summary-logic.ts": "3956abf0875c871738707c778e4f8370ff352bd0172ad150179d245f8b54904a",
+        "src/core/tool-tracking.ts": "1ba749fb98d567405595c8ccd31ef29beac51a525aeb663240177b5637681681",
+        "src/core/tool-observe.ts": "43e67888aec861f553d107abfab34c67d4134018dec3eb689a33e910041be2e5",
+        "src/core/context-window.ts": "da7abafb26e09b1bdd64f947330403cd727ddac7ded1e6479322a1e68f67ed7a",
+        "src/core/context-guard.ts": "839f3c2b36472c52f10d8ce6c5f18836341454f6bdd0e74618f4694382a0130f",
+        "src/core/read-tracking.ts": "afecccb8e697d34b0486b12a5c46a300953633c7e89bcfc0f1e9eefae366d06c",
+        "src/core/aide-client.ts": "1f03f98beae735fc1ef4205ab2e5fcbd502e11835414453adc2e461dcbbaf743",
+        "src/core/types.ts": "87aec582ab17f899dfba76b5833247b8fecd433ccf11ba97330b4564fad72cad",
+        "src/core/pre-compact-logic.ts": "275379ed7bee936b7c3b055cb4109dad3552e5e52f48aaf7cb27802c8057585d",
+        "src/core/persistence-logic.ts": "b1d51a2a579c218bb9e95f200df007c7dd795a69d533c241337b9b8d35d20493",
+        "src/core/session-text.ts": "f5a881bca5e4c5d2d15340b49d0b335f90c608c3138d57dc75a56994abe742fe",
+        "src/core/partial-memory.ts": "936be74befec892b29fff7ea6a30fb9689acfb5083215d132f4813a0149a9135",
+        "src/core/work-receipt.ts": "15557e1320441d54f8c549a1e1d61f011d94b0ce4c70ccfb672b135bc6530738",
+        "src/core/retrieval-evidence.ts": "3c04ef3140d574a7e6311120174d7163283f105d79a4d8ed2adda6fd1b134b5f",
+        "src/core/context-pruning/purge.ts": "59d9a29df1c8a106ac431d1a409c86fc851747a77c481347b5729daec8d7e258",
+        "src/core/context-pruning/supersede.ts": "b247ee8456f808a841609a3791141d3d30c7333ba6f9c2586827f44aa91980ba",
+        "src/core/context-pruning/observation.ts": "be423c8ac3ee74c19943e5650a7eb6edbed3b8a5180efaee441c9d65d01781dc",
+        "src/core/context-pruning/tracker.ts": "390acc0b40fe0f5aaa9f781f4ff0237228d2200c263af6c46a4b1d02df991dc8",
+        "src/core/context-pruning/sessions.ts": "09d18cffbe7a4d70b914165f1466ae970640dc1267267c5908835a06164e76e9",
+        "src/core/context-pruning/types.ts": "599cf79a721e33adf96cf0c89333f302102de3b2b4adcef5ba0cda5c77ae1065",
+        "src/core/context-pruning/dedup.ts": "cbc15fb5bb44f99efd20c82280b8a7da2af757291bbe7e87fae1f13a570a15c9",
+        "src/core/context-pruning/recovery.ts": "993c586083a32d7216659c264e2446506555b525282e38b0f5d653b6d4de9428",
+        "src/lib/anchor.ts": "db7aac8d9e250882702b7d990414b3379b0b56eef5eb09caa7c40276343d9789",
+        "src/lib/hook-utils.ts": "f9be7f87164ac379c0321f7ff8dd2f82f2eee21e86e138b767f0c48a1084ef85",
+        "src/lib/project-root.ts": "0798e691dfd3213676c1043d068109857ebfadea9e79a14b74050a18db62c784",
+        "src/lib/logger.ts": "e651533681affa45e9608d3cce5e02c2bded512ad97b5574d55410d41d19afd1",
+        "src/test/model-usage-recording.test.ts": "3c1fa035f81b33226b10de306de5a673affbcf3f039b3944e5d902171713b841",
+        "src/test/model-usage.test.ts": "0c322db315442b36cd58a67b1d9addca1b974744f725b2c2c7681457524041eb",
+        "src/test/model-usage-hooks.test.ts": "8fa5351ca11e8ab58b9cfce3db18a38c4264ae414ad96fa03e16edf88d279637",
+        "src/opencode/hooks.ts": "1382a01aeceab636140619d2b4b889a0e5c13a4b686b0b4291850c9f5a14ed50",
+        "src/opencode/types.ts": "5895c295a2fb82ca270f52406e84f3ee2bcf8c75ca8aa231c8080cea5bc492d5",
+        "src/hooks/session-summary.ts": "859b5e96af497b2f933efd7ee0260d7449b35bed628848d07c0f946d65487d53",
+        "aide/cmd/aide/cmd_observe.go": "dfbb79e1f385d20783fc3ade783d9870fbb868b9c618bf9caf58cf57dcc051a5",
+        "aide/pkg/memory/token_model_usage.go": "536287aae876951c2b6304724cc804f19a5ec84f8ff5632efb74f8e7967c2443",
+        "aide/pkg/memory/token_accounting.go": "0123e658b4a51a064c6bb0dc5dc223da44f1ac7904f10a894c6c15c5301d822f",
+        "aide/pkg/store/token_model_usage.go": "c449bbd2e886f12e84fc25d5eb3977aa5e5ae61bffdea10d3b09300eea262faf",
+        "aide/pkg/store/token_events.go": "28629e5d7aa52cb17e5b4cb7a97d1194dc7f206a2be99ddbcb8a021ae740aeef",
+        "aide/pkg/store/observe_events.go": "c1fc06d8813b238643a8d2bf54474609e3d078701fcd24cf83ee8405b5f41d18",
+        "aide/pkg/observe/observe.go": "e4861debed7469ec430d2f934a9a7c2590b7c359a3110624796d89f458916c85"
+      },
+      "captured_and_current_final": {
+        "package.json": "80a95f20d5805c480b12d50519abb6fc877d09a3c8c64c11026eea5a1a2dda46",
+        "bunfig.toml": "01bf2bfb94729375142ae836682de22f72760bd5596e7f60110bb4c34e56d978",
+        "README.md": "072ee62412bae47d9d9810b0b0f24c2d49040d0bd106f10c3b1d163fde080eef",
+        "tests/usage-contract.test.ts": "e24153a102add6b62348f6d430b265eec3507af834296d3a4a601582ddc0914c",
+        "tests/usage.test.ts": "1f897bc24c62795e9f087b58f275a45c81db1c50f0601fdc0b24c3606eb08d01",
+        "harness/preload.ts": "a942e216e7c0080aa0d2c06d04b2f464bfd537293912eee2774bfab74c74721f",
+        "harness/README.md": "b41f4cde47e0d50a2b871f34b2d0a6d27a65912a1c65f2467add464196ba510e",
+        "aide/pkg/memory/token_model_usage.go": "536287aae876951c2b6304724cc804f19a5ec84f8ff5632efb74f8e7967c2443",
+        "aide/pkg/memory/token_accounting.go": "0123e658b4a51a064c6bb0dc5dc223da44f1ac7904f10a894c6c15c5301d822f",
+        "aide/pkg/store/token_model_usage.go": "c449bbd2e886f12e84fc25d5eb3977aa5e5ae61bffdea10d3b09300eea262faf",
+        "aide/pkg/store/token_events.go": "28629e5d7aa52cb17e5b4cb7a97d1194dc7f206a2be99ddbcb8a021ae740aeef",
+        "aide/pkg/store/observe_events.go": "c1fc06d8813b238643a8d2bf54474609e3d078701fcd24cf83ee8405b5f41d18",
+        "aide/pkg/observe/observe.go": "e4861debed7469ec430d2f934a9a7c2590b7c359a3110624796d89f458916c85",
+        "aide/cmd/aide/cmd_observe.go": "dfbb79e1f385d20783fc3ade783d9870fbb868b9c618bf9caf58cf57dcc051a5",
+        "src/core/comment-checker.ts": "cfac4f9372de775a087e2b06403fe113a36867075e5e97bdb01e4c3796d4b98f",
+        "src/core/memory-query.ts": "d6f86d692caa197668bbe840db603593d1fc7ec6b5a18b2e27cde72679f257a4",
+        "src/core/tool-enforcement.ts": "c6cb04fb0f103836efc3c94875d7136fe0a8a5bfc6ae1363dbc7af06917aaf58",
+        "src/core/model-usage.ts": "ceb200c93a554c55955a6cede53301f3c9586ff204ee02084c7010c9729a81bc",
+        "src/core/mcp-sync.ts": "4d2ea8c604410dd399c977e150ffeb94ed503215431adc0ea95dda0e5875ab69",
+        "src/core/search-enrichment.ts": "5252ddbd1c8e8fae99cb104e1ffc0f2774f13efcb69a435821f14272ff495a5c",
+        "src/core/skill-matcher.ts": "2b061eb5742fe1be9aca82e860dc1ae0d1a42b1a996ebe6611ec9cbc290dba7a",
+        "src/core/write-guard.ts": "3c0aa5993af64132b94ec1e395fabcd40f2bd3747e96c02f00070770e5cbb9ea",
+        "src/core/todo-checker.ts": "d4ea6c0e8612e3d879022c7e086b01635be88e9a65d9173c3fe90244dfcb035a",
+        "src/core/session-init.ts": "166b2a6cd1544be578590fe24fff941a8ffda22a03243549908743b1c58d60c8",
+        "src/core/session-summary-logic.ts": "3956abf0875c871738707c778e4f8370ff352bd0172ad150179d245f8b54904a",
+        "src/core/tool-tracking.ts": "1ba749fb98d567405595c8ccd31ef29beac51a525aeb663240177b5637681681",
+        "src/core/tool-observe.ts": "43e67888aec861f553d107abfab34c67d4134018dec3eb689a33e910041be2e5",
+        "src/core/context-window.ts": "da7abafb26e09b1bdd64f947330403cd727ddac7ded1e6479322a1e68f67ed7a",
+        "src/core/context-guard.ts": "839f3c2b36472c52f10d8ce6c5f18836341454f6bdd0e74618f4694382a0130f",
+        "src/core/read-tracking.ts": "afecccb8e697d34b0486b12a5c46a300953633c7e89bcfc0f1e9eefae366d06c",
+        "src/core/aide-client.ts": "1f03f98beae735fc1ef4205ab2e5fcbd502e11835414453adc2e461dcbbaf743",
+        "src/core/types.ts": "87aec582ab17f899dfba76b5833247b8fecd433ccf11ba97330b4564fad72cad",
+        "src/core/pre-compact-logic.ts": "275379ed7bee936b7c3b055cb4109dad3552e5e52f48aaf7cb27802c8057585d",
+        "src/core/persistence-logic.ts": "b1d51a2a579c218bb9e95f200df007c7dd795a69d533c241337b9b8d35d20493",
+        "src/core/session-text.ts": "f5a881bca5e4c5d2d15340b49d0b335f90c608c3138d57dc75a56994abe742fe",
+        "src/core/partial-memory.ts": "936be74befec892b29fff7ea6a30fb9689acfb5083215d132f4813a0149a9135",
+        "src/core/work-receipt.ts": "15557e1320441d54f8c549a1e1d61f011d94b0ce4c70ccfb672b135bc6530738",
+        "src/core/retrieval-evidence.ts": "3c04ef3140d574a7e6311120174d7163283f105d79a4d8ed2adda6fd1b134b5f",
+        "src/lib/anchor.ts": "db7aac8d9e250882702b7d990414b3379b0b56eef5eb09caa7c40276343d9789",
+        "src/lib/hook-utils.ts": "f9be7f87164ac379c0321f7ff8dd2f82f2eee21e86e138b767f0c48a1084ef85",
+        "src/lib/project-root.ts": "0798e691dfd3213676c1043d068109857ebfadea9e79a14b74050a18db62c784",
+        "src/lib/logger.ts": "e651533681affa45e9608d3cce5e02c2bded512ad97b5574d55410d41d19afd1",
+        "src/test/model-usage-recording.test.ts": "be8aff2aaeed6a48ec2a3f9f88c4e78cda3c59a8f2230324cb25de2f9512183c",
+        "src/test/model-usage.test.ts": "14d4e692b60396dba2d08594c688b5f980ca22075263ccc37a61c6f98900beb4",
+        "src/test/model-usage-hooks.test.ts": "440bfae299bf51530fc60d9814fa1a4096b411c6c3639a4e3b2a95efb8945e88",
+        "src/opencode/hooks.ts": "90e9e5935c18e938ca1482f928e0035b7549ea76608c5bee1a16465a0c8786cc",
+        "src/opencode/types.ts": "5895c295a2fb82ca270f52406e84f3ee2bcf8c75ca8aa231c8080cea5bc492d5",
+        "src/hooks/session-summary.ts": "c63cc128e0a5db34292fb8d5c4616bdea53d3a73e35debd6d25b2443e20ad305",
+        "src/core/context-pruning/purge.ts": "59d9a29df1c8a106ac431d1a409c86fc851747a77c481347b5729daec8d7e258",
+        "src/core/context-pruning/supersede.ts": "b247ee8456f808a841609a3791141d3d30c7333ba6f9c2586827f44aa91980ba",
+        "src/core/context-pruning/observation.ts": "be423c8ac3ee74c19943e5650a7eb6edbed3b8a5180efaee441c9d65d01781dc",
+        "src/core/context-pruning/tracker.ts": "390acc0b40fe0f5aaa9f781f4ff0237228d2200c263af6c46a4b1d02df991dc8",
+        "src/core/context-pruning/sessions.ts": "09d18cffbe7a4d70b914165f1466ae970640dc1267267c5908835a06164e76e9",
+        "src/core/context-pruning/types.ts": "599cf79a721e33adf96cf0c89333f302102de3b2b4adcef5ba0cda5c77ae1065",
+        "src/core/context-pruning/dedup.ts": "cbc15fb5bb44f99efd20c82280b8a7da2af757291bbe7e87fae1f13a570a15c9",
+        "src/core/context-pruning/recovery.ts": "993c586083a32d7216659c264e2446506555b525282e38b0f5d653b6d4de9428"
+      }
+    }
+  },
+  "launcher_evidence": {
+    "file": "t07-launch.json",
+    "prelaunch_file": "t07-prelaunch.json",
+    "archived_message_file": "t07-launch-message.txt",
+    "fork_turns": "none",
+    "model_override": null,
+    "effort_override": null,
+    "agent_path": "/root/v5_execution/v5_t07",
+    "prepared_prompt_sha256_verified": "6badd5ce0dcf4f770144ff8bd1b0c10acb74643e755be160e53e27a649c51044",
+    "prepared_archived_prelaunch_launch_regenerated_bytes_equal": true,
+    "prepared_prompt_utf8_bytes": 7682,
+    "seed_binding_root_verified": true,
+    "seed_binary_hash_matches_protocol": true,
+    "prelaunch_prior_cells_completed": true,
+    "prelaunch_no_previous_bridge_calls": true,
+    "actual_launcher_message_verified": null,
+    "actual_launcher_text_comparison": "Host NEW_TASK payload is encrypted_content; controller archive, prepared prompt, prelaunch, launch and regenerated frozen prompt match exactly, but delivered plaintext equality is unknown.",
+    "host_task_records": [
+      {
+        "ordinal": 9,
+        "timestamp": "2026-09-09T17:35:43.270Z",
+        "author": "/root/v5_execution",
+        "recipient": "/root/v5_execution/v5_t07",
+        "content_types": [
+          "input_text",
+          "encrypted_content"
+        ]
+      }
+    ],
+    "observed_first_tool": "rtk proxy cat /home/johnm/.codex/RTK.md",
+    "first_tool_prefix_compliant": true
+  },
+  "runtime": {
+    "actor_id": "01a0873d-61c6-75d1-b1e6-65e5c7f8a028",
+    "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+    "agent_path": "/root/v5_execution/v5_t07",
+    "cli_version": "0.153.4",
+    "model_provider": "openai",
+    "model": "gpt-6-astra",
+    "effort": "high"
+  },
+  "input_review": [
+    {
+      "call_id": "call_fhpsf1SfmSA4x1E2pWAuXiC7",
+      "nested_calls": 2,
+      "commands_reviewed": [
+        "rtk proxy cat /home/johnm/.codex/RTK.md",
+        "rtk proxy rg --hidden --no-ignore --glob '!.aide/**' -n 'recordModelUsage|createOpenCodeUsageRecorder|Usage scan:' src tests"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": true
+    },
+    {
+      "call_id": "call_4zNZ7tISh8QyHH2IkJdJLnGo",
+      "nested_calls": 3,
+      "commands_reviewed": [
+        "rtk proxy python3 /mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/outcomes-v3/bridge.py call --root /tmp/aide-outcomes-v5-trials/t07/root --binary /tmp/aide-retrieval-v4 --evidence-dir /tmp/aide-outcomes-v5-trials/t07/bridge-evidence --tool-json '{\"name\":\"code_symbols\",\"arguments\":{\"file\":\"src/core/model-usage.ts\"}}'",
+        "rtk proxy cat src/test/model-usage-recording.test.ts src/test/model-usage.test.ts src/test/model-usage-hooks.test.ts src/hooks/session-summary.ts",
+        "rtk proxy rg --hidden --no-ignore --glob '!.aide/**' -n -C 15 'recordUsage' src/opencode/hooks.ts"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": true
+    },
+    {
+      "call_id": "call_CCFUJsaAKyW0QAdQFK6CANVf",
+      "nested_calls": 3,
+      "commands_reviewed": [
+        "rtk proxy python3 /mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/outcomes-v3/bridge.py call --root /tmp/aide-outcomes-v5-trials/t07/root --binary /tmp/aide-retrieval-v4 --evidence-dir /tmp/aide-outcomes-v5-trials/t07/bridge-evidence --tool-json '{\"name\":\"code_read_symbol\",\"arguments\":{\"file\":\"src/core/model-usage.ts\",\"symbols\":[\"recordModelUsage\",\"createOpenCodeUsageRecorder\",\"openCodeUsageEvent\"]}}'",
+        "rtk proxy sed -n '1,20p;310,420p' src/core/model-usage.ts",
+        "rtk proxy rg --hidden --no-ignore --glob '!.aide/**' --files tests"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": true
+    },
+    {
+      "call_id": "call_0r7iTJcoFpVBJ0Ws3Fwl7cE3",
+      "nested_calls": 2,
+      "commands_reviewed": [
+        "rtk proxy python3 - <<'PY'\nfrom pathlib import Path\np=Path('src/core/model-usage.ts')\ns=p.read_text().replace('/** Acknowledged batch only: older CLI fallback cannot preserve source timestamps. */', '''export interface UsageWriteRequest {\n  binary: string;\n  cwd: string;\n  events: ObserveBatchEvent[];\n}\n\nexport type UsageWriteResult =\n  | { status: \"acknowledged\"; recorded: number }\n  | { status: \"unacknowledged\"; reason: \"invalid-ack\" | \"write-error\" };\n\n/** Acknowledged batch only: older CLI fallback cannot preserve source timestamps. */''')\ns=s.replace('''  binary: string,\n  cwd: string,\n  events: ObserveBatchEvent[],\n): boolean {\n  if (!events.length) return true;''','''  { binary, cwd, events }: UsageWriteRequest,\n): UsageWriteResult {\n  if (!events.length) return { status: \"acknowledged\", recorded: 0 };''')\ns=s.replace('''    }).toString();\n    const ack =''','''    });\n    if (typeof output !== \"string\" && !Buffer.isBuffer(output))\n      return { status: \"unacknowledged\", reason: \"invalid-ack\" };\n    const ack =''').replace('''      output.trim(),''','''      output.toString().trim(),''')\ns=s.replace('''    return (\n      ack !== null &&\n      Number(ack[1]) === events.length &&\n      Number(ack[2] ?? 0) === 0\n    );''','''    if (\n      ack !== null &&\n      Number(ack[1]) === events.length &&\n      Number(ack[2] ?? 0) === 0\n    )\n      return { status: \"acknowledged\", recorded: events.length };\n    return { status: \"unacknowledged\", reason: \"invalid-ack\" };''')\ns=s.replace('''    return false;\n  }\n}\n\n/** Keep repeated''','''    return { status: \"unacknowledged\", reason: \"write-error\" };\n  }\n}\n\n/** Keep repeated''')\ns=s.replace('''  write = recordModelUsage,\n): (binary: string, cwd: string, part: unknown) => void {''','''  write: (request: UsageWriteRequest) => UsageWriteResult = recordModelUsage,\n): (request: { binary: string; cwd: string; part: unknown }) => void {''').replace('''  return (binary, cwd, part) => {''','''  return ({ binary, cwd, part }) => {''').replace('''    if (acknowledged.has(fingerprint) || !write(binary, cwd, [next])) return;''','''    if (acknowledged.has(fingerprint)) return;\n    const result = write({ binary, cwd, events: [next] });\n    if (result.status !== \"acknowledged\") return;''')\np.write_text(s)\np=Path('src/opencode/hooks.ts'); s=p.read_text().replace('''          recordUsage(state.binary, state.cwd, event.properties.part);''','''          recordUsage({\n            binary: state.binary,\n            cwd: state.cwd,\n            part: event.properties.part,\n          });'''); p.write_text(s)\np=Path('src/hooks/session-summary.ts'); s=p.read_text().replace('''        recordModelUsage(binary, cwd, usage.events);''','''        const result = recordModelUsage({ binary, cwd, events: usage.events });''').replace('''records=${usage.events.length}`''','''records=${usage.events.length}; write=${result.status}`'''); p.write_text(s)\np=Path('src/test/model-usage-recording.test.ts'); s=p.read_text().replace('''recordModelUsage(\"bin\", \"/cwd\", events)''','''recordModelUsage({ binary: \"bin\", cwd: \"/cwd\", events })''').replace('''.toBe(false)''','''.toEqual({\n        status: \"unacknowledged\",\n        reason: \"invalid-ack\",\n      })''').replace('''.toBe(true)''','''.toEqual({\n      status: \"acknowledged\",\n      recorded: 1,\n    })'''); p.write_text(s)\np=Path('src/test/model-usage.test.ts'); s=p.read_text().replace('''createOpenCodeUsageRecorder((_binary, _cwd, events) => {''','''createOpenCodeUsageRecorder(({ events }) => {''').replace('''      return batches.length !== 1;''','''      return batches.length === 1\n        ? { status: \"unacknowledged\", reason: \"write-error\" }\n        : { status: \"acknowledged\", recorded: events.length };''').replace('''record(\"bin\", \"/cwd\", part)''','''record({ binary: \"bin\", cwd: \"/cwd\", part })''').replace('''record(\"bin\", \"/cwd\", { ...part, tokens: { input: 2 } })''','''record({ binary: \"bin\", cwd: \"/cwd\", part: { ...part, tokens: { input: 2 } } })'''); p.write_text(s)\np=Path('src/test/model-usage-hooks.test.ts'); s=p.read_text().replace('''import { join } from \"node:path\";''','''import { join } from \"node:path\";\nimport type { UsageWriteRequest, UsageWriteResult } from \"../core/model-usage.js\";''').replace('''  write: vi.fn(() => true),''','''  write: vi.fn(({ events }: UsageWriteRequest): UsageWriteResult => ({\n    status: \"acknowledged\",\n    recorded: events.length,\n  })),''').replace('''toHaveBeenCalledWith(\"/fake-aide\", cwd, [''','''toHaveBeenCalledWith({ binary: \"/fake-aide\", cwd, events: [''').replace('''    ]);''','''    ] });''').replace('''        ]),''','''        ] }),'''); p.write_text(s)\nPY",
+        "rtk proxy cat tests/usage.test.ts"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": true
+    },
+    {
+      "call_id": "call_hhCGiAMa5Rr9cNqFN9tMnL9Y",
+      "nested_calls": 3,
+      "commands_reviewed": [
+        "rtk proxy sed -n '315,400p' src/core/model-usage.ts",
+        "rtk proxy cat src/test/model-usage-recording.test.ts src/test/model-usage-hooks.test.ts",
+        "rtk proxy bun test tests"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": true
+    },
+    {
+      "call_id": "call_uslqBXbzCSsL5olUQ7jAUn3G",
+      "nested_calls": 3,
+      "commands_reviewed": [
+        "rtk proxy python3 - <<'PY'\nfrom pathlib import Path\np=Path('src/core/model-usage.ts'); s=p.read_text().replace('''export function recordModelUsage(\n  { binary, cwd, events }: UsageWriteRequest,\n): UsageWriteResult {''','''export function recordModelUsage({\n  binary,\n  cwd,\n  events,\n}: UsageWriteRequest): UsageWriteResult {'''); p.write_text(s)\np=Path('src/test/model-usage.test.ts'); s=p.read_text().replace('''    record({ binary: \"bin\", cwd: \"/cwd\", part: { ...part, tokens: { input: 2 } } }); // conflict reaches store''','''    record({\n      binary: \"bin\",\n      cwd: \"/cwd\",\n      part: { ...part, tokens: { input: 2 } },\n    }); // conflict reaches store'''); p.write_text(s)\np=Path('src/test/model-usage-hooks.test.ts'); s=p.read_text().replace('''    expect(mocks.write).toHaveBeenCalledWith({ binary: \"/fake-aide\", cwd, events: [\n      expect.objectContaining({\n        session: \"s\",\n        name: \"model_usage\",\n        attrs: expect.objectContaining({\n          usage_id: \"p\",\n          uncached_input_tokens: \"12\",\n        }),\n      }),\n    ] });''','''    expect(mocks.write).toHaveBeenCalledWith({\n      binary: \"/fake-aide\",\n      cwd,\n      events: [\n        expect.objectContaining({\n          session: \"s\",\n          name: \"model_usage\",\n          attrs: expect.objectContaining({\n            usage_id: \"p\",\n            uncached_input_tokens: \"12\",\n          }),\n        }),\n      ],\n    });''').replace('''        expect(mocks.write).toHaveBeenCalledWith({ binary: \"/fake-aide\", cwd, events: [\n          expect.objectContaining({\n            session: \"s\",\n            attrs: expect.objectContaining({ host, usage_id: \"r\" }),\n          }),\n        ] }),''','''        expect(mocks.write).toHaveBeenCalledWith({\n          binary: \"/fake-aide\",\n          cwd,\n          events: [\n            expect.objectContaining({\n              session: \"s\",\n              attrs: expect.objectContaining({ host, usage_id: \"r\" }),\n            }),\n          ],\n        }),'''); p.write_text(s)\nPY",
+        "rtk proxy cat > tests/usage-contract.test.ts <<'EOF'\nimport { afterEach, expect, spyOn, test } from \"bun:test\";\nimport * as childProcess from \"node:child_process\";\nimport {\n  createOpenCodeUsageRecorder,\n  recordModelUsage,\n  type UsageWriteRequest,\n  type UsageWriteResult,\n} from \"../src/core/model-usage.ts\";\n\nconst exec = spyOn(childProcess, \"execFileSync\");\nafterEach(() => exec.mockReset());\nconst events = [{ kind: \"session\", name: \"model_usage\", session: \"s\" }];\nconst request = { binary: \"bin\", cwd: \"/cwd\", events };\n\ntest(\"empty usage batches succeed without writing\", () => {\n  expect(recordModelUsage({ ...request, events: [] })).toEqual({\n    status: \"acknowledged\", recorded: 0,\n  });\n  expect(exec).not.toHaveBeenCalled();\n});\n\ntest(\"writer validates acknowledgments and preserves subprocess options\", () => {\n  for (const output of [undefined, null, \"\", \"oops\", \"Recorded 0 event(s)\",\n    \"Recorded 2 event(s)\", \"Recorded 1 event(s), skipped 1\"]) {\n    exec.mockReturnValue(output as any);\n    expect(recordModelUsage(request)).toEqual({ status: \"unacknowledged\", reason: \"invalid-ack\" });\n  }\n  for (const output of [\"Recorded 1 event(s)\\n\", \"  rEcOrDeD 1 event(s), skipped 0 \\n\"]) {\n    exec.mockReturnValue(Buffer.from(output));\n    expect(recordModelUsage(request)).toEqual({ status: \"acknowledged\", recorded: 1 });\n  }\n  expect(exec).toHaveBeenLastCalledWith(\"bin\", [\"observe\", \"record\", \"--stdin\"], {\n    cwd: \"/cwd\", input: JSON.stringify(events[0]) + \"\\n\", timeout: 10000,\n    stdio: [\"pipe\", \"pipe\", \"pipe\"],\n  });\n});\n\ntest(\"write and serialization failures are best effort\", () => {\n  exec.mockImplementation(() => { throw new Error(\"write failed\"); });\n  expect(recordModelUsage(request)).toEqual({ status: \"unacknowledged\", reason: \"write-error\" });\n  expect(exec).toHaveBeenCalledTimes(1);\n  exec.mockClear();\n  const cyclic: any = { ...events[0] };\n  cyclic.self = cyclic;\n  expect(recordModelUsage({ ...request, events: [cyclic] })).toEqual({ status: \"unacknowledged\", reason: \"write-error\" });\n  expect(exec).not.toHaveBeenCalled();\n});\n\nconst part = { type: \"step-finish\", id: \"p\", sessionID: \"s\", messageID: \"m\", tokens: { input: 1 } };\ntest(\"recorder retries failures and scopes acknowledged snapshots\", () => {\n  const writes: UsageWriteRequest[] = [];\n  const writer = (request: UsageWriteRequest): UsageWriteResult => {\n    writes.push(request);\n    return writes.length === 1 ? { status: \"unacknowledged\", reason: \"invalid-ack\" }\n      : { status: \"acknowledged\", recorded: request.events.length };\n  };\n  const record = createOpenCodeUsageRecorder(writer);\n  const request = { binary: \"bin\", cwd: \"/cwd\", part };\n  record({ ...request, part: { ...part, type: \"text\" } });\n  expect(writes).toHaveLength(0);\n  record(request);\n  record(request);\n  record(request);\n  expect(writes).toHaveLength(2);\n  expect(writes[0]).toMatchObject({ binary: \"bin\", cwd: \"/cwd\", events: [{ name: \"model_usage\", session: \"s\" }] });\n  record({ ...request, part: { ...part, tokens: { input: 2 } } });\n  record({ ...request, cwd: \"/other\" });\n  createOpenCodeUsageRecorder(writer)(request);\n  expect(writes).toHaveLength(5);\n});\n\ntest(\"recorder evicts the oldest acknowledgment after 1024 entries\", () => {\n  const writes: UsageWriteRequest[] = [];\n  const record = createOpenCodeUsageRecorder((request) => {\n    writes.push(request);\n    return { status: \"acknowledged\", recorded: request.events.length };\n  });\n  const request = { binary: \"bin\", cwd: \"/cwd\", part };\n  for (let i = 0; i < 1024; i++) record({ ...request, part: { ...part, id: String(i) } });\n  record({ ...request, part: { ...part, id: \"0\" } });\n  expect(writes).toHaveLength(1024);\n  record({ ...request, part: { ...part, id: \"1024\" } });\n  record({ ...request, part: { ...part, id: \"0\" } });\n  expect(writes).toHaveLength(1026);\n});\nEOF",
+        "rtk proxy bun test tests"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": true
+    },
+    {
+      "call_id": "call_eQFuD9r72x08EBGSHCKfSCnB",
+      "nested_calls": 3,
+      "commands_reviewed": [
+        "rtk proxy python3 - <<'PY'\nfrom pathlib import Path\np=Path('tests/usage-contract.test.ts'); s=p.read_text().replace('''import { afterEach, expect, spyOn, test }''','''import { afterAll, afterEach, expect, spyOn, test }''').replace('''afterEach(() => exec.mockReset());''','''afterEach(() => exec.mockReset());\nafterAll(() => exec.mockRestore());'''); p.write_text(s)\nPY",
+        "rtk proxy rg --hidden --no-ignore --glob '!.aide/**' -n -C 3 'recordModelUsage\\(|createOpenCodeUsageRecorder\\(|recordUsage\\(|record\\(|Usage scan:' src/core/model-usage.ts src/hooks/session-summary.ts src/opencode/hooks.ts src/test/model-usage.test.ts src/test/model-usage-recording.test.ts src/test/model-usage-hooks.test.ts",
+        "rtk proxy bun test tests"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": true
+    }
+  ],
+  "execution_verification": [
+    {
+      "command": "rtk proxy bun test tests",
+      "workdir": "/tmp/aide-outcomes-v5-trials/t07/root",
+      "call_id": "call_hhCGiAMa5Rr9cNqFN9tMnL9Y",
+      "content_index": 3,
+      "chunk_id": "66cbee",
+      "exit_code": 0,
+      "tests_passed": 4,
+      "tests_failed": 0,
+      "tests_total": 4,
+      "test_files": 1,
+      "expect_calls": 13,
+      "suite_scope": "Four existing visible tests.",
+      "post_run_changes": "After this run, participant reformatted src/core/model-usage.ts, src/test/model-usage.test.ts and src/test/model-usage-hooks.test.ts; added tests/usage-contract.test.ts with five scratch tests; ran 9 tests; then added afterAll mockRestore cleanup to that scratch file and reran 9 tests. No production logic edits followed this initial run.",
+      "validation_limit": "Bun runtime execution only. No original Vitest execution, semantic TypeScript type check, or standalone syntax-transpilation check observed. The controller mandatory grader (4 visible + 20 hidden) is separate and is not participant execution.",
+      "output": "bun test v1.4.0 (34cbb9a40)\n\ntests/usage.test.ts:\n(pass) existing usage behavior > Claude inputs are disjoint; placeholder output is omitted [0.91ms]\n(pass) existing usage behavior > Codex rejects cumulative records and mismatched sessions [0.18ms]\n(pass) existing usage behavior > OpenCode retains ambiguous raw output without adding it [0.09ms]\n(pass) existing usage behavior > transcript scanner skips incomplete trailing lines and stays partial [0.58ms]\n\n 4 pass\n 0 fail\n 13 expect() calls\nRan 4 tests across 1 file. [16.00ms]\n"
+    },
+    {
+      "command": "rtk proxy bun test tests",
+      "workdir": "/tmp/aide-outcomes-v5-trials/t07/root",
+      "call_id": "call_uslqBXbzCSsL5olUQ7jAUn3G",
+      "content_index": 3,
+      "chunk_id": "01a974",
+      "exit_code": 0,
+      "tests_passed": 9,
+      "tests_failed": 0,
+      "tests_total": 9,
+      "test_files": 2,
+      "expect_calls": 35,
+      "suite_scope": "Four existing visible tests plus five participant-added scratch tests.",
+      "post_run_changes": "After this run, participant added an afterAll import and afterAll(() => exec.mockRestore()) to tests/usage-contract.test.ts. A subsequent Bun run passed the same 9 tests. No production-source edits followed this run.",
+      "validation_limit": "Bun runtime execution only. No original Vitest execution, semantic TypeScript type check, or standalone syntax-transpilation check observed. The controller mandatory grader (4 visible + 20 hidden) is separate and is not participant execution.",
+      "output": "bun test v1.4.0 (34cbb9a40)\n\ntests/usage-contract.test.ts:\n(pass) empty usage batches succeed without writing [0.13ms]\n(pass) writer validates acknowledgments and preserves subprocess options [0.32ms]\n(pass) write and serialization failures are best effort [3.24ms]\n(pass) recorder retries failures and scopes acknowledged snapshots [0.35ms]\n(pass) recorder evicts the oldest acknowledgment after 1024 entries [2.93ms]\n\ntests/usage.test.ts:\n(pass) existing usage behavior > Claude inputs are disjoint; placeholder output is omitted [0.24ms]\n(pass) existing usage behavior > Codex rejects cumulative records and mismatched sessions [0.11ms]\n(pass) existing usage behavior > OpenCode retains ambiguous raw output without adding it [0.07ms]\n(pass) existing usage behavior > transcript scanner skips incomplete trailing lines and stays partial [0.57ms]\n\n 9 pass\n 0 fail\n 35 expect() calls\nRan 9 tests across 2 files. [20.00ms]\n"
+    },
+    {
+      "command": "rtk proxy bun test tests",
+      "workdir": "/tmp/aide-outcomes-v5-trials/t07/root",
+      "call_id": "call_eQFuD9r72x08EBGSHCKfSCnB",
+      "content_index": 3,
+      "chunk_id": "e65221",
+      "exit_code": 0,
+      "tests_passed": 9,
+      "tests_failed": 0,
+      "tests_total": 9,
+      "test_files": 2,
+      "expect_calls": 35,
+      "suite_scope": "Four existing visible tests plus five participant-added scratch tests.",
+      "post_run_changes": "No subsequent edits observed. Final run covers all final captured production-source and scratch-test edits; the original Vitest consumer files were not executed.",
+      "validation_limit": "Bun runtime execution only. No original Vitest execution, semantic TypeScript type check, or standalone syntax-transpilation check observed. The controller mandatory grader (4 visible + 20 hidden) is separate and is not participant execution.",
+      "output": "bun test v1.4.0 (34cbb9a40)\n\ntests/usage-contract.test.ts:\n(pass) empty usage batches succeed without writing [0.12ms]\n(pass) writer validates acknowledgments and preserves subprocess options [0.25ms]\n(pass) write and serialization failures are best effort [2.25ms]\n(pass) recorder retries failures and scopes acknowledged snapshots [0.31ms]\n(pass) recorder evicts the oldest acknowledgment after 1024 entries [1.37ms]\n\ntests/usage.test.ts:\n(pass) existing usage behavior > Claude inputs are disjoint; placeholder output is omitted [0.21ms]\n(pass) existing usage behavior > Codex rejects cumulative records and mismatched sessions [0.10ms]\n(pass) existing usage behavior > OpenCode retains ambiguous raw output without adding it [0.06ms]\n(pass) existing usage behavior > transcript scanner skips incomplete trailing lines and stays partial [0.50ms]\n\n 9 pass\n 0 fail\n 35 expect() calls\nRan 9 tests across 2 files. [16.00ms]\n"
+    }
+  ],
+  "bridge_evidence": {
+    "actual_captured_requests": [
+      {
+        "name": "code_symbols",
+        "arguments": {
+          "file": "src/core/model-usage.ts"
+        }
+      },
+      {
+        "name": "code_read_symbol",
+        "arguments": {
+          "file": "src/core/model-usage.ts",
+          "symbols": [
+            "recordModelUsage",
+            "createOpenCodeUsageRecorder",
+            "openCodeUsageEvent"
+          ]
+        }
+      }
+    ],
+    "host_attempts_reconciled": 2,
+    "copied_call_records": 2,
+    "all_request_payloads_match": true,
+    "setup_binding_verified": true,
+    "identity_verified_calls": 2,
+    "valid_receipt_calls": 2,
+    "invalid_evidence": 0,
+    "all_call_source_inventories_match_seed": true,
+    "source_snapshot_basis": "All bridge calls precede edits. Full source inventories independently match frozen seed; source receipt hashes and bytes checked against matching full snapshots. code_symbols has a work receipt but no retrieval source receipt. Final candidate hashes are separately verified.",
+    "server_work_events_verified": true,
+    "receipt_checks": [
+      {
+        "evidence_file": "68e66abbc34e46af9b0ae48e9490c584.json",
+        "valid": true,
+        "errors": [],
+        "outcome": "success",
+        "tool": "code_read_symbol",
+        "timings_ms": {
+          "guard": 39.308109000558034,
+          "startup_initialize": 45.417877001455054,
+          "identity": 0.6154139991849661,
+          "request": 14.177057993947528,
+          "exit": 7.752022997010499,
+          "total": 107.32590100087691
+        },
+        "result_text_utf8_bytes": 3334,
+        "emitted_text_utf8_bytes": 3334,
+        "handler_elapsed_ms": 12,
+        "receipts": {
+          "work": {
+            "valid": true,
+            "id": "CJY3ERCNRRXQBGQ66JM7IQKIBD",
+            "text_sha256_matches": true,
+            "server_event_match_count": 1,
+            "server_event_valid": true,
+            "server_event_id": "01M23KVCDG49VNH5X2KYGQYWPY"
+          },
+          "retrieval": {
+            "valid": true,
+            "id": "WAUDFCW4Z6EOMBQIVC332AHPJZ",
+            "source_references": [
+              {
+                "file": "src/core/model-usage.ts",
+                "inside_root": true,
+                "sha256_matches_call_inventory": true,
+                "reference_bytes": 10720,
+                "byte_count_independently_verified": true
+              }
+            ],
+            "verification_boundary": "Source SHA256 checked against pre-call inventory; byte counts independently verified only when a controller-supplied full snapshot has the same SHA256."
+          },
+          "handler_elapsed_ms": 12,
+          "handler_duration_reason": "verified_server_work_elapsed_ms"
+        },
+        "id": "68e66abbc34e46af9b0ae48e9490c584",
+        "handler_requested": true,
+        "identity_verified": true,
+        "source_changed_since_seed": false
+      },
+      {
+        "evidence_file": "d965f5f5db1f48bc92e339eace7ae0b5.json",
+        "valid": true,
+        "errors": [],
+        "outcome": "success",
+        "tool": "code_symbols",
+        "timings_ms": {
+          "guard": 33.38367800461128,
+          "startup_initialize": 12.954071004060097,
+          "identity": 0.4885250091319904,
+          "request": 0.544153997907415,
+          "exit": 1.1032190086552873,
+          "total": 48.50338700634893
+        },
+        "result_text_utf8_bytes": 1894,
+        "emitted_text_utf8_bytes": 1894,
+        "handler_elapsed_ms": 0,
+        "receipts": {
+          "work": {
+            "valid": true,
+            "id": "AAXJS4VUJPC3EZKV3IZUINUETN",
+            "text_sha256_matches": true,
+            "server_event_match_count": 1,
+            "server_event_valid": true,
+            "server_event_id": "01M23KV4BQAPA379M855W6JE81"
+          },
+          "retrieval": null,
+          "handler_elapsed_ms": 0,
+          "handler_duration_reason": "verified_server_work_elapsed_ms"
+        },
+        "id": "d965f5f5db1f48bc92e339eace7ae0b5",
+        "handler_requested": true,
+        "identity_verified": true,
+        "source_changed_since_seed": false
+      }
+    ],
+    "bridge_metrics": {
+      "schema_version": 1,
+      "evidence_dir": "/mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/results/2026-09-09-outcomes-v5/bridge/t07",
+      "evidence_complete_for_host_attempts": true,
+      "setup": {
+        "valid": true,
+        "errors": [],
+        "binding": {
+          "schema_version": 1,
+          "id": "b1d78ed8bd7d4d66a6b645e6307a54e0",
+          "root": "/tmp/aide-outcomes-v5-trials/t07/root",
+          "binary": "/tmp/aide-retrieval-v4",
+          "binary_sha256": "38ad788faab22d2f0376b5b53488c69fdbc8eb5991dda054772da2369fd7a5f0",
+          "evidence_dir": "/tmp/aide-outcomes-v5-trials/t07/bridge-evidence",
+          "seed_files": {
+            "package.json": "80a95f20d5805c480b12d50519abb6fc877d09a3c8c64c11026eea5a1a2dda46",
+            "bunfig.toml": "01bf2bfb94729375142ae836682de22f72760bd5596e7f60110bb4c34e56d978",
+            "README.md": "072ee62412bae47d9d9810b0b0f24c2d49040d0bd106f10c3b1d163fde080eef",
+            "tests/usage.test.ts": "1f897bc24c62795e9f087b58f275a45c81db1c50f0601fdc0b24c3606eb08d01",
+            "harness/preload.ts": "a942e216e7c0080aa0d2c06d04b2f464bfd537293912eee2774bfab74c74721f",
+            "harness/README.md": "b41f4cde47e0d50a2b871f34b2d0a6d27a65912a1c65f2467add464196ba510e",
+            "src/core/comment-checker.ts": "cfac4f9372de775a087e2b06403fe113a36867075e5e97bdb01e4c3796d4b98f",
+            "src/core/memory-query.ts": "d6f86d692caa197668bbe840db603593d1fc7ec6b5a18b2e27cde72679f257a4",
+            "src/core/tool-enforcement.ts": "c6cb04fb0f103836efc3c94875d7136fe0a8a5bfc6ae1363dbc7af06917aaf58",
+            "src/core/model-usage.ts": "5f8ceb868f06aa5b6c2da0328469c0ee82f720715c492574eed8986c7f308309",
+            "src/core/mcp-sync.ts": "4d2ea8c604410dd399c977e150ffeb94ed503215431adc0ea95dda0e5875ab69",
+            "src/core/search-enrichment.ts": "5252ddbd1c8e8fae99cb104e1ffc0f2774f13efcb69a435821f14272ff495a5c",
+            "src/core/skill-matcher.ts": "2b061eb5742fe1be9aca82e860dc1ae0d1a42b1a996ebe6611ec9cbc290dba7a",
+            "src/core/write-guard.ts": "3c0aa5993af64132b94ec1e395fabcd40f2bd3747e96c02f00070770e5cbb9ea",
+            "src/core/todo-checker.ts": "d4ea6c0e8612e3d879022c7e086b01635be88e9a65d9173c3fe90244dfcb035a",
+            "src/core/session-init.ts": "166b2a6cd1544be578590fe24fff941a8ffda22a03243549908743b1c58d60c8",
+            "src/core/session-summary-logic.ts": "3956abf0875c871738707c778e4f8370ff352bd0172ad150179d245f8b54904a",
+            "src/core/tool-tracking.ts": "1ba749fb98d567405595c8ccd31ef29beac51a525aeb663240177b5637681681",
+            "src/core/tool-observe.ts": "43e67888aec861f553d107abfab34c67d4134018dec3eb689a33e910041be2e5",
+            "src/core/context-window.ts": "da7abafb26e09b1bdd64f947330403cd727ddac7ded1e6479322a1e68f67ed7a",
+            "src/core/context-guard.ts": "839f3c2b36472c52f10d8ce6c5f18836341454f6bdd0e74618f4694382a0130f",
+            "src/core/read-tracking.ts": "afecccb8e697d34b0486b12a5c46a300953633c7e89bcfc0f1e9eefae366d06c",
+            "src/core/aide-client.ts": "1f03f98beae735fc1ef4205ab2e5fcbd502e11835414453adc2e461dcbbaf743",
+            "src/core/types.ts": "87aec582ab17f899dfba76b5833247b8fecd433ccf11ba97330b4564fad72cad",
+            "src/core/pre-compact-logic.ts": "275379ed7bee936b7c3b055cb4109dad3552e5e52f48aaf7cb27802c8057585d",
+            "src/core/persistence-logic.ts": "b1d51a2a579c218bb9e95f200df007c7dd795a69d533c241337b9b8d35d20493",
+            "src/core/session-text.ts": "f5a881bca5e4c5d2d15340b49d0b335f90c608c3138d57dc75a56994abe742fe",
+            "src/core/partial-memory.ts": "936be74befec892b29fff7ea6a30fb9689acfb5083215d132f4813a0149a9135",
+            "src/core/work-receipt.ts": "15557e1320441d54f8c549a1e1d61f011d94b0ce4c70ccfb672b135bc6530738",
+            "src/core/retrieval-evidence.ts": "3c04ef3140d574a7e6311120174d7163283f105d79a4d8ed2adda6fd1b134b5f",
+            "src/core/context-pruning/purge.ts": "59d9a29df1c8a106ac431d1a409c86fc851747a77c481347b5729daec8d7e258",
+            "src/core/context-pruning/supersede.ts": "b247ee8456f808a841609a3791141d3d30c7333ba6f9c2586827f44aa91980ba",
+            "src/core/context-pruning/observation.ts": "be423c8ac3ee74c19943e5650a7eb6edbed3b8a5180efaee441c9d65d01781dc",
+            "src/core/context-pruning/tracker.ts": "390acc0b40fe0f5aaa9f781f4ff0237228d2200c263af6c46a4b1d02df991dc8",
+            "src/core/context-pruning/sessions.ts": "09d18cffbe7a4d70b914165f1466ae970640dc1267267c5908835a06164e76e9",
+            "src/core/context-pruning/types.ts": "599cf79a721e33adf96cf0c89333f302102de3b2b4adcef5ba0cda5c77ae1065",
+            "src/core/context-pruning/dedup.ts": "cbc15fb5bb44f99efd20c82280b8a7da2af757291bbe7e87fae1f13a570a15c9",
+            "src/core/context-pruning/recovery.ts": "993c586083a32d7216659c264e2446506555b525282e38b0f5d653b6d4de9428",
+            "src/lib/anchor.ts": "db7aac8d9e250882702b7d990414b3379b0b56eef5eb09caa7c40276343d9789",
+            "src/lib/hook-utils.ts": "f9be7f87164ac379c0321f7ff8dd2f82f2eee21e86e138b767f0c48a1084ef85",
+            "src/lib/project-root.ts": "0798e691dfd3213676c1043d068109857ebfadea9e79a14b74050a18db62c784",
+            "src/lib/logger.ts": "e651533681affa45e9608d3cce5e02c2bded512ad97b5574d55410d41d19afd1",
+            "src/test/model-usage-recording.test.ts": "3c1fa035f81b33226b10de306de5a673affbcf3f039b3944e5d902171713b841",
+            "src/test/model-usage.test.ts": "0c322db315442b36cd58a67b1d9addca1b974744f725b2c2c7681457524041eb",
+            "src/test/model-usage-hooks.test.ts": "8fa5351ca11e8ab58b9cfce3db18a38c4264ae414ad96fa03e16edf88d279637",
+            "src/opencode/hooks.ts": "1382a01aeceab636140619d2b4b889a0e5c13a4b686b0b4291850c9f5a14ed50",
+            "src/opencode/types.ts": "5895c295a2fb82ca270f52406e84f3ee2bcf8c75ca8aa231c8080cea5bc492d5",
+            "src/hooks/session-summary.ts": "859b5e96af497b2f933efd7ee0260d7449b35bed628848d07c0f946d65487d53",
+            "aide/cmd/aide/cmd_observe.go": "dfbb79e1f385d20783fc3ade783d9870fbb868b9c618bf9caf58cf57dcc051a5",
+            "aide/pkg/memory/token_model_usage.go": "536287aae876951c2b6304724cc804f19a5ec84f8ff5632efb74f8e7967c2443",
+            "aide/pkg/memory/token_accounting.go": "0123e658b4a51a064c6bb0dc5dc223da44f1ac7904f10a894c6c15c5301d822f",
+            "aide/pkg/store/token_model_usage.go": "c449bbd2e886f12e84fc25d5eb3977aa5e5ae61bffdea10d3b09300eea262faf",
+            "aide/pkg/store/token_events.go": "28629e5d7aa52cb17e5b4cb7a97d1194dc7f206a2be99ddbcb8a021ae740aeef",
+            "aide/pkg/store/observe_events.go": "c1fc06d8813b238643a8d2bf54474609e3d078701fcd24cf83ee8405b5f41d18",
+            "aide/pkg/observe/observe.go": "e4861debed7469ec430d2f934a9a7c2590b7c359a3110624796d89f458916c85"
+          },
+          "index_policy": "seeded; no automatic refresh after participant edits"
+        },
+        "index_elapsed_ms": 183.30103099287953,
+        "total_elapsed_ms": 214.1275120084174,
+        "expected_binding_verified": true,
+        "expected_binary_digest_verified": true
+      },
+      "attempts": 2,
+      "successful": 2,
+      "tool_errors": 0,
+      "bridge_errors": 0,
+      "rejected": 0,
+      "invalid_evidence": 0,
+      "timings_ms": {
+        "guard": {
+          "known_count": 2,
+          "unknown_count": 0,
+          "known_sum": 72.69178700516932,
+          "total": 72.69178700516932
+        },
+        "startup_initialize": {
+          "known_count": 2,
+          "unknown_count": 0,
+          "known_sum": 58.37194800551515,
+          "total": 58.37194800551515
+        },
+        "identity": {
+          "known_count": 2,
+          "unknown_count": 0,
+          "known_sum": 1.1039390083169565,
+          "total": 1.1039390083169565
+        },
+        "request": {
+          "known_count": 2,
+          "unknown_count": 0,
+          "known_sum": 14.721211991854943,
+          "total": 14.721211991854943
+        },
+        "exit": {
+          "known_count": 2,
+          "unknown_count": 0,
+          "known_sum": 8.855242005665787,
+          "total": 8.855242005665787
+        },
+        "total": {
+          "known_count": 2,
+          "unknown_count": 0,
+          "known_sum": 155.82928800722584,
+          "total": 155.82928800722584
+        }
+      },
+      "result_text_utf8_bytes": {
+        "known_count": 2,
+        "unknown_count": 0,
+        "known_sum": 5228,
+        "total": 5228
+      },
+      "emitted_text_utf8_bytes": {
+        "known_count": 2,
+        "unknown_count": 0,
+        "known_sum": 5228,
+        "total": 5228
+      },
+      "handler_duration_ms": {
+        "known_count": 2,
+        "unknown_count": 0,
+        "known_sum": 12,
+        "total": 12
+      },
+      "calls": [
+        {
+          "evidence_file": "68e66abbc34e46af9b0ae48e9490c584.json",
+          "valid": true,
+          "errors": [],
+          "outcome": "success",
+          "tool": "code_read_symbol",
+          "timings_ms": {
+            "guard": 39.308109000558034,
+            "startup_initialize": 45.417877001455054,
+            "identity": 0.6154139991849661,
+            "request": 14.177057993947528,
+            "exit": 7.752022997010499,
+            "total": 107.32590100087691
+          },
+          "result_text_utf8_bytes": 3334,
+          "emitted_text_utf8_bytes": 3334,
+          "handler_elapsed_ms": 12,
+          "receipts": {
+            "work": {
+              "valid": true,
+              "id": "CJY3ERCNRRXQBGQ66JM7IQKIBD",
+              "text_sha256_matches": true,
+              "server_event_match_count": 1,
+              "server_event_valid": true,
+              "server_event_id": "01M23KVCDG49VNH5X2KYGQYWPY"
+            },
+            "retrieval": {
+              "valid": true,
+              "id": "WAUDFCW4Z6EOMBQIVC332AHPJZ",
+              "source_references": [
+                {
+                  "file": "src/core/model-usage.ts",
+                  "inside_root": true,
+                  "sha256_matches_call_inventory": true,
+                  "reference_bytes": 10720,
+                  "byte_count_independently_verified": true
+                }
+              ],
+              "verification_boundary": "Source SHA256 checked against pre-call inventory; byte counts independently verified only when a controller-supplied full snapshot has the same SHA256."
+            },
+            "handler_elapsed_ms": 12,
+            "handler_duration_reason": "verified_server_work_elapsed_ms"
+          },
+          "id": "68e66abbc34e46af9b0ae48e9490c584",
+          "handler_requested": true,
+          "identity_verified": true,
+          "source_changed_since_seed": false
+        },
+        {
+          "evidence_file": "d965f5f5db1f48bc92e339eace7ae0b5.json",
+          "valid": true,
+          "errors": [],
+          "outcome": "success",
+          "tool": "code_symbols",
+          "timings_ms": {
+            "guard": 33.38367800461128,
+            "startup_initialize": 12.954071004060097,
+            "identity": 0.4885250091319904,
+            "request": 0.544153997907415,
+            "exit": 1.1032190086552873,
+            "total": 48.50338700634893
+          },
+          "result_text_utf8_bytes": 1894,
+          "emitted_text_utf8_bytes": 1894,
+          "handler_elapsed_ms": 0,
+          "receipts": {
+            "work": {
+              "valid": true,
+              "id": "AAXJS4VUJPC3EZKV3IZUINUETN",
+              "text_sha256_matches": true,
+              "server_event_match_count": 1,
+              "server_event_valid": true,
+              "server_event_id": "01M23KV4BQAPA379M855W6JE81"
+            },
+            "retrieval": null,
+            "handler_elapsed_ms": 0,
+            "handler_duration_reason": "verified_server_work_elapsed_ms"
+          },
+          "id": "d965f5f5db1f48bc92e339eace7ae0b5",
+          "handler_requested": true,
+          "identity_verified": true,
+          "source_changed_since_seed": false
+        }
+      ],
+      "limitations": [
+        "Bridge process timings include orchestration; request roundtrip is not handler compute or CPU time.",
+        "Setup indexing and controller observe export costs are separate from participant bridge calls.",
+        "Emitted bytes follow the bridge's successful return path; host delivery/truncation and omitted attempts require trace review.",
+        "Setup stores a binary digest; call records bind to setup but do not contain an independently repeated binary digest.",
+        "Source receipt SHA256 is checked against pre-call inventory. Full-file bytes are independently verified only for supplied snapshots matching that exact hash; other versions remain unknown.",
+        "Static seed search/references can be stale after edits; source_changed_since_seed is recorded without assuming result freshness."
+      ]
+    }
+  },
+  "notes": [
+    "No observed protocol deviations.",
+    "Answer/source correctness is outside this audit.",
+    "Participant validation records exclude controller grading. All final edits precede the last captured Bun test run; no original Vitest, semantic typecheck or standalone transpilation execution observed.",
+    "Intended launch bytes verified; actual delivered plaintext equality remains unknown.",
+    "No savings, billing, byte-to-token or causal treatment claim."
+  ]
+}

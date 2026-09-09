@@ -1,0 +1,92 @@
+[
+  {
+    "id": "01M23KPXJXNEQD36XZ64E464YZ",
+    "ts": "2026-09-09T18:33:36.221691706+01:00",
+    "kind": "tool_call",
+    "name": "code_read_symbol",
+    "category": "consume",
+    "subtype": "symbol",
+    "dur_ms": 46,
+    "tokens": 1111,
+    "attrs": {
+      "accounting_version": "1",
+      "observation_stage": "server_result",
+      "payload_bytes": "3334",
+      "reference_kind": "full_file",
+      "retrieval_id": "V4MDFOSAHUJ3MMPTDGDQT4ADN3",
+      "source_references": "[{\"file\":\"src/core/model-usage.ts\",\"sha256\":\"5f8ceb868f06aa5b6c2da0328469c0ee82f720715c492574eed8986c7f308309\",\"bytes\":10720}]",
+      "symbols": "3/3",
+      "token_estimator": "utf8-bytes/3-v1",
+      "work_elapsed_ms": "46",
+      "work_id": "GQLZMFKZVLD52D5IAPU7ISRHE6",
+      "work_outcome": "returned",
+      "work_text_sha256": "b6b96bc07278716f7bc2fd3d585c17efbe2b6c13f83b33a1633675d4449f858e",
+      "work_version": "1"
+    }
+  },
+  {
+    "id": "01M23KPXJW580EPMBMMQN7723Y",
+    "ts": "2026-09-09T18:33:36.220624657+01:00",
+    "kind": "tool_call",
+    "name": "instance_info",
+    "category": "navigate",
+    "subtype": "instance",
+    "tokens": 243,
+    "attrs": {
+      "accounting_version": "1",
+      "observation_stage": "server_result",
+      "payload_bytes": "728",
+      "token_estimator": "utf8-bytes/3-v1",
+      "work_elapsed_ms": "0",
+      "work_id": "36MZTCYUPUA2OKGFLIN54HL5C5",
+      "work_outcome": "returned",
+      "work_text_sha256": "694ec407cf2872083077e701474c08a323a63c68de8244aaeca012a4c38a58a1",
+      "work_version": "1"
+    }
+  },
+  {
+    "id": "01M23KPQ4JDWW234YK65RPKWD0",
+    "ts": "2026-09-09T18:33:29.618370683+01:00",
+    "kind": "tool_call",
+    "name": "code_outline",
+    "category": "consume",
+    "subtype": "outline",
+    "dur_ms": 6,
+    "tokens": 823,
+    "file": "src/core/model-usage.ts",
+    "attrs": {
+      "accounting_version": "1",
+      "observation_stage": "server_result",
+      "payload_bytes": "2470",
+      "reference_kind": "full_file",
+      "retrieval_id": "YYYNRB53DT5UNN3AUV66K57PSX",
+      "source_references": "[{\"file\":\"src/core/model-usage.ts\",\"sha256\":\"5f8ceb868f06aa5b6c2da0328469c0ee82f720715c492574eed8986c7f308309\",\"bytes\":10720}]",
+      "token_estimator": "utf8-bytes/3-v1",
+      "work_elapsed_ms": "6",
+      "work_id": "7A65FVRSIOXDLVVZZHNAEQ4JNV",
+      "work_outcome": "returned",
+      "work_text_sha256": "f4aa8560c63928744e38e59648cd1190e2e6f6e6de1d2ca51e0359e451adfe44",
+      "work_version": "1"
+    }
+  },
+  {
+    "id": "01M23KPQ4JDWW234YK62KW9WGR",
+    "ts": "2026-09-09T18:33:29.618108626+01:00",
+    "kind": "tool_call",
+    "name": "instance_info",
+    "category": "navigate",
+    "subtype": "instance",
+    "tokens": 243,
+    "attrs": {
+      "accounting_version": "1",
+      "observation_stage": "server_result",
+      "payload_bytes": "728",
+      "token_estimator": "utf8-bytes/3-v1",
+      "work_elapsed_ms": "0",
+      "work_id": "WC2FFUZ7Y55QF3LXU2QGBHAM26",
+      "work_outcome": "returned",
+      "work_text_sha256": "16de45d857b6e04548c6f84892362a2ea10b83102377ee1dc2c45806fa5e0b03",
+      "work_version": "1"
+    }
+  }
+]

@@ -1,0 +1,56 @@
+{
+  "reviewer": "/root/v5_quality",
+  "label": "R1",
+  "task": "impact",
+  "checks": [
+    {
+      "id": "affected_callers",
+      "passed": true,
+      "evidence": "Section1 gives all requested production edges with old and migrated shapes: Stop named writer call, dynamically captured default/injected writer inside returned closure and OpenCode message.part.updated recordUsage call. It explains omission failures and separates unchanged createHooks/createEventHandler/event interfaces, no-argument factory creation and module main entry. Supported by src/core/model-usage.ts:350-365, src/hooks/session-summary.ts:108-157, src/opencode/hooks.ts:154,432-465.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "result_and_cache_contract",
+      "passed": true,
+      "evidence": "Section2 explicitly explains truthiness caching failure and acknowledgment-status gating; preserves empty acknowledged0/no-spawn, full recorded count, invalid-ack/write-error variants, void recorder, failure retry, acknowledged dedup, counters/cwd forwarding and oldest1024 eviction. Section3 identifies malformed/empty, mismatched and nonzero skipped acknowledgment rejection. Stop current ignored result, exact suffix and retained scan fields/gates are correct against model-usage.ts:319-365 and session-summary.ts:125-145.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "nonconsumers_and_wire",
+      "passed": true,
+      "evidence": "Section2 correctly identifies normalizers/collector/shared type, independent generic writers, sibling text handler and Go CLI/store/accounting as nonconsumers. Preserves CLI command, newline-terminated event JSONL, cwd,10-second timeout,piped stdio, case-insensitive anchored acknowledgment grammar, exception logging and no fallback. Relationships match src/core/model-usage.ts, read-tracking.ts:197-239,283-325, hooks.ts:738 and cited Go files.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "existing_tests",
+      "passed": true,
+      "evidence": "Section3 accurately identifies positional calls and boolean result expectations in recording test; positional injected boolean callback and four recorder calls in retry test; named export replacement/actual-factory injection and positional expectations in host tests. Preserves unchanged converter/collector/source-time tests and distinguishes real OpenCode/message.updated and both Stop-host coverage from absent logging/default-writer/cwd/eviction/empty-input/throw/wire coverage. No test execution claimed; verified against three original model-usage test files.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "meaningful_validation",
+      "passed": true,
+      "evidence": "Proposed checks include exact empty/no-spawn/results/reasons, multi-event newline JSONL and command/options/grammar/logging/no-fallback compatibility, both failure retries, dedup/counters/cwd/void, actual oldest1025-entry eviction and failure nonoccupation, real host/default/injected wiring, and exact Stop debug strings for both statuses retaining scan fields and guard placement.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "bounded_evidence",
+      "passed": true,
+      "evidence": "Answer explicitly limits completeness to supplied snapshot and follows dynamic captured writer and returned recorder edges. It lists external exported/injected consumers, host registration, runtime executable and opaque NewBackend/Store binding as unresolved. No invented affected caller or unsupported whole-repository/RPC certainty found.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    }
+  ],
+  "summary": "6/6 frozen impact checks pass. Source-supported inventory and exclusions, requested behavior/test migration and meaningful validation plan, with explicit dynamic/process evidence boundaries."
+}

@@ -1,0 +1,642 @@
+{
+  "trial": "t02",
+  "experiment_version": 5,
+  "reviewer": "v4_trace_audit",
+  "review_type": "protocol_and_tool_trace_only",
+  "trace_reviewed": true,
+  "scope_verified": true,
+  "protocol_violations": [],
+  "protocol_violation_details": [],
+  "aide_operations": 4,
+  "aide_uptake": true,
+  "aide_operation_details": {
+    "code_search": 0,
+    "code_references": 0,
+    "code_symbols": 1,
+    "code_outline": 1,
+    "code_read_symbol": 2,
+    "bridge_calls": 4,
+    "native_global_calls": 0,
+    "direct_aide_cli_calls": 0,
+    "controller_prepare_calls_by_participant": 0,
+    "bridge_internal_identity_checks": 4
+  },
+  "counts": {
+    "outer_tool_calls": 7,
+    "nested_tool_calls": 25,
+    "bootstrap": 1,
+    "discovery": 1,
+    "source_edit_test": 23,
+    "source": 23,
+    "edit": 0,
+    "test_execution": 0,
+    "advisory_source_edit_test_target": 40,
+    "advisory_target_exceeded": false,
+    "basis": "Each nested tools.exec_command invocation counts once. Multiple shell commands or pipeline stages within one submitted cmd string remain one execution-tool invocation. Source test reads are retrieval, not test execution.",
+    "discovery_definition": "Initial root layout, if present, plus first source-file inventory; later focused inventories and all content reads/searches count as source."
+  },
+  "retrieval_output_bytes": 110737,
+  "byte_evidence": {
+    "methodology": "Inspect every actual nested command input without execution, decode all complete trace_bodies results, and validate one-to-one command/output boundaries. Sum len(output.encode(\"utf-8\")), excluding wrappers/JSON serialization and separating bootstrap/discovery. Each compound pipeline is counted once at its returned stdout boundary.",
+    "attributable_source_lower_bound_bytes": 110737,
+    "attributable_bootstrap_bytes": 482,
+    "attributable_discovery_bytes": 1419,
+    "attributable_all_categories_lower_bound_bytes": 112638,
+    "included_boundaries": [
+      {
+        "call_id": "call_uNxdusMv5u1N67gjD50Lbqlc",
+        "content_index": 1,
+        "chunk_id": "722238",
+        "utf8_bytes": 482,
+        "category": "bootstrap"
+      },
+      {
+        "call_id": "call_uNxdusMv5u1N67gjD50Lbqlc",
+        "content_index": 2,
+        "chunk_id": "f9d282",
+        "utf8_bytes": 1419,
+        "category": "discovery"
+      },
+      {
+        "call_id": "call_3QPqKPnMIyAW0VL6JMLl7Tif",
+        "content_index": 1,
+        "chunk_id": "8f84b6",
+        "utf8_bytes": 3887,
+        "category": "source"
+      },
+      {
+        "call_id": "call_3QPqKPnMIyAW0VL6JMLl7Tif",
+        "content_index": 2,
+        "chunk_id": "a1abec",
+        "utf8_bytes": 388,
+        "category": "source"
+      },
+      {
+        "call_id": "call_fGQ7Bu0ORShaY01p0fHOuzeX",
+        "content_index": 1,
+        "chunk_id": "530a57",
+        "utf8_bytes": 3356,
+        "category": "source"
+      },
+      {
+        "call_id": "call_fGQ7Bu0ORShaY01p0fHOuzeX",
+        "content_index": 2,
+        "chunk_id": "9a7737",
+        "utf8_bytes": 13261,
+        "category": "source"
+      },
+      {
+        "call_id": "call_fGQ7Bu0ORShaY01p0fHOuzeX",
+        "content_index": 3,
+        "chunk_id": "f2784d",
+        "utf8_bytes": 5942,
+        "category": "source"
+      },
+      {
+        "call_id": "call_HLY562BYkOH4JrjMzU0xM0hy",
+        "content_index": 1,
+        "chunk_id": "530145",
+        "utf8_bytes": 7326,
+        "category": "source"
+      },
+      {
+        "call_id": "call_HLY562BYkOH4JrjMzU0xM0hy",
+        "content_index": 2,
+        "chunk_id": "f579b1",
+        "utf8_bytes": 9725,
+        "category": "source"
+      },
+      {
+        "call_id": "call_HLY562BYkOH4JrjMzU0xM0hy",
+        "content_index": 3,
+        "chunk_id": "d3b4e3",
+        "utf8_bytes": 9200,
+        "category": "source"
+      },
+      {
+        "call_id": "call_RgvpzyBxSHMlvj2f0S2wQu6x",
+        "content_index": 1,
+        "chunk_id": "780115",
+        "utf8_bytes": 3796,
+        "category": "source"
+      },
+      {
+        "call_id": "call_RgvpzyBxSHMlvj2f0S2wQu6x",
+        "content_index": 2,
+        "chunk_id": "fab111",
+        "utf8_bytes": 1524,
+        "category": "source"
+      },
+      {
+        "call_id": "call_RgvpzyBxSHMlvj2f0S2wQu6x",
+        "content_index": 3,
+        "chunk_id": "d4736d",
+        "utf8_bytes": 2079,
+        "category": "source"
+      },
+      {
+        "call_id": "call_RgvpzyBxSHMlvj2f0S2wQu6x",
+        "content_index": 4,
+        "chunk_id": "141bb8",
+        "utf8_bytes": 8606,
+        "category": "source"
+      },
+      {
+        "call_id": "call_RgvpzyBxSHMlvj2f0S2wQu6x",
+        "content_index": 5,
+        "chunk_id": "b290c7",
+        "utf8_bytes": 4999,
+        "category": "source"
+      },
+      {
+        "call_id": "call_RgvpzyBxSHMlvj2f0S2wQu6x",
+        "content_index": 6,
+        "chunk_id": "ca6a96",
+        "utf8_bytes": 1582,
+        "category": "source"
+      },
+      {
+        "call_id": "call_mrls6N1bp9cFJc3SBlwRmDq2",
+        "content_index": 1,
+        "chunk_id": "7ab797",
+        "utf8_bytes": 4402,
+        "category": "source"
+      },
+      {
+        "call_id": "call_mrls6N1bp9cFJc3SBlwRmDq2",
+        "content_index": 2,
+        "chunk_id": "597ba0",
+        "utf8_bytes": 6062,
+        "category": "source"
+      },
+      {
+        "call_id": "call_mrls6N1bp9cFJc3SBlwRmDq2",
+        "content_index": 3,
+        "chunk_id": "e89fec",
+        "utf8_bytes": 4355,
+        "category": "source"
+      },
+      {
+        "call_id": "call_mrls6N1bp9cFJc3SBlwRmDq2",
+        "content_index": 4,
+        "chunk_id": "126e8b",
+        "utf8_bytes": 2708,
+        "category": "source"
+      },
+      {
+        "call_id": "call_zVVZIdoFIJVRr44glxg5FTEa",
+        "content_index": 1,
+        "chunk_id": "b3b22c",
+        "utf8_bytes": 3784,
+        "category": "source"
+      },
+      {
+        "call_id": "call_zVVZIdoFIJVRr44glxg5FTEa",
+        "content_index": 2,
+        "chunk_id": "b0fbaf",
+        "utf8_bytes": 973,
+        "category": "source"
+      },
+      {
+        "call_id": "call_zVVZIdoFIJVRr44glxg5FTEa",
+        "content_index": 3,
+        "chunk_id": "280477",
+        "utf8_bytes": 8164,
+        "category": "source"
+      },
+      {
+        "call_id": "call_zVVZIdoFIJVRr44glxg5FTEa",
+        "content_index": 4,
+        "chunk_id": "d601ff",
+        "utf8_bytes": 2806,
+        "category": "source"
+      },
+      {
+        "call_id": "call_zVVZIdoFIJVRr44glxg5FTEa",
+        "content_index": 5,
+        "chunk_id": "faf550",
+        "utf8_bytes": 1812,
+        "category": "source"
+      }
+    ],
+    "excluded_outer_calls": [],
+    "limits": "Exact source/retrieval returned-text sum is attributable; no byte-to-token estimate."
+  },
+  "tool_failures": [],
+  "tool_failure_evidence": "All 25 nested command results have exit_code zero; no missing or truncated result bodies observed.",
+  "scope_evidence": {
+    "outside_root_reads": [
+      {
+        "path": "/home/johnm/.codex/RTK.md",
+        "basis": "Mandatory host bootstrap instruction explicitly permitted."
+      }
+    ],
+    "all_workdirs": "Bootstrap RTK.md read omits workdir and uses its authorized absolute path; all later commands explicitly use /tmp/aide-outcomes-v5-trials/t02/root.",
+    "source_access": "All source inventories/searches/counts/reads stay inside supplied fixture; broad hidden inventory excludes .aide. Four bridge commands use supplied executable/root/binary/evidence flags with allowed names/shapes; symbol batches have three names each. Pipelines start rtk as required by explicit v5 rule. No bridge implementation/binary/evidence reads, native/global aide, controller-state access, source edits, test execution or reindex observed.",
+    "controller_state": "No .aide traversal/read/alteration or participant prepare/reindex observed.",
+    "boundary": "Observed tool inputs, controller launch bytes and immutable-source evidence; not unobservable host internals or decrypted task plaintext."
+  },
+  "integrity_evidence": {
+    "grade_file": "t02-grade.json",
+    "integrity_passed": true,
+    "candidate_unchanged": true,
+    "patch_bytes": 0,
+    "seed_files_checked": 50,
+    "seed_hash_mismatches": [],
+    "initial_seed_final_inventories_match": true,
+    "raw_capture_inputs_match": true,
+    "raw_log_sha256_verified": "5ec9847da8d256fc05b4e189a5d15a8f19aeaed31b7f7cff8a042330b25480c7",
+    "candidate_snapshot_verified": true
+  },
+  "launcher_evidence": {
+    "file": "t02-launch.json",
+    "prelaunch_file": "t02-prelaunch.json",
+    "archived_message_file": "t02-launch-message.txt",
+    "fork_turns": "none",
+    "model_override": null,
+    "effort_override": null,
+    "agent_path": "/root/v5_execution/v5_t02",
+    "prepared_prompt_sha256_verified": "0c0a44017226aba4b9976d8b82517dfbbe0f28a5c705391e5ff17685cecb9849",
+    "prepared_archived_prelaunch_launch_regenerated_bytes_equal": true,
+    "prepared_prompt_utf8_bytes": 7670,
+    "seed_binding_root_verified": true,
+    "seed_binary_hash_matches_protocol": true,
+    "prelaunch_prior_cells_completed": true,
+    "prelaunch_no_previous_bridge_calls": true,
+    "actual_launcher_message_verified": null,
+    "actual_launcher_text_comparison": "Host NEW_TASK message body is encrypted_content; intended archived/controller/prepared bytes match exactly, but actual delivered plaintext cannot be independently compared.",
+    "host_task_records": [
+      {
+        "ordinal": 9,
+        "timestamp": "2026-09-09T17:24:28.312Z",
+        "author": "/root/v5_execution",
+        "recipient": "/root/v5_execution/v5_t02",
+        "content_types": [
+          "input_text",
+          "encrypted_content"
+        ]
+      }
+    ],
+    "observed_first_tool": "rtk proxy cat /home/johnm/.codex/RTK.md",
+    "first_tool_prefix_compliant": true
+  },
+  "runtime": {
+    "actor_id": "01a08733-1317-7ad1-ba61-5424c9935f73",
+    "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+    "agent_path": "/root/v5_execution/v5_t02",
+    "cli_version": "0.153.4",
+    "model_provider": "openai",
+    "model": "gpt-6-astra",
+    "effort": "high"
+  },
+  "input_review": [
+    {
+      "call_id": "call_uNxdusMv5u1N67gjD50Lbqlc",
+      "nested_calls": 2,
+      "commands_reviewed": [
+        "rtk proxy cat /home/johnm/.codex/RTK.md",
+        "rtk proxy rg --files --hidden --no-ignore --glob '!.aide/**'"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": true
+    },
+    {
+      "call_id": "call_3QPqKPnMIyAW0VL6JMLl7Tif",
+      "nested_calls": 2,
+      "commands_reviewed": [
+        "rtk proxy rg -n 'recordModelUsage|model.usage|message.updated|step-finish|stop_hook_active|scan.*Usage|transcript' src/opencode/hooks.ts src/core/model-usage.ts src/hooks/session-summary.ts src/core/session-summary-logic.ts aide/cmd/aide/cmd_observe.go aide/pkg/{observe/observe.go,store/token_model_usage.go,memory/token_model_usage.go}",
+        "rtk proxy wc -l src/core/model-usage.ts src/opencode/hooks.ts src/hooks/session-summary.ts aide/pkg/store/token_model_usage.go aide/pkg/memory/token_model_usage.go aide/pkg/memory/token_accounting.go aide/cmd/aide/cmd_observe.go aide/pkg/observe/observe.go aide/pkg/store/observe_events.go aide/pkg/store/token_events.go"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": true
+    },
+    {
+      "call_id": "call_fGQ7Bu0ORShaY01p0fHOuzeX",
+      "nested_calls": 3,
+      "commands_reviewed": [
+        "rtk proxy python3 /mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/outcomes-v3/bridge.py call --root /tmp/aide-outcomes-v5-trials/t02/root --binary /tmp/aide-retrieval-v4 --evidence-dir /tmp/aide-outcomes-v5-trials/t02/bridge-evidence --tool-json '{\"name\":\"code_symbols\",\"arguments\":{\"file\":\"src/opencode/hooks.ts\"}}'",
+        "rtk proxy nl -ba src/core/model-usage.ts",
+        "rtk proxy nl -ba src/hooks/session-summary.ts"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": true
+    },
+    {
+      "call_id": "call_HLY562BYkOH4JrjMzU0xM0hy",
+      "nested_calls": 3,
+      "commands_reviewed": [
+        "rtk proxy python3 /mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/outcomes-v3/bridge.py call --root /tmp/aide-outcomes-v5-trials/t02/root --binary /tmp/aide-retrieval-v4 --evidence-dir /tmp/aide-outcomes-v5-trials/t02/bridge-evidence --tool-json '{\"name\":\"code_read_symbol\",\"arguments\":{\"file\":\"src/opencode/hooks.ts\",\"symbols\":[\"createHooks\",\"createEventHandler\",\"handleMessagePartUpdated\"]}}'",
+        "rtk proxy rg -n 'detectPlatform|func |modelUsage|ModelUsage|RecordBatch|Recorded |batch|Backend|backend|RPC' src/lib/hook-utils.ts aide/cmd/aide/cmd_observe.go aide/pkg/observe/observe.go aide/pkg/store/{observe_events.go,token_events.go,token_model_usage.go} aide/pkg/memory/{token_accounting.go,token_model_usage.go}",
+        "rtk proxy nl -ba aide/pkg/store/token_model_usage.go"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": true
+    },
+    {
+      "call_id": "call_RgvpzyBxSHMlvj2f0S2wQu6x",
+      "nested_calls": 6,
+      "commands_reviewed": [
+        "rtk proxy sed -n '145,207p;432,471p;738,754p' src/opencode/hooks.ts",
+        "rtk proxy sed -n '120,170p' src/lib/hook-utils.ts",
+        "rtk proxy python3 /mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/outcomes-v3/bridge.py call --root /tmp/aide-outcomes-v5-trials/t02/root --binary /tmp/aide-retrieval-v4 --evidence-dir /tmp/aide-outcomes-v5-trials/t02/bridge-evidence --tool-json '{\"name\":\"code_outline\",\"arguments\":{\"file\":\"aide/cmd/aide/cmd_observe.go\"}}'",
+        "rtk proxy nl -ba aide/pkg/store/token_events.go",
+        "rtk proxy nl -ba aide/pkg/memory/token_accounting.go",
+        "rtk proxy nl -ba aide/pkg/memory/token_model_usage.go"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": true
+    },
+    {
+      "call_id": "call_mrls6N1bp9cFJc3SBlwRmDq2",
+      "nested_calls": 4,
+      "commands_reviewed": [
+        "rtk proxy python3 /mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/outcomes-v3/bridge.py call --root /tmp/aide-outcomes-v5-trials/t02/root --binary /tmp/aide-retrieval-v4 --evidence-dir /tmp/aide-outcomes-v5-trials/t02/bridge-evidence --tool-json '{\"name\":\"code_read_symbol\",\"arguments\":{\"file\":\"aide/cmd/aide/cmd_observe.go\",\"symbols\":[\"cmdObserveDispatcher\",\"cmdObserveRecord\",\"cmdObserveRecordBatch\"]}}'",
+        "rtk proxy nl -ba aide/pkg/store/observe_events.go | sed -n '75,230p'",
+        "rtk proxy nl -ba src/lib/hook-utils.ts | sed -n '40,151p'",
+        "rtk proxy rg -n 'test\\(|it\\(|describe\\(|acknow|1024|retry|stop_hook|message.updated|malformed|limited|timestamp' src/test/model-usage*.test.ts"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": true
+    },
+    {
+      "call_id": "call_zVVZIdoFIJVRr44glxg5FTEa",
+      "nested_calls": 5,
+      "commands_reviewed": [
+        "rtk proxy nl -ba aide/cmd/aide/cmd_observe.go | sed -n '18,26p;219,297p'",
+        "rtk proxy nl -ba src/test/model-usage-recording.test.ts",
+        "rtk proxy nl -ba src/test/model-usage.test.ts",
+        "rtk proxy nl -ba src/test/model-usage-hooks.test.ts | sed -n '60,135p'",
+        "rtk proxy nl -ba src/opencode/hooks.ts | sed -n '351,403p'"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": true
+    }
+  ],
+  "notes": [
+    "No observed protocol deviation; intended full-prompt launch bytes and observed prefixed first tool verified independently.",
+    "Answer quality is outside this review.",
+    "Four actual bridge requests reconcile one-to-one with four copied records; root/database/socket identities and server work receipts validate. Three available retrieval receipts validate full-source hashes/bytes; code_symbols has no retrieval receipt and is not assigned one.",
+    "All 50 source hashes and captured final inventory match initial seed.",
+    "Twenty-three source/edit/test calls are below advisory target.",
+    "No savings, billing, token-estimation or causal treatment claim is made."
+  ],
+  "bridge_evidence": [
+    {
+      "file": "bridge/t02/2284091bb7e74334868f012e0d4c3f52.json",
+      "request": {
+        "name": "code_symbols",
+        "arguments": {
+          "file": "src/opencode/hooks.ts"
+        }
+      },
+      "binding_id": "2675ada02c334d8ca16e382c19609cb6",
+      "identity": {
+        "project_root": "/tmp/aide-outcomes-v5-trials/t02/root",
+        "real_project_root": "/tmp/aide-outcomes-v5-trials/t02/root",
+        "cwd": "/tmp/aide-outcomes-v5-trials/t02/root",
+        "version": {
+          "version": "0.1.18-dev.32+58816d9",
+          "commit": "58816d991ef7172304f3eef594844d79e995a5e1",
+          "commit_sha": "58816d99",
+          "date": "2026-09-09T15:52:00Z",
+          "go_version": "go1.27.0-X:nodwarf5",
+          "platform": "linux/amd64",
+          "os": "linux",
+          "arch": "amd64"
+        },
+        "db_path": "/tmp/aide-outcomes-v5-trials/t02/root/.aide/memory/memory.db",
+        "socket_path": "/tmp/aide-outcomes-v5-trials/t02/root/.aide/aide.sock",
+        "authority": "daemon",
+        "pid": 16,
+        "ppid": 13,
+        "started_at": "2026-09-09T18:24:44.700664789+01:00"
+      },
+      "returncode": 0,
+      "error": null,
+      "source_changed_since_seed": false,
+      "receipt_review": {
+        "valid": true,
+        "errors": [],
+        "identity_verified": true,
+        "receipts": {
+          "work": {
+            "valid": true,
+            "id": "H5PUE7KOKZJBUGQ5DQM3XZUMM7",
+            "text_sha256_matches": true,
+            "server_event_match_count": 1,
+            "server_event_valid": true,
+            "server_event_id": "01M23K6PH5D3X48F7DV86GAWDW"
+          },
+          "retrieval": null,
+          "handler_elapsed_ms": 0,
+          "handler_duration_reason": "verified_server_work_elapsed_ms"
+        }
+      }
+    },
+    {
+      "file": "bridge/t02/3d45cba82d614be4930c6bd77ce42314.json",
+      "request": {
+        "name": "code_outline",
+        "arguments": {
+          "file": "aide/cmd/aide/cmd_observe.go"
+        }
+      },
+      "binding_id": "2675ada02c334d8ca16e382c19609cb6",
+      "identity": {
+        "project_root": "/tmp/aide-outcomes-v5-trials/t02/root",
+        "real_project_root": "/tmp/aide-outcomes-v5-trials/t02/root",
+        "cwd": "/tmp/aide-outcomes-v5-trials/t02/root",
+        "version": {
+          "version": "0.1.18-dev.32+58816d9",
+          "commit": "58816d991ef7172304f3eef594844d79e995a5e1",
+          "commit_sha": "58816d99",
+          "date": "2026-09-09T15:52:00Z",
+          "go_version": "go1.27.0-X:nodwarf5",
+          "platform": "linux/amd64",
+          "os": "linux",
+          "arch": "amd64"
+        },
+        "db_path": "/tmp/aide-outcomes-v5-trials/t02/root/.aide/memory/memory.db",
+        "socket_path": "/tmp/aide-outcomes-v5-trials/t02/root/.aide/aide.sock",
+        "authority": "daemon",
+        "pid": 16,
+        "ppid": 13,
+        "started_at": "2026-09-09T18:25:03.369368178+01:00"
+      },
+      "returncode": 0,
+      "error": null,
+      "source_changed_since_seed": false,
+      "receipt_review": {
+        "valid": true,
+        "errors": [],
+        "identity_verified": true,
+        "receipts": {
+          "work": {
+            "valid": true,
+            "id": "IOLM5WXL2PSZ6FMSI44OEGPBLI",
+            "text_sha256_matches": true,
+            "server_event_match_count": 1,
+            "server_event_valid": true,
+            "server_event_id": "01M23K78RHBVYC8ZPTFT9B19E7"
+          },
+          "retrieval": {
+            "valid": true,
+            "id": "I5P6APFFFSBOMNVBOLSVOEJ2E6",
+            "source_references": [
+              {
+                "file": "aide/cmd/aide/cmd_observe.go",
+                "inside_root": true,
+                "sha256_matches_call_inventory": true,
+                "reference_bytes": 14395,
+                "byte_count_independently_verified": true
+              }
+            ],
+            "verification_boundary": "Source SHA256 checked against pre-call inventory; byte counts independently verified only when a controller-supplied full snapshot has the same SHA256."
+          },
+          "handler_elapsed_ms": 3,
+          "handler_duration_reason": "verified_server_work_elapsed_ms"
+        }
+      }
+    },
+    {
+      "file": "bridge/t02/485218e3eb2c4ab0a04d8153e65edf15.json",
+      "request": {
+        "name": "code_read_symbol",
+        "arguments": {
+          "file": "aide/cmd/aide/cmd_observe.go",
+          "symbols": [
+            "cmdObserveDispatcher",
+            "cmdObserveRecord",
+            "cmdObserveRecordBatch"
+          ]
+        }
+      },
+      "binding_id": "2675ada02c334d8ca16e382c19609cb6",
+      "identity": {
+        "project_root": "/tmp/aide-outcomes-v5-trials/t02/root",
+        "real_project_root": "/tmp/aide-outcomes-v5-trials/t02/root",
+        "cwd": "/tmp/aide-outcomes-v5-trials/t02/root",
+        "version": {
+          "version": "0.1.18-dev.32+58816d9",
+          "commit": "58816d991ef7172304f3eef594844d79e995a5e1",
+          "commit_sha": "58816d99",
+          "date": "2026-09-09T15:52:00Z",
+          "go_version": "go1.27.0-X:nodwarf5",
+          "platform": "linux/amd64",
+          "os": "linux",
+          "arch": "amd64"
+        },
+        "db_path": "/tmp/aide-outcomes-v5-trials/t02/root/.aide/memory/memory.db",
+        "socket_path": "/tmp/aide-outcomes-v5-trials/t02/root/.aide/aide.sock",
+        "authority": "daemon",
+        "pid": 16,
+        "ppid": 13,
+        "started_at": "2026-09-09T18:25:11.949968318+01:00"
+      },
+      "returncode": 0,
+      "error": null,
+      "source_changed_since_seed": false,
+      "receipt_review": {
+        "valid": true,
+        "errors": [],
+        "identity_verified": true,
+        "receipts": {
+          "work": {
+            "valid": true,
+            "id": "HUGLIXJQO4P4XIO5DDE55L2CST",
+            "text_sha256_matches": true,
+            "server_event_match_count": 1,
+            "server_event_valid": true,
+            "server_event_id": "01M23K7H4PX58C9S4YVWZ3W7YA"
+          },
+          "retrieval": {
+            "valid": true,
+            "id": "GDQ6B373PL75ZWGUPZFZQXHIYB",
+            "source_references": [
+              {
+                "file": "aide/cmd/aide/cmd_observe.go",
+                "inside_root": true,
+                "sha256_matches_call_inventory": true,
+                "reference_bytes": 14395,
+                "byte_count_independently_verified": true
+              }
+            ],
+            "verification_boundary": "Source SHA256 checked against pre-call inventory; byte counts independently verified only when a controller-supplied full snapshot has the same SHA256."
+          },
+          "handler_elapsed_ms": 4,
+          "handler_duration_reason": "verified_server_work_elapsed_ms"
+        }
+      }
+    },
+    {
+      "file": "bridge/t02/f56a3ab8b58949adb12e4a8a0c88818c.json",
+      "request": {
+        "name": "code_read_symbol",
+        "arguments": {
+          "file": "src/opencode/hooks.ts",
+          "symbols": [
+            "createHooks",
+            "createEventHandler",
+            "handleMessagePartUpdated"
+          ]
+        }
+      },
+      "binding_id": "2675ada02c334d8ca16e382c19609cb6",
+      "identity": {
+        "project_root": "/tmp/aide-outcomes-v5-trials/t02/root",
+        "real_project_root": "/tmp/aide-outcomes-v5-trials/t02/root",
+        "cwd": "/tmp/aide-outcomes-v5-trials/t02/root",
+        "version": {
+          "version": "0.1.18-dev.32+58816d9",
+          "commit": "58816d991ef7172304f3eef594844d79e995a5e1",
+          "commit_sha": "58816d99",
+          "date": "2026-09-09T15:52:00Z",
+          "go_version": "go1.27.0-X:nodwarf5",
+          "platform": "linux/amd64",
+          "os": "linux",
+          "arch": "amd64"
+        },
+        "db_path": "/tmp/aide-outcomes-v5-trials/t02/root/.aide/memory/memory.db",
+        "socket_path": "/tmp/aide-outcomes-v5-trials/t02/root/.aide/aide.sock",
+        "authority": "daemon",
+        "pid": 16,
+        "ppid": 13,
+        "started_at": "2026-09-09T18:24:52.594060943+01:00"
+      },
+      "returncode": 0,
+      "error": null,
+      "source_changed_since_seed": false,
+      "receipt_review": {
+        "valid": true,
+        "errors": [],
+        "identity_verified": true,
+        "receipts": {
+          "work": {
+            "valid": true,
+            "id": "JKH2P4WQH7SC2REVNYYHHN6B4X",
+            "text_sha256_matches": true,
+            "server_event_match_count": 1,
+            "server_event_valid": true,
+            "server_event_id": "01M23K6Y7TE5PXQKHR5DV4D1GB"
+          },
+          "retrieval": {
+            "valid": true,
+            "id": "GPOUDN37DFNRAIYOYRAS73HE6G",
+            "source_references": [
+              {
+                "file": "src/opencode/hooks.ts",
+                "inside_root": true,
+                "sha256_matches_call_inventory": true,
+                "reference_bytes": 49563,
+                "byte_count_independently_verified": true
+              }
+            ],
+            "verification_boundary": "Source SHA256 checked against pre-call inventory; byte counts independently verified only when a controller-supplied full snapshot has the same SHA256."
+          },
+          "handler_elapsed_ms": 10,
+          "handler_duration_reason": "verified_server_work_elapsed_ms"
+        }
+      }
+    }
+  ]
+}

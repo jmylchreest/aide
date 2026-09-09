@@ -1,0 +1,22 @@
+[aide-mcp] 18:33:29 aide MCP server starting
+[aide-mcp] 18:33:29 version: aide version 0.1.18-dev.32+58816d9 (commit: 58816d99, built: 2026-09-09T15:52:00Z, go1.27.0-X:nodwarf5, linux/amd64)
+[aide-mcp] 18:33:29 database: /tmp/aide-outcomes-v5-trials/t06/root/.aide/memory/memory.db
+[aide-mcp] 18:33:29 database opened in 334.667µs (bolt + bleve search)
+[aide-mcp] 18:33:29 gRPC socket: /tmp/aide-outcomes-v5-trials/t06/root/.aide/aide.sock
+[aide-mcp] 18:33:29 cleanup loop disabled (cleanup.enabled=false)
+[aide-mcp] 18:33:29 code index opened in 241.827µs: /tmp/aide-outcomes-v5-trials/t06/root/.aide/memory/code/index.db
+2026/09/09 18:33:29 store: applying migration v1: baseline findings schema stamp
+[aide-mcp] 18:33:29 findings store opened in 787.912µs: /tmp/aide-outcomes-v5-trials/t06/root/.aide/memory/findings
+2026/09/09 18:33:29 store: applying migration v1: baseline survey schema stamp
+[aide-mcp] 18:33:29 survey store opened in 492.746µs: /tmp/aide-outcomes-v5-trials/t06/root/.aide/memory/survey
+[aide-mcp] 18:33:29 warning: failed to register instance: cannot determine home directory: $HOME is not defined
+[aide-mcp] 18:33:29 primary mode: holding the store, serving gRPC
+[aide-mcp] 18:33:29 MCP server ready in 1.99763ms, listening on stdio
+[aide-mcp] 18:33:29 gRPC server error: failed to listen on socket /tmp/aide-outcomes-v5-trials/t06/root/.aide/aide.sock: listen unix /tmp/aide-outcomes-v5-trials/t06/root/.aide/aide.sock: setsockopt: operation not permitted (other sessions cannot share this store until a daemon binds; check permissions and stale files)
+[aide-mcp] 18:33:29 code tools: registered (store may initialize lazily)
+[aide-mcp] 18:33:29 findings tools: registered
+[aide-mcp] 18:33:29 survey tools: registered
+[aide-mcp] 18:33:29 instinct tools: registered (read-only)
+[aide-mcp] 18:33:29 tool: instance_info
+[aide-mcp] 18:33:29   project_root=/tmp/aide-outcomes-v5-trials/t06/root authority=daemon
+[aide-mcp] 18:33:29 tool: code_outline file=src/core/model-usage.ts keep_comments=false

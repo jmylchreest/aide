@@ -1,0 +1,19 @@
+[
+  {
+    "command": "rtk proxy bun test tests",
+    "workdir": "<workspace>",
+    "call_id": "call_4GXLdMjmn32tQ0QwRf7E2u8l",
+    "content_index": 2,
+    "chunk_id": "43c560",
+    "exit_code": 0,
+    "tests_passed": 10,
+    "tests_failed": 0,
+    "tests_total": 10,
+    "test_files": 2,
+    "expect_calls": 37,
+    "suite_scope": "Four existing visible tests plus six participant-added scratch tests.",
+    "post_run_changes": "One subsequent inline Python edit formats src/core/model-usage.ts and the three migrated original Vitest consumer files. No runtime test follows these edits.",
+    "validation_limit": "One runtime test invocation observed. No original Vitest execution, semantic TypeScript type check or syntax-transpilation check observed.",
+    "output": "bun test v1.4.0 (34cbb9a40)\n\ntests/usage-request.test.ts:\n(pass) usage request contract > empty batches skip execution [0.13ms]\n(pass) usage request contract > exact acknowledgments preserve syntax and binary options [0.24ms]\n(pass) usage request contract > missing, malformed, incomplete and skipped acknowledgments fail explicitly [0.05ms]\n(pass) usage request contract > execution and serialization exceptions return write-error without retries [4.22ms]\n(pass) usage request contract > recorder retries failures, filters invalid parts and scopes accepted revisions [0.35ms]\n(pass) usage request contract > recorder evicts the oldest fingerprint after 1024 entries [1.41ms]\n\ntests/usage.test.ts:\n(pass) existing usage behavior > Claude inputs are disjoint; placeholder output is omitted [0.21ms]\n(pass) existing usage behavior > Codex rejects cumulative records and mismatched sessions [0.09ms]\n(pass) existing usage behavior > OpenCode retains ambiguous raw output without adding it [0.06ms]\n(pass) existing usage behavior > transcript scanner skips incomplete trailing lines and stays partial [0.52ms]\n\n 10 pass\n 0 fail\n 37 expect() calls\nRan 10 tests across 2 files. [23.00ms]\n"
+  }
+]

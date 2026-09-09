@@ -1,0 +1,261 @@
+{
+  "trial": "t01",
+  "experiment_version": 5,
+  "reviewer": "v4_trace_audit",
+  "review_type": "protocol_and_tool_trace_only",
+  "trace_reviewed": true,
+  "scope_verified": true,
+  "protocol_violations": [],
+  "protocol_violation_details": [],
+  "aide_operations": 0,
+  "aide_uptake": false,
+  "aide_operation_details": {
+    "code_search": 0,
+    "code_references": 0,
+    "code_symbols": 0,
+    "code_outline": 0,
+    "code_read_symbol": 0,
+    "bridge_calls": 0,
+    "native_global_calls": 0,
+    "direct_aide_cli_calls": 0,
+    "controller_prepare_calls_by_participant": 0
+  },
+  "counts": {
+    "outer_tool_calls": 6,
+    "nested_tool_calls": 12,
+    "bootstrap": 1,
+    "discovery": 1,
+    "source_edit_test": 10,
+    "source": 10,
+    "edit": 0,
+    "test_execution": 0,
+    "advisory_source_edit_test_target": 40,
+    "advisory_target_exceeded": false,
+    "basis": "Each nested tools.exec_command invocation counts once. Multiple shell commands or pipeline stages within one submitted cmd string remain one execution-tool invocation. Source test reads are retrieval, not test execution.",
+    "discovery_definition": "Initial root layout, if present, plus first source-file inventory; later focused inventories and all content reads/searches count as source."
+  },
+  "retrieval_output_bytes": null,
+  "byte_evidence": {
+    "methodology": "Inspect every actual captured input without executing it; decode trace_bodies results, inspect truncation, and sum len(output.encode(\"utf-8\")) only for complete attributable bodies outside any truncated outer response. Exclude wrappers and JSON serialization. Compound command output is measured once per returned boundary. Bootstrap and discovery are separate.",
+    "attributable_source_lower_bound_bytes": 96263,
+    "attributable_bootstrap_bytes": 482,
+    "attributable_discovery_bytes": 1419,
+    "attributable_all_categories_lower_bound_bytes": 98164,
+    "included_boundaries": [
+      {
+        "call_id": "call_B6iIOLVYkwJ4NmNiJqMNJYV7",
+        "content_index": 1,
+        "chunk_id": "32f9b9",
+        "utf8_bytes": 482,
+        "category": "bootstrap"
+      },
+      {
+        "call_id": "call_B6iIOLVYkwJ4NmNiJqMNJYV7",
+        "content_index": 2,
+        "chunk_id": "59da54",
+        "utf8_bytes": 1419,
+        "category": "discovery"
+      },
+      {
+        "call_id": "call_K88x6iLXsA1nQ2hUzflfG0xQ",
+        "content_index": 1,
+        "chunk_id": "5ddfee",
+        "utf8_bytes": 5912,
+        "category": "source"
+      },
+      {
+        "call_id": "call_K88x6iLXsA1nQ2hUzflfG0xQ",
+        "content_index": 2,
+        "chunk_id": "ff68b3",
+        "utf8_bytes": 10720,
+        "category": "source"
+      },
+      {
+        "call_id": "call_iIDVWN5ePr9AJ3a3TAgbmibN",
+        "content_index": 1,
+        "chunk_id": "d71c8b",
+        "utf8_bytes": 9546,
+        "category": "source"
+      },
+      {
+        "call_id": "call_iIDVWN5ePr9AJ3a3TAgbmibN",
+        "content_index": 2,
+        "chunk_id": "fd42cc",
+        "utf8_bytes": 21335,
+        "category": "source"
+      },
+      {
+        "call_id": "call_hID8DapmfkVvTAg7w4pwMOVB",
+        "content_index": 1,
+        "chunk_id": "ea361e",
+        "utf8_bytes": 14218,
+        "category": "source"
+      },
+      {
+        "call_id": "call_hID8DapmfkVvTAg7w4pwMOVB",
+        "content_index": 2,
+        "chunk_id": "b09823",
+        "utf8_bytes": 11980,
+        "category": "source"
+      },
+      {
+        "call_id": "call_IHillSegddVd2CSHej6aJfS9",
+        "content_index": 1,
+        "chunk_id": "abd50f",
+        "utf8_bytes": 15698,
+        "category": "source"
+      },
+      {
+        "call_id": "call_IHillSegddVd2CSHej6aJfS9",
+        "content_index": 2,
+        "chunk_id": "30a46e",
+        "utf8_bytes": 6854,
+        "category": "source"
+      }
+    ],
+    "excluded_outer_calls": [
+      {
+        "call_id": "call_wSH9abKQvYklTi7kLfjH4KxV",
+        "nested_calls": 2,
+        "reason": "Outer response reports 10539 original tokens, with 539 tokens truncated inside the second command payload. Conservatively exclude both command outputs in this outer response, including the intact-looking first payload, from the lower bound."
+      }
+    ],
+    "limits": "Complete retrieval bytes remain null; the bound intentionally omits recoverable fragments and unknown text. No byte-to-token estimate."
+  },
+  "tool_failures": [],
+  "tool_failure_evidence": "All twelve surviving decoded command result headers show exit_code zero, including both commands in the truncated outer response. Truncation affects output completeness, not the captured exit status fields.",
+  "scope_evidence": {
+    "outside_root_reads": [
+      {
+        "path": "/home/johnm/.codex/RTK.md",
+        "basis": "Mandatory host bootstrap instruction explicitly permitted."
+      }
+    ],
+    "all_workdirs": "Bootstrap read omits workdir and reads only the authorized absolute RTK.md path; every source command explicitly uses /tmp/aide-outcomes-v5-trials/t01/root.",
+    "source_access": "All source inventories, searches and reads stay within supplied root; broad hidden inventory excludes .aide. Compound commands and pipeline stages only read listed fixture source. No prompt-pointer read, native/global aide, bridge, outside-source/controller-state read, source edit, test execution or reindex observed.",
+    "controller_state": "No .aide traversal/read/alteration or participant prepare/reindex observed.",
+    "boundary": "Observed tool inputs, controller launch bytes and immutable-source evidence; not unobservable host internals or decrypted task plaintext."
+  },
+  "integrity_evidence": {
+    "grade_file": "t01-grade.json",
+    "integrity_passed": true,
+    "candidate_unchanged": true,
+    "patch_bytes": 0,
+    "seed_files_checked": 50,
+    "seed_hash_mismatches": [],
+    "initial_seed_final_inventories_match": true,
+    "raw_capture_inputs_match": true,
+    "raw_log_sha256_verified": "5923bf8e715c283a47ae2e364ba48dc939eb943d8e3715b92e045f8cc5159b17",
+    "candidate_snapshot_verified": true
+  },
+  "launcher_evidence": {
+    "file": "t01-launch.json",
+    "prelaunch_file": "t01-prelaunch.json",
+    "archived_message_file": "t01-launch-message.txt",
+    "fork_turns": "none",
+    "model_override": null,
+    "effort_override": null,
+    "agent_path": "/root/v5_execution/v5_t01",
+    "prepared_prompt_sha256_verified": "98715cf5e2c202cbf6282ad3d4694b5c3e451998a0a6c9b926c54516e584d9c8",
+    "prepared_archived_prelaunch_launch_regenerated_bytes_equal": true,
+    "prepared_prompt_utf8_bytes": 5561,
+    "seed_binding_root_verified": true,
+    "seed_binary_hash_matches_protocol": true,
+    "prelaunch_prior_cells_completed": true,
+    "prelaunch_no_previous_bridge_calls": true,
+    "actual_launcher_message_verified": null,
+    "actual_launcher_text_comparison": "Host NEW_TASK message body is encrypted_content; intended archived/controller/prepared bytes match exactly, but actual delivered plaintext cannot be independently compared.",
+    "host_task_records": [
+      {
+        "ordinal": 9,
+        "timestamp": "2026-09-09T17:22:23.857Z",
+        "author": "/root/v5_execution",
+        "recipient": "/root/v5_execution/v5_t01",
+        "content_types": [
+          "input_text",
+          "encrypted_content"
+        ]
+      }
+    ],
+    "observed_first_tool": "rtk proxy cat /home/johnm/.codex/RTK.md",
+    "first_tool_prefix_compliant": true
+  },
+  "runtime": {
+    "actor_id": "01a08731-2f46-7532-84be-d6c58ed60e63",
+    "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+    "agent_path": "/root/v5_execution/v5_t01",
+    "cli_version": "0.153.4",
+    "model_provider": "openai",
+    "model": "gpt-6-astra",
+    "effort": "high"
+  },
+  "input_review": [
+    {
+      "call_id": "call_B6iIOLVYkwJ4NmNiJqMNJYV7",
+      "nested_calls": 2,
+      "commands_reviewed": [
+        "rtk proxy cat /home/johnm/.codex/RTK.md",
+        "rtk proxy rg --files --hidden --no-ignore --glob '!.aide/**'"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": true
+    },
+    {
+      "call_id": "call_K88x6iLXsA1nQ2hUzflfG0xQ",
+      "nested_calls": 2,
+      "commands_reviewed": [
+        "rtk proxy rg -n 'recordModelUsage|usage|step-finish|message.updated|Stop|stop_hook_active|transcript' src/core/model-usage.ts src/opencode/hooks.ts src/hooks/session-summary.ts src/core/session-summary-logic.ts src/lib/hook-utils.ts src/core/aide-client.ts",
+        "rtk proxy cat src/core/model-usage.ts"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": true
+    },
+    {
+      "call_id": "call_wSH9abKQvYklTi7kLfjH4KxV",
+      "nested_calls": 2,
+      "commands_reviewed": [
+        "rtk proxy rg -n 'createOpenCode|recordUsage|UsageRecorder|message.part.updated|message.updated|handle.*Part|event:|event\\(' src/opencode/hooks.ts src/opencode/types.ts; rtk proxy nl -ba src/hooks/session-summary.ts | tail -85; rtk proxy cat src/lib/hook-utils.ts",
+        "rtk proxy cat aide/cmd/aide/cmd_observe.go aide/pkg/store/token_model_usage.go aide/pkg/memory/token_model_usage.go"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": true
+    },
+    {
+      "call_id": "call_iIDVWN5ePr9AJ3a3TAgbmibN",
+      "nested_calls": 2,
+      "commands_reviewed": [
+        "rtk proxy nl -ba src/opencode/hooks.ts | sed -n '130,210p;425,495p;730,810p'",
+        "rtk proxy rg -n 'usageOrigin|AddObserveEvent|modelUsage|modelUsage\\.|KindToolCall|Token|origin' aide/pkg/store/observe_events.go aide/pkg/store/token_events.go aide/pkg/memory/token_accounting.go aide/pkg/observe/observe.go; rtk proxy nl -ba aide/pkg/store/observe_events.go | head -225"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": true
+    },
+    {
+      "call_id": "call_hID8DapmfkVvTAg7w4pwMOVB",
+      "nested_calls": 2,
+      "commands_reviewed": [
+        "rtk proxy nl -ba aide/pkg/store/token_events.go | sed -n '64,200p'; rtk proxy nl -ba aide/pkg/store/token_model_usage.go",
+        "rtk proxy cat src/test/model-usage-hooks.test.ts src/test/model-usage-recording.test.ts src/test/model-usage.test.ts"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": true
+    },
+    {
+      "call_id": "call_IHillSegddVd2CSHej6aJfS9",
+      "nested_calls": 2,
+      "commands_reviewed": [
+        "rtk proxy nl -ba src/core/model-usage.ts | sed -n '1,370p'; rtk proxy rg -n 'function initializeAide|skipInit|state.binary =' src/opencode/hooks.ts; rtk proxy rg -n 'func cmdObserveDispatcher|type observeBatchLine|func cmdObserveRecordBatch|func cmdObserveRecord\\(|func NewBackend|func.*Store\\(' aide/cmd/aide/cmd_observe.go; rtk proxy rg -n 'function readStdin|function detectPlatform|function findAideBinary' src/lib/hook-utils.ts; rtk proxy nl -ba aide/pkg/memory/token_model_usage.go",
+        "rtk proxy nl -ba src/opencode/hooks.ts | sed -n '315,395p'; rtk proxy nl -ba aide/cmd/aide/cmd_observe.go | sed -n '210,292p'; rtk proxy cat README.md"
+      ],
+      "scope_compliant": true,
+      "rtk_prefix_compliant": true
+    }
+  ],
+  "notes": [
+    "No observed protocol deviation; full-prompt intended launch evidence and first prefixed tool are separately verified.",
+    "Answer quality is outside this review.",
+    "Zero aide calls and empty copied bridge-attempt inventory reconcile; null zero-use observe export is normal.",
+    "Ten source/edit/test calls are below advisory target.",
+    "No savings, billing, token-estimation or causal treatment claim is made."
+  ]
+}

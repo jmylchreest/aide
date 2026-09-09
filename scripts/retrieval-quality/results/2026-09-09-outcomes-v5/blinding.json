@@ -1,0 +1,18 @@
+{
+  "mapping": {
+    "t01": "Q7",
+    "t02": "M2",
+    "t03": "V9",
+    "t04": "C4",
+    "t05": "T6",
+    "t06": "H3",
+    "t07": "N8",
+    "t08": "A5",
+    "t09": "R1",
+    "t10": "K9",
+    "t11": "W4",
+    "t12": "D8"
+  },
+  "review_root": "/tmp/aide-v5-blind-review",
+  "method": "Permuted opaque labels; no condition, usage, bridge or raw retrieval trace supplied. Absolute candidate source prefixes normalized. Answer prose otherwise unchanged; intrinsic mentions may limit blinding."
+}

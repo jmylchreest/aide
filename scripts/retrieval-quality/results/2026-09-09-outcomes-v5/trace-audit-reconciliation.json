@@ -1,0 +1,2411 @@
+{
+  "schema_version": 1,
+  "experiment_version": 5,
+  "reviewer": "v5_trace_audit",
+  "review_type": "quality-independent final trace and evidence reconciliation",
+  "all_twelve_reviews_complete": true,
+  "scope_verified": true,
+  "trace_reviewed": true,
+  "protocol_violations": [],
+  "blockers": [],
+  "all_existing_reviews_preserved": true,
+  "reconciliation_checks": {
+    "frozen_package_verified": true,
+    "all_executed_cardinalities_match_reviews": true,
+    "all_raw_input_and_result_archives_verified": true,
+    "all_source_inventories_and_preserved_changes_verified": true,
+    "all_intended_complete_launch_bytes_and_hashes_verified": true,
+    "distinct_runtime_actors": 12,
+    "distinct_fixture_seed_bindings": 12,
+    "all_bridge_attempts_requests_host_outputs_identities_and_receipts_reconciled": true,
+    "all_included_byte_boundaries_recounted": true,
+    "all_actual_runtime_dimensions_match": true
+  },
+  "counts": {
+    "outer_tool_calls": 80,
+    "nested_tool_calls": 243,
+    "bootstrap": 12,
+    "discovery": 13,
+    "source_edit_test": 218,
+    "source": 197,
+    "edit": 13,
+    "test_execution": 8
+  },
+  "aide_operations": {
+    "code_symbols": 5,
+    "code_read_symbol": 9,
+    "code_outline": 4,
+    "code_references": 1
+  },
+  "aide_operation_total": 19,
+  "aide_uptake": {
+    "assisted_rows_using_scoped_bridge": 6,
+    "assisted_rows_total": 6,
+    "ordinary_rows_using_aide": 0,
+    "native_global_calls": 0,
+    "direct_aide_cli_calls": 0,
+    "participant_prepare_calls": 0
+  },
+  "bridge_totals": {
+    "attempts": 19,
+    "successful": 19,
+    "tool_errors": 0,
+    "bridge_errors": 0,
+    "rejected": 0,
+    "invalid_evidence": 0
+  },
+  "retrieval_output_bytes": null,
+  "byte_evidence": {
+    "complete_total_unknown_rows": [
+      "t01",
+      "t03",
+      "t11",
+      "t12"
+    ],
+    "conservative_all_rows_source_lower_bound_bytes": 985274,
+    "sum_of_complete_rows_source_bytes": 645361,
+    "complete_rows_count": 8,
+    "model_delivered_total_context_bytes": null,
+    "boundary": "Source-text payload bytes are not runtime input tokens. Truncated outer responses are conservatively omitted in full; no recovered fragments or file-size estimator replaces unknown observed output. No pooled resource delta is calculated."
+  },
+  "hook_metrics": {
+    "participant_installed_hook_duration_ms": null,
+    "early_review_schema_missing_hook_metrics": [
+      "t01",
+      "t02",
+      "t03",
+      "t04",
+      "t05",
+      "t06"
+    ],
+    "boundary": "t01..t06 are retained unchanged; normalized per-row hook/export boundaries are provided here. Scoped server work is verified separately; installed hooks are unchanged but their standalone duration is not observed."
+  },
+  "unknowns": [
+    "Actual delivered launch plaintext equality remains unknown for all twelve encrypted host task records; complete controller archive equality is verified.",
+    "Complete captured source-output bytes are unknown in t01, t03, t11 and t12 because of outer truncation or splicing.",
+    "t03, t11 and t12 each lose one command exit status to outer truncation/splicing; no failure is inferred and zero observed failures does not certify missing statuses.",
+    "Installed hook standalone runtime and model-delivered total context bytes are not separately observed.",
+    "Participant semantic typechecking, original Vitest execution and standalone transpilation are absent in implementation traces; controller mandatory 4-visible + 20-hidden grading is not participant execution.",
+    "t06 has formatting edits after its sole participant Bun runtime run, with no subsequent validation; the exact later-edit boundary is preserved in that review and this reconciliation."
+  ],
+  "notes": [
+    "This reconciliation does not grade answer or implementation correctness.",
+    "The 40 source/edit/test target remains advisory; all rows are below it.",
+    "All 12 rows remain included; no replacements or participant reruns were performed by this auditor.",
+    "Bridge identity checks are internal bridge work, not additional participant aide uptake calls.",
+    "Bridge local timings, handler work, controller export, runtime tokens and source payload bytes remain distinct; no billing, token savings or causal claim is made."
+  ],
+  "rows": [
+    {
+      "trial": "t01",
+      "task": "trace",
+      "treatment": "ordinary",
+      "repetition": 1,
+      "review_file": "t01-trace-review.json",
+      "review_sha256": "9dc028235c0129c894a1678b185dd2805a00f8e1b6cfb99b716f55b4299bdcc3",
+      "reviewer": "v4_trace_audit",
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "protocol_violations": [],
+      "counts": {
+        "outer_tool_calls": 6,
+        "nested_tool_calls": 12,
+        "bootstrap": 1,
+        "discovery": 1,
+        "source_edit_test": 10,
+        "source": 10,
+        "edit": 0,
+        "test_execution": 0,
+        "advisory_source_edit_test_target": 40,
+        "advisory_target_exceeded": false,
+        "basis": "Each nested tools.exec_command invocation counts once. Multiple shell commands or pipeline stages within one submitted cmd string remain one execution-tool invocation. Source test reads are retrieval, not test execution.",
+        "discovery_definition": "Initial root layout, if present, plus first source-file inventory; later focused inventories and all content reads/searches count as source."
+      },
+      "executed_cardinality_matches_review": true,
+      "all_submitted_shell_strings_rtk_prefixed": true,
+      "raw_log_sha256_verified": "5923bf8e715c283a47ae2e364ba48dc939eb943d8e3715b92e045f8cc5159b17",
+      "raw_inputs_and_results_equal_archives": true,
+      "actual_runtime": {
+        "actor_id": "01a08731-2f46-7532-84be-d6c58ed60e63",
+        "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+        "agent_path": "/root/v5_execution/v5_t01",
+        "cli_version": "0.153.4",
+        "model_provider": "openai",
+        "model": "gpt-6-astra",
+        "effort": "high"
+      },
+      "launcher": {
+        "intended_complete_message_utf8_bytes": 5561,
+        "sha256_verified": "98715cf5e2c202cbf6282ad3d4694b5c3e451998a0a6c9b926c54516e584d9c8",
+        "prepared_archived_prelaunch_launch_regenerated_equal": true,
+        "actual_delivered_plaintext_equal": null,
+        "boundary": "Host task message is encrypted_content; intended controller byte equality is not delivered plaintext proof."
+      },
+      "source_integrity": {
+        "seed_file_count": 50,
+        "final_file_count": 50,
+        "baseline_seed_and_binding_match": true,
+        "final_capture_and_current_match": true,
+        "seed_inventory_sha256": "34fa556a8169f8ba9503c3f0d4ff344d34af697eb154c0d33c4a104d46ed1134",
+        "final_inventory_sha256": "34fa556a8169f8ba9503c3f0d4ff344d34af697eb154c0d33c4a104d46ed1134",
+        "inventory_hash_encoding": "SHA256 of sorted-key compact JSON UTF-8",
+        "complete_hash_evidence": "t01-prelaunch.json initial_source_inventory; t01-provenance.json candidate_snapshot.inventory_sha256",
+        "changed_allowed_sources": [],
+        "scratch_tests": [],
+        "all_preserved_changes_match_final_hashes": true
+      },
+      "aide_operations": 0,
+      "aide_uptake": false,
+      "bridge": {
+        "attempts": 0,
+        "copied_call_records": 0,
+        "all_requests_and_host_output_payloads_match": true,
+        "all_call_inventories_equal_frozen_seed": true,
+        "setup_binding_valid": true,
+        "identity_verified_calls": 0,
+        "valid_work_receipt_calls": 0,
+        "retrieval_receipt_calls": 0,
+        "all_receipt_source_hashes_and_full_file_bytes_verified": true,
+        "all_work_receipts_match_server_events": true,
+        "invalid_evidence": 0,
+        "outcomes": {
+          "successful": 0,
+          "tool_errors": 0,
+          "bridge_errors": 0,
+          "rejected": 0
+        },
+        "calls": []
+      },
+      "bytes": {
+        "complete_captured_source_output_bytes": null,
+        "conservative_source_lower_bound_bytes": 96263,
+        "all_category_lower_bound_bytes": 98164,
+        "included_boundaries_recount_matches_review": true,
+        "excluded_outer_calls": [
+          {
+            "call_id": "call_wSH9abKQvYklTi7kLfjH4KxV",
+            "nested_calls": 2,
+            "reason": "Outer response reports 10539 original tokens, with 539 tokens truncated inside the second command payload. Conservatively exclude both command outputs in this outer response, including the intact-looking first payload, from the lower bound."
+          }
+        ],
+        "runtime_token_estimates_used": false,
+        "model_delivered_total_context_bytes": null
+      },
+      "hook_metrics": {
+        "review_had_hook_metrics_field": false,
+        "participant_installed_hook_duration_ms": null,
+        "observe_export_valid": true,
+        "observe_export_elapsed_ms": 7.150256002205424,
+        "observe_event_count": 0,
+        "zero_use_null_export_valid": true,
+        "boundary": "Controller export and verified retrieval handler receipts are separate from unobserved installed-hook elapsed time. Byte-derived server token fields are not observed runtime usage."
+      },
+      "tool_result_unknowns": [],
+      "execution_verification_file": null,
+      "tool_failures": [],
+      "tool_failure_evidence": "All twelve surviving decoded command result headers show exit_code zero, including both commands in the truncated outer response. Truncation affects output completeness, not the captured exit status fields."
+    },
+    {
+      "trial": "t02",
+      "task": "trace",
+      "treatment": "assisted",
+      "repetition": 1,
+      "review_file": "t02-trace-review.json",
+      "review_sha256": "bc096cd4c50dfe3ea099982958af7a3ea21a54cc6a799e8b7e696a8adab4e6fa",
+      "reviewer": "v4_trace_audit",
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "protocol_violations": [],
+      "counts": {
+        "outer_tool_calls": 7,
+        "nested_tool_calls": 25,
+        "bootstrap": 1,
+        "discovery": 1,
+        "source_edit_test": 23,
+        "source": 23,
+        "edit": 0,
+        "test_execution": 0,
+        "advisory_source_edit_test_target": 40,
+        "advisory_target_exceeded": false,
+        "basis": "Each nested tools.exec_command invocation counts once. Multiple shell commands or pipeline stages within one submitted cmd string remain one execution-tool invocation. Source test reads are retrieval, not test execution.",
+        "discovery_definition": "Initial root layout, if present, plus first source-file inventory; later focused inventories and all content reads/searches count as source."
+      },
+      "executed_cardinality_matches_review": true,
+      "all_submitted_shell_strings_rtk_prefixed": true,
+      "raw_log_sha256_verified": "5ec9847da8d256fc05b4e189a5d15a8f19aeaed31b7f7cff8a042330b25480c7",
+      "raw_inputs_and_results_equal_archives": true,
+      "actual_runtime": {
+        "actor_id": "01a08733-1317-7ad1-ba61-5424c9935f73",
+        "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+        "agent_path": "/root/v5_execution/v5_t02",
+        "cli_version": "0.153.4",
+        "model_provider": "openai",
+        "model": "gpt-6-astra",
+        "effort": "high"
+      },
+      "launcher": {
+        "intended_complete_message_utf8_bytes": 7670,
+        "sha256_verified": "0c0a44017226aba4b9976d8b82517dfbbe0f28a5c705391e5ff17685cecb9849",
+        "prepared_archived_prelaunch_launch_regenerated_equal": true,
+        "actual_delivered_plaintext_equal": null,
+        "boundary": "Host task message is encrypted_content; intended controller byte equality is not delivered plaintext proof."
+      },
+      "source_integrity": {
+        "seed_file_count": 50,
+        "final_file_count": 50,
+        "baseline_seed_and_binding_match": true,
+        "final_capture_and_current_match": true,
+        "seed_inventory_sha256": "34fa556a8169f8ba9503c3f0d4ff344d34af697eb154c0d33c4a104d46ed1134",
+        "final_inventory_sha256": "34fa556a8169f8ba9503c3f0d4ff344d34af697eb154c0d33c4a104d46ed1134",
+        "inventory_hash_encoding": "SHA256 of sorted-key compact JSON UTF-8",
+        "complete_hash_evidence": "t02-prelaunch.json initial_source_inventory; t02-provenance.json candidate_snapshot.inventory_sha256",
+        "changed_allowed_sources": [],
+        "scratch_tests": [],
+        "all_preserved_changes_match_final_hashes": true
+      },
+      "aide_operations": 4,
+      "aide_uptake": true,
+      "bridge": {
+        "attempts": 4,
+        "copied_call_records": 4,
+        "all_requests_and_host_output_payloads_match": true,
+        "all_call_inventories_equal_frozen_seed": true,
+        "setup_binding_valid": true,
+        "identity_verified_calls": 4,
+        "valid_work_receipt_calls": 4,
+        "retrieval_receipt_calls": 3,
+        "all_receipt_source_hashes_and_full_file_bytes_verified": true,
+        "all_work_receipts_match_server_events": true,
+        "invalid_evidence": 0,
+        "outcomes": {
+          "successful": 4,
+          "tool_errors": 0,
+          "bridge_errors": 0,
+          "rejected": 0
+        },
+        "calls": [
+          {
+            "evidence_file": "2284091bb7e74334868f012e0d4c3f52.json",
+            "valid": true,
+            "errors": [],
+            "outcome": "success",
+            "tool": "code_symbols",
+            "timings_ms": {
+              "guard": 31.29878699837718,
+              "startup_initialize": 11.167824995936826,
+              "identity": 0.26439699286129326,
+              "request": 0.2640369930304587,
+              "exit": 1.0929689888143912,
+              "total": 44.10973399353679
+            },
+            "result_text_utf8_bytes": 3356,
+            "emitted_text_utf8_bytes": 3356,
+            "handler_elapsed_ms": 0,
+            "receipts": {
+              "work": {
+                "valid": true,
+                "id": "H5PUE7KOKZJBUGQ5DQM3XZUMM7",
+                "text_sha256_matches": true,
+                "server_event_match_count": 1,
+                "server_event_valid": true,
+                "server_event_id": "01M23K6PH5D3X48F7DV86GAWDW"
+              },
+              "retrieval": null,
+              "handler_elapsed_ms": 0,
+              "handler_duration_reason": "verified_server_work_elapsed_ms"
+            },
+            "id": "2284091bb7e74334868f012e0d4c3f52",
+            "handler_requested": true,
+            "identity_verified": true,
+            "source_changed_since_seed": false
+          },
+          {
+            "evidence_file": "3d45cba82d614be4930c6bd77ce42314.json",
+            "valid": true,
+            "errors": [],
+            "outcome": "success",
+            "tool": "code_outline",
+            "timings_ms": {
+              "guard": 32.176406995859,
+              "startup_initialize": 9.86442799330689,
+              "identity": 0.49538500024937093,
+              "request": 4.053817989188246,
+              "exit": 1.0976990015478805,
+              "total": 47.71284699381795
+            },
+            "result_text_utf8_bytes": 2079,
+            "emitted_text_utf8_bytes": 2079,
+            "handler_elapsed_ms": 3,
+            "receipts": {
+              "work": {
+                "valid": true,
+                "id": "IOLM5WXL2PSZ6FMSI44OEGPBLI",
+                "text_sha256_matches": true,
+                "server_event_match_count": 1,
+                "server_event_valid": true,
+                "server_event_id": "01M23K78RHBVYC8ZPTFT9B19E7"
+              },
+              "retrieval": {
+                "valid": true,
+                "id": "I5P6APFFFSBOMNVBOLSVOEJ2E6",
+                "source_references": [
+                  {
+                    "file": "aide/cmd/aide/cmd_observe.go",
+                    "inside_root": true,
+                    "sha256_matches_call_inventory": true,
+                    "reference_bytes": 14395,
+                    "byte_count_independently_verified": true
+                  }
+                ],
+                "verification_boundary": "Source SHA256 checked against pre-call inventory; byte counts independently verified only when a controller-supplied full snapshot has the same SHA256."
+              },
+              "handler_elapsed_ms": 3,
+              "handler_duration_reason": "verified_server_work_elapsed_ms"
+            },
+            "id": "3d45cba82d614be4930c6bd77ce42314",
+            "handler_requested": true,
+            "identity_verified": true,
+            "source_changed_since_seed": false
+          },
+          {
+            "evidence_file": "485218e3eb2c4ab0a04d8153e65edf15.json",
+            "valid": true,
+            "errors": [],
+            "outcome": "success",
+            "tool": "code_read_symbol",
+            "timings_ms": {
+              "guard": 31.19913699629251,
+              "startup_initialize": 10.586691001662984,
+              "identity": 0.2926969900727272,
+              "request": 4.269474986358546,
+              "exit": 1.0905989911407232,
+              "total": 47.46322899882216
+            },
+            "result_text_utf8_bytes": 4402,
+            "emitted_text_utf8_bytes": 4402,
+            "handler_elapsed_ms": 4,
+            "receipts": {
+              "work": {
+                "valid": true,
+                "id": "HUGLIXJQO4P4XIO5DDE55L2CST",
+                "text_sha256_matches": true,
+                "server_event_match_count": 1,
+                "server_event_valid": true,
+                "server_event_id": "01M23K7H4PX58C9S4YVWZ3W7YA"
+              },
+              "retrieval": {
+                "valid": true,
+                "id": "GDQ6B373PL75ZWGUPZFZQXHIYB",
+                "source_references": [
+                  {
+                    "file": "aide/cmd/aide/cmd_observe.go",
+                    "inside_root": true,
+                    "sha256_matches_call_inventory": true,
+                    "reference_bytes": 14395,
+                    "byte_count_independently_verified": true
+                  }
+                ],
+                "verification_boundary": "Source SHA256 checked against pre-call inventory; byte counts independently verified only when a controller-supplied full snapshot has the same SHA256."
+              },
+              "handler_elapsed_ms": 4,
+              "handler_duration_reason": "verified_server_work_elapsed_ms"
+            },
+            "id": "485218e3eb2c4ab0a04d8153e65edf15",
+            "handler_requested": true,
+            "identity_verified": true,
+            "source_changed_since_seed": false
+          },
+          {
+            "evidence_file": "f56a3ab8b58949adb12e4a8a0c88818c.json",
+            "valid": true,
+            "errors": [],
+            "outcome": "success",
+            "tool": "code_read_symbol",
+            "timings_ms": {
+              "guard": 31.633933002012782,
+              "startup_initialize": 10.699959006160498,
+              "identity": 0.3215769975213334,
+              "request": 10.75673800369259,
+              "exit": 1.0971390001941472,
+              "total": 54.53551599930506
+            },
+            "result_text_utf8_bytes": 7326,
+            "emitted_text_utf8_bytes": 7326,
+            "handler_elapsed_ms": 10,
+            "receipts": {
+              "work": {
+                "valid": true,
+                "id": "JKH2P4WQH7SC2REVNYYHHN6B4X",
+                "text_sha256_matches": true,
+                "server_event_match_count": 1,
+                "server_event_valid": true,
+                "server_event_id": "01M23K6Y7TE5PXQKHR5DV4D1GB"
+              },
+              "retrieval": {
+                "valid": true,
+                "id": "GPOUDN37DFNRAIYOYRAS73HE6G",
+                "source_references": [
+                  {
+                    "file": "src/opencode/hooks.ts",
+                    "inside_root": true,
+                    "sha256_matches_call_inventory": true,
+                    "reference_bytes": 49563,
+                    "byte_count_independently_verified": true
+                  }
+                ],
+                "verification_boundary": "Source SHA256 checked against pre-call inventory; byte counts independently verified only when a controller-supplied full snapshot has the same SHA256."
+              },
+              "handler_elapsed_ms": 10,
+              "handler_duration_reason": "verified_server_work_elapsed_ms"
+            },
+            "id": "f56a3ab8b58949adb12e4a8a0c88818c",
+            "handler_requested": true,
+            "identity_verified": true,
+            "source_changed_since_seed": false
+          }
+        ]
+      },
+      "bytes": {
+        "complete_captured_source_output_bytes": 110737,
+        "conservative_source_lower_bound_bytes": 110737,
+        "all_category_lower_bound_bytes": 112638,
+        "included_boundaries_recount_matches_review": true,
+        "excluded_outer_calls": [],
+        "runtime_token_estimates_used": false,
+        "model_delivered_total_context_bytes": null
+      },
+      "hook_metrics": {
+        "review_had_hook_metrics_field": false,
+        "participant_installed_hook_duration_ms": null,
+        "observe_export_valid": true,
+        "observe_export_elapsed_ms": 11.81937800720334,
+        "observe_event_count": 8,
+        "zero_use_null_export_valid": false,
+        "boundary": "Controller export and verified retrieval handler receipts are separate from unobserved installed-hook elapsed time. Byte-derived server token fields are not observed runtime usage."
+      },
+      "tool_result_unknowns": [],
+      "execution_verification_file": null,
+      "tool_failures": [],
+      "tool_failure_evidence": "All 25 nested command results have exit_code zero; no missing or truncated result bodies observed."
+    },
+    {
+      "trial": "t03",
+      "task": "impact",
+      "treatment": "ordinary",
+      "repetition": 1,
+      "review_file": "t03-trace-review.json",
+      "review_sha256": "4a7c9bdbec7e99db0db57302bac386d021eb1c39435b462abe1aed3b126f12f3",
+      "reviewer": "v4_trace_audit",
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "protocol_violations": [],
+      "counts": {
+        "outer_tool_calls": 7,
+        "nested_tool_calls": 26,
+        "bootstrap": 1,
+        "discovery": 1,
+        "source_edit_test": 24,
+        "source": 24,
+        "edit": 0,
+        "test_execution": 0,
+        "advisory_source_edit_test_target": 40,
+        "advisory_target_exceeded": false,
+        "basis": "Each tools.exec_command invocation counts once, expanding explicit captured command arrays (six, six and four elements). Pipeline stages remain inside one submitted shell string. All source-test reads and later file inventories are retrieval, not test execution.",
+        "discovery_definition": "Initial root layout, if present, plus first source-file inventory; later focused inventories and all content reads/searches count as source."
+      },
+      "executed_cardinality_matches_review": true,
+      "all_submitted_shell_strings_rtk_prefixed": true,
+      "raw_log_sha256_verified": "f589e4b7cdf4aff832930fae47d050c76c97a1990ac3bae7f066e5f9fa77f864",
+      "raw_inputs_and_results_equal_archives": true,
+      "actual_runtime": {
+        "actor_id": "01a08735-2263-7560-a7b2-959e914be63a",
+        "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+        "agent_path": "/root/v5_execution/v5_t03",
+        "cli_version": "0.153.4",
+        "model_provider": "openai",
+        "model": "gpt-6-astra",
+        "effort": "high"
+      },
+      "launcher": {
+        "intended_complete_message_utf8_bytes": 5632,
+        "sha256_verified": "9c1de2a5da2142e7b0f66b41518da96d0a1c0c1fef95ec2a4aa7da6c1ed4bdfe",
+        "prepared_archived_prelaunch_launch_regenerated_equal": true,
+        "actual_delivered_plaintext_equal": null,
+        "boundary": "Host task message is encrypted_content; intended controller byte equality is not delivered plaintext proof."
+      },
+      "source_integrity": {
+        "seed_file_count": 50,
+        "final_file_count": 50,
+        "baseline_seed_and_binding_match": true,
+        "final_capture_and_current_match": true,
+        "seed_inventory_sha256": "34fa556a8169f8ba9503c3f0d4ff344d34af697eb154c0d33c4a104d46ed1134",
+        "final_inventory_sha256": "34fa556a8169f8ba9503c3f0d4ff344d34af697eb154c0d33c4a104d46ed1134",
+        "inventory_hash_encoding": "SHA256 of sorted-key compact JSON UTF-8",
+        "complete_hash_evidence": "t03-prelaunch.json initial_source_inventory; t03-provenance.json candidate_snapshot.inventory_sha256",
+        "changed_allowed_sources": [],
+        "scratch_tests": [],
+        "all_preserved_changes_match_final_hashes": true
+      },
+      "aide_operations": 0,
+      "aide_uptake": false,
+      "bridge": {
+        "attempts": 0,
+        "copied_call_records": 0,
+        "all_requests_and_host_output_payloads_match": true,
+        "all_call_inventories_equal_frozen_seed": true,
+        "setup_binding_valid": true,
+        "identity_verified_calls": 0,
+        "valid_work_receipt_calls": 0,
+        "retrieval_receipt_calls": 0,
+        "all_receipt_source_hashes_and_full_file_bytes_verified": true,
+        "all_work_receipts_match_server_events": true,
+        "invalid_evidence": 0,
+        "outcomes": {
+          "successful": 0,
+          "tool_errors": 0,
+          "bridge_errors": 0,
+          "rejected": 0
+        },
+        "calls": []
+      },
+      "bytes": {
+        "complete_captured_source_output_bytes": null,
+        "conservative_source_lower_bound_bytes": 78013,
+        "all_category_lower_bound_bytes": 79914,
+        "included_boundaries_recount_matches_review": true,
+        "excluded_outer_calls": [
+          {
+            "call_id": "call_4BNwi5LJWUhdAbehix5N4wRi",
+            "nested_calls": 6,
+            "reason": "Outer response reports 15102 original tokens and 5102 tokens truncated. Decoded chunk 3070d6 begins cmd_observe.go but ends observe_events.go, spanning two original commands and losing a header. Conservatively exclude all six outputs in that outer response, including intact-looking boundary bodies."
+          }
+        ],
+        "runtime_token_estimates_used": false,
+        "model_delivered_total_context_bytes": null
+      },
+      "hook_metrics": {
+        "review_had_hook_metrics_field": false,
+        "participant_installed_hook_duration_ms": null,
+        "observe_export_valid": true,
+        "observe_export_elapsed_ms": 7.628481005667709,
+        "observe_event_count": 0,
+        "zero_use_null_export_valid": true,
+        "boundary": "Controller export and verified retrieval handler receipts are separate from unobserved installed-hook elapsed time. Byte-derived server token fields are not observed runtime usage."
+      },
+      "tool_result_unknowns": [
+        {
+          "call_id": "call_4BNwi5LJWUhdAbehix5N4wRi",
+          "exit_code": null,
+          "unknown_status_count": 1,
+          "reason": "Existing independent t03 review records one lost command header in the truncated outer response; 25 surviving status headers are zero."
+        }
+      ],
+      "execution_verification_file": null,
+      "tool_failures": [],
+      "tool_failure_evidence": "All 25 surviving decoded exit-code headers are zero. One command header is lost in the truncated outer response; zero observed failures does not certify that missing status."
+    },
+    {
+      "trial": "t04",
+      "task": "impact",
+      "treatment": "assisted",
+      "repetition": 1,
+      "review_file": "t04-trace-review.json",
+      "review_sha256": "33e6bc1df25860f49cc4c08c4ed7ea32f8645b7593b4b00b49794d67fea32749",
+      "reviewer": "v4_trace_audit",
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "protocol_violations": [],
+      "counts": {
+        "outer_tool_calls": 7,
+        "nested_tool_calls": 26,
+        "bootstrap": 1,
+        "discovery": 1,
+        "source_edit_test": 24,
+        "source": 24,
+        "edit": 0,
+        "test_execution": 0,
+        "advisory_source_edit_test_target": 40,
+        "advisory_target_exceeded": false,
+        "basis": "Each nested tools.exec_command invocation counts once. Multiple shell commands or pipeline stages within one submitted cmd string remain one execution-tool invocation. Source test reads are retrieval, not test execution.",
+        "discovery_definition": "Initial root layout, if present, plus first source-file inventory; later focused inventories and all content reads/searches count as source."
+      },
+      "executed_cardinality_matches_review": true,
+      "all_submitted_shell_strings_rtk_prefixed": true,
+      "raw_log_sha256_verified": "a33fcaf8fb9099e67708736a0a1e0e4932daa35a39f947869f1e442da4d9b732",
+      "raw_inputs_and_results_equal_archives": true,
+      "actual_runtime": {
+        "actor_id": "01a08737-1e31-7390-9c25-81022c03f776",
+        "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+        "agent_path": "/root/v5_execution/v5_t04",
+        "cli_version": "0.153.4",
+        "model_provider": "openai",
+        "model": "gpt-6-astra",
+        "effort": "high"
+      },
+      "launcher": {
+        "intended_complete_message_utf8_bytes": 7741,
+        "sha256_verified": "a028e89b770a6c87ba6fd6fb60d966580c57ff1ed40f4a302d26a6db5adbdf26",
+        "prepared_archived_prelaunch_launch_regenerated_equal": true,
+        "actual_delivered_plaintext_equal": null,
+        "boundary": "Host task message is encrypted_content; intended controller byte equality is not delivered plaintext proof."
+      },
+      "source_integrity": {
+        "seed_file_count": 50,
+        "final_file_count": 50,
+        "baseline_seed_and_binding_match": true,
+        "final_capture_and_current_match": true,
+        "seed_inventory_sha256": "34fa556a8169f8ba9503c3f0d4ff344d34af697eb154c0d33c4a104d46ed1134",
+        "final_inventory_sha256": "34fa556a8169f8ba9503c3f0d4ff344d34af697eb154c0d33c4a104d46ed1134",
+        "inventory_hash_encoding": "SHA256 of sorted-key compact JSON UTF-8",
+        "complete_hash_evidence": "t04-prelaunch.json initial_source_inventory; t04-provenance.json candidate_snapshot.inventory_sha256",
+        "changed_allowed_sources": [],
+        "scratch_tests": [],
+        "all_preserved_changes_match_final_hashes": true
+      },
+      "aide_operations": 4,
+      "aide_uptake": true,
+      "bridge": {
+        "attempts": 4,
+        "copied_call_records": 4,
+        "all_requests_and_host_output_payloads_match": true,
+        "all_call_inventories_equal_frozen_seed": true,
+        "setup_binding_valid": true,
+        "identity_verified_calls": 4,
+        "valid_work_receipt_calls": 4,
+        "retrieval_receipt_calls": 1,
+        "all_receipt_source_hashes_and_full_file_bytes_verified": true,
+        "all_work_receipts_match_server_events": true,
+        "invalid_evidence": 0,
+        "outcomes": {
+          "successful": 4,
+          "tool_errors": 0,
+          "bridge_errors": 0,
+          "rejected": 0
+        },
+        "calls": [
+          {
+            "evidence_file": "17fe03b331044d7a8644fca986a7dbe8.json",
+            "valid": true,
+            "errors": [],
+            "outcome": "success",
+            "tool": "code_references",
+            "timings_ms": {
+              "guard": 31.060908993822522,
+              "startup_initialize": 10.079305997351184,
+              "identity": 0.2950670022983104,
+              "request": 0.2583470050012693,
+              "exit": 1.090638994355686,
+              "total": 42.80644799291622
+            },
+            "result_text_utf8_bytes": 1364,
+            "emitted_text_utf8_bytes": 1364,
+            "handler_elapsed_ms": 0,
+            "receipts": {
+              "work": {
+                "valid": true,
+                "id": "MFCAC4KNKFDIZ3I2JDTQS2AEKM",
+                "text_sha256_matches": true,
+                "server_event_match_count": 1,
+                "server_event_valid": true,
+                "server_event_id": "01M23KFXTPC9P5YDHY036N91KZ"
+              },
+              "retrieval": null,
+              "handler_elapsed_ms": 0,
+              "handler_duration_reason": "verified_server_work_elapsed_ms"
+            },
+            "id": "17fe03b331044d7a8644fca986a7dbe8",
+            "handler_requested": true,
+            "identity_verified": true,
+            "source_changed_since_seed": false
+          },
+          {
+            "evidence_file": "1e06a02c9a6f4e5e9e5c81f24b0d3d43.json",
+            "valid": true,
+            "errors": [],
+            "outcome": "success",
+            "tool": "code_symbols",
+            "timings_ms": {
+              "guard": 31.85139098786749,
+              "startup_initialize": 10.468581996974535,
+              "identity": 0.6454829999711365,
+              "request": 0.3056570130866021,
+              "exit": 1.0944690002361313,
+              "total": 44.389161994331516
+            },
+            "result_text_utf8_bytes": 3356,
+            "emitted_text_utf8_bytes": 3356,
+            "handler_elapsed_ms": 0,
+            "receipts": {
+              "work": {
+                "valid": true,
+                "id": "WJOU4ONZQLJHJYZ3PT7KYSHJE3",
+                "text_sha256_matches": true,
+                "server_event_match_count": 1,
+                "server_event_valid": true,
+                "server_event_id": "01M23KEVH6RHNW76BYMX9TWWQJ"
+              },
+              "retrieval": null,
+              "handler_elapsed_ms": 0,
+              "handler_duration_reason": "verified_server_work_elapsed_ms"
+            },
+            "id": "1e06a02c9a6f4e5e9e5c81f24b0d3d43",
+            "handler_requested": true,
+            "identity_verified": true,
+            "source_changed_since_seed": false
+          },
+          {
+            "evidence_file": "6cf4a1f3489e4ec099e3f9ef2d585a37.json",
+            "valid": true,
+            "errors": [],
+            "outcome": "success",
+            "tool": "code_symbols",
+            "timings_ms": {
+              "guard": 31.12599799351301,
+              "startup_initialize": 11.551401010365225,
+              "identity": 0.2816969936247915,
+              "request": 0.1886280078906566,
+              "exit": 1.0906390089076012,
+              "total": 44.26088300533593
+            },
+            "result_text_utf8_bytes": 1894,
+            "emitted_text_utf8_bytes": 1894,
+            "handler_elapsed_ms": 0,
+            "receipts": {
+              "work": {
+                "valid": true,
+                "id": "Q4RGHLVAUYEEKNLCMPTM5J2N6V",
+                "text_sha256_matches": true,
+                "server_event_match_count": 1,
+                "server_event_valid": true,
+                "server_event_id": "01M23KEM45H4QTBFVNSG9JFKYE"
+              },
+              "retrieval": null,
+              "handler_elapsed_ms": 0,
+              "handler_duration_reason": "verified_server_work_elapsed_ms"
+            },
+            "id": "6cf4a1f3489e4ec099e3f9ef2d585a37",
+            "handler_requested": true,
+            "identity_verified": true,
+            "source_changed_since_seed": false
+          },
+          {
+            "evidence_file": "d139075edea84be3b02bca52f9f723aa.json",
+            "valid": true,
+            "errors": [],
+            "outcome": "success",
+            "tool": "code_read_symbol",
+            "timings_ms": {
+              "guard": 30.8449309959542,
+              "startup_initialize": 10.120834995177574,
+              "identity": 0.32337699667550623,
+              "request": 7.226404995890334,
+              "exit": 1.0948590061161667,
+              "total": 49.633867005468346
+            },
+            "result_text_utf8_bytes": 6364,
+            "emitted_text_utf8_bytes": 6364,
+            "handler_elapsed_ms": 7,
+            "receipts": {
+              "work": {
+                "valid": true,
+                "id": "SPZHHYBG47TCM76ATQ5VBOHL7P",
+                "text_sha256_matches": true,
+                "server_event_match_count": 1,
+                "server_event_valid": true,
+                "server_event_id": "01M23KEV4X3CHJ18TGDKW98QFD"
+              },
+              "retrieval": {
+                "valid": true,
+                "id": "IZZBVZVP37RPZG2N2BPTOXZNWP",
+                "source_references": [
+                  {
+                    "file": "src/core/model-usage.ts",
+                    "inside_root": true,
+                    "sha256_matches_call_inventory": true,
+                    "reference_bytes": 10720,
+                    "byte_count_independently_verified": true
+                  }
+                ],
+                "verification_boundary": "Source SHA256 checked against pre-call inventory; byte counts independently verified only when a controller-supplied full snapshot has the same SHA256."
+              },
+              "handler_elapsed_ms": 7,
+              "handler_duration_reason": "verified_server_work_elapsed_ms"
+            },
+            "id": "d139075edea84be3b02bca52f9f723aa",
+            "handler_requested": true,
+            "identity_verified": true,
+            "source_changed_since_seed": false
+          }
+        ]
+      },
+      "bytes": {
+        "complete_captured_source_output_bytes": 118723,
+        "conservative_source_lower_bound_bytes": 118723,
+        "all_category_lower_bound_bytes": 120624,
+        "included_boundaries_recount_matches_review": true,
+        "excluded_outer_calls": [],
+        "runtime_token_estimates_used": false,
+        "model_delivered_total_context_bytes": null
+      },
+      "hook_metrics": {
+        "review_had_hook_metrics_field": false,
+        "participant_installed_hook_duration_ms": null,
+        "observe_export_valid": true,
+        "observe_export_elapsed_ms": 7.541121987742372,
+        "observe_event_count": 8,
+        "zero_use_null_export_valid": false,
+        "boundary": "Controller export and verified retrieval handler receipts are separate from unobserved installed-hook elapsed time. Byte-derived server token fields are not observed runtime usage."
+      },
+      "tool_result_unknowns": [],
+      "execution_verification_file": null,
+      "tool_failures": [],
+      "tool_failure_evidence": "All 26 nested command results have exit_code zero; no missing/truncated result boundaries observed."
+    },
+    {
+      "trial": "t05",
+      "task": "implement",
+      "treatment": "ordinary",
+      "repetition": 1,
+      "review_file": "t05-trace-review.json",
+      "review_sha256": "102d3fb181db87a4c7aab68c13b87ad9233d7a0f5e67aa5bf34e728fb479a86d",
+      "reviewer": "v4_trace_audit",
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "protocol_violations": [],
+      "counts": {
+        "outer_tool_calls": 5,
+        "nested_tool_calls": 13,
+        "bootstrap": 1,
+        "discovery": 0,
+        "source_edit_test": 12,
+        "source": 7,
+        "edit": 3,
+        "test_execution": 2,
+        "advisory_source_edit_test_target": 40,
+        "advisory_target_exceeded": false,
+        "basis": "Each tools.exec_command invocation counts once; one bootstrap, seven retrieval commands, three edit commands and two test runs. Source content searches are retrieval, not discovery. Inline Python/heredoc content is inspected as part of its submitted command; no captured input is executed by the reviewer.",
+        "discovery_definition": "Initial root layout, if present, plus first source-file inventory; later focused inventories and all content reads/searches count as source.",
+        "transpile_execution": 0,
+        "typecheck_execution": 0
+      },
+      "executed_cardinality_matches_review": true,
+      "all_submitted_shell_strings_rtk_prefixed": true,
+      "raw_log_sha256_verified": "fd282af75c5e54b30c4abc6e4330e0ee2c4f45b0f417c2a67ac79d0b12445244",
+      "raw_inputs_and_results_equal_archives": true,
+      "actual_runtime": {
+        "actor_id": "01a08739-378a-7522-b6d3-892581117ce7",
+        "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+        "agent_path": "/root/v5_execution/v5_t05",
+        "cli_version": "0.153.4",
+        "model_provider": "openai",
+        "model": "gpt-6-astra",
+        "effort": "high"
+      },
+      "launcher": {
+        "intended_complete_message_utf8_bytes": 5573,
+        "sha256_verified": "d93729bd36a4eb87ea59d20b22cc19d0c8ea11b59273434bde38c297a7d64e94",
+        "prepared_archived_prelaunch_launch_regenerated_equal": true,
+        "actual_delivered_plaintext_equal": null,
+        "boundary": "Host task message is encrypted_content; intended controller byte equality is not delivered plaintext proof."
+      },
+      "source_integrity": {
+        "seed_file_count": 55,
+        "final_file_count": 56,
+        "baseline_seed_and_binding_match": true,
+        "final_capture_and_current_match": true,
+        "seed_inventory_sha256": "32010b7c86206acf83c8114e6deda25abf7d2ce9be53f5d3065e6af4048ecce5",
+        "final_inventory_sha256": "2ff0ee017dd278d4854acea72f706c2f864d9b3acce7b7bbd31b92144fbf506c",
+        "inventory_hash_encoding": "SHA256 of sorted-key compact JSON UTF-8",
+        "complete_hash_evidence": "t05-prelaunch.json initial_source_inventory; t05-provenance.json candidate_snapshot.inventory_sha256",
+        "changed_allowed_sources": [
+          "src/core/model-usage.ts",
+          "src/hooks/session-summary.ts",
+          "src/opencode/hooks.ts",
+          "src/test/model-usage-hooks.test.ts",
+          "src/test/model-usage-recording.test.ts",
+          "src/test/model-usage.test.ts"
+        ],
+        "scratch_tests": [
+          "tests/usage-contract-scratch.test.ts"
+        ],
+        "all_preserved_changes_match_final_hashes": true
+      },
+      "aide_operations": 0,
+      "aide_uptake": false,
+      "bridge": {
+        "attempts": 0,
+        "copied_call_records": 0,
+        "all_requests_and_host_output_payloads_match": true,
+        "all_call_inventories_equal_frozen_seed": true,
+        "setup_binding_valid": true,
+        "identity_verified_calls": 0,
+        "valid_work_receipt_calls": 0,
+        "retrieval_receipt_calls": 0,
+        "all_receipt_source_hashes_and_full_file_bytes_verified": true,
+        "all_work_receipts_match_server_events": true,
+        "invalid_evidence": 0,
+        "outcomes": {
+          "successful": 0,
+          "tool_errors": 0,
+          "bridge_errors": 0,
+          "rejected": 0
+        },
+        "calls": []
+      },
+      "bytes": {
+        "complete_captured_source_output_bytes": 37167,
+        "conservative_source_lower_bound_bytes": 37167,
+        "all_category_lower_bound_bytes": 39146,
+        "included_boundaries_recount_matches_review": true,
+        "excluded_outer_calls": [],
+        "runtime_token_estimates_used": false,
+        "model_delivered_total_context_bytes": null
+      },
+      "hook_metrics": {
+        "review_had_hook_metrics_field": false,
+        "participant_installed_hook_duration_ms": null,
+        "observe_export_valid": true,
+        "observe_export_elapsed_ms": 6.912811993970536,
+        "observe_event_count": 0,
+        "zero_use_null_export_valid": true,
+        "boundary": "Controller export and verified retrieval handler receipts are separate from unobserved installed-hook elapsed time. Byte-derived server token fields are not observed runtime usage."
+      },
+      "tool_result_unknowns": [],
+      "execution_verification_file": "t05-trace-review.json execution_verification",
+      "tool_failures": [],
+      "tool_failure_evidence": "All 13 nested command results have exit_code zero, including both runtime test runs. No output truncation.",
+      "participant_validation_runs": [
+        {
+          "command": "rtk proxy bun test tests",
+          "workdir": "/tmp/aide-outcomes-v5-trials/t05/root",
+          "call_id": "call_672n3e9vBt5AUYiYUg4s9Paa",
+          "content_index": 2,
+          "chunk_id": "8f3d7b",
+          "exit_code": 0,
+          "tests_passed": 4,
+          "tests_failed": 0,
+          "tests_total": 4,
+          "test_files": 1,
+          "expect_calls": 13,
+          "suite_scope": "Four existing visible tests.",
+          "post_run_changes": "Formatting and scratch-test creation follow first run; second run follows every captured edit. No edits follow second run.",
+          "validation_limit": "No original Vitest execution, semantic TypeScript type check or syntax-transpilation check observed."
+        },
+        {
+          "command": "rtk proxy bun test tests",
+          "workdir": "/tmp/aide-outcomes-v5-trials/t05/root",
+          "call_id": "call_7BfWqnXohedbw9Q1QA6uPyDk",
+          "content_index": 3,
+          "chunk_id": "4f7d93",
+          "exit_code": 0,
+          "tests_passed": 9,
+          "tests_failed": 0,
+          "tests_total": 9,
+          "test_files": 2,
+          "expect_calls": 41,
+          "suite_scope": "Four existing visible tests plus five participant-added scratch tests.",
+          "post_run_changes": "Formatting and scratch-test creation follow first run; second run follows every captured edit. No edits follow second run.",
+          "validation_limit": "No original Vitest execution, semantic TypeScript type check or syntax-transpilation check observed."
+        }
+      ]
+    },
+    {
+      "trial": "t06",
+      "task": "implement",
+      "treatment": "assisted",
+      "repetition": 1,
+      "review_file": "t06-trace-review.json",
+      "review_sha256": "afc671ad57ea303b7097fbb9aef0184a57ef739b42701bc5184bc80dcb262685",
+      "reviewer": "v4_trace_audit",
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "protocol_violations": [],
+      "counts": {
+        "outer_tool_calls": 8,
+        "nested_tool_calls": 16,
+        "bootstrap": 1,
+        "discovery": 1,
+        "source_edit_test": 14,
+        "source": 10,
+        "edit": 3,
+        "test_execution": 1,
+        "advisory_source_edit_test_target": 40,
+        "advisory_target_exceeded": false,
+        "basis": "Each tools.exec_command invocation counts once: one bootstrap, one initial file inventory, ten retrieval commands, three edits and one runtime test invocation. Inline Python and scratch-test content were inspected without executing captured inputs.",
+        "discovery_definition": "Initial root layout, if present, plus first source-file inventory; later focused inventories and all content reads/searches count as source.",
+        "transpile_execution": 0,
+        "typecheck_execution": 0
+      },
+      "executed_cardinality_matches_review": true,
+      "all_submitted_shell_strings_rtk_prefixed": true,
+      "raw_log_sha256_verified": "090e3360c1f8560f2579d14d82642fd87c9888b59bbc14fa63ccfa70018f991c",
+      "raw_inputs_and_results_equal_archives": true,
+      "actual_runtime": {
+        "actor_id": "01a0873b-3024-7321-bc97-6d0530e15601",
+        "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+        "agent_path": "/root/v5_execution/v5_t06",
+        "cli_version": "0.153.4",
+        "model_provider": "openai",
+        "model": "gpt-6-astra",
+        "effort": "high"
+      },
+      "launcher": {
+        "intended_complete_message_utf8_bytes": 7682,
+        "sha256_verified": "55bb409decabe00a65e5704c35404cd75199b8446cb84968241b2f68e855b27f",
+        "prepared_archived_prelaunch_launch_regenerated_equal": true,
+        "actual_delivered_plaintext_equal": null,
+        "boundary": "Host task message is encrypted_content; intended controller byte equality is not delivered plaintext proof."
+      },
+      "source_integrity": {
+        "seed_file_count": 55,
+        "final_file_count": 56,
+        "baseline_seed_and_binding_match": true,
+        "final_capture_and_current_match": true,
+        "seed_inventory_sha256": "32010b7c86206acf83c8114e6deda25abf7d2ce9be53f5d3065e6af4048ecce5",
+        "final_inventory_sha256": "660df99821386dace0fe4acef2630f0933f1244a81efe7dc82c75f8de595e8d5",
+        "inventory_hash_encoding": "SHA256 of sorted-key compact JSON UTF-8",
+        "complete_hash_evidence": "t06-prelaunch.json initial_source_inventory; t06-provenance.json candidate_snapshot.inventory_sha256",
+        "changed_allowed_sources": [
+          "src/core/model-usage.ts",
+          "src/hooks/session-summary.ts",
+          "src/opencode/hooks.ts",
+          "src/test/model-usage-hooks.test.ts",
+          "src/test/model-usage-recording.test.ts",
+          "src/test/model-usage.test.ts"
+        ],
+        "scratch_tests": [
+          "tests/usage-request.test.ts"
+        ],
+        "all_preserved_changes_match_final_hashes": true
+      },
+      "aide_operations": 2,
+      "aide_uptake": true,
+      "bridge": {
+        "attempts": 2,
+        "copied_call_records": 2,
+        "all_requests_and_host_output_payloads_match": true,
+        "all_call_inventories_equal_frozen_seed": true,
+        "setup_binding_valid": true,
+        "identity_verified_calls": 2,
+        "valid_work_receipt_calls": 2,
+        "retrieval_receipt_calls": 2,
+        "all_receipt_source_hashes_and_full_file_bytes_verified": true,
+        "all_work_receipts_match_server_events": true,
+        "invalid_evidence": 0,
+        "outcomes": {
+          "successful": 2,
+          "tool_errors": 0,
+          "bridge_errors": 0,
+          "rejected": 0
+        },
+        "calls": [
+          {
+            "evidence_file": "1a58eeb78b1a41ac9dea14682dcc16e0.json",
+            "valid": true,
+            "errors": [],
+            "outcome": "success",
+            "tool": "code_read_symbol",
+            "timings_ms": {
+              "guard": 41.00971500156447,
+              "startup_initialize": 31.904945004498586,
+              "identity": 13.381617987761274,
+              "request": 47.6542100077495,
+              "exit": 16.41708800161723,
+              "total": 150.42884599824902
+            },
+            "result_text_utf8_bytes": 3334,
+            "emitted_text_utf8_bytes": 3334,
+            "handler_elapsed_ms": 46,
+            "receipts": {
+              "work": {
+                "valid": true,
+                "id": "GQLZMFKZVLD52D5IAPU7ISRHE6",
+                "text_sha256_matches": true,
+                "server_event_match_count": 1,
+                "server_event_valid": true,
+                "server_event_id": "01M23KPXJXNEQD36XZ64E464YZ"
+              },
+              "retrieval": {
+                "valid": true,
+                "id": "V4MDFOSAHUJ3MMPTDGDQT4ADN3",
+                "source_references": [
+                  {
+                    "file": "src/core/model-usage.ts",
+                    "inside_root": true,
+                    "sha256_matches_call_inventory": true,
+                    "reference_bytes": 10720,
+                    "byte_count_independently_verified": true
+                  }
+                ],
+                "verification_boundary": "Source SHA256 checked against pre-call inventory; byte counts independently verified only when a controller-supplied full snapshot has the same SHA256."
+              },
+              "handler_elapsed_ms": 46,
+              "handler_duration_reason": "verified_server_work_elapsed_ms"
+            },
+            "id": "1a58eeb78b1a41ac9dea14682dcc16e0",
+            "handler_requested": true,
+            "identity_verified": true,
+            "source_changed_since_seed": false
+          },
+          {
+            "evidence_file": "cba98d4dc4d04ded8ccae0e3b364d83a.json",
+            "valid": true,
+            "errors": [],
+            "outcome": "success",
+            "tool": "code_outline",
+            "timings_ms": {
+              "guard": 30.928544991184026,
+              "startup_initialize": 10.897701999056153,
+              "identity": 0.29604700102936476,
+              "request": 6.369568000081927,
+              "exit": 1.0896099993260577,
+              "total": 49.60564099019393
+            },
+            "result_text_utf8_bytes": 2470,
+            "emitted_text_utf8_bytes": 2470,
+            "handler_elapsed_ms": 6,
+            "receipts": {
+              "work": {
+                "valid": true,
+                "id": "7A65FVRSIOXDLVVZZHNAEQ4JNV",
+                "text_sha256_matches": true,
+                "server_event_match_count": 1,
+                "server_event_valid": true,
+                "server_event_id": "01M23KPQ4JDWW234YK65RPKWD0"
+              },
+              "retrieval": {
+                "valid": true,
+                "id": "YYYNRB53DT5UNN3AUV66K57PSX",
+                "source_references": [
+                  {
+                    "file": "src/core/model-usage.ts",
+                    "inside_root": true,
+                    "sha256_matches_call_inventory": true,
+                    "reference_bytes": 10720,
+                    "byte_count_independently_verified": true
+                  }
+                ],
+                "verification_boundary": "Source SHA256 checked against pre-call inventory; byte counts independently verified only when a controller-supplied full snapshot has the same SHA256."
+              },
+              "handler_elapsed_ms": 6,
+              "handler_duration_reason": "verified_server_work_elapsed_ms"
+            },
+            "id": "cba98d4dc4d04ded8ccae0e3b364d83a",
+            "handler_requested": true,
+            "identity_verified": true,
+            "source_changed_since_seed": false
+          }
+        ]
+      },
+      "bytes": {
+        "complete_captured_source_output_bytes": 51105,
+        "conservative_source_lower_bound_bytes": 51105,
+        "all_category_lower_bound_bytes": 54270,
+        "included_boundaries_recount_matches_review": true,
+        "excluded_outer_calls": [],
+        "runtime_token_estimates_used": false,
+        "model_delivered_total_context_bytes": null
+      },
+      "hook_metrics": {
+        "review_had_hook_metrics_field": false,
+        "participant_installed_hook_duration_ms": null,
+        "observe_export_valid": true,
+        "observe_export_elapsed_ms": 25.911523000104353,
+        "observe_event_count": 4,
+        "zero_use_null_export_valid": false,
+        "boundary": "Controller export and verified retrieval handler receipts are separate from unobserved installed-hook elapsed time. Byte-derived server token fields are not observed runtime usage."
+      },
+      "tool_result_unknowns": [],
+      "execution_verification_file": "t06-trace-review.json execution_verification",
+      "tool_failures": [],
+      "tool_failure_evidence": "All 16 nested command results have exit_code zero, including the single runtime test run. No output truncation.",
+      "participant_validation_runs": [
+        {
+          "command": "rtk proxy bun test tests",
+          "workdir": "/tmp/aide-outcomes-v5-trials/t06/root",
+          "call_id": "call_4GXLdMjmn32tQ0QwRf7E2u8l",
+          "content_index": 2,
+          "chunk_id": "43c560",
+          "exit_code": 0,
+          "tests_passed": 10,
+          "tests_failed": 0,
+          "tests_total": 10,
+          "test_files": 2,
+          "expect_calls": 37,
+          "suite_scope": "Four existing visible tests plus six participant-added scratch tests.",
+          "post_run_changes": "One subsequent inline Python edit formats src/core/model-usage.ts and the three migrated original Vitest consumer files. No runtime test follows these edits.",
+          "validation_limit": "One runtime test invocation observed. No original Vitest execution, semantic TypeScript type check or syntax-transpilation check observed."
+        }
+      ]
+    },
+    {
+      "trial": "t07",
+      "task": "implement",
+      "treatment": "assisted",
+      "repetition": 2,
+      "review_file": "t07-trace-review.json",
+      "review_sha256": "abc0e7f0ce79b525b73efe996ddcfefce933c90d6234e08006c2e055036cab8a",
+      "reviewer": "v5_trace_audit",
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "protocol_violations": [],
+      "counts": {
+        "outer_tool_calls": 7,
+        "nested_tool_calls": 19,
+        "bootstrap": 1,
+        "discovery": 1,
+        "source_edit_test": 17,
+        "source": 10,
+        "edit": 4,
+        "test_execution": 3,
+        "transpile_execution": 0,
+        "typecheck_execution": 0,
+        "advisory_source_edit_test_target": 40,
+        "advisory_target_exceeded": false,
+        "basis": "Each executed tools.exec_command counts once, including individually awaited and Promise.allSettled calls. All captured inline edit and scratch-test bodies inspected without executing participant inputs.",
+        "discovery_definition": "First source-file inventory; focused content searches count as source even when they are the first source operation."
+      },
+      "executed_cardinality_matches_review": true,
+      "all_submitted_shell_strings_rtk_prefixed": true,
+      "raw_log_sha256_verified": "f7885e6cbeceedd4b2040e735a3a47194b597ab5073d3a2739b2154b75910099",
+      "raw_inputs_and_results_equal_archives": true,
+      "actual_runtime": {
+        "actor_id": "01a0873d-61c6-75d1-b1e6-65e5c7f8a028",
+        "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+        "agent_path": "/root/v5_execution/v5_t07",
+        "cli_version": "0.153.4",
+        "model_provider": "openai",
+        "model": "gpt-6-astra",
+        "effort": "high"
+      },
+      "launcher": {
+        "intended_complete_message_utf8_bytes": 7682,
+        "sha256_verified": "6badd5ce0dcf4f770144ff8bd1b0c10acb74643e755be160e53e27a649c51044",
+        "prepared_archived_prelaunch_launch_regenerated_equal": true,
+        "actual_delivered_plaintext_equal": null,
+        "boundary": "Host task message is encrypted_content; intended controller byte equality is not delivered plaintext proof."
+      },
+      "source_integrity": {
+        "seed_file_count": 55,
+        "final_file_count": 56,
+        "baseline_seed_and_binding_match": true,
+        "final_capture_and_current_match": true,
+        "seed_inventory_sha256": "32010b7c86206acf83c8114e6deda25abf7d2ce9be53f5d3065e6af4048ecce5",
+        "final_inventory_sha256": "9f155030717b0d40c48d40364a19ae0218c8b038cc6788ab1117f66ee4dfcf2d",
+        "inventory_hash_encoding": "SHA256 of sorted-key compact JSON UTF-8",
+        "complete_hash_evidence": "t07-prelaunch.json initial_source_inventory; t07-provenance.json candidate_snapshot.inventory_sha256",
+        "changed_allowed_sources": [
+          "src/core/model-usage.ts",
+          "src/hooks/session-summary.ts",
+          "src/opencode/hooks.ts",
+          "src/test/model-usage-hooks.test.ts",
+          "src/test/model-usage-recording.test.ts",
+          "src/test/model-usage.test.ts"
+        ],
+        "scratch_tests": [
+          "tests/usage-contract.test.ts"
+        ],
+        "all_preserved_changes_match_final_hashes": true
+      },
+      "aide_operations": 2,
+      "aide_uptake": true,
+      "bridge": {
+        "attempts": 2,
+        "copied_call_records": 2,
+        "all_requests_and_host_output_payloads_match": true,
+        "all_call_inventories_equal_frozen_seed": true,
+        "setup_binding_valid": true,
+        "identity_verified_calls": 2,
+        "valid_work_receipt_calls": 2,
+        "retrieval_receipt_calls": 1,
+        "all_receipt_source_hashes_and_full_file_bytes_verified": true,
+        "all_work_receipts_match_server_events": true,
+        "invalid_evidence": 0,
+        "outcomes": {
+          "successful": 2,
+          "tool_errors": 0,
+          "bridge_errors": 0,
+          "rejected": 0
+        },
+        "calls": [
+          {
+            "evidence_file": "68e66abbc34e46af9b0ae48e9490c584.json",
+            "valid": true,
+            "errors": [],
+            "outcome": "success",
+            "tool": "code_read_symbol",
+            "timings_ms": {
+              "guard": 39.308109000558034,
+              "startup_initialize": 45.417877001455054,
+              "identity": 0.6154139991849661,
+              "request": 14.177057993947528,
+              "exit": 7.752022997010499,
+              "total": 107.32590100087691
+            },
+            "result_text_utf8_bytes": 3334,
+            "emitted_text_utf8_bytes": 3334,
+            "handler_elapsed_ms": 12,
+            "receipts": {
+              "work": {
+                "valid": true,
+                "id": "CJY3ERCNRRXQBGQ66JM7IQKIBD",
+                "text_sha256_matches": true,
+                "server_event_match_count": 1,
+                "server_event_valid": true,
+                "server_event_id": "01M23KVCDG49VNH5X2KYGQYWPY"
+              },
+              "retrieval": {
+                "valid": true,
+                "id": "WAUDFCW4Z6EOMBQIVC332AHPJZ",
+                "source_references": [
+                  {
+                    "file": "src/core/model-usage.ts",
+                    "inside_root": true,
+                    "sha256_matches_call_inventory": true,
+                    "reference_bytes": 10720,
+                    "byte_count_independently_verified": true
+                  }
+                ],
+                "verification_boundary": "Source SHA256 checked against pre-call inventory; byte counts independently verified only when a controller-supplied full snapshot has the same SHA256."
+              },
+              "handler_elapsed_ms": 12,
+              "handler_duration_reason": "verified_server_work_elapsed_ms"
+            },
+            "id": "68e66abbc34e46af9b0ae48e9490c584",
+            "handler_requested": true,
+            "identity_verified": true,
+            "source_changed_since_seed": false
+          },
+          {
+            "evidence_file": "d965f5f5db1f48bc92e339eace7ae0b5.json",
+            "valid": true,
+            "errors": [],
+            "outcome": "success",
+            "tool": "code_symbols",
+            "timings_ms": {
+              "guard": 33.38367800461128,
+              "startup_initialize": 12.954071004060097,
+              "identity": 0.4885250091319904,
+              "request": 0.544153997907415,
+              "exit": 1.1032190086552873,
+              "total": 48.50338700634893
+            },
+            "result_text_utf8_bytes": 1894,
+            "emitted_text_utf8_bytes": 1894,
+            "handler_elapsed_ms": 0,
+            "receipts": {
+              "work": {
+                "valid": true,
+                "id": "AAXJS4VUJPC3EZKV3IZUINUETN",
+                "text_sha256_matches": true,
+                "server_event_match_count": 1,
+                "server_event_valid": true,
+                "server_event_id": "01M23KV4BQAPA379M855W6JE81"
+              },
+              "retrieval": null,
+              "handler_elapsed_ms": 0,
+              "handler_duration_reason": "verified_server_work_elapsed_ms"
+            },
+            "id": "d965f5f5db1f48bc92e339eace7ae0b5",
+            "handler_requested": true,
+            "identity_verified": true,
+            "source_changed_since_seed": false
+          }
+        ]
+      },
+      "bytes": {
+        "complete_captured_source_output_bytes": 43635,
+        "conservative_source_lower_bound_bytes": 43635,
+        "all_category_lower_bound_bytes": 46514,
+        "included_boundaries_recount_matches_review": true,
+        "excluded_outer_calls": [],
+        "runtime_token_estimates_used": false,
+        "model_delivered_total_context_bytes": null
+      },
+      "hook_metrics": {
+        "review_had_hook_metrics_field": true,
+        "participant_installed_hook_duration_ms": null,
+        "observe_export_valid": true,
+        "observe_export_elapsed_ms": 8.166978004737757,
+        "observe_event_count": 4,
+        "zero_use_null_export_valid": false,
+        "boundary": "Controller export and verified retrieval handler receipts are separate from unobserved installed-hook elapsed time. Byte-derived server token fields are not observed runtime usage."
+      },
+      "tool_result_unknowns": [],
+      "execution_verification_file": "t07-trace-review.json execution_verification",
+      "tool_failures": [],
+      "tool_failure_evidence": "All 19 decoded command results have exit_code zero. All test invocations and their exact outputs are recorded in execution_verification.",
+      "participant_validation_runs": [
+        {
+          "command": "rtk proxy bun test tests",
+          "workdir": "/tmp/aide-outcomes-v5-trials/t07/root",
+          "call_id": "call_hhCGiAMa5Rr9cNqFN9tMnL9Y",
+          "content_index": 3,
+          "chunk_id": "66cbee",
+          "exit_code": 0,
+          "tests_passed": 4,
+          "tests_failed": 0,
+          "tests_total": 4,
+          "test_files": 1,
+          "expect_calls": 13,
+          "suite_scope": "Four existing visible tests.",
+          "post_run_changes": "After this run, participant reformatted src/core/model-usage.ts, src/test/model-usage.test.ts and src/test/model-usage-hooks.test.ts; added tests/usage-contract.test.ts with five scratch tests; ran 9 tests; then added afterAll mockRestore cleanup to that scratch file and reran 9 tests. No production logic edits followed this initial run.",
+          "validation_limit": "Bun runtime execution only. No original Vitest execution, semantic TypeScript type check, or standalone syntax-transpilation check observed. The controller mandatory grader (4 visible + 20 hidden) is separate and is not participant execution."
+        },
+        {
+          "command": "rtk proxy bun test tests",
+          "workdir": "/tmp/aide-outcomes-v5-trials/t07/root",
+          "call_id": "call_uslqBXbzCSsL5olUQ7jAUn3G",
+          "content_index": 3,
+          "chunk_id": "01a974",
+          "exit_code": 0,
+          "tests_passed": 9,
+          "tests_failed": 0,
+          "tests_total": 9,
+          "test_files": 2,
+          "expect_calls": 35,
+          "suite_scope": "Four existing visible tests plus five participant-added scratch tests.",
+          "post_run_changes": "After this run, participant added an afterAll import and afterAll(() => exec.mockRestore()) to tests/usage-contract.test.ts. A subsequent Bun run passed the same 9 tests. No production-source edits followed this run.",
+          "validation_limit": "Bun runtime execution only. No original Vitest execution, semantic TypeScript type check, or standalone syntax-transpilation check observed. The controller mandatory grader (4 visible + 20 hidden) is separate and is not participant execution."
+        },
+        {
+          "command": "rtk proxy bun test tests",
+          "workdir": "/tmp/aide-outcomes-v5-trials/t07/root",
+          "call_id": "call_eQFuD9r72x08EBGSHCKfSCnB",
+          "content_index": 3,
+          "chunk_id": "e65221",
+          "exit_code": 0,
+          "tests_passed": 9,
+          "tests_failed": 0,
+          "tests_total": 9,
+          "test_files": 2,
+          "expect_calls": 35,
+          "suite_scope": "Four existing visible tests plus five participant-added scratch tests.",
+          "post_run_changes": "No subsequent edits observed. Final run covers all final captured production-source and scratch-test edits; the original Vitest consumer files were not executed.",
+          "validation_limit": "Bun runtime execution only. No original Vitest execution, semantic TypeScript type check, or standalone syntax-transpilation check observed. The controller mandatory grader (4 visible + 20 hidden) is separate and is not participant execution."
+        }
+      ]
+    },
+    {
+      "trial": "t08",
+      "task": "implement",
+      "treatment": "ordinary",
+      "repetition": 2,
+      "review_file": "t08-trace-review.json",
+      "review_sha256": "1711b7aa9622703310905d4de13fba324d9eeea18636f3149329c4cee46b8c9e",
+      "reviewer": "v5_trace_audit",
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "protocol_violations": [],
+      "counts": {
+        "outer_tool_calls": 5,
+        "nested_tool_calls": 15,
+        "bootstrap": 1,
+        "discovery": 1,
+        "source_edit_test": 13,
+        "source": 8,
+        "edit": 3,
+        "test_execution": 2,
+        "transpile_execution": 0,
+        "typecheck_execution": 0,
+        "advisory_source_edit_test_target": 40,
+        "advisory_target_exceeded": false,
+        "basis": "Each executed tools.exec_command counts once, including individually awaited and Promise.allSettled calls. All captured inline edit and scratch-test bodies inspected without executing participant inputs.",
+        "discovery_definition": "First source-file inventory; focused content searches count as source even when they are the first source operation."
+      },
+      "executed_cardinality_matches_review": true,
+      "all_submitted_shell_strings_rtk_prefixed": true,
+      "raw_log_sha256_verified": "5e10876247be7b8a7499290369d0f49b1eeb6204342125691e11531c21e3abca",
+      "raw_inputs_and_results_equal_archives": true,
+      "actual_runtime": {
+        "actor_id": "01a0873f-6bc0-78f1-a177-9ce14d786844",
+        "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+        "agent_path": "/root/v5_execution/v5_t08",
+        "cli_version": "0.153.4",
+        "model_provider": "openai",
+        "model": "gpt-6-astra",
+        "effort": "high"
+      },
+      "launcher": {
+        "intended_complete_message_utf8_bytes": 5573,
+        "sha256_verified": "93daf2bab57ec34c1dbabdc26001eab473d11608dd45aead138312cf85f64897",
+        "prepared_archived_prelaunch_launch_regenerated_equal": true,
+        "actual_delivered_plaintext_equal": null,
+        "boundary": "Host task message is encrypted_content; intended controller byte equality is not delivered plaintext proof."
+      },
+      "source_integrity": {
+        "seed_file_count": 55,
+        "final_file_count": 56,
+        "baseline_seed_and_binding_match": true,
+        "final_capture_and_current_match": true,
+        "seed_inventory_sha256": "32010b7c86206acf83c8114e6deda25abf7d2ce9be53f5d3065e6af4048ecce5",
+        "final_inventory_sha256": "74ae92fcd7cf3a760b854eeee10b788463ac5db60ec7bce8772f12337466558c",
+        "inventory_hash_encoding": "SHA256 of sorted-key compact JSON UTF-8",
+        "complete_hash_evidence": "t08-prelaunch.json initial_source_inventory; t08-provenance.json candidate_snapshot.inventory_sha256",
+        "changed_allowed_sources": [
+          "src/core/model-usage.ts",
+          "src/hooks/session-summary.ts",
+          "src/opencode/hooks.ts",
+          "src/test/model-usage-hooks.test.ts",
+          "src/test/model-usage-recording.test.ts",
+          "src/test/model-usage.test.ts"
+        ],
+        "scratch_tests": [
+          "tests/usage-write-contract.test.ts"
+        ],
+        "all_preserved_changes_match_final_hashes": true
+      },
+      "aide_operations": 0,
+      "aide_uptake": false,
+      "bridge": {
+        "attempts": 0,
+        "copied_call_records": 0,
+        "all_requests_and_host_output_payloads_match": true,
+        "all_call_inventories_equal_frozen_seed": true,
+        "setup_binding_valid": true,
+        "identity_verified_calls": 0,
+        "valid_work_receipt_calls": 0,
+        "retrieval_receipt_calls": 0,
+        "all_receipt_source_hashes_and_full_file_bytes_verified": true,
+        "all_work_receipts_match_server_events": true,
+        "invalid_evidence": 0,
+        "outcomes": {
+          "successful": 0,
+          "tool_errors": 0,
+          "bridge_errors": 0,
+          "rejected": 0
+        },
+        "calls": []
+      },
+      "bytes": {
+        "complete_captured_source_output_bytes": 45865,
+        "conservative_source_lower_bound_bytes": 45865,
+        "all_category_lower_bound_bytes": 47982,
+        "included_boundaries_recount_matches_review": true,
+        "excluded_outer_calls": [],
+        "runtime_token_estimates_used": false,
+        "model_delivered_total_context_bytes": null
+      },
+      "hook_metrics": {
+        "review_had_hook_metrics_field": true,
+        "participant_installed_hook_duration_ms": null,
+        "observe_export_valid": true,
+        "observe_export_elapsed_ms": 8.460744997137226,
+        "observe_event_count": 0,
+        "zero_use_null_export_valid": true,
+        "boundary": "Controller export and verified retrieval handler receipts are separate from unobserved installed-hook elapsed time. Byte-derived server token fields are not observed runtime usage."
+      },
+      "tool_result_unknowns": [],
+      "execution_verification_file": "t08-trace-review.json execution_verification",
+      "tool_failures": [],
+      "tool_failure_evidence": "All 15 decoded command results have exit_code zero. All test invocations and their exact outputs are recorded in execution_verification.",
+      "participant_validation_runs": [
+        {
+          "command": "rtk proxy bun test tests",
+          "workdir": "/tmp/aide-outcomes-v5-trials/t08/root",
+          "call_id": "call_IZIKu60btNwFMEiiveBuwP8x",
+          "content_index": 3,
+          "chunk_id": "de737b",
+          "exit_code": 0,
+          "tests_passed": 4,
+          "tests_failed": 0,
+          "tests_total": 4,
+          "test_files": 1,
+          "expect_calls": 13,
+          "suite_scope": "Four existing visible tests.",
+          "post_run_changes": "After this run, participant reformatted src/test/model-usage-hooks.test.ts and src/test/model-usage.test.ts, then added tests/usage-write-contract.test.ts with five scratch tests. The final Bun run passed 9 tests. No production-source edits followed this initial run.",
+          "validation_limit": "Bun runtime execution only. No original Vitest execution, semantic TypeScript type check, or standalone syntax-transpilation check observed. The controller mandatory grader (4 visible + 20 hidden) is separate and is not participant execution."
+        },
+        {
+          "command": "rtk proxy bun test tests",
+          "workdir": "/tmp/aide-outcomes-v5-trials/t08/root",
+          "call_id": "call_5W9PrtNu2iNGrwqFvbzlHBg3",
+          "content_index": 3,
+          "chunk_id": "cb40df",
+          "exit_code": 0,
+          "tests_passed": 9,
+          "tests_failed": 0,
+          "tests_total": 9,
+          "test_files": 2,
+          "expect_calls": 39,
+          "suite_scope": "Four existing visible tests plus five participant-added scratch tests.",
+          "post_run_changes": "No subsequent edits observed. Final run covers all final captured production-source and scratch-test edits; the original Vitest consumer files were not executed.",
+          "validation_limit": "Bun runtime execution only. No original Vitest execution, semantic TypeScript type check, or standalone syntax-transpilation check observed. The controller mandatory grader (4 visible + 20 hidden) is separate and is not participant execution."
+        }
+      ]
+    },
+    {
+      "trial": "t09",
+      "task": "impact",
+      "treatment": "assisted",
+      "repetition": 2,
+      "review_file": "t09-trace-review.json",
+      "review_sha256": "4788d546ca7d228b420853673b325f25d43dd47da4e1b21c77c3a96c2d75d111",
+      "reviewer": "v5_trace_audit",
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "protocol_violations": [],
+      "counts": {
+        "outer_tool_calls": 7,
+        "nested_tool_calls": 26,
+        "bootstrap": 1,
+        "discovery": 1,
+        "source_edit_test": 24,
+        "source": 24,
+        "edit": 0,
+        "test_execution": 0,
+        "transpile_execution": 0,
+        "typecheck_execution": 0,
+        "advisory_source_edit_test_target": 40,
+        "advisory_target_exceeded": false,
+        "basis": "Each executed tools.exec_command counts once, including individually awaited and Promise.allSettled calls. All input strings and downstream pipeline stages were inspected without executing participant inputs.",
+        "discovery_definition": "Initial source-file inventory; focused content reads/searches count as source."
+      },
+      "executed_cardinality_matches_review": true,
+      "all_submitted_shell_strings_rtk_prefixed": true,
+      "raw_log_sha256_verified": "1a7017b1d886ea0eb322d0fecb50c405b317c7c3cb5188bf981a93f34ba353ad",
+      "raw_inputs_and_results_equal_archives": true,
+      "actual_runtime": {
+        "actor_id": "01a08741-5e8d-7b73-af87-82391fb29b59",
+        "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+        "agent_path": "/root/v5_execution/v5_t09",
+        "cli_version": "0.153.4",
+        "model_provider": "openai",
+        "model": "gpt-6-astra",
+        "effort": "high"
+      },
+      "launcher": {
+        "intended_complete_message_utf8_bytes": 7741,
+        "sha256_verified": "9eaa8af00ce856afa3cabdc5cae02e7f4a0ab89e2bead4bc472534020e636b30",
+        "prepared_archived_prelaunch_launch_regenerated_equal": true,
+        "actual_delivered_plaintext_equal": null,
+        "boundary": "Host task message is encrypted_content; intended controller byte equality is not delivered plaintext proof."
+      },
+      "source_integrity": {
+        "seed_file_count": 50,
+        "final_file_count": 50,
+        "baseline_seed_and_binding_match": true,
+        "final_capture_and_current_match": true,
+        "seed_inventory_sha256": "34fa556a8169f8ba9503c3f0d4ff344d34af697eb154c0d33c4a104d46ed1134",
+        "final_inventory_sha256": "34fa556a8169f8ba9503c3f0d4ff344d34af697eb154c0d33c4a104d46ed1134",
+        "inventory_hash_encoding": "SHA256 of sorted-key compact JSON UTF-8",
+        "complete_hash_evidence": "t09-prelaunch.json initial_source_inventory; t09-provenance.json candidate_snapshot.inventory_sha256",
+        "changed_allowed_sources": [],
+        "scratch_tests": [],
+        "all_preserved_changes_match_final_hashes": true
+      },
+      "aide_operations": 5,
+      "aide_uptake": true,
+      "bridge": {
+        "attempts": 5,
+        "copied_call_records": 5,
+        "all_requests_and_host_output_payloads_match": true,
+        "all_call_inventories_equal_frozen_seed": true,
+        "setup_binding_valid": true,
+        "identity_verified_calls": 5,
+        "valid_work_receipt_calls": 5,
+        "retrieval_receipt_calls": 5,
+        "all_receipt_source_hashes_and_full_file_bytes_verified": true,
+        "all_work_receipts_match_server_events": true,
+        "invalid_evidence": 0,
+        "outcomes": {
+          "successful": 5,
+          "tool_errors": 0,
+          "bridge_errors": 0,
+          "rejected": 0
+        },
+        "calls": [
+          {
+            "evidence_file": "0a5dadab9428496398a35449631253dc.json",
+            "valid": true,
+            "errors": [],
+            "outcome": "success",
+            "tool": "code_read_symbol",
+            "timings_ms": {
+              "guard": 44.589269993593916,
+              "startup_initialize": 23.651541996514425,
+              "identity": 0.5227940127952024,
+              "request": 8.43181500385981,
+              "exit": 7.394914995529689,
+              "total": 84.63802500045858
+            },
+            "result_text_utf8_bytes": 5051,
+            "emitted_text_utf8_bytes": 5051,
+            "handler_elapsed_ms": 8,
+            "receipts": {
+              "work": {
+                "valid": true,
+                "id": "OBG7P62BC352ZQ3DYNJLD45G3K",
+                "text_sha256_matches": true,
+                "server_event_match_count": 1,
+                "server_event_valid": true,
+                "server_event_id": "01M23M42RAPD0CPCRTX01BRW89"
+              },
+              "retrieval": {
+                "valid": true,
+                "id": "OQBYC7FALOT5SSQ2RT32G2VAMZ",
+                "source_references": [
+                  {
+                    "file": "aide/cmd/aide/cmd_observe.go",
+                    "inside_root": true,
+                    "sha256_matches_call_inventory": true,
+                    "reference_bytes": 14395,
+                    "byte_count_independently_verified": true
+                  }
+                ],
+                "verification_boundary": "Source SHA256 checked against pre-call inventory; byte counts independently verified only when a controller-supplied full snapshot has the same SHA256."
+              },
+              "handler_elapsed_ms": 8,
+              "handler_duration_reason": "verified_server_work_elapsed_ms"
+            },
+            "id": "0a5dadab9428496398a35449631253dc",
+            "handler_requested": true,
+            "identity_verified": true,
+            "source_changed_since_seed": false
+          },
+          {
+            "evidence_file": "114474d43b81456783fcf8c1a8d0a362.json",
+            "valid": true,
+            "errors": [],
+            "outcome": "success",
+            "tool": "code_outline",
+            "timings_ms": {
+              "guard": 33.061876994906925,
+              "startup_initialize": 10.361865992308594,
+              "identity": 0.27681699430104345,
+              "request": 10.406575005617924,
+              "exit": 1.0977990023093298,
+              "total": 55.22983300033957
+            },
+            "result_text_utf8_bytes": 7346,
+            "emitted_text_utf8_bytes": 7346,
+            "handler_elapsed_ms": 10,
+            "receipts": {
+              "work": {
+                "valid": true,
+                "id": "46H7W7GMP4PK25WGSRKFGS4IJJ",
+                "text_sha256_matches": true,
+                "server_event_match_count": 1,
+                "server_event_valid": true,
+                "server_event_id": "01M23M389P78MV5AFKF0EEQ1A0"
+              },
+              "retrieval": {
+                "valid": true,
+                "id": "422L2WJMRKMBPCV6JZIASGYGRP",
+                "source_references": [
+                  {
+                    "file": "src/opencode/hooks.ts",
+                    "inside_root": true,
+                    "sha256_matches_call_inventory": true,
+                    "reference_bytes": 49563,
+                    "byte_count_independently_verified": true
+                  }
+                ],
+                "verification_boundary": "Source SHA256 checked against pre-call inventory; byte counts independently verified only when a controller-supplied full snapshot has the same SHA256."
+              },
+              "handler_elapsed_ms": 10,
+              "handler_duration_reason": "verified_server_work_elapsed_ms"
+            },
+            "id": "114474d43b81456783fcf8c1a8d0a362",
+            "handler_requested": true,
+            "identity_verified": true,
+            "source_changed_since_seed": false
+          },
+          {
+            "evidence_file": "1ee679a298e14171a6ad7064d766c756.json",
+            "valid": true,
+            "errors": [],
+            "outcome": "success",
+            "tool": "code_outline",
+            "timings_ms": {
+              "guard": 32.660009994287975,
+              "startup_initialize": 14.351476012961939,
+              "identity": 0.46882500464562327,
+              "request": 6.9182900042505935,
+              "exit": 3.1683280103607103,
+              "total": 57.59873900387902
+            },
+            "result_text_utf8_bytes": 2470,
+            "emitted_text_utf8_bytes": 2470,
+            "handler_elapsed_ms": 6,
+            "receipts": {
+              "work": {
+                "valid": true,
+                "id": "7XFVWQF2WMKM7LY7IPF4ATUC2V",
+                "text_sha256_matches": true,
+                "server_event_match_count": 1,
+                "server_event_valid": true,
+                "server_event_id": "01M23M37XQCFGCERR88T8AF6RZ"
+              },
+              "retrieval": {
+                "valid": true,
+                "id": "6PZMSPNP7JAWH2HFEPEJZV2FH3",
+                "source_references": [
+                  {
+                    "file": "src/core/model-usage.ts",
+                    "inside_root": true,
+                    "sha256_matches_call_inventory": true,
+                    "reference_bytes": 10720,
+                    "byte_count_independently_verified": true
+                  }
+                ],
+                "verification_boundary": "Source SHA256 checked against pre-call inventory; byte counts independently verified only when a controller-supplied full snapshot has the same SHA256."
+              },
+              "handler_elapsed_ms": 6,
+              "handler_duration_reason": "verified_server_work_elapsed_ms"
+            },
+            "id": "1ee679a298e14171a6ad7064d766c756",
+            "handler_requested": true,
+            "identity_verified": true,
+            "source_changed_since_seed": false
+          },
+          {
+            "evidence_file": "4d00257360c842cca5b517171d225b30.json",
+            "valid": true,
+            "errors": [],
+            "outcome": "success",
+            "tool": "code_read_symbol",
+            "timings_ms": {
+              "guard": 31.120316009037197,
+              "startup_initialize": 10.229856998194009,
+              "identity": 0.2807870041579008,
+              "request": 6.655703007709235,
+              "exit": 1.1318290053168312,
+              "total": 49.44465101289097
+            },
+            "result_text_utf8_bytes": 6364,
+            "emitted_text_utf8_bytes": 6364,
+            "handler_elapsed_ms": 6,
+            "receipts": {
+              "work": {
+                "valid": true,
+                "id": "IVDYJMES4CO47GMYKWIGZYMQPN",
+                "text_sha256_matches": true,
+                "server_event_match_count": 1,
+                "server_event_valid": true,
+                "server_event_id": "01M23M3HJJY4T9CTSEGC28QVB0"
+              },
+              "retrieval": {
+                "valid": true,
+                "id": "ZNHBFPVGY6XP7OTPY5DS7MREOI",
+                "source_references": [
+                  {
+                    "file": "src/core/model-usage.ts",
+                    "inside_root": true,
+                    "sha256_matches_call_inventory": true,
+                    "reference_bytes": 10720,
+                    "byte_count_independently_verified": true
+                  }
+                ],
+                "verification_boundary": "Source SHA256 checked against pre-call inventory; byte counts independently verified only when a controller-supplied full snapshot has the same SHA256."
+              },
+              "handler_elapsed_ms": 6,
+              "handler_duration_reason": "verified_server_work_elapsed_ms"
+            },
+            "id": "4d00257360c842cca5b517171d225b30",
+            "handler_requested": true,
+            "identity_verified": true,
+            "source_changed_since_seed": false
+          },
+          {
+            "evidence_file": "6ff63db0ec6b49ba9af0019b02d45514.json",
+            "valid": true,
+            "errors": [],
+            "outcome": "success",
+            "tool": "code_read_symbol",
+            "timings_ms": {
+              "guard": 31.378094005049206,
+              "startup_initialize": 10.095767996972427,
+              "identity": 0.7536129996879026,
+              "request": 10.332995996577665,
+              "exit": 1.0957979975501075,
+              "total": 53.68107800313737
+            },
+            "result_text_utf8_bytes": 6081,
+            "emitted_text_utf8_bytes": 6081,
+            "handler_elapsed_ms": 9,
+            "receipts": {
+              "work": {
+                "valid": true,
+                "id": "2KV35RPWZGXDBEB5HS6MU2IFWX",
+                "text_sha256_matches": true,
+                "server_event_match_count": 1,
+                "server_event_valid": true,
+                "server_event_id": "01M23M3HYVYDW177TC1AJ64S60"
+              },
+              "retrieval": {
+                "valid": true,
+                "id": "7EOEDPZTVFU6AMTH5OSVSON22A",
+                "source_references": [
+                  {
+                    "file": "src/opencode/hooks.ts",
+                    "inside_root": true,
+                    "sha256_matches_call_inventory": true,
+                    "reference_bytes": 49563,
+                    "byte_count_independently_verified": true
+                  }
+                ],
+                "verification_boundary": "Source SHA256 checked against pre-call inventory; byte counts independently verified only when a controller-supplied full snapshot has the same SHA256."
+              },
+              "handler_elapsed_ms": 9,
+              "handler_duration_reason": "verified_server_work_elapsed_ms"
+            },
+            "id": "6ff63db0ec6b49ba9af0019b02d45514",
+            "handler_requested": true,
+            "identity_verified": true,
+            "source_changed_since_seed": false
+          }
+        ]
+      },
+      "bytes": {
+        "complete_captured_source_output_bytes": 121804,
+        "conservative_source_lower_bound_bytes": 121804,
+        "all_category_lower_bound_bytes": 123705,
+        "included_boundaries_recount_matches_review": true,
+        "excluded_outer_calls": [],
+        "runtime_token_estimates_used": false,
+        "model_delivered_total_context_bytes": null
+      },
+      "hook_metrics": {
+        "review_had_hook_metrics_field": true,
+        "participant_installed_hook_duration_ms": null,
+        "observe_export_valid": true,
+        "observe_export_elapsed_ms": 8.299855995574035,
+        "observe_event_count": 10,
+        "zero_use_null_export_valid": false,
+        "boundary": "Controller export and verified retrieval handler receipts are separate from unobserved installed-hook elapsed time. Byte-derived server token fields are not observed runtime usage."
+      },
+      "tool_result_unknowns": [],
+      "execution_verification_file": null,
+      "tool_failures": [],
+      "tool_failure_evidence": "All 26 decoded command results have exit_code zero."
+    },
+    {
+      "trial": "t10",
+      "task": "impact",
+      "treatment": "ordinary",
+      "repetition": 2,
+      "review_file": "t10-trace-review.json",
+      "review_sha256": "bd0707d98bddca58e77f7ab6511c7bcc84a9a58e679e212e5e086d47a42d38b5",
+      "reviewer": "v5_trace_audit",
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "protocol_violations": [],
+      "counts": {
+        "outer_tool_calls": 6,
+        "nested_tool_calls": 20,
+        "bootstrap": 1,
+        "discovery": 2,
+        "source_edit_test": 17,
+        "source": 17,
+        "edit": 0,
+        "test_execution": 0,
+        "transpile_execution": 0,
+        "typecheck_execution": 0,
+        "advisory_source_edit_test_target": 40,
+        "advisory_target_exceeded": false,
+        "basis": "Each executed tools.exec_command counts once. All shell strings and downstream pipeline stages inspected without executing participant inputs.",
+        "discovery_definition": "Initial bounded root inventory plus first complete source-file inventory; focused content reads/searches count as source."
+      },
+      "executed_cardinality_matches_review": true,
+      "all_submitted_shell_strings_rtk_prefixed": true,
+      "raw_log_sha256_verified": "c960664d513dd0f9cba17515a6d1f0702a6030a817b77f099fca85a32f488ba2",
+      "raw_inputs_and_results_equal_archives": true,
+      "actual_runtime": {
+        "actor_id": "01a08743-810b-77c2-8ba6-2dceac2f7fd2",
+        "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+        "agent_path": "/root/v5_execution/v5_t10",
+        "cli_version": "0.153.4",
+        "model_provider": "openai",
+        "model": "gpt-6-astra",
+        "effort": "high"
+      },
+      "launcher": {
+        "intended_complete_message_utf8_bytes": 5632,
+        "sha256_verified": "53fe4df226fc3ecd2ce642b38e37013608c608eb14181746022e5d00689d459c",
+        "prepared_archived_prelaunch_launch_regenerated_equal": true,
+        "actual_delivered_plaintext_equal": null,
+        "boundary": "Host task message is encrypted_content; intended controller byte equality is not delivered plaintext proof."
+      },
+      "source_integrity": {
+        "seed_file_count": 50,
+        "final_file_count": 50,
+        "baseline_seed_and_binding_match": true,
+        "final_capture_and_current_match": true,
+        "seed_inventory_sha256": "34fa556a8169f8ba9503c3f0d4ff344d34af697eb154c0d33c4a104d46ed1134",
+        "final_inventory_sha256": "34fa556a8169f8ba9503c3f0d4ff344d34af697eb154c0d33c4a104d46ed1134",
+        "inventory_hash_encoding": "SHA256 of sorted-key compact JSON UTF-8",
+        "complete_hash_evidence": "t10-prelaunch.json initial_source_inventory; t10-provenance.json candidate_snapshot.inventory_sha256",
+        "changed_allowed_sources": [],
+        "scratch_tests": [],
+        "all_preserved_changes_match_final_hashes": true
+      },
+      "aide_operations": 0,
+      "aide_uptake": false,
+      "bridge": {
+        "attempts": 0,
+        "copied_call_records": 0,
+        "all_requests_and_host_output_payloads_match": true,
+        "all_call_inventories_equal_frozen_seed": true,
+        "setup_binding_valid": true,
+        "identity_verified_calls": 0,
+        "valid_work_receipt_calls": 0,
+        "retrieval_receipt_calls": 0,
+        "all_receipt_source_hashes_and_full_file_bytes_verified": true,
+        "all_work_receipts_match_server_events": true,
+        "invalid_evidence": 0,
+        "outcomes": {
+          "successful": 0,
+          "tool_errors": 0,
+          "bridge_errors": 0,
+          "rejected": 0
+        },
+        "calls": []
+      },
+      "bytes": {
+        "complete_captured_source_output_bytes": 116325,
+        "conservative_source_lower_bound_bytes": 116325,
+        "all_category_lower_bound_bytes": 119195,
+        "included_boundaries_recount_matches_review": true,
+        "excluded_outer_calls": [],
+        "runtime_token_estimates_used": false,
+        "model_delivered_total_context_bytes": null
+      },
+      "hook_metrics": {
+        "review_had_hook_metrics_field": true,
+        "participant_installed_hook_duration_ms": null,
+        "observe_export_valid": true,
+        "observe_export_elapsed_ms": 8.668481998029165,
+        "observe_event_count": 0,
+        "zero_use_null_export_valid": true,
+        "boundary": "Controller export and verified retrieval handler receipts are separate from unobserved installed-hook elapsed time. Byte-derived server token fields are not observed runtime usage."
+      },
+      "tool_result_unknowns": [],
+      "execution_verification_file": null,
+      "tool_failures": [],
+      "tool_failure_evidence": "All 20 decoded command results have exit_code zero."
+    },
+    {
+      "trial": "t11",
+      "task": "trace",
+      "treatment": "assisted",
+      "repetition": 2,
+      "review_file": "t11-trace-review.json",
+      "review_sha256": "c9ca697dea5a23a687ba5f712447650eaaf90c38d564a6158aae78da1a82b745",
+      "reviewer": "v5_trace_audit",
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "protocol_violations": [],
+      "counts": {
+        "outer_tool_calls": 7,
+        "nested_tool_calls": 20,
+        "bootstrap": 1,
+        "discovery": 1,
+        "source_edit_test": 18,
+        "source": 18,
+        "edit": 0,
+        "test_execution": 0,
+        "transpile_execution": 0,
+        "typecheck_execution": 0,
+        "advisory_source_edit_test_target": 40,
+        "advisory_target_exceeded": false,
+        "basis": "Each executed tools.exec_command counts once; all command strings and downstream pipeline stages inspected. Truncated result bodies do not erase the recorded command execution count.",
+        "discovery_definition": "Initial root layout, if present, plus first source-file inventory; focused content reads/searches count as source."
+      },
+      "executed_cardinality_matches_review": true,
+      "all_submitted_shell_strings_rtk_prefixed": true,
+      "raw_log_sha256_verified": "b7524f93b02da3f75c17719671a5e97585d7cd1a1a83ceba52359e49a6f3d9fd",
+      "raw_inputs_and_results_equal_archives": true,
+      "actual_runtime": {
+        "actor_id": "01a08745-b353-7940-814c-c05fb1ba5c2a",
+        "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+        "agent_path": "/root/v5_execution/v5_t11",
+        "cli_version": "0.153.4",
+        "model_provider": "openai",
+        "model": "gpt-6-astra",
+        "effort": "high"
+      },
+      "launcher": {
+        "intended_complete_message_utf8_bytes": 7670,
+        "sha256_verified": "92f8c36ec489254d720521924463fcfd19bafe58117013304c6cb26465d6ba93",
+        "prepared_archived_prelaunch_launch_regenerated_equal": true,
+        "actual_delivered_plaintext_equal": null,
+        "boundary": "Host task message is encrypted_content; intended controller byte equality is not delivered plaintext proof."
+      },
+      "source_integrity": {
+        "seed_file_count": 50,
+        "final_file_count": 50,
+        "baseline_seed_and_binding_match": true,
+        "final_capture_and_current_match": true,
+        "seed_inventory_sha256": "34fa556a8169f8ba9503c3f0d4ff344d34af697eb154c0d33c4a104d46ed1134",
+        "final_inventory_sha256": "34fa556a8169f8ba9503c3f0d4ff344d34af697eb154c0d33c4a104d46ed1134",
+        "inventory_hash_encoding": "SHA256 of sorted-key compact JSON UTF-8",
+        "complete_hash_evidence": "t11-prelaunch.json initial_source_inventory; t11-provenance.json candidate_snapshot.inventory_sha256",
+        "changed_allowed_sources": [],
+        "scratch_tests": [],
+        "all_preserved_changes_match_final_hashes": true
+      },
+      "aide_operations": 2,
+      "aide_uptake": true,
+      "bridge": {
+        "attempts": 2,
+        "copied_call_records": 2,
+        "all_requests_and_host_output_payloads_match": true,
+        "all_call_inventories_equal_frozen_seed": true,
+        "setup_binding_valid": true,
+        "identity_verified_calls": 2,
+        "valid_work_receipt_calls": 2,
+        "retrieval_receipt_calls": 1,
+        "all_receipt_source_hashes_and_full_file_bytes_verified": true,
+        "all_work_receipts_match_server_events": true,
+        "invalid_evidence": 0,
+        "outcomes": {
+          "successful": 2,
+          "tool_errors": 0,
+          "bridge_errors": 0,
+          "rejected": 0
+        },
+        "calls": [
+          {
+            "evidence_file": "2b149f6b7bd6440dabef882defc65716.json",
+            "valid": true,
+            "errors": [],
+            "outcome": "success",
+            "tool": "code_symbols",
+            "timings_ms": {
+              "guard": 31.101083994144574,
+              "startup_initialize": 12.387803988531232,
+              "identity": 0.31768600456416607,
+              "request": 0.5625049961963668,
+              "exit": 1.0922790097538382,
+              "total": 45.48406800313387
+            },
+            "result_text_utf8_bytes": 3356,
+            "emitted_text_utf8_bytes": 3356,
+            "handler_elapsed_ms": 0,
+            "receipts": {
+              "work": {
+                "valid": true,
+                "id": "AGRQQS6O5MMDTEBJCGDKQRFTOC",
+                "text_sha256_matches": true,
+                "server_event_match_count": 1,
+                "server_event_valid": true,
+                "server_event_id": "01M23MBX0BBVMVS4Y5XCTJBT9Q"
+              },
+              "retrieval": null,
+              "handler_elapsed_ms": 0,
+              "handler_duration_reason": "verified_server_work_elapsed_ms"
+            },
+            "id": "2b149f6b7bd6440dabef882defc65716",
+            "handler_requested": true,
+            "identity_verified": true,
+            "source_changed_since_seed": false
+          },
+          {
+            "evidence_file": "3d6bf42e3c7b4b1ea61085bc8ec0ed70.json",
+            "valid": true,
+            "errors": [],
+            "outcome": "success",
+            "tool": "code_read_symbol",
+            "timings_ms": {
+              "guard": 31.051665006089024,
+              "startup_initialize": 10.129527989192866,
+              "identity": 0.36325599648989737,
+              "request": 11.154846011777408,
+              "exit": 1.1007390130544081,
+              "total": 53.827153009478934
+            },
+            "result_text_utf8_bytes": 7326,
+            "emitted_text_utf8_bytes": 7326,
+            "handler_elapsed_ms": 10,
+            "receipts": {
+              "work": {
+                "valid": true,
+                "id": "4TACDD5GJRZ46JRCMUAXHO2ALB",
+                "text_sha256_matches": true,
+                "server_event_match_count": 1,
+                "server_event_valid": true,
+                "server_event_id": "01M23MC4CE04MV4KG6Z5KQG1KB"
+              },
+              "retrieval": {
+                "valid": true,
+                "id": "UTOH7VMKZWH5XAOXOGCUBD3Z2H",
+                "source_references": [
+                  {
+                    "file": "src/opencode/hooks.ts",
+                    "inside_root": true,
+                    "sha256_matches_call_inventory": true,
+                    "reference_bytes": 49563,
+                    "byte_count_independently_verified": true
+                  }
+                ],
+                "verification_boundary": "Source SHA256 checked against pre-call inventory; byte counts independently verified only when a controller-supplied full snapshot has the same SHA256."
+              },
+              "handler_elapsed_ms": 10,
+              "handler_duration_reason": "verified_server_work_elapsed_ms"
+            },
+            "id": "3d6bf42e3c7b4b1ea61085bc8ec0ed70",
+            "handler_requested": true,
+            "identity_verified": true,
+            "source_changed_since_seed": false
+          }
+        ]
+      },
+      "bytes": {
+        "complete_captured_source_output_bytes": null,
+        "conservative_source_lower_bound_bytes": 88916,
+        "all_category_lower_bound_bytes": 90817,
+        "included_boundaries_recount_matches_review": true,
+        "excluded_outer_calls": [
+          {
+            "call_id": "call_VKUfyaVTr4jO8CrIxAUmzDFm",
+            "nested_calls": 4,
+            "reason": "Outer response reports 13611 original tokens and 3611 truncated tokens, splicing the second command result header/body. Conservatively exclude all four output bodies, including intact-looking neighbors, from the lower bound. The second command exit status is unknown."
+          }
+        ],
+        "runtime_token_estimates_used": false,
+        "model_delivered_total_context_bytes": null
+      },
+      "hook_metrics": {
+        "review_had_hook_metrics_field": true,
+        "participant_installed_hook_duration_ms": null,
+        "observe_export_valid": true,
+        "observe_export_elapsed_ms": 8.24953599658329,
+        "observe_event_count": 4,
+        "zero_use_null_export_valid": false,
+        "boundary": "Controller export and verified retrieval handler receipts are separate from unobserved installed-hook elapsed time. Byte-derived server token fields are not observed runtime usage."
+      },
+      "tool_result_unknowns": [
+        {
+          "call_id": "call_VKUfyaVTr4jO8CrIxAUmzDFm",
+          "nested_command_index": 1,
+          "command": "rtk proxy nl -ba aide/pkg/store/observe_events.go",
+          "exit_code": null,
+          "reason": "Outer truncation removed the exit status field."
+        }
+      ],
+      "execution_verification_file": null,
+      "tool_failures": [],
+      "tool_failure_evidence": "19 surviving decoded command result headers show exit_code zero. The second command in the truncated outer response has a spliced header, so its exit status is unknown; no failure is evidenced."
+    },
+    {
+      "trial": "t12",
+      "task": "trace",
+      "treatment": "ordinary",
+      "repetition": 2,
+      "review_file": "t12-trace-review.json",
+      "review_sha256": "feb9379acb0444bfa372c576d27dd3eea3af1f3bb49e0969430d30a9478c2ffe",
+      "reviewer": "v5_trace_audit",
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "protocol_violations": [],
+      "counts": {
+        "outer_tool_calls": 8,
+        "nested_tool_calls": 25,
+        "bootstrap": 1,
+        "discovery": 2,
+        "source_edit_test": 22,
+        "source": 22,
+        "edit": 0,
+        "test_execution": 0,
+        "transpile_execution": 0,
+        "typecheck_execution": 0,
+        "advisory_source_edit_test_target": 40,
+        "advisory_target_exceeded": false,
+        "basis": "Each executed tools.exec_command counts once; all command strings and downstream pipeline stages inspected. Truncated result bodies do not erase the recorded command execution count.",
+        "discovery_definition": "Initial root layout, if present, plus first source-file inventory; focused content reads/searches count as source."
+      },
+      "executed_cardinality_matches_review": true,
+      "all_submitted_shell_strings_rtk_prefixed": true,
+      "raw_log_sha256_verified": "cc3b03d3f125ada6918cb3f31e54142628413038e5311ddc36fcd371d35ff5dd",
+      "raw_inputs_and_results_equal_archives": true,
+      "actual_runtime": {
+        "actor_id": "01a08747-96ba-7300-b8c8-ad3de6530cf5",
+        "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+        "agent_path": "/root/v5_execution/v5_t12",
+        "cli_version": "0.153.4",
+        "model_provider": "openai",
+        "model": "gpt-6-astra",
+        "effort": "high"
+      },
+      "launcher": {
+        "intended_complete_message_utf8_bytes": 5561,
+        "sha256_verified": "2051db7ae072889b7615a73cf461887445286ad26140b77dabdc4118668bab69",
+        "prepared_archived_prelaunch_launch_regenerated_equal": true,
+        "actual_delivered_plaintext_equal": null,
+        "boundary": "Host task message is encrypted_content; intended controller byte equality is not delivered plaintext proof."
+      },
+      "source_integrity": {
+        "seed_file_count": 50,
+        "final_file_count": 50,
+        "baseline_seed_and_binding_match": true,
+        "final_capture_and_current_match": true,
+        "seed_inventory_sha256": "34fa556a8169f8ba9503c3f0d4ff344d34af697eb154c0d33c4a104d46ed1134",
+        "final_inventory_sha256": "34fa556a8169f8ba9503c3f0d4ff344d34af697eb154c0d33c4a104d46ed1134",
+        "inventory_hash_encoding": "SHA256 of sorted-key compact JSON UTF-8",
+        "complete_hash_evidence": "t12-prelaunch.json initial_source_inventory; t12-provenance.json candidate_snapshot.inventory_sha256",
+        "changed_allowed_sources": [],
+        "scratch_tests": [],
+        "all_preserved_changes_match_final_hashes": true
+      },
+      "aide_operations": 0,
+      "aide_uptake": false,
+      "bridge": {
+        "attempts": 0,
+        "copied_call_records": 0,
+        "all_requests_and_host_output_payloads_match": true,
+        "all_call_inventories_equal_frozen_seed": true,
+        "setup_binding_valid": true,
+        "identity_verified_calls": 0,
+        "valid_work_receipt_calls": 0,
+        "retrieval_receipt_calls": 0,
+        "all_receipt_source_hashes_and_full_file_bytes_verified": true,
+        "all_work_receipts_match_server_events": true,
+        "invalid_evidence": 0,
+        "outcomes": {
+          "successful": 0,
+          "tool_errors": 0,
+          "bridge_errors": 0,
+          "rejected": 0
+        },
+        "calls": []
+      },
+      "bytes": {
+        "complete_captured_source_output_bytes": null,
+        "conservative_source_lower_bound_bytes": 76721,
+        "all_category_lower_bound_bytes": 78912,
+        "included_boundaries_recount_matches_review": true,
+        "excluded_outer_calls": [
+          {
+            "call_id": "call_y7Wl6JHe0AMGajfi8eMTbrwM",
+            "nested_calls": 4,
+            "reason": "Outer response reports 13090 original tokens and 3090 truncated tokens, splicing the second command result header/body. Conservatively exclude all four output bodies, including intact-looking neighbors, from the lower bound. The second command exit status is unknown."
+          }
+        ],
+        "runtime_token_estimates_used": false,
+        "model_delivered_total_context_bytes": null
+      },
+      "hook_metrics": {
+        "review_had_hook_metrics_field": true,
+        "participant_installed_hook_duration_ms": null,
+        "observe_export_valid": true,
+        "observe_export_elapsed_ms": 8.020559005672112,
+        "observe_event_count": 0,
+        "zero_use_null_export_valid": true,
+        "boundary": "Controller export and verified retrieval handler receipts are separate from unobserved installed-hook elapsed time. Byte-derived server token fields are not observed runtime usage."
+      },
+      "tool_result_unknowns": [
+        {
+          "call_id": "call_y7Wl6JHe0AMGajfi8eMTbrwM",
+          "nested_command_index": 1,
+          "command": "rtk proxy nl -ba aide/pkg/store/observe_events.go",
+          "exit_code": null,
+          "reason": "Outer truncation removed the exit status field."
+        }
+      ],
+      "execution_verification_file": null,
+      "tool_failures": [],
+      "tool_failure_evidence": "24 surviving decoded command result headers show exit_code zero. The second command in the truncated outer response has a spliced header, so its exit status is unknown; no failure is evidenced."
+    }
+  ]
+}

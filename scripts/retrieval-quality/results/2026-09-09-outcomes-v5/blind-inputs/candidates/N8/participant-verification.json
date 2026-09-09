@@ -1,0 +1,53 @@
+[
+  {
+    "command": "rtk proxy bun test tests",
+    "workdir": "<workspace>",
+    "call_id": "call_hhCGiAMa5Rr9cNqFN9tMnL9Y",
+    "content_index": 3,
+    "chunk_id": "66cbee",
+    "exit_code": 0,
+    "tests_passed": 4,
+    "tests_failed": 0,
+    "tests_total": 4,
+    "test_files": 1,
+    "expect_calls": 13,
+    "suite_scope": "Four existing visible tests.",
+    "post_run_changes": "After this run, participant reformatted src/core/model-usage.ts, src/test/model-usage.test.ts and src/test/model-usage-hooks.test.ts; added tests/usage-contract.test.ts with five scratch tests; ran 9 tests; then added afterAll mockRestore cleanup to that scratch file and reran 9 tests. No production logic edits followed this initial run.",
+    "validation_limit": "Bun runtime execution only. No original Vitest execution, semantic TypeScript type check, or standalone syntax-transpilation check observed. The controller mandatory grader (4 visible + 20 hidden) is separate and is not participant execution.",
+    "output": "bun test v1.4.0 (34cbb9a40)\n\ntests/usage.test.ts:\n(pass) existing usage behavior > Claude inputs are disjoint; placeholder output is omitted [0.91ms]\n(pass) existing usage behavior > Codex rejects cumulative records and mismatched sessions [0.18ms]\n(pass) existing usage behavior > OpenCode retains ambiguous raw output without adding it [0.09ms]\n(pass) existing usage behavior > transcript scanner skips incomplete trailing lines and stays partial [0.58ms]\n\n 4 pass\n 0 fail\n 13 expect() calls\nRan 4 tests across 1 file. [16.00ms]\n"
+  },
+  {
+    "command": "rtk proxy bun test tests",
+    "workdir": "<workspace>",
+    "call_id": "call_uslqBXbzCSsL5olUQ7jAUn3G",
+    "content_index": 3,
+    "chunk_id": "01a974",
+    "exit_code": 0,
+    "tests_passed": 9,
+    "tests_failed": 0,
+    "tests_total": 9,
+    "test_files": 2,
+    "expect_calls": 35,
+    "suite_scope": "Four existing visible tests plus five participant-added scratch tests.",
+    "post_run_changes": "After this run, participant added an afterAll import and afterAll(() => exec.mockRestore()) to tests/usage-contract.test.ts. A subsequent Bun run passed the same 9 tests. No production-source edits followed this run.",
+    "validation_limit": "Bun runtime execution only. No original Vitest execution, semantic TypeScript type check, or standalone syntax-transpilation check observed. The controller mandatory grader (4 visible + 20 hidden) is separate and is not participant execution.",
+    "output": "bun test v1.4.0 (34cbb9a40)\n\ntests/usage-contract.test.ts:\n(pass) empty usage batches succeed without writing [0.13ms]\n(pass) writer validates acknowledgments and preserves subprocess options [0.32ms]\n(pass) write and serialization failures are best effort [3.24ms]\n(pass) recorder retries failures and scopes acknowledged snapshots [0.35ms]\n(pass) recorder evicts the oldest acknowledgment after 1024 entries [2.93ms]\n\ntests/usage.test.ts:\n(pass) existing usage behavior > Claude inputs are disjoint; placeholder output is omitted [0.24ms]\n(pass) existing usage behavior > Codex rejects cumulative records and mismatched sessions [0.11ms]\n(pass) existing usage behavior > OpenCode retains ambiguous raw output without adding it [0.07ms]\n(pass) existing usage behavior > transcript scanner skips incomplete trailing lines and stays partial [0.57ms]\n\n 9 pass\n 0 fail\n 35 expect() calls\nRan 9 tests across 2 files. [20.00ms]\n"
+  },
+  {
+    "command": "rtk proxy bun test tests",
+    "workdir": "<workspace>",
+    "call_id": "call_eQFuD9r72x08EBGSHCKfSCnB",
+    "content_index": 3,
+    "chunk_id": "e65221",
+    "exit_code": 0,
+    "tests_passed": 9,
+    "tests_failed": 0,
+    "tests_total": 9,
+    "test_files": 2,
+    "expect_calls": 35,
+    "suite_scope": "Four existing visible tests plus five participant-added scratch tests.",
+    "post_run_changes": "No subsequent edits observed. Final run covers all final captured production-source and scratch-test edits; the original Vitest consumer files were not executed.",
+    "validation_limit": "Bun runtime execution only. No original Vitest execution, semantic TypeScript type check, or standalone syntax-transpilation check observed. The controller mandatory grader (4 visible + 20 hidden) is separate and is not participant execution.",
+    "output": "bun test v1.4.0 (34cbb9a40)\n\ntests/usage-contract.test.ts:\n(pass) empty usage batches succeed without writing [0.12ms]\n(pass) writer validates acknowledgments and preserves subprocess options [0.25ms]\n(pass) write and serialization failures are best effort [2.25ms]\n(pass) recorder retries failures and scopes acknowledged snapshots [0.31ms]\n(pass) recorder evicts the oldest acknowledgment after 1024 entries [1.37ms]\n\ntests/usage.test.ts:\n(pass) existing usage behavior > Claude inputs are disjoint; placeholder output is omitted [0.21ms]\n(pass) existing usage behavior > Codex rejects cumulative records and mismatched sessions [0.10ms]\n(pass) existing usage behavior > OpenCode retains ambiguous raw output without adding it [0.06ms]\n(pass) existing usage behavior > transcript scanner skips incomplete trailing lines and stays partial [0.50ms]\n\n 9 pass\n 0 fail\n 35 expect() calls\nRan 9 tests across 2 files. [16.00ms]\n"
+  }
+]

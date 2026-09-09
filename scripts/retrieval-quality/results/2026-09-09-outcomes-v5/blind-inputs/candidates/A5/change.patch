@@ -1,0 +1,240 @@
+--- a/src/core/model-usage.ts
++++ b/src/core/model-usage.ts
+@@ -315,47 +315,64 @@
+   return result;
+ }
+ 
++export interface UsageWriteRequest {
++  binary: string;
++  cwd: string;
++  events: ObserveBatchEvent[];
++}
++
++export type UsageWriteResult =
++  | { status: "acknowledged"; recorded: number }
++  | { status: "unacknowledged"; reason: "invalid-ack" | "write-error" };
++
+ /** Acknowledged batch only: older CLI fallback cannot preserve source timestamps. */
+-export function recordModelUsage(
+-  binary: string,
+-  cwd: string,
+-  events: ObserveBatchEvent[],
+-): boolean {
+-  if (!events.length) return true;
++export function recordModelUsage({
++  binary,
++  cwd,
++  events,
++}: UsageWriteRequest): UsageWriteResult {
++  if (!events.length) return { status: "acknowledged", recorded: 0 };
+   try {
+     const output = execFileSync(binary, ["observe", "record", "--stdin"], {
+       cwd,
+       input: events.map((e) => JSON.stringify(e)).join("\n") + "\n",
+       timeout: 10000,
+       stdio: ["pipe", "pipe", "pipe"],
+-    }).toString();
+-    const ack = /^Recorded (\d+) event\(s\)(?:, skipped (\d+))?\s*$/i.exec(
+-      output.trim(),
+-    );
+-    return (
++    });
++    const ack =
++      typeof output === "string" || Buffer.isBuffer(output)
++        ? /^Recorded (\d+) event\(s\)(?:, skipped (\d+))?\s*$/i.exec(
++            output.toString().trim(),
++          )
++        : null;
++    if (
+       ack !== null &&
+       Number(ack[1]) === events.length &&
+       Number(ack[2] ?? 0) === 0
+-    );
++    )
++      return { status: "acknowledged", recorded: events.length };
++    return { status: "unacknowledged", reason: "invalid-ack" };
+   } catch (error) {
+     debug(
+       "model-usage",
+       `Usage batch was not acknowledged: ${error instanceof Error ? error.name : "error"}`,
+     );
+-    return false;
++    return { status: "unacknowledged", reason: "write-error" };
+   }
+ }
+ 
+ /** Keep repeated part broadcasts cheap; durable dedup/conflict handling is in Go. */
+ export function createOpenCodeUsageRecorder(
+-  write = recordModelUsage,
+-): (binary: string, cwd: string, part: unknown) => void {
++  write: (request: UsageWriteRequest) => UsageWriteResult = recordModelUsage,
++): (request: { binary: string; cwd: string; part: unknown }) => void {
+   const acknowledged = new Set<string>();
+-  return (binary, cwd, part) => {
++  return ({ binary, cwd, part }) => {
+     const next = openCodeUsageEvent(part);
+     if (!next) return;
+     const fingerprint = JSON.stringify([cwd, next]);
+-    if (acknowledged.has(fingerprint) || !write(binary, cwd, [next])) return;
++    if (acknowledged.has(fingerprint)) return;
++    const result = write({ binary, cwd, events: [next] });
++    if (result.status !== "acknowledged") return;
+     acknowledged.add(fingerprint);
+     if (acknowledged.size > 1024)
+       acknowledged.delete(acknowledged.values().next().value!);
+--- a/src/hooks/session-summary.ts
++++ b/src/hooks/session-summary.ts
+@@ -132,10 +132,10 @@
+           detectPlatform(),
+           sessionId,
+         );
+-        recordModelUsage(binary, cwd, usage.events);
++        const result = recordModelUsage({ binary, cwd, events: usage.events });
+         debug(
+           SOURCE,
+-          `Usage scan: ${usage.status}; limited=${usage.limited}; malformed=${usage.malformed}; records=${usage.events.length}`,
++          `Usage scan: ${usage.status}; limited=${usage.limited}; malformed=${usage.malformed}; records=${usage.events.length}; write=${result.status}`,
+         );
+       }
+       // Don't capture if stop hook is already active (avoid recursion)
+--- a/src/opencode/hooks.ts
++++ b/src/opencode/hooks.ts
+@@ -460,7 +460,11 @@
+         break;
+       case "message.part.updated":
+         if (state.binary)
+-          recordUsage(state.binary, state.cwd, event.properties.part);
++          recordUsage({
++            binary: state.binary,
++            cwd: state.cwd,
++            part: event.properties.part,
++          });
+         await handleMessagePartUpdated(state, event);
+         break;
+       default:
+--- a/src/test/model-usage-hooks.test.ts
++++ b/src/test/model-usage-hooks.test.ts
+@@ -1,10 +1,14 @@
+ import { afterEach, describe, expect, it, vi } from "vitest";
++import type { UsageWriteRequest, UsageWriteResult } from "../core/model-usage.js";
+ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+ import { tmpdir } from "node:os";
+ import { join } from "node:path";
+ 
+ const mocks = vi.hoisted(() => ({
+-  write: vi.fn(() => true),
++  write: vi.fn(({ events }: UsageWriteRequest): UsageWriteResult => ({
++    status: "acknowledged",
++    recorded: events.length,
++  })),
+   input: "",
+   host: "claude-code" as "claude-code" | "codex",
+ }));
+@@ -76,16 +80,20 @@
+     await hooks.event!({
+       event: { type: "message.part.updated", properties: { part } },
+     });
+-    expect(mocks.write).toHaveBeenCalledWith("/fake-aide", cwd, [
+-      expect.objectContaining({
+-        session: "s",
+-        name: "model_usage",
+-        attrs: expect.objectContaining({
+-          usage_id: "p",
+-          uncached_input_tokens: "12",
++    expect(mocks.write).toHaveBeenCalledWith({
++      binary: "/fake-aide",
++      cwd,
++      events: [
++        expect.objectContaining({
++          session: "s",
++          name: "model_usage",
++          attrs: expect.objectContaining({
++            usage_id: "p",
++            uncached_input_tokens: "12",
++          }),
+         }),
+-      }),
+-    ]);
++      ],
++    });
+     await hooks.event!({
+       event: {
+         type: "message.updated",
+@@ -133,12 +141,16 @@
+       });
+       await import("../hooks/session-summary.js");
+       await vi.waitFor(() =>
+-        expect(mocks.write).toHaveBeenCalledWith("/fake-aide", cwd, [
+-          expect.objectContaining({
+-            session: "s",
+-            attrs: expect.objectContaining({ host, usage_id: "r" }),
+-          }),
+-        ]),
++        expect(mocks.write).toHaveBeenCalledWith({
++          binary: "/fake-aide",
++          cwd,
++          events: [
++            expect.objectContaining({
++              session: "s",
++              attrs: expect.objectContaining({ host, usage_id: "r" }),
++            }),
++          ],
++        }),
+       );
+     },
+   );
+--- a/src/test/model-usage-recording.test.ts
++++ b/src/test/model-usage-recording.test.ts
+@@ -13,9 +13,15 @@
+       "Recorded 2 event(s)",
+     ]) {
+       exec.mockReturnValue(Buffer.from(response));
+-      expect(recordModelUsage("bin", "/cwd", events)).toBe(false);
++      expect(recordModelUsage({ binary: "bin", cwd: "/cwd", events })).toEqual({
++        status: "unacknowledged",
++        reason: "invalid-ack",
++      });
+     }
+     exec.mockReturnValue(Buffer.from("Recorded 1 event(s)\n"));
+-    expect(recordModelUsage("bin", "/cwd", events)).toBe(true);
++    expect(recordModelUsage({ binary: "bin", cwd: "/cwd", events })).toEqual({
++      status: "acknowledged",
++      recorded: events.length,
++    });
+   });
+ });
+--- a/src/test/model-usage.test.ts
++++ b/src/test/model-usage.test.ts
+@@ -43,9 +43,11 @@
+   });
+   it("retries failed OpenCode writes and retains conflicting revisions", () => {
+     const batches: unknown[] = [];
+-    const record = createOpenCodeUsageRecorder((_binary, _cwd, events) => {
++    const record = createOpenCodeUsageRecorder(({ events }) => {
+       batches.push(events);
+-      return batches.length !== 1;
++      return batches.length === 1
++        ? { status: "unacknowledged", reason: "write-error" }
++        : { status: "acknowledged", recorded: events.length };
+     });
+     const part = {
+       id: "p",
+@@ -54,10 +56,14 @@
+       type: "step-finish",
+       tokens: { input: 1 },
+     };
+-    record("bin", "/cwd", part); // failed
+-    record("bin", "/cwd", part); // retry succeeds
+-    record("bin", "/cwd", part); // same snapshot skipped
+-    record("bin", "/cwd", { ...part, tokens: { input: 2 } }); // conflict reaches store
++    record({ binary: "bin", cwd: "/cwd", part }); // failed
++    record({ binary: "bin", cwd: "/cwd", part }); // retry succeeds
++    record({ binary: "bin", cwd: "/cwd", part }); // same snapshot skipped
++    record({
++      binary: "bin",
++      cwd: "/cwd",
++      part: { ...part, tokens: { input: 2 } },
++    }); // conflict reaches store
+     expect(batches).toHaveLength(3);
+   });
+   it("uses Codex per-response counters and ignores cumulative records", () => {

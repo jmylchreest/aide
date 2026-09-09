@@ -1,0 +1,56 @@
+{
+  "reviewer": "/root/v5_quality",
+  "label": "V9",
+  "task": "impact",
+  "checks": [
+    {
+      "id": "affected_callers",
+      "passed": true,
+      "evidence": "Section 1 inventories the direct Stop call, captured/default/injected writer invocation inside the recorder closure and OpenCode message.part.updated local recorder call with old and required object shapes and missing-migration consequences. It separates unchanged createHooks/createEventHandler wrappers, no-argument factory call and module main entry. Matches src/core/model-usage.ts:319-365, src/hooks/session-summary.ts:125-157 and src/opencode/hooks.ts:154,432-465.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "result_and_cache_contract",
+      "passed": true,
+      "evidence": "Section 2 gives exact empty/full/invalid-ack/write-error outcomes, truthy-object retry failure, status-gated acknowledged caching, void return, retry/dedup/counter/cwd/oldest1024 invariants and exact Stop status suffix while retaining fields/gates. Supported by original writer/recorder at src/core/model-usage.ts:319-365 and Stop at src/hooks/session-summary.ts:125-145.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "nonconsumers_and_wire",
+      "passed": true,
+      "evidence": "Section 2 correctly excludes normalizers, collector, shared event type, independent generic writers, text-part handler and Go CLI/store/accounting from the TypeScript API migration. It specifies preservation of command, event JSONL with final newline, cwd/timeout/stdio, acknowledgment grammar, exception debug logging and no fallback. These relationships are substantiated by src/core/model-usage.ts, read-tracking.ts:197-239,283-325, hooks.ts:738 and cited Go implementations.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "existing_tests",
+      "passed": true,
+      "evidence": "Section 3 correctly identifies positional calls/boolean expectations in recording tests; injected callback and four recorder calls in retry/revision test; boolean shared hook mock, dynamic actual-factory injection and positional OpenCode/both Stop platform assertions. It accurately separates unchanged converter/collector/source-time coverage and new empty-input/throw/wire/cwd/eviction/logging coverage, without claiming execution. Verified against all three supplied src/test/model-usage*.test.ts files.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "meaningful_validation",
+      "passed": true,
+      "evidence": "Proposed additions include no-spawn empty input, exact discriminated failure reasons and acknowledgment grammar, exact command/newline JSONL/options, retry/dedup/changed counters/cwd, genuine 1025th acknowledged entry eviction and failed-cache exclusion, real host/default-writer wiring, and exact Stop logging for both statuses preserving scan fields. The checks target meaningful gaps in the original tests.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "bounded_evidence",
+      "passed": true,
+      "evidence": "Sections 1 and 4 explicitly bound inventory to supplied files and follow both captured write and returned recordUsage bindings. Arbitrary injected implementations, external entry registration/binary selection and NewBackend/Store runtime wiring are listed as unresolved rather than invented callers or RPC routes. No unsupported affected-consumer claim or whole-repository certainty found.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    }
+  ],
+  "summary": "6/6 frozen impact checks pass. Source-supported affected and unaffected inventory, complete requested behavior/test plan, and explicit evidence boundaries."
+}

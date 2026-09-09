@@ -1,0 +1,23 @@
+[aide-mcp] 18:35:54 aide MCP server starting
+[aide-mcp] 18:35:54 version: aide version 0.1.18-dev.32+58816d9 (commit: 58816d99, built: 2026-09-09T15:52:00Z, go1.27.0-X:nodwarf5, linux/amd64)
+[aide-mcp] 18:35:54 database: /tmp/aide-outcomes-v5-trials/t07/root/.aide/memory/memory.db
+[aide-mcp] 18:35:54 database opened in 456.426µs (bolt + bleve search)
+[aide-mcp] 18:35:54 gRPC socket: /tmp/aide-outcomes-v5-trials/t07/root/.aide/aide.sock
+[aide-mcp] 18:35:54 cleanup loop disabled (cleanup.enabled=false)
+[aide-mcp] 18:35:54 code index opened in 841.652µs: /tmp/aide-outcomes-v5-trials/t07/root/.aide/memory/code/index.db
+2026/09/09 18:35:54 store: applying migration v1: baseline findings schema stamp
+[aide-mcp] 18:35:54 findings store opened in 493.655µs: /tmp/aide-outcomes-v5-trials/t07/root/.aide/memory/findings
+2026/09/09 18:35:54 store: applying migration v1: baseline survey schema stamp
+[aide-mcp] 18:35:54 survey store opened in 409.696µs: /tmp/aide-outcomes-v5-trials/t07/root/.aide/memory/survey
+[aide-mcp] 18:35:54 warning: failed to register instance: cannot determine home directory: $HOME is not defined
+[aide-mcp] 18:35:54 primary mode: holding the store, serving gRPC
+[aide-mcp] 18:35:54 MCP server ready in 2.412466ms, listening on stdio
+[aide-mcp] 18:35:54 gRPC server error: failed to listen on socket /tmp/aide-outcomes-v5-trials/t07/root/.aide/aide.sock: listen unix /tmp/aide-outcomes-v5-trials/t07/root/.aide/aide.sock: setsockopt: operation not permitted (other sessions cannot share this store until a daemon binds; check permissions and stale files)
+[aide-mcp] 18:35:54 code tools: registered (store may initialize lazily)
+[aide-mcp] 18:35:54 findings tools: registered
+[aide-mcp] 18:35:54 survey tools: registered
+[aide-mcp] 18:35:54 instinct tools: registered (read-only)
+[aide-mcp] 18:35:54 tool: instance_info
+[aide-mcp] 18:35:54   project_root=/tmp/aide-outcomes-v5-trials/t07/root authority=daemon
+[aide-mcp] 18:35:54 tool: code_symbols file=src/core/model-usage.ts
+[aide-mcp] 18:35:54   found: 16 symbols

@@ -1,0 +1,64 @@
+{
+  "reviewer": "/root/v5_quality",
+  "label": "M2",
+  "task": "trace",
+  "checks": [
+    {
+      "id": "host_routes",
+      "passed": true,
+      "evidence": "Section 1 traces createHooks/createEventHandler/factory closure/message.part.updated with binary gate, part normalization guards, ignored message.updated and separate text skill handler. It also correctly follows Stop stdin, detectPlatform, explicit transcript and shared writer; recursion only gates summary and ignored boolean allows later rescan retries. References match src/opencode/hooks.ts:154,432,738; src/core/model-usage.ts:203,350; src/hooks/session-summary.ts:108; src/lib/hook-utils.ts:145.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "scan_boundaries",
+      "passed": true,
+      "evidence": "Section 1 covers absolute explicit regular-file checks before/after open, valid session, unavailable inputs, 4 MiB/1000 matching-event bounds, no cursor, truncated first and unfinished last lines, malformed versus irrelevant rows, limited flags and always-partial readable scans. All agree with src/core/model-usage.ts:245-316.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "normalization",
+      "passed": true,
+      "evidence": "Section 2 gives all identities and metadata and exact counters/omissions for all three rows: OpenCode 31/11/17/3/reported13/reasoning5; Claude30/10/20/0 with output omitted; Codex12/7/5/0/output8/reasoning3/total20 and cumulative999 ignored. It correctly distinguishes absent, explicit zero, invalid mapped counters, unsafe derived values and invalid supplied time, and avoids overlapping output additions. Supported by src/core/model-usage.ts:30-235.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "writer_and_cache",
+      "passed": true,
+      "evidence": "Sections 1 and 3 correctly describe JSONL final newline, command/cwd/piped stdio/10-second timeout, empty true/no spawn, matching full acknowledgment/zero skips, failure false and no fallback. Four deliveries yield attempts1,2,4, skip3 and two variants, revised input32/uncached12; cwd change writes and oldest acknowledged fingerprint evicts above1024. These match src/core/model-usage.ts:319-365. Omission of catch debug text does not fail under frozen clarification.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "durable_route_and_identity",
+      "passed": true,
+      "evidence": "Section 4 gives dispatcher -> record --stdin -> batch -> backend.Store().AddObserveEvent and explicitly marks NewBackend/concrete store/RPC as absent evidence. Identity, semantic fingerprint/presence excluding actual timestamp, equal-retry earliest retention, conflicting variants and accepted-line acknowledgment are correct against aide/cmd/aide/cmd_observe.go:18,237; aide/pkg/store/observe_events.go:140; token_model_usage.go:36-69.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "conflict_accounting",
+      "passed": true,
+      "evidence": "Section 4 gives observations0, conflicts1, invalid0, by_source[] and explains why a t1-only date window remains conflicted after all retained evidence is observed. Matches aide/pkg/store/token_events.go:153-192 and token_model_usage.go:135-204.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    },
+    {
+      "id": "measurement_limits",
+      "passed": true,
+      "evidence": "Final section correctly explains no session-event projection into legacy counts/estimates/savings and bounds captured host reports against billing, complete usage and task quality. Supported by aide/pkg/store/observe_events.go:82-109 and aide/pkg/memory/token_model_usage.go:3-23.",
+      "missing_facts": [],
+      "incorrect_claims": [],
+      "unsupported_claims": []
+    }
+  ],
+  "summary": "7/7 frozen trace checks pass. Correct requested outcomes with supplied-source references and explicit process/backend limits."
+}

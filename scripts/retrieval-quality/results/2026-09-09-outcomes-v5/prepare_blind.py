@@ -6,6 +6,8 @@ CORPUS=BASE.parents[1]/'outcomes-v4'
 DEST=Path('/tmp/aide-v5-blind-review')
 MAPPING=dict(zip([f't{i:02}' for i in range(1,13)], ['Q7','M2','V9','C4','T6','H3','N8','A5','R1','K9','W4','D8']))
 DEST.mkdir(exist_ok=True)
+clarification=BASE.parents[1]/'outcomes-v5/grading-clarifications.md'
+if not (DEST/'grading-clarifications.md').exists():shutil.copy2(clarification,DEST/'grading-clarifications.md')
 if not (DEST/'source').exists():shutil.copytree(CORPUS/'common/template',DEST/'source')
 for task in ('trace','impact','implement'):
  d=DEST/'tasks'/task;d.mkdir(parents=True,exist_ok=True)

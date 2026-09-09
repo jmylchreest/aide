@@ -1,0 +1,20 @@
+{
+  "reviewer": "/root/v5_quality",
+  "label": "N8",
+  "task": "implement",
+  "checks": {
+    "public_types": true,
+    "production_consumers": true,
+    "original_test_consumers": true,
+    "bounded_behavior_change": true,
+    "validation_report": true
+  },
+  "evidence": {
+    "public_types": "src/core/model-usage.ts:318-333 exports exact UsageWriteRequest fields and UsageWriteResult variants and explicitly declares one-request/result writer. Lines364-367 explicitly type injected writer and returned {binary,cwd,part} recorder as void, with no boolean union or compatibility shim.",
+    "production_consumers": "Source-wide call review finds shared recorder at model-usage.ts:373 forwarding {binary,cwd,events:[next]} and374 explicitly testing acknowledgment status. OpenCode hooks.ts:463 migrates its call behind unchanged binary gate. Stop session-summary.ts:135 captures new object-call result and138 appends exact requested status to all original scan fields. Failure result does not branch away from summary capture/continue:true; existing gates remain.",
+    "original_test_consumers": "Complete patch migrates model-usage-recording.test.ts object calls and exact result assertions for every original bad/good ack; model-usage.test.ts:46-67 request/result injection and all four deliveries retain the three-batch retry/revision assertion. model-usage-hooks.test.ts:5-22 uses typed acknowledged mock with event count, keeps actual factory injection, and updates both host object expectations retaining nested event checks. All normalization/collection/source-time tests, message.updated exclusion and parameterized Stop hosts remain unchanged; no weakening/skipping/deletion found.",
+    "bounded_behavior_change": "Complete patch is confined to requested production modules and three original tests. Writer keeps empty no-spawn, event JSONL final newline, command/cwd/timeout/stdio and trimmed case-insensitive grammar; nonstring/nonBuffer output is invalid-ack, count/skips checks require exact full ack, and execution/serialization stay inside try returning write-error with original logging/no fallback. Recorder preserves invalid filtering, normalized event+cwd key, instance-local acknowledged Set and oldest1024 cap. Collector/normalizers/timestamps/partial coverage, unrelated hook behavior and Go remain untouched. Runtime integrity reports no protected changes and4 visible/20 hidden passing checks.",
+    "validation_report": "answer.md accurately reports9 passing Bun tests:4 existing visible plus5 added contract tests. Independent participant-verification.json records final exit0/9 tests across2 files/35 expectations with no later edits; no Vitest/typecheck execution observed, matching explicit report limitations. Mandatory controller checks are separate and not represented as participant-executed tests."
+  },
+  "summary": "5/5 frozen implementation criteria pass. Exact API, consumers and original tests are migrated with preserved semantics; final participant runtime report matches independent evidence and states validation limits. All24 mandatory controller runtime checks and integrity pass."
+}

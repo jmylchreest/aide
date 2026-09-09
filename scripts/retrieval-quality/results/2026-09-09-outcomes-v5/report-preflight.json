@@ -1,0 +1,21 @@
+{
+  "basis": "Synthetic copies of result rows; no participant reruns and no synthetic rows in actual ledger/report.",
+  "checks": [
+    {
+      "scenario": "excluded",
+      "passed": true
+    },
+    {
+      "scenario": "eligible_reversed_order",
+      "passed": true
+    },
+    {
+      "scenario": "zero_input_baseline",
+      "passed": true
+    },
+    {
+      "scenario": "unknown_quality_retained_without_comparisons",
+      "passed": true
+    }
+  ]
+}

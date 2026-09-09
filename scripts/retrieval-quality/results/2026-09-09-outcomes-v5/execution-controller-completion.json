@@ -1,0 +1,90 @@
+{
+  "completed_at": "2026-09-09T17:48:52.964745+00:00",
+  "controller": "/root/v5_execution",
+  "status": "completed",
+  "trials": [
+    {
+      "id": "t01",
+      "actor_path": "/root/v5_execution/v5_t01",
+      "runtime_actor_id": "01a08731-2f46-7532-84be-d6c58ed60e63"
+    },
+    {
+      "id": "t02",
+      "actor_path": "/root/v5_execution/v5_t02",
+      "runtime_actor_id": "01a08733-1317-7ad1-ba61-5424c9935f73"
+    },
+    {
+      "id": "t03",
+      "actor_path": "/root/v5_execution/v5_t03",
+      "runtime_actor_id": "01a08735-2263-7560-a7b2-959e914be63a"
+    },
+    {
+      "id": "t04",
+      "actor_path": "/root/v5_execution/v5_t04",
+      "runtime_actor_id": "01a08737-1e31-7390-9c25-81022c03f776"
+    },
+    {
+      "id": "t05",
+      "actor_path": "/root/v5_execution/v5_t05",
+      "runtime_actor_id": "01a08739-378a-7522-b6d3-892581117ce7"
+    },
+    {
+      "id": "t06",
+      "actor_path": "/root/v5_execution/v5_t06",
+      "runtime_actor_id": "01a0873b-3024-7321-bc97-6d0530e15601"
+    },
+    {
+      "id": "t07",
+      "actor_path": "/root/v5_execution/v5_t07",
+      "runtime_actor_id": "01a0873d-61c6-75d1-b1e6-65e5c7f8a028"
+    },
+    {
+      "id": "t08",
+      "actor_path": "/root/v5_execution/v5_t08",
+      "runtime_actor_id": "01a0873f-6bc0-78f1-a177-9ce14d786844"
+    },
+    {
+      "id": "t09",
+      "actor_path": "/root/v5_execution/v5_t09",
+      "runtime_actor_id": "01a08741-5e8d-7b73-af87-82391fb29b59"
+    },
+    {
+      "id": "t10",
+      "actor_path": "/root/v5_execution/v5_t10",
+      "runtime_actor_id": "01a08743-810b-77c2-8ba6-2dceac2f7fd2"
+    },
+    {
+      "id": "t11",
+      "actor_path": "/root/v5_execution/v5_t11",
+      "runtime_actor_id": "01a08745-b353-7940-814c-c05fb1ba5c2a"
+    },
+    {
+      "id": "t12",
+      "actor_path": "/root/v5_execution/v5_t12",
+      "runtime_actor_id": "01a08747-96ba-7300-b8c8-ad3de6530cf5"
+    }
+  ],
+  "execution_order": [
+    "t01",
+    "t02",
+    "t03",
+    "t04",
+    "t05",
+    "t06",
+    "t07",
+    "t08",
+    "t09",
+    "t10",
+    "t11",
+    "t12"
+  ],
+  "fresh_actors": true,
+  "fork_turns": "none",
+  "model_override": null,
+  "effort_override": null,
+  "no_replacements": true,
+  "no_replacement_statement": "Exactly twelve prepared trials were launched sequentially in ledger order, each once; no replacements, reruns, coaching, followup messages, or participant interruptions occurred.",
+  "controller_guards_and_captures": "All twelve preflight, launch-record, and capture commands completed successfully.",
+  "message_equality_basis": "Complete emitted prepared prompts were passed directly in spawn_agent.message; archived controller records retain prompt bytes and hashes. Encrypted host message bodies do not independently prove plaintext equality.",
+  "ledger_ownership_returned_to": "/root"
+}
