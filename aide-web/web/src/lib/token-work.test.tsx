@@ -133,7 +133,7 @@ describe("Aide work evidence", () => {
     expect(html).toContain("do not establish avoided model work");
     expect(html).not.toContain("Success rate");
   });
-  it("adds only a compact overview link for supported data without changing the activity chart", () => {
+  it("shows compact contribution evidence without changing the activity chart", () => {
     const render = (work?: TokenWork) =>
       renderToStaticMarkup(
         <TokenOverview
@@ -142,9 +142,11 @@ describe("Aide work evidence", () => {
           onAccounting={() => {}}
         />,
       );
-    expect(render()).not.toContain("Aide work");
+    expect(render()).toContain("Operation evidence unavailable");
     const html = render(report());
-    expect(html).toContain("Aide work · 1 recorded operation");
+    expect(html).toContain("Work performed by aide");
+    expect(html).toContain("1 operation");
+    expect(html).toContain("Contribution evidence");
     expect(html).toContain("Recorded token activity");
     expect(html).toContain("Estimated result tokens");
     expect(html).toContain("Recorded events");

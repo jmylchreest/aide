@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { TokenStats } from "../../lib/types";
-import { supportedTokenWork } from "./TokenWork";
+import { TokenContributionOverview } from "./TokenContributionOverview";
 import { TokenModelUsageOverview } from "./TokenModelUsageOverview";
 
 function number(n: number) {
@@ -28,7 +28,6 @@ export function TokenOverview({
         ? "server_result"
         : "host_result",
   );
-  const work = supportedTokenWork(accounting?.work);
   const quantity = accounting?.by_stage[source];
   const buckets = accounting?.activity?.buckets ?? [];
   const [selected, setSelected] = useState<number | null>(null);
@@ -61,6 +60,11 @@ export function TokenOverview({
     });
   return (
     <section aria-label="Token overview">
+      <TokenContributionOverview
+        accounting={accounting}
+        onDetails={onDetails}
+        onAccounting={onAccounting}
+      />
       <TokenModelUsageOverview
         report={accounting?.model_usage}
         onAccounting={onAccounting}
@@ -127,16 +131,6 @@ export function TokenOverview({
           </div>
         ))}
       </div>
-      {work && (
-        <button
-          type="button"
-          onClick={onDetails}
-          className="text-xs text-aide-accent hover:underline mb-4"
-        >
-          Aide work · {number(work.calls)} recorded{" "}
-          {work.calls === 1 ? "operation" : "operations"} →
-        </button>
-      )}
       <div className="border border-aide-border rounded-md p-4">
         <div className="flex justify-between items-baseline flex-wrap gap-2 mb-4">
           <h3 className="text-xs font-semibold text-aide-text">
