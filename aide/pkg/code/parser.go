@@ -286,6 +286,8 @@ func (p *Parser) extractWithQuery(query *tree_sitter.Query, root *tree_sitter.No
 		name, kind string
 	}
 	seen := make(map[definitionKey]bool)
+	var definitionKeys []definitionKey
+	specializedTypes := make(map[definitionKey]bool)
 
 	cursor := tree_sitter.NewQueryCursor()
 	defer cursor.Close()
@@ -331,6 +333,11 @@ func (p *Parser) extractWithQuery(query *tree_sitter.Query, root *tree_sitter.No
 			continue
 		}
 		seen[key] = true
+		if kind == "class" || kind == "interface" {
+			sourceKey := key
+			sourceKey.kind = ""
+			specializedTypes[sourceKey] = true
+		}
 
 		// Map kind to our constants
 		symbolKind := mapQueryKindToSymbolKind(kind)
@@ -356,9 +363,25 @@ func (p *Parser) extractWithQuery(query *tree_sitter.Query, root *tree_sitter.No
 		}
 
 		symbols = append(symbols, sym)
+		definitionKeys = append(definitionKeys, key)
 	}
 
-	return symbols
+	// Some tag queries capture a declaration both as a generic type and as a
+	// class/interface. Prefer the specialized classification for that exact
+	// syntax node, independent of query order. Byte ranges preserve distinct
+	// declarations even when their names and line ranges happen to match.
+	unique := symbols[:0]
+	for i, sym := range symbols {
+		key := definitionKeys[i]
+		if key.kind == "type" {
+			key.kind = ""
+			if specializedTypes[key] {
+				continue
+			}
+		}
+		unique = append(unique, sym)
+	}
+	return unique
 }
 
 // mapQueryKindToSymbolKind maps tree-sitter query kinds to our symbol kinds.

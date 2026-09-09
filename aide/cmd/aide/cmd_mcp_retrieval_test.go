@@ -95,6 +95,40 @@ func TestRetrievalRefreshesSymbolLines(t *testing.T) {
 	}
 }
 
+func TestRetrievalOverlappingTypeCaptures(t *testing.T) {
+	s, cs, root := retrievalFixture(t)
+	content := "package demo\ntype Record struct { Value int }\ntype Reader interface { Read() }\n"
+	indexRetrievalFile(t, s, cs, root, "source.go", content)
+	for _, input := range []string{
+		`{"symbol":"Record","file":"source.go"}`,
+		`{"symbol":"Record","file":"source.go","start_line":2}`,
+		`{"symbol":"Record"}`,
+		`{"symbol":"Record","file":"source.go","kind":"class"}`,
+		`{"symbols":["Record","Reader"],"file":"source.go"}`,
+	} {
+		t.Run(input, func(t *testing.T) {
+			r, text := retrievalText(t, s, input)
+			if r.IsError || !strings.Contains(text, "type Record struct { Value int }") {
+				t.Fatalf("same declaration reported ambiguous: %s", text)
+			}
+			if r.Meta["aide/retrieval"] == nil {
+				t.Fatal("successful source read lost its source receipt")
+			}
+			if strings.Contains(input, "Reader") && !strings.Contains(text, "## `Reader` [interface]") {
+				t.Fatalf("batch omitted interface source: %s", text)
+			}
+		})
+	}
+	r, text := retrievalText(t, s, `{"symbol":"Reader","file":"source.go","kind":"interface"}`)
+	if r.IsError || !strings.Contains(text, "type Reader interface { Read() }") {
+		t.Fatalf("interface selector: %s", text)
+	}
+	r, text = retrievalText(t, s, `{"symbol":"Record","file":"source.go","kind":"type"}`)
+	if !r.IsError || !strings.Contains(text, "not found in current source") {
+		t.Fatalf("generic type selector matched specialized class: %s", text)
+	}
+}
+
 func TestRetrievalSameFileAmbiguityAndDeletedSymbol(t *testing.T) {
 	s, cs, root := retrievalFixture(t)
 	content := "package demo\ntype A struct{}\ntype B struct{}\nfunc (A) Target() string { return \"first\" }\nfunc (B) Target() string { return \"second\" }\n"

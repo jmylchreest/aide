@@ -266,6 +266,16 @@ count beyond the limit. Empty results do not prove absence, and even an uncapped
 result is not a complete semantic call graph. This applies to singular and batched
 MCP requests without adding another index query.
 
+Current-source parsing also removes overlapping generic `type` captures when a
+`class` or `interface` capture names the exact same syntax node. This prevents a
+single Go struct/interface from appearing as competing source-read candidates.
+Different byte ranges remain distinct, including declarations sharing a name and
+line. Structs retain the `class` classification; interfaces retain `interface`;
+other named types retain `type`, so kind filters follow those classifications.
+Existing index rows are replaced when the file is reindexed (`aide code index
+--force` also refreshes unchanged files). Current-source reads reparse the file;
+this correction does not establish avoided calls or provider-token savings.
+
 
 ## Broader retrieval pilot (v3)
 

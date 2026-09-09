@@ -40,3 +40,30 @@ the checked running daemon was not replaced during this work.
 - `go build -o /tmp/aide-reference-coverage ./cmd/aide` passed. This temporary
   binary does not replace the running daemon.
 - Independent review: `reference-coverage-review.md`; no blockers.
+
+## Subsequent rebuilt-daemon check and type-read correction
+
+The next rebuilt daemon reported `0.1.18-dev.31+cc713fd`. A live limited caller
+query confirmed the new qualified count and limit notice. An exact-file,
+exact-line read of the Go `Reference` struct still failed with competing `type`
+and `class` candidates for the same declaration.
+
+The parser correction prefers a class/interface capture over a generic type
+capture only for the identical name and exact syntax-node byte range. Distinct
+same-name declarations survive, including those on one line. Struct/interface
+kind filters now use their specialized classification; named primitive types
+remain `type`. Existing index rows need file reindexing to adopt this normalization;
+current-source reads reparse and use it immediately in a newly built process.
+
+Parser and source-handler regressions reproduce the failure before the fix and
+pass afterward. The complete code-parser and CLI suites pass (442 passing records
+including subtests; 35 optional-grammar checks skipped because their grammars are
+unavailable). A temporary binary build and isolated real stdio MCP batch read also
+pass; the successful batch returns both source bodies with 321 UTF-8 bytes of
+text. This is returned text, not a token-savings measurement. The first smoke
+setup rejected a controller-created VCS marker before any handler call; a fresh
+fixture followed the bridge's no-VCS contract.
+
+See `type-capture-validation.json`, `type-capture-result.txt` and
+`type-capture-review.md`. This remains operational verification outside the frozen
+v3 trials. The running daemon was not replaced with the temporary test binary.
