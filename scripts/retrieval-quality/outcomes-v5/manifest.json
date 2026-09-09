@@ -1,0 +1,11 @@
+{
+  "files": {
+    "README.md": "1ecd77ed6d58f0c9abc7f8d376db6ba6a2532666ad171c4a41dd8bf3e681fbb0",
+    "grading-clarifications.md": "74e174cbd2f19add801c9040b09d48fc2a7a71c44e0c4197550ac942a8c0f4ad",
+    "launch.py": "4807c22b821f17011da2a030ef6bc6f390ac45f66f1c8614b8c2d4d4792e7292",
+    "preflight-review.md": "0dc363731d75ed32a25d2fc6ea7567f1da64d799348135f868d71bf6ba9727df",
+    "protocol.json": "b1f965bd2d3ed1f8090a8b40122c60c1261136bd5005fc41b2c8f436b31e3aad",
+    "run.py": "ae9e266693755401b717fb8af7ad670c9278e159f7d4ef956fc11e9c099e4f69",
+    "test_launch.py": "edbba4e84f431d398ad367f2a153b83b7a4ae34595f12337e139fcef45600a02"
+  }
+}
