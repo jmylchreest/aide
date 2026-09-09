@@ -1,0 +1,142 @@
+{
+  "version": 3,
+  "source_commit": "efe758c6ceb6ed5deb10fe1a4d456c69b58f00fc",
+  "trial_order": [
+    {
+      "id": "t01",
+      "task": "navigation",
+      "treatment": "ordinary",
+      "repetition": 1
+    },
+    {
+      "id": "t02",
+      "task": "debug",
+      "treatment": "available",
+      "repetition": 1
+    },
+    {
+      "id": "t03",
+      "task": "edit",
+      "treatment": "guided",
+      "repetition": 1
+    },
+    {
+      "id": "t04",
+      "task": "navigation",
+      "treatment": "available",
+      "repetition": 1
+    },
+    {
+      "id": "t05",
+      "task": "debug",
+      "treatment": "guided",
+      "repetition": 1
+    },
+    {
+      "id": "t06",
+      "task": "edit",
+      "treatment": "ordinary",
+      "repetition": 1
+    },
+    {
+      "id": "t07",
+      "task": "navigation",
+      "treatment": "guided",
+      "repetition": 1
+    },
+    {
+      "id": "t08",
+      "task": "debug",
+      "treatment": "ordinary",
+      "repetition": 1
+    },
+    {
+      "id": "t09",
+      "task": "edit",
+      "treatment": "available",
+      "repetition": 1
+    },
+    {
+      "id": "t10",
+      "task": "navigation",
+      "treatment": "guided",
+      "repetition": 2
+    },
+    {
+      "id": "t11",
+      "task": "debug",
+      "treatment": "ordinary",
+      "repetition": 2
+    },
+    {
+      "id": "t12",
+      "task": "edit",
+      "treatment": "available",
+      "repetition": 2
+    },
+    {
+      "id": "t13",
+      "task": "navigation",
+      "treatment": "available",
+      "repetition": 2
+    },
+    {
+      "id": "t14",
+      "task": "debug",
+      "treatment": "guided",
+      "repetition": 2
+    },
+    {
+      "id": "t15",
+      "task": "edit",
+      "treatment": "ordinary",
+      "repetition": 2
+    },
+    {
+      "id": "t16",
+      "task": "navigation",
+      "treatment": "ordinary",
+      "repetition": 2
+    },
+    {
+      "id": "t17",
+      "task": "debug",
+      "treatment": "available",
+      "repetition": 2
+    },
+    {
+      "id": "t18",
+      "task": "edit",
+      "treatment": "guided",
+      "repetition": 2
+    }
+  ],
+  "shared_instructions": "You are completing one isolated evaluation task. Your task root is {{ROOT}}. Work only in that root. Mandatory host instruction/bootstrap reads are allowed separately. Every shell command must start with rtk; use rtk proxy for unfiltered source reads and tests. Normal source exploration is allowed: regex/literal searches, file listings, line/byte counts, full or bounded reads. The root is in an ignored directory; use rg --hidden --no-ignore when needed and exclude controller state from source searches with --glob '!.aide/**'. Edit and run tests only as the task permits. Do not read other trial roots, repository source outside your root, fixture/reference/grader packages, memories, prior results or runtime logs. Do not use internet or subagents. All native/global aide MCP tools and direct aide CLI invocations are prohibited, even if tool discovery lists them: they do not belong to this isolated fixture. The only exception for an assisted treatment is invoking its supplied external frozen bridge through the exact command below; this permission allows execution, not reading the bridge implementation, binary, evidence directory or surrounding package. Do not read, write, delete or reindex the controller-created .aide directory. The controller prepared the same fixture index in every condition; only assisted conditions may query it through the bridge. Index search/references describe the initial snapshot and may be stale after edits; verify candidates using current source tools. Prefer a natural efficient workflow; there is no requirement to use any specific retrieval tool. Aim for no more than 24 source/edit/test tool calls (nested tool calls count individually); instruction/bootstrap and tool-discovery calls are excluded from that target but remain measured. If more work is needed to finish correctly, finish and report why. Do not commit. End with the task answer, implemented change if any, and verification; do not speculate about token savings.",
+  "treatments": {
+    "ordinary": "Use ordinary shell/file tools for source exploration. Do not use aide retrieval tools or the bridge.",
+    "available": "Five optional fixture-scoped retrieval capabilities are available only through this command:\n`rtk proxy python3 {{BRIDGE}} call --root {{ROOT}} --binary {{BINARY}} --evidence-dir {{EVIDENCE}} --tool-json '{\"name\":\"code_search\",\"arguments\":{\"query\":\"example\"}}'`\nReplace only the tool JSON. Every request has exactly `name` and `arguments`. Use one of these argument shapes (paths are relative to your root; replace sample names and paths):\n- `code_search`: `{\"query\":\"name or signature\"}`; optional `file`, `kind`, `lang`, `limit`.\n- `code_references`: `{\"symbol\":\"functionName\"}` or `{\"symbols\":[\"first\",\"second\"]}`; optional `file`, `kind`, `limit`.\n- `code_symbols`: `{\"file\":\"src/example.ts\"}`.\n- `code_outline`: `{\"file\":\"src/example.ts\"}`; optional boolean `keep_comments`.\n- `code_read_symbol`: `{\"file\":\"src/example.ts\",\"symbols\":[\"first\",\"second\"]}` or `{\"file\":\"src/example.ts\",\"symbol\":\"functionName\"}`; optional `kind`, `start_line`. Symbol batches contain at most ten names.\nDo not invoke the controller-only `prepare` command. Bridge failures do not authorize other aide access.",
+    "guided": "Five optional fixture-scoped retrieval capabilities are available only through this command:\n`rtk proxy python3 {{BRIDGE}} call --root {{ROOT}} --binary {{BINARY}} --evidence-dir {{EVIDENCE}} --tool-json '{\"name\":\"code_search\",\"arguments\":{\"query\":\"example\"}}'`\nReplace only the tool JSON. Every request has exactly `name` and `arguments`. Use one of these argument shapes (paths are relative to your root; replace sample names and paths):\n- `code_search`: `{\"query\":\"name or signature\"}`; optional `file`, `kind`, `lang`, `limit`.\n- `code_references`: `{\"symbol\":\"functionName\"}` or `{\"symbols\":[\"first\",\"second\"]}`; optional `file`, `kind`, `limit`.\n- `code_symbols`: `{\"file\":\"src/example.ts\"}`.\n- `code_outline`: `{\"file\":\"src/example.ts\"}`; optional boolean `keep_comments`.\n- `code_read_symbol`: `{\"file\":\"src/example.ts\",\"symbols\":[\"first\",\"second\"]}` or `{\"file\":\"src/example.ts\",\"symbol\":\"functionName\"}`; optional `kind`, `start_line`. Symbol batches contain at most ten names.\nDo not invoke the controller-only `prepare` command. Bridge failures do not authorize other aide access.\n\n## Code Retrieval\n\nFor code tasks, discover aide's code tools when available: `code_search` for definitions by name/signature; `code_references` for callers and impact candidates; `code_symbols` or `code_outline` for file structure; `code_read_symbol` for relevant implementations (batch related symbols when useful).\nUse text search for literals/imports and direct reads for small files or when most contents matter. Verify indexed candidates against current source; empty or stale results are not proof of absence. Choose retrieval that helps correctness and avoids redundant work.\n\nFor a larger unfamiliar file where only selected definitions matter, inspect code_symbols or code_outline, then use code_read_symbol with file and symbols to read the relevant implementations together. Reuse already sufficient source evidence; retrieve missing details when needed. Small files and tasks needing most contents can use direct reads."
+  },
+  "execution": "18 fresh fork_turns=none participants, sequential in the unchanged declared v2 task/treatment/repetition order, identical inherited model/effort without override; verify actual runtime identity/model/effort/provider/CLI. All retain the same installed aide hooks. No live config, binary replacement or daemon restart. This is a new experiment with broader isolated retrieval capabilities and clarified task wording, not a causal before/after comparison with v2. Provider cache state is uncontrolled; fresh context does not imply cleared provider cache. No reruns or replacements.",
+  "grading": "Navigation: all five frozen rubric checks, independent grader blinded to treatment and usage, references verified. Debug/edit: provided visible and hidden functional checks plus immutable-file and trace audit. Zero aide uptake and call target overruns remain valid and reported. All planned rows retained including failed/incomplete/invalid; passing quality required for descriptive resource deltas. Controller-created root .aide is excluded only from immutable source-file grading and is not copied into functional grading roots. A separate trace audit must reject any participant alteration or direct inspection of .aide, bridge/binary/evidence files, or forbidden global tools; grader exclusion is not participant authorization.",
+  "metrics": "Runtime-reported input/cached input/output/reasoning/total tokens, response count and task duration; not billing or saved-provider-token claims. Source retrieval result text bytes separately from tool protocol/rendering wrappers, bootstrap, test/edit output; unknown values remain null. Record assisted tool uptake. Pair comparisons only when protocol-valid and runtime model/provider/effort/CLI comparable. Small fixed sample is descriptive, not causal generalisation. Record guidance/discovery/bootstrap overhead in runtime counters. Separate participant resource use from setup/grading/reporting. No aggregate efficiency score. Report observed aide calls, fallback sequences and retries; do not infer avoided calls or causal savings from their absence. Aide duration and hook byte receipts require attributable evidence, otherwise unknown. Bridge process/initialization/MCP call overhead is part of participant elapsed time and must be reported separately when bridge evidence permits. Controller preparation/index seeding for all conditions is setup overhead, separate from participant use. Preserve bridge evidence and source hashes; do not infer zero overhead from zero optional-tool uptake.",
+  "preflight": "Seed visible suites fail; reference visible/hidden suites pass before freeze. Package SHA256 inventory covers prompts, fixtures, rubrics, references, runner/grader, bridge and tests. Pin separate fixture source_commit, guidance source commit and hashes, tool description hashes and temporary binary SHA256. Prepare only copies roots/prompts; controller then initializes all eighteen indexes through bridge prepare and preserves setup evidence before participants. No participant trials until freeze and setup verification.",
+  "collector_sha256": "ad59a6efcce5a5005b0b73ca5c5f8a24d9346e141f662b8c626b4da74d64fbe3",
+  "host_scope": "The executable pilot uses the current Codex harness. Shared fixtures can be reused with Claude Code and OpenCode, but this run makes no cross-host performance claim. Their actual host usage fields require separate capture adapters or reviewed host exports; unknown metrics must stay unknown.",
+  "guidance_source_commit": "c59f59afd24bc3cb965af3fc0ba920db92bfc9d0",
+  "retrieval_bridge": {
+    "path": "bridge.py",
+    "binary_sha256": "073252810ae38e96052504b742d9b05b7382437e1c3f12454f667aa3b3491d13",
+    "guidance_source_hashes": {
+      "src/core/session-init.ts": "166b2a6cd1544be578590fe24fff941a8ffda22a03243549908743b1c58d60c8",
+      "src/core/context-guard.ts": "839f3c2b36472c52f10d8ce6c5f18836341454f6bdd0e74618f4694382a0130f",
+      "src/core/search-enrichment.ts": "5252ddbd1c8e8fae99cb104e1ffc0f2774f13efcb69a435821f14272ff495a5c",
+      "src/opencode/hooks.ts": "1382a01aeceab636140619d2b4b889a0e5c13a4b686b0b4291850c9f5a14ed50"
+    },
+    "tool_description_source_hashes": {
+      "aide/cmd/aide/cmd_mcp_code.go": "02b7d337b2ee44af1dfe52e9d7f44265cf9fdb6301fd22c6e0b631747641e054"
+    },
+    "index_policy": "Controller prepares all eighteen roots once before participants; no automatic reindex after edits. Bridge queries are available only in assisted conditions. Never use the live project index.",
+    "binary_build_note": "Temporary binary built from the same Go sources immediately before guidance_source_commit; Go build metadata may report vcs.modified=true. SHA256 identifies the executable used."
+  }
+}

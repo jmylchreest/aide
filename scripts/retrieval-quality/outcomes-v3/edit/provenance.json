@@ -1,0 +1,8 @@
+{
+  "commit": "efe758c",
+  "source": "src/core/context-pruning/replacement.ts",
+  "source_sha256": "398ab0e1008cafc8213b5c6d2909e0883fb65f323eb61b63b792369d9dd7c78b",
+  "allowed_edit_paths": [
+    "src/core/context-pruning/replacement.ts"
+  ]
+}

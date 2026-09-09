@@ -1,0 +1,69 @@
+{
+  "task": "navigation",
+  "read_only": true,
+  "checks": [
+    {
+      "id": "route",
+      "required": [
+        "createEventHandler handles message.part.updated and forwards properties.part through its usage recorder when binary exists",
+        "openCodeUsageEvent accepts only step-finish with stable part/message/session IDs and tokens",
+        "recordModelUsage writes observe record --stdin as batch; message.updated has no model usage collection branch"
+      ],
+      "evidence_files": [
+        "src/opencode/hooks.ts",
+        "src/core/model-usage.ts"
+      ]
+    },
+    {
+      "id": "normalization",
+      "required": [
+        "usage_id=step-7, session=session-1, host=opencode, usage_source=opencode.step_finish.v1, kind=session/name=model_usage",
+        "input_tokens=31, uncached_input_tokens=11, cache_read_input_tokens=17, cache_write_input_tokens=3, reported_output_tokens=13, reasoning_output_tokens=5",
+        "output_tokens and total_tokens absent; model/provider not supplied; usage_time_basis=observed; all coverage partial"
+      ],
+      "evidence_files": [
+        "src/core/model-usage.ts"
+      ]
+    },
+    {
+      "id": "retries",
+      "required": [
+        "three writer attempts: first failed, second successful, unchanged third skipped, changed fourth attempted successfully",
+        "two distinct persisted variants for same identity; failed first write assumed no persisted event as stated",
+        "successful fingerprint cache only; changed counters fingerprint differs; persistent identity fingerprint preserves contradictory variants"
+      ],
+      "evidence_files": [
+        "src/core/model-usage.ts",
+        "aide/pkg/store/observe_events.go",
+        "aide/pkg/store/token_model_usage.go"
+      ]
+    },
+    {
+      "id": "conflict",
+      "required": [
+        "report observations=0/conflicts=1 for that sole identity; neither variant contributes counters",
+        "identity is host+session+usage_id, independent of observation IDs",
+        "all retained evidence processed before date filters; selecting earlier variant cannot remove known conflict"
+      ],
+      "evidence_files": [
+        "aide/pkg/store/token_model_usage.go",
+        "aide/pkg/store/token_events.go"
+      ]
+    },
+    {
+      "id": "boundaries",
+      "required": [
+        "session events have no legacy TokenEvent projection, so do not add tool event count or byte-estimate accounting",
+        "host counters are partial captured usage, not complete session/billing/savings/task quality proof",
+        "do not add cache to normalized input or raw reported output to reasoning when overlap unknown"
+      ],
+      "evidence_files": [
+        "aide/pkg/store/observe_events.go",
+        "aide/pkg/store/token_events.go",
+        "aide/pkg/memory/token_model_usage.go",
+        "src/core/model-usage.ts"
+      ]
+    }
+  ],
+  "grading": "Every check requires substantively correct required facts plus source references that support them. Minor wording/line-span variations allowed. Any wrong numeric total, mistaken retry count, claimed guaranteed complete/billed/saved usage, or claim that date filtering removes conflict fails its affected check. Entire task passes only all five. Report omissions/unsupported claims separately. Grader is blinded to treatment and usage."
+}
