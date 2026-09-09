@@ -1,0 +1,9 @@
+{
+  "files": {
+    "README.md": "01ab39b17b52a9cbbd2bc20c7495cd32e129ef862c7eb5583c2ff842eb47c2c3",
+    "guidance.txt": "8c04102aafde29fcb80fc7ae3d0934a80df68dbce4a352139b862c3e53e00297",
+    "protocol.json": "c6e1996080ff27aeb53fcede36e11ac2333519f1de9290e97e87da14148eed61",
+    "run.py": "e89b98dada11aedddb126909bddd5a040325d5cf840ac2c25371373f6ebdb33b",
+    "test_run.py": "fd34f8c73962cb2314573d6a34d3db90198f49776037d2736c4445181aa63c7c"
+  }
+}
