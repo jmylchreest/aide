@@ -1,0 +1,71 @@
+{
+  "schema_version": 4,
+  "task": "implement",
+  "candidate_root": "/tmp/aide-v4-grader-preflight/seed",
+  "integrity": {
+    "passed": true,
+    "missing": [],
+    "modified_immutable": [],
+    "symlinks": [],
+    "excluded_controller_paths": [],
+    "unexpected_files": [],
+    "scratch_tests": [],
+    "changed_allowed_sources": []
+  },
+  "candidate_unchanged": true,
+  "quality_verified": true,
+  "quality": {
+    "passed": false,
+    "visible_passed": true,
+    "hidden_passed": false,
+    "immutable_files_preserved": true
+  },
+  "grading_mode": "disposable_copy",
+  "checks": {
+    "visible": {
+      "command": [
+        "rtk",
+        "proxy",
+        "bun",
+        "test",
+        "./tests/usage.test.ts"
+      ],
+      "exit_code": 0,
+      "stdout": "bun test v1.4.0 (34cbb9a40)\n",
+      "stderr": "\ntests/usage.test.ts:\n(pass) existing usage behavior > Claude inputs are disjoint; placeholder output is omitted [0.39ms]\n(pass) existing usage behavior > Codex rejects cumulative records and mismatched sessions [0.11ms]\n(pass) existing usage behavior > OpenCode retains ambiguous raw output without adding it [0.06ms]\n(pass) existing usage behavior > transcript scanner skips incomplete trailing lines and stays partial [0.48ms]\n\n 4 pass\n 0 fail\n 13 expect() calls\nRan 4 tests across 1 file. [11.00ms]\n",
+      "error": null,
+      "pass_count": 4,
+      "fail_count": 0,
+      "skip_count": null,
+      "todo_count": null,
+      "expected_count": 4,
+      "passed": true
+    },
+    "hidden": {
+      "command": [
+        "rtk",
+        "proxy",
+        "bun",
+        "test",
+        "./.grader/hidden.test.ts"
+      ],
+      "exit_code": 1,
+      "stdout": "bun test v1.4.0 (34cbb9a40)\n",
+      "stderr": "\n.grader/hidden.test.ts:\n319 | export function recordModelUsage(\n320 |   binary: string,\n321 |   cwd: string,\n322 |   events: ObserveBatchEvent[],\n323 | ): boolean {\n324 |   if (!events.length) return true;\n             ^\nTypeError: undefined is not an object (evaluating 'events.length')\n      at recordModelUsage (/tmp/aide-v4-grade-au_wrc4c/candidate/src/core/model-usage.ts:324:8)\n      at <anonymous> (/tmp/aide-v4-grade-au_wrc4c/candidate/.grader/hidden.test.ts:21:12)\n(fail) writer result contract > empty-batch [0.15ms]\n319 | export function recordModelUsage(\n320 |   binary: string,\n321 |   cwd: string,\n322 |   events: ObserveBatchEvent[],\n323 | ): boolean {\n324 |   if (!events.length) return true;\n             ^\nTypeError: undefined is not an object (evaluating 'events.length')\n      at recordModelUsage (/tmp/aide-v4-grade-au_wrc4c/candidate/src/core/model-usage.ts:324:8)\n      at <anonymous> (/tmp/aide-v4-grade-au_wrc4c/candidate/.grader/hidden.test.ts:27:12)\n(fail) writer result contract > full-ack-and-transport [0.05ms]\n319 | export function recordModelUsage(\n320 |   binary: string,\n321 |   cwd: string,\n322 |   events: ObserveBatchEvent[],\n323 | ): boolean {\n324 |   if (!events.length) return true;\n             ^\nTypeError: undefined is not an object (evaluating 'events.length')\n      at recordModelUsage (/tmp/aide-v4-grade-au_wrc4c/candidate/src/core/model-usage.ts:324:8)\n      at <anonymous> (/tmp/aide-v4-grade-au_wrc4c/candidate/.grader/hidden.test.ts:35:14)\n(fail) writer result contract > compatible-ack-spelling [0.05ms]\n319 | export function recordModelUsage(\n320 |   binary: string,\n321 |   cwd: string,\n322 |   events: ObserveBatchEvent[],\n323 | ): boolean {\n324 |   if (!events.length) return true;\n             ^\nTypeError: undefined is not an object (evaluating 'events.length')\n      at recordModelUsage (/tmp/aide-v4-grade-au_wrc4c/candidate/src/core/model-usage.ts:324:8)\n      at <anonymous> (/tmp/aide-v4-grade-au_wrc4c/candidate/.grader/hidden.test.ts:42:14)\n(fail) writer result contract > invalid-ack-classification [0.04ms]\n319 | export function recordModelUsage(\n320 |   binary: string,\n321 |   cwd: string,\n322 |   events: ObserveBatchEvent[],\n323 | ): boolean {\n324 |   if (!events.length) return true;\n             ^\nTypeError: undefined is not an object (evaluating 'events.length')\n      at recordModelUsage (/tmp/aide-v4-grade-au_wrc4c/candidate/src/core/model-usage.ts:324:8)\n      at <anonymous> (/tmp/aide-v4-grade-au_wrc4c/candidate/.grader/hidden.test.ts:47:12)\n(fail) writer result contract > write-error-classification [0.02ms]\n319 | export function recordModelUsage(\n320 |   binary: string,\n321 |   cwd: string,\n322 |   events: ObserveBatchEvent[],\n323 | ): boolean {\n324 |   if (!events.length) return true;\n             ^\nTypeError: undefined is not an object (evaluating 'events.length')\n      at recordModelUsage (/tmp/aide-v4-grade-au_wrc4c/candidate/src/core/model-usage.ts:324:8)\n      at <anonymous> (/tmp/aide-v4-grade-au_wrc4c/candidate/.grader/hidden.test.ts:52:12)\n(fail) writer result contract > serialization-error-classification [0.04ms]\n59 |     const calls:any[]=[];\n60 |     const record=createOpenCodeUsageRecorder(((req:any)=>{calls.push(req);return calls.length===1\n61 |       ? {status:\"unacknowledged\",reason:\"invalid-ack\"} : {status:\"acknowledged\",recorded:1};}) as any) as any;\n62 |     const req={binary:\"bin\",cwd:\"/a\",part:part()};\n63 |     record(req);record(req);record(req);\n64 |     expect(calls).toEqual([0,1].map(()=>({binary:\"bin\",cwd:\"/a\",events:[openCodeUsageEvent(part())]})));\n                       ^\nerror: expect(received).toEqual(expected)\n\n- [\n-   {\n-     \"binary\": \"bin\",\n-     \"cwd\": \"/a\",\n-     \"events\": [\n-       {\n-         \"attrs\": {\n-           \"cache_read_input_tokens\": \"17\",\n-           \"cache_write_input_tokens\": \"3\",\n-           \"host\": \"opencode\",\n-           \"input_tokens\": \"31\",\n-           \"model_usage_version\": \"1\",\n-           \"reasoning_output_tokens\": \"5\",\n-           \"reported_output_tokens\": \"13\",\n-           \"uncached_input_tokens\": \"11\",\n-           \"usage_coverage\": \"partial\",\n-           \"usage_id\": \"p\",\n-           \"usage_source\": \"opencode.step_finish.v1\",\n-           \"usage_time_basis\": \"observed\",\n-         },\n-         \"kind\": \"session\",\n-         \"name\": \"model_usage\",\n-         \"session\": \"s\",\n-       },\n-     ],\n-   },\n-   {\n-     \"binary\": \"bin\",\n-     \"cwd\": \"/a\",\n-     \"events\": [\n-       {\n-         \"attrs\": {\n-           \"cache_read_input_tokens\": \"17\",\n-           \"cache_write_input_tokens\": \"3\",\n-           \"host\": \"opencode\",\n-           \"input_tokens\": \"31\",\n-           \"model_usage_version\": \"1\",\n-           \"reasoning_output_tokens\": \"5\",\n-           \"reported_output_tokens\": \"13\",\n-           \"uncached_input_tokens\": \"11\",\n-           \"usage_coverage\": \"partial\",\n-           \"usage_id\": \"p\",\n-           \"usage_source\": \"opencode.step_finish.v1\",\n-           \"usage_time_basis\": \"observed\",\n-         },\n-         \"kind\": \"session\",\n-         \"name\": \"model_usage\",\n-         \"session\": \"s\",\n-       },\n-     ],\n-   },\n- ]\n+ []\n\n- Expected  - 52\n+ Received  + 1\n\n      at <anonymous> (/tmp/aide-v4-grade-au_wrc4c/candidate/.grader/hidden.test.ts:64:19)\n(fail) recorder contract and existing cache > object-forwarding-retry-and-dedup [0.42ms]\n65 |   });\n66 |   test(\"write-error-results-remain-retryable\", () => {\n67 |     let calls=0;\n68 |     const record=createOpenCodeUsageRecorder((()=>{calls++;return {status:\"unacknowledged\",reason:\"write-error\"};}) as any) as any;\n69 |     const req={binary:\"bin\",cwd:\"/a\",part:part()};record(req);record(req);\n70 |     expect(calls).toBe(2);\n                       ^\nerror: expect(received).toBe(expected)\n\nExpected: 2\nReceived: 0\n\n      at <anonymous> (/tmp/aide-v4-grade-au_wrc4c/candidate/.grader/hidden.test.ts:70:19)\n(fail) recorder contract and existing cache > write-error-results-remain-retryable [0.05ms]\n74 |     const a=createOpenCodeUsageRecorder(write as any) as any,b=createOpenCodeUsageRecorder(write as any) as any;\n75 |     a({binary:\"bin\",cwd:\"/a\",part:part()});\n76 |     a({binary:\"bin\",cwd:\"/a\",part:part(\"p\",12)});\n77 |     a({binary:\"bin\",cwd:\"/b\",part:part()});\n78 |     b({binary:\"bin\",cwd:\"/a\",part:part()});\n79 |     expect(calls).toHaveLength(4);\n                       ^\nerror: expect(received).toHaveLength(expected)\n\nExpected length: 4\nReceived length: 0\n\n      at <anonymous> (/tmp/aide-v4-grade-au_wrc4c/candidate/.grader/hidden.test.ts:79:19)\n(fail) recorder contract and existing cache > revisions-cwd-and-independent-instances [0.04ms]\n(pass) recorder contract and existing cache > invalid-parts-do-not-write [0.04ms]\n86 |   });\n87 |   test(\"oldest-first-capacity\", () => {\n88 |     const ids:string[]=[];const record=createOpenCodeUsageRecorder(((r:any)=>{ids.push(r.events[0].attrs.usage_id);return {status:\"acknowledged\",recorded:1};}) as any) as any;\n89 |     const send=(id:string)=>record({binary:\"bin\",cwd:\"/a\",part:part(id)});\n90 |     for(let i=0;i<1024;i++)send(String(i));\n91 |     send(\"0\"); expect(ids).toHaveLength(1024);\n                                ^\nerror: expect(received).toHaveLength(expected)\n\nExpected length: 1024\nReceived length: 0\n\n      at <anonymous> (/tmp/aide-v4-grade-au_wrc4c/candidate/.grader/hidden.test.ts:91:28)\n(fail) recorder contract and existing cache > oldest-first-capacity [0.34ms]\n(pass) actual OpenCode adapter > opencode-object-call-and-retry [5.73ms]\n(pass) actual OpenCode adapter > opencode-ignored-message-and-no-binary [0.09ms]\n146 |       await withTranscript(host,async(cwd,path)=>{\n147 |         await stop({hook_event_name:\"Stop\",session_id:\"s\",cwd,transcript_path:path});\n148 |         expect(harness.calls).toHaveLength(1);\n149 |         expect(harness.calls[0].options.cwd).toBe(cwd);\n150 |         expect(JSON.parse(harness.calls[0].options.input).attrs).toMatchObject({host,usage_id:\"r\"});\n151 |         expect(harness.logs).toContain(\"Usage scan: partial; limited=false; malformed=0; records=1; write=acknowledged\");\n                                   ^\nerror: expect(received).toContain(expected)\n\nExpected to contain: \"Usage scan: partial; limited=false; malformed=0; records=1; write=acknowledged\"\nReceived: [ \"Hook triggered: Stop\", \"Usage scan: partial; limited=false; malformed=0; records=1\",\n  \"Stop hook - capturing session summary\", \"Stored final session summary for s\", \"Cleaned up 0 partials after final summary\"\n]\n\n      at <anonymous> (/tmp/aide-v4-grade-au_wrc4c/candidate/.grader/hidden.test.ts:151:30)\n      at async withTranscript (/tmp/aide-v4-grade-au_wrc4c/candidate/.grader/hidden.test.ts:140:56)\n      at async <anonymous> (/tmp/aide-v4-grade-au_wrc4c/candidate/.grader/hidden.test.ts:146:13)\n(fail) actual Stop adapter > stop-claude-code-records-and-logs [0.93ms]\n146 |       await withTranscript(host,async(cwd,path)=>{\n147 |         await stop({hook_event_name:\"Stop\",session_id:\"s\",cwd,transcript_path:path});\n148 |         expect(harness.calls).toHaveLength(1);\n149 |         expect(harness.calls[0].options.cwd).toBe(cwd);\n150 |         expect(JSON.parse(harness.calls[0].options.input).attrs).toMatchObject({host,usage_id:\"r\"});\n151 |         expect(harness.logs).toContain(\"Usage scan: partial; limited=false; malformed=0; records=1; write=acknowledged\");\n                                   ^\nerror: expect(received).toContain(expected)\n\nExpected to contain: \"Usage scan: partial; limited=false; malformed=0; records=1; write=acknowledged\"\nReceived: [ \"Hook triggered: Stop\", \"Usage scan: partial; limited=false; malformed=0; records=1\",\n  \"Stop hook - capturing session summary\", \"Stored final session summary for s\", \"Cleaned up 0 partials after final summary\"\n]\n\n      at <anonymous> (/tmp/aide-v4-grade-au_wrc4c/candidate/.grader/hidden.test.ts:151:30)\n      at async withTranscript (/tmp/aide-v4-grade-au_wrc4c/candidate/.grader/hidden.test.ts:140:56)\n      at async <anonymous> (/tmp/aide-v4-grade-au_wrc4c/candidate/.grader/hidden.test.ts:146:13)\n(fail) actual Stop adapter > stop-codex-records-and-logs [0.54ms]\n154 |     });\n155 |   test(\"stop-failed-write-still-captures-summary\",async()=>{\n156 |     await withTranscript(\"claude-code\",async(cwd,path)=>{\n157 |       harness.fail=true;\n158 |       await stop({hook_event_name:\"Stop\",session_id:\"s\",cwd,transcript_path:path});\n159 |       expect(harness.logs).toContain(\"Usage scan: partial; limited=false; malformed=0; records=1; write=unacknowledged\");\n                                 ^\nerror: expect(received).toContain(expected)\n\nExpected to contain: \"Usage scan: partial; limited=false; malformed=0; records=1; write=unacknowledged\"\nReceived: [ \"Hook triggered: Stop\", \"Usage batch was not acknowledged: Error\", \"Usage scan: partial; limited=false; malformed=0; records=1\",\n  \"Stop hook - capturing session summary\", \"Stored final session summary for s\", \"Cleaned up 0 partials after final summary\"\n]\n\n      at <anonymous> (/tmp/aide-v4-grade-au_wrc4c/candidate/.grader/hidden.test.ts:159:28)\n      at async withTranscript (/tmp/aide-v4-grade-au_wrc4c/candidate/.grader/hidden.test.ts:140:56)\n      at async <anonymous> (/tmp/aide-v4-grade-au_wrc4c/candidate/.grader/hidden.test.ts:156:11)\n(fail) actual Stop adapter > stop-failed-write-still-captures-summary [0.35ms]\n(pass) actual Stop adapter > stop-recursion-only-suppresses-summary [0.25ms]\n(pass) actual Stop adapter > non-stop-and-missing-binary-remain-noop [0.30ms]\n(pass) normalization and scanning regression > timestamps-and-invalid-counters [0.07ms]\n(pass) normalization and scanning regression > bounded-tail-and-malformed-records [0.24ms]\n\n 7 pass\n 13 fail\n 41 expect() calls\nRan 20 tests across 1 file. [19.00ms]\n",
+      "error": null,
+      "pass_count": 7,
+      "fail_count": 13,
+      "skip_count": null,
+      "todo_count": null,
+      "expected_count": 20,
+      "passed": false
+    }
+  },
+  "functional_quality_verified": true,
+  "functional_quality": {
+    "passed": false,
+    "visible_passed": true,
+    "hidden_passed": false,
+    "immutable_files_preserved": true
+  }
+}

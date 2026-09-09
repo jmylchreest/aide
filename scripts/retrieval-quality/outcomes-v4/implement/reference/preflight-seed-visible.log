@@ -1,0 +1,12 @@
+bun test v1.4.0 (34cbb9a40)
+
+tests/usage.test.ts:
+(pass) existing usage behavior > Claude inputs are disjoint; placeholder output is omitted [0.37ms]
+(pass) existing usage behavior > Codex rejects cumulative records and mismatched sessions [0.09ms]
+(pass) existing usage behavior > OpenCode retains ambiguous raw output without adding it [0.06ms]
+(pass) existing usage behavior > transcript scanner skips incomplete trailing lines and stays partial [0.53ms]
+
+ 4 pass
+ 0 fail
+ 13 expect() calls
+Ran 4 tests across 1 file. [12.00ms]

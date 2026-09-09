@@ -1,0 +1,502 @@
+package main
+
+import (
+	"bufio"
+	"encoding/json"
+	"fmt"
+	"os"
+	"sort"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/jmylchreest/aide/aide/pkg/config"
+	"github.com/jmylchreest/aide/aide/pkg/observe"
+	"github.com/jmylchreest/aide/aide/pkg/store"
+)
+
+func cmdObserveDispatcher(dbPath string, args []string) error {
+	return dispatchSubcmd("observe", args, printObserveUsage, []subcmd{
+		{name: "list", handler: func(a []string) error { return cmdObserveList(dbPath, a) }},
+		{name: "summary", handler: func(a []string) error { return cmdObserveSummary(dbPath, a) }},
+		{name: "efficiency", handler: func(a []string) error { return cmdObserveEfficiency(dbPath, a) }},
+		{name: "record", handler: func(a []string) error { return cmdObserveRecord(dbPath, a) }},
+		{name: "cleanup", handler: func(a []string) error { return cmdObserveCleanup(dbPath, a) }},
+	})
+}
+
+func printObserveUsage() {
+	fmt.Println(`aide observe - Query the unified observability event store
+
+Usage:
+  aide observe <subcommand> [options]
+
+Subcommands:
+  list        List recent events (newest first)
+  summary     Aggregate counts by kind / category
+  efficiency  Token efficiency: counterfactual vs actual reads
+  record      Record a one-off event (used by hooks / scripts)
+  cleanup     Remove events older than --age (default: cleanup.observe_max_age; 0 = keep all)
+
+record options:
+  --stdin          Batch mode: read JSON Lines from stdin, one event per
+                   line ({"kind","name","category","subtype","tokens",
+                   "saved","file","session","error","attrs"}); other
+                   flags are ignored
+  --kind=K         tool_call | span | hook | injection | session   (required)
+  --name=NAME      Event identifier (e.g., skill name, hook name)  (required)
+  --category=C     consume / navigate / inject / coordinate / ...
+  --subtype=S      Sub-class within category
+  --tokens=N       Tokens consumed by this event
+  --saved=N        Counterfactual tokens avoided
+  --file=PATH      Associated file
+  --session=ID     Session identifier
+  --error=TEXT     Error message — marks a failed tool call (drives the friction detector)
+  --attr=K=V       Repeatable extra metadata
+
+Options for list / summary:
+  --kind=K         Filter by kind: tool_call | span | hook | injection | session
+  --name=N         Filter by event name (e.g. "code_outline", "AnalyzeDeadCode")
+  --category=C     Filter by category (consume / navigate / search / modify / execute / network / coordinate / inject / analyzer / indexer)
+  --session=ID     Filter by session ID
+  --since=DUR      Only events newer than DUR (e.g. 1h, 24h)
+  --limit=N        Max results (default 50; 0 = no limit)
+  --json           Machine-readable output
+
+cleanup options:
+  --age=DUR        Delete events older than DUR (default: cleanup.observe_max_age, 365d; --age=0 keeps all)`)
+}
+
+func cmdObserveList(dbPath string, args []string) error {
+	jsonOut := hasFlag(args, "--json")
+	filter := store.ObserveFilter{
+		Kind:      observe.Kind(parseFlag(args, "--kind=")),
+		Name:      parseFlag(args, "--name="),
+		Category:  parseFlag(args, "--category="),
+		SessionID: parseFlag(args, "--session="),
+		Limit:     50,
+	}
+	limit, err := parseIntFlag(args, "--limit=", filter.Limit)
+	if err != nil {
+		return err
+	}
+	filter.Limit = limit
+	if v := parseFlag(args, "--since="); v != "" {
+		dur, err := parseDurationDays(v)
+		if err != nil {
+			return fmt.Errorf("invalid --since: %w", err)
+		}
+		filter.Since = time.Now().Add(-dur)
+	}
+
+	backend, err := NewBackend(dbPath)
+	if err != nil {
+		return err
+	}
+	defer backend.Close()
+
+	events, err := backend.Store().ListObserveEvents(filter)
+	if err != nil {
+		return err
+	}
+
+	if jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(events)
+	}
+
+	if len(events) == 0 {
+		fmt.Println("No events.")
+		return nil
+	}
+	for _, e := range events {
+		extras := ""
+		if e.FilePath != "" {
+			extras += " " + e.FilePath
+		}
+		if e.Tokens > 0 || e.TokensSaved > 0 {
+			extras += fmt.Sprintf(" tokens=%d saved=%d", e.Tokens, e.TokensSaved)
+		}
+		fmt.Printf("%s %-9s %-25s %-12s %4dms%s\n",
+			e.Timestamp.Format("15:04:05"),
+			string(e.Kind),
+			e.Name,
+			e.Category,
+			e.DurationMs,
+			extras,
+		)
+	}
+	return nil
+}
+
+func cmdObserveSummary(dbPath string, args []string) error {
+	filter := store.ObserveFilter{Limit: 0}
+	if v := parseFlag(args, "--since="); v != "" {
+		dur, err := parseDurationDays(v)
+		if err != nil {
+			return fmt.Errorf("invalid --since: %w", err)
+		}
+		filter.Since = time.Now().Add(-dur)
+	}
+
+	backend, err := NewBackend(dbPath)
+	if err != nil {
+		return err
+	}
+	defer backend.Close()
+
+	events, err := backend.Store().ListObserveEvents(filter)
+	if err != nil {
+		return err
+	}
+
+	byKind := map[string]*bucket{}
+	byCategory := map[string]*bucket{}
+	byName := map[string]*bucket{}
+
+	addTo := func(m map[string]*bucket, key string, e *observe.Event) {
+		if key == "" {
+			return
+		}
+		b, ok := m[key]
+		if !ok {
+			b = &bucket{}
+			m[key] = b
+		}
+		b.count++
+		b.totalMs += e.DurationMs
+		b.tokens += e.Tokens
+		b.saved += e.TokensSaved
+	}
+	for _, e := range events {
+		addTo(byKind, string(e.Kind), e)
+		addTo(byCategory, e.Category, e)
+		addTo(byName, e.Name, e)
+	}
+
+	if hasFlag(args, "--json") {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(map[string]any{
+			"total":       len(events),
+			"by_kind":     byKind,
+			"by_category": byCategory,
+			"by_name":     byName,
+		})
+	}
+
+	fmt.Printf("Total events: %d\n\n", len(events))
+	printBuckets("By kind", byKind)
+	printBuckets("By category", byCategory)
+	printBuckets("By name", byName)
+	return nil
+}
+
+func printBuckets(title string, m map[string]*bucket) {
+	if len(m) == 0 {
+		return
+	}
+	fmt.Println(title + ":")
+	for k, b := range m {
+		extra := ""
+		if b.tokens > 0 || b.saved > 0 {
+			extra = fmt.Sprintf(" tokens=%d saved=%d", b.tokens, b.saved)
+		}
+		fmt.Printf("  %-25s %5d  %6dms%s\n", k, b.count, b.totalMs, extra)
+	}
+	fmt.Println()
+}
+
+type bucket struct {
+	count   int
+	totalMs int64
+	tokens  int
+	saved   int
+}
+
+// observeBatchLine is one JSON Lines record for `observe record --stdin`.
+type observeBatchLine struct {
+	Timestamp *time.Time        `json:"ts,omitempty"`
+	Kind      string            `json:"kind"`
+	Name      string            `json:"name"`
+	Category  string            `json:"category,omitempty"`
+	Subtype   string            `json:"subtype,omitempty"`
+	Tokens    int               `json:"tokens,omitempty"`
+	Saved     int               `json:"saved,omitempty"`
+	File      string            `json:"file,omitempty"`
+	Session   string            `json:"session,omitempty"`
+	Error     string            `json:"error,omitempty"`
+	Attrs     map[string]string `json:"attrs,omitempty"`
+}
+
+// cmdObserveRecordBatch ingests JSON Lines from stdin under ONE store
+// open. Hooks that emit an event per injected source were paying a full
+// binary spawn + bolt open each — at session start that multiplied into
+// seconds. Malformed lines are skipped and counted, never fatal.
+func cmdObserveRecordBatch(dbPath string) error {
+	backend, err := NewBackend(dbPath)
+	if err != nil {
+		return err
+	}
+	defer backend.Close()
+
+	recorded, skipped := 0, 0
+	scanner := bufio.NewScanner(os.Stdin)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+		var l observeBatchLine
+		if err := json.Unmarshal([]byte(line), &l); err != nil || l.Kind == "" || l.Name == "" || (l.Timestamp != nil && l.Timestamp.IsZero()) {
+			skipped++
+			continue
+		}
+		ev := &observe.Event{
+			Kind:        observe.Kind(l.Kind),
+			Name:        l.Name,
+			Category:    l.Category,
+			Subtype:     l.Subtype,
+			Tokens:      l.Tokens,
+			TokensSaved: l.Saved,
+			FilePath:    l.File,
+			SessionID:   l.Session,
+			Error:       l.Error,
+			Attrs:       l.Attrs,
+		}
+		if l.Timestamp != nil {
+			ev.Timestamp = *l.Timestamp
+		}
+		if err := backend.Store().AddObserveEvent(ev); err != nil {
+			skipped++
+			continue
+		}
+		recorded++
+	}
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("reading stdin: %w", err)
+	}
+	fmt.Printf("recorded %d event(s)", recorded)
+	if skipped > 0 {
+		fmt.Printf(", skipped %d", skipped)
+	}
+	fmt.Println()
+	return nil
+}
+
+// cmdObserveRecord emits observe events from the CLI: one event from
+// flags, or a batch of JSON Lines from stdin with --stdin. Used by hooks
+// (skill-injector, session-start) to record per-source injection events.
+func cmdObserveRecord(dbPath string, args []string) error {
+	if hasFlag(args, "--stdin") {
+		return cmdObserveRecordBatch(dbPath)
+	}
+	kind := parseFlag(args, "--kind=")
+	name := parseFlag(args, "--name=")
+	if kind == "" || name == "" {
+		return fmt.Errorf("--kind and --name are required")
+	}
+	ev := &observe.Event{
+		Kind:      observe.Kind(kind),
+		Name:      name,
+		Category:  parseFlag(args, "--category="),
+		Subtype:   parseFlag(args, "--subtype="),
+		FilePath:  parseFlag(args, "--file="),
+		SessionID: parseFlag(args, "--session="),
+		Error:     parseFlag(args, "--error="),
+	}
+	tokens, err := parseIntFlag(args, "--tokens=", ev.Tokens)
+	if err != nil {
+		return err
+	}
+	ev.Tokens = tokens
+	saved, err := parseIntFlag(args, "--saved=", ev.TokensSaved)
+	if err != nil {
+		return err
+	}
+	ev.TokensSaved = saved
+	for _, a := range args {
+		if !strings.HasPrefix(a, "--attr=") {
+			continue
+		}
+		kv := strings.SplitN(strings.TrimPrefix(a, "--attr="), "=", 2)
+		if len(kv) == 2 {
+			if ev.Attrs == nil {
+				ev.Attrs = map[string]string{}
+			}
+			ev.Attrs[kv[0]] = kv[1]
+		}
+	}
+
+	backend, err := NewBackend(dbPath)
+	if err != nil {
+		return err
+	}
+	defer backend.Close()
+	return backend.Store().AddObserveEvent(ev)
+}
+
+// cmdObserveEfficiency prints a token-efficiency summary: for every consume
+// event (code_outline, code_read_symbol, raw reads) it compares what a raw
+// file Read would have cost (Tokens + TokensSaved) against what was actually
+// consumed (Tokens). Token estimates come from calibrated per-language ratios
+// in pkg/code/tokens.go — measured against the Anthropic count_tokens API so
+// the "would have been X" number is grounded rather than a guess.
+func cmdObserveEfficiency(dbPath string, args []string) error {
+	jsonOut := hasFlag(args, "--json")
+	filter := store.ObserveFilter{Kind: observe.KindToolCall, Category: "consume", Limit: 0}
+	if v := parseFlag(args, "--since="); v != "" {
+		dur, err := parseDurationDays(v)
+		if err != nil {
+			return fmt.Errorf("invalid --since: %w", err)
+		}
+		filter.Since = time.Now().Add(-dur)
+	}
+	if v := parseFlag(args, "--session="); v != "" {
+		filter.SessionID = v
+	}
+
+	backend, err := NewBackend(dbPath)
+	if err != nil {
+		return err
+	}
+	defer backend.Close()
+
+	events, err := backend.Store().ListObserveEvents(filter)
+	if err != nil {
+		return err
+	}
+
+	type toolStats struct {
+		Calls          int `json:"calls"`
+		Counterfactual int `json:"counterfactual_tokens"`
+		Actual         int `json:"actual_tokens"`
+		Saved          int `json:"saved_tokens"`
+	}
+	byTool := map[string]*toolStats{}
+	var total toolStats
+
+	for _, e := range events {
+		b, ok := byTool[e.Name]
+		if !ok {
+			b = &toolStats{}
+			byTool[e.Name] = b
+		}
+		b.Calls++
+		b.Actual += e.Tokens
+		b.Saved += e.TokensSaved
+		b.Counterfactual += e.Tokens + e.TokensSaved
+		total.Calls++
+		total.Actual += e.Tokens
+		total.Saved += e.TokensSaved
+		total.Counterfactual += e.Tokens + e.TokensSaved
+	}
+
+	if jsonOut {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		return enc.Encode(map[string]any{
+			"since":   filter.Since,
+			"total":   total,
+			"by_tool": byTool,
+		})
+	}
+
+	if total.Calls == 0 {
+		fmt.Println("No consume events recorded yet.")
+		fmt.Println("Run some MCP code tools (code_outline, code_read_symbol) or file Reads to populate.")
+		return nil
+	}
+
+	fmt.Println("Token efficiency")
+	fmt.Println("================")
+	fmt.Println()
+	fmt.Println("Estimates use calibrated per-language char/token ratios")
+	fmt.Println("(see pkg/code/tokens.go — measured against Anthropic count_tokens).")
+	fmt.Println()
+	fmt.Printf("Would have read:  %s tokens  (if every call had been a raw Read)\n", fmtInt(total.Counterfactual))
+	fmt.Printf("Actually read:    %s tokens\n", fmtInt(total.Actual))
+	fmt.Printf("Saved:            %s tokens", fmtInt(total.Saved))
+	if total.Counterfactual > 0 {
+		ratio := float64(total.Saved) / float64(total.Counterfactual) * 100
+		fmt.Printf("  (%.1f%% efficiency)", ratio)
+	}
+	fmt.Println()
+	fmt.Println()
+
+	// Per-tool table
+	names := make([]string, 0, len(byTool))
+	for n := range byTool {
+		names = append(names, n)
+	}
+	sort.Slice(names, func(i, j int) bool { return byTool[names[i]].Saved > byTool[names[j]].Saved })
+
+	fmt.Printf("%-20s %6s  %14s  %14s  %14s  %6s\n", "tool", "calls", "would have", "actual", "saved", "eff")
+	for _, n := range names {
+		b := byTool[n]
+		eff := ""
+		if b.Counterfactual > 0 {
+			eff = fmt.Sprintf("%.1f%%", float64(b.Saved)/float64(b.Counterfactual)*100)
+		}
+		fmt.Printf("%-20s %6d  %14s  %14s  %14s  %6s\n",
+			n, b.Calls, fmtInt(b.Counterfactual), fmtInt(b.Actual), fmtInt(b.Saved), eff)
+	}
+	return nil
+}
+
+// parseDurationDays extends time.ParseDuration to accept "d" (days) since
+// time.ParseDuration tops out at hours ("h").
+func parseDurationDays(s string) (time.Duration, error) {
+	if len(s) > 1 && s[len(s)-1] == 'd' {
+		n, err := strconv.Atoi(s[:len(s)-1])
+		if err != nil {
+			return 0, err
+		}
+		return time.Duration(n) * 24 * time.Hour, nil
+	}
+	return time.ParseDuration(s)
+}
+
+// fmtInt adds thousand separators to an int for readability.
+func fmtInt(n int) string {
+	s := strconv.Itoa(n)
+	if len(s) <= 3 {
+		return s
+	}
+	out := ""
+	for i, c := range s {
+		if i != 0 && (len(s)-i)%3 == 0 {
+			out += ","
+		}
+		out += string(c)
+	}
+	return out
+}
+
+func cmdObserveCleanup(dbPath string, args []string) error {
+	age := config.Get().Cleanup.ObserveMaxAgeDuration()
+	if v := parseFlag(args, "--age="); v != "" {
+		dur, err := parseDurationDays(v)
+		if err != nil {
+			return fmt.Errorf("invalid --age: %w", err)
+		}
+		age = dur
+	}
+	if age <= 0 {
+		fmt.Println("Observe retention is disabled (age 0): no events pruned.")
+		return nil
+	}
+	backend, err := NewBackend(dbPath)
+	if err != nil {
+		return err
+	}
+	defer backend.Close()
+	n, err := backend.Store().CleanupObserveEvents(age)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Deleted %d events older than %v.\n", n, age)
+	return nil
+}

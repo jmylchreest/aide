@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "phase": "preparation_only",
+  "participant_model_runs": 0,
+  "source_commit": "58816d991ef7172304f3eef594844d79e995a5e1",
+  "source_files_git_verified": 49,
+  "production_source_files": 46,
+  "original_test_files": 3,
+  "unit_checks": {
+    "command": "rtk proxy python3 -m unittest discover -s scripts/retrieval-quality/outcomes-v4 -p 'test_*.py'",
+    "passed": 17
+  },
+  "independent_protocol_review": {
+    "path": "preflight/protocol-review.md",
+    "focused_synthetic_scenarios": 21,
+    "open_blockers": 0
+  },
+  "source_and_prompt_review": "preflight/source-review.md",
+  "fixture_validation": "preflight/fixture-validation.json",
+  "actual_grader_validation": "preflight/grader-summary.json",
+  "mutation_calibration": "implement/reference/mutation-checks.json",
+  "isolated_bridge": {
+    "capabilities_verified": 5,
+    "same_root_database_socket_identity_verified": true,
+    "binary_sha256": "38ad788faab22d2f0376b5b53488c69fdbc8eb5991dda054772da2369fd7a5f0",
+    "evidence": "preflight/bridge-evidence",
+    "summary": "preflight/bridge-summary.json",
+    "limitations": "Bounded deterministic tool preflight; native per-agent MCP binding unavailable. Dynamic function-value edges require current-source verification."
+  },
+  "validation_limits": [
+    "Original Vitest suites not executed; reference syntax/source reviewed.",
+    "Bun does not type-check TypeScript.",
+    "No live host participant or provider-efficiency measurements yet.",
+    "Reference runtime pass is not a participant overall-quality grade."
+  ]
+}

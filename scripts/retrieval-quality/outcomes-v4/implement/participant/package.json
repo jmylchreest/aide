@@ -1,0 +1,6 @@
+{
+  "name": "aide-retrieval-outcomes-v4-fixture",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "bun test tests" }
+}

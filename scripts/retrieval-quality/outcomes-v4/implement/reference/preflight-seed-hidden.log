@@ -1,0 +1,245 @@
+bun test v1.4.0 (34cbb9a40)
+
+.grader/hidden.test.ts:
+319 | export function recordModelUsage(
+320 |   binary: string,
+321 |   cwd: string,
+322 |   events: ObserveBatchEvent[],
+323 | ): boolean {
+324 |   if (!events.length) return true;
+             ^
+TypeError: undefined is not an object (evaluating 'events.length')
+      at recordModelUsage (/tmp/aide-v4-preflight-q51e8kto/src/core/model-usage.ts:324:8)
+      at <anonymous> (/tmp/aide-v4-preflight-q51e8kto/.grader/hidden.test.ts:21:12)
+(fail) writer result contract > empty-batch [0.16ms]
+319 | export function recordModelUsage(
+320 |   binary: string,
+321 |   cwd: string,
+322 |   events: ObserveBatchEvent[],
+323 | ): boolean {
+324 |   if (!events.length) return true;
+             ^
+TypeError: undefined is not an object (evaluating 'events.length')
+      at recordModelUsage (/tmp/aide-v4-preflight-q51e8kto/src/core/model-usage.ts:324:8)
+      at <anonymous> (/tmp/aide-v4-preflight-q51e8kto/.grader/hidden.test.ts:27:12)
+(fail) writer result contract > full-ack-and-transport [0.04ms]
+319 | export function recordModelUsage(
+320 |   binary: string,
+321 |   cwd: string,
+322 |   events: ObserveBatchEvent[],
+323 | ): boolean {
+324 |   if (!events.length) return true;
+             ^
+TypeError: undefined is not an object (evaluating 'events.length')
+      at recordModelUsage (/tmp/aide-v4-preflight-q51e8kto/src/core/model-usage.ts:324:8)
+      at <anonymous> (/tmp/aide-v4-preflight-q51e8kto/.grader/hidden.test.ts:35:14)
+(fail) writer result contract > compatible-ack-spelling [0.05ms]
+319 | export function recordModelUsage(
+320 |   binary: string,
+321 |   cwd: string,
+322 |   events: ObserveBatchEvent[],
+323 | ): boolean {
+324 |   if (!events.length) return true;
+             ^
+TypeError: undefined is not an object (evaluating 'events.length')
+      at recordModelUsage (/tmp/aide-v4-preflight-q51e8kto/src/core/model-usage.ts:324:8)
+      at <anonymous> (/tmp/aide-v4-preflight-q51e8kto/.grader/hidden.test.ts:42:14)
+(fail) writer result contract > invalid-ack-classification [0.04ms]
+319 | export function recordModelUsage(
+320 |   binary: string,
+321 |   cwd: string,
+322 |   events: ObserveBatchEvent[],
+323 | ): boolean {
+324 |   if (!events.length) return true;
+             ^
+TypeError: undefined is not an object (evaluating 'events.length')
+      at recordModelUsage (/tmp/aide-v4-preflight-q51e8kto/src/core/model-usage.ts:324:8)
+      at <anonymous> (/tmp/aide-v4-preflight-q51e8kto/.grader/hidden.test.ts:47:12)
+(fail) writer result contract > write-error-classification [0.02ms]
+319 | export function recordModelUsage(
+320 |   binary: string,
+321 |   cwd: string,
+322 |   events: ObserveBatchEvent[],
+323 | ): boolean {
+324 |   if (!events.length) return true;
+             ^
+TypeError: undefined is not an object (evaluating 'events.length')
+      at recordModelUsage (/tmp/aide-v4-preflight-q51e8kto/src/core/model-usage.ts:324:8)
+      at <anonymous> (/tmp/aide-v4-preflight-q51e8kto/.grader/hidden.test.ts:52:12)
+(fail) writer result contract > serialization-error-classification [0.03ms]
+59 |     const calls:any[]=[];
+60 |     const record=createOpenCodeUsageRecorder(((req:any)=>{calls.push(req);return calls.length===1
+61 |       ? {status:"unacknowledged",reason:"invalid-ack"} : {status:"acknowledged",recorded:1};}) as any) as any;
+62 |     const req={binary:"bin",cwd:"/a",part:part()};
+63 |     record(req);record(req);record(req);
+64 |     expect(calls).toEqual([0,1].map(()=>({binary:"bin",cwd:"/a",events:[openCodeUsageEvent(part())]})));
+                       ^
+error: expect(received).toEqual(expected)
+
+- [
+-   {
+-     "binary": "bin",
+-     "cwd": "/a",
+-     "events": [
+-       {
+-         "attrs": {
+-           "cache_read_input_tokens": "17",
+-           "cache_write_input_tokens": "3",
+-           "host": "opencode",
+-           "input_tokens": "31",
+-           "model_usage_version": "1",
+-           "reasoning_output_tokens": "5",
+-           "reported_output_tokens": "13",
+-           "uncached_input_tokens": "11",
+-           "usage_coverage": "partial",
+-           "usage_id": "p",
+-           "usage_source": "opencode.step_finish.v1",
+-           "usage_time_basis": "observed",
+-         },
+-         "kind": "session",
+-         "name": "model_usage",
+-         "session": "s",
+-       },
+-     ],
+-   },
+-   {
+-     "binary": "bin",
+-     "cwd": "/a",
+-     "events": [
+-       {
+-         "attrs": {
+-           "cache_read_input_tokens": "17",
+-           "cache_write_input_tokens": "3",
+-           "host": "opencode",
+-           "input_tokens": "31",
+-           "model_usage_version": "1",
+-           "reasoning_output_tokens": "5",
+-           "reported_output_tokens": "13",
+-           "uncached_input_tokens": "11",
+-           "usage_coverage": "partial",
+-           "usage_id": "p",
+-           "usage_source": "opencode.step_finish.v1",
+-           "usage_time_basis": "observed",
+-         },
+-         "kind": "session",
+-         "name": "model_usage",
+-         "session": "s",
+-       },
+-     ],
+-   },
+- ]
++ []
+
+- Expected  - 52
++ Received  + 1
+
+      at <anonymous> (/tmp/aide-v4-preflight-q51e8kto/.grader/hidden.test.ts:64:19)
+(fail) recorder contract and existing cache > object-forwarding-retry-and-dedup [0.37ms]
+65 |   });
+66 |   test("write-error-results-remain-retryable", () => {
+67 |     let calls=0;
+68 |     const record=createOpenCodeUsageRecorder((()=>{calls++;return {status:"unacknowledged",reason:"write-error"};}) as any) as any;
+69 |     const req={binary:"bin",cwd:"/a",part:part()};record(req);record(req);
+70 |     expect(calls).toBe(2);
+                       ^
+error: expect(received).toBe(expected)
+
+Expected: 2
+Received: 0
+
+      at <anonymous> (/tmp/aide-v4-preflight-q51e8kto/.grader/hidden.test.ts:70:19)
+(fail) recorder contract and existing cache > write-error-results-remain-retryable [0.04ms]
+74 |     const a=createOpenCodeUsageRecorder(write as any) as any,b=createOpenCodeUsageRecorder(write as any) as any;
+75 |     a({binary:"bin",cwd:"/a",part:part()});
+76 |     a({binary:"bin",cwd:"/a",part:part("p",12)});
+77 |     a({binary:"bin",cwd:"/b",part:part()});
+78 |     b({binary:"bin",cwd:"/a",part:part()});
+79 |     expect(calls).toHaveLength(4);
+                       ^
+error: expect(received).toHaveLength(expected)
+
+Expected length: 4
+Received length: 0
+
+      at <anonymous> (/tmp/aide-v4-preflight-q51e8kto/.grader/hidden.test.ts:79:19)
+(fail) recorder contract and existing cache > revisions-cwd-and-independent-instances [0.04ms]
+(pass) recorder contract and existing cache > invalid-parts-do-not-write [0.04ms]
+86 |   });
+87 |   test("oldest-first-capacity", () => {
+88 |     const ids:string[]=[];const record=createOpenCodeUsageRecorder(((r:any)=>{ids.push(r.events[0].attrs.usage_id);return {status:"acknowledged",recorded:1};}) as any) as any;
+89 |     const send=(id:string)=>record({binary:"bin",cwd:"/a",part:part(id)});
+90 |     for(let i=0;i<1024;i++)send(String(i));
+91 |     send("0"); expect(ids).toHaveLength(1024);
+                                ^
+error: expect(received).toHaveLength(expected)
+
+Expected length: 1024
+Received length: 0
+
+      at <anonymous> (/tmp/aide-v4-preflight-q51e8kto/.grader/hidden.test.ts:91:28)
+(fail) recorder contract and existing cache > oldest-first-capacity [0.39ms]
+(pass) actual OpenCode adapter > opencode-object-call-and-retry [5.90ms]
+(pass) actual OpenCode adapter > opencode-ignored-message-and-no-binary [0.10ms]
+146 |       await withTranscript(host,async(cwd,path)=>{
+147 |         await stop({hook_event_name:"Stop",session_id:"s",cwd,transcript_path:path});
+148 |         expect(harness.calls).toHaveLength(1);
+149 |         expect(harness.calls[0].options.cwd).toBe(cwd);
+150 |         expect(JSON.parse(harness.calls[0].options.input).attrs).toMatchObject({host,usage_id:"r"});
+151 |         expect(harness.logs).toContain("Usage scan: partial; limited=false; malformed=0; records=1; write=acknowledged");
+                                   ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "Usage scan: partial; limited=false; malformed=0; records=1; write=acknowledged"
+Received: [ "Hook triggered: Stop", "Usage scan: partial; limited=false; malformed=0; records=1",
+  "Stop hook - capturing session summary", "Stored final session summary for s", "Cleaned up 0 partials after final summary"
+]
+
+      at <anonymous> (/tmp/aide-v4-preflight-q51e8kto/.grader/hidden.test.ts:151:30)
+      at async withTranscript (/tmp/aide-v4-preflight-q51e8kto/.grader/hidden.test.ts:140:56)
+      at async <anonymous> (/tmp/aide-v4-preflight-q51e8kto/.grader/hidden.test.ts:146:13)
+(fail) actual Stop adapter > stop-claude-code-records-and-logs [0.93ms]
+146 |       await withTranscript(host,async(cwd,path)=>{
+147 |         await stop({hook_event_name:"Stop",session_id:"s",cwd,transcript_path:path});
+148 |         expect(harness.calls).toHaveLength(1);
+149 |         expect(harness.calls[0].options.cwd).toBe(cwd);
+150 |         expect(JSON.parse(harness.calls[0].options.input).attrs).toMatchObject({host,usage_id:"r"});
+151 |         expect(harness.logs).toContain("Usage scan: partial; limited=false; malformed=0; records=1; write=acknowledged");
+                                   ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "Usage scan: partial; limited=false; malformed=0; records=1; write=acknowledged"
+Received: [ "Hook triggered: Stop", "Usage scan: partial; limited=false; malformed=0; records=1",
+  "Stop hook - capturing session summary", "Stored final session summary for s", "Cleaned up 0 partials after final summary"
+]
+
+      at <anonymous> (/tmp/aide-v4-preflight-q51e8kto/.grader/hidden.test.ts:151:30)
+      at async withTranscript (/tmp/aide-v4-preflight-q51e8kto/.grader/hidden.test.ts:140:56)
+      at async <anonymous> (/tmp/aide-v4-preflight-q51e8kto/.grader/hidden.test.ts:146:13)
+(fail) actual Stop adapter > stop-codex-records-and-logs [0.57ms]
+154 |     });
+155 |   test("stop-failed-write-still-captures-summary",async()=>{
+156 |     await withTranscript("claude-code",async(cwd,path)=>{
+157 |       harness.fail=true;
+158 |       await stop({hook_event_name:"Stop",session_id:"s",cwd,transcript_path:path});
+159 |       expect(harness.logs).toContain("Usage scan: partial; limited=false; malformed=0; records=1; write=unacknowledged");
+                                 ^
+error: expect(received).toContain(expected)
+
+Expected to contain: "Usage scan: partial; limited=false; malformed=0; records=1; write=unacknowledged"
+Received: [ "Hook triggered: Stop", "Usage batch was not acknowledged: Error", "Usage scan: partial; limited=false; malformed=0; records=1",
+  "Stop hook - capturing session summary", "Stored final session summary for s", "Cleaned up 0 partials after final summary"
+]
+
+      at <anonymous> (/tmp/aide-v4-preflight-q51e8kto/.grader/hidden.test.ts:159:28)
+      at async withTranscript (/tmp/aide-v4-preflight-q51e8kto/.grader/hidden.test.ts:140:56)
+      at async <anonymous> (/tmp/aide-v4-preflight-q51e8kto/.grader/hidden.test.ts:156:11)
+(fail) actual Stop adapter > stop-failed-write-still-captures-summary [0.32ms]
+(pass) actual Stop adapter > stop-recursion-only-suppresses-summary [0.24ms]
+(pass) actual Stop adapter > non-stop-and-missing-binary-remain-noop [0.28ms]
+(pass) normalization and scanning regression > timestamps-and-invalid-counters [0.08ms]
+(pass) normalization and scanning regression > bounded-tail-and-malformed-records [0.24ms]
+
+ 7 pass
+ 13 fail
+ 41 expect() calls
+Ran 20 tests across 1 file. [21.00ms]

@@ -1,0 +1,28 @@
+bun test v1.4.0 (34cbb9a40)
+
+.grader/hidden.test.ts:
+(pass) writer result contract > empty-batch [0.10ms]
+(pass) writer result contract > full-ack-and-transport [0.18ms]
+(pass) writer result contract > compatible-ack-spelling [0.04ms]
+(pass) writer result contract > invalid-ack-classification [0.06ms]
+(pass) writer result contract > write-error-classification [0.05ms]
+(pass) writer result contract > serialization-error-classification [2.97ms]
+(pass) recorder contract and existing cache > object-forwarding-retry-and-dedup [0.34ms]
+(pass) recorder contract and existing cache > write-error-results-remain-retryable [0.11ms]
+(pass) recorder contract and existing cache > revisions-cwd-and-independent-instances [0.07ms]
+(pass) recorder contract and existing cache > invalid-parts-do-not-write [0.04ms]
+(pass) recorder contract and existing cache > oldest-first-capacity [1.66ms]
+(pass) actual OpenCode adapter > opencode-object-call-and-retry [5.73ms]
+(pass) actual OpenCode adapter > opencode-ignored-message-and-no-binary [0.10ms]
+(pass) actual Stop adapter > stop-claude-code-records-and-logs [1.01ms]
+(pass) actual Stop adapter > stop-codex-records-and-logs [0.52ms]
+(pass) actual Stop adapter > stop-failed-write-still-captures-summary [0.40ms]
+(pass) actual Stop adapter > stop-recursion-only-suppresses-summary [0.29ms]
+(pass) actual Stop adapter > non-stop-and-missing-binary-remain-noop [0.55ms]
+(pass) normalization and scanning regression > timestamps-and-invalid-counters [0.11ms]
+(pass) normalization and scanning regression > bounded-tail-and-malformed-records [0.25ms]
+
+ 20 pass
+ 0 fail
+ 65 expect() calls
+Ran 20 tests across 1 file. [25.00ms]

@@ -1,0 +1,354 @@
+{
+  "source_commit": "58816d991ef7172304f3eef594844d79e995a5e1",
+  "source_repository": "https://github.com/jmylchreest/aide",
+  "source_copy_policy": "Each source file is byte-for-byte git show SOURCE_COMMIT:path; no production-source substitutions.",
+  "selection": "Complete relative TypeScript import closure of model-usage and two host consumers; seven downstream Go usage accounting/CLI/schema files; three original usage tests for navigation.",
+  "production_source_count": 46,
+  "files": [
+    {
+      "path": "aide/cmd/aide/cmd_observe.go",
+      "sha256": "dfbb79e1f385d20783fc3ade783d9870fbb868b9c618bf9caf58cf57dcc051a5",
+      "bytes": 14395,
+      "git_blob": "54eac5d9c0a6c49b549be23ec6b27bf88b02097d",
+      "role": "CLI observation batch routing"
+    },
+    {
+      "path": "aide/pkg/memory/token_accounting.go",
+      "sha256": "0123e658b4a51a064c6bb0dc5dc223da44f1ac7904f10a894c6c15c5301d822f",
+      "bytes": 4166,
+      "git_blob": "fdb9c87f2e16ecc1d9bc26a4a4ab50a9ac36f69b",
+      "role": "usage reporting schema and observation event contract"
+    },
+    {
+      "path": "aide/pkg/memory/token_model_usage.go",
+      "sha256": "536287aae876951c2b6304724cc804f19a5ec84f8ff5632efb74f8e7967c2443",
+      "bytes": 1379,
+      "git_blob": "2d8fe06dd351c28c841cc66227fd2224f58b965c",
+      "role": "durable usage accounting trace"
+    },
+    {
+      "path": "aide/pkg/observe/observe.go",
+      "sha256": "e4861debed7469ec430d2f934a9a7c2590b7c359a3110624796d89f458916c85",
+      "bytes": 5644,
+      "git_blob": "c4aef6680ccffe6ea21cb3de248ecc0fd01c320c",
+      "role": "usage reporting schema and observation event contract"
+    },
+    {
+      "path": "aide/pkg/store/observe_events.go",
+      "sha256": "c1fc06d8813b238643a8d2bf54474609e3d078701fcd24cf83ee8405b5f41d18",
+      "bytes": 12353,
+      "git_blob": "5c3572a615e09a95d980678e7c04f5e41e960041",
+      "role": "durable usage accounting trace"
+    },
+    {
+      "path": "aide/pkg/store/token_events.go",
+      "sha256": "28629e5d7aa52cb17e5b4cb7a97d1194dc7f206a2be99ddbcb8a021ae740aeef",
+      "bytes": 6891,
+      "git_blob": "79ad9509648b6ba7597c10bba9f0223fed836377",
+      "role": "durable usage accounting trace"
+    },
+    {
+      "path": "aide/pkg/store/token_model_usage.go",
+      "sha256": "c449bbd2e886f12e84fc25d5eb3977aa5e5ae61bffdea10d3b09300eea262faf",
+      "bytes": 7485,
+      "git_blob": "5ddc7ee230efc630a7c5c5d290a22dc9a93a081c",
+      "role": "durable usage accounting trace"
+    },
+    {
+      "path": "src/core/aide-client.ts",
+      "sha256": "1f03f98beae735fc1ef4205ab2e5fcbd502e11835414453adc2e461dcbbaf743",
+      "bytes": 8068,
+      "git_blob": "d9f77d29a5853e952e30dbd3bc942ba19fe52b02",
+      "role": "adapter transitive TypeScript dependency"
+    },
+    {
+      "path": "src/core/comment-checker.ts",
+      "sha256": "cfac4f9372de775a087e2b06403fe113a36867075e5e97bdb01e4c3796d4b98f",
+      "bytes": 10821,
+      "git_blob": "043dbc1c88710c0c1d427ae679c0620f301d01c4",
+      "role": "adapter transitive TypeScript dependency"
+    },
+    {
+      "path": "src/core/context-guard.ts",
+      "sha256": "839f3c2b36472c52f10d8ce6c5f18836341454f6bdd0e74618f4694382a0130f",
+      "bytes": 7531,
+      "git_blob": "4f638c6b735702bc2a7d8300040c620be3853b5a",
+      "role": "adapter transitive TypeScript dependency"
+    },
+    {
+      "path": "src/core/context-pruning/dedup.ts",
+      "sha256": "cbc15fb5bb44f99efd20c82280b8a7da2af757291bbe7e87fae1f13a570a15c9",
+      "bytes": 5067,
+      "git_blob": "1658b7d2949570e32574e5926395b732283ee68e",
+      "role": "adapter transitive TypeScript dependency"
+    },
+    {
+      "path": "src/core/context-pruning/observation.ts",
+      "sha256": "be423c8ac3ee74c19943e5650a7eb6edbed3b8a5180efaee441c9d65d01781dc",
+      "bytes": 1221,
+      "git_blob": "fcbe3891684a296a8c20cf87ec29e3080fc2a007",
+      "role": "adapter transitive TypeScript dependency"
+    },
+    {
+      "path": "src/core/context-pruning/purge.ts",
+      "sha256": "59d9a29df1c8a106ac431d1a409c86fc851747a77c481347b5729daec8d7e258",
+      "bytes": 2257,
+      "git_blob": "8f945924db34bbe196f7c52698fc40db8476f7f7",
+      "role": "adapter transitive TypeScript dependency"
+    },
+    {
+      "path": "src/core/context-pruning/recovery.ts",
+      "sha256": "993c586083a32d7216659c264e2446506555b525282e38b0f5d653b6d4de9428",
+      "bytes": 1731,
+      "git_blob": "15c336cae0bb8d2b5cc9086911aa466ee006a15e",
+      "role": "adapter transitive TypeScript dependency"
+    },
+    {
+      "path": "src/core/context-pruning/sessions.ts",
+      "sha256": "09d18cffbe7a4d70b914165f1466ae970640dc1267267c5908835a06164e76e9",
+      "bytes": 1458,
+      "git_blob": "afb258aae3de04dd74e30911ce5ccee1a3d12ab0",
+      "role": "adapter transitive TypeScript dependency"
+    },
+    {
+      "path": "src/core/context-pruning/supersede.ts",
+      "sha256": "b247ee8456f808a841609a3791141d3d30c7333ba6f9c2586827f44aa91980ba",
+      "bytes": 2128,
+      "git_blob": "e3a76f3a25e06a3702242645c2e28a61014de848",
+      "role": "adapter transitive TypeScript dependency"
+    },
+    {
+      "path": "src/core/context-pruning/tracker.ts",
+      "sha256": "390acc0b40fe0f5aaa9f781f4ff0237228d2200c263af6c46a4b1d02df991dc8",
+      "bytes": 4689,
+      "git_blob": "227f83022bf7b086c60f3004a9ade93582756bc0",
+      "role": "adapter transitive TypeScript dependency"
+    },
+    {
+      "path": "src/core/context-pruning/types.ts",
+      "sha256": "599cf79a721e33adf96cf0c89333f302102de3b2b4adcef5ba0cda5c77ae1065",
+      "bytes": 2169,
+      "git_blob": "efca4b30760bd7435f7f1889ffba53c44009ecd2",
+      "role": "adapter transitive TypeScript dependency"
+    },
+    {
+      "path": "src/core/context-window.ts",
+      "sha256": "da7abafb26e09b1bdd64f947330403cd727ddac7ded1e6479322a1e68f67ed7a",
+      "bytes": 2576,
+      "git_blob": "27d0f9a1e407a7aeb5c9ec9b71f4f5e6f5e52388",
+      "role": "adapter transitive TypeScript dependency"
+    },
+    {
+      "path": "src/core/mcp-sync.ts",
+      "sha256": "4d2ea8c604410dd399c977e150ffeb94ed503215431adc0ea95dda0e5875ab69",
+      "bytes": 32951,
+      "git_blob": "8db82c12fcced1ae366355b063f3aba9398c974c",
+      "role": "adapter transitive TypeScript dependency"
+    },
+    {
+      "path": "src/core/memory-query.ts",
+      "sha256": "d6f86d692caa197668bbe840db603593d1fc7ec6b5a18b2e27cde72679f257a4",
+      "bytes": 1909,
+      "git_blob": "58aa2245c18543bf39b14014df0f972994a241b1",
+      "role": "adapter transitive TypeScript dependency"
+    },
+    {
+      "path": "src/core/model-usage.ts",
+      "sha256": "5f8ceb868f06aa5b6c2da0328469c0ee82f720715c492574eed8986c7f308309",
+      "bytes": 10720,
+      "git_blob": "a7610593d0449a2898e1cb706de113b5b2bce965",
+      "role": "adapter transitive TypeScript dependency"
+    },
+    {
+      "path": "src/core/partial-memory.ts",
+      "sha256": "936be74befec892b29fff7ea6a30fb9689acfb5083215d132f4813a0149a9135",
+      "bytes": 7032,
+      "git_blob": "8d5728a7c8510c1e969d682e4f60b2bdfa68c54e",
+      "role": "adapter transitive TypeScript dependency"
+    },
+    {
+      "path": "src/core/persistence-logic.ts",
+      "sha256": "b1d51a2a579c218bb9e95f200df007c7dd795a69d533c241337b9b8d35d20493",
+      "bytes": 4899,
+      "git_blob": "f4e43597b13210eec344ccfc9ad0cae8a050c859",
+      "role": "adapter transitive TypeScript dependency"
+    },
+    {
+      "path": "src/core/pre-compact-logic.ts",
+      "sha256": "275379ed7bee936b7c3b055cb4109dad3552e5e52f48aaf7cb27802c8057585d",
+      "bytes": 929,
+      "git_blob": "6f38635eccbf14a862ae4c980a1a5c121cc048db",
+      "role": "adapter transitive TypeScript dependency"
+    },
+    {
+      "path": "src/core/read-tracking.ts",
+      "sha256": "afecccb8e697d34b0486b12a5c46a300953633c7e89bcfc0f1e9eefae366d06c",
+      "bytes": 10825,
+      "git_blob": "13599f2bbf3d3d66a0432f5c9fb97f3bf8b7ba3f",
+      "role": "adapter transitive TypeScript dependency"
+    },
+    {
+      "path": "src/core/retrieval-evidence.ts",
+      "sha256": "3c04ef3140d574a7e6311120174d7163283f105d79a4d8ed2adda6fd1b134b5f",
+      "bytes": 11236,
+      "git_blob": "c86df2f4fecf7ae19bb9faa453879e62e94650d0",
+      "role": "adapter transitive TypeScript dependency"
+    },
+    {
+      "path": "src/core/search-enrichment.ts",
+      "sha256": "5252ddbd1c8e8fae99cb104e1ffc0f2774f13efcb69a435821f14272ff495a5c",
+      "bytes": 6099,
+      "git_blob": "2b6004d42f72695c71e7459796894faec5cfb3ae",
+      "role": "adapter transitive TypeScript dependency"
+    },
+    {
+      "path": "src/core/session-init.ts",
+      "sha256": "166b2a6cd1544be578590fe24fff941a8ffda22a03243549908743b1c58d60c8",
+      "bytes": 20563,
+      "git_blob": "d044774f9198793f25acdee4f2fe9190be2ee0e3",
+      "role": "adapter transitive TypeScript dependency"
+    },
+    {
+      "path": "src/core/session-summary-logic.ts",
+      "sha256": "3956abf0875c871738707c778e4f8370ff352bd0172ad150179d245f8b54904a",
+      "bytes": 6013,
+      "git_blob": "b878e111e9ca5025c992edaa1076401668f0dbbe",
+      "role": "adapter transitive TypeScript dependency"
+    },
+    {
+      "path": "src/core/session-text.ts",
+      "sha256": "f5a881bca5e4c5d2d15340b49d0b335f90c608c3138d57dc75a56994abe742fe",
+      "bytes": 2061,
+      "git_blob": "cd1e64f6b54c70c3b91497e6f16e90cdda04535a",
+      "role": "adapter transitive TypeScript dependency"
+    },
+    {
+      "path": "src/core/skill-matcher.ts",
+      "sha256": "2b061eb5742fe1be9aca82e860dc1ae0d1a42b1a996ebe6611ec9cbc290dba7a",
+      "bytes": 9614,
+      "git_blob": "bbc93b4eb87764c1cda0581b2164d0536ffa08c0",
+      "role": "adapter transitive TypeScript dependency"
+    },
+    {
+      "path": "src/core/todo-checker.ts",
+      "sha256": "d4ea6c0e8612e3d879022c7e086b01635be88e9a65d9173c3fe90244dfcb035a",
+      "bytes": 5182,
+      "git_blob": "067b39f62e104651f9f303cc62d89ad97016f0cf",
+      "role": "adapter transitive TypeScript dependency"
+    },
+    {
+      "path": "src/core/tool-enforcement.ts",
+      "sha256": "c6cb04fb0f103836efc3c94875d7136fe0a8a5bfc6ae1363dbc7af06917aaf58",
+      "bytes": 3474,
+      "git_blob": "fbcb72ad2b928888ba93fba1e964768966a11f3c",
+      "role": "adapter transitive TypeScript dependency"
+    },
+    {
+      "path": "src/core/tool-observe.ts",
+      "sha256": "43e67888aec861f553d107abfab34c67d4134018dec3eb689a33e910041be2e5",
+      "bytes": 13558,
+      "git_blob": "0bc0e27b5ab895ed6cf3861118a327afff8ba74b",
+      "role": "adapter transitive TypeScript dependency"
+    },
+    {
+      "path": "src/core/tool-tracking.ts",
+      "sha256": "1ba749fb98d567405595c8ccd31ef29beac51a525aeb663240177b5637681681",
+      "bytes": 3576,
+      "git_blob": "04244c6ff97cef3801dea6ce36b082c5aef68e49",
+      "role": "adapter transitive TypeScript dependency"
+    },
+    {
+      "path": "src/core/types.ts",
+      "sha256": "87aec582ab17f899dfba76b5833247b8fecd433ccf11ba97330b4564fad72cad",
+      "bytes": 7454,
+      "git_blob": "17852c3160d5edd42fb7c134ee6273d848b19849",
+      "role": "adapter transitive TypeScript dependency"
+    },
+    {
+      "path": "src/core/work-receipt.ts",
+      "sha256": "15557e1320441d54f8c549a1e1d61f011d94b0ce4c70ccfb672b135bc6530738",
+      "bytes": 1390,
+      "git_blob": "b3aa0e16bda4ada7030d15835c779c58ced908f1",
+      "role": "adapter transitive TypeScript dependency"
+    },
+    {
+      "path": "src/core/write-guard.ts",
+      "sha256": "3c0aa5993af64132b94ec1e395fabcd40f2bd3747e96c02f00070770e5cbb9ea",
+      "bytes": 3261,
+      "git_blob": "9d972e9b7417c4daf2c43580450a2661565935e3",
+      "role": "adapter transitive TypeScript dependency"
+    },
+    {
+      "path": "src/hooks/session-summary.ts",
+      "sha256": "859b5e96af497b2f933efd7ee0260d7449b35bed628848d07c0f946d65487d53",
+      "bytes": 4843,
+      "git_blob": "a22ac7e7c7c87bf47692e54b5e5cb6d934bc9efd",
+      "role": "adapter transitive TypeScript dependency"
+    },
+    {
+      "path": "src/lib/anchor.ts",
+      "sha256": "db7aac8d9e250882702b7d990414b3379b0b56eef5eb09caa7c40276343d9789",
+      "bytes": 11133,
+      "git_blob": "eb05b4f3aaf2b0379bc9bdd52821b916483212a2",
+      "role": "adapter transitive TypeScript dependency"
+    },
+    {
+      "path": "src/lib/hook-utils.ts",
+      "sha256": "f9be7f87164ac379c0321f7ff8dd2f82f2eee21e86e138b767f0c48a1084ef85",
+      "bytes": 10458,
+      "git_blob": "5ccd7b9274215d4866dc0c51d2419eeca943b640",
+      "role": "adapter transitive TypeScript dependency"
+    },
+    {
+      "path": "src/lib/logger.ts",
+      "sha256": "e651533681affa45e9608d3cce5e02c2bded512ad97b5574d55410d41d19afd1",
+      "bytes": 9242,
+      "git_blob": "22d4a77a59ac1a73ac92f47c9d533471cf218903",
+      "role": "adapter transitive TypeScript dependency"
+    },
+    {
+      "path": "src/lib/project-root.ts",
+      "sha256": "0798e691dfd3213676c1043d068109857ebfadea9e79a14b74050a18db62c784",
+      "bytes": 9415,
+      "git_blob": "53e19f1a51759776e5c312c19a77be1edc33e553",
+      "role": "adapter transitive TypeScript dependency"
+    },
+    {
+      "path": "src/opencode/hooks.ts",
+      "sha256": "1382a01aeceab636140619d2b4b889a0e5c13a4b686b0b4291850c9f5a14ed50",
+      "bytes": 49563,
+      "git_blob": "4313553b01db1e0dd88f0e4dfe5944b03f8baa74",
+      "role": "adapter transitive TypeScript dependency"
+    },
+    {
+      "path": "src/opencode/types.ts",
+      "sha256": "5895c295a2fb82ca270f52406e84f3ee2bcf8c75ca8aa231c8080cea5bc492d5",
+      "bytes": 7288,
+      "git_blob": "38a8b2b0a7f68eafaac99bfc3645ab1d75c815fc",
+      "role": "adapter transitive TypeScript dependency"
+    },
+    {
+      "path": "src/test/model-usage-hooks.test.ts",
+      "sha256": "8fa5351ca11e8ab58b9cfce3db18a38c4264ae414ad96fa03e16edf88d279637",
+      "bytes": 4397,
+      "git_blob": "247544b6f4d2dbff1e03dc9cb5af0f3ad0db67d1",
+      "role": "production test (Vitest; navigation reference, not offline runner)"
+    },
+    {
+      "path": "src/test/model-usage-recording.test.ts",
+      "sha256": "3c1fa035f81b33226b10de306de5a673affbcf3f039b3944e5d902171713b841",
+      "bytes": 826,
+      "git_blob": "2cba42f898c11e9aec7ffb8fb6191179a89a9d70",
+      "role": "production test (Vitest; navigation reference, not offline runner)"
+    },
+    {
+      "path": "src/test/model-usage.test.ts",
+      "sha256": "0c322db315442b36cd58a67b1d9addca1b974744f725b2c2c7681457524041eb",
+      "bytes": 6757,
+      "git_blob": "c5efb7272b26cef9ad58c38bb77e8371f88ad962",
+      "role": "production test (Vitest; navigation reference, not offline runner)"
+    }
+  ],
+  "harness": "Only common/template/README.md is experiment-authored. Implementation-only support is overlaid from implement/participant/**; none of those files are production source.",
+  "original_test_count": 3
+}

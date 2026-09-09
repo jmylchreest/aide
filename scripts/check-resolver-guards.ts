@@ -39,8 +39,9 @@ export const RULES: Rule[] = [
     // session-end.ts keeps a documented inline fallback (no-ES-imports startup
     // constraint); aide-hud.ts keeps a minimal .aide walk as its last rung.
     // Test files are fixtures, not resolution logic.
+    // The v4 experiment pins a byte-identical resolver snapshot in its manifest.
     allow:
-      /^(src\/lib\/project-root\.ts|src\/lib\/anchor\.ts|src\/hooks\/session-end\.ts|scripts\/aide-hud\.ts|src\/test\/|packages\/)|\.test\.ts$/,
+      /^(src\/lib\/project-root\.ts|src\/lib\/anchor\.ts|src\/hooks\/session-end\.ts|scripts\/aide-hud\.ts|src\/test\/|packages\/)|^scripts\/retrieval-quality\/outcomes-v4\/common\/template\/src\/lib\/project-root\.ts$|\.test\.ts$/,
   },
   {
     name: "go-getwd",

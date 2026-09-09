@@ -1,0 +1,241 @@
+/**
+ * Shared types used by both Claude Code hooks and OpenCode plugin.
+ *
+ * Platform-agnostic interfaces for aide's core functionality.
+ */
+
+// =============================================================================
+// Configuration
+// =============================================================================
+
+export interface AideConfig {
+  /**
+   * When true (default), AIDE refuses to bootstrap if no `.git/` or `.aide/`
+   * marker is found walking up from the launched cwd. This prevents the hook
+   * from planting an orphan `.aide/` folder in an arbitrary subdirectory of a
+   * git repo when `claude` is launched there. Set to false in
+   * `~/.aide/config/aide.json` to allow init in non-git directories.
+   * Only the global-config value is consulted (the project layer is moot
+   * because, if a project root was found, the gate has already passed).
+   */
+  requireGit?: boolean;
+  share?: {
+    /** Auto-import shared data from .aide/shared/ on session start (default: false) */
+    autoImport?: boolean;
+    /** Auto-export on session end (default: false) */
+    autoExport?: boolean;
+  };
+  findings?: {
+    /** Complexity analyser settings */
+    complexity?: {
+      /** Cyclomatic complexity threshold (default: 10) */
+      threshold?: number;
+    };
+    /** Import coupling analyser settings */
+    coupling?: {
+      /** Fan-out threshold — max outgoing imports (default: 15) */
+      fanOut?: number;
+      /** Fan-in threshold — max incoming imports (default: 20) */
+      fanIn?: number;
+    };
+    /** Code clone detection settings */
+    clones?: {
+      /** Sliding window size in tokens (default: 50) */
+      windowSize?: number;
+      /** Minimum clone size in lines (default: 6) */
+      minLines?: number;
+    };
+  };
+}
+
+export const DEFAULT_CONFIG: AideConfig = {};
+
+// =============================================================================
+// Session
+// =============================================================================
+
+export interface SessionState {
+  sessionId: string;
+  startedAt: string;
+  cwd: string;
+  activeMode: string | null;
+  agentCount: number;
+}
+
+/**
+ * Precedence at or above which a decision claims authority over the ordinary
+ * set and is injected in its own block ahead of them. Mirrors
+ * memory.PrecedenceOverride in the Go store.
+ */
+export const DECISION_PRECEDENCE_OVERRIDE = 100;
+
+export interface SessionInitResult {
+  state_keys_deleted: number;
+  stale_agents_cleaned: number;
+  retention_pruned?: Record<string, number>;
+  estate?: {
+    parents?: Array<{
+      name?: string;
+      path: string;
+      evidence?: string;
+      has_store?: boolean;
+    }>;
+    subprojects?: Array<{
+      name?: string;
+      path: string;
+      evidence?: string;
+      has_store?: boolean;
+    }>;
+  };
+  global_memories: Array<{
+    id: string;
+    content: string;
+    category: string;
+    tags: string[];
+    score?: number;
+  }>;
+  project_memories: Array<{
+    id: string;
+    content: string;
+    category: string;
+    tags: string[];
+    score?: number;
+  }>;
+  project_memory_overflow?: boolean;
+  decisions: Array<{
+    topic: string;
+    value: string;
+    rationale?: string;
+    /** Injection weight; >= 100 overrides ordinary decisions. Absent = 0. */
+    precedence?: number;
+    origin?: string;
+    origin_name?: string;
+    /** "parent" (anchor-chain cascade) or "peer" (subscription layer); absent = local. */
+    origin_kind?: string;
+  }>;
+  recent_sessions: Array<{
+    session_id: string;
+    last_at: string;
+    memories: Array<{ content: string; category: string }>;
+  }>;
+  codebase_map?: Array<{ name: string; size: number; hub: string }>;
+  codebase_map_note?: string;
+}
+
+// =============================================================================
+// Memory Injection
+// =============================================================================
+
+export interface InjectedSource {
+  kind: "memory" | "decision" | "session_memory" | "module";
+  scope: "global" | "project" | "session";
+  id: string;
+  name: string;
+  content: string;
+  category?: string;
+  tags?: string[];
+  sessionId?: string;
+  score?: number;
+}
+
+export interface MemoryInjection {
+  static: {
+    global: string[];
+    project: string[];
+    projectOverflow?: boolean;
+    decisions: string[];
+    /** Decisions at or above the override threshold, rendered ahead of the rest. */
+    overridingDecisions?: string[];
+  };
+  dynamic: {
+    sessions: string[];
+  };
+  /** Codebase Map lines from the survey modules analyzer, largest first. */
+  codebaseMap?: Array<{ name: string; size: number; hub: string }>;
+  /** Freshness note for the map header, e.g. "as of a1b2c3d4". */
+  codebaseMapNote?: string;
+  /** Estate: parent projects (anchor chain) and surveyed child subprojects. */
+  estate?: SessionInitResult["estate"];
+  /** User-visible note when the retention sweep pruned records at init. */
+  retentionNote?: string;
+  sources?: InjectedSource[];
+}
+
+// =============================================================================
+// Startup Notices
+// =============================================================================
+
+export interface StartupNotices {
+  error?: string | null;
+  warning?: string | null;
+  info?: string[];
+}
+
+// =============================================================================
+// Skills
+// =============================================================================
+
+export interface Skill {
+  name: string;
+  path: string;
+  triggers: string[];
+  description?: string;
+  /** Optional platform restriction. If set, only matched on listed platforms ("opencode", "claude-code", "codex"). */
+  platforms?: string[];
+  /** Optional binary requirement. If set, skill is only matched when all listed binaries exist on PATH. */
+  requires_binary?: string[];
+  content: string;
+}
+
+export interface SkillMatchResult {
+  skill: Skill;
+  score: number;
+}
+
+// =============================================================================
+// Tool Tracking
+// =============================================================================
+
+export interface ToolUseInfo {
+  toolName: string;
+  agentId?: string;
+  toolInput?: {
+    command?: string;
+    description?: string;
+    prompt?: string;
+    file_path?: string;
+    model?: string;
+    subagent_type?: string;
+  };
+}
+
+// =============================================================================
+// Persistence
+// =============================================================================
+
+export const PERSISTENCE_MODES = ["autopilot"] as const;
+export type PersistenceMode = (typeof PERSISTENCE_MODES)[number];
+export const MAX_PERSISTENCE_ITERATIONS = 20;
+
+// =============================================================================
+// Platform Abstraction
+// =============================================================================
+
+/**
+ * Identifies which host platform aide is running in.
+ * Used for platform-specific behavior like binary discovery or context injection.
+ */
+export type AidePlatform = "claude-code" | "opencode" | "codex" | "unknown";
+
+/**
+ * Options for finding the aide binary.
+ * Platforms provide different hints for where to find the binary.
+ */
+export interface FindBinaryOptions {
+  /** Current working directory */
+  cwd?: string;
+  /** Plugin root directory (AIDE_PLUGIN_ROOT or CLAUDE_PLUGIN_ROOT) */
+  pluginRoot?: string;
+  /** Additional paths to search before PATH fallback */
+  additionalPaths?: string[];
+}

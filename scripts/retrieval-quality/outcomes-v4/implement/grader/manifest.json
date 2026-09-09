@@ -1,0 +1,112 @@
+{
+  "version": 1,
+  "task": "implement",
+  "source_commit": "58816d991ef7172304f3eef594844d79e995a5e1",
+  "baseline": [
+    "common/template",
+    "implement/participant"
+  ],
+  "allowed_edit_paths": [
+    "src/core/aide-client.ts",
+    "src/core/comment-checker.ts",
+    "src/core/context-guard.ts",
+    "src/core/context-pruning/dedup.ts",
+    "src/core/context-pruning/observation.ts",
+    "src/core/context-pruning/purge.ts",
+    "src/core/context-pruning/recovery.ts",
+    "src/core/context-pruning/sessions.ts",
+    "src/core/context-pruning/supersede.ts",
+    "src/core/context-pruning/tracker.ts",
+    "src/core/context-pruning/types.ts",
+    "src/core/context-window.ts",
+    "src/core/mcp-sync.ts",
+    "src/core/memory-query.ts",
+    "src/core/model-usage.ts",
+    "src/core/partial-memory.ts",
+    "src/core/persistence-logic.ts",
+    "src/core/pre-compact-logic.ts",
+    "src/core/read-tracking.ts",
+    "src/core/retrieval-evidence.ts",
+    "src/core/search-enrichment.ts",
+    "src/core/session-init.ts",
+    "src/core/session-summary-logic.ts",
+    "src/core/session-text.ts",
+    "src/core/skill-matcher.ts",
+    "src/core/todo-checker.ts",
+    "src/core/tool-enforcement.ts",
+    "src/core/tool-observe.ts",
+    "src/core/tool-tracking.ts",
+    "src/core/types.ts",
+    "src/core/work-receipt.ts",
+    "src/core/write-guard.ts",
+    "src/hooks/session-summary.ts",
+    "src/lib/anchor.ts",
+    "src/lib/hook-utils.ts",
+    "src/lib/logger.ts",
+    "src/lib/project-root.ts",
+    "src/opencode/hooks.ts",
+    "src/opencode/types.ts",
+    "src/test/model-usage-hooks.test.ts",
+    "src/test/model-usage-recording.test.ts",
+    "src/test/model-usage.test.ts"
+  ],
+  "expected_reference_paths": [
+    "src/core/model-usage.ts",
+    "src/hooks/session-summary.ts",
+    "src/opencode/hooks.ts",
+    "src/test/model-usage-hooks.test.ts",
+    "src/test/model-usage-recording.test.ts",
+    "src/test/model-usage.test.ts"
+  ],
+  "visible_checks": 4,
+  "hidden_checks": 20,
+  "visible_command": [
+    "bun",
+    "test",
+    "./tests"
+  ],
+  "hidden_command": [
+    "bun",
+    "test",
+    "./.grader/hidden.test.ts"
+  ],
+  "hidden_install_path": ".grader/hidden.test.ts",
+  "reference_files": "implement/reference/files",
+  "reference_patch": "implement/reference/reference.patch",
+  "type_contract_review": "Export UsageWriteRequest and UsageWriteResult with the prompt signatures; Bun runtime tests do not type-check declaration compatibility.",
+  "grading": "Runtime pass requires every visible and hidden test to pass, with zero skipped or todo tests, and no protected-file changes. Type declaration conformance is an explicit separate review criterion.",
+  "preflight": {
+    "seed": {
+      "visible": {
+        "passed": 4,
+        "failed": 0
+      },
+      "hidden": {
+        "passed": 7,
+        "failed": 13
+      }
+    },
+    "reference": {
+      "visible": {
+        "passed": 4,
+        "failed": 0
+      },
+      "hidden": {
+        "passed": 20,
+        "failed": 0
+      }
+    },
+    "bun_version": "1.4.0",
+    "participant_model_runs": 0
+  },
+  "harness_boundaries": [
+    "child_process execFileSync: captures argv, cwd, JSONL, timeout and stdio; configurable output or throw; no real aide binary required",
+    "which and smol-toml: inert module mocks, no dependency install",
+    "logger.debug: records messages; no log-file output",
+    "session-init: directory/config/state initialization stubbed; actual hooks still run",
+    "aide-client/hook-utils: binary lookup and host stdin supplied; hook continue results captured",
+    "partial-memory/session-summary-logic: storage and activity fixture; summary invocation counted; actual Stop route executes",
+    "Real unchanged model-usage parser/collector/writer/recorder modules execute, along with actual OpenCode and Stop adapters"
+  ],
+  "reference_original_tests": "The reference migrates three original Vitest test source files to the new API. They remain unexecuted in the offline Bun fixture; hidden Bun tests cover equivalent behavior."
+}

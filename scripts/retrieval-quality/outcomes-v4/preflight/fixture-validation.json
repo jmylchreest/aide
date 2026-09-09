@@ -1,0 +1,44 @@
+{
+  "source_files_verified": 49,
+  "participant_model_runs": 0,
+  "seed": {
+    "visible": {
+      "exit_code": 0,
+      "counts": {
+        "pass": 4,
+        "fail": 0,
+        "skip": 0,
+        "todo": 0
+      }
+    },
+    "hidden": {
+      "exit_code": 1,
+      "counts": {
+        "pass": 7,
+        "fail": 13,
+        "skip": 0,
+        "todo": 0
+      }
+    }
+  },
+  "reference": {
+    "visible": {
+      "exit_code": 0,
+      "counts": {
+        "pass": 4,
+        "fail": 0,
+        "skip": 0,
+        "todo": 0
+      }
+    },
+    "hidden": {
+      "exit_code": 0,
+      "counts": {
+        "pass": 20,
+        "fail": 0,
+        "skip": 0,
+        "todo": 0
+      }
+    }
+  }
+}
