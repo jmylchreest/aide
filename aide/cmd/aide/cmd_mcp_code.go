@@ -34,7 +34,7 @@ type CodeSymbolsInput struct {
 type CodeStatsInput struct{}
 
 type CodeReferencesInput struct {
-	SymbolName  string   `json:"symbol" jsonschema:"Name of the symbol to find references for (e.g., 'getUserById'). Required if symbols is empty."`
+	SymbolName  string   `json:"symbol,omitempty" jsonschema:"Name of the symbol to find references for (e.g., 'getUserById'). Required if symbols is empty."`
 	SymbolNames []string `json:"symbols,omitempty" jsonschema:"Batch mode: list of symbol names to find references for (max 10). If set, symbol is ignored."`
 	Kind        string   `json:"kind,omitempty" jsonschema:"Filter by reference kind: call, type_ref"`
 	FilePath    string   `json:"file,omitempty" jsonschema:"Filter by file path pattern (substring match)"`
@@ -56,7 +56,7 @@ type CodeReadCheckInput struct {
 }
 
 type CodeReadSymbolInput struct {
-	Symbol    string   `json:"symbol" jsonschema:"Name of the symbol to read (e.g., 'getUserById', 'AuthConfig'). Required if symbols is empty."`
+	Symbol    string   `json:"symbol,omitempty" jsonschema:"Name of the symbol to read (e.g., 'getUserById', 'AuthConfig'). Required if symbols is empty."`
 	Symbols   []string `json:"symbols,omitempty" jsonschema:"Batch mode: list of symbol names to read (max 10). If set, symbol is ignored."`
 	Kind      string   `json:"kind,omitempty" jsonschema:"Filter by symbol kind: function, method, class, interface, type"`
 	File      string   `json:"file,omitempty" jsonschema:"Exact file path. Reads current source directly, including files not yet indexed. Use to resolve ambiguous names."`
