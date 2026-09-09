@@ -1,0 +1,151 @@
+{
+  "trial": "t03",
+  "raw_log_sha256": "ce6991be5637884289e6c9b81dfda2dfaaf05c7cf77e7decf256247991731bdc",
+  "basis": "Outgoing calls are associated with the next runtime usage record and checked against the frozen collector. Input includes accumulated context; these are not per-tool costs.",
+  "responses": [
+    {
+      "response_id": "resp_013ba020857e2274016aa1a405ec2c87d2a973475bef4178ff",
+      "counters": {
+        "input_tokens": 19513,
+        "cached_input_tokens": 17664,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 155,
+        "reasoning_output_tokens": 0,
+        "total_tokens": 19668
+      },
+      "uncached_input_tokens": 1849,
+      "timestamp": "2026-09-09T18:23:05.389Z",
+      "outgoing_call_ids": [
+        "call_wsVPK0gfBi6EWxVukysSVsfb"
+      ]
+    },
+    {
+      "response_id": "resp_013ba020857e2274016aa1a40a4c5887d2847b156b1b9603a0",
+      "counters": {
+        "input_tokens": 20316,
+        "cached_input_tokens": 19328,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 85,
+        "reasoning_output_tokens": 0,
+        "total_tokens": 20401
+      },
+      "uncached_input_tokens": 988,
+      "timestamp": "2026-09-09T18:23:08.751Z",
+      "outgoing_call_ids": [
+        "call_WFrKDinnbaZQ0WEx99L62GTw"
+      ]
+    },
+    {
+      "response_id": "resp_013ba020857e2274016aa1a40d4bf887d2af7509417452cc8e",
+      "counters": {
+        "input_tokens": 20833,
+        "cached_input_tokens": 20096,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 197,
+        "reasoning_output_tokens": 0,
+        "total_tokens": 21030
+      },
+      "uncached_input_tokens": 737,
+      "timestamp": "2026-09-09T18:23:13.347Z",
+      "outgoing_call_ids": [
+        "call_HnzWYzLbcqWWdVPt3dnj2lQQ"
+      ]
+    },
+    {
+      "response_id": "resp_013ba020857e2274016aa1a411fb7c87d2a637eafec97f6933",
+      "counters": {
+        "input_tokens": 32042,
+        "cached_input_tokens": 20608,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1463,
+        "reasoning_output_tokens": 72,
+        "total_tokens": 33505
+      },
+      "uncached_input_tokens": 11434,
+      "timestamp": "2026-09-09T18:23:38.544Z",
+      "outgoing_call_ids": [
+        "call_3Xu8idYAcDK8NUX46w2MIdfV"
+      ]
+    },
+    {
+      "response_id": "resp_013ba020857e2274016aa1a42b191887d2bd859864139f9415",
+      "counters": {
+        "input_tokens": 33563,
+        "cached_input_tokens": 31872,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 468,
+        "reasoning_output_tokens": 174,
+        "total_tokens": 34031
+      },
+      "uncached_input_tokens": 1691,
+      "timestamp": "2026-09-09T18:23:47.636Z",
+      "outgoing_call_ids": [
+        "call_PQhH2IEobADm9CNPnNuvU9uE"
+      ]
+    },
+    {
+      "response_id": "resp_013ba020857e2274016aa1a43443f087d28bb2700e877bb43a",
+      "counters": {
+        "input_tokens": 39773,
+        "cached_input_tokens": 33408,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 2152,
+        "reasoning_output_tokens": 60,
+        "total_tokens": 41925
+      },
+      "uncached_input_tokens": 6365,
+      "timestamp": "2026-09-09T18:24:23.825Z",
+      "outgoing_call_ids": [
+        "call_p7htkLcE2fD9ZQfCufw1grzw"
+      ]
+    },
+    {
+      "response_id": "resp_013ba020857e2274016aa1a4592bf887d2b852e80901069475",
+      "counters": {
+        "input_tokens": 42344,
+        "cached_input_tokens": 39552,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 126,
+        "reasoning_output_tokens": 50,
+        "total_tokens": 42470
+      },
+      "uncached_input_tokens": 2792,
+      "timestamp": "2026-09-09T18:24:28.171Z",
+      "outgoing_call_ids": []
+    }
+  ],
+  "observable_instruction_exposure": [
+    {
+      "timestamp": "2026-09-09T18:23:01.540Z",
+      "role": "developer",
+      "visible_text_bytes": 11921,
+      "contains_revised_guidance": false,
+      "contains_old_guidance": false,
+      "limitations": "Absence from visible text does not prove absence from encrypted or implicit host context."
+    },
+    {
+      "timestamp": "2026-09-09T18:23:01.541Z",
+      "role": "developer",
+      "visible_text_bytes": 2482,
+      "contains_revised_guidance": false,
+      "contains_old_guidance": false,
+      "limitations": "Absence from visible text does not prove absence from encrypted or implicit host context."
+    },
+    {
+      "timestamp": "2026-09-09T18:23:01.541Z",
+      "role": "developer",
+      "visible_text_bytes": 271,
+      "contains_revised_guidance": false,
+      "contains_old_guidance": false,
+      "limitations": "Absence from visible text does not prove absence from encrypted or implicit host context."
+    },
+    {
+      "timestamp": "2026-09-09T18:23:01.541Z",
+      "role": "user",
+      "visible_text_bytes": 4371,
+      "contains_revised_guidance": false,
+      "contains_old_guidance": false,
+      "limitations": "Absence from visible text does not prove absence from encrypted or implicit host context."
+    }
+  ]
+}

@@ -1,0 +1,167 @@
+{
+  "trial": "t04",
+  "raw_log_sha256": "6ceab40a2febbf96a7e3d95a387199bb86b9758a63e3ca3dd78d88b28d1225a5",
+  "basis": "Outgoing calls are associated with the next runtime usage record and checked against the frozen collector. Input includes accumulated context; these are not per-tool costs.",
+  "responses": [
+    {
+      "response_id": "resp_0db43130e7a3ed81016aa1a47c09c487d2ae634c89f2d2b95f",
+      "counters": {
+        "input_tokens": 19050,
+        "cached_input_tokens": 17664,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 155,
+        "reasoning_output_tokens": 0,
+        "total_tokens": 19205
+      },
+      "uncached_input_tokens": 1386,
+      "timestamp": "2026-09-09T18:25:04.300Z",
+      "outgoing_call_ids": [
+        "call_9dHcUrYyc31WUT99tbgtqsPL"
+      ]
+    },
+    {
+      "response_id": "resp_0db43130e7a3ed81016aa1a4812f7c87d2aa7c555df216853f",
+      "counters": {
+        "input_tokens": 19817,
+        "cached_input_tokens": 18816,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 253,
+        "reasoning_output_tokens": 0,
+        "total_tokens": 20070
+      },
+      "uncached_input_tokens": 1001,
+      "timestamp": "2026-09-09T18:25:11.032Z",
+      "outgoing_call_ids": [
+        "call_WG2aXvD6r8IZyjZETiRqwhy2"
+      ]
+    },
+    {
+      "response_id": "resp_0db43130e7a3ed81016aa1a487d30487d2b3287382adb03db9",
+      "counters": {
+        "input_tokens": 30442,
+        "cached_input_tokens": 19584,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 154,
+        "reasoning_output_tokens": 100,
+        "total_tokens": 30596
+      },
+      "uncached_input_tokens": 10858,
+      "timestamp": "2026-09-09T18:25:15.489Z",
+      "outgoing_call_ids": [
+        "call_y0jRQDaE9uEs7ucgkfsuwTNd"
+      ]
+    },
+    {
+      "response_id": "resp_0db43130e7a3ed81016aa1a48c20c087d2a0c0b9c7e43614bb",
+      "counters": {
+        "input_tokens": 31510,
+        "cached_input_tokens": 30208,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1355,
+        "reasoning_output_tokens": 0,
+        "total_tokens": 32865
+      },
+      "uncached_input_tokens": 1302,
+      "timestamp": "2026-09-09T18:25:38.853Z",
+      "outgoing_call_ids": [
+        "call_4PiUqteTaN18qYAShoRflWmR"
+      ]
+    },
+    {
+      "response_id": "resp_0db43130e7a3ed81016aa1a4a3856887d29ee788d1a7a9f037",
+      "counters": {
+        "input_tokens": 32920,
+        "cached_input_tokens": 31360,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1866,
+        "reasoning_output_tokens": 165,
+        "total_tokens": 34786
+      },
+      "uncached_input_tokens": 1560,
+      "timestamp": "2026-09-09T18:26:11.274Z",
+      "outgoing_call_ids": [
+        "call_Nc0DeiagrEdlYzQGzdn5yog3"
+      ]
+    },
+    {
+      "response_id": "resp_0db43130e7a3ed81016aa1a4c4698c87d291666545c714e9d7",
+      "counters": {
+        "input_tokens": 35216,
+        "cached_input_tokens": 32768,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 291,
+        "reasoning_output_tokens": 83,
+        "total_tokens": 35507
+      },
+      "uncached_input_tokens": 2448,
+      "timestamp": "2026-09-09T18:26:18.012Z",
+      "outgoing_call_ids": [
+        "call_j5FzXTd3qeqah6CKzcrFRwD4"
+      ]
+    },
+    {
+      "response_id": "resp_0db43130e7a3ed81016aa1a4caa3d887d2b9c14c4e7ec26476",
+      "counters": {
+        "input_tokens": 40178,
+        "cached_input_tokens": 35072,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1121,
+        "reasoning_output_tokens": 109,
+        "total_tokens": 41299
+      },
+      "uncached_input_tokens": 5106,
+      "timestamp": "2026-09-09T18:26:40.692Z",
+      "outgoing_call_ids": [
+        "call_wuaUS9wLWOIbq91QR9qCwbM8"
+      ]
+    },
+    {
+      "response_id": "resp_0db43130e7a3ed81016aa1a4e18ee887d2bdc591be4a207517",
+      "counters": {
+        "input_tokens": 41404,
+        "cached_input_tokens": 39936,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 76,
+        "reasoning_output_tokens": 0,
+        "total_tokens": 41480
+      },
+      "uncached_input_tokens": 1468,
+      "timestamp": "2026-09-09T18:26:46.569Z",
+      "outgoing_call_ids": []
+    }
+  ],
+  "observable_instruction_exposure": [
+    {
+      "timestamp": "2026-09-09T18:24:59.653Z",
+      "role": "developer",
+      "visible_text_bytes": 11921,
+      "contains_revised_guidance": false,
+      "contains_old_guidance": false,
+      "limitations": "Absence from visible text does not prove absence from encrypted or implicit host context."
+    },
+    {
+      "timestamp": "2026-09-09T18:24:59.653Z",
+      "role": "developer",
+      "visible_text_bytes": 2482,
+      "contains_revised_guidance": false,
+      "contains_old_guidance": false,
+      "limitations": "Absence from visible text does not prove absence from encrypted or implicit host context."
+    },
+    {
+      "timestamp": "2026-09-09T18:24:59.653Z",
+      "role": "developer",
+      "visible_text_bytes": 271,
+      "contains_revised_guidance": false,
+      "contains_old_guidance": false,
+      "limitations": "Absence from visible text does not prove absence from encrypted or implicit host context."
+    },
+    {
+      "timestamp": "2026-09-09T18:24:59.653Z",
+      "role": "user",
+      "visible_text_bytes": 4371,
+      "contains_revised_guidance": false,
+      "contains_old_guidance": false,
+      "limitations": "Absence from visible text does not prove absence from encrypted or implicit host context."
+    }
+  ]
+}

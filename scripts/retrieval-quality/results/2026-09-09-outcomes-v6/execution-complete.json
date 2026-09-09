@@ -1,0 +1,148 @@
+{
+  "verified_at": "2026-09-09T18:26:57.384395+00:00",
+  "all_four_recollected_equal": true,
+  "raw_hashes_match": true,
+  "distinct_completed_actors": true,
+  "trials": [
+    {
+      "id": "t01",
+      "status": "completed",
+      "runtime": {
+        "actor_id": "01a08764-9667-7e21-90f3-75a14a7b8a41",
+        "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+        "agent_path": "/root/v6_execution/v6_t01",
+        "cli_version": "0.153.4",
+        "model_provider": "openai",
+        "model": "gpt-6-astra",
+        "effort": "high"
+      },
+      "usage": {
+        "input_tokens": 252291,
+        "cached_input_tokens": 227840,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 5123,
+        "reasoning_output_tokens": 734,
+        "total_tokens": 257414
+      },
+      "completion": {
+        "complete": true,
+        "started_at": 1788977911,
+        "completed_at": 1788978011,
+        "duration_ms": 100522
+      },
+      "functional_quality": {
+        "passed": true,
+        "visible_passed": true,
+        "hidden_passed": true,
+        "immutable_files_preserved": true
+      },
+      "functional_quality_verified": true,
+      "integrity_passed": true
+    },
+    {
+      "id": "t02",
+      "status": "completed",
+      "runtime": {
+        "actor_id": "01a08766-b273-74c1-9c66-7a7f17b39e31",
+        "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+        "agent_path": "/root/v6_execution/v6_t02",
+        "cli_version": "0.153.4",
+        "model_provider": "openai",
+        "model": "gpt-6-astra",
+        "effort": "high"
+      },
+      "usage": {
+        "input_tokens": 172592,
+        "cached_input_tokens": 152064,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 4852,
+        "reasoning_output_tokens": 618,
+        "total_tokens": 177444
+      },
+      "completion": {
+        "complete": true,
+        "started_at": 1788978049,
+        "completed_at": 1788978142,
+        "duration_ms": 92640
+      },
+      "functional_quality": {
+        "passed": true,
+        "visible_passed": true,
+        "hidden_passed": true,
+        "immutable_files_preserved": true
+      },
+      "functional_quality_verified": true,
+      "integrity_passed": true
+    },
+    {
+      "id": "t03",
+      "status": "completed",
+      "runtime": {
+        "actor_id": "01a08768-b094-78a1-b4ee-3818d45f3f09",
+        "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+        "agent_path": "/root/v6_execution/v6_t03",
+        "cli_version": "0.153.4",
+        "model_provider": "openai",
+        "model": "gpt-6-astra",
+        "effort": "high"
+      },
+      "usage": {
+        "input_tokens": 208384,
+        "cached_input_tokens": 182528,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 4646,
+        "reasoning_output_tokens": 356,
+        "total_tokens": 213030
+      },
+      "completion": {
+        "complete": true,
+        "started_at": 1788978180,
+        "completed_at": 1788978268,
+        "duration_ms": 87899
+      },
+      "functional_quality": {
+        "passed": true,
+        "visible_passed": true,
+        "hidden_passed": true,
+        "immutable_files_preserved": true
+      },
+      "functional_quality_verified": true,
+      "integrity_passed": true
+    },
+    {
+      "id": "t04",
+      "status": "completed",
+      "runtime": {
+        "actor_id": "01a0876a-7d8e-7e10-8e0a-0fff7678f176",
+        "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+        "agent_path": "/root/v6_execution/v6_t04",
+        "cli_version": "0.153.4",
+        "model_provider": "openai",
+        "model": "gpt-6-astra",
+        "effort": "high"
+      },
+      "usage": {
+        "input_tokens": 250537,
+        "cached_input_tokens": 225408,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 5271,
+        "reasoning_output_tokens": 457,
+        "total_tokens": 255808
+      },
+      "completion": {
+        "complete": true,
+        "started_at": 1788978298,
+        "completed_at": 1788978406,
+        "duration_ms": 108288
+      },
+      "functional_quality": {
+        "passed": true,
+        "visible_passed": true,
+        "hidden_passed": true,
+        "immutable_files_preserved": true
+      },
+      "functional_quality_verified": true,
+      "integrity_passed": true
+    }
+  ]
+}

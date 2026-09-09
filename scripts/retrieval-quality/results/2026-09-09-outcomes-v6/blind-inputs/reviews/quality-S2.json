@@ -1,0 +1,24 @@
+{
+  "candidate": "S2",
+  "reviewer": "v6_quality",
+  "checks": {
+    "public_types": true,
+    "production_consumers": true,
+    "original_test_consumers": true,
+    "bounded_behavior_change": true,
+    "validation_report": true
+  },
+  "evidence": {
+    "public_types": "candidates/S2/source/src/core/model-usage.ts:318-326 exports the exact requested interface and discriminated result union. :329-333 declares the single UsageWriteRequest parameter and UsageWriteResult return; :366-368 explicitly types both injected request/result writer and returned object-part void recorder.",
+    "production_consumers": "Searched every recordModelUsage/createOpenCodeUsageRecorder/recordUsage reference in candidates/S2/source/src. model-usage.ts:370-381 sends a normalized single-event request and requires result.status === acknowledged before caching. opencode/hooks.ts:435,461-469 forwards {binary,cwd,part} with the existing binary guard. hooks/session-summary.ts:126-154 forwards {binary,cwd,events}, appends the exact write status suffix and proceeds to summary capture and continue:true after unacknowledged writes.",
+    "original_test_consumers": "All original test diffs preserve behavior checks. candidates/S2/source/src/test/model-usage.test.ts:44-68 migrates the injected writer and failure/retry/repeat/revision recorder calls while retaining the three-batch assertion. model-usage-recording.test.ts:8-26 retains the complete original acknowledgment cases and expects exact discriminated results. model-usage-hooks.test.ts:6-12,84-103,145-158 migrates the typed mock and both adapter argument expectations while retaining session/usage/attribute and ignored-message assertions. Full source comparison confirms no other original-test edits.",
+    "bounded_behavior_change": "candidates/S2/source/src/core/model-usage.ts:334-362 returns empty ack before execution; preserves JSONL including final newline, cwd, piped stdio, 10000-ms timeout and original case-insensitive acknowledgment expression; treats missing output as invalid-ack; checks full count and zero skipped; and catches write/serialization exceptions as write-error with existing debug and no retry. :369-381 preserves invalid-part filtering, cwd-scoped event fingerprint, instance-local Set, changed-counter forwarding and oldest-first 1024 cap. Complete baseline comparison finds only six intended source files changed, with normalization/collector, Go and README unchanged; runtime-checks.json integrity confirms no protected modifications. The independently captured 4/4 visible and 20/20 hidden outcomes corroborate the reviewed Stop continuation, recursion, missing-binary and other-hook behavior.",
+    "validation_report": "candidates/S2/answer.md reports 4 visible regression tests plus 6 added contract tests passing, original Vitest source migrated but unexecuted, and no TypeScript checking by Bun. participant-verification.json records one final post-edit bun test tests execution with 10 pass / 0 fail (4 visible +6 scratch), no later edits, vitest_executed:false and typecheck_executed:false. The report accurately distinguishes the runtime results from the unperformed validations."
+  },
+  "limitations": [
+    "No candidate code was executed by this reviewer; judgments use source and supplied verification artifacts.",
+    "Original Vitest tests and semantic TypeScript checking were not executed.",
+    "Baseline omits candidate harness/package/visible-test files; their protected status is supported by runtime-checks.json integrity, while shared baseline files were directly compared."
+  ],
+  "optional_test_value": "Inspected candidates/S2/source/tests/usage-contract.test.ts. Six retained optional tests assert empty-batch no spawn, multi-event acknowledgment, case/whitespace/explicit skipped-zero compatibility, JSONL and exec options, missing/malformed/mismatched/skipped output, write and serialization errors without retries, both failure-result recorder retries, null/unknown-session filtering, object forwarding, revised counters/cwd/independent instances and oldest-first capacity. Forwarding compares to the production normalizer, while visible regression tests independently cover normalization. Optional tests receive no extra mandatory credit."
+}

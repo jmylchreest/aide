@@ -1,0 +1,56 @@
+{
+  "headline": "4/4 passed quality; 2/2 eligible paired comparisons.",
+  "qualification": "Four implementation trials under the current host, two repetitions per condition. Descriptive resource differences, not causal savings or billing estimates. Historical v5 results are not pooled.",
+  "resource_summary": "Assisted input was lower in 2/2 eligible pairs, higher in 0/2, and equal in 0/2.",
+  "quality_passed": 4,
+  "quality_graded": 4,
+  "assisted_uptake": 0,
+  "assisted_uptake_known": 2,
+  "assisted_trials": 2,
+  "eligible_pairs": 2,
+  "known_task_usage": {
+    "input_tokens": 883804,
+    "cached_input_tokens": 787840,
+    "cache_write_input_tokens": 0,
+    "output_tokens": 19892,
+    "reasoning_output_tokens": 2165,
+    "total_tokens": 903696
+  },
+  "counter_trial_coverage": {
+    "input_tokens": 4,
+    "cached_input_tokens": 4,
+    "cache_write_input_tokens": 4,
+    "output_tokens": 4,
+    "reasoning_output_tokens": 4,
+    "total_tokens": 4
+  },
+  "known_usage_trials": 4,
+  "paired_observations": [
+    {
+      "task": "implement",
+      "repetition": 1,
+      "ordinary": "t01",
+      "assisted": "t02",
+      "eligible": true,
+      "input_delta": -79699,
+      "input_percent": -31.590108248015188,
+      "cached_input_delta": -75776,
+      "uncached_input_delta": -3923,
+      "output_delta": -271,
+      "elapsed_ms_delta": -7882
+    },
+    {
+      "task": "implement",
+      "repetition": 2,
+      "ordinary": "t04",
+      "assisted": "t03",
+      "eligible": true,
+      "input_delta": -42153,
+      "input_percent": -16.82505977161058,
+      "cached_input_delta": -42880,
+      "uncached_input_delta": 727,
+      "output_delta": -625,
+      "elapsed_ms_delta": -20389
+    }
+  ]
+}

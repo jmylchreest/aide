@@ -1,0 +1,472 @@
+{
+  "trial": "t04",
+  "experiment_version": 6,
+  "reviewer": "root",
+  "review_type": "manual_protocol_scope_and_overlap_with_derived_output_bytes",
+  "trace_reviewed": true,
+  "scope_verified": true,
+  "protocol_violations": [],
+  "aide_operations": 0,
+  "aide_uptake": false,
+  "counts": {
+    "bootstrap": 1,
+    "source": 8,
+    "discovery": 1,
+    "edit": 3,
+    "test": 1,
+    "transpile": 1,
+    "outer_tool_calls": 7,
+    "nested_tool_calls": 15
+  },
+  "input_review": [
+    {
+      "call_id": "call_9dHcUrYyc31WUT99tbgtqsPL",
+      "nested_calls": 2,
+      "commands_reviewed": [
+        "rtk proxy cat /home/johnm/.codex/RTK.md",
+        "rtk proxy rg -n --hidden --no-ignore --glob '!.aide/**' 'recordModelUsage|createOpenCodeUsageRecorder|Usage scan:' src"
+      ],
+      "categories": [
+        "bootstrap",
+        "source"
+      ],
+      "rtk_prefix_compliant": true,
+      "scope_compliant": true
+    },
+    {
+      "call_id": "call_WG2aXvD6r8IZyjZETiRqwhy2",
+      "nested_calls": 4,
+      "commands_reviewed": [
+        "rtk proxy cat src/core/model-usage.ts src/hooks/session-summary.ts",
+        "rtk proxy cat src/test/model-usage.test.ts src/test/model-usage-recording.test.ts src/test/model-usage-hooks.test.ts",
+        "rtk proxy rg -n --hidden --no-ignore --glob '!.aide/**' -C 12 'recordUsage|message.part.updated' src/opencode/hooks.ts",
+        "rtk proxy rg --files --hidden --no-ignore --glob '!.aide/**' tests src | head -100"
+      ],
+      "categories": [
+        "source",
+        "source",
+        "source",
+        "discovery"
+      ],
+      "rtk_prefix_compliant": true,
+      "scope_compliant": true
+    },
+    {
+      "call_id": "call_y0jRQDaE9uEs7ucgkfsuwTNd",
+      "nested_calls": 1,
+      "commands_reviewed": [
+        "rtk proxy cat tests/usage.test.ts"
+      ],
+      "categories": [
+        "source"
+      ],
+      "rtk_prefix_compliant": true,
+      "scope_compliant": true
+    },
+    {
+      "call_id": "call_4PiUqteTaN18qYAShoRflWmR",
+      "nested_calls": 1,
+      "commands_reviewed": [
+        "rtk proxy python3 - <<'PY'\nfrom pathlib import Path\np=Path('src/core/model-usage.ts')\ns=p.read_text().replace('/** Acknowledged batch only: older CLI fallback cannot preserve source timestamps. */\\nexport function recordModelUsage(\\n  binary: string,\\n  cwd: string,\\n  events: ObserveBatchEvent[],\\n): boolean {\\n  if (!events.length) return true;', '''export interface UsageWriteRequest {\n  binary: string;\n  cwd: string;\n  events: ObserveBatchEvent[];\n}\n\nexport type UsageWriteResult =\n  | { status: \"acknowledged\"; recorded: number }\n  | { status: \"unacknowledged\"; reason: \"invalid-ack\" | \"write-error\" };\n\n/** Acknowledged batch only: older CLI fallback cannot preserve source timestamps. */\nexport function recordModelUsage({\n  binary,\n  cwd,\n  events,\n}: UsageWriteRequest): UsageWriteResult {\n  if (!events.length) return { status: \"acknowledged\", recorded: 0 };''')\ns=s.replace('    }).toString();\\n    const ack', '    });\\n    const text = typeof output === \"string\" || Buffer.isBuffer(output)\\n      ? output.toString()\\n      : \"\";\\n    const ack')\ns=s.replace('      output.trim(),', '      text.trim(),')\ns=s.replace('    return (\\n      ack !== null &&\\n      Number(ack[1]) === events.length &&\\n      Number(ack[2] ?? 0) === 0\\n    );', '''    if (\n      ack !== null &&\n      Number(ack[1]) === events.length &&\n      Number(ack[2] ?? 0) === 0\n    ) return { status: \"acknowledged\", recorded: events.length };\n    return { status: \"unacknowledged\", reason: \"invalid-ack\" };''')\ns=s.replace('    return false;\\n  }\\n}\\n\\n/** Keep repeated part', '    return { status: \"unacknowledged\", reason: \"write-error\" };\\n  }\\n}\\n\\n/** Keep repeated part')\ns=s.replace('  write = recordModelUsage,\\n): (binary: string, cwd: string, part: unknown) => void {', '''  write: (request: UsageWriteRequest) => UsageWriteResult = recordModelUsage,\n): (request: { binary: string; cwd: string; part: unknown }) => void {''')\ns=s.replace('  return (binary, cwd, part) => {', '  return ({ binary, cwd, part }) => {')\ns=s.replace('    if (acknowledged.has(fingerprint) || !write(binary, cwd, [next])) return;', '''    if (acknowledged.has(fingerprint)) return;\n    const result = write({ binary, cwd, events: [next] });\n    if (result.status !== \"acknowledged\") return;''')\np.write_text(s)\np=Path('src/opencode/hooks.ts');s=p.read_text().replace('          recordUsage(state.binary, state.cwd, event.properties.part);','''          recordUsage({\n            binary: state.binary,\n            cwd: state.cwd,\n            part: event.properties.part,\n          });''');p.write_text(s)\np=Path('src/hooks/session-summary.ts');s=p.read_text().replace('        recordModelUsage(binary, cwd, usage.events);','        const result = recordModelUsage({ binary, cwd, events: usage.events });').replace('records=${usage.events.length}`','records=${usage.events.length}; write=${result.status}`');p.write_text(s)\np=Path('src/test/model-usage.test.ts');s=p.read_text().replace('createOpenCodeUsageRecorder((_binary, _cwd, events) => {','createOpenCodeUsageRecorder(({ events }) => {').replace('      return batches.length !== 1;','''      return batches.length === 1\n        ? { status: \"unacknowledged\", reason: \"write-error\" }\n        : { status: \"acknowledged\", recorded: events.length };''').replace('record(\"bin\", \"/cwd\", part)', 'record({ binary: \"bin\", cwd: \"/cwd\", part })').replace('record(\"bin\", \"/cwd\", { ...part, tokens: { input: 2 } })','record({ binary: \"bin\", cwd: \"/cwd\", part: { ...part, tokens: { input: 2 } } })');p.write_text(s)\np=Path('src/test/model-usage-recording.test.ts');s=p.read_text().replace('recordModelUsage(\"bin\", \"/cwd\", events)', 'recordModelUsage({ binary: \"bin\", cwd: \"/cwd\", events })').replace('.toBe(false)', '.toEqual({ status: \"unacknowledged\", reason: \"invalid-ack\" })').replace('.toBe(true)', '.toEqual({ status: \"acknowledged\", recorded: events.length })');p.write_text(s)\np=Path('src/test/model-usage-hooks.test.ts');s=p.read_text().replace('const mocks =', 'import type { UsageWriteRequest, UsageWriteResult } from \"../core/model-usage.js\";\\n\\nconst mocks =',1).replace('  write: vi.fn(() => true),','''  write: vi.fn(({ events }: UsageWriteRequest): UsageWriteResult => ({\n    status: \"acknowledged\",\n    recorded: events.length,\n  })),''').replace('toHaveBeenCalledWith(\"/fake-aide\", cwd, [', 'toHaveBeenCalledWith({ binary: \"/fake-aide\", cwd, events: [').replace('    ]);', '    ] });').replace('        ]),', '        ] }),');p.write_text(s)\nPY"
+      ],
+      "categories": [
+        "edit"
+      ],
+      "rtk_prefix_compliant": true,
+      "scope_compliant": true
+    },
+    {
+      "call_id": "call_Nc0DeiagrEdlYzQGzdn5yog3",
+      "nested_calls": 2,
+      "commands_reviewed": [
+        "rtk proxy python3 - <<'PY'\nfrom pathlib import Path\np=Path('tests/usage-write-contract.test.ts')\np.write_text('''import { afterEach, describe, expect, spyOn, test } from \"bun:test\";\nimport * as childProcess from \"node:child_process\";\nimport {\n  createOpenCodeUsageRecorder,\n  recordModelUsage,\n  type UsageWriteRequest,\n  type UsageWriteResult,\n} from \"../src/core/model-usage.ts\";\n\nconst events = [{ kind: \"session\", name: \"model_usage\", session: \"s\" }];\nconst request = { binary: \"bin\", cwd: \"/cwd\", events };\nlet exec: ReturnType<typeof spyOn> | undefined;\nafterEach(() => { exec?.mockRestore(); exec = undefined; });\nfunction output(value: unknown) {\n  exec = spyOn(childProcess, \"execFileSync\").mockReturnValue(value as Buffer);\n}\n\ndescribe(\"usage writer request/result contract\", () => {\n  test(\"empty batches avoid executing the binary\", () => {\n    output(undefined);\n    expect(recordModelUsage({ ...request, events: [] })).toEqual({ status: \"acknowledged\", recorded: 0 });\n    expect(exec).not.toHaveBeenCalled();\n  });\n  test(\"acknowledges case-insensitive full counts with whitespace and explicit skipped zero\", () => {\n    for (const ack of [\"Recorded 1 event(s)\\\\n\", \" \\\\trEcOrDeD 1 EvEnT(s), SkIpPeD 0 \\\\n\"]) {\n      output(Buffer.from(ack));\n      expect(recordModelUsage(request)).toEqual({ status: \"acknowledged\", recorded: 1 });\n      expect(exec).toHaveBeenCalledWith(\"bin\", [\"observe\", \"record\", \"--stdin\"], {\n        cwd: \"/cwd\", input: JSON.stringify(events[0]) + \"\\\\n\", timeout: 10000,\n        stdio: [\"pipe\", \"pipe\", \"pipe\"],\n      });\n      exec!.mockRestore();\n    }\n  });\n  test(\"rejects missing, malformed, partial and skipped acknowledgments\", () => {\n    for (const ack of [undefined, null, \"\", \"Recorded 0 event(s)\", \"Recorded 2 event(s)\",\n      \"Recorded 1 event(s), skipped 1\", \"Recorded 1 event(s) junk\", \"Recorded 1 event(s)\\\\nRecorded 1 event(s)\"]) {\n      output(ack);\n      expect(recordModelUsage(request)).toEqual({ status: \"unacknowledged\", reason: \"invalid-ack\" });\n      exec!.mockRestore();\n    }\n  });\n  test(\"acknowledges the complete JSONL batch count\", () => {\n    output(Buffer.from(\"Recorded 2 event(s)\"));\n    expect(recordModelUsage({ ...request, events: [...events, ...events] })).toEqual({ status: \"acknowledged\", recorded: 2 });\n    expect(exec!.mock.calls[0][2].input).toBe((JSON.stringify(events[0]) + \"\\\\n\").repeat(2));\n  });\n  test(\"reports write and serialization errors without retry\", () => {\n    output(undefined);\n    exec!.mockImplementation(() => { throw new Error(\"write failed\"); });\n    expect(recordModelUsage(request)).toEqual({ status: \"unacknowledged\", reason: \"write-error\" });\n    expect(exec).toHaveBeenCalledTimes(1);\n    exec!.mockClear();\n    const cyclic: any = { ...events[0] };\n    cyclic.attrs = cyclic;\n    expect(recordModelUsage({ ...request, events: [cyclic] })).toEqual({ status: \"unacknowledged\", reason: \"write-error\" });\n    expect(exec).not.toHaveBeenCalled();\n  });\n});\n\nconst part = { type: \"step-finish\", id: \"p\", sessionID: \"s\", messageID: \"m\", tokens: { input: 1 } };\ndescribe(\"OpenCode recorder request/result contract\", () => {\n  test(\"retries unacknowledged results, filters invalid parts, and forwards changed counters and cwd\", () => {\n    const calls: UsageWriteRequest[] = [];\n    const record = createOpenCodeUsageRecorder((request): UsageWriteResult => {\n      calls.push(request);\n      return calls.length < 3\n        ? { status: \"unacknowledged\", reason: calls.length === 1 ? \"invalid-ack\" : \"write-error\" }\n        : { status: \"acknowledged\", recorded: request.events.length };\n    });\n    record({ binary: \"bin\", cwd: \"/cwd\", part: null });\n    for (let i = 0; i < 4; i++) expect(record({ binary: \"bin\", cwd: \"/cwd\", part })).toBeUndefined();\n    record({ binary: \"bin\", cwd: \"/cwd\", part: { ...part, tokens: { input: 2 } } });\n    record({ binary: \"bin\", cwd: \"/other\", part });\n    expect(calls).toHaveLength(5);\n    expect(calls[0]).toMatchObject({ binary: \"bin\", cwd: \"/cwd\", events: [{ attrs: { uncached_input_tokens: \"1\" } }] });\n    expect(calls[3].events[0].attrs?.uncached_input_tokens).toBe(\"2\");\n    expect(calls[4].cwd).toBe(\"/other\");\n  });\n  test(\"keeps independent recorder caches and evicts the oldest entry at 1024\", () => {\n    const calls: UsageWriteRequest[] = [];\n    const write = (request: UsageWriteRequest): UsageWriteResult => {\n      calls.push(request);\n      return { status: \"acknowledged\", recorded: request.events.length };\n    };\n    const record = createOpenCodeUsageRecorder(write);\n    const send = (id: string) => record({ binary: \"bin\", cwd: \"/cwd\", part: { ...part, id } });\n    for (let i = 0; i < 1024; i++) send(String(i));\n    send(\"0\");\n    expect(calls).toHaveLength(1024);\n    send(\"1024\");\n    send(\"1\");\n    expect(calls).toHaveLength(1025);\n    send(\"0\");\n    expect(calls).toHaveLength(1026);\n    createOpenCodeUsageRecorder(write)({ binary: \"bin\", cwd: \"/cwd\", part: { ...part, id: \"0\" } });\n    expect(calls).toHaveLength(1027);\n  });\n});\n''')\nPY",
+        "rtk proxy bun test tests"
+      ],
+      "categories": [
+        "edit",
+        "test"
+      ],
+      "rtk_prefix_compliant": true,
+      "scope_compliant": true
+    },
+    {
+      "call_id": "call_j5FzXTd3qeqah6CKzcrFRwD4",
+      "nested_calls": 3,
+      "commands_reviewed": [
+        "rtk proxy sed -n '315,405p' src/core/model-usage.ts",
+        "rtk proxy cat src/test/model-usage-recording.test.ts src/test/model-usage-hooks.test.ts",
+        "rtk proxy rg -n --hidden --no-ignore --glob '!.aide/**' -C 3 'recordModelUsage|recordUsage\\(|createOpenCodeUsageRecorder|record\\(\\{ binary|Usage scan:' src"
+      ],
+      "categories": [
+        "source",
+        "source",
+        "source"
+      ],
+      "rtk_prefix_compliant": true,
+      "scope_compliant": true
+    },
+    {
+      "call_id": "call_wuaUS9wLWOIbq91QR9qCwbM8",
+      "nested_calls": 2,
+      "commands_reviewed": [
+        "rtk proxy python3 - <<'PY'\nfrom pathlib import Path\np=Path('src/core/model-usage.ts');s=p.read_text().replace('''    const text = typeof output === \"string\" || Buffer.isBuffer(output)\n      ? output.toString()\n      : \"\";''','''    const text =\n      typeof output === \"string\" || Buffer.isBuffer(output)\n        ? output.toString()\n        : \"\";''').replace('    ) return { status: \"acknowledged\", recorded: events.length };','    )\\n      return { status: \"acknowledged\", recorded: events.length };');p.write_text(s)\np=Path('src/test/model-usage.test.ts');s=p.read_text().replace('''    record({ binary: \"bin\", cwd: \"/cwd\", part: { ...part, tokens: { input: 2 } } }); // conflict reaches store''','''    record({\n      binary: \"bin\",\n      cwd: \"/cwd\",\n      part: { ...part, tokens: { input: 2 } },\n    }); // conflict reaches store''');p.write_text(s)\np=Path('src/test/model-usage-recording.test.ts');s=p.read_text().replace('''      expect(recordModelUsage({ binary: \"bin\", cwd: \"/cwd\", events })).toEqual({ status: \"unacknowledged\", reason: \"invalid-ack\" });''','''      expect(recordModelUsage({ binary: \"bin\", cwd: \"/cwd\", events })).toEqual({\n        status: \"unacknowledged\",\n        reason: \"invalid-ack\",\n      });''').replace('''    expect(recordModelUsage({ binary: \"bin\", cwd: \"/cwd\", events })).toEqual({ status: \"acknowledged\", recorded: events.length });''','''    expect(recordModelUsage({ binary: \"bin\", cwd: \"/cwd\", events })).toEqual({\n      status: \"acknowledged\",\n      recorded: events.length,\n    });''');p.write_text(s)\np=Path('src/test/model-usage-hooks.test.ts');s=p.read_text().replace('''    expect(mocks.write).toHaveBeenCalledWith({ binary: \"/fake-aide\", cwd, events: [\n      expect.objectContaining({\n        session: \"s\",\n        name: \"model_usage\",\n        attrs: expect.objectContaining({\n          usage_id: \"p\",\n          uncached_input_tokens: \"12\",\n        }),\n      }),\n    ] });''','''    expect(mocks.write).toHaveBeenCalledWith({\n      binary: \"/fake-aide\",\n      cwd,\n      events: [\n        expect.objectContaining({\n          session: \"s\",\n          name: \"model_usage\",\n          attrs: expect.objectContaining({\n            usage_id: \"p\",\n            uncached_input_tokens: \"12\",\n          }),\n        }),\n      ],\n    });''').replace('''        expect(mocks.write).toHaveBeenCalledWith({ binary: \"/fake-aide\", cwd, events: [\n          expect.objectContaining({\n            session: \"s\",\n            attrs: expect.objectContaining({ host, usage_id: \"r\" }),\n          }),\n        ] }),''','''        expect(mocks.write).toHaveBeenCalledWith({\n          binary: \"/fake-aide\",\n          cwd,\n          events: [\n            expect.objectContaining({\n              session: \"s\",\n              attrs: expect.objectContaining({ host, usage_id: \"r\" }),\n            }),\n          ],\n        }),''');p.write_text(s)\nPY",
+        "rtk proxy bun -e 'const transpiler = new Bun.Transpiler({ loader: \"ts\" }); for (const path of [\"src/core/model-usage.ts\", \"src/hooks/session-summary.ts\", \"src/opencode/hooks.ts\", \"src/test/model-usage.test.ts\", \"src/test/model-usage-recording.test.ts\", \"src/test/model-usage-hooks.test.ts\"]) { transpiler.transformSync(await Bun.file(path).text()); } console.log(\"Parsed all six migrated TypeScript files; no type check or Vitest execution.\");'"
+      ],
+      "categories": [
+        "edit",
+        "transpile"
+      ],
+      "rtk_prefix_compliant": true,
+      "scope_compliant": true
+    }
+  ],
+  "retrieval_output_bytes": 52295,
+  "byte_evidence": {
+    "basis": "Sum decoded stdout/stderr output UTF-8 bytes for manually classified source commands, excluding wrappers. No byte-to-token conversion.",
+    "source_output_complete": true,
+    "source_lower_bound_bytes": 52295,
+    "included_boundaries": [
+      {
+        "call_id": "call_9dHcUrYyc31WUT99tbgtqsPL",
+        "content_index": 1,
+        "part_index": 0,
+        "category": "bootstrap",
+        "utf8_bytes": 482,
+        "complete": true,
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_9dHcUrYyc31WUT99tbgtqsPL",
+        "content_index": 2,
+        "part_index": 0,
+        "category": "source",
+        "utf8_bytes": 1394,
+        "complete": true,
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_WG2aXvD6r8IZyjZETiRqwhy2",
+        "content_index": 1,
+        "part_index": 0,
+        "category": "source",
+        "utf8_bytes": 15563,
+        "complete": true,
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_WG2aXvD6r8IZyjZETiRqwhy2",
+        "content_index": 2,
+        "part_index": 0,
+        "category": "source",
+        "utf8_bytes": 11980,
+        "complete": true,
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_WG2aXvD6r8IZyjZETiRqwhy2",
+        "content_index": 3,
+        "part_index": 0,
+        "category": "source",
+        "utf8_bytes": 5458,
+        "complete": true,
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_WG2aXvD6r8IZyjZETiRqwhy2",
+        "content_index": 4,
+        "part_index": 0,
+        "category": "discovery",
+        "utf8_bytes": 1199,
+        "complete": true,
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_y0jRQDaE9uEs7ucgkfsuwTNd",
+        "content_index": 1,
+        "part_index": 0,
+        "category": "source",
+        "utf8_bytes": 2757,
+        "complete": true,
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_4PiUqteTaN18qYAShoRflWmR",
+        "content_index": 1,
+        "part_index": 0,
+        "category": "edit",
+        "utf8_bytes": 0,
+        "complete": true,
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_Nc0DeiagrEdlYzQGzdn5yog3",
+        "content_index": 1,
+        "part_index": 0,
+        "category": "edit",
+        "utf8_bytes": 0,
+        "complete": true,
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_Nc0DeiagrEdlYzQGzdn5yog3",
+        "content_index": 2,
+        "part_index": 0,
+        "category": "test",
+        "utf8_bytes": 1415,
+        "complete": true,
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_j5FzXTd3qeqah6CKzcrFRwD4",
+        "content_index": 1,
+        "part_index": 0,
+        "category": "source",
+        "utf8_bytes": 2214,
+        "complete": true,
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_j5FzXTd3qeqah6CKzcrFRwD4",
+        "content_index": 2,
+        "part_index": 0,
+        "category": "source",
+        "utf8_bytes": 5587,
+        "complete": true,
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_j5FzXTd3qeqah6CKzcrFRwD4",
+        "content_index": 3,
+        "part_index": 0,
+        "category": "source",
+        "utf8_bytes": 7342,
+        "complete": true,
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_wuaUS9wLWOIbq91QR9qCwbM8",
+        "content_index": 1,
+        "part_index": 0,
+        "category": "edit",
+        "utf8_bytes": 0,
+        "complete": true,
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_wuaUS9wLWOIbq91QR9qCwbM8",
+        "content_index": 2,
+        "part_index": 0,
+        "category": "transpile",
+        "utf8_bytes": 77,
+        "complete": true,
+        "exit_code": 0
+      }
+    ]
+  },
+  "response_evidence": {
+    "trial": "t04",
+    "raw_log_sha256": "6ceab40a2febbf96a7e3d95a387199bb86b9758a63e3ca3dd78d88b28d1225a5",
+    "basis": "Outgoing calls are associated with the next runtime usage record and checked against the frozen collector. Input includes accumulated context; these are not per-tool costs.",
+    "responses": [
+      {
+        "response_id": "resp_0db43130e7a3ed81016aa1a47c09c487d2ae634c89f2d2b95f",
+        "counters": {
+          "input_tokens": 19050,
+          "cached_input_tokens": 17664,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 155,
+          "reasoning_output_tokens": 0,
+          "total_tokens": 19205
+        },
+        "uncached_input_tokens": 1386,
+        "timestamp": "2026-09-09T18:25:04.300Z",
+        "outgoing_call_ids": [
+          "call_9dHcUrYyc31WUT99tbgtqsPL"
+        ]
+      },
+      {
+        "response_id": "resp_0db43130e7a3ed81016aa1a4812f7c87d2aa7c555df216853f",
+        "counters": {
+          "input_tokens": 19817,
+          "cached_input_tokens": 18816,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 253,
+          "reasoning_output_tokens": 0,
+          "total_tokens": 20070
+        },
+        "uncached_input_tokens": 1001,
+        "timestamp": "2026-09-09T18:25:11.032Z",
+        "outgoing_call_ids": [
+          "call_WG2aXvD6r8IZyjZETiRqwhy2"
+        ]
+      },
+      {
+        "response_id": "resp_0db43130e7a3ed81016aa1a487d30487d2b3287382adb03db9",
+        "counters": {
+          "input_tokens": 30442,
+          "cached_input_tokens": 19584,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 154,
+          "reasoning_output_tokens": 100,
+          "total_tokens": 30596
+        },
+        "uncached_input_tokens": 10858,
+        "timestamp": "2026-09-09T18:25:15.489Z",
+        "outgoing_call_ids": [
+          "call_y0jRQDaE9uEs7ucgkfsuwTNd"
+        ]
+      },
+      {
+        "response_id": "resp_0db43130e7a3ed81016aa1a48c20c087d2a0c0b9c7e43614bb",
+        "counters": {
+          "input_tokens": 31510,
+          "cached_input_tokens": 30208,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1355,
+          "reasoning_output_tokens": 0,
+          "total_tokens": 32865
+        },
+        "uncached_input_tokens": 1302,
+        "timestamp": "2026-09-09T18:25:38.853Z",
+        "outgoing_call_ids": [
+          "call_4PiUqteTaN18qYAShoRflWmR"
+        ]
+      },
+      {
+        "response_id": "resp_0db43130e7a3ed81016aa1a4a3856887d29ee788d1a7a9f037",
+        "counters": {
+          "input_tokens": 32920,
+          "cached_input_tokens": 31360,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1866,
+          "reasoning_output_tokens": 165,
+          "total_tokens": 34786
+        },
+        "uncached_input_tokens": 1560,
+        "timestamp": "2026-09-09T18:26:11.274Z",
+        "outgoing_call_ids": [
+          "call_Nc0DeiagrEdlYzQGzdn5yog3"
+        ]
+      },
+      {
+        "response_id": "resp_0db43130e7a3ed81016aa1a4c4698c87d291666545c714e9d7",
+        "counters": {
+          "input_tokens": 35216,
+          "cached_input_tokens": 32768,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 291,
+          "reasoning_output_tokens": 83,
+          "total_tokens": 35507
+        },
+        "uncached_input_tokens": 2448,
+        "timestamp": "2026-09-09T18:26:18.012Z",
+        "outgoing_call_ids": [
+          "call_j5FzXTd3qeqah6CKzcrFRwD4"
+        ]
+      },
+      {
+        "response_id": "resp_0db43130e7a3ed81016aa1a4caa3d887d2b9c14c4e7ec26476",
+        "counters": {
+          "input_tokens": 40178,
+          "cached_input_tokens": 35072,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1121,
+          "reasoning_output_tokens": 109,
+          "total_tokens": 41299
+        },
+        "uncached_input_tokens": 5106,
+        "timestamp": "2026-09-09T18:26:40.692Z",
+        "outgoing_call_ids": [
+          "call_wuaUS9wLWOIbq91QR9qCwbM8"
+        ]
+      },
+      {
+        "response_id": "resp_0db43130e7a3ed81016aa1a4e18ee887d2bdc591be4a207517",
+        "counters": {
+          "input_tokens": 41404,
+          "cached_input_tokens": 39936,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 76,
+          "reasoning_output_tokens": 0,
+          "total_tokens": 41480
+        },
+        "uncached_input_tokens": 1468,
+        "timestamp": "2026-09-09T18:26:46.569Z",
+        "outgoing_call_ids": []
+      }
+    ],
+    "observable_instruction_exposure": [
+      {
+        "timestamp": "2026-09-09T18:24:59.653Z",
+        "role": "developer",
+        "visible_text_bytes": 11921,
+        "contains_revised_guidance": false,
+        "contains_old_guidance": false,
+        "limitations": "Absence from visible text does not prove absence from encrypted or implicit host context."
+      },
+      {
+        "timestamp": "2026-09-09T18:24:59.653Z",
+        "role": "developer",
+        "visible_text_bytes": 2482,
+        "contains_revised_guidance": false,
+        "contains_old_guidance": false,
+        "limitations": "Absence from visible text does not prove absence from encrypted or implicit host context."
+      },
+      {
+        "timestamp": "2026-09-09T18:24:59.653Z",
+        "role": "developer",
+        "visible_text_bytes": 271,
+        "contains_revised_guidance": false,
+        "contains_old_guidance": false,
+        "limitations": "Absence from visible text does not prove absence from encrypted or implicit host context."
+      },
+      {
+        "timestamp": "2026-09-09T18:24:59.653Z",
+        "role": "user",
+        "visible_text_bytes": 4371,
+        "contains_revised_guidance": false,
+        "contains_old_guidance": false,
+        "limitations": "Absence from visible text does not prove absence from encrypted or implicit host context."
+      }
+    ]
+  },
+  "overlap_review": {
+    "first_edit_response": 4,
+    "responses_before_first_edit": 3,
+    "unchanged_body_overlap_commands": 0,
+    "duplicate_only_commands": 0,
+    "evidence": "Response 2 retrieves core/Stop/test files and OpenCode caller context; response 3 supplies previously unread visible harness. Response 6 reads modified core/tests and migration caller context after edits in response 4. Final transpilation is syntax verification, not a repeated source body delivered to the model. No duplicate unchanged implementation-body retrieval identified.",
+    "limitations": "The separate harness-read response is additional work but does not alone establish avoidable tokens or calls."
+  },
+  "execution_verification": {
+    "test_executions": [
+      {
+        "call_id": "call_Nc0DeiagrEdlYzQGzdn5yog3",
+        "command": "rtk proxy bun test tests",
+        "exit_code": 0,
+        "output": "bun test v1.4.0 (34cbb9a40)\n\ntests/usage-write-contract.test.ts:\n(pass) usage writer request/result contract > empty batches avoid executing the binary [0.13ms]\n(pass) usage writer request/result contract > acknowledges case-insensitive full counts with whitespace and explicit skipped zero [0.23ms]\n(pass) usage writer request/result contract > rejects missing, malformed, partial and skipped acknowledgments [0.05ms]\n(pass) usage writer request/result contract > acknowledges the complete JSONL batch count [0.03ms]\n(pass) usage writer request/result contract > reports write and serialization errors without retry [2.86ms]\n(pass) OpenCode recorder request/result contract > retries unacknowledged results, filters invalid parts, and forwards changed counters and cwd [0.30ms]\n(pass) OpenCode recorder request/result contract > keeps independent recorder caches and evicts the oldest entry at 1024 [1.37ms]\n\ntests/usage.test.ts:\n(pass) existing usage behavior > Claude inputs are disjoint; placeholder output is omitted [0.20ms]\n(pass) existing usage behavior > Codex rejects cumulative records and mismatched sessions [0.09ms]\n(pass) existing usage behavior > OpenCode retains ambiguous raw output without adding it [0.06ms]\n(pass) existing usage behavior > transcript scanner skips incomplete trailing lines and stays partial [0.49ms]\n\n 11 pass\n 0 fail\n 45 expect() calls\nRan 11 tests across 2 files. [17.00ms]\n",
+        "complete": true
+      }
+    ],
+    "syntax_executions": [
+      {
+        "call_id": "call_wuaUS9wLWOIbq91QR9qCwbM8",
+        "command": "rtk proxy bun -e 'const transpiler = new Bun.Transpiler({ loader: \"ts\" }); for (const path of [\"src/core/model-usage.ts\", \"src/hooks/session-summary.ts\", \"src/opencode/hooks.ts\", \"src/test/model-usage.test.ts\", \"src/test/model-usage-recording.test.ts\", \"src/test/model-usage-hooks.test.ts\"]) { transpiler.transformSync(await Bun.file(path).text()); } console.log(\"Parsed all six migrated TypeScript files; no type check or Vitest execution.\");'",
+        "exit_code": 0,
+        "output": "Parsed all six migrated TypeScript files; no type check or Vitest execution.\n",
+        "complete": true
+      }
+    ],
+    "participant_runtime_runs": 1,
+    "visible_checks": 4,
+    "scratch_checks_executed": 7,
+    "scratch_tests_retained": true,
+    "vitest_executed": false,
+    "typecheck_executed": false,
+    "transpile_executed": true,
+    "final_post_edit_runtime_check": false,
+    "final_post_edit_syntax_check": true,
+    "summary": "Response 5 runs 11/11 (4 visible +7 added). Response 7 formats source/original tests, then Bun.Transpiler parses all six migrated TypeScript files successfully. No participant runtime rerun after formatting; controller runtime grading passes final candidate. Syntax parsing is not semantic type checking or Vitest execution."
+  },
+  "scope_evidence": "All seven outer exec inputs inspected, including inline Python source/scratch edits and Bun.Transpiler invocation. Reads stay in fixture except mandatory RTK bootstrap. Inventory excludes controller state. Edits affect six allowed src files and one own tests/usage-write-contract.test.ts. No aide, external source, grader, memory, network, commits or subagents. Prelaunch pristine source/binary/index and final integrity pass."
+}

@@ -1,0 +1,56 @@
+{
+  "categories": [
+    [
+      "bootstrap",
+      "source"
+    ],
+    [
+      "source",
+      "source",
+      "source"
+    ],
+    [
+      "edit",
+      "test"
+    ],
+    [
+      "source",
+      "source"
+    ],
+    [
+      "source",
+      "edit"
+    ],
+    [
+      "edit",
+      "test",
+      "source"
+    ],
+    [
+      "edit",
+      "test"
+    ]
+  ],
+  "scope_verified": true,
+  "protocol_violations": [],
+  "aide_operations": 0,
+  "scope_evidence": "All seven outer exec inputs inspected, including four inline Python bodies. Reads stay in fixture except required RTK bootstrap. Edits migrate six allowed src files, create then remove own scratch test only. No aide, external source, grader, memory, network, commits or subagents. Prelaunch matches pristine source/binary/index; final integrity passes.",
+  "overlap_review": {
+    "first_edit_response": 3,
+    "responses_before_first_edit": 2,
+    "unchanged_body_overlap_commands": 0,
+    "duplicate_only_commands": 0,
+    "evidence": "Response 2 reads current model-usage.ts and affected tests; response 4 rereads modified bodies/tests after response 3 changes. Logger read in response 5 supplies new context for mocking. Response 6 caller search checks migration and is not a duplicate full-body fetch. No navigation-only step or unchanged implementation-body reread identified.",
+    "limitations": "Zero refers to the operational reviewed body-overlap definition, not proof every returned line was novel."
+  },
+  "execution_verification": {
+    "participant_runtime_runs": 3,
+    "visible_checks": 4,
+    "scratch_checks_executed": 7,
+    "scratch_tests_retained": false,
+    "vitest_executed": false,
+    "typecheck_executed": false,
+    "final_post_edit_runtime_check": true,
+    "summary": "Response 3: 4/4 visible; response 6: 4 visible +7 temporary contract checks pass; response 7 removes its own scratch file then 4/4 visible pass. No source edit after final check. Full scratch source is retained in capture input, not final source snapshot."
+  }
+}
