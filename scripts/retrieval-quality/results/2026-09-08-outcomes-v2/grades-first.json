@@ -1,0 +1,421 @@
+{
+  "candidates": {
+    "A": {
+      "passed": false,
+      "checks": [
+        {
+          "id": "route",
+          "passed": true,
+          "reason": "Correctly identifies the registered event handler, binary guard, properties.part forwarding, step-finish and ID/tokens validation, batch observe record --stdin writer, and ignored message.updated. Cited source supports all route facts.",
+          "evidence": [
+            "A.md:1",
+            "source/src/opencode/hooks.ts:194",
+            "source/src/opencode/hooks.ts:432",
+            "source/src/opencode/hooks.ts:458",
+            "source/src/opencode/hooks.ts:463",
+            "source/src/core/model-usage.ts:209",
+            "source/src/core/model-usage.ts:326",
+            "source/src/core/model-usage.ts:350"
+          ]
+        },
+        {
+          "id": "normalization",
+          "passed": true,
+          "reason": "Correct session/model_usage identity metadata, all six required values (31, 11, 17, 3, 13, 5), absent canonical output/total and model/provider, observed time basis, and partial coverage. Counter mapping, sum and metadata are supported by the cited adapter source. Scenario literals are stipulated by the frozen rubric; source supplies their transformation.",
+          "evidence": [
+            "A.md:3",
+            "A.md:7",
+            "A.md:14",
+            "source/src/core/model-usage.ts:38",
+            "source/src/core/model-usage.ts:41",
+            "source/src/core/model-usage.ts:101",
+            "source/src/core/model-usage.ts:110",
+            "source/src/core/model-usage.ts:217",
+            "source/src/core/model-usage.ts:224",
+            "source/src/core/model-usage.ts:230"
+          ]
+        },
+        {
+          "id": "retries",
+          "passed": true,
+          "reason": "Correctly gives three attempts: failed first, successful second, unchanged third suppressed, changed fourth successful; two persisted variants under the stipulated no-persistence-on-first-failure scenario. Correct success-only cache and changed normalized fingerprint. Cited persistence code combines identity and fingerprint and retains contradictory variants. Does not make a general claim that every unacknowledged write necessarily persisted nothing.",
+          "evidence": [
+            "A.md:16",
+            "A.md:18",
+            "source/src/core/model-usage.ts:353",
+            "source/src/core/model-usage.ts:357",
+            "source/src/core/model-usage.ts:358",
+            "source/src/core/model-usage.ts:359",
+            "source/aide/pkg/store/token_model_usage.go:46",
+            "source/aide/pkg/store/token_model_usage.go:67",
+            "source/aide/pkg/store/observe_events.go:176",
+            "source/aide/pkg/store/observe_events.go:188",
+            "source/aide/pkg/store/observe_events.go:216"
+          ]
+        },
+        {
+          "id": "conflict",
+          "passed": true,
+          "reason": "Correct observations=0/conflicts=1 and no contributed counters. Candidate separately identifies session+host+usage_id rather than observation ID. Cited code observes all retained records before selection, marks differing fingerprints conflicted, and counts a conflict if either variant is selected; selecting the earlier date cannot restore counters. Extra invalid=0 and empty source-group assertions are also supported.",
+          "evidence": [
+            "A.md:3",
+            "A.md:20",
+            "source/aide/pkg/store/token_model_usage.go:36",
+            "source/aide/pkg/store/token_model_usage.go:150",
+            "source/aide/pkg/store/token_model_usage.go:174",
+            "source/aide/pkg/store/token_model_usage.go:183",
+            "source/aide/pkg/store/token_events.go:157",
+            "source/aide/pkg/store/token_events.go:191"
+          ]
+        },
+        {
+          "id": "boundaries",
+          "passed": false,
+          "reason": "Correctly explains no legacy TokenEvent projection, no tool-event or byte-estimate contribution, partial captured host counters and no proof of complete session usage, billing, savings or quality. Also explicitly keeps raw output separate because reasoning overlap varies. However, it never states that cache counters are already included in normalized input_tokens and must not be added to it again. The correct input_tokens=31 normalization demonstrates the calculation, but does not independently state this required accounting boundary. With every required fact mandatory, this check fails for that omission.",
+          "evidence": [
+            "A.md:10",
+            "A.md:14",
+            "A.md:22",
+            "A.md:24",
+            "source/aide/pkg/store/observe_events.go:82",
+            "source/aide/pkg/store/observe_events.go:107",
+            "source/aide/pkg/store/token_events.go:93",
+            "source/aide/pkg/store/token_events.go:172",
+            "source/aide/pkg/store/token_events.go:196",
+            "source/aide/pkg/memory/token_model_usage.go:3",
+            "source/aide/pkg/memory/token_model_usage.go:20",
+            "source/src/core/model-usage.ts:41",
+            "source/src/core/model-usage.ts:230"
+          ]
+        }
+      ],
+      "unsupported_claims": [],
+      "omissions": [
+        {
+          "check_id": "boundaries",
+          "required_fact": "Do not add cache counters to normalized input_tokens; normalized input already includes them.",
+          "note": "The numerical normalization is correct, but the requested no-double-counting boundary is unstated."
+        }
+      ],
+      "wrong_claims": []
+    },
+    "B": {
+      "passed": false,
+      "checks": [
+        {
+          "id": "route",
+          "passed": true,
+          "reason": "Correctly identifies the registered event handler, binary guard, properties.part forwarding, step-finish and ID/tokens validation, batch observe record --stdin writer, and ignored message.updated. Cited source supports all route facts.",
+          "evidence": [
+            "B.md:1",
+            "source/src/opencode/hooks.ts:194",
+            "source/src/opencode/hooks.ts:432",
+            "source/src/opencode/hooks.ts:458",
+            "source/src/opencode/hooks.ts:463",
+            "source/src/core/model-usage.ts:209",
+            "source/src/core/model-usage.ts:326",
+            "source/src/core/model-usage.ts:350"
+          ]
+        },
+        {
+          "id": "normalization",
+          "passed": true,
+          "reason": "Correct session/model_usage identity metadata, all six required values (31, 11, 17, 3, 13, 5), absent canonical output/total and model/provider, observed time basis, and partial coverage. Counter mapping, sum and metadata are supported by the cited adapter source. Scenario literals are stipulated by the frozen rubric; source supplies their transformation.",
+          "evidence": [
+            "B.md:4",
+            "B.md:6",
+            "B.md:8",
+            "B.md:10",
+            "source/src/core/model-usage.ts:38",
+            "source/src/core/model-usage.ts:41",
+            "source/src/core/model-usage.ts:101",
+            "source/src/core/model-usage.ts:110",
+            "source/src/core/model-usage.ts:217",
+            "source/src/core/model-usage.ts:224",
+            "source/src/core/model-usage.ts:230"
+          ]
+        },
+        {
+          "id": "retries",
+          "passed": true,
+          "reason": "Correctly gives three attempts: failed first, successful second, unchanged third suppressed, changed fourth successful; two persisted variants under the stipulated no-persistence-on-first-failure scenario. Correct success-only cache and changed normalized fingerprint. Cited persistence code combines identity and fingerprint and retains contradictory variants. Does not make a general claim that every unacknowledged write necessarily persisted nothing.",
+          "evidence": [
+            "B.md:12",
+            "source/src/core/model-usage.ts:353",
+            "source/src/core/model-usage.ts:357",
+            "source/src/core/model-usage.ts:358",
+            "source/src/core/model-usage.ts:359",
+            "source/aide/pkg/store/token_model_usage.go:46",
+            "source/aide/pkg/store/token_model_usage.go:67",
+            "source/aide/pkg/store/observe_events.go:176",
+            "source/aide/pkg/store/observe_events.go:188",
+            "source/aide/pkg/store/observe_events.go:216"
+          ]
+        },
+        {
+          "id": "conflict",
+          "passed": true,
+          "reason": "Correct observations=0/conflicts=1 and no contributed counters. Candidate separately identifies session+host+usage_id rather than observation ID. Cited code observes all retained records before selection, marks differing fingerprints conflicted, and counts a conflict if either variant is selected; selecting the earlier date cannot restore counters. Extra invalid=0 and empty source-group assertions are also supported.",
+          "evidence": [
+            "B.md:5",
+            "B.md:14",
+            "source/aide/pkg/store/token_model_usage.go:36",
+            "source/aide/pkg/store/token_model_usage.go:150",
+            "source/aide/pkg/store/token_model_usage.go:174",
+            "source/aide/pkg/store/token_model_usage.go:183",
+            "source/aide/pkg/store/token_events.go:157",
+            "source/aide/pkg/store/token_events.go:191"
+          ]
+        },
+        {
+          "id": "boundaries",
+          "passed": false,
+          "reason": "Correctly explains no legacy TokenEvent projection, no tool-event or byte-estimate contribution, partial captured host counters and no proof of complete session usage, billing, savings or quality. Also explicitly keeps raw output separate because reasoning overlap varies. However, it never states that cache counters are already included in normalized input_tokens and must not be added to it again. The correct input_tokens=31 normalization demonstrates the calculation, but does not independently state this required accounting boundary. With every required fact mandatory, this check fails for that omission.",
+          "evidence": [
+            "B.md:6",
+            "B.md:8",
+            "B.md:16",
+            "source/aide/pkg/store/observe_events.go:82",
+            "source/aide/pkg/store/observe_events.go:107",
+            "source/aide/pkg/store/token_events.go:93",
+            "source/aide/pkg/store/token_events.go:172",
+            "source/aide/pkg/store/token_events.go:196",
+            "source/aide/pkg/memory/token_model_usage.go:3",
+            "source/aide/pkg/memory/token_model_usage.go:20",
+            "source/src/core/model-usage.ts:41",
+            "source/src/core/model-usage.ts:230"
+          ]
+        }
+      ],
+      "unsupported_claims": [],
+      "omissions": [
+        {
+          "check_id": "boundaries",
+          "required_fact": "Do not add cache counters to normalized input_tokens; normalized input already includes them.",
+          "note": "The numerical normalization is correct, but the requested no-double-counting boundary is unstated."
+        }
+      ],
+      "wrong_claims": []
+    },
+    "E": {
+      "passed": false,
+      "checks": [
+        {
+          "id": "route",
+          "passed": true,
+          "reason": "Correctly identifies the registered event handler, binary guard, properties.part forwarding, step-finish and ID/tokens validation, batch observe record --stdin writer, and ignored message.updated. Cited source supports all route facts.",
+          "evidence": [
+            "E.md:1",
+            "source/src/opencode/hooks.ts:194",
+            "source/src/opencode/hooks.ts:432",
+            "source/src/opencode/hooks.ts:458",
+            "source/src/opencode/hooks.ts:463",
+            "source/src/core/model-usage.ts:209",
+            "source/src/core/model-usage.ts:326",
+            "source/src/core/model-usage.ts:350"
+          ]
+        },
+        {
+          "id": "normalization",
+          "passed": true,
+          "reason": "Correct session/model_usage identity metadata, all six required values (31, 11, 17, 3, 13, 5), absent canonical output/total and model/provider, observed time basis, and partial coverage. Counter mapping, sum and metadata are supported by the cited adapter source. Scenario literals are stipulated by the frozen rubric; source supplies their transformation.",
+          "evidence": [
+            "E.md:3",
+            "E.md:5",
+            "source/src/core/model-usage.ts:38",
+            "source/src/core/model-usage.ts:41",
+            "source/src/core/model-usage.ts:101",
+            "source/src/core/model-usage.ts:110",
+            "source/src/core/model-usage.ts:217",
+            "source/src/core/model-usage.ts:224",
+            "source/src/core/model-usage.ts:230"
+          ]
+        },
+        {
+          "id": "retries",
+          "passed": true,
+          "reason": "Correctly gives three attempts: failed first, successful second, unchanged third suppressed, changed fourth successful; two persisted variants under the stipulated no-persistence-on-first-failure scenario. Correct success-only cache and changed normalized fingerprint. Cited persistence code combines identity and fingerprint and retains contradictory variants. Does not make a general claim that every unacknowledged write necessarily persisted nothing.",
+          "evidence": [
+            "E.md:7",
+            "source/src/core/model-usage.ts:353",
+            "source/src/core/model-usage.ts:357",
+            "source/src/core/model-usage.ts:358",
+            "source/src/core/model-usage.ts:359",
+            "source/aide/pkg/store/token_model_usage.go:46",
+            "source/aide/pkg/store/token_model_usage.go:67",
+            "source/aide/pkg/store/observe_events.go:176",
+            "source/aide/pkg/store/observe_events.go:188",
+            "source/aide/pkg/store/observe_events.go:216"
+          ]
+        },
+        {
+          "id": "conflict",
+          "passed": true,
+          "reason": "Correct observations=0/conflicts=1 and no contributed counters. Candidate separately identifies session+host+usage_id rather than observation ID. Cited code observes all retained records before selection, marks differing fingerprints conflicted, and counts a conflict if either variant is selected; selecting the earlier date cannot restore counters. Extra invalid=0 and empty source-group assertions are also supported.",
+          "evidence": [
+            "E.md:3",
+            "E.md:9",
+            "source/aide/pkg/store/token_model_usage.go:36",
+            "source/aide/pkg/store/token_model_usage.go:150",
+            "source/aide/pkg/store/token_model_usage.go:174",
+            "source/aide/pkg/store/token_model_usage.go:183",
+            "source/aide/pkg/store/token_events.go:157",
+            "source/aide/pkg/store/token_events.go:191"
+          ]
+        },
+        {
+          "id": "boundaries",
+          "passed": false,
+          "reason": "Correctly explains no legacy TokenEvent projection, no tool-event or byte-estimate contribution, partial captured host counters and no proof of complete session usage, billing, savings or quality. Also explicitly keeps raw output separate because reasoning overlap varies. However, it never states that cache counters are already included in normalized input_tokens and must not be added to it again. The correct input_tokens=31 normalization demonstrates the calculation, but does not independently state this required accounting boundary. With every required fact mandatory, this check fails for that omission.",
+          "evidence": [
+            "E.md:5",
+            "E.md:11",
+            "source/aide/pkg/store/observe_events.go:82",
+            "source/aide/pkg/store/observe_events.go:107",
+            "source/aide/pkg/store/token_events.go:93",
+            "source/aide/pkg/store/token_events.go:172",
+            "source/aide/pkg/store/token_events.go:196",
+            "source/aide/pkg/memory/token_model_usage.go:3",
+            "source/aide/pkg/memory/token_model_usage.go:20",
+            "source/src/core/model-usage.ts:41",
+            "source/src/core/model-usage.ts:230"
+          ]
+        }
+      ],
+      "unsupported_claims": [],
+      "omissions": [
+        {
+          "check_id": "boundaries",
+          "required_fact": "Do not add cache counters to normalized input_tokens; normalized input already includes them.",
+          "note": "The numerical normalization is correct, but the requested no-double-counting boundary is unstated."
+        }
+      ],
+      "wrong_claims": []
+    },
+    "F": {
+      "passed": false,
+      "checks": [
+        {
+          "id": "route",
+          "passed": true,
+          "reason": "Correctly identifies the registered event handler, binary guard, properties.part forwarding, step-finish and ID/tokens validation, batch observe record --stdin writer, and ignored message.updated. Cited source supports all route facts.",
+          "evidence": [
+            "F.md:1",
+            "source/src/opencode/hooks.ts:194",
+            "source/src/opencode/hooks.ts:432",
+            "source/src/opencode/hooks.ts:458",
+            "source/src/opencode/hooks.ts:463",
+            "source/src/core/model-usage.ts:209",
+            "source/src/core/model-usage.ts:326",
+            "source/src/core/model-usage.ts:350"
+          ]
+        },
+        {
+          "id": "normalization",
+          "passed": true,
+          "reason": "Correct session/model_usage identity metadata, all six required values (31, 11, 17, 3, 13, 5), absent canonical output/total and model/provider, observed time basis, and partial coverage. Counter mapping, sum and metadata are supported by the cited adapter source. Scenario literals are stipulated by the frozen rubric; source supplies their transformation.",
+          "evidence": [
+            "F.md:4",
+            "F.md:6",
+            "F.md:8",
+            "F.md:10",
+            "source/src/core/model-usage.ts:38",
+            "source/src/core/model-usage.ts:41",
+            "source/src/core/model-usage.ts:101",
+            "source/src/core/model-usage.ts:110",
+            "source/src/core/model-usage.ts:217",
+            "source/src/core/model-usage.ts:224",
+            "source/src/core/model-usage.ts:230"
+          ]
+        },
+        {
+          "id": "retries",
+          "passed": true,
+          "reason": "Correctly gives three attempts: failed first, successful second, unchanged third suppressed, changed fourth successful; two persisted variants under the stipulated no-persistence-on-first-failure scenario. Correct success-only cache and changed normalized fingerprint. Cited persistence code combines identity and fingerprint and retains contradictory variants. Does not make a general claim that every unacknowledged write necessarily persisted nothing.",
+          "evidence": [
+            "F.md:12",
+            "source/src/core/model-usage.ts:353",
+            "source/src/core/model-usage.ts:357",
+            "source/src/core/model-usage.ts:358",
+            "source/src/core/model-usage.ts:359",
+            "source/aide/pkg/store/token_model_usage.go:46",
+            "source/aide/pkg/store/token_model_usage.go:67",
+            "source/aide/pkg/store/observe_events.go:176",
+            "source/aide/pkg/store/observe_events.go:188",
+            "source/aide/pkg/store/observe_events.go:216"
+          ]
+        },
+        {
+          "id": "conflict",
+          "passed": true,
+          "reason": "Correct observations=0/conflicts=1 and no contributed counters. Candidate separately identifies session+host+usage_id rather than observation ID. Cited code observes all retained records before selection, marks differing fingerprints conflicted, and counts a conflict if either variant is selected; selecting the earlier date cannot restore counters. Extra invalid=0 and empty source-group assertions are also supported.",
+          "evidence": [
+            "F.md:5",
+            "F.md:14",
+            "source/aide/pkg/store/token_model_usage.go:36",
+            "source/aide/pkg/store/token_model_usage.go:150",
+            "source/aide/pkg/store/token_model_usage.go:174",
+            "source/aide/pkg/store/token_model_usage.go:183",
+            "source/aide/pkg/store/token_events.go:157",
+            "source/aide/pkg/store/token_events.go:191"
+          ]
+        },
+        {
+          "id": "boundaries",
+          "passed": false,
+          "reason": "Correctly explains no legacy TokenEvent projection, no tool-event or byte-estimate contribution, partial captured host counters and no proof of complete session usage, billing, savings or quality. Also explicitly keeps raw output separate because reasoning overlap varies. However, it never states that cache counters are already included in normalized input_tokens and must not be added to it again. The correct input_tokens=31 normalization demonstrates the calculation, but does not independently state this required accounting boundary. With every required fact mandatory, this check fails for that omission. Its additional statement that accepted usage can contribute a session while this conflicted identity cannot is supported by resultWithSessions and the stats merge.",
+          "evidence": [
+            "F.md:6",
+            "F.md:8",
+            "F.md:16",
+            "source/aide/pkg/store/observe_events.go:82",
+            "source/aide/pkg/store/observe_events.go:107",
+            "source/aide/pkg/store/token_events.go:93",
+            "source/aide/pkg/store/token_events.go:172",
+            "source/aide/pkg/store/token_events.go:196",
+            "source/aide/pkg/memory/token_model_usage.go:3",
+            "source/aide/pkg/memory/token_model_usage.go:20",
+            "source/src/core/model-usage.ts:41",
+            "source/src/core/model-usage.ts:230"
+          ]
+        }
+      ],
+      "unsupported_claims": [],
+      "omissions": [
+        {
+          "check_id": "boundaries",
+          "required_fact": "Do not add cache counters to normalized input_tokens; normalized input already includes them.",
+          "note": "The numerical normalization is correct, but the requested no-double-counting boundary is unstated."
+        }
+      ],
+      "wrong_claims": []
+    }
+  },
+  "blindness": {
+    "maintained": true,
+    "candidate_labels": [
+      "A",
+      "B",
+      "E",
+      "F"
+    ],
+    "read_scope": [
+      "/home/johnm/.codex/RTK.md",
+      "packet/rubric.json",
+      "packet/A.md",
+      "packet/B.md",
+      "packet/E.md",
+      "packet/F.md",
+      "packet/source/"
+    ],
+    "forbidden_material_read": false,
+    "retrieval_tool_disclosures": [],
+    "notes": [
+      "No candidate names a retrieval tool or exposes a retrieval condition. Static source tracing and no-execution statements do not identify tools.",
+      "No treatment or usage inference was made from writing style.",
+      "Candidate process assertions (such as no files changed) were not independently audited because runtime and participant logs are outside the permitted packet. Source README supports the non-standalone/no-execution-required characterization.",
+      "Each candidate was checked against all five requirements and cited source; identical omissions receive identical grading.",
+      "The cache-input boundary is graded independently from the correct normalized numeric value. No specific wording is required, but an equivalent statement that input includes cache or that the cache fields are not additive to input is absent."
+    ]
+  }
+}

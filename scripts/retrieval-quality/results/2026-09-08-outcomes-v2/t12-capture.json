@@ -1,0 +1,161 @@
+{
+  "schema_version": 1,
+  "runtime": {
+    "actor_id": "01a08392-73b6-7d72-a622-b321a23b6ab3",
+    "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+    "agent_path": "/root/pilot_v2_execution/t12",
+    "cli_version": "0.153.4",
+    "model_provider": "openai",
+    "model": "gpt-6-astra",
+    "effort": "high"
+  },
+  "completion": {
+    "complete": true,
+    "started_at": 1788913808,
+    "completed_at": 1788913852,
+    "duration_ms": 43713
+  },
+  "answer": {
+    "raw_text": "Updated only `src/core/context-pruning/replacement.ts`. Valid case-insensitive `aide_` names now reuse MCP replacement handling, with strict ASCII suffix validation and 1–128 character bounds. Existing MCP and Bash behavior is preserved.\n\nVerification: provided reproducer passed; three independent scratch tests passed with 40 assertions covering naming boundaries, payload rules, metadata preservation, immutability, and legacy behavior. Scratch tests were removed.",
+    "parsed_json": null,
+    "parse_error": "Final answer is not valid JSON"
+  },
+  "tool_calls": [
+    {
+      "call_id": "call_Dh2zXCpsFKHm1KPVGHoSmWIe",
+      "name": "exec",
+      "type": "custom_tool_call",
+      "input": "text(await tools.exec_command({cmd:\"rtk proxy cat /home/johnm/.codex/RTK.md\",max_output_tokens:5000}));\n"
+    },
+    {
+      "call_id": "call_OxurY0hoFMv98V19Prto4uEY",
+      "name": "exec",
+      "type": "custom_tool_call",
+      "input": "text(await tools.exec_command({cmd:\"rtk proxy cat src/core/context-pruning/replacement.ts reproduce.test.ts\",workdir:\"/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-08-outcomes-v2/t12/root\",max_output_tokens:10000}));\n"
+    },
+    {
+      "call_id": "call_CwElvUo2qkGHDlZeoyDZUQjd",
+      "name": "exec",
+      "type": "custom_tool_call",
+      "input": "text(await tools.exec_command({cmd:\"rtk proxy python3 - <<'PY'\\nfrom pathlib import Path\\np=Path('src/core/context-pruning/replacement.ts')\\ns=p.read_text().replace('  if (!tool.toLowerCase().startsWith(\\\"mcp__\\\")) return null;', '''  // Require the actual end of the name, including rejecting trailing newlines.\\n  const isAideTool = /^aide_[a-z][a-z0-9_]{0,127}(?![\\\\\\\\s\\\\\\\\S])/i.test(tool);\\n  if (!tool.toLowerCase().startsWith(\\\"mcp__\\\") && !isAideTool) return null;''')\\np.write_text(s)\\nPY\",workdir:\"/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-08-outcomes-v2/t12/root\",max_output_tokens:2000}));\n"
+    },
+    {
+      "call_id": "call_W13kGGgRNXfr5bLbsRxtjks5",
+      "name": "exec",
+      "type": "custom_tool_call",
+      "input": "text(await tools.exec_command({cmd:\"rtk proxy python3 - <<'PY'\\nfrom pathlib import Path\\nPath('replacement-boundaries.test.ts').write_text('''import { expect, test } from \\\"bun:test\\\";\\nimport { replacementTarget } from \\\"./src/core/context-pruning/replacement\\\";\\n\\ntest(\\\"aide names enforce ASCII syntax and exact suffix bounds\\\", () => {\\n  for (const name of [\\\"aide_a\\\", \\\"AIDE_Code_Outline2\\\", \\\"aide_\\\" + \\\"a\\\".repeat(128)]) {\\n    expect(replacementTarget(name, \\\"\\\")?.text).toBe(\\\"\\\");\\n    expect(replacementTarget(name, \\\"old\\\")?.replace(\\\"new\\\")).toBe(\\\"new\\\");\\n  }\\n  for (const name of [\\\"aide_\\\", \\\"aide_1\\\", \\\"aide__a\\\", \\\"aide_a-b\\\", \\\"aide_é\\\", \\\"aide_K\\\", \\\"aide_a\\\\\\\\n\\\", \\\"aide_a\\\\\\\\r\\\", \\\"aide_a\\\\\\\\u2028\\\", \\\"aide_a \\\", \\\" aide_a\\\", \\\"aide_\\\" + \\\"a\\\".repeat(129), \\\"read\\\", \\\"code_outline\\\"]) {\\n    expect(replacementTarget(name, \\\"old\\\")).toBeNull();\\n  }\\n});\\n\\ntest(\\\"aide reuses MCP shape preserving rules\\\", () => {\\n  const payload = {content: [{type: \\\"text\\\", text: \\\"one\\\", annotations: {priority: 1}}, {type: \\\"text\\\", text: \\\"two\\\", extra: true}], _meta: {id: 7}};\\n  const before = structuredClone(payload);\\n  const target = replacementTarget(\\\"aide_code_outline\\\", payload)!;\\n  expect(target.text).toBe(\\\"onetwo\\\");\\n  const replaced = target.replace(\\\"short\\\") as typeof payload;\\n  expect(replaced).toEqual({...payload, content: [{...payload.content[0], text: \\\"short\\\"}, {...payload.content[1], text: \\\"\\\"}]});\\n  expect(replaced).not.toBe(payload);\\n  expect(replaced.content[0]).not.toBe(payload.content[0]);\\n  expect(replaced.content[1]).not.toBe(payload.content[1]);\\n  expect(payload).toEqual(before);\\n  for (const value of [null, [], {}, {content: []}, {content: [{type: \\\"text\\\", text: \\\"ok\\\"}, {type: \\\"image\\\", data: \\\"x\\\"}]}, {...payload, structuredContent: null}, {...payload, structuredContent: {}}, {content: [{type: \\\"text\\\", text: 1}]}]) {\\n    expect(replacementTarget(\\\"aide_test\\\", value)).toBeNull();\\n  }\\n  expect(replacementTarget(\\\"aide_test\\\", {...payload, structuredContent: undefined})?.text).toBe(\\\"onetwo\\\");\\n});\\n\\ntest(\\\"MCP and legacy Bash remain supported\\\", () => {\\n  for (const name of [\\\"mcp__\\\", \\\"MCP__anything?!\\\"]) {\\n    expect(replacementTarget(name, \\\"\\\")?.replace(\\\"new\\\")).toBe(\\\"new\\\");\\n  }\\n  const payload = {stdout: \\\"long output\\\", stderr: \\\"err\\\", isImage: false, interrupted: false, other: 1};\\n  expect(replacementTarget(\\\"BaSh\\\", payload)?.replace(\\\"short\\\")).toEqual({...payload, stdout: \\\"short\\\"});\\n  expect(payload.stdout).toBe(\\\"long output\\\");\\n  expect(replacementTarget(\\\"bash\\\", \\\"plain\\\")).toBeNull();\\n});\\n''')\\nPY\",workdir:\"/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-08-outcomes-v2/t12/root\",max_output_tokens:1000}));\n"
+    },
+    {
+      "call_id": "call_IJyTKwc2mXjRiCFUHmQYcCUq",
+      "name": "exec",
+      "type": "custom_tool_call",
+      "input": "const results = await Promise.allSettled([\n  tools.exec_command({cmd:\"rtk proxy bun test ./reproduce.test.ts\",workdir:\"/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-08-outcomes-v2/t12/root\",max_output_tokens:2000}),\n  tools.exec_command({cmd:\"rtk proxy bun test ./replacement-boundaries.test.ts\",workdir:\"/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-08-outcomes-v2/t12/root\",max_output_tokens:2000})\n]); results.forEach(text);\n"
+    },
+    {
+      "call_id": "call_SHUZP8SGz3GW5G2aAgHwYPou",
+      "name": "exec",
+      "type": "custom_tool_call",
+      "input": "text(await tools.exec_command({cmd:\"rtk proxy python3 - <<'PY'\\nfrom pathlib import Path\\nPath('replacement-boundaries.test.ts').unlink()\\nprint(Path('src/core/context-pruning/replacement.ts').read_text())\\nPY\",workdir:\"/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-08-outcomes-v2/t12/root\",max_output_tokens:2000}));\n"
+    }
+  ],
+  "runtime_usage": {
+    "basis": "runtime_reported; not billing or provider savings",
+    "counters": {
+      "input_tokens": 141956,
+      "cached_input_tokens": 136192,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 2051,
+      "reasoning_output_tokens": 467,
+      "total_tokens": 144007
+    },
+    "responses": [
+      {
+        "response_id": "resp_0ca0d4083d74ada0016aa0a891d09c87d287ea4aea00a3927f",
+        "counters": {
+          "input_tokens": 18460,
+          "cached_input_tokens": 17664,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 69,
+          "reasoning_output_tokens": 0,
+          "total_tokens": 18529
+        }
+      },
+      {
+        "response_id": "resp_0ca0d4083d74ada0016aa0a894460487d2a46b99028b050c0d",
+        "counters": {
+          "input_tokens": 18731,
+          "cached_input_tokens": 18304,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 80,
+          "reasoning_output_tokens": 0,
+          "total_tokens": 18811
+        }
+      },
+      {
+        "response_id": "resp_0ca0d4083d74ada0016aa0a896cc6c87d2a2414872de953f29",
+        "counters": {
+          "input_tokens": 19508,
+          "cached_input_tokens": 18560,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 623,
+          "reasoning_output_tokens": 410,
+          "total_tokens": 20131
+        }
+      },
+      {
+        "response_id": "resp_0ca0d4083d74ada0016aa0a8a260a487d28bcf77a3b8dc4d40",
+        "counters": {
+          "input_tokens": 20190,
+          "cached_input_tokens": 19328,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 911,
+          "reasoning_output_tokens": 47,
+          "total_tokens": 21101
+        }
+      },
+      {
+        "response_id": "resp_0ca0d4083d74ada0016aa0a8b2855887d2bd8b50e8f2388b28",
+        "counters": {
+          "input_tokens": 21157,
+          "cached_input_tokens": 19968,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 154,
+          "reasoning_output_tokens": 0,
+          "total_tokens": 21311
+        }
+      },
+      {
+        "response_id": "resp_0ca0d4083d74ada0016aa0a8b64dd887d28189b4165a7e5ad9",
+        "counters": {
+          "input_tokens": 21586,
+          "cached_input_tokens": 20992,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 122,
+          "reasoning_output_tokens": 10,
+          "total_tokens": 21708
+        }
+      },
+      {
+        "response_id": "resp_0ca0d4083d74ada0016aa0a8b9c20c87d2a9a2cbda32f1cae2",
+        "counters": {
+          "input_tokens": 22324,
+          "cached_input_tokens": 21376,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 92,
+          "reasoning_output_tokens": 0,
+          "total_tokens": 22416
+        }
+      }
+    ],
+    "unique_responses": 7,
+    "final_cumulative_counters": {
+      "input_tokens": 141956,
+      "cached_input_tokens": 136192,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 2051,
+      "reasoning_output_tokens": 467,
+      "total_tokens": 144007
+    },
+    "unknown_reasons": []
+  }
+}

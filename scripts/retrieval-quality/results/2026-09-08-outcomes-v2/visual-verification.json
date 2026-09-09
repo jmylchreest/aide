@@ -1,0 +1,29 @@
+{
+  "browser": "Vivaldi via Playwright",
+  "desktop": {
+    "viewport": [
+      1280,
+      1000
+    ],
+    "tables": 3,
+    "trial_rows": 18,
+    "cards": [
+      "18/18",
+      "12/18",
+      "18/18",
+      "2/12"
+    ],
+    "page_errors": [],
+    "document_overflow": false,
+    "screenshot": "/tmp/aide-outcomes-v2-desktop.png"
+  },
+  "mobile": {
+    "viewport": [
+      390,
+      844
+    ],
+    "document_overflow": false,
+    "screenshot": "/tmp/aide-outcomes-v2-mobile.png"
+  },
+  "inspection": "Desktop and mobile screenshots visually inspected. All trial rows and disclosure controls render; narrow-screen tables scroll within their containers."
+}

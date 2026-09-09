@@ -1,0 +1,18 @@
+1. **Trigger and writer path.** The plugin registers `createEventHandler`; its `message.part.updated` case passes `event.properties.part` to the usage recorder when a binary is available. Only valid `step-finish` parts with session, part, and message IDs plus a tokens object produce usage. The recorder normalizes the part and calls `recordModelUsage`, which sends newline-delimited JSON to `observe record --stdin` and requires a complete acknowledgement. `message.updated` has no case and is ignored. Evidence: `src/opencode/hooks.ts:194,432,458–465`; `src/core/model-usage.ts:203–231,319–359`.
+
+2. **Persisted observation.**
+   - Kind/name: `session` / `model_usage`; session: `session-1`; host: `opencode`; source: `opencode.step_finish.v1`; usage ID: `step-7`; version: `1`; coverage: `partial`.
+   - Accounting identity: `["session-1","opencode","step-7"]`. `message-2` is validated but not retained or used in that identity. The storage event ID is separate; the store generates a ULID if absent.
+   - Counters: `uncached_input_tokens=11`, `cache_read_input_tokens=17`, `cache_write_input_tokens=3`, **`input_tokens=31`**, `reported_output_tokens=13`, `reasoning_output_tokens=5`. Event attributes encode counters as decimal strings.
+   - Time basis: `observed`; the adapter supplies no source timestamp. The store supplies `time.Now()` if the timestamp remains unset.
+   - `output_tokens`, `total_tokens`, model, and provider remain absent/unknown. Reported output stays separate because output/reasoning overlap varies across OpenCode versions.
+
+   Evidence: `src/core/model-usage.ts:33–51,92–118,203–231`; `aide/pkg/store/token_model_usage.go:36–41`; `aide/pkg/store/observe_events.go:155–165`.
+
+3. **Three writer attempts; two stored variants.** Broadcast 1 fails and is not cached; broadcast 2 retries successfully and enters the acknowledgement cache; broadcast 3 is skipped. Broadcast 4 changes the normalized event (`uncached_input_tokens=12`, `input_tokens=32`), so it is written successfully. The in-memory cache fingerprints `[cwd, normalizedEvent]`, retains only acknowledged writes, and evicts its oldest entry above 1,024 entries. Durable deduplication uses the usage identity **plus its fingerprint**: identical retries retain one observation, while changed counters survive as another variant for conflict detection. Evidence: `src/core/model-usage.ts:349–362`; `aide/pkg/store/token_model_usage.go:44–68`; `aide/pkg/store/observe_events.go:166–216`.
+
+4. **The identity contributes one conflict and no counters.** After both variants arrive, its contribution is `Conflicts=1`, `Observations=0`, `Invalid=0`, with no source-group counters. Neither variant wins. A date filter selecting only the earlier variant cannot restore its counters: reporting gathers all stored usage before filtering, marks the identity conflicted, and counts that conflict whenever any variant matches the filter. Evidence: `aide/pkg/store/token_events.go:153–163,191–196`; `aide/pkg/store/token_model_usage.go:150–163,181–220`.
+
+5. **Separate accounting; limited conclusions.** Session usage does not enter tool-event counts or byte-based token estimates: conversion to a legacy token event returns `nil` for session events, bypassing the tally. Usage is attached separately as `Accounting.ModelUsage`. These are captured host-reported counters with partial coverage; they cannot establish complete session usage, billed cost, savings, or output quality. Evidence: `aide/pkg/store/observe_events.go:82–109`; `aide/pkg/store/token_events.go:93–97,172–174,191–196`; `aide/pkg/memory/token_model_usage.go:3–4,20–22`.
+
+No files changed. Verification was read-only source tracing; this snapshot is not a standalone application (`README.md:1`).

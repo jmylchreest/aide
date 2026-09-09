@@ -1,0 +1,161 @@
+{
+  "schema_version": 1,
+  "runtime": {
+    "actor_id": "01a08386-6bba-75a3-88c5-a2f52342fe9a",
+    "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+    "agent_path": "/root/pilot_v2_t01",
+    "cli_version": "0.153.4",
+    "model_provider": "openai",
+    "model": "gpt-6-astra",
+    "effort": "high"
+  },
+  "completion": {
+    "complete": true,
+    "started_at": 1788913019,
+    "completed_at": 1788913064,
+    "duration_ms": 44860
+  },
+  "answer": {
+    "raw_text": "1. **Trigger and path.** The registered `event` hook creates one usage recorder. On `message.part.updated`, when `state.binary` exists, it passes `event.properties.part` to that recorder. Only a `step-finish` part with valid session, part and message IDs and a tokens object produces usage. The recorder calls `recordModelUsage`, which sends JSONL to `<binary> observe record --stdin` and requires a matching acknowledgement. `message.updated` falls through the ignored default case and contributes no usage. Evidence: `src/opencode/hooks.ts:194`, `src/opencode/hooks.ts:429–465`; `src/core/model-usage.ts:203–222`, `src/core/model-usage.ts:319–359`.\n\n2. **Persisted observation.** It has `kind=session`, `name=model_usage`, session `session-1`, host `opencode`, source `opencode.step_finish.v1`, version `1`, and `usage_id=step-7`. Its logical identity is `[\"session-1\",\"opencode\",\"step-7\"]`; `message-2` is validated but not persisted as part of this identity. The storage event ID is separate and generated as a ULID if absent. Evidence: `src/core/model-usage.ts:99–111`, `src/core/model-usage.ts:209–222`; `aide/pkg/store/token_model_usage.go:36–41`; `aide/pkg/store/observe_events.go:160–164`.\n\n   Normalized attributes are string-valued counters: `uncached_input_tokens=11`, `cache_read_input_tokens=17`, `cache_write_input_tokens=3`, **`input_tokens=31`**, `reported_output_tokens=13`, and `reasoning_output_tokens=5`. Canonical `output_tokens` and `total_tokens` remain absent, as do model/provider metadata. Raw output is kept separate because output/reasoning overlap varies across OpenCode versions. Time basis is `observed`, coverage is `partial`, and no source timestamp is supplied; storage fills a missing timestamp with `time.Now()`. Evidence: `src/core/model-usage.ts:33–50`, `src/core/model-usage.ts:99–116`, `src/core/model-usage.ts:217–231`; `aide/pkg/store/observe_events.go:155–164`.\n\n3. **Three writer attempts, two stored variants.** Broadcast 1 attempts and fails without entering the cache; broadcast 2 retries, succeeds and is cached; broadcast 3 is suppressed. Broadcast 4 changes the normalized event (`uncached_input_tokens=12`, `input_tokens=32`), so it attempts and succeeds. The recorder’s bounded, per-instance cache keys `JSON.stringify([cwd,next])` and remembers only acknowledged writes. Durable deduplication uses logical identity plus a fingerprint containing counters and metadata, so equal retries deduplicate across cache loss, while changed counters survive as a distinct variant. Equal variants retain the earliest timestamp. Evidence: `src/core/model-usage.ts:349–362`; `aide/pkg/store/token_model_usage.go:46–68`; `aide/pkg/store/observe_events.go:166–216`.\n\n4. **The identity becomes one conflict and contributes no counters.** Reporting groups both variants under the same logical identity and marks their differing fingerprints as conflicting. For this identity alone, model usage reports `conflicts=1`, `observations=0`, `invalid=0`, and no source group; it does not choose the latest variant or sum them. A date filter selecting only the earlier variant still reports the conflict and cannot restore its counters: all stored observations are examined before date filtering, and any selected variant makes the conflicting identity count once. Evidence: `aide/pkg/store/token_events.go:153–163`, `aide/pkg/store/token_events.go:191–196`; `aide/pkg/store/token_model_usage.go:150–163`, `aide/pkg/store/token_model_usage.go:172–205`.\n\n5. **Separate from tool accounting and estimates.** Session observations do not convert into legacy token events, so they bypass event counts, tool-call counts and byte-based token tallies. Their counters populate `Accounting.ModelUsage` separately. They establish captured host-reported counters only—not complete session coverage, billed cost, savings, or output quality. Missing counters remain distinct from reported zero, and sources must remain separate. Evidence: `aide/pkg/store/observe_events.go:82–108`; `aide/pkg/store/token_events.go:93–106`, `aide/pkg/store/token_events.go:172–174`, `aide/pkg/store/token_events.go:191–196`; `aide/pkg/memory/token_model_usage.go:3–4`, `aide/pkg/memory/token_model_usage.go:20–22`.\n\nVerification: traced the supplied adapter, writer, persistence and aggregation source. No files edited or tests executed; `README.md:1` identifies this as a read-only, non-standalone snapshot.",
+    "parsed_json": null,
+    "parse_error": "Final answer is not valid JSON"
+  },
+  "tool_calls": [
+    {
+      "call_id": "call_3JmJQd0iEuBpuHs70UX8ASPn",
+      "name": "exec",
+      "type": "custom_tool_call",
+      "input": "text(await tools.exec_command({cmd:\"rtk proxy cat /home/johnm/.codex/RTK.md\",max_output_tokens:6000}));\ntext(await tools.exec_command({cmd:\"rtk proxy pwd\",workdir:\"/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-08-outcomes-v2/t01/root\",max_output_tokens:1000}));\n"
+    },
+    {
+      "call_id": "call_v6G0yqpNMLmubImQA4TuPZyv",
+      "name": "exec",
+      "type": "custom_tool_call",
+      "input": "text(await tools.exec_command({cmd:\"rtk proxy rg --files --hidden --no-ignore -g '!node_modules' -g '!vendor' -g '!*lock*' -g '!*.sum' -g '!package-lock.json'\",workdir:\"/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-08-outcomes-v2/t01/root\",max_output_tokens:6000}));\n"
+    },
+    {
+      "call_id": "call_t2qJwaBMkv6YVAtuOZhYl6UD",
+      "name": "exec",
+      "type": "custom_tool_call",
+      "input": "text(await tools.exec_command({cmd:\"rtk proxy rg --hidden --no-ignore -n 'usage|step-finish|message.updated|event|dedup|tokens|cache' README.md src aide/pkg/store/token_model_usage.go aide/pkg/memory/token_model_usage.go\",workdir:\"/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-08-outcomes-v2/t01/root\",max_output_tokens:7000}));\n"
+    },
+    {
+      "call_id": "call_ArAmkWKHzESSGTz9FbeCrVjV",
+      "name": "exec",
+      "type": "custom_tool_call",
+      "input": "const root=\"/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-08-outcomes-v2/t01/root\";\nconst rs=await Promise.allSettled([\ntools.exec_command({cmd:\"rtk proxy nl -ba src/core/model-usage.ts\",workdir:root,max_output_tokens:8500}),\ntools.exec_command({cmd:\"rtk proxy nl -ba aide/pkg/store/token_model_usage.go\",workdir:root,max_output_tokens:6500}),\ntools.exec_command({cmd:\"rtk proxy nl -ba aide/pkg/memory/token_model_usage.go\",workdir:root,max_output_tokens:2500})\n]);rs.forEach(text);\n"
+    },
+    {
+      "call_id": "call_1qWl1QlE5IEAfodWzHdeuYZW",
+      "name": "exec",
+      "type": "custom_tool_call",
+      "input": "const root=\"/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-08-outcomes-v2/t01/root\";\nconst rs=await Promise.allSettled([\ntools.exec_command({cmd:\"rtk proxy sed -n '180,200p;403,468p' src/opencode/hooks.ts\",workdir:root,max_output_tokens:2500}),\ntools.exec_command({cmd:\"rtk proxy rg --hidden --no-ignore -n 'usage|Usage|Origin|Timestamp|KindTool|KindSession|estimate|Estimate|func ' aide/pkg/store/observe_events.go aide/pkg/store/token_events.go\",workdir:root,max_output_tokens:6000})\n]);rs.forEach(text);\n"
+    },
+    {
+      "call_id": "call_taU0MAAB5SZzxj3aRZ2f0LN6",
+      "name": "exec",
+      "type": "custom_tool_call",
+      "input": "const root=\"/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-08-outcomes-v2/t01/root\";\nconst rs=await Promise.allSettled([\ntools.exec_command({cmd:\"rtk proxy awk 'NR>=82 && NR<=230 {printf \\\"%5d\\\\t%s\\\\n\\\", NR, $0}' aide/pkg/store/observe_events.go\",workdir:root,max_output_tokens:4000}),\ntools.exec_command({cmd:\"rtk proxy awk 'NR<=200 {printf \\\"%5d\\\\t%s\\\\n\\\", NR, $0}' aide/pkg/store/token_events.go\",workdir:root,max_output_tokens:4500}),\ntools.exec_command({cmd:\"rtk proxy awk '(NR>=190 && NR<=198) || (NR>=429 && NR<=468) {printf \\\"%5d\\\\t%s\\\\n\\\", NR, $0}' src/opencode/hooks.ts\",workdir:root,max_output_tokens:2000})\n]);rs.forEach(text);\n"
+    }
+  ],
+  "runtime_usage": {
+    "basis": "runtime_reported; not billing or provider savings",
+    "counters": {
+      "input_tokens": 188357,
+      "cached_input_tokens": 161792,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 2010,
+      "reasoning_output_tokens": 69,
+      "total_tokens": 190367
+    },
+    "responses": [
+      {
+        "response_id": "resp_08f51340baf7f850016aa0a57d123087d2a57c3e56b4456dc3",
+        "counters": {
+          "input_tokens": 18486,
+          "cached_input_tokens": 15488,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 136,
+          "reasoning_output_tokens": 0,
+          "total_tokens": 18622
+        }
+      },
+      {
+        "response_id": "resp_08f51340baf7f850016aa0a58162cc87d29583d8ee1df238ec",
+        "counters": {
+          "input_tokens": 18895,
+          "cached_input_tokens": 18304,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 106,
+          "reasoning_output_tokens": 0,
+          "total_tokens": 19001
+        }
+      },
+      {
+        "response_id": "resp_08f51340baf7f850016aa0a584bb2c87d2a431a79a2fd76b09",
+        "counters": {
+          "input_tokens": 19108,
+          "cached_input_tokens": 18688,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 113,
+          "reasoning_output_tokens": 0,
+          "total_tokens": 19221
+        }
+      },
+      {
+        "response_id": "resp_08f51340baf7f850016aa0a587ef6087d29cf134685819fdb0",
+        "counters": {
+          "input_tokens": 23440,
+          "cached_input_tokens": 18944,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 156,
+          "reasoning_output_tokens": 0,
+          "total_tokens": 23596
+        }
+      },
+      {
+        "response_id": "resp_08f51340baf7f850016aa0a58c5cf487d2ae206822d355fd06",
+        "counters": {
+          "input_tokens": 32589,
+          "cached_input_tokens": 23296,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 166,
+          "reasoning_output_tokens": 0,
+          "total_tokens": 32755
+        }
+      },
+      {
+        "response_id": "resp_08f51340baf7f850016aa0a590a66487d282e4d9f03d16da37",
+        "counters": {
+          "input_tokens": 34902,
+          "cached_input_tokens": 32384,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 226,
+          "reasoning_output_tokens": 0,
+          "total_tokens": 35128
+        }
+      },
+      {
+        "response_id": "resp_08f51340baf7f850016aa0a595c91487d2afc068618e7ebf01",
+        "counters": {
+          "input_tokens": 40937,
+          "cached_input_tokens": 34688,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 1107,
+          "reasoning_output_tokens": 69,
+          "total_tokens": 42044
+        }
+      }
+    ],
+    "unique_responses": 7,
+    "final_cumulative_counters": {
+      "input_tokens": 188357,
+      "cached_input_tokens": 161792,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 2010,
+      "reasoning_output_tokens": 69,
+      "total_tokens": 190367
+    },
+    "unknown_reasons": []
+  }
+}

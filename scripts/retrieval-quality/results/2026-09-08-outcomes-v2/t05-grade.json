@@ -1,0 +1,69 @@
+{
+  "schema_version": 2,
+  "task": "debug",
+  "candidate_root": "/mnt/data/2/src/github.com/jmylchreest/aide/.aide/state/evaluation/2026-09-08-outcomes-v2/t05/root",
+  "grading_mode": "disposable_copy",
+  "candidate_unchanged": true,
+  "integrity": {
+    "passed": true,
+    "missing": [],
+    "modified_immutable": [],
+    "symlinks": [],
+    "unexpected_files": [],
+    "scratch_tests": [
+      "dedup-regression.test.ts"
+    ],
+    "changed_allowed_sources": [
+      "src/core/context-pruning/dedup.ts",
+      "src/core/context-pruning/tracker.ts",
+      "src/core/context-pruning/types.ts"
+    ]
+  },
+  "checks": {
+    "visible": {
+      "command": [
+        "rtk",
+        "proxy",
+        "bun",
+        "test",
+        "./reproduce.test.ts"
+      ],
+      "exit_code": 0,
+      "stdout": "bun test v1.4.0 (34cbb9a40)\n",
+      "stderr": "\nreproduce.test.ts:\n(pass) a third identical search points to the first full result [0.47ms]\n\n 1 pass\n 0 fail\n 6 expect() calls\nRan 1 test across 1 file. [9.00ms]\n",
+      "error": null,
+      "pass_count": 1,
+      "fail_count": 0,
+      "skip_count": null,
+      "todo_count": null,
+      "expected_count": 1,
+      "passed": true
+    },
+    "hidden": {
+      "command": [
+        "rtk",
+        "proxy",
+        "bun",
+        "test",
+        "/mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/outcomes-v2/debug/grader/hidden.test.ts"
+      ],
+      "exit_code": 0,
+      "stdout": "bun test v1.4.0 (34cbb9a40)\n",
+      "stderr": "\n../../../mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/outcomes-v2/debug/grader/hidden.test.ts:\n(pass) repeat pointers skip shortened calls and target retained full output [0.50ms]\n(pass) history records original and actually emitted shortened outputs separately [0.07ms]\n(pass) evicted full baseline forces a new full result before dedup resumes [0.12ms]\n(pass) reloading history preserves full baseline choice and byte statistics [0.18ms]\n(pass) reloading a history window containing only shortened outputs starts fresh [0.06ms]\n(pass) recovery veto leaves full emitted output as a usable baseline [0.07ms]\n(pass) different arguments and different outputs are not deduplicated [0.07ms]\n(pass) side effecting tools never acquire dedup pointers [0.04ms]\n(pass) retained originals match original bytes and survive further duplicate calls [0.20ms]\n(pass) live accounting measures final emitted UTF-8 bytes [0.17ms]\n(pass) changed Read file mtime prevents dedup even for identical text [0.15ms]\n\n 11 pass\n 0 fail\n 38 expect() calls\nRan 11 tests across 1 file. [11.00ms]\n",
+      "error": null,
+      "pass_count": 11,
+      "fail_count": 0,
+      "skip_count": null,
+      "todo_count": null,
+      "expected_count": 11,
+      "passed": true
+    }
+  },
+  "quality_verified": true,
+  "quality": {
+    "passed": true,
+    "visible_passed": true,
+    "hidden_passed": true,
+    "immutable_files_preserved": true
+  }
+}

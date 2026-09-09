@@ -1,0 +1,163 @@
+[
+  {
+    "id": "01M21RZBZFXJXFSQN2MD3HSB4C",
+    "ts": "2026-09-09T00:27:07.119204878Z",
+    "kind": "tool_call",
+    "name": "Bash",
+    "category": "execute",
+    "subtype": "shell",
+    "tokens": 614,
+    "session": "01a07b15-668c-7453-b59c-9be3d32b2005",
+    "attrs": {
+      "accounting_version": "1",
+      "actor_id": "01a0838e-fce8-7a91-b26c-d224764d41a9",
+      "command": "rtk proxy python3 -c 'from pathlib import Path; Path(\"replacement-boundaries.test.ts\").unlink(); print(Path(\"src/core/context-pruning/replacement.ts\").read_text())'",
+      "context_status": "unknown",
+      "host": "codex",
+      "invocation_id": "exec-99e0ad2c-3111-4b6a-9da9-e67467ac4e7d",
+      "observation_stage": "host_result",
+      "payload_bytes": "1843",
+      "raw_tool": "Bash",
+      "retrieval_status": "unclassified_shell",
+      "token_estimator": "utf8-bytes/3-v1"
+    }
+  },
+  {
+    "id": "01M21RZ7AHWZTNJCR6A0TGQBPH",
+    "ts": "2026-09-09T00:27:02.353158633Z",
+    "kind": "tool_call",
+    "name": "Bash",
+    "category": "execute",
+    "subtype": "shell",
+    "tokens": 163,
+    "session": "01a07b15-668c-7453-b59c-9be3d32b2005",
+    "attrs": {
+      "accounting_version": "1",
+      "actor_id": "01a0838e-fce8-7a91-b26c-d224764d41a9",
+      "command": "rtk proxy bun test ./replacement-boundaries.test.ts",
+      "context_status": "unknown",
+      "host": "codex",
+      "invocation_id": "exec-7f3d028d-5401-401b-8edb-f9c6c1bd0b47",
+      "observation_stage": "host_result",
+      "payload_bytes": "488",
+      "raw_tool": "Bash",
+      "retrieval_status": "unclassified_shell",
+      "token_estimator": "utf8-bytes/3-v1"
+    }
+  },
+  {
+    "id": "01M21RZ71RZ8DBRQ97GNTHRGTV",
+    "ts": "2026-09-09T00:27:02.072972351Z",
+    "kind": "tool_call",
+    "name": "Bash",
+    "category": "execute",
+    "subtype": "shell",
+    "tokens": 61,
+    "session": "01a07b15-668c-7453-b59c-9be3d32b2005",
+    "attrs": {
+      "accounting_version": "1",
+      "actor_id": "01a0838e-fce8-7a91-b26c-d224764d41a9",
+      "command": "rtk proxy bun test ./reproduce.test.ts",
+      "context_status": "unknown",
+      "host": "codex",
+      "invocation_id": "exec-7416fd17-1043-4caf-a11d-06917c6a5896",
+      "observation_stage": "host_result",
+      "payload_bytes": "184",
+      "raw_tool": "Bash",
+      "retrieval_status": "unclassified_shell",
+      "token_estimator": "utf8-bytes/3-v1"
+    }
+  },
+  {
+    "id": "01M21RZ6QS70PVQ8GB8MFJDYC7",
+    "ts": "2026-09-09T00:27:01.753597407Z",
+    "kind": "tool_call",
+    "name": "Bash",
+    "category": "execute",
+    "subtype": "shell",
+    "session": "01a07b15-668c-7453-b59c-9be3d32b2005",
+    "attrs": {
+      "accounting_version": "1",
+      "actor_id": "01a0838e-fce8-7a91-b26c-d224764d41a9",
+      "command": "rtk proxy python3 - <<'PY'\nfrom pathlib import Path\nPath('replacement-boundaries.test.ts').write_text('''import { expect, test } from \"bun:test\";\nimport { replacementTarget } from \"./src/core/context-pruning/replacement\";\n\ntest(\"aide names accept ASCII suffixes at the length boundaries\", () => {\n  for (const name of [\"aide_a\", \"AIDE_Code_Outline2\", \"aide_\" + \"a\".repeat(128)]) {\n    expect(replacementTarget(name, \"\")?.text).toBe(\"\");\n    expect(replacementTarget(name, \"original\")?.replace(\"short\"",
+      "context_status": "unknown",
+      "host": "codex",
+      "invocation_id": "exec-9d4ba851-4678-4867-b41b-65c47e8729e1",
+      "observation_stage": "host_result",
+      "payload_bytes": "0",
+      "raw_tool": "Bash",
+      "retrieval_status": "unclassified_shell",
+      "token_estimator": "utf8-bytes/3-v1"
+    }
+  },
+  {
+    "id": "01M21RYJVZK18WDA8RCBE2VV4N",
+    "ts": "2026-09-09T00:26:41.407380523Z",
+    "kind": "tool_call",
+    "name": "Bash",
+    "category": "execute",
+    "subtype": "shell",
+    "session": "01a07b15-668c-7453-b59c-9be3d32b2005",
+    "attrs": {
+      "accounting_version": "1",
+      "actor_id": "01a0838e-fce8-7a91-b26c-d224764d41a9",
+      "command": "rtk proxy python3 -c 'from pathlib import Path; p=Path(\"src/core/context-pruning/replacement.ts\"); s=p.read_text(); s=s.replace(\"  if (!tool.toLowerCase().startsWith(\\\"mcp__\\\")) return null;\", \"  // Match the absolute end so trailing line terminators are rejected too.\\n  const isAideTool = /^aide_[a-z][a-z0-9_]{0,127}(?![\\\\s\\\\S])/i.test(tool);\\n  if (!tool.toLowerCase().startsWith(\\\"mcp__\\\") && !isAideTool) return null;\"); p.write_text(s)'",
+      "context_status": "unknown",
+      "host": "codex",
+      "invocation_id": "exec-96015c72-2ffc-4ea0-8826-b8e87dca60da",
+      "observation_stage": "host_result",
+      "payload_bytes": "0",
+      "raw_tool": "Bash",
+      "retrieval_status": "unclassified_shell",
+      "token_estimator": "utf8-bytes/3-v1"
+    }
+  },
+  {
+    "id": "01M21RY5KN1QTQQP17GR8EXMA5",
+    "ts": "2026-09-09T00:26:27.829560577Z",
+    "kind": "tool_call",
+    "name": "Bash",
+    "category": "execute",
+    "subtype": "shell",
+    "tokens": 736,
+    "session": "01a07b15-668c-7453-b59c-9be3d32b2005",
+    "attrs": {
+      "accounting_version": "1",
+      "actor_id": "01a0838e-fce8-7a91-b26c-d224764d41a9",
+      "command": "rtk proxy cat src/core/context-pruning/replacement.ts reproduce.test.ts",
+      "context_status": "unknown",
+      "host": "codex",
+      "invocation_id": "exec-2a818d0e-b465-449c-a737-63296ae23314",
+      "observation_stage": "host_result",
+      "payload_bytes": "2209",
+      "raw_tool": "Bash",
+      "retrieval_status": "unclassified_shell",
+      "token_estimator": "utf8-bytes/3-v1"
+    }
+  },
+  {
+    "id": "01M21RY32N83KVR77AVZ1K0DJ4",
+    "ts": "2026-09-09T00:26:25.237006566Z",
+    "kind": "tool_call",
+    "name": "Bash",
+    "category": "execute",
+    "subtype": "shell",
+    "tokens": 161,
+    "session": "01a07b15-668c-7453-b59c-9be3d32b2005",
+    "attrs": {
+      "accounting_version": "1",
+      "actor_id": "01a0838e-fce8-7a91-b26c-d224764d41a9",
+      "command": "rtk proxy cat /home/johnm/.codex/RTK.md",
+      "context_status": "unknown",
+      "host": "codex",
+      "invocation_id": "exec-cfdac873-ce4c-4afe-9cd9-e2a7b3bc13a2",
+      "observation_stage": "host_result",
+      "payload_bytes": "482",
+      "raw_tool": "Bash",
+      "retrieval_method": "shell_cat",
+      "retrieval_status": "unverified",
+      "retrieval_target": "../../../../../../../home/johnm/.codex/RTK.md",
+      "token_estimator": "utf8-bytes/3-v1"
+    }
+  }
+]

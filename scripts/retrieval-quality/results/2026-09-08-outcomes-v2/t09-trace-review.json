@@ -1,0 +1,96 @@
+{
+  "trial": "t09",
+  "reviewer": "pilot_v2_trace_audit",
+  "scope_verified": true,
+  "trace_reviewed": true,
+  "protocol_violations": [],
+  "aide_operations": 0,
+  "aide_uptake": false,
+  "source_edit_test_calls": 6,
+  "mandatory_bootstrap_calls": 1,
+  "discovery_calls": 0,
+  "total_nested_calls": 7,
+  "call_target_exceeded": false,
+  "tool_failures": 0,
+  "tool_failure_details": {
+    "transport_failures": 0,
+    "nonzero_shell_exits": 0,
+    "expected_pre_fix_test_failures": 0,
+    "retry_after_tool_error_calls": 0
+  },
+  "retrieval_output_bytes": 4052,
+  "byte_evidence": {
+    "method": "Parse attributable input_text JSON output bodies and count UTF-8 bytes of decoded exec_command.output only. Exclude bootstrap/test/edit output and protocol envelopes. Final mixed cleanup/read command prints only source, so its 1843 returned bytes count as retrieval; deleting scratch produces no returned text. Inputs reviewed but never executed.",
+    "items": [
+      {
+        "call_id": "call_gc1JqQ4R5ioLBDaU1lBhLsZu",
+        "output_content_index": 1,
+        "category": "bootstrap",
+        "utf8_bytes": 482,
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_umLFgMIBMlHfzu1LIR9qHEkX",
+        "output_content_index": 1,
+        "category": "source_read",
+        "utf8_bytes": 2209,
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_ENRSiYPgmLHU8BdiCe5pAveM",
+        "output_content_index": 1,
+        "category": "edit",
+        "utf8_bytes": 0,
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_Hq5n8j4M21jijWN3Ee5WnAlm",
+        "output_content_index": 1,
+        "category": "scratch_test_edit",
+        "utf8_bytes": 0,
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_Hq5n8j4M21jijWN3Ee5WnAlm",
+        "output_content_index": 2,
+        "category": "test",
+        "utf8_bytes": 184,
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_Hq5n8j4M21jijWN3Ee5WnAlm",
+        "output_content_index": 3,
+        "category": "test",
+        "utf8_bytes": 488,
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_tiGFXdd4hETXMvZbFIUwxkcS",
+        "output_content_index": 1,
+        "category": "source_read_and_scratch_cleanup",
+        "utf8_bytes": 1843,
+        "exit_code": 0
+      }
+    ],
+    "bootstrap_output_bytes": 482,
+    "edit_output_bytes": 0,
+    "test_output_bytes": 672,
+    "missing_or_unattributable_outputs": false
+  },
+  "aide_duration_ms": null,
+  "hook_metrics": null,
+  "notes": [
+    "All five wrappers manually interpreted: 7 actual exec_command calls. Available treatment conforms with zero aide calls. Aide names in test data are strings, not invoked tools.",
+    "Every task command starts rtk and sets assigned-root workdir. Only allowed replacement.ts is edited; allowed root-level scratch file replacement-boundaries.test.ts is created, run and deleted. All reads/writes target assigned root except mandatory RTK read. No forbidden source retrieval, external evidence, internet, delegation, reference/grader or prior results observed.",
+    "Integrity passes and provided reproducer unchanged. Two successful test calls, no failures or retries. Scope refers to source/edit boundaries evidenced by captured commands and provenance, not complete runtime syscall tracing.",
+    "Bytes are observed returned text, not model tokens or causal savings. Functional grades remain separate and unchanged."
+  ],
+  "host_event_count_crosscheck": {
+    "nested_call_count": 7,
+    "host_result_event_count": 7,
+    "counts_match": true,
+    "all_actor_and_stage_values_match": true,
+    "unique_event_ids": true,
+    "note": "Count comparison is boundary evidence only, not one-to-one byte/source proof or unchanged model delivery. Local discovery expressions do not produce nested tool-call receipts. t10/t16 wrapper truncation remains distinct from full host payload counts."
+  }
+}

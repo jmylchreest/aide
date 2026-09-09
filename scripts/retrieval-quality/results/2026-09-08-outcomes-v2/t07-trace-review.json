@@ -1,0 +1,181 @@
+{
+  "trial": "t07",
+  "reviewer": "pilot_v2_trace_audit",
+  "scope_verified": true,
+  "trace_reviewed": true,
+  "protocol_violations": [],
+  "aide_operations": 9,
+  "aide_operation_details": {
+    "code_outline": 5,
+    "code_read_symbol": 4,
+    "requested_symbol_bodies": 11
+  },
+  "aide_uptake": true,
+  "source_edit_test_calls": 14,
+  "mandatory_bootstrap_calls": 1,
+  "discovery_calls": 0,
+  "discovery_operations": 1,
+  "total_nested_calls": 15,
+  "call_target_exceeded": false,
+  "tool_failures": 0,
+  "tool_failure_details": {
+    "transport_failures": 0,
+    "nonzero_shell_exits": 0,
+    "expected_pre_fix_test_failures": 0,
+    "retry_after_tool_error_calls": 0
+  },
+  "retrieval_output_bytes": 54893,
+  "byte_evidence": {
+    "method": "Parse each attributable input_text JSON payload; unwrap Promise.allSettled fulfilled.value. For shell count decoded exec_command.output UTF-8 bytes; for aide count decoded content text block UTF-8 bytes. Includes aide text headings/fences/line labels as returned retrieval text, excludes JSON/protocol envelopes, bootstrap and local metadata discovery. Captured inputs reviewed but never executed.",
+    "items": [
+      {
+        "call_id": "call_SKgLmrxbrXP2kgPN9AE6eYMR",
+        "output_content_index": 1,
+        "category": "bootstrap",
+        "utf8_bytes": 482,
+        "body_kind": "shell_output",
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_ViemeqRf6M6qmP3HEkL8cct1",
+        "output_content_index": 1,
+        "category": "listing",
+        "utf8_bytes": 193,
+        "body_kind": "shell_output",
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_YBRaccQEWar6XP9NcAy9Sduq",
+        "output_content_index": 1,
+        "category": "line_count",
+        "utf8_bytes": 247,
+        "body_kind": "shell_output",
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_YBRaccQEWar6XP9NcAy9Sduq",
+        "output_content_index": 2,
+        "category": "source_read",
+        "utf8_bytes": 238,
+        "body_kind": "shell_output",
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_Fspc0RUYH4eX79TsbEridE3L",
+        "output_content_index": 1,
+        "category": "aide_outline",
+        "utf8_bytes": 3117,
+        "body_kind": "mcp_text_content",
+        "exit_code": null
+      },
+      {
+        "call_id": "call_Fspc0RUYH4eX79TsbEridE3L",
+        "output_content_index": 2,
+        "category": "aide_outline",
+        "utf8_bytes": 12320,
+        "body_kind": "mcp_text_content",
+        "exit_code": null
+      },
+      {
+        "call_id": "call_Fspc0RUYH4eX79TsbEridE3L",
+        "output_content_index": 3,
+        "category": "aide_outline",
+        "utf8_bytes": 2032,
+        "body_kind": "mcp_text_content",
+        "exit_code": null
+      },
+      {
+        "call_id": "call_Fspc0RUYH4eX79TsbEridE3L",
+        "output_content_index": 4,
+        "category": "aide_outline",
+        "utf8_bytes": 1282,
+        "body_kind": "mcp_text_content",
+        "exit_code": null
+      },
+      {
+        "call_id": "call_Fspc0RUYH4eX79TsbEridE3L",
+        "output_content_index": 5,
+        "category": "aide_outline",
+        "utf8_bytes": 4369,
+        "body_kind": "mcp_text_content",
+        "exit_code": null
+      },
+      {
+        "call_id": "call_Fspc0RUYH4eX79TsbEridE3L",
+        "output_content_index": 6,
+        "category": "source_read",
+        "utf8_bytes": 1582,
+        "body_kind": "shell_output",
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_zo2Pa2PgCWxCxmoXrxGmpOii",
+        "output_content_index": 1,
+        "category": "aide_read_symbol",
+        "utf8_bytes": 5790,
+        "body_kind": "mcp_text_content",
+        "exit_code": null
+      },
+      {
+        "call_id": "call_zo2Pa2PgCWxCxmoXrxGmpOii",
+        "output_content_index": 2,
+        "category": "aide_read_symbol",
+        "utf8_bytes": 4112,
+        "body_kind": "mcp_text_content",
+        "exit_code": null
+      },
+      {
+        "call_id": "call_zo2Pa2PgCWxCxmoXrxGmpOii",
+        "output_content_index": 3,
+        "category": "aide_read_symbol",
+        "utf8_bytes": 5419,
+        "body_kind": "mcp_text_content",
+        "exit_code": null
+      },
+      {
+        "call_id": "call_zo2Pa2PgCWxCxmoXrxGmpOii",
+        "output_content_index": 4,
+        "category": "aide_read_symbol",
+        "utf8_bytes": 4992,
+        "body_kind": "mcp_text_content",
+        "exit_code": null
+      },
+      {
+        "call_id": "call_zo2Pa2PgCWxCxmoXrxGmpOii",
+        "output_content_index": 5,
+        "category": "source_read",
+        "utf8_bytes": 9200,
+        "body_kind": "shell_output",
+        "exit_code": 0
+      }
+    ],
+    "bootstrap_output_bytes": 482,
+    "edit_output_bytes": 0,
+    "test_output_bytes": 0,
+    "discovery_output": [
+      {
+        "call_id": "call_ViemeqRf6M6qmP3HEkL8cct1",
+        "output_content_index": 2,
+        "returned_metadata_text_utf8_bytes": 3597
+      }
+    ],
+    "missing_or_unattributable_outputs": false
+  },
+  "aide_duration_ms": null,
+  "hook_metrics": null,
+  "notes": [
+    "Manually interpreted all wrappers: array.map expands to five actual outline calls; for-of expands to four actual read_symbol calls. Eleven symbol names are requested across four batches, not eleven separate calls. Six exec_command calls yield fifteen total nested calls. ALL_TOOLS.filter is local metadata discovery, not another nested tool call.",
+    "Guided treatment conforms: after listing/line counts, five larger files receive collapsed outlines with keep_comments=true, including 1451-line hooks.ts. Relevant symbols are then read in batches from model-usage.ts, hooks.ts, observe_events.go and token_events.go. Small README/memory types read directly; token_model_usage.go is read in full after outline. No outline-to-search fallback occurs in this trace.",
+    "Every aide call uses explicit absolute file paths inside assigned root. All shell commands start rtk with assigned-root workdir except permitted RTK bootstrap. No other aide operations, global/index search, external roots, prior results, internet, delegation, reference or grader reads observed.",
+    "Read-only integrity passes: no changed, unexpected, missing or symlink files. No edits, test calls, failures or retries. Scope assessment uses captured operations and provenance, not filesystem syscall tracing.",
+    "Aide content text is attributable; per-operation duration and hook receipts are absent from these returned result objects and remain unknown. Bytes are not model tokens, billing or causal savings. Quality assessment is separate; grades unchanged."
+  ],
+  "host_event_count_crosscheck": {
+    "nested_call_count": 15,
+    "host_result_event_count": 15,
+    "counts_match": true,
+    "all_actor_and_stage_values_match": true,
+    "unique_event_ids": true,
+    "note": "Count comparison is boundary evidence only, not one-to-one byte/source proof or unchanged model delivery. Local discovery expressions do not produce nested tool-call receipts. t10/t16 wrapper truncation remains distinct from full host payload counts."
+  }
+}

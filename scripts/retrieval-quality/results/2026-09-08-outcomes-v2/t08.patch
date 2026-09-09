@@ -1,0 +1,102 @@
+--- a/src/core/context-pruning/dedup.ts
++++ b/src/core/context-pruning/dedup.ts
+@@ -61,34 +61,28 @@
+ /** Extract the dedup key from tool args (the args that define "same call"). */
+ function dedupKey(toolName: string, args: Record<string, unknown>): string {
+   const normalized = toolName.toLowerCase();
+-  // For Read, the key is filePath + offset + limit
++  // Include every argument so options such as Grep's output_mode remain
++  // distinct. Normalize Read aliases/defaults without dropping other options.
++  let identity = args;
+   if (normalized === "read") {
+-    return JSON.stringify({
+-      tool: "read",
+-      filePath: args.filePath ?? args.file_path ?? args.path,
+-      offset: args.offset ?? 0,
+-      limit: args.limit ?? 2000,
+-    });
++    const { filePath, file_path, path, offset, limit, ...rest } = args;
++    identity = {
++      ...rest,
++      filePath: filePath ?? file_path ?? path,
++      offset: offset ?? 0,
++      limit: limit ?? 2000,
++    };
+   }
+-  // For Glob, the key is pattern + path
+-  if (normalized === "glob") {
+-    return JSON.stringify({
+-      tool: "glob",
+-      pattern: args.pattern,
+-      path: args.path,
+-    });
+-  }
+-  // For Grep, the key is pattern + path + include
+-  if (normalized === "grep") {
+-    return JSON.stringify({
+-      tool: "grep",
+-      pattern: args.pattern,
+-      path: args.path,
+-      include: args.include,
+-    });
+-  }
+-  // For MCP tools, use all args as the key
+-  return JSON.stringify({ tool: normalized, ...args });
++  // Object insertion order is not part of a call's identity, including for
++  // nested arguments. Keep the tool outside args to prevent key collisions.
++  return JSON.stringify({ tool: normalized, args: identity }, (_key, value) => {
++    if (value && typeof value === "object" && !Array.isArray(value)) {
++      return Object.fromEntries(
++        Object.keys(value).sort().map((key) => [key, value[key]]),
++      );
++    }
++    return value;
++  });
+ }
+ 
+ /** Check file mtime for Read dedup safety. */
+@@ -140,9 +134,11 @@
+ 
+     const key = dedupKey(toolName, args);
+ 
+-    // Find the most recent matching call in history
++    // Find the most recent matching full-output call in retained history
+     for (let i = history.length - 1; i >= 0; i--) {
+       const prev = history[i];
++      // A shortened result cannot serve as the full-output baseline.
++      if (prev.prunedOutput !== null) continue;
+       const prevKey = dedupKey(prev.toolName, prev.args);
+ 
+       if (prevKey !== key) continue;
+@@ -161,8 +157,7 @@
+       }
+ 
+       // Check if output is identical
+-      const prevOutput = prev.prunedOutput ?? prev.originalOutput;
+-      if (output === prevOutput) {
++      if (output === prev.originalOutput) {
+         const replacement = `[aide:dedup] Identical to previous ${toolName} call (callId: ${prev.callId}). Output unchanged.`;
+         return {
+           output: replacement,
+--- a/src/core/context-pruning/tracker.ts
++++ b/src/core/context-pruning/tracker.ts
+@@ -109,7 +109,7 @@
+       toolName,
+       args,
+       originalOutput: output,
+-      prunedOutput: null,
++      prunedOutput: result.modified ? result.output : null,
+       timestamp: Date.now(),
+     };
+ 
+--- a/src/core/context-pruning/types.ts
++++ b/src/core/context-pruning/types.ts
+@@ -15,7 +15,7 @@
+   args: Record<string, unknown>;
+   /** The original tool output (before any pruning). */
+   originalOutput: string;
+-  /** The pruned output (after dedup/supersede applied), or null if unchanged. */
++  /** Final emitted output after pruning and recovery, or null if emitted in full. */
+   prunedOutput: string | null;
+   /** Timestamp of the tool invocation. */
+   timestamp: number;

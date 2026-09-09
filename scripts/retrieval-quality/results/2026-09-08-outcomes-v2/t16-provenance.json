@@ -1,0 +1,15 @@
+{
+  "raw_log": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T01-34-37-01a08396-8d94-7eb0-9615-ea8aef3c8702.jsonl",
+  "raw_log_sha256": "64f3c1325567f983408d7b2606a7d52209ad24a16634dfc410062d78e707ff33",
+  "agent_path": "/root/pilot_v2_execution/t16",
+  "runtime_actor_id": "01a08396-8d94-7eb0-9615-ea8aef3c8702",
+  "integrity": {
+    "passed": true,
+    "missing": [],
+    "modified_immutable": [],
+    "symlinks": [],
+    "unexpected_files": [],
+    "scratch_tests": [],
+    "changed_allowed_sources": []
+  }
+}

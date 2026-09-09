@@ -1,0 +1,143 @@
+[
+  {
+    "id": "01M21RJBCB8N3BKKHSDVH276QZ",
+    "ts": "2026-09-09T00:20:00.523584696Z",
+    "kind": "tool_call",
+    "name": "Bash",
+    "category": "execute",
+    "subtype": "shell",
+    "tokens": 299,
+    "session": "01a07b15-668c-7453-b59c-9be3d32b2005",
+    "attrs": {
+      "accounting_version": "1",
+      "actor_id": "01a08388-a4df-7da1-90f9-4db6c2a0e42f",
+      "command": "rtk proxy sed -n '15,35p' src/core/context-pruning/replacement.ts",
+      "context_status": "unknown",
+      "host": "codex",
+      "invocation_id": "exec-3d65a9bf-7e65-49b6-b733-fc0984c8be99",
+      "observation_stage": "host_result",
+      "payload_bytes": "896",
+      "raw_tool": "Bash",
+      "retrieval_method": "shell_sed",
+      "retrieval_reason": "unknown_shell_workdir",
+      "retrieval_status": "unverified",
+      "token_estimator": "utf8-bytes/3-v1"
+    }
+  },
+  {
+    "id": "01M21RJB39YZJHWSZNZCDNVMNJ",
+    "ts": "2026-09-09T00:20:00.233472385Z",
+    "kind": "tool_call",
+    "name": "Bash",
+    "category": "execute",
+    "subtype": "shell",
+    "tokens": 20,
+    "session": "01a07b15-668c-7453-b59c-9be3d32b2005",
+    "attrs": {
+      "accounting_version": "1",
+      "actor_id": "01a08388-a4df-7da1-90f9-4db6c2a0e42f",
+      "command": "rtk proxy bun -e 'import {strict as assert} from \"node:assert\"; import {replacementTarget as target} from \"./src/core/context-pruning/replacement.ts\"; for (const name of [\"aide_a\", \"AiDe_Code_Outline\", \"aide_a0_\", \"aide_\" + \"a\".repeat(128), \"mcp__\", \"MCP__unrestricted-name\"]) { assert.equal(target(name, \"\")?.text, \"\"); assert.equal(target(name, \"original\")?.replace(\"short\"), \"short\"); } for (const name of [\"aide_\", \"aide_1x\", \"aide__x\", \"aide_\" + \"a\".repeat(129), \"aide_x-y\", \"aide_\u00e9\", \"aide_\u212a\", ",
+      "context_status": "unknown",
+      "host": "codex",
+      "invocation_id": "exec-e1c90efe-2b96-4074-9646-d0f98a3ba14d",
+      "observation_stage": "host_result",
+      "payload_bytes": "60",
+      "raw_tool": "Bash",
+      "retrieval_status": "unclassified_shell",
+      "token_estimator": "utf8-bytes/3-v1"
+    }
+  },
+  {
+    "id": "01M21RHXJ7V59235SPNFZT48Y5",
+    "ts": "2026-09-09T00:19:46.375310013Z",
+    "kind": "tool_call",
+    "name": "Bash",
+    "category": "execute",
+    "subtype": "shell",
+    "tokens": 61,
+    "session": "01a07b15-668c-7453-b59c-9be3d32b2005",
+    "attrs": {
+      "accounting_version": "1",
+      "actor_id": "01a08388-a4df-7da1-90f9-4db6c2a0e42f",
+      "command": "rtk proxy bun test ./reproduce.test.ts",
+      "context_status": "unknown",
+      "host": "codex",
+      "invocation_id": "exec-055c0091-5ae3-402c-8f62-d800541ca0aa",
+      "observation_stage": "host_result",
+      "payload_bytes": "184",
+      "raw_tool": "Bash",
+      "retrieval_status": "unclassified_shell",
+      "token_estimator": "utf8-bytes/3-v1"
+    }
+  },
+  {
+    "id": "01M21RHX9F438XWWG140NTRB9P",
+    "ts": "2026-09-09T00:19:46.095072808Z",
+    "kind": "tool_call",
+    "name": "Bash",
+    "category": "execute",
+    "subtype": "shell",
+    "session": "01a07b15-668c-7453-b59c-9be3d32b2005",
+    "attrs": {
+      "accounting_version": "1",
+      "actor_id": "01a08388-a4df-7da1-90f9-4db6c2a0e42f",
+      "command": "rtk proxy python3 -c 'from pathlib import Path; p=Path(\"src/core/context-pruning/replacement.ts\"); s=p.read_text(); s=s.replace(\"  if (!tool.toLowerCase().startsWith(\\\"mcp__\\\")) return null;\", \"  // Require an absolute end so a trailing newline cannot validate an aide name.\\n  const isAideTool = /^aide_[a-z][a-z0-9_]{0,127}(?![\\\\s\\\\S])/i.test(tool);\\n  if (!tool.toLowerCase().startsWith(\\\"mcp__\\\") && !isAideTool) return null;\"); p.write_text(s)'",
+      "context_status": "unknown",
+      "host": "codex",
+      "invocation_id": "exec-41397af3-6d63-452b-a8fb-f3629380e977",
+      "observation_stage": "host_result",
+      "payload_bytes": "0",
+      "raw_tool": "Bash",
+      "retrieval_status": "unclassified_shell",
+      "token_estimator": "utf8-bytes/3-v1"
+    }
+  },
+  {
+    "id": "01M21RHFBPQ75SHW6GZ33M2R1P",
+    "ts": "2026-09-09T00:19:31.830092974Z",
+    "kind": "tool_call",
+    "name": "Bash",
+    "category": "execute",
+    "subtype": "shell",
+    "tokens": 736,
+    "session": "01a07b15-668c-7453-b59c-9be3d32b2005",
+    "attrs": {
+      "accounting_version": "1",
+      "actor_id": "01a08388-a4df-7da1-90f9-4db6c2a0e42f",
+      "command": "rtk proxy cat src/core/context-pruning/replacement.ts reproduce.test.ts",
+      "context_status": "unknown",
+      "host": "codex",
+      "invocation_id": "exec-ff721085-bcb8-4d0b-99d1-b7f735c8038f",
+      "observation_stage": "host_result",
+      "payload_bytes": "2209",
+      "raw_tool": "Bash",
+      "retrieval_status": "unclassified_shell",
+      "token_estimator": "utf8-bytes/3-v1"
+    }
+  },
+  {
+    "id": "01M21RHCSXEY2X2APYQ15C2D7S",
+    "ts": "2026-09-09T00:19:29.213645737Z",
+    "kind": "tool_call",
+    "name": "Bash",
+    "category": "execute",
+    "subtype": "shell",
+    "tokens": 161,
+    "session": "01a07b15-668c-7453-b59c-9be3d32b2005",
+    "attrs": {
+      "accounting_version": "1",
+      "actor_id": "01a08388-a4df-7da1-90f9-4db6c2a0e42f",
+      "command": "rtk proxy cat /home/johnm/.codex/RTK.md",
+      "context_status": "unknown",
+      "host": "codex",
+      "invocation_id": "exec-9773f33d-9d1c-4590-af62-5ee4d84a1c87",
+      "observation_stage": "host_result",
+      "payload_bytes": "482",
+      "raw_tool": "Bash",
+      "retrieval_method": "shell_cat",
+      "retrieval_status": "unverified",
+      "retrieval_target": "../../../../../../../home/johnm/.codex/RTK.md",
+      "token_estimator": "utf8-bytes/3-v1"
+    }
+  }
+]

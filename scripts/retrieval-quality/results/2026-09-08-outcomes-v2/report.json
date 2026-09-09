@@ -1,0 +1,1841 @@
+{
+  "schema_version": 2,
+  "measurement_basis": "Runtime-reported counters, not billing or provider savings. Descriptive pilot; no causal savings or aggregate efficiency score.",
+  "planned_trials": 18,
+  "trials": [
+    {
+      "id": "t01",
+      "task": "navigation",
+      "treatment": "ordinary",
+      "repetition": 1,
+      "status": "completed",
+      "agent_id": "/root/pilot_v2_t01",
+      "runtime_session_id": "01a08386-6bba-75a3-88c5-a2f52342fe9a",
+      "raw_capture": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T01-16-59-01a08386-6bba-75a3-88c5-a2f52342fe9a.jsonl",
+      "runtime": {
+        "actor_id": "01a08386-6bba-75a3-88c5-a2f52342fe9a",
+        "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+        "agent_path": "/root/pilot_v2_t01",
+        "cli_version": "0.153.4",
+        "model_provider": "openai",
+        "model": "gpt-6-astra",
+        "effort": "high"
+      },
+      "completion": {
+        "complete": true,
+        "started_at": 1788913019,
+        "completed_at": 1788913064,
+        "duration_ms": 44860
+      },
+      "runtime_usage": {
+        "input_tokens": 188357,
+        "cached_input_tokens": 161792,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 2010,
+        "reasoning_output_tokens": 69,
+        "total_tokens": 190367
+      },
+      "elapsed_ms": 44860,
+      "tool_calls": 6,
+      "response_count": 7,
+      "aide_operations": 0,
+      "aide_uptake": false,
+      "aide_duration_ms": null,
+      "retrieval_output_bytes": 60907,
+      "hook_metrics": {
+        "actor_attributed_host_result_events": 12,
+        "known_payload_events": 12,
+        "host_result_payload_bytes": 61389,
+        "injected_context_bytes": null,
+        "hook_duration_ms": null,
+        "boundary": "Captured host-result events; not complete injected-context or hook-compute accounting."
+      },
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "protocol_violations": [],
+      "protocol_valid": true,
+      "quality_verified": true,
+      "quality": {
+        "passed": false,
+        "checks": [
+          {
+            "id": "route",
+            "passed": true,
+            "reason": "Correctly identifies the registered event handler, binary guard, properties.part forwarding, step-finish and ID/tokens validation, batch observe record --stdin writer, and ignored message.updated. Cited source supports all route facts.",
+            "evidence": [
+              "E.md:1",
+              "source/src/opencode/hooks.ts:194",
+              "source/src/opencode/hooks.ts:432",
+              "source/src/opencode/hooks.ts:458",
+              "source/src/opencode/hooks.ts:463",
+              "source/src/core/model-usage.ts:209",
+              "source/src/core/model-usage.ts:326",
+              "source/src/core/model-usage.ts:350"
+            ]
+          },
+          {
+            "id": "normalization",
+            "passed": true,
+            "reason": "Correct session/model_usage identity metadata, all six required values (31, 11, 17, 3, 13, 5), absent canonical output/total and model/provider, observed time basis, and partial coverage. Counter mapping, sum and metadata are supported by the cited adapter source. Scenario literals are stipulated by the frozen rubric; source supplies their transformation.",
+            "evidence": [
+              "E.md:3",
+              "E.md:5",
+              "source/src/core/model-usage.ts:38",
+              "source/src/core/model-usage.ts:41",
+              "source/src/core/model-usage.ts:101",
+              "source/src/core/model-usage.ts:110",
+              "source/src/core/model-usage.ts:217",
+              "source/src/core/model-usage.ts:224",
+              "source/src/core/model-usage.ts:230"
+            ]
+          },
+          {
+            "id": "retries",
+            "passed": true,
+            "reason": "Correctly gives three attempts: failed first, successful second, unchanged third suppressed, changed fourth successful; two persisted variants under the stipulated no-persistence-on-first-failure scenario. Correct success-only cache and changed normalized fingerprint. Cited persistence code combines identity and fingerprint and retains contradictory variants. Does not make a general claim that every unacknowledged write necessarily persisted nothing.",
+            "evidence": [
+              "E.md:7",
+              "source/src/core/model-usage.ts:353",
+              "source/src/core/model-usage.ts:357",
+              "source/src/core/model-usage.ts:358",
+              "source/src/core/model-usage.ts:359",
+              "source/aide/pkg/store/token_model_usage.go:46",
+              "source/aide/pkg/store/token_model_usage.go:67",
+              "source/aide/pkg/store/observe_events.go:176",
+              "source/aide/pkg/store/observe_events.go:188",
+              "source/aide/pkg/store/observe_events.go:216"
+            ]
+          },
+          {
+            "id": "conflict",
+            "passed": true,
+            "reason": "Correct observations=0/conflicts=1 and no contributed counters. Candidate separately identifies session+host+usage_id rather than observation ID. Cited code observes all retained records before selection, marks differing fingerprints conflicted, and counts a conflict if either variant is selected; selecting the earlier date cannot restore counters. Extra invalid=0 and empty source-group assertions are also supported.",
+            "evidence": [
+              "E.md:3",
+              "E.md:9",
+              "source/aide/pkg/store/token_model_usage.go:36",
+              "source/aide/pkg/store/token_model_usage.go:150",
+              "source/aide/pkg/store/token_model_usage.go:174",
+              "source/aide/pkg/store/token_model_usage.go:183",
+              "source/aide/pkg/store/token_events.go:157",
+              "source/aide/pkg/store/token_events.go:191"
+            ]
+          },
+          {
+            "id": "boundaries",
+            "passed": false,
+            "reason": "Correctly explains no legacy TokenEvent projection, no tool-event or byte-estimate contribution, partial captured host counters and no proof of complete session usage, billing, savings or quality. Also explicitly keeps raw output separate because reasoning overlap varies. However, it never states that cache counters are already included in normalized input_tokens and must not be added to it again. The correct input_tokens=31 normalization demonstrates the calculation, but does not independently state this required accounting boundary. With every required fact mandatory, this check fails for that omission.",
+            "evidence": [
+              "E.md:5",
+              "E.md:11",
+              "source/aide/pkg/store/observe_events.go:82",
+              "source/aide/pkg/store/observe_events.go:107",
+              "source/aide/pkg/store/token_events.go:93",
+              "source/aide/pkg/store/token_events.go:172",
+              "source/aide/pkg/store/token_events.go:196",
+              "source/aide/pkg/memory/token_model_usage.go:3",
+              "source/aide/pkg/memory/token_model_usage.go:20",
+              "source/src/core/model-usage.ts:41",
+              "source/src/core/model-usage.ts:230"
+            ]
+          }
+        ],
+        "unsupported_claims": [],
+        "omissions": [
+          {
+            "check_id": "boundaries",
+            "required_fact": "Do not add cache counters to normalized input_tokens; normalized input already includes them.",
+            "note": "The numerical normalization is correct, but the requested no-double-counting boundary is unstated."
+          }
+        ],
+        "wrong_claims": []
+      },
+      "unknown_reasons": []
+    },
+    {
+      "id": "t02",
+      "task": "debug",
+      "treatment": "available",
+      "repetition": 1,
+      "status": "completed",
+      "agent_id": "/root/pilot_v2_execution/t02",
+      "runtime_session_id": "01a08387-65a1-7d10-9570-10844aa88b2c",
+      "raw_capture": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T01-18-03-01a08387-65a1-7d10-9570-10844aa88b2c.jsonl",
+      "runtime": {
+        "actor_id": "01a08387-65a1-7d10-9570-10844aa88b2c",
+        "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+        "agent_path": "/root/pilot_v2_execution/t02",
+        "cli_version": "0.153.4",
+        "model_provider": "openai",
+        "model": "gpt-6-astra",
+        "effort": "high"
+      },
+      "completion": {
+        "complete": true,
+        "started_at": 1788913083,
+        "completed_at": 1788913148,
+        "duration_ms": 64473
+      },
+      "runtime_usage": {
+        "input_tokens": 183664,
+        "cached_input_tokens": 171776,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 3068,
+        "reasoning_output_tokens": 298,
+        "total_tokens": 186732
+      },
+      "elapsed_ms": 64473,
+      "tool_calls": 7,
+      "response_count": 8,
+      "aide_operations": 0,
+      "aide_uptake": false,
+      "aide_duration_ms": null,
+      "retrieval_output_bytes": 18748,
+      "hook_metrics": {
+        "actor_attributed_host_result_events": 10,
+        "known_payload_events": 10,
+        "host_result_payload_bytes": 21193,
+        "injected_context_bytes": null,
+        "hook_duration_ms": null,
+        "boundary": "Captured host-result events; not complete injected-context or hook-compute accounting."
+      },
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "protocol_violations": [],
+      "protocol_valid": true,
+      "quality_verified": true,
+      "quality": {
+        "passed": true,
+        "visible_passed": true,
+        "hidden_passed": true,
+        "immutable_files_preserved": true
+      },
+      "unknown_reasons": []
+    },
+    {
+      "id": "t03",
+      "task": "edit",
+      "treatment": "guided",
+      "repetition": 1,
+      "status": "completed",
+      "agent_id": "/root/pilot_v2_execution/t03",
+      "runtime_session_id": "01a08388-a4df-7da1-90f9-4db6c2a0e42f",
+      "raw_capture": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T01-19-25-01a08388-a4df-7da1-90f9-4db6c2a0e42f.jsonl",
+      "runtime": {
+        "actor_id": "01a08388-a4df-7da1-90f9-4db6c2a0e42f",
+        "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+        "agent_path": "/root/pilot_v2_execution/t03",
+        "cli_version": "0.153.4",
+        "model_provider": "openai",
+        "model": "gpt-6-astra",
+        "effort": "high"
+      },
+      "completion": {
+        "complete": true,
+        "started_at": 1788913165,
+        "completed_at": 1788913202,
+        "duration_ms": 37251
+      },
+      "runtime_usage": {
+        "input_tokens": 99112,
+        "cached_input_tokens": 94336,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1806,
+        "reasoning_output_tokens": 599,
+        "total_tokens": 100918
+      },
+      "elapsed_ms": 37251,
+      "tool_calls": 4,
+      "response_count": 5,
+      "aide_operations": 0,
+      "aide_uptake": false,
+      "aide_duration_ms": null,
+      "retrieval_output_bytes": 3105,
+      "hook_metrics": {
+        "actor_attributed_host_result_events": 6,
+        "known_payload_events": 6,
+        "host_result_payload_bytes": 3831,
+        "injected_context_bytes": null,
+        "hook_duration_ms": null,
+        "boundary": "Captured host-result events; not complete injected-context or hook-compute accounting."
+      },
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "protocol_violations": [],
+      "protocol_valid": true,
+      "quality_verified": true,
+      "quality": {
+        "passed": true,
+        "visible_passed": true,
+        "hidden_passed": true,
+        "immutable_files_preserved": true
+      },
+      "unknown_reasons": []
+    },
+    {
+      "id": "t04",
+      "task": "navigation",
+      "treatment": "available",
+      "repetition": 1,
+      "status": "completed",
+      "agent_id": "/root/pilot_v2_execution/t04",
+      "runtime_session_id": "01a08389-7dca-7590-846e-08ac47fe1d43",
+      "raw_capture": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T01-20-21-01a08389-7dca-7590-846e-08ac47fe1d43.jsonl",
+      "runtime": {
+        "actor_id": "01a08389-7dca-7590-846e-08ac47fe1d43",
+        "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+        "agent_path": "/root/pilot_v2_execution/t04",
+        "cli_version": "0.153.4",
+        "model_provider": "openai",
+        "model": "gpt-6-astra",
+        "effort": "high"
+      },
+      "completion": {
+        "complete": true,
+        "started_at": 1788913221,
+        "completed_at": 1788913259,
+        "duration_ms": 38426
+      },
+      "runtime_usage": {
+        "input_tokens": 150339,
+        "cached_input_tokens": 127488,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1776,
+        "reasoning_output_tokens": 130,
+        "total_tokens": 152115
+      },
+      "elapsed_ms": 38426,
+      "tool_calls": 5,
+      "response_count": 6,
+      "aide_operations": 0,
+      "aide_uptake": false,
+      "aide_duration_ms": null,
+      "retrieval_output_bytes": 53464,
+      "hook_metrics": {
+        "actor_attributed_host_result_events": 10,
+        "known_payload_events": 10,
+        "host_result_payload_bytes": 53946,
+        "injected_context_bytes": null,
+        "hook_duration_ms": null,
+        "boundary": "Captured host-result events; not complete injected-context or hook-compute accounting."
+      },
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "protocol_violations": [],
+      "protocol_valid": true,
+      "quality_verified": true,
+      "quality": {
+        "passed": false,
+        "checks": [
+          {
+            "id": "route",
+            "passed": true,
+            "reason": "Correctly identifies the registered event handler, binary guard, properties.part forwarding, step-finish and ID/tokens validation, batch observe record --stdin writer, and ignored message.updated. Cited source supports all route facts.",
+            "evidence": [
+              "B.md:1",
+              "source/src/opencode/hooks.ts:194",
+              "source/src/opencode/hooks.ts:432",
+              "source/src/opencode/hooks.ts:458",
+              "source/src/opencode/hooks.ts:463",
+              "source/src/core/model-usage.ts:209",
+              "source/src/core/model-usage.ts:326",
+              "source/src/core/model-usage.ts:350"
+            ]
+          },
+          {
+            "id": "normalization",
+            "passed": true,
+            "reason": "Correct session/model_usage identity metadata, all six required values (31, 11, 17, 3, 13, 5), absent canonical output/total and model/provider, observed time basis, and partial coverage. Counter mapping, sum and metadata are supported by the cited adapter source. Scenario literals are stipulated by the frozen rubric; source supplies their transformation.",
+            "evidence": [
+              "B.md:4",
+              "B.md:6",
+              "B.md:8",
+              "B.md:10",
+              "source/src/core/model-usage.ts:38",
+              "source/src/core/model-usage.ts:41",
+              "source/src/core/model-usage.ts:101",
+              "source/src/core/model-usage.ts:110",
+              "source/src/core/model-usage.ts:217",
+              "source/src/core/model-usage.ts:224",
+              "source/src/core/model-usage.ts:230"
+            ]
+          },
+          {
+            "id": "retries",
+            "passed": true,
+            "reason": "Correctly gives three attempts: failed first, successful second, unchanged third suppressed, changed fourth successful; two persisted variants under the stipulated no-persistence-on-first-failure scenario. Correct success-only cache and changed normalized fingerprint. Cited persistence code combines identity and fingerprint and retains contradictory variants. Does not make a general claim that every unacknowledged write necessarily persisted nothing.",
+            "evidence": [
+              "B.md:12",
+              "source/src/core/model-usage.ts:353",
+              "source/src/core/model-usage.ts:357",
+              "source/src/core/model-usage.ts:358",
+              "source/src/core/model-usage.ts:359",
+              "source/aide/pkg/store/token_model_usage.go:46",
+              "source/aide/pkg/store/token_model_usage.go:67",
+              "source/aide/pkg/store/observe_events.go:176",
+              "source/aide/pkg/store/observe_events.go:188",
+              "source/aide/pkg/store/observe_events.go:216"
+            ]
+          },
+          {
+            "id": "conflict",
+            "passed": true,
+            "reason": "Correct observations=0/conflicts=1 and no contributed counters. Candidate separately identifies session+host+usage_id rather than observation ID. Cited code observes all retained records before selection, marks differing fingerprints conflicted, and counts a conflict if either variant is selected; selecting the earlier date cannot restore counters. Extra invalid=0 and empty source-group assertions are also supported.",
+            "evidence": [
+              "B.md:5",
+              "B.md:14",
+              "source/aide/pkg/store/token_model_usage.go:36",
+              "source/aide/pkg/store/token_model_usage.go:150",
+              "source/aide/pkg/store/token_model_usage.go:174",
+              "source/aide/pkg/store/token_model_usage.go:183",
+              "source/aide/pkg/store/token_events.go:157",
+              "source/aide/pkg/store/token_events.go:191"
+            ]
+          },
+          {
+            "id": "boundaries",
+            "passed": false,
+            "reason": "Correctly explains no legacy TokenEvent projection, no tool-event or byte-estimate contribution, partial captured host counters and no proof of complete session usage, billing, savings or quality. Also explicitly keeps raw output separate because reasoning overlap varies. However, it never states that cache counters are already included in normalized input_tokens and must not be added to it again. The correct input_tokens=31 normalization demonstrates the calculation, but does not independently state this required accounting boundary. With every required fact mandatory, this check fails for that omission.",
+            "evidence": [
+              "B.md:6",
+              "B.md:8",
+              "B.md:16",
+              "source/aide/pkg/store/observe_events.go:82",
+              "source/aide/pkg/store/observe_events.go:107",
+              "source/aide/pkg/store/token_events.go:93",
+              "source/aide/pkg/store/token_events.go:172",
+              "source/aide/pkg/store/token_events.go:196",
+              "source/aide/pkg/memory/token_model_usage.go:3",
+              "source/aide/pkg/memory/token_model_usage.go:20",
+              "source/src/core/model-usage.ts:41",
+              "source/src/core/model-usage.ts:230"
+            ]
+          }
+        ],
+        "unsupported_claims": [],
+        "omissions": [
+          {
+            "check_id": "boundaries",
+            "required_fact": "Do not add cache counters to normalized input_tokens; normalized input already includes them.",
+            "note": "The numerical normalization is correct, but the requested no-double-counting boundary is unstated."
+          }
+        ],
+        "wrong_claims": []
+      },
+      "unknown_reasons": []
+    },
+    {
+      "id": "t05",
+      "task": "debug",
+      "treatment": "guided",
+      "repetition": 1,
+      "status": "completed",
+      "agent_id": "/root/pilot_v2_execution/t05",
+      "runtime_session_id": "01a0838a-5b3f-71b0-9a5e-be9456c15e05",
+      "raw_capture": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T01-21-17-01a0838a-5b3f-71b0-9a5e-be9456c15e05.jsonl",
+      "runtime": {
+        "actor_id": "01a0838a-5b3f-71b0-9a5e-be9456c15e05",
+        "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+        "agent_path": "/root/pilot_v2_execution/t05",
+        "cli_version": "0.153.4",
+        "model_provider": "openai",
+        "model": "gpt-6-astra",
+        "effort": "high"
+      },
+      "completion": {
+        "complete": true,
+        "started_at": 1788913277,
+        "completed_at": 1788913341,
+        "duration_ms": 64115
+      },
+      "runtime_usage": {
+        "input_tokens": 210434,
+        "cached_input_tokens": 197888,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 3081,
+        "reasoning_output_tokens": 225,
+        "total_tokens": 213515
+      },
+      "elapsed_ms": 64115,
+      "tool_calls": 8,
+      "response_count": 9,
+      "aide_operations": 0,
+      "aide_uptake": false,
+      "aide_duration_ms": null,
+      "retrieval_output_bytes": 17373,
+      "hook_metrics": {
+        "actor_attributed_host_result_events": 11,
+        "known_payload_events": 11,
+        "host_result_payload_bytes": 19747,
+        "injected_context_bytes": null,
+        "hook_duration_ms": null,
+        "boundary": "Captured host-result events; not complete injected-context or hook-compute accounting."
+      },
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "protocol_violations": [],
+      "protocol_valid": true,
+      "quality_verified": true,
+      "quality": {
+        "passed": true,
+        "visible_passed": true,
+        "hidden_passed": true,
+        "immutable_files_preserved": true
+      },
+      "unknown_reasons": []
+    },
+    {
+      "id": "t06",
+      "task": "edit",
+      "treatment": "ordinary",
+      "repetition": 1,
+      "status": "completed",
+      "agent_id": "/root/pilot_v2_execution/t06",
+      "runtime_session_id": "01a0838b-970f-7323-9c7e-564549f78f66",
+      "raw_capture": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T01-22-38-01a0838b-970f-7323-9c7e-564549f78f66.jsonl",
+      "runtime": {
+        "actor_id": "01a0838b-970f-7323-9c7e-564549f78f66",
+        "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+        "agent_path": "/root/pilot_v2_execution/t06",
+        "cli_version": "0.153.4",
+        "model_provider": "openai",
+        "model": "gpt-6-astra",
+        "effort": "high"
+      },
+      "completion": {
+        "complete": true,
+        "started_at": 1788913358,
+        "completed_at": 1788913402,
+        "duration_ms": 43724
+      },
+      "runtime_usage": {
+        "input_tokens": 119007,
+        "cached_input_tokens": 113536,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 2055,
+        "reasoning_output_tokens": 441,
+        "total_tokens": 121062
+      },
+      "elapsed_ms": 43724,
+      "tool_calls": 5,
+      "response_count": 6,
+      "aide_operations": 0,
+      "aide_uptake": false,
+      "aide_duration_ms": null,
+      "retrieval_output_bytes": 4197,
+      "hook_metrics": {
+        "actor_attributed_host_result_events": 9,
+        "known_payload_events": 9,
+        "host_result_payload_bytes": 4896,
+        "injected_context_bytes": null,
+        "hook_duration_ms": null,
+        "boundary": "Captured host-result events; not complete injected-context or hook-compute accounting."
+      },
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "protocol_violations": [],
+      "protocol_valid": true,
+      "quality_verified": true,
+      "quality": {
+        "passed": true,
+        "visible_passed": true,
+        "hidden_passed": true,
+        "immutable_files_preserved": true
+      },
+      "unknown_reasons": []
+    },
+    {
+      "id": "t07",
+      "task": "navigation",
+      "treatment": "guided",
+      "repetition": 1,
+      "status": "completed",
+      "agent_id": "/root/pilot_v2_execution/t07",
+      "runtime_session_id": "01a0838c-920a-78a1-a3d5-5a13691ba7be",
+      "raw_capture": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T01-23-42-01a0838c-920a-78a1-a3d5-5a13691ba7be.jsonl",
+      "runtime": {
+        "actor_id": "01a0838c-920a-78a1-a3d5-5a13691ba7be",
+        "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+        "agent_path": "/root/pilot_v2_execution/t07",
+        "cli_version": "0.153.4",
+        "model_provider": "openai",
+        "model": "gpt-6-astra",
+        "effort": "high"
+      },
+      "completion": {
+        "complete": true,
+        "started_at": 1788913422,
+        "completed_at": 1788913472,
+        "duration_ms": 49322
+      },
+      "runtime_usage": {
+        "input_tokens": 143944,
+        "cached_input_tokens": 121216,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1725,
+        "reasoning_output_tokens": 95,
+        "total_tokens": 145669
+      },
+      "elapsed_ms": 49322,
+      "tool_calls": 5,
+      "response_count": 6,
+      "aide_operations": 9,
+      "aide_uptake": true,
+      "aide_duration_ms": 35,
+      "retrieval_output_bytes": 54893,
+      "hook_metrics": {
+        "actor_attributed_host_result_events": 15,
+        "known_payload_events": 15,
+        "host_result_payload_bytes": 55375,
+        "injected_context_bytes": null,
+        "hook_duration_ms": null,
+        "boundary": "Captured host-result events; not complete injected-context or hook-compute accounting."
+      },
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "protocol_violations": [],
+      "protocol_valid": true,
+      "quality_verified": true,
+      "quality": {
+        "passed": false,
+        "checks": [
+          {
+            "id": "route",
+            "passed": true,
+            "reason": "Correctly identifies the registered event handler, binary guard, properties.part forwarding, step-finish and ID/tokens validation, batch observe record --stdin writer, and ignored message.updated. Cited source supports all route facts.",
+            "evidence": [
+              "F.md:1",
+              "source/src/opencode/hooks.ts:194",
+              "source/src/opencode/hooks.ts:432",
+              "source/src/opencode/hooks.ts:458",
+              "source/src/opencode/hooks.ts:463",
+              "source/src/core/model-usage.ts:209",
+              "source/src/core/model-usage.ts:326",
+              "source/src/core/model-usage.ts:350"
+            ]
+          },
+          {
+            "id": "normalization",
+            "passed": true,
+            "reason": "Correct session/model_usage identity metadata, all six required values (31, 11, 17, 3, 13, 5), absent canonical output/total and model/provider, observed time basis, and partial coverage. Counter mapping, sum and metadata are supported by the cited adapter source. Scenario literals are stipulated by the frozen rubric; source supplies their transformation.",
+            "evidence": [
+              "F.md:4",
+              "F.md:6",
+              "F.md:8",
+              "F.md:10",
+              "source/src/core/model-usage.ts:38",
+              "source/src/core/model-usage.ts:41",
+              "source/src/core/model-usage.ts:101",
+              "source/src/core/model-usage.ts:110",
+              "source/src/core/model-usage.ts:217",
+              "source/src/core/model-usage.ts:224",
+              "source/src/core/model-usage.ts:230"
+            ]
+          },
+          {
+            "id": "retries",
+            "passed": true,
+            "reason": "Correctly gives three attempts: failed first, successful second, unchanged third suppressed, changed fourth successful; two persisted variants under the stipulated no-persistence-on-first-failure scenario. Correct success-only cache and changed normalized fingerprint. Cited persistence code combines identity and fingerprint and retains contradictory variants. Does not make a general claim that every unacknowledged write necessarily persisted nothing.",
+            "evidence": [
+              "F.md:12",
+              "source/src/core/model-usage.ts:353",
+              "source/src/core/model-usage.ts:357",
+              "source/src/core/model-usage.ts:358",
+              "source/src/core/model-usage.ts:359",
+              "source/aide/pkg/store/token_model_usage.go:46",
+              "source/aide/pkg/store/token_model_usage.go:67",
+              "source/aide/pkg/store/observe_events.go:176",
+              "source/aide/pkg/store/observe_events.go:188",
+              "source/aide/pkg/store/observe_events.go:216"
+            ]
+          },
+          {
+            "id": "conflict",
+            "passed": true,
+            "reason": "Correct observations=0/conflicts=1 and no contributed counters. Candidate separately identifies session+host+usage_id rather than observation ID. Cited code observes all retained records before selection, marks differing fingerprints conflicted, and counts a conflict if either variant is selected; selecting the earlier date cannot restore counters. Extra invalid=0 and empty source-group assertions are also supported.",
+            "evidence": [
+              "F.md:5",
+              "F.md:14",
+              "source/aide/pkg/store/token_model_usage.go:36",
+              "source/aide/pkg/store/token_model_usage.go:150",
+              "source/aide/pkg/store/token_model_usage.go:174",
+              "source/aide/pkg/store/token_model_usage.go:183",
+              "source/aide/pkg/store/token_events.go:157",
+              "source/aide/pkg/store/token_events.go:191"
+            ]
+          },
+          {
+            "id": "boundaries",
+            "passed": false,
+            "reason": "Correctly explains no legacy TokenEvent projection, no tool-event or byte-estimate contribution, partial captured host counters and no proof of complete session usage, billing, savings or quality. Also explicitly keeps raw output separate because reasoning overlap varies. However, it never states that cache counters are already included in normalized input_tokens and must not be added to it again. The correct input_tokens=31 normalization demonstrates the calculation, but does not independently state this required accounting boundary. With every required fact mandatory, this check fails for that omission. Its additional statement that accepted usage can contribute a session while this conflicted identity cannot is supported by resultWithSessions and the stats merge.",
+            "evidence": [
+              "F.md:6",
+              "F.md:8",
+              "F.md:16",
+              "source/aide/pkg/store/observe_events.go:82",
+              "source/aide/pkg/store/observe_events.go:107",
+              "source/aide/pkg/store/token_events.go:93",
+              "source/aide/pkg/store/token_events.go:172",
+              "source/aide/pkg/store/token_events.go:196",
+              "source/aide/pkg/memory/token_model_usage.go:3",
+              "source/aide/pkg/memory/token_model_usage.go:20",
+              "source/src/core/model-usage.ts:41",
+              "source/src/core/model-usage.ts:230"
+            ]
+          }
+        ],
+        "unsupported_claims": [],
+        "omissions": [
+          {
+            "check_id": "boundaries",
+            "required_fact": "Do not add cache counters to normalized input_tokens; normalized input already includes them.",
+            "note": "The numerical normalization is correct, but the requested no-double-counting boundary is unstated."
+          }
+        ],
+        "wrong_claims": []
+      },
+      "unknown_reasons": []
+    },
+    {
+      "id": "t08",
+      "task": "debug",
+      "treatment": "ordinary",
+      "repetition": 1,
+      "status": "completed",
+      "agent_id": "/root/pilot_v2_execution/t08",
+      "runtime_session_id": "01a0838d-9685-7433-9ef4-0a43eb236ebb",
+      "raw_capture": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T01-24-49-01a0838d-9685-7433-9ef4-0a43eb236ebb.jsonl",
+      "runtime": {
+        "actor_id": "01a0838d-9685-7433-9ef4-0a43eb236ebb",
+        "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+        "agent_path": "/root/pilot_v2_execution/t08",
+        "cli_version": "0.153.4",
+        "model_provider": "openai",
+        "model": "gpt-6-astra",
+        "effort": "high"
+      },
+      "completion": {
+        "complete": true,
+        "started_at": 1788913489,
+        "completed_at": 1788913562,
+        "duration_ms": 73406
+      },
+      "runtime_usage": {
+        "input_tokens": 166747,
+        "cached_input_tokens": 153728,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 3824,
+        "reasoning_output_tokens": 390,
+        "total_tokens": 170571
+      },
+      "elapsed_ms": 73406,
+      "tool_calls": 6,
+      "response_count": 7,
+      "aide_operations": 0,
+      "aide_uptake": false,
+      "aide_duration_ms": null,
+      "retrieval_output_bytes": 18900,
+      "hook_metrics": {
+        "actor_attributed_host_result_events": 11,
+        "known_payload_events": 11,
+        "host_result_payload_bytes": 21385,
+        "injected_context_bytes": null,
+        "hook_duration_ms": null,
+        "boundary": "Captured host-result events; not complete injected-context or hook-compute accounting."
+      },
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "protocol_violations": [],
+      "protocol_valid": true,
+      "quality_verified": true,
+      "quality": {
+        "passed": true,
+        "visible_passed": true,
+        "hidden_passed": true,
+        "immutable_files_preserved": true
+      },
+      "unknown_reasons": []
+    },
+    {
+      "id": "t09",
+      "task": "edit",
+      "treatment": "available",
+      "repetition": 1,
+      "status": "completed",
+      "agent_id": "/root/pilot_v2_execution/t09",
+      "runtime_session_id": "01a0838e-fce8-7a91-b26c-d224764d41a9",
+      "raw_capture": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T01-26-21-01a0838e-fce8-7a91-b26c-d224764d41a9.jsonl",
+      "runtime": {
+        "actor_id": "01a0838e-fce8-7a91-b26c-d224764d41a9",
+        "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+        "agent_path": "/root/pilot_v2_execution/t09",
+        "cli_version": "0.153.4",
+        "model_provider": "openai",
+        "model": "gpt-6-astra",
+        "effort": "high"
+      },
+      "completion": {
+        "complete": true,
+        "started_at": 1788913581,
+        "completed_at": 1788913629,
+        "duration_ms": 48597
+      },
+      "runtime_usage": {
+        "input_tokens": 121385,
+        "cached_input_tokens": 115584,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 2290,
+        "reasoning_output_tokens": 632,
+        "total_tokens": 123675
+      },
+      "elapsed_ms": 48597,
+      "tool_calls": 5,
+      "response_count": 6,
+      "aide_operations": 0,
+      "aide_uptake": false,
+      "aide_duration_ms": null,
+      "retrieval_output_bytes": 4052,
+      "hook_metrics": {
+        "actor_attributed_host_result_events": 7,
+        "known_payload_events": 7,
+        "host_result_payload_bytes": 5206,
+        "injected_context_bytes": null,
+        "hook_duration_ms": null,
+        "boundary": "Captured host-result events; not complete injected-context or hook-compute accounting."
+      },
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "protocol_violations": [],
+      "protocol_valid": true,
+      "quality_verified": true,
+      "quality": {
+        "passed": true,
+        "visible_passed": true,
+        "hidden_passed": true,
+        "immutable_files_preserved": true
+      },
+      "unknown_reasons": []
+    },
+    {
+      "id": "t10",
+      "task": "navigation",
+      "treatment": "guided",
+      "repetition": 2,
+      "status": "completed",
+      "agent_id": "/root/pilot_v2_execution/t10",
+      "runtime_session_id": "01a08390-03a0-7871-8abc-476af75cfa25",
+      "raw_capture": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T01-27-28-01a08390-03a0-7871-8abc-476af75cfa25.jsonl",
+      "runtime": {
+        "actor_id": "01a08390-03a0-7871-8abc-476af75cfa25",
+        "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+        "agent_path": "/root/pilot_v2_execution/t10",
+        "cli_version": "0.153.4",
+        "model_provider": "openai",
+        "model": "gpt-6-astra",
+        "effort": "high"
+      },
+      "completion": {
+        "complete": true,
+        "started_at": 1788913648,
+        "completed_at": 1788913702,
+        "duration_ms": 53429
+      },
+      "runtime_usage": {
+        "input_tokens": 156520,
+        "cached_input_tokens": 132992,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 2290,
+        "reasoning_output_tokens": 288,
+        "total_tokens": 158810
+      },
+      "elapsed_ms": 53429,
+      "tool_calls": 5,
+      "response_count": 6,
+      "aide_operations": 4,
+      "aide_uptake": true,
+      "aide_duration_ms": 22,
+      "retrieval_output_bytes": 53783,
+      "hook_metrics": {
+        "actor_attributed_host_result_events": 16,
+        "known_payload_events": 16,
+        "host_result_payload_bytes": 59560,
+        "injected_context_bytes": null,
+        "hook_duration_ms": null,
+        "boundary": "Captured host-result events; not complete injected-context or hook-compute accounting."
+      },
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "protocol_violations": [],
+      "protocol_valid": true,
+      "quality_verified": true,
+      "quality": {
+        "passed": false,
+        "checks": [
+          {
+            "id": "route",
+            "passed": true,
+            "reason": "Correctly identifies the registered event handler, binary guard, properties.part forwarding, step-finish and ID/tokens validation, batch observe record --stdin writer, and ignored message.updated. Cited source supports all route facts.",
+            "evidence": [
+              "A.md:1",
+              "source/src/opencode/hooks.ts:194",
+              "source/src/opencode/hooks.ts:432",
+              "source/src/opencode/hooks.ts:458",
+              "source/src/opencode/hooks.ts:463",
+              "source/src/core/model-usage.ts:209",
+              "source/src/core/model-usage.ts:326",
+              "source/src/core/model-usage.ts:350"
+            ]
+          },
+          {
+            "id": "normalization",
+            "passed": true,
+            "reason": "Correct session/model_usage identity metadata, all six required values (31, 11, 17, 3, 13, 5), absent canonical output/total and model/provider, observed time basis, and partial coverage. Counter mapping, sum and metadata are supported by the cited adapter source. Scenario literals are stipulated by the frozen rubric; source supplies their transformation.",
+            "evidence": [
+              "A.md:3",
+              "A.md:7",
+              "A.md:14",
+              "source/src/core/model-usage.ts:38",
+              "source/src/core/model-usage.ts:41",
+              "source/src/core/model-usage.ts:101",
+              "source/src/core/model-usage.ts:110",
+              "source/src/core/model-usage.ts:217",
+              "source/src/core/model-usage.ts:224",
+              "source/src/core/model-usage.ts:230"
+            ]
+          },
+          {
+            "id": "retries",
+            "passed": true,
+            "reason": "Correctly gives three attempts: failed first, successful second, unchanged third suppressed, changed fourth successful; two persisted variants under the stipulated no-persistence-on-first-failure scenario. Correct success-only cache and changed normalized fingerprint. Cited persistence code combines identity and fingerprint and retains contradictory variants. Does not make a general claim that every unacknowledged write necessarily persisted nothing.",
+            "evidence": [
+              "A.md:16",
+              "A.md:18",
+              "source/src/core/model-usage.ts:353",
+              "source/src/core/model-usage.ts:357",
+              "source/src/core/model-usage.ts:358",
+              "source/src/core/model-usage.ts:359",
+              "source/aide/pkg/store/token_model_usage.go:46",
+              "source/aide/pkg/store/token_model_usage.go:67",
+              "source/aide/pkg/store/observe_events.go:176",
+              "source/aide/pkg/store/observe_events.go:188",
+              "source/aide/pkg/store/observe_events.go:216"
+            ]
+          },
+          {
+            "id": "conflict",
+            "passed": true,
+            "reason": "Correct observations=0/conflicts=1 and no contributed counters. Candidate separately identifies session+host+usage_id rather than observation ID. Cited code observes all retained records before selection, marks differing fingerprints conflicted, and counts a conflict if either variant is selected; selecting the earlier date cannot restore counters. Extra invalid=0 and empty source-group assertions are also supported.",
+            "evidence": [
+              "A.md:3",
+              "A.md:20",
+              "source/aide/pkg/store/token_model_usage.go:36",
+              "source/aide/pkg/store/token_model_usage.go:150",
+              "source/aide/pkg/store/token_model_usage.go:174",
+              "source/aide/pkg/store/token_model_usage.go:183",
+              "source/aide/pkg/store/token_events.go:157",
+              "source/aide/pkg/store/token_events.go:191"
+            ]
+          },
+          {
+            "id": "boundaries",
+            "passed": false,
+            "reason": "Correctly explains no legacy TokenEvent projection, no tool-event or byte-estimate contribution, partial captured host counters and no proof of complete session usage, billing, savings or quality. Also explicitly keeps raw output separate because reasoning overlap varies. However, it never states that cache counters are already included in normalized input_tokens and must not be added to it again. The correct input_tokens=31 normalization demonstrates the calculation, but does not independently state this required accounting boundary. With every required fact mandatory, this check fails for that omission.",
+            "evidence": [
+              "A.md:10",
+              "A.md:14",
+              "A.md:22",
+              "A.md:24",
+              "source/aide/pkg/store/observe_events.go:82",
+              "source/aide/pkg/store/observe_events.go:107",
+              "source/aide/pkg/store/token_events.go:93",
+              "source/aide/pkg/store/token_events.go:172",
+              "source/aide/pkg/store/token_events.go:196",
+              "source/aide/pkg/memory/token_model_usage.go:3",
+              "source/aide/pkg/memory/token_model_usage.go:20",
+              "source/src/core/model-usage.ts:41",
+              "source/src/core/model-usage.ts:230"
+            ]
+          }
+        ],
+        "unsupported_claims": [],
+        "omissions": [
+          {
+            "check_id": "boundaries",
+            "required_fact": "Do not add cache counters to normalized input_tokens; normalized input already includes them.",
+            "note": "The numerical normalization is correct, but the requested no-double-counting boundary is unstated."
+          }
+        ],
+        "wrong_claims": []
+      },
+      "unknown_reasons": []
+    },
+    {
+      "id": "t11",
+      "task": "debug",
+      "treatment": "ordinary",
+      "repetition": 2,
+      "status": "completed",
+      "agent_id": "/root/pilot_v2_execution/t11",
+      "runtime_session_id": "01a08391-189f-7023-8ec1-e57e8954d579",
+      "raw_capture": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T01-28-39-01a08391-189f-7023-8ec1-e57e8954d579.jsonl",
+      "runtime": {
+        "actor_id": "01a08391-189f-7023-8ec1-e57e8954d579",
+        "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+        "agent_path": "/root/pilot_v2_execution/t11",
+        "cli_version": "0.153.4",
+        "model_provider": "openai",
+        "model": "gpt-6-astra",
+        "effort": "high"
+      },
+      "completion": {
+        "complete": true,
+        "started_at": 1788913719,
+        "completed_at": 1788913787,
+        "duration_ms": 68275
+      },
+      "runtime_usage": {
+        "input_tokens": 210465,
+        "cached_input_tokens": 198400,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 3383,
+        "reasoning_output_tokens": 378,
+        "total_tokens": 213848
+      },
+      "elapsed_ms": 68275,
+      "tool_calls": 8,
+      "response_count": 9,
+      "aide_operations": 0,
+      "aide_uptake": false,
+      "aide_duration_ms": null,
+      "retrieval_output_bytes": 17782,
+      "hook_metrics": {
+        "actor_attributed_host_result_events": 9,
+        "known_payload_events": 9,
+        "host_result_payload_bytes": 20182,
+        "injected_context_bytes": null,
+        "hook_duration_ms": null,
+        "boundary": "Captured host-result events; not complete injected-context or hook-compute accounting."
+      },
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "protocol_violations": [],
+      "protocol_valid": true,
+      "quality_verified": true,
+      "quality": {
+        "passed": true,
+        "visible_passed": true,
+        "hidden_passed": true,
+        "immutable_files_preserved": true
+      },
+      "unknown_reasons": []
+    },
+    {
+      "id": "t12",
+      "task": "edit",
+      "treatment": "available",
+      "repetition": 2,
+      "status": "completed",
+      "agent_id": "/root/pilot_v2_execution/t12",
+      "runtime_session_id": "01a08392-73b6-7d72-a622-b321a23b6ab3",
+      "raw_capture": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T01-30-08-01a08392-73b6-7d72-a622-b321a23b6ab3.jsonl",
+      "runtime": {
+        "actor_id": "01a08392-73b6-7d72-a622-b321a23b6ab3",
+        "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+        "agent_path": "/root/pilot_v2_execution/t12",
+        "cli_version": "0.153.4",
+        "model_provider": "openai",
+        "model": "gpt-6-astra",
+        "effort": "high"
+      },
+      "completion": {
+        "complete": true,
+        "started_at": 1788913808,
+        "completed_at": 1788913852,
+        "duration_ms": 43713
+      },
+      "runtime_usage": {
+        "input_tokens": 141956,
+        "cached_input_tokens": 136192,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 2051,
+        "reasoning_output_tokens": 467,
+        "total_tokens": 144007
+      },
+      "elapsed_ms": 43713,
+      "tool_calls": 6,
+      "response_count": 7,
+      "aide_operations": 0,
+      "aide_uptake": false,
+      "aide_duration_ms": null,
+      "retrieval_output_bytes": 4057,
+      "hook_metrics": {
+        "actor_attributed_host_result_events": 7,
+        "known_payload_events": 7,
+        "host_result_payload_bytes": 5036,
+        "injected_context_bytes": null,
+        "hook_duration_ms": null,
+        "boundary": "Captured host-result events; not complete injected-context or hook-compute accounting."
+      },
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "protocol_violations": [],
+      "protocol_valid": true,
+      "quality_verified": true,
+      "quality": {
+        "passed": true,
+        "visible_passed": true,
+        "hidden_passed": true,
+        "immutable_files_preserved": true
+      },
+      "unknown_reasons": []
+    },
+    {
+      "id": "t13",
+      "task": "navigation",
+      "treatment": "available",
+      "repetition": 2,
+      "status": "completed",
+      "agent_id": "/root/pilot_v2_execution/t13",
+      "runtime_session_id": "01a08393-6874-72c3-b9ef-58300d37c808",
+      "raw_capture": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T01-31-10-01a08393-6874-72c3-b9ef-58300d37c808.jsonl",
+      "runtime": {
+        "actor_id": "01a08393-6874-72c3-b9ef-58300d37c808",
+        "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+        "agent_path": "/root/pilot_v2_execution/t13",
+        "cli_version": "0.153.4",
+        "model_provider": "openai",
+        "model": "gpt-6-astra",
+        "effort": "high"
+      },
+      "completion": {
+        "complete": true,
+        "started_at": 1788913870,
+        "completed_at": 1788913915,
+        "duration_ms": 44583
+      },
+      "runtime_usage": {
+        "input_tokens": 180493,
+        "cached_input_tokens": 159744,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 2064,
+        "reasoning_output_tokens": 115,
+        "total_tokens": 182557
+      },
+      "elapsed_ms": 44583,
+      "tool_calls": 6,
+      "response_count": 7,
+      "aide_operations": 0,
+      "aide_uptake": false,
+      "aide_duration_ms": null,
+      "retrieval_output_bytes": 47880,
+      "hook_metrics": {
+        "actor_attributed_host_result_events": 14,
+        "known_payload_events": 14,
+        "host_result_payload_bytes": 48362,
+        "injected_context_bytes": null,
+        "hook_duration_ms": null,
+        "boundary": "Captured host-result events; not complete injected-context or hook-compute accounting."
+      },
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "protocol_violations": [],
+      "protocol_valid": true,
+      "quality_verified": true,
+      "quality": {
+        "passed": false,
+        "checks": [
+          {
+            "id": "route",
+            "passed": true,
+            "reason": "Correctly identifies the registered event handler, binary guard, properties.part forwarding, step-finish and ID/tokens validation, batch observe record --stdin writer, and ignored message.updated. Cited source supports all route facts.",
+            "evidence": [
+              "D.md:1",
+              "source/src/opencode/hooks.ts:194",
+              "source/src/opencode/hooks.ts:432",
+              "source/src/opencode/hooks.ts:458",
+              "source/src/opencode/hooks.ts:463",
+              "source/src/core/model-usage.ts:209",
+              "source/src/core/model-usage.ts:326",
+              "source/src/core/model-usage.ts:350"
+            ]
+          },
+          {
+            "id": "normalization",
+            "passed": true,
+            "reason": "Correct session/model_usage identity metadata, all six required values (31, 11, 17, 3, 13, 5), absent canonical output/total and model/provider, observed time basis, and partial coverage. Counter mapping, sum and metadata are supported by the cited adapter source. Scenario literals are stipulated by the frozen rubric; source supplies their transformation. The separate generated event ID and missing-timestamp default are also supported.",
+            "evidence": [
+              "D.md:4",
+              "D.md:6",
+              "D.md:8",
+              "D.md:10",
+              "source/src/core/model-usage.ts:38",
+              "source/src/core/model-usage.ts:41",
+              "source/src/core/model-usage.ts:101",
+              "source/src/core/model-usage.ts:110",
+              "source/src/core/model-usage.ts:217",
+              "source/src/core/model-usage.ts:224",
+              "source/src/core/model-usage.ts:230",
+              "source/aide/pkg/store/observe_events.go:160"
+            ]
+          },
+          {
+            "id": "retries",
+            "passed": true,
+            "reason": "Correctly gives three attempts: failed first, successful second, unchanged third suppressed, changed fourth successful; two persisted variants under the stipulated no-persistence-on-first-failure scenario. Correct success-only cache and changed normalized fingerprint. Cited persistence code combines identity and fingerprint and retains contradictory variants. Does not make a general claim that every unacknowledged write necessarily persisted nothing. Metadata/counter fingerprinting, bounded cache, and earliest timestamp for equivalent durable records are supported.",
+            "evidence": [
+              "D.md:12",
+              "source/src/core/model-usage.ts:353",
+              "source/src/core/model-usage.ts:357",
+              "source/src/core/model-usage.ts:358",
+              "source/src/core/model-usage.ts:359",
+              "source/aide/pkg/store/token_model_usage.go:46",
+              "source/aide/pkg/store/token_model_usage.go:67",
+              "source/aide/pkg/store/observe_events.go:176",
+              "source/aide/pkg/store/observe_events.go:188",
+              "source/aide/pkg/store/observe_events.go:195",
+              "source/aide/pkg/store/observe_events.go:216"
+            ]
+          },
+          {
+            "id": "conflict",
+            "passed": true,
+            "reason": "Correct observations=0/conflicts=1 and no contributed counters. Candidate separately identifies session+host+usage_id rather than observation ID. Cited code observes all retained records before selection, marks differing fingerprints conflicted, and counts a conflict if either variant is selected; selecting the earlier date cannot restore counters. Extra invalid=0 and empty source-group assertions are also supported.",
+            "evidence": [
+              "D.md:5",
+              "D.md:14",
+              "source/aide/pkg/store/token_model_usage.go:36",
+              "source/aide/pkg/store/token_model_usage.go:150",
+              "source/aide/pkg/store/token_model_usage.go:174",
+              "source/aide/pkg/store/token_model_usage.go:183",
+              "source/aide/pkg/store/token_events.go:157",
+              "source/aide/pkg/store/token_events.go:191"
+            ]
+          },
+          {
+            "id": "boundaries",
+            "passed": false,
+            "reason": "Correctly explains no legacy TokenEvent projection, no tool-event or byte-estimate contribution, partial captured host counters and no proof of complete session usage, billing, savings or quality. Also explicitly keeps raw output separate because reasoning overlap varies. However, it never states that cache counters are already included in normalized input_tokens and must not be added to it again. The correct input_tokens=31 normalization demonstrates the calculation, but does not independently state this required accounting boundary. With every required fact mandatory, this check fails for that omission.",
+            "evidence": [
+              "D.md:6",
+              "D.md:8",
+              "D.md:16",
+              "source/aide/pkg/store/observe_events.go:82",
+              "source/aide/pkg/store/observe_events.go:107",
+              "source/aide/pkg/store/token_events.go:93",
+              "source/aide/pkg/store/token_events.go:172",
+              "source/aide/pkg/store/token_events.go:196",
+              "source/aide/pkg/memory/token_model_usage.go:3",
+              "source/aide/pkg/memory/token_model_usage.go:20",
+              "source/src/core/model-usage.ts:41",
+              "source/src/core/model-usage.ts:230"
+            ]
+          }
+        ],
+        "unsupported_claims": [],
+        "omissions": [
+          {
+            "check_id": "boundaries",
+            "required_fact": "Do not add cache counters to normalized input_tokens; normalized input already includes them.",
+            "note": "The numerical normalization is correct, but the requested no-double-counting boundary is unstated."
+          }
+        ],
+        "wrong_claims": []
+      },
+      "unknown_reasons": []
+    },
+    {
+      "id": "t14",
+      "task": "debug",
+      "treatment": "guided",
+      "repetition": 2,
+      "status": "completed",
+      "agent_id": "/root/pilot_v2_execution/t14",
+      "runtime_session_id": "01a08394-5e6f-71f1-8ecf-fda87563ff4b",
+      "raw_capture": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T01-32-13-01a08394-5e6f-71f1-8ecf-fda87563ff4b.jsonl",
+      "runtime": {
+        "actor_id": "01a08394-5e6f-71f1-8ecf-fda87563ff4b",
+        "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+        "agent_path": "/root/pilot_v2_execution/t14",
+        "cli_version": "0.153.4",
+        "model_provider": "openai",
+        "model": "gpt-6-astra",
+        "effort": "high"
+      },
+      "completion": {
+        "complete": true,
+        "started_at": 1788913933,
+        "completed_at": 1788914005,
+        "duration_ms": 72007
+      },
+      "runtime_usage": {
+        "input_tokens": 210187,
+        "cached_input_tokens": 195584,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 3575,
+        "reasoning_output_tokens": 559,
+        "total_tokens": 213762
+      },
+      "elapsed_ms": 72007,
+      "tool_calls": 8,
+      "response_count": 9,
+      "aide_operations": 0,
+      "aide_uptake": false,
+      "aide_duration_ms": null,
+      "retrieval_output_bytes": 14983,
+      "hook_metrics": {
+        "actor_attributed_host_result_events": 9,
+        "known_payload_events": 9,
+        "host_result_payload_bytes": 17373,
+        "injected_context_bytes": null,
+        "hook_duration_ms": null,
+        "boundary": "Captured host-result events; not complete injected-context or hook-compute accounting."
+      },
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "protocol_violations": [],
+      "protocol_valid": true,
+      "quality_verified": true,
+      "quality": {
+        "passed": true,
+        "visible_passed": true,
+        "hidden_passed": true,
+        "immutable_files_preserved": true
+      },
+      "unknown_reasons": []
+    },
+    {
+      "id": "t15",
+      "task": "edit",
+      "treatment": "ordinary",
+      "repetition": 2,
+      "status": "completed",
+      "agent_id": "/root/pilot_v2_execution/t15",
+      "runtime_session_id": "01a08395-bfa9-7f90-b16e-db78610519b6",
+      "raw_capture": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T01-33-44-01a08395-bfa9-7f90-b16e-db78610519b6.jsonl",
+      "runtime": {
+        "actor_id": "01a08395-bfa9-7f90-b16e-db78610519b6",
+        "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+        "agent_path": "/root/pilot_v2_execution/t15",
+        "cli_version": "0.153.4",
+        "model_provider": "openai",
+        "model": "gpt-6-astra",
+        "effort": "high"
+      },
+      "completion": {
+        "complete": true,
+        "started_at": 1788914024,
+        "completed_at": 1788914059,
+        "duration_ms": 35038
+      },
+      "runtime_usage": {
+        "input_tokens": 98132,
+        "cached_input_tokens": 94080,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1640,
+        "reasoning_output_tokens": 513,
+        "total_tokens": 99772
+      },
+      "elapsed_ms": 35038,
+      "tool_calls": 4,
+      "response_count": 5,
+      "aide_operations": 0,
+      "aide_uptake": false,
+      "aide_duration_ms": null,
+      "retrieval_output_bytes": 2209,
+      "hook_metrics": {
+        "actor_attributed_host_result_events": 5,
+        "known_payload_events": 5,
+        "host_result_payload_bytes": 2958,
+        "injected_context_bytes": null,
+        "hook_duration_ms": null,
+        "boundary": "Captured host-result events; not complete injected-context or hook-compute accounting."
+      },
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "protocol_violations": [],
+      "protocol_valid": true,
+      "quality_verified": true,
+      "quality": {
+        "passed": true,
+        "visible_passed": true,
+        "hidden_passed": true,
+        "immutable_files_preserved": true
+      },
+      "unknown_reasons": []
+    },
+    {
+      "id": "t16",
+      "task": "navigation",
+      "treatment": "ordinary",
+      "repetition": 2,
+      "status": "completed",
+      "agent_id": "/root/pilot_v2_execution/t16",
+      "runtime_session_id": "01a08396-8d94-7eb0-9615-ea8aef3c8702",
+      "raw_capture": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T01-34-37-01a08396-8d94-7eb0-9615-ea8aef3c8702.jsonl",
+      "runtime": {
+        "actor_id": "01a08396-8d94-7eb0-9615-ea8aef3c8702",
+        "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+        "agent_path": "/root/pilot_v2_execution/t16",
+        "cli_version": "0.153.4",
+        "model_provider": "openai",
+        "model": "gpt-6-astra",
+        "effort": "high"
+      },
+      "completion": {
+        "complete": true,
+        "started_at": 1788914077,
+        "completed_at": 1788914120,
+        "duration_ms": 43830
+      },
+      "runtime_usage": {
+        "input_tokens": 187921,
+        "cached_input_tokens": 161536,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1880,
+        "reasoning_output_tokens": 66,
+        "total_tokens": 189801
+      },
+      "elapsed_ms": 43830,
+      "tool_calls": 6,
+      "response_count": 7,
+      "aide_operations": 0,
+      "aide_uptake": false,
+      "aide_duration_ms": null,
+      "retrieval_output_bytes": 62100,
+      "hook_metrics": {
+        "actor_attributed_host_result_events": 12,
+        "known_payload_events": 12,
+        "host_result_payload_bytes": 64397,
+        "injected_context_bytes": null,
+        "hook_duration_ms": null,
+        "boundary": "Captured host-result events; not complete injected-context or hook-compute accounting."
+      },
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "protocol_violations": [],
+      "protocol_valid": true,
+      "quality_verified": true,
+      "quality": {
+        "passed": false,
+        "checks": [
+          {
+            "id": "route",
+            "passed": true,
+            "reason": "Correctly identifies the registered event handler, binary guard, properties.part forwarding, step-finish and ID/tokens validation, batch observe record --stdin writer, and ignored message.updated. Cited source supports all route facts.",
+            "evidence": [
+              "C.md:1",
+              "source/src/opencode/hooks.ts:194",
+              "source/src/opencode/hooks.ts:432",
+              "source/src/opencode/hooks.ts:458",
+              "source/src/opencode/hooks.ts:463",
+              "source/src/core/model-usage.ts:209",
+              "source/src/core/model-usage.ts:326",
+              "source/src/core/model-usage.ts:350"
+            ]
+          },
+          {
+            "id": "normalization",
+            "passed": true,
+            "reason": "Correct session/model_usage identity metadata, all six required values (31, 11, 17, 3, 13, 5), absent canonical output/total and model/provider, observed time basis, and partial coverage. Counter mapping, sum and metadata are supported by the cited adapter source. Scenario literals are stipulated by the frozen rubric; source supplies their transformation. The separate generated event ID and missing-timestamp default are also supported.",
+            "evidence": [
+              "C.md:3",
+              "C.md:7",
+              "C.md:10",
+              "C.md:14",
+              "source/src/core/model-usage.ts:38",
+              "source/src/core/model-usage.ts:41",
+              "source/src/core/model-usage.ts:101",
+              "source/src/core/model-usage.ts:110",
+              "source/src/core/model-usage.ts:217",
+              "source/src/core/model-usage.ts:224",
+              "source/src/core/model-usage.ts:230",
+              "source/aide/pkg/store/observe_events.go:160"
+            ]
+          },
+          {
+            "id": "retries",
+            "passed": true,
+            "reason": "Correctly gives three attempts: failed first, successful second, unchanged third suppressed, changed fourth successful; two persisted variants under the stipulated no-persistence-on-first-failure scenario. Correct success-only cache and changed normalized fingerprint. Cited persistence code combines identity and fingerprint and retains contradictory variants. Does not make a general claim that every unacknowledged write necessarily persisted nothing. Metadata/counter fingerprinting, bounded cache, and earliest timestamp for equivalent durable records are supported.",
+            "evidence": [
+              "C.md:16",
+              "C.md:18",
+              "source/src/core/model-usage.ts:353",
+              "source/src/core/model-usage.ts:357",
+              "source/src/core/model-usage.ts:358",
+              "source/src/core/model-usage.ts:359",
+              "source/aide/pkg/store/token_model_usage.go:46",
+              "source/aide/pkg/store/token_model_usage.go:67",
+              "source/aide/pkg/store/observe_events.go:176",
+              "source/aide/pkg/store/observe_events.go:188",
+              "source/aide/pkg/store/observe_events.go:195",
+              "source/aide/pkg/store/observe_events.go:216"
+            ]
+          },
+          {
+            "id": "conflict",
+            "passed": true,
+            "reason": "Correct observations=0/conflicts=1 and no contributed counters. Candidate separately identifies session+host+usage_id rather than observation ID. Cited code observes all retained records before selection, marks differing fingerprints conflicted, and counts a conflict if either variant is selected; selecting the earlier date cannot restore counters. Extra invalid=0 and empty source-group assertions are also supported.",
+            "evidence": [
+              "C.md:3",
+              "C.md:20",
+              "source/aide/pkg/store/token_model_usage.go:36",
+              "source/aide/pkg/store/token_model_usage.go:150",
+              "source/aide/pkg/store/token_model_usage.go:174",
+              "source/aide/pkg/store/token_model_usage.go:183",
+              "source/aide/pkg/store/token_events.go:157",
+              "source/aide/pkg/store/token_events.go:191"
+            ]
+          },
+          {
+            "id": "boundaries",
+            "passed": false,
+            "reason": "Correctly explains no legacy TokenEvent projection, no tool-event or byte-estimate contribution, partial captured host counters and no proof of complete session usage, billing, savings or quality. Also explicitly keeps raw output separate because reasoning overlap varies. However, it never states that cache counters are already included in normalized input_tokens and must not be added to it again. The correct input_tokens=31 normalization demonstrates the calculation, but does not independently state this required accounting boundary. With every required fact mandatory, this check fails for that omission.",
+            "evidence": [
+              "C.md:10",
+              "C.md:14",
+              "C.md:22",
+              "source/aide/pkg/store/observe_events.go:82",
+              "source/aide/pkg/store/observe_events.go:107",
+              "source/aide/pkg/store/token_events.go:93",
+              "source/aide/pkg/store/token_events.go:172",
+              "source/aide/pkg/store/token_events.go:196",
+              "source/aide/pkg/memory/token_model_usage.go:3",
+              "source/aide/pkg/memory/token_model_usage.go:20",
+              "source/src/core/model-usage.ts:41",
+              "source/src/core/model-usage.ts:230"
+            ]
+          }
+        ],
+        "unsupported_claims": [],
+        "omissions": [
+          {
+            "check_id": "boundaries",
+            "required_fact": "Do not add cache counters to normalized input_tokens; normalized input already includes them.",
+            "note": "The numerical normalization is correct, but the requested no-double-counting boundary is unstated."
+          }
+        ],
+        "wrong_claims": []
+      },
+      "unknown_reasons": []
+    },
+    {
+      "id": "t17",
+      "task": "debug",
+      "treatment": "available",
+      "repetition": 2,
+      "status": "completed",
+      "agent_id": "/root/pilot_v2_execution/t17",
+      "runtime_session_id": "01a08397-84eb-7d22-a338-fd73fab3c81f",
+      "raw_capture": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T01-35-40-01a08397-84eb-7d22-a338-fd73fab3c81f.jsonl",
+      "runtime": {
+        "actor_id": "01a08397-84eb-7d22-a338-fd73fab3c81f",
+        "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+        "agent_path": "/root/pilot_v2_execution/t17",
+        "cli_version": "0.153.4",
+        "model_provider": "openai",
+        "model": "gpt-6-astra",
+        "effort": "high"
+      },
+      "completion": {
+        "complete": true,
+        "started_at": 1788914140,
+        "completed_at": 1788914200,
+        "duration_ms": 59917
+      },
+      "runtime_usage": {
+        "input_tokens": 164190,
+        "cached_input_tokens": 153216,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 2860,
+        "reasoning_output_tokens": 221,
+        "total_tokens": 167050
+      },
+      "elapsed_ms": 59917,
+      "tool_calls": 6,
+      "response_count": 7,
+      "aide_operations": 0,
+      "aide_uptake": false,
+      "aide_duration_ms": null,
+      "retrieval_output_bytes": 17617,
+      "hook_metrics": {
+        "actor_attributed_host_result_events": 9,
+        "known_payload_events": 9,
+        "host_result_payload_bytes": 20022,
+        "injected_context_bytes": null,
+        "hook_duration_ms": null,
+        "boundary": "Captured host-result events; not complete injected-context or hook-compute accounting."
+      },
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "protocol_violations": [],
+      "protocol_valid": true,
+      "quality_verified": true,
+      "quality": {
+        "passed": true,
+        "visible_passed": true,
+        "hidden_passed": true,
+        "immutable_files_preserved": true
+      },
+      "unknown_reasons": []
+    },
+    {
+      "id": "t18",
+      "task": "edit",
+      "treatment": "guided",
+      "repetition": 2,
+      "status": "completed",
+      "agent_id": "/root/pilot_v2_execution/t18",
+      "runtime_session_id": "01a08398-bdfe-7210-8a4d-555442764e93",
+      "raw_capture": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T01-37-00-01a08398-bdfe-7210-8a4d-555442764e93.jsonl",
+      "runtime": {
+        "actor_id": "01a08398-bdfe-7210-8a4d-555442764e93",
+        "session_id": "01a07b15-668c-7453-b59c-9be3d32b2005",
+        "agent_path": "/root/pilot_v2_execution/t18",
+        "cli_version": "0.153.4",
+        "model_provider": "openai",
+        "model": "gpt-6-astra",
+        "effort": "high"
+      },
+      "completion": {
+        "complete": true,
+        "started_at": 1788914220,
+        "completed_at": 1788914262,
+        "duration_ms": 41912
+      },
+      "runtime_usage": {
+        "input_tokens": 118680,
+        "cached_input_tokens": 113792,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1957,
+        "reasoning_output_tokens": 531,
+        "total_tokens": 120637
+      },
+      "elapsed_ms": 41912,
+      "tool_calls": 5,
+      "response_count": 6,
+      "aide_operations": 0,
+      "aide_uptake": false,
+      "aide_duration_ms": null,
+      "retrieval_output_bytes": 2366,
+      "hook_metrics": {
+        "actor_attributed_host_result_events": 7,
+        "known_payload_events": 7,
+        "host_result_payload_bytes": 3110,
+        "injected_context_bytes": null,
+        "hook_duration_ms": null,
+        "boundary": "Captured host-result events; not complete injected-context or hook-compute accounting."
+      },
+      "scope_verified": true,
+      "trace_reviewed": true,
+      "protocol_violations": [],
+      "protocol_valid": true,
+      "quality_verified": true,
+      "quality": {
+        "passed": true,
+        "visible_passed": true,
+        "hidden_passed": true,
+        "immutable_files_preserved": true
+      },
+      "unknown_reasons": []
+    }
+  ],
+  "comparisons": [
+    {
+      "task": "debug",
+      "repetition": 1,
+      "left": "t02",
+      "right": "t05",
+      "runtime_comparable": true,
+      "runtime_usage_delta_right_minus_left": {
+        "input_tokens": 26770,
+        "cached_input_tokens": 26112,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 13,
+        "reasoning_output_tokens": -73,
+        "total_tokens": 26783
+      },
+      "elapsed_ms_delta_right_minus_left": -358
+    },
+    {
+      "task": "debug",
+      "repetition": 1,
+      "left": "t02",
+      "right": "t08",
+      "runtime_comparable": true,
+      "runtime_usage_delta_right_minus_left": {
+        "input_tokens": -16917,
+        "cached_input_tokens": -18048,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 756,
+        "reasoning_output_tokens": 92,
+        "total_tokens": -16161
+      },
+      "elapsed_ms_delta_right_minus_left": 8933
+    },
+    {
+      "task": "edit",
+      "repetition": 1,
+      "left": "t03",
+      "right": "t06",
+      "runtime_comparable": true,
+      "runtime_usage_delta_right_minus_left": {
+        "input_tokens": 19895,
+        "cached_input_tokens": 19200,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 249,
+        "reasoning_output_tokens": -158,
+        "total_tokens": 20144
+      },
+      "elapsed_ms_delta_right_minus_left": 6473
+    },
+    {
+      "task": "edit",
+      "repetition": 1,
+      "left": "t03",
+      "right": "t09",
+      "runtime_comparable": true,
+      "runtime_usage_delta_right_minus_left": {
+        "input_tokens": 22273,
+        "cached_input_tokens": 21248,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 484,
+        "reasoning_output_tokens": 33,
+        "total_tokens": 22757
+      },
+      "elapsed_ms_delta_right_minus_left": 11346
+    },
+    {
+      "task": "debug",
+      "repetition": 1,
+      "left": "t05",
+      "right": "t08",
+      "runtime_comparable": true,
+      "runtime_usage_delta_right_minus_left": {
+        "input_tokens": -43687,
+        "cached_input_tokens": -44160,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 743,
+        "reasoning_output_tokens": 165,
+        "total_tokens": -42944
+      },
+      "elapsed_ms_delta_right_minus_left": 9291
+    },
+    {
+      "task": "edit",
+      "repetition": 1,
+      "left": "t06",
+      "right": "t09",
+      "runtime_comparable": true,
+      "runtime_usage_delta_right_minus_left": {
+        "input_tokens": 2378,
+        "cached_input_tokens": 2048,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 235,
+        "reasoning_output_tokens": 191,
+        "total_tokens": 2613
+      },
+      "elapsed_ms_delta_right_minus_left": 4873
+    },
+    {
+      "task": "debug",
+      "repetition": 2,
+      "left": "t11",
+      "right": "t14",
+      "runtime_comparable": true,
+      "runtime_usage_delta_right_minus_left": {
+        "input_tokens": -278,
+        "cached_input_tokens": -2816,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 192,
+        "reasoning_output_tokens": 181,
+        "total_tokens": -86
+      },
+      "elapsed_ms_delta_right_minus_left": 3732
+    },
+    {
+      "task": "debug",
+      "repetition": 2,
+      "left": "t11",
+      "right": "t17",
+      "runtime_comparable": true,
+      "runtime_usage_delta_right_minus_left": {
+        "input_tokens": -46275,
+        "cached_input_tokens": -45184,
+        "cache_write_input_tokens": 0,
+        "output_tokens": -523,
+        "reasoning_output_tokens": -157,
+        "total_tokens": -46798
+      },
+      "elapsed_ms_delta_right_minus_left": -8358
+    },
+    {
+      "task": "edit",
+      "repetition": 2,
+      "left": "t12",
+      "right": "t15",
+      "runtime_comparable": true,
+      "runtime_usage_delta_right_minus_left": {
+        "input_tokens": -43824,
+        "cached_input_tokens": -42112,
+        "cache_write_input_tokens": 0,
+        "output_tokens": -411,
+        "reasoning_output_tokens": 46,
+        "total_tokens": -44235
+      },
+      "elapsed_ms_delta_right_minus_left": -8675
+    },
+    {
+      "task": "edit",
+      "repetition": 2,
+      "left": "t12",
+      "right": "t18",
+      "runtime_comparable": true,
+      "runtime_usage_delta_right_minus_left": {
+        "input_tokens": -23276,
+        "cached_input_tokens": -22400,
+        "cache_write_input_tokens": 0,
+        "output_tokens": -94,
+        "reasoning_output_tokens": 64,
+        "total_tokens": -23370
+      },
+      "elapsed_ms_delta_right_minus_left": -1801
+    },
+    {
+      "task": "debug",
+      "repetition": 2,
+      "left": "t14",
+      "right": "t17",
+      "runtime_comparable": true,
+      "runtime_usage_delta_right_minus_left": {
+        "input_tokens": -45997,
+        "cached_input_tokens": -42368,
+        "cache_write_input_tokens": 0,
+        "output_tokens": -715,
+        "reasoning_output_tokens": -338,
+        "total_tokens": -46712
+      },
+      "elapsed_ms_delta_right_minus_left": -12090
+    },
+    {
+      "task": "edit",
+      "repetition": 2,
+      "left": "t15",
+      "right": "t18",
+      "runtime_comparable": true,
+      "runtime_usage_delta_right_minus_left": {
+        "input_tokens": 20548,
+        "cached_input_tokens": 19712,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 317,
+        "reasoning_output_tokens": 18,
+        "total_tokens": 20865
+      },
+      "elapsed_ms_delta_right_minus_left": 6874
+    }
+  ],
+  "provenance": {
+    "protocol_sha256": "1c17de67029e2f826794b5e217a00b21d70e9a0e9da7290c13559b17e558f183",
+    "collector_sha256": "ad59a6efcce5a5005b0b73ca5c5f8a24d9346e141f662b8c626b4da74d64fbe3",
+    "manifest_sha256": "c20bde5021372cf80d2e8c28987506995592d151e009458377acd9a9842cdf0d"
+  }
+}

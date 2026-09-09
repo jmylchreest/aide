@@ -1,0 +1,24 @@
+{
+  "recorded_at": "2026-09-08T21:46:59.263771+00:00",
+  "trial_host": "Codex",
+  "model_effort": "inherited, verify per raw runtime log",
+  "cache_state": "uncontrolled",
+  "execution": "sequential",
+  "source_commit": "efe758c6ceb6ed5deb10fe1a4d456c69b58f00fc",
+  "versions": {
+    "bun": "1.4.0",
+    "rtk": "rtk 0.46.0",
+    "aide": "aide version 0.1.18-dev.22+478d4e3 (commit: 478d4e3b, built: 2026-09-08T17:46:36Z, go1.27.0-X:nodwarf5, linux/amd64)"
+  },
+  "notes": [
+    "No rebuild or live-daemon replacement for pilot.",
+    "Task preparation, audit, grading and reporting costs are separate from participant counters.",
+    "Same installed hooks available in all retrieval conditions."
+  ],
+  "freeze_commit": "928ee21",
+  "resumed_at": "2026-09-09T00:17:14.867150+00:00",
+  "interruption": "Preparatory reviewer hit runtime usage limit; user requested retry. All eighteen trials were still planned before resumption.",
+  "sequential_interpretation": "Participant intervals do not overlap. Offline collection, grading and audit/orchestration may run concurrently with a participant; the machine is not dedicated, so wall time is descriptive and not a controlled latency benchmark.",
+  "result_directory_name": "2026-09-08 is the package/preparation date; participant execution began 2026-09-09 UTC after the user resumed the interrupted run.",
+  "prompt_evidence": "Prepared prompts matched frozen composition and were submitted as participant assignments. Runtime logs protect assignment message text, so byte-for-byte delivery comparison from those logs is unavailable. Spawn metadata still verifies fork_turns=none and no model/effort override; distinct runtime identities and reported model settings are checked separately."
+}

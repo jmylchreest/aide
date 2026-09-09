@@ -1,0 +1,395 @@
+{
+  "trial": "t07",
+  "reviewer": "pilot_v2_trace_audit",
+  "receipt_reviewed": true,
+  "all_nine_receipts_valid": true,
+  "aide_host_event_count": 9,
+  "server_event_count": 9,
+  "decoded_mcp_return_count": 9,
+  "source_snapshot_basis": "Read current immutable t07/root files only; their hashes and byte lengths exactly match host/server source_references. Trial provenance reports immutable snapshot integrity passing. No source text executed.",
+  "summed_measured_work_elapsed_ms": 35,
+  "rows": [
+    {
+      "host_event_id": "01M21RT35N6HMW2H9JRKN309R5",
+      "work_id": "FFPR65PTRRM64F65QISR3TBROU",
+      "server_match_count": 1,
+      "server_event_id": "01M21RT33X1MHFM6E5ZJME4NWB",
+      "method": "code_read_symbol",
+      "method_matches": true,
+      "host_actor_matches": true,
+      "host_stage": "host_result",
+      "server_stage": "server_result",
+      "host_server_hash_equal": true,
+      "host_server_payload_bytes_equal": true,
+      "host_server_source_references_equal": true,
+      "retrieval_id_matches": true,
+      "source_references": [
+        {
+          "file": ".aide/state/evaluation/2026-09-08-outcomes-v2/t07/root/aide/pkg/store/token_events.go",
+          "inside_assigned_root": true,
+          "sha256_matches": true,
+          "byte_count_matches": true,
+          "reference_bytes": 6891
+        }
+      ],
+      "decoded_return_matches": [
+        {
+          "call_id": "call_zo2Pa2PgCWxCxmoXrxGmpOii",
+          "output_content_index": 4,
+          "utf8_bytes": 4992,
+          "sha256": "996a7250ef044d13b904087b6f0494f8224443f398a47c47c6ec4a73d4a8c0b2"
+        }
+      ],
+      "decoded_return_unique": true,
+      "decoded_payload_bytes_match": true,
+      "work_outcome": "returned",
+      "work_elapsed_ms": 2,
+      "dur_ms_matches_work_elapsed_ms": true,
+      "receipt_version": "1",
+      "server_work_version": "1",
+      "valid": true
+    },
+    {
+      "host_event_id": "01M21RT037GAJ21S37EPQD1WT4",
+      "work_id": "RWUNU2SNFWYICLYIJS3GNSLWP4",
+      "server_match_count": 1,
+      "server_event_id": "01M21RT01FVWVGW1RBZ1K721XP",
+      "method": "code_read_symbol",
+      "method_matches": true,
+      "host_actor_matches": true,
+      "host_stage": "host_result",
+      "server_stage": "server_result",
+      "host_server_hash_equal": true,
+      "host_server_payload_bytes_equal": true,
+      "host_server_source_references_equal": true,
+      "retrieval_id_matches": true,
+      "source_references": [
+        {
+          "file": ".aide/state/evaluation/2026-09-08-outcomes-v2/t07/root/aide/pkg/store/observe_events.go",
+          "inside_assigned_root": true,
+          "sha256_matches": true,
+          "byte_count_matches": true,
+          "reference_bytes": 12353
+        }
+      ],
+      "decoded_return_matches": [
+        {
+          "call_id": "call_zo2Pa2PgCWxCxmoXrxGmpOii",
+          "output_content_index": 3,
+          "utf8_bytes": 5419,
+          "sha256": "ae8604ecb01bf7016b9c770b0395719971481ceb2955c2b68f43f768f9030d44"
+        }
+      ],
+      "decoded_return_unique": true,
+      "decoded_payload_bytes_match": true,
+      "work_outcome": "returned",
+      "work_elapsed_ms": 2,
+      "dur_ms_matches_work_elapsed_ms": true,
+      "receipt_version": "1",
+      "server_work_version": "1",
+      "valid": true
+    },
+    {
+      "host_event_id": "01M21RSXDRND13T3SQGGKEXJ1Q",
+      "work_id": "JEZFBJRINPUOCB74ZLR275FIRC",
+      "server_match_count": 1,
+      "server_event_id": "01M21RSXC3YMR5687K22PH2E2E",
+      "method": "code_read_symbol",
+      "method_matches": true,
+      "host_actor_matches": true,
+      "host_stage": "host_result",
+      "server_stage": "server_result",
+      "host_server_hash_equal": true,
+      "host_server_payload_bytes_equal": true,
+      "host_server_source_references_equal": true,
+      "retrieval_id_matches": true,
+      "source_references": [
+        {
+          "file": ".aide/state/evaluation/2026-09-08-outcomes-v2/t07/root/src/opencode/hooks.ts",
+          "inside_assigned_root": true,
+          "sha256_matches": true,
+          "byte_count_matches": true,
+          "reference_bytes": 48736
+        }
+      ],
+      "decoded_return_matches": [
+        {
+          "call_id": "call_zo2Pa2PgCWxCxmoXrxGmpOii",
+          "output_content_index": 2,
+          "utf8_bytes": 4112,
+          "sha256": "242759a70bf7dd65cbdb64fd2da52d7a7368ad706245d99b84ff248217e2c790"
+        }
+      ],
+      "decoded_return_unique": true,
+      "decoded_payload_bytes_match": true,
+      "work_outcome": "returned",
+      "work_elapsed_ms": 7,
+      "dur_ms_matches_work_elapsed_ms": true,
+      "receipt_version": "1",
+      "server_work_version": "1",
+      "valid": true
+    },
+    {
+      "host_event_id": "01M21RSV2F1WP65E3HNA4ZXNKS",
+      "work_id": "HFLBKLZESTFAD5IYL3QQKB6SP4",
+      "server_match_count": 1,
+      "server_event_id": "01M21RSV0NDWFDM86J5K1YPG4X",
+      "method": "code_read_symbol",
+      "method_matches": true,
+      "host_actor_matches": true,
+      "host_stage": "host_result",
+      "server_stage": "server_result",
+      "host_server_hash_equal": true,
+      "host_server_payload_bytes_equal": true,
+      "host_server_source_references_equal": true,
+      "retrieval_id_matches": true,
+      "source_references": [
+        {
+          "file": ".aide/state/evaluation/2026-09-08-outcomes-v2/t07/root/src/core/model-usage.ts",
+          "inside_assigned_root": true,
+          "sha256_matches": true,
+          "byte_count_matches": true,
+          "reference_bytes": 10720
+        }
+      ],
+      "decoded_return_matches": [
+        {
+          "call_id": "call_zo2Pa2PgCWxCxmoXrxGmpOii",
+          "output_content_index": 1,
+          "utf8_bytes": 5790,
+          "sha256": "978668986fc18ff7a0e8c7beee56fffc7dc09183689b5e59df0bc4429743d695"
+        }
+      ],
+      "decoded_return_unique": true,
+      "decoded_payload_bytes_match": true,
+      "work_outcome": "returned",
+      "work_elapsed_ms": 4,
+      "dur_ms_matches_work_elapsed_ms": true,
+      "receipt_version": "1",
+      "server_work_version": "1",
+      "valid": true
+    },
+    {
+      "host_event_id": "01M21RSM182XP0MVF92HKYSNYK",
+      "work_id": "SYJL7CZ6YVIHN7IARZA7R6LQ7O",
+      "server_match_count": 1,
+      "server_event_id": "01M21RSKZKNE112833WPRD4D11",
+      "method": "code_outline",
+      "method_matches": true,
+      "host_actor_matches": true,
+      "host_stage": "host_result",
+      "server_stage": "server_result",
+      "host_server_hash_equal": true,
+      "host_server_payload_bytes_equal": true,
+      "host_server_source_references_equal": true,
+      "retrieval_id_matches": true,
+      "source_references": [
+        {
+          "file": ".aide/state/evaluation/2026-09-08-outcomes-v2/t07/root/aide/pkg/store/token_model_usage.go",
+          "inside_assigned_root": true,
+          "sha256_matches": true,
+          "byte_count_matches": true,
+          "reference_bytes": 7485
+        }
+      ],
+      "decoded_return_matches": [
+        {
+          "call_id": "call_Fspc0RUYH4eX79TsbEridE3L",
+          "output_content_index": 3,
+          "utf8_bytes": 2032,
+          "sha256": "2f2a77150b39b3aec5cd8f53a978fed5d28f0f43ab4f63b052ac77c8ce9cf7ca"
+        }
+      ],
+      "decoded_return_unique": true,
+      "decoded_payload_bytes_match": true,
+      "work_outcome": "returned",
+      "work_elapsed_ms": 2,
+      "dur_ms_matches_work_elapsed_ms": true,
+      "receipt_version": "1",
+      "server_work_version": "1",
+      "valid": true
+    },
+    {
+      "host_event_id": "01M21RSKVK8BKA47VQNKX2208Z",
+      "work_id": "XW2WYLJWKAIQNEOXVZZJNXQFKP",
+      "server_match_count": 1,
+      "server_event_id": "01M21RSKSY7PXHGAE8ST7E7VSY",
+      "method": "code_outline",
+      "method_matches": true,
+      "host_actor_matches": true,
+      "host_stage": "host_result",
+      "server_stage": "server_result",
+      "host_server_hash_equal": true,
+      "host_server_payload_bytes_equal": true,
+      "host_server_source_references_equal": true,
+      "retrieval_id_matches": true,
+      "source_references": [
+        {
+          "file": ".aide/state/evaluation/2026-09-08-outcomes-v2/t07/root/src/opencode/hooks.ts",
+          "inside_assigned_root": true,
+          "sha256_matches": true,
+          "byte_count_matches": true,
+          "reference_bytes": 48736
+        }
+      ],
+      "decoded_return_matches": [
+        {
+          "call_id": "call_Fspc0RUYH4eX79TsbEridE3L",
+          "output_content_index": 2,
+          "utf8_bytes": 12320,
+          "sha256": "ea3223a5ab89c4292b45497ce9acb57df18e3a92ec5a1a6a92e67bc429704347"
+        }
+      ],
+      "decoded_return_unique": true,
+      "decoded_payload_bytes_match": true,
+      "work_outcome": "returned",
+      "work_elapsed_ms": 8,
+      "dur_ms_matches_work_elapsed_ms": true,
+      "receipt_version": "1",
+      "server_work_version": "1",
+      "valid": true
+    },
+    {
+      "host_event_id": "01M21RSKNRT7BKQAAJS88K6BZM",
+      "work_id": "HCPLZYIZZF74MT4TKHDKQCFS6B",
+      "server_match_count": 1,
+      "server_event_id": "01M21RSKM30XNN7VKMQ9B3Q8K8",
+      "method": "code_outline",
+      "method_matches": true,
+      "host_actor_matches": true,
+      "host_stage": "host_result",
+      "server_stage": "server_result",
+      "host_server_hash_equal": true,
+      "host_server_payload_bytes_equal": true,
+      "host_server_source_references_equal": true,
+      "retrieval_id_matches": true,
+      "source_references": [
+        {
+          "file": ".aide/state/evaluation/2026-09-08-outcomes-v2/t07/root/src/core/model-usage.ts",
+          "inside_assigned_root": true,
+          "sha256_matches": true,
+          "byte_count_matches": true,
+          "reference_bytes": 10720
+        }
+      ],
+      "decoded_return_matches": [
+        {
+          "call_id": "call_Fspc0RUYH4eX79TsbEridE3L",
+          "output_content_index": 1,
+          "utf8_bytes": 3117,
+          "sha256": "db148c2cee27a708dfd8975434f187de57d367af1e16c7347ed96156bfb12289"
+        }
+      ],
+      "decoded_return_unique": true,
+      "decoded_payload_bytes_match": true,
+      "work_outcome": "returned",
+      "work_elapsed_ms": 5,
+      "dur_ms_matches_work_elapsed_ms": true,
+      "receipt_version": "1",
+      "server_work_version": "1",
+      "valid": true
+    },
+    {
+      "host_event_id": "01M21RSKG0C2SPNCSYKY25AQWS",
+      "work_id": "54TRJ7OMUAXDYXBG76UVJUXIPN",
+      "server_match_count": 1,
+      "server_event_id": "01M21RSKECDJT6KKTARFXVXJR4",
+      "method": "code_outline",
+      "method_matches": true,
+      "host_actor_matches": true,
+      "host_stage": "host_result",
+      "server_stage": "server_result",
+      "host_server_hash_equal": true,
+      "host_server_payload_bytes_equal": true,
+      "host_server_source_references_equal": true,
+      "retrieval_id_matches": true,
+      "source_references": [
+        {
+          "file": ".aide/state/evaluation/2026-09-08-outcomes-v2/t07/root/aide/pkg/store/observe_events.go",
+          "inside_assigned_root": true,
+          "sha256_matches": true,
+          "byte_count_matches": true,
+          "reference_bytes": 12353
+        }
+      ],
+      "decoded_return_matches": [
+        {
+          "call_id": "call_Fspc0RUYH4eX79TsbEridE3L",
+          "output_content_index": 5,
+          "utf8_bytes": 4369,
+          "sha256": "8eca6c69f2b2126203d0d5fb60a83ec6739339f60c0d62e8a52e0ff883185d93"
+        }
+      ],
+      "decoded_return_unique": true,
+      "decoded_payload_bytes_match": true,
+      "work_outcome": "returned",
+      "work_elapsed_ms": 2,
+      "dur_ms_matches_work_elapsed_ms": true,
+      "receipt_version": "1",
+      "server_work_version": "1",
+      "valid": true
+    },
+    {
+      "host_event_id": "01M21RSKA9CR4HGYTESAABGCM5",
+      "work_id": "GNM4AMDGWSYABFUPS3OGGFSLHU",
+      "server_match_count": 1,
+      "server_event_id": "01M21RSK8N9TXWX3R17Y5HPHPD",
+      "method": "code_outline",
+      "method_matches": true,
+      "host_actor_matches": true,
+      "host_stage": "host_result",
+      "server_stage": "server_result",
+      "host_server_hash_equal": true,
+      "host_server_payload_bytes_equal": true,
+      "host_server_source_references_equal": true,
+      "retrieval_id_matches": true,
+      "source_references": [
+        {
+          "file": ".aide/state/evaluation/2026-09-08-outcomes-v2/t07/root/aide/pkg/store/token_events.go",
+          "inside_assigned_root": true,
+          "sha256_matches": true,
+          "byte_count_matches": true,
+          "reference_bytes": 6891
+        }
+      ],
+      "decoded_return_matches": [
+        {
+          "call_id": "call_Fspc0RUYH4eX79TsbEridE3L",
+          "output_content_index": 4,
+          "utf8_bytes": 1282,
+          "sha256": "4819391fa5438b3163f2a5652f377013858af15e6734a485f0b9da80709e5be4"
+        }
+      ],
+      "decoded_return_unique": true,
+      "decoded_payload_bytes_match": true,
+      "work_outcome": "returned",
+      "work_elapsed_ms": 3,
+      "dur_ms_matches_work_elapsed_ms": true,
+      "receipt_version": "1",
+      "server_work_version": "1",
+      "valid": true
+    }
+  ],
+  "shell_host_result_comparison": {
+    "host_event_count": 6,
+    "decoded_shell_result_count": 6,
+    "all_host_actor_ids_match": true,
+    "host_payload_byte_multiset_matches": true,
+    "decoded_shell_output_bytes_including_bootstrap": 11942,
+    "decoded_shell_body_bytes": [
+      482,
+      193,
+      247,
+      238,
+      1582,
+      9200
+    ],
+    "source_proof": false,
+    "note": "Host shell receipts provide payload byte counts but no source hashes. Multiset agreement is separate from aide source proof; shell result attribution to call ids remains in trace review."
+  },
+  "notes": [
+    "Each of nine unique host work_id values has exactly one server_result event and exactly one decoded MCP returned text hash. Actor identity, tool method, retrieval id, payload byte count and source reference JSON match. Every reference resolves inside the assigned snapshot and matches current full-file SHA256 and byte length.",
+    "All work_outcome values are returned. dur_ms equals integer work_elapsed_ms for every operation. The sum is measured per-operation elapsed duration, not whole-task wall time, CPU time, billing or savings; parallel operation durations may overlap.",
+    "These checks validate observed receipt consistency and source attribution. They do not establish provider token savings or avoided calls. Source references describe full files, while symbol outputs return selected bodies plus retrieval formatting."
+  ]
+}

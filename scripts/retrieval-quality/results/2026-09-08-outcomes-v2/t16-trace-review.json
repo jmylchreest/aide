@@ -1,0 +1,155 @@
+{
+  "trial": "t16",
+  "reviewer": "pilot_v2_trace_audit",
+  "scope_verified": true,
+  "trace_reviewed": true,
+  "protocol_violations": [],
+  "aide_operations": 0,
+  "aide_uptake": false,
+  "source_edit_test_calls": 11,
+  "mandatory_bootstrap_calls": 1,
+  "discovery_calls": 0,
+  "total_nested_calls": 12,
+  "call_target_exceeded": false,
+  "tool_failures": 0,
+  "tool_failure_details": {
+    "transport_failures": 0,
+    "nonzero_shell_exits": 0,
+    "expected_pre_fix_test_failures": 0,
+    "retry_after_tool_error_calls": 0,
+    "truncated_output_wrappers": 1
+  },
+  "retrieval_output_bytes": 62100,
+  "byte_evidence": {
+    "method": "Parse attributable JSON results, including five independently parseable JSON lines in packed truncated wrapper. Unwrap fulfilled.value and count UTF-8 bytes of decoded visible exec_command.output only, including inserted truncation marker; exclude outer wrappers/notices and bootstrap. Inputs reviewed, never executed.",
+    "items": [
+      {
+        "call_id": "call_CNRmhVWsBuezoF4BV8lkf5ee",
+        "output_content_index": 1,
+        "packed_json_line_index": null,
+        "category": "bootstrap",
+        "utf8_bytes": 482,
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_ltrg1mSnzInRiK3kIj7izpRZ",
+        "output_content_index": 1,
+        "packed_json_line_index": null,
+        "category": "listing",
+        "utf8_bytes": 193,
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_TpekrMDQYDFlEgcga2O4HM15",
+        "output_content_index": 1,
+        "packed_json_line_index": null,
+        "category": "search",
+        "utf8_bytes": 9076,
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_Ib5qwDgT8XUWFCLPp3UX7TFL",
+        "output_content_index": 1,
+        "packed_json_line_index": null,
+        "category": "source_read",
+        "utf8_bytes": 13261,
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_Ib5qwDgT8XUWFCLPp3UX7TFL",
+        "output_content_index": 2,
+        "packed_json_line_index": null,
+        "category": "search",
+        "utf8_bytes": 826,
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_anSN6m6K3QO1x7C65ZdZ6nL8",
+        "output_content_index": 1,
+        "packed_json_line_index": 3,
+        "category": "source_read",
+        "utf8_bytes": 2665,
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_anSN6m6K3QO1x7C65ZdZ6nL8",
+        "output_content_index": 1,
+        "packed_json_line_index": 4,
+        "category": "source_read",
+        "utf8_bytes": 9200,
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_anSN6m6K3QO1x7C65ZdZ6nL8",
+        "output_content_index": 1,
+        "packed_json_line_index": 5,
+        "category": "source_read_truncated",
+        "utf8_bytes": 6791,
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_anSN6m6K3QO1x7C65ZdZ6nL8",
+        "output_content_index": 1,
+        "packed_json_line_index": 6,
+        "category": "source_read",
+        "utf8_bytes": 15244,
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_anSN6m6K3QO1x7C65ZdZ6nL8",
+        "output_content_index": 1,
+        "packed_json_line_index": 7,
+        "category": "source_read",
+        "utf8_bytes": 1582,
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_CaWQ5U4ZyGDiYQN3ixQTeD3D",
+        "output_content_index": 1,
+        "packed_json_line_index": null,
+        "category": "source_read",
+        "utf8_bytes": 1761,
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_CaWQ5U4ZyGDiYQN3ixQTeD3D",
+        "output_content_index": 2,
+        "packed_json_line_index": null,
+        "category": "source_read",
+        "utf8_bytes": 1501,
+        "exit_code": 0
+      }
+    ],
+    "bootstrap_output_bytes": 482,
+    "edit_output_bytes": 0,
+    "test_output_bytes": 0,
+    "missing_or_unattributable_outputs": false,
+    "has_truncated_source_output": true,
+    "pre_truncation_retrieval_output_bytes": null,
+    "truncation_details": {
+      "call_id": "call_anSN6m6K3QO1x7C65ZdZ6nL8",
+      "output_content_index": 1,
+      "packed_json_line_index": 5,
+      "file": "aide/pkg/store/token_events.go",
+      "visible_decoded_body_bytes": 6791,
+      "marker": "\u2026512 tokens truncated\u2026",
+      "note": "Outer result reports original token count 10512 and five lines. These marker counters are rendering metadata, not independently measured model tokens. Original full delivered shell body unknown from this capture."
+    }
+  },
+  "aide_duration_ms": null,
+  "hook_metrics": null,
+  "notes": [
+    "Manually interpreted six wrappers; cmds.map expands to five nested shell calls. Total twelve exec_command invocations, no aide calls/discovery. Ordinary treatment conforms.",
+    "All task commands start rtk and use assigned-root workdir; only permitted RTK bootstrap reads outside root. No prohibited global retrieval, other trials, reference/grader/prior-result evidence, memory, internet or delegation observed.",
+    "Read-only integrity passes. No tests or edits; no nonzero exits/transport failures. Final bounded token_events.go read follows truncation of its full read, consistent with retrieving missing source rather than a failed-tool retry. hooks.ts numbered reread also observed.",
+    "Scope concerns recorded source/edit boundaries and provenance, not all runtime syscalls. Visible text bytes include truncation marker; do not substitute pre-truncation host counts for text delivered in capture. Bytes are not model tokens or causal savings. Navigation grading separate and unchanged."
+  ],
+  "host_event_count_crosscheck": {
+    "nested_call_count": 12,
+    "host_result_event_count": 12,
+    "counts_match": true,
+    "all_actor_and_stage_values_match": true,
+    "unique_event_ids": true,
+    "note": "Count comparison is boundary evidence only, not one-to-one byte/source proof or unchanged model delivery. Local discovery expressions do not produce nested tool-call receipts. t10/t16 wrapper truncation remains distinct from full host payload counts."
+  }
+}

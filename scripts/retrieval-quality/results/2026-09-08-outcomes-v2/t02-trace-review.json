@@ -1,0 +1,119 @@
+{
+  "trial": "t02",
+  "reviewer": "pilot_v2_trace_audit",
+  "scope_verified": true,
+  "trace_reviewed": true,
+  "protocol_violations": [],
+  "aide_operations": 0,
+  "aide_uptake": false,
+  "source_edit_test_calls": 9,
+  "mandatory_bootstrap_calls": 1,
+  "discovery_calls": 0,
+  "total_nested_calls": 10,
+  "call_target_exceeded": false,
+  "tool_failures": 1,
+  "retrieval_output_bytes": 18748,
+  "byte_evidence": {
+    "method": "Parse each attributable input_text JSON payload; unwrap Promise.allSettled fulfilled.value; count UTF-8 bytes of decoded exec_command.output only. No tool-call inputs executed. Shell protocol envelopes and Script completed text excluded. Includes pwd/listings and source searches; excludes bootstrap, edits and test results.",
+    "items": [
+      {
+        "call_id": "call_5SY5bayYnOprfD74Q5n8L7KH",
+        "output_content_index": 1,
+        "category": "bootstrap",
+        "utf8_bytes": 482,
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_wH9bTTIH8vrCj2iTTCIKahFy",
+        "output_content_index": 1,
+        "category": "navigation",
+        "utf8_bytes": 99,
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_wH9bTTIH8vrCj2iTTCIKahFy",
+        "output_content_index": 2,
+        "category": "listing",
+        "utf8_bytes": 159,
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_kZR4VD5xv4tTw1EvHfZYU46n",
+        "output_content_index": 1,
+        "category": "source_read",
+        "utf8_bytes": 14623,
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_ciiJ0bardvbLjKXwU7M8lLlJ",
+        "output_content_index": 1,
+        "category": "test",
+        "utf8_bytes": 1006,
+        "exit_code": 1
+      },
+      {
+        "call_id": "call_YyLohncM4hAMQdEgre2T7sF5",
+        "output_content_index": 1,
+        "category": "edit",
+        "utf8_bytes": 0,
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_JxpIxkr3D1W9onl3STelUmhU",
+        "output_content_index": 1,
+        "category": "scratch_test_edit",
+        "utf8_bytes": 0,
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_JxpIxkr3D1W9onl3STelUmhU",
+        "output_content_index": 2,
+        "category": "test",
+        "utf8_bytes": 765,
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_mDwT8TMPZxKjJETmkwHyPkk7",
+        "output_content_index": 1,
+        "category": "test",
+        "utf8_bytes": 192,
+        "exit_code": 0
+      },
+      {
+        "call_id": "call_mDwT8TMPZxKjJETmkwHyPkk7",
+        "output_content_index": 2,
+        "category": "search",
+        "utf8_bytes": 3867,
+        "exit_code": 0
+      }
+    ],
+    "bootstrap_output_bytes": 482,
+    "edit_output_bytes": 0,
+    "test_output_bytes": 1963,
+    "missing_or_unattributable_outputs": false
+  },
+  "aide_duration_ms": null,
+  "hook_metrics": null,
+  "notes": [
+    "Manually interpreted every JavaScript wrapper and its shell commands. Actual nested exec_command calls counted individually; no aide calls, including none implied by source text mentions. All shell commands start rtk. Every task shell workdir is the assigned trial root; the sole out-of-root read is mandatory RTK.md bootstrap. No internet, delegation, memory, global/index retrieval, other trial, prior result, reference or grader reads in captured tool inputs.",
+    "File integrity passes in provenance; immutable/missing/unexpected/symlink lists are empty. This scope assessment concerns recorded tool activity and provenance, not unrecorded filesystem syscall tracing.",
+    "Source-output bytes are observed returned UTF-8 text, not tokens, billed cost or causal savings. Runtime completeness and quality are separate; functional grades were not changed.",
+    "Available treatment permits zero aide uptake; no conformance violation. Changed only allowed tracker.ts, dedup.ts and types.ts. New dedup-regression.test.ts is outside src, permitted by prompt; its temporary test directory is under import.meta.dir and cleaned in afterAll. Provided reproducer unchanged according to provenance.",
+    "One nonzero shell result is the expected pre-fix visible reproducer failure, not a transport/tool failure. After edits, combined provided-plus-scratch suite succeeds and provided reproducer is run successfully once more. Thus 3 test calls, 1 expected pre-fix failure, 0 transport failures, 0 retry-after-tool-error calls.",
+    "Mentions of code_search, Bash, Write, Edit, memory_add and task_update occur as scratch-test fixture strings, not actual retrieval/mutation tool invocations."
+  ],
+  "tool_failure_details": {
+    "transport_failures": 0,
+    "nonzero_shell_exits": 1,
+    "expected_pre_fix_test_failures": 1,
+    "retry_after_tool_error_calls": 0
+  },
+  "host_event_count_crosscheck": {
+    "nested_call_count": 10,
+    "host_result_event_count": 10,
+    "counts_match": true,
+    "all_actor_and_stage_values_match": true,
+    "unique_event_ids": true,
+    "note": "Count comparison is boundary evidence only, not one-to-one byte/source proof or unchanged model delivery. Local discovery expressions do not produce nested tool-call receipts. t10/t16 wrapper truncation remains distinct from full host payload counts."
+  }
+}

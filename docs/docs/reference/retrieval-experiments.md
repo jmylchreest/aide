@@ -1,6 +1,6 @@
 ---
 title: Retrieval experiments
-description: Reproduce deterministic retrieval checks without claiming provider token savings.
+description: Evaluate retrieval correctness, model usage and aide work with reproducible evidence.
 ---
 
 The retrieval experiment checks whether prescribed aide tool sequences return the
@@ -186,3 +186,52 @@ be equated with final model delivery. A working-directory attribution issue also
 produced unreliable source receipts while leaving measured text bytes intact.
 The result README and independent audit preserve these limits; no savings figure
 from this run belongs in the CLI or web Overview.
+
+
+## Repeated outcomes with optional guidance
+
+The v2 package, frozen in `928ee21`, separates three conditions: ordinary
+retrieval, optional aide retrieval, and optional aide retrieval with selective
+navigation guidance. It plans two repetitions of each condition for a large-file
+navigation task, a four-file debugging task and a small edit: 18 fresh contexts
+in a fixed, balanced, sequential order. The small edit permits a direct read;
+guidance does not require an outline when most of a file is needed.
+
+Use `scripts/retrieval-quality/outcomes-v2/README.md` for the offline preparation,
+grading and reporting commands. Preparation copies only participant templates
+and verifies their frozen hashes. Hidden tests and navigation rubrics stay outside
+participant roots. Grading preserves the roots and runs functional checks in
+separate copies. Reports retain every planned row, including missing, failed,
+invalid and zero-uptake trials. The report CLI checks the package manifest,
+protocol digest and pinned usage collector before producing comparisons.
+
+Runtime counters, quality, elapsed time, aide operations and returned text bytes
+remain separate. Descriptive resource deltas require completed, valid trials,
+passing independent grades and matching runtime model/provider/effort/CLI metadata.
+Provider cache state is uncontrolled. All conditions retain the installed aide
+hooks, so this is a retrieval strategy experiment, not an installation comparison.
+Setup, orchestration and grading are additional work, outside participant totals.
+
+This execution uses Codex. The task fixtures can be reused on Claude Code and
+OpenCode, but these results establish no cross-host performance claim. Keep host
+usage exports and their coverage distinct when repeating the protocol elsewhere.
+
+The September 9 execution completed all 18 trials. All six debug fixes and six
+small edits passed their frozen tests. Each navigation answer passed four of five
+criteria: counters and citations were correct, but all omitted an explicit cache
+double-counting warning required by the rubric and not expressly requested in the
+prompt. The strict failures remain recorded; the prompt/rubric mismatch limits
+their interpretation and navigation comparison deltas are suppressed.
+
+Only the two guided navigation trials used aide retrieval, with nine and four
+operations. Their verified server receipts total 35 ms and 22 ms of operation
+elapsed time, separate from model and whole-task time. All quality-qualified
+code-task comparisons have zero aide uptake and therefore do not estimate a
+retrieval-tool benefit. This pilot does not justify stronger default guidance.
+
+The compact visual report and complete evidence are in
+`scripts/retrieval-quality/results/2026-09-08-outcomes-v2/` (`index.html` and
+`README.md`); the directory retains its preparation date. It includes all runs,
+actual input/output/cache counters, source-return and host boundaries, truncation
+qualifications, blind grades, and a separate snapshot of experiment overhead.
+No savings percentage from this pilot belongs in the CLI or web Overview.

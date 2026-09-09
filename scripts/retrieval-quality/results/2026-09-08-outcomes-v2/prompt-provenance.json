@@ -1,0 +1,202 @@
+{
+  "trials": [
+    {
+      "trial": "t01",
+      "fork_turns": "none",
+      "model_override": null,
+      "effort_override": null,
+      "exact_prompt_match_ignoring_trailing_whitespace": null,
+      "message_evidence": "protected runtime assignment; compare unavailable",
+      "expected_sha256_trimmed": "66adfd3ea33af6cbdeaf6946eafee6eaea4c5faed21c623384577fd1558e7cb0",
+      "source_log": "/home/johnm/.codex/sessions/2026/09/07/rollout-2026-09-07T09-56-35-01a07b15-668c-7453-b59c-9be3d32b2005.jsonl",
+      "spawn_call_id": "call_264N8wT8xH4Ithvilf126log"
+    },
+    {
+      "trial": "t02",
+      "fork_turns": "none",
+      "model_override": null,
+      "effort_override": null,
+      "exact_prompt_match_ignoring_trailing_whitespace": null,
+      "message_evidence": "protected runtime assignment; compare unavailable",
+      "expected_sha256_trimmed": "45e0edd2494c85d8c9f6cb86910e31cd7738fc3798dbb39c06c825fc0bd124cb",
+      "source_log": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T01-17-28-01a08386-da7e-7001-9e3b-cb55b9d23bd2.jsonl",
+      "spawn_call_id": "call_LfAmJGT6t3hdURUf1NxKaLk0"
+    },
+    {
+      "trial": "t03",
+      "fork_turns": "none",
+      "model_override": null,
+      "effort_override": null,
+      "exact_prompt_match_ignoring_trailing_whitespace": null,
+      "message_evidence": "protected runtime assignment; compare unavailable",
+      "expected_sha256_trimmed": "0e70c34192cd164d85796d6edcec0bbc8431f31e5cbe8c225301f74b14c8f10a",
+      "source_log": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T01-17-28-01a08386-da7e-7001-9e3b-cb55b9d23bd2.jsonl",
+      "spawn_call_id": "call_AIMv2gds0agKNW8Y6bUIeABx"
+    },
+    {
+      "trial": "t04",
+      "fork_turns": "none",
+      "model_override": null,
+      "effort_override": null,
+      "exact_prompt_match_ignoring_trailing_whitespace": null,
+      "message_evidence": "protected runtime assignment; compare unavailable",
+      "expected_sha256_trimmed": "ae85076f6d72e1903cdefd9133d5ade45023011993a5eca5507488368246e568",
+      "source_log": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T01-17-28-01a08386-da7e-7001-9e3b-cb55b9d23bd2.jsonl",
+      "spawn_call_id": "call_mv1vhKWlIjLqA3A1Si1IUfm9"
+    },
+    {
+      "trial": "t05",
+      "fork_turns": "none",
+      "model_override": null,
+      "effort_override": null,
+      "exact_prompt_match_ignoring_trailing_whitespace": null,
+      "message_evidence": "protected runtime assignment; compare unavailable",
+      "expected_sha256_trimmed": "8f02fc4f7431c3ff92778ab19910f8f87b085445c7a6c410fc1d82a5ce9a4505",
+      "source_log": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T01-17-28-01a08386-da7e-7001-9e3b-cb55b9d23bd2.jsonl",
+      "spawn_call_id": "call_UaVMhinQvwnrWVo7dXC3vlD9"
+    },
+    {
+      "trial": "t06",
+      "fork_turns": "none",
+      "model_override": null,
+      "effort_override": null,
+      "exact_prompt_match_ignoring_trailing_whitespace": null,
+      "message_evidence": "protected runtime assignment; compare unavailable",
+      "expected_sha256_trimmed": "60782df5d89cc1bb7cd80fbf61908f428905390e16036524a69a114c4139d076",
+      "source_log": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T01-17-28-01a08386-da7e-7001-9e3b-cb55b9d23bd2.jsonl",
+      "spawn_call_id": "call_wXZdXg0SrBRreV3SHijBeafx"
+    },
+    {
+      "trial": "t07",
+      "fork_turns": "none",
+      "model_override": null,
+      "effort_override": null,
+      "exact_prompt_match_ignoring_trailing_whitespace": null,
+      "message_evidence": "protected runtime assignment; compare unavailable",
+      "expected_sha256_trimmed": "5c4b5b5d7c61dc7463c082af2453c5c9963dac909e07e601fa3bb77ca89a2b14",
+      "source_log": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T01-17-28-01a08386-da7e-7001-9e3b-cb55b9d23bd2.jsonl",
+      "spawn_call_id": "call_o1wgoeiKuOIcvaVGL9mJ5g5C"
+    },
+    {
+      "trial": "t08",
+      "fork_turns": "none",
+      "model_override": null,
+      "effort_override": null,
+      "exact_prompt_match_ignoring_trailing_whitespace": null,
+      "message_evidence": "protected runtime assignment; compare unavailable",
+      "expected_sha256_trimmed": "77e1b78fdbe27e4854f999c24282444bb6a1e9574ae507022ac37808ae71cfe0",
+      "source_log": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T01-17-28-01a08386-da7e-7001-9e3b-cb55b9d23bd2.jsonl",
+      "spawn_call_id": "call_3Uce8NjM47Rrc6H31MITuwuC"
+    },
+    {
+      "trial": "t09",
+      "fork_turns": "none",
+      "model_override": null,
+      "effort_override": null,
+      "exact_prompt_match_ignoring_trailing_whitespace": null,
+      "message_evidence": "protected runtime assignment; compare unavailable",
+      "expected_sha256_trimmed": "7d67dad884bc893f8863ac0ee3d9b219bc1cb3df1b21d89575cee41117385b96",
+      "source_log": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T01-17-28-01a08386-da7e-7001-9e3b-cb55b9d23bd2.jsonl",
+      "spawn_call_id": "call_lqGuIXzoASNXL2C1k1oJiMFz"
+    },
+    {
+      "trial": "t10",
+      "fork_turns": "none",
+      "model_override": null,
+      "effort_override": null,
+      "exact_prompt_match_ignoring_trailing_whitespace": null,
+      "message_evidence": "protected runtime assignment; compare unavailable",
+      "expected_sha256_trimmed": "be000b9b6300a1ed539878288ac93eb484534e7e7751e40fe37c66deb726d993",
+      "source_log": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T01-17-28-01a08386-da7e-7001-9e3b-cb55b9d23bd2.jsonl",
+      "spawn_call_id": "call_ParU7sDH1HrKnl3tjyddvAsy"
+    },
+    {
+      "trial": "t11",
+      "fork_turns": "none",
+      "model_override": null,
+      "effort_override": null,
+      "exact_prompt_match_ignoring_trailing_whitespace": null,
+      "message_evidence": "protected runtime assignment; compare unavailable",
+      "expected_sha256_trimmed": "82d91f55371e5da208694ebbe50ae54766e87c33bb6c4bd789c9fade5d4b36a2",
+      "source_log": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T01-17-28-01a08386-da7e-7001-9e3b-cb55b9d23bd2.jsonl",
+      "spawn_call_id": "call_JHnUN03NTQewh64GQxvJoOFY"
+    },
+    {
+      "trial": "t12",
+      "fork_turns": "none",
+      "model_override": null,
+      "effort_override": null,
+      "exact_prompt_match_ignoring_trailing_whitespace": null,
+      "message_evidence": "protected runtime assignment; compare unavailable",
+      "expected_sha256_trimmed": "5480421b4b2e0aafd3b97b9f7849fa419ed842cc2145ea75ff80310999418569",
+      "source_log": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T01-17-28-01a08386-da7e-7001-9e3b-cb55b9d23bd2.jsonl",
+      "spawn_call_id": "call_6wZ8p8VBLnhhyy9UI0WM3ary"
+    },
+    {
+      "trial": "t13",
+      "fork_turns": "none",
+      "model_override": null,
+      "effort_override": null,
+      "exact_prompt_match_ignoring_trailing_whitespace": null,
+      "message_evidence": "protected runtime assignment; compare unavailable",
+      "expected_sha256_trimmed": "2b4ec181bc30e73d3ce3599f0feb254aa876e65de967b0b5d4ff73572939f7ca",
+      "source_log": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T01-17-28-01a08386-da7e-7001-9e3b-cb55b9d23bd2.jsonl",
+      "spawn_call_id": "call_M1KqBkjcBWVCP8YzsTJHHKwq"
+    },
+    {
+      "trial": "t14",
+      "fork_turns": "none",
+      "model_override": null,
+      "effort_override": null,
+      "exact_prompt_match_ignoring_trailing_whitespace": null,
+      "message_evidence": "protected runtime assignment; compare unavailable",
+      "expected_sha256_trimmed": "adedd06ff857d80e7f1aecc6bad4c7bec422f97ab302d59ac1a347556fc4d6e5",
+      "source_log": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T01-17-28-01a08386-da7e-7001-9e3b-cb55b9d23bd2.jsonl",
+      "spawn_call_id": "call_VBIsozwoxy3DVFMhFlfPoZcs"
+    },
+    {
+      "trial": "t15",
+      "fork_turns": "none",
+      "model_override": null,
+      "effort_override": null,
+      "exact_prompt_match_ignoring_trailing_whitespace": null,
+      "message_evidence": "protected runtime assignment; compare unavailable",
+      "expected_sha256_trimmed": "a664fc01964077996908216f1f799b7114828e4c18931c31916113691316d14a",
+      "source_log": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T01-17-28-01a08386-da7e-7001-9e3b-cb55b9d23bd2.jsonl",
+      "spawn_call_id": "call_FIrm6QmRL6pgsYThlLBLXlKH"
+    },
+    {
+      "trial": "t16",
+      "fork_turns": "none",
+      "model_override": null,
+      "effort_override": null,
+      "exact_prompt_match_ignoring_trailing_whitespace": null,
+      "message_evidence": "protected runtime assignment; compare unavailable",
+      "expected_sha256_trimmed": "6743a60dfe2a343a072480e56d7a7cccfa66bc2499a52ec94549e5b2522c9f8a",
+      "source_log": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T01-17-28-01a08386-da7e-7001-9e3b-cb55b9d23bd2.jsonl",
+      "spawn_call_id": "call_ybaB3A5na9koNxRoK9i0UKrM"
+    },
+    {
+      "trial": "t17",
+      "fork_turns": "none",
+      "model_override": null,
+      "effort_override": null,
+      "exact_prompt_match_ignoring_trailing_whitespace": null,
+      "message_evidence": "protected runtime assignment; compare unavailable",
+      "expected_sha256_trimmed": "98418a07b539e051d5f02df47d02dd8cbbd312437e0400d1d139f0c336325d54",
+      "source_log": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T01-17-28-01a08386-da7e-7001-9e3b-cb55b9d23bd2.jsonl",
+      "spawn_call_id": "call_XGyfu5xhQtHYIHKbb082A1jz"
+    },
+    {
+      "trial": "t18",
+      "fork_turns": "none",
+      "model_override": null,
+      "effort_override": null,
+      "exact_prompt_match_ignoring_trailing_whitespace": null,
+      "message_evidence": "protected runtime assignment; compare unavailable",
+      "expected_sha256_trimmed": "22f0dd011b3ec6892ce4a64bc9f8c43cbf3fa860c41922484bd4f026657bf477",
+      "source_log": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T01-17-28-01a08386-da7e-7001-9e3b-cb55b9d23bd2.jsonl",
+      "spawn_call_id": "call_D5iemRbGsdrZNVgvnjNrgGpG"
+    }
+  ]
+}
