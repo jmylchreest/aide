@@ -581,10 +581,10 @@ export function buildWelcomeContext(
   lines.push("## Code Retrieval");
   lines.push("");
   lines.push(
-    "For code tasks, discover aide's code tools when available: `code_search` for definitions by name/signature; `code_references` for callers and impact candidates; `code_symbols` or `code_outline` for file structure; `code_read_symbol` for relevant implementations (batch related symbols when useful).",
+    "For code tasks, discover aide's code tools when available: `code_search` for definitions by name/signature; `code_references` for callers and impact candidates; `code_symbols` or `code_outline` when file structure is unknown. With known files and symbols, go straight to bodies via `code_read_symbol` (batch related symbols) or bounded reads.",
   );
   lines.push(
-    "Use text search for literals/imports and direct reads for small files or when most contents matter. Verify indexed candidates against current source; empty or stale results are not proof of absence. Choose retrieval that helps correctness and avoids redundant work.",
+    "Use text search for literals/imports and direct reads for small files or when most contents matter. Reuse sufficient current source evidence; avoid fetching unchanged bodies through both symbol and direct reads without a specific gap. Read again when needed for missing context or post-edit verification. Verify discovery candidates against current source; a current symbol-body read can supply that evidence. Empty or stale results are not proof of absence.",
   );
   lines.push("");
 
