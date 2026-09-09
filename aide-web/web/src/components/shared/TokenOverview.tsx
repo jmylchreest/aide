@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { TokenStats } from "../../lib/types";
 import { supportedTokenWork } from "./TokenWork";
-import { supportedModelUsage } from "./TokenModelUsage";
+import { TokenModelUsageOverview } from "./TokenModelUsageOverview";
 
 function number(n: number) {
   return n.toLocaleString(undefined, {
@@ -29,7 +29,6 @@ export function TokenOverview({
         : "host_result",
   );
   const work = supportedTokenWork(accounting?.work);
-  const usage = supportedModelUsage(accounting?.model_usage);
   const quantity = accounting?.by_stage[source];
   const buckets = accounting?.activity?.buckets ?? [];
   const [selected, setSelected] = useState<number | null>(null);
@@ -62,6 +61,10 @@ export function TokenOverview({
     });
   return (
     <section aria-label="Token overview">
+      <TokenModelUsageOverview
+        report={accounting?.model_usage}
+        onAccounting={onAccounting}
+      />
       <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
         <label className="text-xs text-aide-text-muted">
           Results from{" "}
@@ -134,18 +137,6 @@ export function TokenOverview({
           {work.calls === 1 ? "operation" : "operations"} →
         </button>
       )}
-      {usage &&
-        (usage.observations > 0 ||
-          usage.conflicts > 0 ||
-          usage.invalid > 0) && (
-          <button
-            type="button"
-            onClick={onAccounting}
-            className="block text-xs text-aide-accent hover:underline mb-4"
-          >
-            Model usage · {number(usage.observations)} observations · partial →
-          </button>
-        )}
       <div className="border border-aide-border rounded-md p-4">
         <div className="flex justify-between items-baseline flex-wrap gap-2 mb-4">
           <h3 className="text-xs font-semibold text-aide-text">

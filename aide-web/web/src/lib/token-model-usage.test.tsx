@@ -5,6 +5,10 @@ import {
   supportedModelUsage,
 } from "../components/shared/TokenModelUsage";
 import { TokenOverview } from "../components/shared/TokenOverview";
+import {
+  modelInputSplit,
+  TokenModelUsageOverview,
+} from "../components/shared/TokenModelUsageOverview";
 import type { ModelUsage, TokenStats } from "./types";
 
 const report: ModelUsage = {
@@ -123,9 +127,100 @@ describe("host-reported model usage", () => {
         onAccounting={() => {}}
       />,
     );
-    expect(html).toContain("Model usage · 2 observations · partial");
+    expect(html).toContain("Model tokens");
+    expect(html).toContain("Usage details");
     expect(html).not.toContain("claude.assistant_usage.v1");
-    expect(html).not.toContain("1,234");
+    expect(html).toContain("1,234");
+    expect(html).toContain("1/2 observations");
     expect(html).toContain("Recorded token activity");
+  });
+
+  it("charts only complete, matching input components without adding cache twice", () => {
+    const row = {
+      ...report.by_source[0],
+      counters: {
+        input_tokens: { tokens: 1000, observations: 2 },
+        uncached_input_tokens: { tokens: 200, observations: 2 },
+        cache_read_input_tokens: { tokens: 700, observations: 2 },
+        cache_write_input_tokens: { tokens: 100, observations: 2 },
+      },
+    };
+    expect(modelInputSplit(row)?.map((p) => p.percent)).toEqual([20, 70, 10]);
+    const html = renderToStaticMarkup(
+      <TokenModelUsageOverview
+        report={{ ...report, by_source: [row] }}
+        onAccounting={() => {}}
+      />,
+    );
+    expect(html).toContain(
+      "Input breakdown: Uncached 200, Cached 700, Cache write 100",
+    );
+    expect(html).not.toContain("1,800");
+    for (const key of Object.keys(row.counters)) {
+      const partial = structuredClone(row);
+      partial.counters[key as keyof typeof partial.counters].observations = 1;
+      expect(modelInputSplit(partial)).toBeUndefined();
+    }
+    expect(
+      modelInputSplit({
+        ...row,
+        counters: {
+          ...row.counters,
+          input_tokens: { tokens: 999, observations: 2 },
+        },
+      }),
+    ).toBeUndefined();
+    expect(modelInputSplit(report.by_source[0])).toBeUndefined();
+  });
+
+  it("shows OpenCode raw output without inventing reasoning overlap or cross-source totals", () => {
+    const usage: ModelUsage = {
+      ...report,
+      observations: 4,
+      by_source: [
+        {
+          ...report.by_source[0],
+          host: "opencode",
+          source: "opencode.step_finish.v1",
+          counters: {
+            reported_output_tokens: { tokens: 7, observations: 2 },
+            reasoning_output_tokens: { tokens: 3, observations: 2 },
+            cache_read_input_tokens: { tokens: 0, observations: 2 },
+          },
+        },
+        report.by_source[0],
+      ],
+    };
+    const html = renderToStaticMarkup(
+      <TokenModelUsageOverview report={usage} onAccounting={() => {}} />,
+    );
+    expect(html).toContain("Reported output");
+    expect(html).toContain("Reasoning overlap unknown");
+    expect(html).toContain("Model usage source");
+    expect(html).toContain(">0</dd>");
+    expect(html).toContain(">Unknown</dd>");
+    expect(html).not.toContain(">10</dd>");
+    expect(html).not.toContain("1,234");
+    expect(html).not.toContain("Input breakdown:");
+  });
+
+  it("shows an honest empty state for missing and zero-observation reports", () => {
+    expect(
+      renderToStaticMarkup(<TokenModelUsageOverview onAccounting={() => {}} />),
+    ).toContain("unavailable");
+    expect(
+      renderToStaticMarkup(
+        <TokenModelUsageOverview
+          report={{
+            version: 1,
+            observations: 0,
+            conflicts: 0,
+            invalid: 0,
+            by_source: [],
+          }}
+          onAccounting={() => {}}
+        />,
+      ),
+    ).toContain("usage is unknown");
   });
 });
