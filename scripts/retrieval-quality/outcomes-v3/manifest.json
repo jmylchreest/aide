@@ -3,6 +3,7 @@
     "README.md": "441136e9491bcf24cf5d63109701d48ca46fd916df66ef95976669659452a17a",
     "bridge.py": "72c152829112d0e36a96fc7cd932d0440cc2b8f3e81a83e9b54cf54bb7c13c34",
     "debug/grader/hidden.test.ts": "cdc4a1518d3c965217b3fb2f27e5515b80268dd00a1ebbba74ee829c3d53bb3f",
+    "debug/grader/manifest.json": "769444a946f8eadfbfe20700932685558e29855f4880acec463824b988bd14b3",
     "debug/grader/reference-validation.json": "f695dee0853a634537eb60720ee371b5b8af82fda305d19dae34505282594486",
     "debug/grader/reference.patch": "e1cb366f60b2613f838faa570b62be272cb889c1eeb09dfaee181db5feafed79",
     "debug/grader/source-hashes.json": "7a99b053e0221123cf68cfb473cd9ec14a7ebe82b82abe852c8f180bb57b583d",
