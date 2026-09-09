@@ -1,0 +1,84 @@
+{
+  "task": "debug",
+  "variant": "template",
+  "suites": {
+    "visible": {
+      "command": [
+        "rtk",
+        "proxy",
+        "bun",
+        "test",
+        "./reproduce.test.ts"
+      ],
+      "exit_code": 1,
+      "passed": false,
+      "checks": [
+        {
+          "name": "a third identical search points to the first full result",
+          "pass": false
+        }
+      ],
+      "stdout": "bun test v1.4.0 (34cbb9a40)\n",
+      "stderr": "[rtk] /!\\ No hook installed \u2014 run `rtk init -g` for automatic token savings\n\nreproduce.test.ts:\n14 |   const second = run(\"search-2\");\n15 |   expect(second.modified).toBe(true);\n16 |   expect(second.output).toContain(\"callId: search-1\");\n17 |   const third = run(\"search-3\");\n18 |   expect(third.modified).toBe(true);\n19 |   expect(third.output).toContain(\"callId: search-1\");\n                            ^\nerror: expect(received).toContain(expected)\n\nExpected to contain: \"callId: search-1\"\nReceived: \"[aide:dedup] Identical to previous code_search call (callId: search-2). Output unchanged.\\n[aide:original] Read retained output at /tmp/aide-debug-visible-rECjir/.aide/artifacts/tool-output/5f74c2e0610182c2abc3ec00eb1c2d95a55ed2fa6fa24123b94fd65631148d99.txt\"\n\n      at <anonymous> (/mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/outcomes-v2/debug/template/reproduce.test.ts:19:24)\n(fail) a third identical search points to the first full result [4.79ms]\n\n 0 pass\n 1 fail\n 5 expect() calls\nRan 1 test across 1 file. [27.00ms]\n"
+    },
+    "hidden": {
+      "command": [
+        "rtk",
+        "proxy",
+        "bun",
+        "test",
+        "/mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/outcomes-v2/debug/grader/hidden.test.ts"
+      ],
+      "exit_code": 1,
+      "passed": false,
+      "checks": [
+        {
+          "name": "repeat pointers skip shortened calls and target retained full output",
+          "pass": false
+        },
+        {
+          "name": "history records original and actually emitted shortened outputs separately",
+          "pass": false
+        },
+        {
+          "name": "evicted full baseline forces a new full result before dedup resumes",
+          "pass": false
+        },
+        {
+          "name": "reloading history preserves full baseline choice and byte statistics",
+          "pass": false
+        },
+        {
+          "name": "reloading a history window containing only shortened outputs starts fresh",
+          "pass": false
+        },
+        {
+          "name": "recovery veto leaves full emitted output as a usable baseline",
+          "pass": true
+        },
+        {
+          "name": "different arguments and different outputs are not deduplicated",
+          "pass": true
+        },
+        {
+          "name": "side effecting tools never acquire dedup pointers",
+          "pass": true
+        },
+        {
+          "name": "retained originals match original bytes and survive further duplicate calls",
+          "pass": true
+        },
+        {
+          "name": "live accounting measures final emitted UTF-8 bytes",
+          "pass": true
+        },
+        {
+          "name": "changed Read file mtime prevents dedup even for identical text",
+          "pass": true
+        }
+      ],
+      "stdout": "bun test v1.4.0 (34cbb9a40)\n",
+      "stderr": "[rtk] /!\\ No hook installed \u2014 run `rtk init -g` for automatic token savings\n\n../grader/hidden.test.ts:\n18 |   const tracker = new ContextPruningTracker(root);\n19 |   expect(run(tracker, \"full\").modified).toBe(false);\n20 |   for (const call of [\"duplicate-1\", \"duplicate-2\", \"duplicate-3\"]) {\n21 |     const result = run(tracker, call);\n22 |     expect(result.modified).toBe(true);\n23 |     expect(result.output).toContain(\"callId: full\");\n                               ^\nerror: expect(received).toContain(expected)\n\nExpected to contain: \"callId: full\"\nReceived: \"[aide:dedup] Identical to previous mcp__aide__code_search call (callId: duplicate-1). Output unchanged.\\n[aide:original] Read retained output at /tmp/aide-debug-hidden-ecz7ID/.aide/artifacts/tool-output/000daa78454c7dd8e16267feb35279ceb81e37fda5186bd57a131e0822fa33f1.txt\"\n\n      at <anonymous> (/mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/outcomes-v2/debug/grader/hidden.test.ts:23:27)\n(fail) repeat pointers skip shortened calls and target retained full output [0.67ms]\n30 |   const second = run(tracker, \"history-short\");\n31 |   const history = tracker.getHistory();\n32 |   expect(history[0].originalOutput).toBe(output);\n33 |   expect(history[0].prunedOutput).toBeNull();\n34 |   expect(history[1].originalOutput).toBe(output);\n35 |   expect(history[1].prunedOutput).toBe(second.output);\n                                       ^\nerror: expect(received).toBe(expected)\n\nExpected: \"[aide:dedup] Identical to previous mcp__aide__code_search call (callId: history-full). Output unchanged.\\n[aide:original] Read retained output at /tmp/aide-debug-hidden-ecz7ID/.aide/artifacts/tool-output/648962c49d973c702b6408b9ee0e2068ceec5e1684a9a26a17e87c1b9b2cce00.txt\"\nReceived: null\n\n      at <anonymous> (/mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/outcomes-v2/debug/grader/hidden.test.ts:35:35)\n(fail) history records original and actually emitted shortened outputs separately [0.58ms]\n38 | \n39 | test(\"evicted full baseline forces a new full result before dedup resumes\", () => {\n40 |   const tracker = new ContextPruningTracker(root, 2);\n41 |   run(tracker, \"evict-1\");\n42 |   run(tracker, \"evict-2\");\n43 |   expect(run(tracker, \"evict-3\").output).toContain(\"callId: evict-1\");\n                                              ^\nerror: expect(received).toContain(expected)\n\nExpected to contain: \"callId: evict-1\"\nReceived: \"[aide:dedup] Identical to previous mcp__aide__code_search call (callId: evict-2). Output unchanged.\\n[aide:original] Read retained output at /tmp/aide-debug-hidden-ecz7ID/.aide/artifacts/tool-output/bd0678186cff1c6828790a9bcde39f5ced276b7a576c64aa27f326c62dff194f.txt\"\n\n      at <anonymous> (/mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/outcomes-v2/debug/grader/hidden.test.ts:43:42)\n(fail) evicted full baseline forces a new full result before dedup resumes [0.17ms]\n51 |   const tracker = new ContextPruningTracker(root);\n52 |   run(tracker, \"reload-full\");\n53 |   run(tracker, \"reload-short\");\n54 |   const restored = new ContextPruningTracker(root);\n55 |   restored.loadHistory(tracker.getHistory());\n56 |   expect(restored.getStats()).toEqual(tracker.getStats());\n                                   ^\nerror: expect(received).toEqual(expected)\n\n  {\n-   \"estimatedContextBytes\": 10610,\n-   \"prunedCalls\": 1,\n-   \"totalBytesSaved\": 10070,\n+   \"estimatedContextBytes\": 20680,\n+   \"prunedCalls\": 0,\n+   \"totalBytesSaved\": 0,\n    \"totalCalls\": 2,\n  }\n\n- Expected  - 3\n+ Received  + 3\n\n      at <anonymous> (/mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/outcomes-v2/debug/grader/hidden.test.ts:56:31)\n(fail) reloading history preserves full baseline choice and byte statistics [0.22ms]\n61 |   const tracker = new ContextPruningTracker(root);\n62 |   run(tracker, \"window-full\");\n63 |   run(tracker, \"window-short\");\n64 |   const restored = new ContextPruningTracker(root, 1);\n65 |   restored.loadHistory(tracker.getHistory());\n66 |   expect(run(restored, \"window-next\").modified).toBe(false);\n                                                     ^\nerror: expect(received).toBe(expected)\n\nExpected: false\nReceived: true\n\n      at <anonymous> (/mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/outcomes-v2/debug/grader/hidden.test.ts:66:49)\n(fail) reloading a history window containing only shortened outputs starts fresh [0.19ms]\n(pass) recovery veto leaves full emitted output as a usable baseline [0.11ms]\n(pass) different arguments and different outputs are not deduplicated [0.08ms]\n(pass) side effecting tools never acquire dedup pointers [0.05ms]\n(pass) retained originals match original bytes and survive further duplicate calls [0.11ms]\n(pass) live accounting measures final emitted UTF-8 bytes [0.16ms]\n(pass) changed Read file mtime prevents dedup even for identical text [0.17ms]\n\n 6 pass\n 5 fail\n 30 expect() calls\nRan 11 tests across 1 file. [11.00ms]\n"
+    }
+  }
+}

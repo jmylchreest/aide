@@ -8,7 +8,7 @@ export default defineConfig({
       "dist/**",
       "aide-web/**",
       ".aide/**",
-      "scripts/retrieval-quality/outcomes-v1/**",
+      "scripts/retrieval-quality/outcomes-v*/**",
     ],
   },
 });

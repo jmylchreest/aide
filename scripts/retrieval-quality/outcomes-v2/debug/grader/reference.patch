@@ -1,0 +1,11 @@
+--- a/src/core/context-pruning/tracker.ts
++++ b/src/core/context-pruning/tracker.ts
+@@ -109,7 +109,7 @@
+       toolName,
+       args,
+       originalOutput: output,
+-      prunedOutput: null,
++      prunedOutput: result.modified ? result.output : null,
+       timestamp: Date.now(),
+     };
+ 
