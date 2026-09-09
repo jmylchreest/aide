@@ -80,14 +80,21 @@ func formatCodeSymbols(filePath string, symbols []*code.Symbol) string {
 	return sb.String()
 }
 
-func formatCodeReferences(symbolName string, refs []*code.Reference) string {
+func formatCodeReferences(symbolName string, refs []*code.Reference, limit int) string {
+	const coverage = "Indexed name matches, not a complete semantic call graph. Verify relevant callers in current source.\n\n"
 	if len(refs) == 0 {
-		return fmt.Sprintf("No references found for `%s`.\n\nTip: Run `aide code index` to index your codebase.", symbolName)
+		return fmt.Sprintf("No indexed reference candidates for `%s`. Empty results do not prove absence.\n\n%s", symbolName, coverage)
 	}
 
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "# References to `%s`\n\n", symbolName)
-	fmt.Fprintf(&sb, "_Found %d references_\n\n", len(refs))
+	fmt.Fprintf(&sb, "_Returned %d indexed reference candidates_\n\n", len(refs))
+	// The store stops at the requested limit without counting the remainder.
+	// Reaching it proves neither truncation nor completeness, even on an exact fit.
+	if limit > 0 && len(refs) >= limit {
+		fmt.Fprintf(&sb, "Result limit (%d) reached; more indexed matches may exist. Narrow file/kind filters or raise the limit before assessing impact.\n\n", limit)
+	}
+	sb.WriteString(coverage)
 
 	grouped := make(map[string][]*code.Reference)
 	for _, ref := range refs {

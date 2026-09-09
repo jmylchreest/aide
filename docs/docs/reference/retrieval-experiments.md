@@ -258,6 +258,14 @@ labelled as indexed matches by name, with a lower-bound marker at the request
 limit. Search enrichment performs local subprocess work and can add latency.
 Neither guidance delivery nor tool uptake establishes a token or quality benefit.
 
+Caller lookup results label their count as returned indexed candidates. When the
+count reaches the effective per-symbol limit, the result says more indexed matches
+may exist and suggests narrowing filters or raising the limit before assessing
+impact. An exact fit receives the same uncertainty notice: the store does not
+count beyond the limit. Empty results do not prove absence, and even an uncapped
+result is not a complete semantic call graph. This applies to singular and batched
+MCP requests without adding another index query.
+
 
 ## Broader retrieval pilot (v3)
 

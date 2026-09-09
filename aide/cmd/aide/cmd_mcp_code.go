@@ -422,7 +422,7 @@ func (s *MCPServer) handleCodeReferences(_ context.Context, _ *mcp.CallToolReque
 			return errorResult(fmt.Sprintf("search failed: %v", err)), nil, nil
 		}
 		mcpLog.Printf("  found: %d references", len(refs))
-		return textResult(formatCodeReferences(names[0], refs)), nil, nil
+		return textResult(formatCodeReferences(names[0], refs, limit)), nil, nil
 	}
 
 	// Batch mode: query each symbol and combine results
@@ -442,7 +442,7 @@ func (s *MCPServer) handleCodeReferences(_ context.Context, _ *mcp.CallToolReque
 			continue
 		}
 		totalRefs += len(refs)
-		sb.WriteString(formatCodeReferences(name, refs))
+		sb.WriteString(formatCodeReferences(name, refs, limit))
 	}
 	mcpLog.Printf("  batch: %d symbols, %d total references", len(names), totalRefs)
 	return textResult(sb.String()), nil, nil
