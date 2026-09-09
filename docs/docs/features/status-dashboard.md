@@ -72,6 +72,11 @@ these values into a combined savings total or claim a billing reduction.
 **Details** holds individual operations and context-window evidence;
 **Accounting** explains measurement boundaries and coverage.
 
+Recent events are filtered by session and date in the daemon before the result
+limit is applied. A failed load shows unknown event coverage with a retry action;
+it is not displayed as an empty history. Upgrade and restart both the daemon and
+dashboard together so date-filtered queries use compatible versions.
+
 ### Context and subagents
 
 Context windows are scoped by host, session and actor. Explicit subagent-start

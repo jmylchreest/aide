@@ -1372,11 +1372,16 @@ message TokenStatsResponse {
 
 message TokenEventListRequest {
   string session_id = 1;     // optional: filter by session
-  int32 limit = 2;           // max results (default: 100)
+  int32 limit = 2;           // max results; <= 0 requests all within server safety limit
+  google.protobuf.Timestamp since = 3; // optional inclusive lower bound
+  google.protobuf.Timestamp until = 4; // optional inclusive upper bound
 }
 
 message TokenEventListResponse {
   repeated TokenEventItem events = 1;
+  // Older daemons ignore the request bounds. Clients must not present their
+  // newest limited results as a complete response to a bounded query.
+  bool time_range_applied = 2;
 }
 
 message TokenEventItem {

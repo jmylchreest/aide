@@ -515,29 +515,37 @@ func (g *StoreAdapter) ClearTasks(status memory.TaskStatus) (int, error) {
 // --- Token Event Operations (via gRPC TokenService, read-only view) ---
 
 func (g *StoreAdapter) ListTokenEvents(sessionID string, limit int, since, until time.Time) ([]*memory.TokenEvent, error) {
+	if limit > grpcapi.MaxTokenEventListLimit {
+		return nil, fmt.Errorf("token event limit must not exceed %d", grpcapi.MaxTokenEventListLimit)
+	}
+	if limit < 0 {
+		limit = 0
+	}
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
-	// gRPC proto doesn't support since/until yet; over-fetch then filter client-side.
-	fetchLimit := limit
-	if !since.IsZero() || !until.IsZero() {
-		fetchLimit = 0 // fetch all, filter below
-	}
-	resp, err := g.client.Token.ListTokenEvents(ctx, &grpcapi.TokenEventListRequest{
+	// Filtering must happen before the daemon limits the returned projection.
+	// Over-fetching a full session here can exceed gRPC's receive limit even
+	// when the dashboard only asks for a small recent page.
+	req := &grpcapi.TokenEventListRequest{
 		SessionId: sessionID,
-		Limit:     int32(fetchLimit),
-	})
+		Limit:     int32(limit),
+	}
+	if !since.IsZero() {
+		req.Since = timestamppb.New(since)
+	}
+	if !until.IsZero() {
+		req.Until = timestamppb.New(until)
+	}
+	resp, err := g.client.Token.ListTokenEvents(ctx, req)
 	if err != nil {
 		return nil, err
+	}
+	if (!since.IsZero() || !until.IsZero()) && !resp.TimeRangeApplied {
+		return nil, fmt.Errorf("aide daemon does not support time-filtered token event queries; rebuild and restart the daemon")
 	}
 	events := make([]*memory.TokenEvent, 0, len(resp.Events))
 	for _, e := range resp.Events {
 		ts := e.Timestamp.AsTime()
-		if !since.IsZero() && ts.Before(since) {
-			continue
-		}
-		if !until.IsZero() && ts.After(until) {
-			continue
-		}
 		events = append(events, &memory.TokenEvent{
 			Attrs: e.Attrs, StartLine: int(e.StartLine), EndLine: int(e.EndLine),
 			ID:          e.Id,

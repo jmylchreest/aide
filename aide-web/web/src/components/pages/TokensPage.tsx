@@ -242,7 +242,12 @@ function TokenReport({
     [project, session, dateRange.since, dateRange.until],
   );
 
-  const { data: events, loading: eventsLoading } = useApi(
+  const {
+    data: events,
+    loading: eventsLoading,
+    error: eventsError,
+    refresh: refreshEvents,
+  } = useApi(
     () =>
       view === "details"
         ? api.listTokenEvents(
@@ -616,12 +621,27 @@ function TokenReport({
         {(statsLoading || eventsLoading) && (
           <p className="text-xs text-aide-text-dim py-4">Loading...</p>
         )}
-        {!statsLoading && !eventsLoading && filteredEvents.length === 0 && (
-          <p className="text-xs text-aide-text-dim py-4">
-            No token events recorded yet.
-          </p>
+        {!eventsLoading && eventsError && (
+          <div role="alert" className="text-xs text-aide-red py-4">
+            <p>Unable to load recent events. Event coverage is unknown.</p>
+            <button
+              type="button"
+              onClick={refreshEvents}
+              className="mt-2 text-aide-accent hover:underline"
+            >
+              Retry events
+            </button>
+          </div>
         )}
-        {filteredEvents.length > 0 && (
+        {!statsLoading &&
+          !eventsLoading &&
+          !eventsError &&
+          filteredEvents.length === 0 && (
+            <p className="text-xs text-aide-text-dim py-4">
+              No token events in this selection.
+            </p>
+          )}
+        {!eventsLoading && !eventsError && filteredEvents.length > 0 && (
           <SortableTable
             data={filteredEvents}
             columns={columns}
