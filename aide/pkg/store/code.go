@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/blevesearch/bleve/v2"
@@ -49,9 +50,11 @@ var (
 
 // CodeStore provides symbol storage and search.
 type CodeStore struct {
-	db     *bolt.DB
-	search bleve.Index
-	dbPath string
+	writeMu sync.Mutex
+	indexMu sync.Mutex
+	db      *bolt.DB
+	search  bleve.Index
+	dbPath  string
 }
 
 // CodeSearchResult represents a symbol search match with score.
@@ -864,63 +867,8 @@ func (s *CodeStore) IndexFileBatch(
 	mtime time.Time,
 	sizeBytes int64,
 ) error {
-	var clearedIDs []string
-	var symbolIDs []string
+	return s.IndexFiles([]code.FileBatch{{Path: filePath, Symbols: symbols, References: refs, ModTime: mtime, SizeBytes: sizeBytes}})
 
-	err := s.db.Update(func(tx *bolt.Tx) error {
-		// Skip the clear pass when the file has never been indexed before;
-		// there is nothing to clear and the bucket scan is pure overhead.
-		// Orphans from a prior crashed write are caught by startup reconcile.
-		if tx.Bucket(BucketFileIndex).Get([]byte(filePath)) != nil {
-			ids, err := s.clearFileTx(tx, filePath)
-			if err != nil {
-				return err
-			}
-			clearedIDs = ids
-			if err := s.clearFileReferencesTx(tx, filePath); err != nil {
-				return err
-			}
-		}
-
-		for _, sym := range symbols {
-			sym.FilePath = filePath
-			if err := s.addSymbolTx(tx, sym); err != nil {
-				return err
-			}
-			symbolIDs = append(symbolIDs, sym.ID)
-		}
-		for _, ref := range refs {
-			ref.FilePath = filePath
-			if err := s.addReferenceTx(tx, ref); err != nil {
-				return err
-			}
-		}
-		return s.setFileInfoTx(tx, &code.FileInfo{
-			Path:      filePath,
-			ModTime:   mtime,
-			SymbolIDs: symbolIDs,
-			Tokens:    code.EstimateTokensFromSize(filePath, sizeBytes),
-			SizeBytes: sizeBytes,
-		})
-	})
-	if err != nil {
-		return fmt.Errorf("failed to index file %q: %w", filePath, err)
-	}
-
-	if s.search == nil || (len(clearedIDs) == 0 && len(symbols) == 0) {
-		return nil
-	}
-	batch := s.search.NewBatch()
-	for _, id := range clearedIDs {
-		batch.Delete(id)
-	}
-	for _, sym := range symbols {
-		batch.Index(sym.ID, buildSymbolBleveDoc(sym))
-	}
-	if err := s.search.Batch(batch); err != nil {
-		return fmt.Errorf("failed to apply bleve batch for %q: %w", filePath, err)
-	}
-	return nil
 }
 
 // Clear removes all symbols, references, and file tracking data.

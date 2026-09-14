@@ -58,7 +58,10 @@ func Resolve(project, path string) (Info, error) {
 	}
 	markerDir := admin
 	if markerDir == "" {
-		markerDir = filepath.Join(root, ".aide")
+		markerDir = filepath.Join(root, ".aide", "local")
+		if err := EnsureIgnoredDir(markerDir); err != nil {
+			return Info{}, err
+		}
 	}
 	if err := os.MkdirAll(markerDir, 0700); err != nil {
 		return Info{}, err
@@ -77,6 +80,27 @@ func Resolve(project, path string) (Info, error) {
 		}
 	}
 	return c, nil
+}
+
+// EnsureIgnoredDir installs a default only on first use. Existing ignore files
+// belong to the user and are never overwritten, including explicit overrides.
+func EnsureIgnoredDir(dir string) error {
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return err
+	}
+	f, err := os.OpenFile(filepath.Join(dir, ".gitignore"), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
+	if os.IsExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	_, err = f.WriteString("# Generated local data; edit this file to explicitly opt into tracking.\n*\n")
+	ce := f.Close()
+	if err != nil {
+		return err
+	}
+	return ce
 }
 
 func canonical(p string) string {

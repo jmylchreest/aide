@@ -53,11 +53,24 @@ const (
 
 // FileInfo tracks indexed files for incremental updates
 type FileInfo struct {
-	Path      string    `json:"path"`
-	ModTime   time.Time `json:"modTime"`
-	SymbolIDs []string  `json:"symbols"`          // Symbol IDs in this file
-	Tokens    int       `json:"tokens,omitempty"` // Estimated token count (calibrated)
-	SizeBytes int64     `json:"size,omitempty"`   // File size in bytes at index time
+	ContentHash       string    `json:"content_hash,omitempty"`
+	ParserFingerprint string    `json:"parser_fingerprint,omitempty"`
+	Path              string    `json:"path"`
+	ModTime           time.Time `json:"modTime"`
+	SymbolIDs         []string  `json:"symbols"`          // Symbol IDs in this file
+	Tokens            int       `json:"tokens,omitempty"` // Estimated token count (calibrated)
+	SizeBytes         int64     `json:"size,omitempty"`   // File size in bytes at index time
+}
+
+// FileBatch is a complete extraction from one immutable read of a source file.
+type FileBatch struct {
+	Path              string
+	Symbols           []*Symbol
+	References        []*Reference
+	ModTime           time.Time
+	SizeBytes         int64
+	ContentHash       string
+	ParserFingerprint string
 }
 
 // SearchOptions for filtering symbol searches
