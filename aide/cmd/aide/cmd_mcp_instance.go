@@ -61,7 +61,7 @@ type DaemonInfo struct {
 // ============================================================================
 
 func (s *MCPServer) registerInstanceInfoTools() {
-	mcp.AddTool(s.server, &mcp.Tool{
+	addCheckoutTool(s, &mcp.Tool{
 		Name: "instance_info",
 		Description: `Get identity and configuration of this aide instance.
 
@@ -82,7 +82,7 @@ left over from before an upgrade.
 	}, s.handleInstanceInfo)
 }
 
-func (s *MCPServer) handleInstanceInfo(ctx context.Context, req *mcp.CallToolRequest, _ emptyInput) (*mcp.CallToolResult, any, error) {
+func (s *MCPServer) handleInstanceInfo(ctx context.Context, req *mcp.CallToolRequest, _ CheckoutInput) (*mcp.CallToolResult, any, error) {
 	scoped, release, err := s.requestCheckout(ctx, req)
 	if err != nil {
 		return checkoutToolError(err)

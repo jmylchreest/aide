@@ -20,6 +20,7 @@ import (
 // ============================================================================
 
 type CodeSearchInput struct {
+	CheckoutInput
 	Query    string `json:"query" jsonschema:"Search query for symbol names or signatures. Supports Bleve query syntax."`
 	Kind     string `json:"kind,omitempty" jsonschema:"Filter by symbol kind: function, method, class, interface, type"`
 	Language string `json:"lang,omitempty" jsonschema:"Filter by language: typescript, javascript, go, python"`
@@ -28,12 +29,14 @@ type CodeSearchInput struct {
 }
 
 type CodeSymbolsInput struct {
+	CheckoutInput
 	FilePath string `json:"file" jsonschema:"Path to the file to get symbols from"`
 }
 
-type CodeStatsInput struct{}
+type CodeStatsInput struct{ CheckoutInput }
 
 type CodeReferencesInput struct {
+	CheckoutInput
 	SymbolName  string   `json:"symbol,omitempty" jsonschema:"Name of the symbol to find references for (e.g., 'getUserById'). Required if symbols is empty."`
 	SymbolNames []string `json:"symbols,omitempty" jsonschema:"Batch mode: list of symbol names to find references for (max 10). If set, symbol is ignored."`
 	Kind        string   `json:"kind,omitempty" jsonschema:"Filter by reference kind: call, type_ref"`
@@ -42,20 +45,24 @@ type CodeReferencesInput struct {
 }
 
 type CodeOutlineInput struct {
+	CheckoutInput
 	File         string `json:"file" jsonschema:"Path to the file to outline. Required."`
 	KeepComments bool   `json:"keep_comments,omitempty" jsonschema:"Keep comments in output. By default comments are stripped to minimize tokens."`
 }
 
 type CodeTopReferencesInput struct {
+	CheckoutInput
 	Limit int    `json:"limit,omitempty" jsonschema:"Maximum results (default 25)"`
 	Kind  string `json:"kind,omitempty" jsonschema:"Filter by symbol kind: function, method, class, interface, type"`
 }
 
 type CodeReadCheckInput struct {
+	CheckoutInput
 	File string `json:"file" jsonschema:"Path to the file to check (relative or absolute). Required."`
 }
 
 type CodeReadSymbolInput struct {
+	CheckoutInput
 	Symbol    string   `json:"symbol,omitempty" jsonschema:"Name of the symbol to read (e.g., 'getUserById', 'AuthConfig'). Required if symbols is empty."`
 	Symbols   []string `json:"symbols,omitempty" jsonschema:"Batch mode: list of symbol names to read (max 10). If set, symbol is ignored."`
 	Kind      string   `json:"kind,omitempty" jsonschema:"Filter by symbol kind: function, method, class, interface, type"`
@@ -70,7 +77,7 @@ type CodeReadSymbolInput struct {
 func (s *MCPServer) registerCodeTools() {
 	mcpLog.Printf("code tools: registered (store may initialize lazily)")
 
-	mcp.AddTool(s.server, &mcp.Tool{
+	addCheckoutTool(s, &mcp.Tool{
 		Name: "code_search",
 		Description: `Search indexed code symbol DEFINITIONS (functions, methods, classes, interfaces, types).
 
@@ -103,7 +110,7 @@ Verify relevant definitions in current source; empty results do not prove absenc
 If indexing appears unavailable or stale, inspect code_stats or run 'aide code index'.`,
 	}, s.handleCodeSearch)
 
-	mcp.AddTool(s.server, &mcp.Tool{
+	addCheckoutTool(s, &mcp.Tool{
 		Name: "code_symbols",
 		Description: `List parsed symbol definitions in a specific file.
 
@@ -116,7 +123,7 @@ Read the file directly when it is small or most of its contents are needed.
 If the index is missing or stale, the file is parsed on demand; coverage depends on grammar support.`,
 	}, s.handleCodeSymbols)
 
-	mcp.AddTool(s.server, &mcp.Tool{
+	addCheckoutTool(s, &mcp.Tool{
 		Name: "code_stats",
 		Description: `Get code index statistics.
 
@@ -128,7 +135,7 @@ Zero counts can mean no supported files are indexed. Run 'aide code index' when
 indexing is needed; counts alone do not establish freshness or complete coverage.`,
 	}, s.handleCodeStats)
 
-	mcp.AddTool(s.server, &mcp.Tool{
+	addCheckoutTool(s, &mcp.Tool{
 		Name: "code_references",
 		Description: `Find indexed reference candidates (call sites and type uses) by symbol name.
 
@@ -153,7 +160,7 @@ imports, or content patterns. If indexing appears unavailable or stale, inspect
 code_stats or run 'aide code index'.`,
 	}, s.handleCodeReferences)
 
-	mcp.AddTool(s.server, &mcp.Tool{
+	addCheckoutTool(s, &mcp.Tool{
 		Name: "code_outline",
 		Description: `Get a collapsed outline of a file with bodies replaced by { ... }.
 
@@ -179,7 +186,7 @@ By default, comments are stripped. Set keep_comments=true to preserve them.
 ` + "```" + ``,
 	}, s.handleCodeOutline)
 
-	mcp.AddTool(s.server, &mcp.Tool{
+	addCheckoutTool(s, &mcp.Tool{
 		Name: "code_top_references",
 		Description: `Rank symbols by indexed reference count.
 
@@ -196,7 +203,7 @@ Verify candidates in current source. If indexing appears unavailable or stale,
 inspect code_stats or run 'aide code index'.`,
 	}, s.handleCodeTopReferences)
 
-	mcp.AddTool(s.server, &mcp.Tool{
+	addCheckoutTool(s, &mcp.Tool{
 		Name: "code_read_symbol",
 		Description: `Read the full source code of a symbol by name — without reading the entire file.
 
@@ -233,7 +240,7 @@ current definition line. Ambiguous names return candidates instead of choosing o
 Without file, uses the code index to locate candidate files, then reads current source.`,
 	}, s.handleCodeReadSymbol)
 
-	mcp.AddTool(s.server, &mcp.Tool{
+	addCheckoutTool(s, &mcp.Tool{
 		Name: "code_read_check",
 		Description: `Check if a file is indexed and whether its current mtime matches the index.
 

@@ -14,6 +14,7 @@ import (
 // =============================================================================
 
 type FindingsSearchInput struct {
+	CheckoutInput
 	Query           string `json:"query" jsonschema:"Search query for finding titles and details. Supports Bleve query syntax."`
 	Analyzer        string `json:"analyzer,omitempty" jsonschema:"Filter by analyzer: complexity, coupling, secrets, clones, security, deadcode, todos"`
 	Severity        string `json:"severity,omitempty" jsonschema:"Filter by severity: critical, warning, info"`
@@ -24,6 +25,7 @@ type FindingsSearchInput struct {
 }
 
 type FindingsListInput struct {
+	CheckoutInput
 	Analyzer        string `json:"analyzer,omitempty" jsonschema:"Filter by analyzer: complexity, coupling, secrets, clones, security, deadcode, todos"`
 	Severity        string `json:"severity,omitempty" jsonschema:"Filter by severity: critical, warning, info"`
 	FilePath        string `json:"file,omitempty" jsonschema:"Filter by file path pattern (substring match)"`
@@ -33,10 +35,12 @@ type FindingsListInput struct {
 }
 
 type FindingsStatsInput struct {
+	CheckoutInput
 	IncludeAccepted bool `json:"include_accepted,omitempty" jsonschema:"Include accepted/acknowledged findings in counts (hidden by default)"`
 }
 
 type FindingsAcceptInput struct {
+	CheckoutInput
 	IDs      []string `json:"ids,omitempty" jsonschema:"List of finding IDs to accept"`
 	All      bool     `json:"all,omitempty" jsonschema:"Accept all findings (optionally filtered by analyzer, severity, file, category)"`
 	Analyzer string   `json:"analyzer,omitempty" jsonschema:"Filter by analyzer: complexity, coupling, secrets, clones, security, deadcode, todos"`
@@ -52,7 +56,7 @@ type FindingsAcceptInput struct {
 func (s *MCPServer) registerFindingsTools() {
 	mcpLog.Printf("findings tools: registered")
 
-	mcp.AddTool(s.server, &mcp.Tool{
+	addCheckoutTool(s, &mcp.Tool{
 		Name: "findings_search",
 		Description: `Search static analysis findings by keyword using full-text search.
 
@@ -71,7 +75,7 @@ severity (critical, warning, info), file path, or category.
 Findings are populated by the file watcher or by running 'aide findings run'.`,
 	}, s.handleFindingsSearch)
 
-	mcp.AddTool(s.server, &mcp.Tool{
+	addCheckoutTool(s, &mcp.Tool{
 		Name: "findings_list",
 		Description: `List static analysis findings with optional filters.
 
@@ -88,7 +92,7 @@ Does not require a search query — use this to browse or get all findings for a
 **Severities:** critical (act now), warning (should fix), info (consider)`,
 	}, s.handleFindingsList)
 
-	mcp.AddTool(s.server, &mcp.Tool{
+	addCheckoutTool(s, &mcp.Tool{
 		Name: "findings_stats",
 		Description: `Get a health overview of the codebase from static analysis.
 
@@ -103,7 +107,7 @@ If counts are zero, findings need to be generated — they are populated automat
 by the file watcher, or manually via 'aide findings run <analyzer>'.`,
 	}, s.handleFindingsStats)
 
-	mcp.AddTool(s.server, &mcp.Tool{
+	addCheckoutTool(s, &mcp.Tool{
 		Name: "findings_accept",
 		Description: `Accept (acknowledge) findings so they are hidden from list/search/stats output.
 

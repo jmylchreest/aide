@@ -60,6 +60,9 @@ func TestMCPCodeSymbolSelection(t *testing.T) {
 					if schema.Properties["symbol"] == nil || schema.Properties["symbols"] == nil {
 						t.Errorf("missing singular or batch selector: %s", encoded)
 					}
+					if schema.Properties["checkout_root"] == nil {
+						t.Errorf("missing portable checkout selector: %s", encoded)
+					}
 					return
 				}
 				t.Fatal("registered tool missing from tools/list")

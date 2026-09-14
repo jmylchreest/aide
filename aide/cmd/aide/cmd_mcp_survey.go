@@ -21,6 +21,7 @@ import (
 // =============================================================================
 
 type SurveySearchInput struct {
+	CheckoutInput
 	Query    string `json:"query" jsonschema:"Search query for survey entry names, titles, and details. Supports Bleve query syntax."`
 	Analyzer string `json:"analyzer,omitempty" jsonschema:"Filter by analyzer: topology, entrypoints, churn"`
 	Kind     string `json:"kind,omitempty" jsonschema:"Filter by kind: module, entrypoint, dependency, tech_stack, churn, submodule, subproject, workspace, arch_pattern"`
@@ -29,19 +30,22 @@ type SurveySearchInput struct {
 }
 
 type SurveyListInput struct {
+	CheckoutInput
 	Analyzer string `json:"analyzer,omitempty" jsonschema:"Filter by analyzer: topology, entrypoints, churn"`
 	Kind     string `json:"kind,omitempty" jsonschema:"Filter by kind: module, entrypoint, dependency, tech_stack, churn, submodule, subproject, workspace, arch_pattern"`
 	FilePath string `json:"file,omitempty" jsonschema:"Filter by file path pattern (substring match)"`
 	Limit    int    `json:"limit,omitempty" jsonschema:"Maximum results (default 100)"`
 }
 
-type SurveyStatsInput struct{}
+type SurveyStatsInput struct{ CheckoutInput }
 
 type SurveyRunInput struct {
+	CheckoutInput
 	Analyzer string `json:"analyzer,omitempty" jsonschema:"Run a specific analyzer: topology, entrypoints, churn, modules. Omit to run all."`
 }
 
 type SurveyGraphInput struct {
+	CheckoutInput
 	Symbol    string `json:"symbol" jsonschema:"Name of the symbol to start traversal from (e.g. 'BuildCallGraph', 'handleSurveyRun')."`
 	Direction string `json:"direction,omitempty" jsonschema:"Traversal direction: both (default), callers, callees"`
 	MaxDepth  int    `json:"max_depth,omitempty" jsonschema:"Maximum BFS hops from root (default 2)"`
@@ -55,7 +59,7 @@ type SurveyGraphInput struct {
 func (s *MCPServer) registerSurveyTools() {
 	mcpLog.Printf("survey tools: registered")
 
-	mcp.AddTool(s.server, &mcp.Tool{
+	addCheckoutTool(s, &mcp.Tool{
 		Name: "survey_search",
 		Description: `Search codebase survey entries by keyword using full-text search.
 
@@ -78,7 +82,7 @@ kind (module, entrypoint, dependency, tech_stack, churn, etc.), or file path.
 Use survey_stats first to see what has been analyzed.`,
 	}, s.handleSurveySearch)
 
-	mcp.AddTool(s.server, &mcp.Tool{
+	addCheckoutTool(s, &mcp.Tool{
 		Name: "survey_list",
 		Description: `List codebase survey entries with optional filters.
 
@@ -100,7 +104,7 @@ for code health issues).
 **Analyzers:** topology (structure), entrypoints (entry points), churn (git history)`,
 	}, s.handleSurveyList)
 
-	mcp.AddTool(s.server, &mcp.Tool{
+	addCheckoutTool(s, &mcp.Tool{
 		Name: "survey_stats",
 		Description: `Get an overview of what has been surveyed in the codebase.
 
@@ -121,7 +125,7 @@ security, duplication), use findings_stats instead.
 If counts are zero, run 'aide survey run' or use survey_run to populate.`,
 	}, s.handleSurveyStats)
 
-	mcp.AddTool(s.server, &mcp.Tool{
+	addCheckoutTool(s, &mcp.Tool{
 		Name: "survey_run",
 		Description: `Run codebase survey analyzers to populate structural information.
 
@@ -142,7 +146,7 @@ includes an added/removed diff against the previous run.
 (complexity, security, duplication), use 'aide findings run' instead.`,
 	}, s.handleSurveyRun)
 
-	mcp.AddTool(s.server, &mcp.Tool{
+	addCheckoutTool(s, &mcp.Tool{
 		Name: "survey_graph",
 		Description: `Build a call graph for a symbol showing callers and callees.
 

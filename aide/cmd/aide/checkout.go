@@ -33,33 +33,20 @@ func (s *MCPServer) sourceRoot() string {
 }
 
 func (s *MCPServer) requestCheckout(ctx context.Context, req *mcp.CallToolRequest) (*MCPServer, func(), error) {
-	root := s.sourceRoot()
-	explicit := false
-	if req != nil && req.Params != nil {
-		if value, ok := req.Params.Meta["aide/checkout_root"]; ok {
-			var valid bool
-			root, valid = value.(string)
-			if !valid || !filepath.IsAbs(root) {
-				return nil, nil, fmt.Errorf("aide/checkout_root must be an absolute directory")
-			}
-			explicit = true
-		}
+	if scoped, ok := ctx.Value(checkoutScopeKey{}).(*MCPServer); ok {
+		return scoped, func() {}, nil
 	}
-	if !explicit {
-		var err error
-		root, err = s.callerRoot(ctx, req, root)
-		if err != nil {
-			return nil, nil, err
-		}
+	if req == nil {
+		return s, func() {}, nil
 	}
+	c, _, err := s.resolveToolCheckout(ctx, req, "", nil)
+	if err != nil {
+		return nil, nil, err
+	}
+	return s.checkoutView(ctx, c.Root)
+}
 
-	if explicit {
-		c, err := store.CheckoutInfo(s.dbPath, root)
-		if err != nil {
-			return nil, nil, err
-		}
-		root = c.Root
-	}
+func (s *MCPServer) checkoutView(ctx context.Context, root string) (*MCPServer, func(), error) {
 	if root == s.sourceRoot() {
 		return s, func() {}, nil
 	}
@@ -114,7 +101,7 @@ func checkoutToolError(err error) (*mcp.CallToolResult, any, error) {
 // request metadata remains available independently of roots support.
 //
 //nolint:staticcheck // Existing MCP clients still use the deprecated roots protocol.
-func (s *MCPServer) callerRoot(ctx context.Context, req *mcp.CallToolRequest, root string) (string, error) {
+func (s *MCPServer) callerRoot(ctx context.Context, req *mcp.CallToolRequest, root string) (string, string, error) {
 	if req != nil && req.Params != nil {
 		caps := req.ClientCapabilities()
 		if caps != nil && caps.RootsV2 != nil {
@@ -124,21 +111,21 @@ func (s *MCPServer) callerRoot(ctx context.Context, req *mcp.CallToolRequest, ro
 					var valid bool
 					roots, valid = value.(*mcp.ListRootsResult)
 					if !valid || roots == nil {
-						return "", fmt.Errorf("invalid checkout roots response")
+						return "", "", fmt.Errorf("invalid checkout roots response")
 					}
 				} else {
-					return "", errCheckoutRootsRequired
+					return "", "", errCheckoutRootsRequired
 				}
 			} else {
 				if req.Session == nil {
-					return "", fmt.Errorf("checkout roots require an MCP session")
+					return "", "", fmt.Errorf("checkout roots require an MCP session")
 				}
 				rootsCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 				var err error
 				roots, err = req.Session.ListRoots(rootsCtx, &mcp.ListRootsParams{})
 				cancel()
 				if err != nil {
-					return "", fmt.Errorf("resolve caller checkout: %w", err)
+					return "", "", fmt.Errorf("resolve caller checkout: %w", err)
 				}
 			}
 			candidates := map[string]string{}
@@ -157,15 +144,15 @@ func (s *MCPServer) callerRoot(ctx context.Context, req *mcp.CallToolRequest, ro
 				}
 			}
 			if len(candidates) > 1 {
-				return "", fmt.Errorf("multiple checkout roots; provide _meta.aide/checkout_root")
+				return "", "", fmt.Errorf("multiple checkout roots; provide checkout_root")
 			}
 			if len(roots.Roots) > 0 && len(candidates) == 0 {
-				return "", fmt.Errorf("client roots do not belong to this project")
+				return "", "", fmt.Errorf("client roots do not belong to this project")
 			}
 			for _, candidate := range candidates {
-				root = candidate
+				return candidate, "mcp_roots", nil
 			}
 		}
 	}
-	return root, nil
+	return root, "launch", nil
 }
