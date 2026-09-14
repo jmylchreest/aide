@@ -192,7 +192,6 @@ func cmdStatus(dbPath string, args []string) error {
 				}
 			}
 		}
-
 	}
 	if status.ServerState != serverStateSandboxed && status.Findings == nil {
 		findingsDir, pathErr := getFindingsStorePath(dbPath)
@@ -208,7 +207,6 @@ func cmdStatus(dbPath string, args []string) error {
 				}
 			}
 		}
-
 	}
 	if status.ServerState != serverStateSandboxed && status.Survey == nil {
 		surveyDir, pathErr := getSurveyStorePath(dbPath)
@@ -224,7 +222,6 @@ func cmdStatus(dbPath string, args []string) error {
 				}
 			}
 		}
-
 	}
 	if jsonOutput {
 		enc := json.NewEncoder(os.Stdout)

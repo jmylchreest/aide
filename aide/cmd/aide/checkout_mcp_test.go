@@ -16,6 +16,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
+//nolint:staticcheck // Exercise compatibility with MCP clients that advertise roots.
 func TestMCPSessionsRouteDifferentCheckouts(t *testing.T) {
 	s, cs, root := retrievalFixture(t)
 	if _, err := git.PlainInit(root, false); err != nil {
@@ -50,7 +51,7 @@ func TestMCPSessionsRouteDifferentCheckouts(t *testing.T) {
 	s.registerCodeTools()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	var sessions []*mcp.ClientSession
+	sessions := make([]*mcp.ClientSession, 0, 2)
 	for _, r := range []string{root, wt} {
 		st, ct := mcp.NewInMemoryTransports()
 		ss, err := s.server.Connect(ctx, st, nil)

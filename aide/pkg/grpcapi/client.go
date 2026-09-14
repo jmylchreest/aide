@@ -5,10 +5,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/jmylchreest/aide/aide/pkg/store"
-	"google.golang.org/grpc/metadata"
 	"os"
 	"time"
+
+	"github.com/jmylchreest/aide/aide/pkg/store"
+	"google.golang.org/grpc/metadata"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"

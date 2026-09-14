@@ -4,14 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/jmylchreest/aide/aide/pkg/checkout"
+	"net/url"
+	"path/filepath"
+	"time"
+
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi"
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi/adapter"
 	"github.com/jmylchreest/aide/aide/pkg/store"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	"net/url"
-	"path/filepath"
-	"time"
 )
 
 func analysisDir(dbPath, root string) (string, error) {
@@ -45,62 +45,20 @@ func (s *MCPServer) requestCheckout(ctx context.Context, req *mcp.CallToolReques
 			explicit = true
 		}
 	}
-	if !explicit && req != nil && req.Params != nil {
-		caps := req.ClientCapabilities()
-		if caps != nil && caps.RootsV2 != nil {
-			var roots *mcp.ListRootsResult
-			if req.ProtocolVersion() >= "2026-07-28" {
-				if value, ok := req.Params.InputResponses[checkoutRootsRequest]; ok {
-					var valid bool
-					roots, valid = value.(*mcp.ListRootsResult)
-					if !valid || roots == nil {
-						return nil, nil, fmt.Errorf("invalid checkout roots response")
-					}
-				} else {
-					return nil, nil, errCheckoutRootsRequired
-				}
-			} else {
-				if req.Session == nil {
-					return nil, nil, fmt.Errorf("checkout roots require an MCP session")
-				}
-				rootsCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
-				var err error
-				roots, err = req.Session.ListRoots(rootsCtx, &mcp.ListRootsParams{})
-				cancel()
-				if err != nil {
-					return nil, nil, fmt.Errorf("resolve caller checkout: %w", err)
-				}
-			}
-			candidates := map[string]string{}
-			for _, r := range roots.Roots {
-				u, err := url.Parse(r.URI)
-				if err != nil || u.Scheme != "file" || u.Host != "" && u.Host != "localhost" {
-					continue
-				}
-				path := filepath.FromSlash(u.Path)
-				if len(path) > 2 && path[0] == '/' && path[2] == ':' {
-					path = path[1:]
-				}
-				c, err := store.CheckoutInfo(s.dbPath, path)
-				if err == nil {
-					candidates[c.ID] = c.Root
-				}
-			}
-			if len(candidates) > 1 {
-				return nil, nil, fmt.Errorf("multiple checkout roots; provide _meta.aide/checkout_root")
-			}
-			if len(roots.Roots) > 0 && len(candidates) == 0 {
-				return nil, nil, fmt.Errorf("client roots do not belong to this project")
-			}
-			for _, candidate := range candidates {
-				root = candidate
-			}
-		}
-	}
-	if checkout.RootFor(store.ProjectRootFromDB(s.dbPath), root) != root {
-		if _, err := store.CheckoutInfo(s.dbPath, root); err != nil {
+	if !explicit {
+		var err error
+		root, err = s.callerRoot(ctx, req, root)
+		if err != nil {
 			return nil, nil, err
 		}
+	}
+
+	if explicit {
+		c, err := store.CheckoutInfo(s.dbPath, root)
+		if err != nil {
+			return nil, nil, err
+		}
+		root = c.Root
 	}
 	if root == s.sourceRoot() {
 		return s, func() {}, nil
@@ -144,9 +102,70 @@ const checkoutRootsRequest = "aide-checkout-roots"
 
 var errCheckoutRootsRequired = errors.New("checkout roots required")
 
+//nolint:staticcheck // Complete the roots handshake for existing MCP clients.
 func checkoutToolError(err error) (*mcp.CallToolResult, any, error) {
 	if errors.Is(err, errCheckoutRootsRequired) {
 		return &mcp.CallToolResult{InputRequests: mcp.InputRequestMap{checkoutRootsRequest: &mcp.ListRootsParams{}}}, nil, nil
 	}
 	return nil, nil, err
+}
+
+// callerRoot supports roots during the MCP compatibility window. Explicit
+// request metadata remains available independently of roots support.
+//
+//nolint:staticcheck // Existing MCP clients still use the deprecated roots protocol.
+func (s *MCPServer) callerRoot(ctx context.Context, req *mcp.CallToolRequest, root string) (string, error) {
+	if req != nil && req.Params != nil {
+		caps := req.ClientCapabilities()
+		if caps != nil && caps.RootsV2 != nil {
+			var roots *mcp.ListRootsResult
+			if req.ProtocolVersion() >= "2026-07-28" {
+				if value, ok := req.Params.InputResponses[checkoutRootsRequest]; ok {
+					var valid bool
+					roots, valid = value.(*mcp.ListRootsResult)
+					if !valid || roots == nil {
+						return "", fmt.Errorf("invalid checkout roots response")
+					}
+				} else {
+					return "", errCheckoutRootsRequired
+				}
+			} else {
+				if req.Session == nil {
+					return "", fmt.Errorf("checkout roots require an MCP session")
+				}
+				rootsCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+				var err error
+				roots, err = req.Session.ListRoots(rootsCtx, &mcp.ListRootsParams{})
+				cancel()
+				if err != nil {
+					return "", fmt.Errorf("resolve caller checkout: %w", err)
+				}
+			}
+			candidates := map[string]string{}
+			for _, r := range roots.Roots {
+				u, err := url.Parse(r.URI)
+				if err != nil || u.Scheme != "file" || u.Host != "" && u.Host != "localhost" {
+					continue
+				}
+				path := filepath.FromSlash(u.Path)
+				if len(path) > 2 && path[0] == '/' && path[2] == ':' {
+					path = path[1:]
+				}
+				c, err := store.CheckoutInfo(s.dbPath, path)
+				if err == nil {
+					candidates[c.ID] = c.Root
+				}
+			}
+			if len(candidates) > 1 {
+				return "", fmt.Errorf("multiple checkout roots; provide _meta.aide/checkout_root")
+			}
+			if len(roots.Roots) > 0 && len(candidates) == 0 {
+				return "", fmt.Errorf("client roots do not belong to this project")
+			}
+			for _, candidate := range candidates {
+				root = candidate
+			}
+		}
+	}
+	return root, nil
 }

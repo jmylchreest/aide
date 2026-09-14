@@ -16,11 +16,11 @@ import (
 var bucketFindingDispositions = []byte("finding_dispositions")
 
 func dispositionKey(checkoutID string, f *findings.Finding) []byte {
-	copy := *f
-	copy.ID = ""
-	copy.CreatedAt = time.Time{}
-	copy.Accepted = false
-	data, _ := json.Marshal(copy)
+	evidence := *f
+	evidence.ID = ""
+	evidence.CreatedAt = time.Time{}
+	evidence.Accepted = false
+	data, _ := json.Marshal(evidence)
 	return []byte(fmt.Sprintf("%s:%x", checkoutID, sha256.Sum256(data)))
 }
 

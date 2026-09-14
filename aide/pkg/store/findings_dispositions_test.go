@@ -1,11 +1,12 @@
 package store
 
 import (
-	"github.com/jmylchreest/aide/aide/pkg/checkout"
-	"github.com/jmylchreest/aide/aide/pkg/findings"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/jmylchreest/aide/aide/pkg/checkout"
+	"github.com/jmylchreest/aide/aide/pkg/findings"
 )
 
 func TestFindingDispositionSurvivesCacheRemoval(t *testing.T) {

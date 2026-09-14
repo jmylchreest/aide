@@ -58,7 +58,7 @@ func TestCheckoutSharedSocketAndRestart(t *testing.T) {
 		ended := make(chan error, 1)
 		go func() { ended <- srv.Start() }()
 		var once sync.Once
-		close := func() {
+		shutdown := func() {
 			once.Do(func() {
 				srv.Stop()
 				<-ended
@@ -68,8 +68,8 @@ func TestCheckoutSharedSocketAndRestart(t *testing.T) {
 				st.Close()
 			})
 		}
-		t.Cleanup(close)
-		return close
+		t.Cleanup(shutdown)
+		return shutdown
 	}
 	connect := func(r string) *Client {
 		t.Helper()
@@ -130,6 +130,14 @@ func TestCheckoutSharedSocketAndRestart(t *testing.T) {
 		}
 	}
 	check()
+	mem, err := clients[1].Memory.Add(ctx, &MemoryAddRequest{Content: "shared across checkouts", Category: "learning"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sharedMemory, err := clients[0].Memory.Get(ctx, &MemoryGetRequest{Id: mem.Memory.Id})
+	if err != nil || sharedMemory.Memory == nil || sharedMemory.Memory.Content != "shared across checkouts" {
+		t.Fatalf("memory was checkout-scoped: %+v %v", sharedMemory, err)
+	}
 	added, err := clients[1].Findings.Add(ctx, &FindingAddRequest{Analyzer: "complexity", Title: "Older finding", FilePath: "same.go"})
 	if err != nil {
 		t.Fatal(err)
@@ -203,5 +211,9 @@ func TestCheckoutSharedSocketAndRestart(t *testing.T) {
 	shared, err = clients[0].Decision.Get(ctx, &DecisionGetRequest{Topic: "choice"})
 	if err != nil || !shared.Found || shared.Decision.Checkout.Id != wtInfo.ID {
 		t.Fatalf("pruning lost decision: %+v %v", shared, err)
+	}
+	sharedMemory, err = clients[0].Memory.Get(ctx, &MemoryGetRequest{Id: mem.Memory.Id})
+	if err != nil || sharedMemory.Memory == nil {
+		t.Fatalf("pruning lost shared memory: %+v %v", sharedMemory, err)
 	}
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/jmylchreest/aide/aide/pkg/aideignore"
 	"github.com/jmylchreest/aide/aide/pkg/anchor"
+	"github.com/jmylchreest/aide/aide/pkg/checkout"
 	"github.com/jmylchreest/aide/aide/pkg/code"
 	"github.com/jmylchreest/aide/aide/pkg/store"
 )
@@ -40,35 +41,8 @@ func Run(ctx context.Context, cs store.CodeIndexStore, parser *code.Parser, root
 	batch := make([]code.FileBatch, 0, 32)
 	batchBytes := int64(0)
 	flush := func() error {
-		if len(batch) == 0 {
-			return nil
-		}
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
-		if bulk, ok := cs.(interface{ IndexFiles([]code.FileBatch) error }); ok {
-			if err := bulk.IndexFiles(batch); err != nil {
-				return err
-			}
-		} else {
-			for _, f := range batch {
-				if err := cs.IndexFileBatch(f.Path, f.Symbols, f.References, f.ModTime, f.SizeBytes); err != nil {
-					return err
-				}
-			}
-		}
-		for _, f := range batch {
-			if ctx.Err() != nil {
-				return ctx.Err()
-			}
-			result.Indexed++
-			result.Symbols += len(f.Symbols)
-			result.References += len(f.References)
-			if progress != nil {
-				if err := progress(Progress{Path: f.Path, Symbols: len(f.Symbols)}); err != nil {
-					return err
-				}
-			}
+		if err := commitFiles(ctx, cs, batch, &result, progress); err != nil {
+			return err
 		}
 		batch = batch[:0]
 		batchBytes = 0
@@ -82,8 +56,8 @@ func Run(ctx context.Context, cs store.CodeIndexStore, parser *code.Parser, root
 			path = filepath.Join(root, path)
 		}
 		path = filepath.Clean(path)
-		if !anchor.Contains(root, path) || !anchor.Contains(anchor.RealPath(root), anchor.RealPath(path)) {
-			return result, fmt.Errorf("path %q is outside checkout", path)
+		if _, _, err := checkout.SourcePath(root, path); err != nil {
+			return result, err
 		}
 		if anchor.RealPath(path) == anchor.RealPath(root) {
 			full = true
@@ -115,51 +89,25 @@ func Run(ctx context.Context, cs store.CodeIndexStore, parser *code.Parser, root
 				return nil
 			}
 			seen[rel] = true
-			data, err := os.ReadFile(abs)
+			prepared, err := prepareFile(cs, parser, abs, rel, fingerprints, force, seed)
 			if err != nil {
 				return err
 			}
-			lang := code.DetectLanguage(abs, data)
-			fingerprint := fingerprints[lang]
-			if fingerprint == "" {
-				fingerprint, err = parser.Fingerprint(lang)
-				if err != nil {
-					return nil
+			if prepared.unchanged {
+				result.Skipped++
+				if progress != nil {
+					return progress(Progress{Path: rel, Skipped: true})
 				}
-				fingerprints[lang] = fingerprint
+				return nil
 			}
-			hash := code.ContentHash(data)
-			if !force {
-				if old, err := cs.GetFileInfo(rel); err == nil && old.ContentHash == hash && old.ParserFingerprint == fingerprint {
-					result.Skipped++
-					if progress != nil {
-						return progress(Progress{Path: rel, Skipped: true})
-					}
-					return nil
-				}
+			if prepared.batch == nil {
+				return nil
 			}
-			f := code.FileBatch{Path: rel, ContentHash: hash, ParserFingerprint: fingerprint}
-			reused := false
-			if seed != nil && !force {
-				if candidate, err := seed(rel, hash, fingerprint); err == nil {
-					f = candidate
-					reused = true
-				}
-			}
-			if !reused {
-				f.Symbols, err = parser.ParseContent(data, lang, rel)
-				if err != nil {
-					return err
-				}
-				f.References, err = parser.ParseContentReferences(data, lang, rel)
-				if err != nil {
-					return err
-				}
-			} else {
+			f := *prepared.batch
+			if prepared.seeded {
 				result.Seeded++
 			}
 			f.ModTime = info.ModTime()
-			f.SizeBytes = int64(len(data))
 			batch = append(batch, f)
 			batchBytes += f.SizeBytes
 			if len(batch) >= 32 || batchBytes >= 8<<20 {
@@ -178,25 +126,114 @@ func Run(ctx context.Context, cs store.CodeIndexStore, parser *code.Parser, root
 		return result, ctx.Err()
 	}
 	if full {
-		files, err := cs.ListAllFileInfo()
+		n, err := removeUnseen(ctx, cs, seen)
+		result.Removed = n
 		if err != nil {
 			return result, err
 		}
-		for _, f := range files {
-			if seen[f.Path] {
-				continue
-			}
-			if ctx.Err() != nil {
-				return result, ctx.Err()
-			}
-			if err := cs.ClearFile(f.Path); err != nil {
-				return result, err
-			}
-			if err := cs.ClearFileReferences(f.Path); err != nil {
-				return result, err
-			}
-			result.Removed++
-		}
 	}
 	return result, nil
+}
+
+// prepareFile either verifies the current bundle, seeds compatible records, or
+// parses the same source bytes for symbols and references.
+type preparedFile struct {
+	batch     *code.FileBatch
+	unchanged bool
+	seeded    bool
+}
+
+func prepareFile(cs store.CodeIndexStore, parser *code.Parser, abs, rel string, fingerprints map[string]string, force bool, seed Seed) (preparedFile, error) {
+	data, err := os.ReadFile(abs)
+	if err != nil {
+		return preparedFile{}, err
+	}
+	lang := code.DetectLanguage(abs, data)
+	fingerprint := fingerprints[lang]
+	if fingerprint == "" {
+		fingerprint, err = parser.Fingerprint(lang)
+		if err != nil {
+			return preparedFile{}, nil
+		}
+		fingerprints[lang] = fingerprint
+	}
+	hash := code.ContentHash(data)
+	if !force {
+		if old, err := cs.GetFileInfo(rel); err == nil && old.ContentHash == hash && old.ParserFingerprint == fingerprint {
+			return preparedFile{unchanged: true}, nil
+		}
+	}
+	f := code.FileBatch{Path: rel, ContentHash: hash, ParserFingerprint: fingerprint, SizeBytes: int64(len(data))}
+	if seed != nil && !force {
+		if candidate, err := seed(rel, hash, fingerprint); err == nil {
+			candidate.SizeBytes = int64(len(data))
+			return preparedFile{batch: &candidate, seeded: true}, nil
+		}
+	}
+	f.Symbols, err = parser.ParseContent(data, lang, rel)
+	if err != nil {
+		return preparedFile{}, err
+	}
+	f.References, err = parser.ParseContentReferences(data, lang, rel)
+	if err != nil {
+		return preparedFile{}, err
+	}
+	return preparedFile{batch: &f}, nil
+}
+func removeUnseen(ctx context.Context, cs store.CodeIndexStore, seen map[string]bool) (int, error) {
+	files, err := cs.ListAllFileInfo()
+	if err != nil {
+		return 0, err
+	}
+	removed := 0
+	for _, f := range files {
+		if seen[f.Path] {
+			continue
+		}
+		if ctx.Err() != nil {
+			return removed, ctx.Err()
+		}
+		if err := cs.ClearFile(f.Path); err != nil {
+			return removed, err
+		}
+		if err := cs.ClearFileReferences(f.Path); err != nil {
+			return removed, err
+		}
+		removed++
+	}
+	return removed, nil
+}
+
+func commitFiles(ctx context.Context, cs store.CodeIndexStore, batch []code.FileBatch, result *Result, progress func(Progress) error) error {
+	if len(batch) == 0 {
+		return nil
+	}
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	if bulk, ok := cs.(interface{ IndexFiles([]code.FileBatch) error }); ok {
+		if err := bulk.IndexFiles(batch); err != nil {
+			return err
+		}
+	} else {
+		for _, f := range batch {
+			if err := cs.IndexFileBatch(f.Path, f.Symbols, f.References, f.ModTime, f.SizeBytes); err != nil {
+				return err
+			}
+		}
+	}
+	for _, f := range batch {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		result.Indexed++
+		result.Symbols += len(f.Symbols)
+		result.References += len(f.References)
+		if progress != nil {
+			if err := progress(Progress{Path: f.Path, Symbols: len(f.Symbols)}); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

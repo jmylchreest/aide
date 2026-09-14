@@ -1,12 +1,13 @@
 package store
 
 import (
-	"github.com/jmylchreest/aide/aide/pkg/code"
-	bolt "go.etcd.io/bbolt"
 	"path/filepath"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/jmylchreest/aide/aide/pkg/code"
+	bolt "go.etcd.io/bbolt"
 )
 
 func TestCodeRebuildsInterruptedSearchCommit(t *testing.T) {

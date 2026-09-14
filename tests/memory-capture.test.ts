@@ -8,8 +8,8 @@
  * 4. Update with newer memories
  * 5. Verify newer memories are returned
  *
- * Uses a temp directory with .aide/ structure so the binary derives
- * the DB path from findProjectRoot() via cwd — no env var override needed.
+ * Uses an explicit temporary project root so ancestor markers cannot redirect
+ * the test into another database.
  */
 
 import { execFileSync } from "child_process";
@@ -22,13 +22,13 @@ const PROJECT_ROOT = join(__dirname, "..");
 const AIDE_BINARY = join(PROJECT_ROOT, "bin", "aide");
 
 // Temp directory that acts as a fake project root with .aide/ structure.
-// findProjectRoot() will find .aide here and derive the DB path automatically.
+// Pass this root explicitly; an empty .aide directory is not a Git boundary.
 const TEST_PROJECT_ROOT = join(tmpdir(), `aide-test-${process.pid}`);
 
 // Helper to run aide CLI with cwd set to the test project root
 function aide(args: string[]): string {
   try {
-    return execFileSync(AIDE_BINARY, args, {
+    return execFileSync(AIDE_BINARY, ["--project-root", TEST_PROJECT_ROOT, ...args], {
       cwd: TEST_PROJECT_ROOT,
       encoding: "utf-8",
       timeout: 10000,

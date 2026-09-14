@@ -1,11 +1,12 @@
 package store
 
 import (
-	"github.com/jmylchreest/aide/aide/pkg/checkout"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/jmylchreest/aide/aide/pkg/checkout"
 )
 
 func TestCheckoutCleanupGraceAndRegistration(t *testing.T) {

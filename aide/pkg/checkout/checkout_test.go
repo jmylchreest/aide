@@ -137,3 +137,29 @@ func TestGeneratedIgnoreAllowsExplicitOverride(t *testing.T) {
 		t.Fatalf("overrode user choice: %q %v", data, err)
 	}
 }
+
+func TestCorruptOrRemovedIdentity(t *testing.T) {
+	root, wt := fixture(t)
+	first, err := Resolve(root, wt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	marker := filepath.Join(first.GitDir, "aide-checkout-id")
+	if err := os.WriteFile(marker, []byte("invalid"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Resolve(root, wt); err == nil {
+		t.Fatal("corrupt ID silently accepted or replaced")
+	}
+	data, _ := os.ReadFile(marker)
+	if string(data) != "invalid" {
+		t.Fatal("corrupt evidence overwritten")
+	}
+	if err := os.Remove(marker); err != nil {
+		t.Fatal(err)
+	}
+	again, err := Resolve(root, wt)
+	if err != nil || again.ID == first.ID {
+		t.Fatalf("missing marker must create new identity: %+v %v", again, err)
+	}
+}
