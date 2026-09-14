@@ -2,10 +2,81 @@ package store
 
 import (
 	"github.com/jmylchreest/aide/aide/pkg/code"
+	bolt "go.etcd.io/bbolt"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 )
+
+func TestCodeRebuildsInterruptedSearchCommit(t *testing.T) {
+	d := t.TempDir()
+	open := func() *CodeStore {
+		t.Helper()
+		s, err := NewCodeStore(filepath.Join(d, "index.db"), filepath.Join(d, "search.bleve"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return s
+	}
+	s := open()
+	// Simulate process death after Bolt commits but before Bleve receives the batch.
+	err := s.db.Update(func(tx *bolt.Tx) error {
+		if err := tx.Bucket(BucketCodeMeta).Put([]byte("search_dirty"), []byte{1}); err != nil {
+			return err
+		}
+		return s.addSymbolTx(tx, &code.Symbol{Name: "Recovered", Kind: "function", FilePath: "same.go"})
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.Close()
+	s = open()
+	defer s.Close()
+	got, err := s.SearchSymbols("Recovered", code.SearchOptions{})
+	if err != nil || len(got) != 1 {
+		t.Fatalf("lost committed symbol: %v %v", got, err)
+	}
+}
+
+func TestCodeConcurrentIndexClearAndSearch(t *testing.T) {
+	d := t.TempDir()
+	s, err := NewCodeStore(filepath.Join(d, "index.db"), filepath.Join(d, "search.bleve"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	var wg sync.WaitGroup
+	for worker := 0; worker < 3; worker++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := 0; i < 20; i++ {
+				var err error
+				switch worker {
+				case 0:
+					err = s.IndexFiles([]code.FileBatch{{Path: "same.go", Symbols: []*code.Symbol{{Name: "Current", Kind: "function"}}}})
+				case 1:
+					err = s.Clear()
+				case 2:
+					_, err = s.SearchSymbols("Current", code.SearchOptions{})
+				}
+				if err != nil {
+					t.Error(err)
+					return
+				}
+			}
+		}()
+	}
+	wg.Wait()
+	if err := s.IndexFiles([]code.FileBatch{{Path: "same.go", Symbols: []*code.Symbol{{Name: "Final", Kind: "function"}}}}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.SearchSymbols("Final", code.SearchOptions{})
+	if err != nil || len(got) != 1 {
+		t.Fatalf("final search: %v %v", got, err)
+	}
+}
 
 func TestCodeBulkSeedVerification(t *testing.T) {
 	open := func(name string) *CodeStore {

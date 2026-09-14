@@ -51,9 +51,15 @@ func (s *CodeStore) IndexFiles(files []code.FileBatch) error {
 	}
 	s.writeMu.Lock()
 	defer s.writeMu.Unlock()
+	if s.searchDirty {
+		return fmt.Errorf("code search update failed; restart the daemon to rebuild search")
+	}
 	var deleted []string
 	var symbols []*code.Symbol
 	err := s.db.Update(func(tx *bolt.Tx) error {
+		if err := tx.Bucket(BucketCodeMeta).Put([]byte("search_dirty"), []byte{1}); err != nil {
+			return err
+		}
 		for _, f := range files {
 			if f.Path == "" {
 				return fmt.Errorf("file path is required")
@@ -98,8 +104,9 @@ func (s *CodeStore) IndexFiles(files []code.FileBatch) error {
 	if err != nil {
 		return err
 	}
+	s.searchDirty = true
 	if s.search == nil {
-		return nil
+		return fmt.Errorf("code search index unavailable")
 	}
 	batch := s.search.NewBatch()
 	for _, id := range deleted {
@@ -110,7 +117,14 @@ func (s *CodeStore) IndexFiles(files []code.FileBatch) error {
 			return err
 		}
 	}
-	return s.search.Batch(batch)
+	if err := s.search.Batch(batch); err != nil {
+		return err
+	}
+	if err := s.db.Update(func(tx *bolt.Tx) error { return tx.Bucket(BucketCodeMeta).Delete([]byte("search_dirty")) }); err != nil {
+		return err
+	}
+	s.searchDirty = false
+	return nil
 }
 
 // SeedFile reads metadata, symbols and references from the same short snapshot.

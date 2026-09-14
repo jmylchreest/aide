@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/blevesearch/bleve/v2"
@@ -57,6 +58,7 @@ type searchableStoreConfig[T any] struct {
 // It encapsulates the common CRUD, search, list, replace, clear, and close patterns
 // shared by findings and survey stores.
 type searchableStore[T any] struct {
+	writeMu    sync.RWMutex
 	db         *bolt.DB
 	idx        bleve.Index
 	dbPath     string
@@ -246,6 +248,8 @@ func (s *searchableStore[T]) errSearchIndexClosed() error {
 
 // Close closes both the Bleve search index and the BoltDB database.
 func (s *searchableStore[T]) Close() error {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
 	var errs []error
 	if s.idx != nil {
 		if err := s.idx.Close(); err != nil {
@@ -268,6 +272,8 @@ func (s *searchableStore[T]) Close() error {
 
 // Add stores an entity and indexes it for search.
 func (s *searchableStore[T]) Add(item *T) error {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
 	if s.idx == nil {
 		return s.errSearchIndexClosed()
 	}
@@ -313,6 +319,8 @@ func (s *searchableStore[T]) Get(id string) (*T, error) {
 // updateItem re-stores an entity and re-indexes it. Used for in-place mutations
 // (e.g. marking a finding as accepted) where the caller already has the modified entity.
 func (s *searchableStore[T]) updateItem(item *T) error {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
 	if s.idx == nil {
 		return s.errSearchIndexClosed()
 	}
@@ -331,6 +339,8 @@ func (s *searchableStore[T]) updateItem(item *T) error {
 
 // Delete removes an entity by ID from both BoltDB and the search index.
 func (s *searchableStore[T]) Delete(id string) error {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
 	if s.idx == nil {
 		return s.errSearchIndexClosed()
 	}
@@ -382,6 +392,8 @@ type bleveSearchHit struct {
 // The caller builds domain-specific filter queries; this method handles
 // the common query construction and execution.
 func (s *searchableStore[T]) searchBleve(queryStr string, filters []query.Query, limit, defaultLimit int) ([]bleveSearchHit, error) {
+	s.writeMu.RLock()
+	defer s.writeMu.RUnlock()
 	if s.idx == nil {
 		return nil, s.errSearchIndexClosed()
 	}
@@ -477,6 +489,8 @@ func (s *searchableStore[T]) allMatching(matchFn func(*T) bool) ([]*T, error) {
 // It collects keys to delete and new data inside the BBolt tx, then applies
 // Bleve mutations outside so a tx rollback doesn't leave Bleve inconsistent.
 func (s *searchableStore[T]) replace(shouldDelete func(*T) bool, newItems []*T) error {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
 	if s.idx == nil {
 		return s.errSearchIndexClosed()
 	}
@@ -550,6 +564,8 @@ func (s *searchableStore[T]) replace(shouldDelete func(*T) bool, newItems []*T) 
 // Clear removes all entities by deleting and recreating the BoltDB bucket
 // and the Bleve search index.
 func (s *searchableStore[T]) Clear() error {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
 	err := s.db.Update(func(tx *bolt.Tx) error {
 		if err := tx.DeleteBucket(s.cfg.BucketName); err != nil {
 			return err
@@ -562,8 +578,10 @@ func (s *searchableStore[T]) Clear() error {
 	}
 
 	searchPath := s.searchPath
-	if err := s.idx.Close(); err != nil {
-		return fmt.Errorf("failed to close %s search index: %w", s.cfg.StoreName, err)
+	if s.idx != nil {
+		if err := s.idx.Close(); err != nil {
+			return fmt.Errorf("failed to close %s search index: %w", s.cfg.StoreName, err)
+		}
 	}
 	if err := os.RemoveAll(searchPath); err != nil {
 		// Reopen the old index so the store remains usable.

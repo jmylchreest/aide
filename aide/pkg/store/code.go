@@ -50,11 +50,12 @@ var (
 
 // CodeStore provides symbol storage and search.
 type CodeStore struct {
-	writeMu sync.Mutex
-	indexMu sync.Mutex
-	db      *bolt.DB
-	search  bleve.Index
-	dbPath  string
+	writeMu     sync.RWMutex
+	indexMu     sync.Mutex
+	searchDirty bool
+	db          *bolt.DB
+	search      bleve.Index
+	dbPath      string
 }
 
 // CodeSearchResult represents a symbol search match with score.
@@ -245,11 +246,13 @@ func (s *CodeStore) ensureCodeSearchMapping(searchPath string) error {
 
 	// Read stored hash from code meta bucket.
 	var stored string
+	var dirty bool
 	s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(BucketCodeMeta)
 		if b == nil {
 			return nil
 		}
+		dirty = b.Get([]byte("search_dirty")) != nil
 		data := b.Get([]byte("search_mapping_hash"))
 		if data != nil {
 			stored = string(data)
@@ -257,7 +260,7 @@ func (s *CodeStore) ensureCodeSearchMapping(searchPath string) error {
 		return nil
 	})
 
-	if hash == stored {
+	if hash == stored && !dirty {
 		return nil
 	}
 
@@ -313,14 +316,22 @@ func (s *CodeStore) ensureCodeSearchMapping(searchPath string) error {
 		if b == nil {
 			return fmt.Errorf("code meta bucket not found")
 		}
+		if err := b.Delete([]byte("search_dirty")); err != nil {
+			return err
+		}
 		return b.Put([]byte("search_mapping_hash"), []byte(hash))
 	})
 }
 
 // Close closes the code store.
 func (s *CodeStore) Close() error {
+	s.indexMu.Lock()
+	defer s.indexMu.Unlock()
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
 	if s.search != nil {
 		s.search.Close()
+		s.search = nil
 	}
 	if s.db != nil {
 		return s.db.Close()
@@ -414,6 +425,11 @@ func (s *CodeStore) addSymbolTx(tx *bolt.Tx, sym *code.Symbol) error {
 // callers (CLI helpers, tests) but inefficient for indexer hot paths, which
 // should use IndexFileBatch instead.
 func (s *CodeStore) AddSymbol(sym *code.Symbol) error {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+	if s.search == nil {
+		return fmt.Errorf("code search index unavailable")
+	}
 	err := s.db.Update(func(tx *bolt.Tx) error {
 		return s.addSymbolTx(tx, sym)
 	})
@@ -446,6 +462,11 @@ func (s *CodeStore) GetSymbol(id string) (*code.Symbol, error) {
 // DeleteSymbol removes a symbol by ID from both the primary bucket and the
 // file-keyed secondary index, then drops it from the Bleve search index.
 func (s *CodeStore) DeleteSymbol(id string) error {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+	if s.search == nil {
+		return fmt.Errorf("code search index unavailable")
+	}
 	err := s.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(BucketSymbols)
 		data := b.Get([]byte(id))
@@ -469,6 +490,14 @@ func (s *CodeStore) DeleteSymbol(id string) error {
 
 // SearchSymbols performs full-text search on symbols.
 func (s *CodeStore) SearchSymbols(query string, opts code.SearchOptions) ([]*CodeSearchResult, error) {
+	s.writeMu.RLock()
+	defer s.writeMu.RUnlock()
+	if s.search == nil {
+		return nil, fmt.Errorf("code search index unavailable")
+	}
+	if s.searchDirty {
+		return nil, fmt.Errorf("code search update failed; restart the daemon to rebuild search")
+	}
 	limit := opts.Limit
 	if limit <= 0 {
 		limit = 20
@@ -821,6 +850,11 @@ func (s *CodeStore) clearFileTx(tx *bolt.Tx, filePath string) ([]string, error) 
 // ClearFile removes all symbols for a file (in bbolt and Bleve) and its
 // FileInfo entry.
 func (s *CodeStore) ClearFile(filePath string) error {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+	if s.search == nil {
+		return fmt.Errorf("code search index unavailable")
+	}
 	var clearedIDs []string
 	err := s.db.Update(func(tx *bolt.Tx) error {
 		ids, err := s.clearFileTx(tx, filePath)
@@ -857,9 +891,8 @@ func (s *CodeStore) ClearFile(filePath string) error {
 //
 // bbolt and Bleve are independent stores; the bbolt commit happens first,
 // the Bleve batch second. If the Bleve apply fails after the bbolt commit
-// the search index will be temporarily out of sync — the daemon's startup
-// reconcile is the safety net for that case, the same one that handles
-// in-file orphans from prior crashed writes.
+// a durable dirty marker forces search reconstruction from Bolt on reopen.
+// Searches report an error after a failed update until the store is reopened.
 func (s *CodeStore) IndexFileBatch(
 	filePath string,
 	symbols []*code.Symbol,
@@ -873,6 +906,10 @@ func (s *CodeStore) IndexFileBatch(
 
 // Clear removes all symbols, references, and file tracking data.
 func (s *CodeStore) Clear() error {
+	s.indexMu.Lock()
+	defer s.indexMu.Unlock()
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
 	// Clear BBolt buckets
 	err := s.db.Update(func(tx *bolt.Tx) error {
 		for _, bucket := range [][]byte{BucketSymbols, BucketReferences, BucketFileIndex, BucketRefIndex, BucketSymbolsByFile, BucketReferencesByFile} {
@@ -894,8 +931,10 @@ func (s *CodeStore) Clear() error {
 	// If recreation fails, attempt to reopen the existing index to avoid
 	// leaving s.search in a closed/nil state that would panic on next use.
 	searchPath := strings.TrimSuffix(s.dbPath, "index.db") + "search.bleve"
-	if err := s.search.Close(); err != nil {
-		return fmt.Errorf("failed to close search index: %w", err)
+	if s.search != nil {
+		if err := s.search.Close(); err != nil {
+			return fmt.Errorf("failed to close search index: %w", err)
+		}
 	}
 	if err := os.RemoveAll(searchPath); err != nil {
 		// Try to reopen old index before returning error.
@@ -919,7 +958,10 @@ func (s *CodeStore) Clear() error {
 		return fmt.Errorf("failed to recreate code search index after clear: %w", err)
 	}
 	s.search = index
-
+	if err := s.db.Update(func(tx *bolt.Tx) error { return tx.Bucket(BucketCodeMeta).Delete([]byte("search_dirty")) }); err != nil {
+		return err
+	}
+	s.searchDirty = false
 	return nil
 }
 
@@ -951,21 +993,30 @@ func (s *CodeStore) Stats() (*code.IndexStats, error) {
 
 // GetFileSymbols returns all symbols for a given file.
 func (s *CodeStore) GetFileSymbols(filePath string) ([]*code.Symbol, error) {
-	info, err := s.GetFileInfo(filePath)
-	if err != nil {
-		return nil, err
-	}
-
-	symbols := make([]*code.Symbol, 0, len(info.SymbolIDs))
-	for _, id := range info.SymbolIDs {
-		sym, err := s.GetSymbol(id)
-		if err != nil {
-			continue
+	var symbols []*code.Symbol
+	err := s.db.View(func(tx *bolt.Tx) error {
+		data := tx.Bucket(BucketFileIndex).Get([]byte(filePath))
+		if data == nil {
+			return ErrNotFound
 		}
-		symbols = append(symbols, sym)
-	}
-
-	return symbols, nil
+		var info code.FileInfo
+		if err := json.Unmarshal(data, &info); err != nil {
+			return err
+		}
+		for _, id := range info.SymbolIDs {
+			data := tx.Bucket(BucketSymbols).Get([]byte(id))
+			if data == nil {
+				return ErrNotFound
+			}
+			var sym code.Symbol
+			if err := json.Unmarshal(data, &sym); err != nil {
+				return err
+			}
+			symbols = append(symbols, &sym)
+		}
+		return nil
+	})
+	return symbols, err
 }
 
 // GetContainingSymbol returns the narrowest symbol whose line range contains the given line.
