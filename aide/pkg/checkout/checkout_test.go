@@ -163,3 +163,60 @@ func TestCorruptOrRemovedIdentity(t *testing.T) {
 		t.Fatalf("missing marker must create new identity: %+v %v", again, err)
 	}
 }
+
+func TestMissingNestedCheckoutDoesNotResolveParent(t *testing.T) {
+	root, wt := fixture(t)
+	nested := filepath.Join(root, "nested")
+	if err := os.Rename(wt, nested); err != nil {
+		t.Fatal(err)
+	}
+	first, err := Resolve(root, nested)
+	if err != nil || first.Root != nested {
+		t.Fatalf("nested checkout: %+v %v", first, err)
+	}
+	if err := os.RemoveAll(nested); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Resolve(root, nested); err == nil {
+		t.Fatal("missing checkout silently resolved to parent")
+	}
+	file := filepath.Join(root, "file.go")
+	if err := os.WriteFile(file, []byte("package p"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Resolve(root, file); err == nil {
+		t.Fatal("file accepted as checkout directory")
+	}
+}
+
+func TestMayExistPreservesUncertainRegistrations(t *testing.T) {
+	root, wt := fixture(t)
+	c, err := Resolve(root, wt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.RemoveAll(wt); err != nil {
+		t.Fatal(err)
+	}
+	marker := filepath.Join(c.GitDir, "aide-checkout-id")
+	for _, value := range []string{c.ID, "corrupt", ""} {
+		if err := os.WriteFile(marker, []byte(value), 0600); err != nil {
+			t.Fatal(err)
+		}
+		if !MayExist(c) {
+			t.Fatalf("discarded protected registration: %q", value)
+		}
+	}
+	if err := os.Remove(marker); err != nil {
+		t.Fatal(err)
+	}
+	if !MayExist(c) {
+		t.Fatal("discarded registration with absent identity")
+	}
+	if err := os.WriteFile(marker, []byte("0123456789abcdef0123456789abcdef"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if MayExist(c) {
+		t.Fatal("different identity protects old checkout")
+	}
+}

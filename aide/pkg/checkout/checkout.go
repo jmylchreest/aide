@@ -41,6 +41,15 @@ func RootFor(project, cwd string) string {
 // per-worktree Git metadata. The file survives moves and branch changes, and
 // disappears with Git's registration on removal. Non-Git projects use .aide.
 func Resolve(project, path string) (Info, error) {
+	// go-git's upward discovery also accepts missing paths. Never let a stale
+	// worktree directory silently discover its parent's repository instead.
+	stat, err := os.Stat(path)
+	if err != nil {
+		return Info{}, fmt.Errorf("checkout directory %q: %w", path, err)
+	}
+	if !stat.IsDir() {
+		return Info{}, fmt.Errorf("checkout path %q is not a directory", path)
+	}
 	project = canonical(project)
 	root, admin, common, err := locate(path)
 	if err != nil {
@@ -84,6 +93,35 @@ func Resolve(project, path string) (Info, error) {
 		}
 	}
 	return c, nil
+}
+
+// MayExist conservatively checks a recorded checkout without creating an ID.
+// A matching Git registration preserves locked or temporarily unmounted
+// worktrees. Missing/corrupt identities and I/O failures are inconclusive.
+// A different valid identity proves that a path has been reused.
+func MayExist(c Info) bool {
+	if c.GitDir == "" || identityMayMatch(c.GitDir, c.ID) {
+		return true
+	}
+	if _, err := os.Lstat(c.Root); err != nil {
+		return !os.IsNotExist(err)
+	}
+	root, admin, _, err := locate(c.Root)
+	if err != nil || root != canonical(c.Root) {
+		return true
+	}
+	return identityMayMatch(admin, c.ID)
+}
+
+func identityMayMatch(dir, id string) bool {
+	data, err := os.ReadFile(filepath.Join(dir, "aide-checkout-id"))
+	if err == nil {
+		found := strings.TrimSpace(string(data))
+		return !validID(found) || found == id
+	}
+	// An existing registration with a missing marker must not be discarded.
+	_, err = os.Lstat(dir)
+	return !os.IsNotExist(err)
 }
 
 // EnsureIgnoredDir installs a default only on first use. Existing ignore files

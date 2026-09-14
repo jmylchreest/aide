@@ -15,7 +15,7 @@ const CheckoutGracePeriod = 7 * 24 * time.Hour
 
 // PruneCheckouts requires ownership of the shared memory DB. closeOwner waits
 // for active requests/watchers and closes all cache handles before removal.
-// Git registrations (including locked/unmounted worktrees) always win over GC.
+// Matching or uncertain Git registrations protect locked/unmounted worktrees.
 func PruneCheckouts(dbPath string, shared Store, now time.Time, pinned map[string]bool, closeOwner func(checkout.Info) error) (int, error) {
 	base := filepath.Join(filepath.Dir(dbPath), "checkouts")
 	entries, err := os.ReadDir(base)
@@ -41,8 +41,7 @@ func PruneCheckouts(dbPath string, shared Store, now time.Time, pinned map[strin
 			continue
 		}
 		marker := filepath.Join(dir, "orphaned-at")
-		missing := func(p string) bool { _, err := os.Lstat(p); return os.IsNotExist(err) }
-		if !missing(c.Root) || c.GitDir == "" || !missing(c.GitDir) {
+		if checkout.MayExist(c) {
 			_ = os.Remove(marker)
 			continue
 		}
@@ -66,7 +65,7 @@ func PruneCheckouts(dbPath string, shared Store, now time.Time, pinned map[strin
 			}
 		}
 		// Recheck after waiting for owners: registrations may have been restored.
-		if !missing(c.Root) || !missing(c.GitDir) {
+		if checkout.MayExist(c) {
 			_ = os.Remove(marker)
 			continue
 		}

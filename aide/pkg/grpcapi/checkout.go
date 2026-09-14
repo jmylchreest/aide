@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jmylchreest/aide/aide/pkg/anchor"
 	"github.com/jmylchreest/aide/aide/pkg/checkout"
 	"github.com/jmylchreest/aide/aide/pkg/codeindex"
 	"github.com/jmylchreest/aide/aide/pkg/store"
@@ -78,6 +79,9 @@ func (s *Server) checkoutFor(ctx context.Context) (*Server, func(), error) {
 	c, err := store.CheckoutInfo(s.dbPath, root)
 	if err != nil {
 		return nil, nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	if c.Root != anchor.RealPath(root) {
+		return nil, nil, status.Error(codes.InvalidArgument, "checkout root no longer identifies that checkout")
 	}
 	m.mu.RLock()
 	if owner, ok := m.owners[c.ID]; ok && !m.closed {

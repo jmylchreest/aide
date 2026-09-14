@@ -66,6 +66,18 @@ func TestCheckoutRouting(t *testing.T) {
 	if _, err := svc.Search(foreign, &CodeSearchRequest{Query: "Only"}); err == nil {
 		t.Fatal("foreign root accepted")
 	}
+	stale := filepath.Join(root, "former-worktree")
+	for _, exists := range []bool{false, true} {
+		if exists {
+			if err := os.Mkdir(stale, 0700); err != nil {
+				t.Fatal(err)
+			}
+		}
+		ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs(checkoutRootKey, stale))
+		if _, err := svc.Search(ctx, &CodeSearchRequest{Query: "Only"}); err == nil {
+			t.Fatalf("stale checkout selected ancestor (exists: %v)", exists)
+		}
+	}
 	// Legacy requests must address the main checkout, independently of daemon cwd.
 	scoped, release, err := svc.server.checkoutFor(context.Background())
 	if err != nil {

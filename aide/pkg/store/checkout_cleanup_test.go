@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	git "github.com/go-git/go-git/v5"
 	"github.com/jmylchreest/aide/aide/pkg/checkout"
 )
 
@@ -55,5 +56,58 @@ func TestCheckoutCleanupGraceAndRegistration(t *testing.T) {
 	}
 	if _, e := os.Stat(dbPath); e != nil {
 		t.Fatal("shared store removed")
+	}
+}
+
+func TestCheckoutCleanupReusedPath(t *testing.T) {
+	root := t.TempDir()
+	dbPath := filepath.Join(root, ".aide", "memory", "memory.db")
+	if err := os.MkdirAll(filepath.Dir(dbPath), 0700); err != nil {
+		t.Fatal(err)
+	}
+	st, err := NewBoltStore(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	wt := filepath.Join(root, "worktree")
+	create := func() checkout.Info {
+		t.Helper()
+		if _, err := git.PlainInit(wt, false); err != nil {
+			t.Fatal(err)
+		}
+		c, err := checkout.Resolve(wt, wt)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := RegisterCheckout(dbPath, c); err != nil {
+			t.Fatal(err)
+		}
+		return c
+	}
+	old := create()
+	if err := os.RemoveAll(wt); err != nil {
+		t.Fatal(err)
+	}
+	replacement := create()
+	if old.ID == replacement.ID {
+		t.Fatal("reused identity")
+	}
+	now := time.Now()
+	if n, err := PruneCheckouts(dbPath, st, now, nil, nil); err != nil || n != 0 {
+		t.Fatalf("grace period: %d %v", n, err)
+	}
+	closed := ""
+	n, err := PruneCheckouts(dbPath, st, now.Add(8*24*time.Hour), nil, func(c checkout.Info) error { closed = c.ID; return nil })
+	if err != nil || n != 1 || closed != old.ID {
+		t.Fatalf("old cache not pruned: %d %s %v", n, closed, err)
+	}
+	if _, err := os.Stat(CheckoutDir(dbPath, old)); !os.IsNotExist(err) {
+		t.Fatal("old cache retained")
+	}
+	for _, path := range []string{CheckoutDir(dbPath, replacement), wt, dbPath} {
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("live data removed: %s: %v", path, err)
+		}
 	}
 }

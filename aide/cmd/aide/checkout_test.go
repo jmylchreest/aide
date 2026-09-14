@@ -32,6 +32,27 @@ func TestExplicitCheckoutSubdirectoryResolvesRoot(t *testing.T) {
 	}
 }
 
+func TestStaleLaunchCheckoutRejectsAncestor(t *testing.T) {
+	root := t.TempDir()
+	if _, err := git.PlainInit(root, false); err != nil {
+		t.Fatal(err)
+	}
+	nested := filepath.Join(root, "former-worktree")
+	s := newMCPServer(nil)
+	s.dbPath = filepath.Join(root, ".aide", "memory", "memory.db")
+	s.checkoutRoot = nested
+	for _, exists := range []bool{false, true} {
+		if exists {
+			if err := os.Mkdir(nested, 0700); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if _, _, err := s.resolveToolCheckout(context.Background(), nil, "", nil); err == nil {
+			t.Fatalf("stale launch selected parent (directory exists: %v)", exists)
+		}
+	}
+}
+
 func testCodeStorePaths(t *testing.T, dbPath string) (string, string) {
 	t.Helper()
 	a, b, err := getCodeStorePaths(dbPath)

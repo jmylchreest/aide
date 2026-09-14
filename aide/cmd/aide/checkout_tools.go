@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/jmylchreest/aide/aide/pkg/anchor"
 	"github.com/jmylchreest/aide/aide/pkg/checkout"
 	"github.com/jmylchreest/aide/aide/pkg/store"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -170,6 +171,9 @@ func (s *MCPServer) resolveToolCheckout(ctx context.Context, req *mcp.CallToolRe
 		return checkout.Info{}, "", err
 	}
 	c, err := store.CheckoutInfo(s.dbPath, root)
+	if err == nil && via == "launch" && c.Root != anchor.RealPath(root) {
+		return checkout.Info{}, "", fmt.Errorf("launch checkout %q no longer identifies that checkout; provide checkout_root", root)
+	}
 	return c, via, err
 }
 
