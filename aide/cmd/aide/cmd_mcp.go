@@ -1079,7 +1079,12 @@ func (s *MCPServer) becomePrimary(dbPath string, cfg *mcpConfig) (func(), error)
 	}
 	cleanups = append(cleanups, s.stopCodeWatcher)
 
-	return func() { runTeardowns(cleanups) }, nil
+	return func() {
+		runTeardowns(cleanups)
+		// Only a successful store owner compacts, after releasing its stores.
+		// Attached clients never acquire Bolt locks and must not compact them.
+		compactStoresOnExit(dbPath)
+	}, nil
 }
 
 func runTeardowns(cleanups []func()) {
@@ -1189,10 +1194,6 @@ func cmdMCP(dbPath string, args []string) error {
 	mcpServer.grammarLoader = newGrammarLoader(dbPath, mcpLog)
 	mcpServer.dbPath = dbPath
 	mcpServer.checkoutRoot = store.CheckoutRoot(dbPath)
-
-	// Registered first so it runs last — after every store Close has run,
-	// leaving the bolt files unlocked for compaction. No-op unless enabled.
-	defer compactStoresOnExit(dbPath)
 
 	teardown, err := mcpServer.join(dbPath, cfg)
 	if err != nil {
