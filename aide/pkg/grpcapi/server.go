@@ -2494,7 +2494,51 @@ func (s *statusServiceImpl) GetStatus(ctx context.Context, req *StatusRequest) (
 		}
 	}
 
-	// Findings status (exclude accepted findings for consistency)
+	resp.Findings = findingsStatus(fss, fr)
+
+	// Survey status
+	if ss := srv.GetSurveyStore(); ss != nil {
+		stats, err := ss.Stats(survey.SearchOptions{})
+		if err == nil && stats != nil {
+			surveyStatus := &StatusSurvey{
+				Available: true,
+				Total:     int32(stats.Total),
+			}
+			byAnalyzer := make(map[string]int32, len(stats.ByAnalyzer))
+			for k, v := range stats.ByAnalyzer {
+				byAnalyzer[k] = int32(v)
+			}
+			surveyStatus.ByAnalyzer = byAnalyzer
+
+			byKind := make(map[string]int32, len(stats.ByKind))
+			for k, v := range stats.ByKind {
+				byKind[k] = int32(v)
+			}
+			surveyStatus.ByKind = byKind
+
+			resp.Survey = surveyStatus
+		}
+	}
+
+	// Store sizes
+	resp.Stores = getStoreSizes(srv.dbPath, srv.checkoutInfo)
+
+	// Grammars
+	if srv.grammarLoader != nil {
+		for _, gi := range srv.grammarLoader.Installed() {
+			resp.Grammars = append(resp.Grammars, &StatusGrammar{
+				Name:    gi.Name,
+				Version: gi.Version,
+				BuiltIn: gi.BuiltIn,
+			})
+		}
+	}
+
+	return resp, nil
+}
+
+// findingsStatus combines persisted counts with the runner's current progress.
+func findingsStatus(fss store.FindingsStore, fr *findings.Runner) *StatusFindings {
 	if fss != nil {
 		stats, err := fss.Stats(findings.SearchOptions{})
 		if err == nil && stats != nil {
@@ -2549,49 +2593,11 @@ func (s *statusServiceImpl) GetStatus(ctx context.Context, req *StatusRequest) (
 			}
 			findingsStatus.Analyzers = analyzers
 
-			resp.Findings = findingsStatus
+			return findingsStatus
 		}
 	}
 
-	// Survey status
-	if ss := srv.GetSurveyStore(); ss != nil {
-		stats, err := ss.Stats(survey.SearchOptions{})
-		if err == nil && stats != nil {
-			surveyStatus := &StatusSurvey{
-				Available: true,
-				Total:     int32(stats.Total),
-			}
-			byAnalyzer := make(map[string]int32, len(stats.ByAnalyzer))
-			for k, v := range stats.ByAnalyzer {
-				byAnalyzer[k] = int32(v)
-			}
-			surveyStatus.ByAnalyzer = byAnalyzer
-
-			byKind := make(map[string]int32, len(stats.ByKind))
-			for k, v := range stats.ByKind {
-				byKind[k] = int32(v)
-			}
-			surveyStatus.ByKind = byKind
-
-			resp.Survey = surveyStatus
-		}
-	}
-
-	// Store sizes
-	resp.Stores = getStoreSizes(srv.dbPath, srv.checkoutInfo)
-
-	// Grammars
-	if srv.grammarLoader != nil {
-		for _, gi := range srv.grammarLoader.Installed() {
-			resp.Grammars = append(resp.Grammars, &StatusGrammar{
-				Name:    gi.Name,
-				Version: gi.Version,
-				BuiltIn: gi.BuiltIn,
-			})
-		}
-	}
-
-	return resp, nil
+	return nil
 }
 
 // getStoreSizes computes sizes for all known stores under .aide/memory/.

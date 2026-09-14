@@ -21,7 +21,6 @@ func storeCompactPaths(dbPath string) []string {
 	}
 	dir := store.CheckoutDir(dbPath, c)
 	return []string{dbPath, filepath.Join(dir, "code", "index.db"), filepath.Join(dir, "findings", "findings.db"), filepath.Join(dir, "survey", "survey.db")}
-
 }
 
 // compactStoresOnExit compacts every bolt store, reclaiming the free pages

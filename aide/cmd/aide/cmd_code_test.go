@@ -10,6 +10,25 @@ import (
 	"github.com/jmylchreest/aide/aide/pkg/store"
 )
 
+func TestIndexerReconcilePreservesOrphansWhenIgnoreRulesFail(t *testing.T) {
+	s, cs, root := retrievalFixture(t)
+	if err := cs.SetFileInfo(&code.FileInfo{Path: "ghost.go", ModTime: time.Now()}); err != nil {
+		t.Fatal(err)
+	}
+	// A directory in place of the ignore file produces a portable read failure.
+	if err := os.Mkdir(filepath.Join(root, ".aideignore"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	idx := NewIndexerFromStore(cs, s.grammarLoader, root)
+	defer idx.Close()
+	if _, err := idx.Reconcile(); err == nil {
+		t.Fatal("unreadable ignore rules were silently discarded")
+	}
+	if _, err := cs.GetFileInfo("ghost.go"); err != nil {
+		t.Fatalf("orphan swept without valid ignore rules: %v", err)
+	}
+}
+
 // TestIndexerReconcile_RemovesOrphans verifies that Reconcile drops file-index
 // entries whose underlying file no longer exists on disk. This is the bulk of
 // the staleness problem the reconciler is designed to fix.

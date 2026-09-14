@@ -393,10 +393,6 @@ func anchorProjectIdentity(root string) (name, source string) {
 	return anchor.ProjectIdentity(root)
 }
 
-func lastURLSegment(url string) string {
-	return anchor.LastURLSegment(url)
-}
-
 func realPath(p string) string {
 	return anchor.RealPath(p)
 }

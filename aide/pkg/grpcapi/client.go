@@ -51,6 +51,9 @@ var ErrCheckoutRoutingUnavailable = errors.New("daemon does not support checkout
 
 // NewClientForCheckout selects analysis stores without changing shared memory routing.
 func NewClientForCheckout(dbPath, root string) (*Client, error) {
+	if root == "" {
+		return nil, fmt.Errorf("caller checkout directory is unavailable")
+	}
 	return newClientWithSocket(SocketPathFromDB(dbPath), root)
 }
 

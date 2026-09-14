@@ -901,7 +901,6 @@ func (s *CodeStore) IndexFileBatch(
 	sizeBytes int64,
 ) error {
 	return s.IndexFiles([]code.FileBatch{{Path: filePath, Symbols: symbols, References: refs, ModTime: mtime, SizeBytes: sizeBytes}})
-
 }
 
 // Clear removes all symbols, references, and file tracking data.

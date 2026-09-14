@@ -87,8 +87,6 @@ type MessageAckInput struct {
 	AgentID   string `json:"agent_id" jsonschema:"Your agent ID"`
 }
 
-type emptyInput struct{}
-
 // ============================================================================
 // Memory Tools (read-only)
 // ============================================================================

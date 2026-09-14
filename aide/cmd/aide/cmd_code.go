@@ -502,7 +502,6 @@ func (idx *Indexer) IndexFile(filePath string) (count int, err error) {
 		span.Attr("stored_symbols", strconv.Itoa(result.Symbols)).Attr("stored_references", strconv.Itoa(result.References))
 	}
 	return result.Symbols, err
-
 }
 
 // ReconcileResult summarises an Indexer.Reconcile pass.
@@ -538,6 +537,10 @@ func (idx *Indexer) Reconcile() (res ReconcileResult, err error) {
 		}
 	}()
 
+	ignore, err := aideignore.New(idx.rootDir)
+	if err != nil {
+		return res, fmt.Errorf("load ignore rules before orphan sweep: %w", err)
+	}
 	if _, err := idx.store.ListAllFileInfo(); err != nil {
 		return res, err
 	}
@@ -558,13 +561,8 @@ func (idx *Indexer) Reconcile() (res ReconcileResult, err error) {
 	if err != nil {
 		return res, err
 	}
-	ignore, _ := aideignore.New(idx.rootDir)
-	if ignore == nil {
-		ignore = aideignore.NewFromDefaults()
-	}
 	idx.sweepOrphans(infos, ignore, &res)
 	return res, nil
-
 }
 
 // sweepOrphans handles the post-fileinfo cleanup pass: corrupt rows (empty

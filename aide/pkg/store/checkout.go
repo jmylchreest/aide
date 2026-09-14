@@ -10,7 +10,10 @@ import (
 
 // CheckoutRoot preserves the caller's working copy while memory stays shared.
 func CheckoutRoot(dbPath string) string {
-	cwd, _ := os.Getwd()
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "" // An unavailable caller directory must not select the parent store.
+	}
 	return checkout.RootFor(ProjectRootFromDB(dbPath), cwd)
 }
 

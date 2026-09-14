@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 
@@ -11,6 +12,12 @@ import (
 	"github.com/jmylchreest/aide/aide/pkg/code"
 	"google.golang.org/grpc/metadata"
 )
+
+func TestClientRejectsUnavailableCheckout(t *testing.T) {
+	if _, err := NewClientForCheckout(filepath.Join(t.TempDir(), "memory.db"), ""); err == nil || !strings.Contains(err.Error(), "caller checkout directory is unavailable") {
+		t.Fatalf("missing caller context was not rejected: %v", err)
+	}
+}
 
 func checkoutRoots(t *testing.T) (string, string) {
 	t.Helper()

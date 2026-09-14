@@ -40,42 +40,54 @@ func PruneCheckouts(dbPath string, shared Store, now time.Time, pinned map[strin
 		if json.Unmarshal(data, &c) != nil || c.ID != e.Name() || !filepath.IsAbs(c.Root) {
 			continue
 		}
-		marker := filepath.Join(dir, "orphaned-at")
-		if checkout.MayExist(c) {
-			_ = os.Remove(marker)
-			continue
-		}
-		data, err = os.ReadFile(marker)
-		if os.IsNotExist(err) {
-			if err := os.WriteFile(marker, []byte(now.UTC().Format(time.RFC3339Nano)), 0600); err != nil {
-				return removed, err
-			}
-			continue
-		}
+		pruned, err := pruneCheckout(dir, c, shared, now, closeOwner)
 		if err != nil {
-			continue
-		}
-		since, err := time.Parse(time.RFC3339Nano, string(data))
-		if err != nil || now.Sub(since) < CheckoutGracePeriod {
-			continue
-		}
-		if closeOwner != nil {
-			if err := closeOwner(c); err != nil {
-				return removed, err
-			}
-		}
-		// Recheck after waiting for owners: registrations may have been restored.
-		if checkout.MayExist(c) {
-			_ = os.Remove(marker)
-			continue
-		}
-		if err := archiveFindingsFile(filepath.Join(dir, "findings", "findings.db"), shared, c); err != nil {
-			return removed, fmt.Errorf("preserve checkout %s acceptance: %w", c.ID, err)
-		}
-		if err := os.RemoveAll(dir); err != nil {
 			return removed, err
+		}
+		if !pruned {
+			continue
 		}
 		removed++
 	}
 	return removed, nil
+}
+
+// pruneCheckout rechecks identity after owner shutdown before deleting its cache.
+func pruneCheckout(dir string, c checkout.Info, shared Store, now time.Time, closeOwner func(checkout.Info) error) (bool, error) {
+	marker := filepath.Join(dir, "orphaned-at")
+	if checkout.MayExist(c) {
+		_ = os.Remove(marker)
+		return false, nil
+	}
+	data, err := os.ReadFile(marker)
+	if os.IsNotExist(err) {
+		if err := os.WriteFile(marker, []byte(now.UTC().Format(time.RFC3339Nano)), 0600); err != nil {
+			return false, err
+		}
+		return false, nil
+	}
+	if err != nil {
+		return false, nil
+	}
+	since, err := time.Parse(time.RFC3339Nano, string(data))
+	if err != nil || now.Sub(since) < CheckoutGracePeriod {
+		return false, nil
+	}
+	if closeOwner != nil {
+		if err := closeOwner(c); err != nil {
+			return false, err
+		}
+	}
+	// Recheck after waiting for owners: registrations may have been restored.
+	if checkout.MayExist(c) {
+		_ = os.Remove(marker)
+		return false, nil
+	}
+	if err := archiveFindingsFile(filepath.Join(dir, "findings", "findings.db"), shared, c); err != nil {
+		return false, fmt.Errorf("preserve checkout %s acceptance: %w", c.ID, err)
+	}
+	if err := os.RemoveAll(dir); err != nil {
+		return false, err
+	}
+	return true, nil
 }

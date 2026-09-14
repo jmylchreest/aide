@@ -346,7 +346,6 @@ func (s *MCPServer) getFileSymbolsFresh(filePath string) ([]*code.Symbol, error)
 		}
 	}
 	return parser.ParseContent(data, lang, rel)
-
 }
 
 // A file record can outlive its symbol records. Never treat a partial index as

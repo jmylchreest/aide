@@ -23,7 +23,7 @@ type sourceSnapshot struct {
 	symbols []*code.Symbol
 }
 
-func (s *MCPServer) sourcePath(file string) (string, string) {
+func (s *MCPServer) sourcePath(file string) string {
 	root := s.sourceRoot()
 	abs := file
 	if !filepath.IsAbs(abs) {
@@ -34,7 +34,7 @@ func (s *MCPServer) sourcePath(file string) (string, string) {
 	if err != nil {
 		rel = abs
 	}
-	return abs, rel
+	return rel
 }
 
 func (s *MCPServer) readSourceSnapshot(file string) (*sourceSnapshot, error) {
@@ -105,7 +105,7 @@ func (s *MCPServer) readOneSymbol(cs store.CodeIndexStore, name string, input Co
 	}
 	files := make(map[string]bool)
 	if input.File != "" {
-		_, file := s.sourcePath(input.File)
+		file := s.sourcePath(input.File)
 		files[file] = true
 	} else {
 		const candidateLimit = 100
@@ -118,7 +118,7 @@ func (s *MCPServer) readOneSymbol(cs store.CodeIndexStore, name string, input Co
 		}
 		for _, r := range results {
 			if r.Symbol != nil && r.Symbol.Name == name {
-				_, file := s.sourcePath(r.Symbol.FilePath)
+				file := s.sourcePath(r.Symbol.FilePath)
 				files[file] = true
 			}
 		}
