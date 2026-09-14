@@ -1,8 +1,0 @@
-{
-  "boundary": "Controller export after participant completion; outside participant elapsed time.",
-  "returncode": 0,
-  "stdout": "[\n  {\n    \"id\": \"01M21TS0PW5HQSWEYY77M2WWQC\",\n    \"ts\": \"2026-09-09T01:58:36.124972097+01:00\",\n    \"kind\": \"tool_call\",\n    \"name\": \"code_stats\",\n    \"category\": \"navigate\",\n    \"subtype\": \"stats\",\n    \"tokens\": 30,\n    \"attrs\": {\n      \"accounting_version\": \"1\",\n      \"observation_stage\": \"server_result\",\n      \"payload_bytes\": \"89\",\n      \"token_estimator\": \"utf8-bytes/3-v1\",\n      \"work_elapsed_ms\": \"0\",\n      \"work_id\": \"XC46XJY7MKQ2GHX4VXN6VCJSXU\",\n      \"work_outcome\": \"returned\",\n      \"work_text_sha256\": \"08afe49e57d17f412ebf2dcaff2e5b95a09d2cbdf405e1099f187f65e75b59cd\",\n      \"work_version\": \"1\"\n    }\n  },\n  {\n    \"id\": \"01M21TS0PV3G3MVMGW8KEC38A7\",\n    \"ts\": \"2026-09-09T01:58:36.123082097+01:00\",\n    \"kind\": \"tool_call\",\n    \"name\": \"instance_info\",\n    \"category\": \"navigate\",\n    \"subtype\": \"instance\",\n    \"tokens\": 311,\n    \"attrs\": {\n      \"accounting_version\": \"1\",\n      \"observation_stage\": \"server_result\",\n      \"payload_bytes\": \"934\",\n      \"token_estimator\": \"utf8-bytes/3-v1\",\n      \"work_elapsed_ms\": \"0\",\n      \"work_id\": \"LBHSXBP6FIVO43CE7JCZNEI77J\",\n      \"work_outcome\": \"returned\",\n      \"work_text_sha256\": \"6b13586f78b6d4a1aaaf90ec99744db487ae4a4771fe9d70920936492adcb32a\",\n      \"work_version\": \"1\"\n    }\n  }\n]\n",
-  "stderr": "",
-  "error": null,
-  "elapsed_ms": 13.227734998508822
-}

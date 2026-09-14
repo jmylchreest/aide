@@ -1,9 +1,0 @@
-{
-  "archived_prompt_equality": true,
-  "outgoing_launch_identity_verified": true,
-  "logged_plaintext_equality": null,
-  "controller_log": "/home/johnm/.codex/sessions/2026/09/09/rollout-2026-09-09T19-17-42-01a08763-d7e0-7930-aa15-a3f23517c9bf.jsonl",
-  "task_name": "v6_t03",
-  "message_sha256": "2da24c3701b7a0417cda7cf9bd105b3f9699a1c8e483927a47cd73a755af7b7e",
-  "basis": "Controller submitted the visible full preflight prompt. Archived preflight and launch text equal. Outgoing spawn message is encrypted in controller log; plaintext equality is not independently verified."
-}

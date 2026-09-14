@@ -1,9 +1,0 @@
-{
-  "id": "t10",
-  "launch_recorded_at": "2026-09-09T16:28:16.003926+00:00",
-  "agent_path": "/root/v4_execution/v4_t10",
-  "message": "Read the complete frozen task instructions at /tmp/aide-outcomes-v4-trials/t10/participant-prompt.md and carry them out. This instruction-file read is explicitly authorized. Your task workspace is /tmp/aide-outcomes-v4-trials/t10/root. Follow the prepared prompt exactly; do not inspect other experiment/controller files. Finish with your requested answer.",
-  "fork_turns": "none",
-  "model_override": null,
-  "effort_override": null
-}

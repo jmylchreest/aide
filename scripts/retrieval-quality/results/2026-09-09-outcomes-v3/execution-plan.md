@@ -1,9 +1,0 @@
-# Execution contract
-
-Run the package only after the independent preflight, manifest freeze and isolated index setup succeed. Keep all 18 declared rows, including failures and zero uptake. Launch sequential fresh participants (`fork_turns=none`, no model/effort override) in protocol order, passing only the exact composed participant prompt. Do not coach, correct, rerun or replace a participant after launch. Preserve actual runtime identity and counters; no conclusions from tool counts alone.
-
-All conditions retain the installed host hooks; their installation and exact final provider rendering are not controlled by this experiment. The guided condition explicitly receives the production welcome prose. The isolated bridge supplies real current-source aide handlers, with a seeded fixture index, and adds process/validation overhead that must remain visible. The run does not establish live OpenCode/Claude performance or isolate every production guidance change.
-
-After each completion, `capture_trial.py TRIAL_ID CANONICAL_AGENT_PATH` captures the explicit actor log, final answer and tool-result boundaries, source patch, integrity and frozen functional grades where applicable. It copies bridge evidence and separately times a controller export of the fixture's server observations. Navigation grading stays blind to treatment and usage. Trace review separately checks scope, tool use, retries, truncation and evidence boundaries. Summaries never infer avoided calls from missing calls.
-
-Separate preparation/orchestration/grading/reporting usage is collected in an explicit timestamp window. Root context replays and uncontrolled provider caches affect that usage. A final snapshot has a stated cutoff and cannot include its own later reporting responses. No aggregate billing or savings score is produced.

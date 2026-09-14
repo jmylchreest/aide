@@ -70,3 +70,6 @@ docs/node_modules/
 design/
 .playwright-mcp/
 estate-*.png
+
+# Generated evaluation results (keep locally, never commit)
+/scripts/retrieval-quality/results/
