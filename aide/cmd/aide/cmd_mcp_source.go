@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/jmylchreest/aide/aide/pkg/checkout"
 	"github.com/jmylchreest/aide/aide/pkg/code"
 	"github.com/jmylchreest/aide/aide/pkg/observe"
 	"github.com/jmylchreest/aide/aide/pkg/store"
@@ -23,7 +24,7 @@ type sourceSnapshot struct {
 }
 
 func (s *MCPServer) sourcePath(file string) (string, string) {
-	root := store.ProjectRootFromDB(s.dbPath)
+	root := s.sourceRoot()
 	abs := file
 	if !filepath.IsAbs(abs) {
 		abs = filepath.Join(root, file)
@@ -37,7 +38,10 @@ func (s *MCPServer) sourcePath(file string) (string, string) {
 }
 
 func (s *MCPServer) readSourceSnapshot(file string) (*sourceSnapshot, error) {
-	abs, rel := s.sourcePath(file)
+	abs, rel, err := checkout.SourcePath(s.sourceRoot(), file)
+	if err != nil {
+		return nil, err
+	}
 	content, err := os.ReadFile(abs)
 	if err != nil {
 		return nil, err

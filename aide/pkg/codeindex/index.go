@@ -14,7 +14,7 @@ import (
 )
 
 type Seed func(path, hash, parser string) (code.FileBatch, error)
-type Result struct{ Indexed, Symbols, Skipped, Seeded, Removed int }
+type Result struct{ Indexed, Symbols, References, Skipped, Seeded, Removed int }
 type Progress struct {
 	Path    string
 	Symbols int
@@ -63,6 +63,7 @@ func Run(ctx context.Context, cs store.CodeIndexStore, parser *code.Parser, root
 			}
 			result.Indexed++
 			result.Symbols += len(f.Symbols)
+			result.References += len(f.References)
 			if progress != nil {
 				if err := progress(Progress{Path: f.Path, Symbols: len(f.Symbols)}); err != nil {
 					return err

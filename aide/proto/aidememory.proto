@@ -195,6 +195,7 @@ service DecisionService {
 }
 
 message Decision {
+  CheckoutProvenance checkout = 9;
   string topic = 1;
   string decision = 2;
   string rationale = 3;
@@ -208,6 +209,7 @@ message Decision {
 }
 
 message DecisionSetRequest {
+  CheckoutProvenance checkout = 9;
   string topic = 1;
   string decision = 2;
   string rationale = 3;
@@ -589,6 +591,8 @@ message CodeGetFileInfoRequest {
 }
 
 message CodeGetFileInfoResponse {
+ string content_hash = 6;
+ string parser_fingerprint = 7;
   bool found = 1;
   google.protobuf.Timestamp mod_time = 2;  // File mtime at index time (freshness checks)
   repeated string symbol_ids = 3;
@@ -1434,4 +1438,11 @@ message ReadCheckTextEstimate {
   int64 bytes = 1;
   int64 estimated_tokens = 2;
   string estimator = 3;
+}
+
+// Historical origin, independent of decision applicability.
+message CheckoutProvenance {
+ string id = 1;
+ string branch = 2;
+ string commit = 3;
 }

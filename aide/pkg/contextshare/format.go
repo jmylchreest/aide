@@ -250,6 +250,10 @@ func MarshalDecision(d *memory.Decision) []byte {
 	b.WriteString("---\n")
 	fmt.Fprintf(&b, "topic: %s\n", d.Topic)
 	fmt.Fprintf(&b, "decision: %s\n", YAMLEscape(d.Decision))
+	if d.Checkout != nil {
+		data, _ := json.Marshal(d.Checkout)
+		fmt.Fprintf(&b, "checkout: %s\n", data)
+	}
 	if d.DecidedBy != "" {
 		fmt.Fprintf(&b, "decided_by: %s\n", d.DecidedBy)
 	}
@@ -301,6 +305,10 @@ func ParseDecision(data []byte) (*memory.Decision, error) {
 		case strings.HasPrefix(line, "decision:"):
 			listKey = ""
 			d.Decision = YAMLUnescape(strings.TrimSpace(strings.TrimPrefix(line, "decision:")))
+		case strings.HasPrefix(line, "checkout:"):
+			if err := json.Unmarshal([]byte(strings.TrimSpace(strings.TrimPrefix(line, "checkout:"))), &d.Checkout); err != nil {
+				return nil, fmt.Errorf("invalid checkout provenance: %w", err)
+			}
 		case strings.HasPrefix(line, "decided_by:"):
 			listKey = ""
 			d.DecidedBy = strings.TrimSpace(strings.TrimPrefix(line, "decided_by:"))

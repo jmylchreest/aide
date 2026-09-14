@@ -25,12 +25,8 @@ func TestIndexerReconcile_RemovesOrphans(t *testing.T) {
 	if err := os.WriteFile(realFile, []byte("package main\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	realStat, err := os.Stat(realFile)
-	if err != nil {
-		t.Fatal(err)
-	}
 
-	indexPath, searchPath := getCodeStorePaths(dbPath)
+	indexPath, searchPath := testCodeStorePaths(t, dbPath)
 	cs, err := store.NewCodeStore(indexPath, searchPath)
 	if err != nil {
 		t.Fatal(err)
@@ -38,7 +34,7 @@ func TestIndexerReconcile_RemovesOrphans(t *testing.T) {
 	defer cs.Close()
 
 	// Real file: stored with current mtime — should be left alone.
-	if err := cs.SetFileInfo(&code.FileInfo{Path: "real.go", ModTime: realStat.ModTime()}); err != nil {
+	if _, err := NewIndexerFromStore(cs, newGrammarLoader(dbPath, nil), tmpDir).IndexFile(realFile); err != nil {
 		t.Fatal(err)
 	}
 	// Orphan: file does not exist on disk — should be removed.
@@ -83,7 +79,7 @@ func TestIndexerReconcile_BootstrapsEmptyIndex(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	indexPath, searchPath := getCodeStorePaths(dbPath)
+	indexPath, searchPath := testCodeStorePaths(t, dbPath)
 	cs, err := store.NewCodeStore(indexPath, searchPath)
 	if err != nil {
 		t.Fatal(err)
@@ -131,12 +127,8 @@ func TestIndexerReconcile_DiscoversUnindexedFiles(t *testing.T) {
 	if err := os.WriteFile(known, []byte("package main\n\nfunc Known() {}\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	knownStat, err := os.Stat(known)
-	if err != nil {
-		t.Fatal(err)
-	}
 
-	indexPath, searchPath := getCodeStorePaths(dbPath)
+	indexPath, searchPath := testCodeStorePaths(t, dbPath)
 	cs, err := store.NewCodeStore(indexPath, searchPath)
 	if err != nil {
 		t.Fatal(err)
@@ -144,7 +136,7 @@ func TestIndexerReconcile_DiscoversUnindexedFiles(t *testing.T) {
 	defer cs.Close()
 
 	// Already indexed and unchanged: must not be re-indexed or reported.
-	if err := cs.SetFileInfo(&code.FileInfo{Path: "known.go", ModTime: knownStat.ModTime()}); err != nil {
+	if _, err := NewIndexerFromStore(cs, newGrammarLoader(dbPath, nil), tmpDir).IndexFile(known); err != nil {
 		t.Fatal(err)
 	}
 
@@ -195,7 +187,7 @@ func TestIndexerReconcile_ReportsRefreshedInTouched(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	indexPath, searchPath := getCodeStorePaths(dbPath)
+	indexPath, searchPath := testCodeStorePaths(t, dbPath)
 	cs, err := store.NewCodeStore(indexPath, searchPath)
 	if err != nil {
 		t.Fatal(err)

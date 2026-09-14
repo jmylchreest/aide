@@ -3,11 +3,11 @@ package main
 import (
 	"context"
 	"io"
-	"os"
 	"path/filepath"
 
-	"github.com/jmylchreest/aide/aide/pkg/aideignore"
+	"github.com/jmylchreest/aide/aide/pkg/checkout"
 	"github.com/jmylchreest/aide/aide/pkg/code"
+	"github.com/jmylchreest/aide/aide/pkg/codeindex"
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi"
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi/adapter"
 	"github.com/jmylchreest/aide/aide/pkg/store"
@@ -100,10 +100,15 @@ func (b *Backend) GetFileSymbols(filePath string) ([]*code.Symbol, error) {
 	}
 	defer codeStore.Close()
 
-	symbols, err := codeStore.GetFileSymbols(filePath)
+	abs, rel, err := checkout.SourcePath(store.CheckoutRoot(b.dbPath), filePath)
+	if err != nil {
+		return nil, err
+	}
+	symbols, err := codeStore.GetFileSymbols(rel)
 	if err != nil {
 		parser := code.NewParser(newGrammarLoader(b.dbPath, nil))
-		return parser.ParseFile(filePath)
+		defer parser.Close()
+		return parser.ParseFile(abs)
 	}
 	return symbols, nil
 }
@@ -220,78 +225,19 @@ func (b *Backend) IndexCodeWithProgress(paths []string, force bool, progress fun
 	defer codeStore.Close()
 
 	parser := code.NewParser(newGrammarLoader(b.dbPath, nil))
-	if len(paths) == 0 {
-		paths = []string{"."}
-	}
-
-	projRoot := store.ProjectRootFromDB(b.dbPath)
-	ignore, err := aideignore.New(projRoot)
-	if err != nil {
-		ignore = aideignore.NewFromDefaults()
-	}
-	shouldSkip := ignore.WalkFunc(projRoot)
-
-	result := &CodeIndexResult{}
-
-	for _, root := range paths {
-		err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return nil
-			}
-
-			if skip, skipDir := shouldSkip(path, info); skip {
-				if skipDir {
-					return filepath.SkipDir
-				}
-				return nil
-			}
-
-			if info.IsDir() {
-				return nil
-			}
-
-			if !code.SupportedFile(path) {
-				return nil
-			}
-
-			relPath := path
-			if rel, err := filepath.Rel(store.ProjectRootFromDB(b.dbPath), path); err == nil {
-				relPath = rel
-			}
-
-			if !force {
-				fileInfo, err := codeStore.GetFileInfo(relPath)
-				if err == nil && fileInfo.ModTime.Equal(info.ModTime()) {
-					result.FilesSkipped++
-					return nil
-				}
-			}
-
-			symbols, err := parser.ParseFile(path)
-			if err != nil {
-				return nil
-			}
-			refs, _ := parser.ParseFileReferences(path)
-
-			if err := codeStore.IndexFileBatch(relPath, symbols, refs, info.ModTime(), info.Size()); err != nil {
-				return nil
-			}
-
-			result.FilesIndexed++
-			result.SymbolsIndexed += len(symbols)
-
-			if progress != nil {
-				progress(relPath, len(symbols))
-			}
-
-			return nil
-		})
-		if err != nil {
-			return nil, err
+	defer parser.Close()
+	seed, closeSeed := store.CheckoutSeed(b.dbPath, store.CheckoutRoot(b.dbPath))
+	defer closeSeed()
+	result, err := codeindex.Run(context.Background(), codeStore, parser, store.CheckoutRoot(b.dbPath), paths, force, seed, func(p codeindex.Progress) error {
+		if progress != nil && !p.Skipped {
+			progress(p.Path, p.Symbols)
 		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
-
-	return result, nil
+	return &CodeIndexResult{FilesIndexed: result.Indexed, SymbolsIndexed: result.Symbols, FilesSkipped: result.Skipped}, nil
 }
 
 func (b *Backend) ClearCode() (int, int, error) {
@@ -356,7 +302,7 @@ func (b *Backend) ReadCheck(filePath string) (*ReadCheckResult, error) {
 	}
 	defer codeStore.Close()
 
-	root := store.ProjectRootFromDB(b.dbPath)
+	root := store.CheckoutRoot(b.dbPath)
 
 	// Resolve paths
 	absPath := filePath

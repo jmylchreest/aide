@@ -79,7 +79,7 @@ func TestMCPCodeSymbolSelection(t *testing.T) {
 				t.Run(tc.name, func(t *testing.T) {
 					args := tc.selection
 					args["file"] = "source.go"
-					result, err := clientSession.CallTool(ctx, &mcp.CallToolParams{Name: toolName, Arguments: args})
+					result, err := clientSession.CallTool(ctx, &mcp.CallToolParams{Name: toolName, Arguments: args, Meta: mcp.Meta{"aide/checkout_root": s.sourceRoot()}})
 					if err != nil {
 						t.Fatal(err)
 					}

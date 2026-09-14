@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	git "github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/jmylchreest/aide/aide/pkg/anchor"
 )
 
@@ -72,6 +73,9 @@ func Resolve(project, path string) (Info, error) {
 	}
 	c := Info{ID: id, Root: root, GitDir: admin, CommonDir: common}
 	if repo, e := git.PlainOpenWithOptions(root, &git.PlainOpenOptions{EnableDotGitCommonDir: true}); e == nil {
+		if ref, e := repo.Reference(plumbing.HEAD, false); e == nil && ref.Type() == plumbing.SymbolicReference && ref.Target().IsBranch() {
+			c.Branch = ref.Target().Short()
+		}
 		if head, e := repo.Head(); e == nil {
 			c.Commit = head.Hash().String()
 			if head.Name().IsBranch() {
@@ -109,6 +113,27 @@ func canonical(p string) string {
 		return anchor.RealPath(p)
 	}
 	return anchor.RealPath(a)
+}
+
+// SourcePath resolves a file only within the selected checkout, including
+// symlink resolution. Relative paths never depend on the daemon's cwd.
+func SourcePath(root, path string) (string, string, error) {
+	if path == "" {
+		return "", "", fmt.Errorf("file path is required")
+	}
+	abs := path
+	if !filepath.IsAbs(abs) {
+		abs = filepath.Join(root, path)
+	}
+	abs = filepath.Clean(abs)
+	if !anchor.Contains(root, abs) || !anchor.Contains(anchor.RealPath(root), anchor.RealPath(abs)) {
+		return "", "", fmt.Errorf("file %q is outside checkout", path)
+	}
+	rel, err := filepath.Rel(root, abs)
+	if err != nil {
+		return "", "", err
+	}
+	return abs, rel, nil
 }
 
 func locate(path string) (root, admin, common string, err error) {

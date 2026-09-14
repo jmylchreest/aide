@@ -176,52 +176,56 @@ func cmdStatus(dbPath string, args []string) error {
 	// Direct store fallbacks when no server answered. Skipped when a sandbox
 	// blocked the socket: the daemon behind it likely holds the store locks,
 	// so each open would stall for its lock timeout and then fail anyway.
-	memoryDir := filepath.Dir(dbPath)
 
 	if status.ServerState != serverStateSandboxed && status.Code == nil {
-		codeDBPath := filepath.Join(memoryDir, "code", "index.db")
-		codeSearchPath := filepath.Join(memoryDir, "code", "search.bleve")
-		if cs, err := store.NewCodeStore(codeDBPath, codeSearchPath); err == nil {
-			defer cs.Close()
-			if stats, err := cs.Stats(); err == nil && stats != nil {
-				status.Code = &CodeStatus{
-					Status:     "idle",
-					Symbols:    stats.Symbols,
-					References: stats.References,
-					Files:      stats.Files,
+		codeDBPath, codeSearchPath, pathErr := getCodeStorePaths(dbPath)
+		if pathErr == nil {
+			if cs, err := store.NewCodeStore(codeDBPath, codeSearchPath); err == nil {
+				defer cs.Close()
+				if stats, err := cs.Stats(); err == nil && stats != nil {
+					status.Code = &CodeStatus{
+						Status:     "idle",
+						Symbols:    stats.Symbols,
+						References: stats.References,
+						Files:      stats.Files,
+					}
 				}
 			}
 		}
-	}
 
+	}
 	if status.ServerState != serverStateSandboxed && status.Findings == nil {
-		findingsDir := filepath.Join(memoryDir, "findings")
-		if fs, err := store.NewFindingsStore(findingsDir); err == nil {
-			defer fs.Close()
-			if stats, err := fs.Stats(findings.SearchOptions{}); err == nil && stats != nil {
-				status.Findings = &FindingsStatus{
-					Total:      stats.Total,
-					ByAnalyzer: stats.ByAnalyzer,
-					BySeverity: stats.BySeverity,
+		findingsDir, pathErr := getFindingsStorePath(dbPath)
+		if pathErr == nil {
+			if fs, err := store.NewFindingsStore(findingsDir); err == nil {
+				defer fs.Close()
+				if stats, err := fs.Stats(findings.SearchOptions{}); err == nil && stats != nil {
+					status.Findings = &FindingsStatus{
+						Total:      stats.Total,
+						ByAnalyzer: stats.ByAnalyzer,
+						BySeverity: stats.BySeverity,
+					}
 				}
 			}
 		}
-	}
 
+	}
 	if status.ServerState != serverStateSandboxed && status.Survey == nil {
-		surveyDir := getSurveyStorePath(dbPath)
-		if ss, err := store.NewSurveyStore(surveyDir); err == nil {
-			defer ss.Close()
-			if stats, err := ss.Stats(survey.SearchOptions{}); err == nil && stats != nil {
-				status.Survey = &SurveyStatus{
-					Total:      stats.Total,
-					ByAnalyzer: stats.ByAnalyzer,
-					ByKind:     stats.ByKind,
+		surveyDir, pathErr := getSurveyStorePath(dbPath)
+		if pathErr == nil {
+			if ss, err := store.NewSurveyStore(surveyDir); err == nil {
+				defer ss.Close()
+				if stats, err := ss.Stats(survey.SearchOptions{}); err == nil && stats != nil {
+					status.Survey = &SurveyStatus{
+						Total:      stats.Total,
+						ByAnalyzer: stats.ByAnalyzer,
+						ByKind:     stats.ByKind,
+					}
 				}
 			}
 		}
-	}
 
+	}
 	if jsonOutput {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
@@ -646,7 +650,10 @@ func getStoreStatus(dbPath string) StoreStatus {
 	}
 
 	// code.db + code search.bleve — code symbol index
-	codeDBPath, codeSearchPath := getCodeStorePaths(dbPath)
+	codeDBPath, codeSearchPath, pathErr := getCodeStorePaths(dbPath)
+	if pathErr != nil {
+		return status
+	}
 	if info, err := os.Stat(codeDBPath); err == nil {
 		status.Paths["code.db"] = codeDBPath
 		status.Sizes["code.db"] = info.Size()
@@ -657,7 +664,7 @@ func getStoreStatus(dbPath string) StoreStatus {
 	}
 
 	// findings.db — findings store
-	findingsDir := getFindingsStorePath(dbPath)
+	findingsDir, _ := getFindingsStorePath(dbPath)
 	findingsDBPath := filepath.Join(findingsDir, "findings.db")
 	if info, err := os.Stat(findingsDBPath); err == nil {
 		status.Paths["findings.db"] = findingsDBPath
@@ -678,7 +685,7 @@ func getStoreStatus(dbPath string) StoreStatus {
 	}
 
 	// survey.db — survey store
-	surveyDir := getSurveyStorePath(dbPath)
+	surveyDir, _ := getSurveyStorePath(dbPath)
 	surveyDBPath := filepath.Join(surveyDir, "survey.db")
 	if info, err := os.Stat(surveyDBPath); err == nil {
 		status.Paths["survey.db"] = surveyDBPath

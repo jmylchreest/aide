@@ -177,7 +177,13 @@ Computed on demand — not stored. Results reflect the current code index state.
 // Survey MCP Tool Handlers
 // =============================================================================
 
-func (s *MCPServer) handleSurveySearch(ctx context.Context, _ *mcp.CallToolRequest, input SurveySearchInput) (*mcp.CallToolResult, any, error) {
+func (s *MCPServer) handleSurveySearch(ctx context.Context, req *mcp.CallToolRequest, input SurveySearchInput) (*mcp.CallToolResult, any, error) {
+	scoped, release, routeErr := s.requestCheckout(ctx, req)
+	if routeErr != nil {
+		return checkoutToolError(routeErr)
+	}
+	defer release()
+	s = scoped
 	mcpLog.Printf("tool: survey_search query=%q analyzer=%s kind=%s", input.Query, input.Analyzer, input.Kind)
 	span := observe.FromContext(ctx)
 
@@ -210,12 +216,18 @@ func (s *MCPServer) handleSurveySearch(ctx context.Context, _ *mcp.CallToolReque
 	}
 
 	respText := sb.String()
-	counterfactual := survey.CounterfactualTokensForEntries(store.ProjectRootFromDB(s.dbPath), entries)
+	counterfactual := survey.CounterfactualTokensForEntries(s.sourceRoot(), entries)
 	recordSurveySavings(span, respText, counterfactual)
 	return textResult(respText), nil, nil
 }
 
-func (s *MCPServer) handleSurveyList(ctx context.Context, _ *mcp.CallToolRequest, input SurveyListInput) (*mcp.CallToolResult, any, error) {
+func (s *MCPServer) handleSurveyList(ctx context.Context, req *mcp.CallToolRequest, input SurveyListInput) (*mcp.CallToolResult, any, error) {
+	scoped, release, routeErr := s.requestCheckout(ctx, req)
+	if routeErr != nil {
+		return checkoutToolError(routeErr)
+	}
+	defer release()
+	s = scoped
 	mcpLog.Printf("tool: survey_list analyzer=%s kind=%s file=%s", input.Analyzer, input.Kind, input.FilePath)
 	span := observe.FromContext(ctx)
 
@@ -246,12 +258,18 @@ func (s *MCPServer) handleSurveyList(ctx context.Context, _ *mcp.CallToolRequest
 	}
 
 	respText := sb.String()
-	counterfactual := survey.CounterfactualTokensForEntries(store.ProjectRootFromDB(s.dbPath), results)
+	counterfactual := survey.CounterfactualTokensForEntries(s.sourceRoot(), results)
 	recordSurveySavings(span, respText, counterfactual)
 	return textResult(respText), nil, nil
 }
 
-func (s *MCPServer) handleSurveyStats(_ context.Context, _ *mcp.CallToolRequest, input SurveyStatsInput) (*mcp.CallToolResult, any, error) {
+func (s *MCPServer) handleSurveyStats(ctx context.Context, req *mcp.CallToolRequest, input SurveyStatsInput) (*mcp.CallToolResult, any, error) {
+	scoped, release, routeErr := s.requestCheckout(ctx, req)
+	if routeErr != nil {
+		return checkoutToolError(routeErr)
+	}
+	defer release()
+	s = scoped
 	mcpLog.Printf("tool: survey_stats")
 
 	if s.surveyStore() == nil {
@@ -281,7 +299,7 @@ func (s *MCPServer) handleSurveyStats(_ context.Context, _ *mcp.CallToolRequest,
 		}
 	}
 
-	if lines := surveyFreshnessLines(store.ProjectRootFromDB(s.dbPath), stats.ByAnalyzer, func(analyzer string) []*survey.Entry {
+	if lines := surveyFreshnessLines(s.sourceRoot(), stats.ByAnalyzer, func(analyzer string) []*survey.Entry {
 		entries, err := s.surveyStore().ListEntries(survey.SearchOptions{Analyzer: analyzer, Limit: 1})
 		if err != nil {
 			return nil
@@ -329,7 +347,13 @@ func surveyFreshnessLines(rootDir string, byAnalyzer map[string]int, listOne fun
 	return lines
 }
 
-func (s *MCPServer) handleSurveyRun(ctx context.Context, _ *mcp.CallToolRequest, input SurveyRunInput) (*mcp.CallToolResult, any, error) {
+func (s *MCPServer) handleSurveyRun(ctx context.Context, req *mcp.CallToolRequest, input SurveyRunInput) (*mcp.CallToolResult, any, error) {
+	scoped, release, routeErr := s.requestCheckout(ctx, req)
+	if routeErr != nil {
+		return checkoutToolError(routeErr)
+	}
+	defer release()
+	s = scoped
 	mcpLog.Printf("tool: survey_run analyzer=%s", input.Analyzer)
 
 	// Client mode: analyzers must execute on the daemon, where the stores
@@ -355,7 +379,7 @@ func (s *MCPServer) handleSurveyRun(ctx context.Context, _ *mcp.CallToolRequest,
 	if input.Analyzer != "" {
 		analyzers = []string{input.Analyzer}
 	}
-	results := surveyrun.Run(store.ProjectRootFromDB(s.dbPath), analyzers, s.surveyStore(), s.getCodeStore())
+	results := surveyrun.Run(s.sourceRoot(), analyzers, s.surveyStore(), s.getCodeStore())
 	return surveyRunResult(results), nil, nil
 }
 
@@ -372,7 +396,13 @@ func surveyRunResult(results []surveyrun.Result) *mcp.CallToolResult {
 	return result
 }
 
-func (s *MCPServer) handleSurveyGraph(ctx context.Context, _ *mcp.CallToolRequest, input SurveyGraphInput) (*mcp.CallToolResult, any, error) {
+func (s *MCPServer) handleSurveyGraph(ctx context.Context, req *mcp.CallToolRequest, input SurveyGraphInput) (*mcp.CallToolResult, any, error) {
+	scoped, release, routeErr := s.requestCheckout(ctx, req)
+	if routeErr != nil {
+		return checkoutToolError(routeErr)
+	}
+	defer release()
+	s = scoped
 	mcpLog.Printf("tool: survey_graph symbol=%q direction=%s depth=%d nodes=%d", input.Symbol, input.Direction, input.MaxDepth, input.MaxNodes)
 	span := observe.FromContext(ctx)
 
@@ -433,7 +463,7 @@ func (s *MCPServer) handleSurveyGraph(ctx context.Context, _ *mcp.CallToolReques
 	// trace this neighbourhood manually via code_references + file reads.
 	// Approximated by summing token estimates for distinct files appearing
 	// in the graph's nodes — that's the read workload the graph replaces.
-	counterfactual := graphCounterfactualTokens(store.ProjectRootFromDB(s.dbPath), graph.Nodes)
+	counterfactual := graphCounterfactualTokens(s.sourceRoot(), graph.Nodes)
 	respText := sb.String()
 	recordSurveySavings(span, respText, counterfactual)
 	return textResult(respText), nil, nil

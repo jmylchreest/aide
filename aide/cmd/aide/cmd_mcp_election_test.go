@@ -243,18 +243,18 @@ func TestSupervisorPromotesAfterPrimaryExits(t *testing.T) {
 
 	var swapped atomic.Value
 	swapped.Store(func() {})
+	promoted := make(chan struct{})
 	go client.supervisePrimary(ctx, dbPath, &mcpConfig{}, func(next func()) {
 		swapped.Store(next)
+		close(promoted)
 	})
 
 	stopPrimary()
 
-	deadline := time.Now().Add(15 * time.Second)
-	for time.Now().Before(deadline) {
-		if client.grpcClient() == nil {
-			break
-		}
-		time.Sleep(50 * time.Millisecond)
+	select {
+	case <-promoted:
+	case <-time.After(15 * time.Second):
+		t.Fatal("promotion did not finish")
 	}
 	defer func() { swapped.Load().(func())() }()
 

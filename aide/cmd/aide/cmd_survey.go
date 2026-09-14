@@ -13,8 +13,12 @@ import (
 )
 
 // getSurveyStorePath returns the directory for survey data.
-func getSurveyStorePath(dbPath string) string {
-	return filepath.Join(filepath.Dir(dbPath), "survey")
+func getSurveyStorePath(dbPath string) (string, error) {
+	dir, err := analysisDir(dbPath, store.CheckoutRoot(dbPath))
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "survey"), nil
 }
 
 // cmdSurveyDispatcher routes survey subcommands.
@@ -152,7 +156,7 @@ func cmdSurveyStats(dbPath string, _ []string) error {
 		}
 	}
 
-	if lines := surveyFreshnessLines(store.ProjectRootFromDB(dbPath), stats.ByAnalyzer, func(analyzer string) []*survey.Entry {
+	if lines := surveyFreshnessLines(store.CheckoutRoot(dbPath), stats.ByAnalyzer, func(analyzer string) []*survey.Entry {
 		entries, err := b.ListSurvey(survey.SearchOptions{Analyzer: analyzer, Limit: 1})
 		if err != nil {
 			return nil

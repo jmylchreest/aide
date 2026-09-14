@@ -279,6 +279,7 @@ func (g *StoreAdapter) SetDecision(d *memory.Decision) error {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
 	req := &grpcapi.DecisionSetRequest{
+		Checkout:   grpcapi.ProvenanceToProto(d.Checkout),
 		Topic:      d.Topic,
 		Decision:   d.Decision,
 		Rationale:  d.Rationale,
@@ -297,6 +298,7 @@ func (g *StoreAdapter) SetDecision(d *memory.Decision) error {
 		return fmt.Errorf("server returned nil decision in set response")
 	}
 	d.CreatedAt = resp.Decision.CreatedAt.AsTime()
+	d.Checkout = grpcapi.ProvenanceFromProto(resp.Decision.Checkout)
 	return nil
 }
 

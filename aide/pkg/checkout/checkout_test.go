@@ -3,6 +3,7 @@ package checkout
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 
@@ -43,7 +44,7 @@ func TestIdentityLifetime(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if first.ID == main.ID || first.Root != wt {
+	if first.ID == main.ID || first.Root != wt || first.Branch != "feature" {
 		t.Fatalf("not isolated: %+v %+v", main, first)
 	}
 	if err := os.WriteFile(filepath.Join(first.GitDir, "HEAD"), []byte("ref: refs/heads/other\n"), 0600); err != nil {
@@ -112,5 +113,27 @@ func TestConcurrentIdentityAndForeignCheckout(t *testing.T) {
 	other, _ := fixture(t)
 	if _, err := Resolve(root, other); err == nil {
 		t.Fatal("foreign repository accepted")
+	}
+}
+
+func TestGeneratedIgnoreAllowsExplicitOverride(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "checkouts")
+	if err := EnsureIgnoredDir(dir); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, ".gitignore")
+	data, err := os.ReadFile(path)
+	if err != nil || !strings.HasSuffix(string(data), "\n*\n") {
+		t.Fatalf("default ignore: %q %v", data, err)
+	}
+	if err := os.WriteFile(path, []byte("# deliberately include caches\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := EnsureIgnoredDir(dir); err != nil {
+		t.Fatal(err)
+	}
+	data, err = os.ReadFile(path)
+	if err != nil || string(data) != "# deliberately include caches\n" {
+		t.Fatalf("overrode user choice: %q %v", data, err)
 	}
 }

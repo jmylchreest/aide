@@ -126,7 +126,13 @@ Use this to mark known issues as reviewed or intentionally accepted.
 // Findings MCP Tool Handlers
 // =============================================================================
 
-func (s *MCPServer) handleFindingsSearch(_ context.Context, _ *mcp.CallToolRequest, input FindingsSearchInput) (*mcp.CallToolResult, any, error) {
+func (s *MCPServer) handleFindingsSearch(ctx context.Context, req *mcp.CallToolRequest, input FindingsSearchInput) (*mcp.CallToolResult, any, error) {
+	scoped, release, routeErr := s.requestCheckout(ctx, req)
+	if routeErr != nil {
+		return checkoutToolError(routeErr)
+	}
+	defer release()
+	s = scoped
 	mcpLog.Printf("tool: findings_search query=%q analyzer=%s severity=%s", input.Query, input.Analyzer, input.Severity)
 
 	if s.findingsStore() == nil {
@@ -161,7 +167,13 @@ func (s *MCPServer) handleFindingsSearch(_ context.Context, _ *mcp.CallToolReque
 	return textResult(sb.String()), nil, nil
 }
 
-func (s *MCPServer) handleFindingsList(_ context.Context, _ *mcp.CallToolRequest, input FindingsListInput) (*mcp.CallToolResult, any, error) {
+func (s *MCPServer) handleFindingsList(ctx context.Context, req *mcp.CallToolRequest, input FindingsListInput) (*mcp.CallToolResult, any, error) {
+	scoped, release, routeErr := s.requestCheckout(ctx, req)
+	if routeErr != nil {
+		return checkoutToolError(routeErr)
+	}
+	defer release()
+	s = scoped
 	mcpLog.Printf("tool: findings_list analyzer=%s severity=%s file=%s", input.Analyzer, input.Severity, input.FilePath)
 
 	if s.findingsStore() == nil {
@@ -195,7 +207,13 @@ func (s *MCPServer) handleFindingsList(_ context.Context, _ *mcp.CallToolRequest
 	return textResult(sb.String()), nil, nil
 }
 
-func (s *MCPServer) handleFindingsStats(_ context.Context, _ *mcp.CallToolRequest, input FindingsStatsInput) (*mcp.CallToolResult, any, error) {
+func (s *MCPServer) handleFindingsStats(ctx context.Context, req *mcp.CallToolRequest, input FindingsStatsInput) (*mcp.CallToolResult, any, error) {
+	scoped, release, routeErr := s.requestCheckout(ctx, req)
+	if routeErr != nil {
+		return checkoutToolError(routeErr)
+	}
+	defer release()
+	s = scoped
 	mcpLog.Printf("tool: findings_stats")
 
 	if s.findingsStore() == nil {
@@ -228,7 +246,13 @@ func (s *MCPServer) handleFindingsStats(_ context.Context, _ *mcp.CallToolReques
 	return textResult(sb.String()), nil, nil
 }
 
-func (s *MCPServer) handleFindingsAccept(_ context.Context, _ *mcp.CallToolRequest, input FindingsAcceptInput) (*mcp.CallToolResult, any, error) {
+func (s *MCPServer) handleFindingsAccept(ctx context.Context, req *mcp.CallToolRequest, input FindingsAcceptInput) (*mcp.CallToolResult, any, error) {
+	scoped, release, routeErr := s.requestCheckout(ctx, req)
+	if routeErr != nil {
+		return checkoutToolError(routeErr)
+	}
+	defer release()
+	s = scoped
 	mcpLog.Printf("tool: findings_accept ids=%v all=%v analyzer=%s severity=%s", input.IDs, input.All, input.Analyzer, input.Severity)
 
 	if s.findingsStore() == nil {

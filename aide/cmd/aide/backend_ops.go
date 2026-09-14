@@ -455,6 +455,9 @@ func (b *Backend) SetDecision(topic, decision, rationale, details, decidedBy str
 		Precedence: store.ResolvePrecedence(b.store, topic, precedence),
 		CreatedAt:  time.Now(),
 	}
+	if c, err := store.CheckoutInfo(b.dbPath, store.CheckoutRoot(b.dbPath)); err == nil {
+		dec.Checkout = &memory.CheckoutProvenance{ID: c.ID, Branch: c.Branch, Commit: c.Commit}
+	}
 	if err := b.store.SetDecision(dec); err != nil {
 		return nil, err
 	}

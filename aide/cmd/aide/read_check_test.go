@@ -18,7 +18,7 @@ import (
 func TestReadCheckMCPDirectParity(t *testing.T) {
 	root := t.TempDir()
 	dbPath := filepath.Join(root, ".aide", "memory", "memory.db")
-	indexPath, searchPath := getCodeStorePaths(dbPath)
+	indexPath, searchPath := testCodeStorePaths(t, dbPath)
 	cs, err := store.NewCodeStore(indexPath, searchPath)
 	if err != nil {
 		t.Fatal(err)
