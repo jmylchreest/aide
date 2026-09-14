@@ -11,6 +11,7 @@ import (
 	"github.com/blevesearch/bleve/v2/analysis/tokenizer/unicode"
 	"github.com/blevesearch/bleve/v2/mapping"
 	"github.com/blevesearch/bleve/v2/search/query"
+	"github.com/jmylchreest/aide/aide/pkg/checkout"
 	"github.com/jmylchreest/aide/aide/pkg/findings"
 )
 
@@ -22,6 +23,8 @@ var (
 // FindingsStoreImpl implements FindingsStore using BoltDB + Bleve,
 // backed by the generic searchableStore.
 type FindingsStoreImpl struct {
+	dispositions *BoltStore
+	checkout     checkout.Info
 	*searchableStore[findings.Finding]
 }
 
@@ -146,6 +149,9 @@ func (s *FindingsStoreImpl) Close() error {
 
 // AddFinding stores a finding and indexes it for search.
 func (s *FindingsStoreImpl) AddFinding(f *findings.Finding) error {
+	if err := s.applyDispositions([]*findings.Finding{f}); err != nil {
+		return err
+	}
 	return s.Add(f)
 }
 
@@ -232,6 +238,11 @@ func (s *FindingsStoreImpl) AcceptFindings(ids []string) (int, error) {
 		if f.Accepted {
 			continue // already accepted
 		}
+		if s.dispositions != nil {
+			if err := s.dispositions.saveDisposition(s.checkout, f); err != nil {
+				return accepted, err
+			}
+		}
 		f.Accepted = true
 		if err := s.updateItem(f); err != nil {
 			return accepted, err
@@ -286,6 +297,9 @@ func (s *FindingsStoreImpl) Stats(opts findings.SearchOptions) (*findings.Stats,
 // On success, old findings are gone and new ones are stored.
 // On error, old findings remain untouched.
 func (s *FindingsStoreImpl) ReplaceFindingsForAnalyzer(analyzer string, newFindings []*findings.Finding) error {
+	if err := s.applyDispositions(newFindings); err != nil {
+		return err
+	}
 	return s.replace(func(f *findings.Finding) bool {
 		return f.Analyzer == analyzer
 	}, newFindings)
@@ -294,6 +308,9 @@ func (s *FindingsStoreImpl) ReplaceFindingsForAnalyzer(analyzer string, newFindi
 // ReplaceFindingsForAnalyzerAndFile atomically replaces findings for an analyzer within a specific file.
 // Used for per-file incremental updates (complexity, secrets).
 func (s *FindingsStoreImpl) ReplaceFindingsForAnalyzerAndFile(analyzer, filePath string, newFindings []*findings.Finding) error {
+	if err := s.applyDispositions(newFindings); err != nil {
+		return err
+	}
 	return s.replace(func(f *findings.Finding) bool {
 		return f.Analyzer == analyzer && f.FilePath == filePath
 	}, newFindings)
