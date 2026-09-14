@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/jmylchreest/aide/aide/pkg/code"
@@ -90,12 +91,20 @@ func TestRunRejectsEscapingPath(t *testing.T) {
 	}
 }
 
+// perFileStore hides the bulk interface to measure the existing per-file writer.
+type perFileStore struct{ store.CodeIndexStore }
+
 func BenchmarkCheckoutCreate(b *testing.B) {
 	root := b.TempDir()
 	targetRoot := b.TempDir()
 	for i := 0; i < 128; i++ {
 		name := fmt.Sprintf("file%03d.go", i)
-		body := fmt.Sprintf("package p\nfunc Function%d(){ Function%d() }\n", i, i)
+		var src strings.Builder
+		src.WriteString("package p\n")
+		for j := 0; j < 32; j++ {
+			fmt.Fprintf(&src, "func Function%d_%d(v int) int { if v > 0 { return Function%d_%d(v-1) }; return v }\n", i, j, i, j)
+		}
+		body := src.String()
 		put(b, root, name, body)
 		if i < 12 {
 			body += fmt.Sprintf("func Added%d(){}\n", i)
@@ -108,14 +117,14 @@ func BenchmarkCheckoutCreate(b *testing.B) {
 	if _, e := Run(context.Background(), source, parser, root, nil, false, nil, nil); e != nil {
 		b.Fatal(e)
 	}
-	for _, seeded := range []bool{false, true} {
-		b.Run(fmt.Sprintf("seeded=%v", seeded), func(b *testing.B) {
+	for _, mode := range []string{"cold_per_file", "cold_bulk", "seeded_bulk"} {
+		b.Run(mode, func(b *testing.B) {
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
 				b.StopTimer()
 				dir := b.TempDir()
 				var seed Seed
-				if seeded {
+				if mode == "seeded_bulk" {
 					seed = source.SeedFile
 				}
 				b.StartTimer()
@@ -123,7 +132,11 @@ func BenchmarkCheckoutCreate(b *testing.B) {
 				if e != nil {
 					b.Fatal(e)
 				}
-				res, e := Run(context.Background(), target, parser, targetRoot, nil, false, seed, nil)
+				var writer store.CodeIndexStore = target
+				if mode == "cold_per_file" {
+					writer = perFileStore{target}
+				}
+				res, e := Run(context.Background(), writer, parser, targetRoot, nil, false, seed, nil)
 				if e != nil {
 					b.Fatal(e)
 				}
@@ -134,4 +147,22 @@ func BenchmarkCheckoutCreate(b *testing.B) {
 			}
 		})
 	}
+	b.Run("unchanged_reconcile", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			res, err := Run(context.Background(), source, parser, root, nil, false, nil, nil)
+			if err != nil || res.Skipped != 128 {
+				b.Fatalf("reconcile: %+v %v", res, err)
+			}
+		}
+	})
+	b.Run("query", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			got, err := source.SearchSymbols("Function64_16", code.SearchOptions{})
+			if err != nil || len(got) == 0 {
+				b.Fatalf("query: %v %v", got, err)
+			}
+		}
+	})
 }
