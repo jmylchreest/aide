@@ -177,11 +177,13 @@ func (a *retrievalAccumulator) recordVerification(e *observe.Event, step *memory
 	w := a.window
 	status := step.Status
 	verification := e.Attrs["source_verification"]
+	renderedRead := w.Host == "opencode" && e.Name == "Read" && e.Attrs["retrieval_method"] == "native_read"
 	if status == "range" {
-		a.recordRange(verification, refs)
+		rangeMatch := verification == "current_range_match" || (renderedRead && verification == "current_rendered_range_match")
+		a.recordRange(rangeMatch, refs)
 	}
 	serverReceipt := verification == "server_receipt" && e.Attrs["retrieval_id"] != "" && (e.Name == "code_outline" || e.Name == "code_read_symbol") && (status == "referenced" || status == "failed")
-	fullMatch := verification == "current_file_match" && status == "full_file" && len(refs) == 1 && step.Text != nil && refs[0].Bytes == step.Text.Bytes
+	fullMatch := verifiedFullRead(status, verification, renderedRead, step, refs)
 	if fullMatch {
 		w.FullReadEvents++
 	}
@@ -209,8 +211,17 @@ func (a *retrievalAccumulator) recordVerification(e *observe.Event, step *memory
 	}
 }
 
-func (a *retrievalAccumulator) recordRange(verification string, refs []*memory.RetrievalSource) {
-	if verification != "current_range_match" || len(refs) == 0 {
+// Rendered reads verify complete source content, but numbering and normalized
+// line endings make delivered payload bytes distinct from source bytes. Keep
+// both quantities; only the raw-source contract requires byte equality.
+func verifiedFullRead(status, verification string, renderedRead bool, step *memory.RetrievalStep, refs []*memory.RetrievalSource) bool {
+	return status == "full_file" && len(refs) == 1 && step.Text != nil &&
+		((verification == "current_file_match" && refs[0].Bytes == step.Text.Bytes) ||
+			(renderedRead && verification == "current_rendered_file_match"))
+}
+
+func (a *retrievalAccumulator) recordRange(verified bool, refs []*memory.RetrievalSource) {
+	if !verified || len(refs) == 0 {
 		a.issues["unverified_source_version"] = true
 	}
 	for _, ref := range refs {
