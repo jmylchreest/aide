@@ -106,6 +106,28 @@ describe("host model usage observations", () => {
     expect(e.attrs).not.toHaveProperty("output_tokens");
     expect(e.ts).toBe("2026-09-08T12:00:00Z");
   });
+  it("ignores Claude synthetic transcript placeholders but preserves real zero usage", () => {
+    // Claude Code emits this model marker when resuming a compacted session.
+    const row = claude({
+      input_tokens: 0,
+      output_tokens: 0,
+      cache_read_input_tokens: 0,
+      cache_creation_input_tokens: 0,
+    });
+    expect(
+      claudeUsageEvent(
+        { ...row, message: { ...row.message, model: "<synthetic>" } },
+        "s",
+      ),
+    ).toBeNull();
+    expect(claudeUsageEvent(row, "s")?.attrs).toMatchObject({
+      model: "m",
+      input_tokens: "0",
+      uncached_input_tokens: "0",
+      cache_read_input_tokens: "0",
+      cache_write_input_tokens: "0",
+    });
+  });
   it("does not substitute missing or invalid fields with zero", () => {
     const e = claudeUsageEvent(
       claude({

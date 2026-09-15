@@ -130,6 +130,7 @@ export function claudeUsageEvent(
     row?.type !== "assistant" ||
     row.sessionId !== session ||
     !id(message?.id) ||
+    message?.model === "<synthetic>" ||
     !usage
   )
     return null;

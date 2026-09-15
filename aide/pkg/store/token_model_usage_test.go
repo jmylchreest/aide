@@ -237,3 +237,61 @@ func TestModelUsageKeepsHostsModelsAndCounterCoverageSeparate(t *testing.T) {
 		t.Fatal("session selection leaked")
 	}
 }
+
+func TestModelUsageIgnoresStoredClaudeSyntheticPlaceholders(t *testing.T) {
+	s, err := NewBoltStore(filepath.Join(t.TempDir(), "events.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	at := time.Date(2026, 9, 10, 9, 14, 4, 0, time.UTC)
+	for _, model := range []string{"<synthetic>", "claude-opus-5"} {
+		e := usageEvent(model, at, map[string]string{
+			"host": "claude-code", "usage_source": "claude.assistant_usage.v1", "model": model,
+			"input_tokens": "0", "uncached_input_tokens": "0", "cache_read_input_tokens": "0", "cache_write_input_tokens": "0",
+		})
+		e.SessionID = model
+		if err := s.AddObserveEvent(e); err != nil {
+			t.Fatal(err)
+		}
+	}
+	stats, err := s.TokenStats("", time.Time{}, time.Time{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	u := stats.Accounting.ModelUsage
+	if u == nil || u.Observations != 1 || u.Invalid != 0 || u.Conflicts != 0 || len(u.BySource) != 1 || stats.Sessions != 1 {
+		t.Fatalf("placeholder counted as model usage: usage=%+v sessions=%d", u, stats.Sessions)
+	}
+	g := u.BySource[0]
+	if g.Model != "claude-opus-5" || g.Counters["input_tokens"].Tokens != 0 || g.Counters["input_tokens"].Observations != 1 {
+		t.Fatalf("real zero usage lost: %+v", g)
+	}
+	stored, err := s.ListObserveEvents(ObserveFilter{Limit: 0})
+	if err != nil || len(stored) != 2 {
+		t.Fatalf("raw observations changed: count=%d err=%v", len(stored), err)
+	}
+}
+
+func TestModelUsageSyntheticExclusionRequiresExactClaudeSource(t *testing.T) {
+	at := time.Now()
+	for _, tc := range []struct {
+		name, host, source, model string
+		observations, invalid     int
+	}{
+		{"other-host", "codex", "codex.token_usage_record.v1", "<synthetic>", 1, 0},
+		{"other-source", "claude-code", "claude.future_usage.v2", "<synthetic>", 0, 1},
+		{"other-model", "claude-code", "claude.assistant_usage.v1", "synthetic", 1, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			a := newModelUsage()
+			a.observe(usageEvent(tc.name, at, map[string]string{
+				"host": tc.host, "usage_source": tc.source, "model": tc.model, "input_tokens": "0",
+			}))
+			got := a.result("s", time.Time{}, time.Time{})
+			if got.Observations != tc.observations || got.Invalid != tc.invalid {
+				t.Fatalf("unrelated source was excluded: %+v", got)
+			}
+		})
+	}
+}
