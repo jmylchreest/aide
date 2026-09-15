@@ -1,46 +1,28 @@
-# Checkout index performance
+# Checkout index benchmark summary
 
-Use independent checkout stores, bounded bulk writes, and verified logical
-seeding. This keeps one shared daemon and memory store without overlay reads,
-tombstones, parent lifetime dependencies, or filesystem-specific reflinks.
-Seeding copies records only when relative path, source hash, and parser/grammar
-fingerprint match. It still writes a complete destination Bolt/Bleve index;
-there is no storage deduplication between checkouts.
+Use independent checkout stores with bulk writes and optional verified record
+seeding. This preserves ordinary queries and simple cleanup, without parent-store
+dependencies. Seeding verifies source content and parser compatibility; it still
+builds a complete destination index, so storage is not deduplicated.
 
-Measured 2026-09-14 on Linux/amd64, NVMe/ext4, with warmed filesystem cache.
-The fixture has 128 Go files, 32 functions per file, and 12 changed files in
-the destination. Figures are medians of three samples, three operations each;
-CPU and allocation profiling were enabled. These are synthetic comparisons,
-not production latency guarantees. Creation includes opening the destination
-stores, reading/verifying files, parsing or seeding, and writing both indexes;
-it excludes Git worktree creation and store close.
+Spike measurements: Linux/amd64, NVMe/ext4, 323 tracked Go files with 32 changed;
+one sample per method. Times cover index creation, excluding Git worktree creation.
+These are historical comparisons, not production latency guarantees.
 
-| Operation | Time | Allocated bytes/op |
-| --- | ---: | ---: |
-| Cold, per-file writes | 1.751 s | 962 MB |
-| Cold, bulk writes | 319.8 ms | 170 MB |
-| Bulk, 116 verified files seeded | 196.9 ms | 171 MB |
-| Reconcile unchanged checkout | 3.56 ms | 2.52 MB |
-| Symbol query | 1.12 ms | 0.275 MB |
+| Index creation approach | Time |
+| --- | ---: |
+| Per-file rebuild | 4.25 s |
+| Bulk rebuild | 1.38 s |
+| Bulk verified logical seed (chosen) | 0.64 s |
+| Physical snapshot + bulk reconciliation | 0.27 s |
 
-Bulk writes were 5.5× faster than per-file writes. Seeding reduced bulk
-creation time by another 38%, but did not reduce allocation volume: destination
-search indexing still happens. The combined CPU profile attributes 13.4% of
-samples directly to cgo calls; allocation leaders include Bleve/Vellum index
-construction and buffering. The profile includes all benchmark modes and setup,
-so it cannot attribute those costs exclusively to seeded creation.
+Snapshots were faster but required source quiescence and coordinated copying.
+Shared-content/COW prototypes saved storage but added query filtering and version
+GC. Independent stores best matched the priority of simplicity before creation
+speed and storage savings. Profiling identified Bleve indexing/merging and
+allocation costs as reasons to batch writes.
 
-Reproduce from `aide/`, setting `TMPDIR` to scratch space on the filesystem being
-measured (the default `/tmp` may be tmpfs):
-
-```sh
-go test ./pkg/codeindex -run '^$' -bench BenchmarkCheckoutCreate \
-  -benchtime=3x -count=3 -benchmem \
-  -cpuprofile=/path/to/ignored/cpu.pprof \
-  -memprofile=/path/to/ignored/heap.pprof -o /path/to/ignored/codeindex.test
-go tool pprof -top /path/to/ignored/cpu.pprof
-go tool pprof -top -alloc_space /path/to/ignored/heap.pprof
-```
-
-Raw measurements, profiles, and benchmark executables belong in ignored scratch
-space. The daemon also retains its existing configurable pprof endpoint.
+Production benchmarks remain in `index_test.go`. From `aide/`, run
+`go test ./pkg/codeindex -run '^$' -bench BenchmarkCheckoutCreate -benchmem`.
+Use scratch space on the filesystem being measured; keep raw results and pprof
+artifacts outside Git.
