@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { mkdtempSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
@@ -198,6 +199,32 @@ describe("context windows and verified read coverage", () => {
       expect(getPreviousRead("aide", cwd, "file.ts", other)).toBeNull();
     }
     expect(contextWindow("aide", join(cwd, "other"), identity)).toBeNull();
+  });
+  it("retains verified rendered coverage only for matching source and context", () => {
+    const scope = {
+      host: "opencode",
+      sessionId: "rendered",
+      actorId: "rendered",
+    };
+    const digest = createHash("sha256")
+      .update("const value = 1;\n")
+      .digest("hex");
+    updateContextWindow("aide", cwd, scope, "startup");
+    recordFileRead("aide", cwd, "file.ts", {
+      identity: scope,
+      content: "formatted source",
+      verifiedRenderedHash: digest,
+    });
+    expect(getPreviousRead("aide", cwd, "file.ts", scope)).not.toBeNull();
+    updateContextWindow("aide", cwd, scope, "compact");
+    expect(getPreviousRead("aide", cwd, "file.ts", scope)).toBeNull();
+    writeFileSync(join(cwd, "file.ts"), "const value = 2;\n");
+    recordFileRead("aide", cwd, "file.ts", {
+      identity: scope,
+      content: "formatted source",
+      verifiedRenderedHash: digest,
+    });
+    expect(getPreviousRead("aide", cwd, "file.ts", scope)).toBeNull();
   });
   it("compares delivered content, refusing slices and changed source", () => {
     updateContextWindow("aide", cwd, identity, "startup");

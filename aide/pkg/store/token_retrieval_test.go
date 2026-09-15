@@ -203,3 +203,102 @@ func TestRetrievalWindowsBoundSelectionAndKeepFailedOutputCost(t *testing.T) {
 		}
 	}
 }
+
+func TestRetrievalWindowsRecognizeOpenCodeRenderedSourceWithoutByteEquality(t *testing.T) {
+	s := retrievalStore(t)
+	at := time.Now().UTC()
+	outline := referenceEvent("outline", "w", at)
+	outline.Attrs["host"] = "opencode"
+	addRetrieval(t, s, outline)
+	full := retrievalEvent("read", "w", "full_file", "480", at.Add(time.Second))
+	full.Name = "Read"
+	full.Attrs["host"] = "opencode"
+	full.Attrs["retrieval_method"] = "native_read"
+	full.Attrs["source_verification"] = "current_rendered_file_match"
+	full.Attrs["source_references"] = outline.Attrs["source_references"]
+	addRetrieval(t, s, full)
+	stats, err := s.TokenStats("s", time.Time{}, time.Time{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := stats.Accounting.Retrievals.Windows[0]
+	if w.FullReadEvents != 1 || w.Reference.Bytes != 300 || w.Observed.Bytes != 540 || w.Comparison == nil || w.Comparison.DeltaBytes != -240 {
+		t.Fatalf("rendered source confused with delivered bytes: %+v", w)
+	}
+	if stats.TotalSaved != 0 {
+		t.Fatal("rendered comparison became causal savings")
+	}
+}
+
+func TestRetrievalWindowsRenderedRangesNeedMatchingFullBaseline(t *testing.T) {
+	for _, baseline := range []string{"matching", "changed", "absent"} {
+		t.Run(baseline, func(t *testing.T) {
+			s := retrievalStore(t)
+			at := time.Now().UTC()
+			outline := referenceEvent("outline", "w", at)
+			outline.Attrs["host"] = "opencode"
+			if baseline != "absent" {
+				addRetrieval(t, s, outline)
+			}
+			partial := retrievalEvent("read", "w", "range", "90", at.Add(time.Second))
+			partial.Name = "Read"
+			partial.Attrs["host"] = "opencode"
+			partial.Attrs["retrieval_method"] = "native_read"
+			partial.Attrs["source_verification"] = "current_rendered_range_match"
+			partial.Attrs["source_references"] = outline.Attrs["source_references"]
+			if baseline == "changed" {
+				partial.Attrs["source_references"] = strings.ReplaceAll(partial.Attrs["source_references"], strings.Repeat("a", 64), strings.Repeat("b", 64))
+			}
+			addRetrieval(t, s, partial)
+			stats, err := s.TokenStats("s", time.Time{}, time.Time{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			w := stats.Accounting.Retrievals.Windows[0]
+			if w.FullReadEvents != 0 || (w.Comparison != nil) != (baseline == "matching") {
+				t.Fatalf("range promoted to full source or valid range rejected: %+v", w)
+			}
+			if baseline == "absent" && (len(w.Sources) != 0 || w.Reference.Bytes != 0) {
+				t.Fatalf("range minted baseline: %+v", w)
+			}
+		})
+	}
+}
+
+func TestRetrievalWindowsRejectRenderedLabelsOutsideNativeOpenCodeReads(t *testing.T) {
+	for _, mismatch := range []string{"host", "tool", "method", "missing-payload", "failed", "range-label"} {
+		t.Run(mismatch, func(t *testing.T) {
+			s := retrievalStore(t)
+			at := time.Now().UTC()
+			full := retrievalEvent("read", "w", "full_file", "480", at)
+			full.Name = "Read"
+			full.Attrs["host"] = "opencode"
+			full.Attrs["retrieval_method"] = "native_read"
+			full.Attrs["source_verification"] = "current_rendered_file_match"
+			full.Attrs["source_references"] = referenceEvent("", "", at).Attrs["source_references"]
+			switch mismatch {
+			case "host":
+				full.Attrs["host"] = "other"
+			case "tool":
+				full.Name = "Bash"
+			case "method":
+				full.Attrs["retrieval_method"] = "shell_cat"
+			case "missing-payload":
+				delete(full.Attrs, "payload_bytes")
+			case "failed":
+				full.Error = "read failed"
+			case "range-label":
+				full.Attrs["source_verification"] = "current_rendered_range_match"
+			}
+			addRetrieval(t, s, full)
+			stats, err := s.TokenStats("s", time.Time{}, time.Time{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			w := stats.Accounting.Retrievals.Windows[0]
+			if w.FullReadEvents != 0 || len(w.Sources) != 0 || w.Comparison != nil {
+				t.Fatalf("unverified rendered label trusted: %+v", w)
+			}
+		})
+	}
+}
