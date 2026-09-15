@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi"
@@ -628,8 +630,23 @@ func (g *StoreAdapter) CleanupTokenEvents(maxAge time.Duration) (int, error) {
 // --- Observe Event Operations ---
 
 func (g *StoreAdapter) AddObserveEvent(e *observe.Event) error {
+	if e == nil {
+		return fmt.Errorf("observation is required")
+	}
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
+	resp, err := g.client.Observe.RecordEvent(ctx, observeRecordRequest(e))
+	if err != nil {
+		return err
+	}
+	if resp == nil || resp.Id == "" {
+		return fmt.Errorf("observation write returned no identity")
+	}
+	e.ID = resp.Id
+	return nil
+}
+
+func observeRecordRequest(e *observe.Event) *grpcapi.ObserveRecordRequest {
 	attrs := e.Attrs
 	if attrs == nil {
 		attrs = map[string]string{}
@@ -651,12 +668,71 @@ func (g *StoreAdapter) AddObserveEvent(e *observe.Event) error {
 	if !e.Timestamp.IsZero() {
 		req.Timestamp = timestamppb.New(e.Timestamp)
 	}
-	resp, err := g.client.Observe.RecordEvent(ctx, req)
-	if err != nil {
-		return err
+	return req
+}
+
+// AddObserveEvents sends a bounded batch. Only an explicit unsupported-method
+// response permits the legacy path: retrying ambiguous failures can duplicate
+// ordinary observations without a host-supplied identity.
+func (g *StoreAdapter) AddObserveEvents(events []*observe.Event) ([]bool, error) {
+	if len(events) > store.MaxObserveBatchEvents {
+		return nil, fmt.Errorf("observation batch exceeds %d events", store.MaxObserveBatchEvents)
 	}
-	e.ID = resp.Id
-	return nil
+	requests := make([]*grpcapi.ObserveRecordRequest, len(events))
+	for i, event := range events {
+		if event == nil {
+			return nil, fmt.Errorf("observation is required")
+		}
+		requests[i] = observeRecordRequest(event)
+		if requests[i].Timestamp != nil {
+			if err := requests[i].Timestamp.CheckValid(); err != nil {
+				return nil, fmt.Errorf("invalid observation timestamp: %w", err)
+			}
+		}
+	}
+	if len(events) == 0 {
+		return []bool{}, nil
+	}
+	ctx, cancel := g.rpcCtx()
+	defer cancel()
+	response, err := g.client.Observe.RecordBatch(ctx, &grpcapi.ObserveBatchRecordRequest{Events: requests})
+	if status.Code(err) == codes.Unimplemented {
+		// Older servers cannot report mutation outcomes. Conservatively mark
+		// successful fallback writes as changed; never promise silence there.
+		changed := make([]bool, len(events))
+		ids := make([]string, len(events))
+		for i, request := range requests {
+			result, writeErr := g.client.Observe.RecordEvent(ctx, request)
+			if writeErr != nil {
+				return nil, writeErr
+			}
+			if result == nil || result.Id == "" {
+				return nil, fmt.Errorf("observation write returned no identity")
+			}
+			ids[i], changed[i] = result.Id, true
+		}
+		for i, event := range events {
+			event.ID = ids[i]
+		}
+		return changed, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if response == nil || len(response.Results) != len(events) {
+		return nil, fmt.Errorf("observation batch acknowledgement count mismatch")
+	}
+	changed := make([]bool, len(events))
+	for i, result := range response.Results {
+		if result == nil || result.Id == "" {
+			return nil, fmt.Errorf("observation batch returned no identity")
+		}
+		changed[i] = result.Changed
+	}
+	for i, event := range events {
+		event.ID = response.Results[i].Id
+	}
+	return changed, nil
 }
 
 func (g *StoreAdapter) ListObserveEvents(f store.ObserveFilter) ([]*observe.Event, error) {
