@@ -1,9 +1,11 @@
 package store
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"sort"
 	"strconv"
 	"time"
@@ -138,6 +140,49 @@ func observeToTokenEvent(e *observe.Event) *memory.TokenEvent {
 // CLI) — the in-process Recorder always sets them, but defending here keeps
 // the bolt layer from rejecting the write with "key required".
 func (s *BoltStore) AddObserveEvent(e *observe.Event) error {
+	_, err := s.AddObserveEvents([]*observe.Event{e})
+	return err
+}
+
+// AddObserveEvents uses one transaction for the whole batch. Work on copies so
+// validation and failed writes cannot leave caller-owned evidence normalized or
+// assigned an ID that was never committed.
+func (s *BoltStore) AddObserveEvents(events []*observe.Event) ([]bool, error) {
+	if len(events) > MaxObserveBatchEvents {
+		return nil, fmt.Errorf("observe batch exceeds %d events", MaxObserveBatchEvents)
+	}
+	copies := make([]observe.Event, len(events))
+	for i, e := range events {
+		if e == nil {
+			return nil, fmt.Errorf("observe event %d is required", i)
+		}
+		copies[i] = *e
+		copies[i].Attrs = maps.Clone(e.Attrs)
+	}
+	changed := make([]bool, len(events))
+	if len(events) == 0 {
+		return changed, nil
+	}
+	err := s.db.Update(func(tx *bolt.Tx) error {
+		for i := range copies {
+			var err error
+			changed[i], err = addObserveEventTx(tx, &copies[i])
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	for i, e := range events {
+		*e = copies[i]
+	}
+	return changed, nil
+}
+
+func addObserveEventTx(tx *bolt.Tx, e *observe.Event) (bool, error) {
 	// New measurements use one estimator, independently of legacy handler estimates.
 	if e.Attrs["accounting_version"] == "1" {
 		e.Tokens = 0
@@ -163,58 +208,64 @@ func (s *BoltStore) AddObserveEvent(e *observe.Event) error {
 	if e.Timestamp.IsZero() {
 		e.Timestamp = time.Now()
 	}
-	return s.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket(BucketObserveEvents)
-		// Only explicit origin identity deduplicates; equal commands are valid calls.
-		if usageOrigin(e) != "" || memory.HasObservationIdentity(e.SessionID, e.Attrs) {
-			origin := []string{e.SessionID, e.Attrs["host"], e.Attrs["actor_id"], e.Attrs["invocation_id"], e.Attrs["observation_stage"]}
-			if claim, ok := workHostClaim(e); ok {
-				// Equal receipt retries still deduplicate. Contradictory receipts
-				// must survive so attribution cannot silently select the first.
-				origin = append(origin, "aide/work:1", claim.id, claim.tool, claim.hash)
-			}
-			if usage := usageOrigin(e); usage != "" {
-				origin = []string{usage}
-			}
-			identity, err := json.Marshal(origin)
-			if err != nil {
-				return err
-			}
-			key := []byte(fmt.Sprintf("%x", sha256.Sum256(identity)))
-			origins, err := tx.CreateBucketIfNotExists([]byte("observe_origins"))
-			if err != nil {
-				return err
-			}
-			if id := origins.Get(key); id != nil {
-				if data := b.Get(id); data != nil {
-					if isModelUsage(e) {
-						var prior observe.Event
-						if err := json.Unmarshal(data, &prior); err != nil {
-							return err
-						}
-						if e.Timestamp.Before(prior.Timestamp) {
-							e.ID = prior.ID
-							updated, err := json.Marshal(e)
-							if err != nil {
-								return err
-							}
-							return b.Put([]byte(e.ID), updated)
-						}
-					}
-					// Keep the first observation and its timestamp stable on retries.
-					return json.Unmarshal(data, e)
-				}
-			}
-			if err := origins.Put(key, []byte(e.ID)); err != nil {
-				return err
-			}
+	b := tx.Bucket(BucketObserveEvents)
+	// Only explicit origin identity deduplicates; equal commands are valid calls.
+	if usageOrigin(e) != "" || memory.HasObservationIdentity(e.SessionID, e.Attrs) {
+		origin := []string{e.SessionID, e.Attrs["host"], e.Attrs["actor_id"], e.Attrs["invocation_id"], e.Attrs["observation_stage"]}
+		if claim, ok := workHostClaim(e); ok {
+			// Equal receipt retries still deduplicate. Contradictory receipts
+			// must survive so attribution cannot silently select the first.
+			origin = append(origin, "aide/work:1", claim.id, claim.tool, claim.hash)
 		}
-		data, err := json.Marshal(e)
+		if usage := usageOrigin(e); usage != "" {
+			origin = []string{usage}
+		}
+		identity, err := json.Marshal(origin)
 		if err != nil {
-			return err
+			return false, err
 		}
-		return b.Put([]byte(e.ID), data)
-	})
+		key := []byte(fmt.Sprintf("%x", sha256.Sum256(identity)))
+		origins, err := tx.CreateBucketIfNotExists([]byte("observe_origins"))
+		if err != nil {
+			return false, err
+		}
+		if id := origins.Get(key); id != nil {
+			if data := b.Get(id); data != nil {
+				if isModelUsage(e) {
+					var prior observe.Event
+					if err := json.Unmarshal(data, &prior); err != nil {
+						return false, err
+					}
+					if e.Timestamp.Before(prior.Timestamp) {
+						e.ID = prior.ID
+						updated, err := json.Marshal(e)
+						if err != nil {
+							return false, err
+						}
+						return true, b.Put([]byte(e.ID), updated)
+					}
+				}
+				// Keep the first observation and its timestamp stable on retries.
+				var canonical observe.Event
+				if err := json.Unmarshal(data, &canonical); err != nil {
+					return false, err
+				}
+				*e = canonical
+				return false, nil
+			}
+		}
+		if err := origins.Put(key, []byte(e.ID)); err != nil {
+			return false, err
+		}
+	}
+	data, err := json.Marshal(e)
+	if err != nil {
+		return false, err
+	}
+	if bytes.Equal(b.Get([]byte(e.ID)), data) {
+		return false, nil
+	}
+	return true, b.Put([]byte(e.ID), data)
 }
 
 // ObserveFilter narrows ListObserveEvents results.
@@ -404,7 +455,8 @@ func (s *ObserveSink) SetBus(b *eventbus.Broadcaster[*observe.Event]) {
 }
 
 func (s *ObserveSink) Emit(e *observe.Event) {
-	if err := s.store.AddObserveEvent(e); err != nil {
+	changed, err := s.store.AddObserveEvents([]*observe.Event{e})
+	if err != nil || !changed[0] {
 		return
 	}
 	if s.bus != nil {
