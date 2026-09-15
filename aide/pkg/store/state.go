@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/jmylchreest/aide/aide/pkg/memory"
@@ -22,6 +23,76 @@ func (s *BoltStore) InitState(proposed *memory.State) (*memory.State, bool, erro
 		b := tx.Bucket(BucketState)
 		if data := b.Get([]byte(proposed.Key)); data != nil {
 			return json.Unmarshal(data, &result)
+		}
+		result = *proposed
+		if result.UpdatedAt.IsZero() {
+			result.UpdatedAt = time.Now()
+		}
+		data, err := json.Marshal(&result)
+		if err != nil {
+			return err
+		}
+		if err := b.Put([]byte(result.Key), data); err != nil {
+			return err
+		}
+		created = true
+		return nil
+	})
+	if err != nil {
+		return nil, false, err
+	}
+	return &result, created, nil
+}
+
+// InitStateBounded creates a missing key within an exact agent namespace's
+// capacity. Existing keys are resolved before scanning capacity, preserving
+// replay idempotence. The entire lookup/count/insert shares a write transaction.
+func (s *BoltStore) InitStateBounded(proposed *memory.State, maxAgentEntries int) (*memory.State, bool, error) {
+	if proposed == nil || strings.TrimSpace(proposed.Key) == "" {
+		return nil, false, fmt.Errorf("state key is required")
+	}
+	if strings.TrimSpace(proposed.Agent) == "" {
+		return nil, false, fmt.Errorf("state agent is required")
+	}
+	if maxAgentEntries < 1 || maxAgentEntries > memory.MaxStateAgentEntries {
+		return nil, false, fmt.Errorf("max agent entries must be between 1 and %d", memory.MaxStateAgentEntries)
+	}
+	var result memory.State
+	created := false
+	err := s.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket(BucketState)
+		if data := b.Get([]byte(proposed.Key)); data != nil {
+			if err := json.Unmarshal(data, &result); err != nil {
+				return fmt.Errorf("invalid existing state: %w", err)
+			}
+			if result.Key != proposed.Key {
+				return fmt.Errorf("existing state key does not match stored key")
+			}
+			if result.Agent != proposed.Agent {
+				return fmt.Errorf("state key belongs to another agent")
+			}
+			return nil
+		}
+		count := 0
+		if err := b.ForEach(func(key, data []byte) error {
+			var existing memory.State
+			// An undecodable entry cannot safely be assigned to an agent; refusing
+			// insertion avoids silently undercounting potentially matching state.
+			if err := json.Unmarshal(data, &existing); err != nil {
+				return fmt.Errorf("cannot verify state capacity: %w", err)
+			}
+			if existing.Key != string(key) {
+				return fmt.Errorf("cannot verify state capacity: stored state key mismatch")
+			}
+			if existing.Agent == proposed.Agent {
+				count++
+				if count >= maxAgentEntries {
+					return memory.ErrStateAgentLimit
+				}
+			}
+			return nil
+		}); err != nil {
+			return err
 		}
 		result = *proposed
 		if result.UpdatedAt.IsZero() {

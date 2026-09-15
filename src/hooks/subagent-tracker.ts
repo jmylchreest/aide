@@ -34,6 +34,11 @@ import {
 import { DECISION_PRECEDENCE_OVERRIDE } from "../core/types.js";
 import { refreshHud, invalidateHudRenderCache } from "../lib/hud.js";
 import { ensureContextWindow } from "../core/context-window.js";
+import {
+  collectTranscriptUsage,
+  recordModelUsage,
+} from "../core/model-usage.js";
+import { registerChildTranscript } from "../core/transcript-usage.js";
 
 // Global logger instance
 let log: Logger | null = null;
@@ -431,6 +436,23 @@ async function processSubagentStart(
  */
 async function processSubagentStop(data: SubagentStopInput): Promise<void> {
   const { agent_id, session_id, cwd, stop_hook_active } = data;
+  const binary = findAideBinary(cwd, session_id);
+  // Persist the explicit path before slower HUD work; SubagentStop can precede
+  // the final transcript flush, even when its immediate usage write succeeds.
+  if (
+    binary &&
+    detectPlatform() === "claude-code" &&
+    data.agent_transcript_path
+  ) {
+    const registered = registerChildTranscript(
+      binary,
+      cwd,
+      "claude-code",
+      session_id,
+      data.agent_transcript_path,
+    );
+    log?.debug(`Child transcript catch-up registered=${registered}`);
+  }
 
   log?.info(
     `SubagentStop: agent_id=${agent_id}, session=${session_id}, stop_hook_active=${stop_hook_active}`,
@@ -449,7 +471,6 @@ async function processSubagentStop(data: SubagentStopInput): Promise<void> {
   log?.end("refreshHud");
 
   // Emit session observe event so SubagentStop is traceable in the dashboard
-  const binary = findAideBinary(cwd, session_id);
   if (binary) {
     recordObserveEvent(binary, cwd, {
       kind: "session",
@@ -458,6 +479,25 @@ async function processSubagentStop(data: SubagentStopInput): Promise<void> {
       session: session_id,
       attrs: { agent_id, agent_type: data.agent_type ?? "" },
     });
+
+    // Internal compaction agents also report an explicit child transcript.
+    // Reuse response identities so rows shared with the parent are deduplicated.
+    if (
+      detectPlatform() === "claude-code" &&
+      typeof data.agent_transcript_path === "string" &&
+      data.agent_transcript_path
+    ) {
+      const usage = collectTranscriptUsage(
+        data.agent_transcript_path,
+        "claude-code",
+        session_id,
+      );
+      const acknowledged =
+        !usage.events.length || recordModelUsage(binary, cwd, usage.events);
+      log?.debug(
+        `Child usage scan: ${usage.status}; limited=${usage.limited}; malformed=${usage.malformed}; records=${usage.events.length}; acknowledged=${acknowledged}`,
+      );
+    }
   }
 
   log?.debug(`SubagentStop: agent ${agent_id} marked as completed`);

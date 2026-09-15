@@ -307,6 +307,10 @@ func (c *CombinedStore) InitState(st *memory.State) (*memory.State, bool, error)
 	return c.bolt.InitState(st)
 }
 
+func (c *CombinedStore) InitStateBounded(st *memory.State, maxAgentEntries int) (*memory.State, bool, error) {
+	return c.bolt.InitStateBounded(st, maxAgentEntries)
+}
+
 func (c *CombinedStore) SetState(st *memory.State) error            { return c.bolt.SetState(st) }
 func (c *CombinedStore) GetState(key string) (*memory.State, error) { return c.bolt.GetState(key) }
 func (c *CombinedStore) DeleteState(key string) error               { return c.bolt.DeleteState(key) }

@@ -34,6 +34,11 @@
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/bin/preflight.mjs\" \"${CLAUDE_PLUGIN_ROOT}/src/hooks/session-start.ts\"",
             "timeout": 60
+          },
+          {
+            "type": "command",
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}/src/hooks/usage-catchup.ts\"",
+            "timeout": 3
           }
         ]
       }
@@ -46,6 +51,11 @@
             "type": "command",
             "command": "bun \"${CLAUDE_PLUGIN_ROOT}/src/hooks/skill-injector.ts\"",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}/src/hooks/usage-catchup.ts\"",
+            "timeout": 3
           }
         ]
       }
@@ -108,7 +118,7 @@
           {
             "type": "command",
             "command": "bun \"${CLAUDE_PLUGIN_ROOT}/src/hooks/subagent-tracker.ts\"",
-            "timeout": 3
+            "timeout": 60
           }
         ]
       }
@@ -185,6 +195,11 @@
             "type": "command",
             "command": "bun \"${CLAUDE_PLUGIN_ROOT}/src/hooks/session-end.ts\"",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bun \"${CLAUDE_PLUGIN_ROOT}/src/hooks/usage-catchup.ts\"",
+            "timeout": 2
           }
         ]
       }

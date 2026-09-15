@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -590,6 +591,35 @@ func (s *stateServiceImpl) Init(ctx context.Context, req *StateSetRequest) (*Sta
 		proposed.UpdatedAt = req.UpdatedAt.AsTime()
 	}
 	st, created, err := initializer.InitState(proposed)
+	if err != nil {
+		return nil, err
+	}
+	if created {
+		s.publish(st, "set")
+	}
+	return &StateSetResponse{State: stateToProto(st), Created: created}, nil
+}
+
+func (s *stateServiceImpl) InitBounded(ctx context.Context, req *StateBoundedInitRequest) (*StateSetResponse, error) {
+	if req == nil || req.State == nil || req.State.Key == "" || strings.TrimSpace(req.State.AgentId) == "" {
+		return nil, status.Error(codes.InvalidArgument, "state key and agent are required")
+	}
+	if req.MaxAgentEntries < 1 || req.MaxAgentEntries > memory.MaxStateAgentEntries {
+		return nil, status.Errorf(codes.InvalidArgument, "max agent entries must be between 1 and %d", memory.MaxStateAgentEntries)
+	}
+	initializer, ok := s.store.(memory.BoundedStateInitializer)
+	if !ok {
+		return nil, status.Error(codes.Unimplemented, "bounded state initialization is unavailable")
+	}
+	state := req.State
+	proposed := &memory.State{Key: fmt.Sprintf("agent:%s:%s", state.AgentId, state.Key), Value: state.Value, Agent: state.AgentId}
+	if state.UpdatedAt != nil {
+		proposed.UpdatedAt = state.UpdatedAt.AsTime()
+	}
+	st, created, err := initializer.InitStateBounded(proposed, int(req.MaxAgentEntries))
+	if errors.Is(err, memory.ErrStateAgentLimit) {
+		return nil, status.Error(codes.ResourceExhausted, err.Error())
+	}
 	if err != nil {
 		return nil, err
 	}

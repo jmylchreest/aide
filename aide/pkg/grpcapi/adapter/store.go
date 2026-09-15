@@ -236,6 +236,41 @@ func (g *StoreAdapter) InitState(st *memory.State) (*memory.State, bool, error) 
 	return ProtoToState(resp.State), resp.Created, nil
 }
 
+func (g *StoreAdapter) InitStateBounded(st *memory.State, limit int) (*memory.State, bool, error) {
+	if st == nil || st.Key == "" {
+		return nil, false, fmt.Errorf("state key is required")
+	}
+	if st.Agent == "" {
+		return nil, false, fmt.Errorf("state agent is required")
+	}
+	if limit < 1 || limit > memory.MaxStateAgentEntries {
+		return nil, false, fmt.Errorf("max agent entries must be between 1 and %d", memory.MaxStateAgentEntries)
+	}
+	ctx, cancel := g.rpcCtx()
+	defer cancel()
+	// Store keys are already canonical; avoid applying the RPC agent prefix twice.
+	key := st.Key
+	if st.Agent != "" {
+		prefix := fmt.Sprintf("agent:%s:", st.Agent)
+		if !strings.HasPrefix(key, prefix) {
+			return nil, false, fmt.Errorf("agent state key must start with %q", prefix)
+		}
+		key = strings.TrimPrefix(key, prefix)
+	}
+	req := &grpcapi.StateSetRequest{Key: key, Value: st.Value, AgentId: st.Agent}
+	if !st.UpdatedAt.IsZero() {
+		req.UpdatedAt = timestamppb.New(st.UpdatedAt)
+	}
+	resp, err := g.client.State.InitBounded(ctx, &grpcapi.StateBoundedInitRequest{State: req, MaxAgentEntries: uint32(limit)})
+	if err != nil {
+		return nil, false, err
+	}
+	if resp.State == nil {
+		return nil, false, fmt.Errorf("atomic state initialization returned no state")
+	}
+	return ProtoToState(resp.State), resp.Created, nil
+}
+
 func (g *StoreAdapter) DeleteState(key string) error {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()

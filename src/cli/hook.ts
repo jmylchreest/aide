@@ -35,6 +35,7 @@ const HOOK_MAP: Record<string, string> = {
   "session-summary": "session-summary.ts",
   "agent-cleanup": "agent-cleanup.ts",
   "session-end": "session-end.ts",
+  "usage-catchup": "usage-catchup.ts",
 };
 
 export function listHooks(): string[] {
