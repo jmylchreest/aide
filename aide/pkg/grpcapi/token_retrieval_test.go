@@ -1,11 +1,12 @@
 package grpcapi
 
 import (
-	"github.com/jmylchreest/aide/aide/pkg/memory"
-	"google.golang.org/protobuf/proto"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/jmylchreest/aide/aide/pkg/memory"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestRetrievalAccountingWireRoundTrip(t *testing.T) {

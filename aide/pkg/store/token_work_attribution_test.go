@@ -81,7 +81,11 @@ func TestWorkReceiptAmbiguityAndMissingEvidence(t *testing.T) {
 		alter    func(*observe.Event, *observe.Event) []*observe.Event
 		assigned bool
 	}{
-		{"identical-host-replay", func(s, h *observe.Event) []*observe.Event { copy := *h; copy.ID = ""; return []*observe.Event{&copy} }, true},
+		{"identical-host-replay", func(s, h *observe.Event) []*observe.Event {
+			eventCopy := *h
+			eventCopy.ID = ""
+			return []*observe.Event{&eventCopy}
+		}, true},
 		{"wrong-id", func(s, h *observe.Event) []*observe.Event { h.Attrs["work_id"] = "other"; return nil }, false},
 		{"wrong-hash", func(s, h *observe.Event) []*observe.Event {
 			h.Attrs["work_text_sha256"] = strings.Repeat("b", 64)
@@ -104,7 +108,11 @@ func TestWorkReceiptAmbiguityAndMissingEvidence(t *testing.T) {
 			h.Attrs["work_id"] = s.Attrs["work_id"]
 			return nil
 		}, false},
-		{"duplicate-server-id", func(s, h *observe.Event) []*observe.Event { copy := *s; copy.ID = ""; return []*observe.Event{&copy} }, false},
+		{"duplicate-server-id", func(s, h *observe.Event) []*observe.Event {
+			eventCopy := *s
+			eventCopy.ID = ""
+			return []*observe.Event{&eventCopy}
+		}, false},
 		{"conflicting-direct-session", func(s, h *observe.Event) []*observe.Event { s.SessionID = "other"; return nil }, false},
 		{"conflicting-session", func(s, h *observe.Event) []*observe.Event {
 			other := workReceiptEvent("host_result", "other", h.Timestamp)

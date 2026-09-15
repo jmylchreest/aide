@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"os"
 	"regexp"
 	"sort"
 	"strings"
@@ -117,29 +116,6 @@ func formatCodeReferences(symbolName string, refs []*code.Reference, limit int) 
 	}
 
 	return sb.String()
-}
-
-// readFileLines reads lines startLine..endLine (1-indexed, inclusive) from a file.
-func readFileLines(path string, startLine, endLine int) ([]string, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	var lines []string
-	lineNum := 0
-	for scanner.Scan() {
-		lineNum++
-		if lineNum >= startLine && lineNum <= endLine {
-			lines = append(lines, scanner.Text())
-		}
-		if lineNum >= endLine {
-			break
-		}
-	}
-	return lines, scanner.Err()
 }
 
 // ============================================================================
@@ -278,16 +254,4 @@ func extractIndent(line string) string {
 // lineNumPrefix formats a line number for the outline output.
 func lineNumPrefix(lineNum int) string {
 	return fmt.Sprintf("%-4d: ", lineNum)
-}
-
-// countLines counts the number of lines in a string.
-func countLines(s string) int {
-	if s == "" {
-		return 0
-	}
-	n := strings.Count(s, "\n")
-	if !strings.HasSuffix(s, "\n") {
-		n++
-	}
-	return n
 }

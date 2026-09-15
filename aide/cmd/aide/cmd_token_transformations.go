@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/jmylchreest/aide/aide/pkg/memory"
 	"strings"
+
+	"github.com/jmylchreest/aide/aide/pkg/memory"
 )
 
 func formatTransformationSummary(report *memory.TokenTransformations, details bool) string {

@@ -1,10 +1,11 @@
 package store
 
 import (
-	"github.com/jmylchreest/aide/aide/pkg/observe"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/jmylchreest/aide/aide/pkg/observe"
 )
 
 func usageEvent(id string, at time.Time, counters map[string]string) *observe.Event {

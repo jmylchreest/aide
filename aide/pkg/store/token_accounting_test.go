@@ -1,11 +1,12 @@
 package store
 
 import (
-	"github.com/jmylchreest/aide/aide/pkg/observe"
-	bolt "go.etcd.io/bbolt"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/jmylchreest/aide/aide/pkg/observe"
+	bolt "go.etcd.io/bbolt"
 )
 
 func TestObservationIdentityIsolationAndRetention(t *testing.T) {

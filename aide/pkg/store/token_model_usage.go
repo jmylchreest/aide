@@ -84,6 +84,14 @@ func parseUsage(e *observe.Event) (map[string]int64, bool) {
 			return nil, false
 		}
 	}
+	counters, ok := parseUsageCounters(a)
+	if !ok || !validUsageTotals(counters) {
+		return nil, false
+	}
+	return counters, true
+}
+
+func parseUsageCounters(a map[string]string) (map[string]int64, bool) {
 	counters := map[string]int64{}
 	for _, k := range usageCounterNames {
 		if v, ok := a[k]; ok {
@@ -100,6 +108,10 @@ func parseUsage(e *observe.Event) (map[string]int64, bool) {
 	if len(counters) == 0 {
 		return nil, false
 	}
+	return counters, true
+}
+
+func validUsageTotals(counters map[string]int64) bool {
 	input, hasInput := counters["input_tokens"]
 	output, hasOutput := counters["output_tokens"]
 	if hasInput {
@@ -109,35 +121,35 @@ func parseUsage(e *observe.Event) (map[string]int64, bool) {
 			n, ok := counters[k]
 			all = all && ok
 			if n > input || sum > maxUsageTokens-n {
-				return nil, false
+				return false
 			}
 			sum += n
 		}
 		if sum > input || (all && sum != input) {
-			return nil, false
+			return false
 		}
 	}
 	if n, ok := counters["reasoning_output_tokens"]; ok && hasOutput && n > output {
-		return nil, false
+		return false
 	}
 	if total, ok := counters["total_tokens"]; ok {
 		for k, n := range counters {
 			if k != "reported_output_tokens" && n > total {
-				return nil, false
+				return false
 			}
 		}
 	}
 	if n, ok := counters["total_tokens"]; ok && hasInput && hasOutput && (input > maxUsageTokens-output || n != input+output) {
-		return nil, false
+		return false
 	}
-	return counters, true
+	return true
 }
 func (m *modelUsage) observe(e *observe.Event) {
 	if !isModelUsage(e) {
 		return
 	}
-	copy := *e
-	e = &copy
+	eventCopy := *e
+	e = &eventCopy
 	if e.Attrs["usage_time_basis"] == "source" {
 		if at, err := time.Parse(time.RFC3339Nano, e.Attrs["usage_source_time"]); err == nil && !at.IsZero() {
 			e.Timestamp = at

@@ -3,10 +3,11 @@ package store
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/jmylchreest/aide/aide/pkg/observe"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/jmylchreest/aide/aide/pkg/observe"
 )
 
 func TestTokenTransformationsPreserveBoundaryAndWindow(t *testing.T) {

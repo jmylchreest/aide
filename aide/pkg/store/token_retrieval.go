@@ -2,12 +2,13 @@ package store
 
 import (
 	"encoding/json"
-	"github.com/jmylchreest/aide/aide/pkg/memory"
-	"github.com/jmylchreest/aide/aide/pkg/observe"
 	"path"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/jmylchreest/aide/aide/pkg/memory"
+	"github.com/jmylchreest/aide/aide/pkg/observe"
 )
 
 type retrievalKey struct{ host, session, actor, epoch string }
@@ -89,6 +90,12 @@ func (r *tokenRetrievals) add(e *observe.Event) {
 		r.windows[key] = a
 		r.report.Windows = append(r.report.Windows, w)
 	}
+	step := a.recordStep(e, status)
+	refs := a.sourceReferences(e.Attrs["source_references"])
+	a.recordVerification(e, step, refs)
+}
+
+func (a *retrievalAccumulator) recordStep(e *observe.Event, status string) *memory.RetrievalStep {
 	w := a.window
 	w.Events++
 	if e.Timestamp.Before(w.First) {
@@ -138,8 +145,11 @@ func (r *tokenRetrievals) add(e *observe.Event) {
 	if e.Error != "" && status != "failed" {
 		w.FailedEvents++
 	}
+	return step
+}
+
+func (a *retrievalAccumulator) sourceReferences(raw string) []*memory.RetrievalSource {
 	var refs []*memory.RetrievalSource
-	raw := e.Attrs["source_references"]
 	if raw != "" {
 		valid := len(raw) <= 65536 && json.Unmarshal([]byte(raw), &refs) == nil && len(refs) > 0 && len(refs) <= 10
 		files := map[string]bool{}
@@ -160,18 +170,15 @@ func (r *tokenRetrievals) add(e *observe.Event) {
 			refs = nil
 		}
 	}
+	return refs
+}
+
+func (a *retrievalAccumulator) recordVerification(e *observe.Event, step *memory.RetrievalStep, refs []*memory.RetrievalSource) {
+	w := a.window
+	status := step.Status
 	verification := e.Attrs["source_verification"]
 	if status == "range" {
-		if verification != "current_range_match" || len(refs) == 0 {
-			a.issues["unverified_source_version"] = true
-		}
-		for _, ref := range refs {
-			if len(a.ranges) < 256 || a.ranges[ref.File+"\x00"+ref.SHA256] {
-				a.ranges[ref.File+"\x00"+ref.SHA256] = true
-			} else {
-				a.issues["source_limit"] = true
-			}
-		}
+		a.recordRange(verification, refs)
 	}
 	serverReceipt := verification == "server_receipt" && e.Attrs["retrieval_id"] != "" && (e.Name == "code_outline" || e.Name == "code_read_symbol") && (status == "referenced" || status == "failed")
 	fullMatch := verification == "current_file_match" && status == "full_file" && len(refs) == 1 && step.Text != nil && refs[0].Bytes == step.Text.Bytes
@@ -186,34 +193,53 @@ func (r *tokenRetrievals) add(e *observe.Event) {
 		a.assisted = true
 	}
 	if trusted {
-		for _, ref := range refs {
-			key := ref.File + "\x00" + ref.SHA256
-			if existing := a.sources[key]; existing != nil {
-				if existing.Bytes != ref.Bytes {
-					a.issues["conflicting_source_reference"] = true
-				}
-				continue
-			}
-			if len(a.sources) == 256 {
-				a.issues["source_limit"] = true
-				continue
-			}
-			a.sources[key] = ref
-			w.Sources = append(w.Sources, ref)
-			if !addRetrievalQuantity(&w.Reference, ref.Bytes) {
-				a.issues["quantity_overflow"] = true
-			}
-		}
+		a.recordSources(refs)
 	}
 	// A verified receipt carries its own file scope. Native ranges and searches
 	// still need a baseline for their target; they never mint a new baseline.
 	if !trusted || len(refs) == 0 {
-		if target == "" {
+		switch {
+		case step.Target == "":
 			a.issues["unknown_target"] = true
-		} else if len(a.targets) < 256 || a.targets[retrievalPath(target)] {
-			a.targets[retrievalPath(target)] = true
-		} else {
+		case len(a.targets) < 256 || a.targets[retrievalPath(step.Target)]:
+			a.targets[retrievalPath(step.Target)] = true
+		default:
 			a.issues["target_limit"] = true
+		}
+	}
+}
+
+func (a *retrievalAccumulator) recordRange(verification string, refs []*memory.RetrievalSource) {
+	if verification != "current_range_match" || len(refs) == 0 {
+		a.issues["unverified_source_version"] = true
+	}
+	for _, ref := range refs {
+		if len(a.ranges) < 256 || a.ranges[ref.File+"\x00"+ref.SHA256] {
+			a.ranges[ref.File+"\x00"+ref.SHA256] = true
+		} else {
+			a.issues["source_limit"] = true
+		}
+	}
+}
+
+func (a *retrievalAccumulator) recordSources(refs []*memory.RetrievalSource) {
+	w := a.window
+	for _, ref := range refs {
+		key := ref.File + "\x00" + ref.SHA256
+		if existing := a.sources[key]; existing != nil {
+			if existing.Bytes != ref.Bytes {
+				a.issues["conflicting_source_reference"] = true
+			}
+			continue
+		}
+		if len(a.sources) == 256 {
+			a.issues["source_limit"] = true
+			continue
+		}
+		a.sources[key] = ref
+		w.Sources = append(w.Sources, ref)
+		if !addRetrievalQuantity(&w.Reference, ref.Bytes) {
+			a.issues["quantity_overflow"] = true
 		}
 	}
 }

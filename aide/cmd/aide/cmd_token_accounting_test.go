@@ -1,10 +1,11 @@
 package main
 
 import (
-	"github.com/jmylchreest/aide/aide/pkg/memory"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/jmylchreest/aide/aide/pkg/memory"
 )
 
 func TestTransformationSummaryKeepsEvidenceAndOverheadExplicit(t *testing.T) {

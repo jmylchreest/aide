@@ -1,9 +1,10 @@
 package main
 
 import (
-	"github.com/jmylchreest/aide/aide/pkg/observe"
 	"strings"
 	"testing"
+
+	"github.com/jmylchreest/aide/aide/pkg/observe"
 )
 
 func TestPreparedContextCLIShowsMeasuredSourceBoundaryInDetails(t *testing.T) {

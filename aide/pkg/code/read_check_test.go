@@ -1,12 +1,13 @@
 package code
 
 import (
-	"github.com/jmylchreest/aide/aide/pkg/memory"
 	"math"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/jmylchreest/aide/aide/pkg/memory"
 )
 
 func TestReadCheckCurrentBytes(t *testing.T) {

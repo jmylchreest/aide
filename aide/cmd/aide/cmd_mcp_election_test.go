@@ -2,9 +2,6 @@ package main
 
 import (
 	"context"
-	"github.com/jmylchreest/aide/aide/pkg/observe"
-	"github.com/jmylchreest/aide/aide/pkg/store"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -13,6 +10,10 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/jmylchreest/aide/aide/pkg/observe"
+	"github.com/jmylchreest/aide/aide/pkg/store"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 func TestMCPAccountingMeasuresRenderedResult(t *testing.T) {

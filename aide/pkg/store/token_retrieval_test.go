@@ -2,11 +2,12 @@ package store
 
 import (
 	"fmt"
-	"github.com/jmylchreest/aide/aide/pkg/observe"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/jmylchreest/aide/aide/pkg/observe"
 )
 
 func retrievalStore(t *testing.T) *BoltStore {

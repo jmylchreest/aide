@@ -1,9 +1,10 @@
 package main
 
 import (
-	"github.com/jmylchreest/aide/aide/pkg/memory"
 	"strings"
 	"testing"
+
+	"github.com/jmylchreest/aide/aide/pkg/memory"
 )
 
 func TestModelUsageCLISeparatesCountersAndCoverage(t *testing.T) {

@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/jmylchreest/aide/aide/pkg/memory"
 	"sort"
 	"strings"
+
+	"github.com/jmylchreest/aide/aide/pkg/memory"
 )
 
 func formatModelUsage(u *memory.TokenModelUsage, details bool) string {

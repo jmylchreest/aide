@@ -2,14 +2,15 @@ package grpcapi
 
 import (
 	"context"
-	"github.com/jmylchreest/aide/aide/pkg/memory"
-	"github.com/jmylchreest/aide/aide/pkg/store"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/jmylchreest/aide/aide/pkg/memory"
+	"github.com/jmylchreest/aide/aide/pkg/store"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestModelUsageRoundTripAndOldServer(t *testing.T) {

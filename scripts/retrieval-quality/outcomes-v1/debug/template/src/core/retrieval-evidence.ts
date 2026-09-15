@@ -38,7 +38,7 @@ function shellTarget(command: unknown):
   if (
     typeof command !== "string" ||
     command.length > 8192 ||
-    /[\r\n$`|;&<>*?{}()\[\]~#\\]/.test(command)
+    /[\r\n$`|;&<>*?{}()[\]~#\\]/.test(command)
   )
     return;
   const words: string[] = [];

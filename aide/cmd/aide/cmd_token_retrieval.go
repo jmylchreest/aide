@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/jmylchreest/aide/aide/pkg/memory"
 	"strings"
+
+	"github.com/jmylchreest/aide/aide/pkg/memory"
 )
 
 func formatRetrievalWindows(report *memory.TokenRetrievals, details bool) string {

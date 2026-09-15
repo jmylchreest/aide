@@ -17,7 +17,7 @@ type RetrievalStep struct {
 	Text         *TokenQuantity `json:"text,omitempty"`
 }
 
-// A retrieval episode is explicitly grouped by recorded context window. It is
+// RetrievalWindow groups a retrieval episode by recorded context window. It is
 // not a task boundary, a complete transcript, or proof of an avoided call.
 type RetrievalWindow struct {
 	Host           string             `json:"host"`

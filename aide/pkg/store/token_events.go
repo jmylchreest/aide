@@ -100,54 +100,7 @@ func (s *BoltStore) TokenStats(sessionID string, since, until time.Time) (*memor
 		}
 		activity.add(e)
 
-		// Every event with a tool counts as one call. Injection events
-		// reuse Tool for the source name; the chart filters those out.
-		if e.Tool != "" && e.EventType != memory.TokenEventContextInjected {
-			stats.CallsByTool[e.Tool]++
-			if e.TokensSaved > 0 {
-				stats.SavedByTool[e.Tool] += e.TokensSaved
-			}
-		}
-
-		switch e.EventType {
-		case memory.TokenEventRead:
-			stats.TotalRead += e.Tokens
-			stats.ByTool[e.Tool] += e.Tokens
-			stats.ReadCount++
-		case memory.TokenEventOutlineUsed:
-			stats.TotalRead += e.Tokens
-			stats.TotalSaved += e.TokensSaved
-			stats.ByTool[e.Tool] += e.Tokens
-			stats.BySavingType["outline"] += e.TokensSaved
-			stats.CodeToolCount++
-		case memory.TokenEventSymbolRead:
-			stats.TotalRead += e.Tokens
-			stats.TotalSaved += e.TokensSaved
-			stats.ByTool[e.Tool] += e.Tokens
-			stats.BySavingType["symbol_read"] += e.TokensSaved
-			stats.CodeToolCount++
-		case memory.TokenEventReadAvoided:
-			stats.TotalSaved += e.TokensSaved
-			stats.BySavingType["read_avoided"] += e.TokensSaved
-		case memory.TokenEventContextInjected:
-			stats.TotalDelivered += e.Tokens
-			if e.Tool != "" {
-				stats.ByDelivery[e.Tool] += e.Tokens
-			}
-		case "modify", "write", "edit":
-			if e.Attrs["accounting_version"] == "1" {
-				if n, ok := memory.MeasuredBytes(e.Attrs, "argument_bytes"); ok {
-					stats.TotalWritten += int(memory.EstimateTextTokens(n))
-				}
-				stats.TotalRead += e.Tokens
-			} else {
-				stats.TotalWritten += e.Tokens
-			}
-			stats.ByTool[e.Tool] += e.Tokens
-		default:
-			stats.TotalRead += e.Tokens
-			stats.ByTool[e.Tool] += e.Tokens
-		}
+		tallyTokenTotals(stats, e)
 	}
 
 	err := s.db.View(func(tx *bolt.Tx) error {
@@ -197,6 +150,57 @@ func (s *BoltStore) TokenStats(sessionID string, since, until time.Time) (*memor
 	stats.Accounting.Activity = activity.result()
 	stats.Accounting.Retrievals = retrievals.result()
 	return stats, nil
+}
+
+func tallyTokenTotals(stats *memory.TokenStats, e *memory.TokenEvent) {
+	// Every event with a tool counts as one call. Injection events
+	// reuse Tool for the source name; the chart filters those out.
+	if e.Tool != "" && e.EventType != memory.TokenEventContextInjected {
+		stats.CallsByTool[e.Tool]++
+		if e.TokensSaved > 0 {
+			stats.SavedByTool[e.Tool] += e.TokensSaved
+		}
+	}
+
+	switch e.EventType {
+	case memory.TokenEventRead:
+		stats.TotalRead += e.Tokens
+		stats.ByTool[e.Tool] += e.Tokens
+		stats.ReadCount++
+	case memory.TokenEventOutlineUsed:
+		stats.TotalRead += e.Tokens
+		stats.TotalSaved += e.TokensSaved
+		stats.ByTool[e.Tool] += e.Tokens
+		stats.BySavingType["outline"] += e.TokensSaved
+		stats.CodeToolCount++
+	case memory.TokenEventSymbolRead:
+		stats.TotalRead += e.Tokens
+		stats.TotalSaved += e.TokensSaved
+		stats.ByTool[e.Tool] += e.Tokens
+		stats.BySavingType["symbol_read"] += e.TokensSaved
+		stats.CodeToolCount++
+	case memory.TokenEventReadAvoided:
+		stats.TotalSaved += e.TokensSaved
+		stats.BySavingType["read_avoided"] += e.TokensSaved
+	case memory.TokenEventContextInjected:
+		stats.TotalDelivered += e.Tokens
+		if e.Tool != "" {
+			stats.ByDelivery[e.Tool] += e.Tokens
+		}
+	case "modify", "write", "edit":
+		if e.Attrs["accounting_version"] == "1" {
+			if n, ok := memory.MeasuredBytes(e.Attrs, "argument_bytes"); ok {
+				stats.TotalWritten += int(memory.EstimateTextTokens(n))
+			}
+			stats.TotalRead += e.Tokens
+		} else {
+			stats.TotalWritten += e.Tokens
+		}
+		stats.ByTool[e.Tool] += e.Tokens
+	default:
+		stats.TotalRead += e.Tokens
+		stats.ByTool[e.Tool] += e.Tokens
+	}
 }
 
 // CleanupTokenEvents removes events older than maxAge. Returns the count of deleted events.
