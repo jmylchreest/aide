@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"sort"
 	"strconv"
@@ -241,8 +242,48 @@ func cmdObserveRecordBatch(dbPath string) error {
 	}
 	defer backend.Close()
 
-	recorded, skipped := 0, 0
-	scanner := bufio.NewScanner(os.Stdin)
+	recorded, skipped, err := recordObserveStream(os.Stdin, backend.Store())
+	if err != nil {
+		return err
+	}
+	fmt.Printf("recorded %d event(s)", recorded)
+	if skipped > 0 {
+		fmt.Printf(", skipped %d", skipped)
+	}
+	fmt.Println()
+	return nil
+}
+
+// Bound both message count and payload size; duplicate receipts are accepted
+// records, not skips. Failed chunks remain unacknowledged; retry safety depends
+// on a host-supplied identity, since a transport failure may follow a commit.
+func recordObserveStream(input io.Reader, target store.ObserveEventStore) (recorded, skipped int, err error) {
+	batch := make([]*observe.Event, 0, store.MaxObserveBatchEvents)
+	batchBytes := 0
+	flush := func() {
+		if len(batch) == 0 {
+			return
+		}
+		if writer, ok := target.(store.ObserveBatchStore); ok {
+			outcomes, writeErr := writer.AddObserveEvents(batch)
+			if writeErr != nil || len(outcomes) != len(batch) {
+				skipped += len(batch)
+			} else {
+				recorded += len(batch)
+			}
+		} else {
+			for _, event := range batch {
+				if writeErr := target.AddObserveEvent(event); writeErr != nil {
+					skipped++
+				} else {
+					recorded++
+				}
+			}
+		}
+		batch = batch[:0]
+		batchBytes = 0
+	}
+	scanner := bufio.NewScanner(input)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -269,21 +310,20 @@ func cmdObserveRecordBatch(dbPath string) error {
 		if l.Timestamp != nil {
 			ev.Timestamp = *l.Timestamp
 		}
-		if err := backend.Store().AddObserveEvent(ev); err != nil {
-			skipped++
-			continue
+		if batchBytes+len(line) > 1024*1024 {
+			flush()
 		}
-		recorded++
+		batch = append(batch, ev)
+		batchBytes += len(line)
+		if len(batch) == store.MaxObserveBatchEvents {
+			flush()
+		}
 	}
+	flush()
 	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("reading stdin: %w", err)
+		return recorded, skipped, fmt.Errorf("reading stdin: %w", err)
 	}
-	fmt.Printf("recorded %d event(s)", recorded)
-	if skipped > 0 {
-		fmt.Printf(", skipped %d", skipped)
-	}
-	fmt.Println()
-	return nil
+	return recorded, skipped, nil
 }
 
 // cmdObserveRecord emits observe events from the CLI: one event from
