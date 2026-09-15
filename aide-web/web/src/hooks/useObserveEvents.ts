@@ -1,8 +1,11 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/api";
-import { useApi } from "./use-api";
 import { useEventStream, type EventStreamStatus } from "./useEventStream";
 import type { ObserveEventItem } from "@/lib/types";
+import {
+  createObserveEventBatcher,
+  mergeObserveEvents,
+} from "@/lib/observe-groups";
 
 export interface ObserveFilters {
   kind?: string;
@@ -14,7 +17,7 @@ export interface ObserveFilters {
 export interface UseObserveEventsOptions {
   project: string | undefined;
   filters: ObserveFilters;
-  /** Max events held in the live buffer (newest-first). Defaults to 1000. */
+  /** Max events held in the merged list and live buffer (newest-first). Defaults to 1000. */
   maxEvents?: number;
   /** Initial page size pulled via the unary List endpoint. Defaults to 200. */
   initialLimit?: number;
@@ -42,43 +45,80 @@ export function useObserveEvents({
 }: UseObserveEventsOptions): UseObserveEventsResult {
   const { kind, name, category, session } = filters;
 
-  const {
-    data: initialEvents,
-    loading,
-    error,
-  } = useApi(
-    () =>
-      project
-        ? api.listObserveEvents(project, {
-            kind: kind || undefined,
-            name: name || undefined,
-            category: category || undefined,
-            session: session || undefined,
-            limit: initialLimit,
-          })
-        : Promise.resolve([] as ObserveEventItem[]),
-    [project, kind, name, category, session, initialLimit],
-  );
+  const queryKey = JSON.stringify([
+    project,
+    kind,
+    name,
+    category,
+    session,
+    initialLimit,
+  ]);
+  const [initial, setInitial] = useState<{
+    key: string;
+    events: ObserveEventItem[];
+    error: string | null;
+  } | null>(null);
+  useEffect(() => {
+    let active = true;
+    const request = project
+      ? api.listObserveEvents(project, {
+          kind: kind || undefined,
+          name: name || undefined,
+          category: category || undefined,
+          session: session || undefined,
+          limit: initialLimit,
+        })
+      : Promise.resolve([] as ObserveEventItem[]);
+    request.then(
+      (events) => {
+        if (active) setInitial({ key: queryKey, events, error: null });
+      },
+      (error) => {
+        if (active)
+          setInitial({
+            key: queryKey,
+            events: [],
+            error: String(error?.message ?? error),
+          });
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, [project, kind, name, category, session, initialLimit, queryKey]);
+  // A previous query must never supply rows or the new stream's cursor.
+  const initialEvents = initial?.key === queryKey ? initial.events : null;
+  const loading = initial?.key !== queryKey;
+  const error = initial?.key === queryKey ? initial.error : null;
 
   const [liveEvents, setLiveEvents] = useState<ObserveEventItem[]>([]);
   const [liveTail, setLiveTail] = useState(false);
 
   // Drop live buffer on filter change — otherwise stale rows leak through.
   const lastFiltersRef = useRef("");
-  const filterKey = `${kind ?? ""}|${name ?? ""}|${category ?? ""}|${session ?? ""}`;
+  const filterKey = JSON.stringify([project, kind, name, category, session]);
   if (lastFiltersRef.current !== filterKey) {
     lastFiltersRef.current = filterKey;
     if (liveEvents.length > 0) setLiveEvents([]);
   }
 
+  const batcher = useMemo(
+    () =>
+      createObserveEventBatcher(
+        (batch) =>
+          setLiveEvents((prev) => mergeObserveEvents(batch, prev, maxEvents)),
+        maxEvents,
+      ),
+    [filterKey, maxEvents, liveTail],
+  );
+  useEffect(() => () => batcher.cancel(), [batcher]);
+
   const handleStreamEvent = useCallback(
     (ev: ObserveEventItem) => {
-      setLiveEvents((prev) => {
-        const next = [ev, ...prev];
-        return next.length > maxEvents ? next.slice(0, maxEvents) : next;
-      });
+      if (name && ev.name !== name) return;
+      batcher.push(ev);
     },
-    [maxEvents],
+    [batcher, name],
   );
 
   const watchUrl = useMemo(
@@ -100,22 +140,8 @@ export function useObserveEvents({
   });
 
   const events = useMemo(() => {
-    const seen = new Set<string>();
-    const out: ObserveEventItem[] = [];
-    for (const ev of liveEvents) {
-      if (!seen.has(ev.id)) {
-        seen.add(ev.id);
-        out.push(ev);
-      }
-    }
-    for (const ev of initialEvents ?? []) {
-      if (!seen.has(ev.id)) {
-        seen.add(ev.id);
-        out.push(ev);
-      }
-    }
-    return out;
-  }, [liveEvents, initialEvents]);
+    return mergeObserveEvents(liveEvents, initialEvents ?? [], maxEvents);
+  }, [liveEvents, initialEvents, maxEvents]);
 
   return { events, loading, error, streamStatus, liveTail, setLiveTail };
 }
