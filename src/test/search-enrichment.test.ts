@@ -60,6 +60,21 @@ describe("search enrichment retrieval guidance", () => {
     },
   );
 
+  it("does not rediscover definitions and queries each reference name once", () => {
+    mockExec.mockImplementation((_binary: unknown, args: unknown) =>
+      (args as string[])[1] === "search"
+        ? JSON.stringify([
+            { name: "authenticate", kind: "function", file: "a.ts", start: 1 },
+            { name: "authenticate", kind: "function", file: "b.ts", start: 2 },
+          ])
+        : "[]",
+    );
+    const result = checkSearchEnrichment("Grep", { pattern: "authenticate" }, "/project", "aide");
+    expect(mockExec).toHaveBeenCalledTimes(2);
+    expect(result.enrichment).toContain("Use the file/name above directly");
+    expect(result.enrichment).not.toContain("For definitions, use code_search");
+  });
+
   it.each([
     "ab",
     "auth.*",
