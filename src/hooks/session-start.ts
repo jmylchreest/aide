@@ -25,6 +25,7 @@ import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { homedir } from "os";
 import { Logger, debug, setDebugCwd } from "../lib/logger.js";
+import { updateHookContextWindow } from "../core/hook-context.js";
 import {
   readStdin,
   detectPlatform,
@@ -77,6 +78,7 @@ debug(SOURCE, `Hook started (AIDE_DEBUG=${process.env.AIDE_DEBUG || "unset"})`);
 interface HookInput {
   hook_event_name: string;
   session_id: string;
+  agent_id?: string;
   cwd: string;
   transcript_path?: string;
   permission_mode?: string;
@@ -474,6 +476,19 @@ async function main(): Promise<void> {
     // instead of re-deriving the root. Best-effort: readers fall back to
     // shelling out, then to the TS walk.
     if (resolvedBinary && sessionId !== "unknown") {
+      const source = data.source;
+      updateHookContextWindow(
+        resolvedBinary,
+        cwd,
+        detectPlatform(),
+        data,
+        source === "startup" ||
+          source === "compact" ||
+          source === "clear" ||
+          source === "resume"
+          ? source
+          : "unknown",
+      );
       debugLog("anchor resolve/persist starting...");
       try {
         const anchor = resolveAnchorViaBinary(resolvedBinary, launchedCwd);
@@ -577,13 +592,15 @@ async function main(): Promise<void> {
         if (resume) {
           context = `${context}\n\n${resume}`;
           debugLog(`Injected resume checkpoint (source=${data.source})`);
-          observeBatch.push({
-            kind: "injection",
-            name: "resume-checkpoint",
-            category: "resume",
-            subtype: data.source || "resume",
-            session: sessionId,
-          });
+          observeBatch.push(
+            injectionBatchEvent({
+              source: "resume-checkpoint",
+              subtype: "session_memory",
+              content: resume,
+              sessionId,
+              attrs: { trigger: data.source || "resume" },
+            }),
+          );
         }
       }
     } catch (err) {

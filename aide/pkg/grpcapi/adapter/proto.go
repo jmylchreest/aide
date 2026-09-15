@@ -158,16 +158,18 @@ func ProtoToSymbol(p *grpcapi.Symbol) *code.Symbol {
 		return nil
 	}
 	return &code.Symbol{
-		ID:         p.Id,
-		Name:       p.Name,
-		Kind:       p.Kind,
-		Signature:  p.Signature,
-		DocComment: p.DocComment,
-		FilePath:   p.FilePath,
-		StartLine:  int(p.StartLine),
-		EndLine:    int(p.EndLine),
-		Language:   p.Language,
-		CreatedAt:  p.CreatedAt.AsTime(),
+		ID:            p.Id,
+		Name:          p.Name,
+		Kind:          p.Kind,
+		Signature:     p.Signature,
+		DocComment:    p.DocComment,
+		FilePath:      p.FilePath,
+		StartLine:     int(p.StartLine),
+		EndLine:       int(p.EndLine),
+		BodyStartLine: int(p.BodyStartLine),
+		BodyEndLine:   int(p.BodyEndLine),
+		Language:      p.Language,
+		CreatedAt:     p.CreatedAt.AsTime(),
 	}
 }
 

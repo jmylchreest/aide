@@ -245,12 +245,12 @@ async function main(): Promise<void> {
         const binary = findAideBinary(cwd, sessionId);
         if (binary) {
           for (const skill of matched) {
-            const text = `### ${skill.name}\n${skill.description ?? ""}\n${skill.content}`;
             emitInjectionEvent(binary, cwd, {
               source: SOURCE,
               subtype: "skill",
               name: skill.name,
-              content: text,
+              // Actual source text, not a reconstruction of the formatter.
+              content: skill.content,
               sessionId,
             });
           }

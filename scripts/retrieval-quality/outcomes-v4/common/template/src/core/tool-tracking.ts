@@ -1,0 +1,128 @@
+/**
+ * Tool tracking and HUD updating — platform-agnostic.
+ *
+ * Extracted from src/hooks/tool-tracker.ts and src/hooks/hud-updater.ts.
+ * Tracks tool usage per-agent and updates session statistics.
+ */
+
+import { basename } from "path";
+import { setState, getState } from "./aide-client.js";
+import type { ToolUseInfo } from "./types.js";
+
+/**
+ * Format tool description for HUD display
+ */
+export function formatToolDescription(
+  toolName: string,
+  toolInput?: ToolUseInfo["toolInput"],
+): string {
+  if (!toolInput) return toolName;
+
+  switch (toolName) {
+    case "Bash":
+      if (toolInput.command) {
+        const cmd =
+          toolInput.command.length > 40
+            ? toolInput.command.slice(0, 37) + "..."
+            : toolInput.command;
+        return `Bash(${cmd})`;
+      }
+      return toolName;
+
+    case "Read":
+      if (toolInput.file_path) {
+        const filename =
+          basename(toolInput.file_path);
+        return `Read(${filename})`;
+      }
+      return toolName;
+
+    case "Edit":
+    case "Write":
+      if (toolInput.file_path) {
+        const filename =
+          basename(toolInput.file_path);
+        return `${toolName}(${filename})`;
+      }
+      return toolName;
+
+    case "Task":
+      if (toolInput.description) {
+        const desc =
+          toolInput.description.length > 30
+            ? toolInput.description.slice(0, 27) + "..."
+            : toolInput.description;
+        return `Task(${desc})`;
+      }
+      return toolName;
+
+    case "Grep":
+    case "Glob":
+      return toolName;
+
+    default:
+      return toolName;
+  }
+}
+
+/**
+ * Track a tool use event (PreToolUse)
+ */
+export function trackToolUse(
+  binary: string,
+  cwd: string,
+  info: ToolUseInfo,
+): void {
+  const { toolName, agentId, toolInput } = info;
+
+  if (agentId && toolName) {
+    const toolDesc = formatToolDescription(toolName, toolInput);
+    setState(binary, cwd, "currentTool", toolDesc, agentId);
+  }
+}
+
+/**
+ * Update session state after tool completion (PostToolUse).
+ *
+ * Counters are session-scoped (agent:<sessionId>:<key>) so concurrent
+ * sessions sharing one store track independently; without a sessionId the
+ * legacy global keys are used.
+ */
+export function updateToolStats(
+  binary: string,
+  cwd: string,
+  toolName: string,
+  sessionId?: string,
+  agentId?: string,
+): void {
+  // Initialize startedAt if not set
+  const existingStartedAt = getState(binary, cwd, "startedAt", sessionId);
+  if (!existingStartedAt) {
+    setState(binary, cwd, "startedAt", new Date().toISOString(), sessionId);
+  }
+
+  // Track tool calls (guard against NaN from corrupted state)
+  const parsed = parseInt(
+    getState(binary, cwd, "toolCalls", sessionId) || "0",
+    10,
+  );
+  const currentToolCalls = Number.isNaN(parsed) ? 0 : parsed;
+  setState(binary, cwd, "toolCalls", String(currentToolCalls + 1), sessionId);
+  setState(binary, cwd, "lastToolUse", new Date().toISOString(), sessionId);
+  setState(binary, cwd, "lastTool", toolName, sessionId);
+
+  // trackToolUse sets currentTool for this agentId on every PreToolUse —
+  // clear the same scope or the HUD shows the tool as forever-running.
+  if (agentId) {
+    setState(binary, cwd, "currentTool", "", agentId);
+    if (agentId !== sessionId) {
+      setState(binary, cwd, "lastTool", toolName, agentId);
+      const agentParsed = parseInt(
+        getState(binary, cwd, "toolCalls", agentId) || "0",
+        10,
+      );
+      const agentCalls = Number.isNaN(agentParsed) ? 0 : agentParsed;
+      setState(binary, cwd, "toolCalls", String(agentCalls + 1), agentId);
+    }
+  }
+}

@@ -1,0 +1,32 @@
+[
+  {
+    "id": "debug",
+    "source_path": "src/core/retrieval-evidence.ts",
+    "origin_commit": "4896081054ce1b2f11c6985721915b2a8de6ad9e",
+    "origin_sha256": "968b910ba6ac9cbb39a2df51dd6a99ade378e471e6b86a8755234694562ceb23",
+    "seed_sha256": "0d814143aee679d1c6b31c148abb2567e8370ee9dffde52d7d2d86a9736529da",
+    "reference_sha256": "968b910ba6ac9cbb39a2df51dd6a99ade378e471e6b86a8755234694562ceb23",
+    "template": "debug/template",
+    "hidden_test_sha256": "2ce834c0f3dcf9cd10785b0b0d89aa4c1b683ca120f39c613915189b78b376f3",
+    "visible_test_sha256": "74f4853fb8b8397d65b6ff52f6cad0f069d1a461f8adbc654f11bb03285e117d",
+    "visible_command": "rtk proxy bun test ./reproduce.test.ts",
+    "hidden_command": "rtk proxy python3 scripts/retrieval-quality/outcomes-v1/grade.py debug CANDIDATE_ROOT",
+    "seed_expected_pass": false,
+    "reference_expected_pass": true
+  },
+  {
+    "id": "edit",
+    "source_path": "src/core/context-pruning/replacement.ts",
+    "origin_commit": "4896081054ce1b2f11c6985721915b2a8de6ad9e",
+    "origin_sha256": "398ab0e1008cafc8213b5c6d2909e0883fb65f323eb61b63b792369d9dd7c78b",
+    "seed_sha256": "398ab0e1008cafc8213b5c6d2909e0883fb65f323eb61b63b792369d9dd7c78b",
+    "reference_sha256": "c67a8ddce03b1b4179784e9a195a592c412059fa0955fd7418dc9295e4ac041f",
+    "template": "edit/template",
+    "hidden_test_sha256": "a9348ed9ddb6eb7a9503177c632f8191010bbaadb22e85da7e4d66cbb65dec58",
+    "visible_test_sha256": "b026d3851c51953c24decb1303ebe4c62417e116c1bd66353cd45d1e4e9c5cf2",
+    "visible_command": "rtk proxy bun test ./reproduce.test.ts",
+    "hidden_command": "rtk proxy python3 scripts/retrieval-quality/outcomes-v1/grade.py edit CANDIDATE_ROOT",
+    "seed_expected_pass": false,
+    "reference_expected_pass": true
+  }
+]

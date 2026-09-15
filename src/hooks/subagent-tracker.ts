@@ -24,6 +24,7 @@ import {
   emitHookResult,
   installHookSafetyNet,
   findAideBinary,
+  detectPlatform,
 } from "../lib/hook-utils.js";
 import { setSessionContext } from "../lib/anchor.js";
 import {
@@ -32,6 +33,7 @@ import {
 } from "../core/read-tracking.js";
 import { DECISION_PRECEDENCE_OVERRIDE } from "../core/types.js";
 import { refreshHud, invalidateHudRenderCache } from "../lib/hud.js";
+import { ensureContextWindow } from "../core/context-window.js";
 
 // Global logger instance
 let log: Logger | null = null;
@@ -113,7 +115,10 @@ function getProjectName(cwd: string): string {
  * This ensures subagents respect user preferences, project context,
  * and architectural decisions.
  */
-function fetchSubagentMemories(cwd: string, sessionId?: string): {
+function fetchSubagentMemories(
+  cwd: string,
+  sessionId?: string,
+): {
   global: string[];
   project: string[];
   decisions: string[];
@@ -334,6 +339,25 @@ async function processSubagentStart(
   const { agent_id, agent_type, session_id, cwd } = data;
   setSessionContext(session_id);
 
+  // Only an explicit child start establishes this actor's context. Never
+  // borrow the parent's epoch or let a replay replace a pending/reset child.
+  const binary = findAideBinary(cwd, session_id);
+  const host = detectPlatform();
+  let window = null;
+  if (
+    binary &&
+    typeof session_id === "string" &&
+    typeof agent_id === "string" &&
+    agent_id !== session_id &&
+    agent_id !== "unknown"
+  ) {
+    window = ensureContextWindow(binary, cwd, {
+      host,
+      sessionId: session_id,
+      actorId: agent_id,
+    });
+  }
+
   log?.info(
     `SubagentStart: agent_id=${agent_id}, type=${agent_type}, session=${session_id}`,
   );
@@ -370,7 +394,8 @@ async function processSubagentStart(
   log?.end("fetchMemories", {
     globalCount: memories.global.length,
     projectCount: memories.project.length,
-    decisionCount: memories.decisions.length + memories.overridingDecisions.length,
+    decisionCount:
+      memories.decisions.length + memories.overridingDecisions.length,
   });
 
   // Always build and inject context (messaging section is unconditional)
@@ -380,7 +405,6 @@ async function processSubagentStart(
   );
 
   // Emit session observe event so SubagentStart is traceable in the dashboard
-  const binary = findAideBinary(cwd, session_id);
   if (binary) {
     recordObserveEvent(binary, cwd, {
       kind: "session",
@@ -388,7 +412,14 @@ async function processSubagentStart(
       category: "lifecycle",
       subtype: type,
       session: session_id,
-      attrs: { agent_id, agent_type: type },
+      attrs: {
+        agent_id,
+        agent_type: type,
+        host,
+        actor_id: agent_id,
+        context_status: window?.status ?? "unknown",
+        ...(window ? { context_epoch: window.id } : {}),
+      },
     });
   }
 

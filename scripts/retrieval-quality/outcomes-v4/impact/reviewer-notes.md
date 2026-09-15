@@ -1,0 +1,11 @@
+# Independent reviewer notes
+
+Read the three helper/adapter originals, original usage tests and supplied downstream Go sources independently of any implementation solution. Verified snapshot provenance hashes and that every rubric evidence path exists. No participants, production changes, commits or test runs were performed.
+
+Impact inventory is deliberately narrow: two production writer invocation sites (direct Stop and injected parameter invocation inside returned recorder), one host invocation of the returned recorder, and unchanged factory/host entry wrappers. Do not award broad edit lists. Count missed Stop, factory dynamic writer, or OpenCode returned-recorder sites as omissions. Count generic recordObserveEventsBatch/recordObserveEvent, normalization/collector API changes, Go event-format changes, or text skill cache changes as false positives if claimed necessary for this proposal. Contextual mention without demanding edits is correct.
+
+Index usefulness preflight should verify discoverability of both dynamic function-value edges, original test mocks/call assertions, and the direct Stop call. An import match alone is not a call; a returned closure may need source fallback. Call graph limitations must not be presented as an excuse to omit a source-visible consumer.
+
+Original tests cover ack output matching, retry/revision behavior, converter/time/scan behavior and host entry wiring. Empty request/no spawn, thrown result reason, exact wire options, changed cwd, 1,024-entry eviction and status logging are proposed extra coverage, not evidence that these cases already exist or pass. Existing tests use Vitest and are reference-only in the offline snapshot; participants must not invent a successful execution report.
+
+Every grade requirement maps to the prompt's numbered deliverables. Additional implementation choices such as exporting a separately named recorder request type, handling an injected writer that throws outside its specified contract, or adding binary to the cache key are not required and must not earn coverage credit. Tests may be proposed in equivalent useful forms. Scope completeness is only the bounded supplied snapshot; unknown external injected clients and missing backend/RPC sources stay unresolved boundaries.

@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -227,30 +228,42 @@ func (s *MCPServer) toolObserveMiddleware() mcp.Middleware {
 			ctx, span := observe.StartCtx(ctx, params.Name, observe.KindToolCall)
 			span.Category(category).Subtype(subtype)
 			defer span.End()
+			started := time.Now()
 			result, err := next(ctx, method, req)
+			// Explicit duration evidence preserves a measured zero. This is
+			// handler wall time, not CPU time or avoided model execution.
+			span.Attr("work_version", "1").Attr("work_elapsed_ms", strconv.FormatInt(time.Since(started).Milliseconds(), 10))
+			outcome := "unknown"
 			if err != nil {
 				span.Err(err)
+				outcome = "reported_error"
 			}
-			// Backfill spent-token cost from the response text length when
-			// the handler didn't set it explicitly. Read-side tools
-			// (search/list/stats/get) all return text the model consumes —
-			// this gives the dashboard a real "spent" number for them
-			// without needing per-handler instrumentation. Handlers that
-			// compute richer figures (code_outline, code_read_symbol with
-			// savings) take precedence.
-			if result != nil {
-				if call, ok := result.(*mcp.CallToolResult); ok && call != nil {
-					total := 0
-					for _, c := range call.Content {
-						if tc, ok := c.(*mcp.TextContent); ok {
-							total += len(tc.Text)
-						}
-					}
-					if total > 0 {
-						span.TokensIfUnset((total + 2) / 3)
+			// Measure all returned text, including handler headers and formatting.
+			// This is a server observation, not confirmation of host delivery. No
+			// host session/call identity is guessed from process or transport state.
+			span.Attr("accounting_version", "1").Attr("observation_stage", "server_result")
+			if call, ok := result.(*mcp.CallToolResult); ok && call != nil {
+				recordWorkReceipt(span, params.Name, call)
+				if err == nil {
+					outcome = "returned"
+				}
+				total := 0
+				hasText := len(call.Content) == 0
+				for _, c := range call.Content {
+					if tc, ok := c.(*mcp.TextContent); ok && tc != nil {
+						total += len(tc.Text)
+						hasText = true
 					}
 				}
+				if hasText {
+					span.Attr("payload_bytes", strconv.Itoa(total))
+				}
+				if call.IsError {
+					span.Err(fmt.Errorf("tool reported failure"))
+					outcome = "reported_error"
+				}
 			}
+			span.Attr("work_outcome", outcome)
 			return result, err
 		}
 	}
@@ -842,8 +855,10 @@ func (s *MCPServer) attachToPrimary(dbPath string) bool {
 		return false
 	}
 
+	remoteStore := adapter.NewStoreAdapter(client)
+	observe.SetDefault(remoteStore)
 	s.setBackend(&mcpBackend{
-		store:         adapter.NewStoreAdapter(client),
+		store:         remoteStore,
 		findingsStore: adapter.NewFindingsAdapter(client),
 		surveyStore:   adapter.NewSurveyAdapter(client),
 		instinctStore: adapter.NewInstinctAdapter(client),
@@ -979,11 +994,10 @@ func (s *MCPServer) join(dbPath string, cfg *mcpConfig) (func(), error) {
 	for attempt := 1; ; attempt++ {
 		if s.attachToPrimary(dbPath) {
 			mcpLog.Printf("client mode: attached to primary via %s", grpcapi.SocketPathFromDB(dbPath))
-			return func() {
-				if c := s.grpcClient(); c != nil {
-					c.Close()
-				}
-			}, nil
+			// The next election installs its connection before running this teardown.
+			// Close this attachment, never the replacement now held by the server.
+			attached := s.grpcClient()
+			return func() { attached.Close() }, nil
 		}
 
 		teardown, err := s.becomePrimary(dbPath, cfg)
@@ -1067,6 +1081,7 @@ func cmdMCP(dbPath string, args []string) error {
 	mcpLog.Printf("database: %s", dbPath)
 
 	mcpServer := newMCPServer(nil)
+	defer observe.SetDefault(nil)
 	mcpServer.grammarLoader = newGrammarLoader(dbPath, mcpLog)
 	mcpServer.dbPath = dbPath
 

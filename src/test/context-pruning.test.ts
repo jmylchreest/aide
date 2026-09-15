@@ -490,7 +490,7 @@ describe("SupersedeStrategy", () => {
     expect(result.modified).toBe(false);
   });
 
-  it("should report 0 bytes saved (adds content, doesn't remove)", () => {
+  it("reports signed byte overhead when adding a supersede note", () => {
     const history: ToolRecord[] = [
       {
         callId: "call-1",
@@ -508,7 +508,9 @@ describe("SupersedeStrategy", () => {
       "Written",
       history,
     );
-    expect(result.bytesSaved).toBe(0);
+    expect(result.bytesSaved).toBe(
+      Buffer.byteLength("Written") - Buffer.byteLength(result.output),
+    );
   });
 });
 

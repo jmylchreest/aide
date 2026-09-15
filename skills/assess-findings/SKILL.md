@@ -98,7 +98,9 @@ Work through findings in this order:
 For each finding or group of related findings:
 
 1. **Read the finding details** — note the file, line range, and metric values
-2. **Read the actual code** — use `code_outline` first, then `Read` with offset/limit on the flagged section
+2. **Read the actual code** — read the flagged range directly and inspect enough surrounding code
+   to judge it. Use `code_outline` when unfamiliar large-file structure would help locate context;
+   read the full file when small or mostly relevant.
 3. **Check it against the decisions** from step 0 — see "Decision conformance gate" below
 4. **Make a judgement call** using these criteria:
 

@@ -1,0 +1,68 @@
+{
+  "schema": 1,
+  "kind": "read_only_code_understanding_pilot",
+  "source_revision": "0840d4b9a80023e3fd931ccd0f40102f55c922e6",
+  "common_instructions": "Work independently in a fresh context. Read only the task's allowed source files; do not read tests, documentation, grading files, memories or other agents' answers. Do not edit files, execute application code, ask another agent, or browse the web. You may use up to 12 source-retrieval tool calls. A batch counts as one call; failed calls count. Use the code as evidence, not assumptions about intended behavior. Return a JSON object containing answers with exactly the requested keys, and evidence mapping each key to source file and line references with a short explanation. Do not claim token savings or provider usage. If you cannot determine an answer, use null and explain the missing evidence.",
+  "treatments": {
+    "ordinary": "Use read-only shell file reads, line slices and literal text searches on the allowed files. Prefix shell commands with rtk; use rtk proxy for unfiltered reads. Do not use aide code retrieval tools. This treatment restricts retrieval choices; it does not disable installed aide hooks or shared host instructions.",
+    "assisted": "Use aide code_outline and code_read_symbol on the allowed files when useful. Explicit file paths are required for symbol requests. Read-only shell file reads, line slices and literal searches remain available as fallbacks. Prefix shell commands with rtk. This treatment permits aide retrieval; it does not require an outline or prohibit full-file reads."
+  },
+  "tasks": [
+    {
+      "id": "exit_status",
+      "allowed_files": [
+        "src/core/retrieval-evidence.ts",
+        "src/core/tool-observe.ts"
+      ],
+      "prompt": "Trace recordToolEvent and retrievalEvidence for these inputs. Assume a valid project, and where text is specified it is exactly the current full content of source.ts. All calls are Bash with no explicit failure/error except where stated. (a) command='rg absent source.ts', response={output:'',exit_code:1}; (b) same command/response but success=false; (c) command='cat source.ts', response={output:fullText,session_id:123,exit_code:null}; (d) command='cat source.ts', response={output:fullText,exit_code:0,exitCode:2}; (e) command='cat source.ts', response={output:fullText,exit_code:'0'}. Return keys a_status,b_status,c_status,d_status,e_status and e_has_source_reference (boolean). For (a), also give a_payload_bytes and a_has_tool_error (boolean)."
+    },
+    {
+      "id": "window_cost",
+      "allowed_files": [
+        "aide/pkg/store/token_retrieval.go",
+        "aide/pkg/memory/token_accounting.go"
+      ],
+      "prompt": "Evaluate one fully selected active context window with valid host/session/actor/invocation identities and no history or coverage gaps. It contains three distinct host_result tool_call observations with accounting_version=1 for the same source.go version: (1) code_outline, status referenced, valid server_receipt and retrieval_id, source reference 1000 bytes, payload 300 bytes; (2) a verified full_file read with current_file_match, the same reference and payload 1000 bytes; (3) a failed read targeting source.go with payload 15 bytes and no source reference. All targets and hashes are valid; there are no other events. Return reference_bytes,observed_bytes,byte_delta,estimated_token_delta,full_read_events,failed_events,comparison_available. Then add a fourth Bash host result in this same window with status unclassified_shell and payload 90 bytes. Return after_unclassified_comparison_available,after_unclassified_observed_bytes,after_unclassified_unattributed_bytes. Use the code's per-result rounding, not a global division or a repeated baseline."
+    },
+    {
+      "id": "current_source",
+      "allowed_files": [
+        "aide/cmd/aide/cmd_mcp_source.go",
+        "aide/cmd/aide/cmd_mcp_code.go"
+      ],
+      "prompt": "Trace code_read_symbol for valid Go files under the project root. (a) file='fresh.go', symbol='Fresh', with exactly one current definition and no code index: does it succeed? (b) An index candidate file formerly contained Target, but current source contains only Replacement: may a request for Target return Replacement's body? (c) source.go contains two current methods named Target starting at lines 4 and 5: what is the outcome with file set but no start_line? (d) For the same file and symbol, does start_line=5 select the second definition? (e) A no-file index search returns exactly 100 candidate results, even if only one might be an exact name match: does the implementation continue inspecting candidates or require explicit file selection? Return a_succeeds,b_returns_replacement,c_outcome ('success' or 'ambiguity_error'),d_selects_second,e_requires_file. Cite the implementation branches that establish each answer."
+    }
+  ],
+  "run_order": [
+    {
+      "id": "exit_status_ordinary",
+      "task": "exit_status",
+      "treatment": "ordinary"
+    },
+    {
+      "id": "exit_status_assisted",
+      "task": "exit_status",
+      "treatment": "assisted"
+    },
+    {
+      "id": "window_cost_assisted",
+      "task": "window_cost",
+      "treatment": "assisted"
+    },
+    {
+      "id": "window_cost_ordinary",
+      "task": "window_cost",
+      "treatment": "ordinary"
+    },
+    {
+      "id": "current_source_ordinary",
+      "task": "current_source",
+      "treatment": "ordinary"
+    },
+    {
+      "id": "current_source_assisted",
+      "task": "current_source",
+      "treatment": "assisted"
+    }
+  ]
+}

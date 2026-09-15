@@ -573,6 +573,32 @@ func (s *stateServiceImpl) List(ctx context.Context, req *StateListRequest) (*St
 	}, nil
 }
 
+func (s *stateServiceImpl) Init(ctx context.Context, req *StateSetRequest) (*StateSetResponse, error) {
+	initializer, ok := s.store.(memory.StateInitializer)
+	if !ok {
+		return nil, status.Error(codes.Unimplemented, "atomic state initialization is unavailable")
+	}
+	if req.Key == "" {
+		return nil, status.Error(codes.InvalidArgument, "state key is required")
+	}
+	key := req.Key
+	if req.AgentId != "" {
+		key = fmt.Sprintf("agent:%s:%s", req.AgentId, key)
+	}
+	proposed := &memory.State{Key: key, Value: req.Value, Agent: req.AgentId}
+	if req.UpdatedAt != nil {
+		proposed.UpdatedAt = req.UpdatedAt.AsTime()
+	}
+	st, created, err := initializer.InitState(proposed)
+	if err != nil {
+		return nil, err
+	}
+	if created {
+		s.publish(st, "set")
+	}
+	return &StateSetResponse{State: stateToProto(st), Created: created}, nil
+}
+
 func (s *stateServiceImpl) Delete(ctx context.Context, req *StateDeleteRequest) (*StateDeleteResponse, error) {
 	if err := s.store.DeleteState(req.Key); err != nil {
 		return nil, err
@@ -1651,30 +1677,14 @@ func (s *codeServiceImpl) ReadCheck(ctx context.Context, req *CodeReadCheckReque
 		return &CodeReadCheckResponse{}, nil
 	}
 
-	stat, err := os.Stat(absPath)
-	if err != nil {
-		return &CodeReadCheckResponse{
-			Indexed:         true,
-			Symbols:         int32(len(fileInfo.SymbolIDs)),
-			EstimatedTokens: int32(fileInfo.Tokens),
-		}, nil
-	}
-
-	fresh := fileInfo.ModTime.Equal(stat.ModTime())
-	symbolCount := int32(len(fileInfo.SymbolIDs))
-	tokens := int32(fileInfo.Tokens)
-
-	// If tokens weren't stored at index time, estimate from current size
-	if tokens == 0 && stat.Size() > 0 {
-		tokens = int32(code.EstimateTokensFromSize(relPath, stat.Size()))
-	}
-
+	result := code.CheckIndexedFile(absPath, fileInfo)
 	return &CodeReadCheckResponse{
-		Indexed:          true,
-		Fresh:            fresh,
-		Symbols:          symbolCount,
-		OutlineAvailable: symbolCount > 0,
-		EstimatedTokens:  tokens,
+		Indexed:          result.Indexed,
+		Fresh:            result.Fresh,
+		Symbols:          int32(result.Symbols),
+		OutlineAvailable: result.OutlineAvailable,
+		EstimatedTokens:  int32(result.EstimatedTokens),
+		TextEstimate:     ReadCheckTextEstimateToProto(result.TextEstimate),
 	}, nil
 }
 
@@ -1743,6 +1753,9 @@ func (s *codeServiceImpl) RunDeadCodeAnalysis(ctx context.Context, req *CodeRunD
 // Token Service Implementation
 // =============================================================================
 
+// MaxTokenEventListLimit bounds a single event-list response, not stored history.
+const MaxTokenEventListLimit = 100000
+
 type tokenServiceImpl struct {
 	UnimplementedTokenServiceServer
 	store store.Store
@@ -1783,6 +1796,7 @@ func (s *tokenServiceImpl) GetTokenStats(ctx context.Context, req *TokenStatsReq
 	}
 
 	return &TokenStatsResponse{
+		Accounting:     TokenAccountingToProto(stats.Accounting),
 		TotalRead:      int32(stats.TotalRead),
 		TotalSaved:     int32(stats.TotalSaved),
 		TotalWritten:   int32(stats.TotalWritten),
@@ -1800,25 +1814,44 @@ func (s *tokenServiceImpl) GetTokenStats(ctx context.Context, req *TokenStatsReq
 }
 
 func (s *tokenServiceImpl) ListTokenEvents(ctx context.Context, req *TokenEventListRequest) (*TokenEventListResponse, error) {
-	// Honour the store contract: limit <= 0 means "all". Callers like
-	// StoreAdapter.TokenStats deliberately pass 0 when they need a full
-	// scan to aggregate over a time window (the proto doesn't carry
-	// since/until yet, so client-side filter requires every event).
-	// Cap at a safety upper bound so a malicious/buggy caller can't OOM us.
+	var since, until time.Time
+	if req.Since != nil {
+		if err := req.Since.CheckValid(); err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "invalid since: %v", err)
+		}
+		since = req.Since.AsTime()
+	}
+	if req.Until != nil {
+		if err := req.Until.CheckValid(); err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "invalid until: %v", err)
+		}
+		until = req.Until.AsTime()
+	}
+	if !since.IsZero() && !until.IsZero() && since.After(until) {
+		return nil, status.Error(codes.InvalidArgument, "since must not be after until")
+	}
+	// Keep the store's <= 0 = all contract within a safety bound, but fail
+	// explicitly rather than silently presenting a truncated complete result.
 	limit := int(req.Limit)
-	const maxLimit = 100000
-	if limit <= 0 || limit > maxLimit {
-		limit = maxLimit
+	if limit > MaxTokenEventListLimit {
+		return nil, status.Errorf(codes.InvalidArgument, "token event limit must not exceed %d", MaxTokenEventListLimit)
+	}
+	if limit <= 0 {
+		limit = MaxTokenEventListLimit + 1
 	}
 
-	events, err := s.store.ListTokenEvents(req.SessionId, limit, time.Time{}, time.Time{})
+	events, err := s.store.ListTokenEvents(req.SessionId, limit, since, until)
 	if err != nil {
 		return nil, err
+	}
+	if len(events) > MaxTokenEventListLimit {
+		return nil, status.Error(codes.ResourceExhausted, "token event query exceeds safety limit; request a limit or narrower time range")
 	}
 
 	protoEvents := make([]*TokenEventItem, len(events))
 	for i, e := range events {
 		protoEvents[i] = &TokenEventItem{
+			Attrs: e.Attrs, StartLine: int32(e.StartLine), EndLine: int32(e.EndLine),
 			Id:          e.ID,
 			SessionId:   e.SessionID,
 			Timestamp:   timestamppb.New(e.Timestamp),
@@ -1830,7 +1863,7 @@ func (s *tokenServiceImpl) ListTokenEvents(ctx context.Context, req *TokenEventL
 		}
 	}
 
-	return &TokenEventListResponse{Events: protoEvents}, nil
+	return &TokenEventListResponse{Events: protoEvents, TimeRangeApplied: true}, nil
 }
 
 // =============================================================================
@@ -2720,16 +2753,18 @@ func symbolToProto(s *code.Symbol) *Symbol {
 		return nil
 	}
 	return &Symbol{
-		Id:         s.ID,
-		Name:       s.Name,
-		Kind:       s.Kind,
-		Signature:  s.Signature,
-		DocComment: s.DocComment,
-		FilePath:   s.FilePath,
-		StartLine:  int32(s.StartLine),
-		EndLine:    int32(s.EndLine),
-		Language:   s.Language,
-		CreatedAt:  timestamppb.New(s.CreatedAt),
+		Id:            s.ID,
+		Name:          s.Name,
+		Kind:          s.Kind,
+		Signature:     s.Signature,
+		DocComment:    s.DocComment,
+		FilePath:      s.FilePath,
+		StartLine:     int32(s.StartLine),
+		EndLine:       int32(s.EndLine),
+		BodyStartLine: int32(s.BodyStartLine),
+		BodyEndLine:   int32(s.BodyEndLine),
+		Language:      s.Language,
+		CreatedAt:     timestamppb.New(s.CreatedAt),
 	}
 }
 
@@ -2849,6 +2884,14 @@ type observeServiceImpl struct {
 }
 
 func (s *observeServiceImpl) RecordEvent(ctx context.Context, req *ObserveRecordRequest) (*ObserveRecordResponse, error) {
+	if req.Timestamp != nil {
+		if err := req.Timestamp.CheckValid(); err != nil {
+			return nil, status.Error(codes.InvalidArgument, "invalid observation timestamp")
+		}
+		if req.Timestamp.AsTime().IsZero() {
+			return nil, status.Error(codes.InvalidArgument, "zero observation timestamp")
+		}
+	}
 	e := &observe.Event{
 		Kind:        observe.Kind(req.Kind),
 		Name:        req.Name,
@@ -2862,6 +2905,9 @@ func (s *observeServiceImpl) RecordEvent(ctx context.Context, req *ObserveRecord
 		SessionID:   req.SessionId,
 		Error:       req.Error,
 		Attrs:       req.Attrs,
+	}
+	if req.Timestamp != nil {
+		e.Timestamp = req.Timestamp.AsTime()
 	}
 	if err := s.store.AddObserveEvent(e); err != nil {
 		return nil, err

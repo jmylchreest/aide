@@ -2,13 +2,90 @@ package main
 
 import (
 	"context"
+	"github.com/jmylchreest/aide/aide/pkg/observe"
+	"github.com/jmylchreest/aide/aide/pkg/store"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"os"
 	"path/filepath"
+	"reflect"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 )
+
+func TestMCPAccountingMeasuresRenderedResult(t *testing.T) {
+	st, err := store.NewBoltStore(filepath.Join(t.TempDir(), "events.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.Close()
+	observe.SetDefault(store.NewObserveSink(st))
+	defer observe.SetDefault(nil)
+	server := newMCPServer(nil)
+	handler := server.toolObserveMiddleware()(func(ctx context.Context, _ string, _ mcp.Request) (mcp.Result, error) {
+		observe.FromContext(ctx).Tokens(999)
+		return textResult("header\né"), nil
+	})
+	_, err = handler(context.Background(), "tools/call", &mcp.ServerRequest[*mcp.CallToolParamsRaw]{Params: &mcp.CallToolParamsRaw{Name: "code_read_symbol"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	events, err := st.ListObserveEvents(store.ObserveFilter{})
+	if err != nil || len(events) != 1 {
+		t.Fatalf("events: %v %v", events, err)
+	}
+	e := events[0]
+	if e.Attrs["payload_bytes"] != "9" || e.Attrs["observation_stage"] != "server_result" || e.Tokens != 3 {
+		t.Fatalf("rendered result accounting: %+v", e)
+	}
+	if e.SessionID != "" {
+		t.Fatal("must not guess a host session")
+	}
+}
+
+func TestClientObservationsAndTokenAccountingRoundTrip(t *testing.T) {
+	dbPath := electionRoot(t)
+	primary, stopPrimary := mustJoin(t, dbPath)
+	defer stopPrimary()
+	// A real client is a separate process and starts without a local sink.
+	observe.SetDefault(nil)
+	client, stopClient := mustJoin(t, dbPath)
+	defer stopClient()
+	defer observe.SetDefault(nil)
+	span := observe.Start("code_search", observe.KindToolCall)
+	span.Category("navigate").Session("s").Attr("accounting_version", "1").Attr("observation_stage", "server_result").Attr("payload_bytes", "12").Attr("start_line", "4")
+	span.End()
+	transformation := observe.Start("output-transform", observe.KindHook)
+	transformation.Category("transform").Session("s").Attr("accounting_version", "1").Attr("observation_stage", "adapter_change").Attr("host", "opencode").Attr("actor_id", "s").Attr("invocation_id", "call").Attr("context_status", "active").Attr("context_epoch", "epoch").Attr("before_bytes", "30").Attr("after_bytes", "90")
+	transformation.End()
+	retrieval := observe.Start("code_outline", observe.KindToolCall)
+	retrieval.Category("consume").Session("s").Attr("accounting_version", "1").Attr("observation_stage", "host_result").Attr("host", "opencode").Attr("actor_id", "s").Attr("invocation_id", "outline").Attr("context_status", "active").Attr("context_epoch", "epoch").Attr("payload_bytes", "12").Attr("retrieval_status", "referenced").Attr("source_verification", "server_receipt").Attr("retrieval_id", "receipt").Attr("source_references", `[{"file":"source.go","sha256":"`+strings.Repeat("a", 64)+`","bytes":500}]`)
+	retrieval.End()
+	events, err := primary.store().ListObserveEvents(store.ObserveFilter{Name: "code_search"})
+	if err != nil || len(events) != 1 {
+		t.Fatalf("client observation lost: %v, %v", events, err)
+	}
+	direct, err := primary.store().TokenStats("s", time.Time{}, time.Time{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	remote, err := client.store().TokenStats("s", time.Time{}, time.Time{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if remote.Accounting == nil || !reflect.DeepEqual(direct, remote) {
+		t.Fatalf("accounting transport mismatch: %+v / %+v", direct, remote)
+	}
+	projected, err := client.store().ListTokenEvents("s", 10, time.Time{}, time.Time{})
+	if err != nil || len(projected) != 3 || projected[2].Attrs["payload_bytes"] != "12" || projected[2].StartLine != 4 {
+		t.Fatalf("event evidence lost: %+v, %v", projected, err)
+	}
+	if len(remote.Accounting.Retrievals.Windows) != 1 || remote.Accounting.Retrievals.Windows[0].Comparison == nil {
+		t.Fatal("non-empty retrieval window lost across daemon transport")
+	}
+}
 
 // electionRoot lays out a project the way SocketPathFromDB and
 // ProjectRootFromDB expect (<root>/.aide/memory/memory.db) and sandboxes the
@@ -74,6 +151,23 @@ func TestJoinAttachesWhenPrimaryHoldsTheStore(t *testing.T) {
 	}
 	if client.store() == nil {
 		t.Error("client has no store adapter")
+	}
+}
+
+func TestClientTeardownKeepsReplacementConnection(t *testing.T) {
+	dbPath := electionRoot(t)
+	_, stopPrimary := mustJoin(t, dbPath)
+	defer stopPrimary()
+	client, stopFirst := mustJoin(t, dbPath)
+	stopSecond, err := client.join(dbPath, &mcpConfig{})
+	if err != nil {
+		stopFirst()
+		t.Fatal(err)
+	}
+	defer stopSecond()
+	stopFirst()
+	if err := client.grpcClient().Ping(context.Background()); err != nil {
+		t.Fatalf("old teardown closed replacement connection: %v", err)
 	}
 }
 

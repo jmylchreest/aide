@@ -146,9 +146,20 @@ Returns the number of indexed files, symbols, and references. Use to check if th
 
 ### code_outline
 
-Returns a collapsed file outline with signatures preserved and function/method/class bodies replaced by `{ ... }`. Shows ~5-15% of tokens vs the full file. Line numbers are preserved for targeted reads.
+Returns a collapsed file outline with signatures preserved and function/method/class bodies replaced by `{ ... }`. Output size depends on file structure and grammar support. Line numbers are preserved for targeted reads. The outline is parsed and rendered from the same source snapshot.
 
 **Parameters:** `file` (string), `keep_comments` (optional boolean)
+
+### code_read_symbol
+
+Reads current definitions by name. Without `file`, the index locates candidate files; each candidate is parsed from the bytes used to render the result. Duplicate names return an error listing candidates rather than choosing the first match. An explicit `file` works without an index; add `start_line` to distinguish definitions within that file.
+
+**Parameters:** `symbol` (string), `symbols` (optional batch of up to 10 names), `kind` (optional), `file` (optional exact path), `start_line` (optional current definition line; requires `file`).
+
+Outline and symbol observations carry `source_references`: exact file byte sizes and SHA-256 hashes of the retrieved snapshots. A batch records each reference file once. These are conditional full-file comparisons, not proof of avoided reads or provider savings, and do not populate the historical `tokens_saved` field. The result also carries an `aide/retrieval` protocol metadata receipt with a unique ID, tool name, source references and a checksum of its text. Host observers attach this evidence to their real invocation/session/window only when the receipt survives and the returned text matches. Hosts may drop metadata or transform output, so a missing match remains unverified; the receipt is not added to the textual result. OpenCode protocol results are observed before any subsequent host formatting or truncation.
+
+For reproducible text measurements, source-evidence checks and the limits of
+those results, see [Retrieval experiments](./retrieval-experiments.md).
 
 ### code_top_references
 
@@ -158,7 +169,7 @@ Ranks symbols by how many times they are referenced across the codebase. Useful 
 
 ### code_read_check
 
-Checks whether a file is indexed and whether its content has changed since last indexing. Returns freshness status and an estimated token count so you can decide whether to use `code_outline` or `code_symbols` instead of re-reading the full file.
+Checks whether a file is indexed and whether its modification time matches the index. This does not prove that its content is unchanged or that the agent has read the current version. Returns index status and a calibrated full-file token estimate.
 
 **Parameters:** `file` (string)
 
@@ -172,11 +183,19 @@ Checks whether a file is indexed and whether its content has changed since last 
 
 ### token_stats
 
-Returns aggregated estimates of tokens consumed and saved by aide features. All values are **estimates** based on calibrated per-language character ratios — use for relative comparisons, not exact cost accounting.
+Returns observed UTF-8 text accounting and historical token estimates. The versioned `accounting` object separates host/server observations and generated arguments, identifies the token estimator, and reports legacy events and missing evidence. Stages can overlap; do not sum them. Missing accounting means an older server. These observations do not establish final delivery, avoided calls or provider savings.
 
 **Parameters:** `session_id` (optional, filter by session)
 
-**Response fields:** `total_read`, `total_saved`, `event_count`, `by_tool`, `by_saving_type`, `sessions`
+**Response fields:** `accounting`, `total_read`, `total_saved`, `event_count`, `by_tool`, `by_saving_type`, `sessions`. Existing totals remain compatibility estimates; `total_saved` and related saved fields are explicitly legacy comparison estimates, not verified savings. `accounting.model_usage` is a separate versioned report of captured host usage counters, with source groups, field availability and excluded conflicting/invalid evidence. It does not change the legacy totals or text estimates. See [Model usage accounting](./model-usage.md).
+
+Native tool event attributes include `context_status` and, when known, `context_epoch` and `context_continuity`. Windows are isolated by host, session and actor within the project. Confirmed clear/compaction starts a new window; pending compaction suspends prior-read hints. Resume without verified continuity starts a new observation window labelled `unknown`, without asserting that context was lost. Cache expiry alone does not reset it. Hosts without the required lifecycle evidence retain unknown coverage.
+
+`accounting.transformations` contains paired text changes, separated into `rewrite_candidate` (proposed Claude-compatible replacements) and `adapter_change` (changes made by aide's OpenCode adapter). Each pair contributes its measured before/after bytes and centrally estimated token delta once. Negative reductions preserve annotation overhead. Window details are bounded to 64 groups, with omitted-window and missing-evidence indicators; stage totals cover all selected pairs. The same data reaches CLI `token stats --details` and web Details/Accounting. Final delivery, provider savings and inferred avoided calls remain unverified. `accounting.retrievals` separately reports conditional full-file comparisons grouped by context window, with source versions counted once and result costs counted once per call. Gaps and clipped windows suppress the comparison; see the CLI token reference for scope and limits.
+
+`accounting.work` (version 1) reports recorded MCP server operations by tool, with explicit returned/error/unknown outcomes, measured elapsed milliseconds, returned text and missing-measurement counts. Host observations and background activity are excluded from this subtotal. Text overlaps existing server-stage accounting; elapsed time is tool wall time, not CPU consumption or model time saved. A returned response is not proof of task quality. Session filters exclude unattributed calls, and absent older-server work data remains unavailable. See [CLI token accounting](./cli.md#token-experimental) for the report's measurement boundaries.
+
+Measured-text MCP results also carry an `aide/work` metadata receipt (version, operation ID, tool and text SHA-256). When a host observer preserves that receipt with matching text and complete invocation identity, reports can attribute the server operation to its session. Missing or conflicting evidence stays unknown; text observations at host and server boundaries remain separate. The receipt does not change the model-facing text or establish successful task completion. `accounting.by_stage.aide_context` separately exposes prepared context source/appended-text measurements, not complete prompt usage or verified delivery.
 
 ## Findings Tools
 

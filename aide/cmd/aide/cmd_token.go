@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/jmylchreest/aide/aide/pkg/config"
+	"github.com/jmylchreest/aide/aide/pkg/memory"
 	"github.com/jmylchreest/aide/aide/pkg/store"
 )
 
@@ -33,24 +35,32 @@ Subcommands:
 
 Options:
   summary:
+    --details        Include retrieval status and evidence limits
     --session=ID     Specific session (default: all)
-    --last=N         Last N sessions
+    --limit=N        Most recent N events (default: 100)
+    --last=N         Deprecated alias for --limit (historically limits events)
+    --since=TIME     RFC3339 timestamp or duration ago (e.g. 24h)
+    --until=TIME     RFC3339 upper bound (inclusive)
     --json           Output as JSON
 
   stats:
+    --details        Include aide work, windows, coverage and historical breakdowns
     --session=ID     Filter by session
+    --since=TIME     RFC3339 timestamp or duration ago
+    --until=TIME     RFC3339 upper bound (inclusive)
     --json           Output as JSON
 
   cleanup:
     --max-age=DURATION  Max age (default: cleanup.token_max_age, 90d; 0 = keep all)
 
-Note: All token counts are estimates based on calibrated per-language ratios.
+Note: Observed UTF-8 text uses a versioned byte/token estimate.
+Legacy saved fields are comparison estimates, not verified or provider savings.
 Token events are recorded automatically by hooks via the observe stream
 (kind=injection / kind=tool_call); there is no manual record subcommand.
 
 Examples:
   aide token stats
-  aide token summary --last=5
+  aide token summary --limit=5
   aide token cleanup --max-age=168h`)
 }
 
@@ -79,11 +89,21 @@ func cmdTokenSummary(dbPath string, args []string) error {
 	defer backend.Close()
 
 	limit := 100
-	if l := parseFlag(args, "--last="); l != "" {
-		fmt.Sscanf(l, "%d", &limit)
+	value := parseFlag(args, "--limit=")
+	if value == "" {
+		value = parseFlag(args, "--last=")
 	}
-
-	events, err := st.ListTokenEvents(sessionID, limit, time.Time{}, time.Time{})
+	if value != "" {
+		limit, err = strconv.Atoi(value)
+		if err != nil || limit <= 0 {
+			return fmt.Errorf("event limit must be a positive integer")
+		}
+	}
+	since, until, err := tokenTimeRange(args, time.Now())
+	if err != nil {
+		return err
+	}
+	events, err := st.ListTokenEvents(sessionID, limit, since, until)
 	if err != nil {
 		return fmt.Errorf("failed to list events: %w", err)
 	}
@@ -102,7 +122,7 @@ func cmdTokenSummary(dbPath string, args []string) error {
 	fmt.Println("Estimated Token Events (most recent first)")
 	fmt.Println(strings.Repeat("-", 80))
 	fmt.Printf("%-20s %-16s %-8s %8s %8s  %s\n",
-		"Time", "Tool", "Type", "~Tokens", "~Saved", "File")
+		"Time", "Tool", "Type", "~Tokens", "~Legacy", "File")
 	fmt.Println(strings.Repeat("-", 80))
 
 	for _, e := range events {
@@ -111,8 +131,27 @@ func cmdTokenSummary(dbPath string, args []string) error {
 		if e.TokensSaved > 0 {
 			savedStr = fmt.Sprintf("%d", e.TokensSaved)
 		}
-		fmt.Printf("%-20s %-16s %-8s %8d %8s  %s\n",
-			ts, e.Tool, e.EventType, e.Tokens, savedStr, e.FilePath)
+		tokenText := "unknown"
+		if _, ok := memory.MeasuredBytes(e.Attrs, "payload_bytes"); ok || e.Tokens > 0 {
+			tokenText = fmt.Sprintf("~%d", e.Tokens)
+		}
+		fmt.Printf("%-20s %-16s %-8s %8s %8s  %s\n", ts, e.Tool, e.EventType, tokenText, savedStr, e.FilePath)
+		if e.Attrs["accounting_version"] == "1" {
+			bytes := e.Attrs["payload_bytes"]
+			if bytes == "" {
+				bytes = "unknown"
+			}
+			invocation := e.Attrs["invocation_id"]
+			if invocation == "" {
+				invocation = "unknown"
+			}
+			fmt.Printf("  %s: %s UTF-8 text bytes; estimator=%s; invocation=%s\n", e.Attrs["observation_stage"], bytes, memory.TextEstimator, invocation)
+			if hasFlag(args, "--details") {
+				fmt.Print(formatRetrievalEvidence(e.Attrs))
+			}
+		} else {
+			fmt.Println("  Legacy estimate; measurement and delivery coverage unknown")
+		}
 	}
 
 	return nil
@@ -129,7 +168,11 @@ func cmdTokenStats(dbPath string, args []string) error {
 	}
 	defer backend.Close()
 
-	stats, err := st.TokenStats(sessionID, time.Time{}, time.Time{})
+	since, until, err := tokenTimeRange(args, time.Now())
+	if err != nil {
+		return err
+	}
+	stats, err := st.TokenStats(sessionID, since, until)
 	if err != nil {
 		return fmt.Errorf("failed to get stats: %w", err)
 	}
@@ -140,18 +183,36 @@ func cmdTokenStats(dbPath string, args []string) error {
 		return enc.Encode(stats)
 	}
 
-	fmt.Println("Estimated Token Statistics")
+	fmt.Println("Token Accounting")
 	fmt.Println(strings.Repeat("-", 50))
-	fmt.Printf("  Events:              %d\n", stats.EventCount)
-	fmt.Printf("  Sessions:            %d\n", stats.Sessions)
-	fmt.Printf("  Est. tokens read:    %d\n", stats.TotalRead)
-	fmt.Printf("  Est. tokens written: %d\n", stats.TotalWritten)
-	fmt.Printf("  Est. tokens saved:   %d\n", stats.TotalSaved)
-
-	if stats.TotalRead+stats.TotalSaved > 0 {
-		pct := float64(stats.TotalSaved) / float64(stats.TotalRead+stats.TotalSaved) * 100
-		fmt.Printf("  Est. savings:        ~%.1f%%\n", pct)
+	fmt.Printf("  Recorded observations: %d; known sessions: %d\n", stats.EventCount, stats.Sessions)
+	if a := stats.Accounting; a != nil && a.Version == 1 {
+		fmt.Printf("  Estimator: %s (UTF-8 text only)\n", a.Estimator)
+		for _, stage := range []string{"host_result", "server_result"} {
+			printTokenQuantity(stage, a.ByStage[stage])
+		}
+		printTokenQuantity("generated_arguments", &a.Arguments)
+		fmt.Printf("  Coverage: %d legacy; %d missing text; %d missing identity\n", a.LegacyEvents, a.MissingPayload, a.MissingIdentity)
+		fmt.Println("  Stages can overlap; do not sum. Unseen calls and final delivery are unknown.")
+		fmt.Print(formatTransformationSummary(a.Transformations, hasFlag(args, "--details")))
+		fmt.Print(formatRetrievalWindows(a.Retrievals, hasFlag(args, "--details")))
+		fmt.Print(formatModelUsage(a.ModelUsage, hasFlag(args, "--details")))
+		if hasFlag(args, "--details") {
+			printTokenQuantity("prepared_aide_context", a.ByStage["aide_context"])
+			fmt.Println("  Prepared source or appended text; not full prompt usage or confirmed delivery. Source excerpts can omit formatting; repeated preparations can overlap.")
+			fmt.Print(formatTokenWork(a.Work))
+		}
+	} else {
+		fmt.Println("  Accounting unavailable from this server.")
 	}
+	fmt.Println("  Provider savings / inferred avoided calls: unavailable")
+	if !hasFlag(args, "--details") {
+		fmt.Println("  Use --details for window and historical breakdowns, or --json for all evidence.")
+		return nil
+	}
+	fmt.Println("\nHistorical and compatibility estimates (mixed methods)")
+	fmt.Printf("  Result tokens: ~%d; generated tokens: ~%d; guidance: ~%d\n", stats.TotalRead, stats.TotalWritten, stats.TotalDelivered)
+	fmt.Printf("  Legacy comparison estimate: ~%d (not verified savings; may overlap)\n", stats.TotalSaved)
 
 	if len(stats.ByTool) > 0 {
 		fmt.Println()
@@ -168,7 +229,7 @@ func cmdTokenStats(dbPath string, args []string) error {
 
 	if len(stats.BySavingType) > 0 {
 		fmt.Println()
-		fmt.Println("  By Saving Type (est. tokens saved):")
+		fmt.Println("  Legacy comparison estimates:")
 		types := make([]string, 0, len(stats.BySavingType))
 		for k := range stats.BySavingType {
 			types = append(types, k)
@@ -180,9 +241,42 @@ func cmdTokenStats(dbPath string, args []string) error {
 	}
 
 	fmt.Println()
-	fmt.Println("Note: All token counts are estimates based on calibrated per-language ratios.")
+	fmt.Println("Note: Observed UTF-8 text uses a versioned byte/token estimate. Legacy saved fields are comparison estimates, not verified or provider savings.")
 
 	return nil
+}
+
+// printTokenQuantity distinguishes absent measurements from known zero.
+func printTokenQuantity(label string, q *memory.TokenQuantity) {
+	if q == nil || q.Events == 0 {
+		fmt.Printf("  %s: unknown (no measured text)\n", label)
+		return
+	}
+	fmt.Printf("  %s: %d bytes; ~%d tokens; %d observations\n", label, q.Bytes, q.EstimatedTokens, q.Events)
+}
+
+func tokenTimeRange(args []string, now time.Time) (since, until time.Time, err error) {
+	if value := parseFlag(args, "--since="); value != "" {
+		since, err = time.Parse(time.RFC3339Nano, value)
+		if err != nil {
+			var duration time.Duration
+			duration, err = parseDurationDays(value)
+			if err != nil || duration < 0 {
+				return since, until, fmt.Errorf("invalid --since: %s", value)
+			}
+			since = now.Add(-duration)
+		}
+	}
+	if value := parseFlag(args, "--until="); value != "" {
+		until, err = time.Parse(time.RFC3339Nano, value)
+		if err != nil {
+			return since, until, fmt.Errorf("invalid --until: %w", err)
+		}
+	}
+	if !since.IsZero() && !until.IsZero() && since.After(until) {
+		return since, until, fmt.Errorf("since must not be after until")
+	}
+	return since, until, nil
 }
 
 // cmdTokenCleanup removes old token events.

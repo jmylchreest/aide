@@ -3,6 +3,7 @@ package adapter
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -202,6 +203,35 @@ func (g *StoreAdapter) GetState(key string) (*memory.State, error) {
 		return nil, store.ErrNotFound
 	}
 	return ProtoToState(resp.State), nil
+}
+
+func (g *StoreAdapter) InitState(st *memory.State) (*memory.State, bool, error) {
+	if st == nil || st.Key == "" {
+		return nil, false, fmt.Errorf("state key is required")
+	}
+	ctx, cancel := g.rpcCtx()
+	defer cancel()
+	// Store keys are already canonical; avoid applying the RPC agent prefix twice.
+	key := st.Key
+	if st.Agent != "" {
+		prefix := fmt.Sprintf("agent:%s:", st.Agent)
+		if !strings.HasPrefix(key, prefix) {
+			return nil, false, fmt.Errorf("agent state key must start with %q", prefix)
+		}
+		key = strings.TrimPrefix(key, prefix)
+	}
+	req := &grpcapi.StateSetRequest{Key: key, Value: st.Value, AgentId: st.Agent}
+	if !st.UpdatedAt.IsZero() {
+		req.UpdatedAt = timestamppb.New(st.UpdatedAt)
+	}
+	resp, err := g.client.State.Init(ctx, req)
+	if err != nil {
+		return nil, false, err
+	}
+	if resp.State == nil {
+		return nil, false, fmt.Errorf("atomic state initialization returned no state")
+	}
+	return ProtoToState(resp.State), resp.Created, nil
 }
 
 func (g *StoreAdapter) DeleteState(key string) error {
@@ -485,30 +515,39 @@ func (g *StoreAdapter) ClearTasks(status memory.TaskStatus) (int, error) {
 // --- Token Event Operations (via gRPC TokenService, read-only view) ---
 
 func (g *StoreAdapter) ListTokenEvents(sessionID string, limit int, since, until time.Time) ([]*memory.TokenEvent, error) {
+	if limit > grpcapi.MaxTokenEventListLimit {
+		return nil, fmt.Errorf("token event limit must not exceed %d", grpcapi.MaxTokenEventListLimit)
+	}
+	if limit < 0 {
+		limit = 0
+	}
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
-	// gRPC proto doesn't support since/until yet; over-fetch then filter client-side.
-	fetchLimit := limit
-	if !since.IsZero() || !until.IsZero() {
-		fetchLimit = 0 // fetch all, filter below
-	}
-	resp, err := g.client.Token.ListTokenEvents(ctx, &grpcapi.TokenEventListRequest{
+	// Filtering must happen before the daemon limits the returned projection.
+	// Over-fetching a full session here can exceed gRPC's receive limit even
+	// when the dashboard only asks for a small recent page.
+	req := &grpcapi.TokenEventListRequest{
 		SessionId: sessionID,
-		Limit:     int32(fetchLimit),
-	})
+		Limit:     int32(limit),
+	}
+	if !since.IsZero() {
+		req.Since = timestamppb.New(since)
+	}
+	if !until.IsZero() {
+		req.Until = timestamppb.New(until)
+	}
+	resp, err := g.client.Token.ListTokenEvents(ctx, req)
 	if err != nil {
 		return nil, err
+	}
+	if (!since.IsZero() || !until.IsZero()) && !resp.TimeRangeApplied {
+		return nil, fmt.Errorf("aide daemon does not support time-filtered token event queries; rebuild and restart the daemon")
 	}
 	events := make([]*memory.TokenEvent, 0, len(resp.Events))
 	for _, e := range resp.Events {
 		ts := e.Timestamp.AsTime()
-		if !since.IsZero() && ts.Before(since) {
-			continue
-		}
-		if !until.IsZero() && ts.After(until) {
-			continue
-		}
 		events = append(events, &memory.TokenEvent{
+			Attrs: e.Attrs, StartLine: int(e.StartLine), EndLine: int(e.EndLine),
 			ID:          e.Id,
 			SessionID:   e.SessionId,
 			Timestamp:   ts,
@@ -564,6 +603,7 @@ func (g *StoreAdapter) TokenStats(sessionID string, since, until time.Time) (*me
 		savedByTool[k] = int(v)
 	}
 	return &memory.TokenStats{
+		Accounting:     grpcapi.TokenAccountingFromProto(resp.Accounting),
 		TotalRead:      int(resp.TotalRead),
 		TotalSaved:     int(resp.TotalSaved),
 		TotalWritten:   int(resp.TotalWritten),
@@ -594,7 +634,7 @@ func (g *StoreAdapter) AddObserveEvent(e *observe.Event) error {
 	if attrs == nil {
 		attrs = map[string]string{}
 	}
-	resp, err := g.client.Observe.RecordEvent(ctx, &grpcapi.ObserveRecordRequest{
+	req := &grpcapi.ObserveRecordRequest{
 		Kind:        string(e.Kind),
 		Name:        e.Name,
 		Category:    e.Category,
@@ -607,13 +647,15 @@ func (g *StoreAdapter) AddObserveEvent(e *observe.Event) error {
 		SessionId:   e.SessionID,
 		Error:       e.Error,
 		Attrs:       attrs,
-	})
+	}
+	if !e.Timestamp.IsZero() {
+		req.Timestamp = timestamppb.New(e.Timestamp)
+	}
+	resp, err := g.client.Observe.RecordEvent(ctx, req)
 	if err != nil {
 		return err
 	}
-	if e.ID == "" {
-		e.ID = resp.Id
-	}
+	e.ID = resp.Id
 	return nil
 }
 
@@ -669,3 +711,6 @@ func (g *StoreAdapter) CleanupObserveEvents(maxAge time.Duration) (int, error) {
 func (g *StoreAdapter) PruneCompletedTasks(maxAge time.Duration) (int, error) {
 	return 0, fmt.Errorf("task prune not supported via gRPC (daemon runs it directly)")
 }
+
+// Emit forwards MCP observations in client mode. Telemetry never fails a tool.
+func (g *StoreAdapter) Emit(e *observe.Event) { _ = g.AddObserveEvent(e) }

@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jmylchreest/aide/aide/pkg/store"
 )
@@ -22,6 +23,9 @@ func TestObserveRecordBatch(t *testing.T) {
 	lines := strings.Join([]string{
 		`{"kind":"injection","name":"session-start","category":"inject","subtype":"decision","tokens":42,"session":"s1","attrs":{"scope":"project"}}`,
 		`{"kind":"injection","name":"session-start","subtype":"memory","session":"s1"}`,
+		`{"kind":"session","name":"source-timed","ts":"2026-09-01T00:00:00Z"}`,
+		`{"kind":"session","name":"invalid-time","ts":"bad"}`,
+		`{"kind":"session","name":"zero-time","ts":"0001-01-01T00:00:00Z"}`,
 		`not json at all`,
 		`{"name":"missing-kind"}`,
 		`{"kind":"session","name":"session-start","category":"lifecycle","session":"s1"}`,
@@ -52,14 +56,21 @@ func TestObserveRecordBatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(events) != 3 {
-		t.Fatalf("recorded %d events, want 3 (2 malformed skipped)", len(events))
+	if len(events) != 4 {
+		t.Fatalf("recorded %d events, want 4 (4 malformed skipped)", len(events))
 	}
 	found := false
+	timed := false
 	for _, e := range events {
+		if e.Name == "source-timed" {
+			timed = e.Timestamp.Equal(time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC))
+		}
 		if e.Subtype == "decision" && e.Tokens == 42 && e.Attrs["scope"] == "project" {
 			found = true
 		}
+	}
+	if !timed {
+		t.Fatal("source timestamp lost")
 	}
 	if !found {
 		t.Error("decision event with tokens/attrs not found")

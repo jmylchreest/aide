@@ -1,0 +1,53 @@
+{
+  "fixture_calibration_only": true,
+  "participant_model_runs": 0,
+  "mutations": [
+    {
+      "mutation": "unmigrated-core",
+      "exit_code": 1,
+      "failing_checks": [
+        "writer result contract > empty-batch",
+        "writer result contract > full-ack-and-transport",
+        "writer result contract > compatible-ack-spelling",
+        "writer result contract > invalid-ack-classification",
+        "writer result contract > write-error-classification",
+        "writer result contract > serialization-error-classification",
+        "recorder contract and existing cache > object-forwarding-retry-and-dedup",
+        "recorder contract and existing cache > write-error-results-remain-retryable",
+        "recorder contract and existing cache > revisions-cwd-and-independent-instances",
+        "recorder contract and existing cache > oldest-first-capacity",
+        "actual OpenCode adapter > opencode-object-call-and-retry",
+        "actual Stop adapter > stop-claude-code-records-and-logs",
+        "actual Stop adapter > stop-codex-records-and-logs",
+        "actual Stop adapter > stop-failed-write-still-captures-summary",
+        "actual Stop adapter > stop-recursion-only-suppresses-summary"
+      ]
+    },
+    {
+      "mutation": "unmigrated-opencode-adapter",
+      "exit_code": 1,
+      "failing_checks": [
+        "actual OpenCode adapter > opencode-object-call-and-retry"
+      ]
+    },
+    {
+      "mutation": "unmigrated-stop-adapter",
+      "exit_code": 1,
+      "failing_checks": [
+        "actual Stop adapter > stop-claude-code-records-and-logs",
+        "actual Stop adapter > stop-codex-records-and-logs",
+        "actual Stop adapter > stop-failed-write-still-captures-summary",
+        "actual Stop adapter > stop-recursion-only-suppresses-summary"
+      ]
+    },
+    {
+      "mutation": "truthiness-cache",
+      "exit_code": 1,
+      "failing_checks": [
+        "recorder contract and existing cache > object-forwarding-retry-and-dedup",
+        "recorder contract and existing cache > write-error-results-remain-retryable",
+        "actual OpenCode adapter > opencode-object-call-and-retry"
+      ]
+    }
+  ]
+}

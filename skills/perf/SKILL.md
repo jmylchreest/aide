@@ -67,7 +67,7 @@ go tool pprof -http=:8080 cpu.prof
 ```
 
 ```
-# Get structural overview of suspect files (signatures + line ranges, not full content)
+# Navigate unfamiliar large suspect files when their structure is needed
 mcp__plugin_aide_aide__code_outline file="path/to/hotspot.ts"
 
 # Find functions/classes in suspect area by name
@@ -87,8 +87,9 @@ Grep for "JSON.parse", "JSON.stringify"      # Serialization
 Note: `code_search` finds function/class/type _definitions_ by name.
 For patterns inside function bodies (loops, queries, call chains), use Grep.
 
-After identifying hotspot functions via profiling and search, use `Read` with offset/limit to read
-specific functions (use line numbers from `code_outline`).
+Read hotspot functions directly from known profiling/search locations, or batch known symbols with
+`code_read_symbol`. Use `code_outline` when unfamiliar large-file structure would help locate relevant
+code. Read full files when small or mostly relevant; extra navigation rounds can outweigh smaller responses.
 
 ### Step 3: Analyze Performance Patterns
 
@@ -237,7 +238,7 @@ SELECT * FROM posts WHERE user_id IN (?, ?, ?);
 
 ## MCP Tools
 
-- `mcp__plugin_aide_aide__code_outline` - **Start here.** Get collapsed file skeleton to identify functions before reading
+- `mcp__plugin_aide_aide__code_outline` - Navigate unfamiliar large files when their structure is needed
 - `mcp__plugin_aide_aide__code_search` - Find function/class/type definitions by name
 - `mcp__plugin_aide_aide__code_symbols` - List all symbol definitions in a file
 - `mcp__plugin_aide_aide__code_references` - Find all callers of a hot function (exact name match)

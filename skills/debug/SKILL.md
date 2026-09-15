@@ -57,7 +57,7 @@ Use tools to find code related to the error:
 # Search for function mentioned in stack trace
 mcp__plugin_aide_aide__code_search query="functionName" kind="function"
 
-# Get a structural overview of the suspect file (signatures + line ranges)
+# Navigate an unfamiliar large suspect file when its structure is needed
 mcp__plugin_aide_aide__code_outline file="path/to/file.ts"
 
 # Get symbols in suspect file
@@ -71,13 +71,14 @@ Grep for "error message text"
 
 Follow the code flow from entry to error:
 
-1. Use `code_outline` on each file in the call chain to understand its structure
+1. Read the failing function or known stack-trace ranges directly
 2. Use `code_references` to find callers of the failing function
-3. Use `Read` with offset/limit to read specific functions in the execution path
-   (use line numbers from the outline)
+3. Read the relevant execution path; use `code_outline` when unfamiliar large-file structure
+   would help locate the next section, or batch known symbols with `code_read_symbol`
 4. Check type definitions with `code_search kind="interface"`
 
-Outlines help you identify which functions matter, so you can read just those sections.
+Read the full file when it is small or most contents are needed. Extra navigation rounds can
+outweigh smaller responses; use outlines when they resolve missing context.
 
 ### Step 4: Form Hypotheses
 
@@ -169,7 +170,7 @@ npm test
 
 ## MCP Tools
 
-- `mcp__plugin_aide_aide__code_outline` - **Start here.** Get collapsed file skeleton to understand structure before reading
+- `mcp__plugin_aide_aide__code_outline` - Navigate unfamiliar large files when their structure is needed
 - `mcp__plugin_aide_aide__code_search` - Find functions, classes, types involved in the bug
 - `mcp__plugin_aide_aide__code_symbols` - List all symbols in a file
 - `mcp__plugin_aide_aide__code_references` - Find all callers of a function

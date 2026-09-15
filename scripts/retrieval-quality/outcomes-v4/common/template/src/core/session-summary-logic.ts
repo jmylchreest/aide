@@ -1,0 +1,229 @@
+/**
+ * Session summary logic — platform-agnostic.
+ *
+ * Extracted from src/hooks/session-summary.ts.
+ * Parses transcripts and creates session summaries stored as memories.
+ */
+
+import { execFileSync } from "child_process";
+import { readFileSync, existsSync } from "fs";
+import { renderBulletSection } from "./session-text.js";
+
+/**
+ * Get git commits made during this session.
+ *
+ * @param cwd - Working directory
+ * @param startedAt - ISO timestamp of when the session started. When provided,
+ *   scopes `git log --since` to this time. When omitted, falls back to "4 hours ago"
+ *   as a reasonable default for a single coding session.
+ */
+export function getSessionCommits(cwd: string, startedAt?: string): string[] {
+  try {
+    const sinceArg = startedAt || "4 hours ago";
+
+    const output = execFileSync(
+      "git",
+      ["log", "--oneline", `--since=${sinceArg}`],
+      {
+        cwd,
+        encoding: "utf-8",
+        stdio: ["pipe", "pipe", "pipe"],
+        timeout: 5000,
+      },
+    ).trim();
+
+    if (!output) return [];
+    return output
+      .split("\n")
+      .filter((l) => l.trim())
+      .slice(0, 10);
+  } catch {
+    return [];
+  }
+}
+
+interface TranscriptEntry {
+  type?: string;
+  tool_name?: string;
+  tool_input?: { file_path?: string; [key: string]: unknown };
+  content?:
+    | string
+    | {
+        text?: string;
+        tool_use?: { name?: string; input?: { file_path?: string } };
+      };
+}
+
+interface TranscriptData {
+  filesModified: Set<string>;
+  toolsUsed: Set<string>;
+  userMessages: string[];
+}
+
+/**
+ * Parse raw JSONL transcript lines into structured data.
+ */
+function parseTranscript(lines: string[]): TranscriptData {
+  const entries: TranscriptEntry[] = [];
+  for (const line of lines) {
+    try {
+      const parsed: unknown = JSON.parse(line);
+      if (
+        typeof parsed === "object" &&
+        parsed !== null &&
+        !Array.isArray(parsed)
+      ) {
+        entries.push(parsed as TranscriptEntry);
+      }
+    } catch {
+      // Skip malformed
+    }
+  }
+
+  const filesModified = new Set<string>();
+  const toolsUsed = new Set<string>();
+  const userMessages: string[] = [];
+
+  for (const entry of entries) {
+    const contentObj = typeof entry.content === "object" ? entry.content : null;
+    if (
+      entry.type === "tool_use" ||
+      (entry.type === "assistant" && contentObj?.tool_use)
+    ) {
+      const toolName = entry.tool_name || contentObj?.tool_use?.name;
+      if (toolName) toolsUsed.add(toolName);
+
+      const toolInput = entry.tool_input || contentObj?.tool_use?.input;
+      if (toolInput?.file_path && toolName) {
+        if (["Write", "Edit"].includes(toolName)) {
+          filesModified.add(toolInput.file_path);
+        }
+      }
+    }
+
+    if (entry.type === "human" || entry.type === "user") {
+      const text =
+        typeof entry.content === "string" ? entry.content : contentObj?.text;
+      if (text && text.length > 10 && text.length < 500) {
+        userMessages.push(text.slice(0, 200));
+      }
+    }
+  }
+
+  return { filesModified, toolsUsed, userMessages };
+}
+
+/**
+ * Build a session summary from transcript data.
+ *
+ * @param transcriptPath - Path to JSONL transcript file (Claude Code specific)
+ * @param cwd - Working directory
+ * @returns Summary text or null if not enough activity
+ */
+export function buildSessionSummary(
+  transcriptPath: string,
+  cwd: string,
+  startedAt?: string,
+): string | null {
+  if (!existsSync(transcriptPath)) return null;
+
+  try {
+    const transcript = readFileSync(transcriptPath, "utf-8");
+    const lines = transcript.split("\n").filter((l) => l.trim());
+
+    if (lines.length < 5) return null;
+
+    const { filesModified, toolsUsed, userMessages } = parseTranscript(lines);
+
+    const commits = getSessionCommits(cwd, startedAt);
+
+    if (
+      filesModified.size === 0 &&
+      toolsUsed.size < 3 &&
+      commits.length === 0
+    ) {
+      return null;
+    }
+
+    const summaryParts = [
+      renderBulletSection("Tasks", userMessages, 3),
+      renderBulletSection("Files Modified", Array.from(filesModified), 10),
+      renderBulletSection("Commits", commits),
+      // Tools Used is a comma-joined line, not a bullet list.
+      toolsUsed.size > 0
+        ? `## Tools Used\n${Array.from(toolsUsed).join(", ")}`
+        : null,
+    ].filter((s): s is string => s !== null);
+
+    const summary = summaryParts.join("\n\n");
+    return summary.length >= 50 ? summary : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Build a session summary from tracked state (for platforms without transcript access).
+ *
+ * Uses aide state and git history instead of transcript parsing.
+ */
+export function buildSessionSummaryFromState(
+  cwd: string,
+  startedAt?: string,
+): string | null {
+  const commits = getSessionCommits(cwd, startedAt);
+
+  const summaryParts: string[] = [];
+
+  const commitsSection = renderBulletSection("Commits", commits);
+  if (commitsSection) summaryParts.push(commitsSection);
+
+  // Check for modified files via git
+  try {
+    const diff = execFileSync(
+      "git",
+      ["diff", "--name-only", "HEAD~5", "HEAD"],
+      {
+        cwd,
+        encoding: "utf-8",
+        stdio: ["pipe", "pipe", "pipe"],
+        timeout: 5000,
+      },
+    ).trim();
+
+    if (diff) {
+      const files = diff.split("\n").filter((f) => f.trim());
+      const filesSection = renderBulletSection("Files Modified", files, 10);
+      if (filesSection) summaryParts.push(filesSection);
+    }
+  } catch {
+    // Ignore
+  }
+
+  const summary = summaryParts.join("\n\n");
+  return summary.length >= 50 ? summary : null;
+}
+
+/**
+ * Store a session summary as a memory
+ */
+export function storeSessionSummary(
+  binary: string,
+  cwd: string,
+  sessionId: string,
+  summary: string,
+): boolean {
+  try {
+    const tags = `session-summary,session:${sessionId}`;
+
+    execFileSync(
+      binary,
+      ["memory", "add", "--category=session", `--tags=${tags}`, summary],
+      { cwd, stdio: "pipe", timeout: 5000 },
+    );
+
+    return true;
+  } catch {
+    return false;
+  }
+}

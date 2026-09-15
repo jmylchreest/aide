@@ -1,4 +1,5 @@
-export type InstanceStatus = "connected" | "disconnected" | "connecting" | "idle";
+export type InstanceStatus =
+  "connected" | "disconnected" | "connecting" | "idle";
 
 export interface InstanceInfo {
   /** Disambiguated routing id (project_name + short root hash). Use for links/keys. */
@@ -138,6 +139,7 @@ export interface SearchResult {
 }
 
 export interface TokenEventItem {
+  attrs?: Record<string, string>;
   display_path?: string;
   id: string;
   session_id: string;
@@ -171,7 +173,124 @@ export interface ObserveEventItem {
   attrs?: Record<string, string>;
 }
 
+export interface TokenQuantity {
+  bytes: number;
+  estimated_tokens: number;
+  events: number;
+}
+export interface TokenActivityBucket {
+  start: string;
+  by_stage: Record<string, TokenQuantity>;
+  unmeasured: number;
+}
+export interface TokenWorkQuantity {
+  calls: number;
+  returned: number;
+  reported_errors: number;
+  unknown_outcomes: number;
+  elapsed_ms: number;
+  measured_durations: number;
+  missing_durations: number;
+  unassigned_sessions: number;
+  returned_text: TokenQuantity;
+  missing_payload: number;
+}
+export interface TokenWork extends TokenWorkQuantity {
+  version: number;
+  by_tool: Record<string, TokenWorkQuantity>;
+}
+export interface TokenAccounting {
+  model_usage?: ModelUsage | null;
+  work?: TokenWork | null;
+  retrievals?: TokenRetrievals;
+  transformations?: TokenTransformations;
+  activity?: { interval_seconds: number; buckets: TokenActivityBucket[] };
+  version: number;
+  estimator: string;
+  by_stage: Record<string, TokenQuantity>;
+  arguments: TokenQuantity;
+  legacy_events: number;
+  missing_payload: number;
+  missing_identity: number;
+}
+export interface ModelUsageSource {
+  host: string;
+  source: string;
+  model?: string;
+  provider?: string;
+  observations: number;
+  source_timed: number;
+  observed_timed: number;
+  counters: Record<string, { tokens: number; observations: number }>;
+}
+export interface ModelUsage {
+  version: number;
+  observations: number;
+  conflicts: number;
+  invalid: number;
+  by_source: ModelUsageSource[];
+}
+export interface RetrievalWindow {
+  host: string;
+  session_id: string;
+  actor_id: string;
+  epoch: string;
+  first: string;
+  last: string;
+  boundary: string;
+  events: number;
+  observed: TokenQuantity;
+  unattributed: TokenQuantity;
+  reference: TokenQuantity;
+  comparison?: TokenChange;
+  full_read_events: number;
+  search_events: number;
+  failed_events: number;
+  missing_payload: number;
+  clipped: boolean;
+  issues: string[];
+  sources: { file: string; sha256: string; bytes: number }[];
+  steps: {
+    id: string;
+    invocation_id: string;
+    at: string;
+    tool: string;
+    status: string;
+    target?: string;
+    text?: TokenQuantity;
+  }[];
+  steps_limited: boolean;
+}
+export interface TokenRetrievals {
+  windows: RetrievalWindow[];
+  windows_limited: boolean;
+  unwindowed_events: number;
+}
+export interface TokenChange {
+  before_bytes: number;
+  after_bytes: number;
+  delta_bytes: number;
+  estimated_token_delta: number;
+  events: number;
+}
+export interface TokenTransformations {
+  by_stage: Record<string, TokenChange>;
+  windows: {
+    host: string;
+    session_id: string;
+    actor_id: string;
+    epoch: string;
+    stage: string;
+    first: string;
+    last: string;
+    change: TokenChange;
+  }[];
+  windows_limited: boolean;
+  unwindowed_events: number;
+  invalid_events: number;
+}
 export interface TokenStats {
+  accounting?: TokenAccounting;
   total_read: number;
   total_saved: number;
   total_written: number;
@@ -211,13 +330,16 @@ export interface DetailedStatus {
     total: number;
     by_analyzer: Record<string, number>;
     by_severity: Record<string, number>;
-    analyzers: Record<string, {
-      status: string;
-      scope: string;
-      last_run: string;
-      findings: number;
-      last_duration: string;
-    }>;
+    analyzers: Record<
+      string,
+      {
+        status: string;
+        scope: string;
+        last_run: string;
+        findings: number;
+        last_duration: string;
+      }
+    >;
   };
   survey?: {
     available: boolean;

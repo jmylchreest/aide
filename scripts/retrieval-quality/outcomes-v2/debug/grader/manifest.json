@@ -1,0 +1,70 @@
+{
+  "task": "debug",
+  "task_version": 2,
+  "base_commit": "efe758c6ceb6ed5deb10fe1a4d456c69b58f00fc",
+  "source_files": [
+    "src/core/context-pruning/tracker.ts",
+    "src/core/context-pruning/dedup.ts",
+    "src/core/context-pruning/recovery.ts",
+    "src/core/context-pruning/types.ts"
+  ],
+  "source_line_count": 457,
+  "allowed_edit_paths": [
+    "src/core/context-pruning/tracker.ts",
+    "src/core/context-pruning/dedup.ts",
+    "src/core/context-pruning/recovery.ts",
+    "src/core/context-pruning/types.ts"
+  ],
+  "provenance": {
+    "original_paths": [
+      "src/core/context-pruning/tracker.ts",
+      "src/core/context-pruning/dedup.ts",
+      "src/core/context-pruning/recovery.ts",
+      "src/core/context-pruning/types.ts"
+    ],
+    "adaptations": [
+      "Tracker includes only dedup; supersede and purge imports/instances are omitted to bound the fixture.",
+      "Remaining source modules are copied without changes from the repository."
+    ],
+    "seed": "In tracker.process, replace prunedOutput: result.modified ? result.output : null with prunedOutput: null."
+  },
+  "rationale": "The symptom appears only after repeated calls. Diagnosing it requires tracing history produced by tracker.process through DedupStrategy and the recoverablePrune finalizer. Incorrect fixes can preserve a pointer chain, disable useful dedup, mishandle history eviction or lose accounting across reloads.",
+  "visible_checks": 1,
+  "hidden_checks": 11,
+  "expected_validation": {
+    "template": {
+      "visible_pass": 0,
+      "visible_fail": 1,
+      "hidden_pass": 6,
+      "hidden_fail": 5
+    },
+    "reference": {
+      "visible_pass": 1,
+      "visible_fail": 0,
+      "hidden_pass": 11,
+      "hidden_fail": 0
+    }
+  },
+  "participant_copy": {
+    "include": [
+      "template/**",
+      "prompt.md"
+    ],
+    "exclude": [
+      "grader/**",
+      "reference/**"
+    ],
+    "immutable": [
+      "reproduce.test.ts",
+      "README.md"
+    ]
+  },
+  "network_required": false,
+  "dependencies": "Bun runtime and built-in Node modules only",
+  "original_source_sha256": {
+    "src/core/context-pruning/tracker.ts": "390acc0b40fe0f5aaa9f781f4ff0237228d2200c263af6c46a4b1d02df991dc8",
+    "src/core/context-pruning/dedup.ts": "cbc15fb5bb44f99efd20c82280b8a7da2af757291bbe7e87fae1f13a570a15c9",
+    "src/core/context-pruning/recovery.ts": "993c586083a32d7216659c264e2446506555b525282e38b0f5d653b6d4de9428",
+    "src/core/context-pruning/types.ts": "599cf79a721e33adf96cf0c89333f302102de3b2b4adcef5ba0cda5c77ae1065"
+  }
+}

@@ -195,17 +195,18 @@ const (
 	TokenEventContextInjected = "context_injected" // Proactive context delivery (memories, decisions, skills, enrichment)
 )
 
-// TokenEvent records an estimated token impact from a tool call.
-// All token counts are estimates based on calibrated per-language ratios.
+// TokenEvent projects an observed event for reporting. Token counts are estimates;
+// Attrs preserves versioned text measurements and their observation boundary.
 type TokenEvent struct {
-	ID          string    `json:"id"`      // ULID
-	SessionID   string    `json:"session"` // Session identifier
-	Timestamp   time.Time `json:"ts"`
-	EventType   string    `json:"type"`   // read, outline_used, read_avoided, write, edit
-	Tool        string    `json:"tool"`   // Read, code_outline, code_symbols, Edit, Write
-	FilePath    string    `json:"file"`   // Relative file path
-	Tokens      int       `json:"tokens"` // Estimated tokens for this event
-	TokensSaved int       `json:"saved"`  // Estimated tokens saved (for outline/avoided events)
+	Attrs       map[string]string `json:"attrs,omitempty"`
+	ID          string            `json:"id"`      // ULID
+	SessionID   string            `json:"session"` // Session identifier
+	Timestamp   time.Time         `json:"ts"`
+	EventType   string            `json:"type"`   // read, outline_used, read_avoided, write, edit
+	Tool        string            `json:"tool"`   // Read, code_outline, code_symbols, Edit, Write
+	FilePath    string            `json:"file"`   // Relative file path
+	Tokens      int               `json:"tokens"` // Estimated tokens for this event
+	TokensSaved int               `json:"saved"`  // Estimated tokens saved (for outline/avoided events)
 	// StartLine/EndLine optionally identify a span within FilePath. Used by
 	// the dashboard's clickable file viewer to scroll/highlight the range.
 	// Source events (where FilePath is a label like "session-start") leave
@@ -214,22 +215,23 @@ type TokenEvent struct {
 	EndLine   int `json:"end_line,omitempty"`
 }
 
-// TokenStats holds aggregated token event statistics.
-// All values are estimates.
+// TokenStats retains compatibility estimates alongside versioned text accounting.
+// Saved fields are legacy comparisons, not verified causal savings.
 type TokenStats struct {
-	TotalRead      int            `json:"total_read"`      // Estimated tokens consumed by reads
-	TotalSaved     int            `json:"total_saved"`     // Estimated tokens saved
-	TotalWritten   int            `json:"total_written"`   // Estimated tokens output
-	TotalDelivered int            `json:"total_delivered"` // Tokens proactively delivered (injections, enrichment)
-	EventCount     int            `json:"event_count"`     // Total events
-	ByTool         map[string]int `json:"by_tool"`         // Estimated tokens per tool (spent)
-	CallsByTool    map[string]int `json:"calls_by_tool"`   // Call counts per tool — used by per-tool efficiency chart
-	SavedByTool    map[string]int `json:"saved_by_tool"`   // Estimated saved tokens per tool
-	BySavingType   map[string]int `json:"by_saving_type"`  // Estimated saved tokens by category
-	ByDelivery     map[string]int `json:"by_delivery"`     // Tokens delivered by source (memory, decision, skill, enrichment)
-	Sessions       int            `json:"sessions"`        // Unique session count
-	ReadCount      int            `json:"read_count"`      // Number of raw Read events
-	CodeToolCount  int            `json:"code_tool_count"` // Number of code tool events (outline, symbol_read)
+	Accounting     *TokenAccounting `json:"accounting,omitempty"`
+	TotalRead      int              `json:"total_read"`      // Estimated tokens consumed by reads
+	TotalSaved     int              `json:"total_saved"`     // Estimated tokens saved
+	TotalWritten   int              `json:"total_written"`   // Estimated tokens output
+	TotalDelivered int              `json:"total_delivered"` // Tokens proactively delivered (injections, enrichment)
+	EventCount     int              `json:"event_count"`     // Total events
+	ByTool         map[string]int   `json:"by_tool"`         // Estimated tokens per tool (spent)
+	CallsByTool    map[string]int   `json:"calls_by_tool"`   // Call counts per tool — used by per-tool efficiency chart
+	SavedByTool    map[string]int   `json:"saved_by_tool"`   // Estimated saved tokens per tool
+	BySavingType   map[string]int   `json:"by_saving_type"`  // Estimated saved tokens by category
+	ByDelivery     map[string]int   `json:"by_delivery"`     // Tokens delivered by source (memory, decision, skill, enrichment)
+	Sessions       int              `json:"sessions"`        // Unique session count
+	ReadCount      int              `json:"read_count"`      // Number of raw Read events
+	CodeToolCount  int              `json:"code_tool_count"` // Number of code tool events (outline, symbol_read)
 }
 
 // DefaultExcludeTags are tags excluded from all memory queries by default.

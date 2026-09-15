@@ -344,6 +344,34 @@ func (b *Backend) ListState(agentID string) ([]*memory.State, error) {
 	return b.store.ListState(agentID)
 }
 
+func (b *Backend) InitState(key, value, agentID string) (*memory.State, error) {
+	if key == "" {
+		return nil, fmt.Errorf("state key is required")
+	}
+	if b.useGRPC {
+		ctx, cancel := b.rpcCtx()
+		defer cancel()
+		resp, err := b.grpcClient.State.Init(ctx, &grpcapi.StateSetRequest{Key: key, Value: value, AgentId: agentID})
+		if err != nil {
+			return nil, err
+		}
+		if resp.State == nil {
+			return nil, fmt.Errorf("atomic state initialization returned no state")
+		}
+		return adapter.ProtoToState(resp.State), nil
+	}
+	initializer, ok := b.store.(memory.StateInitializer)
+	if !ok {
+		return nil, fmt.Errorf("atomic state initialization is unavailable")
+	}
+	fullKey := key
+	if agentID != "" {
+		fullKey = fmt.Sprintf("agent:%s:%s", agentID, key)
+	}
+	st, _, err := initializer.InitState(&memory.State{Key: fullKey, Value: value, Agent: agentID})
+	return st, err
+}
+
 func (b *Backend) DeleteState(key string) error {
 	ctx, cancel := b.rpcCtx()
 	defer cancel()

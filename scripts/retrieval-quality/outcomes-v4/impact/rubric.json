@@ -1,0 +1,120 @@
+{
+  "task": "impact",
+  "read_only": true,
+  "source_commit": "58816d991ef7172304f3eef594844d79e995a5e1",
+  "reference": "reference.md",
+  "checks": [
+    {
+      "id": "affected_callers",
+      "prompt_section": "1",
+      "required": [
+        "identify Stop main direct call recordModelUsage(binary,cwd,usage.events) requiring request object and captured result",
+        "identify factory default write=recordModelUsage and dynamic returned-closure write(binary,cwd,[next]) requiring new writer input/result contract",
+        "identify OpenCode createEventHandler message.part.updated local recordUsage positional call requiring {binary,cwd,part}",
+        "include createHooks/event handler factory and module-invoked Stop main as entry context; separate unchanged wrapper signatures and no-argument factory invocation from actual edit sites",
+        "explain missing positional migration causes type/runtime input-shape errors and missing dynamic result migration loses retries"
+      ],
+      "evidence_files": [
+        "src/core/model-usage.ts",
+        "src/hooks/session-summary.ts",
+        "src/opencode/hooks.ts"
+      ]
+    },
+    {
+      "id": "result_and_cache_contract",
+      "prompt_section": "1,2",
+      "required": [
+        "new result objects are truthy even when unacknowledged; status acknowledged comparison must control caching",
+        "empty ack0/no spawn, matching ack input length, invalid ack reason for malformed/mismatch/skips, write-error for thrown writer operation within recordModelUsage",
+        "returned recorder remains void; failures retry; equal acknowledged snapshots skip; changed normalized counters and cwd forward; oldest eviction beyond1024 preserved",
+        "Stop currently ignores boolean; migrate request, capture result and append exact ; write=${result.status} without losing scan fields or gates"
+      ],
+      "evidence_files": [
+        "src/core/model-usage.ts",
+        "src/hooks/session-summary.ts"
+      ]
+    },
+    {
+      "id": "nonconsumers_and_wire",
+      "prompt_section": "2",
+      "required": [
+        "converter helpers and collectTranscriptUsage do not change API/behavior",
+        "recordObserveEventsBatch and recordObserveEvent are separate writers, not wrappers/callers of recordModelUsage; no migration to their positional interfaces or fallback policy",
+        "ObserveBatchEvent shared type and unrelated imports/text skill handler do not establish affected callers",
+        "Go CLI/store/accounting consume unchanged JSONL/event schema and do not require this TypeScript API migration; preserve command, payload, timeout, grammar, logging and no-fallback behavior"
+      ],
+      "evidence_files": [
+        "src/core/model-usage.ts",
+        "src/core/read-tracking.ts",
+        "src/opencode/hooks.ts",
+        "aide/cmd/aide/cmd_observe.go",
+        "aide/pkg/store/observe_events.go",
+        "aide/pkg/store/token_model_usage.go",
+        "aide/pkg/store/token_events.go"
+      ]
+    },
+    {
+      "id": "existing_tests",
+      "prompt_section": "3",
+      "required": [
+        "model-usage-recording.test.ts positional calls and boolean assertions need migration; it covers matching count versus empty/mismatch/skips output",
+        "model-usage.test.ts injected boolean positional writer and returned-recorder calls in retry/conflict test need migration; normalizer/transcript/source-time tests remain unchanged",
+        "model-usage-hooks.test.ts boolean mocks, dynamic factory injection and positional call expectations need migration; tests cover real OpenCode part route/message.updated exclusion and both Stop platforms",
+        "distinguish actual existing coverage from new required empty-input/throw/wire/cwd/eviction/logging tests; do not report unrun tests as passed"
+      ],
+      "evidence_files": [
+        "src/test/model-usage-recording.test.ts",
+        "src/test/model-usage.test.ts",
+        "src/test/model-usage-hooks.test.ts"
+      ]
+    },
+    {
+      "id": "meaningful_validation",
+      "prompt_section": "3",
+      "required": [
+        "propose empty no-spawn and exact result-reason/ack grammar checks",
+        "propose preserved command JSONL final newline cwd timeout/stdio checks",
+        "propose failure retry, acknowledged dedup, changed counters/cwd and actual oldest-entry eviction beyond 1024 checks",
+        "propose real OpenCode/Stop adapter wiring and status suffix logging checks retaining scan fields"
+      ],
+      "evidence_files": [
+        "src/core/model-usage.ts",
+        "src/opencode/hooks.ts",
+        "src/hooks/session-summary.ts",
+        "src/test/model-usage-recording.test.ts",
+        "src/test/model-usage.test.ts",
+        "src/test/model-usage-hooks.test.ts"
+      ]
+    },
+    {
+      "id": "bounded_evidence",
+      "prompt_section": "4",
+      "required": [
+        "bound completeness to supplied snapshot; literal call search misses injected writer and returned local closure edges",
+        "arbitrary external injected writers cannot be enumerated; do not invent concrete consumers",
+        "CLI backend.Store call is visible, NewBackend/RPC connection not fully supplied; report boundary instead of unsupported precise route",
+        "every additional claimed affected caller must have a supplied source relationship to changed contract; mere similar naming/import/type sharing is insufficient"
+      ],
+      "evidence_files": [
+        "src/core/model-usage.ts",
+        "src/opencode/hooks.ts",
+        "aide/cmd/aide/cmd_observe.go"
+      ]
+    }
+  ],
+  "grading": {
+    "check_scoring": "Each check passes only when every required fact is substantively correct with source references that support it. Allow equivalent wording and nearby line spans/symbol references. Do not require facts not requested in the prompt.",
+    "task_success": "All checks pass. Report passed_checks and total_checks as well as pass/fail; no tool-use, token, speed or treatment-based credit.",
+    "review_fields": [
+      "check_id",
+      "pass",
+      "evidence",
+      "missing_facts",
+      "incorrect_claims",
+      "unsupported_claims"
+    ],
+    "false_positives": "List fabricated affected callers or claims that unchanged APIs must migrate. Fail the corresponding affected-callers/nonconsumers/bounded-evidence check. Unsupported whole-repository certainty fails bounded-evidence (impact) or the relevant route/measurement check (trace).",
+    "numeric_errors": "Wrong scenario counters, retry count or conflict totals fail the affected check; do not repair the answer from unrelated facts.",
+    "blinding": "Grade answer and source evidence without treatment, tool transcript, latency or token usage."
+  }
+}

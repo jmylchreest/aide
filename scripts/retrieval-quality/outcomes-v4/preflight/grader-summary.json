@@ -1,0 +1,65 @@
+{
+  "seed": {
+    "functional_quality": {
+      "passed": false,
+      "visible_passed": true,
+      "hidden_passed": false,
+      "immutable_files_preserved": true
+    },
+    "quality_verified": true,
+    "quality": {
+      "passed": false,
+      "visible_passed": true,
+      "hidden_passed": false,
+      "immutable_files_preserved": true
+    },
+    "candidate_unchanged": true,
+    "checks": {
+      "visible": {
+        "passed": true,
+        "expected_count": 4,
+        "pass_count": 4,
+        "fail_count": 0,
+        "skip_count": null,
+        "todo_count": null
+      },
+      "hidden": {
+        "passed": false,
+        "expected_count": 20,
+        "pass_count": 7,
+        "fail_count": 13,
+        "skip_count": null,
+        "todo_count": null
+      }
+    }
+  },
+  "reference": {
+    "functional_quality": {
+      "passed": true,
+      "visible_passed": true,
+      "hidden_passed": true,
+      "immutable_files_preserved": true
+    },
+    "quality_verified": false,
+    "quality": null,
+    "candidate_unchanged": true,
+    "checks": {
+      "visible": {
+        "passed": true,
+        "expected_count": 4,
+        "pass_count": 4,
+        "fail_count": 0,
+        "skip_count": null,
+        "todo_count": null
+      },
+      "hidden": {
+        "passed": true,
+        "expected_count": 20,
+        "pass_count": 20,
+        "fail_count": 0,
+        "skip_count": null,
+        "todo_count": null
+      }
+    }
+  }
+}

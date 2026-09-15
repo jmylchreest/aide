@@ -1,0 +1,1 @@
+Focused read-only source snapshot for tracing model-usage collection. The TypeScript host adapter and Go persistence/reporting files are included; this is not a standalone application. No dependency installation or execution is required.

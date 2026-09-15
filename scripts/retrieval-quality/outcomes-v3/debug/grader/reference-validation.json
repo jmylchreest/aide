@@ -1,0 +1,84 @@
+{
+  "task": "debug",
+  "variant": "reference",
+  "suites": {
+    "visible": {
+      "command": [
+        "rtk",
+        "proxy",
+        "bun",
+        "test",
+        "./reproduce.test.ts"
+      ],
+      "exit_code": 0,
+      "passed": true,
+      "checks": [
+        {
+          "name": "a third identical search points to the first full result",
+          "pass": true
+        }
+      ],
+      "stdout": "bun test v1.4.0 (34cbb9a40)\n",
+      "stderr": "[rtk] /!\\ No hook installed \u2014 run `rtk init -g` for automatic token savings\n\nreproduce.test.ts:\n(pass) a third identical search points to the first full result [0.47ms]\n\n 1 pass\n 0 fail\n 6 expect() calls\nRan 1 test across 1 file. [8.00ms]\n"
+    },
+    "hidden": {
+      "command": [
+        "rtk",
+        "proxy",
+        "bun",
+        "test",
+        "/mnt/data/2/src/github.com/jmylchreest/aide/scripts/retrieval-quality/outcomes-v2/debug/grader/hidden.test.ts"
+      ],
+      "exit_code": 0,
+      "passed": true,
+      "checks": [
+        {
+          "name": "repeat pointers skip shortened calls and target retained full output",
+          "pass": true
+        },
+        {
+          "name": "history records original and actually emitted shortened outputs separately",
+          "pass": true
+        },
+        {
+          "name": "evicted full baseline forces a new full result before dedup resumes",
+          "pass": true
+        },
+        {
+          "name": "reloading history preserves full baseline choice and byte statistics",
+          "pass": true
+        },
+        {
+          "name": "reloading a history window containing only shortened outputs starts fresh",
+          "pass": true
+        },
+        {
+          "name": "recovery veto leaves full emitted output as a usable baseline",
+          "pass": true
+        },
+        {
+          "name": "different arguments and different outputs are not deduplicated",
+          "pass": true
+        },
+        {
+          "name": "side effecting tools never acquire dedup pointers",
+          "pass": true
+        },
+        {
+          "name": "retained originals match original bytes and survive further duplicate calls",
+          "pass": true
+        },
+        {
+          "name": "live accounting measures final emitted UTF-8 bytes",
+          "pass": true
+        },
+        {
+          "name": "changed Read file mtime prevents dedup even for identical text",
+          "pass": true
+        }
+      ],
+      "stdout": "bun test v1.4.0 (34cbb9a40)\n",
+      "stderr": "[rtk] /!\\ No hook installed \u2014 run `rtk init -g` for automatic token savings\n\n../grader/hidden.test.ts:\n(pass) repeat pointers skip shortened calls and target retained full output [0.48ms]\n(pass) history records original and actually emitted shortened outputs separately [0.08ms]\n(pass) evicted full baseline forces a new full result before dedup resumes [0.13ms]\n(pass) reloading history preserves full baseline choice and byte statistics [0.18ms]\n(pass) reloading a history window containing only shortened outputs starts fresh [0.07ms]\n(pass) recovery veto leaves full emitted output as a usable baseline [0.07ms]\n(pass) different arguments and different outputs are not deduplicated [0.08ms]\n(pass) side effecting tools never acquire dedup pointers [0.05ms]\n(pass) retained originals match original bytes and survive further duplicate calls [0.15ms]\n(pass) live accounting measures final emitted UTF-8 bytes [0.16ms]\n(pass) changed Read file mtime prevents dedup even for identical text [0.14ms]\n\n 11 pass\n 0 fail\n 38 expect() calls\nRan 11 tests across 1 file. [10.00ms]\n"
+    }
+  }
+}

@@ -2,9 +2,8 @@
 /**
  * Context Guard Hook (PreToolUse)
  *
- * Monitors Read tool calls and advises agents to use code_outline
- * before reading large files. Also tracks code_outline/code_symbols
- * calls so it knows which files have been outlined.
+ * Offers conditional navigation advice for large unbounded reads, and reuse
+ * hints when matching full-file text was observed in the current context window.
  *
  * This is a soft warning — it never blocks, only injects advisory context.
  *
@@ -16,6 +15,7 @@ import {
   emitHookResult,
   installHookSafetyNet,
   findAideBinary,
+  detectPlatform,
 } from "../lib/hook-utils.js";
 import { setSessionContext } from "../lib/anchor.js";
 import { debug } from "../lib/logger.js";
@@ -92,7 +92,11 @@ async function main(): Promise<void> {
       emitHookResult(output);
     } else {
       // Smart read hint: suggest code index for re-reads of unchanged files
-      const hintResult = checkSmartReadHint(toolName, toolInput, cwd, binary);
+      const hintResult = checkSmartReadHint(toolName, toolInput, cwd, binary, {
+        host: detectPlatform(),
+        sessionId: data.session_id,
+        actorId: data.agent_id || data.session_id,
+      });
       if (hintResult.shouldHint && hintResult.hint) {
         debug(SOURCE, `Smart read hint triggered`);
         if (binary) {

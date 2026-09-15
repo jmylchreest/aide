@@ -1,0 +1,57 @@
+{
+  "task": "debug",
+  "exit_code": 1,
+  "checks": [
+    {
+      "name": "no-match: rg absent sample.txt",
+      "pass": false
+    },
+    {
+      "name": "no-match: grep -n absent sample.txt",
+      "pass": false
+    },
+    {
+      "name": "no-match: rtk rg absent sample.txt",
+      "pass": false
+    },
+    {
+      "name": "no-match: rtk proxy grep absent sample.txt",
+      "pass": false
+    },
+    {
+      "name": "hook and camelCase exit statuses support no-match",
+      "pass": false
+    },
+    {
+      "name": "real search errors still fail",
+      "pass": true
+    },
+    {
+      "name": "explicit failure, timeout and interruption dominate no-match",
+      "pass": true
+    },
+    {
+      "name": "a nonsearch status one is a failure",
+      "pass": true
+    },
+    {
+      "name": "conflicting and malformed success signals stay unverified",
+      "pass": false
+    },
+    {
+      "name": "search evidence never certifies a full source baseline",
+      "pass": true
+    },
+    {
+      "name": "full and bounded reads still verify against current source",
+      "pass": true
+    },
+    {
+      "name": "unrecognized shell syntax cannot gain search certification",
+      "pass": true
+    }
+  ],
+  "passed": false,
+  "stdout": "bun test v1.4.0 (34cbb9a40)\n",
+  "stderr": "\n../../../../../../../tmp/aide-outcome-fixtures/debug/grader/hidden.test.ts:\nerror: expect(received).toBe(expected)\n\nExpected: \"search\"\nReceived: \"failed\"\n\n(fail) no-match: rg absent sample.txt [0.48ms]\nerror: expect(received).toBe(expected)\n\nExpected: \"search\"\nReceived: \"failed\"\n\n(fail) no-match: grep -n absent sample.txt [0.02ms]\nerror: expect(received).toBe(expected)\n\nExpected: \"search\"\nReceived: \"failed\"\n\n(fail) no-match: rtk rg absent sample.txt [0.01ms]\nerror: expect(received).toBe(expected)\n\nExpected: \"search\"\nReceived: \"failed\"\n\n(fail) no-match: rtk proxy grep absent sample.txt\n 8 | afterAll(() => rmSync(root, { recursive: true, force: true }));\n 9 | for (const command of ['rg absent sample.txt', 'grep -n absent sample.txt', 'rtk rg absent sample.txt', 'rtk proxy grep absent sample.txt']) {\n10 |   test(`no-match: ${command}`, () => expect(observe(root, 'Bash', { command }, '', { exit_code: 1 }, false).retrieval_status).toBe('search'));\n11 | }\n12 | test('hook and camelCase exit statuses support no-match', () => {\n13 |   expect(observe(root,'Bash',{command:'rg absent sample.txt'},'',{},false,1).retrieval_status).toBe('search');\n                                                                                                    ^\nerror: expect(received).toBe(expected)\n\nExpected: \"search\"\nReceived: \"failed\"\n\n      at <anonymous> (/tmp/aide-outcome-fixtures/debug/grader/hidden.test.ts:13:96)\n(fail) hook and camelCase exit statuses support no-match [0.07ms]\n(pass) real search errors still fail [0.02ms]\n(pass) explicit failure, timeout and interruption dominate no-match [0.04ms]\n(pass) a nonsearch status one is a failure [0.01ms]\n18 |   for (const [response,failed] of [[{exit_code:1},true],[{exit_code:1,timed_out:true},false],[{exit_code:1,interrupted:true},false]])\n19 |     expect(observe(root,'Bash',{command:'rg absent sample.txt'},'',response,failed).retrieval_status).toBe('failed');\n20 | });\n21 | test('a nonsearch status one is a failure', () => expect(observe(root,'Bash',{command:'cat sample.txt'},'one\\ntwo\\nthree\\n',{exit_code:1},false).retrieval_status).toBe('failed'));\n22 | test('conflicting and malformed success signals stay unverified', () => {\n23 |   expect(observe(root,'Bash',{command:'rg absent sample.txt'},'',{exit_code:1,exitCode:0},false).retrieval_status).toBe('unverified');\n                                                                                                                        ^\nerror: expect(received).toBe(expected)\n\nExpected: \"unverified\"\nReceived: \"failed\"\n\n      at <anonymous> (/tmp/aide-outcome-fixtures/debug/grader/hidden.test.ts:23:116)\n(fail) conflicting and malformed success signals stay unverified [0.04ms]\n(pass) search evidence never certifies a full source baseline [0.02ms]\n(pass) full and bounded reads still verify against current source [0.43ms]\n(pass) unrecognized shell syntax cannot gain search certification [0.02ms]\n\n 6 pass\n 6 fail\n 16 expect() calls\nRan 12 tests across 1 file. [12.00ms]\n"
+}

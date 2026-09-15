@@ -36,6 +36,10 @@ beforeAll(() => {
   write("src/hooks/rogue.ts", 'if (existsSync(join(dir, ".git"))) return dir;\n');
   write("src/lib/project-root.ts", 'if (existsSync(join(dir, ".aide"))) return dir;\n');
   write("src/lib/paths.ts", 'const p = join(root, ".aide", "state");\n');
+  const snapshot = "scripts/retrieval-quality/outcomes-v4/common/template/src/lib/";
+  for (const name of ["project-root.ts", "rogue.ts", "project-root.ts.extra.ts"]) {
+    write(snapshot + name, 'if (existsSync(join(dir, ".aide"))) return dir;\n');
+  }
 
   // go-getwd
   write("aide/cmd/aide/cmd_rogue.go", "cwd, _ := os.Getwd()\n");
@@ -63,6 +67,14 @@ describe("ts-marker-probe", () => {
   it("ignores paths beneath .aide/ that are not resolution probes", () => {
     const hits = scanRule(rule("ts-marker-probe"), base);
     expect(hits.map((h) => h.file)).not.toContain("src/lib/paths.ts");
+  });
+
+  it("allows only the exact frozen experiment resolver snapshot", () => {
+    const files = scanRule(rule("ts-marker-probe"), base).map((hit) => hit.file);
+    const snapshot = "scripts/retrieval-quality/outcomes-v4/common/template/src/lib/";
+    expect(files).not.toContain(snapshot + "project-root.ts");
+    expect(files).toContain(snapshot + "rogue.ts");
+    expect(files).toContain(snapshot + "project-root.ts.extra.ts");
   });
 });
 

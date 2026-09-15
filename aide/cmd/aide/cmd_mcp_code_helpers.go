@@ -80,14 +80,21 @@ func formatCodeSymbols(filePath string, symbols []*code.Symbol) string {
 	return sb.String()
 }
 
-func formatCodeReferences(symbolName string, refs []*code.Reference) string {
+func formatCodeReferences(symbolName string, refs []*code.Reference, limit int) string {
+	const coverage = "Indexed name matches, not a complete semantic call graph. Verify relevant callers in current source.\n\n"
 	if len(refs) == 0 {
-		return fmt.Sprintf("No references found for `%s`.\n\nTip: Run `aide code index` to index your codebase.", symbolName)
+		return fmt.Sprintf("No indexed reference candidates for `%s`. Empty results do not prove absence.\n\n%s", symbolName, coverage)
 	}
 
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "# References to `%s`\n\n", symbolName)
-	fmt.Fprintf(&sb, "_Found %d references_\n\n", len(refs))
+	fmt.Fprintf(&sb, "_Returned %d indexed reference candidates_\n\n", len(refs))
+	// The store stops at the requested limit without counting the remainder.
+	// Reaching it proves neither truncation nor completeness, even on an exact fit.
+	if limit > 0 && len(refs) >= limit {
+		fmt.Fprintf(&sb, "Result limit (%d) reached; more indexed matches may exist. Narrow file/kind filters or raise the limit before assessing impact.\n\n", limit)
+	}
+	sb.WriteString(coverage)
 
 	grouped := make(map[string][]*code.Reference)
 	for _, ref := range refs {
@@ -205,7 +212,19 @@ func buildOutline(content []byte, symbols []*code.Symbol, stripComments bool) st
 
 		if r, ok := collapseStart[lineNum]; ok {
 			indent := extractIndent(line)
-			fmt.Fprintf(&sb, "%s%s{ ... }  // lines %d-%d\n", lineNumPrefix(lineNum), indent, r.startLine, r.endLine)
+			// The body can begin on the declaration's final line. Preserve that
+			// line's signature using the parser's AST boundary: an earlier brace
+			// may belong to a parameter type, return type, comment or string.
+			prefix := ""
+			signatureLines := strings.Split(r.symbol.Signature, "\n")
+			signatureLine := lineNum - r.symbol.StartLine
+			if signatureLine >= 0 && signatureLine < len(signatureLines) {
+				prefix = strings.TrimSpace(signatureLines[signatureLine])
+				if prefix != "" {
+					prefix += " "
+				}
+			}
+			fmt.Fprintf(&sb, "%s%s%s{ ... }  // lines %d-%d\n", lineNumPrefix(lineNum), indent, prefix, r.startLine, r.endLine)
 			continue
 		}
 

@@ -2,9 +2,20 @@ import { useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "@/lib/api";
 import { useApi } from "@/hooks/use-api";
+import { TokenOverview } from "../shared/TokenOverview";
+import { TokenWorkDetails } from "../shared/TokenWork";
+import { TokenAccountingSummary } from "../shared/TokenAccountingSummary";
+import { TokenTransformationWindows } from "../shared/TokenTransformations";
+import { TokenRetrievalEvidence } from "../shared/TokenRetrievalEvidence";
+import { TokenRetrievalWindows } from "../shared/TokenRetrievalWindows";
+import { SessionFilterInput } from "../shared/SessionFilterInput";
 import { FilterBar } from "../shared/FilterBar";
 import { SortableTable, type Column } from "../shared/SortableTable";
-import { DateRangePicker, presetToRange, type DateRangeValue } from "../shared/DateRangePicker";
+import {
+  DateRangePicker,
+  presetToRange,
+  type DateRangeValue,
+} from "../shared/DateRangePicker";
 import { CodeViewer } from "../shared/CodeViewer";
 import type { TokenEventItem } from "@/lib/types";
 import { useProjectRoot } from "@/context/ProjectRootContext";
@@ -30,32 +41,60 @@ function formatTokens(n: number): string {
   return String(n);
 }
 
-function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
+function StatCard({
+  label,
+  value,
+  sub,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+}) {
   return (
-    <div className="rounded-md border border-aide-border bg-aide-bg-secondary px-4 py-3">
-      <div className="text-[10px] uppercase tracking-wider text-aide-text-dim mb-1">{label}</div>
+    <div className="rounded-md border border-aide-border bg-aide-surface px-4 py-3">
+      <div className="text-[10px] uppercase tracking-wider text-aide-text-dim mb-1">
+        {label}
+      </div>
       <div className="text-xl font-semibold text-aide-text">{value}</div>
-      {sub && <div className="text-[10px] text-aide-text-muted mt-0.5">{sub}</div>}
+      {sub && (
+        <div className="text-[10px] text-aide-text-muted mt-0.5">{sub}</div>
+      )}
     </div>
   );
 }
 
-function DeliveryCard({ label, value, tooltip }: { label: string; value: number; tooltip?: string }) {
+function DeliveryCard({
+  label,
+  value,
+  tooltip,
+}: {
+  label: string;
+  value: number;
+  tooltip?: string;
+}) {
   return (
-    <div className="rounded-md border border-aide-border bg-aide-bg-secondary px-4 py-3">
-      <div className="text-[10px] uppercase tracking-wider text-aide-text-dim mb-1 cursor-help" title={tooltip}>{label}</div>
-      <div className="text-lg font-semibold text-blue-400">~{formatTokens(value)}</div>
-      <div className="text-[10px] text-aide-text-muted mt-0.5">tokens delivered</div>
+    <div className="rounded-md border border-aide-border bg-aide-surface px-4 py-3">
+      <div
+        className="text-[10px] uppercase tracking-wider text-aide-text-dim mb-1 cursor-help"
+        title={tooltip}
+      >
+        {label}
+      </div>
+      <div className="text-lg font-semibold text-blue-400">
+        ~{formatTokens(value)}
+      </div>
+      <div className="text-[10px] text-aide-text-muted mt-0.5">
+        tokens delivered
+      </div>
     </div>
   );
 }
 
-// TOOL_CATEGORIES mirrors the observe taxonomy. "consume" tools replace a
-// Read and so have a meaningful "avoided" counterfactual. "navigate" and
-// "search" tools spend tokens to find things; their value is indirect
-// (smaller downstream Reads) — we don't claim savings for them because
-// we can't ground the counterfactual.
-const TOOL_CATEGORIES: Record<string, "consume" | "navigate" | "search" | "modify" | "execute" | "network"> = {
+// Display taxonomy; categories alone do not establish savings.
+const TOOL_CATEGORIES: Record<
+  string,
+  "consume" | "navigate" | "search" | "modify" | "execute" | "network"
+> = {
   Read: "consume",
   code_outline: "consume",
   code_read_symbol: "consume",
@@ -87,7 +126,9 @@ function ToolCategoryBadge({ category }: { category: string }) {
   };
   const cls = colors[category] ?? colors.other;
   return (
-    <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-medium border ${cls}`}>
+    <span
+      className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-medium border ${cls}`}
+    >
       {category}
     </span>
   );
@@ -98,118 +139,83 @@ interface PerToolStat {
   category: string;
   calls: number;
   spent: number;
-  avoided: number;
-  /** code_search-only: how many calls were *not* followed by a Grep within
-   *  the comparison window (treated as "satisfied" — the index answered
-   *  the question and the agent didn't fall back to raw text search). */
-  satisfied?: number;
 }
 
-/** Window after a code_search in which a follow-up Grep is treated as
- *  evidence the index didn't answer the question. */
-const CODE_SEARCH_FOLLOWUP_WINDOW_MS = 60_000;
-
-/**
- * Tools that produce a meaningful "avoided" counterfactual.
- *
- * - code_outline / code_read_symbol: pull a subset of a file the agent
- *   could otherwise have Read whole — counterfactual = what Read would
- *   have cost, set on the recording side.
- * - code_search: counterfactual is "would the agent have run Grep
- *   instead?" — computed client-side by checking whether a Grep
- *   followed within CODE_SEARCH_FOLLOWUP_WINDOW_MS in the same session.
- *
- * Raw Read is consume but cannot claim avoided — it IS the expensive
- * path, with nothing cheaper to compare against.
- */
-const AVOIDED_CLAIM_TOOLS = new Set([
-  "code_outline",
-  "code_read_symbol",
-  "code_search",
-]);
-
-function PerToolEfficiency({ stats }: { stats: PerToolStat[] }) {
-  if (stats.length === 0) return null;
-  const max = Math.max(1, ...stats.map((s) => Math.max(s.spent, s.avoided)));
+function PerToolObservations({ stats }: { stats: PerToolStat[] }) {
   return (
     <div className="space-y-2">
-      {stats.map((s) => {
-        const avoidedClaimable = AVOIDED_CLAIM_TOOLS.has(s.tool);
-        const showAvoided = avoidedClaimable && s.avoided > 0;
-        const spentPct = (s.spent / max) * 100;
-        const avoidedPct = (s.avoided / max) * 100;
-        const totalCounterfactual = s.spent + s.avoided;
-        // Only render the efficiency % when there's an avoided number worth
-        // surfacing — otherwise it always reads "0.0%" which is misleading
-        // (the tool didn't fail; we just don't have data yet).
-        const eff =
-          showAvoided && totalCounterfactual > 0
-            ? ((s.avoided / totalCounterfactual) * 100).toFixed(1) + "%"
-            : null;
-        return (
-          <div
-            key={s.tool}
-            className="rounded-md border border-aide-border bg-aide-bg-secondary px-3 py-2"
-          >
-            <div className="flex items-center gap-2 mb-1.5">
-              <span className="font-mono text-xs text-aide-text font-medium">{s.tool}</span>
-              <ToolCategoryBadge category={s.category} />
-              <span className="text-[10px] text-aide-text-dim">
-                {s.calls} {s.calls === 1 ? "call" : "calls"}
-              </span>
-              {s.satisfied !== undefined && (
-                <span
-                  className="text-[10px] text-aide-text-dim"
-                  title="Calls not followed by a Grep within 60s in the same session"
-                >
-                  {s.satisfied}/{s.calls} satisfied
-                </span>
-              )}
-              {eff && (
-                <span className="ml-auto text-[10px] text-green-500 font-medium">
-                  {eff} efficiency
-                </span>
-              )}
-              {!showAvoided && (
-                <span className="ml-auto text-[10px] text-aide-text-dim italic">
-                  indirect value — no avoided claim
-                </span>
-              )}
-            </div>
-            <div className="grid grid-cols-[60px_1fr_auto] gap-2 items-center text-[10px] mb-1">
-              <span className="text-aide-text-dim">spent</span>
-              <div className="h-2 bg-aide-bg rounded-sm overflow-hidden">
-                <div
-                  className="h-full bg-blue-500/70"
-                  style={{ width: `${spentPct}%` }}
-                />
-              </div>
-              <span className="font-mono text-aide-text-muted w-16 text-right">
-                {s.spent > 0 ? `~${formatTokens(s.spent)}` : "-"}
-              </span>
-            </div>
-            {showAvoided && (
-              <div className="grid grid-cols-[60px_1fr_auto] gap-2 items-center text-[10px]">
-                <span className="text-aide-text-dim">avoided</span>
-                <div className="h-2 bg-aide-bg rounded-sm overflow-hidden">
-                  <div
-                    className="h-full bg-green-500/80"
-                    style={{ width: `${avoidedPct}%` }}
-                  />
-                </div>
-                <span className="font-mono text-green-500 w-16 text-right">
-                  ~{formatTokens(s.avoided)}
-                </span>
-              </div>
-            )}
-          </div>
-        );
-      })}
+      {stats.map((s) => (
+        <div
+          key={s.tool}
+          className="rounded-md border border-aide-border bg-aide-surface px-3 py-2 flex items-center gap-2 flex-wrap"
+        >
+          <span className="font-mono text-xs text-aide-text">{s.tool}</span>
+          <ToolCategoryBadge category={s.category} />
+          <span className="text-[11px] text-aide-text-dim">
+            {s.calls} observations
+          </span>
+          <span className="ml-auto text-[11px] text-aide-text-muted">
+            {s.spent > 0
+              ? `~${formatTokens(s.spent)} tokens (mixed methods)`
+              : "Token quantity unknown or empty"}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }
 
+type ReportView = "overview" | "details" | "accounting";
+
 export function TokensPage() {
+  const [view, setView] = useState<ReportView>("overview");
+  const { project } = useParams<{ project: string }>();
+  const [session, setSession] = useState("");
+  const [dateRange, setDateRange] = useState<DateRangeValue>(() => ({
+    preset: "30d",
+    ...presetToRange("30d"),
+  }));
+  // Isolate requests and evidence selection across filter changes. A late
+  // response from the previous selection cannot populate this report.
+  const selection = JSON.stringify([
+    project,
+    session,
+    dateRange.since,
+    dateRange.until,
+  ]);
+  return (
+    <div>
+      <h2 className="text-base font-semibold pb-1.5 border-b border-aide-border mb-3">
+        Token Intelligence
+      </h2>
+      <div className="mb-4 flex items-center gap-3 flex-wrap">
+        <label className="text-[11px] text-aide-text-muted">
+          Session <SessionFilterInput value={session} onChange={setSession} />
+        </label>
+        <DateRangePicker value={dateRange} onChange={setDateRange} />
+      </div>
+      <TokenReport
+        key={selection}
+        session={session}
+        dateRange={dateRange}
+        view={view}
+        setView={setView}
+      />
+    </div>
+  );
+}
+
+function TokenReport({
+  session,
+  dateRange,
+  view,
+  setView,
+}: {
+  session: string;
+  dateRange: DateRangeValue;
+  view: ReportView;
+  setView: (view: ReportView) => void;
+}) {
   const { project } = useParams<{ project: string }>();
   const [query, setQuery] = useState("");
   const [toolFilter, setToolFilter] = useState("");
@@ -221,20 +227,38 @@ export function TokensPage() {
 
   const projectRoot = useProjectRoot();
 
-  // Default to last 30 days
-  const [dateRange, setDateRange] = useState<DateRangeValue>(() => {
-    const { since, until } = presetToRange("30d");
-    return { preset: "30d", since, until };
-  });
-
-  const { data: stats, loading: statsLoading } = useApi(
-    () => api.getTokenStats(project!, undefined, dateRange.since || undefined, dateRange.until || undefined),
-    [project, dateRange.since, dateRange.until],
+  const {
+    data: stats,
+    loading: statsLoading,
+    error: statsError,
+  } = useApi(
+    () =>
+      api.getTokenStats(
+        project!,
+        session || undefined,
+        dateRange.since || undefined,
+        dateRange.until || undefined,
+      ),
+    [project, session, dateRange.since, dateRange.until],
   );
 
-  const { data: events, loading: eventsLoading } = useApi(
-    () => api.listTokenEvents(project!, undefined, 200, dateRange.since || undefined, dateRange.until || undefined),
-    [project, dateRange.since, dateRange.until],
+  const {
+    data: events,
+    loading: eventsLoading,
+    error: eventsError,
+    refresh: refreshEvents,
+  } = useApi(
+    () =>
+      view === "details"
+        ? api.listTokenEvents(
+            project!,
+            session || undefined,
+            200,
+            dateRange.since || undefined,
+            dateRange.until || undefined,
+          )
+        : Promise.resolve([] as TokenEventItem[]),
+    [project, session, dateRange.since, dateRange.until, view === "details"],
   );
 
   const filteredEvents = useMemo(() => {
@@ -274,43 +298,6 @@ export function TokensPage() {
       ...Object.keys(stats.saved_by_tool ?? {}),
     ]);
 
-    // code_search counterfactual: requires per-event timing (was a Grep
-    // run within 60s in the same session?). Computed from `events` —
-    // partial if the 200-event cap clips the window, but it's a bonus on
-    // top of the saved_by_tool[code_search] base.
-    let csSatisfied = 0;
-    let csAvoidedExtra = 0;
-    if (events && events.length > 0) {
-      const ordered = [...events].sort(
-        (a, b) =>
-          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
-      );
-      const grepBySession = new Map<string, number[]>();
-      for (const e of ordered) {
-        if (e.tool === "Grep") {
-          const arr = grepBySession.get(e.session_id) ?? [];
-          arr.push(new Date(e.timestamp).getTime());
-          grepBySession.set(e.session_id, arr);
-        }
-      }
-      const followedByGrep = (e: TokenEventItem): boolean => {
-        const greps = grepBySession.get(e.session_id);
-        if (!greps) return false;
-        const t = new Date(e.timestamp).getTime();
-        for (const gt of greps) {
-          if (gt > t && gt - t <= CODE_SEARCH_FOLLOWUP_WINDOW_MS) return true;
-          if (gt > t) break;
-        }
-        return false;
-      };
-      for (const e of ordered) {
-        if (e.tool === "code_search" && !followedByGrep(e)) {
-          csSatisfied += 1;
-          csAvoidedExtra += (e.tokens || 0) * 3;
-        }
-      }
-    }
-
     const rows: PerToolStat[] = [];
     for (const tool of tools) {
       const calls = stats.calls_by_tool?.[tool] ?? 0;
@@ -320,40 +307,18 @@ export function TokensPage() {
         category: TOOL_CATEGORIES[tool] ?? "other",
         calls,
         spent: stats.by_tool?.[tool] ?? 0,
-        avoided: stats.saved_by_tool?.[tool] ?? 0,
       };
-      if (tool === "code_search") {
-        row.avoided += csAvoidedExtra;
-        row.satisfied = csSatisfied || undefined;
-      }
       rows.push(row);
     }
 
-    return rows.sort((a, b) => {
-      const aHasAvoided =
-        AVOIDED_CLAIM_TOOLS.has(a.tool) && a.avoided > 0 ? 1 : 0;
-      const bHasAvoided =
-        AVOIDED_CLAIM_TOOLS.has(b.tool) && b.avoided > 0 ? 1 : 0;
-      if (aHasAvoided !== bHasAvoided) return bHasAvoided - aHasAvoided;
-      return a.tool.localeCompare(b.tool);
-    });
-  }, [stats, events]);
-
-  const savingsPct =
-    stats && stats.total_read + stats.total_saved > 0
-      ? ((stats.total_saved / (stats.total_read + stats.total_saved)) * 100).toFixed(1)
-      : "0";
-
-  const totalFileInteractions = (stats?.read_count ?? 0) + (stats?.code_tool_count ?? 0);
-  const adoptionPct =
-    totalFileInteractions > 0
-      ? ((stats!.code_tool_count / totalFileInteractions) * 100).toFixed(0)
-      : null;
+    return rows.sort((a, b) => a.tool.localeCompare(b.tool));
+  }, [stats]);
 
   const columns: Column<TokenEventItem>[] = [
     {
       key: "timestamp",
       label: "Time",
+      width: "10rem",
       render: (row) => (
         <span className="text-aide-text-dim text-[11px] font-mono">
           {new Date(row.timestamp).toLocaleString()}
@@ -364,6 +329,7 @@ export function TokensPage() {
     {
       key: "tool",
       label: "Tool",
+      width: "8rem",
       render: (row) => (
         <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium bg-aide-accent/10 text-aide-accent">
           {row.tool}
@@ -373,6 +339,7 @@ export function TokensPage() {
     {
       key: "event_type",
       label: "Type",
+      width: "7rem",
       render: (row) => (
         <span className="text-aide-text-muted text-xs">{row.event_type}</span>
       ),
@@ -380,16 +347,68 @@ export function TokensPage() {
     {
       key: "tokens",
       label: "Est. Tokens",
+      width: "9rem",
       render: (row) => (
-        <span className="font-mono text-xs">{row.tokens > 0 ? `~${row.tokens}` : "-"}</span>
+        <span className="font-mono text-xs">
+          {row.event_type === "transformation"
+            ? "See pair"
+            : row.attrs?.accounting_version === "1" &&
+                row.attrs?.payload_bytes === undefined
+              ? "Unknown"
+              : row.tokens > 0 || row.attrs?.payload_bytes === "0"
+                ? `~${row.tokens}`
+                : "Unknown"}
+        </span>
       ),
       sortValue: (row) => row.tokens,
     },
     {
-      key: "tokens_saved",
-      label: "Est. Saved",
+      key: "evidence",
+      label: "Evidence",
+      width: "17rem",
+      sortable: false,
       render: (row) => (
-        <span className="font-mono text-xs text-green-500">
+        <details className="text-[11px] text-aide-text-muted">
+          <summary className="cursor-pointer">
+            {row.event_type === "transformation"
+              ? "Paired output"
+              : row.attrs?.accounting_version === "1"
+                ? "Observed text"
+                : "Legacy estimate"}
+          </summary>
+          <div className="mt-1 max-w-64 break-words">
+            {row.attrs?.accounting_version === "1" ? (
+              <>
+                <div>
+                  {row.attrs.observation_stage} ·{" "}
+                  {row.event_type === "transformation"
+                    ? `${row.attrs.before_bytes ?? "Unknown"} → ${row.attrs.after_bytes ?? "Unknown"}`
+                    : (row.attrs.payload_bytes ?? "Unknown")}{" "}
+                  bytes
+                </div>
+                <div>UTF-8 text estimate: bytes / 3 (v1)</div>
+                <div>Invocation: {row.attrs.invocation_id ?? "Unknown"}</div>
+                {row.attrs.raw_tool && <div>Tool: {row.attrs.raw_tool}</div>}
+                <div>Window: {row.attrs.context_epoch ?? "Unknown"}</div>
+                {row.attrs.recovery_path && (
+                  <div>Retained original: {row.attrs.recovery_path}</div>
+                )}
+                <TokenRetrievalEvidence attrs={row.attrs} />
+              </>
+            ) : (
+              <div>Measurement method and delivery coverage unknown.</div>
+            )}
+            <div>Event: {row.id}</div>
+          </div>
+        </details>
+      ),
+    },
+    {
+      key: "tokens_saved",
+      label: "Legacy comparison",
+      width: "12rem",
+      render: (row) => (
+        <span className="font-mono text-xs text-aide-text-muted">
           {row.tokens_saved > 0 ? `~${row.tokens_saved}` : "-"}
         </span>
       ),
@@ -400,7 +419,7 @@ export function TokensPage() {
       // source label (session-start, skill-injector, ...) — hence "Source".
       key: "file_path",
       label: "Source",
-      width: "45%",
+      width: "12rem",
       render: (row) => {
         const value = row.file_path;
         if (!value) {
@@ -412,7 +431,11 @@ export function TokensPage() {
         const display = row.display_path || relativeToRoot(value, projectRoot);
         if (!clickable) {
           return (
-            <PathLabel path={value} displayPath={row.display_path} className="text-[11px] text-aide-text-dim" />
+            <PathLabel
+              path={value}
+              displayPath={row.display_path}
+              className="text-[11px] text-aide-text-dim"
+            />
           );
         }
         const lineSuffix =
@@ -424,7 +447,7 @@ export function TokensPage() {
         return (
           <button
             type="button"
-            title={value + lineSuffix}
+            title={`Inspect current source (not an event-time snapshot): ${value + lineSuffix}`}
             onClick={() =>
               setViewer({
                 // The file API rejects absolute paths (path-traversal
@@ -437,7 +460,11 @@ export function TokensPage() {
             }
             className="block w-full min-w-0 bg-transparent px-0 text-[11px] text-aide-text-dim hover:text-aide-accent transition-colors"
           >
-            <PathLabel path={value} displayPath={row.display_path} suffix={lineSuffix} />
+            <PathLabel
+              path={value}
+              displayPath={row.display_path}
+              suffix={lineSuffix}
+            />
           </button>
         );
       },
@@ -446,201 +473,185 @@ export function TokensPage() {
 
   return (
     <div>
-      <h2 className="text-base font-semibold pb-1.5 border-b border-aide-border mb-3">
-        Token Intelligence
-      </h2>
-      <p className="text-[11px] text-aide-text-dim mb-4">
-        All token counts are <strong>estimates</strong> based on calibrated per-language character ratios.
-      </p>
-
-      <div className="mb-4">
-        <DateRangePicker value={dateRange} onChange={setDateRange} />
+      <nav
+        aria-label="Token report views"
+        className="flex gap-1 border-b border-aide-border mb-4"
+      >
+        {(["overview", "details", "accounting"] as const).map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            aria-pressed={view === tab}
+            onClick={() => setView(tab)}
+            className={`px-3 py-2 text-xs border-b-2 capitalize ${view === tab ? "text-aide-accent border-aide-accent" : "text-aide-text-muted border-transparent hover:text-aide-text"}`}
+          >
+            {tab}
+          </button>
+        ))}
+      </nav>
+      {statsError ? (
+        <p role="alert" className="text-xs text-red-400 mb-4">
+          Unable to load accounting: {statsError}
+        </p>
+      ) : statsLoading ? (
+        <p className="text-xs text-aide-text-muted mb-4">Loading accounting…</p>
+      ) : view === "overview" && stats ? (
+        <TokenOverview
+          stats={stats}
+          onDetails={() => setView("details")}
+          onAccounting={() => setView("accounting")}
+        />
+      ) : null}
+      <div hidden={view !== "accounting"}>
+        {!statsLoading && !statsError && (
+          <TokenAccountingSummary accounting={stats?.accounting} />
+        )}
+        <h3 className="text-xs font-semibold text-aide-text mb-2">
+          Historical and compatibility estimates
+        </h3>
+        {/* Legacy totals remain visible, independently of measured text. */}
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-6">
+          <StatCard
+            label="Result token estimates"
+            value={stats ? `~${formatTokens(stats.total_read)}` : "-"}
+            sub={`${stats?.event_count ?? 0} events`}
+          />
+          <StatCard
+            label="Legacy comparison estimate"
+            value={stats ? `~${formatTokens(stats.total_saved)}` : "-"}
+            sub="Not verified savings; may overlap"
+          />
+          <StatCard
+            label="Context Delivered"
+            value={stats ? `~${formatTokens(stats.total_delivered)}` : "-"}
+            sub="proactive injections"
+          />
+          <StatCard
+            label="Sessions Tracked"
+            value={stats ? String(stats.sessions) : "-"}
+          />
+        </div>
       </div>
-
-      {/* Headline stats */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-6">
-        <StatCard
-          label="Est. Tokens Read"
-          value={stats ? `~${formatTokens(stats.total_read)}` : "-"}
-          sub={`${stats?.event_count ?? 0} events`}
-        />
-        <StatCard
-          label="Est. Tokens Saved"
-          value={stats ? `~${formatTokens(stats.total_saved)}` : "-"}
-          sub={`~${savingsPct}% reduction`}
-        />
-        <StatCard
-          label="Context Delivered"
-          value={stats ? `~${formatTokens(stats.total_delivered)}` : "-"}
-          sub="proactive injections"
-        />
-        <StatCard
-          label="Sessions Tracked"
-          value={stats ? String(stats.sessions) : "-"}
-          sub={adoptionPct ? `${adoptionPct}% code tool adoption` : undefined}
-        />
-      </div>
-
-      {/* Per-tool efficiency chart with concrete methodology */}
-      {perToolStats.length > 0 && (
-        <div className="mb-6">
-          <div className="flex items-baseline justify-between mb-2">
-            <h3 className="text-xs font-semibold text-aide-text">
-              Per-tool efficiency
+      <div hidden={view !== "details"}>
+        {!statsLoading && !statsError && (
+          <TokenWorkDetails report={stats?.accounting?.work} />
+        )}
+        {!statsLoading && !statsError && (
+          <TokenRetrievalWindows report={stats?.accounting?.retrievals} />
+        )}
+        {!statsLoading && !statsError && (
+          <TokenTransformationWindows
+            report={stats?.accounting?.transformations}
+          />
+        )}
+        {perToolStats.length > 0 && (
+          <div className="mb-6">
+            <h3 className="text-xs font-semibold text-aide-text mb-2">
+              Per-tool observations
             </h3>
-            <span className="text-[10px] text-aide-text-dim">
-              spent = actual tokens &middot; avoided = counterfactual − spent
-            </span>
+            <p className="text-[11px] text-aide-text-dim mb-2">
+              All recorded observations in the selected period. Estimates mix
+              historical methods and observed text; these are not provider
+              totals.
+            </p>
+            <PerToolObservations stats={perToolStats} />
           </div>
-          <PerToolEfficiency stats={perToolStats} />
-          <details className="mt-3 text-[11px] text-aide-text-dim">
-            <summary className="cursor-pointer hover:text-aide-text-muted">
-              How "avoided" is computed
-            </summary>
-            <div className="mt-2 space-y-1.5 pl-4 border-l border-aide-border">
-              <p>
-                All token counts use calibrated chars-per-token ratios per
-                language (<code className="text-aide-text">pkg/code/tokens.go</code>),
-                measured against Anthropic's <code className="text-aide-text">count_tokens</code> API.
-              </p>
-              <p>
-                <strong className="text-aide-text">Consume tools</strong> (code_outline,
-                code_read_symbol): <em>avoided</em> = tokens in the full file the
-                agent asked about, minus what we actually sent. Grounded — the
-                agent explicitly targeted this file/symbol, so a raw
-                <code className="text-aide-text"> Read</code> is the concrete counterfactual.
-              </p>
-              <p>
-                <strong className="text-aide-text">Raw Read</strong>: avoided = 0. The
-                agent chose the expensive path; there's nothing cheaper to
-                compare against.
-              </p>
-              <p>
-                <strong className="text-aide-text">code_search</strong>: counts a
-                call as <em>satisfied</em> when no Grep follows within 60s in the
-                same session — the index answered the question and the agent
-                didn't fall back to raw text search. Avoided estimate = 3× spent
-                (a Grep on the same project typically returns several times the
-                bytes a focused symbol search does). Calls followed by Grep
-                claim no avoided.
-              </p>
-              <p>
-                <strong className="text-aide-text">Other navigation / search</strong>
-                (code_references, Grep, Glob): we report only what they cost.
-                Their value is indirect — they let the agent find the right file
-                before reading — and we can't claim a specific "avoided" amount
-                without speculating about what the agent would have done
-                otherwise.
-              </p>
-              <p>
-                <strong className="text-aide-text">Output-sized tools</strong>
-                (Bash, WebFetch, WebSearch, Grep): spent = bytes of
-                tool_response that flowed back into context, divided by the
-                same per-language ratio. 0 when the harness didn't pass a
-                response payload (some hooks strip it for size).
-              </p>
+        )}
+
+        {/* Context delivery breakdown */}
+        {stats && stats.total_delivered > 0 && (
+          <div className="mb-6">
+            <h3 className="text-xs font-semibold text-aide-text mb-2">
+              Context Delivered
+            </h3>
+            <p className="text-[10px] text-aide-text-dim mb-2">
+              Historical estimates of guidance injected by aide; delivery does
+              not establish avoided searches.
+            </p>
+            <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+              {(stats.by_delivery?.memory ?? 0) > 0 && (
+                <DeliveryCard
+                  label="Memories"
+                  value={stats.by_delivery.memory}
+                  tooltip="Tokens from project and global memories injected at session start."
+                />
+              )}
+              {(stats.by_delivery?.decision ?? 0) > 0 && (
+                <DeliveryCard
+                  label="Decisions"
+                  value={stats.by_delivery.decision}
+                  tooltip="Tokens from architectural decisions injected at session start."
+                />
+              )}
+              {(stats.by_delivery?.skill ?? 0) > 0 && (
+                <DeliveryCard
+                  label="Skills"
+                  value={stats.by_delivery.skill}
+                  tooltip="Tokens from matched skill instructions injected on user prompts."
+                />
+              )}
+              {(stats.by_delivery?.enrichment ?? 0) > 0 && (
+                <DeliveryCard
+                  label="Search Enrichment"
+                  value={stats.by_delivery.enrichment}
+                  tooltip="Tokens from code index context appended to Grep searches."
+                />
+              )}
             </div>
-          </details>
-        </div>
-      )}
-
-      {/* Context delivery breakdown */}
-      {stats && stats.total_delivered > 0 && (
-        <div className="mb-6">
-          <h3 className="text-xs font-semibold text-aide-text mb-2">
-            Context Delivered
-          </h3>
-          <p className="text-[10px] text-aide-text-dim mb-2">
-            Tokens aide proactively injected so the agent didn't need to search for them.
-          </p>
-          <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-            {(stats.by_delivery?.memory ?? 0) > 0 && (
-              <DeliveryCard
-                label="Memories"
-                value={stats.by_delivery.memory}
-                tooltip="Tokens from project and global memories injected at session start."
-              />
-            )}
-            {(stats.by_delivery?.decision ?? 0) > 0 && (
-              <DeliveryCard
-                label="Decisions"
-                value={stats.by_delivery.decision}
-                tooltip="Tokens from architectural decisions injected at session start."
-              />
-            )}
-            {(stats.by_delivery?.skill ?? 0) > 0 && (
-              <DeliveryCard
-                label="Skills"
-                value={stats.by_delivery.skill}
-                tooltip="Tokens from matched skill instructions injected on user prompts."
-              />
-            )}
-            {(stats.by_delivery?.enrichment ?? 0) > 0 && (
-              <DeliveryCard
-                label="Search Enrichment"
-                value={stats.by_delivery.enrichment}
-                tooltip="Tokens from code index context appended to Grep searches."
-              />
-            )}
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Tool adoption */}
-      {stats && totalFileInteractions > 0 && (
-        <div className="mb-6">
-          <h3 className="text-xs font-semibold text-aide-text mb-2">
-            Tool Adoption
-          </h3>
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-2 rounded-full bg-aide-bg-secondary overflow-hidden">
-              <div
-                className="h-full rounded-full bg-aide-accent"
-                style={{ width: `${adoptionPct}%` }}
-              />
-            </div>
-            <span className="text-xs text-aide-text-muted whitespace-nowrap">
-              {stats.code_tool_count} code tools / {stats.read_count} reads ({adoptionPct}%)
-            </span>
-          </div>
-          <p className="text-[10px] text-aide-text-dim mt-1">
-            Ratio of efficient code tool calls (outline, symbol_read) vs raw file reads.
-          </p>
-        </div>
-      )}
-
-      {/* Events table */}
-      <h3 className="text-xs font-semibold text-aide-text mb-2">Recent Events</h3>
-      <FilterBar
-        query={query}
-        onQueryChange={setQuery}
-        placeholder="Filter events..."
-        dropdowns={[
-          {
-            value: toolFilter,
-            onChange: setToolFilter,
-            options: toolOptions,
-            placeholder: "All tools",
-          },
-        ]}
-      />
-      {(statsLoading || eventsLoading) && (
-        <p className="text-xs text-aide-text-dim py-4">Loading...</p>
-      )}
-      {!statsLoading && !eventsLoading && filteredEvents.length === 0 && (
-        <p className="text-xs text-aide-text-dim py-4">No token events recorded yet.</p>
-      )}
-      {filteredEvents.length > 0 && (
-        <SortableTable
-          data={filteredEvents}
-          columns={columns}
-          minWidth="52rem"
-          keyFn={(row) => row.id}
-          defaultSortKey="timestamp"
-          defaultSortDir="desc"
+        {/* Events table */}
+        <h3 className="text-xs font-semibold text-aide-text mb-2">
+          Recent Events
+        </h3>
+        <FilterBar
+          query={query}
+          onQueryChange={setQuery}
+          placeholder="Filter events..."
+          dropdowns={[
+            {
+              value: toolFilter,
+              onChange: setToolFilter,
+              options: toolOptions,
+              placeholder: "All tools",
+            },
+          ]}
         />
-      )}
-
+        {(statsLoading || eventsLoading) && (
+          <p className="text-xs text-aide-text-dim py-4">Loading...</p>
+        )}
+        {!eventsLoading && eventsError && (
+          <div role="alert" className="text-xs text-aide-red py-4">
+            <p>Unable to load recent events. Event coverage is unknown.</p>
+            <button
+              type="button"
+              onClick={refreshEvents}
+              className="mt-2 text-aide-accent hover:underline"
+            >
+              Retry events
+            </button>
+          </div>
+        )}
+        {!statsLoading &&
+          !eventsLoading &&
+          !eventsError &&
+          filteredEvents.length === 0 && (
+            <p className="text-xs text-aide-text-dim py-4">
+              No token events in this selection.
+            </p>
+          )}
+        {!eventsLoading && !eventsError && filteredEvents.length > 0 && (
+          <SortableTable
+            data={filteredEvents}
+            columns={columns}
+            minWidth="75rem"
+            keyFn={(row) => row.id}
+            defaultSortKey="timestamp"
+            defaultSortDir="desc"
+          />
+        )}
+      </div>
       {viewer && project && (
         <CodeViewer
           open={!!viewer}

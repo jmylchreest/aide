@@ -1,0 +1,21 @@
+import { test, expect, afterAll } from "bun:test";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { ContextPruningTracker } from "./src/core/context-pruning/tracker.ts";
+import { recoverablePrune } from "./src/core/context-pruning/recovery.ts";
+const root = mkdtempSync(join(tmpdir(), "aide-debug-visible-"));
+afterAll(() => rmSync(root, { recursive: true, force: true }));
+const output = "src/example.ts:42: export function example() {}\n".repeat(200);
+test("a third identical search points to the first full result", () => {
+  const tracker = new ContextPruningTracker(root);
+  const run = (call: string) => tracker.process(call, "code_search", { query: "example" }, output, recoverablePrune(root, "session", call, output));
+  expect(run("search-1").modified).toBe(false);
+  const second = run("search-2");
+  expect(second.modified).toBe(true);
+  expect(second.output).toContain("callId: search-1");
+  const third = run("search-3");
+  expect(third.modified).toBe(true);
+  expect(third.output).toContain("callId: search-1");
+  expect(third.output).not.toContain("callId: search-2");
+});

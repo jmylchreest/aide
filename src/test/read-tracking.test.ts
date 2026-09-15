@@ -26,7 +26,12 @@ vi.mock("../core/read-tracking.js", () => ({
   recordFileRead: vi.fn(),
 }));
 
-import { getPreviousRead, checkFileReadFreshness, recordFileRead } from "../core/read-tracking.js";
+import {
+  getPreviousRead,
+  checkFileReadFreshness,
+  recordFileRead,
+  type ReadCheckResult,
+} from "../core/read-tracking.js";
 import { setState } from "../core/aide-client.js";
 
 const mockGetPreviousRead = mocked(getPreviousRead);
@@ -48,18 +53,33 @@ describe("checkSmartReadHint", () => {
   });
 
   it("should not hint for non-Read tool", () => {
-    const result = checkSmartReadHint("Edit", { file_path: "foo.ts" }, cwd, binary);
+    const result = checkSmartReadHint(
+      "Edit",
+      { file_path: "foo.ts" },
+      cwd,
+      binary,
+    );
     expect(result.shouldHint).toBe(false);
   });
 
   it("should not hint when AIDE_CODE_WATCH is disabled", () => {
     process.env.AIDE_CODE_WATCH = "0";
-    const result = checkSmartReadHint("Read", { file_path: "foo.ts" }, cwd, binary);
+    const result = checkSmartReadHint(
+      "Read",
+      { file_path: "foo.ts" },
+      cwd,
+      binary,
+    );
     expect(result.shouldHint).toBe(false);
   });
 
   it("should not hint when binary is null", () => {
-    const result = checkSmartReadHint("Read", { file_path: "foo.ts" }, cwd, null);
+    const result = checkSmartReadHint(
+      "Read",
+      { file_path: "foo.ts" },
+      cwd,
+      null,
+    );
     expect(result.shouldHint).toBe(false);
   });
 
@@ -98,6 +118,60 @@ describe("checkSmartReadHint", () => {
     expect(result.shouldHint).toBe(false);
   });
 
+  it.each([100, 200, 1000])(
+    "skips advice and daemon lookups for an explicit %i-line read",
+    (limit) => {
+      mockGetPreviousRead.mockReturnValue("2026-04-03T10:00:00.000Z");
+      mockCheckFreshness.mockReturnValue({
+        indexed: true,
+        fresh: true,
+        symbols: 5,
+        outline_available: true,
+        estimated_tokens: 1200,
+      });
+      expect(
+        checkSmartReadHint(
+          "read",
+          { filePath: "src/auth.ts", offset: 1, limit },
+          cwd,
+          binary,
+        ).shouldHint,
+      ).toBe(false);
+      expect(mockGetPreviousRead).not.toHaveBeenCalled();
+      expect(mockCheckFreshness).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    { limit: 0 },
+    { limit: -1 },
+    { limit: "20" },
+    { limit: 1.5 },
+    { offset: "50" },
+    { offset: 2.5 },
+  ])(
+    "does not treat malformed bounds as evidence of targeted retrieval: %j",
+    (range) => {
+      mockGetPreviousRead.mockReturnValue("2026-04-03T10:00:00.000Z");
+      mockCheckFreshness.mockReturnValue({
+        indexed: true,
+        fresh: true,
+        symbols: 5,
+        outline_available: true,
+        estimated_tokens: 1200,
+      });
+      expect(
+        checkSmartReadHint(
+          "Read",
+          { file_path: "src/auth.ts", ...range },
+          cwd,
+          binary,
+        ).shouldHint,
+      ).toBe(true);
+      expect(mockCheckFreshness).toHaveBeenCalled();
+    },
+  );
+
   it("should not hint for .md files", () => {
     const result = checkSmartReadHint(
       "Read",
@@ -129,8 +203,13 @@ describe("checkSmartReadHint", () => {
       fresh: true,
       symbols: 5,
       outline_available: true,
-      estimated_tokens: 1200,
-    });
+      estimated_tokens: 9999,
+      text_estimate: {
+        bytes: 3600,
+        estimated_tokens: 1200,
+        estimator: "utf8-bytes/3-v1",
+      },
+    } as ReadCheckResult);
 
     const result = checkSmartReadHint(
       "Read",
@@ -140,9 +219,74 @@ describe("checkSmartReadHint", () => {
     );
     expect(result.shouldHint).toBe(true);
     expect(result.hint).toContain("[aide:smart-read]");
-    expect(result.hint).toContain("code_outline");
-    expect(result.hint).toContain("~1200 tokens");
+    expect(result.hint).toContain("Matching full-file text was observed");
+    expect(result.hint).toContain("~1200 estimated text tokens");
+    expect(result.hint).not.toContain("9999");
+    expect(result.hint).toContain("code_read_symbol");
+    expect(result.hint).toContain("symbols");
+    expect(result.hint).toContain("Read directly");
   });
+
+  it("preserves a known zero estimate for an empty file", () => {
+    mockGetPreviousRead.mockReturnValue("2026-04-03T10:00:00.000Z");
+    mockCheckFreshness.mockReturnValue({
+      indexed: true,
+      fresh: true,
+      symbols: 1,
+      outline_available: true,
+      estimated_tokens: 0,
+      text_estimate: {
+        bytes: 0,
+        estimated_tokens: 0,
+        estimator: "utf8-bytes/3-v1",
+      },
+    } as ReadCheckResult);
+    const result = checkSmartReadHint(
+      "Read",
+      { file_path: "src/auth.ts" },
+      cwd,
+      binary,
+    );
+    expect(result.shouldHint).toBe(true);
+    expect(result.hint).toContain("~0 estimated text tokens");
+  });
+
+  it.each([
+    undefined,
+    null,
+    { bytes: 3600, estimated_tokens: 1200, estimator: "legacy" },
+    { bytes: 3600, estimated_tokens: "1200", estimator: "utf8-bytes/3-v1" },
+    { bytes: -1, estimated_tokens: 1200, estimator: "utf8-bytes/3-v1" },
+    {
+      bytes: Number.MAX_SAFE_INTEGER + 1,
+      estimated_tokens: 1200,
+      estimator: "utf8-bytes/3-v1",
+    },
+    { bytes: 3600, estimated_tokens: -1, estimator: "utf8-bytes/3-v1" },
+    { bytes: 3600, estimated_tokens: 1.5, estimator: "utf8-bytes/3-v1" },
+  ])(
+    "keeps reuse advice without presenting unavailable or incompatible estimates: %j",
+    (text_estimate) => {
+      mockGetPreviousRead.mockReturnValue("2026-04-03T10:00:00.000Z");
+      mockCheckFreshness.mockReturnValue({
+        indexed: true,
+        fresh: true,
+        symbols: 1,
+        outline_available: true,
+        estimated_tokens: 9999,
+        text_estimate,
+      } as unknown as ReadCheckResult);
+      const result = checkSmartReadHint(
+        "Read",
+        { file_path: "src/auth.ts" },
+        cwd,
+        binary,
+      );
+      expect(result.shouldHint).toBe(true);
+      expect(result.hint).not.toContain("estimated text tokens");
+      expect(result.hint).not.toContain("9999");
+    },
+  );
 
   it("should not hint when file changed since indexing (not fresh)", () => {
     mockGetPreviousRead.mockReturnValue("2026-04-03T10:00:00.000Z");

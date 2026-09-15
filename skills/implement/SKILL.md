@@ -51,18 +51,20 @@ Understand what the tests expect:
 - What edge cases are covered?
 
 ```bash
-# For large test files, get the structure first
+# If a large test file is unfamiliar, an outline can help locate relevant tests
 mcp__plugin_aide_aide__code_outline file="path/to/feature.test.ts"
 
-# Then read specific test sections with offset/limit
+# Read relevant test sections directly when their ranges are known
 Read path/to/feature.test.ts offset=<start> limit=<count>
 
-# For small test files (<100 lines), reading the full file is fine
+# Read the full file when it is small or most tests are relevant
 Read path/to/feature.test.ts
 ```
 
-When implementing, use `code_outline` on adjacent/related source files to understand
-their structure before reading them fully. This preserves context for the implementation work.
+For related source, read known ranges or symbols directly. Use `code_outline` when unfamiliar
+large-file structure would help select relevant code; read the full file when most contents are needed.
+Batch known symbols with `code_read_symbol` (`symbols`, up to 10) when useful. Extra retrieval rounds
+can outweigh smaller responses, so an outline is not a prerequisite to reading or editing.
 
 ### Step 3: Check Design Decisions
 

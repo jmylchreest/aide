@@ -105,8 +105,9 @@ How healthy is the codebase?
 ### Complexity Analysis
 
 1. Run `findings_search analyzer="complexity" severity="critical"` to find the most complex functions
-2. Use `code_outline` on flagged files to understand structure
-3. Use `Read` with offset/limit to examine the specific functions
+2. Read the flagged functions directly using the finding locations
+3. Examine surrounding code as needed; use `code_outline` when unfamiliar large-file structure
+   would help, or read the full file when small or mostly relevant
 4. Recommend decomposition strategies
 
 ### Duplication Analysis
@@ -177,6 +178,6 @@ Beyond the automated analyzers, look for these patterns using findings as starti
 
 - [ ] Checked `findings_stats` for overall picture
 - [ ] Reviewed critical findings
-- [ ] Cross-referenced findings with actual code (used `Read` or `code_outline`)
+- [ ] Cross-referenced findings with the relevant source code
 - [ ] Provided actionable recommendations with file:line references
 - [ ] Noted any false positives or findings that need manual verification

@@ -1,0 +1,126 @@
+{
+  "version": 2,
+  "source_commit": "efe758c6ceb6ed5deb10fe1a4d456c69b58f00fc",
+  "trial_order": [
+    {
+      "id": "t01",
+      "task": "navigation",
+      "treatment": "ordinary",
+      "repetition": 1
+    },
+    {
+      "id": "t02",
+      "task": "debug",
+      "treatment": "available",
+      "repetition": 1
+    },
+    {
+      "id": "t03",
+      "task": "edit",
+      "treatment": "guided",
+      "repetition": 1
+    },
+    {
+      "id": "t04",
+      "task": "navigation",
+      "treatment": "available",
+      "repetition": 1
+    },
+    {
+      "id": "t05",
+      "task": "debug",
+      "treatment": "guided",
+      "repetition": 1
+    },
+    {
+      "id": "t06",
+      "task": "edit",
+      "treatment": "ordinary",
+      "repetition": 1
+    },
+    {
+      "id": "t07",
+      "task": "navigation",
+      "treatment": "guided",
+      "repetition": 1
+    },
+    {
+      "id": "t08",
+      "task": "debug",
+      "treatment": "ordinary",
+      "repetition": 1
+    },
+    {
+      "id": "t09",
+      "task": "edit",
+      "treatment": "available",
+      "repetition": 1
+    },
+    {
+      "id": "t10",
+      "task": "navigation",
+      "treatment": "guided",
+      "repetition": 2
+    },
+    {
+      "id": "t11",
+      "task": "debug",
+      "treatment": "ordinary",
+      "repetition": 2
+    },
+    {
+      "id": "t12",
+      "task": "edit",
+      "treatment": "available",
+      "repetition": 2
+    },
+    {
+      "id": "t13",
+      "task": "navigation",
+      "treatment": "available",
+      "repetition": 2
+    },
+    {
+      "id": "t14",
+      "task": "debug",
+      "treatment": "guided",
+      "repetition": 2
+    },
+    {
+      "id": "t15",
+      "task": "edit",
+      "treatment": "ordinary",
+      "repetition": 2
+    },
+    {
+      "id": "t16",
+      "task": "navigation",
+      "treatment": "ordinary",
+      "repetition": 2
+    },
+    {
+      "id": "t17",
+      "task": "debug",
+      "treatment": "available",
+      "repetition": 2
+    },
+    {
+      "id": "t18",
+      "task": "edit",
+      "treatment": "guided",
+      "repetition": 2
+    }
+  ],
+  "shared_instructions": "You are completing one isolated evaluation task. Your task root is ROOT. Work only in that root. Mandatory host instruction/bootstrap reads are allowed separately. Every shell command must start with rtk; use rtk proxy for unfiltered source reads and tests. Normal source exploration is allowed: regex/literal searches, file listings, line/byte counts, full or bounded reads. The root is in an ignored directory; use rg --hidden --no-ignore when needed. Edit and run tests only as the task permits. Do not read other trial roots, repository source outside your root, fixture/reference/grader packages, memories, prior results or runtime logs. Do not use internet, subagents or global/index-based code search. Prefer a natural efficient workflow; there is no requirement to use any specific retrieval tool. Aim for no more than 24 source/edit/test tool calls (nested tool calls count individually); instruction/bootstrap and tool-discovery calls are excluded from that target but remain measured. If more work is needed to finish correctly, finish and report why. Do not commit. End with the task answer, implemented change if any, and verification; do not speculate about token savings.",
+  "treatments": {
+    "ordinary": "Use ordinary shell/file tools for source exploration. Do not use aide retrieval tools.",
+    "available": "You may additionally use aide code_outline and code_read_symbol with an explicit file path inside your task root. They are optional: a direct read can be preferable for small files or when most contents are needed. No other aide tools.",
+    "guided": "You may additionally use aide code_outline and code_read_symbol with an explicit file path inside your task root. They are optional: a direct read can be preferable for small files or when most contents are needed. No other aide tools. For larger unfamiliar files where only part is relevant, start with a collapsed outline, then read the relevant symbol bodies (batch related symbols when useful). Use ordinary text search for patterns that outlines cannot answer. Read small files directly when most contents are needed. Avoid repeating retrieval already sufficient to solve the task."
+  },
+  "execution": "18 fresh fork_turns=none participants, sequential in declared order, identical inherited model/effort without override; verify actual runtime identity/model/effort/provider/CLI. All retain the same installed aide hooks; this tests retrieval conditions, not installing/uninstalling aide. Provider cache state is uncontrolled; fresh context does not imply cleared provider cache. No reruns or replacements.",
+  "grading": "Navigation: all five frozen rubric checks, independent grader blinded to treatment and usage, references verified. Debug/edit: provided visible and hidden functional checks plus immutable-file and trace audit. Zero aide uptake and call target overruns remain valid and reported. All planned rows retained including failed/incomplete/invalid; passing quality required for descriptive resource deltas.",
+  "metrics": "Runtime-reported input/cached input/output/reasoning/total tokens, response count and task duration; not billing or saved-provider-token claims. Source retrieval result text bytes separately from tool protocol/rendering wrappers, bootstrap, test/edit output; unknown values remain null. Record assisted tool uptake. Pair comparisons only when protocol-valid and runtime model/provider/effort/CLI comparable. Small fixed sample is descriptive, not causal generalisation. Record guidance/discovery/bootstrap overhead in runtime counters. Separate participant resource use from setup/grading/reporting. No aggregate efficiency score. Report observed aide calls, fallback sequences and retries; do not infer avoided calls or causal savings from their absence. Aide duration and hook byte receipts require attributable evidence, otherwise unknown.",
+  "preflight": "Seed visible suites fail; reference visible/hidden suites pass before freeze. Package SHA256 inventory includes prompts, fixtures, rubrics, references, grading and runner. Participant copies contain template only. No rebuild/restart required.",
+  "collector_sha256": "ad59a6efcce5a5005b0b73ca5c5f8a24d9346e141f662b8c626b4da74d64fbe3",
+  "host_scope": "The executable pilot uses the current Codex harness. Shared fixtures can be reused with Claude Code and OpenCode, but this run makes no cross-host performance claim. Their actual host usage fields require separate capture adapters or reviewed host exports; unknown metrics must stay unknown."
+}

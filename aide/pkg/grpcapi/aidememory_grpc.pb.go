@@ -8,7 +8,6 @@ package grpcapi
 
 import (
 	context "context"
-
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -352,6 +351,7 @@ var MemoryService_ServiceDesc = grpc.ServiceDesc{
 const (
 	StateService_Get_FullMethodName     = "/aidememory.StateService/Get"
 	StateService_Set_FullMethodName     = "/aidememory.StateService/Set"
+	StateService_Init_FullMethodName    = "/aidememory.StateService/Init"
 	StateService_List_FullMethodName    = "/aidememory.StateService/List"
 	StateService_Delete_FullMethodName  = "/aidememory.StateService/Delete"
 	StateService_Clear_FullMethodName   = "/aidememory.StateService/Clear"
@@ -364,6 +364,8 @@ const (
 type StateServiceClient interface {
 	Get(ctx context.Context, in *StateGetRequest, opts ...grpc.CallOption) (*StateGetResponse, error)
 	Set(ctx context.Context, in *StateSetRequest, opts ...grpc.CallOption) (*StateSetResponse, error)
+	// Atomically create state only if absent; always returns the persisted state.
+	Init(ctx context.Context, in *StateSetRequest, opts ...grpc.CallOption) (*StateSetResponse, error)
 	List(ctx context.Context, in *StateListRequest, opts ...grpc.CallOption) (*StateListResponse, error)
 	Delete(ctx context.Context, in *StateDeleteRequest, opts ...grpc.CallOption) (*StateDeleteResponse, error)
 	Clear(ctx context.Context, in *StateClearRequest, opts ...grpc.CallOption) (*StateClearResponse, error)
@@ -392,6 +394,16 @@ func (c *stateServiceClient) Set(ctx context.Context, in *StateSetRequest, opts 
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(StateSetResponse)
 	err := c.cc.Invoke(ctx, StateService_Set_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *stateServiceClient) Init(ctx context.Context, in *StateSetRequest, opts ...grpc.CallOption) (*StateSetResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(StateSetResponse)
+	err := c.cc.Invoke(ctx, StateService_Init_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -444,6 +456,8 @@ func (c *stateServiceClient) Cleanup(ctx context.Context, in *StateCleanupReques
 type StateServiceServer interface {
 	Get(context.Context, *StateGetRequest) (*StateGetResponse, error)
 	Set(context.Context, *StateSetRequest) (*StateSetResponse, error)
+	// Atomically create state only if absent; always returns the persisted state.
+	Init(context.Context, *StateSetRequest) (*StateSetResponse, error)
 	List(context.Context, *StateListRequest) (*StateListResponse, error)
 	Delete(context.Context, *StateDeleteRequest) (*StateDeleteResponse, error)
 	Clear(context.Context, *StateClearRequest) (*StateClearResponse, error)
@@ -463,6 +477,9 @@ func (UnimplementedStateServiceServer) Get(context.Context, *StateGetRequest) (*
 }
 func (UnimplementedStateServiceServer) Set(context.Context, *StateSetRequest) (*StateSetResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Set not implemented")
+}
+func (UnimplementedStateServiceServer) Init(context.Context, *StateSetRequest) (*StateSetResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Init not implemented")
 }
 func (UnimplementedStateServiceServer) List(context.Context, *StateListRequest) (*StateListResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method List not implemented")
@@ -529,6 +546,24 @@ func _StateService_Set_Handler(srv interface{}, ctx context.Context, dec func(in
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(StateServiceServer).Set(ctx, req.(*StateSetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _StateService_Init_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StateSetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(StateServiceServer).Init(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: StateService_Init_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(StateServiceServer).Init(ctx, req.(*StateSetRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -619,6 +654,10 @@ var StateService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Set",
 			Handler:    _StateService_Set_Handler,
+		},
+		{
+			MethodName: "Init",
+			Handler:    _StateService_Init_Handler,
 		},
 		{
 			MethodName: "List",

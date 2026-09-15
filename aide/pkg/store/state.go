@@ -2,12 +2,46 @@ package store
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"time"
 
 	"github.com/jmylchreest/aide/aide/pkg/memory"
 	bolt "go.etcd.io/bbolt"
 )
+
+// InitState creates state only when its key is absent. The lookup and insert
+// share a write transaction, so replayed startup cannot overwrite a reset.
+func (s *BoltStore) InitState(proposed *memory.State) (*memory.State, bool, error) {
+	if proposed == nil || proposed.Key == "" {
+		return nil, false, fmt.Errorf("state key is required")
+	}
+	var result memory.State
+	created := false
+	err := s.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket(BucketState)
+		if data := b.Get([]byte(proposed.Key)); data != nil {
+			return json.Unmarshal(data, &result)
+		}
+		result = *proposed
+		if result.UpdatedAt.IsZero() {
+			result.UpdatedAt = time.Now()
+		}
+		data, err := json.Marshal(&result)
+		if err != nil {
+			return err
+		}
+		if err := b.Put([]byte(result.Key), data); err != nil {
+			return err
+		}
+		created = true
+		return nil
+	})
+	if err != nil {
+		return nil, false, err
+	}
+	return &result, created, nil
+}
 
 // SetState stores a state key-value pair. Callers may preset UpdatedAt to
 // preserve a historic timestamp (recovery flows); zero-value is stamped with

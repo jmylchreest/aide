@@ -5,12 +5,13 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "fs";
 import { tmpdir } from "os";
-import { join } from "path";
+import { join, resolve } from "path";
 import * as TOML from "smol-toml";
-import { execSync } from "child_process";
+import { execFileSync, execSync } from "child_process";
 import {
   codexDevMode,
   switchCodexDev,
@@ -56,6 +57,40 @@ describe("Codex dev toggle", () => {
   });
 
   afterEach(() => rmSync(root, { recursive: true, force: true }));
+
+  it("refreshes missing child and compaction hooks in an existing dev install", () => {
+    writeConfig({ plugins: { "aide@aide": { enabled: true } } });
+    switchCodexDev(paths, "dev");
+    const oldHooks = readHooks();
+    delete oldHooks.hooks.SubagentStart;
+    delete oldHooks.hooks.PreCompact;
+    delete oldHooks.hooks.PostCompact;
+    const user = {
+      matcher: "worker",
+      hooks: [{ type: "command", command: "user-child-hook" }],
+    };
+    oldHooks.hooks.SubagentStart = [user];
+    writeHooks(oldHooks);
+
+    switchCodexDev(paths, "dev");
+    const refreshed = readHooks();
+    expect(refreshed.hooks.SubagentStart).toContainEqual(user);
+    for (const [event, handler] of [
+      ["SubagentStart", "subagent-tracker"],
+      ["PreCompact", "pre-compact"],
+      ["PostCompact", "post-compact"],
+    ]) {
+      const generated = refreshed.hooks[event]
+        .flatMap((group: any) => group.hooks)
+        .filter((hook: any) => hook.command.endsWith(` hook ${handler}`));
+      expect(generated).toHaveLength(1);
+      expect(generated[0].command).toContain(
+        join(paths.repo, "src", "cli", "index.ts"),
+      );
+    }
+    switchCodexDev(paths, "dev");
+    expect(readHooks()).toEqual(refreshed);
+  });
 
   it("switches a marketplace install and restores it without losing unrelated edits", () => {
     writeConfig({
@@ -345,6 +380,75 @@ describe("Codex dev toggle", () => {
     expect(existsSync(join(paths.configDir, "hooks.json"))).toBe(false);
   });
 
+  it("recognizes the same checkout through a directory alias without accepting another checkout", () => {
+    mkdirSync(join(paths.repo, "src", "cli"), { recursive: true });
+    writeFileSync(join(paths.repo, "src", "cli", "index.ts"), "local cli");
+    writeFileSync(join(paths.repo, "bin", "aide-wrapper.ts"), "local wrapper");
+    const alias = join(
+      root,
+      process.platform === "win32" ? "alias with spaces" : "alias's checkout",
+    );
+    symlinkSync(
+      paths.repo,
+      alias,
+      process.platform === "win32" ? "junction" : "dir",
+    );
+    const quote = (value: string) =>
+      process.platform === "win32"
+        ? `"${value.replace(/"/g, '\\"')}"`
+        : `'${value.replace(/'/g, "'\\''")}'`;
+    for (const mcp of [
+      { command: join(alias, "bin", binary), args: ["mcp"] },
+      { command: "bun", args: [join(alias, "bin", "aide-wrapper.ts"), "mcp"] },
+      { command: "bun", args: [join(alias, "src", "cli", "index.ts"), "mcp"] },
+    ]) {
+      writeConfig({ mcp_servers: { aide: mcp } });
+      writeHooks({
+        hooks: {
+          SessionStart: [
+            {
+              matcher: "*",
+              hooks: [
+                {
+                  type: "command",
+                  command: `bun ${quote(join(alias, "src", "cli", "index.ts"))} hook session-start`,
+                },
+              ],
+            },
+          ],
+        },
+      });
+      expect(codexDevMode(paths)).toBe("dev");
+    }
+    const other = join(root, "other checkout");
+    mkdirSync(join(other, "src", "cli"), { recursive: true });
+    writeFileSync(join(other, "src", "cli", "index.ts"), "foreign cli");
+    writeConfig({
+      mcp_servers: {
+        aide: {
+          command: "bun",
+          args: [join(other, "src", "cli", "index.ts"), "mcp"],
+        },
+      },
+    });
+    writeHooks({
+      hooks: {
+        SessionStart: [
+          {
+            matcher: "*",
+            hooks: [
+              {
+                type: "command",
+                command: `bun ${quote(join(other, "src", "cli", "index.ts"))} hook session-start`,
+              },
+            ],
+          },
+        ],
+      },
+    });
+    expect(codexDevMode(paths)).toBe("prod");
+  });
+
   it("recognizes hooks-only installs and reports conflicting components", () => {
     writeHooks({
       hooks: {
@@ -482,4 +586,145 @@ describe("Codex dev toggle", () => {
     switchCodexDev(paths, "prod");
     expect(commands()).toEqual([]);
   });
+});
+
+describe("Codex dev toggle across inherited scopes", () => {
+  let root: string;
+  let repo: string;
+  let globalDir: string;
+  let projectDir: string;
+  const binary = process.platform === "win32" ? "aide.exe" : "aide";
+  const script = resolve("scripts/codex-dev-toggle.ts");
+  const readHooks = (dir: string) =>
+    JSON.parse(readFileSync(join(dir, "hooks.json"), "utf8"));
+  const commands = (dir: string): string[] =>
+    Object.values(readHooks(dir).hooks).flatMap((groups: any) =>
+      groups.flatMap((group: any) =>
+        group.hooks.map((hook: any) => hook.command),
+      ),
+    );
+  const seed = (dir: string) => {
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      join(dir, "config.toml"),
+      TOML.stringify({
+        mcp_servers: {
+          aide: { command: "bunx", args: ["@jmylchreest/aide-plugin", "mcp"] },
+        },
+      }),
+    );
+    writeFileSync(
+      join(dir, "hooks.json"),
+      JSON.stringify({
+        custom: "keep",
+        hooks: {
+          SessionStart: [
+            {
+              matcher: "*",
+              hooks: [
+                {
+                  type: "command",
+                  command: "bunx @jmylchreest/aide-plugin hook session-start",
+                },
+                { type: "command", command: "unrelated-hook" },
+              ],
+            },
+          ],
+        },
+      }),
+    );
+  };
+  const run = (action: string) =>
+    execFileSync("bun", [script, action, repo], {
+      env: { ...process.env, CODEX_HOME: globalDir },
+      encoding: "utf8",
+    });
+  beforeEach(() => {
+    root = mkdtempSync(join(tmpdir(), "aide-codex-scopes-"));
+    repo = join(root, "repo");
+    globalDir = join(root, "global");
+    projectDir = join(repo, ".codex");
+    mkdirSync(join(repo, "bin"), { recursive: true });
+    writeFileSync(join(repo, "bin", binary), "local build");
+  });
+  afterEach(() => rmSync(root, { recursive: true, force: true }));
+
+  it("registers inherited hooks once, remains idempotent, and restores both saved scopes", () => {
+    seed(globalDir);
+    seed(projectDir);
+    expect(run("status")).toContain("duplicate aide hooks");
+    run("dev");
+    run("dev");
+    expect(commands(projectDir)).toEqual(["unrelated-hook"]);
+    expect(
+      commands(globalDir).filter((command) =>
+        command.endsWith(" hook session-start"),
+      ),
+    ).toHaveLength(1);
+    expect(run("status")).not.toContain("duplicate aide hooks");
+    expect(run("mode").trim()).toBe("dev");
+    const hooks = readHooks(projectDir);
+    hooks.hooks.SessionStart[0].hooks.push({
+      type: "command",
+      command: "added-during-dev",
+    });
+    writeFileSync(join(projectDir, "hooks.json"), JSON.stringify(hooks));
+    expect(run("prod")).toContain("duplicate aide hooks");
+    expect(commands(projectDir)).toEqual([
+      "unrelated-hook",
+      "added-during-dev",
+      "bunx @jmylchreest/aide-plugin hook session-start",
+    ]);
+    expect(readHooks(projectDir).custom).toBe("keep");
+  });
+
+  it("does not claim duplicate registrations for disjoint matchers", () => {
+    seed(globalDir);
+    seed(projectDir);
+    for (const [dir, matcher] of [
+      [globalDir, "startup"],
+      [projectDir, "resume"],
+    ]) {
+      const hooks = readHooks(dir);
+      hooks.hooks.SessionStart[0].matcher = matcher;
+      writeFileSync(join(dir, "hooks.json"), JSON.stringify(hooks));
+    }
+    expect(run("status")).not.toContain("duplicate aide hooks");
+  });
+
+  it("does not suppress hooks when CODEX_HOME points at the project config", () => {
+    seed(projectDir);
+    execFileSync("bun", [script, "dev", repo], {
+      env: { ...process.env, CODEX_HOME: projectDir },
+      encoding: "utf8",
+    });
+    expect(
+      commands(projectDir).filter((command) =>
+        command.endsWith(" hook session-start"),
+      ),
+    ).toHaveLength(1);
+  });
+
+  it.each(["global", "project"])(
+    "keeps a %s-only install in its existing scope",
+    (scope) => {
+      const installed = scope === "global" ? globalDir : projectDir;
+      const absent = scope === "global" ? projectDir : globalDir;
+      seed(installed);
+      run("dev");
+      run("dev");
+      expect(
+        commands(installed).filter((command) =>
+          command.endsWith(" hook session-start"),
+        ),
+      ).toHaveLength(1);
+      expect(existsSync(join(absent, "hooks.json"))).toBe(false);
+      expect(run("status")).not.toContain("duplicate aide hooks");
+      run("prod");
+      expect(commands(installed)).toEqual([
+        "unrelated-hook",
+        "bunx @jmylchreest/aide-plugin hook session-start",
+      ]);
+    },
+  );
 });

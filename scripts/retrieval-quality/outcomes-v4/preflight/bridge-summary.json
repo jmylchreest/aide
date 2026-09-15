@@ -1,0 +1,32 @@
+[
+  {
+    "tool": "code_search",
+    "utf8_bytes": 440,
+    "is_error": false,
+    "excerpt": "# Code Search Results\n\n## `recordModelUsage` [function]\n**File:** `src/core/model-usage.ts:319`\n**Signature:** `function recordModelUsage(\n  binary: string,\n  cwd: string,\n  events: ObserveBatchEvent[],\n): boolean`\n\n## `createOpenCodeUsageRecorder` [function]\n**File:** `src/core/model-usage.ts:350`\n**Signature:** `function createOpenCodeUsageRecord"
+  },
+  {
+    "tool": "code_references",
+    "utf8_bytes": 1073,
+    "is_error": false,
+    "excerpt": "# Batch Reference Results\n\n# References to `recordModelUsage`\n\n_Returned 3 indexed reference candidates_\n\nIndexed name matches, not a complete semantic call graph. Verify relevant callers in current source.\n\n## `src/hooks/session-summary.ts`\n\n- **Line 135** [call]: `recordModelUsage(binary, cwd, usage.events);`\n\n## `src/test/model-usage-recording.t"
+  },
+  {
+    "tool": "code_symbols",
+    "utf8_bytes": 1894,
+    "is_error": false,
+    "excerpt": "# Symbols in `src/core/model-usage.ts`\n\n_Total: 16 symbols_\n\n## Interfaces\n\n- **UsageCollection** (line 234): `interface UsageCollection`\n\n## Types\n\n- **Host** (line 15): `type Host = \"claude-code\" | \"codex\" | \"opencode\";`\n- **RecordValue** (line 16): `type RecordValue = Record<string, unknown>;`\n\n## Functions\n\n- **object** (line 17): `function obj"
+  },
+  {
+    "tool": "code_outline",
+    "utf8_bytes": 7346,
+    "is_error": false,
+    "excerpt": "// Outline: 20 symbols, 1479 lines total\n\n28  : import { execFileSync } from \"child_process\";\n29  : import which from \"which\";\n30  : import { join } from \"path\";\n31  : import { findAideBinary } from \"../core/aide-client.js\";\n32  : import {\n33  :   ensureDirectories,\n34  :   getProjectName,\n35  :   loadConfig,\n36  :   initializeSession,\n37  :   clea"
+  },
+  {
+    "tool": "code_read_symbol",
+    "utf8_bytes": 2057,
+    "is_error": false,
+    "excerpt": "# Batch Symbol Source\n\n## `recordModelUsage` [function]\n**File:** `src/core/model-usage.ts:319-347` | **Signature:** `function recordModelUsage(\n  binary: string,\n  cwd: string,\n  events: ObserveBatchEvent[],\n): boolean`\n\n```\n319 : export function recordModelUsage(\n320 :   binary: string,\n321 :   cwd: string,\n322 :   events: ObserveBatchEvent[],\n32"
+  }
+]

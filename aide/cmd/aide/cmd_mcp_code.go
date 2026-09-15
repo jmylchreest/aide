@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -33,7 +34,7 @@ type CodeSymbolsInput struct {
 type CodeStatsInput struct{}
 
 type CodeReferencesInput struct {
-	SymbolName  string   `json:"symbol" jsonschema:"Name of the symbol to find references for (e.g., 'getUserById'). Required if symbols is empty."`
+	SymbolName  string   `json:"symbol,omitempty" jsonschema:"Name of the symbol to find references for (e.g., 'getUserById'). Required if symbols is empty."`
 	SymbolNames []string `json:"symbols,omitempty" jsonschema:"Batch mode: list of symbol names to find references for (max 10). If set, symbol is ignored."`
 	Kind        string   `json:"kind,omitempty" jsonschema:"Filter by reference kind: call, type_ref"`
 	FilePath    string   `json:"file,omitempty" jsonschema:"Filter by file path pattern (substring match)"`
@@ -55,9 +56,11 @@ type CodeReadCheckInput struct {
 }
 
 type CodeReadSymbolInput struct {
-	Symbol  string   `json:"symbol" jsonschema:"Name of the symbol to read (e.g., 'getUserById', 'AuthConfig'). Required if symbols is empty."`
-	Symbols []string `json:"symbols,omitempty" jsonschema:"Batch mode: list of symbol names to read (max 10). If set, symbol is ignored."`
-	Kind    string   `json:"kind,omitempty" jsonschema:"Filter by symbol kind: function, method, class, interface, type"`
+	Symbol    string   `json:"symbol,omitempty" jsonschema:"Name of the symbol to read (e.g., 'getUserById', 'AuthConfig'). Required if symbols is empty."`
+	Symbols   []string `json:"symbols,omitempty" jsonschema:"Batch mode: list of symbol names to read (max 10). If set, symbol is ignored."`
+	Kind      string   `json:"kind,omitempty" jsonschema:"Filter by symbol kind: function, method, class, interface, type"`
+	File      string   `json:"file,omitempty" jsonschema:"Exact file path. Reads current source directly, including files not yet indexed. Use to resolve ambiguous names."`
+	StartLine int      `json:"start_line,omitempty" jsonschema:"Current definition start line, used with file to resolve duplicate names within a file."`
 }
 
 // ============================================================================
@@ -70,6 +73,10 @@ func (s *MCPServer) registerCodeTools() {
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name: "code_search",
 		Description: `Search indexed code symbol DEFINITIONS (functions, methods, classes, interfaces, types).
+
+Use this to locate implementation candidates by name or signature during debugging,
+review, or refactoring. For callers/change impact use code_references; after finding
+names, batch code_read_symbol with symbols (max 10) to inspect current source.
 
 **What gets indexed?**
 Symbols are extracted from source files using tree-sitter parsing:
@@ -91,18 +98,22 @@ Symbols are extracted from source files using tree-sitter parsing:
 - Import/require statements
 - Variable declarations
 
-**Note:** Run 'aide code index' to index your codebase first.`,
+Results are best-effort indexed candidates, not exhaustive or necessarily current.
+Verify relevant definitions in current source; empty results do not prove absence.
+If indexing appears unavailable or stale, inspect code_stats or run 'aide code index'.`,
 	}, s.handleCodeSearch)
 
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name: "code_symbols",
-		Description: `List all symbols defined in a specific file.
+		Description: `List parsed symbol definitions in a specific file.
 
-Returns all indexed symbols (functions, methods, classes, interfaces, types)
+Returns supported symbols (functions, methods, classes, interfaces, types)
 with their signatures, line numbers, and doc comments.
 
-Use this to understand a file's API surface without reading the entire file.
-If the file isn't indexed yet, it will be parsed on-demand.`,
+Use this for a file's API surface; use code_outline for a collapsed structural view.
+Then read selected bodies with code_read_symbol (batch symbols, max 10, with file).
+Read the file directly when it is small or most of its contents are needed.
+If the index is missing or stale, the file is parsed on demand; coverage depends on grammar support.`,
 	}, s.handleCodeSymbols)
 
 	mcp.AddTool(s.server, &mcp.Tool{
@@ -110,14 +121,16 @@ If the file isn't indexed yet, it will be parsed on-demand.`,
 		Description: `Get code index statistics.
 
 Returns the number of indexed files, symbols, and references.
-Use this to check if the codebase has been indexed.
+Use this when troubleshooting missing results or indexing status; it is not a
+required preflight before each search or source read.
 
-If counts are zero, the codebase needs indexing: run 'aide code index'.`,
+Zero counts can mean no supported files are indexed. Run 'aide code index' when
+indexing is needed; counts alone do not establish freshness or complete coverage.`,
 	}, s.handleCodeStats)
 
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name: "code_references",
-		Description: `Find all references (call sites) for a symbol.
+		Description: `Find indexed reference candidates (call sites and type uses) by symbol name.
 
 **What are references?**
 References are places where a symbol is used, indexed by tree-sitter:
@@ -125,14 +138,19 @@ References are places where a symbol is used, indexed by tree-sitter:
 - Type references (kind: type_ref)
 
 **Use cases:**
-- Find all callers of a function
+- Investigate callers of a function
 - Understand how a type is used
 - Impact analysis before refactoring — "what breaks if I change this?"
 
 **Batch mode:** Pass multiple names in the "symbols" array (max 10) to find
 references for several symbols in a single call.
 
-**Note:** Run 'aide code index' to index your codebase first.`,
+Results are best-effort name matches from the index, not a complete semantic call graph.
+Same-name symbols, dynamic calls, unsupported syntax, stale files and result limits
+can affect coverage. Verify relevant callers in current source before concluding
+change impact; empty results do not prove no callers exist. Use Grep for literals,
+imports, or content patterns. If indexing appears unavailable or stale, inspect
+code_stats or run 'aide code index'.`,
 	}, s.handleCodeReferences)
 
 	mcp.AddTool(s.server, &mcp.Tool{
@@ -140,11 +158,14 @@ references for several symbols in a single call.
 		Description: `Get a collapsed outline of a file with bodies replaced by { ... }.
 
 Returns the file structure with signatures preserved and function/method/class bodies
-collapsed, showing ~5-15% of the tokens of the full file. Line numbers are preserved
+collapsed. Output size depends on file structure and grammar support. Line numbers are preserved
 so you can later use Read with offset/limit for specific sections.
 
-**Use this BEFORE reading a file** to understand its structure, then read only the
-sections you need. This dramatically reduces context window usage.
+Use this to locate declarations when you need only part of an unfamiliar file.
+Once names are known, batch code_read_symbol with symbols (max 10) and file for
+current bodies, or use bounded Read for surrounding context.
+For a small file or when most of its contents are needed, a direct read can avoid
+outline overhead. An outline does not guarantee lower whole-task token usage.
 
 By default, comments are stripped. Set keep_comments=true to preserve them.
 
@@ -160,7 +181,7 @@ By default, comments are stripped. Set keep_comments=true to preserve them.
 
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name: "code_top_references",
-		Description: `Rank symbols by how many times they are referenced across the codebase.
+		Description: `Rank symbols by indexed reference count.
 
 Returns symbols sorted by reference count (descending). Each result includes
 the symbol name, reference count, and definition location when available.
@@ -170,7 +191,9 @@ the symbol name, reference count, and definition location when available.
 - Identify core APIs and shared utilities
 - Understand codebase coupling — heavily-referenced symbols are high-impact change targets
 
-**Note:** Run 'aide code index' to index your codebase first.`,
+Counts are best-effort indexed name matches, not complete usage or semantic impact.
+Verify candidates in current source. If indexing appears unavailable or stale,
+inspect code_stats or run 'aide code index'.`,
 	}, s.handleCodeTopReferences)
 
 	mcp.AddTool(s.server, &mcp.Tool{
@@ -178,20 +201,23 @@ the symbol name, reference count, and definition location when available.
 		Description: `Read the full source code of a symbol by name — without reading the entire file.
 
 Returns the complete source (signature + body) for a function, method, class, or type,
-extracted from the indexed file using the symbol's known line range. This is dramatically
-cheaper than reading the whole file when you only need one symbol.
+extracted from current file contents. A focused symbol read can reduce returned text
+for large files; headers and additional calls can outweigh that reduction for small files.
 
 **Batch mode:** Pass multiple names in the "symbols" array (max 10) to read several
-symbols in a single call, eliminating round-trip overhead.
+symbols in a single call, avoiding separate calls per symbol.
+When names are unknown, use code_search for definition candidates or code_symbols /
+code_outline for a known file. Read directly when the file is small or most of it
+is needed; use bounded Read for imports or surrounding context outside the symbol.
 
 **What you get:**
 - The symbol's source code with line numbers preserved
 - File path and line range for navigation
 - Doc comment if present
-- Estimated token savings vs reading the full file
+- Source-version receipt in protocol metadata for conditional text comparisons
 
 **Use this when:**
-- You know the symbol name (from code_search, code_outline, or code_references)
+- You know the symbol name (from code_search, code_symbols, code_outline, or code_references)
 - You need to read the implementation of a specific function
 - You want to review a class or type definition
 - You need several symbol bodies at once (use batch mode)
@@ -201,27 +227,30 @@ symbols in a single call, eliminating round-trip overhead.
 - Batch: {"symbols": ["getUserById", "createUser", "deleteUser"]}
 - Filtered: {"symbol": "handle", "kind": "method"}
 
-**Note:** Requires the code index (run 'aide code index'). If the symbol isn't found
-in the index, check the name with code_search first.`,
+**Disambiguation:** Set file to read from an exact path; this also works without an index.
+If a file has multiple definitions with the same name, also set start_line to the
+current definition line. Ambiguous names return candidates instead of choosing one.
+Without file, uses the code index to locate candidate files, then reads current source.`,
 	}, s.handleCodeReadSymbol)
 
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name: "code_read_check",
-		Description: `Check if a file is indexed and whether its content has changed since indexing.
+		Description: `Check if a file is indexed and whether its current mtime matches the index.
 
 Returns freshness status so you can decide whether to re-read a file or use
 code_outline/code_symbols/code_references instead.
 
 **Response fields:**
 - indexed: whether the file exists in the code index
-- fresh: whether the file hasn't changed since last indexing (mtime match)
+- fresh: whether a current regular file has the indexed mtime
 - symbols: number of symbols indexed for this file
 - outline_available: whether code_outline would return useful data
-- estimated_tokens: estimated token count for the full file (calibrated per-language)
+- text_estimate: current regular-file stat bytes, estimated_tokens, and estimator
+  (utf8-bytes/3-v1); null when the file is unindexed or its size is unavailable
+- estimated_tokens: compatibility integer alias; zero when unknown or outside int32
 
-**Use this before re-reading a file** to check if the version you already read
-is still current. If fresh=true and outline_available=true, prefer code_outline
-or code_symbols over a full Read to save context window tokens.`,
+This checks index modification times, not the version previously delivered to
+the agent. A matching timestamp does not prove unchanged content or prior coverage.`,
 	}, s.handleCodeReadCheck)
 }
 
@@ -300,7 +329,7 @@ func (s *MCPServer) getFileSymbolsFresh(filePath string) ([]*code.Symbol, error)
 			if statErr == nil && fileInfo.ModTime.Equal(stat.ModTime()) {
 				// Index is current — use cached symbols
 				symbols, err := codeStore.GetFileSymbols(relPath)
-				if err == nil {
+				if err == nil && completeFileSymbols(fileInfo, symbols) {
 					return symbols, nil
 				}
 			}
@@ -310,7 +339,29 @@ func (s *MCPServer) getFileSymbolsFresh(filePath string) ([]*code.Symbol, error)
 	// Index is stale, missing, or unavailable — parse on demand
 	mcpLog.Printf("  freshness: parsing %s on demand", relPath)
 	parser := code.NewParser(s.grammarLoader)
+	defer parser.Close()
 	return parser.ParseFile(absPath)
+}
+
+// A file record can outlive its symbol records. Never treat a partial index as
+// evidence that a file has no more definitions.
+func completeFileSymbols(info *code.FileInfo, symbols []*code.Symbol) bool {
+	if len(info.SymbolIDs) != len(symbols) {
+		return false
+	}
+	ids := make(map[string]bool, len(symbols))
+	for _, sym := range symbols {
+		if sym == nil {
+			return false
+		}
+		ids[sym.ID] = true
+	}
+	for _, id := range info.SymbolIDs {
+		if !ids[id] {
+			return false
+		}
+	}
+	return true
 }
 
 func (s *MCPServer) handleCodeStats(_ context.Context, _ *mcp.CallToolRequest, _ CodeStatsInput) (*mcp.CallToolResult, any, error) {
@@ -371,7 +422,7 @@ func (s *MCPServer) handleCodeReferences(_ context.Context, _ *mcp.CallToolReque
 			return errorResult(fmt.Sprintf("search failed: %v", err)), nil, nil
 		}
 		mcpLog.Printf("  found: %d references", len(refs))
-		return textResult(formatCodeReferences(names[0], refs)), nil, nil
+		return textResult(formatCodeReferences(names[0], refs, limit)), nil, nil
 	}
 
 	// Batch mode: query each symbol and combine results
@@ -391,7 +442,7 @@ func (s *MCPServer) handleCodeReferences(_ context.Context, _ *mcp.CallToolReque
 			continue
 		}
 		totalRefs += len(refs)
-		sb.WriteString(formatCodeReferences(name, refs))
+		sb.WriteString(formatCodeReferences(name, refs, limit))
 	}
 	mcpLog.Printf("  batch: %d symbols, %d total references", len(names), totalRefs)
 	return textResult(sb.String()), nil, nil
@@ -446,37 +497,16 @@ func (s *MCPServer) handleCodeOutline(ctx context.Context, _ *mcp.CallToolReques
 		return errorResult("file path is required"), nil, nil
 	}
 
-	// Get fresh symbols with body ranges
-	symbols, err := s.getFileSymbolsFresh(input.File)
+	// Parse the same byte snapshot we render. Cached mtimes do not prove that
+	// symbol ranges describe these bytes (editors can preserve timestamps).
+	snapshot, err := s.readSourceSnapshot(input.File)
 	if err != nil {
 		mcpLog.Printf("  error getting symbols: %v", err)
 		return errorResult(fmt.Sprintf("failed to parse file: %v", err)), nil, nil
 	}
 
-	// Read the actual file
-	absPath := input.File
-	if !filepath.IsAbs(input.File) {
-		absPath = filepath.Join(store.ProjectRootFromDB(s.dbPath), input.File)
-	}
-
-	fileContent, err := os.ReadFile(absPath)
-	if err != nil {
-		mcpLog.Printf("  error reading file: %v", err)
-		return errorResult(fmt.Sprintf("failed to read file: %v", err)), nil, nil
-	}
-
-	outline := buildOutline(fileContent, symbols, !input.KeepComments)
-	mcpLog.Printf("  outline: %d symbols, %d/%d lines", len(symbols), countLines(outline), countLines(string(fileContent)))
-
-	fullTokens := code.EstimateTokensFromSize(input.File, int64(len(fileContent)))
-	outlineTokens := code.EstimateTokens(input.File, len(outline))
-	saved := fullTokens - outlineTokens
-	if saved < 0 {
-		saved = 0
-	}
-	span.Tokens(outlineTokens).Saved(saved)
-
-	return textResult(outline), nil, nil
+	outline := buildOutline(snapshot.content, snapshot.symbols, !input.KeepComments)
+	return sourceResult(span, "code_outline", map[string]*sourceSnapshot{snapshot.path: snapshot}, outline), nil, nil
 }
 
 func (s *MCPServer) handleCodeReadCheck(_ context.Context, _ *mcp.CallToolRequest, input CodeReadCheckInput) (*mcp.CallToolResult, any, error) {
@@ -488,7 +518,7 @@ func (s *MCPServer) handleCodeReadCheck(_ context.Context, _ *mcp.CallToolReques
 
 	codeStore := s.getCodeStore()
 	if codeStore == nil {
-		return textResult(`{"indexed":false,"fresh":false,"symbols":0,"outline_available":false,"estimated_tokens":0}`), nil, nil
+		return textResult(`{"indexed":false,"fresh":false,"symbols":0,"outline_available":false,"estimated_tokens":0,"text_estimate":null}`), nil, nil
 	}
 
 	root := store.ProjectRootFromDB(s.dbPath)
@@ -509,27 +539,15 @@ func (s *MCPServer) handleCodeReadCheck(_ context.Context, _ *mcp.CallToolReques
 
 	fileInfo, err := codeStore.GetFileInfo(relPath)
 	if err != nil {
-		return textResult(`{"indexed":false,"fresh":false,"symbols":0,"outline_available":false,"estimated_tokens":0}`), nil, nil
+		return textResult(`{"indexed":false,"fresh":false,"symbols":0,"outline_available":false,"estimated_tokens":0,"text_estimate":null}`), nil, nil
 	}
 
-	stat, err := os.Stat(absPath)
+	result, err := json.Marshal(code.CheckIndexedFile(absPath, fileInfo))
 	if err != nil {
-		result := fmt.Sprintf(`{"indexed":true,"fresh":false,"symbols":%d,"outline_available":%t,"estimated_tokens":%d}`,
-			len(fileInfo.SymbolIDs), len(fileInfo.SymbolIDs) > 0, fileInfo.Tokens)
-		return textResult(result), nil, nil
+		return errorResult(err.Error()), nil, nil
 	}
-
-	fresh := fileInfo.ModTime.Equal(stat.ModTime())
-	symbolCount := len(fileInfo.SymbolIDs)
-	tokens := fileInfo.Tokens
-	if tokens == 0 && stat.Size() > 0 {
-		tokens = code.EstimateTokensFromSize(relPath, stat.Size())
-	}
-
-	result := fmt.Sprintf(`{"indexed":true,"fresh":%t,"symbols":%d,"outline_available":%t,"estimated_tokens":%d}`,
-		fresh, symbolCount, symbolCount > 0, tokens)
 	mcpLog.Printf("  result: %s", result)
-	return textResult(result), nil, nil
+	return textResult(string(result)), nil, nil
 }
 
 func (s *MCPServer) handleCodeReadSymbol(ctx context.Context, _ *mcp.CallToolRequest, input CodeReadSymbolInput) (*mcp.CallToolResult, any, error) {
@@ -543,7 +561,7 @@ func (s *MCPServer) handleCodeReadSymbol(ctx context.Context, _ *mcp.CallToolReq
 	mcpLog.Printf("tool: code_read_symbol symbols=%v kind=%s", names, input.Kind)
 
 	codeStore := s.getCodeStore()
-	if codeStore == nil {
+	if codeStore == nil && input.File == "" {
 		return errorResult("code store not available (still initializing or disabled)"), nil, nil
 	}
 
@@ -553,114 +571,43 @@ func (s *MCPServer) handleCodeReadSymbol(ctx context.Context, _ *mcp.CallToolReq
 	if len(names) > 10 {
 		return errorResult("batch mode supports at most 10 symbols per call"), nil, nil
 	}
+	if input.StartLine < 0 || (input.StartLine > 0 && input.File == "") {
+		return errorResult("start_line must be non-negative and requires file"), nil, nil
+	}
 
-	root := store.ProjectRootFromDB(s.dbPath)
 	var sb strings.Builder
 	if len(names) > 1 {
 		sb.WriteString("# Batch Symbol Source\n\n")
 	}
 
-	totalTokens := 0
-	totalSaved := 0
 	found := 0
+	var single *code.Symbol
+	// One immutable snapshot per file for the entire batch; each full-file
+	// reference appears once even when several definitions are requested.
+	snapshots := make(map[string]*sourceSnapshot)
+	references := make(map[string]*sourceSnapshot)
 
 	for _, name := range names {
-		sym, symbolTokens, saved, text := s.readOneSymbol(codeStore, root, name, input.Kind)
+		sym, snapshot, text := s.readOneSymbol(codeStore, name, input, snapshots)
 		sb.WriteString(text)
 		if sym == nil {
 			continue
 		}
 		found++
-		totalTokens += symbolTokens
-		totalSaved += saved
+		single = sym
+		references[snapshot.path] = snapshot
 	}
 
-	span.Tokens(totalTokens).Saved(totalSaved).Attr("symbols", fmt.Sprintf("%d/%d", found, len(names)))
+	span.Attr("symbols", fmt.Sprintf("%d/%d", found, len(names)))
 	if found == 1 {
 		// Single-symbol mode: surface the file path AND symbol body line
 		// range on the span so the dashboard's file viewer can scroll
 		// straight to the symbol. (Batch mode mixes files; we leave both
 		// empty there.)
-		for _, name := range names {
-			if sym, _, _, _ := s.readOneSymbol(s.getCodeStore(), store.ProjectRootFromDB(s.dbPath), name, input.Kind); sym != nil {
-				span.FilePath(sym.FilePath)
-				if sym.StartLine > 0 {
-					span.Attr("start_line", strconv.Itoa(sym.StartLine))
-				}
-				if sym.EndLine > 0 {
-					span.Attr("end_line", strconv.Itoa(sym.EndLine))
-				}
-				break
-			}
-		}
+		span.FilePath(single.FilePath).Attr("start_line", strconv.Itoa(single.StartLine)).Attr("end_line", strconv.Itoa(single.EndLine))
 	}
 
-	mcpLog.Printf("  returned %d/%d symbols, %d tokens, %d saved", found, len(names), totalTokens, totalSaved)
-	return textResult(sb.String()), nil, nil
-}
-
-// readOneSymbol looks up a symbol by name in the code index and extracts its source lines.
-// Returns the matched symbol (nil if not found), token count, tokens saved, and formatted output.
-func (s *MCPServer) readOneSymbol(codeStore store.CodeIndexStore, root, name, kind string) (*code.Symbol, int, int, string) {
-	query := name
-	if !containsBleveSyntax(query) {
-		query = "\"" + query + "\""
-	}
-	opts := code.SearchOptions{
-		Kind:  kind,
-		Limit: 20,
-	}
-	results, err := codeStore.SearchSymbols(query, opts)
-	if err != nil {
-		return nil, 0, 0, fmt.Sprintf("## `%s` — search error: %v\n\n", name, err)
-	}
-
-	var match *code.Symbol
-	for _, r := range results {
-		if r.Symbol.Name == name {
-			match = r.Symbol
-			break
-		}
-	}
-	if match == nil {
-		return nil, 0, 0, fmt.Sprintf("## `%s` — not found in index\n\n", name)
-	}
-
-	absPath := filepath.Join(root, match.FilePath)
-	symbolLines, err := readFileLines(absPath, match.StartLine, match.EndLine)
-	if err != nil {
-		return nil, 0, 0, fmt.Sprintf("## `%s` — file error: %v\n\n", name, err)
-	}
-
-	if len(symbolLines) == 0 {
-		return nil, 0, 0, fmt.Sprintf("## `%s` — no source lines at %s:%d-%d\n\n", name, match.FilePath, match.StartLine, match.EndLine)
-	}
-
-	var sb strings.Builder
-	fmt.Fprintf(&sb, "## `%s` [%s]\n", match.Name, match.Kind)
-	fmt.Fprintf(&sb, "**File:** `%s:%d-%d`", match.FilePath, match.StartLine, match.EndLine)
-	if match.Signature != "" {
-		fmt.Fprintf(&sb, " | **Signature:** `%s`", match.Signature)
-	}
-	sb.WriteString("\n")
-	if match.DocComment != "" {
-		fmt.Fprintf(&sb, "**Doc:** %s\n", match.DocComment)
-	}
-	sb.WriteString("\n```\n")
-	for i, line := range symbolLines {
-		fmt.Fprintf(&sb, "%-4d: %s\n", match.StartLine+i, line)
-	}
-	sb.WriteString("```\n\n")
-
-	symbolContent := strings.Join(symbolLines, "\n")
-	symbolTokens := code.EstimateTokens(match.FilePath, len(symbolContent))
-	saved := 0
-	if stat, err := os.Stat(absPath); err == nil {
-		fileTokens := code.EstimateTokensFromSize(match.FilePath, stat.Size())
-		if fileTokens > symbolTokens {
-			saved = fileTokens - symbolTokens
-		}
-	}
-
-	return match, symbolTokens, saved, sb.String()
+	result := sourceResult(span, "code_read_symbol", references, sb.String())
+	result.IsError = found != len(names)
+	return result, nil, nil
 }

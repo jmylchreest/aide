@@ -22,6 +22,7 @@ func cmdState(dbPath string, args []string) error {
 
 	return dispatchSubcmd("state", args, printStateUsage, []subcmd{
 		{name: "set", handler: func(a []string) error { return stateSet(backend, a) }},
+		{name: "init", handler: func(a []string) error { return stateInit(backend, a) }},
 		{name: "get", handler: func(a []string) error { return stateGet(backend, a) }},
 		{name: "delete", handler: func(a []string) error { return stateDelete(backend, a) }},
 		{name: "list", handler: func(a []string) error { return stateList(backend, a) }},
@@ -38,6 +39,7 @@ Usage:
 
 Subcommands:
   set        Set a state key-value pair
+  init       Create absent state atomically; return existing state otherwise
   get        Get a state value by key
   delete     Delete a state key
   list       List all state entries
@@ -45,6 +47,10 @@ Subcommands:
   cleanup    Remove stale agent state entries
 
 Options:
+  init KEY VALUE:
+    --agent=AGENT_ID   Initialize per-agent state (otherwise global)
+    --json            Return the persisted state as JSON
+
   set KEY VALUE:
     --agent=AGENT_ID   Set per-agent state (otherwise global)
 
@@ -117,6 +123,21 @@ func stateGet(b *Backend, args []string) error {
 	} else {
 		fmt.Printf("%s = %s\n", key, st.Value)
 	}
+	return nil
+}
+
+func stateInit(b *Backend, args []string) error {
+	if len(args) < 2 {
+		return fmt.Errorf("usage: aide state init KEY VALUE [--agent=AGENT_ID] [--json]")
+	}
+	st, err := b.InitState(args[0], args[1], parseFlag(args[2:], "--agent="))
+	if err != nil {
+		return fmt.Errorf("failed to initialize state: %w", err)
+	}
+	if wantJSON(args[2:]) {
+		return printJSON(st)
+	}
+	fmt.Printf("%s = %s\n", st.Key, st.Value)
 	return nil
 }
 

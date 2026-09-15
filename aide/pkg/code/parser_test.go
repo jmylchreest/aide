@@ -178,6 +178,42 @@ type Handler interface {
 	assertContains(t, names, "Handler", "interface Handler")
 }
 
+func TestParseContentGoOverlappingTypeCaptures(t *testing.T) {
+	p := newTestParser()
+	defer p.Close()
+	content := []byte("package demo\n" +
+		"type Record struct { Value int }\n" +
+		"type Reader interface { Read() }\n" +
+		"type Count int\n" +
+		"func first() { type Local struct{} }; func second() { type Local struct{} }\n")
+	symbols, err := p.ParseContent(content, "go", "source.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, want := range map[string][]string{
+		"Record": {"class"}, "Reader": {"interface"}, "Count": {"type"},
+		// Same name, line, signature and kind, but two distinct syntax nodes.
+		"Local": {"class", "class"},
+	} {
+		var kinds []string
+		for _, symbol := range symbols {
+			if symbol.Name == name {
+				kinds = append(kinds, symbol.Kind)
+			}
+		}
+		if len(kinds) != len(want) {
+			t.Errorf("%s kinds = %v, want %v", name, kinds, want)
+			continue
+		}
+		for i := range want {
+			if kinds[i] != want[i] {
+				t.Errorf("%s kinds = %v, want %v", name, kinds, want)
+				break
+			}
+		}
+	}
+}
+
 func TestParseContentTypeScript(t *testing.T) {
 	p := newTestParser()
 	content := []byte(`
