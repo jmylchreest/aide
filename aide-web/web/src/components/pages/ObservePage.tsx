@@ -7,6 +7,8 @@ import { useObserveEvents } from "@/hooks/useObserveEvents";
 import { formatTimestamp } from "@/lib/format";
 import { ChevronRight, ChevronDown } from "lucide-react";
 import { PathLabel } from "../shared/PathLabel";
+import { ModelUsageEventGroup } from "../shared/ModelUsageEventGroup";
+import { groupObserveEvents } from "@/lib/observe-groups";
 
 const KIND_OPTIONS = [
   { value: "tool_call", label: "tool_call" },
@@ -82,6 +84,8 @@ export function ObservePage({ fixedKind, title }: ObservePageProps = {}) {
     });
   }, [combined, textQuery]);
 
+  const rows = useMemo(() => groupObserveEvents(filtered), [filtered]);
+
   const dropdowns = useMemo(() => {
     const list = [
       {
@@ -107,7 +111,7 @@ export function ObservePage({ fixedKind, title }: ObservePageProps = {}) {
       <h2 className="text-base font-semibold pb-1.5 border-b border-aide-border mb-3 flex items-center justify-between">
         <span>{title ?? "Observe"}</span>
         <span className="text-[0.65rem] font-normal text-aide-text-dim">
-          {filtered.length} events
+          {filtered.length} loaded events · {rows.length} {rows.length === 1 ? "row" : "rows"}
           {liveTail && (
             <span className="ml-2">· stream: {streamStatus}</span>
           )}
@@ -136,7 +140,9 @@ export function ObservePage({ fixedKind, title }: ObservePageProps = {}) {
 
       {!loading && filtered.length > 0 && (
         <div className="border border-aide-border rounded overflow-hidden">
-          {filtered.map((ev) => {
+          {rows.map((row) => {
+            if (row.type === "usage") return <ModelUsageEventGroup key={row.id} row={row} />;
+            const ev = row.events[0];
             const isOpen = !!expanded[ev.id];
             const kindClass = KIND_COLOURS[ev.kind] ?? "bg-aide-surface text-aide-text-muted";
             // Hoisted so the click/key handlers below close over a narrowed string

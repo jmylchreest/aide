@@ -24,8 +24,10 @@
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
+    "@types/node": "^26.5.1",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
+    "jsdom": "^30.0.1",
     "postcss": "^8.5.28",
     "typescript": "^6.0.3",
     "vitest": "^4.1.11"
