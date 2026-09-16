@@ -15,6 +15,12 @@ export function TokenRetrievalEvidence({
   attrs: Record<string, string>;
 }) {
   if (!attrs.retrieval_status && !attrs.source_references) return null;
+  const renderedFull =
+    attrs.retrieval_status === "full_file" &&
+    attrs.source_verification === "current_rendered_file_match";
+  const renderedRange =
+    attrs.retrieval_status === "range" &&
+    attrs.source_verification === "current_rendered_range_match";
   let references: { file: string; bytes: number; sha256: string }[] = [];
   try {
     const parsed = JSON.parse(attrs.source_references ?? "null");
@@ -34,12 +40,24 @@ export function TokenRetrievalEvidence({
   return (
     <div className="mt-2 space-y-1 border-t border-aide-border pt-2">
       <div>
-        {labels[attrs.retrieval_status] ??
-          "Server source reference; host delivery unknown"}
+        {renderedFull
+          ? "Rendered full-file content matched"
+          : renderedRange
+            ? "Rendered source range matched"
+            : (labels[attrs.retrieval_status] ??
+              "Server source reference; host delivery unknown")}
       </div>
       {attrs.retrieval_method && <div>Method: {attrs.retrieval_method}</div>}
       {attrs.retrieval_target && <div>Target: {attrs.retrieval_target}</div>}
-      {attrs.source_verification === "current_range_match" && (
+      {(renderedFull || renderedRange) && (
+        <div>
+          Rendered content was verified against the current file. Formatting
+          adds to the delivered bytes; source bytes and delivered bytes may
+          differ.
+        </div>
+      )}
+      {(attrs.source_verification === "current_range_match" ||
+        renderedRange) && (
         <div>
           Lines {attrs.delivered_start_line}–{attrs.delivered_end_line} matched
           the current file. Undisplayed source version is unverified.

@@ -286,7 +286,23 @@ export function recordToolEvent(
     const limit = toolInput.limit;
     startLine = typeof offset === "number" && offset > 0 ? offset : 1;
     if (typeof limit === "number" && limit > 0) endLine = startLine + limit - 1;
-    recordFileRead(binary, cwd, filePath, { identity, content: text });
+    if (retrievalAttrs.retrieval_status === "full_file") {
+      // Only the locally verified full rendering may supply this fingerprint;
+      // neither MCP receipts nor partial/native metadata establish full reads.
+      const verifiedRenderedHash =
+        retrievalAttrs.source_verification === "current_rendered_file_match"
+          ? (
+              JSON.parse(retrievalAttrs.source_references) as {
+                sha256: string;
+              }[]
+            )[0].sha256
+          : undefined;
+      recordFileRead(binary, cwd, filePath, {
+        identity,
+        content: text,
+        ...(verifiedRenderedHash ? { verifiedRenderedHash } : {}),
+      });
+    }
   }
 
   try {

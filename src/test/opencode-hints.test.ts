@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { mkdtempSync, rmSync, writeFileSync } from "fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 
@@ -82,8 +82,13 @@ async function execute(
 describe("OpenCode retrieval hint delivery", () => {
   it("appends a large-read hint to the rendered result and accounts for only the added bytes", async () => {
     const args = { filePath: "large.ts" };
-    const output = await execute("read", args);
-    expect(output.output).toContain("original é\n\n[aide:context]");
+    const content = readFileSync(join(cwd, "large.ts"), "utf8");
+    const output = await execute("read", args, {
+      output: content,
+      title: "tool title",
+      metadata: { args, custom: true },
+    });
+    expect(output.output).toContain(`${content}\n\n[aide:context]`);
     expect(output.output).toContain("code_outline");
     expect(output.metadata).toEqual({ args, custom: true });
     expect(output.title).toBe("tool title");
@@ -95,7 +100,7 @@ describe("OpenCode retrieval hint delivery", () => {
         .split("\n")
         .map((line) => JSON.parse(line)),
     );
-    const appended = output.output!.slice("original é".length);
+    const appended = output.output!.slice(content.length);
     expect(events).toContainEqual(
       expect.objectContaining({
         kind: "injection",
@@ -122,11 +127,17 @@ describe("OpenCode retrieval hint delivery", () => {
     expect(output.output?.match(/\[aide:context\]/g)).toHaveLength(1);
     expect(recordFileRead).toHaveBeenCalledWith("aide", cwd, "large.ts", {
       identity: { host: "opencode", sessionId: "session", actorId: "session" },
-      content: "original é",
+      content,
     });
     expect(vi.mocked(getPreviousRead).mock.invocationCallOrder[0]).toBeLessThan(
       vi.mocked(recordFileRead).mock.invocationCallOrder[0],
     );
+  });
+
+  it("delivers hints without recording coverage for unverified read output", async () => {
+    const output = await execute("read", { filePath: "large.ts" });
+    expect(output.output).toContain("original é\n\n[aide:context]");
+    expect(recordFileRead).not.toHaveBeenCalled();
   });
 
   it("delivers indexed symbol matches with the grep result", async () => {

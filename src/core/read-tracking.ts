@@ -50,8 +50,11 @@ function readKey(
 
 export interface ReadEvidence {
   identity: ContextIdentity;
-  /** Raw returned source text, without line numbers or host decorations. */
+  /** Returned source text, including host formatting when present. */
   content?: string;
+  /** Internal fingerprint from retrievalEvidence's verified full rendering.
+   * Never populate this from host-supplied hashes or partial source evidence. */
+  verifiedRenderedHash?: string;
 }
 
 /**
@@ -82,9 +85,9 @@ function toRelativePath(cwd: string, filePath: string): string {
 }
 
 /**
- * Record full-file coverage only when returned text matches current bytes.
- * Formatted/partial results are still measured by tool-observe, but do not
- * establish full-file coverage here. Missing context identity is unknown.
+ * Record full-file coverage for matching raw bytes or a verified complete
+ * host rendering. Partial/unverified results do not establish full coverage.
+ * Missing context identity is unknown.
  *
  * No-op if code.watch is disabled.
  */
@@ -101,9 +104,15 @@ export function recordFileRead(
     const window = contextWindow(binary, cwd, evidence.identity);
     if (!window || window.status !== "active") return;
     const current = readFileSync(resolve(cwd, filePath));
-    // Only establish full coverage when returned bytes exactly match the
-    // file. Requested ranges, formatted output and opaque results prove less.
-    if (!current.equals(Buffer.from(evidence.content, "utf8"))) return;
+    const digest = createHash("sha256").update(current).digest("hex");
+    // Recheck the verified rendering's source fingerprint in case the file
+    // changed after parsing. This certifies source coverage, not delivery of
+    // line-ending bytes removed by the host's renderer.
+    if (
+      !current.equals(Buffer.from(evidence.content, "utf8")) &&
+      evidence.verifiedRenderedHash !== digest
+    )
+      return;
     const key = readKey(cwd, filePath, evidence.identity, window.id);
     setState(
       binary,
@@ -111,7 +120,7 @@ export function recordFileRead(
       key,
       JSON.stringify({
         version: 1,
-        hash: createHash("sha256").update(current).digest("hex"),
+        hash: digest,
         at: new Date().toISOString(),
       }),
     );

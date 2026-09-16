@@ -186,6 +186,70 @@ function receiptEvidence(
   };
 }
 
+/** OpenCode's native read renders numbered lines and normalizes line endings.
+ * Verify both host representations against the same current source;
+ * metadata alone is never proof that source was included in the returned text.
+ * Unknown wrappers (including capped output) remain unverified. */
+function openCodeRenderedRead(
+  cwd: string,
+  file: string,
+  args: Record<string, unknown>,
+  text: string,
+  response: unknown,
+  bytes: Buffer,
+): { start: number; end: number; full: boolean } | undefined {
+  const metadata = object(object(response)?.metadata);
+  const display = object(metadata?.display);
+  if (
+    !display ||
+    display.type !== "file" ||
+    typeof display.path !== "string" ||
+    !isAbsolute(display.path) ||
+    resolve(display.path) !== resolve(cwd, file)
+  )
+    return;
+  const start = display.lineStart,
+    end = display.lineEnd,
+    total = display.totalLines;
+  if (
+    typeof start !== "number" ||
+    !Number.isSafeInteger(start) ||
+    start < 1 ||
+    typeof end !== "number" ||
+    !Number.isSafeInteger(end) ||
+    end < start ||
+    typeof total !== "number" ||
+    !Number.isSafeInteger(total) ||
+    total < end ||
+    (args.offset === undefined ? 1 : args.offset) !== start ||
+    (args.limit !== undefined &&
+      (typeof args.limit !== "number" ||
+        !Number.isSafeInteger(args.limit) ||
+        args.limit < 1 ||
+        end - start + 1 > args.limit))
+  )
+    return;
+  const source = bytes.toString("utf8");
+  if (!bytes.equals(Buffer.from(source))) return;
+  const lines = source.split(/\r?\n/);
+  if (lines.at(-1) === "") lines.pop();
+  if (total !== lines.length) return;
+  const selected = lines.slice(start - 1, end);
+  const more = end < total;
+  if (
+    display.text !== selected.join("\n") ||
+    display.truncated !== more ||
+    metadata?.truncated !== more
+  )
+    return;
+  const footer = more
+    ? `(Showing lines ${start}-${end} of ${total}. Use offset=${end + 1} to continue.)`
+    : `(End of file - total ${total} lines)`;
+  const rendered = `<path>${display.path}</path>\n<type>file</type>\n<content>\n${selected.map((line, index) => `${start + index}: ${line}`).join("\n")}\n\n${footer}\n</content>`;
+  if (text !== rendered) return;
+  return { start, end, full: start === 1 && end === total };
+}
+
 export function retrievalEvidence(
   cwd: string,
   name: string,
@@ -304,9 +368,29 @@ export function retrievalEvidence(
   const current = snapshot(cwd, target.file);
   if (!current) return attrs;
   const delivered = Buffer.from(text, "utf8");
+  const rendered =
+    name === "Read"
+      ? openCodeRenderedRead(
+          cwd,
+          target.file,
+          args,
+          text,
+          response,
+          current.bytes,
+        )
+      : undefined;
   if (current.bytes.equals(delivered)) {
     attrs.retrieval_status = "full_file";
     attrs.source_verification = "current_file_match";
+  } else if (rendered) {
+    attrs.retrieval_status = rendered.full ? "full_file" : "range";
+    attrs.source_verification = rendered.full
+      ? "current_rendered_file_match"
+      : "current_rendered_range_match";
+    if (!rendered.full) {
+      attrs.delivered_start_line = String(rendered.start);
+      attrs.delivered_end_line = String(rendered.end);
+    }
   } else {
     const start = target.start ?? 1;
     const end =

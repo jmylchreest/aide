@@ -82,6 +82,21 @@ type ObserveEventStore interface {
 	CleanupObserveEvents(maxAge time.Duration) (int, error)
 }
 
+// MaxObserveBatchEvents bounds one atomic observation write.
+const MaxObserveBatchEvents = 256
+
+// ObserveBatchStore atomically persists a bounded batch. Each result reports
+// whether the corresponding input inserted or changed persisted evidence.
+// Inputs receive canonical IDs and timestamps only after successful commit.
+type ObserveBatchStore interface {
+	AddObserveEvents(events []*observe.Event) ([]bool, error)
+}
+
+var (
+	_ ObserveBatchStore = (*BoltStore)(nil)
+	_ ObserveBatchStore = (*CombinedStore)(nil)
+)
+
 // InstinctProposalStore is a standalone interface (not part of Store) so
 // the gRPC StoreAdapter can stay free of instinct-only RPCs. Code that
 // needs proposal access takes this interface explicitly.

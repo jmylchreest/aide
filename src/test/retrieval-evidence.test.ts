@@ -357,6 +357,165 @@ describe("retrieval evidence", () => {
       }).source_references,
     ).toBeUndefined();
   });
+  describe("OpenCode 1.18 native read rendering", () => {
+    function response(cwd: string, start = 1, end = 3) {
+      const lines = ["first", "é", "last"].slice(start - 1, end);
+      const path = join(cwd, "source.ts");
+      const truncated = end < 3;
+      const footer = truncated
+        ? `(Showing lines ${start}-${end} of 3. Use offset=${end + 1} to continue.)`
+        : "(End of file - total 3 lines)";
+      return {
+        output: `<path>${path}</path>\n<type>file</type>\n<content>\n${lines.map((line, index) => `${start + index}: ${line}`).join("\n")}\n\n${footer}\n</content>`,
+        metadata: {
+          truncated,
+          display: {
+            type: "file",
+            path,
+            text: lines.join("\n"),
+            lineStart: start,
+            lineEnd: end,
+            totalLines: 3,
+            truncated,
+          },
+        },
+      };
+    }
+    it.each(["first\né\nlast\n", "first\né\nlast", "first\r\né\r\nlast\r\n"])(
+      "verifies rendered full source without claiming byte-identical delivery (%j)",
+      (source) => {
+        const cwd = fixture();
+        writeFileSync(join(cwd, "source.ts"), source);
+        const result = response(cwd);
+        const evidence = retrievalEvidence(
+          cwd,
+          "Read",
+          { filePath: "source.ts" },
+          result.output,
+          result,
+          false,
+        );
+        expect(evidence).toMatchObject({
+          retrieval_status: "full_file",
+          source_verification: "current_rendered_file_match",
+        });
+        expect(JSON.parse(evidence.source_references)).toEqual([
+          {
+            file: "source.ts",
+            sha256: hash(source),
+            bytes: Buffer.byteLength(source),
+          },
+        ]);
+      },
+    );
+    it.each([
+      [2, 2],
+      [2, 3],
+    ])("verifies only delivered lines %i-%i", (start, end) => {
+      const cwd = fixture();
+      const result = response(cwd, start, end);
+      expect(
+        retrievalEvidence(
+          cwd,
+          "Read",
+          { filePath: "source.ts", offset: start, limit: end - start + 1 },
+          result.output,
+          result,
+          false,
+        ),
+      ).toMatchObject({
+        retrieval_status: "range",
+        source_verification: "current_rendered_range_match",
+        delivered_start_line: String(start),
+        delivered_end_line: String(end),
+      });
+    });
+    it("refuses truncated, altered or conflicting rendering and metadata", () => {
+      const cwd = fixture();
+      const base = response(cwd);
+      const bad = [
+        { ...base, metadata: undefined },
+        { ...base, output: base.output.replace("2: é", "2: changed") },
+        { ...base, output: base.output.replace("2: é", "3: é") },
+        {
+          ...base,
+          output: base.output.replace(
+            "last",
+            "la... (line truncated to 2000 chars)",
+          ),
+        },
+        { ...base, output: base.output + " unexpected tail" },
+        { ...base, metadata: { ...base.metadata, truncated: true } },
+        ...[
+          { text: "first\nchanged\nlast" },
+          { path: join(cwd, "other.ts") },
+          { lineStart: 2 },
+          { lineEnd: 2 },
+          { lineEnd: "3" },
+          { totalLines: 4 },
+          { truncated: true },
+          { type: "directory" },
+        ].map((display) => ({
+          ...base,
+          metadata: {
+            ...base.metadata,
+            display: { ...base.metadata.display, ...display },
+          },
+        })),
+      ];
+      for (const result of bad) {
+        const evidence = retrievalEvidence(
+          cwd,
+          "Read",
+          { filePath: "source.ts" },
+          result.output,
+          result,
+          false,
+        );
+        expect(evidence.retrieval_status).toBe("unverified");
+        expect(evidence.source_references).toBeUndefined();
+      }
+      for (const bounds of [
+        { offset: 2 },
+        { offset: "1" },
+        { offset: null },
+        { limit: 2 },
+        { limit: 0 },
+      ]) {
+        expect(
+          retrievalEvidence(
+            cwd,
+            "Read",
+            { filePath: "source.ts", ...bounds },
+            base.output,
+            base,
+            false,
+          ).source_references,
+        ).toBeUndefined();
+      }
+      expect(
+        retrievalEvidence(
+          cwd,
+          "Read",
+          { filePath: "source.ts" },
+          base.output,
+          base,
+          true,
+        ).retrieval_status,
+      ).toBe("failed");
+      writeFileSync(join(cwd, "source.ts"), "changed\né\nlast\n");
+      expect(
+        retrievalEvidence(
+          cwd,
+          "Read",
+          { filePath: "source.ts" },
+          base.output,
+          base,
+          false,
+        ).source_references,
+      ).toBeUndefined();
+    });
+  });
   it("records exact full source and verifies a requested slice against actual bytes", () => {
     const cwd = fixture();
     const full = retrievalEvidence(

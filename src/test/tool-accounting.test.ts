@@ -104,6 +104,86 @@ describe("observed tool accounting", () => {
     expect(recorded()).toContain("--attr=retrieval_status=full_file");
     expect(recorded()).toContain("--attr=retrieval_method=native_read");
   });
+  it("passes only verified full rendered source fingerprints into read coverage", () => {
+    const cwd = sourceFixture();
+    const path = join(cwd, "source.ts");
+    const output = `<path>${path}</path>\n<type>file</type>\n<content>\n1: first\n2: é\n3: last\n\n(End of file - total 3 lines)\n</content>`;
+    const toolResponse = {
+      output,
+      metadata: {
+        truncated: false,
+        display: {
+          type: "file",
+          path,
+          text: "first\né\nlast",
+          lineStart: 1,
+          lineEnd: 3,
+          totalLines: 3,
+          truncated: false,
+        },
+      },
+    };
+    recordToolEvent("aide", cwd, {
+      toolName: "read",
+      toolInput: { filePath: path },
+      toolResponse,
+      host: "opencode",
+      sessionId: "session",
+    });
+    expect(recorded()).toContain(
+      "--attr=source_verification=current_rendered_file_match",
+    );
+    expect(recorded()).toContain(
+      `--attr=payload_bytes=${Buffer.byteLength(output)}`,
+    );
+    expect(recorded().some((arg) => arg.startsWith("--saved="))).toBe(false);
+    expect(recordFileRead).toHaveBeenCalledWith("aide", cwd, path, {
+      identity: { host: "opencode", sessionId: "session", actorId: "session" },
+      content: output,
+      verifiedRenderedHash: createHash("sha256")
+        .update("first\né\nlast\n")
+        .digest("hex"),
+    });
+    vi.mocked(recordFileRead).mockClear();
+    recordToolEvent("aide", cwd, {
+      toolName: "read",
+      toolInput: { filePath: path, offset: 2, limit: 1 },
+      host: "opencode",
+      toolResponse: {
+        output: `<path>${path}</path>\n<type>file</type>\n<content>\n2: é\n\n(Showing lines 2-2 of 3. Use offset=3 to continue.)\n</content>`,
+        metadata: {
+          truncated: true,
+          display: {
+            type: "file",
+            path,
+            text: "é",
+            lineStart: 2,
+            lineEnd: 2,
+            totalLines: 3,
+            truncated: true,
+          },
+        },
+      },
+    });
+    expect(recorded()).toContain("--attr=retrieval_status=range");
+    expect(recordFileRead).not.toHaveBeenCalled();
+    for (const result of [
+      { ...toolResponse, output: output.replace("2: é", "2: changed") },
+      {
+        ...toolResponse,
+        metadata: { ...toolResponse.metadata, truncated: true },
+      },
+    ]) {
+      recordToolEvent("aide", cwd, {
+        toolName: "read",
+        toolInput: { filePath: path },
+        toolResponse: result,
+        host: "opencode",
+      });
+      expect(recordFileRead).not.toHaveBeenCalled();
+      expect(recorded()).toContain("--attr=retrieval_status=unverified");
+    }
+  });
   it("preserves hook exit codes independently of the returned text", () => {
     recordToolEvent("aide", "/tmp", {
       toolName: "Bash",

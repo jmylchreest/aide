@@ -2904,6 +2904,33 @@ type observeServiceImpl struct {
 }
 
 func (s *observeServiceImpl) RecordEvent(ctx context.Context, req *ObserveRecordRequest) (*ObserveRecordResponse, error) {
+	e, err := observeRecordFromRequest(req)
+	if err != nil {
+		return nil, err
+	}
+	changed := true
+	if writer, ok := s.store.(store.ObserveBatchStore); ok {
+		outcomes, writeErr := writer.AddObserveEvents([]*observe.Event{e})
+		if writeErr != nil {
+			return nil, writeErr
+		}
+		if len(outcomes) != 1 {
+			return nil, status.Error(codes.Internal, "missing observation write outcome")
+		}
+		changed = outcomes[0]
+	} else if err := s.store.AddObserveEvent(e); err != nil {
+		return nil, err
+	}
+	if changed && s.bus != nil {
+		s.bus.Publish(e)
+	}
+	return &ObserveRecordResponse{Id: e.ID, Changed: changed}, nil
+}
+
+func observeRecordFromRequest(req *ObserveRecordRequest) (*observe.Event, error) {
+	if req == nil {
+		return nil, status.Error(codes.InvalidArgument, "observation is required")
+	}
 	if req.Timestamp != nil {
 		if err := req.Timestamp.CheckValid(); err != nil {
 			return nil, status.Error(codes.InvalidArgument, "invalid observation timestamp")
@@ -2929,13 +2956,43 @@ func (s *observeServiceImpl) RecordEvent(ctx context.Context, req *ObserveRecord
 	if req.Timestamp != nil {
 		e.Timestamp = req.Timestamp.AsTime()
 	}
-	if err := s.store.AddObserveEvent(e); err != nil {
+	return e, nil
+}
+
+func (s *observeServiceImpl) RecordBatch(ctx context.Context, req *ObserveBatchRecordRequest) (*ObserveBatchRecordResponse, error) {
+	if req == nil || len(req.Events) > store.MaxObserveBatchEvents {
+		return nil, status.Errorf(codes.InvalidArgument, "observation batch must contain at most %d events", store.MaxObserveBatchEvents)
+	}
+	writer, ok := s.store.(store.ObserveBatchStore)
+	if !ok {
+		return nil, status.Error(codes.Unimplemented, "atomic observation batches are unavailable")
+	}
+	events := make([]*observe.Event, len(req.Events))
+	for i, request := range req.Events {
+		event, err := observeRecordFromRequest(request)
+		if err != nil {
+			return nil, err
+		}
+		events[i] = event
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, status.FromContextError(err).Err()
+	}
+	changed, err := writer.AddObserveEvents(events)
+	if err != nil {
 		return nil, err
 	}
-	if s.bus != nil {
-		s.bus.Publish(e)
+	if len(changed) != len(events) {
+		return nil, status.Error(codes.Internal, "missing observation batch outcomes")
 	}
-	return &ObserveRecordResponse{Id: e.ID}, nil
+	response := &ObserveBatchRecordResponse{Results: make([]*ObserveRecordResponse, len(events))}
+	for i, event := range events {
+		response.Results[i] = &ObserveRecordResponse{Id: event.ID, Changed: changed[i]}
+		if changed[i] && s.bus != nil {
+			s.bus.Publish(event)
+		}
+	}
+	return response, nil
 }
 
 func (s *observeServiceImpl) ListEvents(ctx context.Context, req *ObserveListRequest) (*ObserveListResponse, error) {

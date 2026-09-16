@@ -1065,6 +1065,7 @@ service TokenService {
 // consumers; TokenService remains as a derived view over ObserveService data.
 service ObserveService {
   rpc RecordEvent(ObserveRecordRequest) returns (ObserveRecordResponse);
+  rpc RecordBatch(ObserveBatchRecordRequest) returns (ObserveBatchRecordResponse);
   rpc ListEvents(ObserveListRequest) returns (ObserveListResponse);
   rpc WatchEvents(ObserveWatchRequest) returns (stream ObserveEvent);
 }
@@ -1087,6 +1088,7 @@ message ObserveRecordRequest {
 
 message ObserveRecordResponse {
   string id = 1;
+  bool changed = 2;
 }
 
 message ObserveListRequest {
@@ -1445,4 +1447,13 @@ message CheckoutProvenance {
  string id = 1;
  string branch = 2;
  string commit = 3;
+}
+
+// At most 256 events; all results are acknowledged after one committed write.
+message ObserveBatchRecordRequest {
+  repeated ObserveRecordRequest events = 1;
+}
+
+message ObserveBatchRecordResponse {
+  repeated ObserveRecordResponse results = 1;
 }

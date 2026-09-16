@@ -148,6 +148,11 @@ func (m *modelUsage) observe(e *observe.Event) {
 	if !isModelUsage(e) {
 		return
 	}
+	// Older adapters recorded Claude's local transcript placeholders as usage.
+	// Keep the raw event, but exclude it from provider usage and session rollups.
+	if e.Attrs["host"] == "claude-code" && e.Attrs["usage_source"] == "claude.assistant_usage.v1" && e.Attrs["model"] == "<synthetic>" {
+		return
+	}
 	eventCopy := *e
 	e = &eventCopy
 	if e.Attrs["usage_time_basis"] == "source" {

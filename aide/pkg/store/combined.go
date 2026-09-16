@@ -68,6 +68,9 @@ func (c *CombinedStore) Bolt() *BoltStore { return c.bolt }
 func (c *CombinedStore) AddObserveEvent(e *observe.Event) error {
 	return c.bolt.AddObserveEvent(e)
 }
+func (c *CombinedStore) AddObserveEvents(events []*observe.Event) ([]bool, error) {
+	return c.bolt.AddObserveEvents(events)
+}
 func (c *CombinedStore) ListObserveEvents(f ObserveFilter) ([]*observe.Event, error) {
 	return c.bolt.ListObserveEvents(f)
 }
