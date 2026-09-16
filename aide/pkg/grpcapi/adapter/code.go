@@ -90,10 +90,11 @@ func (a *CodeAdapter) GetFileInfo(path string) (*code.FileInfo, error) {
 		return nil, fmt.Errorf("file not indexed: %s", path)
 	}
 	fi := &code.FileInfo{
-		Path:      path,
-		SymbolIDs: resp.SymbolIds,
-		Tokens:    int(resp.Tokens),
-		SizeBytes: resp.SizeBytes,
+		Path:        path,
+		SymbolIDs:   resp.SymbolIds,
+		Tokens:      int(resp.Tokens),
+		SizeBytes:   resp.SizeBytes,
+		ContentHash: resp.ContentHash, ParserFingerprint: resp.ParserFingerprint,
 	}
 	if resp.ModTime != nil {
 		fi.ModTime = resp.ModTime.AsTime().Local()

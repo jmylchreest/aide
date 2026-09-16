@@ -150,14 +150,23 @@ const (
 // Decision represents a shared architectural decision with full context.
 // Decisions are append-only (latest wins) and can contain rich details.
 type Decision struct {
-	Topic      string    `json:"topic"`                // Unique key (e.g., "auth-strategy", "db-schema")
-	Decision   string    `json:"decision"`             // Short summary of the decision
-	Rationale  string    `json:"rationale,omitempty"`  // Why this decision was made
-	Details    string    `json:"details,omitempty"`    // Full content: schemas, code examples, specs
-	References []string  `json:"references,omitempty"` // External links, docs, related files
-	DecidedBy  string    `json:"decidedBy,omitempty"`  // Who made the decision (agent/user)
-	Precedence int       `json:"precedence,omitempty"` // Injection weight; >= PrecedenceOverride overrides
-	CreatedAt  time.Time `json:"createdAt"`
+	Checkout   *CheckoutProvenance `json:"checkout,omitempty"`
+	Topic      string              `json:"topic"`                // Unique key (e.g., "auth-strategy", "db-schema")
+	Decision   string              `json:"decision"`             // Short summary of the decision
+	Rationale  string              `json:"rationale,omitempty"`  // Why this decision was made
+	Details    string              `json:"details,omitempty"`    // Full content: schemas, code examples, specs
+	References []string            `json:"references,omitempty"` // External links, docs, related files
+	DecidedBy  string              `json:"decidedBy,omitempty"`  // Who made the decision (agent/user)
+	Precedence int                 `json:"precedence,omitempty"` // Injection weight; >= PrecedenceOverride overrides
+	CreatedAt  time.Time           `json:"createdAt"`
+}
+
+// CheckoutProvenance records where a revision was made, not where it applies.
+// It is immutable history and survives checkout cache cleanup.
+type CheckoutProvenance struct {
+	ID     string `json:"id"`
+	Branch string `json:"branch,omitempty"`
+	Commit string `json:"commit,omitempty"`
 }
 
 // Overrides reports whether the decision claims authority over ordinary

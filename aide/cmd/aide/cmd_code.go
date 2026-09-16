@@ -1,15 +1,16 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/jmylchreest/aide/aide/pkg/aideignore"
 	"github.com/jmylchreest/aide/aide/pkg/code"
+	"github.com/jmylchreest/aide/aide/pkg/codeindex"
 	"github.com/jmylchreest/aide/aide/pkg/grammar"
 	"github.com/jmylchreest/aide/aide/pkg/observe"
 	"github.com/jmylchreest/aide/aide/pkg/store"
@@ -107,10 +108,12 @@ Examples:
 }
 
 // getCodeStorePaths returns the paths for code index database and search index.
-func getCodeStorePaths(dbPath string) (string, string) {
-	baseDir := filepath.Dir(dbPath)
-	codeDir := filepath.Join(baseDir, "code")
-	return filepath.Join(codeDir, "index.db"), filepath.Join(codeDir, "search.bleve")
+func getCodeStorePaths(dbPath string) (string, string, error) {
+	dir, err := analysisDir(dbPath, store.CheckoutRoot(dbPath))
+	if err != nil {
+		return "", "", err
+	}
+	return filepath.Join(dir, "code", "index.db"), filepath.Join(dir, "code", "search.bleve"), nil
 }
 
 func cmdCodeIndex(dbPath string, args []string) error {
@@ -442,29 +445,35 @@ func cmdCodeReadCheck(dbPath string, args []string) error {
 
 // Indexer provides a reusable indexing interface for the watcher.
 type Indexer struct {
-	store   store.CodeIndexStore
-	parser  *code.Parser
-	rootDir string // absolute project root for relative path computation
+	seed      codeindex.Seed
+	store     store.CodeIndexStore
+	parser    *code.Parser
+	ownsStore bool
+	rootDir   string // absolute project root for relative path computation
 }
 
 // NewIndexer creates a new indexer by opening a new code store.
 // Prefer NewIndexerFromStore when a code store is already open.
 func NewIndexer(dbPath string) (*Indexer, error) {
-	indexPath, searchPath := getCodeStorePaths(dbPath)
+	indexPath, searchPath, err := getCodeStorePaths(dbPath)
+	if err != nil {
+		return nil, err
+	}
 	codeStore, err := store.NewCodeStore(indexPath, searchPath)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Indexer{
-		store:   codeStore,
-		parser:  code.NewParser(newGrammarLoader(dbPath, nil)),
-		rootDir: store.ProjectRootFromDB(dbPath),
+		store:     codeStore,
+		ownsStore: true,
+		parser:    code.NewParser(newGrammarLoader(dbPath, nil)),
+		rootDir:   store.CheckoutRoot(dbPath),
 	}, nil
 }
 
 // NewIndexerFromStore creates an indexer reusing an existing code store.
-// The caller retains ownership of the store — Close() is a no-op.
+// The caller retains ownership of the store; Close only releases the parser.
 func NewIndexerFromStore(cs store.CodeIndexStore, loader grammar.Loader, rootDir string) *Indexer {
 	return &Indexer{
 		store:   cs,
@@ -475,7 +484,11 @@ func NewIndexerFromStore(cs store.CodeIndexStore, loader grammar.Loader, rootDir
 
 // Close closes the indexer.
 func (idx *Indexer) Close() error {
-	return idx.store.Close()
+	idx.parser.Close()
+	if idx.ownsStore {
+		return idx.store.Close()
+	}
+	return nil
 }
 
 // IndexFile indexes a single file (symbols and references).
@@ -484,39 +497,11 @@ func (idx *Indexer) IndexFile(filePath string) (count int, err error) {
 	defer func() {
 		span.Err(err).End()
 	}()
-	// Get relative path from project root
-	relPath := filePath
-	if abs, err := filepath.Abs(filePath); err == nil {
-		if rel, err := filepath.Rel(idx.rootDir, abs); err == nil {
-			relPath = rel
-		}
+	result, err := codeindex.Run(context.Background(), idx.store, idx.parser, idx.rootDir, []string{filePath}, true, nil, nil)
+	if err == nil {
+		span.Attr("stored_symbols", strconv.Itoa(result.Symbols)).Attr("stored_references", strconv.Itoa(result.References))
 	}
-
-	symbols, err := idx.parser.ParseFile(filePath)
-	if err != nil {
-		return 0, err
-	}
-	refs, refsErr := idx.parser.ParseFileReferences(filePath)
-	if refsErr != nil {
-		// Preserve the existing best-effort symbol index, while making the
-		// incomplete reference extraction visible in the work observation.
-		span.Err(refsErr).Attr("reference_parse_error", refsErr.Error())
-	}
-
-	info, _ := os.Stat(filePath)
-	modTime := time.Now()
-	var sizeBytes int64
-	if info != nil {
-		modTime = info.ModTime()
-		sizeBytes = info.Size()
-	}
-
-	if err := idx.store.IndexFileBatch(relPath, symbols, refs, modTime, sizeBytes); err != nil {
-		return 0, err
-	}
-	span.Attr("stored_symbols", strconv.Itoa(len(symbols))).
-		Attr("stored_references", strconv.Itoa(len(refs)))
-	return len(symbols), nil
+	return result.Symbols, err
 }
 
 // ReconcileResult summarises an Indexer.Reconcile pass.
@@ -552,109 +537,32 @@ func (idx *Indexer) Reconcile() (res ReconcileResult, err error) {
 		}
 	}()
 
-	infos, err := idx.store.ListAllFileInfo()
+	ignore, err := aideignore.New(idx.rootDir)
 	if err != nil {
-		return res, fmt.Errorf("list file index: %w", err)
+		return res, fmt.Errorf("load ignore rules before orphan sweep: %w", err)
 	}
-
-	ignore, _ := aideignore.New(idx.rootDir)
-	if ignore == nil {
-		ignore = aideignore.NewFromDefaults()
-	}
-
-	known := make(map[string]struct{}, len(infos))
-	for _, info := range infos {
-		known[info.Path] = struct{}{}
-	}
-
-	for _, info := range infos {
-		res.Checked++
-
-		absPath := info.Path
-		if !filepath.IsAbs(absPath) {
-			absPath = filepath.Join(idx.rootDir, info.Path)
-		}
-
-		stat, statErr := os.Stat(absPath)
-		if statErr != nil {
-			if os.IsNotExist(statErr) {
-				if rmErr := idx.RemoveFile(absPath); rmErr == nil {
-					res.Removed++
-				} else {
-					res.Errors++
-				}
-				continue
-			}
-			res.Errors++
-			continue
-		}
-
-		if ignore.ShouldIgnoreFile(info.Path) {
-			if rmErr := idx.RemoveFile(absPath); rmErr == nil {
-				res.Removed++
-			} else {
-				res.Errors++
-			}
-			continue
-		}
-
-		if !stat.ModTime().Equal(info.ModTime) {
-			if _, ixErr := idx.IndexFile(absPath); ixErr == nil {
-				res.Refreshed++
-				res.Touched = append(res.Touched, absPath)
-			} else {
-				res.Errors++
-			}
-		}
-	}
-
-	idx.sweepOrphans(infos, ignore, &res)
-
-	if err := idx.indexTree(ignore, &res, known); err != nil {
+	if _, err := idx.store.ListAllFileInfo(); err != nil {
 		return res, err
 	}
-
-	return res, nil
-}
-
-// indexTree walks the project root and indexes every supported, non-ignored
-// file not already in known. It is the discovery half of Reconcile: the only
-// way a file the watcher never saw enters the index, and the bootstrap for a
-// store with no entries at all.
-func (idx *Indexer) indexTree(ignore *aideignore.Matcher, res *ReconcileResult, known map[string]struct{}) error {
-	shouldSkip := ignore.WalkFunc(idx.rootDir)
-	err := filepath.Walk(idx.rootDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil
+	result, runErr := codeindex.Run(context.Background(), idx.store, idx.parser, idx.rootDir, nil, false, idx.seed, func(p codeindex.Progress) error {
+		if !p.Skipped {
+			res.Touched = append(res.Touched, filepath.Join(idx.rootDir, p.Path))
 		}
-		if skip, skipDir := shouldSkip(path, info); skip {
-			if skipDir {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if info.IsDir() {
-			return nil
-		}
-		if !code.SupportedFile(path) {
-			return nil
-		}
-		// Already handled by the reconcile loop above.
-		if rel, relErr := filepath.Rel(idx.rootDir, path); relErr == nil {
-			if _, seen := known[rel]; seen {
-				return nil
-			}
-		}
-		if _, err := idx.IndexFile(path); err != nil {
-			res.Errors++
-			return nil
-		}
-		res.Checked++
-		res.Refreshed++
-		res.Touched = append(res.Touched, path)
 		return nil
 	})
-	return err
+	res.Checked = result.Indexed + result.Skipped + result.Removed
+	res.Removed = result.Removed
+	res.Refreshed = result.Indexed
+	if runErr != nil {
+		res.Errors++
+		return res, nil
+	}
+	infos, err := idx.store.ListAllFileInfo()
+	if err != nil {
+		return res, err
+	}
+	idx.sweepOrphans(infos, ignore, &res)
+	return res, nil
 }
 
 // sweepOrphans handles the post-fileinfo cleanup pass: corrupt rows (empty

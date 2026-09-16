@@ -16,7 +16,9 @@ import (
 
 // InstanceInfo is the response payload for the instance_info MCP tool.
 type InstanceInfo struct {
-	ProjectRoot string `json:"project_root"`
+	CheckoutID   string `json:"checkout_id,omitempty"`
+	CheckoutRoot string `json:"checkout_root"`
+	ProjectRoot  string `json:"project_root"`
 	// RealProjectRoot is ProjectRoot with symlinks resolved. The two differ
 	// when the project is reached through an alias — a ~/src tree pointing at
 	// a data volume, a Windows junction or mapped drive. Both are reported
@@ -59,11 +61,12 @@ type DaemonInfo struct {
 // ============================================================================
 
 func (s *MCPServer) registerInstanceInfoTools() {
-	mcp.AddTool(s.server, &mcp.Tool{
+	addCheckoutTool(s, &mcp.Tool{
 		Name: "instance_info",
 		Description: `Get identity and configuration of this aide instance.
 
-Returns the resolved project root, working directory, version info,
+Returns the shared project root, caller checkout root and stable checkout ID,
+working directory, version info,
 database path, gRPC socket path, operating mode, process IDs, and
 authority: "daemon" means this process owns the stores; "client" means it
 is attached to another process's daemon over gRPC (common when several
@@ -79,7 +82,13 @@ left over from before an upgrade.
 	}, s.handleInstanceInfo)
 }
 
-func (s *MCPServer) handleInstanceInfo(ctx context.Context, _ *mcp.CallToolRequest, _ emptyInput) (*mcp.CallToolResult, any, error) {
+func (s *MCPServer) handleInstanceInfo(ctx context.Context, req *mcp.CallToolRequest, _ CheckoutInput) (*mcp.CallToolResult, any, error) {
+	scoped, release, err := s.requestCheckout(ctx, req)
+	if err != nil {
+		return checkoutToolError(err)
+	}
+	defer release()
+	s = scoped
 	mcpLog.Printf("tool: instance_info")
 
 	cwd, _ := os.Getwd()
@@ -92,6 +101,7 @@ func (s *MCPServer) handleInstanceInfo(ctx context.Context, _ *mcp.CallToolReque
 
 	info := InstanceInfo{
 		ProjectRoot:     root,
+		CheckoutRoot:    s.sourceRoot(),
 		RealProjectRoot: anchor.RealPath(root),
 		Cwd:             cwd,
 		Version:         version.GetInfo(),
@@ -105,6 +115,9 @@ func (s *MCPServer) handleInstanceInfo(ctx context.Context, _ *mcp.CallToolReque
 		PprofURL:        pprofURL(),
 	}
 
+	if c, err := store.CheckoutInfo(s.dbPath, s.sourceRoot()); err == nil {
+		info.CheckoutID = c.ID
+	}
 	if s.grpcClient() != nil {
 		info.Daemon = daemonInfo(ctx, s.grpcClient())
 	}

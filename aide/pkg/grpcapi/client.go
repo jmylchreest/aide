@@ -3,9 +3,13 @@ package grpcapi
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"time"
+
+	"github.com/jmylchreest/aide/aide/pkg/store"
+	"google.golang.org/grpc/metadata"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -40,11 +44,25 @@ func SocketExistsForDB(dbPath string) bool {
 
 // NewClientForDB creates a new gRPC client connected to the Unix socket derived from the database path.
 func NewClientForDB(dbPath string) (*Client, error) {
-	return NewClientWithSocket(SocketPathFromDB(dbPath))
+	return NewClientForCheckout(dbPath, store.CheckoutRoot(dbPath))
+}
+
+var ErrCheckoutRoutingUnavailable = errors.New("daemon does not support checkout routing; restart it with the current aide binary")
+
+// NewClientForCheckout selects analysis stores without changing shared memory routing.
+func NewClientForCheckout(dbPath, root string) (*Client, error) {
+	if root == "" {
+		return nil, fmt.Errorf("caller checkout directory is unavailable")
+	}
+	return newClientWithSocket(SocketPathFromDB(dbPath), root)
 }
 
 // NewClientWithSocket creates a new gRPC client connected to a specific socket.
 func NewClientWithSocket(socketPath string) (*Client, error) {
+	return newClientWithSocket(socketPath, "")
+}
+
+func newClientWithSocket(socketPath, root string) (*Client, error) {
 	// Check if socket exists
 	if _, err := os.Stat(socketPath); err != nil {
 		return nil, fmt.Errorf("socket not found: %s", socketPath)
@@ -54,6 +72,18 @@ func NewClientWithSocket(socketPath string) (*Client, error) {
 	conn, err := grpc.NewClient(
 		"unix://"+socketPath,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithUnaryInterceptor(func(ctx context.Context, method string, req, reply any, cc *grpc.ClientConn, invoke grpc.UnaryInvoker, opts ...grpc.CallOption) error {
+			if root != "" {
+				ctx = metadata.AppendToOutgoingContext(ctx, checkoutRootKey, root)
+			}
+			return invoke(ctx, method, req, reply, cc, opts...)
+		}),
+		grpc.WithStreamInterceptor(func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn, method string, streamer grpc.Streamer, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+			if root != "" {
+				ctx = metadata.AppendToOutgoingContext(ctx, checkoutRootKey, root)
+			}
+			return streamer(ctx, desc, cc, method, opts...)
+		}),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create client: %w", err)
@@ -89,6 +119,17 @@ func NewClientWithSocket(socketPath string) (*Client, error) {
 		return nil, fmt.Errorf("failed to connect to socket: %w", err)
 	}
 
+	if root != "" {
+		var headers metadata.MD
+		if _, err := c.Health.Check(ctx, &HealthCheckRequest{}, grpc.Header(&headers)); err != nil {
+			conn.Close()
+			return nil, err
+		}
+		if len(headers.Get("aide-checkout-routing")) == 0 {
+			conn.Close()
+			return nil, ErrCheckoutRoutingUnavailable
+		}
+	}
 	return c, nil
 }
 

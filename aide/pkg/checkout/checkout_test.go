@@ -1,0 +1,222 @@
+package checkout
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+	"testing"
+
+	git "github.com/go-git/go-git/v5"
+)
+
+func fixture(t *testing.T) (string, string) {
+	t.Helper()
+	root := t.TempDir()
+	if _, err := git.PlainInit(root, false); err != nil {
+		t.Fatal(err)
+	}
+	wt := t.TempDir()
+	admin := filepath.Join(root, ".git", "worktrees", "test")
+	if err := os.MkdirAll(admin, 0700); err != nil {
+		t.Fatal(err)
+	}
+	for p, data := range map[string]string{
+		filepath.Join(wt, ".git"):         "gitdir: " + admin + "\n",
+		filepath.Join(admin, "commondir"): "../..\n",
+		filepath.Join(admin, "gitdir"):    filepath.Join(wt, ".git") + "\n",
+		filepath.Join(admin, "HEAD"):      "ref: refs/heads/feature\n",
+	} {
+		if err := os.WriteFile(p, []byte(data), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return root, wt
+}
+
+func TestIdentityLifetime(t *testing.T) {
+	root, wt := fixture(t)
+	main, err := Resolve(root, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, err := Resolve(root, wt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.ID == main.ID || first.Root != wt || first.Branch != "feature" {
+		t.Fatalf("not isolated: %+v %+v", main, first)
+	}
+	if err := os.WriteFile(filepath.Join(first.GitDir, "HEAD"), []byte("ref: refs/heads/other\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	again, err := Resolve(root, wt)
+	if err != nil || again.ID != first.ID {
+		t.Fatalf("branch switch changed identity: %+v %v", again, err)
+	}
+	moved := wt + "-moved"
+	if err := os.Rename(wt, moved); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(moved) })
+	if err := os.WriteFile(filepath.Join(first.GitDir, "gitdir"), []byte(filepath.Join(moved, ".git")), 0600); err != nil {
+		t.Fatal(err)
+	}
+	again, err = Resolve(root, moved)
+	if err != nil || again.ID != first.ID {
+		t.Fatalf("move changed identity: %+v %v", again, err)
+	}
+	if err := os.RemoveAll(first.GitDir); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(first.GitDir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	for name, data := range map[string]string{"HEAD": "ref: refs/heads/other\n", "commondir": "../..\n", "gitdir": filepath.Join(moved, ".git")} {
+		if err := os.WriteFile(filepath.Join(first.GitDir, name), []byte(data), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	again, err = Resolve(root, moved)
+	if err != nil || again.ID == first.ID {
+		t.Fatalf("recreated checkout reused identity: %+v %v", again, err)
+	}
+}
+
+func TestConcurrentIdentityAndForeignCheckout(t *testing.T) {
+	root, wt := fixture(t)
+	var wg sync.WaitGroup
+	ids := make(chan string, 16)
+	for i := 0; i < 16; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			c, err := Resolve(root, wt)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			ids <- c.ID
+		}()
+	}
+	wg.Wait()
+	close(ids)
+	var want string
+	for id := range ids {
+		if want == "" {
+			want = id
+		}
+		if id != want {
+			t.Fatalf("multiple identities: %s %s", want, id)
+		}
+	}
+	other, _ := fixture(t)
+	if _, err := Resolve(root, other); err == nil {
+		t.Fatal("foreign repository accepted")
+	}
+}
+
+func TestGeneratedIgnoreAllowsExplicitOverride(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "checkouts")
+	if err := EnsureIgnoredDir(dir); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, ".gitignore")
+	data, err := os.ReadFile(path)
+	if err != nil || !strings.HasSuffix(string(data), "\n*\n") {
+		t.Fatalf("default ignore: %q %v", data, err)
+	}
+	if err := os.WriteFile(path, []byte("# deliberately include caches\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := EnsureIgnoredDir(dir); err != nil {
+		t.Fatal(err)
+	}
+	data, err = os.ReadFile(path)
+	if err != nil || string(data) != "# deliberately include caches\n" {
+		t.Fatalf("overrode user choice: %q %v", data, err)
+	}
+}
+
+func TestCorruptOrRemovedIdentity(t *testing.T) {
+	root, wt := fixture(t)
+	first, err := Resolve(root, wt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	marker := filepath.Join(first.GitDir, "aide-checkout-id")
+	if err := os.WriteFile(marker, []byte("invalid"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Resolve(root, wt); err == nil {
+		t.Fatal("corrupt ID silently accepted or replaced")
+	}
+	data, _ := os.ReadFile(marker)
+	if string(data) != "invalid" {
+		t.Fatal("corrupt evidence overwritten")
+	}
+	if err := os.Remove(marker); err != nil {
+		t.Fatal(err)
+	}
+	again, err := Resolve(root, wt)
+	if err != nil || again.ID == first.ID {
+		t.Fatalf("missing marker must create new identity: %+v %v", again, err)
+	}
+}
+
+func TestMissingNestedCheckoutDoesNotResolveParent(t *testing.T) {
+	root, wt := fixture(t)
+	nested := filepath.Join(root, "nested")
+	if err := os.Rename(wt, nested); err != nil {
+		t.Fatal(err)
+	}
+	first, err := Resolve(root, nested)
+	if err != nil || first.Root != nested {
+		t.Fatalf("nested checkout: %+v %v", first, err)
+	}
+	if err := os.RemoveAll(nested); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Resolve(root, nested); err == nil {
+		t.Fatal("missing checkout silently resolved to parent")
+	}
+	file := filepath.Join(root, "file.go")
+	if err := os.WriteFile(file, []byte("package p"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Resolve(root, file); err == nil {
+		t.Fatal("file accepted as checkout directory")
+	}
+}
+
+func TestMayExistPreservesUncertainRegistrations(t *testing.T) {
+	root, wt := fixture(t)
+	c, err := Resolve(root, wt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.RemoveAll(wt); err != nil {
+		t.Fatal(err)
+	}
+	marker := filepath.Join(c.GitDir, "aide-checkout-id")
+	for _, value := range []string{c.ID, "corrupt", ""} {
+		if err := os.WriteFile(marker, []byte(value), 0600); err != nil {
+			t.Fatal(err)
+		}
+		if !MayExist(c) {
+			t.Fatalf("discarded protected registration: %q", value)
+		}
+	}
+	if err := os.Remove(marker); err != nil {
+		t.Fatal(err)
+	}
+	if !MayExist(c) {
+		t.Fatal("discarded registration with absent identity")
+	}
+	if err := os.WriteFile(marker, []byte("0123456789abcdef0123456789abcdef"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if MayExist(c) {
+		t.Fatal("different identity protects old checkout")
+	}
+}

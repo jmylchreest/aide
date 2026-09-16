@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/jmylchreest/aide/aide/pkg/checkout"
 	"github.com/jmylchreest/aide/aide/pkg/code"
 	"github.com/jmylchreest/aide/aide/pkg/observe"
 	"github.com/jmylchreest/aide/aide/pkg/store"
@@ -22,8 +23,8 @@ type sourceSnapshot struct {
 	symbols []*code.Symbol
 }
 
-func (s *MCPServer) sourcePath(file string) (string, string) {
-	root := store.ProjectRootFromDB(s.dbPath)
+func (s *MCPServer) sourcePath(file string) string {
+	root := s.sourceRoot()
 	abs := file
 	if !filepath.IsAbs(abs) {
 		abs = filepath.Join(root, file)
@@ -33,11 +34,14 @@ func (s *MCPServer) sourcePath(file string) (string, string) {
 	if err != nil {
 		rel = abs
 	}
-	return abs, rel
+	return rel
 }
 
 func (s *MCPServer) readSourceSnapshot(file string) (*sourceSnapshot, error) {
-	abs, rel := s.sourcePath(file)
+	abs, rel, err := checkout.SourcePath(s.sourceRoot(), file)
+	if err != nil {
+		return nil, err
+	}
 	content, err := os.ReadFile(abs)
 	if err != nil {
 		return nil, err
@@ -101,7 +105,7 @@ func (s *MCPServer) readOneSymbol(cs store.CodeIndexStore, name string, input Co
 	}
 	files := make(map[string]bool)
 	if input.File != "" {
-		_, file := s.sourcePath(input.File)
+		file := s.sourcePath(input.File)
 		files[file] = true
 	} else {
 		const candidateLimit = 100
@@ -114,7 +118,7 @@ func (s *MCPServer) readOneSymbol(cs store.CodeIndexStore, name string, input Co
 		}
 		for _, r := range results {
 			if r.Symbol != nil && r.Symbol.Name == name {
-				_, file := s.sourcePath(r.Symbol.FilePath)
+				file := s.sourcePath(r.Symbol.FilePath)
 				files[file] = true
 			}
 		}

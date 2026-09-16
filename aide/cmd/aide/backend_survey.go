@@ -17,7 +17,10 @@ import (
 
 // openSurveyStore opens the survey store for direct access.
 func (b *Backend) openSurveyStore() (store.SurveyStore, error) {
-	surveyDir := getSurveyStorePath(b.dbPath)
+	surveyDir, err := getSurveyStorePath(b.dbPath)
+	if err != nil {
+		return nil, err
+	}
 	return store.NewSurveyStore(surveyDir)
 }
 

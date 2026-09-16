@@ -14,10 +14,10 @@ import (
 	"time"
 
 	"github.com/jmylchreest/aide/aide/internal/version"
-	"github.com/jmylchreest/aide/aide/pkg/aideignore"
 	"github.com/jmylchreest/aide/aide/pkg/anchor"
+	"github.com/jmylchreest/aide/aide/pkg/checkout"
 	"github.com/jmylchreest/aide/aide/pkg/code"
-	"github.com/jmylchreest/aide/aide/pkg/config"
+	"github.com/jmylchreest/aide/aide/pkg/codeindex"
 	"github.com/jmylchreest/aide/aide/pkg/eventbus"
 	"github.com/jmylchreest/aide/aide/pkg/findings"
 	"github.com/jmylchreest/aide/aide/pkg/grammar"
@@ -31,6 +31,7 @@ import (
 	"github.com/oklog/ulid/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -77,6 +78,9 @@ func SocketPathFromDB(dbPath string) string {
 
 // Server manages the gRPC server and all service implementations.
 type Server struct {
+	seedFile      codeindex.Seed
+	checkoutInfo  *checkout.Info
+	checkouts     *checkoutManager
 	store         store.Store
 	instinctStore store.InstinctProposalStore
 	codeStore     store.CodeIndexStore
@@ -295,7 +299,7 @@ func (s *Server) Start() error {
 	// Register all services with separate implementations
 	RegisterMemoryServiceServer(srv, &memoryServiceImpl{store: s.store})
 	RegisterStateServiceServer(srv, &stateServiceImpl{store: s.store, server: s})
-	RegisterDecisionServiceServer(srv, &decisionServiceImpl{store: s.store})
+	RegisterDecisionServiceServer(srv, &decisionServiceImpl{store: s.store, server: s})
 	RegisterMessageServiceServer(srv, &messageServiceImpl{store: s.store, server: s})
 	RegisterTaskServiceServer(srv, &taskServiceImpl{store: s.store, server: s})
 	RegisterCodeServiceServer(srv, &codeServiceImpl{server: s, parser: code.NewParser(s.grammarLoader)})
@@ -306,7 +310,7 @@ func (s *Server) Start() error {
 	RegisterObserveServiceServer(srv, &observeServiceImpl{store: s.store, bus: s.observeBus})
 	RegisterInstinctServiceServer(srv, &instinctServiceImpl{server: s})
 	RegisterSwarmServiceServer(srv, &swarmServiceImpl{server: s})
-	RegisterHealthServiceServer(srv, &healthServiceImpl{dbPath: s.dbPath, startTime: s.startTime})
+	RegisterHealthServiceServer(srv, &healthServiceImpl{dbPath: s.dbPath, startTime: s.startTime, checkouts: s.checkouts != nil})
 	RegisterStatusServiceServer(srv, &statusServiceImpl{server: s})
 
 	s.mu.Lock()
@@ -335,6 +339,7 @@ func (s *Server) Stop() {
 	if srv != nil {
 		srv.GracefulStop()
 	}
+	s.closeCheckouts()
 	// Clean up socket file
 	os.Remove(s.socketPath)
 }
@@ -349,12 +354,16 @@ func (s *Server) SocketPath() string {
 // =============================================================================
 
 type healthServiceImpl struct {
+	checkouts bool
 	UnimplementedHealthServiceServer
 	dbPath    string
 	startTime time.Time
 }
 
 func (s *healthServiceImpl) Check(ctx context.Context, req *HealthCheckRequest) (*HealthCheckResponse, error) {
+	if s.checkouts {
+		_ = grpc.SetHeader(ctx, metadata.Pairs("aide-checkout-routing", "1"))
+	}
 	info := version.GetInfo()
 	return &HealthCheckResponse{
 		Healthy:       true,
@@ -646,6 +655,7 @@ func (s *stateServiceImpl) Cleanup(ctx context.Context, req *StateCleanupRequest
 // =============================================================================
 
 type decisionServiceImpl struct {
+	server *Server
 	UnimplementedDecisionServiceServer
 	store store.DecisionStore
 }
@@ -660,6 +670,7 @@ func (s *decisionServiceImpl) Set(ctx context.Context, req *DecisionSetRequest) 
 	}
 
 	dec := &memory.Decision{
+		Checkout:   ProvenanceFromProto(req.Checkout),
 		Topic:      req.Topic,
 		Decision:   req.Decision,
 		Rationale:  req.Rationale,
@@ -674,6 +685,19 @@ func (s *decisionServiceImpl) Set(ctx context.Context, req *DecisionSetRequest) 
 		dec.CreatedAt = req.CreatedAt.AsTime()
 	}
 
+	if dec.Checkout == nil && s.server != nil && s.server.checkouts != nil {
+		root := store.ProjectRootFromDB(s.server.dbPath)
+		if md, ok := metadata.FromIncomingContext(ctx); ok {
+			if values := md.Get(checkoutRootKey); len(values) > 0 {
+				root = values[0]
+			}
+		}
+		c, err := store.CheckoutInfo(s.server.dbPath, root)
+		if err != nil {
+			return nil, err
+		}
+		dec.Checkout = &memory.CheckoutProvenance{ID: c.ID, Branch: c.Branch, Commit: c.Commit}
+	}
 	if err := s.store.SetDecision(dec); err != nil {
 		return nil, err
 	}
@@ -1184,6 +1208,12 @@ type codeServiceImpl struct {
 }
 
 func (s *codeServiceImpl) Search(ctx context.Context, req *CodeSearchRequest) (*CodeSearchResponse, error) {
+	scoped, release, routeErr := s.server.checkoutFor(ctx)
+	if routeErr != nil {
+		return nil, routeErr
+	}
+	defer release()
+	s = &codeServiceImpl{server: scoped, parser: s.parser}
 	cs := s.server.GetCodeStore()
 	if cs == nil {
 		return nil, fmt.Errorf("code store not available")
@@ -1217,15 +1247,25 @@ func (s *codeServiceImpl) Search(ctx context.Context, req *CodeSearchRequest) (*
 }
 
 func (s *codeServiceImpl) Symbols(ctx context.Context, req *CodeSymbolsRequest) (*CodeSymbolsResponse, error) {
+	scoped, release, routeErr := s.server.checkoutFor(ctx)
+	if routeErr != nil {
+		return nil, routeErr
+	}
+	defer release()
+	s = &codeServiceImpl{server: scoped, parser: s.parser}
 	cs := s.server.GetCodeStore()
 	if cs == nil {
 		return nil, fmt.Errorf("code store not available")
 	}
 
-	symbols, err := cs.GetFileSymbols(req.FilePath)
+	abs, rel, err := checkout.SourcePath(s.server.SourceRoot(), req.FilePath)
+	if err != nil {
+		return nil, err
+	}
+	symbols, err := cs.GetFileSymbols(rel)
 	if err != nil {
 		// If file not in index, try to parse it directly
-		symbols, err = s.parser.ParseFile(req.FilePath)
+		symbols, err = s.parser.ParseFile(abs)
 		if err != nil {
 			return nil, err
 		}
@@ -1242,6 +1282,12 @@ func (s *codeServiceImpl) Symbols(ctx context.Context, req *CodeSymbolsRequest) 
 }
 
 func (s *codeServiceImpl) GetFileInfo(ctx context.Context, req *CodeGetFileInfoRequest) (*CodeGetFileInfoResponse, error) {
+	scoped, release, routeErr := s.server.checkoutFor(ctx)
+	if routeErr != nil {
+		return nil, routeErr
+	}
+	defer release()
+	s = &codeServiceImpl{server: scoped, parser: s.parser}
 	cs := s.server.GetCodeStore()
 	if cs == nil {
 		return nil, fmt.Errorf("code store not available")
@@ -1251,15 +1297,22 @@ func (s *codeServiceImpl) GetFileInfo(ctx context.Context, req *CodeGetFileInfoR
 		return &CodeGetFileInfoResponse{Found: false}, nil
 	}
 	return &CodeGetFileInfoResponse{
-		Found:     true,
-		ModTime:   timestamppb.New(fi.ModTime),
-		SymbolIds: fi.SymbolIDs,
-		Tokens:    int32(fi.Tokens),
-		SizeBytes: fi.SizeBytes,
+		Found:       true,
+		ModTime:     timestamppb.New(fi.ModTime),
+		SymbolIds:   fi.SymbolIDs,
+		Tokens:      int32(fi.Tokens),
+		SizeBytes:   fi.SizeBytes,
+		ContentHash: fi.ContentHash, ParserFingerprint: fi.ParserFingerprint,
 	}, nil
 }
 
 func (s *codeServiceImpl) Stats(ctx context.Context, req *CodeStatsRequest) (*CodeStatsResponse, error) {
+	scoped, release, routeErr := s.server.checkoutFor(ctx)
+	if routeErr != nil {
+		return nil, routeErr
+	}
+	defer release()
+	s = &codeServiceImpl{server: scoped, parser: s.parser}
 	cs := s.server.GetCodeStore()
 	if cs == nil {
 		return nil, fmt.Errorf("code store not available")
@@ -1277,249 +1330,29 @@ func (s *codeServiceImpl) Stats(ctx context.Context, req *CodeStatsRequest) (*Co
 	}, nil
 }
 
-// indexParseWork is what the walker hands to a parser worker — the absolute
-// path to read, the project-relative path to record, and the FileInfo (carries
-// mtime + size) so the parser doesn't re-stat.
-type indexParseWork struct {
-	abs  string
-	rel  string
-	info os.FileInfo
-}
-
-// indexResult travels from a producer (walker for skipped files; parser
-// worker for parsed files) to the single writer goroutine. The writer is the
-// only thing allowed to touch the gRPC stream and the bbolt write tx, so all
-// emit-and-persist work funnels through it in result-arrival order.
-type indexResult struct {
-	rel       string
-	skipped   bool
-	symbols   []*code.Symbol
-	refs      []*code.Reference
-	mtime     time.Time
-	sizeBytes int64
-}
-
-// Index walks the requested paths and indexes every file the supported-files
-// filter accepts. Tree-sitter parsing is the hot CPU cost (per pprof on the
-// Linux kernel) and is pure & per-file, so we fan it out across N parser
-// workers (N = AIDE_INDEX_WORKERS, defaulting to runtime.NumCPU()). The
-// bbolt write tx is exclusive by design, so a single writer goroutine
-// serialises IndexFileBatch and stream.Send.
-//
-// Pipeline shape:
-//
-//	walker ──► parseQueue ──► N parsers ──► resultQueue ──► writer ──► stream
-//
-// Cancellation: a derived ctx is cancelled by the writer on stream-send error
-// so the walker and parsers stop pushing into now-orphaned channels; ctx is
-// also tripped by stream.Context() (Ctrl-C / client disconnect / deadline).
-//
-// Progress event ordering changes vs the old single-threaded path: events
-// arrive in completion order (small files first) rather than walk order.
-// That tracks real progress more accurately and is the documented contract
-// for the streaming RPC.
-//
-//nolint:gocyclo // pipeline orchestration: path validation, walker, parser fan-out, writer, and three cancellation paths all live here by design.
 func (s *codeServiceImpl) Index(req *CodeIndexRequest, stream grpc.ServerStreamingServer[CodeIndexEvent]) error {
-	cs := s.server.GetCodeStore()
+	scoped, release, err := s.server.checkoutFor(stream.Context())
+	if err != nil {
+		return err
+	}
+	defer release()
+	cs := scoped.GetCodeStore()
 	if cs == nil {
 		return fmt.Errorf("code store not available")
 	}
-
-	ctx, cancel := context.WithCancel(stream.Context())
-	defer cancel()
-
-	paths := req.Paths
-	if len(paths) == 0 {
-		paths = []string{"."}
-	}
-
-	// The recorded root carries whatever spelling the daemon was launched
-	// under, while the caller supplies its own; anchor.Contains compares them
-	// by identity so an aliased client is not refused its own project.
-	projRoot := store.ProjectRootFromDB(s.server.dbPath)
-	for _, p := range paths {
-		abs, err := filepath.Abs(p)
-		if err != nil {
-			return fmt.Errorf("invalid path %q: %w", p, err)
+	var done, skipped int32
+	result, err := codeindex.Run(stream.Context(), cs, s.parser, scoped.SourceRoot(), req.Paths, req.Force, scoped.seedFile, func(p codeindex.Progress) error {
+		if p.Skipped {
+			skipped++
+		} else {
+			done++
 		}
-		if !anchor.Contains(projRoot, abs) {
-			return fmt.Errorf("path %q is outside the project directory", p)
-		}
-	}
-
-	ignore, err := aideignore.New(projRoot)
-	if err != nil {
-		ignore = aideignore.NewFromDefaults()
-	}
-	shouldSkip := ignore.WalkFunc(projRoot)
-
-	workers := config.Get().IndexWorkerCount()
-	parseQueue := make(chan indexParseWork, workers*2)
-	resultQueue := make(chan indexResult, workers*2)
-
-	// Parser workers: pull work off parseQueue, run tree-sitter in parallel,
-	// push results to the writer.
-	var parserWG sync.WaitGroup
-	for i := 0; i < workers; i++ {
-		parserWG.Add(1)
-		go func() {
-			defer parserWG.Done()
-			for w := range parseQueue {
-				if ctx.Err() != nil {
-					return
-				}
-				symbols, err := s.parser.ParseFile(w.abs)
-				if err != nil {
-					continue
-				}
-				refs, _ := s.parser.ParseFileReferences(w.abs)
-				select {
-				case resultQueue <- indexResult{
-					rel:       w.rel,
-					symbols:   symbols,
-					refs:      refs,
-					mtime:     w.info.ModTime(),
-					sizeBytes: w.info.Size(),
-				}:
-				case <-ctx.Done():
-					return
-				}
-			}
-		}()
-	}
-
-	// Close resultQueue once every parser has finished draining parseQueue.
-	go func() {
-		parserWG.Wait()
-		close(resultQueue)
-	}()
-
-	// Writer: the only goroutine that calls stream.Send or IndexFileBatch.
-	// Per-file bbolt commit + Bleve batch happen here; counters stay
-	// goroutine-local so atomics aren't needed.
-	var (
-		filesIndexed, symbolsIndexed, filesSkipped int32
-		writerErr                                  error
-	)
-	writerDone := make(chan struct{})
-	go func() {
-		defer close(writerDone)
-		for r := range resultQueue {
-			if ctx.Err() != nil {
-				continue // drain queue but stop emitting
-			}
-			if r.skipped {
-				filesSkipped++
-				if err := sendProgress(stream, &CodeIndexProgress{
-					Path:         r.rel,
-					FilesDone:    filesIndexed,
-					FilesSkipped: filesSkipped,
-					Skipped:      true,
-				}); err != nil {
-					writerErr = err
-					cancel()
-					continue
-				}
-				continue
-			}
-			if err := cs.IndexFileBatch(r.rel, r.symbols, r.refs, r.mtime, r.sizeBytes); err != nil {
-				continue
-			}
-			filesIndexed++
-			fileSymbols := int32(len(r.symbols))
-			symbolsIndexed += fileSymbols
-			if err := sendProgress(stream, &CodeIndexProgress{
-				Path:         r.rel,
-				Symbols:      fileSymbols,
-				FilesDone:    filesIndexed,
-				FilesSkipped: filesSkipped,
-			}); err != nil {
-				writerErr = err
-				cancel()
-				continue
-			}
-		}
-	}()
-
-	// Walker: enumerate files, decide skip-vs-parse, push to either
-	// resultQueue (skipped) or parseQueue (needs parsing). Runs in this
-	// goroutine because filepath.Walk is fundamentally serial.
-	var walkErr error
-	for _, root := range paths {
-		err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-			if cerr := ctx.Err(); cerr != nil {
-				return cerr
-			}
-			if err != nil {
-				return nil
-			}
-			if skip, skipDir := shouldSkip(path, info); skip {
-				if skipDir {
-					return filepath.SkipDir
-				}
-				return nil
-			}
-			if info.IsDir() {
-				return nil
-			}
-			if !code.SupportedFile(path) {
-				return nil
-			}
-			relPath := path
-			if rel, err := filepath.Rel(projRoot, path); err == nil {
-				relPath = rel
-			}
-
-			// Incremental mode: skip if mtime matches the indexed version.
-			// Done in the walker (one cheap bbolt View) so the parsers
-			// don't waste cycles on tree-sitter for unchanged files.
-			if !req.Force {
-				if existing, err := cs.GetFileInfo(relPath); err == nil && existing.ModTime.Equal(info.ModTime()) {
-					select {
-					case resultQueue <- indexResult{rel: relPath, skipped: true}:
-					case <-ctx.Done():
-						return ctx.Err()
-					}
-					return nil
-				}
-			}
-
-			select {
-			case parseQueue <- indexParseWork{abs: path, rel: relPath, info: info}:
-			case <-ctx.Done():
-				return ctx.Err()
-			}
-			return nil
-		})
-		if err != nil {
-			if ctx.Err() == nil {
-				walkErr = err
-			}
-			break
-		}
-	}
-	close(parseQueue)
-
-	<-writerDone
-
-	if walkErr != nil {
-		return walkErr
-	}
-	if writerErr != nil {
-		return writerErr
-	}
-	if cerr := stream.Context().Err(); cerr != nil {
-		return cerr
-	}
-
-	return stream.Send(&CodeIndexEvent{
-		Event: &CodeIndexEvent_Summary{Summary: &CodeIndexResponse{
-			FilesIndexed:   filesIndexed,
-			SymbolsIndexed: symbolsIndexed,
-			FilesSkipped:   filesSkipped,
-		}},
+		return sendProgress(stream, &CodeIndexProgress{Path: p.Path, Symbols: int32(p.Symbols), FilesDone: done, FilesSkipped: skipped, Skipped: p.Skipped})
 	})
+	if err != nil {
+		return err
+	}
+	return stream.Send(&CodeIndexEvent{Event: &CodeIndexEvent_Summary{Summary: &CodeIndexResponse{FilesIndexed: int32(result.Indexed), SymbolsIndexed: int32(result.Symbols), FilesSkipped: int32(result.Skipped)}}})
 }
 
 // sendProgress wraps a CodeIndexProgress in the event envelope and writes it
@@ -1529,6 +1362,12 @@ func sendProgress(stream grpc.ServerStreamingServer[CodeIndexEvent], p *CodeInde
 }
 
 func (s *codeServiceImpl) Clear(ctx context.Context, req *CodeClearRequest) (*CodeClearResponse, error) {
+	scoped, release, routeErr := s.server.checkoutFor(ctx)
+	if routeErr != nil {
+		return nil, routeErr
+	}
+	defer release()
+	s = &codeServiceImpl{server: scoped, parser: s.parser}
 	cs := s.server.GetCodeStore()
 	if cs == nil {
 		return nil, fmt.Errorf("code store not available")
@@ -1552,6 +1391,12 @@ func (s *codeServiceImpl) Clear(ctx context.Context, req *CodeClearRequest) (*Co
 }
 
 func (s *codeServiceImpl) TopReferences(ctx context.Context, req *CodeTopReferencesRequest) (*CodeTopReferencesResponse, error) {
+	scoped, release, routeErr := s.server.checkoutFor(ctx)
+	if routeErr != nil {
+		return nil, routeErr
+	}
+	defer release()
+	s = &codeServiceImpl{server: scoped, parser: s.parser}
 	cs := s.server.GetCodeStore()
 	if cs == nil {
 		return nil, fmt.Errorf("code store not available")
@@ -1578,6 +1423,12 @@ func (s *codeServiceImpl) TopReferences(ctx context.Context, req *CodeTopReferen
 }
 
 func (s *codeServiceImpl) SearchReferences(ctx context.Context, req *CodeSearchReferencesRequest) (*CodeSearchReferencesResponse, error) {
+	scoped, release, routeErr := s.server.checkoutFor(ctx)
+	if routeErr != nil {
+		return nil, routeErr
+	}
+	defer release()
+	s = &codeServiceImpl{server: scoped, parser: s.parser}
 	cs := s.server.GetCodeStore()
 	if cs == nil {
 		return nil, fmt.Errorf("code store not available")
@@ -1611,6 +1462,12 @@ func (s *codeServiceImpl) SearchReferences(ctx context.Context, req *CodeSearchR
 }
 
 func (s *codeServiceImpl) GetFileReferences(ctx context.Context, req *CodeGetFileReferencesRequest) (*CodeSearchReferencesResponse, error) {
+	scoped, release, routeErr := s.server.checkoutFor(ctx)
+	if routeErr != nil {
+		return nil, routeErr
+	}
+	defer release()
+	s = &codeServiceImpl{server: scoped, parser: s.parser}
 	cs := s.server.GetCodeStore()
 	if cs == nil {
 		return nil, fmt.Errorf("code store not available")
@@ -1632,6 +1489,12 @@ func (s *codeServiceImpl) GetFileReferences(ctx context.Context, req *CodeGetFil
 }
 
 func (s *codeServiceImpl) GetContainingSymbol(ctx context.Context, req *CodeGetContainingSymbolRequest) (*CodeGetContainingSymbolResponse, error) {
+	scoped, release, routeErr := s.server.checkoutFor(ctx)
+	if routeErr != nil {
+		return nil, routeErr
+	}
+	defer release()
+	s = &codeServiceImpl{server: scoped, parser: s.parser}
 	cs := s.server.GetCodeStore()
 	if cs == nil {
 		return nil, fmt.Errorf("code store not available")
@@ -1650,13 +1513,19 @@ func (s *codeServiceImpl) GetContainingSymbol(ctx context.Context, req *CodeGetC
 }
 
 func (s *codeServiceImpl) ReadCheck(ctx context.Context, req *CodeReadCheckRequest) (*CodeReadCheckResponse, error) {
+	scoped, release, routeErr := s.server.checkoutFor(ctx)
+	if routeErr != nil {
+		return nil, routeErr
+	}
+	defer release()
+	s = &codeServiceImpl{server: scoped, parser: s.parser}
 	cs := s.server.GetCodeStore()
 	if cs == nil {
 		return &CodeReadCheckResponse{}, nil
 	}
 
 	filePath := req.FilePath
-	root := store.ProjectRootFromDB(s.server.dbPath)
+	root := s.server.SourceRoot()
 
 	// Resolve to absolute path for os.Stat
 	absPath := filePath
@@ -1689,6 +1558,12 @@ func (s *codeServiceImpl) ReadCheck(ctx context.Context, req *CodeReadCheckReque
 }
 
 func (s *codeServiceImpl) RunDeadCodeAnalysis(ctx context.Context, req *CodeRunDeadCodeAnalysisRequest) (*CodeRunDeadCodeAnalysisResponse, error) {
+	scoped, release, routeErr := s.server.checkoutFor(ctx)
+	if routeErr != nil {
+		return nil, routeErr
+	}
+	defer release()
+	s = &codeServiceImpl{server: scoped, parser: s.parser}
 	cs := s.server.GetCodeStore()
 	if cs == nil {
 		return nil, fmt.Errorf("code store not available")
@@ -1726,7 +1601,7 @@ func (s *codeServiceImpl) RunDeadCodeAnalysis(ctx context.Context, req *CodeRunD
 			}
 			return len(refs), nil
 		},
-		ProjectRoot:        store.ProjectRootFromDB(s.server.dbPath),
+		ProjectRoot:        s.server.SourceRoot(),
 		PackProvider:       grammar.DefaultPackRegistry().Get,
 		IncludeExported:    req.IncludeExported,
 		ConsumerExtensions: grammar.DefaultPackRegistry().ConsumerExtensions(),
@@ -1876,6 +1751,12 @@ type findingsServiceImpl struct {
 }
 
 func (s *findingsServiceImpl) Add(ctx context.Context, req *FindingAddRequest) (*FindingAddResponse, error) {
+	scoped, release, routeErr := s.server.checkoutFor(ctx)
+	if routeErr != nil {
+		return nil, routeErr
+	}
+	defer release()
+	s = &findingsServiceImpl{server: scoped}
 	fs := s.server.GetFindingsStore()
 	if fs == nil {
 		return nil, fmt.Errorf("findings store not available")
@@ -1903,6 +1784,12 @@ func (s *findingsServiceImpl) Add(ctx context.Context, req *FindingAddRequest) (
 }
 
 func (s *findingsServiceImpl) Get(ctx context.Context, req *FindingGetRequest) (*FindingGetResponse, error) {
+	scoped, release, routeErr := s.server.checkoutFor(ctx)
+	if routeErr != nil {
+		return nil, routeErr
+	}
+	defer release()
+	s = &findingsServiceImpl{server: scoped}
 	fs := s.server.GetFindingsStore()
 	if fs == nil {
 		return nil, fmt.Errorf("findings store not available")
@@ -1923,6 +1810,12 @@ func (s *findingsServiceImpl) Get(ctx context.Context, req *FindingGetRequest) (
 }
 
 func (s *findingsServiceImpl) Delete(ctx context.Context, req *FindingDeleteRequest) (*FindingDeleteResponse, error) {
+	scoped, release, routeErr := s.server.checkoutFor(ctx)
+	if routeErr != nil {
+		return nil, routeErr
+	}
+	defer release()
+	s = &findingsServiceImpl{server: scoped}
 	fs := s.server.GetFindingsStore()
 	if fs == nil {
 		return nil, fmt.Errorf("findings store not available")
@@ -1936,6 +1829,12 @@ func (s *findingsServiceImpl) Delete(ctx context.Context, req *FindingDeleteRequ
 }
 
 func (s *findingsServiceImpl) Search(ctx context.Context, req *FindingSearchRequest) (*FindingSearchResponse, error) {
+	scoped, release, routeErr := s.server.checkoutFor(ctx)
+	if routeErr != nil {
+		return nil, routeErr
+	}
+	defer release()
+	s = &findingsServiceImpl{server: scoped}
 	fs := s.server.GetFindingsStore()
 	if fs == nil {
 		return nil, fmt.Errorf("findings store not available")
@@ -1963,6 +1862,12 @@ func (s *findingsServiceImpl) Search(ctx context.Context, req *FindingSearchRequ
 }
 
 func (s *findingsServiceImpl) List(ctx context.Context, req *FindingListRequest) (*FindingSearchResponse, error) {
+	scoped, release, routeErr := s.server.checkoutFor(ctx)
+	if routeErr != nil {
+		return nil, routeErr
+	}
+	defer release()
+	s = &findingsServiceImpl{server: scoped}
 	fs := s.server.GetFindingsStore()
 	if fs == nil {
 		return nil, fmt.Errorf("findings store not available")
@@ -1990,6 +1895,12 @@ func (s *findingsServiceImpl) List(ctx context.Context, req *FindingListRequest)
 }
 
 func (s *findingsServiceImpl) GetFileFindings(ctx context.Context, req *FindingFileRequest) (*FindingSearchResponse, error) {
+	scoped, release, routeErr := s.server.checkoutFor(ctx)
+	if routeErr != nil {
+		return nil, routeErr
+	}
+	defer release()
+	s = &findingsServiceImpl{server: scoped}
 	fs := s.server.GetFindingsStore()
 	if fs == nil {
 		return nil, fmt.Errorf("findings store not available")
@@ -2009,6 +1920,12 @@ func (s *findingsServiceImpl) GetFileFindings(ctx context.Context, req *FindingF
 }
 
 func (s *findingsServiceImpl) ClearAnalyzer(ctx context.Context, req *FindingClearAnalyzerRequest) (*FindingClearAnalyzerResponse, error) {
+	scoped, release, routeErr := s.server.checkoutFor(ctx)
+	if routeErr != nil {
+		return nil, routeErr
+	}
+	defer release()
+	s = &findingsServiceImpl{server: scoped}
 	fs := s.server.GetFindingsStore()
 	if fs == nil {
 		return nil, fmt.Errorf("findings store not available")
@@ -2023,6 +1940,12 @@ func (s *findingsServiceImpl) ClearAnalyzer(ctx context.Context, req *FindingCle
 }
 
 func (s *findingsServiceImpl) Stats(ctx context.Context, req *FindingStatsRequest) (*FindingStatsResponse, error) {
+	scoped, release, routeErr := s.server.checkoutFor(ctx)
+	if routeErr != nil {
+		return nil, routeErr
+	}
+	defer release()
+	s = &findingsServiceImpl{server: scoped}
 	fs := s.server.GetFindingsStore()
 	if fs == nil {
 		return nil, fmt.Errorf("findings store not available")
@@ -2052,6 +1975,12 @@ func (s *findingsServiceImpl) Stats(ctx context.Context, req *FindingStatsReques
 }
 
 func (s *findingsServiceImpl) Clear(ctx context.Context, req *FindingClearRequest) (*FindingClearResponse, error) {
+	scoped, release, routeErr := s.server.checkoutFor(ctx)
+	if routeErr != nil {
+		return nil, routeErr
+	}
+	defer release()
+	s = &findingsServiceImpl{server: scoped}
 	fs := s.server.GetFindingsStore()
 	if fs == nil {
 		return nil, fmt.Errorf("findings store not available")
@@ -2065,6 +1994,12 @@ func (s *findingsServiceImpl) Clear(ctx context.Context, req *FindingClearReques
 }
 
 func (s *findingsServiceImpl) Accept(ctx context.Context, req *FindingAcceptRequest) (*FindingAcceptResponse, error) {
+	scoped, release, routeErr := s.server.checkoutFor(ctx)
+	if routeErr != nil {
+		return nil, routeErr
+	}
+	defer release()
+	s = &findingsServiceImpl{server: scoped}
 	fs := s.server.GetFindingsStore()
 	if fs == nil {
 		return nil, fmt.Errorf("findings store not available")
@@ -2079,6 +2014,12 @@ func (s *findingsServiceImpl) Accept(ctx context.Context, req *FindingAcceptRequ
 }
 
 func (s *findingsServiceImpl) AcceptByFilter(ctx context.Context, req *FindingAcceptByFilterRequest) (*FindingAcceptResponse, error) {
+	scoped, release, routeErr := s.server.checkoutFor(ctx)
+	if routeErr != nil {
+		return nil, routeErr
+	}
+	defer release()
+	s = &findingsServiceImpl{server: scoped}
 	fs := s.server.GetFindingsStore()
 	if fs == nil {
 		return nil, fmt.Errorf("findings store not available")
@@ -2112,6 +2053,12 @@ type surveyServiceImpl struct {
 // gRPC clients (MCP in client mode, CLI in daemon mode) delegate here
 // because they cannot open the BoltDB stores directly.
 func (s *surveyServiceImpl) Run(ctx context.Context, req *SurveyRunRequest) (*SurveyRunResponse, error) {
+	scoped, release, routeErr := s.server.checkoutFor(ctx)
+	if routeErr != nil {
+		return nil, routeErr
+	}
+	defer release()
+	s = &surveyServiceImpl{server: scoped}
 	surveyStore := s.server.surveyStore
 	if surveyStore == nil {
 		return nil, status.Error(codes.Unavailable, "survey store not available")
@@ -2120,7 +2067,7 @@ func (s *surveyServiceImpl) Run(ctx context.Context, req *SurveyRunRequest) (*Su
 	if req.Analyzer != "" {
 		analyzers = []string{req.Analyzer}
 	}
-	results := surveyrun.Run(store.ProjectRootFromDB(s.server.dbPath), analyzers, surveyStore, s.server.GetCodeStore())
+	results := surveyrun.Run(s.server.SourceRoot(), analyzers, surveyStore, s.server.GetCodeStore())
 
 	resp := &SurveyRunResponse{}
 	for _, r := range results {
@@ -2135,6 +2082,12 @@ func (s *surveyServiceImpl) Run(ctx context.Context, req *SurveyRunRequest) (*Su
 }
 
 func (s *surveyServiceImpl) Add(ctx context.Context, req *SurveyAddRequest) (*SurveyAddResponse, error) {
+	scoped, release, routeErr := s.server.checkoutFor(ctx)
+	if routeErr != nil {
+		return nil, routeErr
+	}
+	defer release()
+	s = &surveyServiceImpl{server: scoped}
 	ss := s.server.GetSurveyStore()
 	if ss == nil {
 		return nil, fmt.Errorf("survey store not available")
@@ -2160,6 +2113,12 @@ func (s *surveyServiceImpl) Add(ctx context.Context, req *SurveyAddRequest) (*Su
 }
 
 func (s *surveyServiceImpl) Get(ctx context.Context, req *SurveyGetRequest) (*SurveyGetResponse, error) {
+	scoped, release, routeErr := s.server.checkoutFor(ctx)
+	if routeErr != nil {
+		return nil, routeErr
+	}
+	defer release()
+	s = &surveyServiceImpl{server: scoped}
 	ss := s.server.GetSurveyStore()
 	if ss == nil {
 		return nil, fmt.Errorf("survey store not available")
@@ -2180,6 +2139,12 @@ func (s *surveyServiceImpl) Get(ctx context.Context, req *SurveyGetRequest) (*Su
 }
 
 func (s *surveyServiceImpl) Delete(ctx context.Context, req *SurveyDeleteRequest) (*SurveyDeleteResponse, error) {
+	scoped, release, routeErr := s.server.checkoutFor(ctx)
+	if routeErr != nil {
+		return nil, routeErr
+	}
+	defer release()
+	s = &surveyServiceImpl{server: scoped}
 	ss := s.server.GetSurveyStore()
 	if ss == nil {
 		return nil, fmt.Errorf("survey store not available")
@@ -2193,6 +2158,12 @@ func (s *surveyServiceImpl) Delete(ctx context.Context, req *SurveyDeleteRequest
 }
 
 func (s *surveyServiceImpl) Search(ctx context.Context, req *SurveySearchRequest) (*SurveySearchResponse, error) {
+	scoped, release, routeErr := s.server.checkoutFor(ctx)
+	if routeErr != nil {
+		return nil, routeErr
+	}
+	defer release()
+	s = &surveyServiceImpl{server: scoped}
 	ss := s.server.GetSurveyStore()
 	if ss == nil {
 		return nil, fmt.Errorf("survey store not available")
@@ -2219,6 +2190,12 @@ func (s *surveyServiceImpl) Search(ctx context.Context, req *SurveySearchRequest
 }
 
 func (s *surveyServiceImpl) List(ctx context.Context, req *SurveyListRequest) (*SurveySearchResponse, error) {
+	scoped, release, routeErr := s.server.checkoutFor(ctx)
+	if routeErr != nil {
+		return nil, routeErr
+	}
+	defer release()
+	s = &surveyServiceImpl{server: scoped}
 	ss := s.server.GetSurveyStore()
 	if ss == nil {
 		return nil, fmt.Errorf("survey store not available")
@@ -2245,6 +2222,12 @@ func (s *surveyServiceImpl) List(ctx context.Context, req *SurveyListRequest) (*
 }
 
 func (s *surveyServiceImpl) GetFileEntries(ctx context.Context, req *SurveyFileRequest) (*SurveySearchResponse, error) {
+	scoped, release, routeErr := s.server.checkoutFor(ctx)
+	if routeErr != nil {
+		return nil, routeErr
+	}
+	defer release()
+	s = &surveyServiceImpl{server: scoped}
 	ss := s.server.GetSurveyStore()
 	if ss == nil {
 		return nil, fmt.Errorf("survey store not available")
@@ -2264,6 +2247,12 @@ func (s *surveyServiceImpl) GetFileEntries(ctx context.Context, req *SurveyFileR
 }
 
 func (s *surveyServiceImpl) ClearAnalyzer(ctx context.Context, req *SurveyClearAnalyzerRequest) (*SurveyClearAnalyzerResponse, error) {
+	scoped, release, routeErr := s.server.checkoutFor(ctx)
+	if routeErr != nil {
+		return nil, routeErr
+	}
+	defer release()
+	s = &surveyServiceImpl{server: scoped}
 	ss := s.server.GetSurveyStore()
 	if ss == nil {
 		return nil, fmt.Errorf("survey store not available")
@@ -2278,6 +2267,12 @@ func (s *surveyServiceImpl) ClearAnalyzer(ctx context.Context, req *SurveyClearA
 }
 
 func (s *surveyServiceImpl) Stats(ctx context.Context, req *SurveyStatsRequest) (*SurveyStatsResponse, error) {
+	scoped, release, routeErr := s.server.checkoutFor(ctx)
+	if routeErr != nil {
+		return nil, routeErr
+	}
+	defer release()
+	s = &surveyServiceImpl{server: scoped}
 	ss := s.server.GetSurveyStore()
 	if ss == nil {
 		return nil, fmt.Errorf("survey store not available")
@@ -2305,6 +2300,12 @@ func (s *surveyServiceImpl) Stats(ctx context.Context, req *SurveyStatsRequest) 
 }
 
 func (s *surveyServiceImpl) Clear(ctx context.Context, req *SurveyClearRequest) (*SurveyClearResponse, error) {
+	scoped, release, routeErr := s.server.checkoutFor(ctx)
+	if routeErr != nil {
+		return nil, routeErr
+	}
+	defer release()
+	s = &surveyServiceImpl{server: scoped}
 	ss := s.server.GetSurveyStore()
 	if ss == nil {
 		return nil, fmt.Errorf("survey store not available")
@@ -2406,14 +2407,23 @@ type statusServiceImpl struct {
 }
 
 func (s *statusServiceImpl) GetStatus(ctx context.Context, req *StatusRequest) (*StatusResponse, error) {
-	srv := s.server
+	srv, release, err := s.server.checkoutFor(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
 	srv.mu.RLock()
 	w := srv.watcher
 	fr := srv.findingsRunner
-	tools := srv.mcpTools
-	countFunc := srv.toolCountFunc
-	pprofFunc := srv.pprofURLFunc
 	srv.mu.RUnlock()
+	s.server.mu.RLock()
+	var tools []*StatusMCPTool
+	for _, tool := range s.server.mcpTools {
+		tools = append(tools, &StatusMCPTool{Name: tool.Name, Category: tool.Category, ExecutionCount: tool.ExecutionCount})
+	}
+	countFunc := s.server.toolCountFunc
+	pprofFunc := s.server.pprofURLFunc
+	s.server.mu.RUnlock()
 
 	// Get tool execution counts
 	var toolCounts map[string]int64
@@ -2484,7 +2494,51 @@ func (s *statusServiceImpl) GetStatus(ctx context.Context, req *StatusRequest) (
 		}
 	}
 
-	// Findings status (exclude accepted findings for consistency)
+	resp.Findings = findingsStatus(fss, fr)
+
+	// Survey status
+	if ss := srv.GetSurveyStore(); ss != nil {
+		stats, err := ss.Stats(survey.SearchOptions{})
+		if err == nil && stats != nil {
+			surveyStatus := &StatusSurvey{
+				Available: true,
+				Total:     int32(stats.Total),
+			}
+			byAnalyzer := make(map[string]int32, len(stats.ByAnalyzer))
+			for k, v := range stats.ByAnalyzer {
+				byAnalyzer[k] = int32(v)
+			}
+			surveyStatus.ByAnalyzer = byAnalyzer
+
+			byKind := make(map[string]int32, len(stats.ByKind))
+			for k, v := range stats.ByKind {
+				byKind[k] = int32(v)
+			}
+			surveyStatus.ByKind = byKind
+
+			resp.Survey = surveyStatus
+		}
+	}
+
+	// Store sizes
+	resp.Stores = getStoreSizes(srv.dbPath, srv.checkoutInfo)
+
+	// Grammars
+	if srv.grammarLoader != nil {
+		for _, gi := range srv.grammarLoader.Installed() {
+			resp.Grammars = append(resp.Grammars, &StatusGrammar{
+				Name:    gi.Name,
+				Version: gi.Version,
+				BuiltIn: gi.BuiltIn,
+			})
+		}
+	}
+
+	return resp, nil
+}
+
+// findingsStatus combines persisted counts with the runner's current progress.
+func findingsStatus(fss store.FindingsStore, fr *findings.Runner) *StatusFindings {
 	if fss != nil {
 		stats, err := fss.Stats(findings.SearchOptions{})
 		if err == nil && stats != nil {
@@ -2539,57 +2593,22 @@ func (s *statusServiceImpl) GetStatus(ctx context.Context, req *StatusRequest) (
 			}
 			findingsStatus.Analyzers = analyzers
 
-			resp.Findings = findingsStatus
+			return findingsStatus
 		}
 	}
 
-	// Survey status
-	if ss := srv.GetSurveyStore(); ss != nil {
-		stats, err := ss.Stats(survey.SearchOptions{})
-		if err == nil && stats != nil {
-			surveyStatus := &StatusSurvey{
-				Available: true,
-				Total:     int32(stats.Total),
-			}
-			byAnalyzer := make(map[string]int32, len(stats.ByAnalyzer))
-			for k, v := range stats.ByAnalyzer {
-				byAnalyzer[k] = int32(v)
-			}
-			surveyStatus.ByAnalyzer = byAnalyzer
-
-			byKind := make(map[string]int32, len(stats.ByKind))
-			for k, v := range stats.ByKind {
-				byKind[k] = int32(v)
-			}
-			surveyStatus.ByKind = byKind
-
-			resp.Survey = surveyStatus
-		}
-	}
-
-	// Store sizes
-	resp.Stores = getStoreSizes(srv.dbPath)
-
-	// Grammars
-	if srv.grammarLoader != nil {
-		for _, gi := range srv.grammarLoader.Installed() {
-			resp.Grammars = append(resp.Grammars, &StatusGrammar{
-				Name:    gi.Name,
-				Version: gi.Version,
-				BuiltIn: gi.BuiltIn,
-			})
-		}
-	}
-
-	return resp, nil
+	return nil
 }
 
 // getStoreSizes computes sizes for all known stores under .aide/memory/.
-func getStoreSizes(dbPath string) []*StatusStore {
+func getStoreSizes(dbPath string, checkouts ...*checkout.Info) []*StatusStore {
 	if dbPath == "" {
 		return nil
 	}
 	baseDir := filepath.Dir(dbPath) // .aide/memory/
+	if len(checkouts) > 0 && checkouts[0] != nil {
+		baseDir = store.CheckoutDir(dbPath, *checkouts[0])
+	}
 	codeDir := filepath.Join(baseDir, "code")
 	findingsDir := filepath.Join(baseDir, "findings")
 	surveyDir := filepath.Join(baseDir, "survey")
@@ -2825,6 +2844,7 @@ func decisionToProto(d *memory.Decision) *Decision {
 		return nil
 	}
 	return &Decision{
+		Checkout:   ProvenanceToProto(d.Checkout),
 		Topic:      d.Topic,
 		Decision:   d.Decision,
 		Rationale:  d.Rationale,

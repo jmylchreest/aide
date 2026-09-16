@@ -34,6 +34,9 @@ func NewBackend(dbPath string) (*Backend, error) {
 	// to avoid BoltDB file-lock contention.
 	if grpcapi.SocketExistsForDB(dbPath) {
 		client, err := grpcapi.NewClientForDB(dbPath)
+		if errors.Is(err, grpcapi.ErrCheckoutRoutingUnavailable) {
+			return nil, err
+		}
 		if errors.Is(err, grpcapi.ErrSandboxDenied) {
 			// A daemon socket is present but this process's sandbox blocks
 			// connect(2). The daemon behind it likely holds the store locks,
@@ -155,6 +158,12 @@ func (b *Backend) RetentionSweep() map[string]int {
 	}
 
 	counts, _ := retentionSweepOnce(b.store, cfg)
+	if n, err := store.PruneCheckouts(b.dbPath, b.store, time.Now(), nil, nil); err == nil && n > 0 {
+		if counts == nil {
+			counts = map[string]int{}
+		}
+		counts["checkout_caches"] = n
+	}
 	_ = b.store.SetState(&memory.State{
 		Key:   lastRetentionSweepKey,
 		Value: time.Now().UTC().Format(time.RFC3339),
@@ -164,6 +173,9 @@ func (b *Backend) RetentionSweep() map[string]int {
 
 // openCodeStore opens the code store for direct access.
 func (b *Backend) openCodeStore() (store.CodeIndexStore, error) {
-	indexPath, searchPath := getCodeStorePaths(b.dbPath)
+	indexPath, searchPath, err := getCodeStorePaths(b.dbPath)
+	if err != nil {
+		return nil, err
+	}
 	return store.NewCodeStore(indexPath, searchPath)
 }

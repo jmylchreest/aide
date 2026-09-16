@@ -102,8 +102,18 @@ func (b *Backend) RunDeadCodeAnalysis(opts DeadCodeAnalysisOptions) (*DeadCodeAn
 
 // openFindingsStore opens the findings store for direct access.
 func (b *Backend) openFindingsStore() (store.FindingsStore, error) {
-	findingsDir := getFindingsStorePath(b.dbPath)
-	return store.NewFindingsStore(findingsDir)
+	if err := store.ArchiveLegacyFindings(b.dbPath, b.store); err != nil {
+		return nil, err
+	}
+	findingsDir, err := getFindingsStorePath(b.dbPath)
+	if err != nil {
+		return nil, err
+	}
+	c, err := store.CheckoutInfo(b.dbPath, store.CheckoutRoot(b.dbPath))
+	if err != nil {
+		return nil, err
+	}
+	return store.NewCheckoutFindingsStore(findingsDir, b.store, c)
 }
 
 func (b *Backend) SearchFindings(query string, opts findings.SearchOptions) ([]*findings.SearchResult, error) {

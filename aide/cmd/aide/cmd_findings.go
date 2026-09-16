@@ -13,8 +13,12 @@ import (
 )
 
 // getFindingsStorePath returns the directory for findings data.
-func getFindingsStorePath(dbPath string) string {
-	return filepath.Join(filepath.Dir(dbPath), "findings")
+func getFindingsStorePath(dbPath string) (string, error) {
+	dir, err := analysisDir(dbPath, store.CheckoutRoot(dbPath))
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "findings"), nil
 }
 
 // cmdFindingsDispatcher routes findings subcommands.
@@ -182,7 +186,7 @@ func cmdFindingsRun(dbPath string, args []string) error {
 
 	// Defaults come from .aide/config/aide.json, falling back to hardcoded values.
 	// CLI flags override everything.
-	projectRoot := store.ProjectRootFromDB(dbPath)
+	projectRoot := store.CheckoutRoot(dbPath)
 	cfg := loadFindingsConfig(projectRoot)
 
 	opts, err := parseFindingsRunOpts(subargs, cfg)

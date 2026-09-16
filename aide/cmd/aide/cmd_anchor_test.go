@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/jmylchreest/aide/aide/pkg/anchor"
 )
 
 // anchorFixture builds a filesystem estate covering the gitdir shapes the
@@ -510,7 +512,7 @@ func TestLastURLSegment(t *testing.T) {
 		"host:repo.git":                   "repo",
 	}
 	for url, want := range cases {
-		if got := lastURLSegment(url); got != want {
+		if got := anchor.LastURLSegment(url); got != want {
 			t.Errorf("lastURLSegment(%q) = %q, want %q", url, got, want)
 		}
 	}

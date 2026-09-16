@@ -34,6 +34,9 @@ func startDaemonForTest(t *testing.T) string {
 	t.Cleanup(func() { st.Close() })
 
 	srv := grpcapi.NewServer(st, dbPath, socketPath, grammar.NewCompositeLoader())
+	if err := srv.EnableCheckouts(root, nil); err != nil {
+		t.Fatal(err)
+	}
 	go func() { _ = srv.Start() }()
 	t.Cleanup(srv.Stop)
 

@@ -15,6 +15,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -521,6 +522,10 @@ func writeDecisionMarkdown(filename string, d *memory.Decision) error {
 	// YAML frontmatter
 	fmt.Fprintln(f, "---")
 	fmt.Fprintf(f, "topic: %s\n", d.Topic)
+	if d.Checkout != nil {
+		data, _ := json.Marshal(d.Checkout)
+		fmt.Fprintf(f, "checkout: %s\n", data)
+	}
 	fmt.Fprintf(f, "decision: %s\n", contextshare.YAMLEscape(d.Decision))
 	if d.DecidedBy != "" {
 		fmt.Fprintf(f, "decided_by: %s\n", d.DecidedBy)
@@ -964,7 +969,13 @@ func parseDecisionMarkdown(filename string) (*memory.Decision, error) {
 		}
 
 		if inFrontmatter {
-			parseFrontmatterLine(line, d)
+			if strings.HasPrefix(line, "checkout:") {
+				if err := json.Unmarshal([]byte(strings.TrimSpace(strings.TrimPrefix(line, "checkout:"))), &d.Checkout); err != nil {
+					return nil, err
+				}
+			} else {
+				parseFrontmatterLine(line, d)
+			}
 			continue
 		}
 

@@ -72,7 +72,7 @@ func outcomeIndexer(t *testing.T, failStore bool) (*Indexer, *outcomeSink) {
 	t.Helper()
 	root := t.TempDir()
 	dbPath := filepath.Join(root, ".aide", "memory", "store.db")
-	indexPath, searchPath := getCodeStorePaths(dbPath)
+	indexPath, searchPath := testCodeStorePaths(t, dbPath)
 	cs, err := store.NewCodeStore(indexPath, searchPath)
 	if err != nil {
 		t.Fatal(err)

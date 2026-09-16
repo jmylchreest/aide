@@ -75,6 +75,7 @@ func ProtoToDecision(p *grpcapi.Decision) *memory.Decision {
 		return nil
 	}
 	return &memory.Decision{
+		Checkout:   grpcapi.ProvenanceFromProto(p.Checkout),
 		Topic:      p.Topic,
 		Decision:   p.Decision,
 		Rationale:  p.Rationale,

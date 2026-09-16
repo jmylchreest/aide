@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -16,6 +17,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/jmylchreest/aide/aide/internal/version"
 	"github.com/jmylchreest/aide/aide/pkg/aideignore"
+	"github.com/jmylchreest/aide/aide/pkg/checkout"
 	"github.com/jmylchreest/aide/aide/pkg/code"
 	"github.com/jmylchreest/aide/aide/pkg/config"
 	"github.com/jmylchreest/aide/aide/pkg/findings"
@@ -49,10 +51,13 @@ type mcpBackend struct {
 
 // MCPServer wraps the aide store for MCP tool access.
 type MCPServer struct {
-	backend        atomic.Pointer[mcpBackend]
-	codeStoreReady atomic.Bool
-	codeInitWg     sync.WaitGroup
-	server         *mcp.Server
+	background        sync.WaitGroup
+	backgroundStopped bool
+	checkoutRoot      string
+	backend           atomic.Pointer[mcpBackend]
+	codeStoreReady    atomic.Bool
+	codeInitWg        sync.WaitGroup
+	server            *mcp.Server
 	// grpcServer is nil until this process becomes primary, which on a
 	// promotion happens on the supervisor's goroutine while others read it.
 	grpcServer    atomic.Pointer[grpcapi.Server]
@@ -332,7 +337,12 @@ func (s *MCPServer) initMCPCodeStore(dbPath string, cfg *mcpConfig, grpcServer *
 		return nil, nil
 	}
 
-	indexPath, searchPath := getCodeStorePaths(dbPath)
+	dir, err := analysisDir(dbPath, s.sourceRoot())
+	if err != nil {
+		mcpLog.Printf("checkout: %v", err)
+		return nil, nil
+	}
+	indexPath, searchPath := filepath.Join(dir, "code", "index.db"), filepath.Join(dir, "code", "search.bleve")
 	openCodeStore := func() (*store.CodeStore, error) {
 		codeStart := time.Now()
 		cs, err := store.NewCodeStore(indexPath, searchPath)
@@ -376,11 +386,20 @@ func (s *MCPServer) initMCPCodeStore(dbPath string, cfg *mcpConfig, grpcServer *
 }
 
 // initMCPFindingsStore opens the findings store and registers it with gRPC.
-func (s *MCPServer) initMCPFindingsStore(dbPath string, grpcServer *grpcapi.Server) (store.FindingsStore, func()) {
-	findingsDir := getFindingsStorePath(dbPath)
+func (s *MCPServer) initMCPFindingsStore(dbPath string, grpcServer *grpcapi.Server, shared store.Store) (store.FindingsStore, func()) {
+	dir, err := analysisDir(dbPath, s.sourceRoot())
+	if err != nil {
+		mcpLog.Printf("checkout: %v", err)
+		return nil, nil
+	}
+	findingsDir := filepath.Join(dir, "findings")
 
 	findingsStart := time.Now()
-	fs, err := store.NewFindingsStore(findingsDir)
+	c, err := store.CheckoutInfo(dbPath, s.sourceRoot())
+	if err != nil {
+		return nil, nil
+	}
+	fs, err := store.NewCheckoutFindingsStore(findingsDir, shared, c)
 	if err != nil {
 		mcpLog.Printf("WARNING: failed to open findings store: %v (findings tools disabled)", err)
 		return nil, nil
@@ -393,7 +412,12 @@ func (s *MCPServer) initMCPFindingsStore(dbPath string, grpcServer *grpcapi.Serv
 
 // initMCPSurveyStore opens the survey store and registers it with gRPC.
 func (s *MCPServer) initMCPSurveyStore(dbPath string, grpcServer *grpcapi.Server) (store.SurveyStore, func()) {
-	surveyDir := getSurveyStorePath(dbPath)
+	dir, err := analysisDir(dbPath, s.sourceRoot())
+	if err != nil {
+		mcpLog.Printf("checkout: %v", err)
+		return nil, nil
+	}
+	surveyDir := filepath.Join(dir, "survey")
 
 	surveyStart := time.Now()
 	ss, err := store.NewSurveyStore(surveyDir)
@@ -414,13 +438,13 @@ func (s *MCPServer) initMCPSurveyStore(dbPath string, grpcServer *grpcapi.Server
 // index entries (orphan paths, in-file orphans, paths now matching
 // .aideignore) without requiring users to know about `aide code reconcile`.
 func (s *MCPServer) startCodeReconciler(dbPath string) {
-	projRoot := store.ProjectRootFromDB(dbPath)
+	projRoot := s.sourceRoot()
 	if !isVCSRoot(projRoot) && !config.Get().IndexNonVCS {
 		// Same VCS guard as startCodeWatcher — don't touch arbitrary dirs.
 		return
 	}
 
-	go func() {
+	s.startBackground(func() {
 		// Wait for the lazy-loaded code store to be ready.
 		for i := 0; i < DefaultMCPPollCount; i++ {
 			if s.codeStoreReady.Load() {
@@ -432,6 +456,9 @@ func (s *MCPServer) startCodeReconciler(dbPath string) {
 		var indexer *Indexer
 		if cs := s.getCodeStore(); cs != nil {
 			indexer = NewIndexerFromStore(cs, s.grammarLoader, projRoot)
+			if srv := s.grpcSrv(); srv != nil {
+				indexer.seed = srv.SeedSource()
+			}
 		} else {
 			var err error
 			indexer, err = NewIndexer(dbPath)
@@ -472,7 +499,7 @@ func (s *MCPServer) startCodeReconciler(dbPath string) {
 		}
 		mcpLog.Printf("startup reconcile: analysing %d reconciled file(s)", len(files))
 		runner.OnChanges(files)
-	}()
+	})
 }
 
 // awaitFindingsRunner waits for startCodeWatcher to construct the findings
@@ -498,13 +525,13 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 		return
 	}
 
-	projRoot := store.ProjectRootFromDB(dbPath)
+	projRoot := s.sourceRoot()
 	if !isVCSRoot(projRoot) && !config.Get().IndexNonVCS {
 		mcpLog.Printf("WARNING: code watcher disabled — project root %q has no VCS marker (.git/.hg/.svn/.bzr/.fossil). Set AIDE_INDEX_NON_VCS=1 to allow watching/indexing in non-version-controlled directories.", projRoot)
 		return
 	}
 
-	go func() {
+	s.startBackground(func() {
 		if cfg.codeStoreLazy {
 			for i := 0; i < DefaultMCPPollCount; i++ {
 				if s.codeStoreReady.Load() {
@@ -516,7 +543,10 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 
 		var indexer *Indexer
 		if cs := s.getCodeStore(); cs != nil {
-			indexer = NewIndexerFromStore(cs, s.grammarLoader, store.ProjectRootFromDB(dbPath))
+			indexer = NewIndexerFromStore(cs, s.grammarLoader, s.sourceRoot())
+			if srv := s.grpcSrv(); srv != nil {
+				indexer.seed = srv.SeedSource()
+			}
 		} else {
 			var err error
 			indexer, err = NewIndexer(dbPath)
@@ -545,7 +575,7 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 
 		// One matcher for the whole pipeline: the watcher decides what to
 		// watch with it, the analysers filter with it.
-		projectRoot := store.ProjectRootFromDB(dbPath)
+		projectRoot := s.sourceRoot()
 		ignore, err := aideignore.New(projectRoot)
 		if err != nil {
 			mcpLog.Printf("WARNING: failed to load .aideignore: %v (using defaults)", err)
@@ -604,13 +634,25 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 		s.grammarLoader.SetOnInstall(func(name string) {
 			// Run re-scan in a goroutine to avoid blocking the parse call
 			// that triggered the download.
-			go func() {
+			s.startBackground(func() {
 				rescanForGrammar(name, indexer, findingsRunner, root, ignore)
 				// Mark re-scan complete in the manifest so it won't be
 				// re-triggered on restart.
 				s.grammarLoader.MarkRescanComplete(name)
-			}()
+			})
 		})
+
+		if len(watchPaths) == 0 {
+			watchPaths = []string{projectRoot}
+		}
+		for i, p := range watchPaths {
+			abs, _, err := checkout.SourcePath(projectRoot, p)
+			if err != nil {
+				mcpLog.Printf("watch path: %v", err)
+				return
+			}
+			watchPaths[i] = abs
+		}
 
 		w, err := watcher.New(watcher.Config{
 			Paths:         watchPaths,
@@ -651,14 +693,14 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 		// project re-scan didn't complete (e.g. process was killed mid-scan).
 		if pending := s.grammarLoader.GrammarsNeedingRescan(); len(pending) > 0 {
 			mcpLog.Printf("found %d grammar(s) with pending re-scan: %s", len(pending), strings.Join(pending, ", "))
-			go func() {
+			s.startBackground(func() {
 				for _, name := range pending {
 					rescanForGrammar(name, indexer, findingsRunner, root, ignore)
 					s.grammarLoader.MarkRescanComplete(name)
 				}
-			}()
+			})
 		}
-	}()
+	})
 }
 
 type codeIndexHandler struct {
@@ -807,19 +849,23 @@ func runWatcherDeadCode(cs store.CodeIndexStore, projectRoot string) ([]*finding
 // stopCodeWatcher gracefully stops the file watcher if running.
 func (s *MCPServer) stopCodeWatcher() {
 	s.unifiedWatcherMu.Lock()
+	s.backgroundStopped = true
+	s.unifiedWatcherMu.Unlock()
+	s.background.Wait()
+	s.unifiedWatcherMu.Lock()
 	w := s.unifiedWatcher
 	runner := s.findingsRunner
 	s.unifiedWatcher = nil
 	s.findingsRunner = nil
 	s.unifiedWatcherMu.Unlock()
 
-	if runner != nil {
-		runner.Stop()
-	}
 	if w != nil {
 		if err := w.Stop(); err != nil {
 			mcpLog.Printf("WARNING: watcher stop error: %v", err)
 		}
+	}
+	if runner != nil {
+		runner.Stop()
 	}
 }
 
@@ -841,6 +887,10 @@ func (s *MCPServer) attachToPrimary(dbPath string) bool {
 	}
 	client, err := grpcapi.NewClientForDB(dbPath)
 	if err != nil {
+		if errors.Is(err, grpcapi.ErrCheckoutRoutingUnavailable) {
+			mcpLog.Printf("%v", err)
+			return false
+		}
 		os.Remove(grpcapi.SocketPathFromDB(dbPath))
 		return false
 	}
@@ -877,6 +927,13 @@ func (s *MCPServer) attachToPrimary(dbPath string) bool {
 //
 // Returns a teardown for everything it opened.
 func (s *MCPServer) becomePrimary(dbPath string, cfg *mcpConfig) (func(), error) {
+	s.dbPath = dbPath
+	s.unifiedWatcherMu.Lock()
+	s.backgroundStopped = false
+	s.unifiedWatcherMu.Unlock()
+	if s.checkoutRoot == "" {
+		s.checkoutRoot = store.CheckoutRoot(dbPath)
+	}
 	socketPath := grpcapi.SocketPathFromDB(dbPath)
 
 	storeStart := time.Now()
@@ -923,11 +980,15 @@ func (s *MCPServer) becomePrimary(dbPath string, cfg *mcpConfig) (func(), error)
 	grpcServer.SetPprofURLFunc(pprofURL)
 	mcpLog.Printf("gRPC socket: %s", socketPath)
 
+	if err = store.ArchiveLegacyFindings(dbPath, st); err != nil {
+		return nil, err
+	}
+
 	// Initialize stores BEFORE starting gRPC server.
 	// grpcServer.Start() registers service implementations that capture store
 	// references at registration time, so stores must be set first.
 	cs, csCleanup := s.initMCPCodeStore(dbPath, cfg, grpcServer)
-	fs, fsCleanup := s.initMCPFindingsStore(dbPath, grpcServer)
+	fs, fsCleanup := s.initMCPFindingsStore(dbPath, grpcServer, st)
 	ss, ssCleanup := s.initMCPSurveyStore(dbPath, grpcServer)
 	for _, cleanup := range []func(){csCleanup, fsCleanup, ssCleanup} {
 		if cleanup != nil {
@@ -945,7 +1006,48 @@ func (s *MCPServer) becomePrimary(dbPath string, cfg *mcpConfig) (func(), error)
 		surveyStore:   ss,
 	})
 	s.codeStoreReady.Store(cs != nil)
+	if err = grpcServer.EnableCheckouts(s.sourceRoot(), func(scoped *grpcapi.Server, c checkout.Info) (func(), error) {
+		child := newMCPServer(&mcpBackend{store: st, codeStore: scoped.GetCodeStore(), findingsStore: scoped.GetFindingsStore(), surveyStore: scoped.GetSurveyStore()})
+		child.dbPath = dbPath
+		child.checkoutRoot = c.Root
+		child.grammarLoader = newGrammarLoader(dbPath, mcpLog)
+		child.grpcServer.Store(scoped)
+		child.codeStoreReady.Store(true)
+		if cfg.codeStoreEnabled && (isVCSRoot(c.Root) || config.Get().IndexNonVCS) {
+			indexer := NewIndexerFromStore(scoped.GetCodeStore(), child.grammarLoader, c.Root)
+			indexer.seed = scoped.SeedSource()
+			scoped.SetCodeReconciler(func() (int, int, error) { res, err := indexer.Reconcile(); return res.Removed, res.Refreshed, err })
+			if res, err := indexer.Reconcile(); err != nil || res.Errors > 0 {
+				indexer.Close()
+				return nil, fmt.Errorf("initial checkout reconciliation failed (%d files): %v", res.Errors, err)
+			}
+		}
+		childCfg := *cfg
+		childCfg.codeStoreLazy = false
+		childCfg.codeWatchPath = ""
+		child.startCodeWatcher(dbPath, &childCfg)
+		return child.stopCodeWatcher, nil
+	}); err != nil {
+		return nil, err
+	}
 
+	if _, pruneErr := grpcServer.PruneCheckoutCaches(time.Now()); pruneErr != nil {
+		mcpLog.Printf("checkout cleanup: %v", pruneErr)
+	}
+	go func() {
+		ticker := time.NewTicker(time.Hour)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-cleanupCtx.Done():
+				return
+			case now := <-ticker.C:
+				if _, err := grpcServer.PruneCheckoutCaches(now); err != nil {
+					mcpLog.Printf("checkout cleanup: %v", err)
+				}
+			}
+		}
+	}()
 	go func() {
 		if err := grpcServer.Start(); err != nil {
 			mcpLog.Printf("gRPC server error: %v", err)
@@ -971,11 +1073,18 @@ func (s *MCPServer) becomePrimary(dbPath string, cfg *mcpConfig) (func(), error)
 
 	// Reconcile heals whatever changed while no primary was watching, which
 	// on a promotion is exactly the gap since the last one died.
-	s.startCodeReconciler(dbPath)
-	s.startCodeWatcher(dbPath, cfg)
+	if cfg.codeStoreEnabled {
+		s.startCodeReconciler(dbPath)
+		s.startCodeWatcher(dbPath, cfg)
+	}
 	cleanups = append(cleanups, s.stopCodeWatcher)
 
-	return func() { runTeardowns(cleanups) }, nil
+	return func() {
+		runTeardowns(cleanups)
+		// Only a successful store owner compacts, after releasing its stores.
+		// Attached clients never acquire Bolt locks and must not compact them.
+		compactStoresOnExit(dbPath)
+	}, nil
 }
 
 func runTeardowns(cleanups []func()) {
@@ -1084,10 +1193,7 @@ func cmdMCP(dbPath string, args []string) error {
 	defer observe.SetDefault(nil)
 	mcpServer.grammarLoader = newGrammarLoader(dbPath, mcpLog)
 	mcpServer.dbPath = dbPath
-
-	// Registered first so it runs last — after every store Close has run,
-	// leaving the bolt files unlocked for compaction. No-op unless enabled.
-	defer compactStoresOnExit(dbPath)
+	mcpServer.checkoutRoot = store.CheckoutRoot(dbPath)
 
 	teardown, err := mcpServer.join(dbPath, cfg)
 	if err != nil {
@@ -1112,8 +1218,9 @@ func cmdMCP(dbPath string, args []string) error {
 	}()
 
 	superviseCtx, stopSupervisor := context.WithCancel(context.Background())
-	defer stopSupervisor()
-	go mcpServer.supervisePrimary(superviseCtx, dbPath, cfg, swap)
+	supervisorDone := make(chan struct{})
+	defer func() { stopSupervisor(); <-supervisorDone }()
+	go func() { defer close(supervisorDone); mcpServer.supervisePrimary(superviseCtx, dbPath, cfg, swap) }()
 
 	mcpLog.Printf("MCP server ready in %v, listening on stdio", time.Since(startTime))
 	return mcpServer.Run()

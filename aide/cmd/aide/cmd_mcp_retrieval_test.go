@@ -21,7 +21,7 @@ func retrievalFixture(t *testing.T) (*MCPServer, *store.CodeStore, string) {
 	t.Helper()
 	root := t.TempDir()
 	dbPath := filepath.Join(root, ".aide", "memory", "memory.db")
-	indexPath, searchPath := getCodeStorePaths(dbPath)
+	indexPath, searchPath := testCodeStorePaths(t, dbPath)
 	cs, err := store.NewCodeStore(indexPath, searchPath)
 	if err != nil {
 		t.Fatal(err)
@@ -286,7 +286,7 @@ func TestRetrievalBodyRangesSurviveDaemon(t *testing.T) {
 	dbPath := electionRoot(t)
 	primary, stopPrimary := mustJoin(t, dbPath)
 	defer stopPrimary()
-	indexPath, searchPath := getCodeStorePaths(dbPath)
+	indexPath, searchPath := testCodeStorePaths(t, dbPath)
 	cs, err := store.NewCodeStore(indexPath, searchPath)
 	if err != nil {
 		t.Fatal(err)

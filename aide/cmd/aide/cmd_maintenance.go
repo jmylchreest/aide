@@ -15,13 +15,12 @@ import (
 // deterministically from the primary db path. The files need not exist —
 // CompactClosedDB no-ops on a missing one.
 func storeCompactPaths(dbPath string) []string {
-	indexPath, _ := getCodeStorePaths(dbPath)
-	return []string{
-		dbPath, // primary: memories, decisions, state, tasks, messages, observe, ...
-		indexPath,
-		filepath.Join(getFindingsStorePath(dbPath), "findings.db"),
-		filepath.Join(getSurveyStorePath(dbPath), "survey.db"),
+	c, err := store.CheckoutInfo(dbPath, store.CheckoutRoot(dbPath))
+	if err != nil {
+		return []string{dbPath}
 	}
+	dir := store.CheckoutDir(dbPath, c)
+	return []string{dbPath, filepath.Join(dir, "code", "index.db"), filepath.Join(dir, "findings", "findings.db"), filepath.Join(dir, "survey", "survey.db")}
 }
 
 // compactStoresOnExit compacts every bolt store, reclaiming the free pages

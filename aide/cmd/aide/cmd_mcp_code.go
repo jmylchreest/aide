@@ -9,9 +9,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/jmylchreest/aide/aide/pkg/checkout"
 	"github.com/jmylchreest/aide/aide/pkg/code"
 	"github.com/jmylchreest/aide/aide/pkg/observe"
-	"github.com/jmylchreest/aide/aide/pkg/store"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -20,6 +20,7 @@ import (
 // ============================================================================
 
 type CodeSearchInput struct {
+	CheckoutInput
 	Query    string `json:"query" jsonschema:"Search query for symbol names or signatures. Supports Bleve query syntax."`
 	Kind     string `json:"kind,omitempty" jsonschema:"Filter by symbol kind: function, method, class, interface, type"`
 	Language string `json:"lang,omitempty" jsonschema:"Filter by language: typescript, javascript, go, python"`
@@ -28,12 +29,14 @@ type CodeSearchInput struct {
 }
 
 type CodeSymbolsInput struct {
+	CheckoutInput
 	FilePath string `json:"file" jsonschema:"Path to the file to get symbols from"`
 }
 
-type CodeStatsInput struct{}
+type CodeStatsInput struct{ CheckoutInput }
 
 type CodeReferencesInput struct {
+	CheckoutInput
 	SymbolName  string   `json:"symbol,omitempty" jsonschema:"Name of the symbol to find references for (e.g., 'getUserById'). Required if symbols is empty."`
 	SymbolNames []string `json:"symbols,omitempty" jsonschema:"Batch mode: list of symbol names to find references for (max 10). If set, symbol is ignored."`
 	Kind        string   `json:"kind,omitempty" jsonschema:"Filter by reference kind: call, type_ref"`
@@ -42,20 +45,24 @@ type CodeReferencesInput struct {
 }
 
 type CodeOutlineInput struct {
+	CheckoutInput
 	File         string `json:"file" jsonschema:"Path to the file to outline. Required."`
 	KeepComments bool   `json:"keep_comments,omitempty" jsonschema:"Keep comments in output. By default comments are stripped to minimize tokens."`
 }
 
 type CodeTopReferencesInput struct {
+	CheckoutInput
 	Limit int    `json:"limit,omitempty" jsonschema:"Maximum results (default 25)"`
 	Kind  string `json:"kind,omitempty" jsonschema:"Filter by symbol kind: function, method, class, interface, type"`
 }
 
 type CodeReadCheckInput struct {
+	CheckoutInput
 	File string `json:"file" jsonschema:"Path to the file to check (relative or absolute). Required."`
 }
 
 type CodeReadSymbolInput struct {
+	CheckoutInput
 	Symbol    string   `json:"symbol,omitempty" jsonschema:"Name of the symbol to read (e.g., 'getUserById', 'AuthConfig'). Required if symbols is empty."`
 	Symbols   []string `json:"symbols,omitempty" jsonschema:"Batch mode: list of symbol names to read (max 10). If set, symbol is ignored."`
 	Kind      string   `json:"kind,omitempty" jsonschema:"Filter by symbol kind: function, method, class, interface, type"`
@@ -70,7 +77,7 @@ type CodeReadSymbolInput struct {
 func (s *MCPServer) registerCodeTools() {
 	mcpLog.Printf("code tools: registered (store may initialize lazily)")
 
-	mcp.AddTool(s.server, &mcp.Tool{
+	addCheckoutTool(s, &mcp.Tool{
 		Name: "code_search",
 		Description: `Search indexed code symbol DEFINITIONS (functions, methods, classes, interfaces, types).
 
@@ -103,7 +110,7 @@ Verify relevant definitions in current source; empty results do not prove absenc
 If indexing appears unavailable or stale, inspect code_stats or run 'aide code index'.`,
 	}, s.handleCodeSearch)
 
-	mcp.AddTool(s.server, &mcp.Tool{
+	addCheckoutTool(s, &mcp.Tool{
 		Name: "code_symbols",
 		Description: `List parsed symbol definitions in a specific file.
 
@@ -116,7 +123,7 @@ Read the file directly when it is small or most of its contents are needed.
 If the index is missing or stale, the file is parsed on demand; coverage depends on grammar support.`,
 	}, s.handleCodeSymbols)
 
-	mcp.AddTool(s.server, &mcp.Tool{
+	addCheckoutTool(s, &mcp.Tool{
 		Name: "code_stats",
 		Description: `Get code index statistics.
 
@@ -128,7 +135,7 @@ Zero counts can mean no supported files are indexed. Run 'aide code index' when
 indexing is needed; counts alone do not establish freshness or complete coverage.`,
 	}, s.handleCodeStats)
 
-	mcp.AddTool(s.server, &mcp.Tool{
+	addCheckoutTool(s, &mcp.Tool{
 		Name: "code_references",
 		Description: `Find indexed reference candidates (call sites and type uses) by symbol name.
 
@@ -153,7 +160,7 @@ imports, or content patterns. If indexing appears unavailable or stale, inspect
 code_stats or run 'aide code index'.`,
 	}, s.handleCodeReferences)
 
-	mcp.AddTool(s.server, &mcp.Tool{
+	addCheckoutTool(s, &mcp.Tool{
 		Name: "code_outline",
 		Description: `Get a collapsed outline of a file with bodies replaced by { ... }.
 
@@ -179,7 +186,7 @@ By default, comments are stripped. Set keep_comments=true to preserve them.
 ` + "```" + ``,
 	}, s.handleCodeOutline)
 
-	mcp.AddTool(s.server, &mcp.Tool{
+	addCheckoutTool(s, &mcp.Tool{
 		Name: "code_top_references",
 		Description: `Rank symbols by indexed reference count.
 
@@ -196,7 +203,7 @@ Verify candidates in current source. If indexing appears unavailable or stale,
 inspect code_stats or run 'aide code index'.`,
 	}, s.handleCodeTopReferences)
 
-	mcp.AddTool(s.server, &mcp.Tool{
+	addCheckoutTool(s, &mcp.Tool{
 		Name: "code_read_symbol",
 		Description: `Read the full source code of a symbol by name — without reading the entire file.
 
@@ -233,7 +240,7 @@ current definition line. Ambiguous names return candidates instead of choosing o
 Without file, uses the code index to locate candidate files, then reads current source.`,
 	}, s.handleCodeReadSymbol)
 
-	mcp.AddTool(s.server, &mcp.Tool{
+	addCheckoutTool(s, &mcp.Tool{
 		Name: "code_read_check",
 		Description: `Check if a file is indexed and whether its current mtime matches the index.
 
@@ -254,7 +261,13 @@ the agent. A matching timestamp does not prove unchanged content or prior covera
 	}, s.handleCodeReadCheck)
 }
 
-func (s *MCPServer) handleCodeSearch(_ context.Context, _ *mcp.CallToolRequest, input CodeSearchInput) (*mcp.CallToolResult, any, error) {
+func (s *MCPServer) handleCodeSearch(ctx context.Context, req *mcp.CallToolRequest, input CodeSearchInput) (*mcp.CallToolResult, any, error) {
+	scoped, release, routeErr := s.requestCheckout(ctx, req)
+	if routeErr != nil {
+		return checkoutToolError(routeErr)
+	}
+	defer release()
+	s = scoped
 	mcpLog.Printf("tool: code_search query=%q kind=%s lang=%s", input.Query, input.Kind, input.Language)
 
 	codeStore := s.getCodeStore()
@@ -291,7 +304,13 @@ func (s *MCPServer) handleCodeSearch(_ context.Context, _ *mcp.CallToolRequest, 
 	return textResult(formatCodeSearchResults(results)), nil, nil
 }
 
-func (s *MCPServer) handleCodeSymbols(_ context.Context, _ *mcp.CallToolRequest, input CodeSymbolsInput) (*mcp.CallToolResult, any, error) {
+func (s *MCPServer) handleCodeSymbols(ctx context.Context, req *mcp.CallToolRequest, input CodeSymbolsInput) (*mcp.CallToolResult, any, error) {
+	scoped, release, routeErr := s.requestCheckout(ctx, req)
+	if routeErr != nil {
+		return checkoutToolError(routeErr)
+	}
+	defer release()
+	s = scoped
 	mcpLog.Printf("tool: code_symbols file=%s", input.FilePath)
 
 	symbols, err := s.getFileSymbolsFresh(input.FilePath)
@@ -307,40 +326,26 @@ func (s *MCPServer) handleCodeSymbols(_ context.Context, _ *mcp.CallToolRequest,
 // getFileSymbolsFresh returns symbols for a file, checking freshness against disk.
 // If the index is stale or missing, it falls back to live tree-sitter parsing.
 func (s *MCPServer) getFileSymbolsFresh(filePath string) ([]*code.Symbol, error) {
-	root := store.ProjectRootFromDB(s.dbPath)
-	// Resolve to absolute path for stat, relative for store lookup
-	absPath := filePath
-	if !filepath.IsAbs(filePath) {
-		absPath = filepath.Join(root, filePath)
+	abs, rel, err := checkout.SourcePath(s.sourceRoot(), filePath)
+	if err != nil {
+		return nil, err
 	}
-	relPath := filePath
-	if filepath.IsAbs(filePath) {
-		if rel, err := filepath.Rel(root, filePath); err == nil {
-			relPath = rel
-		}
+	data, err := os.ReadFile(abs)
+	if err != nil {
+		return nil, err
 	}
-
-	codeStore := s.getCodeStore()
-	if codeStore != nil {
-		// Check if the indexed data is fresh
-		fileInfo, err := codeStore.GetFileInfo(relPath)
-		if err == nil {
-			stat, statErr := os.Stat(absPath)
-			if statErr == nil && fileInfo.ModTime.Equal(stat.ModTime()) {
-				// Index is current — use cached symbols
-				symbols, err := codeStore.GetFileSymbols(relPath)
-				if err == nil && completeFileSymbols(fileInfo, symbols) {
-					return symbols, nil
-				}
+	parser := code.NewParser(s.grammarLoader)
+	defer parser.Close()
+	lang := code.DetectLanguage(abs, data)
+	fingerprint, _ := parser.Fingerprint(lang)
+	if cs := s.getCodeStore(); cs != nil {
+		if info, err := cs.GetFileInfo(rel); err == nil && info.ContentHash == code.ContentHash(data) && info.ParserFingerprint == fingerprint && fingerprint != "" {
+			if syms, err := cs.GetFileSymbols(rel); err == nil && completeFileSymbols(info, syms) {
+				return syms, nil
 			}
 		}
 	}
-
-	// Index is stale, missing, or unavailable — parse on demand
-	mcpLog.Printf("  freshness: parsing %s on demand", relPath)
-	parser := code.NewParser(s.grammarLoader)
-	defer parser.Close()
-	return parser.ParseFile(absPath)
+	return parser.ParseContent(data, lang, rel)
 }
 
 // A file record can outlive its symbol records. Never treat a partial index as
@@ -364,7 +369,13 @@ func completeFileSymbols(info *code.FileInfo, symbols []*code.Symbol) bool {
 	return true
 }
 
-func (s *MCPServer) handleCodeStats(_ context.Context, _ *mcp.CallToolRequest, _ CodeStatsInput) (*mcp.CallToolResult, any, error) {
+func (s *MCPServer) handleCodeStats(ctx context.Context, req *mcp.CallToolRequest, _ CodeStatsInput) (*mcp.CallToolResult, any, error) {
+	scoped, release, routeErr := s.requestCheckout(ctx, req)
+	if routeErr != nil {
+		return checkoutToolError(routeErr)
+	}
+	defer release()
+	s = scoped
 	mcpLog.Printf("tool: code_stats")
 
 	codeStore := s.getCodeStore()
@@ -382,7 +393,13 @@ func (s *MCPServer) handleCodeStats(_ context.Context, _ *mcp.CallToolRequest, _
 	return textResult(fmt.Sprintf("Code Index Statistics:\n- Files indexed: %d\n- Symbols indexed: %d\n- References indexed: %d", stats.Files, stats.Symbols, stats.References)), nil, nil
 }
 
-func (s *MCPServer) handleCodeReferences(_ context.Context, _ *mcp.CallToolRequest, input CodeReferencesInput) (*mcp.CallToolResult, any, error) {
+func (s *MCPServer) handleCodeReferences(ctx context.Context, req *mcp.CallToolRequest, input CodeReferencesInput) (*mcp.CallToolResult, any, error) {
+	scoped, release, routeErr := s.requestCheckout(ctx, req)
+	if routeErr != nil {
+		return checkoutToolError(routeErr)
+	}
+	defer release()
+	s = scoped
 	// Resolve symbol names: batch mode takes precedence
 	names := input.SymbolNames
 	if len(names) == 0 && input.SymbolName != "" {
@@ -448,7 +465,13 @@ func (s *MCPServer) handleCodeReferences(_ context.Context, _ *mcp.CallToolReque
 	return textResult(sb.String()), nil, nil
 }
 
-func (s *MCPServer) handleCodeTopReferences(_ context.Context, _ *mcp.CallToolRequest, input CodeTopReferencesInput) (*mcp.CallToolResult, any, error) {
+func (s *MCPServer) handleCodeTopReferences(ctx context.Context, req *mcp.CallToolRequest, input CodeTopReferencesInput) (*mcp.CallToolResult, any, error) {
+	scoped, release, routeErr := s.requestCheckout(ctx, req)
+	if routeErr != nil {
+		return checkoutToolError(routeErr)
+	}
+	defer release()
+	s = scoped
 	mcpLog.Printf("tool: code_top_references limit=%d kind=%s", input.Limit, input.Kind)
 
 	codeStore := s.getCodeStore()
@@ -489,7 +512,13 @@ func (s *MCPServer) handleCodeTopReferences(_ context.Context, _ *mcp.CallToolRe
 	return textResult(sb.String()), nil, nil
 }
 
-func (s *MCPServer) handleCodeOutline(ctx context.Context, _ *mcp.CallToolRequest, input CodeOutlineInput) (*mcp.CallToolResult, any, error) {
+func (s *MCPServer) handleCodeOutline(ctx context.Context, req *mcp.CallToolRequest, input CodeOutlineInput) (*mcp.CallToolResult, any, error) {
+	scoped, release, routeErr := s.requestCheckout(ctx, req)
+	if routeErr != nil {
+		return checkoutToolError(routeErr)
+	}
+	defer release()
+	s = scoped
 	span := observe.FromContext(ctx).FilePath(input.File)
 	mcpLog.Printf("tool: code_outline file=%s keep_comments=%v", input.File, input.KeepComments)
 
@@ -509,7 +538,13 @@ func (s *MCPServer) handleCodeOutline(ctx context.Context, _ *mcp.CallToolReques
 	return sourceResult(span, "code_outline", map[string]*sourceSnapshot{snapshot.path: snapshot}, outline), nil, nil
 }
 
-func (s *MCPServer) handleCodeReadCheck(_ context.Context, _ *mcp.CallToolRequest, input CodeReadCheckInput) (*mcp.CallToolResult, any, error) {
+func (s *MCPServer) handleCodeReadCheck(ctx context.Context, req *mcp.CallToolRequest, input CodeReadCheckInput) (*mcp.CallToolResult, any, error) {
+	scoped, release, routeErr := s.requestCheckout(ctx, req)
+	if routeErr != nil {
+		return checkoutToolError(routeErr)
+	}
+	defer release()
+	s = scoped
 	mcpLog.Printf("tool: code_read_check file=%s", input.File)
 
 	if input.File == "" {
@@ -521,7 +556,7 @@ func (s *MCPServer) handleCodeReadCheck(_ context.Context, _ *mcp.CallToolReques
 		return textResult(`{"indexed":false,"fresh":false,"symbols":0,"outline_available":false,"estimated_tokens":0,"text_estimate":null}`), nil, nil
 	}
 
-	root := store.ProjectRootFromDB(s.dbPath)
+	root := s.sourceRoot()
 
 	// Resolve to absolute path for os.Stat
 	absPath := input.File
@@ -550,7 +585,13 @@ func (s *MCPServer) handleCodeReadCheck(_ context.Context, _ *mcp.CallToolReques
 	return textResult(string(result)), nil, nil
 }
 
-func (s *MCPServer) handleCodeReadSymbol(ctx context.Context, _ *mcp.CallToolRequest, input CodeReadSymbolInput) (*mcp.CallToolResult, any, error) {
+func (s *MCPServer) handleCodeReadSymbol(ctx context.Context, req *mcp.CallToolRequest, input CodeReadSymbolInput) (*mcp.CallToolResult, any, error) {
+	scoped, release, routeErr := s.requestCheckout(ctx, req)
+	if routeErr != nil {
+		return checkoutToolError(routeErr)
+	}
+	defer release()
+	s = scoped
 	span := observe.FromContext(ctx)
 	// Resolve symbol names: batch mode takes precedence
 	names := input.Symbols

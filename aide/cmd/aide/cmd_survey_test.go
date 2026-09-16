@@ -29,7 +29,7 @@ func TestCmdSurveyRun_EntrypointsWithCodeIndex(t *testing.T) {
 	}
 
 	// Pre-create the code store and populate it with a main symbol
-	indexPath, searchPath := getCodeStorePaths(dbPath)
+	indexPath, searchPath := testCodeStorePaths(t, dbPath)
 	codeStore, err := store.NewCodeStore(indexPath, searchPath)
 	if err != nil {
 		t.Fatal(err)
@@ -67,7 +67,7 @@ func TestCmdSurveyRun_EntrypointsWithCodeIndex(t *testing.T) {
 	}
 
 	// Verify that the survey store now has entrypoint entries
-	surveyDir := getSurveyStorePath(dbPath)
+	surveyDir := testSurveyStorePath(t, dbPath)
 	ss, err := store.NewSurveyStore(surveyDir)
 	if err != nil {
 		t.Fatalf("failed to open survey store: %v", err)
@@ -127,7 +127,7 @@ func TestCmdSurveyRun_EntrypointsWithoutCodeIndex(t *testing.T) {
 	}
 
 	// Verify survey store has 0 entrypoint entries (graceful degradation)
-	surveyDir := getSurveyStorePath(dbPath)
+	surveyDir := testSurveyStorePath(t, dbPath)
 	ss, err := store.NewSurveyStore(surveyDir)
 	if err != nil {
 		t.Fatalf("failed to open survey store: %v", err)
@@ -179,7 +179,7 @@ func TestCmdSurveyRun_AllAnalyzers(t *testing.T) {
 	}
 
 	// Verify survey store has topology entries (at minimum, from go.mod)
-	surveyDir := getSurveyStorePath(dbPath)
+	surveyDir := testSurveyStorePath(t, dbPath)
 	ss, err := store.NewSurveyStore(surveyDir)
 	if err != nil {
 		t.Fatalf("failed to open survey store: %v", err)
@@ -227,7 +227,7 @@ func TestCmdSurveyRun_AnalyserAlias(t *testing.T) {
 		t.Fatalf("cmdSurveyRun with --analyser= failed: %v", err)
 	}
 
-	surveyDir := getSurveyStorePath(dbPath)
+	surveyDir := testSurveyStorePath(t, dbPath)
 	ss, err := store.NewSurveyStore(surveyDir)
 	if err != nil {
 		t.Fatalf("failed to open survey store: %v", err)
@@ -254,7 +254,7 @@ func TestCmdSurveyList_JSON(t *testing.T) {
 	dbPath := filepath.Join(aideDir, "memory.db")
 
 	// Pre-populate the survey store with a test entry.
-	surveyDir := getSurveyStorePath(dbPath)
+	surveyDir := testSurveyStorePath(t, dbPath)
 	ss, err := store.NewSurveyStore(surveyDir)
 	if err != nil {
 		t.Fatal(err)
@@ -312,7 +312,7 @@ func TestCmdSurveySearch_JSON(t *testing.T) {
 	dbPath := filepath.Join(aideDir, "memory.db")
 
 	// Pre-populate with a searchable entry
-	surveyDir := getSurveyStorePath(dbPath)
+	surveyDir := testSurveyStorePath(t, dbPath)
 	ss, err := store.NewSurveyStore(surveyDir)
 	if err != nil {
 		t.Fatal(err)
@@ -404,7 +404,7 @@ func TestCmdSurveyGraph_WithCodeIndex(t *testing.T) {
 	dbPath := filepath.Join(aideDir, "memory.db")
 
 	// Create code store with a symbol
-	indexPath, searchPath := getCodeStorePaths(dbPath)
+	indexPath, searchPath := testCodeStorePaths(t, dbPath)
 	codeStore, err := store.NewCodeStore(indexPath, searchPath)
 	if err != nil {
 		t.Fatal(err)
@@ -461,7 +461,7 @@ func TestCmdSurveyGraph_JSONOutput(t *testing.T) {
 	dbPath := filepath.Join(aideDir, "memory.db")
 
 	// Create code store with a symbol
-	indexPath, searchPath := getCodeStorePaths(dbPath)
+	indexPath, searchPath := testCodeStorePaths(t, dbPath)
 	codeStore, err := store.NewCodeStore(indexPath, searchPath)
 	if err != nil {
 		t.Fatal(err)
@@ -519,7 +519,7 @@ func TestCmdSurveyGraph_SymbolFlag(t *testing.T) {
 	dbPath := filepath.Join(aideDir, "memory.db")
 
 	// Create code store with a symbol
-	indexPath, searchPath := getCodeStorePaths(dbPath)
+	indexPath, searchPath := testCodeStorePaths(t, dbPath)
 	codeStore, err := store.NewCodeStore(indexPath, searchPath)
 	if err != nil {
 		t.Fatal(err)
