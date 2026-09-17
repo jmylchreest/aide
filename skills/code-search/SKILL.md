@@ -132,7 +132,12 @@ Any complexity issues in src/auth?
    `code_outline` for structure in a known file. Filter by kind, language, or
    file when that narrows the question. Keep Grep for literals, imports, and
    patterns inside function bodies.
-2. **Inspect current source:** batch known names with `code_read_symbol`, using
+2. **Inspect current source:** follow returned `code_read_symbol` selectors for
+   missing source, retaining their checkout selector. Do not repeat search or
+   outline discovery for a location already identified. Selectors are indexed
+   candidates; if a definition moved, retry its file/name without `start_line`.
+   Reuse bodies already available in the current context; reread for changes or
+   missing context. Batch known names with `code_read_symbol`, using
    `file` to disambiguate. Read known ranges or small/full-relevant files directly.
 3. **Verify conclusions:** indexed search/reference results are best-effort
    candidates, not a complete semantic graph. Same-name symbols, dynamic calls,

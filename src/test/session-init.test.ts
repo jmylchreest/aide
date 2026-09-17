@@ -154,6 +154,8 @@ describe("buildWelcomeContext codebase map", () => {
     expect(guide).toContain("known files and symbols, go straight to bodies");
     expect(guide).toContain("or bounded reads");
     expect(guide).toContain("Reuse sufficient current source evidence");
+    expect(guide).toContain("Follow returned read selectors");
+    expect(guide).toContain("do not repeat discovery");
     expect(guide).toContain("a current symbol-body read can supply that evidence");
     expect(guide).toContain("missing context or post-edit verification");
     expect(guide).not.toMatch(/saved|savings|must use/i);

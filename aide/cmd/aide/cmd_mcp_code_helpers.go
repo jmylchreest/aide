@@ -17,16 +17,16 @@ import (
 
 func formatCodeSearchResults(results []*store.CodeSearchResult) string {
 	if len(results) == 0 {
-		return "No matching symbols found.\n\nTip: Run `aide code index` to index your codebase."
+		return "No indexed definition candidates found. Empty results do not prove absence. Try another name/filter or current-source text search; inspect code_stats only if indexing appears unavailable."
 	}
 
 	var sb strings.Builder
-	sb.WriteString("# Code Search Results\n\n")
+	sb.WriteString("# Code Search Results\n\nIndexed definition candidates; verify selected implementations in current source.\n\n")
 
 	for _, r := range results {
 		sym := r.Symbol
 		fmt.Fprintf(&sb, "## `%s` [%s]\n", sym.Name, sym.Kind)
-		fmt.Fprintf(&sb, "**File:** `%s:%d`\n", sym.FilePath, sym.StartLine)
+		fmt.Fprintf(&sb, "**File:** `%s:%d-%d`\n", sym.FilePath, sym.StartLine, sym.EndLine)
 		fmt.Fprintf(&sb, "**Signature:** `%s`\n", sym.Signature)
 		if sym.DocComment != "" {
 			fmt.Fprintf(&sb, "**Doc:** %s\n", sym.DocComment)
@@ -100,7 +100,26 @@ func formatCodeReferences(symbolName string, refs []*code.Reference, limit int) 
 		grouped[ref.FilePath] = append(grouped[ref.FilePath], ref)
 	}
 
-	for filePath, fileRefs := range grouped {
+	paths := make([]string, 0, len(grouped))
+	for path := range grouped {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+	for _, filePath := range paths {
+		fileRefs := grouped[filePath]
+		sort.SliceStable(fileRefs, func(i, j int) bool {
+			a, b := fileRefs[i], fileRefs[j]
+			if a.Line != b.Line {
+				return a.Line < b.Line
+			}
+			if a.Column != b.Column {
+				return a.Column < b.Column
+			}
+			if a.Kind != b.Kind {
+				return a.Kind < b.Kind
+			}
+			return a.Context < b.Context
+		})
 		fmt.Fprintf(&sb, "## `%s`\n\n", filePath)
 		for _, ref := range fileRefs {
 			kindTag := ""

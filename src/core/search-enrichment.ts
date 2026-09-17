@@ -112,8 +112,12 @@ export function checkSearchEnrichment(
   const lines: string[] = [];
   lines.push(`[aide:code-index] Symbol definitions matching "${pattern}":`);
 
+  const referenceCounts = new Map<string, number | null>();
   for (const sym of symbols) {
-    const refCount = countReferences(binary, cwd, sym.name);
+    if (!referenceCounts.has(sym.name)) {
+      referenceCounts.set(sym.name, countReferences(binary, cwd, sym.name));
+    }
+    const refCount = referenceCounts.get(sym.name)!;
     const refs =
       refCount === null
         ? ", refs unavailable"
@@ -122,9 +126,10 @@ export function checkSearchEnrichment(
   }
 
   lines.push(
-    `For definitions, use code_search; for callers or change impact, code_references. ` +
+    `Use the file/name above directly; code_search is only needed for other definitions. ` +
+      `For callers or change impact, use code_references. ` +
       `For source, batch code_read_symbol with symbols (up to 10 names); add file to disambiguate. ` +
-      `Keep Grep for literals and imports. Indexed matches are candidates; verify current source.`,
+      `Reuse current bodies already in context. Keep Grep for literals and imports. Indexed matches are candidates; verify current source.`,
   );
 
   const enrichment = lines.join("\n");

@@ -83,7 +83,9 @@ func (s *MCPServer) registerCodeTools() {
 
 Use this to locate implementation candidates by name or signature during debugging,
 review, or refactoring. For callers/change impact use code_references; after finding
-names, batch code_read_symbol with symbols (max 10) to inspect current source.
+names, follow the returned code_read_symbol selectors for missing source. No extra
+search or outline is required. Reuse current bodies already in context. Batch known
+names with symbols (max 10) when the file and names are unambiguous.
 
 **What gets indexed?**
 Symbols are extracted from source files using tree-sitter parsing:
@@ -150,7 +152,10 @@ References are places where a symbol is used, indexed by tree-sitter:
 - Impact analysis before refactoring — "what breaks if I change this?"
 
 **Batch mode:** Pass multiple names in the "symbols" array (max 10) to find
-references for several symbols in a single call.
+references for several symbols in a single call. Results include deduplicated read
+selectors for indexed enclosing callers when available. Follow selected callers
+directly instead of searching their definitions again; otherwise read the reported
+file/line. Reuse source already available in your current context.
 
 Results are best-effort name matches from the index, not a complete semantic call graph.
 Same-name symbols, dynamic calls, unsupported syntax, stale files and result limits
@@ -301,7 +306,11 @@ func (s *MCPServer) handleCodeSearch(ctx context.Context, req *mcp.CallToolReque
 	}
 
 	mcpLog.Printf("  found: %d symbols", len(results))
-	return textResult(formatCodeSearchResults(results)), nil, nil
+	suggestions := newCodeReadSuggestions(s.sourceRoot())
+	for _, result := range results {
+		suggestions.add(result.Symbol)
+	}
+	return textResult(formatCodeSearchResults(results) + suggestions.text()), nil, nil
 }
 
 func (s *MCPServer) handleCodeSymbols(ctx context.Context, req *mcp.CallToolRequest, input CodeSymbolsInput) (*mcp.CallToolResult, any, error) {
@@ -425,7 +434,9 @@ func (s *MCPServer) handleCodeReferences(ctx context.Context, req *mcp.CallToolR
 		limit = DefaultCodeRefsLimit
 	}
 
-	// Single-symbol mode: return as before
+	suggestions := newCodeReadSuggestions(s.sourceRoot())
+
+	// Single-symbol mode
 	if len(names) == 1 {
 		opts := code.ReferenceSearchOptions{
 			SymbolName: names[0],
@@ -439,7 +450,8 @@ func (s *MCPServer) handleCodeReferences(ctx context.Context, req *mcp.CallToolR
 			return errorResult(fmt.Sprintf("search failed: %v", err)), nil, nil
 		}
 		mcpLog.Printf("  found: %d references", len(refs))
-		return textResult(formatCodeReferences(names[0], refs, limit)), nil, nil
+		suggestions.references(codeStore, refs)
+		return textResult(formatCodeReferences(names[0], refs, limit) + suggestions.text()), nil, nil
 	}
 
 	// Batch mode: query each symbol and combine results
@@ -459,8 +471,10 @@ func (s *MCPServer) handleCodeReferences(ctx context.Context, req *mcp.CallToolR
 			continue
 		}
 		totalRefs += len(refs)
+		suggestions.references(codeStore, refs)
 		sb.WriteString(formatCodeReferences(name, refs, limit))
 	}
+	sb.WriteString(suggestions.text())
 	mcpLog.Printf("  batch: %d symbols, %d total references", len(names), totalRefs)
 	return textResult(sb.String()), nil, nil
 }
