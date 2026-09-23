@@ -3,13 +3,10 @@
 # Paths excluded below are not part of the plugin runtime surface:
 #   - findings/testdata: deliberate vulnerable fixtures used to test the
 #     static-analysis rules that ship with aide; the "secrets" are synthetic.
-#   - htmx.min.js: unused vendored bundle from the legacy aide-web UI;
-#     the current server serves the Astro build instead.
 #   - blueprint/blueprints: language blueprint templates whose example
 #     connection strings trip secret heuristics.
 [scanner]
 ignore_paths = [
   "aide/pkg/findings/testdata/**",
-  "aide-web/internal/static/js/htmx.min.js",
   "aide/pkg/blueprint/blueprints/**",
 ]

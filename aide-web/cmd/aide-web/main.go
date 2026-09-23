@@ -89,7 +89,7 @@ func parseFlags() config {
 	cfg := config{}
 	flag.IntVar(&cfg.Port, "port", 8080, "HTTP port")
 	flag.StringVar(&cfg.Addr, "addr", "127.0.0.1", "Listen address")
-	flag.BoolVar(&cfg.Dev, "dev", false, "Development mode (load templates from disk)")
+	flag.BoolVar(&cfg.Dev, "dev", false, "Development mode (load frontend assets from disk)")
 	flag.BoolVar(&cfg.Open, "open", false, "Open browser on startup")
 	flag.Parse()
 	return cfg
