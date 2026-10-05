@@ -1,0 +1,157 @@
+Performance review — 2026-10-05
+
+Implemented
+Issue #62: non-source files and dotfiles reach secrets analysis while code indexing and
+source analyzers retain grammar gating. Full/incremental secrets share a 1 MiB limit,
+regular-file and checkout checks, ignore handling, and bounded reads. Source analyzers
+share their content read. Each changed-file batch lazily shares a scanner, serialized
+for safety and closed when its jobs finish, including cancellation before dispatch.
+Deletion cancels and drains old per-file work before clearing findings.
+
+Watcher: redundant roots are removed; watch count comes from the live backend.
+Generated versioned documentation and retrieval outcome snapshots are excluded in
+.aideignore. These exclusions reduce automatic coverage deliberately. An earlier
+checkout count was 461 directories; 176 were versioned documentation and 118 were
+retrieval directories. Keep current documentation and the retrieval harness watched.
+Linux fsnotify needs a watch per directory; 463 watches alone did not explain the
+measured memory. The major cost was analyses scheduled by events and startup.
+
+Search storage: replace operations use bounded 128-operation Bleve batches instead
+of building/committing one search segment per record. Existing Bolt persistence,
+store boundaries, document identity and search visibility locks remain in place.
+Errors from batch commits propagate; as before, Bolt and Bleve are not one atomic
+transaction. Regression tests cover >128 items, replacement, stale search removal,
+unrelated analyzers, clearing and counts.
+
+Clones: immediately discard overflowing hash-bucket locations while keeping a
+sentinel for skipped-bucket counts; avoid allocating language groups for singleton
+buckets. MaxBucketSize must be configured before AddFile, as production already does.
+Unlimited buckets remain unlimited. Tests verify boundary, overflow, other groups,
+skipped counts and unlimited behavior.
+
+Measurements
+Benchmark runs use identical benchmark sources, three one-iteration runs for the
+scanner and three repetitions of three iterations for storage and clone operations.
+- Eight changed Go files: 128 MB -> 17–18 MB allocated; 59–64 ms -> 23–26 ms.
+- Replace 100 findings: 180–193 MB -> 2.32–2.33 MB allocated;
+  90–131 ms -> 3.97–4.28 ms.
+- Clone singleton grouping, 10,000 hashes: 640 KB/10,000 allocations -> zero.
+- Repeated clone boilerplate: 26.55 MB -> 165 KB allocated.
+These are operation allocation measurements, not retained RSS or universal latency.
+
+Isolated end-to-end profiles
+Copied 825 tracked files from another repository (tvarr) into /tmp; original repository
+and the existing aide daemon were untouched. Built the daemon with the pprof tag.
+Each run created a fresh index, indexed 553 files / 5,798 symbols / 59,943 references,
+ran full findings and search, then saved unchanged content in 24 Go source files.
+Profiles and /proc RSS samples belong to the daemon, not its CLI clients.
+The first cold-grammar run peaked at 1,547,340 KB RSS versus 462,816 KB after #62.
+This is a single workload comparison with overlapping startup/download activity,
+not a reliable estimate of idle savings. A later optimized cold run peaked at
+481,436 KB: the storage/clone changes did not establish a further RSS reduction.
+Controlled cached-grammar repeats and their results follow.
+
+Controlled cached-grammar repeat (single run per revision)
+controlled-before: peak RSS 437.6 MiB; settled RSS 188.3 MiB; settled swap 20.7 MiB; full findings 16.37 seconds.
+controlled-after: peak RSS 448.7 MiB; settled RSS 179.1 MiB; settled swap 0.0 MiB; full findings 14.33 seconds.
+The cached run does not show a peak RSS reduction; settled RSS fell only about 5%, with different swap accounting. Do not promise a large steady-state RSS gain. The cold-start reduction and focused allocation reductions are the strongest evidence.
+
+
+RSS interpretation
+The optimized cold run retained about 19 MB HeapInuse after forced GC, but had
+314 MB HeapSys and only 87 MB HeapReleased. RSS also includes native C allocations
+from tree-sitter, mapped BoltDB pages and executable pages. The largest index mapping
+was approximately 55 MB resident; the fixture and binaries reside on tmpfs here,
+so mapping accounting differs from a normal disk-backed checkout. No retained Go
+heap leak was demonstrated. Do not set a global forced-GC ticker or claim a soft Go
+memory limit controls native allocations. RSS readings vary with scavenging and
+host paging; profiles expose more than the number of watches.
+
+Remaining significant opportunities, in priority order
+1. Findings replacement scans and JSON-decodes the entire Bolt bucket for every
+   file/analyzer update (searchableStore.replace). Add a maintained analyzer/file
+   secondary index or coalesce a watcher batch into one replacement transaction.
+   This needs migration/rebuild and acceptance-state tests, rather than an untested
+   schema shortcut. Likely best next step on large finding sets.
+2. Clone and dead-code computations do not honor cancellation throughout their
+   implementations. Superseded project work can keep token arrays, trees and complete
+   symbol/reference snapshots alive until completion. Thread context through walks,
+   tokenization, hashing and verification; test that cancellation actually drains
+   workers. Preserve serialized/coalesced project scheduling.
+3. Reduce native tree-sitter concurrency and measure RSS versus latency on large
+   repositories. Walks currently allocate Node wrappers for individual children;
+   cursor traversal may also reduce Go allocations. Native allocation profiling
+   is needed before choosing worker limits or platform allocator tuning.
+4. Search mapping rebuild indexes one record at a time; use the same bounded batch
+   approach during real upgrade/rebuild benchmarks. Stats load whole record slices
+   through allMatching; aggregate during iteration to reduce temporary retention.
+5. Dead-code reference verification copies full symbol/reference sets and caches
+   complete source files for a run. Stream/index lookups could reduce peak memory.
+   The custom bytesIndex scan also appeared at about 3% CPU in one post-fix profile;
+   benchmark standard bytes.Index before replacing it, retaining empty/boundary rules.
+6. Titus portable regex matching remains a large CPU consumer after constructor
+   reuse. Avoid weakening rules to speed it up; explore safe scanner pools or cheaper
+   candidate filtering only with coverage and end-to-end throughput measurements.
+
+Verification
+Full aide Go suite passed after storage/clone changes. Full aide-web Go suite passed
+after #62. Race runs passed for findings/watcher and for store/clone. PR #93 actual
+head previously passed frozen install, Astro check, 63 frontend tests and build;
+PR was merged with head-commit protection (merge aeda235f).
+Linux validation only; cross-platform runtime APIs preserved, other platforms were
+not run locally. No production daemon restart was required.
+
+Decision conformance (implementation paths)
+- abandoned-approaches: Not applicable: reviewed implementation changes are watcher eligibility, findings scheduling/content reads, secrets scanning, clone buckets and shared search replacement; this decision's subsystem/contract is unchanged.
+- cross-platform-compatibility: Conforms: watcher uses filepath/fsnotify and portable Go I/O; no shell added to runtime. Linux tested; macOS/Windows not executed.
+- grammar-detection-dual-pass: Not applicable: reviewed implementation changes are watcher eligibility, findings scheduling/content reads, secrets scanning, clone buckets and shared search replacement; this decision's subsystem/contract is unchanged.
+- hud-wrapper-root-resolution: Not applicable: reviewed implementation changes are watcher eligibility, findings scheduling/content reads, secrets scanning, clone buckets and shared search replacement; this decision's subsystem/contract is unchanged.
+- max-depth-convention: Not applicable: reviewed implementation changes are watcher eligibility, findings scheduling/content reads, secrets scanning, clone buckets and shared search replacement; this decision's subsystem/contract is unchanged.
+- memory-isolation: Not applicable: reviewed implementation changes are watcher eligibility, findings scheduling/content reads, secrets scanning, clone buckets and shared search replacement; this decision's subsystem/contract is unchanged.
+- memory-scoring: Not applicable: reviewed implementation changes are watcher eligibility, findings scheduling/content reads, secrets scanning, clone buckets and shared search replacement; this decision's subsystem/contract is unchanged.
+- multi-arch-binary-distribution: Not applicable: reviewed implementation changes are watcher eligibility, findings scheduling/content reads, secrets scanning, clone buckets and shared search replacement; this decision's subsystem/contract is unchanged.
+- no-aspirational-code: Conforms: changed scanner, batching and bucket logic is used by existing runtime callers and exercised by regression tests; benchmarks are test-only.
+- non-language-detection: Not applicable: reviewed implementation changes are watcher eligibility, findings scheduling/content reads, secrets scanning, clone buckets and shared search replacement; this decision's subsystem/contract is unchanged.
+- pack-index-architecture: Not applicable: reviewed implementation changes are watcher eligibility, findings scheduling/content reads, secrets scanning, clone buckets and shared search replacement; this decision's subsystem/contract is unchanged.
+- pack-index-override: Not applicable: reviewed implementation changes are watcher eligibility, findings scheduling/content reads, secrets scanning, clone buckets and shared search replacement; this decision's subsystem/contract is unchanged.
+- plugin-runtime: Not applicable: reviewed implementation changes are watcher eligibility, findings scheduling/content reads, secrets scanning, clone buckets and shared search replacement; this decision's subsystem/contract is unchanged.
+- plugin-version-pinning: Not applicable: reviewed implementation changes are watcher eligibility, findings scheduling/content reads, secrets scanning, clone buckets and shared search replacement; this decision's subsystem/contract is unchanged.
+- project-identity-guard: Conforms: scheduling rejects paths outside configured checkout through checkout.SourcePath; outside-root regression test passes.
+- skills-architecture: Not applicable: reviewed implementation changes are watcher eligibility, findings scheduling/content reads, secrets scanning, clone buckets and shared search replacement; this decision's subsystem/contract is unchanged.
+- store-routing: Conforms: changes stay inside existing selected backend/store; no new path routing or cross-project access.
+- stored-id-determinism: Conforms: batching uses the existing assigned IDs and search documents; ID construction is unchanged.
+- survey-analyzers: Not applicable: reviewed implementation changes are watcher eligibility, findings scheduling/content reads, secrets scanning, clone buckets and shared search replacement; this decision's subsystem/contract is unchanged.
+- survey-code-graph: Not applicable: reviewed implementation changes are watcher eligibility, findings scheduling/content reads, secrets scanning, clone buckets and shared search replacement; this decision's subsystem/contract is unchanged.
+- survey-entry-scope: Not applicable: reviewed implementation changes are watcher eligibility, findings scheduling/content reads, secrets scanning, clone buckets and shared search replacement; this decision's subsystem/contract is unchanged.
+- survey-git-approach: Not applicable: reviewed implementation changes are watcher eligibility, findings scheduling/content reads, secrets scanning, clone buckets and shared search replacement; this decision's subsystem/contract is unchanged.
+- survey-mcp-naming: Not applicable: reviewed implementation changes are watcher eligibility, findings scheduling/content reads, secrets scanning, clone buckets and shared search replacement; this decision's subsystem/contract is unchanged.
+- survey-run-identity: Not applicable: reviewed implementation changes are watcher eligibility, findings scheduling/content reads, secrets scanning, clone buckets and shared search replacement; this decision's subsystem/contract is unchanged.
+- survey-store-location: Not applicable: reviewed implementation changes are watcher eligibility, findings scheduling/content reads, secrets scanning, clone buckets and shared search replacement; this decision's subsystem/contract is unchanged.
+- terminology-axes: Not applicable: reviewed implementation changes are watcher eligibility, findings scheduling/content reads, secrets scanning, clone buckets and shared search replacement; this decision's subsystem/contract is unchanged.
+- versioned-docs-generated: Conforms: only docs/docs/getting-started/configuration.md was edited; generated paths are excluded from watching, not edited.
+
+Evidence artifacts (temporary local files)
+/tmp/aide-perf-{baseline,after62,optimized,controlled-before,controlled-after}/
+/tmp/aide-runner-{before,after}.txt
+/tmp/aide-storage-clone-{before,after}-repeat.txt
+/tmp/aide-final-full-tests.txt
+/tmp/aide-final-race.txt
+/tmp/aide-62-race.txt
+/tmp/aide-web-62-full-tests.txt
+
+Correction to the earlier dependency review
+Current main and go.work require Go 1.27.0, not 1.25.8. My earlier toolchain-based
+hold on x/crypto v0.57.0, x/net v0.59.0, x/sys v0.48.0 and x/text v0.42.0
+was incorrect: their Go 1.26 requirements are compatible and their release dates
+pass cooldown. They are eligible upgrade candidates in both Go modules, subject
+to tidy and regression validation. No dependency upgrade beyond PR #93 is applied
+by this implementation. Existing advisory refresh candidates remain separate work.
+
+Process-local memory-limit experiment
+GOMEMLIMIT=128MiB on the optimized binary, otherwise identical cached fixture:
+peak RSS 314.3 MiB; settled RSS 177.6 MiB;
+full findings 13.90 seconds. This limits Go-managed
+memory only, not native/mapped memory or total RSS. One run is insufficient to
+choose a product default. Keep it an optional deployment experiment and compare
+CPU/latency and representative larger repositories before enabling globally.
+Evidence: /tmp/aide-perf-memory-limit/.
