@@ -97,41 +97,41 @@ func (s *BoltStore) ListMemories(opts memory.SearchOptions) ([]*memory.Memory, e
 
 	err := s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(BucketMemories)
-		return b.ForEach(func(k, v []byte) error {
+		cursor := b.Cursor()
+	memoryLoop:
+		for k, v := cursor.First(); k != nil; k, v = cursor.Next() {
 			var m memory.Memory
 			if err := json.Unmarshal(v, &m); err != nil {
 				log.Printf("store: skipping malformed memory entry: %v", err)
-				return nil
+				continue
 			}
 
 			// Apply filters.
 			if opts.Category != "" && m.Category != opts.Category {
-				return nil
+				continue
 			}
 			if opts.Plan != "" && m.Plan != opts.Plan {
-				return nil
+				continue
 			}
 			if len(opts.Tags) > 0 && !memory.HasAnyTag(m.Tags, opts.Tags) {
-				return nil
+				continue
 			}
 			// Exclude memories with any excluded tag.
 			if len(excludeSet) > 0 {
 				for _, tag := range m.Tags {
 					if excludeSet[tag] {
-						return nil
+						continue memoryLoop
 					}
 				}
 			}
 
 			memories = append(memories, &m)
-			return nil
-		})
+			if opts.Limit > 0 && len(memories) >= opts.Limit {
+				break
+			}
+		}
+		return nil
 	})
-
-	// Apply limit.
-	if opts.Limit > 0 && len(memories) > opts.Limit {
-		memories = memories[:opts.Limit]
-	}
 
 	return memories, err
 }

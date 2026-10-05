@@ -178,8 +178,9 @@ Coverage and evidence
   hydration and search analyzers. Repeated scored search over 400 memories costs
   about 0.51 MB and 2.6 ms per request. Initial ~7 MB single-shot search was a
   cold/background-merge effect, not representative steady-state evidence.
-  ListMemories scans/decode-all and slices after filtering; a positive limit
-  does not bound work and the slice backing array retains excess pointers.
+  ListMemories previously scanned/decode-all and sliced after filtering. The
+  follow-up now stops after collecting the requested matching rows, retaining
+  the original Bolt key order, filters and zero/negative unlimited behavior.
 - Observe/token telemetry: ListObserveEvents, ListTokenEvents and TokenStats
   cursor passes, attribution and model-usage dedup. New history-growth benchmarks
   show real scaling costs even with small requested pages (see below).
@@ -275,3 +276,17 @@ Additional evidence artifacts
 /tmp/aide-eventbus-race-after.txt
 /tmp/aide-comprehensive-final-tests.txt
 /tmp/aide-comprehensive-final-lint.txt
+
+Measured memory-page improvement
+The existing combined-store list benchmark was noisy because background Bleve
+merges continued during measurement. Added a pure Bolt benchmark to isolate the
+list iteration. Three repetitions of 10 iterations, requesting 50 matching rows:
+400 memories: approximately 107 KB -> 14.2 KB allocated per request.
+4,000 memories: approximately 1.07 MB -> 14.3 KB allocated per request (98.7% less);
+4.1–4.7 ms -> 53–81 microseconds. No score ranking or ordering change is introduced.
+The cursor stops only after all category/plan/tag/exclusion filters pass for the
+requested number of records. Zero and negative limits remain unlimited; IncludeAll
+continues to bypass exclusion tags. Regression tests explicitly cover those rules.
+This bounds retained page records, but selective filters can still scan many rows;
+secondary indexes remain a separate future improvement.
+Evidence: /tmp/aide-memory-page-{before,after}.txt and /tmp/aide-memory-page-race.txt.
