@@ -215,6 +215,19 @@ file. Your global (`core.excludesfile`) and system ignore files are
 deliberately **not** consulted — they differ per machine, which would make the
 same repository produce different findings on different checkouts.
 
+The live watcher uses the same exclusions. Non-ignored dotfiles and files
+without a tree-sitter grammar (such as `.env`, `.pem`, `.ini`, and
+`.properties`) are eligible for secrets analysis. Secrets scans skip known
+binary/archive formats and files over 1 MiB in both full and incremental
+analysis. Source indexing and source analysers keep their language filters;
+a secrets-only change does not trigger whole-project code analysis.
+
+Directory exclusions also reduce the number of filesystem watches. For large
+repositories, exclude archived snapshots and generated trees that do not need
+live analysis through `.aideignore`. Overlapping configured watch roots are
+deduplicated. Editor scratch suffixes (`~`, `.swp`, and `.tmp`) are excluded
+from live events.
+
 ## Troubleshooting
 
 ```bash

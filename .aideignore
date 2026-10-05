@@ -22,3 +22,9 @@ aide/pkg/grpcapi/*.pb.go
 
 # ── Mirrored TypeScript packages (same code in two locations) ──
 packages/opencode-plugin/src/
+
+# Generated release snapshots and archived retrieval experiment participants.
+# Keep the current docs and the retrieval harness itself in the live pipeline.
+docs/versioned_docs/
+docs/versioned_sidebars/
+scripts/retrieval-quality/outcomes-v*/

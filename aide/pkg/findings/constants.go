@@ -64,9 +64,9 @@ const (
 	DefaultCloneMinLines = 20
 
 	// DefaultRunnerSecretsMaxFileSize is the per-file size limit used by
-	// the Runner's incremental secrets analyser. Larger than the
-	// standalone default because the runner already filters by extension.
-	DefaultRunnerSecretsMaxFileSize int64 = 10 << 20 // 10 MiB
+	// Runner's incremental secrets analyser. Match the standalone limit so
+	// non-source files have the same eligibility in both paths.
+	DefaultRunnerSecretsMaxFileSize int64 = DefaultSecretsMaxFileSize
 
 	// DefaultRunnerConcurrency is the maximum number of concurrent
 	// per-file analyser goroutines the Runner will launch.

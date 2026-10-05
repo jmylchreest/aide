@@ -110,6 +110,36 @@ func TestWatcherReportsWriteInWatchedDir(t *testing.T) {
 	}
 }
 
+func TestWatcherOverlappingRootsAndRemovedDirectoryStats(t *testing.T) {
+	root := testRoot(t)
+	child := filepath.Join(root, "child")
+	if err := os.Mkdir(child, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	w, err := New(Config{Paths: []string{child, root, root}, ProjectRoot: root}, newCollector())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer w.Stop()
+	if got := w.Stats(); got.DirsWatched != 2 || len(got.Paths) != 1 {
+		t.Fatalf("overlapping roots: %+v", got)
+	}
+	if err := os.Remove(child); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if w.Stats().DirsWatched == 1 {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatal("removed directory still counted as watched")
+}
+
 // A file written immediately after mkdir emits no event — the directory has no
 // watch yet — so only the backfill walk sees it.
 func TestWatcherBackfillsNewDirectory(t *testing.T) {
@@ -325,7 +355,10 @@ func TestWatcherFiltersNonMatchingAndTransientFiles(t *testing.T) {
 	if !c.has(filepath.Join(dir, "keep.go")) {
 		t.Error("matching file not reported")
 	}
-	for _, name := range []string{"skip.md", ".hidden.go", "scratch.go~", "scratch.go.swp"} {
+	if !c.has(filepath.Join(dir, ".hidden.go")) {
+		t.Error("non-ignored dotfile not reported")
+	}
+	for _, name := range []string{"skip.md", "scratch.go~", "scratch.go.swp"} {
 		if c.has(filepath.Join(dir, name)) {
 			t.Errorf("filtered file reported: %s", name)
 		}
