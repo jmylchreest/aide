@@ -606,12 +606,13 @@ func (r *Runner) WaitAll() {
 func (r *Runner) Stop() {
 	r.cancel()
 	r.scheduleMu.Lock()
-	r.scheduleMu.Unlock()
+	// Start the waiter only after in-flight scheduling has finished adding jobs.
 	done := make(chan struct{})
 	go func() {
 		r.wg.Wait()
 		close(done)
 	}()
+	r.scheduleMu.Unlock()
 
 	select {
 	case <-done:
