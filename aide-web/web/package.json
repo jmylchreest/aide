@@ -11,16 +11,16 @@
   },
   "dependencies": {
     "@astrojs/react": "^7.0.0",
-    "@tailwindcss/vite": "^4",
+    "@tailwindcss/vite": "^4.3.3",
     "astro": "^7.3.5",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^1.49.0",
+    "lucide-react": "^1.50.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-router-dom": "^7.18.4",
     "tailwind-merge": "^3.7.0",
-    "tailwindcss": "^4"
+    "tailwindcss": "^4.3.3"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
