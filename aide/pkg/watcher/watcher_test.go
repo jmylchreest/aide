@@ -364,3 +364,29 @@ func TestWatcherFiltersNonMatchingAndTransientFiles(t *testing.T) {
 		}
 	}
 }
+
+func TestWatcherReportsFilesCreatedDuringDirectoryRegistration(t *testing.T) {
+	root := testRoot(t)
+	c := startWatcher(t, root, nil)
+	var paths []string
+	for i := 0; i < 100; i++ {
+		dir, err := os.MkdirTemp(root, "new-")
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, name := range []string{"first.go", ".hidden.go", "last.go"} {
+			path := filepath.Join(dir, name)
+			writeFile(t, path)
+			paths = append(paths, path)
+		}
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for c.count() < len(paths) && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	for _, path := range paths {
+		if !c.has(path) {
+			t.Errorf("file created during watch registration not reported: %s", path)
+		}
+	}
+}

@@ -2,6 +2,7 @@
 package watcher
 
 import (
+	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
@@ -203,7 +204,10 @@ func distinctRoots(paths []string) []string {
 // anything written before that — a file created right after mkdir, or the
 // contents of a directory renamed into place — emits no event at all.
 func (w *Watcher) addTree(dir string, backfill bool) {
-	_ = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+	// WalkDir calls us before reading a directory's entries. Registering its
+	// watch first closes the gap where a new file could escape both backfill
+	// and filesystem events (Walk reads entries before calling its callback).
+	_ = filepath.WalkDir(dir, func(path string, info fs.DirEntry, err error) error {
 		if err != nil {
 			return nil
 		}
