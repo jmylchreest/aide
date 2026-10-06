@@ -2,12 +2,13 @@
 package watcher
 
 import (
+	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -56,13 +57,12 @@ type Watcher struct {
 	pending      map[string]fsnotify.Op
 	debounceOnce sync.Once
 	watchPaths   []string
-	dirsWatched  atomic.Int32
 }
 
-// isTransientName matches dotfiles and editor scratch files.
+// isTransientName matches editor scratch files. Dotfiles such as .env are
+// meaningful inputs; the ignore matcher decides whether to admit them.
 func isTransientName(name string) bool {
-	return strings.HasPrefix(name, ".") ||
-		strings.HasSuffix(name, "~") ||
+	return strings.HasSuffix(name, "~") ||
 		strings.HasSuffix(name, ".swp") ||
 		strings.HasSuffix(name, ".tmp")
 }
@@ -147,6 +147,7 @@ func (w *Watcher) Start() error {
 		}
 		paths = []string{cwd}
 	}
+	paths = distinctRoots(paths)
 
 	w.watchPaths = paths
 
@@ -160,8 +161,39 @@ func (w *Watcher) Start() error {
 	w.wg.Add(1)
 	go w.processEvents()
 
-	watchLog.Printf("watching %d directories in %v (debounce: %v)", w.dirsWatched.Load(), paths, w.config.DebounceDelay)
+	watchLog.Printf("watching %d directories in %v (debounce: %v)", len(w.fsnotify.WatchList()), paths, w.config.DebounceDelay)
 	return nil
+}
+
+// Overlapping roots need one traversal and one registration per directory.
+func distinctRoots(paths []string) []string {
+	clean := make([]string, 0, len(paths))
+	for _, path := range paths {
+		if abs, err := filepath.Abs(path); err == nil {
+			clean = append(clean, filepath.Clean(abs))
+		}
+	}
+	sort.Slice(clean, func(i, j int) bool {
+		if len(clean[i]) != len(clean[j]) {
+			return len(clean[i]) < len(clean[j])
+		}
+		return clean[i] < clean[j]
+	})
+	var roots []string
+	for _, path := range clean {
+		covered := false
+		for _, root := range roots {
+			rel, err := filepath.Rel(root, path)
+			if err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) && !filepath.IsAbs(rel) {
+				covered = true
+				break
+			}
+		}
+		if !covered {
+			roots = append(roots, path)
+		}
+	}
+	return roots
 }
 
 // addTree watches dir and every non-ignored directory beneath it, recursing
@@ -172,7 +204,10 @@ func (w *Watcher) Start() error {
 // anything written before that — a file created right after mkdir, or the
 // contents of a directory renamed into place — emits no event at all.
 func (w *Watcher) addTree(dir string, backfill bool) {
-	_ = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+	// WalkDir calls us before reading a directory's entries. Registering its
+	// watch first closes the gap where a new file could escape both backfill
+	// and filesystem events (Walk reads entries before calling its callback).
+	_ = filepath.WalkDir(dir, func(path string, info fs.DirEntry, err error) error {
 		if err != nil {
 			return nil
 		}
@@ -182,8 +217,8 @@ func (w *Watcher) addTree(dir string, backfill bool) {
 			if path != dir && w.shouldSkipDir(path) {
 				return filepath.SkipDir
 			}
-			if err := w.fsnotify.Add(path); err == nil {
-				w.dirsWatched.Add(1)
+			if err := w.fsnotify.Add(path); err != nil {
+				watchLog.Printf("failed to watch %s: %v", path, err)
 			}
 			return nil
 		}
@@ -216,7 +251,7 @@ func (w *Watcher) Stats() WatcherStats {
 	return WatcherStats{
 		Enabled:      true,
 		Paths:        w.watchPaths,
-		DirsWatched:  int(w.dirsWatched.Load()),
+		DirsWatched:  len(w.fsnotify.WatchList()),
 		Debounce:     w.config.DebounceDelay,
 		PendingFiles: pending,
 		Uptime:       time.Since(w.startTime),

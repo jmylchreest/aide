@@ -2,15 +2,18 @@ package findings
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/jmylchreest/aide/aide/pkg/aideignore"
+	"github.com/jmylchreest/aide/aide/pkg/checkout"
 	"github.com/jmylchreest/aide/aide/pkg/code"
 	"github.com/jmylchreest/aide/aide/pkg/grammar"
 )
@@ -96,6 +99,7 @@ type Runner struct {
 	deadCodeRunner DeadCodeRunner
 	loader         grammar.Loader
 
+	scheduleMu    sync.Mutex // Serializes change batches, RunAll and deletion cleanup.
 	mu            sync.Mutex
 	runs          map[RunKey]*activeRun
 	status        map[string]*AnalyzerStatus
@@ -190,79 +194,147 @@ func (r *Runner) ignore() *aideignore.Matcher {
 	return r.defaultIgnore
 }
 
+// fileAnalysis shares one read across a file's source and secrets analyzers.
+// The content is loaded only after the job acquires the concurrency semaphore.
+type fileAnalysis struct {
+	path    string
+	maxSize int64
+	once    sync.Once
+	content []byte
+	err     error
+}
+
+func (f *fileAnalysis) read() ([]byte, error) {
+	f.once.Do(func() { f.content, f.err = readAnalysisFile(f.path, f.maxSize) })
+	return f.content, f.err
+}
+
+func analyzersForFile(path string) []string {
+	if code.SupportedFile(path) {
+		return perFileAnalyzers()
+	}
+	if !secretsSkipExtensions[strings.ToLower(filepath.Ext(path))] {
+		return []string{AnalyzerSecrets}
+	}
+	return nil
+}
+
 func (r *Runner) OnChanges(files map[string]fsnotify.Op) {
-	perFileAnalyzers := perFileAnalyzers()
-	projectAnalyzers := r.projectAnalyzers()
+	r.scheduleMu.Lock()
+	defer r.scheduleMu.Unlock()
+	if r.scheduleFiles(files) {
+		r.scheduleProjectAnalyzers()
+	}
+}
 
-	ignore := r.ignore()
-
-	hasChanges := false
+// scheduleFiles admits files by ignore policy, then selects applicable analyzers.
+// Non-source changes never trigger project-wide code analysis.
+func (r *Runner) scheduleFiles(files map[string]fsnotify.Op) bool {
+	type task struct {
+		file            *fileAnalysis
+		analyzer, scope string
+	}
+	var tasks []task
+	batch := &secretsBatch{}
+	sourceChanged := false
 	for file, op := range files {
-		if !code.SupportedFile(file) {
-			continue
+		if r.ctx.Err() != nil {
+			break
 		}
-
-		// Convert to relative path for aideignore matching (watcher sends absolute paths).
-		relFile := file
 		if r.config.ProjectRoot != "" {
-			if rel, err := filepath.Rel(r.config.ProjectRoot, file); err == nil {
-				relFile = rel
+			var err error
+			file, _, err = checkout.SourcePath(r.config.ProjectRoot, file)
+			if err != nil {
+				continue
 			}
 		}
-		if ignore.ShouldIgnoreFile(relFile) {
+		scope := toRelPath(r.config.ProjectRoot, file)
+		if r.ignore().ShouldIgnoreFile(scope) {
 			continue
 		}
-
-		hasChanges = true
-
-		// Normalise to cwd-relative so the RunKey scope, findings FilePath,
-		// and store replacement predicate all use the same format.
-		scopePath := toRelPath(r.config.ProjectRoot, file)
-
-		// When a file is deleted, clear its per-file findings instead of
-		// re-analysing (the file no longer exists on disk).
+		analyzers := analyzersForFile(file)
+		if len(analyzers) == 0 {
+			continue
+		}
+		if code.SupportedFile(file) {
+			sourceChanged = true
+		}
 		if op&fsnotify.Remove != 0 {
-			for _, analyzer := range perFileAnalyzers {
-				if err := r.store.ReplaceFindingsForAnalyzerAndFile(analyzer, scopePath, nil); err != nil {
-					runnerLog.Printf("%s on %s: failed to clear findings for deleted file: %v", analyzer, scopePath, err)
-				} else {
-					runnerLog.Printf("%s on %s: cleared findings (file deleted)", analyzer, scopePath)
+			for _, analyzer := range analyzers {
+				key := RunKey{Analyzer: analyzer, Scope: scope}
+				r.cancelRun(key)
+				if err := r.store.ReplaceFindingsForAnalyzerAndFile(analyzer, scope, nil); err != nil {
+					runnerLog.Printf("%s on %s: failed to clear deleted file: %v", analyzer, scope, err)
 				}
 			}
 			continue
 		}
-
-		for _, analyzer := range perFileAnalyzers {
-			key := RunKey{Analyzer: analyzer, Scope: scopePath}
-			r.runAnalyzer(key, func(ctx context.Context) ([]*Finding, error) {
-				return r.runPerFileAnalyzer(ctx, analyzer, file)
-			})
+		input := &fileAnalysis{path: file}
+		if !code.SupportedFile(file) {
+			input.maxSize = DefaultRunnerSecretsMaxFileSize
+		}
+		for _, analyzer := range analyzers {
+			tasks = append(tasks, task{input, analyzer, scope})
+			if analyzer == AnalyzerSecrets {
+				batch.remaining++
+			}
 		}
 	}
-
-	// Project-wide analyzers only need to run when files actually changed
-	// (including deletions — e.g. coupling/clone data may have changed).
-	if !hasChanges {
-		return
+	for _, task := range tasks {
+		var cleanup func()
+		if task.analyzer == AnalyzerSecrets {
+			cleanup = batch.release
+		}
+		r.runAnalyzerWithCleanup(RunKey{Analyzer: task.analyzer, Scope: task.scope}, func(ctx context.Context) ([]*Finding, error) {
+			return r.runPerFileAnalyzer(ctx, task.analyzer, task.file, batch)
+		}, cleanup)
 	}
+	return sourceChanged
+}
 
-	for _, analyzer := range projectAnalyzers {
-		key := RunKey{Analyzer: analyzer, Scope: ScopeProject}
-		r.runAnalyzer(key, func(ctx context.Context) ([]*Finding, error) {
+func (r *Runner) scheduleProjectAnalyzers() {
+	for _, analyzer := range r.projectAnalyzers() {
+		r.runAnalyzer(RunKey{Analyzer: analyzer, Scope: ScopeProject}, func(ctx context.Context) ([]*Finding, error) {
 			return r.runProjectAnalyzer(ctx, analyzer)
 		})
 	}
 }
 
-func (r *Runner) runAnalyzer(key RunKey, run func(ctx context.Context) ([]*Finding, error)) {
+// Wait for the cancelled run to finish committing before clearing its findings.
+func (r *Runner) cancelRun(key RunKey) {
 	r.mu.Lock()
+	run := r.runs[key]
+	if run != nil {
+		run.cancel()
+	}
+	r.mu.Unlock()
+	if run != nil {
+		<-run.done
+	}
+}
 
-	if existing, ok := r.runs[key]; ok {
+func (r *Runner) runAnalyzer(key RunKey, run func(ctx context.Context) ([]*Finding, error)) {
+	r.runAnalyzerWithCleanup(key, run, nil)
+}
+
+func (r *Runner) runAnalyzerWithCleanup(key RunKey, run func(ctx context.Context) ([]*Finding, error), cleanup func()) {
+	r.mu.Lock()
+	for {
+		existing := r.runs[key]
+		if existing == nil {
+			break
+		}
 		existing.cancel()
-		runnerLog.Printf("%s on %s: cancelled existing run", key.Analyzer, key.Scope)
 		r.mu.Unlock()
 		<-existing.done
 		r.mu.Lock()
+	}
+	if r.ctx.Err() != nil {
+		r.mu.Unlock()
+		if cleanup != nil {
+			cleanup()
+		}
+		return
 	}
 
 	ctx, cancel := context.WithCancel(r.ctx)
@@ -278,12 +350,15 @@ func (r *Runner) runAnalyzer(key RunKey, run func(ctx context.Context) ([]*Findi
 
 	r.updateStatusLocked(key.Analyzer, key.Scope, "running", 0, 0, "")
 
+	r.wg.Add(1)
 	r.mu.Unlock()
 
-	r.wg.Add(1)
 	go func() {
 		defer close(done)
 		defer r.wg.Done()
+		if cleanup != nil {
+			defer cleanup()
+		}
 		defer func() {
 			r.mu.Lock()
 			if current, ok := r.runs[key]; ok && current.id == runID {
@@ -337,25 +412,38 @@ func (r *Runner) runAnalyzer(key RunKey, run func(ctx context.Context) ([]*Findi
 	}()
 }
 
-func (r *Runner) runPerFileAnalyzer(ctx context.Context, analyzer string, file string) ([]*Finding, error) {
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	default:
+func (r *Runner) runPerFileAnalyzer(ctx context.Context, analyzer string, input *fileAnalysis, batch *secretsBatch) ([]*Finding, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
-
-	content, err := os.ReadFile(file)
+	if analyzer == AnalyzerSecrets {
+		info, err := os.Lstat(input.path)
+		if err != nil {
+			return nil, err
+		}
+		if !secretsEligible(input.path, info, DefaultRunnerSecretsMaxFileSize) {
+			return nil, nil
+		}
+	}
+	content, err := input.read()
+	if errors.Is(err, errAnalysisSkipped) {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, fmt.Errorf("read file: %w", err)
 	}
-
-	relPath := toRelPath(r.config.ProjectRoot, file)
-
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	relPath := toRelPath(r.config.ProjectRoot, input.path)
 	switch analyzer {
 	case AnalyzerComplexity:
 		return r.analyzeFileComplexity(ctx, relPath, content)
 	case AnalyzerSecrets:
-		return r.analyzeFileSecrets(ctx, relPath, content)
+		if int64(len(content)) > DefaultRunnerSecretsMaxFileSize {
+			return nil, nil
+		}
+		return batch.scan(ctx, content, relPath)
 	case AnalyzerSecurity:
 		return r.analyzeFileSecurity(ctx, relPath, content)
 	case AnalyzerTodos:
@@ -374,7 +462,21 @@ func (r *Runner) runProjectAnalyzer(ctx context.Context, analyzer string) ([]*Fi
 
 	paths := r.config.Paths
 	if len(paths) == 0 {
-		paths = []string{"."}
+		paths = []string{r.config.ProjectRoot}
+		if paths[0] == "" {
+			paths[0] = "."
+		}
+	}
+	if r.config.ProjectRoot != "" {
+		resolved := make([]string, 0, len(paths))
+		for _, path := range paths {
+			abs, _, err := checkout.SourcePath(r.config.ProjectRoot, path)
+			if err != nil {
+				return nil, err
+			}
+			resolved = append(resolved, abs)
+		}
+		paths = resolved
 	}
 
 	switch analyzer {
@@ -454,23 +556,6 @@ func (r *Runner) analyzeFileComplexity(ctx context.Context, filePath string, con
 	return analyzeFileComplexity(ctx, r.loader, content, filePath, lang, langCfg, threshold), nil
 }
 
-func (r *Runner) analyzeFileSecrets(ctx context.Context, filePath string, _ []byte) ([]*Finding, error) {
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	default:
-	}
-
-	cfg := SecretsConfig{
-		Paths:          []string{filePath},
-		SkipValidation: true,
-		MaxFileSize:    DefaultRunnerSecretsMaxFileSize,
-	}
-
-	findings, _, err := AnalyzeSecrets(cfg)
-	return findings, err
-}
-
 func (r *Runner) analyzeFileSecurity(ctx context.Context, filePath string, content []byte) ([]*Finding, error) {
 	select {
 	case <-ctx.Done():
@@ -520,11 +605,14 @@ func (r *Runner) WaitAll() {
 
 func (r *Runner) Stop() {
 	r.cancel()
+	r.scheduleMu.Lock()
+	// Start the waiter only after in-flight scheduling has finished adding jobs.
 	done := make(chan struct{})
 	go func() {
 		r.wg.Wait()
 		close(done)
 	}()
+	r.scheduleMu.Unlock()
 
 	select {
 	case <-done:
@@ -533,45 +621,50 @@ func (r *Runner) Stop() {
 	}
 }
 
-// RunAll schedules analysis of all supported files in the configured paths.
-// Per-file analysers are launched per file, project-wide analysers once. All
-// run asynchronously via runAnalyzer — use WaitAll() to block until
-// completion, or Stop() to cancel and drain.
+// RunAll uses the same applicability and ignore policy as incremental changes.
+// Jobs remain asynchronous; WaitAll drains them and releases batch resources.
 func (r *Runner) RunAll(ctx context.Context) error {
+	r.scheduleMu.Lock()
+	defer r.scheduleMu.Unlock()
 	paths := r.config.Paths
 	if len(paths) == 0 {
-		paths = []string{"."}
+		paths = []string{r.config.ProjectRoot}
+		if paths[0] == "" {
+			paths[0] = "."
+		}
 	}
-
-	ignore := r.ignore()
-
+	files := make(map[string]fsnotify.Op)
 	for _, root := range paths {
-		absRoot, _ := filepath.Abs(root)
-		shouldSkip := ignore.WalkFunc(absRoot)
-
+		if r.config.ProjectRoot != "" {
+			var err error
+			root, _, err = checkout.SourcePath(r.config.ProjectRoot, root)
+			if err != nil {
+				return err
+			}
+		}
+		ignoreRoot := r.config.ProjectRoot
+		if ignoreRoot == "" {
+			ignoreRoot, _ = filepath.Abs(root)
+		}
+		shouldSkip := r.ignore().WalkFunc(ignoreRoot)
 		err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			if r.ctx.Err() != nil {
+				return r.ctx.Err()
+			}
 			if err != nil {
 				return nil
 			}
-			if skip, skipDir := shouldSkip(path, info); skip {
-				if skipDir {
+			if skip, dir := shouldSkip(path, info); skip {
+				if dir {
 					return filepath.SkipDir
 				}
 				return nil
 			}
-			if info.IsDir() {
-				return nil
-			}
-			if !code.SupportedFile(path) {
-				return nil
-			}
-
-			scopePath := toRelPath(r.config.ProjectRoot, path)
-			for _, analyzer := range perFileAnalyzers() {
-				key := RunKey{Analyzer: analyzer, Scope: scopePath}
-				r.runAnalyzer(key, func(ctx context.Context) ([]*Finding, error) {
-					return r.runPerFileAnalyzer(ctx, analyzer, path)
-				})
+			if info.Mode().IsRegular() && len(analyzersForFile(path)) > 0 {
+				files[path] = fsnotify.Write
 			}
 			return nil
 		})
@@ -579,13 +672,7 @@ func (r *Runner) RunAll(ctx context.Context) error {
 			return err
 		}
 	}
-
-	for _, analyzer := range r.projectAnalyzers() {
-		key := RunKey{Analyzer: analyzer, Scope: ScopeProject}
-		r.runAnalyzer(key, func(ctx context.Context) ([]*Finding, error) {
-			return r.runProjectAnalyzer(ctx, analyzer)
-		})
-	}
-
+	r.scheduleFiles(files)
+	r.scheduleProjectAnalyzers()
 	return nil
 }

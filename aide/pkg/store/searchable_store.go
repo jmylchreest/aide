@@ -547,18 +547,39 @@ func (s *searchableStore[T]) replace(shouldDelete func(*T) bool, newItems []*T) 
 		return err
 	}
 
-	// Apply Bleve mutations outside the BBolt tx for atomicity.
+	// Commit search mutations in bounded batches. Indexing every record alone
+	// repeatedly builds FST segments and merge buffers for a single replacement.
+	const batchSize = 128
+	batch := s.idx.NewBatch()
+	flush := func() error {
+		if batch.Size() == 0 {
+			return nil
+		}
+		if err := s.idx.Batch(batch); err != nil {
+			return err
+		}
+		batch = s.idx.NewBatch()
+		return nil
+	}
 	for _, id := range deleteIDs {
-		if err := s.idx.Delete(id); err != nil {
-			log.Printf("store: warning: failed to delete %s %s from search index: %v", s.cfg.StoreName, id, err)
+		batch.Delete(id)
+		if batch.Size() >= batchSize {
+			if err := flush(); err != nil {
+				return err
+			}
 		}
 	}
 	for _, p := range puts {
-		if err := s.idx.Index(p.id, p.doc); err != nil {
+		if err := batch.Index(p.id, p.doc); err != nil {
 			return err
 		}
+		if batch.Size() >= batchSize {
+			if err := flush(); err != nil {
+				return err
+			}
+		}
 	}
-	return nil
+	return flush()
 }
 
 // Clear removes all entities by deleting and recreating the BoltDB bucket

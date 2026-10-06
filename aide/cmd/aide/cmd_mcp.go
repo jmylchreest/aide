@@ -658,7 +658,6 @@ func (s *MCPServer) startCodeWatcher(dbPath string, cfg *mcpConfig) {
 			Paths:         watchPaths,
 			ProjectRoot:   projectRoot,
 			DebounceDelay: debounceDelay,
-			FileFilter:    code.SupportedFile,
 			Ignore:        ignore,
 		}, handlers...)
 		if err != nil {
@@ -709,6 +708,9 @@ type codeIndexHandler struct {
 
 func (h *codeIndexHandler) OnChanges(files map[string]fsnotify.Op) {
 	for path, op := range files {
+		if !code.SupportedFile(path) {
+			continue
+		}
 		if watcher.IsRemove(op) {
 			if err := h.indexer.RemoveFile(path); err != nil {
 				mcpLog.Printf("failed to remove %s: %v", path, err)

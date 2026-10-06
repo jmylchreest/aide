@@ -14,7 +14,8 @@ type CloneIndex struct {
 	// MaxBucketSize caps the number of locations per hash bucket.
 	// Hashes appearing in more locations than this are considered
 	// "too common" (boilerplate) and are excluded from clone detection.
-	// Zero means unlimited (no cap).
+	// Zero means unlimited (no cap). Set this before adding files: overflowing
+	// buckets discard their locations immediately instead of retaining boilerplate.
 	MaxBucketSize int
 
 	// tokenStore holds per-file token sequences for post-hash verification.
@@ -45,6 +46,16 @@ func (idx *CloneIndex) AddFile(filePath string, hashes []HashEntry, lang string,
 	defer idx.mu.Unlock()
 
 	for _, h := range hashes {
+		locs, exists := idx.entries[h.Hash]
+		if idx.MaxBucketSize > 0 {
+			if exists && locs == nil {
+				continue
+			} // Already over the cap.
+			if len(locs) >= idx.MaxBucketSize {
+				idx.entries[h.Hash] = nil // Retain the hash for skipped-bucket stats.
+				continue
+			}
+		}
 		loc := Location{
 			FilePath:  filePath,
 			Lang:      lang,
@@ -52,7 +63,7 @@ func (idx *CloneIndex) AddFile(filePath string, hashes []HashEntry, lang string,
 			StartLine: h.StartLine,
 			EndLine:   h.EndLine,
 		}
-		idx.entries[h.Hash] = append(idx.entries[h.Hash], loc)
+		idx.entries[h.Hash] = append(locs, loc)
 	}
 
 	// Store tokens for verification.
@@ -80,8 +91,11 @@ func (idx *CloneIndex) ClonePairs(windowSize int, languageIsolation bool) CloneP
 
 	for hash, locs := range idx.entries {
 		// Cap: skip overly common hash buckets (boilerplate).
-		if idx.MaxBucketSize > 0 && len(locs) > idx.MaxBucketSize {
+		if idx.MaxBucketSize > 0 && (locs == nil || len(locs) > idx.MaxBucketSize) {
 			bucketsSkipped++
+			continue
+		}
+		if len(locs) < 2 {
 			continue
 		}
 

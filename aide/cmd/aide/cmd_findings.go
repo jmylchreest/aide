@@ -348,6 +348,7 @@ func runSecretsAnalyzer(backend *Backend, paths []string, ignore *aideignore.Mat
 
 	cfg := findings.SecretsConfig{
 		Paths:          paths,
+		ProjectRoot:    store.CheckoutRoot(backend.dbPath),
 		SkipValidation: true,
 		Ignore:         ignore,
 	}

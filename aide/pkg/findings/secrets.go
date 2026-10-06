@@ -1,11 +1,15 @@
 package findings
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jmylchreest/aide/aide/pkg/aideignore"
@@ -16,6 +20,8 @@ import (
 type SecretsConfig struct {
 	// Paths to scan (default: current directory).
 	Paths []string
+	// ProjectRoot anchors ignore matching and finding paths when scanning individual files.
+	ProjectRoot string
 	// SkipValidation disables live credential validation (default true — no network calls).
 	SkipValidation bool
 	// MaxFileSize is the maximum file size in bytes to scan (default 1MB).
@@ -105,7 +111,11 @@ func AnalyzeSecrets(cfg SecretsConfig) ([]*Finding, *SecretsResult, error) {
 		if err != nil {
 			return nil, nil, fmt.Errorf("abs path %s: %w", root, err)
 		}
-		shouldSkip := ignore.WalkFunc(absRoot)
+		ignoreRoot := cfg.ProjectRoot
+		if ignoreRoot == "" {
+			ignoreRoot = absRoot
+		}
+		shouldSkip := ignore.WalkFunc(ignoreRoot)
 
 		err = filepath.Walk(root, func(path string, info os.FileInfo, walkErr error) error {
 			if walkErr != nil {
@@ -124,76 +134,33 @@ func AnalyzeSecrets(cfg SecretsConfig) ([]*Finding, *SecretsResult, error) {
 				return nil
 			}
 
-			// Skip by extension.
-			ext := strings.ToLower(filepath.Ext(path))
-			if secretsSkipExtensions[ext] {
+			if !secretsEligible(path, info, maxSize) {
 				result.FilesSkipped++
 				return nil
 			}
-
-			// Skip files exceeding size limit.
-			if info.Size() > maxSize {
+			content, readErr := readAnalysisFile(path, maxSize)
+			if readErr != nil {
 				result.FilesSkipped++
 				return nil
 			}
-
-			// Note: symlink check removed — filepath.Walk follows symlinks
-			// transparently, so info.Mode()&os.ModeSymlink is never true.
-
-			// Scan file.
-			matches, scanErr := scanner.ScanFile(path)
+			matches, scanErr := scanner.ScanBytes(content)
 			if scanErr != nil {
-				// Non-fatal — skip files that fail to scan.
 				result.FilesSkipped++
 				return nil
 			}
 
 			result.FilesScanned++
 
-			relPath, _ := filepath.Rel(".", path)
+			pathRoot := cfg.ProjectRoot
+			if pathRoot == "" {
+				pathRoot, _ = os.Getwd()
+			}
+			relPath := toRelPath(pathRoot, path)
 			if relPath == "" {
 				relPath = path
 			}
 
-			for _, match := range matches {
-				line := 0
-				if match.Location.Source.Start.Line > 0 {
-					line = match.Location.Source.Start.Line
-				}
-
-				severity := SevWarning
-				// Elevated severity for validated active secrets.
-				if match.ValidationResult != nil && match.ValidationResult.Status == titus.StatusValid {
-					severity = SevCritical
-				}
-
-				category := categorizeSecretRule(match.RuleID)
-
-				metadata := map[string]string{
-					"rule_id":   match.RuleID,
-					"rule_name": match.RuleName,
-				}
-				if match.ValidationResult != nil {
-					metadata["validation"] = string(match.ValidationResult.Status)
-				}
-				if line > 0 {
-					metadata["line"] = strconv.Itoa(line)
-				}
-
-				f := &Finding{
-					Analyzer:  AnalyzerSecrets,
-					Severity:  severity,
-					Category:  category,
-					FilePath:  relPath,
-					Line:      line,
-					Title:     fmt.Sprintf("Potential secret: %s", match.RuleName),
-					Detail:    buildSecretDetail(match, relPath),
-					Metadata:  metadata,
-					CreatedAt: time.Now(),
-				}
-
-				allFindings = append(allFindings, f)
-			}
+			allFindings = append(allFindings, secretFindings(matches, relPath)...)
 
 			if cfg.ProgressFn != nil {
 				cfg.ProgressFn(relPath, len(matches))
@@ -210,6 +177,131 @@ func AnalyzeSecrets(cfg SecretsConfig) ([]*Finding, *SecretsResult, error) {
 	result.Duration = time.Since(start)
 
 	return allFindings, result, nil
+}
+
+// secretsEligible is shared by standalone and incremental analysis. It deliberately
+// preserves the existing extension exclusions; relevance is independent of grammars.
+func secretsEligible(path string, info os.FileInfo, maxSize int64) bool {
+	return info != nil && info.Mode().IsRegular() && info.Size() <= maxSize &&
+		!secretsSkipExtensions[strings.ToLower(filepath.Ext(path))]
+}
+
+var errAnalysisSkipped = errors.New("file is not a regular file or exceeds analysis limit")
+
+// readAnalysisFile bounds allocation even if a file grows after the stat check.
+// Symlinks and special files are skipped rather than followed or blocked on.
+func readAnalysisFile(path string, maxSize int64) ([]byte, error) {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return nil, err
+	}
+	if !info.Mode().IsRegular() || (maxSize > 0 && info.Size() > maxSize) {
+		return nil, errAnalysisSkipped
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	info, err = f.Stat()
+	if err != nil {
+		return nil, err
+	}
+	if !info.Mode().IsRegular() || (maxSize > 0 && info.Size() > maxSize) {
+		return nil, errAnalysisSkipped
+	}
+	var reader io.Reader = f
+	if maxSize > 0 {
+		reader = io.LimitReader(f, maxSize+1)
+	}
+	content, err := io.ReadAll(reader)
+	if maxSize > 0 && int64(len(content)) > maxSize {
+		return nil, errAnalysisSkipped
+	}
+	return content, err
+}
+
+func secretFindings(matches []*titus.Match, relPath string) []*Finding {
+	findings := make([]*Finding, 0, len(matches))
+	for _, match := range matches {
+		line := 0
+		if match.Location.Source.Start.Line > 0 {
+			line = match.Location.Source.Start.Line
+		}
+
+		severity := SevWarning
+		// Elevated severity for validated active secrets.
+		if match.ValidationResult != nil && match.ValidationResult.Status == titus.StatusValid {
+			severity = SevCritical
+		}
+
+		category := categorizeSecretRule(match.RuleID)
+
+		metadata := map[string]string{
+			"rule_id":   match.RuleID,
+			"rule_name": match.RuleName,
+		}
+		if match.ValidationResult != nil {
+			metadata["validation"] = string(match.ValidationResult.Status)
+		}
+		if line > 0 {
+			metadata["line"] = strconv.Itoa(line)
+		}
+
+		f := &Finding{
+			Analyzer:  AnalyzerSecrets,
+			Severity:  severity,
+			Category:  category,
+			FilePath:  relPath,
+			Line:      line,
+			Title:     fmt.Sprintf("Potential secret: %s", match.RuleName),
+			Detail:    buildSecretDetail(match, relPath),
+			Metadata:  metadata,
+			CreatedAt: time.Now(),
+		}
+
+		findings = append(findings, f)
+	}
+	return findings
+}
+
+// secretsBatch owns one lazy scanner for a batch, and releases it after every
+// scheduled secrets task has finished (including cancellation before execution).
+// Serial matching keeps scanner working memory bounded independently of file count.
+type secretsBatch struct {
+	mu        sync.Mutex
+	remaining int
+	scanner   *titus.Scanner
+}
+
+func (b *secretsBatch) scan(ctx context.Context, content []byte, path string) ([]*Finding, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if b.scanner == nil {
+		var err error
+		b.scanner, err = titus.NewScanner()
+		if err != nil {
+			return nil, fmt.Errorf("create secrets scanner: %w", err)
+		}
+	}
+	matches, err := b.scanner.ScanBytesWithContext(ctx, content)
+	if err != nil {
+		return nil, err
+	}
+	return secretFindings(matches, path), nil
+}
+
+func (b *secretsBatch) release() {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.remaining--
+	if b.remaining == 0 && b.scanner != nil {
+		_ = b.scanner.Close()
+		b.scanner = nil
+	}
 }
 
 // categorizeSecretRule maps a Titus rule ID prefix to a human-readable category.
