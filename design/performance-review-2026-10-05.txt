@@ -155,3 +155,138 @@ memory only, not native/mapped memory or total RSS. One run is insufficient to
 choose a product default. Keep it an optional deployment experiment and compare
 CPU/latency and representative larger repositories before enabling globally.
 Evidence: /tmp/aide-perf-memory-limit/.
+
+Broader codebase review — follow-up
+
+Scope: reviewed the main daemon, plugin and web execution paths below, with
+existing Go benchmarks run across pkg/... and repeated expensive cases. This is
+a cross-subsystem performance review, not a claim that every line, platform or
+browser interaction has been profiled. Timing figures are local synthetic
+benchmarks; the original separate-repository daemon profiles remain the RSS evidence.
+
+Coverage and evidence
+- Watcher/findings: original pprof, scanner/read sharing and project scheduling;
+  cancellation and large-source-file reads remain priorities from the first review.
+- Parser/grammar: code parser benchmark, loader language/negative caches, native
+  tree lifetimes. Language caches are intentional; process-native allocation
+  profiling and worker-count experiments are still needed for RSS attribution.
+- Code index/store: checkout cold, bulk, seeded, unchanged and query benchmarks;
+  codeindex.Run already batches 32 files or 8 MiB and honors cancellation.
+  Cold indexing is much more expensive than unchanged reconciliation; avoid
+  gratuitous startup rebuilds. Seeded indexing still builds the local search index.
+- Memory/search: SearchMemories and ListMemories benchmarks, combined store
+  hydration and search analyzers. Repeated scored search over 400 memories costs
+  about 0.51 MB and 2.6 ms per request. Initial ~7 MB single-shot search was a
+  cold/background-merge effect, not representative steady-state evidence.
+  ListMemories previously scanned/decode-all and sliced after filtering. The
+  follow-up now stops after collecting the requested matching rows, retaining
+  the original Bolt key order, filters and zero/negative unlimited behavior.
+- Observe/token telemetry: ListObserveEvents, ListTokenEvents and TokenStats
+  cursor passes, attribution and model-usage dedup. New history-growth benchmarks
+  show real scaling costs even with small requested pages (see below).
+- Event fanout/gRPC streaming: broadcaster, streaming server callers and web SSE
+  forwarding. Reproduced and fixed a live-parent cancellation-goroutine leak and
+  a send-versus-channel-close race. Existing stream buffers and context cancellation
+  paths were inspected; drop policy and store reconciliation remain unchanged.
+- MCP response observation: cmd_mcp middleware counts returned TextContent bytes
+  rather than serializing an entire response a second time. Large responses still
+  create strings/transport buffers; use caller result limits where meaningful.
+- Survey: git history/freshness, module graph and call-graph paths plus benchmarks.
+  Commit walks cap at 500; graph traversal caps nodes/depth; module symbol lookups
+  cache definers within the run. Expensive git diff/blame work is explicit survey
+  work, not a permanent watcher task. No new shortcut that breaks go-git portability.
+- Context sharing/subscriptions: export/import and subscription sync paths.
+  Exports intentionally enumerate records, and writers skip identical file content.
+  Subscription freshness uses timestamps and stale-cache fallback; preserve the
+  existing project/decision isolation rather than share arbitrary process caches.
+- Plugin hooks: aide-client, tool-observe, session-init and model-usage.
+  Repeated execFileSync calls spawn clients and block hooks. Benchmark a whole
+  tool-call hook with a live daemon before replacing the portable CLI boundary
+  with a long-lived/batched transport. Current adapter usage batches already
+  avoid one subprocess per usage row; transcript tails and dedup caches are bounded.
+- Context pruning: tracker and dedup. History is capped at 200 records but retains
+  original/pruned outputs with no aggregate byte budget. Count limits alone do not
+  protect RSS from a few huge outputs; add a byte budget preserving dedup/recovery
+  semantics, and measure long OpenCode sessions. Not quantified in this review.
+- Web server/UI: instance health loops, SSE forwarding, APIReadFile, useApi,
+  useObserveEvents and event batching. Observe buffers are capped (default 1,000)
+  and updates batched. APIReadFile reads the entire file before enforcing its 500 KiB
+  response cap: precheck regular-file size and use a bounded read to control request
+  memory. useApi does not abort obsolete requests; rapid filter changes can leave
+  unnecessary requests in flight. Browser heap/render profiling was not performed.
+- Instinct/reflection: runner and catalogue event processing. Output limits do not
+  bound the input event histories; improve store query paths first, then profile
+  catalogue parsers with realistic cross-session histories. No LLM-only parser was
+  enabled merely for a performance experiment.
+
+Measured telemetry scaling (three repetitions, three iterations each)
+History               ListObserveEvents(limit=200)       TokenStats
+1,000 events          0.63 MB / 1.4–2.2 ms               1.66–1.67 MB / 4.0–4.8 ms
+10,000 events         6.40 MB / 16.0–16.5 ms              16.76–16.77 MB / 42.3–43.0 ms
+TokenStats scans/decodes history twice, and a third time when retrieval windows
+require context. Session/date filters are applied late because attribution,
+usage conflict handling and retrieval context depend on related evidence.
+Do not simply break an ID-ordered cursor: timestamps can be backfilled and differ
+from IDs. Prefer timestamp/session indexes with migration/rebuild support and
+bounded top-k selection for pages. Preserve cross-window conflicts, delegation,
+attribution and dedup semantics in aggregation changes. These are the most
+significant newly measured opportunities for projects with long event histories.
+
+Implemented subscription lifecycle fix
+context.AfterFunc replaces one waiting goroutine per subscription; manual unsubscribe
+stops its callback registration even while the parent context remains live.
+Per-subscription send/close synchronization prevents a snapshotted publisher from
+sending after unsubscribe closes the channel. Filters run outside that lock so a
+filter can unsubscribe safely.
+Both regression tests fail on the old implementation: 100 unsubscribed streams
+retain 100 goroutines, and unsubscribe during a paused filter produces a recovered
+send-on-closed-channel panic. Both pass after the fix.
+For 1,000 subscribe/unsubscribe operations, the benchmark reports 1,000 retained
+goroutines before and zero after. Allocation/latency results for churn varied;
+no general allocation reduction is claimed. The safety lock increases single-
+subscriber publishing from ~137–138 ns to ~151–157 ns and median 128-subscriber
+publishing from ~5.7 microseconds to ~6.4 microseconds. This tradeoff removes an actual
+panic and retained idle goroutines; transport I/O is not represented by this microbench.
+
+Priorities after current PRs
+1. Timestamp/session indexes plus bounded telemetry page selection, preserving
+   event-time semantics; eliminate unnecessary full-history token aggregations.
+2. Analyzer/file secondary lookup for findings replacements (earlier review).
+3. Real cancellation in clones/dead-code and measured native parser concurrency.
+4. Aggregate byte budget for persistent plugin pruning history; measure hook
+   subprocess cost before changing transport.
+5. Bounded API file reads and aborting superseded frontend requests.
+6. Streaming stats aggregation and bounded memory-search reindex batches.
+
+Validation for follow-up changes
+Full aide suite and Go lint; race runs for eventbus, grpcapi and store. The new
+benchmarks use temporary isolated stores, never production data. The broader review
+adds no schema change, dependencies or global memory tuning. Cross-platform APIs
+are preserved; Linux only was executed. Original decision conformance above still
+applies; context.AfterFunc and mutexes are portable runtime code and preserve the
+existing shared broadcaster API and store/project boundaries.
+
+Additional evidence artifacts
+/tmp/aide-comprehensive-benchmarks.txt (single-iteration coverage sweep)
+/tmp/aide-comprehensive-repeat.txt (repeated expensive existing benchmarks)
+/tmp/aide-telemetry-history-bench.txt
+/tmp/aide-eventbus-regression-before.txt
+/tmp/aide-eventbus-{before,after}.txt
+/tmp/aide-eventbus-publish-{before,after}.txt
+/tmp/aide-eventbus-race-after.txt
+/tmp/aide-comprehensive-final-tests.txt
+/tmp/aide-comprehensive-final-lint.txt
+
+Measured memory-page improvement
+The existing combined-store list benchmark was noisy because background Bleve
+merges continued during measurement. Added a pure Bolt benchmark to isolate the
+list iteration. Three repetitions of 10 iterations, requesting 50 matching rows:
+400 memories: approximately 107 KB -> 14.2 KB allocated per request.
+4,000 memories: approximately 1.07 MB -> 14.3 KB allocated per request (98.7% less);
+4.1–4.7 ms -> 53–81 microseconds. No score ranking or ordering change is introduced.
+The cursor stops only after all category/plan/tag/exclusion filters pass for the
+requested number of records. Zero and negative limits remain unlimited; IncludeAll
+continues to bypass exclusion tags. Regression tests explicitly cover those rules.
+This bounds retained page records, but selective filters can still scan many rows;
+secondary indexes remain a separate future improvement.
+Evidence: /tmp/aide-memory-page-{before,after}.txt and /tmp/aide-memory-page-race.txt.

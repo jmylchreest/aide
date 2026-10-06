@@ -23,6 +23,7 @@ type Broadcaster[T any] struct {
 }
 
 type subscription[T any] struct {
+	mu      sync.RWMutex // Protects sends against concurrent channel closure.
 	ch      chan T
 	filter  func(T) bool
 	closed  atomic.Bool
@@ -70,20 +71,25 @@ func (b *Broadcaster[T]) Subscribe(ctx context.Context, filter func(T) bool) (<-
 			b.mu.Lock()
 			delete(b.subs, id)
 			b.mu.Unlock()
+			sub.mu.Lock()
+			defer sub.mu.Unlock()
 			if sub.closed.CompareAndSwap(false, true) {
 				close(sub.ch)
 			}
 		})
 	}
 
+	// Register cancellation without retaining an idle goroutine. Explicit
+	// unsubscribe also detaches the callback from a still-live parent context.
+	stop := func() bool { return false }
 	if ctx != nil {
-		go func() {
-			<-ctx.Done()
-			unsub()
-		}()
+		stop = context.AfterFunc(ctx, unsub)
 	}
 
-	return sub.ch, unsub
+	return sub.ch, func() {
+		stop()
+		unsub()
+	}
 }
 
 // Publish fans event out to all matching subscribers. Non-blocking per
@@ -106,6 +112,13 @@ func (b *Broadcaster[T]) Publish(event T) {
 		if s.filter != nil && !s.filter(event) {
 			continue
 		}
+		// A snapshot can outlive unsubscribe, including during filter evaluation.
+		// Keep filters outside this lock so they can safely unsubscribe themselves.
+		s.mu.RLock()
+		if s.closed.Load() {
+			s.mu.RUnlock()
+			continue
+		}
 		for {
 			select {
 			case s.ch <- event:
@@ -122,6 +135,7 @@ func (b *Broadcaster[T]) Publish(event T) {
 			}
 		}
 	next:
+		s.mu.RUnlock()
 	}
 }
 
