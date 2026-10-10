@@ -1,6 +1,6 @@
 {
   "name": "@jmylchreest/aide-binary-linux-amd64",
-  "version": "0.1.17",
+  "version": "0.1.18",
   "description": "Bundled aide binary for linux/x64. Companion to @jmylchreest/aide-plugin.",
   "license": "MIT",
   "os": [

@@ -25,31 +25,31 @@
     },
     "packages/aide-binary-darwin-amd64": {
       "name": "@jmylchreest/aide-binary-darwin-amd64",
-      "version": "0.1.17",
+      "version": "0.1.18",
     },
     "packages/aide-binary-darwin-arm64": {
       "name": "@jmylchreest/aide-binary-darwin-arm64",
-      "version": "0.1.17",
+      "version": "0.1.18",
     },
     "packages/aide-binary-linux-amd64": {
       "name": "@jmylchreest/aide-binary-linux-amd64",
-      "version": "0.1.17",
+      "version": "0.1.18",
     },
     "packages/aide-binary-linux-arm64": {
       "name": "@jmylchreest/aide-binary-linux-arm64",
-      "version": "0.1.17",
+      "version": "0.1.18",
     },
     "packages/aide-binary-windows-amd64": {
       "name": "@jmylchreest/aide-binary-windows-amd64",
-      "version": "0.1.17",
+      "version": "0.1.18",
     },
     "packages/aide-binary-windows-arm64": {
       "name": "@jmylchreest/aide-binary-windows-arm64",
-      "version": "0.1.17",
+      "version": "0.1.18",
     },
     "packages/opencode-plugin": {
       "name": "@jmylchreest/aide-plugin",
-      "version": "0.1.17",
+      "version": "0.1.18",
       "bin": {
         "aide-plugin": "./src/cli/index.ts",
         "aide-wrapper": "./bin/aide-wrapper.ts",
