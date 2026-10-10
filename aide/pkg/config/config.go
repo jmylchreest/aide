@@ -54,6 +54,7 @@ type Config struct {
 	Reflect     ReflectConfig     `koanf:"reflect"`
 	Cleanup     CleanupConfig     `koanf:"cleanup"`
 	Maintenance MaintenanceConfig `koanf:"maintenance"`
+	Blueprints  BlueprintsConfig  `koanf:"blueprints"`
 
 	// Subscriptions are remote or local context trees this project reads
 	// decisions from (never memories — see the memory-isolation decision).
@@ -62,6 +63,12 @@ type Config struct {
 	Subscriptions []SubscriptionConfig `koanf:"subscriptions"`
 
 	Hud HudConfig `koanf:"hud"`
+}
+
+// BlueprintsConfig supplies fallback registries for named blueprint resolution.
+// Project lists replace global lists; an empty list disables inherited registries.
+type BlueprintsConfig struct {
+	Registries []string `koanf:"registries"`
 }
 
 // HudConfig shapes the statusline the plugin's aide-hud script renders.
