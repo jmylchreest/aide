@@ -100,6 +100,7 @@ aide message ack <id> --agent=executor-1
 ```bash
 aide state set mode autopilot
 aide state set mode eco --agent=worker-1
+aide state init-bounded pending '{}' --agent=usage-queue --max-agent-entries=32 --json
 aide state get mode --agent=worker-1
 aide state list
 aide state clear --agent=worker-1
@@ -108,9 +109,16 @@ aide state clear --agent=worker-1
 | Command       | Description                             |
 | ------------- | --------------------------------------- |
 | `state set`   | Set a state value (global or per-agent) |
+| `state init-bounded` | Create absent state atomically within a per-agent entry limit |
 | `state get`   | Get a state value                       |
 | `state list`  | List all state entries                  |
 | `state clear` | Clear state for an agent                |
+
+`state init-bounded` requires `--agent` and `--max-agent-entries` (1–4096).
+An existing key in that namespace is returned unchanged, even at capacity;
+creating another key at capacity fails. The lookup, count, and insertion share
+one transaction. Older daemons reject this operation without falling back to
+an unbounded write.
 
 ## Code
 

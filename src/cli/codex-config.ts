@@ -186,6 +186,11 @@ export function generateHooksJson(hookPrefix: string): CodexHooksJson {
               timeout: 60,
               statusMessage: "Initializing aide session",
             },
+            {
+              type: "command",
+              command: `${hookPrefix} usage-catchup`,
+              timeout: 3,
+            },
           ],
         },
       ],
@@ -235,6 +240,11 @@ export function generateHooksJson(hookPrefix: string): CodexHooksJson {
               command: `${hookPrefix} skill-injector`,
               timeout: 5,
               statusMessage: "Matching aide skills",
+            },
+            {
+              type: "command",
+              command: `${hookPrefix} usage-catchup`,
+              timeout: 3,
             },
           ],
         },

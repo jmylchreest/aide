@@ -111,6 +111,7 @@ service StateService {
   rpc Set(StateSetRequest) returns (StateSetResponse);
   // Atomically create state only if absent; always returns the persisted state.
   rpc Init(StateSetRequest) returns (StateSetResponse);
+  rpc InitBounded(StateBoundedInitRequest) returns (StateSetResponse);
   rpc List(StateListRequest) returns (StateListResponse);
   rpc Delete(StateDeleteRequest) returns (StateDeleteResponse);
   rpc Clear(StateClearRequest) returns (StateClearResponse);
@@ -1458,6 +1459,12 @@ message ObserveBatchRecordRequest {
 
 message ObserveBatchRecordResponse {
   repeated ObserveRecordResponse results = 1;
+}
+
+// A separate method ensures older daemons reject bounded writes before mutation.
+message StateBoundedInitRequest {
+  StateSetRequest state = 1;
+  uint32 max_agent_entries = 2;
 }
 
 message FindingReplaceAnalyzerRequest {
