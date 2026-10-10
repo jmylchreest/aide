@@ -146,6 +146,15 @@ func TestCheckoutSharedSocketAndRestart(t *testing.T) {
 	if err != nil || other.Found {
 		t.Fatalf("finding leaked: %+v %v", other, err)
 	}
+	if _, err := clients[1].Findings.ReplaceAnalyzer(ctx, &FindingReplaceAnalyzerRequest{Analyzer: "complexity", Findings: []*FindingAddRequest{{Analyzer: "complexity", Title: "Replacement", FilePath: "same.go"}}}); err != nil {
+		t.Fatal(err)
+	}
+	for i, client := range clients {
+		rows, err := client.Findings.List(ctx, &FindingListRequest{Analyzer: "complexity"})
+		if err != nil || len(rows.Findings) != i {
+			t.Fatalf("replacement checkout %d: %v %v", i, rows, err)
+		}
+	}
 	survey, err := clients[1].Survey.Add(ctx, &SurveyAddRequest{Analyzer: "topology", Kind: "module", Name: "older", FilePath: "same.go"})
 	if err != nil {
 		t.Fatal(err)

@@ -215,19 +215,17 @@ func (s *SurveyStoreImpl) ClearAnalyzer(analyzer string) (int, error) {
 
 // Stats returns aggregate survey entry counts, optionally filtering by SearchOptions.
 func (s *SurveyStoreImpl) Stats(opts survey.SearchOptions) (*survey.Stats, error) {
-	all, err := s.allMatching(surveyMatchFn(opts))
-	if err != nil {
-		return nil, err
-	}
-
 	stats := &survey.Stats{
 		ByAnalyzer: make(map[string]int),
 		ByKind:     make(map[string]int),
 	}
-	for _, e := range all {
+	err := s.visitMatching(surveyMatchFn(opts), func(e *survey.Entry) {
 		stats.Total++
 		stats.ByAnalyzer[e.Analyzer]++
 		stats.ByKind[e.Kind]++
+	})
+	if err != nil {
+		return nil, err
 	}
 	return stats, nil
 }

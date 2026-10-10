@@ -16,7 +16,7 @@ import (
 
 // SchemaVersion is the current schema version for the main store.
 // Increment this when adding new migrations to the migrations slice.
-var SchemaVersion uint64 = 1
+var SchemaVersion uint64 = 2
 
 // CodeSchemaVersion is the current schema version for the code store.
 // Increment this when adding new migrations to the codeMigrations slice.
@@ -40,6 +40,7 @@ type migration struct {
 // migrations is the ordered list of all main store schema migrations.
 var migrations = []migration{
 	{version: 1, description: "baseline schema stamp", migrate: func(tx *bolt.Tx) error { return nil }},
+	{version: 2, description: "index observe events by timestamp and ID", migrate: migrateObserveTimeIndex},
 }
 
 // codeMigrations is the ordered list of all code store schema migrations.

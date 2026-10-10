@@ -120,10 +120,15 @@ func (a *workAttribution) project(e *observe.Event) *observe.Event {
 	if e.Kind != observe.KindToolCall || e.Attrs["accounting_version"] != "1" || e.Attrs["observation_stage"] != "server_result" {
 		return e
 	}
-	projected := *e
-	projected.SessionID = a.session(e)
+	session := a.session(e)
 	m := a.byID[e.Attrs["work_id"]]
-	if m != nil && m.servers == 1 && !m.conflict && m.host != nil && projected.SessionID != "" && e.Attrs["work_version"] == "1" && m.host.tool == e.Name && m.host.hash == e.Attrs["work_text_sha256"] {
+	receipt := m != nil && m.servers == 1 && !m.conflict && m.host != nil && session != "" && e.Attrs["work_version"] == "1" && m.host.tool == e.Name && m.host.hash == e.Attrs["work_text_sha256"]
+	if !receipt && session == e.SessionID {
+		return e
+	}
+	projected := *e
+	projected.SessionID = session
+	if receipt {
 		projected.Attrs = maps.Clone(e.Attrs)
 		projected.Attrs["host"] = m.host.identity.host
 		projected.Attrs["actor_id"] = m.host.identity.actor

@@ -155,6 +155,14 @@ func (s *FindingsStoreImpl) AddFinding(f *findings.Finding) error {
 	return s.Add(f)
 }
 
+// AddFindings persists a batch with the same disposition and ID handling as AddFinding.
+func (s *FindingsStoreImpl) AddFindings(items []*findings.Finding) error {
+	if err := s.applyDispositions(items); err != nil {
+		return err
+	}
+	return s.replace(nil, items)
+}
+
 // GetFinding retrieves a finding by ID.
 func (s *FindingsStoreImpl) GetFinding(id string) (*findings.Finding, error) {
 	return s.Get(id)
@@ -276,19 +284,17 @@ func (s *FindingsStoreImpl) AcceptFindingsByFilter(opts findings.SearchOptions) 
 
 // Stats returns aggregate finding counts, optionally filtering by SearchOptions.
 func (s *FindingsStoreImpl) Stats(opts findings.SearchOptions) (*findings.Stats, error) {
-	all, err := s.allMatching(findingsMatchFn(opts))
-	if err != nil {
-		return nil, err
-	}
-
 	stats := &findings.Stats{
 		ByAnalyzer: make(map[string]int),
 		BySeverity: make(map[string]int),
 	}
-	for _, f := range all {
+	err := s.visitMatching(findingsMatchFn(opts), func(f *findings.Finding) {
 		stats.Total++
 		stats.ByAnalyzer[f.Analyzer]++
 		stats.BySeverity[f.Severity]++
+	})
+	if err != nil {
+		return nil, err
 	}
 	return stats, nil
 }

@@ -630,6 +630,8 @@ message CodeRunDeadCodeAnalysisResponse {
 
 service FindingsService {
   rpc Add(FindingAddRequest) returns (FindingAddResponse);
+  rpc ReplaceAnalyzer(FindingReplaceAnalyzerRequest) returns (FindingReplaceAnalyzerResponse);
+  rpc AddBatch(FindingAddBatchRequest) returns (FindingReplaceAnalyzerResponse);
   rpc Get(FindingGetRequest) returns (FindingGetResponse);
   rpc Delete(FindingDeleteRequest) returns (FindingDeleteResponse);
   rpc Search(FindingSearchRequest) returns (FindingSearchResponse);
@@ -1456,4 +1458,15 @@ message ObserveBatchRecordRequest {
 
 message ObserveBatchRecordResponse {
   repeated ObserveRecordResponse results = 1;
+}
+
+message FindingReplaceAnalyzerRequest {
+  string analyzer = 1;
+  repeated FindingAddRequest findings = 2;
+}
+
+message FindingReplaceAnalyzerResponse {}
+
+message FindingAddBatchRequest {
+  repeated FindingAddRequest findings = 1;
 }

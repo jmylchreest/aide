@@ -51,7 +51,11 @@ func MeasuredBytes(attrs map[string]string, key string) (int64, bool) {
 	if attrs["accounting_version"] != "1" {
 		return 0, false
 	}
-	n, err := strconv.ParseInt(attrs[key], 10, 64)
+	value := attrs[key]
+	if value == "" {
+		return 0, false
+	}
+	n, err := strconv.ParseInt(value, 10, 64)
 	return n, err == nil && n >= 0 && n <= 1<<53-1
 }
 

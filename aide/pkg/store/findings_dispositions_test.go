@@ -60,4 +60,17 @@ func TestFindingDispositionSurvivesCacheRemoval(t *testing.T) {
 	if actual.Accepted {
 		t.Fatal("acceptance leaked to another checkout")
 	}
+	// The bounded RPC append path uses AddFindings, including after a clear.
+	if _, err := fs.ClearAnalyzer("complexity"); err != nil {
+		t.Fatal(err)
+	}
+	f.ID = "batch-analysis-id"
+	f.Accepted = false
+	if err := fs.AddFindings([]*findings.Finding{f}); err != nil {
+		t.Fatal(err)
+	}
+	actual, err = fs.GetFinding(f.ID)
+	if err != nil || !actual.Accepted {
+		t.Fatalf("batch lost disposition: %+v %v", actual, err)
+	}
 }
