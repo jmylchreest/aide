@@ -34,6 +34,7 @@ func TestSchemaKinds(t *testing.T) {
 		{"code.watch_paths", KindString},
 		{"pprof.enable", KindBool},
 		{"grammar.url", KindString},
+		{"blueprints.registries", KindStringSlice},
 		{"memory.scoring_enabled", KindBool},
 		{"cleanup.observe_max_age", KindString},
 		{"cleanup.enabled", KindBool},

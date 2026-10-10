@@ -372,6 +372,39 @@ func (b *Backend) InitState(key, value, agentID string) (*memory.State, error) {
 	return st, err
 }
 
+// InitStateBounded never falls back to an unbounded operation on older daemons.
+func (b *Backend) InitStateBounded(key, value, agentID string, limit int) (*memory.State, error) {
+	if key == "" {
+		return nil, fmt.Errorf("state key is required")
+	}
+	if agentID == "" {
+		return nil, fmt.Errorf("state agent is required")
+	}
+	if limit < 1 || limit > memory.MaxStateAgentEntries {
+		return nil, fmt.Errorf("max agent entries must be between 1 and %d", memory.MaxStateAgentEntries)
+	}
+	if b.useGRPC {
+		ctx, cancel := b.rpcCtx()
+		defer cancel()
+		resp, err := b.grpcClient.State.InitBounded(ctx, &grpcapi.StateBoundedInitRequest{
+			State: &grpcapi.StateSetRequest{Key: key, Value: value, AgentId: agentID}, MaxAgentEntries: uint32(limit),
+		})
+		if err != nil {
+			return nil, err
+		}
+		if resp.State == nil {
+			return nil, fmt.Errorf("bounded state initialization returned no state")
+		}
+		return adapter.ProtoToState(resp.State), nil
+	}
+	initializer, ok := b.store.(memory.BoundedStateInitializer)
+	if !ok {
+		return nil, fmt.Errorf("bounded state initialization is unavailable")
+	}
+	st, _, err := initializer.InitStateBounded(&memory.State{Key: fmt.Sprintf("agent:%s:%s", agentID, key), Value: value, Agent: agentID}, limit)
+	return st, err
+}
+
 func (b *Backend) DeleteState(key string) error {
 	ctx, cancel := b.rpcCtx()
 	defer cancel()

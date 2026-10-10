@@ -215,6 +215,7 @@ func (s *searchableStore[T]) ensureSearchMapping(searchPath string) error {
 	err = s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(s.cfg.BucketName)
 		c := b.Cursor()
+		batch := s.idx.NewBatch()
 		for k, v := c.First(); k != nil; k, v = c.Next() {
 			var item T
 			if err := json.Unmarshal(v, &item); err != nil {
@@ -222,9 +223,18 @@ func (s *searchableStore[T]) ensureSearchMapping(searchPath string) error {
 			}
 			doc := s.cfg.ToSearchDoc(&item)
 			id := s.cfg.GetID(&item)
-			if err := s.idx.Index(id, doc); err != nil {
+			if err := batch.Index(id, doc); err != nil {
 				return err
 			}
+			if batch.Size() >= 128 {
+				if err := s.idx.Batch(batch); err != nil {
+					return err
+				}
+				batch = s.idx.NewBatch()
+			}
+		}
+		if batch.Size() > 0 {
+			return s.idx.Batch(batch)
 		}
 		return nil
 	})
@@ -355,31 +365,7 @@ func (s *searchableStore[T]) Delete(id string) error {
 
 // ClearAnalyzer removes all entities for a specific analyzer.
 func (s *searchableStore[T]) ClearAnalyzer(analyzer string) (int, error) {
-	var toDelete []string
-	err := s.db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket(s.cfg.BucketName)
-		c := b.Cursor()
-		for k, v := c.First(); k != nil; k, v = c.Next() {
-			var item T
-			if err := json.Unmarshal(v, &item); err != nil {
-				continue
-			}
-			if s.cfg.GetAnalyzer(&item) == analyzer {
-				toDelete = append(toDelete, s.cfg.GetID(&item))
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		return 0, err
-	}
-
-	for _, id := range toDelete {
-		if err := s.Delete(id); err != nil {
-			return 0, err
-		}
-	}
-	return len(toDelete), nil
+	return s.replaceCount(func(item *T) bool { return s.cfg.GetAnalyzer(item) == analyzer }, nil)
 }
 
 // bleveSearchHit holds the ID and score from a Bleve search hit.
@@ -463,36 +449,40 @@ func (s *searchableStore[T]) list(matchFn func(*T) bool, limit, defaultLimit int
 	return result, err
 }
 
-// allMatching iterates over all entities and returns those matching the predicate.
-// Unlike list, it has no limit — used for stats aggregation.
-func (s *searchableStore[T]) allMatching(matchFn func(*T) bool) ([]*T, error) {
-	var result []*T
-	err := s.db.View(func(tx *bolt.Tx) error {
+// visitMatching streams matching records to a callback. The callback must not
+// retain the record; aggregate queries need not keep every decoded row alive.
+func (s *searchableStore[T]) visitMatching(matchFn func(*T) bool, visit func(*T)) error {
+	return s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(s.cfg.BucketName)
 		c := b.Cursor()
+		var item, zero T
 		for k, v := c.First(); k != nil; k, v = c.Next() {
-			var item T
+			// Reset omitted JSON fields as well as reusing the record allocation.
+			item = zero
 			if err := json.Unmarshal(v, &item); err != nil {
 				continue
 			}
-			if matchFn != nil && !matchFn(&item) {
-				continue
+			if matchFn == nil || matchFn(&item) {
+				visit(&item)
 			}
-			result = append(result, &item)
 		}
 		return nil
 	})
-	return result, err
 }
 
 // replace atomically replaces entities matching shouldDelete with newItems.
 // It collects keys to delete and new data inside the BBolt tx, then applies
 // Bleve mutations outside so a tx rollback doesn't leave Bleve inconsistent.
 func (s *searchableStore[T]) replace(shouldDelete func(*T) bool, newItems []*T) error {
+	_, err := s.replaceCount(shouldDelete, newItems)
+	return err
+}
+
+func (s *searchableStore[T]) replaceCount(shouldDelete func(*T) bool, newItems []*T) (int, error) {
 	s.writeMu.Lock()
 	defer s.writeMu.Unlock()
 	if s.idx == nil {
-		return s.errSearchIndexClosed()
+		return 0, s.errSearchIndexClosed()
 	}
 	type pendingPut struct {
 		id  string
@@ -505,7 +495,7 @@ func (s *searchableStore[T]) replace(shouldDelete func(*T) bool, newItems []*T) 
 		b := tx.Bucket(s.cfg.BucketName)
 		c := b.Cursor()
 
-		for k, v := c.First(); k != nil; k, v = c.Next() {
+		for k, v := c.First(); shouldDelete != nil && k != nil; k, v = c.Next() {
 			var item T
 			if err := json.Unmarshal(v, &item); err != nil {
 				continue
@@ -544,7 +534,7 @@ func (s *searchableStore[T]) replace(shouldDelete func(*T) bool, newItems []*T) 
 		return nil
 	})
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	// Commit search mutations in bounded batches. Indexing every record alone
@@ -565,21 +555,24 @@ func (s *searchableStore[T]) replace(shouldDelete func(*T) bool, newItems []*T) 
 		batch.Delete(id)
 		if batch.Size() >= batchSize {
 			if err := flush(); err != nil {
-				return err
+				return 0, err
 			}
 		}
 	}
 	for _, p := range puts {
 		if err := batch.Index(p.id, p.doc); err != nil {
-			return err
+			return 0, err
 		}
 		if batch.Size() >= batchSize {
 			if err := flush(); err != nil {
-				return err
+				return 0, err
 			}
 		}
 	}
-	return flush()
+	if err := flush(); err != nil {
+		return 0, err
+	}
+	return len(deleteIDs), nil
 }
 
 // Clear removes all entities by deleting and recreating the BoltDB bucket

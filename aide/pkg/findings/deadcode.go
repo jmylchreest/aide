@@ -2,6 +2,7 @@ package findings
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -600,26 +601,11 @@ func extraOccurrenceOutsideBody(body, name []byte, sym *code.Symbol) bool {
 }
 
 func bytesIndex(haystack, needle []byte) int {
-	if len(needle) == 0 || len(haystack) < len(needle) {
+	// Unlike bytes.Index, the token search treats an empty name as absent.
+	if len(needle) == 0 {
 		return -1
 	}
-	first := needle[0]
-	for i := 0; i+len(needle) <= len(haystack); i++ {
-		if haystack[i] != first {
-			continue
-		}
-		match := true
-		for j := 1; j < len(needle); j++ {
-			if haystack[i+j] != needle[j] {
-				match = false
-				break
-			}
-		}
-		if match {
-			return i
-		}
-	}
-	return -1
+	return bytes.Index(haystack, needle)
 }
 
 func prevByte(b []byte, pos int) byte {

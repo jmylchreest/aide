@@ -321,13 +321,14 @@ export function recordModelUsage(
   binary: string,
   cwd: string,
   events: ObserveBatchEvent[],
+  options: { timeout?: number } = {},
 ): boolean {
   if (!events.length) return true;
   try {
     const output = execFileSync(binary, ["observe", "record", "--stdin"], {
       cwd,
       input: events.map((e) => JSON.stringify(e)).join("\n") + "\n",
-      timeout: 10000,
+      timeout: Math.max(1, Math.min(10000, options.timeout ?? 10000)),
       stdio: ["pipe", "pipe", "pipe"],
     }).toString();
     const ack = /^Recorded (\d+) event\(s\)(?:, skipped (\d+))?\s*$/i.exec(

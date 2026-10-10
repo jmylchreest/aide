@@ -10,6 +10,9 @@ import (
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi"
 	"github.com/jmylchreest/aide/aide/pkg/grpcapi/adapter"
 	"github.com/jmylchreest/aide/aide/pkg/store"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 )
 
 // DeadCodeAnalysisOptions controls behaviour of RunDeadCodeAnalysis.
@@ -340,11 +343,28 @@ func (b *Backend) ReplaceFindingsForAnalyzer(analyzer string, ff []*findings.Fin
 }
 
 // grpcFindingsReplaceForAnalyzer replaces all findings for an analyzer over gRPC.
-// NOTE: This is non-atomic — it clears then re-adds one by one. If the process
-// crashes mid-way, the analyzer's findings will be partially populated. This is
-// acceptable for the CLI use-case where the server holds the authoritative store.
+// Current daemons batch replacement. Large results use bounded append batches;
+// older daemons and individual oversized records retain the per-record path.
 func (b *Backend) grpcFindingsReplaceForAnalyzer(analyzer string, ff []*findings.Finding) error {
 	ctx := context.Background()
+	req := &grpcapi.FindingReplaceAnalyzerRequest{Analyzer: analyzer, Findings: make([]*grpcapi.FindingAddRequest, 0, len(ff))}
+	matching := true
+	for _, f := range ff {
+		matching = matching && f.Analyzer == analyzer
+		req.Findings = append(req.Findings, &grpcapi.FindingAddRequest{
+			Analyzer: f.Analyzer, Severity: f.Severity, Category: f.Category,
+			FilePath: f.FilePath, Line: int32(f.Line), EndLine: int32(f.EndLine),
+			Title: f.Title, Detail: f.Detail, Metadata: f.Metadata,
+		})
+	}
+	// Stay below gRPC's default 4 MiB receive limit. Fall back only for an
+	// unsupported RPC, never retry a failed mutation.
+	if matching && proto.Size(req) <= 3<<20 {
+		_, err := b.grpcClient.Findings.ReplaceAnalyzer(ctx, req)
+		if status.Code(err) != codes.Unimplemented {
+			return err
+		}
+	}
 
 	if _, err := b.grpcClient.Findings.ClearAnalyzer(ctx, &grpcapi.FindingClearAnalyzerRequest{
 		Analyzer: analyzer,
@@ -352,21 +372,32 @@ func (b *Backend) grpcFindingsReplaceForAnalyzer(analyzer string, ff []*findings
 		return err
 	}
 
-	for _, f := range ff {
-		_, err := b.grpcClient.Findings.Add(ctx, &grpcapi.FindingAddRequest{
-			Analyzer: f.Analyzer,
-			Severity: f.Severity,
-			Category: f.Category,
-			FilePath: f.FilePath,
-			Line:     int32(f.Line),
-			EndLine:  int32(f.EndLine),
-			Title:    f.Title,
-			Detail:   f.Detail,
-			Metadata: f.Metadata,
-		})
-		if err != nil {
+	batchSupported := true
+	for remaining := req.Findings; len(remaining) > 0; {
+		n, size := 0, 0
+		for batchSupported && n < len(remaining) && n < 128 {
+			itemSize := proto.Size(remaining[n]) + 8
+			if size+itemSize > 3<<20 {
+				break
+			}
+			size += itemSize
+			n++
+		}
+		if batchSupported && n > 0 {
+			_, err := b.grpcClient.Findings.AddBatch(ctx, &grpcapi.FindingAddBatchRequest{Findings: remaining[:n]})
+			if err == nil {
+				remaining = remaining[n:]
+				continue
+			}
+			if status.Code(err) != codes.Unimplemented {
+				return err
+			}
+			batchSupported = false
+		}
+		if _, err := b.grpcClient.Findings.Add(ctx, remaining[0]); err != nil {
 			return err
 		}
+		remaining = remaining[1:]
 	}
 	return nil
 }

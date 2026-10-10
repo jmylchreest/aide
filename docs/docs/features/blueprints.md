@@ -4,7 +4,7 @@ sidebar_position: 3
 
 # Blueprints
 
-Blueprints are portable, language-specific bundles of best-practice decisions that bootstrap a project with proven conventions. Instead of manually recording dozens of decisions one by one, `aide blueprint import` seeds your project's decision store from curated blueprints in a single command.
+Blueprints are portable bundles of decisions for languages, teams, or personal preferences. Instead of manually recording decisions one by one, `aide blueprint import` seeds your project's decision store from a blueprint in a single command.
 
 ## Quick Start
 
@@ -224,7 +224,7 @@ stability, generated and vendored code, verification parity with CI, and moderni
 
 ## Resolution Order
 
-When you run `aide blueprint import <name>`, AIDE looks for the blueprint in this order:
+When you run `aide blueprint import <name>` or `aide blueprint show <name>`, AIDE looks for the blueprint in this order:
 
 1. **Local override** — `.aide/blueprints/<name>.json` in your project
 2. **Embedded** — shipped with the aide binary
@@ -252,7 +252,7 @@ myorg/aide-blueprints/
 └── myorg-standards.json
 ```
 
-2. Configure the registry URL in your project:
+2. Configure the registry URL in your project, or in `~/.aide/config/aide.json` to use it across projects:
 
 ```json
 // .aide/config/aide.json
@@ -269,14 +269,36 @@ myorg/aide-blueprints/
 
 ```bash
 aide blueprint import myorg-standards    # fetches from registry
-aide blueprint list                      # shows all available (embedded + registry)
+aide blueprint show myorg-standards      # previews the configured remote blueprint
+aide blueprint list                      # lists embedded blueprints only
 ```
+
+Project `blueprints.registries` lists replace the global list; `[]` disables
+inherited registries. URLs are tried in their configured order. Named imports
+resolve transitive `includes` through the same local, embedded, and registry
+chain. Configuring a registry does not automatically import its decisions into
+projects: run `blueprint import <name>` in each project where you want them.
+
+You can also set the list through the CLI:
+
+```bash
+aide config set blueprints.registries https://raw.githubusercontent.com/myorg/aide-blueprints/main
+```
+
+Registries serve known names and do not require a catalog or directory listing.
+`blueprint list` therefore cannot enumerate remote blueprints. Use the registry's
+README to find names, then preview one with `blueprint show <name>`.
 
 ### One-Off Registry
 
 ```bash
-aide blueprint import --registry=https://raw.githubusercontent.com/myorg/aide-blueprints/main go
+aide blueprint import --registry=https://raw.githubusercontent.com/myorg/aide-blueprints/main myorg-standards
 ```
+
+`--registry` is tried before configured registries for this import, including
+its dependencies. Local overrides and embedded blueprints still take precedence,
+so a remote file named `go.json` does not override the bundled `go` blueprint.
+Use a distinct custom name, an explicit URL, or a local override for that case.
 
 ## Local Overrides
 
@@ -390,7 +412,7 @@ demote it out of the overriding block. Pass `--precedence=0` to demote deliberat
 
 ```bash
 # List and inspect
-aide blueprint list                               # List all available blueprints
+aide blueprint list                               # List embedded blueprints
 aide blueprint show go                            # Preview decisions without importing
 
 # Import blueprints

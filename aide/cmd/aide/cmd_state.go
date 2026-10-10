@@ -3,8 +3,10 @@ package main
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
+	"github.com/jmylchreest/aide/aide/pkg/memory"
 	"github.com/jmylchreest/aide/aide/pkg/store"
 )
 
@@ -22,6 +24,7 @@ func cmdState(dbPath string, args []string) error {
 
 	return dispatchSubcmd("state", args, printStateUsage, []subcmd{
 		{name: "set", handler: func(a []string) error { return stateSet(backend, a) }},
+		{name: "init-bounded", handler: func(a []string) error { return stateInitBounded(backend, a) }},
 		{name: "init", handler: func(a []string) error { return stateInit(backend, a) }},
 		{name: "get", handler: func(a []string) error { return stateGet(backend, a) }},
 		{name: "delete", handler: func(a []string) error { return stateDelete(backend, a) }},
@@ -40,6 +43,7 @@ Usage:
 Subcommands:
   set        Set a state key-value pair
   init       Create absent state atomically; return existing state otherwise
+  init-bounded Create absent state within an atomic per-agent entry limit
   get        Get a state value by key
   delete     Delete a state key
   list       List all state entries
@@ -49,6 +53,11 @@ Subcommands:
 Options:
   init KEY VALUE:
     --agent=AGENT_ID   Initialize per-agent state (otherwise global)
+    --json            Return the persisted state as JSON
+
+  init-bounded KEY VALUE:
+    --agent=AGENT_ID   Required agent namespace
+    --max-agent-entries=N Required entry limit (1–4096)
     --json            Return the persisted state as JSON
 
   set KEY VALUE:
@@ -133,6 +142,25 @@ func stateInit(b *Backend, args []string) error {
 	st, err := b.InitState(args[0], args[1], parseFlag(args[2:], "--agent="))
 	if err != nil {
 		return fmt.Errorf("failed to initialize state: %w", err)
+	}
+	if wantJSON(args[2:]) {
+		return printJSON(st)
+	}
+	fmt.Printf("%s = %s\n", st.Key, st.Value)
+	return nil
+}
+
+func stateInitBounded(b *Backend, args []string) error {
+	if len(args) < 2 {
+		return fmt.Errorf("usage: aide state init-bounded KEY VALUE --agent=AGENT_ID --max-agent-entries=N [--json]")
+	}
+	limit, err := strconv.ParseUint(parseFlag(args[2:], "--max-agent-entries="), 10, 32)
+	if err != nil || limit < 1 || limit > memory.MaxStateAgentEntries {
+		return fmt.Errorf("max agent entries must be between 1 and %d", memory.MaxStateAgentEntries)
+	}
+	st, err := b.InitStateBounded(args[0], args[1], parseFlag(args[2:], "--agent="), int(limit))
+	if err != nil {
+		return fmt.Errorf("failed to initialize bounded state: %w", err)
 	}
 	if wantJSON(args[2:]) {
 		return printJSON(st)

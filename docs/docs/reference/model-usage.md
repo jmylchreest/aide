@@ -18,11 +18,23 @@ An older server without `model_usage` reports unavailable data. A supported repo
 
 | Host | Captured source | Included counters | Limits |
 | --- | --- | --- | --- |
-| Codex | `token_usage_record` rows from the explicit Stop-hook transcript path | Per-response input, cache read/write, output, reasoning and reported total, when supplied | Versioned adapter for an observed runtime record shape; unsupported runtimes remain unavailable. Cumulative `thread_token_usage` and `token_count` snapshots are never summed. |
-| Claude Code | Assistant usage from the explicit Stop-hook transcript path | Uncached input and cache read/write; combined input only when all components are present | Assistant output can be a response-start placeholder, so output is omitted. Transcripts can lag the latest turn. |
+| Codex | `token_usage_record` rows from explicit Stop and later lifecycle-hook transcript paths | Per-response input, cache read/write, output, reasoning and reported total, when supplied | Versioned adapter for an observed runtime record shape; unsupported runtimes remain unavailable. Cumulative `thread_token_usage` and `token_count` snapshots are never summed. |
+| Claude Code | Assistant usage from explicit parent Stop and child SubagentStop transcript paths, with bounded later catch-up | Uncached input and cache read/write; combined input only when all components are present | Assistant output can be a response-start placeholder, so output is omitted. Transcripts can lag the latest turn. |
 | OpenCode | Observed `message.part.updated` events containing `step-finish` | Input/cache components, reasoning and separately labelled reported output | Message-level usage can omit earlier steps. Output/reasoning overlap varies by host version, so combined output stays unknown. |
 
-Transcript collection reads only the explicitly supplied regular file, at most the latest 4 MiB and 1,000 usage records per Stop. Partial lines are not imported. Later Stops can retry delayed records or failed writes. There is no transcript-directory discovery or historical backfill. A long turn, unsupported source or unseen subagent can leave gaps. The collector extracts counter and identity metadata; it does not persist prompts, responses, tool arguments or reasoning text. Collection is bounded but adds local file parsing and one batch write when records exist; it does not call a model.
+Transcript collection reads only the explicitly supplied regular file, at most the latest 4 MiB and 1,000 usage records per Stop. Partial lines are not imported. Later Stops can retry delayed records or failed writes. Claude child collection also reads the explicit SubagentStop path; an internal compaction child may report a path the host never creates. There is no transcript-directory discovery or historical backfill. A long turn, unsupported source or unseen subagent can leave gaps. The collector extracts counter and identity metadata; it does not persist prompts, responses, tool arguments or reasoning text. Collection is bounded but adds local file parsing and one batch write when records exist; it does not call a model.
+
+## Late transcript writes
+
+Claude and Codex also retry explicit main transcript paths at SessionStart and UserPromptSubmit; Claude supports a genuine SessionEnd boundary too. Claude child completions register their supplied paths for later catch-up. No files are discovered by scanning transcript directories. OpenCode continues to collect step events without transcript polling.
+
+Child registrations use immutable keys in a project-local host/session namespace. Atomic initialization allows at most 32 pending registrations per namespace, including concurrent completions. A new CLI command and RPC reject unsupported older installations before writing; rebuild the binary/daemon and reload the plugin to enable registration.
+
+Each catch-up considers at most four distinct paths (including the main path), the latest 128 KiB per file, and 256 usage records in one batch. Subprocess timeouts share a two-second work budget, reduced to one second at SessionEnd; synchronous filesystem operations do not have an absolute wall-clock guarantee. There are no model calls or background polling.
+
+A child registration retires only after an acknowledged, nonlimited scan with matching usage and an unchanged file snapshot. Missing, empty, mismatched, malformed, oversized or failed evidence stays pending within the queue limit. Existing stale-state cleanup can remove registrations: session initialization defaults to a 30-minute age threshold. Catch-up after a longer gap is therefore not guaranteed. Main paths can still be supplied anew by the host. This queue is a bounded retry opportunity, not durable historical backfill.
+
+Canonical response IDs keep repeated imports from increasing counted usage. Recovered records improve measured coverage; they do not demonstrate reduced consumption. Coverage remains partial even when all responses in one probe reconcile. Claude output placeholders and compaction aggregates without safe response identities remain excluded.
 
 ## Counter relationships
 
@@ -34,6 +46,27 @@ These boundaries follow [OpenAI cache counter semantics](https://developers.open
 
 ## Repeated and conflicting evidence
 
+Usage records are retained individually, but an unchanged retry is acknowledged
+without another live notification. New evidence, a correction to the earliest
+source timestamp, or conflicting counters still produces an update. This applies
+to both single-record and batch writes on an updated daemon.
+
+The CLI batches JSON Lines into at most 256 records and about 1 MiB of input per
+request. Updated daemons commit each batch in one transaction. An older daemon
+that explicitly rejects the batch RPC falls back to individual writes; timeouts
+and other ambiguous errors are not retried through that fallback. Accepted
+duplicates count as acknowledged records, not failed or skipped writes.
+A timeout can still follow a committed write, and legacy single-write fallback
+can partially succeed. Usage response identities make those records safe to
+replay; ordinary events without explicit identities do not have that guarantee.
+
+The Observe page groups model usage by session, host, source, context window
+(when supplied), and event minute. Expand a group to inspect its individual
+records and raw metadata. Group counts cover loaded, filtered records; they are
+not provider-call totals or token sums. Live display updates are coalesced over
+100 ms, and repeated event IDs cannot crowd distinct records out of the buffer.
+Rebuild/restart the daemon and rebuild aide-web to enable the full behavior.
+
 The identity is host + session + response/message/step ID. Equal observations count once, including after restarts. Claude tool fanout can repeat one message ID. Different usage for the same identity remains conflicting evidence and is excluded rather than selecting the largest or latest report. Invalid supplied counters also prevent that identity from contributing. Deduplication and conflict checks use retained project evidence before time filtering; narrowing a date window cannot hide a known contradiction.
 
 Time selection uses the earliest retained source-record timestamp when supplied, otherwise the earliest observation timestamp. This is not model execution duration. Retention limits the evidence available for deduplication and conflict detection. Usage records remain separate from tool event counts, text estimates and recorded MCP operations.
@@ -42,6 +75,6 @@ Time selection uses the earliest retained source-record timestamp when supplied,
 
 After rebuilding/restarting aide and loading the updated plugin, complete a short normal turn in the host. Claude/Codex require a Stop hook carrying the supported transcript path; OpenCode requires an observed step-finish event. Inspect the full session ID with `token stats --details --session=<id>`. Repeat the inspection: reading the report must not increase usage. Subsequent turns add their own records while repeated source records remain deduplicated.
 
-Use `bun run test --run src/test/model-usage.test.ts` for the synthetic adapter checks. The wider test suites verify store deduplication/conflicts, session/date selection, transport and rendering. These checks require no provider calls and establish accounting behavior, not an improvement in task quality or a causal token reduction.
+Use `bunx vitest run --dir src/test model-usage transcript-usage usage-catchup` for the synthetic adapter checks. The wider test suites verify store deduplication/conflicts, session/date selection, transport and rendering. These checks require no provider calls and establish accounting behavior, not an improvement in task quality or a causal token reduction.
 
 If prepared context appears twice, inspect hook registration as well as accounting identities. User and project Codex configurations can both register the same aide hooks. That can prepare and inject context twice even though stable model-response IDs still deduplicate correctly. The [development toggle](../getting-started/codex.md#local-development-builds) assigns one dev hook owner and reports overlapping registrations. Correct the configuration; do not erase repeated context observations to manufacture savings. Fewer duplicate hook outputs do not by themselves quantify provider-token or billing changes.

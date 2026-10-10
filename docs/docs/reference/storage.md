@@ -8,6 +8,19 @@ title: Storage Layout
 
 AIDE data is stored in `.aide/` at the project root, with one exception: session anchor caches live outside the project (`$XDG_RUNTIME_DIR/aide/anchors/` on Linux, `~/.aide/anchors/` elsewhere) so hooks and the statusline can resolve a session's root without walking. Entries are removed when the session ends; a TTL sweep cleans up after crashed sessions. A `.aide/.gitignore` is automatically created on first session to separate machine-local data from shareable content.
 
+## Database upgrades
+
+The observation timestamp index upgrades the main `memory.db` schema from v1
+to v2 automatically when the new binary opens it. Existing observations are
+indexed in the same transaction as the schema update. The index lets recent,
+limited observation queries stop without decoding the entire event history.
+
+Older binaries refuse to open a database with a newer schema. Before upgrading,
+stop the project's daemon and MCP servers and back up `.aide/memory/` if you
+need a rollback option. To roll back, stop the new processes and restore that
+backup before starting the older binary; changes made after the backup will
+not be present. Replacing the executable alone does not downgrade the database.
+
 ## Directory Structure
 
 ```

@@ -13,6 +13,7 @@ import (
 	"github.com/olekukonko/tablewriter/tw"
 
 	"github.com/jmylchreest/aide/aide/pkg/blueprint"
+	"github.com/jmylchreest/aide/aide/pkg/config"
 	"github.com/jmylchreest/aide/aide/pkg/grammar"
 	"github.com/jmylchreest/aide/aide/pkg/store"
 )
@@ -44,6 +45,7 @@ func blueprintImport(dbPath string, args []string) error {
 	if registryFlag != "" {
 		registries = append(registries, registryFlag)
 	}
+	registries = append(registries, config.Get().Blueprints.Registries...)
 
 	localDir := blueprintOverrideDir(dbPath)
 
@@ -289,13 +291,13 @@ func blueprintList() error {
 	}
 	table.Render()
 
-	fmt.Printf("\n%d blueprints available\n", len(blueprints))
+	fmt.Printf("\n%d embedded blueprints available\n", len(blueprints))
 	return nil
 }
 
 func blueprintShow(name, dbPath string) error {
 	localDir := blueprintOverrideDir(dbPath)
-	bp, source, err := blueprint.Resolve(name, localDir, nil)
+	bp, source, err := blueprint.Resolve(name, localDir, config.Get().Blueprints.Registries)
 	if err != nil {
 		return err
 	}
@@ -454,7 +456,7 @@ Usage:
 
 Subcommands:
   import     Import blueprint decisions into the project
-  list       List available blueprints
+  list       List embedded blueprints
   show       Preview a blueprint's decisions
 
 Import:
@@ -469,10 +471,13 @@ Import:
     --detect          Auto-detect blueprints from project markers
     --force           Overwrite existing decisions on conflict
     --dry-run         Show what would happen without writing
-    --registry=URL    Add a one-off registry for this invocation
+    --registry=URL    Try this registry before configured registries
+
+  Named imports and previews use blueprints.registries from global/project config.
+  Local overrides and embedded blueprints take precedence over all registries.
 
 Examples:
-  aide blueprint list                           # List available blueprints
+  aide blueprint list                           # List embedded blueprints
   aide blueprint show go                        # Preview Go blueprint decisions
   aide blueprint import go                      # Import Go best practices
   aide blueprint import go rust                 # Import multiple

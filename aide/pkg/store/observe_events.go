@@ -242,7 +242,7 @@ func addObserveEventTx(tx *bolt.Tx, e *observe.Event) (bool, error) {
 						if err != nil {
 							return false, err
 						}
-						return true, b.Put([]byte(e.ID), updated)
+						return true, putObserveEvent(tx, e, updated)
 					}
 				}
 				// Keep the first observation and its timestamp stable on retries.
@@ -265,7 +265,7 @@ func addObserveEventTx(tx *bolt.Tx, e *observe.Event) (bool, error) {
 	if bytes.Equal(b.Get([]byte(e.ID)), data) {
 		return false, nil
 	}
-	return true, b.Put([]byte(e.ID), data)
+	return true, putObserveEvent(tx, e, data)
 }
 
 // ObserveFilter narrows ListObserveEvents results.
@@ -286,12 +286,32 @@ func (s *BoltStore) ListObserveEvents(f ObserveFilter) ([]*observe.Event, error)
 	err := s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket(BucketObserveEvents)
 		c := b.Cursor()
-		for k, v := c.Last(); k != nil; k, v = c.Prev() {
+		idx := tx.Bucket(bucketObserveByTime)
+		if idx != nil {
+			c = idx.Cursor()
+		}
+		k, v := c.Last()
+		if idx != nil && !f.Until.IsZero() {
+			// Seek just beyond the inclusive upper timestamp, then step back.
+			k, _ = c.Seek(observeTimeKey(f.Until.Add(time.Nanosecond), ""))
+			if k == nil {
+				k, v = c.Last()
+			} else {
+				k, v = c.Prev()
+			}
+		}
+		for ; k != nil; k, v = c.Prev() {
+			if idx != nil {
+				v = b.Get(v)
+			}
 			var e observe.Event
 			if err := json.Unmarshal(v, &e); err != nil {
 				continue
 			}
 			if !f.Since.IsZero() && e.Timestamp.Before(f.Since) {
+				if idx != nil {
+					break
+				}
 				continue
 			}
 			if !f.Until.IsZero() && e.Timestamp.After(f.Until) {
@@ -310,6 +330,9 @@ func (s *BoltStore) ListObserveEvents(f ObserveFilter) ([]*observe.Event, error)
 				continue
 			}
 			out = append(out, &e)
+			if idx != nil && f.Limit > 0 && len(out) >= f.Limit {
+				break
+			}
 		}
 		return nil
 	})
@@ -357,7 +380,7 @@ func (s *BoltStore) CleanupObserveEvents(maxAge time.Duration) (int, error) {
 	err = s.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(BucketObserveEvents)
 		for _, k := range keys {
-			if err := b.Delete(k); err != nil {
+			if err := deleteObserveEvent(tx, k); err != nil {
 				return err
 			}
 			count++
@@ -416,7 +439,7 @@ func (s *BoltStore) MigrateTokenEventsToObserve() (int, error) {
 			if err != nil {
 				return err
 			}
-			if err := obs.Put([]byte(ev.ID), data); err != nil {
+			if err := putObserveEvent(tx, ev, data); err != nil {
 				return err
 			}
 			keys = append(keys, append([]byte{}, k...))
