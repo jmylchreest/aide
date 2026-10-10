@@ -24,7 +24,7 @@ jobs:
           persist-credentials: false
 
       - name: Scan plugin
-        uses: hashgraph-online/ai-plugin-scanner-action@a4705d710505d3e8f6d639b683a0c87dd31ce598 # v1.2.748
+        uses: hashgraph-online/ai-plugin-scanner-action@2c8f36ed95e789af2c24b127d488b78f8ec5006a # v1.2.770
         with:
           plugin_dir: "."
           # Honor reviewed fixture/template exclusions in .plugin-scanner.toml.
