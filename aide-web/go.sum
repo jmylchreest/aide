@@ -243,8 +243,8 @@ github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINE
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 h1:Jamvg5psRIccs7FGNTlIRMkT8wgtp5eCXdBlqhYGL6U=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
-github.com/praetorian-inc/titus v1.2.10 h1:2g2wR7KBiNuQ4+tTyl5t60tGNgmWeFCJP/2dVwKc4Hw=
-github.com/praetorian-inc/titus v1.2.10/go.mod h1:A6Hi6Sa3mRyglFuPmbDWTuMeLwZnN3TtRu/YvraAGCs=
+github.com/praetorian-inc/titus v1.2.11 h1:EohnMEOgRBNrWcc675iFNn7WvUD4hwYgq0gWKl6ZAzM=
+github.com/praetorian-inc/titus v1.2.11/go.mod h1:A6Hi6Sa3mRyglFuPmbDWTuMeLwZnN3TtRu/YvraAGCs=
 github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec h1:W09IVJc94icq4NjY3clb7Lk8O1qJ8BdBEF8z0ibU0rE=
 github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec/go.mod h1:qqbHyh8v60DhA7CoWK5oRCqLrMHRGoxYCSS9EjAz6Eo=
 github.com/rogpeppe/go-internal v1.14.1 h1:UQB4HGPB6osV0SQTLymcB4TgvyWu6ZyliaW0tI/otEQ=

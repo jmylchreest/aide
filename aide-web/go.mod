@@ -99,7 +99,7 @@ require (
 	github.com/mschoch/smat v0.2.0 // indirect
 	github.com/oklog/ulid/v2 v2.1.2 // indirect
 	github.com/pjbgf/sha1cd v0.7.0 // indirect
-	github.com/praetorian-inc/titus v1.2.10 // indirect
+	github.com/praetorian-inc/titus v1.2.11 // indirect
 	github.com/sergi/go-diff v1.4.0 // indirect
 	github.com/skeema/knownhosts v1.3.3 // indirect
 	github.com/tree-sitter-grammars/tree-sitter-zig v1.1.2 // indirect

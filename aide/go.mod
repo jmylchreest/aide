@@ -18,7 +18,7 @@ require (
 	github.com/modelcontextprotocol/go-sdk v1.8.0
 	github.com/oklog/ulid/v2 v2.1.2
 	github.com/olekukonko/tablewriter v1.1.5
-	github.com/praetorian-inc/titus v1.2.10
+	github.com/praetorian-inc/titus v1.2.11
 	github.com/tree-sitter-grammars/tree-sitter-zig v1.1.2
 	github.com/tree-sitter/go-tree-sitter v0.25.0
 	github.com/tree-sitter/tree-sitter-c v0.24.1
