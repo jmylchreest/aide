@@ -5,7 +5,7 @@ go 1.27.0
 require (
 	github.com/danielgtaylor/huma/v2 v2.39.1
 	github.com/fsnotify/fsnotify v1.10.1
-	github.com/go-chi/chi/v5 v5.3.2
+	github.com/go-chi/chi/v5 v5.5.0
 	github.com/jmylchreest/aide/aide v0.0.0
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	google.golang.org/grpc v1.84.0
@@ -61,12 +61,12 @@ require (
 	github.com/blevesearch/zapx/v15 v15.4.3 // indirect
 	github.com/blevesearch/zapx/v16 v16.3.4 // indirect
 	github.com/blevesearch/zapx/v17 v17.2.3 // indirect
-	github.com/bmatcuk/doublestar/v4 v4.10.2 // indirect
+	github.com/bmatcuk/doublestar/v4 v4.10.3 // indirect
 	github.com/cloudflare/ahocorasick v0.0.0-20240916140611-054963ec9396 // indirect
 	github.com/cloudflare/circl v1.6.5 // indirect
 	github.com/cyphar/filepath-securejoin v0.6.1 // indirect
 	github.com/dlclark/regexp2 v1.12.0 // indirect
-	github.com/ebitengine/purego v0.11.1 // indirect
+	github.com/ebitengine/purego v0.11.2 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/flier/gohs v1.2.3 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
