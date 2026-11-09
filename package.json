@@ -31,11 +31,11 @@
     "@types/which": "^3.0.4",
     "@typescript-eslint/eslint-plugin": "^8.72.1",
     "@typescript-eslint/parser": "^8.72.1",
-    "eslint": "^10.13.0",
+    "eslint": "^10.14.0",
     "lefthook": "^2.2.2",
     "prettier": "^3.9.10",
     "typescript": "^6.0.3",
-    "vitest": "^5.0.5"
+    "vitest": "^5.1.0"
   },
   "engines": {
     "bun": ">=1.0.0"
