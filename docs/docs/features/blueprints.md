@@ -82,6 +82,9 @@ These blueprints ship with every AIDE release:
 | `python-github-actions` | 7 | github-actions | Python CI/CD: uv, frozen installs, interpreter matrix, Ruff, strict typing, pip-audit, PyPI Trusted Publishing |
 | `python-api` | 11 | python | Python API services: framework selection, ASGI, validated boundaries, SQLAlchemy + Alembic, auth, queues, OpenTelemetry. Opt-in |
 | `python-django` | 16 | python | Django: app layout, env-driven settings, ORM query discipline, DB constraints, reversible migrations, DRF/Ninja, security defaults, deployment |
+| `opentofu` | 39 | general, documentation-opentofu | Module design and selection, environments, security, testing, plan approval, state and recovery |
+| `documentation-opentofu` | 8 | documentation-core | Module contracts, generated reference, examples, deployment guides, provenance and recovery documentation |
+| `opentofu-github-actions` | 10 | opentofu, github-actions | Trusted execution, OIDC, plan approval and provenance, state concurrency, deployment records and drift |
 
 ### Go Blueprint Decisions
 
@@ -195,6 +198,91 @@ in-process testing, and container deployment.
 `python-django` (includes `python`) opens with **django-supersession**, which states precisely which
 core Python decisions Django overrides — configuration, persistence, and boundary validation — and which
 still apply unchanged.
+
+### OpenTofu Blueprints
+
+Import `opentofu` for the complete infrastructure baseline, including documentation:
+
+```bash
+aide blueprint import opentofu
+aide blueprint import opentofu-github-actions
+aide blueprint show opentofu
+```
+
+The GitHub Actions extension includes the core blueprint automatically. Import these
+explicitly: shared `.tf` files and `.terraform.lock.hcl` do not distinguish OpenTofu
+from Terraform. These blueprints use separate OpenTofu decision topics and do not
+imply Terraform compatibility.
+
+The `opentofu` decisions cover:
+
+- Module boundaries, typed contracts, provider ownership, file organisation,
+  stable resource identity, dependencies and imperative operations.
+- Evaluation of organisational, vendor and community modules, reproducible module
+  revisions, custom-module ownership, toolchain compatibility and provider locks.
+- Deployment boundaries, explicit environment configuration, promotion and
+  cross-root interfaces.
+- Deployment identities, secure defaults, secrets, security checks, static
+  validation, contract tests and isolated integration tests.
+- Plan identity and review, approval policy, applying the approved plan,
+  artifact protection, deployment serialization and outcome verification.
+- State ownership, remote backends, encryption, bootstrap, address migrations,
+  imports, state transfers, repair, abandoned locks, drift and recovery.
+
+Rules distinguish reusable modules from operated deployment roots. For example,
+provider configuration and backend access belong to the deployment root; a module
+library supplies its provider requirements and public contract.
+
+#### Deliberate defaults and project policy
+
+The blueprint uses operational boundaries to guide layout rather than prescribing
+an environment/account/region directory tree. Small configurations can remain
+together. CLI workspaces can represent equivalent instances within one trust
+boundary; independently secured environments need their own access boundaries.
+
+Existing modules are candidates to evaluate, not mandatory dependencies. Review
+fit, source, maintenance, licence, security and compatibility regardless of publisher.
+Wrappers should add a useful contract or policy. Deployed roots default to exact
+module releases or immutable revisions; a managed release process may use ranges
+when it preserves the resolved dependency closure. Provider locks do not lock modules.
+
+Production and destructive persistent-data changes default to explicit approval.
+A recorded policy may permit automated deployment with enforced controls. In both
+cases, authorisation is tied to the plan or immutable platform run that is applied.
+Plan freshness windows, drift frequency and recovery objectives follow project risk.
+
+Persistent state must be protected, but the blueprint leaves the choice of backend
+encryption, native OpenTofu encryption and key ownership to the threat model and
+recovery requirements. Native encryption requires a deliberate migration and tested
+key recovery. Tests cover representative compatibility and risk, rather than every
+possible combination of CLI and provider versions.
+
+The GitHub Actions extension explicitly scopes inherited application-release rules:
+deployment-only repositories use source/run identity; distributed modules use their
+release contract. Snapshot releases and a particular application release tool are
+not prerequisites for infrastructure deployment.
+
+#### Relationship to Terraform practice
+
+The design principles largely align with Terraform guidance: reusable modules,
+typed interfaces, reviewed dependency updates, environment isolation, protected
+state and reviewed plans. See the [Terraform style guide](https://developer.hashicorp.com/terraform/language/style)
+and [version-constraint guidance](https://developer.hashicorp.com/terraform/language/expressions/version-constraints).
+Exact external module pins are a deployment default, while reusable modules should
+leave callers reasonable provider-version flexibility.
+
+Product-specific mechanics need separate guidance. OpenTofu supports
+[native state and plan encryption](https://opentofu.org/docs/language/state/encryption/);
+Terraform's [sensitive-data guidance](https://developer.hashicorp.com/terraform/language/manage-sensitive-data)
+describes backend/platform encryption and supported ephemeral or write-only features.
+Both products require feature and provider compatibility checks. A module's Terraform
+support does not by itself establish OpenTofu support, or vice versa.
+
+Distinguish CLI workspaces from hosted automation workspaces: Terraform's
+[workspace guidance](https://developer.hashicorp.com/terraform/cli/workspaces) also
+explains that CLI workspaces share backend access and are unsuitable as a separate
+security boundary. Hosted platforms can provide separate runs, identities and
+approval controls, so their integrations should follow their own product contracts.
 
 ### Working in an Existing Codebase
 
