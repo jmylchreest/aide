@@ -699,15 +699,25 @@ func (s *decisionServiceImpl) Set(ctx context.Context, req *DecisionSetRequest) 
 		precedence = &n
 	}
 
+	var requested *memory.DecisionContext
+	if req.Context != nil {
+		c := DecisionContextFromProto(req.Context)
+		requested = &c
+	}
+	context := store.ResolveDecisionContext(s.store, req.Topic, requested)
+	if err := context.Validate(req.Topic); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 	dec := &memory.Decision{
-		Checkout:   ProvenanceFromProto(req.Checkout),
-		Topic:      req.Topic,
-		Decision:   req.Decision,
-		Rationale:  req.Rationale,
-		Details:    req.Details,
-		References: req.References,
-		DecidedBy:  req.DecidedBy,
-		Precedence: store.ResolvePrecedence(s.store, req.Topic, precedence),
+		DecisionContext: context,
+		Checkout:        ProvenanceFromProto(req.Checkout),
+		Topic:           req.Topic,
+		Decision:        req.Decision,
+		Rationale:       req.Rationale,
+		Details:         req.Details,
+		References:      req.References,
+		DecidedBy:       req.DecidedBy,
+		Precedence:      store.ResolvePrecedence(s.store, req.Topic, precedence),
 	}
 	// Honour caller-supplied CreatedAt; BoltStore.SetDecision stamps time.Now()
 	// when zero, matching the existing default.
@@ -2874,6 +2884,7 @@ func decisionToProto(d *memory.Decision) *Decision {
 		return nil
 	}
 	return &Decision{
+		Context:    DecisionContextToProto(d.DecisionContext),
 		Checkout:   ProvenanceToProto(d.Checkout),
 		Topic:      d.Topic,
 		Decision:   d.Decision,

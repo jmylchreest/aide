@@ -522,6 +522,10 @@ func writeDecisionMarkdown(filename string, d *memory.Decision) error {
 	// YAML frontmatter
 	fmt.Fprintln(f, "---")
 	fmt.Fprintf(f, "topic: %s\n", d.Topic)
+	if d.Applicability != nil || len(d.Supersedes) > 0 {
+		data, _ := json.Marshal(d.DecisionContext)
+		fmt.Fprintf(f, "context: %s\n", data)
+	}
 	if d.Checkout != nil {
 		data, _ := json.Marshal(d.Checkout)
 		fmt.Fprintf(f, "checkout: %s\n", data)
@@ -925,7 +929,7 @@ func shareImportDecisions(b *Backend, inputDir string, dryRun bool) (imported, s
 			continue
 		}
 
-		_, err = b.SetDecision(d.Topic, d.Decision, d.Rationale, d.Details, d.DecidedBy, d.References, &d.Precedence)
+		_, err = b.SetDecision(d.Topic, d.Decision, d.Rationale, d.Details, d.DecidedBy, d.References, &d.Precedence, &d.DecisionContext)
 		if err != nil {
 			return imported, skipped, fmt.Errorf("failed to import decision %s: %w", d.Topic, err)
 		}
@@ -969,7 +973,11 @@ func parseDecisionMarkdown(filename string) (*memory.Decision, error) {
 		}
 
 		if inFrontmatter {
-			if strings.HasPrefix(line, "checkout:") {
+			if strings.HasPrefix(line, "context:") {
+				if err := json.Unmarshal([]byte(strings.TrimSpace(strings.TrimPrefix(line, "context:"))), &d.DecisionContext); err != nil {
+					return nil, err
+				}
+			} else if strings.HasPrefix(line, "checkout:") {
 				if err := json.Unmarshal([]byte(strings.TrimSpace(strings.TrimPrefix(line, "checkout:"))), &d.Checkout); err != nil {
 					return nil, err
 				}
@@ -1022,6 +1030,9 @@ func parseDecisionMarkdown(filename string) (*memory.Decision, error) {
 		d.Details = strings.TrimSpace(strings.Join(detailsLines, "\n"))
 	}
 
+	if err := d.DecisionContext.Validate(d.Topic); err != nil {
+		return nil, err
+	}
 	return d, scanner.Err()
 }
 

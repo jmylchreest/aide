@@ -14,12 +14,44 @@ import (
 // SetDecision stores a decision (append-only, allows multiple per topic).
 // Decisions are stored with composite key: topic:timestamp.
 func (s *BoltStore) SetDecision(d *memory.Decision) error {
+	if err := d.DecisionContext.Validate(d.Topic); err != nil {
+		return err
+	}
 	return s.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket(BucketDecisions)
 
 		// Ensure CreatedAt is set.
 		if d.CreatedAt.IsZero() {
 			d.CreatedAt = time.Now()
+		}
+
+		if len(d.Supersedes) > 0 {
+			// Validate the resulting latest graph inside the write transaction so
+			// concurrent updates cannot each introduce one half of a cycle.
+			latest := map[string]*memory.Decision{}
+			if err := b.ForEach(func(_, value []byte) error {
+				var previous memory.Decision
+				if err := json.Unmarshal(value, &previous); err != nil {
+					return err
+				}
+				if current := latest[previous.Topic]; current == nil || previous.CreatedAt.After(current.CreatedAt) {
+					latest[previous.Topic] = &previous
+				}
+				return nil
+			}); err != nil {
+				return err
+			}
+			if current := latest[d.Topic]; current == nil || !d.CreatedAt.Before(current.CreatedAt) {
+				latest[d.Topic] = d
+			}
+			contexts := map[string]memory.DecisionContext{}
+			for topic, current := range latest {
+				contexts[topic] = current.DecisionContext
+			}
+			if err := memory.ValidateSupersession(contexts); err != nil {
+				return err
+			}
+
 		}
 
 		// Composite key: topic:timestamp (allows multiple per topic).
@@ -202,4 +234,15 @@ func (s *BoltStore) ClearDecisions() (int, error) {
 	}
 
 	return count, err
+}
+
+// ResolveDecisionContext preserves applicability during edits that omit metadata.
+func ResolveDecisionContext(g DecisionGetter, topic string, requested *memory.DecisionContext) memory.DecisionContext {
+	if requested != nil {
+		return *requested
+	}
+	if prev, err := g.GetDecision(topic); err == nil && prev != nil {
+		return prev.DecisionContext
+	}
+	return memory.DecisionContext{}
 }

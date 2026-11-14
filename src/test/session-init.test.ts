@@ -224,7 +224,7 @@ describe("buildWelcomeContext decision precedence", () => {
       ctx.indexOf("## Project Decisions"),
     );
     // Ordering alone does not create precedence — the header must say so.
-    expect(ctx).toContain("These take precedence over every decision below");
+    expect(ctx).toContain("Within their stated applicability, these decisions take precedence");
     expect(ctx).toContain("**existing-codebase-precedence**");
     expect(ctx).toContain("**python-testing**");
   });

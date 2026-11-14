@@ -89,13 +89,14 @@ func carryString(requested *string, prev *memory.Decision, get func(*memory.Deci
 func (h *Handler) APICreateDecision(ctx context.Context, input *struct {
 	Project string `path:"project"`
 	Body    struct {
-		Topic      string    `json:"topic" required:"true"`
-		Decision   string    `json:"decision" required:"true"`
-		Rationale  *string   `json:"rationale,omitempty"`
-		Details    *string   `json:"details,omitempty"`
-		References *[]string `json:"references,omitempty"`
-		DecidedBy  *string   `json:"decided_by,omitempty"`
-		Precedence *int      `json:"precedence,omitempty"`
+		Topic      string                  `json:"topic" required:"true"`
+		Decision   string                  `json:"decision" required:"true"`
+		Rationale  *string                 `json:"rationale,omitempty"`
+		Details    *string                 `json:"details,omitempty"`
+		References *[]string               `json:"references,omitempty"`
+		DecidedBy  *string                 `json:"decided_by,omitempty"`
+		Precedence *int                    `json:"precedence,omitempty"`
+		Context    *memory.DecisionContext `json:"context,omitempty"`
 	}
 }) (*struct{}, error) {
 	inst := h.findInstance(input.Project)
@@ -114,12 +115,13 @@ func (h *Handler) APICreateDecision(ctx context.Context, input *struct {
 	}
 
 	d := &memory.Decision{
-		Topic:      input.Body.Topic,
-		Decision:   input.Body.Decision,
-		Rationale:  carryString(input.Body.Rationale, prev, func(p *memory.Decision) string { return p.Rationale }),
-		Details:    carryString(input.Body.Details, prev, func(p *memory.Decision) string { return p.Details }),
-		DecidedBy:  carryString(input.Body.DecidedBy, prev, func(p *memory.Decision) string { return p.DecidedBy }),
-		Precedence: store.ResolvePrecedence(s, input.Body.Topic, input.Body.Precedence),
+		DecisionContext: store.ResolveDecisionContext(s, input.Body.Topic, input.Body.Context),
+		Topic:           input.Body.Topic,
+		Decision:        input.Body.Decision,
+		Rationale:       carryString(input.Body.Rationale, prev, func(p *memory.Decision) string { return p.Rationale }),
+		Details:         carryString(input.Body.Details, prev, func(p *memory.Decision) string { return p.Details }),
+		DecidedBy:       carryString(input.Body.DecidedBy, prev, func(p *memory.Decision) string { return p.DecidedBy }),
+		Precedence:      store.ResolvePrecedence(s, input.Body.Topic, input.Body.Precedence),
 	}
 	switch {
 	case input.Body.References != nil:

@@ -1,9 +1,9 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "name": "github-actions",
   "display_name": "GitHub Actions Best Practices",
   "description": "Security-hardened GitHub Actions workflow patterns and CI/CD best practices",
-  "version": "0.0.59",
+  "version": "0.2.0",
   "tags": [
     "ci",
     "github-actions"
@@ -73,5 +73,15 @@
         "https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-a-branch-protection-rule/about-protected-branches"
       ]
     }
-  ]
+  ],
+  "default_applicability": {
+    "kind": "context",
+    "any_of": [
+      {
+        "tools": [
+          "github-actions"
+        ]
+      }
+    ]
+  }
 }

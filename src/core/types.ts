@@ -1,3 +1,4 @@
+import type { DecisionApplicability } from "./decision-context.js";
 /**
  * Shared types used by both Claude Code hooks and OpenCode plugin.
  *
@@ -103,6 +104,8 @@ export interface SessionInitResult {
   }>;
   project_memory_overflow?: boolean;
   decisions: Array<{
+    applicability?: DecisionApplicability;
+    supersedes?: string[];
     topic: string;
     value: string;
     rationale?: string;

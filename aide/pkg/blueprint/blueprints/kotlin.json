@@ -1,9 +1,9 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "name": "kotlin",
   "display_name": "Kotlin Best Practices",
   "description": "Idiomatic Kotlin conventions, null safety, coroutines, testing, and tooling for production Kotlin/JVM and multiplatform code",
-  "version": "0.0.60",
+  "version": "0.2.0",
   "tags": [
     "language",
     "kotlin",
@@ -180,7 +180,16 @@
       "references": [
         "https://kotlinlang.org/docs/multiplatform.html",
         "https://kotlinlang.org/docs/multiplatform-expect-actual.html"
-      ]
+      ],
+      "applicability": {
+        "kind": "context",
+        "any_of": [
+          {
+            "language": "kotlin",
+            "component": "multiplatform code"
+          }
+        ]
+      }
     },
     {
       "topic": "kotlin-java-interop",
@@ -190,7 +199,24 @@
       "references": [
         "https://kotlinlang.org/docs/java-to-kotlin-interop.html",
         "https://kotlinlang.org/docs/java-interop.html#jsr-305-support"
-      ]
+      ],
+      "applicability": {
+        "kind": "context",
+        "any_of": [
+          {
+            "language": "kotlin",
+            "component": "JVM code"
+          }
+        ]
+      }
     }
-  ]
+  ],
+  "default_applicability": {
+    "kind": "context",
+    "any_of": [
+      {
+        "language": "kotlin"
+      }
+    ]
+  }
 }

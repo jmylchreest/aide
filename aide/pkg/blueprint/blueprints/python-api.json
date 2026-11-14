@@ -1,9 +1,9 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "name": "python-api",
   "display_name": "Python API Services",
   "description": "Production HTTP services in Python: framework selection, ASGI serving, validated boundaries, SQLAlchemy and Alembic, auth, background work, observability, and testing",
-  "version": "0.1.14",
+  "version": "0.2.0",
   "tags": [
     "api",
     "backend",
@@ -123,5 +123,14 @@
         "https://docs.docker.com/build/building/multi-stage/"
       ]
     }
-  ]
+  ],
+  "default_applicability": {
+    "kind": "context",
+    "any_of": [
+      {
+        "language": "python",
+        "component": "HTTP API services"
+      }
+    ]
+  }
 }

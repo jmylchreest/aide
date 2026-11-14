@@ -1,9 +1,9 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "name": "documentation-core",
   "display_name": "Documentation Core",
   "description": "Universal documentation storage and maintenance practices, inherited by every project via general",
-  "version": "0.0.65",
+  "version": "0.2.0",
   "tags": [
     "documentation"
   ],
@@ -53,5 +53,13 @@
       "details": "Pick a text DSL that fits the diagram type and team familiarity — Mermaid, PlantUML, D2, and Structurizr are common choices. Rendering is a project-level choice this decision does not prescribe: commit an SVG next to the source, render on-demand locally, wire up a CI renderer, or render nothing at all are all acceptable. The one rule: the source lives in the repo next to what it documents.",
       "references": []
     }
-  ]
+  ],
+  "default_applicability": {
+    "kind": "context",
+    "any_of": [
+      {
+        "concern": "documentation and authored comments"
+      }
+    ]
+  }
 }

@@ -1,9 +1,9 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "name": "rust-github-actions",
   "display_name": "Rust CI/CD with GitHub Actions",
   "description": "Rust-specific CI patterns: clippy, cargo-nextest, cargo-deny, sanitizers, coverage, and release automation",
-  "version": "0.0.59",
+  "version": "0.2.0",
   "tags": [
     "ci",
     "github-actions",
@@ -76,5 +76,16 @@
         "https://opensource.axo.dev/cargo-dist/"
       ]
     }
-  ]
+  ],
+  "default_applicability": {
+    "kind": "context",
+    "any_of": [
+      {
+        "language": "rust",
+        "tools": [
+          "github-actions"
+        ]
+      }
+    ]
+  }
 }
