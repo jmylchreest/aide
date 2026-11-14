@@ -310,6 +310,85 @@ decisions cover convention discovery, toolchain fidelity, linter config as bindi
 dependency restraint, test conventions, error and logging idiom, naming and comment idiom, public contract
 stability, generated and vendored code, verification parity with CI, and modernisation as explicit work.
 
+## Applicability and contextual overrides
+
+Blueprint authors declare applicability. AIDE validates and preserves those declarations;
+it does not infer them from tags, file extensions or the blueprint name. Agents use
+these explicit labels together with the task and source context. All decisions remain
+visible, including in subagent context, so cross-language work retains its guidance.
+This is contextual instruction, not a deterministic file filter or a guarantee of LLM compliance.
+
+Schema 2 supports a `default_applicability` on each blueprint and an `applicability`
+replacement on a decision. Included blueprints retain their own defaults. Use
+`{"kind":"project"}` for project-wide rules, or a context selector:
+
+```json
+{
+  "kind": "context",
+  "any_of": [
+    { "language": "python", "framework": "django" },
+    { "tools": ["opentofu", "github-actions"], "concern": "deployment" }
+  ]
+}
+```
+
+Each `any_of` entry is an alternative. Fields within an entry, including every tool,
+are conjunctive. Optional `component` and `concern` labels describe implementation
+boundaries or responsibilities that language alone cannot express. These are authored
+labels, not filesystem globs. Missing applicability in legacy or manually authored
+decisions renders as **Applicability unspecified**, never implicitly project-wide.
+Schema 1 remains readable; it cannot declare the new metadata. All shipped blueprints
+use schema 2. Older clients reject schema 2 instead of ignoring its applicability.
+
+Multiple blueprints may declare the same applicability. Distinct topics accumulate;
+shared includes are deduplicated. Identical definitions of a topic are skipped with the
+existing decision's provenance retained. Conflicting definitions from different
+blueprints fail import preflight, including with `--force`. Use distinct topics and
+explicit relationships for exceptions:
+
+```json
+{
+  "topic": "django-settings",
+  "decision": "Use Django settings for Django application configuration.",
+  "rationale": "Django owns the application configuration lifecycle.",
+  "applicability": {
+    "kind": "context",
+    "any_of": [{ "language": "python", "framework": "django" }]
+  },
+  "supersedes": ["python-configuration-and-secrets"]
+}
+```
+
+Supersession applies only within the overriding decision's applicability. Both rules
+remain visible; the general rule still applies elsewhere. Specificity alone grants
+no precedence. Self-references and cycles are rejected. A referenced topic may be absent
+when a portable blueprint is imported independently. Semantically contradictory prose
+under different topics still requires author review.
+
+### Migrating existing imports
+
+The migration annotates unchanged decisions owned by shipped blueprints. It preserves
+text, references, precedence and provenance, appends a revision, and leaves modified,
+user-owned or already-annotated decisions untouched. It does not import missing rules.
+
+```bash
+aide blueprint migrate --dry-run
+aide blueprint migrate
+```
+
+For custom blueprints, declare metadata in schema 2, bump the blueprint version and
+review a normal import dry-run. Ordinary decision edits retain existing context. Set
+it explicitly through the CLI when annotating a custom decision:
+
+```bash
+aide decision set custom-rule "Use the survey storage contract." --context='{"applicability":{"kind":"context","any_of":[{"language":"go","component":"survey"}]}}'
+```
+
+`--context` replaces applicability and supersession together; `--context='{}'` clears
+both to unspecified. The decision API accepts the same optional `context` object.
+Sharing, inheritance and adoption preserve the metadata. Inspect a decision's full
+context before changing it, especially when it supersedes another topic.
+
 ## Resolution Order
 
 When you run `aide blueprint import <name>` or `aide blueprint show <name>`, AIDE looks for the blueprint in this order:
@@ -406,8 +485,12 @@ aide blueprint import go    # uses your local override
 
 ```json
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "name": "my-blueprint",
+  "default_applicability": {
+    "kind": "context",
+    "any_of": [{ "language": "go" }]
+  },
   "display_name": "My Blueprint",
   "description": "What this blueprint covers",
   "version": "0.0.0",
@@ -521,8 +604,9 @@ aide blueprint import --registry=URL go           # Use a one-off registry
 Blueprints live in `aide/pkg/blueprint/blueprints/` as JSON files. To contribute:
 
 1. Create or edit a `<name>.json` file following the schema above
-2. Ensure decisions are actionable, rationale explains "why", and details explain "how"
-3. Remove version-specific references — frame guidance as "latest stable" or "modern Go"
-4. Submit a PR — CI validates the schema automatically
+2. Declare explicit applicability for schema 2. Use a blueprint default and per-decision replacements for narrower contexts.
+3. Ensure decisions are actionable, rationale explains "why", and details explain "how"
+4. Remove version-specific references — frame guidance as "latest stable" or "modern Go"
+5. Submit a PR — CI validates the schema automatically
 
 Blueprint versions for shipped blueprints are automatically bumped to match the release version by `make release` when the blueprint content has changed since the last tag.

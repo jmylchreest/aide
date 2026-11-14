@@ -195,7 +195,24 @@ service DecisionService {
   rpc Clear(DecisionClearRequest) returns (DecisionClearResponse);
 }
 
+message ApplicabilitySelector {
+ string language = 1;
+ string framework = 2;
+ repeated string tools = 3;
+ string component = 4;
+ string concern = 5;
+}
+message Applicability {
+ string kind = 1;
+ repeated ApplicabilitySelector any_of = 2;
+}
+message DecisionContext {
+ Applicability applicability = 1;
+ repeated string supersedes = 2;
+}
+
 message Decision {
+  DecisionContext context = 10;
   CheckoutProvenance checkout = 9;
   string topic = 1;
   string decision = 2;
@@ -210,6 +227,7 @@ message Decision {
 }
 
 message DecisionSetRequest {
+  DecisionContext context = 10;
   CheckoutProvenance checkout = 9;
   string topic = 1;
   string decision = 2;

@@ -1,9 +1,9 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "name": "opentofu",
   "display_name": "OpenTofu Best Practices",
   "description": "Reusable infrastructure design, dependency selection, environments, security, testing, reviewed deployments, state management and recovery.",
-  "version": "0.0.0",
+  "version": "0.2.0",
   "tags": [
     "infrastructure",
     "opentofu"
@@ -126,6 +126,9 @@
       "details": "Set the language/runtime compatibility requirement for the features actually used. Reusable modules normally declare minimum provider versions, adding exclusions or upper bounds for known incompatibilities. Roots choose the permitted upgrade range and lock the selected providers. Keep local development aligned with the deployment CLI and schedule reviewed upgrades instead of automatically adopting each latest release. This specialises general dependency-management: reusable provider constraints describe compatibility; deployment locks and module selections provide reproducibility.",
       "references": [
         "https://opentofu.org/docs/language/providers/requirements/"
+      ],
+      "supersedes": [
+        "dependency-management"
       ]
     },
     {
@@ -387,5 +390,15 @@
         "https://opentofu.org/docs/language/state/encryption/"
       ]
     }
-  ]
+  ],
+  "default_applicability": {
+    "kind": "context",
+    "any_of": [
+      {
+        "tools": [
+          "opentofu"
+        ]
+      }
+    ]
+  }
 }

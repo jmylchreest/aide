@@ -1,9 +1,9 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "name": "csharp",
   "display_name": "C# / .NET Best Practices",
   "description": "Idiomatic modern C# on cross-platform .NET: nullable reference types, records, async, DI, System.Text.Json, analysers, and tooling for production code",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "tags": [
     "language",
     "csharp",
@@ -209,7 +209,16 @@
         "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis/responses",
         "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/openapi/aspnetcore-openapi",
         "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/error-handling-api"
-      ]
+      ],
+      "applicability": {
+        "kind": "context",
+        "any_of": [
+          {
+            "language": "csharp",
+            "framework": "aspnet-core"
+          }
+        ]
+      }
     },
     {
       "topic": "csharp-analysers-and-format",
@@ -233,5 +242,13 @@
         "https://devblogs.microsoft.com/dotnet/enable-repeatable-package-restores-using-a-lock-file/"
       ]
     }
-  ]
+  ],
+  "default_applicability": {
+    "kind": "context",
+    "any_of": [
+      {
+        "language": "csharp"
+      }
+    ]
+  }
 }

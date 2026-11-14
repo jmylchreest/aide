@@ -1,9 +1,9 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "name": "documentation-opentofu",
   "display_name": "OpenTofu Documentation",
   "description": "Module contracts, generated reference, executable examples, deployment guides and recovery documentation.",
-  "version": "0.0.0",
+  "version": "0.2.0",
   "tags": [
     "documentation",
     "opentofu"
@@ -89,5 +89,16 @@
         "https://opentofu.org/docs/language/modules/develop/refactoring/"
       ]
     }
-  ]
+  ],
+  "default_applicability": {
+    "kind": "context",
+    "any_of": [
+      {
+        "tools": [
+          "opentofu"
+        ],
+        "concern": "infrastructure documentation"
+      }
+    ]
+  }
 }

@@ -95,6 +95,7 @@ type SessionMemory struct {
 // decision terminology-axes): Origin is the ancestor's root, OriginName
 // its project identity.
 type SessionDecision struct {
+	memory.DecisionContext
 	Topic      string `json:"topic"`
 	Value      string `json:"value"`
 	Rationale  string `json:"rationale,omitempty"`
@@ -470,11 +471,12 @@ func sessionFetchContext(backend *Backend, project string, sessionLimit int, res
 			d := latest[t]
 			seenTopics[d.Topic] = true
 			result.Decisions = append(result.Decisions, SessionDecision{
-				Topic:      d.Topic,
-				Value:      d.Decision,
-				Rationale:  d.Rationale,
-				Precedence: d.Precedence,
-				CreatedAt:  d.CreatedAt.Format(time.RFC3339),
+				DecisionContext: d.DecisionContext,
+				Topic:           d.Topic,
+				Value:           d.Decision,
+				Rationale:       d.Rationale,
+				Precedence:      d.Precedence,
+				CreatedAt:       d.CreatedAt.Format(time.RFC3339),
 			})
 		}
 	}
@@ -543,14 +545,15 @@ func cascadeDecisions(dbPath string, seenTopics map[string]bool) []SessionDecisi
 			seenTopics[topic] = true
 			d := latest[topic]
 			out = append(out, SessionDecision{
-				Topic:      d.Topic,
-				Value:      d.Decision,
-				Rationale:  d.Rationale,
-				Precedence: d.Precedence,
-				CreatedAt:  d.CreatedAt.Format(time.RFC3339),
-				Origin:     link.Root,
-				OriginName: name,
-				OriginKind: "parent",
+				DecisionContext: d.DecisionContext,
+				Topic:           d.Topic,
+				Value:           d.Decision,
+				Rationale:       d.Rationale,
+				Precedence:      d.Precedence,
+				CreatedAt:       d.CreatedAt.Format(time.RFC3339),
+				Origin:          link.Root,
+				OriginName:      name,
+				OriginKind:      "parent",
 			})
 		}
 	}
@@ -602,14 +605,15 @@ func peerDecisions(dbPath string, seenTopics map[string]bool) []SessionDecision 
 			seenTopics[topic] = true
 			d := latest[topic]
 			out = append(out, SessionDecision{
-				Topic:      d.Topic,
-				Value:      d.Decision,
-				Rationale:  d.Rationale,
-				Precedence: d.Precedence,
-				CreatedAt:  d.CreatedAt.Format(time.RFC3339),
-				Origin:     "peer:" + sub.Name,
-				OriginName: sub.Name,
-				OriginKind: "peer",
+				DecisionContext: d.DecisionContext,
+				Topic:           d.Topic,
+				Value:           d.Decision,
+				Rationale:       d.Rationale,
+				Precedence:      d.Precedence,
+				CreatedAt:       d.CreatedAt.Format(time.RFC3339),
+				Origin:          "peer:" + sub.Name,
+				OriginName:      sub.Name,
+				OriginKind:      "peer",
 			})
 		}
 	}

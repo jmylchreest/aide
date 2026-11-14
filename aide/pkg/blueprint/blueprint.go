@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/jmylchreest/aide/aide/pkg/memory"
 )
 
 //go:embed blueprints/*.json
@@ -19,13 +21,14 @@ var embeddedBlueprints embed.FS
 
 // Blueprint is a portable bundle of best-practice decisions for a language or stack.
 type Blueprint struct {
-	SchemaVersion int      `json:"schema_version"`
-	Name          string   `json:"name"`
-	DisplayName   string   `json:"display_name"`
-	Description   string   `json:"description"`
-	Version       string   `json:"version"`
-	Tags          []string `json:"tags,omitempty"`
-	Includes      []string `json:"includes,omitempty"`
+	DefaultApplicability *memory.Applicability `json:"default_applicability,omitempty"`
+	SchemaVersion        int                   `json:"schema_version"`
+	Name                 string                `json:"name"`
+	DisplayName          string                `json:"display_name"`
+	Description          string                `json:"description"`
+	Version              string                `json:"version"`
+	Tags                 []string              `json:"tags,omitempty"`
+	Includes             []string              `json:"includes,omitempty"`
 	// DefaultPrecedence applies to every decision in this blueprint that does
 	// not set its own, so a guardrail bundle declares its weight once rather
 	// than repeating it on each decision.
@@ -35,6 +38,7 @@ type Blueprint struct {
 
 // BlueprintDecision is a single decision within a blueprint.
 type BlueprintDecision struct {
+	memory.DecisionContext
 	Topic      string   `json:"topic"`
 	Decision   string   `json:"decision"`
 	Rationale  string   `json:"rationale"`
@@ -64,8 +68,8 @@ type ImportResult struct {
 
 // Validate checks that a blueprint has all required fields and no duplicate topics.
 func (bp *Blueprint) Validate() error {
-	if bp.SchemaVersion != 1 {
-		return fmt.Errorf("unsupported schema_version: %d (expected 1)", bp.SchemaVersion)
+	if bp.SchemaVersion != 1 && bp.SchemaVersion != 2 {
+		return fmt.Errorf("unsupported schema_version: %d (expected 1 or 2)", bp.SchemaVersion)
 	}
 	if bp.Name == "" {
 		return fmt.Errorf("missing required field: name")
@@ -93,6 +97,16 @@ func (bp *Blueprint) Validate() error {
 		}
 		if seen[d.Topic] {
 			return fmt.Errorf("duplicate topic: %s", d.Topic)
+		}
+		context := bp.EffectiveContext(d)
+		if bp.SchemaVersion == 2 && context.Applicability == nil {
+			return fmt.Errorf("decision %s requires applicability in schema 2", d.Topic)
+		}
+		if bp.SchemaVersion == 1 && (bp.DefaultApplicability != nil || d.Applicability != nil || len(d.Supersedes) > 0) {
+			return fmt.Errorf("applicability requires schema 2")
+		}
+		if err := context.Validate(d.Topic); err != nil {
+			return fmt.Errorf("decision %s: %w", d.Topic, err)
 		}
 		seen[d.Topic] = true
 	}
@@ -272,4 +286,13 @@ func parseAndValidate(data []byte, source string) (*Blueprint, error) {
 		return nil, fmt.Errorf("validate %s: %w", source, err)
 	}
 	return &bp, nil
+}
+
+// EffectiveContext resolves only this blueprint's default; includes retain theirs.
+func (bp *Blueprint) EffectiveContext(d BlueprintDecision) memory.DecisionContext {
+	c := d.DecisionContext
+	if c.Applicability == nil {
+		c.Applicability = bp.DefaultApplicability
+	}
+	return c
 }

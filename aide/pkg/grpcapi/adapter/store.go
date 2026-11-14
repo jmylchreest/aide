@@ -316,6 +316,8 @@ func (g *StoreAdapter) SetDecision(d *memory.Decision) error {
 	ctx, cancel := g.rpcCtx()
 	defer cancel()
 	req := &grpcapi.DecisionSetRequest{
+		Context:    grpcapi.DecisionContextToProto(d.DecisionContext),
+		Precedence: decisionPrecedence(d.Precedence),
 		Checkout:   grpcapi.ProvenanceToProto(d.Checkout),
 		Topic:      d.Topic,
 		Decision:   d.Decision,
@@ -827,3 +829,5 @@ func (g *StoreAdapter) PruneCompletedTasks(maxAge time.Duration) (int, error) {
 
 // Emit forwards MCP observations in client mode. Telemetry never fails a tool.
 func (g *StoreAdapter) Emit(e *observe.Event) { _ = g.AddObserveEvent(e) }
+
+func decisionPrecedence(n int) *int32 { p := int32(n); return &p }

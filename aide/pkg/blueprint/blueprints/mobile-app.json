@@ -1,9 +1,9 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "name": "mobile-app",
   "display_name": "Mobile Application",
   "description": "Composition for projects delivering a mobile application to end users. Today bundles documentation practices; room for app store metadata, device testing, and platform permission leaves to be added.",
-  "version": "0.0.63",
+  "version": "0.2.0",
   "tags": [
     "composition",
     "mobile"
@@ -12,5 +12,13 @@
     "documentation-core",
     "documentation-enduser"
   ],
-  "decisions": []
+  "decisions": [],
+  "default_applicability": {
+    "kind": "context",
+    "any_of": [
+      {
+        "component": "mobile applications"
+      }
+    ]
+  }
 }

@@ -455,7 +455,17 @@ func (b *Backend) CleanupState(maxAge time.Duration) (int, error) {
 
 // SetDecision writes a new revision of a topic. A nil precedence carries the
 // current revision's weight forward; see store.ResolvePrecedence.
-func (b *Backend) SetDecision(topic, decision, rationale, details, decidedBy string, references []string, precedence *int) (*memory.Decision, error) {
+func (b *Backend) SetDecision(topic, decision, rationale, details, decidedBy string, references []string, precedence *int, contexts ...*memory.DecisionContext) (*memory.Decision, error) {
+	var requested *memory.DecisionContext
+	if len(contexts) > 0 {
+		requested = contexts[0]
+	}
+	if requested != nil {
+		if err := requested.Validate(topic); err != nil {
+			return nil, err
+		}
+	}
+
 	ctx, cancel := b.rpcCtx()
 	defer cancel()
 
@@ -468,6 +478,9 @@ func (b *Backend) SetDecision(topic, decision, rationale, details, decidedBy str
 			References: references,
 			DecidedBy:  decidedBy,
 		}
+		if requested != nil {
+			req.Context = grpcapi.DecisionContextToProto(*requested)
+		}
 		if precedence != nil {
 			req.Precedence = proto.Int32(int32(*precedence))
 		}
@@ -479,14 +492,15 @@ func (b *Backend) SetDecision(topic, decision, rationale, details, decidedBy str
 	}
 
 	dec := &memory.Decision{
-		Topic:      topic,
-		Decision:   decision,
-		Rationale:  rationale,
-		Details:    details,
-		References: references,
-		DecidedBy:  decidedBy,
-		Precedence: store.ResolvePrecedence(b.store, topic, precedence),
-		CreatedAt:  time.Now(),
+		DecisionContext: store.ResolveDecisionContext(b.store, topic, requested),
+		Topic:           topic,
+		Decision:        decision,
+		Rationale:       rationale,
+		Details:         details,
+		References:      references,
+		DecidedBy:       decidedBy,
+		Precedence:      store.ResolvePrecedence(b.store, topic, precedence),
+		CreatedAt:       time.Now(),
 	}
 	if c, err := store.CheckoutInfo(b.dbPath, store.CheckoutRoot(b.dbPath)); err == nil {
 		dec.Checkout = &memory.CheckoutProvenance{ID: c.ID, Branch: c.Branch, Commit: c.Commit}
