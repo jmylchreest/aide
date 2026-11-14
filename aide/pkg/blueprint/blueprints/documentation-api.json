@@ -1,9 +1,9 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "name": "documentation-api",
   "display_name": "API Documentation",
   "description": "Practices for developer / API documentation: contracts, generated reference, examples, and deprecation policy",
-  "version": "0.0.63",
+  "version": "0.2.0",
   "tags": [
     "documentation",
     "api"
@@ -48,5 +48,13 @@
       "details": "Keep an API changelog scoped to the API surface: added / changed / removed endpoints or events, field changes, breaking behaviour, and migration steps. For machine-readable diffs, tools like oasdiff, openapi-diff, or graphql-inspector can generate schema deltas between versions that the changelog cites. Version the API changelog alongside the API itself.",
       "references": []
     }
-  ]
+  ],
+  "default_applicability": {
+    "kind": "context",
+    "any_of": [
+      {
+        "concern": "developer-facing API documentation"
+      }
+    ]
+  }
 }

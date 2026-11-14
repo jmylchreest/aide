@@ -1,9 +1,9 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "name": "opentofu-github-actions",
   "display_name": "OpenTofu GitHub Actions",
   "description": "Trusted OpenTofu checks and deployment workflows with environment authentication, plan approval, artifact provenance and state concurrency.",
-  "version": "0.0.0",
+  "version": "0.2.0",
   "tags": [
     "ci",
     "opentofu",
@@ -21,6 +21,22 @@
       "details": "This decision supersedes gha-versioning and gha-snapshot-releases for deployment-only repositories: record deployments by immutable source/run identity. Publish semantically versioned module releases when consumers need them, using the repository's established release tooling. Apply snapshot publication only when the project explicitly distributes snapshot artifacts. The inherited action-pinning, permissions and code-trust rules still apply.",
       "references": [
         "https://docs.github.com/en/actions/security-for-github-actions/security-guides/security-hardening-for-github-actions"
+      ],
+      "applicability": {
+        "kind": "context",
+        "any_of": [
+          {
+            "tools": [
+              "opentofu",
+              "github-actions"
+            ],
+            "concern": "release workflows"
+          }
+        ]
+      },
+      "supersedes": [
+        "gha-versioning",
+        "gha-snapshot-releases"
       ]
     },
     {
@@ -110,5 +126,16 @@
         "https://opentofu.org/docs/cli/commands/plan/"
       ]
     }
-  ]
+  ],
+  "default_applicability": {
+    "kind": "context",
+    "any_of": [
+      {
+        "tools": [
+          "opentofu",
+          "github-actions"
+        ]
+      }
+    ]
+  }
 }

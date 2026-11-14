@@ -1,9 +1,9 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "name": "desktop-app",
   "display_name": "Desktop Application",
   "description": "Composition for projects delivering a desktop application to end users. Today bundles documentation practices; room for platform-specific packaging, testing, and auto-update leaves to be added.",
-  "version": "0.0.63",
+  "version": "0.2.0",
   "tags": [
     "composition",
     "desktop"
@@ -12,5 +12,13 @@
     "documentation-core",
     "documentation-enduser"
   ],
-  "decisions": []
+  "decisions": [],
+  "default_applicability": {
+    "kind": "context",
+    "any_of": [
+      {
+        "component": "desktop applications"
+      }
+    ]
+  }
 }

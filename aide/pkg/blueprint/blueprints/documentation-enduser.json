@@ -1,9 +1,9 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "name": "documentation-enduser",
   "display_name": "End-User Documentation",
   "description": "Practices for user-facing documentation: structure, onboarding, screenshots, search, and hosting",
-  "version": "0.0.63",
+  "version": "0.2.0",
   "tags": [
     "documentation",
     "enduser"
@@ -47,5 +47,13 @@
       "details": "Register a project domain (or a subdomain under an organisation domain) and point it at the docs host via CNAME. Redirect provider-default URLs to the canonical one. Keep the docs URL path scheme stable across migrations — /docs/<version>/<path> stays /docs/<version>/<path> whether the backend is GitHub Pages, Cloudflare Pages, Vercel, or a container.",
       "references": []
     }
-  ]
+  ],
+  "default_applicability": {
+    "kind": "context",
+    "any_of": [
+      {
+        "concern": "end-user documentation"
+      }
+    ]
+  }
 }

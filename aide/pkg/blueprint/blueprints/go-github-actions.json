@@ -1,9 +1,9 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "name": "go-github-actions",
   "display_name": "Go CI/CD with GitHub Actions",
   "description": "Go-specific GitHub Actions patterns: CI workflows, golangci-lint, matrix builds, cross-compilation, and releases",
-  "version": "0.0.59",
+  "version": "0.2.0",
   "tags": [
     "ci",
     "github-actions",
@@ -54,5 +54,16 @@
       "details": "6-target matrix (fail-fast: false): linux/{amd64,arm64} ubuntu+zig, darwin/{amd64,arm64} macos+clang, windows/{amd64,arm64} ubuntu+zig. CGO_ENABLED=1, CC='zig cc -target ${{ matrix.zig_target }}'. .exe for Windows. Naming: {binary}-{os}-{arch}[.exe]. UPX optional (skip darwin, windows/arm64). Use over GoReleaser when CGO needed.",
       "references": []
     }
-  ]
+  ],
+  "default_applicability": {
+    "kind": "context",
+    "any_of": [
+      {
+        "language": "go",
+        "tools": [
+          "github-actions"
+        ]
+      }
+    ]
+  }
 }

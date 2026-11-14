@@ -14,6 +14,11 @@
  * - agent_id, agent_type, output, success
  */
 
+import {
+  renderContextualDecision,
+  DECISION_APPLICABILITY_GUIDANCE,
+  type ContextualDecision,
+} from "../core/decision-context.js";
 import { execFileSync } from "child_process";
 import { basename } from "path";
 import { Logger } from "../lib/logger.js";
@@ -204,15 +209,11 @@ function fetchSubagentMemories(
       .trim();
 
     if (decisionsOutput && decisionsOutput !== "[]") {
-      const decisions: Array<{
-        topic: string;
-        value: string;
-        precedence?: number;
-      }> = JSON.parse(decisionsOutput);
+      const decisions: Array<ContextualDecision & { precedence?: number }> =
+        JSON.parse(decisionsOutput);
       // Same split as session init: a subagent must see guardrails ahead of
       // the decisions they override, not interleaved with them.
-      const render = (d: { topic: string; value: string }) =>
-        `**${d.topic}**: ${d.value}`;
+      const render = renderContextualDecision;
       result.overridingDecisions = decisions
         .filter((d) => (d.precedence ?? 0) >= DECISION_PRECEDENCE_OVERRIDE)
         .map(render);
@@ -241,6 +242,9 @@ function buildSubagentContext(memories: {
   const lines: string[] = [];
 
   lines.push("<aide-subagent-context>");
+  if (memories.decisions.length || memories.overridingDecisions.length) {
+    lines.push("", DECISION_APPLICABILITY_GUIDANCE);
+  }
 
   if (memories.global.length > 0) {
     lines.push("");
@@ -265,7 +269,7 @@ function buildSubagentContext(memories: {
     lines.push("## Overriding Decisions");
     lines.push("");
     lines.push(
-      "These take precedence over every decision below and over general best practice. Where they conflict with anything else, these win:",
+      "Within their stated applicability, these decisions take precedence over ordinary decisions and general best practice:",
     );
     lines.push("");
     for (const decision of memories.overridingDecisions) {

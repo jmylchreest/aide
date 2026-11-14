@@ -1,9 +1,9 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "name": "go",
   "display_name": "Go Best Practices",
   "description": "Idiomatic Go conventions, modern stdlib usage, and best practices for production Go code",
-  "version": "0.0.59",
+  "version": "0.2.0",
   "tags": [
     "language",
     "go"
@@ -140,7 +140,16 @@
         "https://huma.rocks/",
         "https://github.com/danielgtaylor/huma",
         "https://github.com/go-chi/chi"
-      ]
+      ],
+      "applicability": {
+        "kind": "context",
+        "any_of": [
+          {
+            "language": "go",
+            "concern": "HTTP APIs"
+          }
+        ]
+      }
     },
     {
       "topic": "go-async-api",
@@ -150,7 +159,16 @@
       "references": [
         "https://www.asyncapi.com/",
         "https://www.asyncapi.com/docs/tools/cli"
-      ]
+      ],
+      "applicability": {
+        "kind": "context",
+        "any_of": [
+          {
+            "language": "go",
+            "concern": "event-driven APIs"
+          }
+        ]
+      }
     },
     {
       "topic": "go-third-party",
@@ -175,5 +193,13 @@
       "details": "Three groups separated by blank lines: 1) stdlib 2) third-party 3) internal (same module). Example: import (\"context\" / \"github.com/go-chi/chi/v5\" / \"github.com/org/repo/internal/service\"). goimports handles this automatically; include in editor save hook and golangci-lint formatters.",
       "references": []
     }
-  ]
+  ],
+  "default_applicability": {
+    "kind": "context",
+    "any_of": [
+      {
+        "language": "go"
+      }
+    ]
+  }
 }

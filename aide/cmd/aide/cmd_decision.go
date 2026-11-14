@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -93,7 +94,7 @@ Examples:
 
 func decisionSet(b *Backend, args []string) error {
 	if len(args) < 2 {
-		return fmt.Errorf("usage: aide decision set TOPIC DECISION [--rationale=TEXT] [--details=TEXT] [--ref=URL...] [--by=AGENT] [--precedence=N]")
+		return fmt.Errorf("usage: aide decision set TOPIC DECISION [--rationale=TEXT] [--details=TEXT] [--ref=URL...] [--by=AGENT] [--precedence=N] [--context=JSON]")
 	}
 
 	topic := args[0]
@@ -121,12 +122,19 @@ func decisionSet(b *Backend, args []string) error {
 		precedence = &n
 	}
 
-	d, err := b.SetDecision(topic, decision, rationale, details, decidedBy, references, precedence)
+	var context *memory.DecisionContext
+	if raw := parseFlag(args[2:], "--context="); raw != "" {
+		context = &memory.DecisionContext{}
+		if err := json.Unmarshal([]byte(raw), context); err != nil {
+			return fmt.Errorf("invalid --context JSON: %w", err)
+		}
+	}
+	d, err := b.SetDecision(topic, decision, rationale, details, decidedBy, references, precedence, context)
 	if err != nil {
 		return fmt.Errorf("failed to set decision: %w", err)
 	}
 
-	fmt.Printf("Set decision: %s = %s\n", d.Topic, d.Decision)
+	fmt.Printf("Set decision: [%s] %s = %s\n", d.Applicability.Label(), d.Topic, d.Decision)
 	if d.Overrides() {
 		fmt.Printf("  precedence %d (overriding — injected ahead of ordinary decisions)\n", d.Precedence)
 	} else if d.Precedence != memory.PrecedenceDefault {
@@ -233,10 +241,11 @@ func decisionList(b *Backend, args []string) error {
 		d := latest[t]
 		seenTopics[d.Topic] = true
 		rows = append(rows, SessionDecision{
-			Topic:     d.Topic,
-			Value:     d.Decision,
-			Rationale: d.Rationale,
-			CreatedAt: d.CreatedAt.Format(time.RFC3339),
+			DecisionContext: d.DecisionContext,
+			Topic:           d.Topic,
+			Value:           d.Decision,
+			Rationale:       d.Rationale,
+			CreatedAt:       d.CreatedAt.Format(time.RFC3339),
 		})
 	}
 	if origin == "parent" || origin == "all" {
@@ -276,10 +285,10 @@ func decisionList(b *Backend, args []string) error {
 			date = t.Format("2006-01-02")
 		}
 		if showOrigin {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", date, originLabel(r), r.Topic, truncate(r.Value, 60))
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", date, originLabel(r), r.Topic, "["+r.Applicability.Label()+"] "+truncate(r.Value, 60))
 			continue
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\n", date, r.Topic, truncate(r.Value, 60))
+		fmt.Fprintf(w, "%s\t%s\t%s\n", date, r.Topic, "["+r.Applicability.Label()+"] "+truncate(r.Value, 60))
 	}
 	return w.Flush()
 }

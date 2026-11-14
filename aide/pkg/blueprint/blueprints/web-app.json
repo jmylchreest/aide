@@ -1,9 +1,9 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "name": "web-app",
   "display_name": "Web Application",
   "description": "Composition for projects delivering a web application to end users. Today bundles documentation practices; room for framework, testing, and deployment leaves to be added.",
-  "version": "0.0.63",
+  "version": "0.2.0",
   "tags": [
     "composition",
     "web"
@@ -12,5 +12,13 @@
     "documentation-core",
     "documentation-enduser"
   ],
-  "decisions": []
+  "decisions": [],
+  "default_applicability": {
+    "kind": "context",
+    "any_of": [
+      {
+        "component": "web applications"
+      }
+    ]
+  }
 }

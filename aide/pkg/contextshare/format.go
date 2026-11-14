@@ -249,6 +249,10 @@ func MarshalDecision(d *memory.Decision) []byte {
 	var b strings.Builder
 	b.WriteString("---\n")
 	fmt.Fprintf(&b, "topic: %s\n", d.Topic)
+	if d.Applicability != nil || len(d.Supersedes) > 0 {
+		data, _ := json.Marshal(d.DecisionContext)
+		fmt.Fprintf(&b, "context: %s\n", data)
+	}
 	fmt.Fprintf(&b, "decision: %s\n", YAMLEscape(d.Decision))
 	if d.Checkout != nil {
 		data, _ := json.Marshal(d.Checkout)
@@ -305,6 +309,14 @@ func ParseDecision(data []byte) (*memory.Decision, error) {
 		case strings.HasPrefix(line, "decision:"):
 			listKey = ""
 			d.Decision = YAMLUnescape(strings.TrimSpace(strings.TrimPrefix(line, "decision:")))
+		case strings.HasPrefix(line, "context:"):
+			listKey = ""
+			if err := json.Unmarshal([]byte(strings.TrimSpace(strings.TrimPrefix(line, "context:"))), &d.DecisionContext); err != nil {
+				return nil, fmt.Errorf("invalid decision context: %w", err)
+			}
+			if err := d.Validate(d.Topic); err != nil {
+				return nil, err
+			}
 		case strings.HasPrefix(line, "checkout:"):
 			if err := json.Unmarshal([]byte(strings.TrimSpace(strings.TrimPrefix(line, "checkout:"))), &d.Checkout); err != nil {
 				return nil, fmt.Errorf("invalid checkout provenance: %w", err)

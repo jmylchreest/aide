@@ -69,7 +69,10 @@ func formatMemoriesMarkdown(memories []*memory.Memory) string {
 func formatDecisionMarkdown(d *memory.Decision) string {
 	var sb strings.Builder
 	fmt.Fprintf(&sb, "# Decision: %s\n\n", d.Topic)
-	fmt.Fprintf(&sb, "**Decision:** %s\n\n", d.Decision)
+	fmt.Fprintf(&sb, "**Decision:** [%s] %s\n\n", d.Applicability.Label(), d.Decision)
+	if len(d.Supersedes) > 0 {
+		fmt.Fprintf(&sb, "Supersedes within this applicability: %s\n\n", strings.Join(d.Supersedes, ", "))
+	}
 
 	if d.Rationale != "" {
 		fmt.Fprintf(&sb, "**Rationale:** %s\n\n", d.Rationale)
@@ -107,7 +110,10 @@ func formatDecisionHistoryMarkdown(topic string, decisions []*memory.Decision) s
 
 	for i, d := range decisions {
 		fmt.Fprintf(&sb, "## %d. %s\n\n", i+1, d.CreatedAt.Format("2006-01-02 15:04:05"))
-		fmt.Fprintf(&sb, "**Decision:** %s\n\n", d.Decision)
+		fmt.Fprintf(&sb, "**Decision:** [%s] %s\n\n", d.Applicability.Label(), d.Decision)
+		if len(d.Supersedes) > 0 {
+			fmt.Fprintf(&sb, "Supersedes within this applicability: %s\n\n", strings.Join(d.Supersedes, ", "))
+		}
 
 		if d.Rationale != "" {
 			fmt.Fprintf(&sb, "**Rationale:** %s\n\n", d.Rationale)
@@ -153,7 +159,10 @@ func formatDecisionsMarkdown(decisions []*memory.Decision) string {
 
 	for topic, d := range latest {
 		fmt.Fprintf(&sb, "## %s\n\n", topic)
-		fmt.Fprintf(&sb, "**Decision:** %s\n\n", d.Decision)
+		fmt.Fprintf(&sb, "**Decision:** [%s] %s\n\n", d.Applicability.Label(), d.Decision)
+		if len(d.Supersedes) > 0 {
+			fmt.Fprintf(&sb, "Supersedes within this applicability: %s\n\n", strings.Join(d.Supersedes, ", "))
+		}
 
 		if d.Rationale != "" {
 			fmt.Fprintf(&sb, "**Rationale:** %s\n\n", d.Rationale)

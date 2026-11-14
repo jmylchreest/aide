@@ -150,6 +150,7 @@ const (
 // Decision represents a shared architectural decision with full context.
 // Decisions are append-only (latest wins) and can contain rich details.
 type Decision struct {
+	DecisionContext
 	Checkout   *CheckoutProvenance `json:"checkout,omitempty"`
 	Topic      string              `json:"topic"`                // Unique key (e.g., "auth-strategy", "db-schema")
 	Decision   string              `json:"decision"`             // Short summary of the decision

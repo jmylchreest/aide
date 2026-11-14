@@ -1,9 +1,9 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "name": "python-github-actions",
   "display_name": "Python CI/CD (GitHub Actions)",
   "description": "Python continuous integration and release on GitHub Actions: uv-managed toolchain, frozen installs, interpreter matrix, Ruff and strict type checking, coverage, dependency auditing, and PyPI Trusted Publishing",
-  "version": "0.1.14",
+  "version": "0.2.0",
   "tags": [
     "ci",
     "github-actions",
@@ -82,5 +82,16 @@
         "https://docs.astral.sh/uv/guides/integration/github/"
       ]
     }
-  ]
+  ],
+  "default_applicability": {
+    "kind": "context",
+    "any_of": [
+      {
+        "language": "python",
+        "tools": [
+          "github-actions"
+        ]
+      }
+    ]
+  }
 }

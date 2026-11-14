@@ -5,8 +5,11 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
+
+	"github.com/jmylchreest/aide/aide/pkg/memory"
 
 	"github.com/olekukonko/tablewriter"
 	"github.com/olekukonko/tablewriter/renderer"
@@ -27,6 +30,7 @@ func cmdBlueprint(dbPath string, args []string) error {
 			}
 			return blueprintShow(a[0], dbPath)
 		}},
+		{name: "migrate", handler: func(a []string) error { return blueprintMigrate(dbPath, a) }},
 		{name: "import", handler: func(a []string) error { return blueprintImport(dbPath, a) }},
 	})
 }
@@ -78,6 +82,7 @@ func blueprintImport(dbPath string, args []string) error {
 	defer backend.Close()
 
 	var allResults []blueprint.ImportResult
+	var bundle []*blueprint.Blueprint
 	imported := make(map[string]bool) // deduplicate across includes
 
 	for _, name := range names {
@@ -112,15 +117,59 @@ func blueprintImport(dbPath string, args []string) error {
 			}
 			imported[bp.Name] = true
 
-			result, err := importBlueprint(backend, bp, force, dryRun)
-			if err != nil {
-				return err
-			}
-			allResults = append(allResults, result)
+			bundle = append(bundle, bp)
 		}
 	}
 
+	if err := blueprint.ValidateBundle(bundle); err != nil {
+		return err
+	}
+	if err := validateBlueprintImport(backend, bundle, force); err != nil {
+		return err
+	}
+	for _, bp := range bundle {
+		result, err := importBlueprint(backend, bp, force, dryRun)
+		if err != nil {
+			return err
+		}
+		allResults = append(allResults, result)
+	}
 	printImportSummary(allResults, dryRun)
+	return nil
+}
+
+func validateBlueprintImport(backend *Backend, bundle []*blueprint.Blueprint, force bool) error {
+	// Check stored blueprint collisions before writing any part of the bundle.
+	for _, bp := range bundle {
+		for _, d := range bp.Decisions {
+			existing, err := backend.GetDecision(d.Topic)
+			if err != nil && err != store.ErrNotFound {
+				return err
+			}
+			if existing != nil && strings.HasPrefix(existing.DecidedBy, "blueprint:") && !blueprintOwns(existing, bp.Name) && !blueprint.SameContent(existing, bp.DecisionRecord(d)) {
+				return fmt.Errorf("topic %q conflicts with %s; use distinct topics and explicit supersedes", d.Topic, existing.DecidedBy)
+			}
+		}
+	}
+	existingDecisions, err := backend.ListDecisions()
+	if err != nil {
+		return err
+	}
+	contexts := map[string]memory.DecisionContext{}
+	for topic, d := range latestDecisionsByTopic(existingDecisions) {
+		contexts[topic] = d.DecisionContext
+	}
+	for _, bp := range bundle {
+		for _, d := range bp.Decisions {
+			existing, err := backend.GetDecision(d.Topic)
+			if err == store.ErrNotFound || force || (err == nil && blueprintOwns(existing, bp.Name)) {
+				contexts[d.Topic] = bp.EffectiveContext(d)
+			}
+		}
+	}
+	if err := memory.ValidateSupersession(contexts); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -130,11 +179,17 @@ func importBlueprint(backend *Backend, bp *blueprint.Blueprint, force, dryRun bo
 	provenancePrefix := "blueprint:" + bp.Name + "@"
 
 	for _, d := range bp.Decisions {
+		context := bp.EffectiveContext(d)
 		existing, err := backend.GetDecision(d.Topic)
 		if err != nil && err != store.ErrNotFound {
 			return result, fmt.Errorf("check existing decision %s: %w", d.Topic, err)
 		}
 
+		if err == nil && existing != nil && blueprint.SameContent(existing, bp.DecisionRecord(d)) {
+			result.Skipped++
+			result.SkippedTopics = append(result.SkippedTopics, d.Topic)
+			continue
+		}
 		if err == nil && existing != nil && !force {
 			// Check if this decision was imported from the same blueprint.
 			// Legacy provenance: "blueprint:go" (no version).
@@ -149,7 +204,8 @@ func importBlueprint(backend *Backend, bp *blueprint.Blueprint, force, dryRun bo
 				contentChanged := existing.Decision != d.Decision ||
 					existing.Rationale != d.Rationale ||
 					existing.Details != d.Details ||
-					existing.Precedence != bp.EffectivePrecedence(d)
+					existing.Precedence != bp.EffectivePrecedence(d) ||
+					!reflect.DeepEqual(existing.DecisionContext, context) || !reflect.DeepEqual(existing.References, d.References)
 
 				// Extract existing version; legacy (unversioned) is always superseded.
 				existingVer := "0.0.0"
@@ -161,7 +217,7 @@ func importBlueprint(backend *Backend, bp *blueprint.Blueprint, force, dryRun bo
 					// Newer blueprint version with changed content — supersede.
 					if !dryRun {
 						precedence := bp.EffectivePrecedence(d)
-						_, err = backend.SetDecision(d.Topic, d.Decision, d.Rationale, d.Details, provenance, d.References, &precedence)
+						_, err = backend.SetDecision(d.Topic, d.Decision, d.Rationale, d.Details, provenance, d.References, &precedence, &context)
 						if err != nil {
 							return result, fmt.Errorf("update decision %s: %w", d.Topic, err)
 						}
@@ -182,7 +238,7 @@ func importBlueprint(backend *Backend, bp *blueprint.Blueprint, force, dryRun bo
 		}
 
 		precedence := bp.EffectivePrecedence(d)
-		_, err = backend.SetDecision(d.Topic, d.Decision, d.Rationale, d.Details, provenance, d.References, &precedence)
+		_, err = backend.SetDecision(d.Topic, d.Decision, d.Rationale, d.Details, provenance, d.References, &precedence, &context)
 		if err != nil {
 			return result, fmt.Errorf("set decision %s: %w", d.Topic, err)
 		}
@@ -456,6 +512,7 @@ Usage:
 
 Subcommands:
   import     Import blueprint decisions into the project
+  migrate    Annotate unchanged installed blueprint decisions [--dry-run]
   list       List embedded blueprints
   show       Preview a blueprint's decisions
 
@@ -469,7 +526,7 @@ Import:
 
   Flags:
     --detect          Auto-detect blueprints from project markers
-    --force           Overwrite existing decisions on conflict
+    --force           Overwrite user decisions; conflicting blueprint definitions still fail
     --dry-run         Show what would happen without writing
     --registry=URL    Try this registry before configured registries
 
@@ -485,4 +542,59 @@ Examples:
   aide blueprint import --detect                # Auto-detect from project markers
   aide blueprint import --dry-run go            # See what would be imported
   aide blueprint import ./our-practices.json    # Import from local file`)
+}
+
+func blueprintOwns(d *memory.Decision, name string) bool {
+	return d.DecidedBy == "blueprint:"+name || strings.HasPrefix(d.DecidedBy, "blueprint:"+name+"@")
+}
+
+// blueprintMigrate annotates only unchanged, recognisably blueprint-owned
+// decisions. It neither installs missing decisions nor changes their wording.
+func blueprintMigrate(dbPath string, args []string) error {
+	b, err := NewBackend(dbPath)
+	if err != nil {
+		return err
+	}
+	defer b.Close()
+	bps, err := blueprint.ListEmbedded()
+	if err != nil {
+		return err
+	}
+	dry := hasFlag(args, "--dry-run")
+	changed, skipped := 0, 0
+	for _, bp := range bps {
+		for _, d := range bp.Decisions {
+			previous, err := b.GetDecision(d.Topic)
+			if err == store.ErrNotFound {
+				continue
+			}
+			if err != nil {
+				return err
+			}
+			if !blueprintOwns(previous, bp.Name) {
+				continue
+			}
+			desired := bp.DecisionRecord(d)
+			// Existing explicit metadata belongs to its author; leave it intact.
+			if previous.Applicability != nil || len(previous.Supersedes) > 0 {
+				continue
+			}
+			oldContext := desired.DecisionContext
+			desired.DecisionContext = previous.DecisionContext
+			if !blueprint.SameContent(previous, desired) {
+				fmt.Printf("Skipped modified decision: %s\n", d.Topic)
+				skipped++
+				continue
+			}
+			if !dry {
+				if _, err := b.SetDecision(previous.Topic, previous.Decision, previous.Rationale, previous.Details, previous.DecidedBy, previous.References, &previous.Precedence, &oldContext); err != nil {
+					return err
+				}
+			}
+			fmt.Printf("%s: [%s]\n", d.Topic, oldContext.Applicability.Label())
+			changed++
+		}
+	}
+	fmt.Printf("Applicability migration (dry-run=%t): %d annotated, %d modified decisions skipped\n", dry, changed, skipped)
+	return nil
 }

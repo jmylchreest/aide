@@ -1,9 +1,9 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "name": "existing-software-project",
   "display_name": "Working in an Existing Codebase",
   "description": "Deference rules for brownfield work: the repository's own conventions, toolchain, and idioms outrank general best practice, and the diff stays as small as the task requires",
-  "version": "0.1.14",
+  "version": "0.2.0",
   "tags": [
     "meta",
     "brownfield",
@@ -110,5 +110,8 @@
       "details": "Encountering legacy code is not a mandate to change it: leave it, and record what you found with `aide task create` or as a finding. When migration is the task, define the boundary first (one pattern, one module, or one directory) and confirm the target with `aide decision set` so later work is consistent. Prefer an automated codemod or the language's own fix tooling so the transformation is uniform and reviewable as a rule rather than as N edits. Establish characterisation tests before changing behaviourally-sensitive code that lacks coverage. Keep pure refactors behaviour-preserving and commit them separately from functional change; land the migration incrementally so the codebase compiles, passes, and is deployable at every step, and finish what you start rather than leaving two idioms in place indefinitely.",
       "references": []
     }
-  ]
+  ],
+  "default_applicability": {
+    "kind": "project"
+  }
 }

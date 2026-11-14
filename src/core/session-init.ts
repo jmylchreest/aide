@@ -1,3 +1,7 @@
+import {
+  renderContextualDecision,
+  DECISION_APPLICABILITY_GUIDANCE,
+} from "./decision-context.js";
 /**
  * Session initialization logic — platform-agnostic.
  *
@@ -215,7 +219,10 @@ export function loadGlobalConfig(): AideConfig {
   const configPath = join(homedir(), ".aide", "config", "aide.json");
   if (!existsSync(configPath)) return DEFAULT_CONFIG;
   try {
-    return { ...DEFAULT_CONFIG, ...JSON.parse(readFileSync(configPath, "utf-8")) };
+    return {
+      ...DEFAULT_CONFIG,
+      ...JSON.parse(readFileSync(configPath, "utf-8")),
+    };
   } catch {
     return DEFAULT_CONFIG;
   }
@@ -399,7 +406,7 @@ export function runSessionInit(
     // fixed by the CLI (precedence desc, then ring, then topic), so the
     // rendered block is byte-identical across runs for an unchanged store.
     const renderDecision = (d: SessionInitResult["decisions"][number]) =>
-      `**${d.topic}**: ${d.value}${d.rationale ? ` (${d.rationale})` : ""}${decisionOriginSuffix(d)}`;
+      `${renderContextualDecision(d)}${decisionOriginSuffix(d)}`;
     result.static.overridingDecisions = data.decisions
       .filter((d) => (d.precedence ?? 0) >= DECISION_PRECEDENCE_OVERRIDE)
       .map(renderDecision);
@@ -616,12 +623,18 @@ export function buildWelcomeContext(
     lines.push("");
   }
 
+  if (
+    memories.static.decisions.length ||
+    memories.static.overridingDecisions?.length
+  ) {
+    lines.push(DECISION_APPLICABILITY_GUIDANCE, "");
+  }
   const overriding = memories.static.overridingDecisions ?? [];
   if (overriding.length > 0) {
     lines.push("## Overriding Decisions");
     lines.push("");
     lines.push(
-      "These take precedence over every decision below and over general best practice. Where they conflict with anything else, these win:",
+      "Within their stated applicability, these decisions take precedence over ordinary decisions and general best practice:",
     );
     lines.push("");
     for (const decision of overriding) {
@@ -672,7 +685,10 @@ export function buildWelcomeContext(
   }
 
   const estate = memories.estate;
-  if (estate && ((estate.parents?.length ?? 0) > 0 || (estate.subprojects?.length ?? 0) > 0)) {
+  if (
+    estate &&
+    ((estate.parents?.length ?? 0) > 0 || (estate.subprojects?.length ?? 0) > 0)
+  ) {
     lines.push("## Estate");
     lines.push("");
     lines.push(

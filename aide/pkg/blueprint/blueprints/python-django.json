@@ -1,9 +1,9 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "name": "python-django",
   "display_name": "Django Best Practices",
   "description": "Production Django: app layout, environment-driven settings, ORM query discipline, database-level integrity, reversible migrations, DRF or Ninja API layers, auth and permissions, security defaults, caching, background work, testing, and deployment",
-  "version": "0.1.14",
+  "version": "0.2.0",
   "tags": [
     "web",
     "django",
@@ -30,6 +30,9 @@
       "references": [
         "https://docs.djangoproject.com/en/stable/ref/applications/",
         "https://docs.djangoproject.com/en/stable/intro/reusable-apps/"
+      ],
+      "supersedes": [
+        "python-project-structure"
       ]
     },
     {
@@ -40,6 +43,9 @@
       "references": [
         "https://docs.djangoproject.com/en/stable/topics/settings/",
         "https://docs.djangoproject.com/en/stable/howto/deployment/checklist/"
+      ],
+      "supersedes": [
+        "python-configuration-and-secrets"
       ]
     },
     {
@@ -172,5 +178,14 @@
         "https://docs.djangoproject.com/en/stable/howto/deployment/checklist/"
       ]
     }
-  ]
+  ],
+  "default_applicability": {
+    "kind": "context",
+    "any_of": [
+      {
+        "language": "python",
+        "framework": "django"
+      }
+    ]
+  }
 }

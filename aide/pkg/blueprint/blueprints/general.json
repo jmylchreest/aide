@@ -1,9 +1,9 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "name": "general",
   "display_name": "General Best Practices",
   "description": "Universal software engineering practices applicable to any language or stack",
-  "version": "0.0.65",
+  "version": "0.2.0",
   "tags": [
     "general"
   ],
@@ -65,5 +65,8 @@
       "details": "Use `aide decision set \"<topic-slug>\" \"<summary>\" --rationale=\"<why>\"` (or the aide MCP decision tools) to record significant technical choices. Decisions are hard rules — they supersede defaults and act as guardrails. Good candidates: technology choices, architectural patterns, testing strategies, API design, deployment approaches. Not needed for: minor implementation details, personal preferences (use memories), or temporary experiments. Decisions can be superseded by re-running the decide workflow for the same topic (history is preserved). Never store architectural decisions in the assistant's native/local memory system.",
       "references": []
     }
-  ]
+  ],
+  "default_applicability": {
+    "kind": "project"
+  }
 }
