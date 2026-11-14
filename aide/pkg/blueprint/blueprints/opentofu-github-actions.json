@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "name": "opentofu-github-actions",
+  "display_name": "OpenTofu GitHub Actions",
+  "description": "Trusted OpenTofu checks and deployment workflows with environment authentication, plan approval, artifact provenance and state concurrency.",
+  "version": "0.0.0",
+  "tags": [
+    "ci",
+    "opentofu",
+    "github-actions"
+  ],
+  "includes": [
+    "opentofu",
+    "github-actions"
+  ],
+  "decisions": [
+    {
+      "topic": "opentofu-gha-release-applicability",
+      "decision": "Apply inherited GitHub Actions security guidance and scope release conventions to the artifacts this repository actually publishes.",
+      "rationale": "Infrastructure deployment and application release are different operations.",
+      "details": "This decision supersedes gha-versioning and gha-snapshot-releases for deployment-only repositories: record deployments by immutable source/run identity. Publish semantically versioned module releases when consumers need them, using the repository's established release tooling. Apply snapshot publication only when the project explicitly distributes snapshot artifacts. The inherited action-pinning, permissions and code-trust rules still apply.",
+      "references": [
+        "https://docs.github.com/en/actions/security-for-github-actions/security-guides/security-hardening-for-github-actions"
+      ]
+    },
+    {
+      "topic": "opentofu-gha-setup",
+      "decision": "Install the project-pinned OpenTofu CLI and initialise deployment roots with their committed provider locks.",
+      "rationale": "The review and execution jobs need consistent tooling and dependency selections.",
+      "details": "Use a reviewed installer or action pinned according to github-actions. Keep CLI selection in one project-owned source. Use tofu init -input=false -lockfile=readonly for routine deployment initialisation. Run explicit dependency updates in separate changes. Cache provider downloads by relevant platform and dependency identity; keep state, credentials and plan artifacts in their designated protected storage.",
+      "references": [
+        "https://opentofu.org/docs/language/files/dependency-lock/",
+        "https://opentofu.org/docs/cli/automation/"
+      ]
+    },
+    {
+      "topic": "opentofu-gha-change-coverage",
+      "decision": "Check affected deployment roots and include consumers of changed shared modules or workflow configuration.",
+      "rationale": "A path filter that sees only the root directory can miss infrastructure changes.",
+      "details": "Maintain a dependency-aware root inventory or conservatively check all roots when impact is uncertain. Run format, validation, tests and applicable security checks. Arrange required checks so skipped path-filtered workflows cannot leave the merge gate ambiguous. Scope integration tests to authorised test targets.",
+      "references": [
+        "https://opentofu.org/docs/cli/commands/validate/",
+        "https://opentofu.org/docs/cli/commands/test/"
+      ]
+    },
+    {
+      "topic": "opentofu-gha-trusted-execution",
+      "decision": "Separate untrusted contribution checks from jobs that can read state or obtain deployment credentials.",
+      "rationale": "Provider installation and planning can execute code and expose sensitive infrastructure data.",
+      "details": "Use unprivileged isolated runners for untrusted contributions and review the exact revision before privileged execution. Treat workflow_run artifacts and pull_request_target as trust boundaries, not automatic approval. Authenticate artifact producers before consuming their output. Keep pull-request text out of shell interpolation and protect privileged self-hosted runners from untrusted jobs.",
+      "references": [
+        "https://docs.github.com/en/actions/security-for-github-actions/security-guides/security-hardening-for-github-actions"
+      ]
+    },
+    {
+      "topic": "opentofu-gha-environment-identity",
+      "decision": "Bind federated deployment credentials to the authorised repository, workflow context and target environment.",
+      "rationale": "An OIDC token is useful only when the cloud trust policy constrains who can exchange it.",
+      "details": "Grant id-token: write only to jobs that authenticate and scope cloud trust claims, backend access and key permissions to the target. Separate plan and apply identities where practical. Obtain credentials after the relevant gate and use supported managed secrets with rotation where federation is unavailable.",
+      "references": [
+        "https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/about-security-hardening-with-openid-connect"
+      ]
+    },
+    {
+      "topic": "opentofu-gha-approval-binding",
+      "decision": "Bind the deployment gate to a specific trusted plan and source revision.",
+      "rationale": "An environment approval authorises a job, so the workflow must establish which plan that job will apply.",
+      "details": "Use protected environments with required reviewers for manual approval paths and enforce the recorded policy for automatic paths. Verify feature availability for the repository and use an equivalent enforced deployment gate when necessary. Produce the deployable plan before approval, expose a safe summary, and verify its run, source commit, target and artifact identity in apply. Replan and renew approval on expiry or changes; a speculative PR plan alone is insufficient. This specialises the production-review clause of gha-security when the recorded approval policy explicitly permits enforced automatic deployment.",
+      "references": [
+        "https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments",
+        "https://opentofu.org/docs/cli/commands/plan/"
+      ]
+    },
+    {
+      "topic": "opentofu-gha-plan-transfer",
+      "decision": "Transfer the exact deployable plan through protected artifact storage with provenance and retention checks.",
+      "rationale": "Using an artifact named latest or trusting a checksum alone can substitute an unreviewed plan.",
+      "details": "Bind download to the authorised producer run and exact artifact identity. Verify integrity alongside provenance and target metadata. Use native plan encryption or an approved storage mechanism with appropriate access controls, and restrict decryption to authorised jobs. Keep the execution environment and dependencies compatible with the plan. Apply the saved artifact; route replanning back through approval.",
+      "references": [
+        "https://docs.github.com/en/actions/using-workflows/storing-workflow-data-as-artifacts",
+        "https://opentofu.org/docs/language/state/encryption/"
+      ]
+    },
+    {
+      "topic": "opentofu-gha-state-concurrency",
+      "decision": "Serialize deployment jobs using a stable state identity and preserve backend locking across every execution path.",
+      "rationale": "Branch-based concurrency keys allow different branches to modify the same state simultaneously.",
+      "details": "Set cancel-in-progress: false for active deployment operations and use a group based on backend/state identity rather than branch. Cancellation may suit speculative checks. Coordinate deployments from other repositories through the backend and, where needed, a shared deployment queue; GitHub concurrency groups are repository-scoped. Choose queue behaviour deliberately and regenerate plans that become stale while waiting.",
+      "references": [
+        "https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency",
+        "https://opentofu.org/docs/language/state/locking/"
+      ]
+    },
+    {
+      "topic": "opentofu-gha-deployment-records",
+      "decision": "Publish sanitised deployment evidence and preserve failure details for the responsible operator.",
+      "rationale": "Operators need traceability without exposing state or plan secrets in logs and comments.",
+      "details": "Record source, target, producer run, approval and apply result. Treat JSON plan output as sensitive even when the normal CLI redacts values. Run relevant post-apply health checks and retain diagnostic artifacts under controlled access. On failure, report partial completion and require inspection before a fresh corrective plan.",
+      "references": [
+        "https://opentofu.org/docs/cli/commands/plan/",
+        "https://docs.github.com/en/actions/using-workflows/storing-workflow-data-as-artifacts"
+      ]
+    },
+    {
+      "topic": "opentofu-gha-scheduled-drift",
+      "decision": "Run scheduled drift checks with read-scoped provider credentials and route findings to owners.",
+      "rationale": "Silent drift can invalidate assumptions before the next planned deployment.",
+      "details": "Use tofu plan -detailed-exitcode and distinguish exit 0 for no changes, 2 for changes, and 1 for errors. Adapt shell error handling so changes are reported rather than mistaken for failed execution. Apply the same trusted-code and artifact protections as other plans. Open an actionable finding or use the established alert channel; make remediation follow the normal approval policy. Retain the backend permissions required to read state and acquire or release locks; provider read permissions and backend lock permissions are separate.",
+      "references": [
+        "https://opentofu.org/docs/cli/commands/plan/"
+      ]
+    }
+  ]
+}

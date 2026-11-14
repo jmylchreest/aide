@@ -68,3 +68,7 @@ jobs:
           path: aide/bench-results.txt
           retention-days: 14
           if-no-files-found: error
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+concurrency:
+  group: checks-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true

@@ -1,0 +1,391 @@
+{
+  "schema_version": 1,
+  "name": "opentofu",
+  "display_name": "OpenTofu Best Practices",
+  "description": "Reusable infrastructure design, dependency selection, environments, security, testing, reviewed deployments, state management and recovery.",
+  "version": "0.0.0",
+  "tags": [
+    "infrastructure",
+    "opentofu"
+  ],
+  "includes": [
+    "general",
+    "documentation-opentofu"
+  ],
+  "decisions": [
+    {
+      "topic": "opentofu-applicability",
+      "decision": "Apply OpenTofu guidance to the relevant module or deployment root and preserve recorded project conventions.",
+      "rationale": "Module libraries, deployment repositories and existing estates have different responsibilities.",
+      "details": "Use module design and contract guidance for reusable modules; apply backend, environment and deployment rules to roots that operate infrastructure. Scale controls to the resources and risk. Preserve established layouts and automation unless changing them is part of the task. Use tofu commands and check feature support against the declared OpenTofu baseline; claim Terraform compatibility only when separately tested.",
+      "references": [
+        "https://opentofu.org/docs/language/modules/develop/"
+      ]
+    },
+    {
+      "topic": "opentofu-module-boundaries",
+      "decision": "Create modules around coherent infrastructure capabilities and compose them through explicit interfaces.",
+      "rationale": "Useful abstractions reduce duplication while keeping ownership and dependencies understandable.",
+      "details": "Keep composition shallow and wire sibling outputs into inputs in the root. Add a wrapper when it implements policy, a useful interface or a reusable combination. Use resources directly for simple cases. Choose module boundaries by responsibility and reuse; choose state boundaries separately by operational lifecycle. Give each resource one owner.",
+      "references": [
+        "https://opentofu.org/docs/language/modules/develop/",
+        "https://opentofu.org/docs/language/modules/develop/composition/"
+      ]
+    },
+    {
+      "topic": "opentofu-module-contracts",
+      "decision": "Declare precise input types, purposeful descriptions, validation and deliberate defaults, and expose the outputs consumers require.",
+      "rationale": "Explicit contracts catch invalid configurations early and make modules reusable.",
+      "details": "Describe units, null behaviour and meaningful constraints. Require caller values for environment identity and security-sensitive choices that lack a safe universal default. Use typed objects for related settings and custom conditions for assumptions and guarantees. Expose stable attributes rather than entire resource objects unless that broader contract is intentional.",
+      "references": [
+        "https://opentofu.org/docs/language/values/variables/",
+        "https://opentofu.org/docs/language/modules/develop/composition/"
+      ]
+    },
+    {
+      "topic": "opentofu-provider-ownership",
+      "decision": "Configure providers in deployment roots and declare each module's provider requirements and aliases.",
+      "rationale": "Root-owned configuration allows the same module to operate across accounts and regions.",
+      "details": "Pass alternate provider configurations explicitly through the module providers map and declare configuration_aliases in the child. Keep authentication with the caller. Retain the provider configurations needed to destroy existing resources when removing module instances or dynamic provider instances.",
+      "references": [
+        "https://opentofu.org/docs/language/providers/configuration/",
+        "https://opentofu.org/docs/language/providers/requirements/"
+      ]
+    },
+    {
+      "topic": "opentofu-file-organisation",
+      "decision": "Use a consistent module layout and group larger configurations by infrastructure responsibility.",
+      "rationale": "Predictable files help readers find contracts without imposing an arbitrary repository hierarchy.",
+      "details": "Use main.tf, variables.tf and outputs.tf as the conventional starting point, with provider and version settings easy to find. Preserve an established .tofu convention where used. Add files as complexity warrants and use descriptive snake_case identifiers. Directory nesting provides no automatic module calls or environment inheritance; explicitly call or load shared configuration.",
+      "references": [
+        "https://opentofu.org/docs/language/modules/develop/structure/",
+        "https://opentofu.org/docs/language/files/"
+      ]
+    },
+    {
+      "topic": "opentofu-resource-identity",
+      "decision": "Choose resource instance keys that remain stable as the managed collection changes.",
+      "rationale": "Stable addresses prevent unrelated instance replacements during ordinary edits.",
+      "details": "Use for_each with stable domain keys for independently identified instances. Use count for genuinely interchangeable instances or simple optional resources where positional identity is appropriate. Keep secrets out of instance keys. Review address changes and supply migration mappings for existing objects.",
+      "references": [
+        "https://opentofu.org/docs/language/modules/develop/refactoring/"
+      ]
+    },
+    {
+      "topic": "opentofu-expressions-and-dependencies",
+      "decision": "Express dependencies through value references and keep transformations readable.",
+      "rationale": "References provide precise ordering while excessive indirection hides the infrastructure being managed.",
+      "details": "Use locals for named transformations or repeated expressions. Add depends_on for real dependencies not represented by values and explain the reason. Prefer literal nested blocks for fixed structures and dynamic blocks for repeated structures derived from data. Select lifecycle settings for a documented resource requirement; scope ignore_changes to attributes intentionally owned elsewhere.",
+      "references": [
+        "https://opentofu.org/docs/language/modules/develop/composition/"
+      ]
+    },
+    {
+      "topic": "opentofu-imperative-operations",
+      "decision": "Manage infrastructure through provider resources and document any required imperative operation's lifecycle.",
+      "rationale": "Provider-managed resources give plans and state a consistent model of changes.",
+      "details": "Prefer image building or configuration-management tools for host setup. When a provisioner or external command is necessary, define inputs, credentials, idempotency, retry and cleanup behaviour. Review its execution privileges and failure effects. Treat planning with executable data sources or providers as privileged code execution.",
+      "references": [
+        "https://opentofu.org/docs/language/modules/develop/"
+      ]
+    },
+    {
+      "topic": "opentofu-module-selection",
+      "decision": "Evaluate maintained existing modules for fit before taking on a custom implementation.",
+      "rationale": "Reuse can reduce maintenance, but a poorly fitting dependency can cost more than a small local module.",
+      "details": "Evaluate organisational, vendor and community candidates against capability, interface size, resource ownership, licence, release activity, tests, documentation and migration support. Inspect security defaults, provisioners, external commands and transitive dependencies. Verify the selected release with the project's OpenTofu and providers; publisher badges and download counts are supporting evidence, not acceptance criteria.",
+      "references": [
+        "https://opentofu.org/docs/language/modules/sources/",
+        "https://opentofu.org/docs/language/modules/develop/"
+      ]
+    },
+    {
+      "topic": "opentofu-module-versioning",
+      "decision": "Select reproducible external module revisions and review dependency updates.",
+      "rationale": "Module changes can alter infrastructure even when the calling configuration is unchanged.",
+      "details": "For deployed roots, default to exact registry releases or immutable Git commits. A documented managed release process may use constrained ranges if it captures and preserves the resolved dependency closure across plan and apply. Review transitive module sources too: pinning a parent does not pin a child's floating dependency. The provider lock file does not lock modules. Test updates and inspect their plans before promotion.",
+      "references": [
+        "https://opentofu.org/docs/language/modules/sources/",
+        "https://opentofu.org/docs/language/files/dependency-lock/"
+      ]
+    },
+    {
+      "topic": "opentofu-custom-module-ownership",
+      "decision": "Assign maintainers and an upgrade strategy to custom modules, wrappers and forks.",
+      "rationale": "Customisation creates a continuing responsibility for fixes and consumer compatibility.",
+      "details": "Record the requirement that existing modules cannot meet and keep wrappers focused on the added contract. Preserve licence and provenance when copying or forking code. Track upstream security fixes, release compatible changes deliberately and document breaking migrations. Use local paths for modules developed together and versioned distribution for independently released modules.",
+      "references": [
+        "https://opentofu.org/docs/language/modules/sources/",
+        "https://opentofu.org/docs/language/modules/develop/"
+      ]
+    },
+    {
+      "topic": "opentofu-toolchain-compatibility",
+      "decision": "Declare supported OpenTofu and provider versions and pin the CLI used by deployment automation.",
+      "rationale": "Compatibility constraints and reproducible execution solve different problems.",
+      "details": "Set the language/runtime compatibility requirement for the features actually used. Reusable modules normally declare minimum provider versions, adding exclusions or upper bounds for known incompatibilities. Roots choose the permitted upgrade range and lock the selected providers. Keep local development aligned with the deployment CLI and schedule reviewed upgrades instead of automatically adopting each latest release. This specialises general dependency-management: reusable provider constraints describe compatibility; deployment locks and module selections provide reproducibility.",
+      "references": [
+        "https://opentofu.org/docs/language/providers/requirements/"
+      ]
+    },
+    {
+      "topic": "opentofu-provider-locking",
+      "decision": "Commit and review the provider lock file for each deployed root.",
+      "rationale": "The lock file records provider selections and package checksums for repeatable installation.",
+      "details": "Generate .terraform.lock.hcl with tofu init and use -lockfile=readonly in routine CI after it exists. Perform intentional upgrades separately. Populate checksums for supported execution platforms when necessary and investigate unexpected checksum changes. A lock file in a reusable child module does not control its callers; example and test roots can maintain their own locks.",
+      "references": [
+        "https://opentofu.org/docs/language/files/dependency-lock/"
+      ]
+    },
+    {
+      "topic": "opentofu-deployment-boundaries",
+      "decision": "Separate deployment roots and state where ownership, lifecycle or access requirements require independent operation.",
+      "rationale": "Operational boundaries limit the impact of changes and allow teams to deploy independently.",
+      "details": "Start with the smallest useful decomposition and split as lifecycle or access needs diverge. Organise by environment, account, region or component where those dimensions matter; keep a simple project simple. CLI workspaces suit equivalent instances sharing a trust boundary. Use separate backend access and identities for isolated environments; distinguish CLI workspaces from automation-platform workspaces.",
+      "references": [
+        "https://opentofu.org/docs/cli/workspaces/"
+      ]
+    },
+    {
+      "topic": "opentofu-environment-configuration",
+      "decision": "Reuse implementation across environments and make target-specific configuration explicit.",
+      "rationale": "Shared implementation reduces drift while explicit inputs make differences reviewable.",
+      "details": "Use thin roots or an established orchestrator to call the same modules with environment-specific values. Record how shared defaults and overrides are loaded and merged, including variable-file order and automatic files. Commit non-secret environment values when appropriate and keep secrets in their designated store. Validate target account, project and region before deployment where the provider supports it.",
+      "references": [
+        "https://opentofu.org/docs/language/values/variables/",
+        "https://opentofu.org/docs/language/files/"
+      ]
+    },
+    {
+      "topic": "opentofu-environment-promotion",
+      "decision": "Promote a reviewed implementation revision through the relevant environments with a fresh plan for each target.",
+      "rationale": "Equivalent implementation improves confidence while each environment still has different state and inputs.",
+      "details": "Keep code and dependency revisions consistent across the promotion path except for documented staged upgrades. Generate target-specific plans and retain the source and dependency identity with each run. Use representative validation where production topology differs. Establish separate credentials and state permissions for environments with distinct trust requirements.",
+      "references": [
+        "https://opentofu.org/docs/cli/commands/plan/",
+        "https://opentofu.org/docs/cli/workspaces/"
+      ]
+    },
+    {
+      "topic": "opentofu-cross-root-contracts",
+      "decision": "Publish narrowly scoped cross-root interfaces and record an acyclic dependency order.",
+      "rationale": "Explicit contracts allow independent deployment without exposing unnecessary state or creating cycles.",
+      "details": "Prefer provider discovery or a dedicated configuration store when consumers need a few values. Use terraform_remote_state only when full snapshot access is acceptable within the trust boundary, and coordinate encryption access where enabled. Document interface ownership, producer readiness and deployment/teardown order. Keep module composition within one root when splitting state would create tightly coupled cycles.",
+      "references": [
+        "https://opentofu.org/docs/language/state/remote-state-data/",
+        "https://opentofu.org/docs/language/modules/develop/composition/"
+      ]
+    },
+    {
+      "topic": "opentofu-deployment-identities",
+      "decision": "Use short-lived, least-privileged deployment identities where the platform supports them.",
+      "rationale": "Temporary credentials and scoped permissions reduce the consequences of credential exposure.",
+      "details": "Prefer workload federation or managed identities; use a managed secret store with rotation for platforms that require static credentials. Separate environments and plan/apply permissions where practical. Planning can read sensitive state and execute providers, so give credentials only to trusted code. Limit provider, state and key access to the necessary targets.",
+      "references": [
+        "https://opentofu.org/docs/language/providers/configuration/",
+        "https://opentofu.org/docs/language/settings/backends/configuration/"
+      ]
+    },
+    {
+      "topic": "opentofu-secure-defaults",
+      "decision": "Choose module defaults that minimise privileges and exposure, with explicit inputs for intended public access.",
+      "rationale": "Safe initial settings reduce accidental exposure while allowing deliberately public services.",
+      "details": "Require only the permissions needed for the capability. Enable appropriate transport protection, storage encryption and audit facilities supported by the service. Make public endpoints and broad ingress intentional and documented. Test significant security defaults. Match controls to the service and its threat model rather than imposing one cloud's resources on every module.",
+      "references": [
+        "https://opentofu.org/docs/language/values/variables/"
+      ]
+    },
+    {
+      "topic": "opentofu-secret-handling",
+      "decision": "Keep secret values in approved secret systems and minimise their persistence and display.",
+      "rationale": "Redaction, runtime-only values and encryption protect different parts of the secret lifecycle.",
+      "details": "Pass credentials using supported identity or environment mechanisms. Mark secret-bearing inputs and outputs sensitive, and use ephemeral values or write-only attributes only where the pinned OpenTofu and provider support them. Sensitive marks redact ordinary output but do not remove values from state or plans. Treat machine-readable output and logs as potentially sensitive and supply required runtime-only values again at apply.",
+      "references": [
+        "https://opentofu.org/docs/language/ephemerality/",
+        "https://opentofu.org/docs/language/settings/backends/configuration/"
+      ]
+    },
+    {
+      "topic": "opentofu-security-checks",
+      "decision": "Run applicable infrastructure security checks and make accepted exceptions explicit and reviewable.",
+      "rationale": "Automated checks catch recurring errors while contextual review handles findings they cannot interpret.",
+      "details": "Choose scanners and policy checks that support the configuration syntax and providers in use. Check secrets, access, exposure and dependency changes. Assign each exception an owner, reason, narrow scope and review date. Combine source checks with review of the resolved plan; scanner success alone does not establish deployment safety.",
+      "references": [
+        "https://opentofu.org/docs/cli/commands/plan/"
+      ]
+    },
+    {
+      "topic": "opentofu-static-validation",
+      "decision": "Run formatting and configuration validation for changed modules and affected roots.",
+      "rationale": "Fast checks catch syntax and contract errors before a deployment reaches real infrastructure.",
+      "details": "Use tofu fmt -check -recursive and initialise each checked root before tofu validate. Use init -backend=false for validation that does not require state access, with locked dependencies for deployment roots. Validation still requires provider/module installation and is not a sandbox. Add compatible lint rules where useful, and distinguish validation from a target-specific plan.",
+      "references": [
+        "https://opentofu.org/docs/cli/commands/fmt/",
+        "https://opentofu.org/docs/cli/commands/validate/"
+      ]
+    },
+    {
+      "topic": "opentofu-contract-testing",
+      "decision": "Test meaningful module behaviour and representative supported configurations.",
+      "rationale": "Tests are valuable when they detect contract regressions rather than repeat resource declarations.",
+      "details": "Use tofu test or the project's established harness for defaults, validation failures, outputs and important optional features. Select plan, mocked or apply tests deliberately; tofu test can create real infrastructure. Cover representative baseline and current dependency combinations and known compatibility risks rather than every possible version combination. Validate consumers affected by shared-module changes.",
+      "references": [
+        "https://opentofu.org/docs/cli/commands/test/"
+      ]
+    },
+    {
+      "topic": "opentofu-integration-testing",
+      "decision": "Run tests requiring real provider behaviour in isolated targets with explicit cleanup and cost limits.",
+      "rationale": "Real APIs expose behaviours that mocks and static checks cannot establish.",
+      "details": "Use dedicated test identities and unique resource names, bound test duration and spending, and verify cleanup after failures. Choose integration coverage proportionate to the change, especially lifecycle, permissions and migration behaviour. Keep destructive test operations scoped to their test resources.",
+      "references": [
+        "https://opentofu.org/docs/cli/commands/test/"
+      ]
+    },
+    {
+      "topic": "opentofu-plan-identity",
+      "decision": "Generate deployment plans for an explicit root, target, revision and input set.",
+      "rationale": "A plan is useful for review only when its deployment target and source are unambiguous.",
+      "details": "Record the source commit, CLI/provider selections, module revisions, backend/state identity and non-secret input provenance. Verify target account and region. Distinguish speculative pull-request plans from deployable plans produced by the trusted release path. A plan for one environment is not portable to another.",
+      "references": [
+        "https://opentofu.org/docs/cli/commands/plan/",
+        "https://opentofu.org/docs/cli/automation/"
+      ]
+    },
+    {
+      "topic": "opentofu-plan-review",
+      "decision": "Review planned effects against the requested change and the infrastructure's operational risks.",
+      "rationale": "Successful planning does not establish that the proposed changes are intended or safe.",
+      "details": "Inspect deletions, replacements, permissions, exposure, persistent data and provider/module upgrades. Use focused policy checks and human review for material risks. Prefer full-root plans for routine deployment; use targeting only for a justified recovery or exceptional operation, followed by a full plan to reconcile the configuration.",
+      "references": [
+        "https://opentofu.org/docs/cli/commands/plan/"
+      ]
+    },
+    {
+      "topic": "opentofu-approval-policy",
+      "decision": "Record and enforce a risk-based deployment approval policy, defaulting production and destructive persistent-data changes to explicit approval.",
+      "rationale": "Approval should correspond to the consequences of a change and be attributable to an authorised actor.",
+      "details": "Define who can approve, which evidence is reviewed, protected targets, automatic low-risk paths and emergency procedures. Bind approval to the deployable plan or immutable platform run. A team may approve policy-controlled automatic production deployment explicitly; implement and audit those controls. Treat an agent's task authorisation separately from the repository's deployment policy.",
+      "references": [
+        "https://opentofu.org/docs/cli/automation/",
+        "https://opentofu.org/docs/cli/commands/plan/"
+      ]
+    },
+    {
+      "topic": "opentofu-approved-plan",
+      "decision": "Apply the reviewed saved plan or its immutable automation-platform run and renew approval when that plan changes.",
+      "rationale": "Replanning after approval can execute changes the reviewer never saw.",
+      "details": "Bind the plan to its trusted producer, source, target and artifact identity. Use tofu apply with the saved plan or the platform's equivalent run. Define a freshness policy based on risk; replan after expiry, intervening changes or a stale-plan rejection. Plan approval does not guarantee live infrastructure stayed unchanged while waiting. Preserve toolchain and dependency identity through apply.",
+      "references": [
+        "https://opentofu.org/docs/cli/commands/plan/",
+        "https://opentofu.org/docs/cli/automation/"
+      ]
+    },
+    {
+      "topic": "opentofu-plan-protection",
+      "decision": "Protect saved plans and derived output as sensitive artifacts with restricted access and bounded retention.",
+      "rationale": "Plans can contain credentials and resource secrets even when terminal output is redacted.",
+      "details": "Encrypt artifacts at rest and in transit using OpenTofu plan encryption or an approved artifact-storage mechanism. Keep decryption access scoped to authorised runs. Record integrity and producer provenance, and expire artifacts after the deployment or investigation window. Redact summaries and handle exported JSON with the same care as the binary plan.",
+      "references": [
+        "https://opentofu.org/docs/cli/commands/plan/",
+        "https://opentofu.org/docs/language/state/encryption/"
+      ]
+    },
+    {
+      "topic": "opentofu-deployment-serialization",
+      "decision": "Coordinate operations per authoritative state and preserve backend locking.",
+      "rationale": "Concurrent writers can invalidate plans or corrupt the infrastructure's recorded ownership.",
+      "details": "Choose a locking backend for shared deployments and retain locking during supported operations. Use the automation platform to serialize applies across all paths that share state, including multiple repositories. Release command locks normally between plan and approval; handle stale plans on apply. Pipeline concurrency complements backend locking and does not prevent out-of-band cloud changes.",
+      "references": [
+        "https://opentofu.org/docs/language/state/locking/"
+      ]
+    },
+    {
+      "topic": "opentofu-deployment-verification",
+      "decision": "Record deployment outcomes and verify the operational behaviour affected by the change.",
+      "rationale": "An apply result alone may not establish service readiness or reveal a partial failure's consequences.",
+      "details": "Capture source, plan/run identity, initiating identity, approval and result in the deployment record. Check relevant health or acceptance criteria. On partial failure inspect state and live resources, then generate a fresh plan for corrective work. Preserve evidence and choose forward repair or an explicit recovery procedure based on the failure.",
+      "references": [
+        "https://opentofu.org/docs/cli/automation/"
+      ]
+    },
+    {
+      "topic": "opentofu-state-ownership",
+      "decision": "Give every managed resource one authoritative state and define state boundaries by operational responsibility.",
+      "rationale": "Duplicate ownership causes competing updates, while poorly chosen boundaries increase deployment coupling.",
+      "details": "Group resources with compatible ownership, lifecycle, access and recovery needs. Share resources through interfaces rather than declaring them managed in multiple roots. Treat splitting or merging state as a migration. Keep library module boundaries independent of the number of state files.",
+      "references": [
+        "https://opentofu.org/docs/language/state/",
+        "https://opentofu.org/docs/language/modules/develop/composition/"
+      ]
+    },
+    {
+      "topic": "opentofu-state-backend",
+      "decision": "Use access-controlled remote storage with locking and recoverable history for shared or persistent deployments.",
+      "rationale": "Teams need a consistent state record and a way to recover from accidental loss or changes.",
+      "details": "Select a backend with appropriate locking, versioning or backups, transport protection and access logging. Set retention according to recovery needs and data sensitivity. Local state can suit disposable experiments with one owner. Keep state, local backend metadata and saved plans out of source control, and provide backend credentials through supported runtime mechanisms.",
+      "references": [
+        "https://opentofu.org/docs/language/settings/backends/configuration/",
+        "https://opentofu.org/docs/language/state/"
+      ]
+    },
+    {
+      "topic": "opentofu-state-encryption",
+      "decision": "Encrypt persistent state at rest and select key management that matches the threat model and recovery capability.",
+      "rationale": "State may contain secrets, and losing encryption keys can be as damaging as losing state.",
+      "details": "Use the backend's encryption controls and evaluate native OpenTofu encryption when protection from storage readers or portable encrypted snapshots is required. Prefer managed key services where available; choose provider-managed or customer-managed keys according to access and recovery requirements. For native encryption, follow the documented migration sequence, verify recovery first and remove temporary plaintext fallbacks after migration. Protect copies and exports too.",
+      "references": [
+        "https://opentofu.org/docs/language/state/encryption/"
+      ]
+    },
+    {
+      "topic": "opentofu-backend-bootstrap",
+      "decision": "Define an independent bootstrap and recovery path for state storage, encryption keys and deployment identities.",
+      "rationale": "A deployment must be able to access its prerequisites before it can read or modify its state.",
+      "details": "Use a separately operated bootstrap root or a documented platform provisioning process. Record ownership, access recovery and safeguards against accidental destruction of state storage or keys. Keep initial setup repeatable and ensure the main deployment can be recovered when its usual runner or credentials are unavailable.",
+      "references": [
+        "https://opentofu.org/docs/language/settings/backends/configuration/",
+        "https://opentofu.org/docs/language/state/encryption/"
+      ]
+    },
+    {
+      "topic": "opentofu-address-migrations",
+      "decision": "Record compatible resource-address refactors declaratively and review their plans against existing state.",
+      "rationale": "Renaming addresses without a migration can replace infrastructure that should be preserved.",
+      "details": "Use moved blocks for supported moves and retain mappings needed by supported upgrade paths. Check provider support for type changes. Test representative upgrade plans, document unavoidable replacements and distinguish address migration from moving ownership between independent state files.",
+      "references": [
+        "https://opentofu.org/docs/language/modules/develop/refactoring/"
+      ]
+    },
+    {
+      "topic": "opentofu-imports-and-state-transfers",
+      "decision": "Review imports, backend migrations and cross-state transfers as explicit ownership changes.",
+      "rationale": "Adopting or moving existing resources can create duplicate ownership or unintended infrastructure changes.",
+      "details": "Identify exact resource IDs and source/destination state, preserve recoverable snapshots and coordinate access. Use declarative imports where supported and the documented backend migration workflow where applicable. Verify destination configuration matches real resources, establish a recovery path and ensure exactly one state owns each resource after the operation.",
+      "references": [
+        "https://opentofu.org/docs/language/import/",
+        "https://opentofu.org/docs/language/settings/backends/configuration/"
+      ]
+    },
+    {
+      "topic": "opentofu-state-repair-and-locks",
+      "decision": "Establish exclusive access and preserve recovery evidence before repairing state or releasing an abandoned lock.",
+      "rationale": "A forced unlock or incorrect state edit can disrupt a live operation or lose resource ownership.",
+      "details": "Confirm that the previous process has stopped and inspect its lock identity and partial results. Back up the relevant state, use supported state commands for deliberate changes and verify a full plan against live infrastructure afterward. Restore state only with a reconciliation procedure: restoring a snapshot changes OpenTofu's record, not the infrastructure itself.",
+      "references": [
+        "https://opentofu.org/docs/language/state/locking/",
+        "https://opentofu.org/docs/language/state/"
+      ]
+    },
+    {
+      "topic": "opentofu-drift-and-recovery",
+      "decision": "Assign owners to drift findings and exercise recovery procedures for persistent infrastructure.",
+      "rationale": "Drift and untested backups undermine confidence in future plans and recovery.",
+      "details": "Schedule read-only drift checks at a cadence appropriate to criticality and review changes before reconciliation. Handle plan exit codes distinctly, including the difference between changes and errors. Test restoration of state and any required keys in an isolated recovery exercise; document objectives, responsibilities and how restored state is reconciled with live resources. Refresh-only changes still require review when they update the authoritative state.",
+      "references": [
+        "https://opentofu.org/docs/cli/commands/plan/",
+        "https://opentofu.org/docs/language/state/encryption/"
+      ]
+    }
+  ]
+}

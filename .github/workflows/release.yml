@@ -2,10 +2,10 @@ name: Build and Release
 
 on:
   push:
-    branches: [main]
     tags: ["v*"]
-  pull_request:
-    branches: [main]
+  schedule:
+    - cron: 47 3 * * *
+  workflow_dispatch: {}
 
 permissions:
   contents: read
@@ -84,49 +84,33 @@ jobs:
           echo "Is Release: ${IS_RELEASE}"
           echo "Should Skip: ${SHOULD_SKIP}"
 
+          # Manual runs remain available to intentionally rebuild the same commit.
+          if [ "$GITHUB_EVENT_NAME" = schedule ]; then
+            previous=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/release.yml/runs" \
+              --method GET -f head_sha="$GITHUB_SHA" -f status=success -f per_page=100 \
+              --jq '[.workflow_runs[] | select(.event == "schedule" or .event == "workflow_dispatch")] | length')
+            if [ "$previous" -gt 0 ]; then
+              echo 'Unchanged since the last successful snapshot; skipping.'
+              echo 'should_skip=true' >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
   # Run tests
+        env:
+          GH_TOKEN: ${{ github.token }}
+    permissions:
+      contents: read
+      actions: read
   test:
-    name: Test
-    runs-on: ubuntu-latest
+    name: CI gate
     needs: prepare
     if: needs.prepare.outputs.should_skip != 'true'
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-
-      - name: Setup Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
-        with:
-          go-version-file: aide/go.mod
-          cache: true
-          cache-dependency-path: aide/go.sum
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
-
-      - name: Run aide tests
-        run: |
-          cd aide
-          go test -v -race ./...
-
-      - name: Build Astro frontend
-        run: cd aide-web/web && bun install --frozen-lockfile && bun run build
-
-      - name: Run aide-web tests
-        run: |
-          cd aide-web
-          go test -v -race ./...
-
-  # Download Zig once for all cross-compilation jobs.
-  # Build/Build Web/Grammars all run on ubuntu-latest (x86_64-linux) and use
-  # Zig only as a `cc -target` cross-compiler — they need the same tarball.
-  # Doing it once here saves 11 redundant downloads per release and gives
-  # us one place to harden against ziglang.org outages.
+    uses: ./.github/workflows/ci.yml
   install-zig:
     name: Install Zig
     runs-on: ubuntu-latest
     needs: prepare
-    if: needs.prepare.outputs.should_skip != 'true' && github.event_name == 'push'
+    if: needs.prepare.outputs.should_skip != 'true'
     outputs:
       version: ${{ steps.resolve.outputs.version }}
     steps:
@@ -253,7 +237,7 @@ jobs:
     name: Build (${{ matrix.goos }}/${{ matrix.goarch }})
     runs-on: ${{ matrix.runner }}
     needs: [prepare, test, install-zig]
-    if: needs.prepare.outputs.should_skip != 'true' && github.event_name == 'push'
+    if: needs.prepare.outputs.should_skip != 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -352,7 +336,7 @@ jobs:
     name: Build Web (${{ matrix.goos }}/${{ matrix.goarch }})
     runs-on: ${{ matrix.runner }}
     needs: [prepare, test, install-zig]
-    if: needs.prepare.outputs.should_skip != 'true' && github.event_name == 'push'
+    if: needs.prepare.outputs.should_skip != 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -390,16 +374,14 @@ jobs:
           cache: true
           cache-dependency-path: aide-web/go.sum
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
-
       - name: Install Zig
         if: matrix.zig_target
         uses: ./.github/actions/install-zig
 
-      - name: Build Astro frontend
-        run: cd aide-web/web && bun install --frozen-lockfile && bun run build
-
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: ci-web-assets
+          path: aide-web/internal/webdist/build
       - name: Build aide-web binary
         env:
           CGO_ENABLED: 1
@@ -450,7 +432,7 @@ jobs:
     name: Grammars (${{ matrix.os_name }}/${{ matrix.arch }})
     runs-on: ${{ matrix.runner }}
     needs: [prepare, test, install-zig]
-    if: needs.prepare.outputs.should_skip != 'true' && github.event_name == 'push'
+    if: needs.prepare.outputs.should_skip != 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -511,6 +493,25 @@ jobs:
             echo "tag=snapshot" >> $GITHUB_OUTPUT
           fi
 
+      - name: Identify grammar compiler
+        id: grammar-compiler
+        shell: bash
+        run: |
+          if command -v zig >/dev/null 2>&1; then
+            compiler=$(zig version)
+          else
+            compiler=$(clang --version)
+          fi
+          printf "%s" "$compiler" > "$RUNNER_TEMP/grammar-compiler"
+          printf "digest=%s\n" "$(shasum -a 256 "$RUNNER_TEMP/grammar-compiler" | cut -d " " -f1)" >> "$GITHUB_OUTPUT"
+      - name: Cache compiled grammars
+        id: grammar-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: staging
+          key: grammars-v1-${{ matrix.os_name }}-${{ matrix.arch }}-${{ steps.grammar-compiler.outputs.digest }}-${{
+            hashFiles('aide/pkg/grammar/packs/**', 'scripts/generate-grammar-matrix.sh', '.github/actions/install-zig/**',
+            '.github/workflows/release.yml') }}
       - name: Build all grammars
         env:
           VERSION: ${{ steps.gversion.outputs.tag }}
@@ -553,6 +554,10 @@ jobs:
 
           for entry in "${GRAMMARS[@]}"; do
             IFS='|' read -r name repo c_symbol tag extra_src <<< "$entry"
+            if [[ -f "staging/${name}/grammar${EXT}" && -f "staging/${name}/pack.json" ]]; then
+              tar -czf "dist/aide-grammar-${name}-${VERSION}-${OS_NAME}-${ARCH}.tar.gz" -C staging "${name}"
+              continue
+            fi
             echo "=== Building ${name} from ${repo}@${tag} ==="
 
             git clone --depth 1 --branch "${tag}" "https://github.com/${repo}.git" "grammar-src/${name}" 2>&1 || {
@@ -660,7 +665,7 @@ jobs:
             GRAMMAR_SIZE=$(stat -c%s "${GRAMMAR_FILE}" 2>/dev/null || stat -f%z "${GRAMMAR_FILE}")
             echo "Packed: ${ARCHIVE} (archive: ${ARCHIVE_SIZE} bytes, grammar: ${GRAMMAR_SIZE} bytes)"
 
-            rm -rf "grammar-src/${name}" "${STAGE_DIR}"
+            rm -rf "grammar-src/${name}"
           done
 
           echo ""
@@ -692,7 +697,7 @@ jobs:
     name: Build npm package
     runs-on: ubuntu-latest
     needs: [prepare, test]
-    if: needs.prepare.outputs.should_skip != 'true' && github.event_name == 'push'
+    if: needs.prepare.outputs.should_skip != 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -744,7 +749,7 @@ jobs:
     name: Build per-arch npm packages
     runs-on: ubuntu-latest
     needs: [prepare, build]
-    if: needs.prepare.outputs.should_skip != 'true' && github.event_name == 'push'
+    if: needs.prepare.outputs.should_skip != 'true' && needs.prepare.outputs.is_release == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -829,6 +834,8 @@ jobs:
         with:
           path: artifacts
 
+      - name: Exclude validation-only artifacts
+        run: rm -rf artifacts/ci-*
       - name: Prepare release assets
         run: |
           mkdir -p release
@@ -976,7 +983,7 @@ jobs:
     name: Snapshot
     runs-on: ubuntu-latest
     needs: [prepare, build, build-web, build-grammars, build-npm]
-    if: needs.prepare.outputs.is_release == 'false' && github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: needs.prepare.outputs.is_release == 'false' && github.ref == 'refs/heads/main'
     permissions:
       contents: write
     steps:
@@ -988,6 +995,8 @@ jobs:
         with:
           path: artifacts
 
+      - name: Exclude validation-only artifacts
+        run: rm -rf artifacts/ci-*
       - name: Prepare release assets
         run: |
           mkdir -p release
@@ -1040,3 +1049,6 @@ jobs:
             release/checksums.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+concurrency:
+  group: release-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
