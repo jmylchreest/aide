@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "name": "documentation-opentofu",
+  "display_name": "OpenTofu Documentation",
+  "description": "Module contracts, generated reference, executable examples, deployment guides and recovery documentation.",
+  "version": "0.0.0",
+  "tags": [
+    "documentation",
+    "opentofu"
+  ],
+  "includes": [
+    "documentation-core"
+  ],
+  "decisions": [
+    {
+      "topic": "opentofu-docs-module-overview",
+      "decision": "Document each reusable module's purpose, contract and ownership beside its source.",
+      "rationale": "Consumers need to understand the capability before choosing inputs.",
+      "details": "Include prerequisites, managed resources, assumptions, security defaults, provider requirements and a minimal usage example. Explain whether nested modules are public interfaces or implementation details. Keep README scope proportionate to module complexity.",
+      "references": [
+        "https://opentofu.org/docs/language/modules/develop/structure/"
+      ]
+    },
+    {
+      "topic": "opentofu-docs-generated-reference",
+      "decision": "Generate supported module reference fields from configuration and verify the generated output stays current.",
+      "rationale": "Duplicated input and output tables drift when interfaces change.",
+      "details": "Generate inputs, outputs, requirements and provider references using tooling compatible with the project's syntax. Pin the documentation tool and check its output in CI. Write descriptions in configuration; keep design explanations handwritten. Where a tool cannot parse an OpenTofu feature, document that limitation and validate the affected reference through an explicit review check.",
+      "references": [
+        "https://opentofu.org/docs/language/modules/develop/structure/"
+      ]
+    },
+    {
+      "topic": "opentofu-docs-executable-examples",
+      "decision": "Maintain runnable examples for the minimal configuration and important supported capabilities.",
+      "rationale": "Examples are part of the consumer interface and should survive module changes.",
+      "details": "Validate examples and exercise significant behaviour through the test strategy. Use externally usable source addresses in published examples and test the current source through a fixture or controlled substitution before release. Document prerequisites, credentials, costs and cleanup for examples that create resources.",
+      "references": [
+        "https://opentofu.org/docs/language/modules/develop/structure/",
+        "https://opentofu.org/docs/cli/commands/test/"
+      ]
+    },
+    {
+      "topic": "opentofu-docs-deployment-guide",
+      "decision": "Document how each operated root selects its target, configuration and state.",
+      "rationale": "An operator needs to reproduce a deployment without inferring hidden environment settings.",
+      "details": "Record environment/account/region, backend identity, authentication method, input sources and precedence, and exact init, plan and apply commands or platform steps. Reference shared instructions to reduce duplication. Describe approval and artifact handling. Include names and retrieval methods for secrets rather than secret values.",
+      "references": [
+        "https://opentofu.org/docs/cli/automation/",
+        "https://opentofu.org/docs/language/settings/backends/configuration/"
+      ]
+    },
+    {
+      "topic": "opentofu-docs-architecture",
+      "decision": "Record infrastructure ownership, module responsibilities and cross-root dependencies.",
+      "rationale": "Configuration expresses resource relationships but does not fully explain operational boundaries.",
+      "details": "Keep a concise architecture overview and, where useful, a diagram showing state boundaries, interface owners and deployment/teardown order. Explain the reason for separation and any deliberate environment differences. Store cross-cutting rationale in existing architecture records and link it from affected roots.",
+      "references": [
+        "https://opentofu.org/docs/language/modules/develop/composition/",
+        "https://opentofu.org/docs/cli/workspaces/"
+      ]
+    },
+    {
+      "topic": "opentofu-docs-operations-runbook",
+      "decision": "Maintain an actionable runbook for deployment failures, access recovery and state restoration.",
+      "rationale": "Recovery depends on access, sequencing and ownership that are easy to lose during an incident.",
+      "details": "Describe who approves changes, emergency access, failed applies, abandoned locks, backend bootstrap, encryption key recovery and drift handling. Record recovery objectives and exercise results. Explain that restoring old state requires reconciliation with actual infrastructure and does not roll resources back.",
+      "references": [
+        "https://opentofu.org/docs/language/state/locking/",
+        "https://opentofu.org/docs/language/state/encryption/"
+      ]
+    },
+    {
+      "topic": "opentofu-docs-dependency-provenance",
+      "decision": "Record significant external module choices, supported compatibility and custom maintenance responsibilities.",
+      "rationale": "Future maintainers need to know why a dependency exists and who owns its continued suitability.",
+      "details": "Keep source and version in configuration and explain material selection tradeoffs in the README or decision record. Document supported OpenTofu/provider combinations and test coverage. Preserve licence and upstream provenance for copied or forked code and identify who tracks upstream fixes.",
+      "references": [
+        "https://opentofu.org/docs/language/modules/sources/",
+        "https://opentofu.org/docs/language/providers/requirements/"
+      ]
+    },
+    {
+      "topic": "opentofu-docs-upgrade-guidance",
+      "decision": "Document consumer-visible changes and migration steps with each module release or deployment change.",
+      "rationale": "A seemingly small configuration change can replace resources or alter access.",
+      "details": "Describe input/output changes, new permissions, address moves, state transfers and unavoidable replacements. Include tested upgrade steps, prerequisites and recovery limitations. Version independently distributed modules according to their public contract; use deployment history for roots that are not released as libraries.",
+      "references": [
+        "https://opentofu.org/docs/language/modules/develop/refactoring/"
+      ]
+    }
+  ]
+}

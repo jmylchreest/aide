@@ -10,7 +10,7 @@ import (
 func TestLoadEmbedded(t *testing.T) {
 	t.Parallel()
 
-	names := []string{"general", "go", "github-actions", "go-github-actions", "c", "cpp", "rust", "rust-github-actions", "zig", "dart", "kotlin", "csharp", "csharp-github-actions", "csharp-unity"}
+	names := []string{"general", "go", "github-actions", "go-github-actions", "c", "cpp", "rust", "rust-github-actions", "zig", "dart", "kotlin", "csharp", "csharp-github-actions", "csharp-unity", "opentofu", "documentation-opentofu", "opentofu-github-actions"}
 	for _, name := range names {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -554,7 +554,7 @@ func TestExistingSoftwareProjectIsOverriding(t *testing.T) {
 // Language blueprints must stay in the ordinary band, or everything is an
 // override and the distinction carries no information.
 func TestLanguageBlueprintsAreOrdinary(t *testing.T) {
-	for _, name := range []string{"general", "go", "rust", "python", "python-api", "python-django", "csharp"} {
+	for _, name := range []string{"general", "go", "rust", "python", "python-api", "python-django", "csharp", "opentofu", "documentation-opentofu", "opentofu-github-actions"} {
 		bp, err := LoadEmbedded(name)
 		if err != nil {
 			t.Fatalf("LoadEmbedded(%s): %v", name, err)
