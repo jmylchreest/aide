@@ -973,15 +973,16 @@ func parseDecisionMarkdown(filename string) (*memory.Decision, error) {
 		}
 
 		if inFrontmatter {
-			if strings.HasPrefix(line, "context:") {
+			switch {
+			case strings.HasPrefix(line, "context:"):
 				if err := json.Unmarshal([]byte(strings.TrimSpace(strings.TrimPrefix(line, "context:"))), &d.DecisionContext); err != nil {
 					return nil, err
 				}
-			} else if strings.HasPrefix(line, "checkout:") {
+			case strings.HasPrefix(line, "checkout:"):
 				if err := json.Unmarshal([]byte(strings.TrimSpace(strings.TrimPrefix(line, "checkout:"))), &d.Checkout); err != nil {
 					return nil, err
 				}
-			} else {
+			default:
 				parseFrontmatterLine(line, d)
 			}
 			continue
@@ -1030,7 +1031,7 @@ func parseDecisionMarkdown(filename string) (*memory.Decision, error) {
 		d.Details = strings.TrimSpace(strings.Join(detailsLines, "\n"))
 	}
 
-	if err := d.DecisionContext.Validate(d.Topic); err != nil {
+	if err := d.Validate(d.Topic); err != nil {
 		return nil, err
 	}
 	return d, scanner.Err()

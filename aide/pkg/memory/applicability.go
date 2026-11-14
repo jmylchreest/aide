@@ -137,7 +137,7 @@ func ValidateSupersession(decisions map[string]DecisionContext) error {
 	return nil
 }
 
-// Reject misspelled selector fields rather than silently broadening a rule.
+// UnmarshalJSON rejects misspelled selector fields rather than silently broadening a rule.
 func (a *Applicability) UnmarshalJSON(data []byte) error {
 	type plain Applicability
 	var parsed plain

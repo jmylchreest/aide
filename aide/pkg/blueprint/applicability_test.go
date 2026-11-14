@@ -1,8 +1,9 @@
 package blueprint
 
 import (
-	"github.com/jmylchreest/aide/aide/pkg/memory"
 	"testing"
+
+	"github.com/jmylchreest/aide/aide/pkg/memory"
 )
 
 func TestAllBlueprintsDeclareApplicability(t *testing.T) {

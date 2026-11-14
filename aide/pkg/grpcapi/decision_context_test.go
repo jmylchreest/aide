@@ -1,9 +1,10 @@
 package grpcapi
 
 import (
-	"github.com/jmylchreest/aide/aide/pkg/memory"
 	"reflect"
 	"testing"
+
+	"github.com/jmylchreest/aide/aide/pkg/memory"
 )
 
 func TestDecisionContextWireRoundTrip(t *testing.T) {

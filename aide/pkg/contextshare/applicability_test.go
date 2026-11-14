@@ -1,10 +1,11 @@
 package contextshare
 
 import (
-	"github.com/jmylchreest/aide/aide/pkg/memory"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/jmylchreest/aide/aide/pkg/memory"
 )
 
 func TestDecisionContextRoundTrip(t *testing.T) {

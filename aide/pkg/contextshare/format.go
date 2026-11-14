@@ -314,7 +314,7 @@ func ParseDecision(data []byte) (*memory.Decision, error) {
 			if err := json.Unmarshal([]byte(strings.TrimSpace(strings.TrimPrefix(line, "context:"))), &d.DecisionContext); err != nil {
 				return nil, fmt.Errorf("invalid decision context: %w", err)
 			}
-			if err := d.DecisionContext.Validate(d.Topic); err != nil {
+			if err := d.Validate(d.Topic); err != nil {
 				return nil, err
 			}
 		case strings.HasPrefix(line, "checkout:"):

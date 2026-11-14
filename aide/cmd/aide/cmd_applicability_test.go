@@ -80,7 +80,7 @@ func TestBlueprintApplicabilityMigrationPreservesEdits(t *testing.T) {
 func TestBlueprintImportConflictsArePreflighted(t *testing.T) {
 	dbPath, root := newConfigProject(t)
 	loadBlueprintConfig(t, root)
-	paths := []string{}
+	paths := make([]string, 0, 2)
 	for _, name := range []string{"a", "b"} {
 		bp := registryBlueprint(name, name)
 		bp.Decisions[0].Topic = "same"

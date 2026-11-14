@@ -2,13 +2,14 @@ package main
 
 import (
 	"fmt"
-	"github.com/jmylchreest/aide/aide/pkg/memory"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
+
+	"github.com/jmylchreest/aide/aide/pkg/memory"
 
 	"github.com/olekukonko/tablewriter"
 	"github.com/olekukonko/tablewriter/renderer"
@@ -123,6 +124,21 @@ func blueprintImport(dbPath string, args []string) error {
 	if err := blueprint.ValidateBundle(bundle); err != nil {
 		return err
 	}
+	if err := validateBlueprintImport(backend, bundle, force); err != nil {
+		return err
+	}
+	for _, bp := range bundle {
+		result, err := importBlueprint(backend, bp, force, dryRun)
+		if err != nil {
+			return err
+		}
+		allResults = append(allResults, result)
+	}
+	printImportSummary(allResults, dryRun)
+	return nil
+}
+
+func validateBlueprintImport(backend *Backend, bundle []*blueprint.Blueprint, force bool) error {
 	// Check stored blueprint collisions before writing any part of the bundle.
 	for _, bp := range bundle {
 		for _, d := range bp.Decisions {
@@ -154,14 +170,6 @@ func blueprintImport(dbPath string, args []string) error {
 	if err := memory.ValidateSupersession(contexts); err != nil {
 		return err
 	}
-	for _, bp := range bundle {
-		result, err := importBlueprint(backend, bp, force, dryRun)
-		if err != nil {
-			return err
-		}
-		allResults = append(allResults, result)
-	}
-	printImportSummary(allResults, dryRun)
 	return nil
 }
 

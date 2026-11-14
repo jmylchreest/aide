@@ -14,7 +14,7 @@ import (
 // SetDecision stores a decision (append-only, allows multiple per topic).
 // Decisions are stored with composite key: topic:timestamp.
 func (s *BoltStore) SetDecision(d *memory.Decision) error {
-	if err := d.DecisionContext.Validate(d.Topic); err != nil {
+	if err := d.Validate(d.Topic); err != nil {
 		return err
 	}
 	return s.db.Update(func(tx *bolt.Tx) error {
@@ -51,7 +51,6 @@ func (s *BoltStore) SetDecision(d *memory.Decision) error {
 			if err := memory.ValidateSupersession(contexts); err != nil {
 				return err
 			}
-
 		}
 
 		// Composite key: topic:timestamp (allows multiple per topic).
