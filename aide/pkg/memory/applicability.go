@@ -8,9 +8,12 @@ import (
 )
 
 // Applicability is authored context, not an inferred filter or precedence rank.
-// Missing applicability means unspecified. Selectors are alternatives; fields
-// within a selector are conjunctive, including every listed tool.
+// Missing or blank applicability adds no restriction. Selectors are alternatives;
+// fields within a selector are conjunctive, including every listed tool. Paths
+// within one selector are alternatives, interpreted by the agent, not matched here.
 type Applicability struct {
+	// Text preserves the JSON string form, including an explicitly blank string.
+	Text  *string                 `json:"-"`
 	Kind  string                  `json:"kind"`
 	AnyOf []ApplicabilitySelector `json:"any_of,omitempty"`
 }
@@ -21,10 +24,11 @@ type ApplicabilitySelector struct {
 	Tools     []string `json:"tools,omitempty"`
 	Component string   `json:"component,omitempty"`
 	Concern   string   `json:"concern,omitempty"`
+	Paths     []string `json:"paths,omitempty"`
 }
 
 // DecisionContext is replaceable as a unit. A nil update preserves it; an
-// explicit empty context clears it without conflating unspecified with project-wide.
+// explicit empty context clears it back to the unrestricted default.
 type DecisionContext struct {
 	Applicability *Applicability `json:"applicability,omitempty"`
 	Supersedes    []string       `json:"supersedes,omitempty"`
@@ -32,6 +36,12 @@ type DecisionContext struct {
 
 func (a *Applicability) Validate() error {
 	if a == nil {
+		return nil
+	}
+	if a.Text != nil {
+		if a.Kind != "" || len(a.AnyOf) != 0 {
+			return fmt.Errorf("freeform applicability cannot contain structured selectors")
+		}
 		return nil
 	}
 	switch a.Kind {
@@ -44,7 +54,7 @@ func (a *Applicability) Validate() error {
 			return fmt.Errorf("context applicability requires any_of selectors")
 		}
 		for _, s := range a.AnyOf {
-			if s.Language == "" && s.Framework == "" && len(s.Tools) == 0 && s.Component == "" && s.Concern == "" {
+			if s.Language == "" && s.Framework == "" && len(s.Tools) == 0 && s.Component == "" && s.Concern == "" && len(s.Paths) == 0 {
 				return fmt.Errorf("empty applicability selector")
 			}
 			for _, v := range append([]string{s.Language, s.Framework, s.Component, s.Concern}, s.Tools...) {
@@ -55,6 +65,19 @@ func (a *Applicability) Validate() error {
 			for _, tool := range s.Tools {
 				if tool == "" {
 					return fmt.Errorf("empty applicability tool")
+				}
+			}
+			for _, path := range s.Paths {
+				// Use repository-relative forward slashes on every platform. These
+				// are guidance patterns, so do not apply a filesystem glob dialect.
+				if strings.TrimSpace(path) == "" || strings.TrimSpace(path) != path ||
+					strings.ContainsAny(path, "\r\n\t\\:") || strings.HasPrefix(path, "/") {
+					return fmt.Errorf("invalid repository-relative applicability path %q", path)
+				}
+				for _, part := range strings.Split(path, "/") {
+					if part == ".." {
+						return fmt.Errorf("applicability path cannot leave the repository: %q", path)
+					}
 				}
 			}
 		}
@@ -75,15 +98,23 @@ func (c DecisionContext) Validate(topic string) error {
 		}
 		seen[t] = true
 	}
-	if len(c.Supersedes) > 0 && c.Applicability == nil {
+	if len(c.Supersedes) > 0 && c.Applicability.IsBlank() {
 		return fmt.Errorf("supersession requires explicit applicability")
 	}
 	return nil
 }
 
+func (a *Applicability) IsBlank() bool {
+	return a == nil || (a.Text != nil && strings.TrimSpace(*a.Text) == "")
+}
+
 func (a *Applicability) Label() string {
-	if a == nil {
-		return "Applicability unspecified"
+	if a.IsBlank() {
+		return ""
+	}
+	if a.Text != nil {
+		// Keep list and table entries on one line without changing stored prose.
+		return strings.Join(strings.Fields(*a.Text), " ")
 	}
 	if a.Kind == "project" {
 		return "Project-wide"
@@ -102,9 +133,22 @@ func (a *Applicability) Label() string {
 				parts = append(parts, v)
 			}
 		}
+		if len(s.Paths) == 1 {
+			parts = append(parts, "paths: "+s.Paths[0])
+		} else if len(s.Paths) > 1 {
+			parts = append(parts, "paths: ("+strings.Join(s.Paths, " OR ")+")")
+		}
 		alternatives = append(alternatives, strings.Join(parts, " + "))
 	}
 	return strings.Join(alternatives, " OR ")
+}
+
+// Prefix leaves ordinary decisions in their original format.
+func (a *Applicability) Prefix() string {
+	if label := a.Label(); label != "" {
+		return "[" + label + "] "
+	}
+	return ""
 }
 
 // ValidateSupersession rejects cycles among the supplied decisions. External
@@ -139,6 +183,15 @@ func ValidateSupersession(decisions map[string]DecisionContext) error {
 
 // UnmarshalJSON rejects misspelled selector fields rather than silently broadening a rule.
 func (a *Applicability) UnmarshalJSON(data []byte) error {
+	data = bytes.TrimSpace(data)
+	if len(data) > 0 && data[0] == '"' {
+		var text string
+		if err := json.Unmarshal(data, &text); err != nil {
+			return err
+		}
+		*a = Applicability{Text: &text}
+		return nil
+	}
 	type plain Applicability
 	var parsed plain
 	decoder := json.NewDecoder(bytes.NewReader(data))
@@ -148,4 +201,12 @@ func (a *Applicability) UnmarshalJSON(data []byte) error {
 	}
 	*a = Applicability(parsed)
 	return a.Validate()
+}
+
+func (a Applicability) MarshalJSON() ([]byte, error) {
+	if a.Text != nil {
+		return json.Marshal(*a.Text)
+	}
+	type plain Applicability
+	return json.Marshal(plain(a))
 }

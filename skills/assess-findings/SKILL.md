@@ -68,6 +68,11 @@ back to the block only if the tool is unavailable. Decisions are the recorded ar
 commitments for this project; a finding that evidences a decision violation is not noise,
 whatever its analyzer or severity says.
 
+Blank applicability adds no restriction; respect limits in the decision's wording.
+For explicit applicability, interpret the text, selectors and repository-relative path
+patterns against the finding before treating it as a violation. These are agent guidance,
+not automatic file filters. Specificity alone does not override another decision.
+
 Keep the list to hand for step 3. You are not searching the codebase for violations here —
 that is the `review` skill's job. You are checking whether findings the analyzers **already
 produced** happen to be evidence of one.

@@ -56,6 +56,10 @@ Options:
     --rationale=TEXT   Reasoning behind the decision
     --details=TEXT     Extended details or context
     --ref=URL          Reference URL (can be repeated)
+    --context=JSON     Optional applicability and supersedes metadata. Applicability
+                       accepts freeform text or structured project/context selectors.
+                       Blank adds no restriction. Omit to preserve existing metadata;
+                       use --context='{}' to clear it. Paths are agent guidance only.
     --by=AGENT         Who made the decision. Use the git username (the GitHub
                        handle, e.g. from the remote URL) unless told otherwise.
                        Never guess a person's identifier - omit the flag
@@ -84,6 +88,7 @@ refresh).
 
 Examples:
   aide decision set auth-strategy "JWT" --rationale="Stateless"
+  aide decision set admin-rendering "Use client-side rendering" --context='{"applicability":"Only apps/admin/."}'
   aide decision set house-style "Follow the repo" --precedence=100
   aide decision set auth-strategy "Session" --rationale="Changed mind"
   aide decision get auth-strategy
@@ -134,7 +139,7 @@ func decisionSet(b *Backend, args []string) error {
 		return fmt.Errorf("failed to set decision: %w", err)
 	}
 
-	fmt.Printf("Set decision: [%s] %s = %s\n", d.Applicability.Label(), d.Topic, d.Decision)
+	fmt.Printf("Set decision: %s%s = %s\n", d.Applicability.Prefix(), d.Topic, d.Decision)
 	if d.Overrides() {
 		fmt.Printf("  precedence %d (overriding — injected ahead of ordinary decisions)\n", d.Precedence)
 	} else if d.Precedence != memory.PrecedenceDefault {
@@ -160,6 +165,12 @@ func decisionGet(b *Backend, args []string) error {
 	}
 
 	fmt.Printf("%s: %s\n", d.Topic, d.Decision)
+	if label := d.Applicability.Label(); label != "" {
+		fmt.Printf("  Applicability: %s\n", label)
+	}
+	if len(d.Supersedes) > 0 {
+		fmt.Printf("  Supersedes within this applicability: %s\n", strings.Join(d.Supersedes, ", "))
+	}
 	if d.Rationale != "" {
 		fmt.Printf("  Rationale: %s\n", d.Rationale)
 	}
@@ -285,10 +296,10 @@ func decisionList(b *Backend, args []string) error {
 			date = t.Format("2006-01-02")
 		}
 		if showOrigin {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", date, originLabel(r), r.Topic, "["+r.Applicability.Label()+"] "+truncate(r.Value, 60))
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", date, originLabel(r), r.Topic, r.Applicability.Prefix()+truncate(r.Value, 60))
 			continue
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\n", date, r.Topic, "["+r.Applicability.Label()+"] "+truncate(r.Value, 60))
+		fmt.Fprintf(w, "%s\t%s\t%s\n", date, r.Topic, r.Applicability.Prefix()+truncate(r.Value, 60))
 	}
 	return w.Flush()
 }
@@ -327,6 +338,12 @@ func decisionHistory(b *Backend, args []string) error {
 	fmt.Printf("Decision history for %s:\n", topic)
 	for i, d := range decisions {
 		fmt.Printf("  %d. [%s] %s\n", i+1, d.CreatedAt.Format(time.RFC3339), d.Decision)
+		if label := d.Applicability.Label(); label != "" {
+			fmt.Printf("     Applicability: %s\n", label)
+		}
+		if len(d.Supersedes) > 0 {
+			fmt.Printf("     Supersedes within this applicability: %s\n", strings.Join(d.Supersedes, ", "))
+		}
 		if d.Rationale != "" {
 			fmt.Printf("     Rationale: %s\n", d.Rationale)
 		}

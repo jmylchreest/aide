@@ -320,7 +320,8 @@ This is contextual instruction, not a deterministic file filter or a guarantee o
 
 Schema 2 supports a `default_applicability` on each blueprint and an `applicability`
 replacement on a decision. Included blueprints retain their own defaults. Use
-`{"kind":"project"}` for project-wide rules, or a context selector:
+`{"kind":"project"}` for project-wide rules, a freeform string such as
+`"Only the customer-facing web app; exclude the admin app."`, or a context selector:
 
 ```json
 {
@@ -334,9 +335,14 @@ replacement on a decision. Included blueprints retain their own defaults. Use
 
 Each `any_of` entry is an alternative. Fields within an entry, including every tool,
 are conjunctive. Optional `component` and `concern` labels describe implementation
-boundaries or responsibilities that language alone cannot express. These are authored
-labels, not filesystem globs. Missing applicability in legacy or manually authored
-decisions renders as **Applicability unspecified**, never implicitly project-wide.
+boundaries or responsibilities that language alone cannot express. Optional `paths`
+lists alternative repository-relative patterns, for example
+`{"paths":["apps/customer-web/**","packages/web-ui/**"]}`. Use forward slashes on every
+platform. These labels and patterns are guidance interpreted by the agent, not automatic
+file matching. Missing or blank applicability in legacy or manually authored decisions
+adds no restriction and displays no label. This is the default for user-created decisions;
+limits in the decision's wording still apply. Schema 2 blueprints require explicit,
+nonblank applicability, supplied by the blueprint default or the individual decision.
 Schema 1 remains readable; it cannot declare the new metadata. All shipped blueprints
 use schema 2. Older clients reject schema 2 instead of ignoring its applicability.
 
@@ -385,7 +391,7 @@ aide decision set custom-rule "Use the survey storage contract." --context='{"ap
 ```
 
 `--context` replaces applicability and supersession together; `--context='{}'` clears
-both to unspecified. The decision API accepts the same optional `context` object.
+both to the unrestricted default. The decision API accepts the same optional `context` object.
 Sharing, inheritance and adoption preserve the metadata. Inspect a decision's full
 context before changing it, especially when it supersedes another topic.
 
@@ -455,6 +461,16 @@ aide config set blueprints.registries https://raw.githubusercontent.com/myorg/ai
 Registries serve known names and do not require a catalog or directory listing.
 `blueprint list` therefore cannot enumerate remote blueprints. Use the registry's
 README to find names, then preview one with `blueprint show <name>`.
+
+`blueprint list` sorts embedded blueprints alphabetically by name. Each entry shows
+its version and decision count aligned to the right of the name, followed
+by its description and any included blueprints. On narrow terminals, the version
+and count move to a separate line. The count excludes decisions inherited through
+includes. Entries with no decisions of their own that include other blueprints
+show `bundle` instead of `0 decisions`. Names appear in bold on supported terminals; redirected output,
+`TERM=dumb`, and a non-empty `NO_COLOR` disable styling.
+Output wraps to the terminal width, capped at 100 columns. When terminal size is
+unavailable, it uses `COLUMNS` or defaults to 80 columns.
 
 ### One-Off Registry
 

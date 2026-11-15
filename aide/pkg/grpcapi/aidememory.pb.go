@@ -1485,6 +1485,7 @@ type ApplicabilitySelector struct {
 	Tools         []string               `protobuf:"bytes,3,rep,name=tools,proto3" json:"tools,omitempty"`
 	Component     string                 `protobuf:"bytes,4,opt,name=component,proto3" json:"component,omitempty"`
 	Concern       string                 `protobuf:"bytes,5,opt,name=concern,proto3" json:"concern,omitempty"`
+	Paths         []string               `protobuf:"bytes,6,rep,name=paths,proto3" json:"paths,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1554,10 +1555,18 @@ func (x *ApplicabilitySelector) GetConcern() string {
 	return ""
 }
 
+func (x *ApplicabilitySelector) GetPaths() []string {
+	if x != nil {
+		return x.Paths
+	}
+	return nil
+}
+
 type Applicability struct {
 	state         protoimpl.MessageState   `protogen:"open.v1"`
 	Kind          string                   `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
 	AnyOf         []*ApplicabilitySelector `protobuf:"bytes,2,rep,name=any_of,json=anyOf,proto3" json:"any_of,omitempty"`
+	Text          *string                  `protobuf:"bytes,3,opt,name=text,proto3,oneof" json:"text,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1604,6 +1613,13 @@ func (x *Applicability) GetAnyOf() []*ApplicabilitySelector {
 		return x.AnyOf
 	}
 	return nil
+}
+
+func (x *Applicability) GetText() string {
+	if x != nil && x.Text != nil {
+		return *x.Text
+	}
+	return ""
 }
 
 type DecisionContext struct {
@@ -12874,16 +12890,19 @@ const file_aidememory_proto_rawDesc = "" +
 	"\x13StateCleanupRequest\x12\x17\n" +
 	"\amax_age\x18\x01 \x01(\tR\x06maxAge\",\n" +
 	"\x14StateCleanupResponse\x12\x14\n" +
-	"\x05count\x18\x01 \x01(\x05R\x05count\"\x9f\x01\n" +
+	"\x05count\x18\x01 \x01(\x05R\x05count\"\xb5\x01\n" +
 	"\x15ApplicabilitySelector\x12\x1a\n" +
 	"\blanguage\x18\x01 \x01(\tR\blanguage\x12\x1c\n" +
 	"\tframework\x18\x02 \x01(\tR\tframework\x12\x14\n" +
 	"\x05tools\x18\x03 \x03(\tR\x05tools\x12\x1c\n" +
 	"\tcomponent\x18\x04 \x01(\tR\tcomponent\x12\x18\n" +
-	"\aconcern\x18\x05 \x01(\tR\aconcern\"]\n" +
+	"\aconcern\x18\x05 \x01(\tR\aconcern\x12\x14\n" +
+	"\x05paths\x18\x06 \x03(\tR\x05paths\"\x7f\n" +
 	"\rApplicability\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x128\n" +
-	"\x06any_of\x18\x02 \x03(\v2!.aidememory.ApplicabilitySelectorR\x05anyOf\"r\n" +
+	"\x06any_of\x18\x02 \x03(\v2!.aidememory.ApplicabilitySelectorR\x05anyOf\x12\x17\n" +
+	"\x04text\x18\x03 \x01(\tH\x00R\x04text\x88\x01\x01B\a\n" +
+	"\x05_text\"r\n" +
 	"\x0fDecisionContext\x12?\n" +
 	"\rapplicability\x18\x01 \x01(\v2\x19.aidememory.ApplicabilityR\rapplicability\x12\x1e\n" +
 	"\n" +
@@ -14530,6 +14549,7 @@ func file_aidememory_proto_init() {
 	if File_aidememory_proto != nil {
 		return
 	}
+	file_aidememory_proto_msgTypes[29].OneofWrappers = []any{}
 	file_aidememory_proto_msgTypes[32].OneofWrappers = []any{}
 	file_aidememory_proto_msgTypes[80].OneofWrappers = []any{
 		(*CodeIndexEvent_Progress)(nil),

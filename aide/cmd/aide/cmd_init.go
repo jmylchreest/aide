@@ -2,18 +2,21 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/jmylchreest/aide/aide/pkg/memory"
 
-	"github.com/olekukonko/tablewriter"
-	"github.com/olekukonko/tablewriter/renderer"
-	"github.com/olekukonko/tablewriter/tw"
+	"github.com/fatih/color"
+	"github.com/mattn/go-runewidth"
+	"github.com/olekukonko/tablewriter/pkg/twwarp"
+	"golang.org/x/term"
 
 	"github.com/jmylchreest/aide/aide/pkg/blueprint"
 	"github.com/jmylchreest/aide/aide/pkg/config"
@@ -290,65 +293,71 @@ func blueprintList() error {
 		return err
 	}
 
-	// Sort: base blueprints (no includes) first, then group by includes, then by name.
+	width, _, err := term.GetSize(int(os.Stdout.Fd()))
+	if err != nil || width <= 0 {
+		width, _ = strconv.Atoi(os.Getenv("COLUMNS"))
+	}
+	return renderBlueprintList(color.Output, blueprints, width, !color.NoColor)
+}
+
+func renderBlueprintList(w io.Writer, blueprints []*blueprint.Blueprint, width int, bold bool) error {
+	if width <= 0 {
+		width = 80
+	}
+	// Keep prose readable even on very wide terminals.
+	width = min(width, 100)
+	blueprints = append([]*blueprint.Blueprint(nil), blueprints...)
 	sort.Slice(blueprints, func(i, j int) bool {
-		iBase := len(blueprints[i].Includes) == 0
-		jBase := len(blueprints[j].Includes) == 0
-		if iBase != jBase {
-			return iBase
-		}
-		iInc := strings.Join(blueprints[i].Includes, ",")
-		jInc := strings.Join(blueprints[j].Includes, ",")
-		if iInc != jInc {
-			return iInc < jInc
-		}
 		return blueprints[i].Name < blueprints[j].Name
 	})
 
-	cfg := tablewriter.NewConfigBuilder().
-		WithHeaderAutoFormat(tw.Off).
-		WithRowAutoWrap(tw.WrapNormal).
-		WithRowAlignment(tw.AlignLeft).
-		WithHeaderAlignment(tw.AlignLeft).
-		ForColumn(4).WithMaxWidth(50).Build().
-		Build()
-
-	table := tablewriter.NewTable(os.Stdout,
-		tablewriter.WithConfig(cfg),
-		tablewriter.WithRenderer(renderer.NewBlueprint(tw.Rendition{
-			Borders: tw.Border{Left: tw.Off, Right: tw.Off, Top: tw.Off, Bottom: tw.Off},
-			Settings: tw.Settings{
-				Separators: tw.Separators{
-					BetweenRows:    tw.Off,
-					BetweenColumns: tw.On,
-				},
-				Lines: tw.Lines{
-					ShowHeaderLine: tw.On,
-					ShowTop:        tw.Off,
-					ShowBottom:     tw.Off,
-				},
-			},
-		})),
-	)
-	table.Header([]string{"NAME", "VERSION", "DECISIONS", "INCLUDES", "DESCRIPTION"})
-
-	for _, bp := range blueprints {
-		includes := "—"
-		if len(bp.Includes) > 0 {
-			includes = strings.Join(bp.Includes, ", ")
-		}
-		table.Append([]string{
-			bp.Name,
-			bp.Version,
-			fmt.Sprintf("%d", len(bp.Decisions)),
-			includes,
-			bp.Description,
-		})
+	nameStyle := color.New(color.Bold)
+	nameStyle.DisableColor()
+	if bold {
+		nameStyle.EnableColor()
 	}
-	table.Render()
-
-	fmt.Printf("\n%d embedded blueprints available\n", len(blueprints))
-	return nil
+	var out strings.Builder
+	writeLine := func(text, indent string) {
+		if len(indent) >= width {
+			indent = ""
+		}
+		contentWidth := width - len(indent)
+		lines, _ := twwarp.WrapString(text, contentWidth)
+		for _, line := range lines {
+			// Long identifiers must also fit when there is no word boundary.
+			for _, part := range strings.Split(runewidth.Wrap(line, contentWidth), "\n") {
+				fmt.Fprintln(&out, indent+part)
+			}
+		}
+	}
+	for _, bp := range blueprints {
+		metadata := fmt.Sprintf("v%s | %d decisions", bp.Version, len(bp.Decisions))
+		if len(bp.Decisions) == 0 && len(bp.Includes) > 0 {
+			metadata = fmt.Sprintf("v%s | bundle", bp.Version)
+		}
+		gap := width - runewidth.StringWidth(bp.Name) - runewidth.StringWidth(metadata)
+		if gap >= 2 {
+			fmt.Fprintln(&out, nameStyle.Sprint(bp.Name)+strings.Repeat(" ", gap)+metadata)
+		} else {
+			for _, line := range strings.Split(runewidth.Wrap(bp.Name, width), "\n") {
+				fmt.Fprintln(&out, nameStyle.Sprint(line))
+			}
+			lines, _ := twwarp.WrapString(metadata, width)
+			for _, line := range lines {
+				for _, part := range strings.Split(runewidth.Wrap(line, width), "\n") {
+					fmt.Fprintln(&out, strings.Repeat(" ", max(0, width-runewidth.StringWidth(part)))+part)
+				}
+			}
+		}
+		writeLine(bp.Description, "  ")
+		if len(bp.Includes) > 0 {
+			writeLine("Includes: "+strings.Join(bp.Includes, ", "), "  ")
+		}
+		fmt.Fprintln(&out)
+	}
+	writeLine(fmt.Sprintf("%d embedded blueprints available", len(blueprints)), "")
+	_, err := io.WriteString(w, out.String())
+	return err
 }
 
 func blueprintShow(name, dbPath string) error {

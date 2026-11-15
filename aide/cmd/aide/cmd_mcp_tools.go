@@ -448,7 +448,7 @@ func formatEstateDecisionsMarkdown(estate []SessionDecision) string {
 	b.WriteString("\n## In force from the estate\n\n")
 	b.WriteString("Not stored in this project — decided upstream and inherited.\n\n")
 	for _, d := range estate {
-		fmt.Fprintf(&b, "- [%s] **%s** (%s): %s\n", d.Applicability.Label(), d.Topic, originLabel(d), d.Value)
+		fmt.Fprintf(&b, "- %s**%s** (%s): %s\n", d.Applicability.Prefix(), d.Topic, originLabel(d), d.Value)
 		if len(d.Supersedes) > 0 {
 			fmt.Fprintf(&b, "  Supersedes within this applicability: %s\n", strings.Join(d.Supersedes, ", "))
 		}

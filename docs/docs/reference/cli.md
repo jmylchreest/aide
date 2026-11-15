@@ -48,6 +48,13 @@ aide decision delete auth-strategy
 | `decision delete`  | Delete a decision topic                            |
 | `decision adopt`   | Promote a subscribed peer's decision into this store (see Sync & Subscriptions) |
 
+`decision set` accepts optional `--context=JSON` with `applicability` and `supersedes`.
+Applicability can be freeform text or a structured `project`/`context` object, including
+repository-relative `paths` guidance. New decisions default to no restriction and no
+label. Omit the flag on edits to preserve existing metadata; `--context='{}'` clears
+both fields. See [Optional applicability](/docs/features/decisions#optional-applicability)
+for examples and selector semantics.
+
 `decision list` shows this store's own decisions by default. Pass `--origin`
 to also list rules that are in force here but stored elsewhere in the estate:
 

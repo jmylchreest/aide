@@ -22,6 +22,63 @@ aide decision history "auth-strategy" # Full history
 - All current project decisions are injected at session start and subagent spawn
 - Decisions have structured fields: topic, decision, rationale, details, references
 
+## Optional applicability
+
+User-created decisions need no applicability metadata. Missing, null or blank
+applicability adds no restriction and displays no label, preserving the usual format:
+
+```text
+Set decision: analysis-privacy-capabilities = Independently disable analysis capabilities and data uses.
+```
+
+All decisions remain available in session and subagent context. Agents respect limits
+in the decision's wording and any explicit applicability. AIDE validates and stores
+applicability; it does not automatically match it against files or hide decisions.
+
+Use a freeform string when a boundary is easiest to explain in words:
+
+```bash
+aide decision set customer-web-rendering "Use server-side rendering." \
+  --context='{"applicability":"Only the customer-facing web app; exclude the admin app."}'
+```
+
+Or use a structured selector for a language, framework, tool, component, concern or
+repository-relative path pattern:
+
+```bash
+aide decision set billing-errors "Wrap errors with operation context." \
+  --context='{"applicability":{"kind":"context","any_of":[{"language":"go","paths":["services/billing/**"]}]}}'
+```
+
+Each `any_of` entry is an alternative. Fields within an entry apply together; every
+listed tool is required, while any listed path can qualify. Paths use forward slashes
+relative to the repository root, including in Windows projects. Patterns such as
+`apps/admin/**` are guidance interpreted by the agent, not deterministic file matching.
+Use `{"kind":"project"}` to explicitly declare project-wide applicability.
+
+Injected decisions use the familiar topic and text format, adding a label only when
+applicability is explicit:
+
+```markdown
+- **analysis-privacy-capabilities**: Independently disable analysis capabilities and data uses.
+- [Only the customer-facing web app; exclude the admin app.] **customer-web-rendering**: Use server-side rendering.
+- [go + paths: services/billing/**] **billing-errors**: Wrap errors with operation context.
+```
+
+Omitting `--context` when editing a decision preserves its existing applicability and
+supersession. Supplying `--context` replaces both together; `--context='{}'` clears
+both back to the unrestricted default. The decision API accepts the same optional
+`context` object. Sharing, inheritance and adoption preserve it.
+
+A narrower decision does not automatically override a broader one. To record an
+exception to a different topic, include `supersedes` alongside explicit, nonblank
+applicability. The general decision still applies outside the exception:
+
+```bash
+aide decision set admin-rendering "Use client-side rendering." \
+  --context='{"applicability":{"kind":"context","any_of":[{"paths":["apps/admin/**"]}]},"supersedes":["web-rendering"]}'
+```
+
 ## Sharing via Git
 
 ```bash

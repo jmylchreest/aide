@@ -131,6 +131,29 @@ Store the decision using the `./.aide/bin/aide decision set` CLI command via Bas
   --rationale="<why this was chosen>" --by="<git-username>"
 ```
 
+**Applicability is optional.** Leave it blank by default for user-created decisions.
+Blank adds no restriction and needs no label or classification question. Respect any
+boundaries in the decision's wording. When the agreed decision explicitly applies to
+only part of the work, record that boundary as freeform text or structured selectors:
+
+```bash
+./.aide/bin/aide decision set customer-web-rendering "Use server-side rendering." \
+  --context='{"applicability":"Only the customer-facing web app; exclude the admin app."}'
+./.aide/bin/aide decision set billing-errors "Wrap errors with operation context." \
+  --context='{"applicability":{"kind":"context","any_of":[{"language":"go","paths":["services/billing/**"]}]}}'
+```
+
+All decisions remain visible. Text, labels and repository-relative path patterns are
+guidance for the agent, not automatic file filters. Each `any_of` entry is an alternative;
+fields within an entry apply together, every listed tool is required, and paths within
+an entry are alternatives. Use forward slashes for paths on every platform.
+
+On edits, omit `--context` to preserve existing applicability and supersession. If
+changing it, inspect the current decision first: `--context` replaces both fields,
+and `--context='{}'` clears both. Specificity alone does not override another topic;
+record an agreed exception with explicit, nonblank applicability and a `supersedes`
+list naming the overridden topics. Updating the same topic still appends a new revision.
+
 **Attribution (`--by`):** use the git username — the GitHub handle, as in the remote
 URL — not a display name. Never guess a person's identifier: if you do not know it, omit
 `--by` rather than inventing one. The store is append-only, so a wrong byline cannot be

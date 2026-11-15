@@ -262,6 +262,11 @@ CONTEXT: <any useful context for future reference>
 
 If an abandoned approach contradicts or supersedes an existing Decision (check with `mcp__plugin_aide_aide__decision_list`), also update the decision to reflect the change. For example, if a decision said "use SQLite FTS" and you abandoned that approach, update the decision with the new direction.
 
+When updating a formal decision, omit `--context` to retain its existing applicability
+and supersession. New user decisions need no applicability metadata by default. Add
+freeform or structured applicability only for an explicit boundary; consult the `decide`
+skill for syntax. This metadata belongs to formal decisions, not `memory add` categories.
+
 ## For Swarm/Multi-Agent
 
 Add agent context to tags:
