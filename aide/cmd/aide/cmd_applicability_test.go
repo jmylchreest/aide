@@ -5,12 +5,87 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/jmylchreest/aide/aide/pkg/blueprint"
 	"github.com/jmylchreest/aide/aide/pkg/memory"
 	"github.com/jmylchreest/aide/aide/pkg/store"
 )
+
+func TestDecisionApplicabilityCLI(t *testing.T) {
+	dbPath, root := newConfigProject(t)
+	loadBlueprintConfig(t, root)
+	b, err := NewBackend(dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer b.Close()
+	for _, tc := range []struct {
+		topic, context, prefix string
+	}{
+		{"default", "", ""},
+		{"blank", `{"applicability":""}`, ""},
+		{"text", `{"applicability":"Only apps/admin/."}`, "[Only apps/admin/.] "},
+		{"paths", `{"applicability":{"kind":"context","any_of":[{"language":"go","paths":["services/billing/**"]}]}}`, "[go + paths: services/billing/**] "},
+	} {
+		t.Run(tc.topic, func(t *testing.T) {
+			args := []string{tc.topic, "Use the agreed convention"}
+			if tc.context != "" {
+				args = append(args, "--context="+tc.context)
+			}
+			out := captureStdout(t, func() {
+				if err := decisionSet(b, args); err != nil {
+					t.Fatal(err)
+				}
+			})
+			if want := "Set decision: " + tc.prefix + tc.topic + " = Use the agreed convention\n"; out != want {
+				t.Fatalf("output = %q, want %q", out, want)
+			}
+			before, err := b.GetDecision(tc.topic)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := before.Applicability.Prefix(); got != tc.prefix {
+				t.Fatalf("stored applicability = %q", got)
+			}
+			captureStdout(t, func() {
+				if err := decisionSet(b, []string{tc.topic, "Updated wording"}); err != nil {
+					t.Fatal(err)
+				}
+			})
+			after, err := b.GetDecision(tc.topic)
+			if err != nil || !reflect.DeepEqual(before.DecisionContext, after.DecisionContext) {
+				t.Fatalf("edit lost context: %v", err)
+			}
+			out = captureStdout(t, func() {
+				if err := decisionGet(b, []string{tc.topic}); err != nil {
+					t.Fatal(err)
+				}
+			})
+			if got := strings.Contains(out, "Applicability:"); got != (tc.prefix != "") {
+				t.Fatalf("unexpected applicability display: %s", out)
+			}
+			for _, formatted := range []string{
+				formatDecisionMarkdown(after),
+				formatDecisionsMarkdown([]*memory.Decision{after}),
+				formatDecisionHistoryMarkdown(tc.topic, []*memory.Decision{after}),
+			} {
+				if !strings.Contains(formatted, "**Decision:** "+tc.prefix+"Updated wording") {
+					t.Fatalf("unexpected markdown: %s", formatted)
+				}
+			}
+		})
+	}
+	out := captureStdout(t, func() {
+		if err := decisionList(b, nil); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if strings.Contains(out, "unspecified") || strings.Contains(out, "[]") || !strings.Contains(out, "[Only apps/admin/.]") {
+		t.Fatalf("unexpected list: %s", out)
+	}
+}
 
 func TestBlueprintApplicabilityMigrationPreservesEdits(t *testing.T) {
 	dbPath, root := newConfigProject(t)

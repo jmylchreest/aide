@@ -201,10 +201,12 @@ message ApplicabilitySelector {
  repeated string tools = 3;
  string component = 4;
  string concern = 5;
+ repeated string paths = 6;
 }
 message Applicability {
  string kind = 1;
  repeated ApplicabilitySelector any_of = 2;
+ optional string text = 3;
 }
 message DecisionContext {
  Applicability applicability = 1;

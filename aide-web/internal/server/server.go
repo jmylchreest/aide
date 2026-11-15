@@ -46,6 +46,7 @@ func (s *Server) setupRouter() {
 
 	// JSON API endpoints
 	api := humachi.New(r, huma.DefaultConfig("aide-web", "1.0.0"))
+	handler.RegisterDecisionSchemas(api.OpenAPI().Components.Schemas)
 	huma.Get(api, "/api/version", h.APIGetVersion)
 	huma.Get(api, "/api/instances", h.APIListInstances)
 	huma.Delete(api, "/api/instances/{project}", h.APIDeleteInstance)

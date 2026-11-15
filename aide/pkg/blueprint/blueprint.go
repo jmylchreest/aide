@@ -99,7 +99,7 @@ func (bp *Blueprint) Validate() error {
 			return fmt.Errorf("duplicate topic: %s", d.Topic)
 		}
 		context := bp.EffectiveContext(d)
-		if bp.SchemaVersion == 2 && context.Applicability == nil {
+		if bp.SchemaVersion == 2 && context.Applicability.IsBlank() {
 			return fmt.Errorf("decision %s requires applicability in schema 2", d.Topic)
 		}
 		if bp.SchemaVersion == 1 && (bp.DefaultApplicability != nil || d.Applicability != nil || len(d.Supersedes) > 0) {

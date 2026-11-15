@@ -1,10 +1,35 @@
 package blueprint
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/jmylchreest/aide/aide/pkg/memory"
 )
+
+func TestBlueprintFreeformAndPathApplicability(t *testing.T) {
+	for _, applicability := range []string{
+		`"Only customer web; exclude admin."`,
+		`{"kind":"context","any_of":[{"paths":["apps/customer-web/**"]}]}`,
+	} {
+		var b Blueprint
+		input := `{"schema_version":2,"name":"web","display_name":"Web","description":"Web rules","version":"1","default_applicability":` + applicability + `,"decisions":[{"topic":"rendering","decision":"Use SSR","rationale":"Public pages"}]}`
+		if err := json.Unmarshal([]byte(input), &b); err != nil {
+			t.Fatal(err)
+		}
+		if err := b.Validate(); err != nil {
+			t.Fatal(err)
+		}
+		if b.DecisionRecord(b.Decisions[0]).Applicability.IsBlank() {
+			t.Fatal("default applicability lost")
+		}
+		blank := " "
+		b.DefaultApplicability = &memory.Applicability{Text: &blank}
+		if err := b.Validate(); err == nil {
+			t.Fatal("schema 2 accepted blank applicability")
+		}
+	}
+}
 
 func TestAllBlueprintsDeclareApplicability(t *testing.T) {
 	bps, err := ListEmbedded()

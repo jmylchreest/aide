@@ -93,6 +93,10 @@ own context and return summaries.
    and goes stale the moment a decision changes, so it is a fallback when the tool is
    unavailable, never the source you check against. Use `decision_get` for one decision's
    full text when the list entry is not enough to judge conformance.
+   Blank applicability adds no restriction; respect limits in the decision's wording.
+   Interpret explicit text, selectors and repository-relative path patterns against the
+   changed code before reporting a violation. They are agent guidance, not automatic
+   file filters. A narrower decision only overrides another topic when explicitly stated.
    See "Decision Conformance Pass" below for how to check them.
 2. **Inspect changed files** - Read the diff and identify areas needing surrounding context.
    Use `code_outline` when unfamiliar large-file structure would help locate that context.
