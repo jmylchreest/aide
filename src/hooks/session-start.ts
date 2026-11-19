@@ -357,6 +357,279 @@ function debugLog(msg: string): void {
 // Global error handlers to prevent hook crashes without JSON output
 installHookSafetyNet(SOURCE);
 
+interface StartupContext {
+  data: HookInput;
+  launchedCwd: string;
+  cwd: string;
+  sessionId: string;
+  tsRealRoot: string;
+  hookStart: number;
+  log: Logger;
+}
+
+function prepareSessionFiles(ctx: StartupContext) {
+  const { cwd, log, hookStart } = ctx;
+  // Initialize directories (FS only, fast)
+  debugLog("ensureDirectories starting...");
+  ensureDirectories(cwd, log);
+  debugLog(`ensureDirectories complete (${Date.now() - hookStart}ms)`);
+
+  // Install HUD wrapper script if not present (FS only, fast)
+  debugLog("installHudWrapper starting...");
+  installHudWrapper(log);
+  debugLog(`installHudWrapper complete (${Date.now() - hookStart}ms)`);
+}
+
+function syncSessionMcp(ctx: StartupContext) {
+  const { cwd, log, hookStart } = ctx;
+  // Sync MCP server configs across assistants (FS only, fast).
+  // Opt-out via AIDE_MCP_SYNC=0 (defaults to enabled).
+  if (isFalsy(process.env.AIDE_MCP_SYNC)) {
+    debugLog("mcpSync disabled via AIDE_MCP_SYNC");
+    log.info("MCP sync disabled (AIDE_MCP_SYNC falsy)");
+  } else {
+    debugLog("mcpSync starting...");
+    log.start("mcpSync");
+    try {
+      const mcpResult = syncMcpServers(detectPlatform(), cwd);
+      const totalImported =
+        mcpResult.user.imported + mcpResult.project.imported;
+      const totalWritten =
+        mcpResult.user.serversWritten + mcpResult.project.serversWritten;
+      const totalSkipped = mcpResult.user.skipped + mcpResult.project.skipped;
+      log.end("mcpSync", {
+        userServers: mcpResult.user.serversWritten,
+        projectServers: mcpResult.project.serversWritten,
+        imported: totalImported,
+        skipped: totalSkipped,
+      });
+      if (totalImported > 0) {
+        debugLog(
+          `mcp-sync: imported ${totalImported} server(s), ${totalWritten} total`,
+        );
+      }
+    } catch (err) {
+      log.warn("MCP sync failed (non-fatal)", err);
+      log.end("mcpSync", { success: false, error: String(err) });
+    }
+    debugLog(`mcpSync complete (${Date.now() - hookStart}ms)`);
+  }
+}
+
+function persistSessionAnchor(
+  ctx: StartupContext,
+  resolvedBinary: string | null,
+) {
+  const { cwd, launchedCwd, sessionId, tsRealRoot, data, hookStart, log } = ctx;
+  // Persist the session anchor — the cache anchor-aware consumers read
+  // instead of re-deriving the root. Best-effort: readers fall back to
+  // shelling out, then to the TS walk.
+  if (resolvedBinary && sessionId !== "unknown") {
+    const source = data.source;
+    updateHookContextWindow(
+      resolvedBinary,
+      cwd,
+      detectPlatform(),
+      data,
+      source === "startup" ||
+        source === "compact" ||
+        source === "clear" ||
+        source === "resume"
+        ? source
+        : "unknown",
+    );
+    debugLog("anchor resolve/persist starting...");
+    try {
+      const anchor = resolveAnchorViaBinary(resolvedBinary, launchedCwd);
+      if (anchor) {
+        writeSessionAnchor(sessionId, launchedCwd, anchor);
+        // Go-vs-TS disagreement is the misanchoring class the anchor
+        // exists to catch. Both sides compare symlink-resolved spellings so
+        // path aliases don't false-warn; tsRealRoot comes from the same
+        // findProjectRoot call that produced cwd, so the two cannot drift.
+        if (anchor.realRoot !== tsRealRoot) {
+          log.warn(
+            `anchor mismatch: binary resolved ${anchor.root}, TS walk resolved ${cwd}`,
+          );
+        }
+        debugLog(
+          `anchor persisted: root=${anchor.root} chain=${anchor.chain.length} (${Date.now() - hookStart}ms)`,
+        );
+      }
+    } catch (err) {
+      log.warn("anchor persist failed (non-fatal)", err);
+    }
+  }
+}
+
+function initializeSessionContext(ctx: StartupContext) {
+  const { cwd, sessionId, log, hookStart } = ctx;
+  // Reset HUD state for clean session start (FS only, fast)
+  debugLog("resetHudState starting...");
+  resetHudState(cwd, log);
+  debugLog(`resetHudState complete (${Date.now() - hookStart}ms)`);
+
+  // Load config (FS only, fast)
+  debugLog("loadConfig starting...");
+  const config = loadConfig(cwd, log);
+  debugLog(`loadConfig complete (${Date.now() - hookStart}ms)`);
+
+  // Cleanup stale state files on disk (FS only, fast)
+  debugLog("cleanupStaleStateFiles starting...");
+  cleanupStaleStateFiles(cwd, log);
+  debugLog(`cleanupStaleStateFiles complete (${Date.now() - hookStart}ms)`);
+
+  // Initialize session state file (FS only, fast)
+  debugLog("initializeSession starting...");
+  const state = initializeSession(sessionId, cwd, log);
+  debugLog(`initializeSession complete (${Date.now() - hookStart}ms)`);
+
+  // Reset state, clean up agents and fetch memories in one binary call.
+  const projectName = getProjectName(cwd);
+  debugLog("sessionInit starting...");
+  const memories = runSessionInit(cwd, projectName, 2, log, config);
+  debugLog(`sessionInit complete (${Date.now() - hookStart}ms)`);
+
+  return { state, memories };
+}
+
+function welcomeSessionContext(
+  ctx: StartupContext,
+  state: SessionState,
+  memories: MemoryInjection,
+  binaryResult: BinaryCheckResult,
+) {
+  const { log, hookStart } = ctx;
+  const {
+    error: binaryError,
+    warning: binaryWarning,
+    downloaded: binaryDownloaded,
+  } = binaryResult;
+  // Build startup notices
+  const notices: StartupNotices = {
+    error: binaryError,
+    warning: binaryWarning,
+    info: [],
+  };
+  if (binaryDownloaded) {
+    notices.info!.push("aide binary downloaded");
+  }
+
+  // Log notices via debug (avoids stderr which Claude Code interprets as error)
+  if (notices.error) {
+    debugLog(`NOTICE ERROR: ${notices.error}`);
+  }
+  if (notices.warning) {
+    debugLog(`NOTICE WARNING: ${notices.warning}`);
+  }
+  for (const info of notices.info || []) {
+    debugLog(`NOTICE INFO: ${info}`);
+  }
+
+  // Build welcome context with injected memories
+  debugLog("buildWelcomeContext starting...");
+  log.start("buildWelcomeContext");
+  const context = buildWelcomeContext(state, memories, notices);
+  log.end("buildWelcomeContext");
+  debugLog(`buildWelcomeContext complete (${Date.now() - hookStart}ms)`);
+
+  return context;
+}
+
+function resumeSessionContext(ctx: StartupContext, context: string) {
+  const { cwd, sessionId, data, log } = ctx;
+  // On resume/compact, re-inject the last session checkpoint so the agent
+  // rebuilds working context instead of relearning it (MiMo-style context
+  // reconstruction, done at the SessionStart boundary).
+  // Observe events for the checkpoint, the lifecycle marker, and every
+  // injected source accumulate here and ship as ONE batched spawn — the
+  // per-source spawns used to dominate startup time.
+  const observeBatch: ObserveBatchEvent[] = [];
+  log.start("resumeCheckpoint");
+  try {
+    const resumeBinary = findAideBinary(cwd);
+    if (resumeBinary) {
+      const resume = buildResumeContext(
+        resumeBinary,
+        cwd,
+        sessionId,
+        data.source,
+      );
+      if (resume) {
+        context = `${context}\n\n${resume}`;
+        debugLog(`Injected resume checkpoint (source=${data.source})`);
+        observeBatch.push(
+          injectionBatchEvent({
+            source: "resume-checkpoint",
+            subtype: "session_memory",
+            content: resume,
+            sessionId,
+            attrs: { trigger: data.source || "resume" },
+          }),
+        );
+      }
+    }
+  } catch (err) {
+    debugLog(`Resume checkpoint injection failed (non-fatal): ${err}`);
+  }
+  log.end("resumeCheckpoint");
+
+  return { context, observeBatch };
+}
+
+function observeSessionStart(
+  ctx: StartupContext,
+  context: string,
+  memories: MemoryInjection,
+  observeBatch: ObserveBatchEvent[],
+) {
+  const { cwd, sessionId, data, log } = ctx;
+  log.start("observeEvents");
+  try {
+    const binary = findAideBinary(cwd);
+    if (binary) {
+      // Lifecycle trigger so SessionStart is traceable in the dashboard,
+      // symmetric with subagent-start/stop. Fires regardless of whether
+      // any memories were injected.
+      observeBatch.push({
+        kind: "session",
+        name: "session-start",
+        category: "lifecycle",
+        subtype: data.source || "startup",
+        session: sessionId,
+      });
+    }
+    if (binary && context && memories.sources) {
+      for (const src of memories.sources) {
+        const attrs: Record<string, string> = { scope: src.scope };
+        if (src.category) attrs.category = src.category;
+        if (src.tags && src.tags.length > 0) attrs.tags = src.tags.join(",");
+        if (src.sessionId) attrs.source_session_id = src.sessionId;
+        if (typeof src.score === "number") {
+          attrs.score_at_injection = src.score.toFixed(2);
+        }
+
+        observeBatch.push(
+          injectionBatchEvent({
+            source: SOURCE,
+            subtype: src.kind,
+            name: src.name,
+            content: src.content,
+            sessionId,
+            attrs: { ...attrs, source_id: src.id },
+          }),
+        );
+      }
+    }
+    if (binary) {
+      recordObserveEventsBatch(binary, cwd, observeBatch);
+    }
+  } catch {
+    // Non-fatal — don't break session start for telemetry
+  }
+  log.end("observeEvents", { events: observeBatch.length });
+}
+
 async function main(): Promise<void> {
   let log: Logger | null = null;
   const hookStart = Date.now();
@@ -420,238 +693,39 @@ async function main(): Promise<void> {
 
     debugLog(`Logger initialized, enabled=${log.isEnabled()}`);
 
-    // Initialize directories (FS only, fast)
-    debugLog("ensureDirectories starting...");
-    ensureDirectories(cwd, log);
-    debugLog(`ensureDirectories complete (${Date.now() - hookStart}ms)`);
+    const ctx: StartupContext = {
+      data,
+      launchedCwd,
+      cwd,
+      sessionId,
+      tsRealRoot,
+      hookStart,
+      log,
+    };
+    prepareSessionFiles(ctx);
 
-    // Install HUD wrapper script if not present (FS only, fast)
-    debugLog("installHudWrapper starting...");
-    installHudWrapper(log);
-    debugLog(`installHudWrapper complete (${Date.now() - hookStart}ms)`);
-
-    // Sync MCP server configs across assistants (FS only, fast).
-    // Opt-out via AIDE_MCP_SYNC=0 (defaults to enabled).
-    if (isFalsy(process.env.AIDE_MCP_SYNC)) {
-      debugLog("mcpSync disabled via AIDE_MCP_SYNC");
-      log.info("MCP sync disabled (AIDE_MCP_SYNC falsy)");
-    } else {
-      debugLog("mcpSync starting...");
-      log.start("mcpSync");
-      try {
-        const mcpResult = syncMcpServers(detectPlatform(), cwd);
-        const totalImported =
-          mcpResult.user.imported + mcpResult.project.imported;
-        const totalWritten =
-          mcpResult.user.serversWritten + mcpResult.project.serversWritten;
-        const totalSkipped = mcpResult.user.skipped + mcpResult.project.skipped;
-        log.end("mcpSync", {
-          userServers: mcpResult.user.serversWritten,
-          projectServers: mcpResult.project.serversWritten,
-          imported: totalImported,
-          skipped: totalSkipped,
-        });
-        if (totalImported > 0) {
-          debugLog(
-            `mcp-sync: imported ${totalImported} server(s), ${totalWritten} total`,
-          );
-        }
-      } catch (err) {
-        log.warn("MCP sync failed (non-fatal)", err);
-        log.end("mcpSync", { success: false, error: String(err) });
-      }
-      debugLog(`mcpSync complete (${Date.now() - hookStart}ms)`);
-    }
+    syncSessionMcp(ctx);
 
     // Check that aide binary is available (auto-downloads if missing/outdated)
     debugLog("checkAideBinary starting...");
-    const {
-      binary: resolvedBinary,
-      error: binaryError,
-      warning: binaryWarning,
-      downloaded: binaryDownloaded,
-    } = await checkAideBinary(cwd, log);
+    const binaryResult = await checkAideBinary(cwd, log);
+    const { binary: resolvedBinary, downloaded: binaryDownloaded } =
+      binaryResult;
 
-    // Persist the session anchor — the cache anchor-aware consumers read
-    // instead of re-deriving the root. Best-effort: readers fall back to
-    // shelling out, then to the TS walk.
-    if (resolvedBinary && sessionId !== "unknown") {
-      const source = data.source;
-      updateHookContextWindow(
-        resolvedBinary,
-        cwd,
-        detectPlatform(),
-        data,
-        source === "startup" ||
-          source === "compact" ||
-          source === "clear" ||
-          source === "resume"
-          ? source
-          : "unknown",
-      );
-      debugLog("anchor resolve/persist starting...");
-      try {
-        const anchor = resolveAnchorViaBinary(resolvedBinary, launchedCwd);
-        if (anchor) {
-          writeSessionAnchor(sessionId, launchedCwd, anchor);
-          // Go-vs-TS disagreement is the misanchoring class the anchor
-          // exists to catch. Both sides compare symlink-resolved spellings so
-          // path aliases don't false-warn; tsRealRoot comes from the same
-          // findProjectRoot call that produced cwd, so the two cannot drift.
-          if (anchor.realRoot !== tsRealRoot) {
-            log.warn(
-              `anchor mismatch: binary resolved ${anchor.root}, TS walk resolved ${cwd}`,
-            );
-          }
-          debugLog(
-            `anchor persisted: root=${anchor.root} chain=${anchor.chain.length} (${Date.now() - hookStart}ms)`,
-          );
-        }
-      } catch (err) {
-        log.warn("anchor persist failed (non-fatal)", err);
-      }
-    }
+    persistSessionAnchor(ctx, resolvedBinary);
 
     if (binaryDownloaded) {
       debugLog(`aide binary was downloaded`);
     }
     debugLog(`checkAideBinary complete (${Date.now() - hookStart}ms)`);
 
-    // Reset HUD state for clean session start (FS only, fast)
-    debugLog("resetHudState starting...");
-    resetHudState(cwd, log);
-    debugLog(`resetHudState complete (${Date.now() - hookStart}ms)`);
+    const { state, memories } = initializeSessionContext(ctx);
 
-    // Load config (FS only, fast)
-    debugLog("loadConfig starting...");
-    const config = loadConfig(cwd, log);
-    debugLog(`loadConfig complete (${Date.now() - hookStart}ms)`);
+    let context = welcomeSessionContext(ctx, state, memories, binaryResult);
 
-    // Cleanup stale state files on disk (FS only, fast)
-    debugLog("cleanupStaleStateFiles starting...");
-    cleanupStaleStateFiles(cwd, log);
-    debugLog(`cleanupStaleStateFiles complete (${Date.now() - hookStart}ms)`);
-
-    // Initialize session state file (FS only, fast)
-    debugLog("initializeSession starting...");
-    const state = initializeSession(sessionId, cwd, log);
-    debugLog(`initializeSession complete (${Date.now() - hookStart}ms)`);
-
-    // Single aide binary call: reset state + cleanup agents + fetch all memories
-    // Replaces 7 separate binary spawns (~35-50s) with 1 (~5s)
-    const projectName = getProjectName(cwd);
-    debugLog("sessionInit starting...");
-    const memories = runSessionInit(cwd, projectName, 2, log, config);
-    debugLog(`sessionInit complete (${Date.now() - hookStart}ms)`);
-
-    // Build startup notices
-    const notices: StartupNotices = {
-      error: binaryError,
-      warning: binaryWarning,
-      info: [],
-    };
-    if (binaryDownloaded) {
-      notices.info!.push("aide binary downloaded");
-    }
-
-    // Log notices via debug (avoids stderr which Claude Code interprets as error)
-    if (notices.error) {
-      debugLog(`NOTICE ERROR: ${notices.error}`);
-    }
-    if (notices.warning) {
-      debugLog(`NOTICE WARNING: ${notices.warning}`);
-    }
-    for (const info of notices.info || []) {
-      debugLog(`NOTICE INFO: ${info}`);
-    }
-
-    // Build welcome context with injected memories
-    debugLog("buildWelcomeContext starting...");
-    log.start("buildWelcomeContext");
-    let context = buildWelcomeContext(state, memories, notices);
-    log.end("buildWelcomeContext");
-    debugLog(`buildWelcomeContext complete (${Date.now() - hookStart}ms)`);
-
-    // On resume/compact, re-inject the last session checkpoint so the agent
-    // rebuilds working context instead of relearning it (MiMo-style context
-    // reconstruction, done at the SessionStart boundary).
-    // Observe events for the checkpoint, the lifecycle marker, and every
-    // injected source accumulate here and ship as ONE batched spawn — the
-    // per-source spawns used to dominate startup time.
-    const observeBatch: ObserveBatchEvent[] = [];
-    log.start("resumeCheckpoint");
-    try {
-      const resumeBinary = findAideBinary(cwd);
-      if (resumeBinary) {
-        const resume = buildResumeContext(
-          resumeBinary,
-          cwd,
-          sessionId,
-          data.source,
-        );
-        if (resume) {
-          context = `${context}\n\n${resume}`;
-          debugLog(`Injected resume checkpoint (source=${data.source})`);
-          observeBatch.push(
-            injectionBatchEvent({
-              source: "resume-checkpoint",
-              subtype: "session_memory",
-              content: resume,
-              sessionId,
-              attrs: { trigger: data.source || "resume" },
-            }),
-          );
-        }
-      }
-    } catch (err) {
-      debugLog(`Resume checkpoint injection failed (non-fatal): ${err}`);
-    }
-    log.end("resumeCheckpoint");
-
-    log.start("observeEvents");
-    try {
-      const binary = findAideBinary(cwd);
-      if (binary) {
-        // Lifecycle trigger so SessionStart is traceable in the dashboard,
-        // symmetric with subagent-start/stop. Fires regardless of whether
-        // any memories were injected.
-        observeBatch.push({
-          kind: "session",
-          name: "session-start",
-          category: "lifecycle",
-          subtype: data.source || "startup",
-          session: sessionId,
-        });
-      }
-      if (binary && context && memories.sources) {
-        for (const src of memories.sources) {
-          const attrs: Record<string, string> = { scope: src.scope };
-          if (src.category) attrs.category = src.category;
-          if (src.tags && src.tags.length > 0) attrs.tags = src.tags.join(",");
-          if (src.sessionId) attrs.source_session_id = src.sessionId;
-          if (typeof src.score === "number") {
-            attrs.score_at_injection = src.score.toFixed(2);
-          }
-
-          observeBatch.push(
-            injectionBatchEvent({
-              source: SOURCE,
-              subtype: src.kind,
-              name: src.name,
-              content: src.content,
-              sessionId,
-              attrs: { ...attrs, source_id: src.id },
-            }),
-          );
-        }
-      }
-      if (binary) {
-        recordObserveEventsBatch(binary, cwd, observeBatch);
-      }
-    } catch {
-      // Non-fatal — don't break session start for telemetry
-    }
-    log.end("observeEvents", { events: observeBatch.length });
+    const resumed = resumeSessionContext(ctx, context);
+    context = resumed.context;
+    observeSessionStart(ctx, context, memories, resumed.observeBatch);
 
     log.end("total");
     log.info("Session start complete");
