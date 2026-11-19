@@ -102,7 +102,7 @@ func NewCodeStore(dbPath, searchPath string) (*CodeStore, error) {
 	}
 
 	// Open or create Bleve search index (auto-recovers from corruption)
-	index, err := openOrCreateCodeSearchIndex(searchPath)
+	index, err := openOrCreateBleveIndex(searchPath, buildCodeIndexMapping, "code")
 	if err != nil {
 		db.Close()
 		return nil, fmt.Errorf("failed to create/open code search index: %w", err)
@@ -121,35 +121,6 @@ func NewCodeStore(dbPath, searchPath string) (*CodeStore, error) {
 	}
 
 	return cs, nil
-}
-
-// openOrCreateCodeSearchIndex opens an existing code search index or creates a new one.
-// If the existing index is corrupted, it is removed and recreated from scratch.
-func openOrCreateCodeSearchIndex(path string) (bleve.Index, error) {
-	if _, statErr := os.Stat(path); os.IsNotExist(statErr) {
-		return createCodeSearchIndex(path)
-	}
-
-	index, err := bleve.Open(path)
-	if err == nil {
-		return index, nil
-	}
-
-	// Index exists but is corrupted — recover by recreating
-	log.Printf("code search index corrupted at %s (%v), rebuilding", path, err)
-	if removeErr := os.RemoveAll(path); removeErr != nil {
-		return nil, fmt.Errorf("failed to remove corrupted code search index: %w (original error: %v)", removeErr, err)
-	}
-	return createCodeSearchIndex(path)
-}
-
-// createCodeSearchIndex creates a fresh code bleve index at the given path.
-func createCodeSearchIndex(path string) (bleve.Index, error) {
-	indexMapping, err := buildCodeIndexMapping()
-	if err != nil {
-		return nil, err
-	}
-	return bleve.New(path, indexMapping)
 }
 
 // buildCodeIndexMapping creates a mapping for symbol search.

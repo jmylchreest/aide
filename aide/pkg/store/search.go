@@ -4,7 +4,6 @@ package store
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -150,7 +149,7 @@ func NewSearchStore(config SearchConfig) (*SearchStore, error) {
 	var err error
 
 	if config.Path != "" {
-		index, err = openOrCreateSearchIndex(config.Path)
+		index, err = openOrCreateBleveIndex(config.Path, buildIndexMapping, "memory")
 	} else {
 		// In-memory index
 		mapping, mapErr := buildIndexMapping()
@@ -168,37 +167,6 @@ func NewSearchStore(config SearchConfig) (*SearchStore, error) {
 		index: index,
 		path:  config.Path,
 	}, nil
-}
-
-// openOrCreateSearchIndex opens an existing bleve index or creates a new one.
-// If the existing index is corrupted, it is removed and recreated from scratch.
-func openOrCreateSearchIndex(path string) (bleve.Index, error) {
-	if _, statErr := os.Stat(path); os.IsNotExist(statErr) {
-		// No index exists — create new
-		return createSearchIndex(path)
-	}
-
-	// Try to open existing index
-	index, err := bleve.Open(path)
-	if err == nil {
-		return index, nil
-	}
-
-	// Index exists but is corrupted — recover by recreating
-	log.Printf("search index corrupted at %s (%v), rebuilding", path, err)
-	if removeErr := os.RemoveAll(path); removeErr != nil {
-		return nil, fmt.Errorf("failed to remove corrupted search index: %w (original error: %v)", removeErr, err)
-	}
-	return createSearchIndex(path)
-}
-
-// createSearchIndex creates a fresh bleve index at the given path.
-func createSearchIndex(path string) (bleve.Index, error) {
-	mapping, err := buildIndexMapping()
-	if err != nil {
-		return nil, err
-	}
-	return bleve.New(path, mapping)
 }
 
 // searchDocument is the structure we index in bleve.
