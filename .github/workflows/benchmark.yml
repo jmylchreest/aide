@@ -9,10 +9,12 @@ on:
     - cron: '23 3 * * *'   # nightly ~03:23 UTC
   workflow_dispatch:
 
+# Trusted pushes/schedules/dispatches use ephemeral homelab ARC runners.
+# Pull requests stay on GitHub-hosted runners; no fork code runs in the homelab.
 jobs:
   bench-smoke:
     name: Benchmark smoke (compile + run 1x)
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && 'aide-linux' || 'ubuntu-latest' }}
     defaults:
       run:
         working-directory: aide
@@ -34,7 +36,7 @@ jobs:
 
   bench-measure:
     name: Benchmark measurement
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && 'aide-linux' || 'ubuntu-latest' }}
     defaults:
       run:
         working-directory: aide

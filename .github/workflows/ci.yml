@@ -1,18 +1,27 @@
 name: CI
 
 on:
+  workflow_dispatch: {}
   push:
     branches: [main]
   pull_request:
     branches: [main]
   workflow_call: {}
 
+# Trusted pushes/schedules/dispatches use ephemeral homelab ARC runners.
+# Pull requests stay on GitHub-hosted runners; no fork code runs in the homelab.
 jobs:
   typescript:
     name: TypeScript Tests
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && 'aide-linux' || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
@@ -50,9 +59,15 @@ jobs:
 
   shared-context:
     name: Shared Context (no local paths)
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && 'aide-linux' || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
@@ -63,12 +78,18 @@ jobs:
 
   docs:
     name: Docs Type Check
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && 'aide-linux' || 'ubuntu-latest' }}
     defaults:
       run:
         working-directory: docs
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
@@ -83,7 +104,7 @@ jobs:
 
   go:
     name: Go Tests (aide)
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && 'aide-linux' || 'ubuntu-latest' }}
     defaults:
       run:
         working-directory: aide
@@ -111,7 +132,7 @@ jobs:
 
   go-web:
     name: Go Tests (aide-web)
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && 'aide-linux' || 'ubuntu-latest' }}
     defaults:
       run:
         working-directory: aide-web
@@ -123,6 +144,12 @@ jobs:
         with:
           go-version-file: aide-web/go.mod
           cache-dependency-path: aide-web/go.sum
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
@@ -152,7 +179,7 @@ jobs:
           if-no-files-found: error
   go-lint:
     name: Go Lint
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && 'aide-linux' || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -170,7 +197,7 @@ jobs:
 
   proto:
     name: Proto (buf lint + breaking)
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && 'aide-linux' || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -191,10 +218,16 @@ jobs:
 
   build:
     name: Build
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && 'aide-linux' || 'ubuntu-latest' }}
     needs: [typescript, go, go-web]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
@@ -248,7 +281,7 @@ jobs:
 
   plugin-upgrades:
     name: Plugin upgrade (${{ matrix.harness }})
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && 'aide-linux' || 'ubuntu-latest' }}
     timeout-minutes: 15
     permissions:
       contents: read
@@ -272,7 +305,6 @@ jobs:
           go-version-file: aide/go.mod
           cache-dependency-path: aide/go.sum
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
-        if: matrix.host-package != ''
         with:
           node-version: '24'
           package-manager-cache: false
@@ -332,10 +364,16 @@ jobs:
 
   integration:
     name: Integration Tests
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && 'aide-linux' || 'ubuntu-latest' }}
     needs: build
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2

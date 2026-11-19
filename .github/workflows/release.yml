@@ -15,11 +15,13 @@ on:
 permissions:
   contents: read
 
+# Trusted pushes/schedules/dispatches use ephemeral homelab ARC runners.
+# Pull requests stay on GitHub-hosted runners; no fork code runs in the homelab.
 jobs:
   # Prepare version information
   prepare:
     name: Prepare
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && 'aide-linux' || 'ubuntu-latest' }}
     outputs:
       version: ${{ steps.version.outputs.version }}
       version_tag: ${{ steps.version.outputs.version_tag }}
@@ -129,7 +131,7 @@ jobs:
     uses: ./.github/workflows/ci.yml
   install-zig:
     name: Install Zig
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && 'aide-linux' || 'ubuntu-latest' }}
     needs: prepare
     if: needs.prepare.outputs.should_skip != 'true'
     outputs:
@@ -266,11 +268,11 @@ jobs:
           # Linux
           - goos: linux
             goarch: amd64
-            runner: ubuntu-latest
+            runner: aide-linux
             zig_target: x86_64-linux-gnu
           - goos: linux
             goarch: arm64
-            runner: ubuntu-latest
+            runner: aide-linux
             zig_target: aarch64-linux-gnu
           # macOS - native builds on macOS runner (arm64 clang supports both arches)
           - goos: darwin
@@ -282,11 +284,11 @@ jobs:
           # Windows
           - goos: windows
             goarch: amd64
-            runner: ubuntu-latest
+            runner: aide-linux
             zig_target: x86_64-windows-gnu
           - goos: windows
             goarch: arm64
-            runner: ubuntu-latest
+            runner: aide-linux
             zig_target: aarch64-windows-gnu
     steps:
       - name: Checkout
@@ -364,11 +366,11 @@ jobs:
         include:
           - goos: linux
             goarch: amd64
-            runner: ubuntu-latest
+            runner: aide-linux
             zig_target: x86_64-linux-gnu
           - goos: linux
             goarch: arm64
-            runner: ubuntu-latest
+            runner: aide-linux
             zig_target: aarch64-linux-gnu
           - goos: darwin
             goarch: amd64
@@ -378,11 +380,11 @@ jobs:
             runner: macos-latest
           - goos: windows
             goarch: amd64
-            runner: ubuntu-latest
+            runner: aide-linux
             zig_target: x86_64-windows-gnu
           - goos: windows
             goarch: arm64
-            runner: ubuntu-latest
+            runner: aide-linux
             zig_target: aarch64-windows-gnu
     steps:
       - name: Checkout
@@ -460,12 +462,12 @@ jobs:
         include:
           - os_name: linux
             arch: amd64
-            runner: ubuntu-latest
+            runner: aide-linux
             ext: .so
             zig_target: x86_64-linux-gnu
           - os_name: linux
             arch: arm64
-            runner: ubuntu-latest
+            runner: aide-linux
             ext: .so
             zig_target: aarch64-linux-gnu
           - os_name: darwin
@@ -478,12 +480,12 @@ jobs:
             ext: .dylib
           - os_name: windows
             arch: amd64
-            runner: ubuntu-latest
+            runner: aide-linux
             ext: .dll
             zig_target: x86_64-windows-gnu
           - os_name: windows
             arch: arm64
-            runner: ubuntu-latest
+            runner: aide-linux
             ext: .dll
             zig_target: aarch64-windows-gnu
 
@@ -716,12 +718,18 @@ jobs:
   # Build the OpenCode plugin npm package
   build-npm:
     name: Build npm package
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && 'aide-linux' || 'ubuntu-latest' }}
     needs: [prepare, test]
     if: needs.prepare.outputs.should_skip != 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
@@ -768,7 +776,7 @@ jobs:
   # matching one per host during install.
   build-per-arch-packages:
     name: Build per-arch npm packages
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && 'aide-linux' || 'ubuntu-latest' }}
     needs: [prepare, build]
     if: needs.prepare.outputs.should_skip != 'true' && needs.prepare.outputs.is_release == 'true'
     strategy:
@@ -802,6 +810,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
@@ -841,7 +855,7 @@ jobs:
   # Recover from expired CI artifacts without rebuilding already released code.
   recover-npm:
     name: Recover npm release assets
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && 'aide-linux' || 'ubuntu-latest' }}
     timeout-minutes: 15
     needs: prepare
     if: needs.prepare.outputs.recover_npm == 'true'
@@ -850,6 +864,12 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
@@ -876,7 +896,7 @@ jobs:
   # Otherwise marketplace updates look successful while npm stays on an old runtime.
   release:
     name: Release
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && 'aide-linux' || 'ubuntu-latest' }}
     needs: [prepare, build, build-web, build-grammars, build-npm, build-per-arch-packages, publish-npm]
     if: needs.prepare.outputs.is_release == 'true' && needs.prepare.outputs.recover_npm != 'true'
     permissions:
@@ -940,6 +960,7 @@ jobs:
   # always pick up the most recent release on first install.
   publish-npm:
     name: Publish to npm
+    # npm trusted publishing currently requires GitHub-hosted runners.
     runs-on: ubuntu-latest
     timeout-minutes: 40
     concurrency:
@@ -1108,7 +1129,7 @@ jobs:
   # Create snapshot release (on main branch, not tag)
   snapshot:
     name: Snapshot
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && 'aide-linux' || 'ubuntu-latest' }}
     needs: [prepare, build, build-web, build-grammars, build-npm]
     if: needs.prepare.outputs.is_release == 'false' && github.ref == 'refs/heads/main'
     permissions:
