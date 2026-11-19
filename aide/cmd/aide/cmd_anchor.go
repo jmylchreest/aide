@@ -287,7 +287,7 @@ type anchorCand struct {
 // collectAnchorCandidates walks from cwd to / collecting marker-bearing
 // directories, nearest first.
 func collectAnchorCandidates(cwd string) []anchorCand {
-	homeDir, _ := os.UserHomeDir()
+	homeDir, homeErr := os.UserHomeDir()
 	var cands []anchorCand
 	dir := cwd
 	for {
@@ -295,7 +295,9 @@ func collectAnchorCandidates(cwd string) []anchorCand {
 		if _, err := os.Stat(filepath.Join(dir, ".aide")); err == nil {
 			// Skip ~/.aide/ as a project marker unless cwd is $HOME itself.
 			// ~/.aide/ is the TS layer's global config dir, not a project.
-			if homeDir == "" || dir != homeDir || cwd == homeDir {
+			// If home cannot be identified, only trust an explicit cwd marker.
+			// VCS markers still identify ancestor projects independently.
+			if dir == cwd || (homeErr == nil && homeDir != "" && dir != homeDir) {
 				c.hasAide = true
 			}
 		}
