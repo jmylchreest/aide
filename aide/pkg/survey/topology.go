@@ -28,6 +28,10 @@ func RunTopology(rootDir string) (*TopologyResult, error) {
 // RunTopologyWithRegistry is like RunTopology but accepts a specific PackRegistry.
 // Useful for testing with custom marker sets.
 func RunTopologyWithRegistry(rootDir string, reg *grammar.PackRegistry) (*TopologyResult, error) {
+	ignore, err := aideignore.New(rootDir)
+	if err != nil {
+		return nil, fmt.Errorf("load survey ignore rules: %w", err)
+	}
 	result := &TopologyResult{}
 	markers := reg.ProjectMarkers()
 
@@ -40,7 +44,7 @@ func RunTopologyWithRegistry(rootDir string, reg *grammar.PackRegistry) (*Topolo
 		m := &markers[i]
 		switch m.Check {
 		case grammar.MarkerCheckFile:
-			result.processFileMarker(rootDir, m, foundLocations)
+			result.processFileMarker(rootDir, m, foundLocations, ignore)
 		case grammar.MarkerCheckDirectory:
 			result.processDirectoryMarker(rootDir, m)
 		}
@@ -56,7 +60,7 @@ func RunTopologyWithRegistry(rootDir string, reg *grammar.PackRegistry) (*Topolo
 
 	AnnotateEstTokens(rootDir, result.Entries)
 	// Child project scopes: the downward estate map.
-	result.Entries = append(result.Entries, discoverSubprojects(rootDir)...)
+	result.Entries = append(result.Entries, discoverSubprojects(rootDir, ignore)...)
 
 	return result, nil
 }
@@ -64,14 +68,14 @@ func RunTopologyWithRegistry(rootDir string, reg *grammar.PackRegistry) (*Topolo
 // processFileMarker walks the filesystem looking for a file with the marker's name,
 // up to the specified MaxDepth. For each found instance, it emits a survey entry
 // and records the location for sibling marker resolution.
-func (r *TopologyResult) processFileMarker(rootDir string, m *grammar.ProjectMarker, foundLocs map[string][]string) {
+func (r *TopologyResult) processFileMarker(rootDir string, m *grammar.ProjectMarker, foundLocs map[string][]string, ignore *aideignore.Matcher) {
 	// Build skip set for this marker.
 	skipSet := make(map[string]bool, len(m.SkipPaths))
 	for _, sp := range m.SkipPaths {
 		skipSet[sp] = true
 	}
 
-	walkForFile(rootDir, m.File, m.MaxDepth, skipSet, func(path string) {
+	walkForFile(rootDir, m.File, m.MaxDepth, skipSet, ignore, func(path string) {
 		dir := filepath.Dir(path)
 		relPath, _ := filepath.Rel(rootDir, dir)
 		if relPath == "." {
@@ -249,12 +253,7 @@ func capitalise(s string) string {
 // loads .aideignore plus BuiltinDefaults, covering node_modules, vendor,
 // target, etc.) plus a hidden-dir guard plus per-marker skipSet entries.
 // maxDepth: 0 = root only, positive = limit, -1 = unlimited.
-func walkForFile(rootDir, fileName string, maxDepth int, skipSet map[string]bool, fn func(path string)) {
-	ignore, _ := aideignore.New(rootDir)
-	if ignore == nil {
-		ignore = aideignore.NewFromDefaults()
-	}
-
+func walkForFile(rootDir, fileName string, maxDepth int, skipSet map[string]bool, ignore *aideignore.Matcher, fn func(path string)) {
 	_ = filepath.WalkDir(rootDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil

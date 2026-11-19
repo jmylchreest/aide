@@ -28,9 +28,7 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
-      # 1x each: proves every benchmark compiles and runs, cheap. This is the
-      # PR gate. NOTE: until the benchmark _test.go files land (dedicated PR),
-      # this passes vacuously (go test -bench=. with no benchmarks exits 0).
+      # Run each benchmark once to catch compilation and setup failures in PRs.
       - name: Benchmark smoke test
         run: make bench-smoke
 

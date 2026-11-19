@@ -2,6 +2,7 @@
 package watcher
 
 import (
+	"fmt"
 	"io/fs"
 	"log"
 	"os"
@@ -115,11 +116,10 @@ func New(config Config, handlers ...FileChangeHandler) (*Watcher, error) {
 	if root == "" && len(config.Paths) > 0 {
 		root = config.Paths[0]
 	}
-	if root == "" {
-		root, _ = os.Getwd()
-	}
-	if abs, err := filepath.Abs(root); err == nil {
-		root = abs
+	root, err = filepath.Abs(root)
+	if err != nil {
+		fsWatcher.Close()
+		return nil, fmt.Errorf("resolve watcher root: %w", err)
 	}
 
 	return &Watcher{

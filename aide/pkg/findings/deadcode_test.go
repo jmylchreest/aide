@@ -290,3 +290,20 @@ func TestAnalyzeDeadCode_ConsumerFormatsRescue(t *testing.T) {
 		t.Errorf("control: expected App to be flagged when consumer scan disabled, got %d", len(ff2))
 	}
 }
+
+func TestDeadcodeConsumerScanRejectsUnreadableIgnore(t *testing.T) {
+	root := t.TempDir()
+	if err := os.Mkdir(filepath.Join(root, ".aideignore"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	_, _, err := AnalyzeDeadCode(DeadCodeConfig{
+		ProjectRoot: root, ConsumerExtensions: []string{".vue"},
+		GetAllSymbols: func() ([]*code.Symbol, error) {
+			return []*code.Symbol{{Name: "unused", Kind: code.KindFunction, Language: "typescript", FilePath: "main.ts", StartLine: 1}}, nil
+		},
+		GetRefCount: func(string) (int, error) { return 0, nil },
+	})
+	if err == nil {
+		t.Fatal("consumer scan silently ignored invalid ignore rules")
+	}
+}

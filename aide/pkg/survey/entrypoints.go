@@ -28,6 +28,14 @@ func RunEntrypoints(rootDir string, codeSearcher CodeSearcher) (*EntrypointsResu
 // RunEntrypointsWithRegistry is like RunEntrypoints but accepts a specific PackRegistry.
 func RunEntrypointsWithRegistry(rootDir string, codeSearcher CodeSearcher, reg *grammar.PackRegistry) (*EntrypointsResult, error) {
 	result := &EntrypointsResult{}
+	var ignore *aideignore.Matcher
+	if codeSearcher == nil {
+		var err error
+		ignore, err = aideignore.New(rootDir)
+		if err != nil {
+			return nil, fmt.Errorf("load survey ignore rules: %w", err)
+		}
+	}
 
 	// Iterate all packs with entrypoints defined.
 	for _, name := range reg.All() {
@@ -42,7 +50,7 @@ func RunEntrypointsWithRegistry(rootDir string, codeSearcher CodeSearcher, reg *
 			result.processRefs(pack, codeSearcher)
 		} else {
 			// Fallback: file-scan patterns.
-			result.processFilePatterns(rootDir, pack)
+			result.processFilePatterns(rootDir, pack, ignore)
 		}
 	}
 
@@ -254,11 +262,7 @@ func (r *EntrypointsResult) processRefs(pack *grammar.Pack, cs CodeSearcher) {
 // is available. Each pack's FilePatterns define glob matches and optional content regexes.
 // Directory pruning is delegated to aideignore (which loads .aideignore plus
 // BuiltinDefaults, covering vendor, node_modules, target, etc.) plus a hidden-dir guard.
-func (r *EntrypointsResult) processFilePatterns(rootDir string, pack *grammar.Pack) {
-	ignore, _ := aideignore.New(rootDir)
-	if ignore == nil {
-		ignore = aideignore.NewFromDefaults()
-	}
+func (r *EntrypointsResult) processFilePatterns(rootDir string, pack *grammar.Pack, ignore *aideignore.Matcher) {
 	shouldSkip := ignore.WalkFunc(rootDir)
 
 	for _, fp := range pack.Entrypoints.FilePatterns {

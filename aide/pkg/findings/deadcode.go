@@ -145,7 +145,10 @@ func AnalyzeDeadCode(cfg DeadCodeConfig) ([]*Finding, *DeadCodeResult, error) {
 	// and function-as-value passes (`{Field: foo}`); a literal text scan
 	// catches all of these at the cost of accepting false negatives from
 	// occurrences inside string literals or comments.
-	verifier := newReferenceVerifier(cfg.ProjectRoot, symbols, cfg.ConsumerExtensions)
+	verifier, err := newReferenceVerifier(cfg.ProjectRoot, symbols, cfg.ConsumerExtensions)
+	if err != nil {
+		return nil, nil, err
+	}
 	findings := make([]*Finding, 0, len(candidates))
 	for _, cand := range candidates {
 		if verifier.appearsElsewhere(cand.symbol) {
@@ -445,31 +448,35 @@ type referenceVerifier struct {
 	content map[string][]byte
 }
 
-func newReferenceVerifier(root string, symbols []*code.Symbol, consumerExts []string) *referenceVerifier {
+func newReferenceVerifier(root string, symbols []*code.Symbol, consumerExts []string) (*referenceVerifier, error) {
 	seen := make(map[string]struct{}, len(symbols))
 	for _, s := range symbols {
 		seen[s.FilePath] = struct{}{}
 	}
-	for _, p := range walkConsumerFiles(root, consumerExts) {
+	consumerFiles, err := walkConsumerFiles(root, consumerExts)
+	if err != nil {
+		return nil, err
+	}
+	for _, p := range consumerFiles {
 		seen[p] = struct{}{}
 	}
 	files := make([]string, 0, len(seen))
 	for p := range seen {
 		files = append(files, p)
 	}
-	return &referenceVerifier{root: root, files: files, content: make(map[string][]byte)}
+	return &referenceVerifier{root: root, files: files, content: make(map[string][]byte)}, nil
 }
 
 // walkConsumerFiles returns project-relative paths of files whose extension
 // matches one of the registered consumer formats. These files are not in the
 // code index but are scanned by the verifier as plain text.
-func walkConsumerFiles(root string, exts []string) []string {
+func walkConsumerFiles(root string, exts []string) ([]string, error) {
 	if root == "" || len(exts) == 0 {
-		return nil
+		return nil, nil
 	}
-	ignore, _ := aideignore.New(root)
-	if ignore == nil {
-		ignore = aideignore.NewFromDefaults()
+	ignore, err := aideignore.New(root)
+	if err != nil {
+		return nil, fmt.Errorf("load consumer scan ignore rules: %w", err)
 	}
 	shouldSkip := ignore.WalkFunc(root)
 
@@ -502,7 +509,7 @@ func walkConsumerFiles(root string, exts []string) []string {
 		}
 		return nil
 	})
-	return out
+	return out, nil
 }
 
 func matchesExt(lowerPath string, extSet map[string]struct{}) bool {

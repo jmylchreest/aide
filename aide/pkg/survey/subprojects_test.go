@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/jmylchreest/aide/aide/pkg/aideignore"
 )
 
 // TestDiscoverSubprojects pins the downward estate map: nested VCS roots
@@ -46,7 +48,11 @@ func TestDiscoverSubprojects(t *testing.T) {
 	// Stray .aide-only dir: no VCS evidence, not a subproject.
 	mustMkdir(filepath.Join(root, "stray", ".aide"))
 
-	entries := discoverSubprojects(root)
+	ignore, err := aideignore.New(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	entries := discoverSubprojects(root, ignore)
 
 	byPath := map[string]*Entry{}
 	for _, e := range entries {
