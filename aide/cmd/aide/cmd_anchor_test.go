@@ -9,6 +9,33 @@ import (
 	"github.com/jmylchreest/aide/aide/pkg/anchor"
 )
 
+func TestAnchorHomeLookupFailureDoesNotTrustAncestorAide(t *testing.T) {
+	t.Setenv("HOME", "")
+	t.Setenv("USERPROFILE", "")
+	t.Setenv("AIDE_PROJECT_ROOT", "")
+	root := t.TempDir()
+	child := filepath.Join(root, "child")
+	for _, dir := range []string{filepath.Join(root, ".aide"), child} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, got := range collectAnchorCandidates(child) {
+		if got.hasAide {
+			t.Fatalf("unknown home must not enable ancestor .aide markers: %+v", got)
+		}
+	}
+	if got := collectAnchorCandidates(root); len(got) == 0 || got[0].dir != root || !got[0].hasAide {
+		t.Fatalf("explicit cwd marker should still work: %+v", got)
+	}
+	if err := os.Mkdir(filepath.Join(root, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got := collectAnchorCandidates(child); len(got) == 0 || got[0].dir != root || !got[0].hasVCS || got[0].hasAide {
+		t.Fatalf("VCS roots must still work without home lookup: %+v", got)
+	}
+}
+
 // anchorFixture builds a filesystem estate covering the gitdir shapes the
 // resolver must classify:
 //

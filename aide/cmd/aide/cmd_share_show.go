@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -210,7 +211,12 @@ func buildImportPreview(sharedDir string, decFilter, memFilter contextshare.Filt
 func previewImportDecisions(sharedDir string, f contextshare.Filter) importTypePreview {
 	p := importTypePreview{}
 	tally := map[string]int{}
-	topics, err := os.ReadDir(filepath.Join(sharedDir, "decisions"))
+	root, err := os.OpenRoot(sharedDir)
+	if err != nil {
+		return p
+	}
+	defer root.Close()
+	topics, err := fs.ReadDir(root.FS(), "decisions")
 	if err != nil {
 		return p
 	}
@@ -218,7 +224,7 @@ func previewImportDecisions(sharedDir string, f contextshare.Filter) importTypeP
 		if !topicDir.IsDir() {
 			continue
 		}
-		versions, err := os.ReadDir(filepath.Join(sharedDir, "decisions", topicDir.Name()))
+		versions, err := fs.ReadDir(root.FS(), "decisions/"+topicDir.Name())
 		if err != nil {
 			continue
 		}
@@ -226,7 +232,7 @@ func previewImportDecisions(sharedDir string, f contextshare.Filter) importTypeP
 			if v.IsDir() || !strings.HasSuffix(v.Name(), ".md") {
 				continue
 			}
-			data, err := os.ReadFile(filepath.Join(sharedDir, "decisions", topicDir.Name(), v.Name()))
+			data, err := root.ReadFile(filepath.Join("decisions", topicDir.Name(), v.Name()))
 			if err != nil {
 				continue
 			}
@@ -253,7 +259,12 @@ func previewImportDecisions(sharedDir string, f contextshare.Filter) importTypeP
 func previewImportMemories(sharedDir string, f contextshare.Filter) importTypePreview {
 	p := importTypePreview{}
 	tally := map[string]int{}
-	entries, err := os.ReadDir(filepath.Join(sharedDir, "memories"))
+	root, err := os.OpenRoot(sharedDir)
+	if err != nil {
+		return p
+	}
+	defer root.Close()
+	entries, err := fs.ReadDir(root.FS(), "memories")
 	if err != nil {
 		return p
 	}
@@ -264,7 +275,7 @@ func previewImportMemories(sharedDir string, f contextshare.Filter) importTypePr
 		if isReservedShareFile(entry.Name()) {
 			continue
 		}
-		data, err := os.ReadFile(filepath.Join(sharedDir, "memories", entry.Name()))
+		data, err := root.ReadFile(filepath.Join("memories", entry.Name()))
 		if err != nil {
 			continue
 		}

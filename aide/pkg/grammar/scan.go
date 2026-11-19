@@ -70,7 +70,7 @@ func ScanProject(root string, loader *CompositeLoader, detect LanguageDetector, 
 	reg := DefaultPackRegistry()
 	markerLangs := make(map[string]bool)
 	for _, marker := range reg.PackLinkedMarkers() {
-		if markerExistsInProject(absRoot, marker) {
+		if MarkerExistsInProject(absRoot, marker) {
 			markerLangs[marker.Pack] = true
 			// Ensure the language appears in the Languages map (file scan may add files later).
 			if _, exists := result.Languages[marker.Pack]; !exists {
@@ -165,22 +165,28 @@ func ScanProject(root string, loader *CompositeLoader, detect LanguageDetector, 
 	return result, nil
 }
 
-// markerExistsInProject checks if a project marker exists at the project root.
+// MarkerExistsInProject checks if a project marker exists at the project root.
 // For "file" markers: checks if the file exists at root (depth 0 only for scanner performance).
 // For "directory" markers: checks if the directory exists and is non-empty.
 // "sibling" markers are skipped (they depend on parent context from the topology analyzer).
-func markerExistsInProject(root string, marker ProjectMarker) bool {
+func MarkerExistsInProject(root string, marker ProjectMarker) bool {
+	if marker.Validate() != nil {
+		return false
+	}
+	dir, err := os.OpenRoot(root)
+	if err != nil {
+		return false
+	}
+	defer dir.Close()
 	switch marker.Check {
 	case MarkerCheckFile:
-		path := filepath.Join(root, marker.File)
-		info, err := os.Stat(path)
+		info, err := dir.Stat(marker.File)
 		if err != nil {
 			return false
 		}
 		return !info.IsDir()
 	case MarkerCheckDirectory:
-		path := filepath.Join(root, marker.File)
-		info, err := os.Stat(path)
+		info, err := dir.Stat(marker.File)
 		if err != nil {
 			return false
 		}
@@ -188,11 +194,13 @@ func markerExistsInProject(root string, marker ProjectMarker) bool {
 			return false
 		}
 		// Non-empty check: at least one entry.
-		entries, err := os.ReadDir(path)
+		child, err := dir.Open(marker.File)
 		if err != nil {
 			return false
 		}
-		return len(entries) > 0
+		defer child.Close()
+		entries, err := child.ReadDir(1)
+		return err == nil && len(entries) > 0
 	default:
 		// Skip "sibling" and unknown check types.
 		return false

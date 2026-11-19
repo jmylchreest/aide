@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 	"sync"
 )
 
@@ -100,6 +102,22 @@ func (m *ProjectMarker) markerKey() string {
 	return m.File + "\x00" + m.Kind
 }
 
+// Validate confines marker paths on every supported OS, including when an
+// index authored on Windows is loaded on a Unix machine (or vice versa).
+func (m ProjectMarker) Validate() error {
+	paths := []string{m.File}
+	if m.SiblingOf != "" {
+		paths = append(paths, m.SiblingOf)
+	}
+	for _, name := range paths {
+		portable := strings.ReplaceAll(name, "\\", "/")
+		if !filepath.IsLocal(portable) || strings.Contains(portable, ":") {
+			return fmt.Errorf("marker path %q must stay within the project", name)
+		}
+	}
+	return nil
+}
+
 // ResolvedName returns the display name for a marker — the Pack name if linked
 // to a grammar pack, otherwise the Label.
 func (m *ProjectMarker) ResolvedName() string {
@@ -124,6 +142,11 @@ func (r *PackRegistry) LoadIndex(data []byte) error {
 	var idx PackIndex
 	if err := json.Unmarshal(data, &idx); err != nil {
 		return fmt.Errorf("parsing pack index: %w", err)
+	}
+	for _, marker := range idx.ProjectMarkers {
+		if err := marker.Validate(); err != nil {
+			return err
+		}
 	}
 	r.idx.mu.Lock()
 	defer r.idx.mu.Unlock()

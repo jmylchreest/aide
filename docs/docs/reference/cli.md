@@ -116,10 +116,16 @@ aide state clear --agent=worker-1
 | Command       | Description                             |
 | ------------- | --------------------------------------- |
 | `state set`   | Set a state value (global or per-agent) |
+| `state increment` | Atomically increment a nonnegative counter; absent state starts at 1 |
 | `state init-bounded` | Create absent state atomically within a per-agent entry limit |
 | `state get`   | Get a state value                       |
 | `state list`  | List all state entries                  |
 | `state clear` | Clear state for an agent                |
+
+`state increment KEY [--agent=ID] [--json]` returns the persisted value from
+one transaction. Invalid or overflowing counters produce an error without
+changing the stored value. An older daemon that lacks this operation must be
+restarted after upgrading; the client never falls back to separate reads and writes.
 
 `state init-bounded` requires `--agent` and `--max-agent-entries` (1–4096).
 An existing key in that namespace is returned unchanged, even at capacity;

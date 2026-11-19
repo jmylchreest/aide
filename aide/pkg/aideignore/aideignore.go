@@ -16,13 +16,13 @@ package aideignore
 
 import (
 	"bufio"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/go-git/go-billy/v5/osfs"
 	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
 
 	"github.com/jmylchreest/aide/aide/pkg/config"
@@ -216,7 +216,11 @@ func NewWithOptions(projectRoot string, opts Options) (*Matcher, error) {
 	ps := builtinPatterns()
 
 	if opts.Gitignore {
-		ps = append(ps, gitignorePatterns(projectRoot)...)
+		gitPS, err := gitignorePatterns(projectRoot)
+		if err != nil {
+			return nil, err
+		}
+		ps = append(ps, gitPS...)
 	}
 
 	userPS, err := readPatternFile(filepath.Join(projectRoot, IgnoreFileName), nil)
@@ -336,6 +340,10 @@ func (m *Matcher) WalkFunc(projectRoot string) func(path string, info os.FileInf
 // mirrors go-git's unexported readIgnoreFile. Unlike git, leading whitespace is
 // trimmed — .aideignore has always been lenient about indented patterns.
 func readPatternFile(path string, domain []string) ([]gitignore.Pattern, error) {
+	return readPatterns(path, domain, true)
+}
+
+func readPatterns(path string, domain []string, trimSpace bool) ([]gitignore.Pattern, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -345,8 +353,11 @@ func readPatternFile(path string, domain []string) ([]gitignore.Pattern, error) 
 	var ps []gitignore.Pattern
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, "#") {
+		line := scanner.Text()
+		if trimSpace {
+			line = strings.TrimSpace(line)
+		}
+		if strings.TrimSpace(line) == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
 		ps = append(ps, gitignore.ParsePattern(line, domain))
@@ -378,35 +389,92 @@ var (
 // them in would let the same tree produce different findings on different
 // checkouts with nothing in the repo to explain why.
 //
-// Errors are swallowed rather than surfaced: an unreadable ignore file should
-// degrade to "ignore less", never fail a scan. ReadPatterns also returns the
-// patterns it collected before an error, so partial results are worth keeping.
-func gitignorePatterns(projectRoot string) []gitignore.Pattern {
+// Failed reads are surfaced and never cached: partial rules could silently
+// include files the user explicitly excluded from analysis.
+func gitignorePatterns(projectRoot string) ([]gitignore.Pattern, error) {
 	// A project root that is not a worktree root has nothing to read, and
-	// ReadPatterns would walk the whole tree to discover that. This also means
+	// a recursive scan would walk the whole tree to discover that. This also means
 	// a projectRoot nested inside a repo does not inherit its parents' rules.
-	if _, err := os.Stat(filepath.Join(projectRoot, ".git")); err != nil {
-		return nil
+	_, err := os.Stat(filepath.Join(projectRoot, ".git"))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
 	}
 
 	key, err := filepath.Abs(projectRoot)
 	if err != nil {
-		key = projectRoot
+		return nil, err
 	}
 
 	gitignoreMu.Lock()
 	defer gitignoreMu.Unlock()
 
 	if e, ok := gitignoreCache[key]; ok && time.Since(e.loadedAt) < gitignoreTTL {
-		return e.patterns
+		return e.patterns, nil
 	}
 
-	// ReadPatterns prunes as it recurses — a directory already excluded by the
-	// patterns collected so far is not descended into — so this does not walk
-	// node_modules or any other gitignored tree.
-	ps, _ := gitignore.ReadPatterns(osfs.New(key), nil)
+	// Prune directories already excluded by collected patterns, so this does
+	// not walk node_modules or any other gitignored tree.
+	ps, err := readGitignoreTree(key)
+	if err != nil {
+		return nil, err
+	}
 	gitignoreCache[key] = gitignoreEntry{patterns: ps, loadedAt: time.Now()}
-	return ps
+	return ps, nil
+}
+
+// go-git's ReadPatterns discards per-file read and scanner errors. Keep its
+// pattern parser and precedence, but surface errors before caching a scan.
+func readGitignoreTree(root string) ([]gitignore.Pattern, error) {
+	var patterns []gitignore.Pattern
+	read := func(name string, domain []string) error {
+		ps, err := readPatterns(name, domain, false)
+		if err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		patterns = append(patterns, ps...)
+		return nil
+	}
+	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !entry.IsDir() {
+			return nil
+		}
+		var domain []string
+		if path != root {
+			if entry.Name() == ".git" {
+				return filepath.SkipDir
+			}
+			rel, err := filepath.Rel(root, path)
+			if err != nil {
+				return err
+			}
+			domain = strings.Split(filepath.ToSlash(rel), "/")
+			if gitignore.NewMatcher(patterns).Match(domain, true) {
+				return filepath.SkipDir
+			}
+		}
+		// Nested repositories have their own exclusions. A linked worktree's
+		// .git file has no info/exclude child, but still has .gitignore rules.
+		gitInfo, err := os.Stat(filepath.Join(path, ".git"))
+		if err != nil && !os.IsNotExist(err) {
+			return err
+		}
+		if err == nil && gitInfo.IsDir() {
+			if err := read(filepath.Join(path, ".git", "info", "exclude"), domain); err != nil {
+				return err
+			}
+		}
+		return read(filepath.Join(path, ".gitignore"), domain)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return patterns, nil
 }
 
 // InvalidateGitignoreCache drops every cached gitignore scan. Call it after

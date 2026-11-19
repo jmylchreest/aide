@@ -284,3 +284,27 @@ func TestCmdShareShowImportPreview(t *testing.T) {
 		t.Errorf("import memories = %+v, want total=2 accepted=1 excluded=1", m)
 	}
 }
+
+func TestImportPreviewDoesNotFollowEscapingLinks(t *testing.T) {
+	shared := t.TempDir()
+	outside := t.TempDir()
+	writeTree(t, outside)
+	d := &memory.Decision{Topic: "auth", Decision: "JWT", CreatedAt: time.Date(2026, 6, 1, 9, 0, 0, 0, time.UTC)}
+	dest := contextshare.DecisionPath(shared, d)
+	if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(contextshare.DecisionPath(outside, d), dest); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	f := contextshare.Filter{Include: []string{"*"}}
+	if got := buildImportPreview(shared, f, f); got.Decisions.Total != 0 {
+		t.Fatalf("external record read: %+v", got)
+	}
+	if err := os.Symlink(filepath.Join(outside, "memories"), filepath.Join(shared, "memories")); err != nil {
+		t.Fatal(err)
+	}
+	if got := buildImportPreview(shared, f, f); got.Memories.Total != 0 {
+		t.Fatalf("external directory read: %+v", got)
+	}
+}

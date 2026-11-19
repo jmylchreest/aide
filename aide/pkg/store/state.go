@@ -4,12 +4,49 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/jmylchreest/aide/aide/pkg/memory"
 	bolt "go.etcd.io/bbolt"
 )
+
+func (s *BoltStore) IncrementState(key, agent string) (*memory.State, error) {
+	if key == "" {
+		return nil, fmt.Errorf("state key is required")
+	}
+	result := memory.State{Key: key, Agent: agent}
+	err := s.db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket(BucketState)
+		var count int64
+		if data := b.Get([]byte(key)); data != nil {
+			if err := json.Unmarshal(data, &result); err != nil {
+				return err
+			}
+			if result.Key != key || result.Agent != agent {
+				return fmt.Errorf("stored counter key or agent mismatch")
+			}
+			var err error
+			count, err = strconv.ParseInt(result.Value, 10, 64)
+			if err != nil || count < 0 || count == math.MaxInt64 {
+				return fmt.Errorf("state counter is invalid or exhausted")
+			}
+		}
+		result.Value = strconv.FormatInt(count+1, 10)
+		result.UpdatedAt = time.Now()
+		data, err := json.Marshal(&result)
+		if err != nil {
+			return err
+		}
+		return b.Put([]byte(key), data)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
 
 // InitState creates state only when its key is absent. The lookup and insert
 // share a write transaction, so replayed startup cannot overwrite a reset.

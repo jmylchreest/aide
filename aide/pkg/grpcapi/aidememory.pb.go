@@ -7,12 +7,13 @@
 package grpcapi
 
 import (
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
+
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -13852,12 +13853,13 @@ const file_aidememory_proto_rawDesc = "" +
 	"\x04List\x12\x1d.aidememory.MemoryListRequest\x1a\x1e.aidememory.MemoryListResponse\x12K\n" +
 	"\x06Delete\x12\x1f.aidememory.MemoryDeleteRequest\x1a .aidememory.MemoryDeleteResponse\x12H\n" +
 	"\x05Clear\x12\x1e.aidememory.MemoryClearRequest\x1a\x1f.aidememory.MemoryClearResponse\x12H\n" +
-	"\x05Touch\x12\x1e.aidememory.MemoryTouchRequest\x1a\x1f.aidememory.MemoryTouchResponse2\xcd\x04\n" +
+	"\x05Touch\x12\x1e.aidememory.MemoryTouchRequest\x1a\x1f.aidememory.MemoryTouchResponse2\x95\x05\n" +
 	"\fStateService\x12@\n" +
 	"\x03Get\x12\x1b.aidememory.StateGetRequest\x1a\x1c.aidememory.StateGetResponse\x12@\n" +
 	"\x03Set\x12\x1b.aidememory.StateSetRequest\x1a\x1c.aidememory.StateSetResponse\x12A\n" +
 	"\x04Init\x12\x1b.aidememory.StateSetRequest\x1a\x1c.aidememory.StateSetResponse\x12P\n" +
-	"\vInitBounded\x12#.aidememory.StateBoundedInitRequest\x1a\x1c.aidememory.StateSetResponse\x12C\n" +
+	"\vInitBounded\x12#.aidememory.StateBoundedInitRequest\x1a\x1c.aidememory.StateSetResponse\x12F\n" +
+	"\tIncrement\x12\x1b.aidememory.StateGetRequest\x1a\x1c.aidememory.StateSetResponse\x12C\n" +
 	"\x04List\x12\x1c.aidememory.StateListRequest\x1a\x1d.aidememory.StateListResponse\x12I\n" +
 	"\x06Delete\x12\x1e.aidememory.StateDeleteRequest\x1a\x1f.aidememory.StateDeleteResponse\x12F\n" +
 	"\x05Clear\x12\x1d.aidememory.StateClearRequest\x1a\x1e.aidememory.StateClearResponse\x12L\n" +
@@ -14372,173 +14374,175 @@ var file_aidememory_proto_depIdxs = []int32{
 	18,  // 164: aidememory.StateService.Set:input_type -> aidememory.StateSetRequest
 	18,  // 165: aidememory.StateService.Init:input_type -> aidememory.StateSetRequest
 	206, // 166: aidememory.StateService.InitBounded:input_type -> aidememory.StateBoundedInitRequest
-	20,  // 167: aidememory.StateService.List:input_type -> aidememory.StateListRequest
-	22,  // 168: aidememory.StateService.Delete:input_type -> aidememory.StateDeleteRequest
-	24,  // 169: aidememory.StateService.Clear:input_type -> aidememory.StateClearRequest
-	26,  // 170: aidememory.StateService.Cleanup:input_type -> aidememory.StateCleanupRequest
-	32,  // 171: aidememory.DecisionService.Set:input_type -> aidememory.DecisionSetRequest
-	34,  // 172: aidememory.DecisionService.Get:input_type -> aidememory.DecisionGetRequest
-	36,  // 173: aidememory.DecisionService.List:input_type -> aidememory.DecisionListRequest
-	38,  // 174: aidememory.DecisionService.History:input_type -> aidememory.DecisionHistoryRequest
-	40,  // 175: aidememory.DecisionService.Delete:input_type -> aidememory.DecisionDeleteRequest
-	42,  // 176: aidememory.DecisionService.Clear:input_type -> aidememory.DecisionClearRequest
-	45,  // 177: aidememory.MessageService.Send:input_type -> aidememory.MessageSendRequest
-	47,  // 178: aidememory.MessageService.List:input_type -> aidememory.MessageListRequest
-	49,  // 179: aidememory.MessageService.Ack:input_type -> aidememory.MessageAckRequest
-	51,  // 180: aidememory.MessageService.Prune:input_type -> aidememory.MessagePruneRequest
-	54,  // 181: aidememory.TaskService.Create:input_type -> aidememory.TaskCreateRequest
-	56,  // 182: aidememory.TaskService.Get:input_type -> aidememory.TaskGetRequest
-	58,  // 183: aidememory.TaskService.List:input_type -> aidememory.TaskListRequest
-	60,  // 184: aidememory.TaskService.Claim:input_type -> aidememory.TaskClaimRequest
-	62,  // 185: aidememory.TaskService.Complete:input_type -> aidememory.TaskCompleteRequest
-	64,  // 186: aidememory.TaskService.Update:input_type -> aidememory.TaskUpdateRequest
-	66,  // 187: aidememory.TaskService.Delete:input_type -> aidememory.TaskDeleteRequest
-	68,  // 188: aidememory.TaskService.Clear:input_type -> aidememory.TaskClearRequest
-	71,  // 189: aidememory.CodeService.Search:input_type -> aidememory.CodeSearchRequest
-	73,  // 190: aidememory.CodeService.Symbols:input_type -> aidememory.CodeSymbolsRequest
-	75,  // 191: aidememory.CodeService.Stats:input_type -> aidememory.CodeStatsRequest
-	77,  // 192: aidememory.CodeService.Index:input_type -> aidememory.CodeIndexRequest
-	81,  // 193: aidememory.CodeService.Clear:input_type -> aidememory.CodeClearRequest
-	83,  // 194: aidememory.CodeService.TopReferences:input_type -> aidememory.CodeTopReferencesRequest
-	87,  // 195: aidememory.CodeService.SearchReferences:input_type -> aidememory.CodeSearchReferencesRequest
-	89,  // 196: aidememory.CodeService.GetFileReferences:input_type -> aidememory.CodeGetFileReferencesRequest
-	90,  // 197: aidememory.CodeService.GetContainingSymbol:input_type -> aidememory.CodeGetContainingSymbolRequest
-	92,  // 198: aidememory.CodeService.GetFileInfo:input_type -> aidememory.CodeGetFileInfoRequest
-	94,  // 199: aidememory.CodeService.ReadCheck:input_type -> aidememory.CodeReadCheckRequest
-	96,  // 200: aidememory.CodeService.RunDeadCodeAnalysis:input_type -> aidememory.CodeRunDeadCodeAnalysisRequest
-	99,  // 201: aidememory.FindingsService.Add:input_type -> aidememory.FindingAddRequest
-	207, // 202: aidememory.FindingsService.ReplaceAnalyzer:input_type -> aidememory.FindingReplaceAnalyzerRequest
-	209, // 203: aidememory.FindingsService.AddBatch:input_type -> aidememory.FindingAddBatchRequest
-	101, // 204: aidememory.FindingsService.Get:input_type -> aidememory.FindingGetRequest
-	103, // 205: aidememory.FindingsService.Delete:input_type -> aidememory.FindingDeleteRequest
-	105, // 206: aidememory.FindingsService.Search:input_type -> aidememory.FindingSearchRequest
-	107, // 207: aidememory.FindingsService.List:input_type -> aidememory.FindingListRequest
-	108, // 208: aidememory.FindingsService.GetFileFindings:input_type -> aidememory.FindingFileRequest
-	109, // 209: aidememory.FindingsService.ClearAnalyzer:input_type -> aidememory.FindingClearAnalyzerRequest
-	111, // 210: aidememory.FindingsService.Stats:input_type -> aidememory.FindingStatsRequest
-	113, // 211: aidememory.FindingsService.Clear:input_type -> aidememory.FindingClearRequest
-	115, // 212: aidememory.FindingsService.Accept:input_type -> aidememory.FindingAcceptRequest
-	116, // 213: aidememory.FindingsService.AcceptByFilter:input_type -> aidememory.FindingAcceptByFilterRequest
-	122, // 214: aidememory.SurveyService.Add:input_type -> aidememory.SurveyAddRequest
-	124, // 215: aidememory.SurveyService.Get:input_type -> aidememory.SurveyGetRequest
-	126, // 216: aidememory.SurveyService.Delete:input_type -> aidememory.SurveyDeleteRequest
-	128, // 217: aidememory.SurveyService.Search:input_type -> aidememory.SurveySearchRequest
-	130, // 218: aidememory.SurveyService.List:input_type -> aidememory.SurveyListRequest
-	131, // 219: aidememory.SurveyService.GetFileEntries:input_type -> aidememory.SurveyFileRequest
-	132, // 220: aidememory.SurveyService.ClearAnalyzer:input_type -> aidememory.SurveyClearAnalyzerRequest
-	134, // 221: aidememory.SurveyService.Stats:input_type -> aidememory.SurveyStatsRequest
-	136, // 222: aidememory.SurveyService.Clear:input_type -> aidememory.SurveyClearRequest
-	118, // 223: aidememory.SurveyService.Run:input_type -> aidememory.SurveyRunRequest
-	139, // 224: aidememory.TombstoneService.Add:input_type -> aidememory.TombstoneAddRequest
-	141, // 225: aidememory.TombstoneService.Get:input_type -> aidememory.TombstoneGetRequest
-	143, // 226: aidememory.TombstoneService.List:input_type -> aidememory.TombstoneListRequest
-	145, // 227: aidememory.TombstoneService.Delete:input_type -> aidememory.TombstoneDeleteRequest
-	147, // 228: aidememory.HealthService.Check:input_type -> aidememory.HealthCheckRequest
-	149, // 229: aidememory.StatusService.GetStatus:input_type -> aidememory.StatusRequest
-	177, // 230: aidememory.TokenService.GetTokenStats:input_type -> aidememory.TokenStatsRequest
-	195, // 231: aidememory.TokenService.ListTokenEvents:input_type -> aidememory.TokenEventListRequest
-	159, // 232: aidememory.ObserveService.RecordEvent:input_type -> aidememory.ObserveRecordRequest
-	204, // 233: aidememory.ObserveService.RecordBatch:input_type -> aidememory.ObserveBatchRecordRequest
-	161, // 234: aidememory.ObserveService.ListEvents:input_type -> aidememory.ObserveListRequest
-	176, // 235: aidememory.ObserveService.WatchEvents:input_type -> aidememory.ObserveWatchRequest
-	167, // 236: aidememory.InstinctService.List:input_type -> aidememory.InstinctListRequest
-	169, // 237: aidememory.InstinctService.Get:input_type -> aidememory.InstinctGetRequest
-	171, // 238: aidememory.InstinctService.Add:input_type -> aidememory.InstinctAddRequest
-	173, // 239: aidememory.InstinctService.UpdateStatus:input_type -> aidememory.InstinctUpdateStatusRequest
-	175, // 240: aidememory.InstinctService.Watch:input_type -> aidememory.InstinctWatchRequest
-	198, // 241: aidememory.SwarmService.WatchTasks:input_type -> aidememory.SwarmWatchTasksRequest
-	199, // 242: aidememory.SwarmService.WatchMessages:input_type -> aidememory.SwarmWatchMessagesRequest
-	200, // 243: aidememory.SwarmService.WatchState:input_type -> aidememory.SwarmWatchStateRequest
-	2,   // 244: aidememory.MemoryService.Add:output_type -> aidememory.MemoryAddResponse
-	4,   // 245: aidememory.MemoryService.Get:output_type -> aidememory.MemoryGetResponse
-	6,   // 246: aidememory.MemoryService.Search:output_type -> aidememory.MemorySearchResponse
-	8,   // 247: aidememory.MemoryService.List:output_type -> aidememory.MemoryListResponse
-	10,  // 248: aidememory.MemoryService.Delete:output_type -> aidememory.MemoryDeleteResponse
-	12,  // 249: aidememory.MemoryService.Clear:output_type -> aidememory.MemoryClearResponse
-	14,  // 250: aidememory.MemoryService.Touch:output_type -> aidememory.MemoryTouchResponse
-	17,  // 251: aidememory.StateService.Get:output_type -> aidememory.StateGetResponse
-	19,  // 252: aidememory.StateService.Set:output_type -> aidememory.StateSetResponse
-	19,  // 253: aidememory.StateService.Init:output_type -> aidememory.StateSetResponse
-	19,  // 254: aidememory.StateService.InitBounded:output_type -> aidememory.StateSetResponse
-	21,  // 255: aidememory.StateService.List:output_type -> aidememory.StateListResponse
-	23,  // 256: aidememory.StateService.Delete:output_type -> aidememory.StateDeleteResponse
-	25,  // 257: aidememory.StateService.Clear:output_type -> aidememory.StateClearResponse
-	27,  // 258: aidememory.StateService.Cleanup:output_type -> aidememory.StateCleanupResponse
-	33,  // 259: aidememory.DecisionService.Set:output_type -> aidememory.DecisionSetResponse
-	35,  // 260: aidememory.DecisionService.Get:output_type -> aidememory.DecisionGetResponse
-	37,  // 261: aidememory.DecisionService.List:output_type -> aidememory.DecisionListResponse
-	39,  // 262: aidememory.DecisionService.History:output_type -> aidememory.DecisionHistoryResponse
-	41,  // 263: aidememory.DecisionService.Delete:output_type -> aidememory.DecisionDeleteResponse
-	43,  // 264: aidememory.DecisionService.Clear:output_type -> aidememory.DecisionClearResponse
-	46,  // 265: aidememory.MessageService.Send:output_type -> aidememory.MessageSendResponse
-	48,  // 266: aidememory.MessageService.List:output_type -> aidememory.MessageListResponse
-	50,  // 267: aidememory.MessageService.Ack:output_type -> aidememory.MessageAckResponse
-	52,  // 268: aidememory.MessageService.Prune:output_type -> aidememory.MessagePruneResponse
-	55,  // 269: aidememory.TaskService.Create:output_type -> aidememory.TaskCreateResponse
-	57,  // 270: aidememory.TaskService.Get:output_type -> aidememory.TaskGetResponse
-	59,  // 271: aidememory.TaskService.List:output_type -> aidememory.TaskListResponse
-	61,  // 272: aidememory.TaskService.Claim:output_type -> aidememory.TaskClaimResponse
-	63,  // 273: aidememory.TaskService.Complete:output_type -> aidememory.TaskCompleteResponse
-	65,  // 274: aidememory.TaskService.Update:output_type -> aidememory.TaskUpdateResponse
-	67,  // 275: aidememory.TaskService.Delete:output_type -> aidememory.TaskDeleteResponse
-	69,  // 276: aidememory.TaskService.Clear:output_type -> aidememory.TaskClearResponse
-	72,  // 277: aidememory.CodeService.Search:output_type -> aidememory.CodeSearchResponse
-	74,  // 278: aidememory.CodeService.Symbols:output_type -> aidememory.CodeSymbolsResponse
-	76,  // 279: aidememory.CodeService.Stats:output_type -> aidememory.CodeStatsResponse
-	80,  // 280: aidememory.CodeService.Index:output_type -> aidememory.CodeIndexEvent
-	82,  // 281: aidememory.CodeService.Clear:output_type -> aidememory.CodeClearResponse
-	84,  // 282: aidememory.CodeService.TopReferences:output_type -> aidememory.CodeTopReferencesResponse
-	88,  // 283: aidememory.CodeService.SearchReferences:output_type -> aidememory.CodeSearchReferencesResponse
-	88,  // 284: aidememory.CodeService.GetFileReferences:output_type -> aidememory.CodeSearchReferencesResponse
-	91,  // 285: aidememory.CodeService.GetContainingSymbol:output_type -> aidememory.CodeGetContainingSymbolResponse
-	93,  // 286: aidememory.CodeService.GetFileInfo:output_type -> aidememory.CodeGetFileInfoResponse
-	95,  // 287: aidememory.CodeService.ReadCheck:output_type -> aidememory.CodeReadCheckResponse
-	97,  // 288: aidememory.CodeService.RunDeadCodeAnalysis:output_type -> aidememory.CodeRunDeadCodeAnalysisResponse
-	100, // 289: aidememory.FindingsService.Add:output_type -> aidememory.FindingAddResponse
-	208, // 290: aidememory.FindingsService.ReplaceAnalyzer:output_type -> aidememory.FindingReplaceAnalyzerResponse
-	208, // 291: aidememory.FindingsService.AddBatch:output_type -> aidememory.FindingReplaceAnalyzerResponse
-	102, // 292: aidememory.FindingsService.Get:output_type -> aidememory.FindingGetResponse
-	104, // 293: aidememory.FindingsService.Delete:output_type -> aidememory.FindingDeleteResponse
-	106, // 294: aidememory.FindingsService.Search:output_type -> aidememory.FindingSearchResponse
-	106, // 295: aidememory.FindingsService.List:output_type -> aidememory.FindingSearchResponse
-	106, // 296: aidememory.FindingsService.GetFileFindings:output_type -> aidememory.FindingSearchResponse
-	110, // 297: aidememory.FindingsService.ClearAnalyzer:output_type -> aidememory.FindingClearAnalyzerResponse
-	112, // 298: aidememory.FindingsService.Stats:output_type -> aidememory.FindingStatsResponse
-	114, // 299: aidememory.FindingsService.Clear:output_type -> aidememory.FindingClearResponse
-	117, // 300: aidememory.FindingsService.Accept:output_type -> aidememory.FindingAcceptResponse
-	117, // 301: aidememory.FindingsService.AcceptByFilter:output_type -> aidememory.FindingAcceptResponse
-	123, // 302: aidememory.SurveyService.Add:output_type -> aidememory.SurveyAddResponse
-	125, // 303: aidememory.SurveyService.Get:output_type -> aidememory.SurveyGetResponse
-	127, // 304: aidememory.SurveyService.Delete:output_type -> aidememory.SurveyDeleteResponse
-	129, // 305: aidememory.SurveyService.Search:output_type -> aidememory.SurveySearchResponse
-	129, // 306: aidememory.SurveyService.List:output_type -> aidememory.SurveySearchResponse
-	129, // 307: aidememory.SurveyService.GetFileEntries:output_type -> aidememory.SurveySearchResponse
-	133, // 308: aidememory.SurveyService.ClearAnalyzer:output_type -> aidememory.SurveyClearAnalyzerResponse
-	135, // 309: aidememory.SurveyService.Stats:output_type -> aidememory.SurveyStatsResponse
-	137, // 310: aidememory.SurveyService.Clear:output_type -> aidememory.SurveyClearResponse
-	120, // 311: aidememory.SurveyService.Run:output_type -> aidememory.SurveyRunResponse
-	140, // 312: aidememory.TombstoneService.Add:output_type -> aidememory.TombstoneAddResponse
-	142, // 313: aidememory.TombstoneService.Get:output_type -> aidememory.TombstoneGetResponse
-	144, // 314: aidememory.TombstoneService.List:output_type -> aidememory.TombstoneListResponse
-	146, // 315: aidememory.TombstoneService.Delete:output_type -> aidememory.TombstoneDeleteResponse
-	148, // 316: aidememory.HealthService.Check:output_type -> aidememory.HealthCheckResponse
-	150, // 317: aidememory.StatusService.GetStatus:output_type -> aidememory.StatusResponse
-	194, // 318: aidememory.TokenService.GetTokenStats:output_type -> aidememory.TokenStatsResponse
-	196, // 319: aidememory.TokenService.ListTokenEvents:output_type -> aidememory.TokenEventListResponse
-	160, // 320: aidememory.ObserveService.RecordEvent:output_type -> aidememory.ObserveRecordResponse
-	205, // 321: aidememory.ObserveService.RecordBatch:output_type -> aidememory.ObserveBatchRecordResponse
-	163, // 322: aidememory.ObserveService.ListEvents:output_type -> aidememory.ObserveListResponse
-	162, // 323: aidememory.ObserveService.WatchEvents:output_type -> aidememory.ObserveEvent
-	168, // 324: aidememory.InstinctService.List:output_type -> aidememory.InstinctListResponse
-	170, // 325: aidememory.InstinctService.Get:output_type -> aidememory.InstinctGetResponse
-	172, // 326: aidememory.InstinctService.Add:output_type -> aidememory.InstinctAddResponse
-	174, // 327: aidememory.InstinctService.UpdateStatus:output_type -> aidememory.InstinctUpdateStatusResponse
-	166, // 328: aidememory.InstinctService.Watch:output_type -> aidememory.InstinctProposal
-	53,  // 329: aidememory.SwarmService.WatchTasks:output_type -> aidememory.Task
-	44,  // 330: aidememory.SwarmService.WatchMessages:output_type -> aidememory.Message
-	201, // 331: aidememory.SwarmService.WatchState:output_type -> aidememory.StateChange
-	244, // [244:332] is the sub-list for method output_type
-	156, // [156:244] is the sub-list for method input_type
+	16,  // 167: aidememory.StateService.Increment:input_type -> aidememory.StateGetRequest
+	20,  // 168: aidememory.StateService.List:input_type -> aidememory.StateListRequest
+	22,  // 169: aidememory.StateService.Delete:input_type -> aidememory.StateDeleteRequest
+	24,  // 170: aidememory.StateService.Clear:input_type -> aidememory.StateClearRequest
+	26,  // 171: aidememory.StateService.Cleanup:input_type -> aidememory.StateCleanupRequest
+	32,  // 172: aidememory.DecisionService.Set:input_type -> aidememory.DecisionSetRequest
+	34,  // 173: aidememory.DecisionService.Get:input_type -> aidememory.DecisionGetRequest
+	36,  // 174: aidememory.DecisionService.List:input_type -> aidememory.DecisionListRequest
+	38,  // 175: aidememory.DecisionService.History:input_type -> aidememory.DecisionHistoryRequest
+	40,  // 176: aidememory.DecisionService.Delete:input_type -> aidememory.DecisionDeleteRequest
+	42,  // 177: aidememory.DecisionService.Clear:input_type -> aidememory.DecisionClearRequest
+	45,  // 178: aidememory.MessageService.Send:input_type -> aidememory.MessageSendRequest
+	47,  // 179: aidememory.MessageService.List:input_type -> aidememory.MessageListRequest
+	49,  // 180: aidememory.MessageService.Ack:input_type -> aidememory.MessageAckRequest
+	51,  // 181: aidememory.MessageService.Prune:input_type -> aidememory.MessagePruneRequest
+	54,  // 182: aidememory.TaskService.Create:input_type -> aidememory.TaskCreateRequest
+	56,  // 183: aidememory.TaskService.Get:input_type -> aidememory.TaskGetRequest
+	58,  // 184: aidememory.TaskService.List:input_type -> aidememory.TaskListRequest
+	60,  // 185: aidememory.TaskService.Claim:input_type -> aidememory.TaskClaimRequest
+	62,  // 186: aidememory.TaskService.Complete:input_type -> aidememory.TaskCompleteRequest
+	64,  // 187: aidememory.TaskService.Update:input_type -> aidememory.TaskUpdateRequest
+	66,  // 188: aidememory.TaskService.Delete:input_type -> aidememory.TaskDeleteRequest
+	68,  // 189: aidememory.TaskService.Clear:input_type -> aidememory.TaskClearRequest
+	71,  // 190: aidememory.CodeService.Search:input_type -> aidememory.CodeSearchRequest
+	73,  // 191: aidememory.CodeService.Symbols:input_type -> aidememory.CodeSymbolsRequest
+	75,  // 192: aidememory.CodeService.Stats:input_type -> aidememory.CodeStatsRequest
+	77,  // 193: aidememory.CodeService.Index:input_type -> aidememory.CodeIndexRequest
+	81,  // 194: aidememory.CodeService.Clear:input_type -> aidememory.CodeClearRequest
+	83,  // 195: aidememory.CodeService.TopReferences:input_type -> aidememory.CodeTopReferencesRequest
+	87,  // 196: aidememory.CodeService.SearchReferences:input_type -> aidememory.CodeSearchReferencesRequest
+	89,  // 197: aidememory.CodeService.GetFileReferences:input_type -> aidememory.CodeGetFileReferencesRequest
+	90,  // 198: aidememory.CodeService.GetContainingSymbol:input_type -> aidememory.CodeGetContainingSymbolRequest
+	92,  // 199: aidememory.CodeService.GetFileInfo:input_type -> aidememory.CodeGetFileInfoRequest
+	94,  // 200: aidememory.CodeService.ReadCheck:input_type -> aidememory.CodeReadCheckRequest
+	96,  // 201: aidememory.CodeService.RunDeadCodeAnalysis:input_type -> aidememory.CodeRunDeadCodeAnalysisRequest
+	99,  // 202: aidememory.FindingsService.Add:input_type -> aidememory.FindingAddRequest
+	207, // 203: aidememory.FindingsService.ReplaceAnalyzer:input_type -> aidememory.FindingReplaceAnalyzerRequest
+	209, // 204: aidememory.FindingsService.AddBatch:input_type -> aidememory.FindingAddBatchRequest
+	101, // 205: aidememory.FindingsService.Get:input_type -> aidememory.FindingGetRequest
+	103, // 206: aidememory.FindingsService.Delete:input_type -> aidememory.FindingDeleteRequest
+	105, // 207: aidememory.FindingsService.Search:input_type -> aidememory.FindingSearchRequest
+	107, // 208: aidememory.FindingsService.List:input_type -> aidememory.FindingListRequest
+	108, // 209: aidememory.FindingsService.GetFileFindings:input_type -> aidememory.FindingFileRequest
+	109, // 210: aidememory.FindingsService.ClearAnalyzer:input_type -> aidememory.FindingClearAnalyzerRequest
+	111, // 211: aidememory.FindingsService.Stats:input_type -> aidememory.FindingStatsRequest
+	113, // 212: aidememory.FindingsService.Clear:input_type -> aidememory.FindingClearRequest
+	115, // 213: aidememory.FindingsService.Accept:input_type -> aidememory.FindingAcceptRequest
+	116, // 214: aidememory.FindingsService.AcceptByFilter:input_type -> aidememory.FindingAcceptByFilterRequest
+	122, // 215: aidememory.SurveyService.Add:input_type -> aidememory.SurveyAddRequest
+	124, // 216: aidememory.SurveyService.Get:input_type -> aidememory.SurveyGetRequest
+	126, // 217: aidememory.SurveyService.Delete:input_type -> aidememory.SurveyDeleteRequest
+	128, // 218: aidememory.SurveyService.Search:input_type -> aidememory.SurveySearchRequest
+	130, // 219: aidememory.SurveyService.List:input_type -> aidememory.SurveyListRequest
+	131, // 220: aidememory.SurveyService.GetFileEntries:input_type -> aidememory.SurveyFileRequest
+	132, // 221: aidememory.SurveyService.ClearAnalyzer:input_type -> aidememory.SurveyClearAnalyzerRequest
+	134, // 222: aidememory.SurveyService.Stats:input_type -> aidememory.SurveyStatsRequest
+	136, // 223: aidememory.SurveyService.Clear:input_type -> aidememory.SurveyClearRequest
+	118, // 224: aidememory.SurveyService.Run:input_type -> aidememory.SurveyRunRequest
+	139, // 225: aidememory.TombstoneService.Add:input_type -> aidememory.TombstoneAddRequest
+	141, // 226: aidememory.TombstoneService.Get:input_type -> aidememory.TombstoneGetRequest
+	143, // 227: aidememory.TombstoneService.List:input_type -> aidememory.TombstoneListRequest
+	145, // 228: aidememory.TombstoneService.Delete:input_type -> aidememory.TombstoneDeleteRequest
+	147, // 229: aidememory.HealthService.Check:input_type -> aidememory.HealthCheckRequest
+	149, // 230: aidememory.StatusService.GetStatus:input_type -> aidememory.StatusRequest
+	177, // 231: aidememory.TokenService.GetTokenStats:input_type -> aidememory.TokenStatsRequest
+	195, // 232: aidememory.TokenService.ListTokenEvents:input_type -> aidememory.TokenEventListRequest
+	159, // 233: aidememory.ObserveService.RecordEvent:input_type -> aidememory.ObserveRecordRequest
+	204, // 234: aidememory.ObserveService.RecordBatch:input_type -> aidememory.ObserveBatchRecordRequest
+	161, // 235: aidememory.ObserveService.ListEvents:input_type -> aidememory.ObserveListRequest
+	176, // 236: aidememory.ObserveService.WatchEvents:input_type -> aidememory.ObserveWatchRequest
+	167, // 237: aidememory.InstinctService.List:input_type -> aidememory.InstinctListRequest
+	169, // 238: aidememory.InstinctService.Get:input_type -> aidememory.InstinctGetRequest
+	171, // 239: aidememory.InstinctService.Add:input_type -> aidememory.InstinctAddRequest
+	173, // 240: aidememory.InstinctService.UpdateStatus:input_type -> aidememory.InstinctUpdateStatusRequest
+	175, // 241: aidememory.InstinctService.Watch:input_type -> aidememory.InstinctWatchRequest
+	198, // 242: aidememory.SwarmService.WatchTasks:input_type -> aidememory.SwarmWatchTasksRequest
+	199, // 243: aidememory.SwarmService.WatchMessages:input_type -> aidememory.SwarmWatchMessagesRequest
+	200, // 244: aidememory.SwarmService.WatchState:input_type -> aidememory.SwarmWatchStateRequest
+	2,   // 245: aidememory.MemoryService.Add:output_type -> aidememory.MemoryAddResponse
+	4,   // 246: aidememory.MemoryService.Get:output_type -> aidememory.MemoryGetResponse
+	6,   // 247: aidememory.MemoryService.Search:output_type -> aidememory.MemorySearchResponse
+	8,   // 248: aidememory.MemoryService.List:output_type -> aidememory.MemoryListResponse
+	10,  // 249: aidememory.MemoryService.Delete:output_type -> aidememory.MemoryDeleteResponse
+	12,  // 250: aidememory.MemoryService.Clear:output_type -> aidememory.MemoryClearResponse
+	14,  // 251: aidememory.MemoryService.Touch:output_type -> aidememory.MemoryTouchResponse
+	17,  // 252: aidememory.StateService.Get:output_type -> aidememory.StateGetResponse
+	19,  // 253: aidememory.StateService.Set:output_type -> aidememory.StateSetResponse
+	19,  // 254: aidememory.StateService.Init:output_type -> aidememory.StateSetResponse
+	19,  // 255: aidememory.StateService.InitBounded:output_type -> aidememory.StateSetResponse
+	19,  // 256: aidememory.StateService.Increment:output_type -> aidememory.StateSetResponse
+	21,  // 257: aidememory.StateService.List:output_type -> aidememory.StateListResponse
+	23,  // 258: aidememory.StateService.Delete:output_type -> aidememory.StateDeleteResponse
+	25,  // 259: aidememory.StateService.Clear:output_type -> aidememory.StateClearResponse
+	27,  // 260: aidememory.StateService.Cleanup:output_type -> aidememory.StateCleanupResponse
+	33,  // 261: aidememory.DecisionService.Set:output_type -> aidememory.DecisionSetResponse
+	35,  // 262: aidememory.DecisionService.Get:output_type -> aidememory.DecisionGetResponse
+	37,  // 263: aidememory.DecisionService.List:output_type -> aidememory.DecisionListResponse
+	39,  // 264: aidememory.DecisionService.History:output_type -> aidememory.DecisionHistoryResponse
+	41,  // 265: aidememory.DecisionService.Delete:output_type -> aidememory.DecisionDeleteResponse
+	43,  // 266: aidememory.DecisionService.Clear:output_type -> aidememory.DecisionClearResponse
+	46,  // 267: aidememory.MessageService.Send:output_type -> aidememory.MessageSendResponse
+	48,  // 268: aidememory.MessageService.List:output_type -> aidememory.MessageListResponse
+	50,  // 269: aidememory.MessageService.Ack:output_type -> aidememory.MessageAckResponse
+	52,  // 270: aidememory.MessageService.Prune:output_type -> aidememory.MessagePruneResponse
+	55,  // 271: aidememory.TaskService.Create:output_type -> aidememory.TaskCreateResponse
+	57,  // 272: aidememory.TaskService.Get:output_type -> aidememory.TaskGetResponse
+	59,  // 273: aidememory.TaskService.List:output_type -> aidememory.TaskListResponse
+	61,  // 274: aidememory.TaskService.Claim:output_type -> aidememory.TaskClaimResponse
+	63,  // 275: aidememory.TaskService.Complete:output_type -> aidememory.TaskCompleteResponse
+	65,  // 276: aidememory.TaskService.Update:output_type -> aidememory.TaskUpdateResponse
+	67,  // 277: aidememory.TaskService.Delete:output_type -> aidememory.TaskDeleteResponse
+	69,  // 278: aidememory.TaskService.Clear:output_type -> aidememory.TaskClearResponse
+	72,  // 279: aidememory.CodeService.Search:output_type -> aidememory.CodeSearchResponse
+	74,  // 280: aidememory.CodeService.Symbols:output_type -> aidememory.CodeSymbolsResponse
+	76,  // 281: aidememory.CodeService.Stats:output_type -> aidememory.CodeStatsResponse
+	80,  // 282: aidememory.CodeService.Index:output_type -> aidememory.CodeIndexEvent
+	82,  // 283: aidememory.CodeService.Clear:output_type -> aidememory.CodeClearResponse
+	84,  // 284: aidememory.CodeService.TopReferences:output_type -> aidememory.CodeTopReferencesResponse
+	88,  // 285: aidememory.CodeService.SearchReferences:output_type -> aidememory.CodeSearchReferencesResponse
+	88,  // 286: aidememory.CodeService.GetFileReferences:output_type -> aidememory.CodeSearchReferencesResponse
+	91,  // 287: aidememory.CodeService.GetContainingSymbol:output_type -> aidememory.CodeGetContainingSymbolResponse
+	93,  // 288: aidememory.CodeService.GetFileInfo:output_type -> aidememory.CodeGetFileInfoResponse
+	95,  // 289: aidememory.CodeService.ReadCheck:output_type -> aidememory.CodeReadCheckResponse
+	97,  // 290: aidememory.CodeService.RunDeadCodeAnalysis:output_type -> aidememory.CodeRunDeadCodeAnalysisResponse
+	100, // 291: aidememory.FindingsService.Add:output_type -> aidememory.FindingAddResponse
+	208, // 292: aidememory.FindingsService.ReplaceAnalyzer:output_type -> aidememory.FindingReplaceAnalyzerResponse
+	208, // 293: aidememory.FindingsService.AddBatch:output_type -> aidememory.FindingReplaceAnalyzerResponse
+	102, // 294: aidememory.FindingsService.Get:output_type -> aidememory.FindingGetResponse
+	104, // 295: aidememory.FindingsService.Delete:output_type -> aidememory.FindingDeleteResponse
+	106, // 296: aidememory.FindingsService.Search:output_type -> aidememory.FindingSearchResponse
+	106, // 297: aidememory.FindingsService.List:output_type -> aidememory.FindingSearchResponse
+	106, // 298: aidememory.FindingsService.GetFileFindings:output_type -> aidememory.FindingSearchResponse
+	110, // 299: aidememory.FindingsService.ClearAnalyzer:output_type -> aidememory.FindingClearAnalyzerResponse
+	112, // 300: aidememory.FindingsService.Stats:output_type -> aidememory.FindingStatsResponse
+	114, // 301: aidememory.FindingsService.Clear:output_type -> aidememory.FindingClearResponse
+	117, // 302: aidememory.FindingsService.Accept:output_type -> aidememory.FindingAcceptResponse
+	117, // 303: aidememory.FindingsService.AcceptByFilter:output_type -> aidememory.FindingAcceptResponse
+	123, // 304: aidememory.SurveyService.Add:output_type -> aidememory.SurveyAddResponse
+	125, // 305: aidememory.SurveyService.Get:output_type -> aidememory.SurveyGetResponse
+	127, // 306: aidememory.SurveyService.Delete:output_type -> aidememory.SurveyDeleteResponse
+	129, // 307: aidememory.SurveyService.Search:output_type -> aidememory.SurveySearchResponse
+	129, // 308: aidememory.SurveyService.List:output_type -> aidememory.SurveySearchResponse
+	129, // 309: aidememory.SurveyService.GetFileEntries:output_type -> aidememory.SurveySearchResponse
+	133, // 310: aidememory.SurveyService.ClearAnalyzer:output_type -> aidememory.SurveyClearAnalyzerResponse
+	135, // 311: aidememory.SurveyService.Stats:output_type -> aidememory.SurveyStatsResponse
+	137, // 312: aidememory.SurveyService.Clear:output_type -> aidememory.SurveyClearResponse
+	120, // 313: aidememory.SurveyService.Run:output_type -> aidememory.SurveyRunResponse
+	140, // 314: aidememory.TombstoneService.Add:output_type -> aidememory.TombstoneAddResponse
+	142, // 315: aidememory.TombstoneService.Get:output_type -> aidememory.TombstoneGetResponse
+	144, // 316: aidememory.TombstoneService.List:output_type -> aidememory.TombstoneListResponse
+	146, // 317: aidememory.TombstoneService.Delete:output_type -> aidememory.TombstoneDeleteResponse
+	148, // 318: aidememory.HealthService.Check:output_type -> aidememory.HealthCheckResponse
+	150, // 319: aidememory.StatusService.GetStatus:output_type -> aidememory.StatusResponse
+	194, // 320: aidememory.TokenService.GetTokenStats:output_type -> aidememory.TokenStatsResponse
+	196, // 321: aidememory.TokenService.ListTokenEvents:output_type -> aidememory.TokenEventListResponse
+	160, // 322: aidememory.ObserveService.RecordEvent:output_type -> aidememory.ObserveRecordResponse
+	205, // 323: aidememory.ObserveService.RecordBatch:output_type -> aidememory.ObserveBatchRecordResponse
+	163, // 324: aidememory.ObserveService.ListEvents:output_type -> aidememory.ObserveListResponse
+	162, // 325: aidememory.ObserveService.WatchEvents:output_type -> aidememory.ObserveEvent
+	168, // 326: aidememory.InstinctService.List:output_type -> aidememory.InstinctListResponse
+	170, // 327: aidememory.InstinctService.Get:output_type -> aidememory.InstinctGetResponse
+	172, // 328: aidememory.InstinctService.Add:output_type -> aidememory.InstinctAddResponse
+	174, // 329: aidememory.InstinctService.UpdateStatus:output_type -> aidememory.InstinctUpdateStatusResponse
+	166, // 330: aidememory.InstinctService.Watch:output_type -> aidememory.InstinctProposal
+	53,  // 331: aidememory.SwarmService.WatchTasks:output_type -> aidememory.Task
+	44,  // 332: aidememory.SwarmService.WatchMessages:output_type -> aidememory.Message
+	201, // 333: aidememory.SwarmService.WatchState:output_type -> aidememory.StateChange
+	245, // [245:334] is the sub-list for method output_type
+	156, // [156:245] is the sub-list for method input_type
 	156, // [156:156] is the sub-list for extension type_name
 	156, // [156:156] is the sub-list for extension extendee
 	0,   // [0:156] is the sub-list for field type_name

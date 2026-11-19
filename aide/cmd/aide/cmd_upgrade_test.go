@@ -69,10 +69,16 @@ func TestCompareVersions(t *testing.T) {
 		{"1.0.0-dev.1", "1.0.0", -1},
 		{"1.0.0", "1.0.0-dev.1", 1},
 		{"1.0.0-dev.1", "1.0.0-dev.2", -1},
+		{"1.0.0-dev.10", "1.0.0-dev.2", 1},
+		{"1.0.0+build.1", "1.0.0+build.2", 0},
+		{"999999999999999999999.0.0", "1.0.0", 1},
 	}
 
 	for _, tt := range tests {
-		got := compareVersions(tt.a, tt.b)
+		got, err := compareVersions(tt.a, tt.b)
+		if err != nil {
+			t.Fatal(err)
+		}
 		if got != tt.want {
 			t.Errorf("compareVersions(%q, %q) = %d, want %d", tt.a, tt.b, got, tt.want)
 		}
@@ -87,5 +93,16 @@ func TestGetBinaryName(t *testing.T) {
 	// Should contain the OS and arch
 	if len(name) < 10 {
 		t.Errorf("getBinaryName too short: %q", name)
+	}
+}
+
+func TestCompareVersionsRejectsMalformedComponents(t *testing.T) {
+	for _, version := range []string{"1.two.3", "1.2.-3", "", "1.02.3", "1.2.3-01", "dev"} {
+		if _, err := compareVersions(version, "1.2.3"); err == nil {
+			t.Errorf("accepted version %q", version)
+		}
+		if _, err := compareVersions("1.2.3", version); err == nil {
+			t.Errorf("accepted target %q", version)
+		}
 	}
 }

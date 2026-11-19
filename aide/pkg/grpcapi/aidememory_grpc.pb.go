@@ -8,6 +8,7 @@ package grpcapi
 
 import (
 	context "context"
+
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -353,6 +354,7 @@ const (
 	StateService_Set_FullMethodName         = "/aidememory.StateService/Set"
 	StateService_Init_FullMethodName        = "/aidememory.StateService/Init"
 	StateService_InitBounded_FullMethodName = "/aidememory.StateService/InitBounded"
+	StateService_Increment_FullMethodName   = "/aidememory.StateService/Increment"
 	StateService_List_FullMethodName        = "/aidememory.StateService/List"
 	StateService_Delete_FullMethodName      = "/aidememory.StateService/Delete"
 	StateService_Clear_FullMethodName       = "/aidememory.StateService/Clear"
@@ -368,6 +370,8 @@ type StateServiceClient interface {
 	// Atomically create state only if absent; always returns the persisted state.
 	Init(ctx context.Context, in *StateSetRequest, opts ...grpc.CallOption) (*StateSetResponse, error)
 	InitBounded(ctx context.Context, in *StateBoundedInitRequest, opts ...grpc.CallOption) (*StateSetResponse, error)
+	// Atomically increment a nonnegative counter, starting at one when absent.
+	Increment(ctx context.Context, in *StateGetRequest, opts ...grpc.CallOption) (*StateSetResponse, error)
 	List(ctx context.Context, in *StateListRequest, opts ...grpc.CallOption) (*StateListResponse, error)
 	Delete(ctx context.Context, in *StateDeleteRequest, opts ...grpc.CallOption) (*StateDeleteResponse, error)
 	Clear(ctx context.Context, in *StateClearRequest, opts ...grpc.CallOption) (*StateClearResponse, error)
@@ -416,6 +420,16 @@ func (c *stateServiceClient) InitBounded(ctx context.Context, in *StateBoundedIn
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(StateSetResponse)
 	err := c.cc.Invoke(ctx, StateService_InitBounded_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *stateServiceClient) Increment(ctx context.Context, in *StateGetRequest, opts ...grpc.CallOption) (*StateSetResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(StateSetResponse)
+	err := c.cc.Invoke(ctx, StateService_Increment_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -471,6 +485,8 @@ type StateServiceServer interface {
 	// Atomically create state only if absent; always returns the persisted state.
 	Init(context.Context, *StateSetRequest) (*StateSetResponse, error)
 	InitBounded(context.Context, *StateBoundedInitRequest) (*StateSetResponse, error)
+	// Atomically increment a nonnegative counter, starting at one when absent.
+	Increment(context.Context, *StateGetRequest) (*StateSetResponse, error)
 	List(context.Context, *StateListRequest) (*StateListResponse, error)
 	Delete(context.Context, *StateDeleteRequest) (*StateDeleteResponse, error)
 	Clear(context.Context, *StateClearRequest) (*StateClearResponse, error)
@@ -496,6 +512,9 @@ func (UnimplementedStateServiceServer) Init(context.Context, *StateSetRequest) (
 }
 func (UnimplementedStateServiceServer) InitBounded(context.Context, *StateBoundedInitRequest) (*StateSetResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method InitBounded not implemented")
+}
+func (UnimplementedStateServiceServer) Increment(context.Context, *StateGetRequest) (*StateSetResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Increment not implemented")
 }
 func (UnimplementedStateServiceServer) List(context.Context, *StateListRequest) (*StateListResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method List not implemented")
@@ -602,6 +621,24 @@ func _StateService_InitBounded_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _StateService_Increment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StateGetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(StateServiceServer).Increment(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: StateService_Increment_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(StateServiceServer).Increment(ctx, req.(*StateGetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _StateService_List_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(StateListRequest)
 	if err := dec(in); err != nil {
@@ -696,6 +733,10 @@ var StateService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "InitBounded",
 			Handler:    _StateService_InitBounded_Handler,
+		},
+		{
+			MethodName: "Increment",
+			Handler:    _StateService_Increment_Handler,
 		},
 		{
 			MethodName: "List",

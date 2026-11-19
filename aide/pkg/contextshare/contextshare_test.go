@@ -1350,3 +1350,75 @@ func TestYAMLEscapeLeavesPlainValuesAlone(t *testing.T) {
 		t.Errorf("plain value should not be quoted, got %q", got)
 	}
 }
+
+type failingTombstoneRead struct{ TombstoneAccess }
+
+func (f failingTombstoneRead) GetTombstone(string, string) (*memory.Tombstone, error) {
+	return nil, errors.New("tombstone lookup failed")
+}
+
+func TestImportTombstoneReadFailurePreservesRecords(t *testing.T) {
+	source := newTestStore(t)
+	target := newTestStore(t)
+	old := time.Now().Add(-time.Hour)
+	m := &memory.Memory{ID: "01KEPTAAAAAAAAAAAAAAAAAAAA", Content: "keep", CreatedAt: old}
+	if err := target.AddMemory(m); err != nil {
+		t.Fatal(err)
+	}
+	tomb := &memory.Tombstone{Kind: memory.TombstoneKindMemory, ID: m.ID, DeletedAt: time.Now()}
+	if err := source.AddTombstone(tomb); err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	mustExport(t, source, root)
+	stats := &ImportStats{}
+	err := importTombstones(target, failingTombstoneRead{target}, root, time.Now(), DefaultTombstoneTTL, false, stats)
+	if err == nil || !strings.Contains(err.Error(), "tombstone lookup failed") {
+		t.Fatalf("expected lookup error, got %v", err)
+	}
+	if _, err := target.GetMemory(m.ID); err != nil {
+		t.Fatalf("record deleted despite failed lookup: %v", err)
+	}
+}
+
+func TestImportRejectsEscapingRecordSymlink(t *testing.T) {
+	root := t.TempDir()
+	outside := filepath.Join(t.TempDir(), "record.md")
+	m := &memory.Memory{ID: "01OUTSIDEAAAAAAAAAAAAAAAAA", Content: "outside", CreatedAt: time.Now()}
+	if err := os.WriteFile(outside, MarshalMemory(m), 0600); err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Join(root, "memories")
+	if err := os.Mkdir(dir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(dir, "record.md")); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	s := newTestStore(t)
+	_, err := Import(s, s, root, ImportOptions{Force: true, Memories: true, MemoryFilter: matchAll})
+	if err == nil {
+		t.Fatal("imported a record outside the share tree")
+	}
+	if _, err := s.GetMemory(m.ID); !errors.Is(err, store.ErrNotFound) {
+		t.Fatalf("external record persisted: %v", err)
+	}
+}
+
+func TestImportRejectsRecordWhenTombstoneLookupFails(t *testing.T) {
+	source := newTestStore(t)
+	target := newTestStore(t)
+	m := &memory.Memory{ID: "01INCOMINGAAAAAAAAAAAAAAAA", Content: "incoming", CreatedAt: time.Now()}
+	if err := source.AddMemory(m); err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	mustExport(t, source, root)
+	_, err := Import(target, failingTombstoneRead{target}, root, ImportOptions{Memories: true, MemoryFilter: matchAll})
+	if err == nil || !strings.Contains(err.Error(), "tombstone lookup failed") {
+		t.Fatalf("expected lookup error, got %v", err)
+	}
+	if _, err := target.GetMemory(m.ID); !errors.Is(err, store.ErrNotFound) {
+		t.Fatalf("record imported despite unknown tombstone: %v", err)
+	}
+}

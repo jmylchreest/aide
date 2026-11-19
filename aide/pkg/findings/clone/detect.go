@@ -156,10 +156,13 @@ func DetectClones(cfg Config) ([]*findings.Finding, *Result, error) { //nolint:g
 	var files []fileEntry
 
 	for _, root := range paths {
-		absRoot, _ := filepath.Abs(root)
+		absRoot, err := filepath.Abs(root)
+		if err != nil {
+			return nil, nil, fmt.Errorf("resolve scan root %q: %w", root, err)
+		}
 		shouldSkip := ignore.WalkFunc(absRoot)
 
-		err := filepath.Walk(root, func(path string, info os.FileInfo, walkErr error) error {
+		err = filepath.Walk(root, func(path string, info os.FileInfo, walkErr error) error {
 			if walkErr != nil {
 				return nil
 			}

@@ -1,6 +1,7 @@
 package surveyrun
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,6 +10,36 @@ import (
 	"github.com/jmylchreest/aide/aide/pkg/store"
 	"github.com/jmylchreest/aide/aide/pkg/survey"
 )
+
+type unreadableAssignments struct {
+	store.SurveyStore
+	replaced bool
+}
+
+func (s *unreadableAssignments) ListEntries(survey.SearchOptions) ([]*survey.Entry, error) {
+	return nil, errors.New("assignment read failed")
+}
+
+func (s *unreadableAssignments) ReplaceEntriesForAnalyzer(string, []*survey.Entry) error {
+	s.replaced = true
+	return nil
+}
+
+func TestModuleRunPreservesStoreWhenAssignmentsCannotBeRead(t *testing.T) {
+	ss := &unreadableAssignments{}
+	cs, err := store.NewCodeStore(filepath.Join(t.TempDir(), "code.db"), filepath.Join(t.TempDir(), "search"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cs.Close()
+	results := Run(t.TempDir(), []string{survey.AnalyzerModules}, ss, cs)
+	if len(results) != 1 || !strings.Contains(results[0].Err, "assignment read failed") {
+		t.Fatalf("expected prior assignment read failure, got %+v", results)
+	}
+	if ss.replaced {
+		t.Fatal("replaced existing assignments after a failed read")
+	}
+}
 
 func TestRunAllWithoutCodeIndex(t *testing.T) {
 	root := t.TempDir()

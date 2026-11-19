@@ -26,12 +26,7 @@ const subprojectMaxDepth = 6
 // belong to their own surveys) and honours .aideignore pruning — a
 // submodule under an ignored dir (vendor/, node_modules/) is a dependency
 // checkout, not an estate member.
-func discoverSubprojects(rootDir string) []*Entry {
-	ignore, _ := aideignore.New(rootDir)
-	if ignore == nil {
-		ignore = aideignore.NewFromDefaults()
-	}
-
+func discoverSubprojects(rootDir string, ignore *aideignore.Matcher) []*Entry {
 	var entries []*Entry
 	_ = filepath.WalkDir(rootDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil || !d.IsDir() {

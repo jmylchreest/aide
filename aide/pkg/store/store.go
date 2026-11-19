@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/jmylchreest/aide/aide/pkg/memory"
+
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -20,7 +22,7 @@ func ProjectRootFromDB(dbPath string) string {
 
 // Common errors.
 var (
-	ErrNotFound       = errors.New("not found")
+	ErrNotFound       = memory.ErrNotFound
 	ErrAlreadyClaimed = errors.New("task already claimed")
 	ErrConflict       = errors.New("decision conflict")
 )

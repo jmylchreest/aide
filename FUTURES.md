@@ -6,6 +6,14 @@ implementation starts.
 
 ---
 
+## Classifying files without a grammar pack
+
+A future survey workflow could group unknown files by extension and let the
+calling assistant classify them through MCP. Add a survey entry kind when that
+workflow has a producer and consumer; no classification client runs inside aide.
+
+---
+
 ## Coordinated upgrades with active MCP sessions
 
 Installing a new executable does not update running MCP handlers or the shared

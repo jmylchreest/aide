@@ -644,7 +644,11 @@ func (r *Runner) RunAll(ctx context.Context) error {
 		}
 		ignoreRoot := r.config.ProjectRoot
 		if ignoreRoot == "" {
-			ignoreRoot, _ = filepath.Abs(root)
+			var err error
+			ignoreRoot, err = filepath.Abs(root)
+			if err != nil {
+				return fmt.Errorf("resolve scan root %q: %w", root, err)
+			}
 		}
 		shouldSkip := r.ignore().WalkFunc(ignoreRoot)
 		err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {

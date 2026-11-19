@@ -372,6 +372,20 @@ func (b *Backend) InitState(key, value, agentID string) (*memory.State, error) {
 	return st, err
 }
 
+func (b *Backend) IncrementState(key, agentID string) (*memory.State, error) {
+	if key == "" {
+		return nil, fmt.Errorf("state key is required")
+	}
+	incrementer, ok := b.store.(memory.StateIncrementer)
+	if !ok {
+		return nil, fmt.Errorf("atomic state increment is unavailable")
+	}
+	if agentID != "" {
+		key = fmt.Sprintf("agent:%s:%s", agentID, key)
+	}
+	return incrementer.IncrementState(key, agentID)
+}
+
 // InitStateBounded never falls back to an unbounded operation on older daemons.
 func (b *Backend) InitStateBounded(key, value, agentID string, limit int) (*memory.State, error) {
 	if key == "" {

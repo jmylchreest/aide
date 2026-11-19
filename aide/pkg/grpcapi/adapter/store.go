@@ -236,6 +236,29 @@ func (g *StoreAdapter) InitState(st *memory.State) (*memory.State, bool, error) 
 	return ProtoToState(resp.State), resp.Created, nil
 }
 
+func (g *StoreAdapter) IncrementState(key, agent string) (*memory.State, error) {
+	if key == "" {
+		return nil, fmt.Errorf("state key is required")
+	}
+	if agent != "" {
+		prefix := fmt.Sprintf("agent:%s:", agent)
+		if !strings.HasPrefix(key, prefix) {
+			return nil, fmt.Errorf("agent state key must start with %q", prefix)
+		}
+		key = strings.TrimPrefix(key, prefix)
+	}
+	ctx, cancel := g.rpcCtx()
+	defer cancel()
+	resp, err := g.client.State.Increment(ctx, &grpcapi.StateGetRequest{Key: key, AgentId: agent})
+	if err != nil {
+		return nil, err
+	}
+	if resp.State == nil {
+		return nil, fmt.Errorf("atomic state increment returned no state")
+	}
+	return ProtoToState(resp.State), nil
+}
+
 func (g *StoreAdapter) InitStateBounded(st *memory.State, limit int) (*memory.State, bool, error) {
 	if st == nil || st.Key == "" {
 		return nil, false, fmt.Errorf("state key is required")

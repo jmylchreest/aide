@@ -130,9 +130,17 @@ function resolveRoot(cwd: string): { root: string; hasMarker: boolean } {
   }
 
   const candidates: { dir: string; hasAide: boolean; vcsRoot: string }[] = [];
+  let home = "";
+  try {
+    home = (require("os") as typeof import("os")).homedir();
+  } catch {
+    // Without a known home, only an explicit cwd marker is safe to trust.
+  }
   let dir = cwd;
   for (;;) {
-    const hasAide = existsSync(join(dir, ".aide"));
+    const hasAide =
+      (dir === cwd || (home !== "" && dir !== home)) &&
+      existsSync(join(dir, ".aide"));
     let vcsRoot = "";
     const gitPath = join(dir, ".git");
     try {
@@ -151,8 +159,10 @@ function resolveRoot(cwd: string): { root: string; hasMarker: boolean } {
     if (parent === dir) break;
     dir = parent;
   }
-  for (const c of candidates) if (c.vcsRoot) return { root: c.vcsRoot, hasMarker: true };
-  for (const c of candidates) if (c.hasAide) return { root: c.dir, hasMarker: true };
+  for (const c of candidates)
+    if (c.vcsRoot) return { root: c.vcsRoot, hasMarker: true };
+  for (const c of candidates)
+    if (c.hasAide) return { root: c.dir, hasMarker: true };
   return { root: cwd, hasMarker: false };
 }
 
@@ -298,7 +308,11 @@ function main(): void {
           "--category=lifecycle",
           `--session=${sessionId}`,
         ],
-        { cwd: anchorRoot || cwd, timeout: 3000, stdio: ["pipe", "pipe", "pipe"] },
+        {
+          cwd: anchorRoot || cwd,
+          timeout: 3000,
+          stdio: ["pipe", "pipe", "pipe"],
+        },
       );
     } catch {
       // Non-fatal telemetry — never block session end.

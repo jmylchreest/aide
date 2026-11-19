@@ -89,7 +89,11 @@ func runOne(rootDir, name, headCommit string, surveyStore store.SurveyStore, cod
 			res.Err = "code index not available — run 'aide code index' first"
 			return res
 		}
-		prevEntries, _ := surveyStore.ListEntries(survey.SearchOptions{Analyzer: name, Limit: diffListLimit})
+		prevEntries, err := surveyStore.ListEntries(survey.SearchOptions{Analyzer: name, Limit: diffListLimit})
+		if err != nil {
+			res.Err = fmt.Sprintf("read previous module assignments: %v", err)
+			return res
+		}
 		result, err := survey.RunModules(survey.ModulesConfig{
 			RootDir:  rootDir,
 			Source:   &modulesSource{store: codeStore},

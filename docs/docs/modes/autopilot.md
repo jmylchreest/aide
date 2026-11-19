@@ -33,6 +33,11 @@ When autopilot mode is active:
 5. Only stops when all tasks in the todo list are complete
 6. Safety cap: auto-releases after 20 iterations
 
+The iteration counter is updated atomically within each session, so overlapping
+Stop events cannot lose increments. If the counter cannot be updated, including
+when an older daemon is still running after an upgrade, the hook allows stopping
+instead of continuing without a reliable safety cap.
+
 ### Platform Behavior
 
 | Platform        | Mechanism                                                                |

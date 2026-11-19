@@ -147,7 +147,11 @@ Options:
 	if !forceDownload && installedVersion != "" {
 		installed := strings.TrimPrefix(installedVersion, "v")
 		latest := strings.TrimPrefix(latestVersion, "v")
-		if compareVersions(installed, latest) >= 0 {
+		comparison, err := compareVersions(installed, latest)
+		if err != nil {
+			return fmt.Errorf("compare dashboard versions (use --force to install explicitly): %w", err)
+		}
+		if comparison >= 0 {
 			fmt.Println("\naide-web is already up to date!")
 			return nil
 		}

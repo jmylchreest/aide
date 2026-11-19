@@ -102,7 +102,10 @@ export function findAideBinary(opts: FindBinaryOptions = {}): string | null {
   const fromPath = which.sync("aide", { nothrow: true });
   if (fromPath) return fromPath;
 
-  debug(SOURCE, `aide binary not found (checked pluginRoot=${pluginRoot || "none"}, cwd=${cwd || "none"}, PATH)`);
+  debug(
+    SOURCE,
+    `aide binary not found (checked pluginRoot=${pluginRoot || "none"}, cwd=${cwd || "none"}, PATH)`,
+  );
   return null;
 }
 
@@ -193,6 +196,27 @@ export function getState(
     return match ? match[1].trim() : null;
   } catch (err) {
     debug(SOURCE, `getState failed for key=${key}: ${err}`);
+    return null;
+  }
+}
+
+/** Increment a persisted counter in one store transaction, with no racy fallback. */
+export function incrementState(
+  binary: string,
+  cwd: string,
+  key: string,
+  agentId?: string,
+): number | null {
+  const args = ["state", "increment", key, "--json"];
+  if (agentId) args.push(`--agent=${agentId}`);
+  const output = runAide(binary, cwd, args);
+  if (output === null) return null;
+  try {
+    const { value } = JSON.parse(output);
+    if (typeof value !== "string" || !/^[1-9][0-9]*$/.test(value)) return null;
+    const count = Number(value);
+    return Number.isSafeInteger(count) ? count : null;
+  } catch {
     return null;
   }
 }

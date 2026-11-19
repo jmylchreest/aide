@@ -5,7 +5,7 @@
  * Determines whether stop should be blocked based on active persistence mode.
  */
 
-import { getState, setState } from "./aide-client.js";
+import { getState, setState, incrementState } from "./aide-client.js";
 import {
   PERSISTENCE_MODES,
   MAX_PERSISTENCE_ITERATIONS,
@@ -92,14 +92,17 @@ export function checkPersistence(
   const mode = getActiveMode(binary, cwd);
   if (!mode) return null;
 
-  // Get and increment iteration counter (guard against NaN from corrupted state).
-  // NOTE: read-then-write is not atomic, but concurrent Stop events are extremely
-  // rare in practice. The counter is a safety cap, not a precise meter.
-  // Session-scoped so concurrent sessions count independently.
-  const iterStr = getState(binary, cwd, `${mode}_iterations`, sessionId) || "0";
-  const parsed = parseInt(iterStr, 10);
-  const iteration = (Number.isNaN(parsed) ? 0 : parsed) + 1;
-  setState(binary, cwd, `${mode}_iterations`, String(iteration), sessionId);
+  const iteration = incrementState(
+    binary,
+    cwd,
+    `${mode}_iterations`,
+    sessionId,
+  );
+  if (iteration === null) {
+    // An older daemon or failed counter must not trap the user in a stop loop.
+    debug(SOURCE, "Atomic persistence counter unavailable; allowing stop");
+    return null;
+  }
 
   if (iteration > MAX_PERSISTENCE_ITERATIONS) {
     // Clear the (global) mode after max iterations, allow stop

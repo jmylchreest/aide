@@ -26,6 +26,7 @@ func cmdState(dbPath string, args []string) error {
 		{name: "set", handler: func(a []string) error { return stateSet(backend, a) }},
 		{name: "init-bounded", handler: func(a []string) error { return stateInitBounded(backend, a) }},
 		{name: "init", handler: func(a []string) error { return stateInit(backend, a) }},
+		{name: "increment", handler: func(a []string) error { return stateIncrement(backend, a) }},
 		{name: "get", handler: func(a []string) error { return stateGet(backend, a) }},
 		{name: "delete", handler: func(a []string) error { return stateDelete(backend, a) }},
 		{name: "list", handler: func(a []string) error { return stateList(backend, a) }},
@@ -44,6 +45,7 @@ Subcommands:
   set        Set a state key-value pair
   init       Create absent state atomically; return existing state otherwise
   init-bounded Create absent state within an atomic per-agent entry limit
+  increment  Atomically increment a nonnegative counter (absent starts at 1)
   get        Get a state value by key
   delete     Delete a state key
   list       List all state entries
@@ -51,6 +53,10 @@ Subcommands:
   cleanup    Remove stale agent state entries
 
 Options:
+  increment KEY:
+    --agent=AGENT_ID   Increment per-agent state (otherwise global)
+    --json            Return the persisted state as JSON
+
   init KEY VALUE:
     --agent=AGENT_ID   Initialize per-agent state (otherwise global)
     --json            Return the persisted state as JSON
@@ -144,6 +150,21 @@ func stateInit(b *Backend, args []string) error {
 		return fmt.Errorf("failed to initialize state: %w", err)
 	}
 	if wantJSON(args[2:]) {
+		return printJSON(st)
+	}
+	fmt.Printf("%s = %s\n", st.Key, st.Value)
+	return nil
+}
+
+func stateIncrement(b *Backend, args []string) error {
+	if len(args) < 1 {
+		return fmt.Errorf("usage: aide state increment KEY [--agent=AGENT_ID] [--json]")
+	}
+	st, err := b.IncrementState(args[0], parseFlag(args[1:], "--agent="))
+	if err != nil {
+		return fmt.Errorf("failed to increment state: %w", err)
+	}
+	if wantJSON(args[1:]) {
 		return printJSON(st)
 	}
 	fmt.Printf("%s = %s\n", st.Key, st.Value)

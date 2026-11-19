@@ -145,3 +145,33 @@ func TestStateInitBoundedOldDaemonNeverFallsBackToInitOrSet(t *testing.T) {
 		t.Fatalf("unsafe fallback: Init=%d Set=%d", legacy.inits.Load(), legacy.sets.Load())
 	}
 }
+
+func TestStateIncrementOldDaemonNeverFallsBackToInitOrSet(t *testing.T) {
+	lis := bufconn.Listen(1024 * 1024)
+	t.Cleanup(func() { lis.Close() })
+	srv := grpc.NewServer()
+	legacy := &boundedLegacyStateServer{}
+	desc := grpcapi.StateService_ServiceDesc
+	desc.Methods = nil
+	for _, method := range grpcapi.StateService_ServiceDesc.Methods {
+		if method.MethodName != "Increment" {
+			desc.Methods = append(desc.Methods, method)
+		}
+	}
+	srv.RegisterService(&desc, legacy)
+	go func() { _ = srv.Serve(lis) }()
+	t.Cleanup(srv.Stop)
+	conn, err := grpc.NewClient("passthrough:///legacy-bounded", grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) { return lis.Dial() }))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { conn.Close() })
+	remote := adapter.NewStoreAdapter(&grpcapi.Client{State: grpcapi.NewStateServiceClient(conn)})
+	got, err := remote.IncrementState("agent:queue:item", "queue")
+	if status.Code(err) != codes.Unimplemented || got != nil {
+		t.Fatalf("old daemon: %+v %v", got, err)
+	}
+	if legacy.inits.Load() != 0 || legacy.sets.Load() != 0 {
+		t.Fatalf("unsafe fallback: Init=%d Set=%d", legacy.inits.Load(), legacy.sets.Load())
+	}
+}
