@@ -302,6 +302,9 @@ func NewPackRegistry() (*PackRegistry, error) {
 		if jsonErr := json.Unmarshal(data, &pack); jsonErr != nil {
 			return fmt.Errorf("parsing embedded pack %s: %w", path, jsonErr)
 		}
+		if err := pack.ValidatePatterns(); err != nil {
+			return err
+		}
 		r.register(&pack)
 		return nil
 	})
@@ -386,6 +389,9 @@ func (r *PackRegistry) LoadFromDir(dir string) error {
 	var pack Pack
 	if err := json.Unmarshal(data, &pack); err != nil {
 		return fmt.Errorf("parsing pack %s: %w", packPath, err)
+	}
+	if err := pack.ValidatePatterns(); err != nil {
+		return err
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()

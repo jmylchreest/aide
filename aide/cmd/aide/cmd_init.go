@@ -216,7 +216,11 @@ func importBlueprint(backend *Backend, bp *blueprint.Blueprint, force, dryRun bo
 					existingVer = strings.TrimPrefix(existing.DecidedBy, provenancePrefix)
 				}
 
-				if compareVersions(bp.Version, existingVer) > 0 && contentChanged {
+				comparison, err := compareVersions(bp.Version, existingVer)
+				if err != nil {
+					return result, fmt.Errorf("compare blueprint versions: %w", err)
+				}
+				if comparison > 0 && contentChanged {
 					// Newer blueprint version with changed content — supersede.
 					if !dryRun {
 						precedence := bp.EffectivePrecedence(d)
@@ -442,22 +446,18 @@ func detectBlueprints(dbPath string) []string {
 
 // markerExistsWithDepth checks if a project marker exists, respecting max_depth.
 func markerExistsWithDepth(root string, marker grammar.ProjectMarker) bool {
+	if marker.Validate() != nil {
+		return false
+	}
 	maxDepth := marker.MaxDepth
 
 	switch marker.Check {
 	case grammar.MarkerCheckDirectory:
-		path := filepath.Join(root, marker.File)
-		info, err := os.Stat(path)
-		if err != nil || !info.IsDir() {
-			return false
-		}
-		entries, err := os.ReadDir(path)
-		return err == nil && len(entries) > 0
+		return grammar.MarkerExistsInProject(root, marker)
 
 	case grammar.MarkerCheckFile:
 		if maxDepth == 0 {
-			info, err := os.Stat(filepath.Join(root, marker.File))
-			return err == nil && !info.IsDir()
+			return grammar.MarkerExistsInProject(root, marker)
 		}
 
 		target := marker.File

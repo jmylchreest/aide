@@ -13,9 +13,10 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/mod/semver"
 
 	"github.com/jmylchreest/aide/aide/internal/version"
 	"github.com/jmylchreest/aide/aide/pkg/httputil"
@@ -94,7 +95,14 @@ func cmdUpgrade(args []string) error {
 	fmt.Printf("Latest version:  %s\n", latestVersion)
 
 	// Compare versions
-	needsUpdate := forceDownload || compareVersions(currentVersion, latestVersion) < 0
+	needsUpdate := forceDownload
+	if !forceDownload {
+		comparison, err := compareVersions(currentVersion, latestVersion)
+		if err != nil {
+			return fmt.Errorf("compare upgrade versions (use --force to install explicitly): %w", err)
+		}
+		needsUpdate = comparison < 0
+	}
 
 	if !needsUpdate {
 		fmt.Println("\nYou're already on the latest version!")
@@ -397,56 +405,12 @@ Examples:
   aide upgrade --force          # Force re-download`)
 }
 
-// compareVersions compares two semver-like versions.
-// Returns -1 if a < b, 0 if a == b, 1 if a > b
-func compareVersions(a, b string) int {
-	// Strip 'v' prefix
-	a = strings.TrimPrefix(a, "v")
-	b = strings.TrimPrefix(b, "v")
-
-	// Handle dev versions (e.g., "0.1.0-dev.5")
-	aParts := strings.Split(a, "-")
-	bParts := strings.Split(b, "-")
-
-	// Compare major.minor.patch
-	aVer := strings.Split(aParts[0], ".")
-	bVer := strings.Split(bParts[0], ".")
-
-	for i := 0; i < 3; i++ {
-		var aNum, bNum int
-		if i < len(aVer) {
-			aNum, _ = strconv.Atoi(aVer[i])
-		}
-		if i < len(bVer) {
-			bNum, _ = strconv.Atoi(bVer[i])
-		}
-
-		if aNum < bNum {
-			return -1
-		}
-		if aNum > bNum {
-			return 1
-		}
+// compareVersions validates versions before comparing semantic precedence.
+func compareVersions(a, b string) (int, error) {
+	a = "v" + strings.TrimPrefix(a, "v")
+	b = "v" + strings.TrimPrefix(b, "v")
+	if !semver.IsValid(a) || !semver.IsValid(b) {
+		return 0, fmt.Errorf("invalid semantic versions %q and %q", a, b)
 	}
-
-	// Same base version, check prerelease
-	// A version without prerelease is greater than one with prerelease
-	if len(aParts) == 1 && len(bParts) > 1 {
-		return 1 // a is release, b is prerelease
-	}
-	if len(aParts) > 1 && len(bParts) == 1 {
-		return -1 // a is prerelease, b is release
-	}
-
-	// Both have prerelease, compare lexically
-	if len(aParts) > 1 && len(bParts) > 1 {
-		if aParts[1] < bParts[1] {
-			return -1
-		}
-		if aParts[1] > bParts[1] {
-			return 1
-		}
-	}
-
-	return 0
+	return semver.Compare(a, b), nil
 }
