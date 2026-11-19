@@ -12,7 +12,7 @@ on:
         description: Runner backend
         type: choice
         options: [hosted, arc]
-        default: hosted
+        default: arc
       source_sha:
         description: Exact source commit supplied by the fallback router
         type: string
@@ -27,11 +27,13 @@ on:
 permissions:
   contents: read
 
+# Trusted pushes/schedules/dispatches use ephemeral homelab ARC runners.
+# Pull requests stay on GitHub-hosted runners; no fork code runs in the homelab.
 jobs:
   scan:
     name: HOL Plugin Scanner
     if: ${{ !inputs.source_sha || inputs.source_sha == github.workflow_sha }}
-    runs-on: ${{ github.event_name != 'pull_request' && inputs.backend == 'arc' && 'aide-linux' || 'ubuntu-latest' }}
+    runs-on: ${{ github.event_name != 'pull_request' && inputs.backend != 'hosted' && 'aide-linux' || 'ubuntu-latest' }}
     continue-on-error: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7

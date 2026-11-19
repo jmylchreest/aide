@@ -2,15 +2,17 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, "ci/arc-defaults-20261119"]
   pull_request:
     branches: [main]
   workflow_call: {}
 
+# Trusted pushes/schedules/dispatches use ephemeral homelab ARC runners.
+# Pull requests stay on GitHub-hosted runners; no fork code runs in the homelab.
 jobs:
   typescript:
     name: TypeScript Tests
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && 'aide-linux' || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -50,7 +52,7 @@ jobs:
 
   shared-context:
     name: Shared Context (no local paths)
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && 'aide-linux' || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -63,7 +65,7 @@ jobs:
 
   docs:
     name: Docs Type Check
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && 'aide-linux' || 'ubuntu-latest' }}
     defaults:
       run:
         working-directory: docs
@@ -83,7 +85,7 @@ jobs:
 
   go:
     name: Go Tests (aide)
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && 'aide-linux' || 'ubuntu-latest' }}
     defaults:
       run:
         working-directory: aide
@@ -111,7 +113,7 @@ jobs:
 
   go-web:
     name: Go Tests (aide-web)
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && 'aide-linux' || 'ubuntu-latest' }}
     defaults:
       run:
         working-directory: aide-web
@@ -152,7 +154,7 @@ jobs:
           if-no-files-found: error
   go-lint:
     name: Go Lint
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && 'aide-linux' || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -170,7 +172,7 @@ jobs:
 
   proto:
     name: Proto (buf lint + breaking)
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && 'aide-linux' || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -191,7 +193,7 @@ jobs:
 
   build:
     name: Build
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && 'aide-linux' || 'ubuntu-latest' }}
     needs: [typescript, go, go-web]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -248,7 +250,7 @@ jobs:
 
   plugin-upgrades:
     name: Plugin upgrade (${{ matrix.harness }})
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && 'aide-linux' || 'ubuntu-latest' }}
     timeout-minutes: 15
     permissions:
       contents: read
@@ -332,7 +334,7 @@ jobs:
 
   integration:
     name: Integration Tests
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.event_name != 'pull_request' && 'aide-linux' || 'ubuntu-latest' }}
     needs: build
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
