@@ -159,7 +159,7 @@ func checkStaleGuard(root string, now, lastImport time.Time, ttl time.Duration, 
 // record when it predates the deletion, and record the tombstone locally so
 // it propagates onward. Tombstones past the TTL are ignored, not errors.
 func importTombstones(tgt Target, tombs TombstoneAccess, root string, now time.Time, ttl time.Duration, dryRun bool, stats *ImportStats) error {
-	records, err := readRecordDir[memory.Tombstone](filepath.Join(root, tombstonesDir), ParseTombstone)
+	records, err := readRecordDir[memory.Tombstone](root, tombstonesDir, ParseTombstone)
 	if err != nil {
 		return err
 	}
@@ -175,13 +175,20 @@ func importTombstones(tgt Target, tombs TombstoneAccess, root string, now time.T
 		// we overwrite below to preserve the original deletion time.
 		var pre *memory.Tombstone
 		if tombs != nil {
-			pre, _ = tombs.GetTombstone(t.Kind, t.ID)
+			pre, err = tombs.GetTombstone(t.Kind, t.ID)
+			if err != nil && !errors.Is(err, memory.ErrNotFound) {
+				return fmt.Errorf("read local tombstone %s: %w", t.ID, err)
+			}
 		}
 
 		deleted := false
 		switch t.Kind {
 		case memory.TombstoneKindMemory:
-			if local, err := tgt.GetMemory(t.ID); err == nil && local != nil {
+			local, err := tgt.GetMemory(t.ID)
+			if err != nil && !errors.Is(err, memory.ErrNotFound) {
+				return fmt.Errorf("read memory before deletion: %w", err)
+			}
+			if local != nil {
 				if recordTimeMemory(local).Before(t.DeletedAt) {
 					if !dryRun {
 						if err := tgt.DeleteMemory(t.ID); err != nil {
@@ -193,7 +200,10 @@ func importTombstones(tgt Target, tombs TombstoneAccess, root string, now time.T
 			}
 		case memory.TombstoneKindDecisionTopic:
 			history, err := tgt.GetDecisionHistory(t.ID)
-			if err == nil && len(history) > 0 && allDecisionsBefore(history, t.DeletedAt) {
+			if err != nil && !errors.Is(err, memory.ErrNotFound) {
+				return fmt.Errorf("read decision history before deletion: %w", err)
+			}
+			if len(history) > 0 && allDecisionsBefore(history, t.DeletedAt) {
 				if !dryRun {
 					if _, err := tgt.DeleteDecision(t.ID); err != nil {
 						return fmt.Errorf("failed to apply tombstone for topic %s: %w", t.ID, err)
@@ -254,7 +264,7 @@ func importDecisions(tgt Target, tombs TombstoneAccess, root string, now time.Ti
 		if !topicDir.IsDir() {
 			continue
 		}
-		records, err := readRecordDir[memory.Decision](filepath.Join(dir, topicDir.Name()), ParseDecision)
+		records, err := readRecordDir[memory.Decision](root, filepath.Join(decisionsDir, topicDir.Name()), ParseDecision)
 		if err != nil {
 			return err
 		}
@@ -264,7 +274,11 @@ func importDecisions(tgt Target, tombs TombstoneAccess, root string, now time.Ti
 				stats.DecisionsSkipped++
 				continue
 			}
-			if blockedByLocalTombstone(tombs, memory.TombstoneKindDecisionTopic, d.Topic, d.CreatedAt, now, ttl) {
+			blocked, err := blockedByLocalTombstone(tombs, memory.TombstoneKindDecisionTopic, d.Topic, d.CreatedAt, now, ttl)
+			if err != nil {
+				return err
+			}
+			if blocked {
 				stats.DecisionsSkipped++
 				continue
 			}
@@ -294,7 +308,7 @@ func importDecisions(tgt Target, tombs TombstoneAccess, root string, now time.Ti
 // and the forget tag is monotonic — a newer incoming version never strips a
 // local forget.
 func importMemories(tgt Target, tombs TombstoneAccess, root string, now time.Time, ttl time.Duration, dryRun bool, filter Filter, stats *ImportStats) error {
-	records, err := readRecordDir[memory.Memory](filepath.Join(root, memoriesDir), ParseMemory)
+	records, err := readRecordDir[memory.Memory](root, memoriesDir, ParseMemory)
 	if err != nil {
 		return err
 	}
@@ -304,13 +318,20 @@ func importMemories(tgt Target, tombs TombstoneAccess, root string, now time.Tim
 			stats.MemoriesSkipped++
 			continue
 		}
-		if blockedByLocalTombstone(tombs, memory.TombstoneKindMemory, m.ID, recordTimeMemory(m), now, ttl) {
+		blocked, err := blockedByLocalTombstone(tombs, memory.TombstoneKindMemory, m.ID, recordTimeMemory(m), now, ttl)
+		if err != nil {
+			return err
+		}
+		if blocked {
 			stats.MemoriesSkipped++
 			continue
 		}
 
 		existing, err := tgt.GetMemory(m.ID)
-		if err != nil || existing == nil {
+		if err != nil && !errors.Is(err, memory.ErrNotFound) {
+			return fmt.Errorf("read memory before import: %w", err)
+		}
+		if existing == nil {
 			if !dryRun {
 				if err := tgt.AddMemory(m); err != nil {
 					return fmt.Errorf("failed to import memory %s: %w", m.ID, err)
@@ -352,25 +373,33 @@ func mergeForgetTag(localTags, incomingTags []string) []string {
 
 // blockedByLocalTombstone reports whether a live local tombstone shadows an
 // incoming record. Records newer than the tombstone (re-creations) pass.
-func blockedByLocalTombstone(tombs TombstoneAccess, kind, id string, recordTime time.Time, now time.Time, ttl time.Duration) bool {
+func blockedByLocalTombstone(tombs TombstoneAccess, kind, id string, recordTime time.Time, now time.Time, ttl time.Duration) (bool, error) {
 	if tombs == nil {
-		return false
+		return false, nil
 	}
 	t, err := tombs.GetTombstone(kind, id)
-	if err != nil || t == nil {
-		return false
+	if err != nil && !errors.Is(err, memory.ErrNotFound) {
+		return false, fmt.Errorf("read local tombstone %s: %w", id, err)
+	}
+	if t == nil {
+		return false, nil
 	}
 	if now.Sub(t.DeletedAt) > ttl {
-		return false
+		return false, nil
 	}
-	return !recordTime.After(t.DeletedAt)
+	return !recordTime.After(t.DeletedAt), nil
 }
 
 // readRecordDir parses every .md record in dir, warning on (and skipping)
 // malformed files rather than failing the whole import. Results are sorted
 // by file name for deterministic application order.
-func readRecordDir[T any](dir string, parse func([]byte) (*T, error)) ([]*T, error) {
-	entries, err := os.ReadDir(dir)
+func readRecordDir[T any](root, dir string, parse func([]byte) (*T, error)) ([]*T, error) {
+	base, err := os.OpenRoot(root)
+	if err != nil {
+		return nil, err
+	}
+	defer base.Close()
+	entries, err := fs.ReadDir(base.FS(), filepath.ToSlash(dir))
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			return nil, nil
@@ -383,7 +412,7 @@ func readRecordDir[T any](dir string, parse func([]byte) (*T, error)) ([]*T, err
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
 			continue
 		}
-		data, err := os.ReadFile(filepath.Join(dir, entry.Name()))
+		data, err := base.ReadFile(filepath.Join(dir, entry.Name()))
 		if err != nil {
 			return nil, err
 		}
