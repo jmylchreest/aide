@@ -81,20 +81,14 @@ export function isAidePluginEntry(entry: string): boolean {
 /**
  * The npm spec to write into config.
  *
- * Pinning the exact version is what makes upgrades work at all:
+ * OpenCode's plugin loader and bunx's MCP launcher have independent caches
+ * and update policies. Pinning both to the installer's own release keeps
+ * them aligned, makes upgrades explicit, and permits deliberate rollback.
+ * Older host caches also need a changed package spec to fetch new files.
  *
- *  - OpenCode caches plugin installs under a directory keyed by the spec
- *    string and returns early if it already exists (Npm.add), so a bare
- *    name — which it rewrites to `@latest` — is installed once and then
- *    frozen forever. Changing the pin changes the cache key, which is the
- *    only thing that triggers a real reinstall.
- *  - `bunx <name>` reuses its cached temp install with no registry check,
- *    so the MCP server drifts the same way. `bunx <name>@latest` would
- *    re-resolve, but that means a registry round-trip on every MCP launch
- *    and a hard failure when offline.
- *
- * An exact pin is reproducible, offline-safe, and matches the plugin, the
- * MCP server and the bundled per-arch binary to one version by construction.
+ * A cached exact pin can launch without resolving npm's latest tag. The npm
+ * package separately pins its per-platform binary to the same release; that
+ * dependency pin matters to every npm consumer, including Codex.
  */
 export function pluginSpec(version?: string | null): string {
   if (!version || version === "0.0.0") return PLUGIN_NAME;

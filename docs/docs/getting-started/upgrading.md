@@ -40,6 +40,15 @@ to the loaded plugin directory. Codex's native MCP launcher floats because
 marketplace metadata can advance before npm publication; separately installed
 hooks still need their own update.
 
+These configuration pins are separate from the exact binary versions in
+`packages/opencode-plugin/package.json`. The npm package pins each platform's
+optional binary dependency to its own release so every npm consumer, including
+Codex, gets the matching executable. Keep both sets of pins. To roll OpenCode
+back deliberately, run `bunx @jmylchreest/aide-plugin@0.2.1 install --platform opencode`
+(add `--project` for a project installation), then stop all aide sessions sharing
+the project before restarting. A pin does not migrate stored data backward;
+check release compatibility before rolling back a future storage-format change.
+
 Package resolution also differs from process lifetime: a new invocation of
 `bunx ...@latest` checks npm, but does not change a server that is already running.
 Registry-outage behavior depends on the Bun version. Current Bun documentation
@@ -49,7 +58,7 @@ serving requests. OpenCode's current plugin update commands manage its own cache
 independently of Bun's MCP launcher cache. Avoid putting npm resolution on every
 hook invocation.
 
-## Rehearse a Codex plugin upgrade without publishing
+## Rehearse plugin upgrades without publishing
 
 From a checkout with dependencies installed, run:
 
@@ -60,9 +69,13 @@ python3 scripts/test-plugin-upgrade.py
 This developer test requires Python 3, Bun, and Go. It builds two synthetic
 versions, serves npm-format packages and their runtime dependencies from a
 loopback registry, and launches the actual Codex manifest command through Bun.
-It uses a disposable project, package cache, and configuration. It never runs
-`npm publish`, a marketplace upgrade command, or an installer against your host.
-The integration CI job runs it too.
+It also runs OpenCode's aide installer, imports its configured plugin in a
+separate npm installation, and launches its configured MCP command. Claude's
+manifest launches the real wrapper and downloader, with only GitHub HTTP
+transport redirected to loopback through a test preload.
+All projects, caches, configuration, and stores are disposable. Nothing is
+published and live installations are not upgraded. The integration CI job runs
+this default mode without requiring either assistant's executable.
 
 The test checks these transitions:
 
@@ -74,17 +87,50 @@ The test checks these transitions:
 | Only the old primary restarts | A surviving 0.2.1 client can become primary. |
 | Every session restarts | The primary and clients use 0.2.2, and stored state survives. |
 | Registry returns HTTP 503 | The test records whether Bun launches its cached copy or fails the new launch; existing processes must remain healthy. |
+| OpenCode publication without reinstall | Both existing pins remain at 0.2.1. |
+| OpenCode installer runs at `@latest` | Plugin and MCP advance together to 0.2.2, ignoring stale inherited plugin roots and preserving user configuration. |
+| OpenCode cached exact pin during HTTP 503 | The MCP command still launches 0.2.2. |
+| OpenCode explicit rollback | The installer, imported plugin and restarted MCP return to 0.2.1. |
+| Claude plugin arrives before its binary | An older `latest` fallback is rejected; the previous executable and running primary survive. |
+| Two Claude wrappers upgrade concurrently | One real binary download installs 0.2.2; both clients report the older primary until restart. |
+| Claude restarts with a cached binary | The new primary runs 0.2.2 without a GitHub request. |
 
 Use `--keep` to retain logs, package archives, registry requests, and `report.json`.
 Use `--old-binary /path/to/aide-0.2.1` to exercise a released binary as the baseline.
 Without that option both Go binaries use current source with different version
 stamps. Both fixture npm packages use the current plugin source in either case.
 
-The marketplace step replaces a **fixture manifest**. This proves package
-resolution and process ownership after the new manifest is available, not the
-host's actual marketplace download, reload, config precedence, or separately
-installed hook migration. Claude Code's GitHub binary-download path and
-OpenCode's installer pins have separate tests.
+To additionally exercise an installed Claude CLI's marketplace add, install,
+refresh and update commands, run:
+
+```bash
+python3 scripts/test-plugin-upgrade.py --claude-cli --opencode-cli --keep
+```
+
+This uses a local fixture marketplace and an isolated `CLAUDE_CONFIG_DIR`.
+The test verifies the installed version and cache path through `plugin list
+--json`, then launches the installed manifest's MCP command. It does not run
+an authenticated conversation or change the user's marketplace configuration.
+With `--opencode-cli`, the installed OpenCode executable loads the generated
+configuration in isolated XDG directories. The test verifies its loaded plugin,
+registered skills, and hook executable during upgrade and rollback. MCP sync is
+disabled explicitly because it otherwise accesses user settings outside those
+directories; hashes guard the real MCP configuration files against changes.
+OpenCode's separate authoring SDK bootstrap receives a deliberate 404 in this
+mode, while all aide runtime packages are served locally.
+
+On OpenCode 1.19.5, the rehearsal also reproduced an immediate post-publication
+failure with warm npm HTTP metadata: the host exited successfully without
+loading the new plugin. Retrying with `npm_config_prefer_online=true` revalidated
+the registry metadata and loaded the new version. Exact pins keep component
+versions aligned, but do not invalidate that separate HTTP cache. The test
+records this case and requires verified recovery instead of treating exit zero
+as a successful plugin load.
+
+Codex's marketplace step still replaces a **fixture manifest**. OpenCode's
+default test exercises the installer and package entry point; the optional CLI
+mode additionally exercises its host loader. These checks do not verify interactive reloads, host configuration
+precedence, or separately installed hook migration.
 
 A project MCP override pointing at a local checkout continues to use that
 checkout. A marketplace upgrade does not test the npm launch path while that

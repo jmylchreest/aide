@@ -2,9 +2,11 @@
 """Rehearse npm/plugin upgrades on loopback with disposable Bun caches and stores.
 
 Requires Python 3, Bun, Go, and an existing `bun install` in this checkout.
-No npm publish, marketplace command, user config edit, or live store is used.
+No publication or live plugin upgrade is performed. Native host commands use
+disposable profiles and local packages; cross-host MCP sync is disabled.
 Both fixture releases use current source unless --old-binary supplies a released
-binary. The marketplace download/reload itself is intentionally not simulated.
+binary. Host UI reloads are not exercised. --claude-cli exercises the installed
+marketplace updater; --opencode-cli exercises the installed plugin loader.
 """
 
 import argparse
@@ -19,6 +21,7 @@ import os
 from pathlib import Path
 import platform
 import queue
+import re
 import shutil
 import signal
 import subprocess
@@ -40,8 +43,12 @@ def check(condition, message):
 
 
 def run(command, **kwargs):
-    return subprocess.run(command, check=True, capture_output=True, text=True,
-                          timeout=kwargs.pop("timeout", 120), **kwargs).stdout.strip()
+    try:
+        return subprocess.run(command, check=True, capture_output=True, text=True,
+                              timeout=kwargs.pop("timeout", 120), **kwargs).stdout.strip()
+    except subprocess.CalledProcessError as error:
+        raise RuntimeError(f"{command!r} failed ({error.returncode}):\n"
+                           f"{error.stdout[-4000:]}\n{error.stderr[-4000:]}") from error
 
 
 def package_tarball(target, manifest, paths):
@@ -67,6 +74,10 @@ class Registry:
         self.latest = "0.2.1"
         self.unavailable = False
         self.requests = []
+        self.binaries = {}
+        self.github_latest = "0.2.1"
+        self.github_available = {"0.2.1"}
+        self.github_unavailable = False
         registry = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -75,15 +86,27 @@ class Registry:
 
             def do_GET(self):
                 path = unquote(urlsplit(self.path).path).lstrip("/")
+                if path.startswith("github/"):
+                    parts = path.split("/")
+                    version = registry.github_latest if "latest" in parts else parts[-2].removeprefix("v")
+                    if registry.github_unavailable:
+                        self.reply(503, b"synthetic GitHub outage")
+                    elif version not in registry.github_available:
+                        self.reply(404, b"synthetic release not published")
+                    else:
+                        # Give simultaneous wrappers time to contend for the lock.
+                        time.sleep(0.2)
+                        self.reply(200, registry.binaries[version].read_bytes(), "application/octet-stream")
+                    return
+                if registry.unavailable:
+                    self.reply(503, b"synthetic registry outage")
+                    return
                 if path.startswith("tarballs/"):
                     file = registry.directory / Path(path).name
                     if not file.is_file():
                         self.reply(404, b"missing tarball")
                         return
                     self.reply(200, file.read_bytes(), "application/octet-stream")
-                    return
-                if registry.unavailable:
-                    self.reply(503, b"synthetic registry outage")
                     return
                 versions = registry.packages.get(path)
                 if not versions:
@@ -234,7 +257,284 @@ def build_binary(version, destination, old_binary):
           f"Expected {version} binary at {destination}")
 
 
-def rehearse(work, old_binary):
+def launch_host(command, project, env, log, clients):
+    client = MCP(command, project, env, log)
+    clients.append(client)
+    return client.initialize()
+
+
+def host_identity(client, project, version, daemon=None):
+    info = client.info()
+    check(info["version"]["version"] == version, info)
+    check(Path(info["project_root"]).resolve() == project.resolve(), info)
+    if "executable" in info:
+        check(Path(info["executable"]).is_relative_to(project.parent), info)
+    check(info["authority"] == ("client" if daemon else "daemon"), info)
+    if daemon:
+        check(info["daemon"]["version"] == daemon, info)
+        check(bool(info["daemon"].get("version_skew")) == (version != daemon), info)
+    return info
+
+
+def rehearse_opencode(work, registry, base_env, note, clients, opencode_cli):
+    project = work / "opencode-project"
+    (project / ".aide").mkdir(parents=True)
+    env = {**base_env, "AIDE_PROJECT_ROOT": str(project),
+           "BUN_INSTALL_CACHE_DIR": str(work / "opencode-bun-cache")}
+    config_file = project / "opencode.json"
+    seed = {"instructions": ["KEEP.md"], "mcp": {"aide": {
+        "type": "local", "enabled": True, "environment": {"KEEP": "yes"}}}}
+    config_file.write_text(json.dumps(seed))
+
+    def native_load(expected):
+        # Host-specific profile variables do not redirect aide's cross-host
+        # MCP sync, so disable it explicitly and guard the real config files.
+        check(env.get("AIDE_MCP_SYNC") == "0", "Native probes must disable MCP sync")
+        user_paths = [Path.home() / name for name in (
+            ".config/opencode/opencode.json", ".claude.json", ".codex/config.toml",
+            ".aide/config/mcp.json", ".aide/config/mcp-sync.journal.json")]
+
+        def snapshot():
+            return {str(path): hashlib.sha256(path.read_bytes()).hexdigest() if path.exists() else None
+                    for path in user_paths}
+
+        original = snapshot()
+        host_env = {**env, **{f"XDG_{name}_HOME": str(work / "opencode-host" / name.lower())
+                             for name in ("CACHE", "CONFIG", "DATA", "STATE")},
+                    "npm_config_registry": registry.url, "npm_config_fetch_retries": "0",
+                    "npm_config_cache": str(work / "opencode-host/npm-cache"),
+                    "npm_config_fetch_timeout": "5000", "OPENCODE_DISABLE_MODELS_FETCH": "true"}
+        # A host process does not inherit another host's aide package root.
+        host_env.pop("AIDE_PLUGIN_ROOT", None)
+        host_env.pop("CLAUDE_PLUGIN_ROOT", None)
+        def probe(label):
+            try:
+                result = subprocess.run([opencode_cli, "--print-logs", "debug", "config"],
+                                        cwd=project, env=host_env, capture_output=True, text=True, timeout=60)
+            finally:
+                check(snapshot() == original, "Native probe changed a real MCP configuration")
+            (work / f"opencode-host-{expected}-{label}.log").write_text(result.stdout + "\n" + result.stderr)
+            check(result.returncode == 0, result.stderr[-4000:])
+            return result, json.loads(result.stdout)
+
+        before = len(registry.requests)
+        result, config = probe("default")
+        if not config.get("skills", {}).get("paths"):
+            # npm's separate HTTP metadata cache can still advertise only the
+            # old release. Prove that revalidation recovers, without deleting it.
+            check(not any(unquote(r["path"]).lstrip("/") == PLUGIN
+                          for r in registry.requests[before:]),
+                  "Plugin failed despite a fresh registry read")
+            host_env["npm_config_prefer_online"] = "true"
+            result, config = probe("revalidated")
+            check(any(unquote(r["path"]).lstrip("/") == PLUGIN
+                      for r in registry.requests[before:]), "Revalidation did not query registry")
+            check(config.get("skills", {}).get("paths"), "Revalidation did not recover the plugin")
+            note("opencode_metadata_cache_revalidated", plugin=expected,
+                 default_load="plugin_missing", recovery="npm_config_prefer_online=true")
+        check(config["mcp"]["aide"]["command"] == ["bunx", "-y", f"{PLUGIN}@{expected}", "mcp"], config)
+        # debug config bootstraps the plugin and includes its registered skills.
+        roots = [Path(p).parent for p in config.get("skills", {}).get("paths", [])
+                 if "node_modules" in Path(p).parts and PLUGIN in p.replace("\\", "/")]
+        if not roots:
+            raise AssertionError(f"OpenCode did not load {PLUGIN}@{expected}; inspect "
+                                 f"{work / f'opencode-host-{expected}.log'}")
+        check(len(roots) == 1, roots)
+        check(roots[0].is_relative_to(work / "opencode-host"), roots)
+        check(json.loads((roots[0] / "package.json").read_text())["version"] == expected, roots)
+        check("aide hooks init:" in result.stderr, "Host did not initialize aide")
+        selected = re.search(r"aide hooks init:.*? binary=(.*?) skipInit=", result.stderr)
+        check(selected and Path(selected[1]).is_relative_to(work), "Host did not select an isolated aide binary")
+        check(f"version {expected} " in run([selected[1], "version"], cwd=project, env=host_env),
+              f"Plugin {expected} selected a mismatched CLI: {selected[1]}")
+        note("opencode_native_loader", host=run([opencode_cli, "--version"], env=host_env),
+             plugin=expected, hook_binary=expected, registered_skills=True,
+             real_config_unchanged=True)
+
+    def install(version):
+        output = run(["bunx", "-y", f"{PLUGIN}@{version}", "install",
+                      "--platform", "opencode", "--project"], cwd=project, env=env)
+        (work / f"opencode-install-{version}.log").write_text(output)
+        config = json.loads(config_file.read_text())
+        expected = registry.latest if version == "latest" else version
+        spec = f"{PLUGIN}@{expected}"
+        check(config["plugin"] == [spec], config)
+        check(config["mcp"]["aide"]["command"] == ["bunx", "-y", spec, "mcp"], config)
+        check(config["mcp"]["aide"]["environment"] == {"KEEP": "yes"}, config)
+        check(config["instructions"] == ["KEEP.md"], config)
+
+        # Resolve and import the configured plugin in a separate installation,
+        # as a host does. This cache is independent of the bunx MCP installation.
+        loader = work / "opencode-plugin-loader"
+        loader.mkdir(exist_ok=True)
+        (loader / "package.json").write_text(json.dumps({"dependencies": {PLUGIN: expected}}))
+        run(["bun", "install", "--ignore-scripts"], cwd=loader, env=env)
+        probe = loader / "probe.ts"
+        probe.write_text('import plugin from "@jmylchreest/aide-plugin";\n'
+                         'import {readFileSync} from "node:fs";\n'
+                         'if (typeof plugin !== "function") throw new Error("plugin export missing");\n'
+                         'console.log(JSON.parse(readFileSync("node_modules/@jmylchreest/aide-plugin/package.json", "utf8")).version);\n')
+        check(run(["bun", str(probe)], cwd=loader, env=env) == expected,
+              "Configured OpenCode plugin did not load the pinned version")
+        if opencode_cli:
+            native_load(expected)
+        return config
+
+    def launch(label):
+        config = json.loads(config_file.read_text())
+        return launch_host(config["mcp"]["aide"]["command"], project, env,
+                           work / f"opencode-{label}.log", clients)
+
+    registry.latest = "0.2.1"
+    install("latest")
+    old = launch("old")
+    old_info = host_identity(old, project, "0.2.1")
+    registry.latest = "0.2.2"
+    unchanged = launch("published-only")
+    host_identity(unchanged, project, "0.2.1", "0.2.1")
+    unchanged.close()
+    note("opencode_publish_without_install", configured="0.2.1", loaded="0.2.1")
+    # Simulate invoking the installer from a still-running older host session.
+    stale_root = work / "stale-opencode-plugin"
+    stale_root.mkdir()
+    (stale_root / "package.json").write_text(json.dumps({"version": "0.2.1"}))
+    env.update(AIDE_PLUGIN_ROOT=str(stale_root), CLAUDE_PLUGIN_ROOT=str(stale_root))
+    install("latest")
+    new = launch("updated")
+    info = host_identity(new, project, "0.2.2", "0.2.1")
+    check(info["daemon"]["pid"] == old_info["pid"], info)
+    note("opencode_install_latest", plugin="0.2.2", mcp="0.2.2", primary="0.2.1",
+         custom_config_preserved=True, stale_root_ignored=True)
+    new.close()
+    old.close()
+    current = launch("restarted")
+    host_identity(current, project, "0.2.2")
+    registry.unavailable = True
+    cached = launch("pinned-offline")
+    host_identity(cached, project, "0.2.2", "0.2.2")
+    cached.close()
+    registry.unavailable = False
+    note("opencode_restart_and_cached_pin", primary="0.2.2", registry_503_launch=True)
+    current.close()
+    install("0.2.1")
+    rollback = launch("rollback")
+    host_identity(rollback, project, "0.2.1")
+    rollback.close()
+    note("opencode_explicit_rollback", plugin="0.2.1", mcp="0.2.1", primary="0.2.1")
+
+
+def rehearse_claude(work, registry, binaries, base_env, note, clients, claude_cli):
+    project = work / "claude-project"
+    (project / ".aide").mkdir(parents=True)
+    env = {**base_env, "AIDE_PROJECT_ROOT": str(project),
+           "CLAUDE_CONFIG_DIR": str(work / "claude-config"),
+           "DISABLE_AUTOUPDATER": "1", "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"}
+    # Redirect only the transport, keeping the real wrapper, downloader, locks,
+    # validation, staging and replacement. The child downloader reads bunfig too.
+    preload = project / "redirect-downloads.ts"
+    preload.write_text('const original = globalThis.fetch;\n'
+        'globalThis.fetch = ((input, options) => {\n'
+        ' const url = String(input);\n'
+        ' const prefix = "https://github.com/jmylchreest/aide/";\n'
+        ' if (!url.startsWith(prefix)) throw new Error(`Unexpected fetch: ${url}`);\n'
+        f' return original({json.dumps(registry.url + "/github/")} + url.slice(prefix.length), options);\n'
+        '}) as typeof fetch;\n')
+    (project / "bunfig.toml").write_text('preload = ["./redirect-downloads.ts"]\n')
+    marketplace = work / "claude-marketplace"
+    source = marketplace / "plugin"
+    source.mkdir(parents=True)
+    for name in ("src", "skills"):
+        shutil.copytree(ROOT / name, source / name)
+    (source / "bin").mkdir()
+    shutil.copy2(ROOT / "bin/aide-wrapper.ts", source / "bin/aide-wrapper.ts")
+    manifest = json.loads((ROOT / ".claude-plugin/plugin.json").read_text())
+    (source / ".claude-plugin").mkdir()
+    (marketplace / ".claude-plugin").mkdir()
+    package = json.loads((ROOT / "package.json").read_text())
+    # Install only runtime dependencies from loopback. No npm binary packages:
+    # Claude's Git distribution must exercise the GitHub download fallback.
+    package = {key: package[key] for key in ("name", "version", "type", "dependencies")}
+
+    def publish_fixture(version):
+        manifest["version"] = package["version"] = version
+        (source / ".claude-plugin/plugin.json").write_text(json.dumps(manifest))
+        (source / "package.json").write_text(json.dumps(package))
+        catalog = {"name": "aide-rehearsal", "owner": {"name": "Test"}, "plugins": [
+            {"name": "aide", "version": version, "source": "./plugin"}]}
+        (marketplace / ".claude-plugin/marketplace.json").write_text(json.dumps(catalog))
+
+    def install(version, first=False):
+        publish_fixture(version)
+        if claude_cli:
+            if first:
+                run([claude_cli, "plugin", "marketplace", "add", str(marketplace)], cwd=project, env=env)
+                command = [claude_cli, "plugin", "install", "aide@aide-rehearsal"]
+            else:
+                run([claude_cli, "plugin", "marketplace", "update", "aide-rehearsal"], cwd=project, env=env)
+                command = [claude_cli, "plugin", "update", "aide@aide-rehearsal"]
+            (work / f"claude-install-{version}.log").write_text(run(command, cwd=project, env=env))
+            listing = json.loads(run([claude_cli, "plugin", "list", "--json"], cwd=project, env=env))
+            (work / f"claude-list-{version}.json").write_text(json.dumps(listing, indent=2))
+            entry = next(item for item in listing if item["id"] == "aide@aide-rehearsal")
+            check(entry["version"] == version, entry)
+            root = Path(entry["installPath"])
+            check(root.is_relative_to(work), root)
+        else:
+            root = work / "claude-cache" / version
+            shutil.copytree(source, root)
+        run(["bun", "install", "--ignore-scripts"], cwd=root, env=env)
+        return root
+
+    def launch(root, label):
+        config = json.loads((root / ".claude-plugin/plugin.json").read_text())["mcpServers"]["aide"]
+        command = [config["command"], *[arg.replace("${CLAUDE_PLUGIN_ROOT}", str(root)) for arg in config["args"]]]
+        return launch_host(command, project, env, work / f"claude-{label}.log", clients)
+
+    old_root = install("0.2.1", first=True)
+    old = launch(old_root, "old")
+    old_info = host_identity(old, project, "0.2.1")
+    new_root = install("0.2.2")
+    env.update(AIDE_PLUGIN_ROOT=str(old_root), CLAUDE_PLUGIN_ROOT=str(old_root))
+    binary_name = "aide.exe" if os.name == "nt" else "aide"
+    destination = new_root / "bin" / binary_name
+    shutil.copy2(binaries["0.2.1"], destination)
+    previous = destination.read_bytes()
+    try:
+        launch(new_root, "release-not-ready")
+        raise AssertionError("Wrapper accepted a binary older than its plugin")
+    except MCPExited:
+        check(destination.read_bytes() == previous, "Failed upgrade replaced the old file")
+    check("older than required" in (work / "claude-release-not-ready.log").read_text(),
+          "Wrapper failed for an unrelated reason")
+    host_identity(old, project, "0.2.1")
+    note("claude_marketplace_before_binary", new_launch="rejected_old_fallback", old_binary_preserved=True)
+
+    registry.github_available.add("0.2.2")
+    registry.github_latest = "0.2.2"
+    before = len(registry.requests)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        new = list(pool.map(lambda label: launch(new_root, label), ["new-a", "new-b"]))
+    for client in new:
+        info = host_identity(client, project, "0.2.2", "0.2.1")
+        check(info["daemon"]["pid"] == old_info["pid"], info)
+    downloads = [r for r in registry.requests[before:] if r["path"].startswith("/github/")]
+    check(len(downloads) == 1 and downloads[0]["status"] == 200, downloads)
+    check(destination.read_bytes() == binaries["0.2.2"].read_bytes(), "Wrong downloaded binary")
+    note("claude_concurrent_upgrade", downloads=1, loaded="0.2.2", primary="0.2.1", stale_root_ignored=True)
+    for client in new:
+        client.close()
+    old.close()
+    registry.github_unavailable = True
+    before = len(registry.requests)
+    current = launch(new_root, "restarted-offline")
+    host_identity(current, project, "0.2.2")
+    check(len(registry.requests) == before, "Warm Claude launch attempted a download")
+    current.close()
+    note("claude_restart_cached_binary", primary="0.2.2", github_required=False,
+         marketplace="real isolated CLI" if claude_cli else "fixture cache directories")
+
+
+def rehearse(work, old_binary, claude_cli, opencode_cli):
     project = work / "project"
     (project / ".aide").mkdir(parents=True)
     cache = work / "bun-cache"
@@ -251,6 +551,7 @@ def rehearse(work, old_binary):
     env.update(BUN_INSTALL_CACHE_DIR=str(cache), BUN_CONFIG_REGISTRY=registry.url,
                NPM_CONFIG_USERCONFIG=str(npmrc), XDG_CONFIG_HOME=str(work / "config"),
                AIDE_PROJECT_ROOT=str(project), AIDE_CODE_WATCH="0", AIDE_DEBUG="0",
+               AIDE_MCP_SYNC="0",
                HTTP_PROXY="http://127.0.0.1:1", HTTPS_PROXY="http://127.0.0.1:1",
                NO_PROXY="localhost,127.0.0.1")
     manifest = json.loads((ROOT / ".codex-plugin/plugin.json").read_text())
@@ -296,6 +597,7 @@ def rehearse(work, old_binary):
             binary = work / (f"aide-{version}" + (".exe" if os.name == "nt" else ""))
             build_binary(version, binary, old_binary)
             binaries[version] = binary
+            registry.binaries[version] = binary
             for path in sorted((ROOT / "packages").glob("aide-binary-*/package.json")):
                 binary_package = json.loads(path.read_text())
                 binary_package["version"] = version
@@ -378,13 +680,25 @@ def rehearse(work, old_binary):
             note("registry_unavailable", outcome="loaded_cached_0.2.2")
         identity(primary, "0.2.2", "daemon")
         identity(peer, "0.2.2", "client", "0.2.2")
-        check(not any(r["status"] == 404 for r in registry.requests),
+        primary.close()
+        peer.close()
+        registry.unavailable = False
+        rehearse_opencode(work, registry, env, note, clients, opencode_cli)
+        rehearse_claude(work, registry, binaries, env, note, clients, claude_cli)
+        # OpenCode bootstraps its optional authoring SDK separately. It is not
+        # used by aide's runtime and is deliberately absent from this registry.
+        expected_missing = {"@opencode-ai/plugin"} if opencode_cli else set()
+        check(not any(r["status"] == 404 and not r["path"].startswith("/github/")
+                      and unquote(r["path"]).lstrip("/") not in expected_missing
+                      for r in registry.requests),
               "An undeclared package or tarball was requested")
         note("PASS", bun=run(["bun", "--version"]),
              baseline_binary="supplied release" if old_binary else "current source stamped 0.2.1",
              candidate_binary="current source stamped 0.2.2",
              plugin_sources="current checkout for both fixture versions",
-             marketplace_step="fixture manifest replacement; host updater not exercised")
+             codex_marketplace="fixture manifest replacement",
+             opencode_host="native loader with authoring SDK bootstrap blocked" if opencode_cli else "separate plugin import",
+             claude_marketplace="isolated CLI" if claude_cli else "fixture cache directories")
     finally:
         for client in reversed(clients):
             client.close()
@@ -397,12 +711,17 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--old-binary", type=Path, help="Use a released 0.2.1 binary as the baseline")
     parser.add_argument("--keep", action="store_true", help="Keep fixtures, logs, and JSON report")
+    parser.add_argument("--claude-cli", nargs="?", const="claude",
+                        help="Also exercise the installed Claude CLI with an isolated local marketplace")
+    parser.add_argument("--opencode-cli", nargs="?", const="opencode",
+                        help="Also exercise the installed OpenCode loader with an isolated profile")
     args = parser.parse_args()
     work = Path(tempfile.mkdtemp(prefix="aide-upgrade-rehearsal-")).resolve()
     print(f"Isolated rehearsal: {work}", flush=True)
     succeeded = False
     try:
-        rehearse(work, args.old_binary.resolve() if args.old_binary else None)
+        rehearse(work, args.old_binary.resolve() if args.old_binary else None,
+                 args.claude_cli, args.opencode_cli)
         succeeded = True
     finally:
         if succeeded and not args.keep:

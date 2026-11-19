@@ -16,6 +16,7 @@ import type { FindBinaryOptions } from "./types.js";
 import { debug } from "../lib/logger.js";
 import { findProjectRoot } from "../lib/project-root.js";
 import { hookCommandTimeout } from "../lib/hook-budget.js";
+import { resolveBundledBinary } from "../lib/binary-resolve.js";
 
 const SOURCE = "aide-client";
 const IS_WINDOWS = process.platform === "win32";
@@ -26,9 +27,10 @@ const BINARY_NAME = IS_WINDOWS ? "aide.exe" : "aide";
  *
  * Search order:
  *   1. pluginRoot/bin/aide (if pluginRoot provided)
- *   2. cwd/.aide/bin/aide  (project-local install)
- *   3. Each path in additionalPaths
- *   4. PATH fallback (system-wide install)
+ *   2. The loaded plugin's npm optional binary dependency
+ *   3. cwd/.aide/bin/aide  (project-local install)
+ *   4. Each path in additionalPaths
+ *   5. PATH fallback (system-wide install)
  */
 export function findAideBinary(opts: FindBinaryOptions = {}): string | null {
   const { cwd, additionalPaths = [] } = opts;
@@ -50,9 +52,20 @@ export function findAideBinary(opts: FindBinaryOptions = {}): string | null {
       ensureBinInPath(dirname(pluginBinary));
       return pluginBinary;
     }
+
+    // npm hoists the executable beside the plugin. Resolve from this package
+    // before a project symlink that another, older session may have written.
+    const bundled = resolveBundledBinary({
+      pluginRoot,
+      from: join(pluginRoot, "package.json"),
+    });
+    if (bundled) {
+      ensureBinInPath(dirname(bundled));
+      return bundled;
+    }
   }
 
-  // 2. Project-local .aide/bin/ — at cwd, then at the resolved project
+  // 3. Project-local .aide/bin/ — at cwd, then at the resolved project
   // root (ensureBinSymlink plants the symlink at the ROOT, so a cwd deep
   // inside the repo — or inside a worktree/submodule whose store lives
   // elsewhere — must still find it).
@@ -76,7 +89,7 @@ export function findAideBinary(opts: FindBinaryOptions = {}): string | null {
     }
   }
 
-  // 3. Additional paths
+  // 4. Additional paths
   for (const searchPath of additionalPaths) {
     const binary = join(searchPath, BINARY_NAME);
     if (existsSync(binary)) {
@@ -85,7 +98,7 @@ export function findAideBinary(opts: FindBinaryOptions = {}): string | null {
     }
   }
 
-  // 4. PATH fallback (already on PATH, no injection needed)
+  // 5. PATH fallback (already on PATH, no injection needed)
   const fromPath = which.sync("aide", { nothrow: true });
   if (fromPath) return fromPath;
 
