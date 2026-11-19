@@ -250,19 +250,46 @@ function openCodeRenderedRead(
   return { start, end, full: start === 1 && end === total };
 }
 
-export function retrievalEvidence(
-  cwd: string,
+interface RetrievalTarget {
+  file?: string;
+  method: string;
+  start?: unknown;
+  end?: number;
+  search?: boolean;
+}
+
+function retrievalTarget(
   name: string,
   args: Record<string, unknown>,
-  text: string | undefined,
-  response: unknown,
+  shell: RetrievalTarget | undefined,
+): RetrievalTarget | undefined {
+  const path = args.file_path ?? args.filePath;
+  return name === "Read" && typeof path === "string"
+    ? {
+        file: path,
+        method: "native_read",
+        start: args.offset,
+        end: undefined as number | undefined,
+        search: false,
+      }
+    : name === "Bash"
+      ? shell
+      : name === "Grep"
+        ? {
+            method: "native_search",
+            search: true,
+            file: typeof args.path === "string" ? args.path : undefined,
+          }
+        : undefined;
+}
+
+function executionEvidence(
+  name: string,
+  result: Record<string, unknown> | undefined,
+  shell: RetrievalTarget | undefined,
   failed: boolean,
-  hookExitCode?: unknown,
-  options: { requireShellWorkdir?: boolean } = {},
-): Record<string, string> {
-  const result = object(response);
-  const shell =
-    name === "Bash" ? shellTarget(args.command ?? args.cmd) : undefined;
+  hookExitCode: unknown,
+): { failed: boolean; invalidExit: boolean; pending: boolean } {
   const exitCodes = [hookExitCode, result?.exit_code, result?.exitCode].filter(
     (value) => value !== undefined,
   );
@@ -288,83 +315,34 @@ export function retrievalEvidence(
     name === "Bash" &&
     result?.session_id !== undefined &&
     exitCodes.every((value) => value === null);
-  if (name === "code_outline" || name === "code_read_symbol") {
-    const receipt = receiptEvidence(name, text, response);
-    return {
-      retrieval_method: name,
-      ...(typeof args.file === "string" && args.file
-        ? { retrieval_target: relative(cwd, resolve(cwd, args.file)) }
-        : {}),
-      retrieval_status: failed
-        ? "failed"
-        : receipt && !invalidExit
-          ? "referenced"
-          : "unverified",
-      ...receipt,
-    };
-  }
-  const path = args.file_path ?? args.filePath;
-  const target =
-    name === "Read" && typeof path === "string"
-      ? {
-          file: path,
-          method: "native_read",
-          start: args.offset,
-          end: undefined as number | undefined,
-          search: false,
-        }
-      : name === "Bash"
-        ? shell
-        : name === "Grep"
-          ? {
-              method: "native_search",
-              search: true,
-              file: typeof args.path === "string" ? args.path : undefined,
-            }
-          : undefined;
-  if (!target)
-    return name === "Bash" ? { retrieval_status: "unclassified_shell" } : {};
-  const attrs: Record<string, string> = {
-    retrieval_method: target.method,
-    retrieval_status: failed
-      ? "failed"
-      : pending
-        ? "pending"
-        : invalidExit
-          ? "unverified"
-          : target.search
-            ? "search"
-            : "unverified",
-  };
-  if (name === "Bash" && target.file) {
-    const workdir = args.workdir ?? args.cwd;
-    // Some hosts omit the shell's execution directory from hook input. A
-    // matching project-root file cannot establish where a relative read ran.
-    if (
-      options.requireShellWorkdir &&
-      !isAbsolute(target.file) &&
-      !validShellWorkdir(cwd, workdir)
-    ) {
-      attrs.retrieval_reason = "unknown_shell_workdir";
-      return attrs;
-    }
-    if (!(options.requireShellWorkdir && isAbsolute(target.file))) {
-      if (workdir !== undefined && typeof workdir !== "string")
-        return { retrieval_status: "unclassified_shell" };
-      target.file = resolve(cwd, workdir ?? ".", target.file);
-    }
-  }
-  if (target.file)
-    attrs.retrieval_target = relative(cwd, resolve(cwd, target.file));
-  if (
-    failed ||
-    invalidExit ||
-    pending ||
-    target.search ||
-    !target.file ||
-    text === undefined
-  )
-    return attrs;
+  return { failed, invalidExit, pending };
+}
+
+function resolveShellFile(
+  cwd: string,
+  file: string,
+  args: Record<string, unknown>,
+  requireWorkdir: boolean,
+): { file: string } | { reason: string } | undefined {
+  const workdir = args.workdir ?? args.cwd;
+  // Without execution-directory evidence, a relative read cannot be attributed
+  // to a matching file under the project root.
+  if (requireWorkdir && !isAbsolute(file) && !validShellWorkdir(cwd, workdir))
+    return { reason: "unknown_shell_workdir" };
+  if (requireWorkdir && isAbsolute(file)) return { file };
+  if (workdir !== undefined && typeof workdir !== "string") return;
+  return { file: resolve(cwd, workdir ?? ".", file) };
+}
+
+function verifiedReadEvidence(
+  cwd: string,
+  name: string,
+  args: Record<string, unknown>,
+  text: string,
+  response: unknown,
+  target: RetrievalTarget & { file: string },
+): Record<string, string> {
+  const attrs: Record<string, string> = {};
   const current = snapshot(cwd, target.file);
   if (!current) return attrs;
   const delivered = Buffer.from(text, "utf8");
@@ -428,4 +406,88 @@ export function retrievalEvidence(
   ]);
   attrs.reference_kind = "full_file";
   return attrs;
+}
+
+export function retrievalEvidence(
+  cwd: string,
+  name: string,
+  args: Record<string, unknown>,
+  text: string | undefined,
+  response: unknown,
+  failed: boolean,
+  hookExitCode?: unknown,
+  options: { requireShellWorkdir?: boolean } = {},
+): Record<string, string> {
+  const result = object(response);
+  const shell =
+    name === "Bash" ? shellTarget(args.command ?? args.cmd) : undefined;
+  const execution = executionEvidence(
+    name,
+    result,
+    shell,
+    failed,
+    hookExitCode,
+  );
+  failed = execution.failed;
+  const { invalidExit, pending } = execution;
+  if (name === "code_outline" || name === "code_read_symbol") {
+    const receipt = receiptEvidence(name, text, response);
+    return {
+      retrieval_method: name,
+      ...(typeof args.file === "string" && args.file
+        ? { retrieval_target: relative(cwd, resolve(cwd, args.file)) }
+        : {}),
+      retrieval_status: failed
+        ? "failed"
+        : receipt && !invalidExit
+          ? "referenced"
+          : "unverified",
+      ...receipt,
+    };
+  }
+  const target = retrievalTarget(name, args, shell);
+  if (!target)
+    return name === "Bash" ? { retrieval_status: "unclassified_shell" } : {};
+  const attrs: Record<string, string> = {
+    retrieval_method: target.method,
+    retrieval_status: failed
+      ? "failed"
+      : pending
+        ? "pending"
+        : invalidExit
+          ? "unverified"
+          : target.search
+            ? "search"
+            : "unverified",
+  };
+  if (name === "Bash" && target.file) {
+    const resolved = resolveShellFile(
+      cwd,
+      target.file,
+      args,
+      !!options.requireShellWorkdir,
+    );
+    if (!resolved) return { retrieval_status: "unclassified_shell" };
+    if ("reason" in resolved)
+      return { ...attrs, retrieval_reason: resolved.reason };
+    target.file = resolved.file;
+  }
+  if (target.file)
+    attrs.retrieval_target = relative(cwd, resolve(cwd, target.file));
+  if (
+    failed ||
+    invalidExit ||
+    pending ||
+    target.search ||
+    !target.file ||
+    text === undefined
+  )
+    return attrs;
+  return {
+    ...attrs,
+    ...verifiedReadEvidence(cwd, name, args, text, response, {
+      ...target,
+      file: target.file,
+    }),
+  };
 }
