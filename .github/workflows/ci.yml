@@ -246,6 +246,90 @@ jobs:
           retention-days: 1
           compression-level: 9
 
+  plugin-upgrades:
+    name: Plugin upgrade (${{ matrix.harness }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - harness: codex
+            host-package: ''
+          - harness: opencode
+            host-package: opencode-ai@1.19.5
+          - harness: claude
+            host-package: '@anthropic-ai/claude-code@2.1.322'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: '1.4.4'
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: aide/go.mod
+          cache-dependency-path: aide/go.sum
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        if: matrix.host-package != ''
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - run: bun install --frozen-lockfile
+
+      # Pin the baseline and host versions so a host release cannot silently
+      # change this regression test. No publishing credentials are needed.
+      - name: Download and verify released baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/aide-baseline"
+          gh release download v0.2.1 --repo jmylchreest/aide \
+            --pattern aide-linux-amd64 --pattern checksums.txt \
+            --dir "$RUNNER_TEMP/aide-baseline"
+          cd "$RUNNER_TEMP/aide-baseline"
+          sha256sum --check --ignore-missing checksums.txt
+
+      - name: Install pinned native host
+        if: matrix.host-package != ''
+        env:
+          HOST_PACKAGE: ${{ matrix.host-package }}
+          XDG_CACHE_HOME: ${{ runner.temp }}/aide-host-setup/cache
+          XDG_CONFIG_HOME: ${{ runner.temp }}/aide-host-setup/config
+          XDG_DATA_HOME: ${{ runner.temp }}/aide-host-setup/data
+          XDG_STATE_HOME: ${{ runner.temp }}/aide-host-setup/state
+          AIDE_MCP_SYNC: '0'
+          OPENCODE_DISABLE_MODELS_FETCH: 'true'
+        run: |
+          npm install --global --ignore-scripts npm@12.2.2
+          mkdir -p "$RUNNER_TEMP/aide-host-tools"
+          node -e 'require("node:fs").writeFileSync(process.argv[1], JSON.stringify({private: true, allowScripts: {[process.argv[2]]: true}}))' \
+            "$RUNNER_TEMP/aide-host-tools/package.json" "$HOST_PACKAGE"
+          npm install --prefix "$RUNNER_TEMP/aide-host-tools" --no-audit --no-fund \
+            --strict-allow-scripts "$HOST_PACKAGE"
+
+      - name: Rehearse upgrade and restart
+        env:
+          HARNESS: ${{ matrix.harness }}
+        run: |
+          args=(--harness "$HARNESS"
+                --old-binary "$RUNNER_TEMP/aide-baseline/aide-linux-amd64"
+                --report-dir "$RUNNER_TEMP/aide-upgrade-report")
+          case "$HARNESS" in
+            opencode) args+=(--opencode-cli "$RUNNER_TEMP/aide-host-tools/node_modules/.bin/opencode") ;;
+            claude) args+=(--claude-cli "$RUNNER_TEMP/aide-host-tools/node_modules/.bin/claude") ;;
+          esac
+          python3 scripts/test-plugin-upgrade.py "${args[@]}"
+
+      - name: Upload upgrade diagnostics
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: plugin-upgrade-${{ matrix.harness }}
+          path: ${{ runner.temp }}/aide-upgrade-report
+          retention-days: 7
+
   integration:
     name: Integration Tests
     runs-on: ubuntu-latest
@@ -274,9 +358,6 @@ jobs:
           path: bin
       - name: Make tested binary executable
         run: chmod +x bin/aide
-
-      - name: Rehearse Codex, OpenCode and Claude plugin upgrades
-        run: python3 scripts/test-plugin-upgrade.py
 
       - name: Test hooks with aide
         run: |

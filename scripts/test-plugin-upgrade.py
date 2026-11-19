@@ -4,8 +4,9 @@
 Requires Python 3, Bun, Go, and an existing `bun install` in this checkout.
 No publication or live plugin upgrade is performed. Native host commands use
 disposable profiles and local packages; cross-host MCP sync is disabled.
-Both fixture releases use current source unless --old-binary supplies a released
-binary. Host UI reloads are not exercised. --claude-cli exercises the installed
+Fixture binaries use current source unless --old-binary or --candidate-binary
+supplies a released executable. Plugin source always comes from this checkout.
+Host UI reloads are not exercised. --claude-cli exercises the installed
 marketplace updater; --opencode-cli exercises the installed plugin loader.
 """
 
@@ -244,9 +245,11 @@ class MCP:
         self.log.close()
 
 
-def build_binary(version, destination, old_binary):
-    if old_binary and version == "0.2.1":
-        shutil.copy2(old_binary, destination)
+def build_binary(version, destination, supplied_binary):
+    if supplied_binary:
+        shutil.copy2(supplied_binary, destination)
+        # Downloaded release assets and CI artifacts may lose executable bits.
+        destination.chmod(destination.stat().st_mode | 0o111)
     else:
         flags = (f"-s -w -X {VERSION_PACKAGE}.Version={version} "
                  f"-X {VERSION_PACKAGE}.Commit=synthetic-upgrade-rehearsal "
@@ -534,33 +537,11 @@ def rehearse_claude(work, registry, binaries, base_env, note, clients, claude_cl
          marketplace="real isolated CLI" if claude_cli else "fixture cache directories")
 
 
-def rehearse(work, old_binary, claude_cli, opencode_cli):
+def rehearse_codex(work, registry, binaries, env, note, clients):
     project = work / "project"
-    (project / ".aide").mkdir(parents=True)
-    cache = work / "bun-cache"
-    tarballs = work / "tarballs"
-    tarballs.mkdir()
-    registry = Registry(tarballs)
-    clients = []
-    results = []
-    env = {key: value for key, value in os.environ.items()
-           if key in ("PATH", "SystemRoot", "SYSTEMROOT", "WINDIR", "COMSPEC",
-                      "PATHEXT", "LANG", "LC_ALL", "TEMP", "TMP")}
-    npmrc = work / "empty.npmrc"
-    npmrc.write_text("")
-    env.update(BUN_INSTALL_CACHE_DIR=str(cache), BUN_CONFIG_REGISTRY=registry.url,
-               NPM_CONFIG_USERCONFIG=str(npmrc), XDG_CONFIG_HOME=str(work / "config"),
-               AIDE_PROJECT_ROOT=str(project), AIDE_CODE_WATCH="0", AIDE_DEBUG="0",
-               AIDE_MCP_SYNC="0",
-               HTTP_PROXY="http://127.0.0.1:1", HTTPS_PROXY="http://127.0.0.1:1",
-               NO_PROXY="localhost,127.0.0.1")
+    cache = Path(env["BUN_INSTALL_CACHE_DIR"])
     manifest = json.loads((ROOT / ".codex-plugin/plugin.json").read_text())
     fixture_manifest = work / "marketplace-plugin.json"
-
-    def note(scenario, **details):
-        entry = {"scenario": scenario, **details}
-        results.append(entry)
-        print(json.dumps(entry), flush=True)
 
     def launch(label, unversioned=False):
         launch_config = json.loads(fixture_manifest.read_text())["mcpServers"]["aide"]
@@ -584,6 +565,105 @@ def rehearse(work, old_binary, claude_cli, opencode_cli):
             check(Path(info["executable"]).is_relative_to(cache), info)
         return info
 
+    # Model the installed launcher before the fix, then the new marketplace
+    # manifest. No Codex command or installed marketplace is touched.
+    manifest["version"] = "0.2.1"
+    fixture_manifest.write_text(json.dumps(manifest))
+    old_primary = launch("old-primary", unversioned=True)
+    old_client = launch("old-client", unversioned=True)
+    first = identity(old_primary, "0.2.1", "daemon")
+    identity(old_client, "0.2.1", "client", "0.2.1")
+    run([str(binaries["0.2.1"]), "state", "set", "upgrade-rehearsal", "preserved"], cwd=project, env=env)
+    note("baseline", primary="0.2.1", clients=2)
+
+    manifest["version"] = "0.2.2"
+    fixture_manifest.write_text(json.dumps(manifest))
+    early = launch("marketplace-before-npm")
+    identity(early, "0.2.1", "client", "0.2.1")
+    early.close()
+    note("marketplace_before_npm", marketplace="0.2.2", loaded="0.2.1")
+
+    registry.latest = "0.2.2"
+    stale = launch("warm-unversioned", unversioned=True)
+    identity(stale, "0.2.1", "client", "0.2.1")
+    stale.close()
+    note("warm_unversioned_cache", npm_latest="0.2.2", loaded="0.2.1")
+    identity(old_primary, "0.2.1", "daemon")
+
+    before = len(registry.requests)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        new_clients = list(pool.map(launch, ["new-client-a", "new-client-b"]))
+    for client in new_clients:
+        info = identity(client, "0.2.2", "client", "0.2.1")
+        check(info["daemon"]["pid"] == first["pid"], info)
+    check(any(unquote(r["path"]).lstrip("/") == PLUGIN for r in registry.requests[before:]),
+          "@latest launch did not check registry metadata")
+    note("latest_with_old_primary", loaded="0.2.2", primary="0.2.1", version_skew=True, clients=2)
+    for client in new_clients:
+        client.close()
+    old_primary.close()
+    deadline = time.monotonic() + 15
+    while old_client.info()["authority"] != "daemon":
+        check(time.monotonic() < deadline, "Old client did not take over")
+        time.sleep(0.1)
+    identity(old_client, "0.2.1", "daemon")
+    note("restart_only_primary", surviving_primary="0.2.1")
+    old_client.close()
+
+    primary = launch("restarted-primary")
+    peer = launch("restarted-peer")
+    identity(primary, "0.2.2", "daemon")
+    identity(peer, "0.2.2", "client", "0.2.2")
+    check("preserved" in run([str(binaries["0.2.2"]), "state", "get", "upgrade-rehearsal"], cwd=project, env=env),
+          "State was lost across restart")
+    note("restart_all_sessions", primary="0.2.2", clients=2, version_skew=False, state_preserved=True)
+
+    registry.unavailable = True
+    try:
+        offline = launch("registry-unavailable")
+    except MCPExited:
+        # Bun's offline policy is version-dependent. A controlled 503 may
+        # fail a new launch, but must not disrupt the already-running MCPs.
+        failed = clients[-1]
+        check(failed.process.wait(timeout=5) != 0, "Failed launch reported success")
+        check("503" in (work / "registry-unavailable.log").read_text(),
+              "Launch failed for a reason other than the simulated outage")
+        note("registry_unavailable", outcome="new_launch_failed_503")
+    else:
+        identity(offline, "0.2.2", "client", "0.2.2")
+        note("registry_unavailable", outcome="loaded_cached_0.2.2")
+    identity(primary, "0.2.2", "daemon")
+    identity(peer, "0.2.2", "client", "0.2.2")
+    primary.close()
+    peer.close()
+    registry.unavailable = False
+
+
+def rehearse(work, old_binary, candidate_binary, claude_cli, opencode_cli, harness):
+    project = work / "project"
+    (project / ".aide").mkdir(parents=True)
+    cache = work / "bun-cache"
+    tarballs = work / "tarballs"
+    tarballs.mkdir()
+    registry = Registry(tarballs)
+    clients = []
+    results = []
+    env = {key: value for key, value in os.environ.items()
+           if key in ("PATH", "SystemRoot", "SYSTEMROOT", "WINDIR", "COMSPEC",
+                      "PATHEXT", "LANG", "LC_ALL", "TEMP", "TMP")}
+    npmrc = work / "empty.npmrc"
+    npmrc.write_text("")
+    env.update(BUN_INSTALL_CACHE_DIR=str(cache), BUN_CONFIG_REGISTRY=registry.url,
+               NPM_CONFIG_USERCONFIG=str(npmrc), XDG_CONFIG_HOME=str(work / "config"),
+               AIDE_PROJECT_ROOT=str(project), AIDE_CODE_WATCH="0", AIDE_DEBUG="0",
+               AIDE_MCP_SYNC="0",
+               HTTP_PROXY="http://127.0.0.1:1", HTTPS_PROXY="http://127.0.0.1:1",
+               NO_PROXY="localhost,127.0.0.1")
+    def note(scenario, **details):
+        entry = {"scenario": scenario, **details}
+        results.append(entry)
+        print(json.dumps(entry), flush=True)
+
     try:
         package = json.loads((ROOT / "packages/opencode-plugin/package.json").read_text())
         for dependency in package["dependencies"]:
@@ -595,7 +675,12 @@ def rehearse(work, old_binary, claude_cli, opencode_cli):
         for version in ("0.2.1", "0.2.2"):
             print(f"Preparing synthetic release {version}", flush=True)
             binary = work / (f"aide-{version}" + (".exe" if os.name == "nt" else ""))
-            build_binary(version, binary, old_binary)
+            source = old_binary if version == "0.2.1" else candidate_binary
+            build_binary(version, binary, source)
+            note("binary_fixture", version=version,
+                 source="supplied binary" if source else "current source",
+                 identity=run([str(binary), "version"]),
+                 sha256=hashlib.sha256(binary.read_bytes()).hexdigest())
             binaries[version] = binary
             registry.binaries[version] = binary
             for path in sorted((ROOT / "packages").glob("aide-binary-*/package.json")):
@@ -611,80 +696,12 @@ def rehearse(work, old_binary, claude_cli, opencode_cli):
             paths += [(ROOT / "skills", "skills"), (ROOT / "bin/aide-wrapper.ts", "bin/aide-wrapper.ts")]
             registry.add(release, paths)
 
-        # Model the installed launcher before the fix, then the new marketplace
-        # manifest. No Codex command or installed marketplace is touched.
-        manifest["version"] = "0.2.1"
-        fixture_manifest.write_text(json.dumps(manifest))
-        old_primary = launch("old-primary", unversioned=True)
-        old_client = launch("old-client", unversioned=True)
-        first = identity(old_primary, "0.2.1", "daemon")
-        identity(old_client, "0.2.1", "client", "0.2.1")
-        run([str(binaries["0.2.1"]), "state", "set", "upgrade-rehearsal", "preserved"], cwd=project, env=env)
-        note("baseline", primary="0.2.1", clients=2)
-
-        manifest["version"] = "0.2.2"
-        fixture_manifest.write_text(json.dumps(manifest))
-        early = launch("marketplace-before-npm")
-        identity(early, "0.2.1", "client", "0.2.1")
-        early.close()
-        note("marketplace_before_npm", marketplace="0.2.2", loaded="0.2.1")
-
-        registry.latest = "0.2.2"
-        stale = launch("warm-unversioned", unversioned=True)
-        identity(stale, "0.2.1", "client", "0.2.1")
-        stale.close()
-        note("warm_unversioned_cache", npm_latest="0.2.2", loaded="0.2.1")
-        identity(old_primary, "0.2.1", "daemon")
-
-        before = len(registry.requests)
-        with ThreadPoolExecutor(max_workers=2) as pool:
-            new_clients = list(pool.map(launch, ["new-client-a", "new-client-b"]))
-        for client in new_clients:
-            info = identity(client, "0.2.2", "client", "0.2.1")
-            check(info["daemon"]["pid"] == first["pid"], info)
-        check(any(unquote(r["path"]).lstrip("/") == PLUGIN for r in registry.requests[before:]),
-              "@latest launch did not check registry metadata")
-        note("latest_with_old_primary", loaded="0.2.2", primary="0.2.1", version_skew=True, clients=2)
-        for client in new_clients:
-            client.close()
-        old_primary.close()
-        deadline = time.monotonic() + 15
-        while old_client.info()["authority"] != "daemon":
-            check(time.monotonic() < deadline, "Old client did not take over")
-            time.sleep(0.1)
-        identity(old_client, "0.2.1", "daemon")
-        note("restart_only_primary", surviving_primary="0.2.1")
-        old_client.close()
-
-        primary = launch("restarted-primary")
-        peer = launch("restarted-peer")
-        identity(primary, "0.2.2", "daemon")
-        identity(peer, "0.2.2", "client", "0.2.2")
-        check("preserved" in run([str(binaries["0.2.2"]), "state", "get", "upgrade-rehearsal"], cwd=project, env=env),
-              "State was lost across restart")
-        note("restart_all_sessions", primary="0.2.2", clients=2, version_skew=False, state_preserved=True)
-
-        registry.unavailable = True
-        try:
-            offline = launch("registry-unavailable")
-        except MCPExited:
-            # Bun's offline policy is version-dependent. A controlled 503 may
-            # fail a new launch, but must not disrupt the already-running MCPs.
-            failed = clients[-1]
-            check(failed.process.wait(timeout=5) != 0, "Failed launch reported success")
-            check("503" in (work / "registry-unavailable.log").read_text(),
-                  "Launch failed for a reason other than the simulated outage")
-            note("registry_unavailable", outcome="new_launch_failed_503")
-        else:
-            identity(offline, "0.2.2", "client", "0.2.2")
-            note("registry_unavailable", outcome="loaded_cached_0.2.2")
-        identity(primary, "0.2.2", "daemon")
-        identity(peer, "0.2.2", "client", "0.2.2")
-        primary.close()
-        peer.close()
-        registry.unavailable = False
-        rehearse_opencode(work, registry, env, note, clients, opencode_cli)
-        rehearse_claude(work, registry, binaries, env, note, clients, claude_cli)
+        if harness in ("all", "codex"):
+            rehearse_codex(work, registry, binaries, env, note, clients)
+        if harness in ("all", "opencode"):
+            rehearse_opencode(work, registry, env, note, clients, opencode_cli)
+        if harness in ("all", "claude"):
+            rehearse_claude(work, registry, binaries, env, note, clients, claude_cli)
         # OpenCode bootstraps its optional authoring SDK separately. It is not
         # used by aide's runtime and is deliberately absent from this registry.
         expected_missing = {"@opencode-ai/plugin"} if opencode_cli else set()
@@ -692,13 +709,18 @@ def rehearse(work, old_binary, claude_cli, opencode_cli):
                       and unquote(r["path"]).lstrip("/") not in expected_missing
                       for r in registry.requests),
               "An undeclared package or tarball was requested")
-        note("PASS", bun=run(["bun", "--version"]),
-             baseline_binary="supplied release" if old_binary else "current source stamped 0.2.1",
-             candidate_binary="current source stamped 0.2.2",
+        note("PASS", harness=harness, bun=run(["bun", "--version"]),
+             baseline_binary="supplied binary" if old_binary else "current source stamped 0.2.1",
+             candidate_binary="supplied binary" if candidate_binary else "current source stamped 0.2.2",
              plugin_sources="current checkout for both fixture versions",
-             codex_marketplace="fixture manifest replacement",
-             opencode_host="native loader with authoring SDK bootstrap blocked" if opencode_cli else "separate plugin import",
-             claude_marketplace="isolated CLI" if claude_cli else "fixture cache directories")
+             codex_marketplace="fixture manifest replacement" if harness in ("all", "codex") else "not selected",
+             opencode_host=("native loader with authoring SDK bootstrap blocked" if opencode_cli else "separate plugin import")
+             if harness in ("all", "opencode") else "not selected",
+             claude_marketplace=("isolated CLI" if claude_cli else "fixture cache directories")
+             if harness in ("all", "claude") else "not selected")
+    except Exception as error:
+        note("FAIL", harness=harness, error=str(error))
+        raise
     finally:
         for client in reversed(clients):
             client.close()
@@ -709,21 +731,36 @@ def rehearse(work, old_binary, claude_cli, opencode_cli):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--harness", choices=("all", "codex", "opencode", "claude"), default="all",
+                        help="Run one host independently, or all three (default)")
     parser.add_argument("--old-binary", type=Path, help="Use a released 0.2.1 binary as the baseline")
+    parser.add_argument("--candidate-binary", type=Path, help="Use an existing 0.2.2 binary instead of building it")
+    parser.add_argument("--report-dir", type=Path, help="Export JSON reports and logs even on failure")
     parser.add_argument("--keep", action="store_true", help="Keep fixtures, logs, and JSON report")
     parser.add_argument("--claude-cli", nargs="?", const="claude",
                         help="Also exercise the installed Claude CLI with an isolated local marketplace")
     parser.add_argument("--opencode-cli", nargs="?", const="opencode",
                         help="Also exercise the installed OpenCode loader with an isolated profile")
     args = parser.parse_args()
+    if args.claude_cli and args.harness not in ("all", "claude"):
+        parser.error("--claude-cli requires --harness claude or all")
+    if args.opencode_cli and args.harness not in ("all", "opencode"):
+        parser.error("--opencode-cli requires --harness opencode or all")
     work = Path(tempfile.mkdtemp(prefix="aide-upgrade-rehearsal-")).resolve()
     print(f"Isolated rehearsal: {work}", flush=True)
     succeeded = False
     try:
         rehearse(work, args.old_binary.resolve() if args.old_binary else None,
-                 args.claude_cli, args.opencode_cli)
+                 args.candidate_binary.resolve() if args.candidate_binary else None,
+                 args.claude_cli, args.opencode_cli, args.harness)
         succeeded = True
     finally:
+        if args.report_dir:
+            args.report_dir.mkdir(parents=True, exist_ok=True)
+            # Exclude caches, stores and archives: CI only needs diagnostic files.
+            for path in [work / "report.json", work / "registry-requests.json", *work.glob("*.log")]:
+                if path.is_file():
+                    shutil.copy2(path, args.report_dir / path.name)
         if succeeded and not args.keep:
             shutil.rmtree(work)
         else:

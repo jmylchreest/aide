@@ -74,8 +74,26 @@ separate npm installation, and launches its configured MCP command. Claude's
 manifest launches the real wrapper and downloader, with only GitHub HTTP
 transport redirected to loopback through a test preload.
 All projects, caches, configuration, and stores are disposable. Nothing is
-published and live installations are not upgraded. The integration CI job runs
-this default mode without requiring either assistant's executable.
+published and live installations are not upgraded.
+
+CI runs three independent **Plugin upgrade** matrix jobs on every pull request,
+push to main, and release workflow that calls CI:
+
+| Harness | Host path exercised in CI |
+| --- | --- |
+| Codex | The manifest's Bun launcher, with a fixture marketplace update. |
+| OpenCode | The installer and native OpenCode 1.19.5 loader, including skills and hook binary selection. |
+| Claude | Claude Code 2.1.322's native marketplace add, install, refresh and update commands, followed by the installed MCP launcher. |
+
+Each job downloads the genuine `v0.2.1` Linux binary and verifies it against the
+release's `checksums.txt`. The candidate is built from the checkout and stamped
+`0.2.2`, so this regression test does not need a candidate publication. Bun and
+native host versions are pinned for reproducibility. The jobs do not cancel one
+another on failure and retain JSON reports and process logs as separate artifacts
+for seven days. They require no model login or publishing credentials. The
+existing macOS and Windows jobs separately cover binary installation and hooks.
+Host setup uses npm 12.2.2 with explicit, version-specific `allowScripts` entries
+for the native CLI installers. Aide's fixture packages need no install scripts.
 
 The test checks these transitions:
 
@@ -97,8 +115,17 @@ The test checks these transitions:
 
 Use `--keep` to retain logs, package archives, registry requests, and `report.json`.
 Use `--old-binary /path/to/aide-0.2.1` to exercise a released binary as the baseline.
-Without that option both Go binaries use current source with different version
-stamps. Both fixture npm packages use the current plugin source in either case.
+Use `--candidate-binary /path/to/aide-0.2.2` to test a genuine candidate once that
+release asset is published. Supplied binaries must report the expected version;
+their build identities and SHA-256 hashes are recorded in the report. Without
+these options the Go binaries use current source with different version stamps.
+Both fixture npm packages use the current plugin source in either case, so this
+does not verify the contents of the published npm tarball.
+
+Select one host with `--harness codex`, `--harness opencode`, or `--harness claude`.
+The default is `--harness all`. Use `--report-dir /path/to/reports` to export just
+the JSON reports and logs on success or failure, without retaining large caches
+and package archives.
 
 To additionally exercise an installed Claude CLI's marketplace add, install,
 refresh and update commands, run:
@@ -128,8 +155,8 @@ records this case and requires verified recovery instead of treating exit zero
 as a successful plugin load.
 
 Codex's marketplace step still replaces a **fixture manifest**. OpenCode's
-default test exercises the installer and package entry point; the optional CLI
-mode additionally exercises its host loader. These checks do not verify interactive reloads, host configuration
+default local test exercises the installer and package entry point; the CLI
+mode used in CI additionally exercises its host loader. These checks do not verify interactive reloads, host configuration
 precedence, or separately installed hook migration.
 
 A project MCP override pointing at a local checkout continues to use that
