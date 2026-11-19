@@ -112,6 +112,8 @@ service StateService {
   // Atomically create state only if absent; always returns the persisted state.
   rpc Init(StateSetRequest) returns (StateSetResponse);
   rpc InitBounded(StateBoundedInitRequest) returns (StateSetResponse);
+  // Atomically increment a nonnegative counter, starting at one when absent.
+  rpc Increment(StateGetRequest) returns (StateSetResponse);
   rpc List(StateListRequest) returns (StateListResponse);
   rpc Delete(StateDeleteRequest) returns (StateDeleteResponse);
   rpc Clear(StateClearRequest) returns (StateClearResponse);

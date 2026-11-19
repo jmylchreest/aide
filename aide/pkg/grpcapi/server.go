@@ -609,6 +609,26 @@ func (s *stateServiceImpl) Init(ctx context.Context, req *StateSetRequest) (*Sta
 	return &StateSetResponse{State: stateToProto(st), Created: created}, nil
 }
 
+func (s *stateServiceImpl) Increment(ctx context.Context, req *StateGetRequest) (*StateSetResponse, error) {
+	if req == nil || req.Key == "" {
+		return nil, status.Error(codes.InvalidArgument, "state key is required")
+	}
+	incrementer, ok := s.store.(memory.StateIncrementer)
+	if !ok {
+		return nil, status.Error(codes.Unimplemented, "atomic state increment is unavailable")
+	}
+	key := req.Key
+	if req.AgentId != "" {
+		key = fmt.Sprintf("agent:%s:%s", req.AgentId, key)
+	}
+	st, err := incrementer.IncrementState(key, req.AgentId)
+	if err != nil {
+		return nil, err
+	}
+	s.publish(st, "set")
+	return &StateSetResponse{State: stateToProto(st)}, nil
+}
+
 func (s *stateServiceImpl) InitBounded(ctx context.Context, req *StateBoundedInitRequest) (*StateSetResponse, error) {
 	if req == nil || req.State == nil || req.State.Key == "" || strings.TrimSpace(req.State.AgentId) == "" {
 		return nil, status.Error(codes.InvalidArgument, "state key and agent are required")
