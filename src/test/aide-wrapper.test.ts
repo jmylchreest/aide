@@ -4,6 +4,7 @@ import {
   copyFileSync,
   mkdirSync,
   mkdtempSync,
+  realpathSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -67,7 +68,8 @@ describe.skipIf(process.platform === "win32")("MCP wrapper startup", () => {
     binary(join(stale, "bin/aide"), "0.1.18");
     const result = run();
     expect(result.status, result.stderr).toBe(0);
-    expect(result.stdout).toBe(root);
+    // The wrapper resolves physical paths, including macOS's /var symlink.
+    expect(result.stdout).toBe(realpathSync(root));
   });
 
   it("passes its version to the downloader, retains the old file, and keeps stdout clean", () => {
@@ -91,7 +93,7 @@ describe.skipIf(process.platform === "win32")("MCP wrapper startup", () => {
     );
     const result = run();
     expect(result.status, result.stderr).toBe(0);
-    expect(result.stdout).toBe(root);
+    expect(result.stdout).toBe(realpathSync(root));
     expect(result.stderr).toContain("installer progress");
   });
 });

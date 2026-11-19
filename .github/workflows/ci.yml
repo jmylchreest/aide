@@ -39,6 +39,7 @@ jobs:
     name: Binary installation (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         os: [macos-latest, windows-latest]
     steps:
