@@ -274,6 +274,10 @@ jobs:
           path: bin
       - name: Make tested binary executable
         run: chmod +x bin/aide
+
+      - name: Rehearse plugin upgrades with an isolated registry
+        run: python3 scripts/test-plugin-upgrade.py
+
       - name: Test hooks with aide
         run: |
           # Create test directories

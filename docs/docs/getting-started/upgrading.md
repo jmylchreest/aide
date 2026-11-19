@@ -42,9 +42,54 @@ hooks still need their own update.
 
 Package resolution also differs from process lifetime: a new invocation of
 `bunx ...@latest` checks npm, but does not change a server that is already running.
-Bun can retain a cached version when the registry is unavailable. OpenCode's
-current plugin update commands manage its own cache, independently of Bun's MCP
-launcher cache. Avoid putting npm resolution on every hook invocation.
+Registry-outage behavior depends on the Bun version. Current Bun documentation
+describes a cached fallback, but the isolated rehearsal on Bun 1.4.4 failed a new
+`@latest` launch on HTTP 503 despite a warm cache. Existing MCP processes kept
+serving requests. OpenCode's current plugin update commands manage its own cache,
+independently of Bun's MCP launcher cache. Avoid putting npm resolution on every
+hook invocation.
+
+## Rehearse a Codex plugin upgrade without publishing
+
+From a checkout with dependencies installed, run:
+
+```bash
+python3 scripts/test-plugin-upgrade.py
+```
+
+This developer test requires Python 3, Bun, and Go. It builds two synthetic
+versions, serves npm-format packages and their runtime dependencies from a
+loopback registry, and launches the actual Codex manifest command through Bun.
+It uses a disposable project, package cache, and configuration. It never runs
+`npm publish`, a marketplace upgrade command, or an installer against your host.
+The integration CI job runs it too.
+
+The test checks these transitions:
+
+| Scenario | Expected result |
+| --- | --- |
+| Marketplace fixture advances before npm | The latest published package remains 0.2.1. |
+| Registry advances with a warm unversioned cache | The unversioned launcher still selects 0.2.1. |
+| Two `@latest` clients launch after publication | Both load 0.2.2 but attach to the existing 0.2.1 primary, reporting version skew. |
+| Only the old primary restarts | A surviving 0.2.1 client can become primary. |
+| Every session restarts | The primary and clients use 0.2.2, and stored state survives. |
+| Registry returns HTTP 503 | The test records whether Bun launches its cached copy or fails the new launch; existing processes must remain healthy. |
+
+Use `--keep` to retain logs, package archives, registry requests, and `report.json`.
+Use `--old-binary /path/to/aide-0.2.1` to exercise a released binary as the baseline.
+Without that option both Go binaries use current source with different version
+stamps. Both fixture npm packages use the current plugin source in either case.
+
+The marketplace step replaces a **fixture manifest**. This proves package
+resolution and process ownership after the new manifest is available, not the
+host's actual marketplace download, reload, config precedence, or separately
+installed hook migration. Claude Code's GitHub binary-download path and
+OpenCode's installer pins have separate tests.
+
+A project MCP override pointing at a local checkout continues to use that
+checkout. A marketplace upgrade does not test the npm launch path while that
+override is active. The rehearsal deliberately launches from the manifest in
+its disposable project instead of reading your development override.
 
 ## Find the version actually serving requests
 
