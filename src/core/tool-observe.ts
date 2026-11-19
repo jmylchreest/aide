@@ -215,17 +215,7 @@ function canonicalTool(name: string): string | undefined {
   );
 }
 
-/**
- * Record a native tool invocation as an observe.KindToolCall event. Pure
- * fire-and-forget: failures are logged but never thrown so this is safe to
- * call from tight hook hot paths. Callers should pass success=true; we still
- * record on success=false so failed invocations are visible in the timeline.
- */
-export function recordToolEvent(
-  binary: string,
-  cwd: string,
-  input: ToolObserveInput,
-): void {
+function prepareToolObservation(cwd: string, input: ToolObserveInput) {
   const retrieval = aideRetrievalTool(input.toolName);
   const aideTool = aideWorkTool(input.toolName);
   const name = canonicalTool(input.toolName) ?? aideTool;
@@ -271,8 +261,30 @@ export function recordToolEvent(
     sessionId: input.sessionId,
     actorId: input.actorId || input.sessionId,
   };
-  const window = contextWindow(binary, cwd, identity);
   const generated = toolInput[CONTENT_WRITE_TOOLS[name]];
+  return {
+    name,
+    tax,
+    aideTool,
+    toolInput,
+    filePath,
+    errText,
+    text,
+    retrievalAttrs,
+    identity,
+    generated,
+  };
+}
+
+type ToolObservation = NonNullable<ReturnType<typeof prepareToolObservation>>;
+
+function trackNativeRead(
+  binary: string,
+  cwd: string,
+  observation: ToolObservation,
+) {
+  const { name, filePath, errText, text, retrievalAttrs, toolInput, identity } =
+    observation;
   let startLine: number | undefined;
   let endLine: number | undefined;
   if (
@@ -304,70 +316,108 @@ export function recordToolEvent(
       });
     }
   }
+  return { startLine, endLine };
+}
 
-  try {
-    const args = [
-      "observe",
-      "record",
-      "--kind=tool_call",
-      `--name=${name}`,
-      `--category=${tax.category}`,
-      `--subtype=${tax.subtype}`,
-    ];
+function toolObservationArgs(
+  input: ToolObserveInput,
+  observation: ToolObservation,
+  window: ReturnType<typeof contextWindow>,
+  range: ReturnType<typeof trackNativeRead>,
+): string[] {
+  const {
+    name,
+    tax,
+    aideTool,
+    toolInput,
+    filePath,
+    errText,
+    text,
+    retrievalAttrs,
+    generated,
+  } = observation;
+  const { startLine, endLine } = range;
+  const args = [
+    "observe",
+    "record",
+    "--kind=tool_call",
+    `--name=${name}`,
+    `--category=${tax.category}`,
+    `--subtype=${tax.subtype}`,
+  ];
+  args.push(
+    "--attr=accounting_version=1",
+    "--attr=observation_stage=host_result",
+    `--attr=raw_tool=${input.toolName}`,
+  );
+  for (const [key, value] of Object.entries(retrievalAttrs))
+    args.push(`--attr=${key}=${value}`);
+  for (const [key, value] of Object.entries(
+    workReceiptEvidence(aideTool, text, input.toolResponse),
+  ))
+    args.push(`--attr=${key}=${value}`);
+  // Conversion is owned by the backend. These are exact UTF-8 text bytes at
+  // this hook boundary, not provider tokens or proof of final delivery.
+  if (text !== undefined)
+    args.push(`--attr=payload_bytes=${Buffer.byteLength(text, "utf8")}`);
+  if (typeof generated === "string")
+    args.push(`--attr=argument_bytes=${Buffer.byteLength(generated, "utf8")}`);
+  if (input.host) args.push(`--attr=host=${input.host}`);
+  args.push(`--attr=context_status=${window?.status ?? "unknown"}`);
+  if (window)
     args.push(
-      "--attr=accounting_version=1",
-      "--attr=observation_stage=host_result",
-      `--attr=raw_tool=${input.toolName}`,
+      `--attr=context_epoch=${window.id}`,
+      `--attr=context_continuity=${window.continuity}`,
     );
-    for (const [key, value] of Object.entries(retrievalAttrs))
-      args.push(`--attr=${key}=${value}`);
-    for (const [key, value] of Object.entries(
-      workReceiptEvidence(aideTool, text, input.toolResponse),
-    ))
-      args.push(`--attr=${key}=${value}`);
-    // Conversion is owned by the backend. These are exact UTF-8 text bytes at
-    // this hook boundary, not provider tokens or proof of final delivery.
-    if (text !== undefined)
-      args.push(`--attr=payload_bytes=${Buffer.byteLength(text, "utf8")}`);
-    if (typeof generated === "string")
-      args.push(
-        `--attr=argument_bytes=${Buffer.byteLength(generated, "utf8")}`,
-      );
-    if (input.host) args.push(`--attr=host=${input.host}`);
-    args.push(`--attr=context_status=${window?.status ?? "unknown"}`);
-    if (window)
-      args.push(
-        `--attr=context_epoch=${window.id}`,
-        `--attr=context_continuity=${window.continuity}`,
-      );
-    if (input.invocationId)
-      args.push(`--attr=invocation_id=${input.invocationId}`);
-    if (input.actorId || input.sessionId)
-      args.push(`--attr=actor_id=${input.actorId || input.sessionId}`);
-    if (filePath) args.push(`--file=${filePath}`);
-    if (input.sessionId) args.push(`--session=${input.sessionId}`);
-    if (startLine !== undefined) args.push(`--attr=start_line=${startLine}`);
-    if (endLine !== undefined) args.push(`--attr=end_line=${endLine}`);
-    // Capture the command (Bash) or pattern (Grep) text so the repetition
-    // detector can group calls by canonical signature instead of lumping
-    // every Bash invocation under a single "Bash" bucket. Truncated to keep
-    // the attr cheap; the normaliser only uses the first token anyway.
-    const cmd = toolInput.command ?? toolInput.cmd;
-    if (typeof cmd === "string" && cmd.length > 0) {
-      args.push(`--attr=command=${cmd.slice(0, 500)}`);
-    }
-    const pattern = input.toolInput?.pattern;
-    if (typeof pattern === "string" && pattern.length > 0) {
-      args.push(`--attr=pattern=${pattern.slice(0, 200)}`);
-    }
-    // Mark tool-level failures so the friction detector can spot a recurring
-    // obstacle (the same tool failing on the same target). An explicit
-    // errorText from a harness failure event wins; otherwise we infer from the
-    // response. Empty when the call succeeded, so successes record as before.
-    if (errText) {
-      args.push(`--error=${errText}`);
-    }
+  if (input.invocationId)
+    args.push(`--attr=invocation_id=${input.invocationId}`);
+  if (input.actorId || input.sessionId)
+    args.push(`--attr=actor_id=${input.actorId || input.sessionId}`);
+  if (filePath) args.push(`--file=${filePath}`);
+  if (input.sessionId) args.push(`--session=${input.sessionId}`);
+  if (startLine !== undefined) args.push(`--attr=start_line=${startLine}`);
+  if (endLine !== undefined) args.push(`--attr=end_line=${endLine}`);
+  // Capture the command (Bash) or pattern (Grep) text so the repetition
+  // detector can group calls by canonical signature instead of lumping
+  // every Bash invocation under a single "Bash" bucket. Truncated to keep
+  // the attr cheap; the normaliser only uses the first token anyway.
+  const cmd = toolInput.command ?? toolInput.cmd;
+  if (typeof cmd === "string" && cmd.length > 0) {
+    args.push(`--attr=command=${cmd.slice(0, 500)}`);
+  }
+  const pattern = input.toolInput?.pattern;
+  if (typeof pattern === "string" && pattern.length > 0) {
+    args.push(`--attr=pattern=${pattern.slice(0, 200)}`);
+  }
+  // Mark tool-level failures so the friction detector can spot a recurring
+  // obstacle (the same tool failing on the same target). An explicit
+  // errorText from a harness failure event wins; otherwise we infer from the
+  // response. Empty when the call succeeded, so successes record as before.
+  if (errText) {
+    args.push(`--error=${errText}`);
+  }
+  return args;
+}
+
+/**
+ * Record a native tool invocation as an observe.KindToolCall event. Pure
+ * fire-and-forget: failures are logged but never thrown so this is safe to
+ * call from tight hook hot paths. Callers should pass success=true; we still
+ * record on success=false so failed invocations are visible in the timeline.
+ */
+export function recordToolEvent(
+  binary: string,
+  cwd: string,
+  input: ToolObserveInput,
+): void {
+  const observation = prepareToolObservation(cwd, input);
+  if (!observation) return;
+  const window = contextWindow(binary, cwd, observation.identity);
+  const range = trackNativeRead(binary, cwd, observation);
+  try {
+    const args = toolObservationArgs(input, observation, window, range);
     enqueueObservation({ kind: "command", binary, cwd, args });
+    const { tax, text } = observation;
     debug(
       SOURCE,
       `Queued ${input.toolName} ${tax.category}/${tax.subtype} textBytes=${text === undefined ? "unknown" : Buffer.byteLength(text, "utf8")}`,
