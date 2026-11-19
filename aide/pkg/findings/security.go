@@ -3,9 +3,6 @@ package findings
 import (
 	"bufio"
 	"context"
-	"fmt"
-	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -118,53 +115,17 @@ func AnalyzeSecurity(cfg SecurityConfig) ([]*Finding, *SecurityResult, error) {
 	result := &SecurityResult{}
 	var allFindings []*Finding
 
-	for _, root := range cfg.Paths {
-		absRoot, err := filepath.Abs(root)
-		if err != nil {
-			return nil, nil, fmt.Errorf("abs path %s: %w", root, err)
+	var err error
+	result.FilesAnalyzed, result.FilesSkipped, err = walkSourceFiles(cfg.Paths, ignore, maxFileSize, func(path string, content []byte) {
+		relPath := toRelPath(cfg.ProjectRoot, path)
+		findings := analyzeFileSecurity(context.Background(), relPath, content)
+		allFindings = append(allFindings, findings...)
+		if cfg.ProgressFn != nil {
+			cfg.ProgressFn(relPath, len(findings))
 		}
-		shouldSkip := ignore.WalkFunc(absRoot)
-
-		err = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return nil
-			}
-			if skip, skipDir := shouldSkip(path, info); skip {
-				if skipDir {
-					return filepath.SkipDir
-				}
-				return nil
-			}
-			if info.IsDir() {
-				return nil
-			}
-			if !code.SupportedFile(path) {
-				return nil
-			}
-			if info.Size() > maxFileSize {
-				result.FilesSkipped++
-				return nil
-			}
-
-			content, err := os.ReadFile(path)
-			if err != nil {
-				return nil
-			}
-
-			relPath := toRelPath(cfg.ProjectRoot, path)
-			findings := analyzeFileSecurity(context.Background(), relPath, content)
-			allFindings = append(allFindings, findings...)
-			result.FilesAnalyzed++
-
-			if cfg.ProgressFn != nil {
-				cfg.ProgressFn(relPath, len(findings))
-			}
-
-			return nil
-		})
-		if err != nil {
-			return nil, nil, fmt.Errorf("walk %s: %w", root, err)
-		}
+	})
+	if err != nil {
+		return nil, nil, err
 	}
 
 	result.FindingsCount = len(allFindings)
