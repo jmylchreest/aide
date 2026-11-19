@@ -147,30 +147,11 @@ func cmdUpgrade(args []string) error {
 		return fmt.Errorf("failed to resolve executable path: %w", err)
 	}
 
-	// Replace current binary.
-	// On Linux, writing to a running binary fails with ETXTBSY ("text file busy").
-	// The fix: remove the old file first (the running process keeps its fd),
-	// then write the new file to the same path. This works on all Unix systems.
+	// Stage on the destination filesystem, then publish the complete executable.
+	// Existing processes retain their loaded image; future launches see the new one.
 	fmt.Printf("Installing to %s...\n", execPath)
-
-	// Remove old binary first (unlinks from directory but running process keeps its handle)
-	oldPath := execPath + ".old"
-	os.Remove(oldPath) // clean up any previous .old file
-	if err := os.Rename(execPath, oldPath); err != nil {
-		return fmt.Errorf("failed to move old binary: %w", err)
-	}
-	defer os.Remove(oldPath) // clean up .old after install
-
-	// Copy new binary to the now-vacant path
-	if err := copyFile(tmpFile, execPath); err != nil {
-		// Attempt to restore old binary on failure
-		_ = os.Rename(oldPath, execPath)
-		return fmt.Errorf("failed to install new binary: %w", err)
-	}
-
-	// Make executable
-	if err := os.Chmod(execPath, 0755); err != nil {
-		return fmt.Errorf("failed to set permissions: %w", err)
+	if err := installUpgradeBinary(tmpFile, execPath); err != nil {
+		return fmt.Errorf("failed to install new binary (the existing binary was retained): %w", err)
 	}
 
 	// Write version file
@@ -180,8 +161,40 @@ func cmdUpgrade(args []string) error {
 		fmt.Printf("Warning: failed to write version file: %v\n", err)
 	}
 
-	fmt.Printf("\nSuccessfully upgraded to %s!\n", latestVersion)
+	fmt.Printf("\nSuccessfully installed %s!\n", latestVersion)
+	fmt.Println("Running MCP sessions still use their loaded version. Restart all aide MCP sessions for the project to upgrade its shared primary.")
 	return nil
+}
+
+// installUpgradeBinary never exposes a missing or partially copied executable.
+// Windows can reject replacement of an in-use image; leave the old file intact
+// in that case so the user can stop its sessions and retry.
+func installUpgradeBinary(src, dst string) error {
+	source, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer source.Close()
+
+	staged, err := os.CreateTemp(filepath.Dir(dst), ".aide-upgrade-*")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(staged.Name())
+	defer staged.Close()
+	if _, err := io.Copy(staged, source); err != nil {
+		return err
+	}
+	if err := staged.Chmod(0755); err != nil {
+		return err
+	}
+	if err := staged.Sync(); err != nil {
+		return err
+	}
+	if err := staged.Close(); err != nil {
+		return err
+	}
+	return os.Rename(staged.Name(), dst)
 }
 
 func getLatestRelease() (*GitHubRelease, error) {
@@ -373,6 +386,9 @@ Arguments:
 Options:
   --check            Check for updates without installing
   --force            Force download even if already up to date
+
+Installs this executable only. Running MCP sessions and plugin packages are
+not replaced; restart every aide MCP session in the project after upgrading.
 
 Examples:
   aide upgrade                  # Upgrade to latest

@@ -3,9 +3,9 @@
  *
  * Config is written with the exact version of the package this command ran
  * from (`@jmylchreest/aide-plugin@0.1.13`), for both the plugin array and the
- * MCP command. Neither OpenCode nor bunx re-resolves an unpinned spec once
- * cached, so the pin is what makes upgrades happen at all — and it matches
- * plugin, MCP server and bundled binary to a single version. Re-running
+ * MCP command. The host's plugin cache and bunx's MCP cache update independently;
+ * explicit pins keep plugin, MCP server and bundled binary on one version.
+ * Re-running
  * `bunx @jmylchreest/aide-plugin@latest install` is therefore the upgrade
  * action; on reinstall this also repairs stale pins and command formats.
  *

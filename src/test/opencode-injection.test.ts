@@ -1,3 +1,5 @@
+vi.mock("../lib/background-observability.js", () => ({ enqueueObservation: vi.fn(() => true) }));
+import { enqueueObservation } from "../lib/background-observability.js";
 import { describe, expect, it, vi } from "vitest";
 vi.mock("child_process", () => ({ execFileSync: vi.fn(() => "") }));
 vi.mock("../core/mcp-sync.js", () => ({ syncMcpServers: vi.fn() }));
@@ -23,15 +25,16 @@ vi.mock("../core/skill-matcher.js", () => ({
   matchSkills: () => [{ name: "test", content: "é🦊" }],
   formatSkillsContext: () => "<skills>é🦊</skills>",
 }));
-import { execFileSync } from "child_process";
 import { createHooks } from "../opencode/hooks.js";
 import type { OpenCodeClient } from "../opencode/types.js";
 
 function recorded() {
-  return vi.mocked(execFileSync).mock.calls.flatMap((call) => {
-    const args = call[1] as string[];
+  return vi.mocked(enqueueObservation).mock.calls.flatMap((call) => {
+    const task = call[0];
+    if (task.kind !== "command") return [];
+    const args = task.args;
     if (!args?.includes("--stdin")) return [];
-    return String((call[2] as { input: string }).input)
+    return String(task.input)
       .trim()
       .split("\n")
       .map((line) => JSON.parse(line));
@@ -44,7 +47,7 @@ describe("OpenCode prepared context observations", () => {
     await hooks.event!({
       event: { type: "session.created", properties: { info: { id: "s" } } },
     });
-    vi.mocked(execFileSync).mockClear();
+    vi.clearAllMocks();
     const output = { context: ["existing context"] };
     await hooks["experimental.session.compacting"]!({ sessionID: "s" }, output);
     const events = recorded();
@@ -60,7 +63,7 @@ describe("OpenCode prepared context observations", () => {
   });
   it("records only aide-added strings at command and system boundaries, including repeat submissions", async () => {
     const hooks = await createHooks("/tmp", "/tmp", {} as OpenCodeClient);
-    vi.mocked(execFileSync).mockClear();
+    vi.clearAllMocks();
     const parts = { parts: [{ type: "text", text: "existing user text" }] };
     await hooks["command.execute.before"]!(
       { command: "aide:test", sessionID: "s", arguments: "please test" },
@@ -95,7 +98,7 @@ describe("OpenCode prepared context observations", () => {
   });
   it("does not invent a session or emit a zero measurement when no context was added", async () => {
     const hooks = await createHooks("/tmp", "/tmp", {} as OpenCodeClient);
-    vi.mocked(execFileSync).mockClear();
+    vi.clearAllMocks();
     await hooks["experimental.chat.system.transform"]!(
       { model: { providerID: "p", modelID: "m" } },
       { system: ["unrelated"] },
@@ -105,7 +108,7 @@ describe("OpenCode prepared context observations", () => {
       { command: "aide:test", sessionID: "s", arguments: "" },
       { parts: [] },
     );
-    vi.mocked(execFileSync).mockClear();
+    vi.clearAllMocks();
     await hooks["experimental.chat.system.transform"]!(
       { model: { providerID: "p", modelID: "m" } },
       { system: [] },

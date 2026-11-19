@@ -15,6 +15,7 @@ import which from "which";
 import type { FindBinaryOptions } from "./types.js";
 import { debug } from "../lib/logger.js";
 import { findProjectRoot } from "../lib/project-root.js";
+import { hookCommandTimeout } from "../lib/hook-budget.js";
 
 const SOURCE = "aide-client";
 const IS_WINDOWS = process.platform === "win32";
@@ -118,7 +119,7 @@ export function runAide(
     return execFileSync(binary, args, {
       cwd,
       encoding: "utf-8",
-      timeout: options?.timeout ?? 10000,
+      timeout: hookCommandTimeout(options?.timeout ?? 10000),
       env,
     });
   } catch (err) {
@@ -147,7 +148,7 @@ export function setState(
     execFileSync(binary, args, {
       cwd,
       stdio: "pipe",
-      timeout: 5000,
+      timeout: hookCommandTimeout(5000),
       env: process.env,
     });
     return true;
@@ -172,7 +173,7 @@ export function getState(
     const output = execFileSync(binary, args, {
       cwd,
       encoding: "utf-8",
-      timeout: 5000,
+      timeout: hookCommandTimeout(5000),
       env: process.env,
     });
     const match = output.match(/=\s*(.+)$/m);
@@ -225,6 +226,7 @@ export function deleteState(
   try {
     const fullKey = agentId ? `agent:${agentId}:${key}` : key;
     execFileSync(binary, ["state", "delete", fullKey], {
+      timeout: hookCommandTimeout(5000),
       cwd,
       stdio: "pipe",
       env: process.env,
@@ -246,6 +248,7 @@ export function clearAgentState(
 ): boolean {
   try {
     execFileSync(binary, ["state", "clear", `--agent=${agentId}`], {
+      timeout: hookCommandTimeout(5000),
       cwd,
       stdio: "pipe",
       env: process.env,

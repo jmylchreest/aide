@@ -1,9 +1,10 @@
+vi.mock("../lib/background-observability.js", () => ({ enqueueObservation: vi.fn(() => true) }));
+import { enqueueObservation } from "../lib/background-observability.js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createHash } from "crypto";
 vi.mock("child_process", () => ({ execFileSync: vi.fn(() => "") }));
 vi.mock("../core/context-window.js", () => ({ contextWindow: () => null }));
 vi.mock("../core/read-tracking.js", () => ({ recordFileRead: vi.fn() }));
-import { execFileSync } from "child_process";
 import { recordToolEvent } from "../core/tool-observe.js";
 
 const digest = (s: string) => createHash("sha256").update(s).digest("hex");
@@ -34,7 +35,7 @@ function record(
     actorId: "actor",
     invocationId: "call",
   });
-  return vi.mocked(execFileSync).mock.calls.at(-1)?.[1] as string[] | undefined;
+  return (vi.mocked(enqueueObservation).mock.calls.at(-1)?.[0] as { args: string[] } | undefined)?.args as string[] | undefined;
 }
 beforeEach(() => vi.clearAllMocks());
 describe("host work receipt evidence", () => {

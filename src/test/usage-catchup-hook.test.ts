@@ -98,7 +98,7 @@ it("registers bounded catch-up on available Claude and Codex lifecycle events", 
       hooks.find((h: { command: string }) =>
         h.command.includes("usage-catchup.ts"),
       )?.timeout,
-    ).toBe(event === "SessionEnd" ? 2 : 3);
+    ).toBe(15);
   }
   const { generateHooksJson } = await import("../cli/codex-config.js");
   const generated = generateHooksJson("aide-plugin hook");
@@ -106,7 +106,7 @@ it("registers bounded catch-up on available Claude and Codex lifecycle events", 
     expect(
       generated.hooks[event][0].hooks.some(
         (h) =>
-          h.command === "aide-plugin hook usage-catchup" && h.timeout === 3,
+          h.command === "aide-plugin hook usage-catchup" && h.timeout === 15 && h.async === true,
       ),
     ).toBe(true);
   expect(generated.hooks.SessionEnd).toBeUndefined();

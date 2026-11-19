@@ -10,10 +10,6 @@
  *   aide-plugin hook <name>                            # Dispatch hook (Codex CLI)
  */
 
-import { install } from "./install.js";
-import { uninstall } from "./uninstall.js";
-import { status } from "./status.js";
-import { mcp } from "./mcp.js";
 import { dispatchHook, listHooks } from "./hook.js";
 
 const args = process.argv.slice(2);
@@ -81,16 +77,16 @@ async function main(): Promise<void> {
 
   switch (command) {
     case "install":
-      await install(flags);
+      await (await import("./install.js")).install(flags);
       break;
     case "uninstall":
-      await uninstall(flags);
+      await (await import("./uninstall.js")).uninstall(flags);
       break;
     case "status":
-      await status(flags);
+      await (await import("./status.js")).status(flags);
       break;
     case "mcp":
-      await mcp(args.slice(1));
+      await (await import("./mcp.js")).mcp(args.slice(1));
       break;
     case "hook": {
       const hookName = args[1];

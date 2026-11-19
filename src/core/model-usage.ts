@@ -9,6 +9,7 @@ import {
 } from "node:fs";
 import { isAbsolute } from "node:path";
 import { execFileSync } from "node:child_process";
+import { hookCommandTimeout } from "../lib/hook-budget.js";
 import { debug } from "../lib/logger.js";
 import type { ObserveBatchEvent } from "./read-tracking.js";
 
@@ -328,7 +329,7 @@ export function recordModelUsage(
     const output = execFileSync(binary, ["observe", "record", "--stdin"], {
       cwd,
       input: events.map((e) => JSON.stringify(e)).join("\n") + "\n",
-      timeout: Math.max(1, Math.min(10000, options.timeout ?? 10000)),
+      timeout: hookCommandTimeout(Math.max(1, Math.min(10000, options.timeout ?? 10000))),
       stdio: ["pipe", "pipe", "pipe"],
     }).toString();
     const ack = /^Recorded (\d+) event\(s\)(?:, skipped (\d+))?\s*$/i.exec(

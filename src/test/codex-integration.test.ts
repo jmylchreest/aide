@@ -375,6 +375,26 @@ describe("Codex config generator", () => {
     expect(status.hooks).toBe(true);
   });
 
+  it("upgrades existing observation hooks to async while preserving control hooks and user commands", async () => {
+    const { installCodex, getCodexHooksJsonPath } = await import("../cli/codex-config.js");
+    installCodex("user");
+    const path = getCodexHooksJsonPath("user");
+    const before = readJson(path);
+    const tracker = before.hooks.PreToolUse[0].hooks[0];
+    delete tracker.async;
+    tracker.timeout = 2;
+    const user = { type: "command", command: "my-tool-tracker", timeout: 1 };
+    before.hooks.PreToolUse[0].hooks.push(user);
+    const controls = before.hooks.PreToolUse[0].hooks.slice(1);
+    writeFileSync(path, JSON.stringify(before));
+
+    expect(installCodex("user").hooksWritten).toBe(true);
+    const after = readJson(path);
+    expect(after.hooks.PreToolUse[0].hooks[0]).toEqual({ ...tracker, async: true, timeout: 15 });
+    expect(after.hooks.PreToolUse[0].hooks.slice(1)).toEqual(controls);
+    expect(installCodex("user").hooksWritten).toBe(false);
+  });
+
   it("upgrades missing lifecycle events without duplicating or replacing existing hooks", async () => {
     const { installCodex, getCodexHooksJsonPath } =
       await import("../cli/codex-config.js");

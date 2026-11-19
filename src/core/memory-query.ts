@@ -8,6 +8,7 @@
  */
 
 import { execFileSync } from "child_process";
+import { hookCommandTimeout } from "../lib/hook-budget.js";
 import { debug } from "../lib/logger.js";
 
 const SOURCE = "memory-query";
@@ -49,7 +50,7 @@ export function listMemoriesJson(
       cwd,
       encoding: "utf-8",
       stdio: ["pipe", "pipe", "pipe"],
-      timeout: 5000,
+      timeout: hookCommandTimeout(5000),
     }).trim();
 
     if (!output || output === "[]" || output === "null") return [];

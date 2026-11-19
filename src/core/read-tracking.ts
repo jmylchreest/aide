@@ -11,6 +11,8 @@
  */
 
 import { execFileSync } from "child_process";
+import { hookCommandTimeout } from "../lib/hook-budget.js";
+import { enqueueObservation } from "../lib/background-observability.js";
 import { createHash } from "crypto";
 import { readFileSync } from "fs";
 import { isAbsolute, relative, resolve } from "path";
@@ -180,7 +182,7 @@ export function checkFileReadFreshness(
       {
         cwd,
         encoding: "utf-8",
-        timeout: 5000,
+        timeout: hookCommandTimeout(5000),
         stdio: ["pipe", "pipe", "pipe"],
       },
     );
@@ -217,12 +219,8 @@ export interface ObserveBatchEvent {
   attrs?: Record<string, string>;
 }
 
-/**
- * Record many observe events in ONE binary spawn via
- * `observe record --stdin` (JSON Lines). Per-event spawns cost a process
- * start plus a bolt open each — a session start injecting dozens of
- * sources paid seconds for what is one write transaction. Falls back to
- * per-event recording when the binary predates --stdin. Fire-and-forget.
+/** Queue one timestamped batch without blocking context delivery. The worker
+ * does not retry ambiguous failures: a lost acknowledgement can follow a write.
  */
 export function recordObserveEventsBatch(
   binary: string,
@@ -230,21 +228,14 @@ export function recordObserveEventsBatch(
   events: ObserveBatchEvent[],
 ): void {
   if (events.length === 0) return;
-  try {
-    const input = events.map((e) => JSON.stringify(e)).join("\n") + "\n";
-    execFileSync(binary, ["observe", "record", "--stdin"], {
-      cwd,
-      input,
-      timeout: 10000,
-      stdio: ["pipe", "pipe", "pipe"],
-    });
-    debug(SOURCE, `Observe batch: recorded ${events.length} event(s)`);
-  } catch (err) {
-    debug(SOURCE, `Observe batch failed (${err}); falling back to per-event`);
-    for (const e of events) {
-      recordObserveEvent(binary, cwd, e);
-    }
-  }
+  const ts = new Date().toISOString();
+  enqueueObservation({
+    kind: "command",
+    binary,
+    cwd,
+    args: ["observe", "record", "--stdin"],
+    input: events.map((event) => JSON.stringify({ ts, ...event })).join("\n") + "\n",
+  });
 }
 
 /**
@@ -304,34 +295,7 @@ export function recordObserveEvent(
     attrs?: Record<string, string>;
   },
 ): void {
-  try {
-    const args = [
-      "observe",
-      "record",
-      `--kind=${opts.kind}`,
-      `--name=${opts.name}`,
-    ];
-    if (opts.category) args.push(`--category=${opts.category}`);
-    if (opts.subtype) args.push(`--subtype=${opts.subtype}`);
-    if (opts.tokens !== undefined) args.push(`--tokens=${opts.tokens}`);
-    if (opts.saved !== undefined) args.push(`--saved=${opts.saved}`);
-    if (opts.file) args.push(`--file=${opts.file}`);
-    if (opts.session) args.push(`--session=${opts.session}`);
-    for (const [k, v] of Object.entries(opts.attrs ?? {})) {
-      args.push(`--attr=${k}=${v}`);
-    }
-    execFileSync(binary, args, {
-      cwd,
-      timeout: 3000,
-      stdio: ["pipe", "pipe", "pipe"],
-    });
-    debug(
-      SOURCE,
-      `Observe event: ${opts.kind} ${opts.name} subtype=${opts.subtype ?? ""} tokens=${opts.tokens ?? 0}`,
-    );
-  } catch (err) {
-    debug(SOURCE, `Failed to record observe event: ${err}`);
-  }
+  recordObserveEventsBatch(binary, cwd, [opts]);
 }
 
 /**

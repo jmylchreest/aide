@@ -20,6 +20,7 @@ import { fileURLToPath } from "url";
 import { homedir } from "os";
 import * as TOML from "smol-toml";
 import whichSync from "which";
+import { BACKGROUND_HOOKS, BACKGROUND_HOOK_TIMEOUT_SECONDS } from "../lib/hook-policy.js";
 
 const MCP_SERVER_NAME = "aide";
 const AIDE_PLUGIN_BIN_NAME = "aide-plugin";
@@ -161,6 +162,7 @@ interface CodexHookEntry {
   type: string;
   command: string;
   timeout?: number;
+  async?: boolean;
   statusMessage?: string;
 }
 
@@ -174,7 +176,7 @@ interface CodexHooksJson {
 }
 
 export function generateHooksJson(hookPrefix: string): CodexHooksJson {
-  return {
+  const config: CodexHooksJson = {
     hooks: {
       SessionStart: [
         {
@@ -352,6 +354,17 @@ export function generateHooksJson(hookPrefix: string): CodexHooksJson {
       ],
     },
   };
+  for (const matchers of Object.values(config.hooks)) {
+    for (const matcher of matchers) {
+      for (const hook of matcher.hooks) {
+        if (BACKGROUND_HOOKS.has(hook.command.slice(hookPrefix.length + 1))) {
+          hook.async = true;
+          hook.timeout = BACKGROUND_HOOK_TIMEOUT_SECONDS;
+        }
+      }
+    }
+  }
+  return config;
 }
 
 // =============================================================================
@@ -637,7 +650,25 @@ export function installCodex(scope: "user" | "project"): {
     generateHooksJson(resolved.hookPrefix).hooks,
   ).filter(([event]) => !hasAideHook(event));
 
-  if (missingEvents.length > 0) {
+  // Existing installations already have these events, so merely adding missing
+  // groups leaves their observation handlers blocking forever. Upgrade only
+  // aide's observation entries and preserve commands, matchers and user hooks.
+  let backgroundHooksChanged = false;
+  for (const matchers of Object.values(existingHooks?.hooks ?? {})) {
+    for (const matcher of matchers) {
+      for (const hook of matcher.hooks ?? []) {
+        const name = hook.command?.trim().split(/\s+/).at(-1) ?? "";
+        if (!isAideHookCommand(hook.command) || !BACKGROUND_HOOKS.has(name)) continue;
+        if (hook.async !== true || (hook.timeout ?? 0) < BACKGROUND_HOOK_TIMEOUT_SECONDS) {
+          hook.async = true;
+          hook.timeout = Math.max(hook.timeout ?? 0, BACKGROUND_HOOK_TIMEOUT_SECONDS);
+          backgroundHooksChanged = true;
+        }
+      }
+    }
+  }
+
+  if (missingEvents.length > 0 || backgroundHooksChanged) {
     const dir = dirname(hooksPath);
     mkdirSync(dir, { recursive: true });
 

@@ -1,7 +1,8 @@
+vi.mock("../lib/background-observability.js", () => ({ enqueueObservation: vi.fn(() => true) }));
+import { enqueueObservation } from "../lib/background-observability.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("child_process", () => ({ execFileSync: vi.fn() }));
 vi.mock("../core/read-tracking.js", () => ({ recordFileRead: vi.fn() }));
-import { execFileSync } from "child_process";
 import { recordFileRead } from "../core/read-tracking.js";
 import { recordToolEvent } from "../core/tool-observe.js";
 import { createHash } from "crypto";
@@ -25,7 +26,7 @@ afterEach(() =>
 );
 
 function recorded() {
-  return vi.mocked(execFileSync).mock.calls.at(-1)?.[1] as string[];
+  return (vi.mocked(enqueueObservation).mock.calls.at(-1)?.[0] as { args: string[] } | undefined)?.args as string[];
 }
 beforeEach(() => vi.clearAllMocks());
 describe("observed tool accounting", () => {

@@ -18,6 +18,7 @@ import {
 } from "../core/aide-client.js";
 import { debug } from "./logger.js";
 import { anchoredRoot, readSessionAnchor } from "./anchor.js";
+import { startHookBudget } from "./hook-budget.js";
 
 export { sanitizeForLog, shellEscape };
 
@@ -56,6 +57,7 @@ export function installHookSafetyNet(
   source: string,
   fallback: HookResult = { continue: true },
 ): void {
+  startHookBudget(source);
   process.on("uncaughtException", (err) => {
     debug(source, `UNCAUGHT EXCEPTION: ${err}`);
     emitHookResult(fallback);

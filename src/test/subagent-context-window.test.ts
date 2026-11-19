@@ -1,3 +1,5 @@
+vi.mock("../lib/background-observability.js", () => ({ enqueueObservation: vi.fn(() => true) }));
+import { enqueueObservation } from "../lib/background-observability.js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -188,7 +190,7 @@ describe("subagent context initialization", () => {
         toolInput: { command: "pwd" },
         toolResponse: "/project",
       });
-      const args = mocks.exec.mock.calls.at(-1)?.[1];
+      const args = (vi.mocked(enqueueObservation).mock.calls.at(-1)?.[0] as { args?: string[] } | undefined)?.args;
       expect(args).toEqual(
         expect.arrayContaining([
           `--attr=host=${host}`,
@@ -322,7 +324,7 @@ describe("subagent context initialization", () => {
         toolName: "Bash",
         toolResponse: "result",
       });
-      const args = mocks.exec.mock.calls.at(-1)?.[1];
+      const args = (vi.mocked(enqueueObservation).mock.calls.at(-1)?.[0] as { args?: string[] } | undefined)?.args;
       expect(args).toContain("--attr=context_status=unknown");
       expect(args).not.toEqual(
         expect.arrayContaining([
@@ -346,7 +348,7 @@ describe("subagent context initialization", () => {
       toolName: "Bash",
       toolResponse: "result",
     });
-    const args = mocks.exec.mock.calls.at(-1)?.[1];
+    const args = (vi.mocked(enqueueObservation).mock.calls.at(-1)?.[0] as { args?: string[] } | undefined)?.args;
     expect(args).toContain("--attr=context_status=unknown");
     expect(args).not.toEqual(
       expect.arrayContaining([expect.stringMatching(/^--attr=context_epoch=/)]),

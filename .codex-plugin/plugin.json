@@ -23,7 +23,7 @@
   "mcpServers": {
     "aide": {
       "command": "bunx",
-      "args": ["-y", "@jmylchreest/aide-plugin", "mcp"]
+      "args": ["-y", "@jmylchreest/aide-plugin@latest", "mcp"]
     }
   }
 }

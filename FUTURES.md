@@ -6,6 +6,34 @@ implementation starts.
 
 ---
 
+## Coordinated upgrades with active MCP sessions
+
+Installing a new executable does not update running MCP handlers or the shared
+primary. A safe live upgrade needs a lifecycle protocol, not a kill on version
+mismatch. Until that protocol exists, restart all MCP sessions for the project.
+
+The proposed design separates a stable per-session stdio transport from the
+replaceable service. One coordinator stages and verifies the target release,
+checks protocol and storage compatibility, drains in-flight operations, and
+hands the exclusive store lock to a verified successor. It must preserve or
+renegotiate MCP initialization, roots, capabilities, subscriptions, and pending
+requests. Ambiguous writes must not be blindly retried.
+
+Older clients must never downgrade the selected primary or trigger restart
+loops. Record a monotonic target generation and require the successor to report
+the expected version, generation, and readiness before declaring success.
+Rollback is allowed only when storage compatibility permits it. Cover mixed
+versions, simultaneous upgrade requests, primary crashes during handoff, lost
+clients, Windows executable locks, and failed readiness checks in subprocess
+tests before enabling automatic handoff.
+
+The [claude-mem worker restart investigation](https://github.com/thedotmack/claude-mem/blob/main/plans/2026-06-10-worker-restart-single-source-of-truth.md)
+and [mixed-version restart report](https://github.com/thedotmack/claude-mem/issues/3813)
+illustrate why the successor's identity and readiness must be checked and why
+independent version-mismatch restarts are unsafe.
+
+---
+
 ## Architectural Health Signal
 
 A project-level continuous health score, computed from the existing code index,

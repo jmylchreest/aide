@@ -1,6 +1,57 @@
 package main
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+func TestInstallUpgradeBinary(t *testing.T) {
+	dir := t.TempDir()
+	dst := filepath.Join(dir, "aide")
+	src := filepath.Join(t.TempDir(), "download")
+	if err := os.WriteFile(dst, []byte("old executable"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := installUpgradeBinary(src, dst); err == nil {
+		t.Fatal("missing download should fail")
+	}
+	if data, _ := os.ReadFile(dst); string(data) != "old executable" {
+		t.Fatal("failed upgrade damaged the installed binary")
+	}
+	if err := os.WriteFile(src, []byte("new executable"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := installUpgradeBinary(src, dst); err != nil {
+		t.Fatal(err)
+	}
+	if data, _ := os.ReadFile(dst); string(data) != "new executable" {
+		t.Fatal("replacement was not installed")
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil || len(entries) != 1 {
+		t.Fatalf("staging files left behind: %v, %v", entries, err)
+	}
+}
+
+func TestInstallUpgradeBinaryPreservesDestinationOnRenameFailure(t *testing.T) {
+	dir := t.TempDir()
+	dst := filepath.Join(dir, "occupied")
+	if err := os.Mkdir(dst, 0755); err != nil {
+		t.Fatal(err)
+	}
+	src := filepath.Join(t.TempDir(), "download")
+	if err := os.WriteFile(src, []byte("new executable"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := installUpgradeBinary(src, dst); err == nil {
+		t.Fatal("replacing a directory should fail")
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil || len(entries) != 1 || !entries[0].IsDir() {
+		t.Fatalf("destination changed or staging files leaked: %v, %v", entries, err)
+	}
+}
 
 func TestCompareVersions(t *testing.T) {
 	tests := []struct {

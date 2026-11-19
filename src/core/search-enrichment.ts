@@ -20,6 +20,7 @@
  */
 
 import { execFileSync } from "child_process";
+import { hookCommandTimeout } from "../lib/hook-budget.js";
 import { debug } from "../lib/logger.js";
 import { codeWatchEnabled } from "../lib/hook-utils.js";
 
@@ -153,7 +154,7 @@ function searchSymbols(
       {
         cwd,
         encoding: "utf-8",
-        timeout: EXEC_TIMEOUT_MS,
+        timeout: hookCommandTimeout(EXEC_TIMEOUT_MS),
         stdio: ["pipe", "pipe", "pipe"],
       },
     );
@@ -197,7 +198,7 @@ function countReferences(
       {
         cwd,
         encoding: "utf-8",
-        timeout: EXEC_TIMEOUT_MS,
+        timeout: hookCommandTimeout(EXEC_TIMEOUT_MS),
         stdio: ["pipe", "pipe", "pipe"],
       },
     );

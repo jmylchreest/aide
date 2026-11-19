@@ -9,7 +9,7 @@
  * stages must never be added together as if they were separate deliveries.
  */
 
-import { execFileSync } from "child_process";
+import { enqueueObservation } from "../lib/background-observability.js";
 import { debug } from "../lib/logger.js";
 import { recordFileRead } from "./read-tracking.js";
 import { contextWindow } from "./context-window.js";
@@ -367,14 +367,10 @@ export function recordToolEvent(
     if (errText) {
       args.push(`--error=${errText}`);
     }
-    execFileSync(binary, args, {
-      cwd,
-      timeout: 3000,
-      stdio: ["pipe", "pipe", "pipe"],
-    });
+    enqueueObservation({ kind: "command", binary, cwd, args });
     debug(
       SOURCE,
-      `Recorded ${input.toolName} ${tax.category}/${tax.subtype} textBytes=${text === undefined ? "unknown" : Buffer.byteLength(text, "utf8")}`,
+      `Queued ${input.toolName} ${tax.category}/${tax.subtype} textBytes=${text === undefined ? "unknown" : Buffer.byteLength(text, "utf8")}`,
     );
   } catch (err) {
     debug(SOURCE, `Failed to record ${input.toolName}: ${err}`);
