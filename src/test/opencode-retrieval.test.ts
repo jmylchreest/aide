@@ -1,3 +1,5 @@
+vi.mock("../lib/background-observability.js", () => ({ enqueueObservation: vi.fn(() => true) }));
+import { enqueueObservation } from "../lib/background-observability.js";
 import { describe, expect, it, vi } from "vitest";
 import { createHash } from "crypto";
 vi.mock("child_process", () => ({ execFileSync: vi.fn(() => "") }));
@@ -17,7 +19,6 @@ vi.mock("../core/aide-client.js", async (original) => ({
   getState: () => null,
   setState: vi.fn(),
 }));
-import { execFileSync } from "child_process";
 import { createHooks } from "../opencode/hooks.js";
 import type { OpenCodeClient } from "../opencode/types.js";
 
@@ -25,7 +26,7 @@ describe("OpenCode MCP observations", () => {
   it.each([false, true])(
     "preserves work attribution when a result is %s rendered",
     async (rendered) => {
-      vi.mocked(execFileSync).mockClear();
+      vi.clearAllMocks();
       const hooks = await createHooks("/tmp", "/tmp", {} as OpenCodeClient);
       const text = "é";
       const meta = {
@@ -50,8 +51,8 @@ describe("OpenCode MCP observations", () => {
         output,
       );
       const event = vi
-        .mocked(execFileSync)
-        .mock.calls.map((call) => call[1] as string[])
+        .mocked(enqueueObservation)
+        .mock.calls.map((call) => (call[0] as { args?: string[] }).args)
         .find((args) => args?.includes("--name=code_search"));
       expect(event).toEqual(
         expect.arrayContaining([
@@ -74,7 +75,7 @@ describe("OpenCode MCP observations", () => {
   ])(
     "uses shell metadata exit status for %s / %s",
     async (command, exit, status) => {
-      vi.mocked(execFileSync).mockClear();
+      vi.clearAllMocks();
       const hooks = await createHooks("/tmp", "/tmp", {} as OpenCodeClient);
       const output = {
         output: "",
@@ -90,8 +91,8 @@ describe("OpenCode MCP observations", () => {
         output,
       );
       const event = vi
-        .mocked(execFileSync)
-        .mock.calls.map((call) => call[1] as string[])
+        .mocked(enqueueObservation)
+        .mock.calls.map((call) => (call[0] as { args?: string[] }).args)
         .find((args) => args?.includes("--name=Bash"));
       expect(event).toEqual(
         expect.arrayContaining([
@@ -115,8 +116,8 @@ describe("OpenCode MCP observations", () => {
       output,
     );
     const calls = vi
-      .mocked(execFileSync)
-      .mock.calls.map((call) => call[1] as string[]);
+      .mocked(enqueueObservation)
+      .mock.calls.map((call) => (call[0] as { args?: string[] }).args);
     const event = calls.find((args) => args?.includes("--name=code_outline"));
     expect(event).toEqual(
       expect.arrayContaining([

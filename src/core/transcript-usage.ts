@@ -1,5 +1,6 @@
 /** Bounded catch-up for explicitly supplied host transcripts; never discovers files. */
 import { execFileSync } from "node:child_process";
+import { hookCommandTimeout } from "../lib/hook-budget.js";
 import { createHash, randomUUID } from "node:crypto";
 import { isAbsolute } from "node:path";
 import { statSync } from "node:fs";
@@ -27,7 +28,7 @@ const run: Run = (binary, cwd, args, timeout) => {
   try {
     return execFileSync(binary, args, {
       cwd,
-      timeout,
+      timeout: hookCommandTimeout(timeout),
       maxBuffer: MAX_STATE_OUTPUT,
       encoding: "utf8",
       stdio: ["pipe", "pipe", "pipe"],

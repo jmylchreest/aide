@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("child_process", () => ({ execFileSync: vi.fn() }));
-import { execFileSync } from "child_process";
+vi.mock("../lib/background-observability.js", () => ({ enqueueObservation: vi.fn(() => true) }));
+import { enqueueObservation } from "../lib/background-observability.js";
 import {
   injectionBatchEvent,
   emitInjectionEvent,
@@ -61,20 +62,16 @@ describe("prepared context accounting", () => {
       sessionId: "s",
     };
     emitInjectionEvent("aide", "/project", opts);
-    expect(execFileSync).toHaveBeenCalledWith(
-      "aide",
-      expect.arrayContaining([
-        "--attr=payload_bytes=6",
-        "--attr=observation_stage=aide_context",
-      ]),
-      expect.any(Object),
-    );
+    const queued = () => {
+      const task = vi.mocked(enqueueObservation).mock.calls.at(-1)![0];
+      expect(task).toMatchObject({ kind: "command", binary: "aide", cwd: "/project", args: ["observe", "record", "--stdin"] });
+      return JSON.parse((task as { input: string }).input);
+    };
+    const first = queued();
+    expect(first.attrs).toMatchObject({ payload_bytes: "6", observation_stage: "aide_context" });
+    expect(Number.isFinite(Date.parse(first.ts))).toBe(true);
     const event = injectionBatchEvent(opts);
     recordObserveEventsBatch("aide", "/project", [event]);
-    expect(execFileSync).toHaveBeenLastCalledWith(
-      "aide",
-      ["observe", "record", "--stdin"],
-      expect.objectContaining({ input: JSON.stringify(event) + "\n" }),
-    );
+    expect(queued()).toMatchObject(event);
   });
 });

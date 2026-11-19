@@ -14,7 +14,7 @@ codex plugin add aide@aide
 bunx @jmylchreest/aide-plugin@latest install --platform codex   # hooks only
 ```
 
-Codex consumes aide's Claude plugin manifest directly. The plugin provides:
+Codex uses aide's native `.codex-plugin/plugin.json` manifest. The plugin provides:
 
 - **MCP server** — all aide tools, registered from the plugin manifest
 - **Skills** — discovered from the plugin, namespaced `aide:<name>`
@@ -26,6 +26,11 @@ Update the plugin with:
 ```bash
 codex plugin marketplace upgrade
 ```
+
+The MCP runtime comes from the latest published npm package, which can differ
+from the marketplace version if release publication failed. See
+[Upgrades and running versions](./upgrading.md) for diagnosis and restarting
+multiple sessions that share a project.
 
 ## Invoking Skills
 

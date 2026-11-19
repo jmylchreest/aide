@@ -37,6 +37,7 @@ import {
   writeFileSync,
 } from "fs";
 import { execFileSync } from "child_process";
+import { hookCommandTimeout } from "./hook-budget.js";
 import { homedir } from "os";
 import { dirname, join } from "path";
 import { findProjectRoot } from "./project-root.js";
@@ -155,7 +156,7 @@ export function resolveAnchorViaBinary(
     // renders as an error in Claude Code.
     const out = execFileSync(binary, ["anchor", "--json", `--cwd=${cwd}`], {
       encoding: "utf-8",
-      timeout: 5000,
+      timeout: hookCommandTimeout(5000),
       stdio: ["ignore", "pipe", "ignore"],
     });
     const parsed = JSON.parse(out) as unknown;

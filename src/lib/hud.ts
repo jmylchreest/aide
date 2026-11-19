@@ -15,6 +15,7 @@ import {
 import { join } from "path";
 import { tmpdir } from "os";
 import { execFileSync } from "child_process";
+import { hookCommandTimeout } from "./hook-budget.js";
 import { runAide, findAideBinary } from "./hook-utils.js";
 import { getAnchoredRoot } from "./anchor.js";
 import { loadGlobalConfig } from "../core/session-init.js";
@@ -39,7 +40,7 @@ export function getAideVersion(cwd: string): string {
   try {
     const output = execFileSync(binary, ["version"], {
       stdio: "pipe",
-      timeout: 2000,
+      timeout: hookCommandTimeout(2000),
     })
       .toString()
       .trim();

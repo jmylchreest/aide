@@ -119,11 +119,9 @@ describe("resolveBundledBinary", () => {
   });
 
   it("checks the hoist location before giving up", () => {
-    const pluginRoot = join("/x", "node_modules", "@jmylchreest", "aide-plugin");
+    const pluginRoot = makeTree(null);
     const candidates = bundledBinaryCandidates(pluginRoot, LINUX);
-    expect(candidates).toContain(
-      join("/x", "node_modules", "@jmylchreest", "aide-binary-linux-amd64", "bin", "aide"),
-    );
+    expect(candidates).toContain(join(tempDir, HOISTED));
   });
 });
 

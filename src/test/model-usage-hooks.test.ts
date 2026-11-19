@@ -1,3 +1,5 @@
+vi.mock("../lib/background-observability.js", () => ({ enqueueObservation: vi.fn(() => true) }));
+import { enqueueObservation } from "../lib/background-observability.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -76,16 +78,12 @@ describe("model usage host entry points", () => {
     await hooks.event!({
       event: { type: "message.part.updated", properties: { part } },
     });
-    expect(mocks.write).toHaveBeenCalledWith("/fake-aide", cwd, [
-      expect.objectContaining({
-        session: "s",
-        name: "model_usage",
-        attrs: expect.objectContaining({
-          usage_id: "p",
-          uncached_input_tokens: "12",
-        }),
-      }),
-    ]);
+    const queued = vi.mocked(enqueueObservation).mock.calls.at(-1)![0];
+    expect(queued).toMatchObject({ kind: "command", binary: "/fake-aide", cwd });
+    expect(JSON.parse((queued as { input: string }).input)).toMatchObject({
+      session: "s", name: "model_usage", attrs: { usage_id: "p", uncached_input_tokens: "12" },
+    });
+    const count = vi.mocked(enqueueObservation).mock.calls.length;
     await hooks.event!({
       event: {
         type: "message.updated",
@@ -99,7 +97,8 @@ describe("model usage host entry points", () => {
         },
       },
     });
-    expect(mocks.write).toHaveBeenCalledTimes(1);
+    expect(enqueueObservation).toHaveBeenCalledTimes(count);
+    expect(mocks.write).not.toHaveBeenCalled();
   });
 
   it.each(["claude-code", "codex"] as const)(

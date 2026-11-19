@@ -12,6 +12,7 @@
  */
 
 import { execFileSync } from "child_process";
+import { hookCommandTimeout } from "../lib/hook-budget.js";
 import { Logger } from "../lib/logger.js";
 import {
   readStdin,
@@ -81,7 +82,7 @@ function runAide(binary: string, cwd: string, args: string[]): string | null {
     return execFileSync(binary, args, {
       cwd,
       stdio: ["pipe", "pipe", "pipe"],
-      timeout: 2000,
+      timeout: hookCommandTimeout(2000),
     }).toString();
   } catch (err) {
     log?.debug(`aide ${args.join(" ")} failed: ${err}`);

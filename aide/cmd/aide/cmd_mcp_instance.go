@@ -27,6 +27,7 @@ type InstanceInfo struct {
 	// Mirrors root/realRoot in `aide anchor --json`.
 	RealProjectRoot string       `json:"real_project_root"`
 	Cwd             string       `json:"cwd"`
+	Executable      string       `json:"executable"`
 	Version         version.Info `json:"version"`
 	DBPath          string       `json:"db_path"`
 	SocketPath      string       `json:"socket_path"`
@@ -92,6 +93,7 @@ func (s *MCPServer) handleInstanceInfo(ctx context.Context, req *mcp.CallToolReq
 	mcpLog.Printf("tool: instance_info")
 
 	cwd, _ := os.Getwd()
+	executable, _ := os.Executable()
 	root := store.ProjectRootFromDB(s.dbPath)
 
 	authority := "daemon"
@@ -104,6 +106,7 @@ func (s *MCPServer) handleInstanceInfo(ctx context.Context, req *mcp.CallToolReq
 		CheckoutRoot:    s.sourceRoot(),
 		RealProjectRoot: anchor.RealPath(root),
 		Cwd:             cwd,
+		Executable:      executable,
 		Version:         version.GetInfo(),
 		DBPath:          s.dbPath,
 		SocketPath:      grpcapi.SocketPathFromDB(s.dbPath),

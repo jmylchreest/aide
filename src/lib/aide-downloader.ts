@@ -15,16 +15,17 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
-  chmodSync,
-  unlinkSync,
   renameSync,
   realpathSync,
   createWriteStream,
+  mkdtempSync,
+  rmSync,
 } from "fs";
 import { join, dirname } from "path";
 import { execFileSync } from "child_process";
 import { fileURLToPath } from "url";
 import { Readable, Transform } from "stream";
+import { acquireBinaryDownloadLock } from "./binary-download-lock.js";
 import { pipeline } from "stream/promises";
 // Canonical binary finder — import for local use, re-export for backward compat
 import { findAideBinary } from "./hook-utils.js";
@@ -109,8 +110,7 @@ export function isDevBuild(version: string): boolean {
  * e.g., "0.0.5-dev.21+abc1234" → "0.0.5"
  */
 export function getBaseVersion(version: string): string {
-  const dashIdx = version.indexOf("-");
-  return dashIdx === -1 ? version : version.substring(0, dashIdx);
+  return version.split(/[+-]/)[0];
 }
 
 /**
@@ -209,7 +209,9 @@ export function getDownloadUrls(
     ];
   }
 
-  return [`https://github.com/jmylchreest/aide/releases/latest/download/${binaryName}`];
+  return [
+    `https://github.com/jmylchreest/aide/releases/latest/download/${binaryName}`,
+  ];
 }
 
 /**
@@ -263,41 +265,39 @@ export async function downloadAideBinary(
   const ext = process.platform === "win32" ? ".exe" : "";
   const destPath = join(destDir, `aide${ext}`);
 
-  // Check if already exists (unless force)
-  if (!force && existsSync(destPath)) {
-    // Verify it works
-    try {
-      execFileSync(destPath, ["version"], { stdio: "pipe", timeout: 5000 });
+  const requiredVersion = options.pluginVersion ?? getPluginVersion();
+  const urls = getDownloadUrls({ pluginVersion: requiredVersion ?? undefined });
+  let releaseLock: (() => void) | undefined;
+  let stagingDir: string | undefined;
+
+  try {
+    mkdirSync(destDir, { recursive: true });
+    releaseLock = await acquireBinaryDownloadLock(destDir);
+
+    // Recheck under the shared lock: a hook or another MCP startup may have
+    // installed the required version while this caller waited. Never downgrade.
+    const installed = getBinaryVersion(destPath);
+    if (
+      !force &&
+      installed &&
+      (!requiredVersion ||
+        compareVersions(
+          getBaseVersion(installed),
+          getBaseVersion(requiredVersion),
+        ) >= 0)
+    ) {
       return {
         success: true,
         path: destPath,
-        message: `Using existing aide at ${destPath}`,
+        message: `Using existing aide v${installed} at ${destPath}`,
         cached: true,
       };
-    } catch {
-      // Existing binary is broken, re-download
-      if (!quiet) log("[aide] Existing binary is invalid, re-downloading...");
-      try {
-        unlinkSync(destPath);
-      } catch {
-        // Ignore delete errors
-      }
-    }
-  }
-
-  const urls = getDownloadUrls({ pluginVersion: options.pluginVersion });
-
-  try {
-    // Create bin directory
-    if (!existsSync(destDir)) {
-      mkdirSync(destDir, { recursive: true });
     }
 
-    // Try each URL in priority order, falling back on 404/network errors.
+    // Try each URL in priority order, falling back on HTTP 404.
     // This handles the race where the marketplace pulls a new plugin version
     // before the release action has finished publishing binaries.
     let response: Response | null = null;
-    let usedUrl = urls[0];
 
     for (const url of urls) {
       if (!quiet) {
@@ -305,12 +305,13 @@ export async function downloadAideBinary(
       }
       const resp = await fetch(url, {
         headers: { "User-Agent": "aide-plugin" },
+        signal: AbortSignal.timeout(60000),
       });
       if (resp.ok) {
         response = resp;
-        usedUrl = url;
         break;
       }
+      await resp.body?.cancel();
       if (resp.status === 404 && url !== urls[urls.length - 1]) {
         if (!quiet) {
           log(`[aide] Release not found (HTTP 404), trying fallback...`);
@@ -334,7 +335,8 @@ export async function downloadAideBinary(
 
     // Stream to a temp file, then atomic rename into place.
     // destPath is never opened for writing, so exec() cannot hit ETXTBSY.
-    const tmpPath = destPath + `.tmp.${process.pid}`;
+    stagingDir = mkdtempSync(join(destDir, ".aide-staging-"));
+    const tmpPath = join(stagingDir, `aide${ext}`);
     const nodeStream = Readable.fromWeb(
       response.body as import("stream/web").ReadableStream,
     );
@@ -343,6 +345,10 @@ export async function downloadAideBinary(
     const progress = new Transform({
       transform(chunk: Buffer, _encoding, callback) {
         downloadedBytes += chunk.length;
+        if (downloadedBytes > 200 * 1024 * 1024) {
+          callback(new Error("Binary download exceeds 200 MiB"));
+          return;
+        }
         if (!quiet && totalBytes > 0) {
           const percent = Math.floor((downloadedBytes / totalBytes) * 100);
           if (percent !== lastPercent) {
@@ -357,6 +363,22 @@ export async function downloadAideBinary(
     });
 
     await pipeline(nodeStream, progress, fileStream);
+    const downloadedVersion = getBinaryVersion(tmpPath);
+    if (!downloadedVersion)
+      throw new Error("Downloaded binary is not executable or has no version");
+    if (
+      requiredVersion &&
+      compareVersions(
+        getBaseVersion(downloadedVersion),
+        getBaseVersion(requiredVersion),
+      ) < 0
+    ) {
+      throw new Error(
+        `Downloaded aide v${downloadedVersion} is older than required v${requiredVersion}; release assets may not be published yet`,
+      );
+    }
+    // Keep the existing executable until its replacement has been validated.
+    // If Windows refuses replacement of an in-use executable, leave it intact.
     renameSync(tmpPath, destPath);
 
     if (!quiet) {
@@ -382,6 +404,12 @@ export async function downloadAideBinary(
       message: `Failed to download aide: ${errorMsg}`,
       cached: false,
     };
+  } finally {
+    try {
+      if (stagingDir) rmSync(stagingDir, { recursive: true, force: true });
+    } finally {
+      releaseLock?.();
+    }
   }
 }
 
@@ -417,10 +445,12 @@ export async function ensureAideBinary(cwd?: string): Promise<EnsureResult> {
 
   const needsDownload =
     !binaryPath ||
-    (!isNewerDev &&
-      pluginVersion &&
-      binaryVersion &&
-      binaryVersion !== pluginVersion);
+    !binaryVersion ||
+    (pluginVersion !== null &&
+      compareVersions(
+        getBaseVersion(binaryVersion),
+        getBaseVersion(pluginVersion),
+      ) < 0);
 
   if (isNewerDev) {
     console.error(
@@ -453,7 +483,7 @@ export async function ensureAideBinary(cwd?: string): Promise<EnsureResult> {
 
     // Auto-download
     const result = await downloadAideBinary(destDir, {
-      force: true,
+      pluginVersion: pluginVersion ?? undefined,
       quiet: false,
       useStderr: true,
     });
@@ -528,6 +558,7 @@ async function main() {
 
   let destDir: string | null = null;
   let force = false;
+  let pluginVersion: string | undefined;
   let pluginMode = false;
 
   for (let i = 0; i < args.length; i++) {
@@ -539,6 +570,8 @@ async function main() {
     } else if (args[i] === "--dest" && args[i + 1]) {
       destDir = args[i + 1];
       i++;
+    } else if (args[i] === "--version" && args[i + 1]) {
+      pluginVersion = args[++i];
     } else if (args[i] === "--force") {
       force = true;
     } else if (args[i] === "--help" || args[i] === "-h") {
@@ -550,6 +583,7 @@ Options:
   --plugin      Install to plugin's bin/ directory (used by postinstall)
   --cwd <path>  Install to <path>/.aide/bin/
   --dest <path> Install to specific directory
+  --version <v> Require this plugin version (ignores inherited plugin roots)
   --force       Download even if binary exists
   --help        Show this help
 
@@ -592,6 +626,7 @@ Downloads the aide binary from GitHub releases.
   // MCP stdio server, where stdout is reserved for JSON-RPC.
   const result = await downloadAideBinary(destDir, {
     force,
+    pluginVersion,
     quiet: false,
     useStderr: true,
   });

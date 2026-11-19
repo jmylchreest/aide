@@ -15,6 +15,7 @@
  */
 
 import { execFileSync } from "child_process";
+import { hookCommandTimeout } from "../lib/hook-budget.js";
 import { debug } from "../lib/logger.js";
 import { listMemoriesJson, type MemoryEntry } from "./memory-query.js";
 import { categorizePartials, renderBulletSection } from "./session-text.js";
@@ -143,7 +144,7 @@ export function storePartialMemory(
         `--tags=${tags.join(",")}`,
         content,
       ],
-      { cwd, stdio: "pipe", timeout: 3000 },
+      { cwd, stdio: "pipe", timeout: hookCommandTimeout(3000) },
     );
 
     debug(SOURCE, `Stored partial: ${content} [${tags.join(", ")}]`);
@@ -219,7 +220,7 @@ export function cleanupPartials(
       execFileSync(binary, ["memory", "tag", id, "--add=forget"], {
         cwd,
         stdio: "pipe",
-        timeout: 3000,
+        timeout: hookCommandTimeout(3000),
       });
       cleaned++;
     } catch (err) {

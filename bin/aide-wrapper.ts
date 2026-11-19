@@ -5,10 +5,8 @@
  * Called by an assistant's MCP server configuration.
  * Finds the aide binary, downloads it if missing, then delegates to it.
  *
- * Plugin root resolution order:
- *   1. AIDE_PLUGIN_ROOT  (canonical, platform-agnostic)
- *   2. CLAUDE_PLUGIN_ROOT (set by Claude Code)
- *   3. SCRIPT_DIR/..      (fallback: infer from wrapper location)
+ * Plugin root is the package containing this wrapper. Inherited root
+ * variables may refer to an older install and must not redirect provisioning.
  *
  * Binary resolution order (first hit wins):
  *   1. Bundled via npm optionalDependencies:
@@ -41,9 +39,6 @@ import {
   readFileSync,
   realpathSync,
   appendFileSync,
-  unlinkSync,
-  writeFileSync,
-  rmdirSync,
 } from "fs";
 import { createRequire } from "module";
 import { dirname, join, resolve, sep } from "path";
@@ -62,15 +57,11 @@ try {
   scriptDir = dirname(__filename);
 }
 
-// The package this wrapper physically belongs to. Unlike PLUGIN_ROOT it
-// cannot be pointed elsewhere by an env var inherited from a parent session,
-// so it is the trustworthy anchor for "which install am I part of".
+// Anchor provisioning to the package that supplied this wrapper. An inherited
+// root variable may still name the package from a previous session.
 const SELF_ROOT = resolve(scriptDir, "..");
 
-const PLUGIN_ROOT =
-  process.env.AIDE_PLUGIN_ROOT ||
-  process.env.CLAUDE_PLUGIN_ROOT ||
-  SELF_ROOT;
+const PLUGIN_ROOT = SELF_ROOT;
 
 const BINARY = join(PLUGIN_ROOT, "bin", `aide${EXT}`);
 const BIN_DIR = join(PLUGIN_ROOT, "bin");
@@ -114,20 +105,17 @@ function resolveBundledBinary(): string | null {
     // Not resolvable from here — fall through to the filesystem walk.
   }
 
-  const roots = SELF_ROOT === PLUGIN_ROOT ? [SELF_ROOT] : [SELF_ROOT, PLUGIN_ROOT];
-  for (const root of roots) {
-    let dir = resolve(root);
-    for (;;) {
-      const nested = join(dir, "node_modules", subPath);
-      if (existsSync(nested)) return nested;
-      if (dir.endsWith(`${sep}node_modules`)) {
-        const hoisted = join(dir, subPath);
-        if (existsSync(hoisted)) return hoisted;
-      }
-      const parent = dirname(dir);
-      if (parent === dir) break;
-      dir = parent;
+  let dir = SELF_ROOT;
+  for (;;) {
+    const nested = join(dir, "node_modules", subPath);
+    if (existsSync(nested)) return nested;
+    if (dir.endsWith(`${sep}node_modules`)) {
+      const hoisted = join(dir, subPath);
+      if (existsSync(hoisted)) return hoisted;
     }
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
   }
   return null;
 }
@@ -142,7 +130,10 @@ try {
 }
 
 function log(msg: string): void {
-  const timestamp = new Date().toISOString().replace("T", " ").replace(/\..+/, "");
+  const timestamp = new Date()
+    .toISOString()
+    .replace("T", " ")
+    .replace(/\..+/, "");
   const line = `[${timestamp}] [aide-wrapper] ${msg}`;
   process.stderr.write(line + "\n");
   try {
@@ -156,8 +147,8 @@ function log(msg: string): void {
  * Compare semantic versions: returns true if a >= b
  */
 function versionGte(a: string, b: string): boolean {
-  const pa = a.split(".").map(Number);
-  const pb = b.split(".").map(Number);
+  const pa = a.split(/[+-]/)[0].split(".").map(Number);
+  const pb = b.split(/[+-]/)[0].split(".").map(Number);
   for (let i = 0; i < 3; i++) {
     const va = pa[i] || 0;
     const vb = pb[i] || 0;
@@ -178,33 +169,22 @@ function getBinaryVersion(binary: string): string | null {
     })
       .toString()
       .trim();
-    const match = output.match(
-      /(\d+\.\d+\.\d+(?:-[a-zA-Z0-9.+]+)?)/,
-    );
+    const match = output.match(/(\d+\.\d+\.\d+(?:-[a-zA-Z0-9.+]+)?)/);
     return match ? match[1] : null;
   } catch {
     return null;
   }
 }
 
-/**
- * Read the plugin version from plugin.json or package.json.
- *
- * SELF_ROOT is consulted first: it is the package this wrapper was shipped
- * in, so it describes the code actually running. PLUGIN_ROOT can point at a
- * different (often older) install via an inherited env var.
- */
+/** Read the version of the package supplying this wrapper. */
 function getPluginVersion(): string | null {
-  const roots = SELF_ROOT === PLUGIN_ROOT ? [SELF_ROOT] : [SELF_ROOT, PLUGIN_ROOT];
-  for (const root of roots) {
-    for (const relPath of [".claude-plugin/plugin.json", "package.json"]) {
-      try {
-        const content = readFileSync(join(root, relPath), "utf-8");
-        const match = content.match(/"version"\s*:\s*"(\d+\.\d+\.\d+)/);
-        if (match && match[1] !== "0.0.0") return match[1];
-      } catch {
-        // skip
-      }
+  for (const relPath of [".claude-plugin/plugin.json", "package.json"]) {
+    try {
+      const content = readFileSync(join(SELF_ROOT, relPath), "utf-8");
+      const match = content.match(/"version"\s*:\s*"(\d+\.\d+\.\d+)/);
+      if (match && match[1] !== "0.0.0") return match[1];
+    } catch {
+      // skip
     }
   }
   return null;
@@ -226,169 +206,52 @@ function binaryExists(): boolean {
   }
 }
 
-/**
- * Check whether a process is still running. Signal 0 performs the
- * existence check without delivering a signal; EPERM means the process
- * exists but belongs to another user, so it counts as alive.
- */
-function isPidAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (err: unknown) {
-    return (err as { code?: string })?.code === "EPERM";
-  }
-}
-
-function removeLock(lockPath: string): void {
-  try {
-    unlinkSync(join(lockPath, "pid"));
-  } catch { /* ignore */ }
-  try {
-    // rmdir only works on empty dirs — that's what we want
-    rmdirSync(lockPath);
-  } catch { /* ignore */ }
-}
-
-/**
- * Simple cross-platform file lock.
- * Uses mkdir as an atomic operation (works on all platforms).
- * A lock whose owning pid is dead is reclaimed immediately, so a download
- * that crashed or was killed (e.g. by an MCP client's startup timeout)
- * can never wedge future startups.
- * The default timeout stays below common MCP startup timeouts (~30s) so
- * the force-remove fallback runs before the client gives up on us.
- * Returns a cleanup function to release the lock.
- */
-function acquireLock(lockPath: string, timeoutMs: number = 20000): () => void {
-  const start = Date.now();
-  const pollMs = 200;
-  let forced = false;
-
-  while (true) {
-    try {
-      mkdirSync(lockPath);
-      // Write our PID so waiters can detect a dead owner
-      try {
-        writeFileSync(join(lockPath, "pid"), String(process.pid));
-      } catch {
-        // ignore
-      }
-      return () => removeLock(lockPath);
-    } catch (err: unknown) {
-      if (
-        !(
-          err &&
-          typeof err === "object" &&
-          "code" in err &&
-          (err as { code: string }).code === "EEXIST"
-        )
-      ) {
-        throw err;
-      }
-
-      // Lock held — reclaim it if the owner is provably dead. A missing
-      // or unreadable pid file may just mean the owner is between mkdir
-      // and writeFileSync, so that case is left to the timeout below.
-      try {
-        const pid = Number(readFileSync(join(lockPath, "pid"), "utf-8").trim());
-        if (Number.isFinite(pid) && pid > 0 && pid !== process.pid && !isPidAlive(pid)) {
-          log(`Reclaiming stale download lock (owner pid ${pid} is dead)`);
-          removeLock(lockPath);
-          continue;
-        }
-      } catch { /* pid file unreadable — fall through to timeout */ }
-
-      if (Date.now() - start > timeoutMs) {
-        if (forced) {
-          log("ERROR: Timed out waiting for download lock");
-          throw new Error("Timed out waiting for download lock");
-        }
-        log("Timed out waiting for download lock — force-removing and retrying");
-        forced = true;
-        removeLock(lockPath);
-        continue;
-      }
-      // Poll — use Bun.sleepSync for cross-platform millisecond sleep
-      Bun.sleepSync(pollMs);
-    }
-  }
-}
-
-/**
- * Download the aide binary using the TypeScript downloader
- */
+/** Download through the shared installer, which also serializes hook downloads. */
 function downloadBinary(): void {
-  const LOCKDIR = join(BIN_DIR, ".aide-download.lock");
-
-  // Resolve the downloader script — prefer src/ (dev) but fall back to dist/ (npm install)
-  let downloader: string;
-  if (existsSync(join(PLUGIN_ROOT, "src", "lib", "aide-downloader.ts"))) {
-    downloader = join(PLUGIN_ROOT, "src", "lib", "aide-downloader.ts");
-  } else if (existsSync(join(PLUGIN_ROOT, "dist", "lib", "aide-downloader.js"))) {
-    downloader = join(PLUGIN_ROOT, "dist", "lib", "aide-downloader.js");
-  } else {
-    log(`ERROR: Cannot find aide-downloader in src/ or dist/ under ${PLUGIN_ROOT}`);
-    process.exit(1);
+  const source = join(PLUGIN_ROOT, "src", "lib", "aide-downloader.ts");
+  const compiled = join(PLUGIN_ROOT, "dist", "lib", "aide-downloader.js");
+  const downloader = existsSync(source) ? source : compiled;
+  if (!existsSync(downloader)) {
+    throw new Error(
+      `Cannot find aide-downloader in src/ or dist/ under ${PLUGIN_ROOT}`,
+    );
   }
 
-  // Remove stale/outdated binary before locking
-  if (existsSync(BINARY)) {
-    log("Removing outdated binary before download");
-    try {
-      unlinkSync(BINARY);
-    } catch {
-      // ignore
-    }
-  }
+  const pluginVersion = getPluginVersion();
+  const args = [downloader, "--dest", BIN_DIR];
+  if (pluginVersion) args.push("--version", pluginVersion);
+  log(
+    `Downloading binary for plugin v${pluginVersion ?? "unknown"} using ${downloader}`,
+  );
 
-  const releaseLock = acquireLock(LOCKDIR);
-  try {
-    // Re-check after acquiring lock — another process may have finished the download
-    if (existsSync(BINARY)) {
-      log("Binary appeared while waiting for lock (downloaded by another process)");
-      return;
-    }
-
-    log("Downloading binary...");
-    log(`Using downloader: ${downloader}`);
-
-    // Determine runner based on file extension
-    let runner: string;
-    let runnerArgs: string[];
-
-    if (downloader.endsWith(".ts")) {
-      runner = "bun";
-      runnerArgs = [downloader, "--dest", BIN_DIR];
-    } else {
-      runner = "node";
-      runnerArgs = [downloader, "--dest", BIN_DIR];
-    }
-
-    // Use cross-spawn for cross-platform compatibility (lazy import to
-    // survive missing node_modules during bootstrap).
-    // Downloader stdout is redirected to our stderr: when we run as an MCP
-    // server, stdout is the JSON-RPC channel and must stay clean.
-    const crossSpawn = require("cross-spawn");
-    const result = crossSpawn.sync(runner, runnerArgs, {
+  // stdout is the MCP protocol channel. All installer output goes to stderr.
+  const crossSpawn = require("cross-spawn");
+  const result = crossSpawn.sync(
+    downloader.endsWith(".ts") ? "bun" : "node",
+    args,
+    {
       stdio: ["ignore", 2, "inherit"],
-      timeout: 120000,
-    });
-
-    if (result.status !== 0) {
-      log("ERROR: Downloader failed");
-      process.exit(1);
-    }
-
-    if (!existsSync(BINARY)) {
-      log("ERROR: Binary not found after download");
-      process.exit(1);
-    }
-  } finally {
-    releaseLock();
+      env: { ...process.env, AIDE_PLUGIN_ROOT: PLUGIN_ROOT },
+      // Allow the lock wait plus both download attempts and validation.
+      timeout: 300000,
+    },
+  );
+  if (result.status !== 0) {
+    throw new Error(
+      `Downloader failed (status ${result.status}): ${result.error ?? "see stderr above"}`,
+    );
   }
 
-  log(`Binary ready at ${BINARY}`);
+  const installed = getBinaryVersion(BINARY);
+  if (
+    !installed ||
+    (pluginVersion && !versionGte(installed.split("-")[0], pluginVersion))
+  ) {
+    throw new Error(
+      `Downloaded binary v${installed ?? "unknown"} does not satisfy plugin v${pluginVersion ?? "unknown"}`,
+    );
+  }
+  log(`Binary ready at ${BINARY} (v${installed})`);
 }
 
 // --- Ensure dependencies ---
@@ -457,9 +320,14 @@ if (bundledBinary) {
   const pluginVersion = getPluginVersion();
   const bundledVersion = getBinaryVersion(bundledBinary);
   if (!bundledVersion) {
-    log("WARNING: bundled binary is not executable, falling back to download path");
+    log(
+      "WARNING: bundled binary is not executable, falling back to download path",
+    );
     bundledBinary = null;
-  } else if (pluginVersion && !versionGte(bundledVersion.split("-")[0], pluginVersion)) {
+  } else if (
+    pluginVersion &&
+    !versionGte(bundledVersion.split("-")[0], pluginVersion)
+  ) {
     log(
       `WARNING: bundled binary v${bundledVersion} is older than plugin v${pluginVersion} ` +
         `(stale optionalDependency?), falling back to download path`,
@@ -499,13 +367,18 @@ if (!bundledBinary) {
       }
     } else {
       const pluginVersion = getPluginVersion();
-      if (pluginVersion && binaryVersion && !versionGte(binaryVersion, pluginVersion)) {
+      if (
+        !binaryVersion ||
+        (pluginVersion && !versionGte(binaryVersion, pluginVersion))
+      ) {
         needsDownload = true;
         log(
           `Release binary v${binaryVersion} is older than plugin v${pluginVersion}, re-downloading`,
         );
       } else {
-        log(`Release binary v${binaryVersion ?? "unknown"} (plugin v${pluginVersion ?? "unknown"})`);
+        log(
+          `Release binary v${binaryVersion ?? "unknown"} (plugin v${pluginVersion ?? "unknown"})`,
+        );
       }
     }
   }
@@ -522,7 +395,7 @@ log(`Executing: ${execBinary} ${process.argv.slice(2).join(" ")}`);
 // Args are passed as an argv array, never through a shell.
 const result = spawnSync(execBinary, process.argv.slice(2), {
   stdio: "inherit",
-  env: process.env,
+  env: { ...process.env, AIDE_PLUGIN_ROOT: PLUGIN_ROOT },
 });
 
 // Forward the exit code

@@ -1,3 +1,5 @@
+vi.mock("../lib/background-observability.js", () => ({ enqueueObservation: vi.fn(() => true) }));
+import { enqueueObservation } from "../lib/background-observability.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
@@ -92,10 +94,10 @@ describe("OpenCode retrieval hint delivery", () => {
     expect(output.output).toContain("code_outline");
     expect(output.metadata).toEqual({ args, custom: true });
     expect(output.title).toBe("tool title");
-    const calls = vi.mocked(execFileSync).mock.calls;
-    const batches = calls.filter((call) => call[1]?.includes("--stdin"));
-    const events = batches.flatMap((call) =>
-      String((call[2] as { input: string }).input)
+    const tasks = vi.mocked(enqueueObservation).mock.calls.map(([task]) => task);
+    const batches = tasks.filter((task) => task.kind === "command" && task.args.includes("--stdin"));
+    const events = batches.flatMap((task) =>
+      String((task as { input: string }).input)
         .trim()
         .split("\n")
         .map((line) => JSON.parse(line)),
@@ -116,12 +118,9 @@ describe("OpenCode retrieval hint delivery", () => {
       }),
     );
     expect(
-      calls.some(
-        (call) =>
-          call[1]?.includes("--name=output-transform") &&
-          call[1].includes(
-            `--attr=after_bytes=${Buffer.byteLength(output.output!)}`,
-          ),
+      events.some(
+        (event) => event.name === "output-transform" &&
+          event.attrs?.after_bytes === String(Buffer.byteLength(output.output!)),
       ),
     ).toBe(true);
     expect(output.output?.match(/\[aide:context\]/g)).toHaveLength(1);

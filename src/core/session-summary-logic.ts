@@ -6,6 +6,7 @@
  */
 
 import { execFileSync } from "child_process";
+import { hookCommandTimeout } from "../lib/hook-budget.js";
 import { readFileSync, existsSync } from "fs";
 import { renderBulletSection } from "./session-text.js";
 
@@ -28,7 +29,7 @@ export function getSessionCommits(cwd: string, startedAt?: string): string[] {
         cwd,
         encoding: "utf-8",
         stdio: ["pipe", "pipe", "pipe"],
-        timeout: 5000,
+        timeout: hookCommandTimeout(5000),
       },
     ).trim();
 
@@ -187,7 +188,7 @@ export function buildSessionSummaryFromState(
         cwd,
         encoding: "utf-8",
         stdio: ["pipe", "pipe", "pipe"],
-        timeout: 5000,
+        timeout: hookCommandTimeout(5000),
       },
     ).trim();
 
@@ -219,7 +220,7 @@ export function storeSessionSummary(
     execFileSync(
       binary,
       ["memory", "add", "--category=session", `--tags=${tags}`, summary],
-      { cwd, stdio: "pipe", timeout: 5000 },
+      { cwd, stdio: "pipe", timeout: hookCommandTimeout(5000) },
     );
 
     return true;

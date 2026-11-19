@@ -45,7 +45,7 @@ import {
   matchSkills,
   formatSkillsContext,
 } from "../core/skill-matcher.js";
-import { trackToolUse, updateToolStats } from "../core/tool-tracking.js";
+import { enqueueObservation } from "../lib/background-observability.js";
 import { evaluateToolUse, isToolDenied } from "../core/tool-enforcement.js";
 import { checkPersistence, getActiveMode } from "../core/persistence-logic.js";
 import { checkWriteGuard } from "../core/write-guard.js";
@@ -63,7 +63,7 @@ import { recoverablePrune } from "../core/context-pruning/recovery.js";
 import { transformationEvent } from "../core/context-pruning/observation.js";
 import { checkSearchEnrichment } from "../core/search-enrichment.js";
 import { recordToolEvent, toolFailureText } from "../core/tool-observe.js";
-import { createOpenCodeUsageRecorder } from "../core/model-usage.js";
+import { openCodeUsageEvent } from "../core/model-usage.js";
 import {
   recordObserveEvent,
   previewContent,
@@ -86,13 +86,10 @@ import { saveStateSnapshot } from "../core/pre-compact-logic.js";
 import {
   buildSessionSummaryFromState,
   getSessionCommits,
-  storeSessionSummary,
 } from "../core/session-summary-logic.js";
 import {
-  storePartialMemory,
   gatherPartials,
   buildSummaryFromPartials,
-  cleanupPartials,
 } from "../core/partial-memory.js";
 import type { MemoryInjection, SessionState } from "../core/types.js";
 import type {
@@ -432,7 +429,6 @@ function establishContext(
 function createEventHandler(
   state: AideState,
 ): (input: { event: OpenCodeEvent }) => Promise<void> {
-  const recordUsage = createOpenCodeUsageRecorder();
   return async ({ event }) => {
     switch (event.type) {
       case "session.created":
@@ -459,8 +455,10 @@ function createEventHandler(
         await handleSessionDeleted(state, event);
         break;
       case "message.part.updated":
-        if (state.binary)
-          recordUsage(state.binary, state.cwd, event.properties.part);
+        if (state.binary) {
+          const usage = openCodeUsageEvent(event.properties.part);
+          if (usage) recordObserveEventsBatch(state.binary, state.cwd, [usage]);
+        }
         await handleMessagePartUpdated(state, event);
         break;
       default:
@@ -640,56 +638,13 @@ async function handleSessionIdle(
     }
   }
 
-  // Capture session summary (best effort, no transcript available)
-  // Uses partials if available for a richer summary.
+  // Summary and reflection are observational; persistence above must finish
+  // because it can re-prompt the host, but these writes must not delay it.
   if (state.binary) {
-    const partials = gatherPartials(state.binary, state.cwd, sessionId);
-    let summary: string | null = null;
-
-    if (partials.length > 0) {
-      const commits = getSessionCommits(
-        state.cwd,
-        state.sessionState?.startedAt,
-      );
-      summary = buildSummaryFromPartials(partials, commits, []);
-      debug(SOURCE, `Built summary from ${partials.length} partials`);
-    }
-
-    // Fall back to state-only summary if no partials
-    if (!summary) {
-      summary = buildSessionSummaryFromState(
-        state.cwd,
-        state.sessionState?.startedAt,
-      );
-    }
-
-    if (summary) {
-      storeSessionSummary(state.binary, state.cwd, sessionId, summary);
-      // Clean up partials now that the final summary is stored
-      const cleaned = cleanupPartials(state.binary, state.cwd, sessionId);
-      if (cleaned > 0) {
-        debug(SOURCE, `Cleaned up ${cleaned} partials after final summary`);
-      }
-    } else if (partials.length > 0) {
-      // Clean up partials even if no summary was generated
-      cleanupPartials(state.binary, state.cwd, sessionId);
-    }
-  }
-
-  // Reflect (extract instinct proposals). The CLI itself checks env +
-  // .aide/config/aide.json reflect.enabled and no-ops when disabled, so
-  // invoke unconditionally. Mirrors the Claude Code Stop hook.
-  if (state.binary) {
-    try {
-      execFileSync(state.binary, ["reflect", "run", `--session=${sessionId}`], {
-        cwd: state.cwd,
-        timeout: 10000,
-        stdio: ["pipe", "pipe", "pipe"],
-      });
-      debug(SOURCE, `reflect run session=${sessionId.slice(0, 8)} ok`);
-    } catch (err) {
-      debug(SOURCE, `reflect run failed (non-fatal): ${err}`);
-    }
+    enqueueObservation({ kind: "session-summary", binary: state.binary,
+      cwd: state.cwd, session: sessionId, startedAt: state.sessionState?.startedAt });
+    enqueueObservation({ kind: "command", binary: state.binary, cwd: state.cwd,
+      args: ["reflect", "run", `--session=${sessionId}`] });
   }
 }
 
@@ -873,7 +828,7 @@ function createToolBeforeHandler(
     // Track tool use
     if (!state.binary) return;
 
-    trackToolUse(state.binary, state.cwd, {
+    enqueueObservation({ kind: "tool-start", binary: state.binary, cwd: state.cwd, info: {
       toolName: input.tool,
       agentId: input.sessionID,
       toolInput: {
@@ -881,7 +836,7 @@ function createToolBeforeHandler(
         file_path: _output.args?.file_path as string | undefined,
         description: _output.args?.description as string | undefined,
       },
-    });
+    } });
   };
 }
 
@@ -952,13 +907,10 @@ function createToolAfterHandler(state: AideState): (
     // sessionID doubles as the agentId here: tool.execute.before registers
     // currentTool under agentId=input.sessionID, so the same scope must be
     // passed for the clear or the tool shows as forever-running.
-    updateToolStats(
-      state.binary,
-      state.cwd,
-      input.tool,
-      input.sessionID,
-      input.sessionID,
-    );
+    enqueueObservation({
+      kind: "tool-stats", binary: state.binary, cwd: state.cwd,
+      tool: input.tool, session: input.sessionID, agent: input.sessionID,
+    });
 
     // Write a partial memory for significant tool uses
     try {
@@ -966,13 +918,13 @@ function createToolAfterHandler(state: AideState): (
         string,
         unknown
       >;
-      storePartialMemory(state.binary, state.cwd, {
+      enqueueObservation({ kind: "partial-memory", binary: state.binary, cwd: state.cwd, info: {
         toolName: input.tool,
         sessionId: input.sessionID,
         filePath: toolArgs.file_path as string | undefined,
         command: toolArgs.command as string | undefined,
         description: toolArgs.description as string | undefined,
-      });
+      } });
     } catch (err) {
       debug(SOURCE, `Partial memory write failed (non-fatal): ${err}`);
     }

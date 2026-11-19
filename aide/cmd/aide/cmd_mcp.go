@@ -920,6 +920,9 @@ func (s *MCPServer) attachToPrimary(dbPath string) bool {
 		grpcClient: client,
 	})
 	s.codeStoreReady.Store(true)
+	if daemon := daemonInfo(context.Background(), client); daemon.VersionSkew {
+		mcpLog.Printf("WARNING: this MCP is v%s but the shared primary (pid %d) is v%s. Installing a binary does not upgrade running sessions; restart all aide MCP sessions for this project to use the new runtime", version.Short(), daemon.PID, daemon.Version)
+	}
 	return true
 }
 

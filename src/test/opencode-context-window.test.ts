@@ -1,3 +1,5 @@
+vi.mock("../lib/background-observability.js", () => ({ enqueueObservation: vi.fn(() => true) }));
+import { enqueueObservation } from "../lib/background-observability.js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const state = vi.hoisted(() => new Map<string, string>());
@@ -73,8 +75,8 @@ describe("OpenCode child context attribution", () => {
     );
     const observed = () =>
       vi
-        .mocked(execFileSync)
-        .mock.calls.map((call) => call[1] as string[])
+        .mocked(enqueueObservation)
+        .mock.calls.map((call) => (call[0] as { args?: string[] }).args)
         .filter((args) => args?.includes("--name=code_outline"));
     expect(observed().at(-1)).toEqual(
       expect.arrayContaining([

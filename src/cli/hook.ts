@@ -14,6 +14,7 @@ import { existsSync } from "fs";
 import { dirname, join, resolve } from "path";
 import { fileURLToPath } from "url";
 import { readStdin, normalizeHookInput } from "../lib/hook-utils.js";
+import { startHookBudget } from "../lib/hook-budget.js";
 
 /** Maps hook CLI names to their script files in src/hooks/. */
 const HOOK_MAP: Record<string, string> = {
@@ -49,6 +50,7 @@ export function listHooks(): string[] {
  * then spawns the hook script with the normalized input.
  */
 export async function dispatchHook(hookName: string): Promise<void> {
+  const deadline = startHookBudget(hookName);
   const scriptFile = HOOK_MAP[hookName];
   if (!scriptFile) {
     console.error(
@@ -70,6 +72,7 @@ export async function dispatchHook(hookName: string): Promise<void> {
     ...process.env,
     AIDE_PLUGIN_ROOT: pluginRoot,
     AIDE_PLATFORM: "codex",
+    ...(deadline === undefined ? {} : { AIDE_HOOK_DEADLINE_MS: String(deadline) }),
   };
 
   const rawInput = await readStdin();
