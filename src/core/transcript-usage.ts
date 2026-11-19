@@ -142,6 +142,135 @@ export interface CatchUpResult {
   acknowledged: boolean;
   elapsedMs: number;
 }
+function parseRegistrations(
+  output: string | null,
+  agent: string,
+  host: Host,
+  session: string,
+  started: number,
+): { registrations: Registration[]; limited: boolean } {
+  const registrations: Registration[] = [];
+  let limited = false;
+  try {
+    const states: unknown = output === null ? undefined : JSON.parse(output);
+    if (states !== null && !Array.isArray(states))
+      throw new Error("invalid state list");
+    const entries = (states ?? []) as Record<string, unknown>[];
+    if (entries.length > MAX_PATHS) limited = true;
+    for (const state of entries.slice(0, MAX_PATHS)) {
+      if (
+        state?.agent !== agent ||
+        typeof state.key !== "string" ||
+        typeof state.value !== "string"
+      )
+        continue;
+      const prefix = `agent:${agent}:`;
+      const key = state.key.startsWith(prefix)
+        ? state.key.slice(prefix.length)
+        : "";
+      if (!/^[a-f0-9-]{36}$/.test(key)) continue;
+      try {
+        const value = JSON.parse(state.value);
+        if (
+          value.version === 1 &&
+          value.host === host &&
+          value.session === session &&
+          validPath(value.path) &&
+          Number.isSafeInteger(value.registeredAt) &&
+          value.registeredAt < started
+        )
+          registrations.push({
+            key,
+            path: value.path,
+            registeredAt: value.registeredAt,
+          });
+      } catch {
+        limited = true;
+      }
+    }
+  } catch {
+    limited = true;
+  }
+  return { registrations, limited };
+}
+
+function selectTranscriptPaths(
+  registrations: Registration[],
+  mainPath: unknown,
+  started: number,
+) {
+  const byPath = new Map<string, Registration[]>();
+  for (const registration of registrations.sort(
+    (a, b) => a.registeredAt - b.registeredAt || a.key.localeCompare(b.key),
+  )) {
+    const group = byPath.get(registration.path) ?? [];
+    group.push(registration);
+    byPath.set(registration.path, group);
+  }
+  const main = validPath(mainPath) ? mainPath : undefined;
+  const paths = [...byPath.keys()].filter((path) => path !== main);
+  // Reserve the main transcript's slot before rotating the remaining children.
+  // Otherwise four retained children plus main always skip the fourth child.
+  const childSlots = MAX_SCAN_PATHS - (main ? 1 : 0);
+  const rotation =
+    paths.length > childSlots ? Math.floor(started / 2000) % paths.length : 0;
+  const selected = [...paths.slice(rotation), ...paths.slice(0, rotation)];
+  if (main) selected.unshift(main);
+
+  return {
+    byPath,
+    scanPaths: selected.slice(0, MAX_SCAN_PATHS),
+    limited: selected.length > MAX_SCAN_PATHS,
+  };
+}
+
+function scanSelectedTranscripts(
+  host: Host,
+  session: string,
+  selection: ReturnType<typeof selectTranscriptPaths>,
+  remaining: () => number,
+  result: CatchUpResult,
+) {
+  const events: ObserveBatchEvent[] = [];
+  const retire: (Registration & { fileVersion: string })[] = [];
+  const { byPath, scanPaths } = selection;
+  for (const [index, path] of scanPaths.entries()) {
+    if (remaining() <= 0 || events.length >= MAX_EVENTS) {
+      result.limited = true;
+      break;
+    }
+    const before = fileVersion(path);
+    const scan = collectTranscriptUsage(path, host, session, {
+      maxBytes: MAX_BYTES,
+      // Reserve capacity for every remaining path so a dense main transcript
+      // cannot consume the whole batch before registered children are scanned.
+      maxEvents: Math.floor(
+        (MAX_EVENTS - events.length) / (scanPaths.length - index),
+      ),
+    });
+    result.paths++;
+    result.malformed += scan.malformed;
+    result.limited ||= scan.limited;
+    if (scan.status === "partial") result.status = "partial";
+    events.push(...scan.events);
+    if (
+      scan.status !== "unavailable" &&
+      !scan.limited &&
+      !scan.malformed &&
+      scan.events.length &&
+      before !== null &&
+      before === fileVersion(path)
+    )
+      retire.push(
+        ...(byPath.get(path) ?? []).map((registration) => ({
+          ...registration,
+          fileVersion: before,
+        })),
+      );
+  }
+  return { events, retire };
+}
+
 /** One bounded batch at a later real lifecycle boundary. No cursor advances before ack.
  * A complete child file with matching usage may retire only the selected registrations;
  * a concurrent new completion for that path has a different immutable key.
@@ -191,102 +320,19 @@ export function catchUpTranscriptUsage(
       ["state", "list", `--agent=${agent}`, "--json"],
       listTimeout,
     );
-    try {
-      const states: unknown = output === null ? undefined : JSON.parse(output);
-      if (states !== null && !Array.isArray(states))
-        throw new Error("invalid state list");
-      const entries = (states ?? []) as Record<string, unknown>[];
-      if (entries.length > MAX_PATHS) result.limited = true;
-      for (const state of entries.slice(0, MAX_PATHS)) {
-        if (
-          state?.agent !== agent ||
-          typeof state.key !== "string" ||
-          typeof state.value !== "string"
-        )
-          continue;
-        const prefix = `agent:${agent}:`;
-        const key = state.key.startsWith(prefix)
-          ? state.key.slice(prefix.length)
-          : "";
-        if (!/^[a-f0-9-]{36}$/.test(key)) continue;
-        try {
-          const value = JSON.parse(state.value);
-          if (
-            value.version === 1 &&
-            value.host === host &&
-            value.session === session &&
-            validPath(value.path) &&
-            Number.isSafeInteger(value.registeredAt) &&
-            value.registeredAt < started
-          )
-            registrations.push({
-              key,
-              path: value.path,
-              registeredAt: value.registeredAt,
-            });
-        } catch {
-          result.limited = true;
-        }
-      }
-    } catch {
-      result.limited = true;
-    }
+    const parsed = parseRegistrations(output, agent, host, session, started);
+    registrations.push(...parsed.registrations);
+    result.limited ||= parsed.limited;
   }
-  const byPath = new Map<string, Registration[]>();
-  for (const registration of registrations.sort(
-    (a, b) => a.registeredAt - b.registeredAt || a.key.localeCompare(b.key),
-  )) {
-    const group = byPath.get(registration.path) ?? [];
-    group.push(registration);
-    byPath.set(registration.path, group);
-  }
-  const main = validPath(mainPath) ? mainPath : undefined;
-  const paths = [...byPath.keys()].filter((path) => path !== main);
-  // Reserve the main transcript's slot before rotating the remaining children.
-  // Otherwise four retained children plus main always skip the fourth child.
-  const childSlots = MAX_SCAN_PATHS - (main ? 1 : 0);
-  const rotation =
-    paths.length > childSlots ? Math.floor(started / 2000) % paths.length : 0;
-  const selected = [...paths.slice(rotation), ...paths.slice(0, rotation)];
-  if (main) selected.unshift(main);
-  if (selected.length > MAX_SCAN_PATHS) result.limited = true;
-  const events: ObserveBatchEvent[] = [];
-  const retire: (Registration & { fileVersion: string })[] = [];
-  const scanPaths = selected.slice(0, MAX_SCAN_PATHS);
-  for (const [index, path] of scanPaths.entries()) {
-    if (remaining() <= 0 || events.length >= MAX_EVENTS) {
-      result.limited = true;
-      break;
-    }
-    const before = fileVersion(path);
-    const scan = collectTranscriptUsage(path, host, session, {
-      maxBytes: MAX_BYTES,
-      // Reserve capacity for every remaining path so a dense main transcript
-      // cannot consume the whole batch before registered children are scanned.
-      maxEvents: Math.floor(
-        (MAX_EVENTS - events.length) / (scanPaths.length - index),
-      ),
-    });
-    result.paths++;
-    result.malformed += scan.malformed;
-    result.limited ||= scan.limited;
-    if (scan.status === "partial") result.status = "partial";
-    events.push(...scan.events);
-    if (
-      scan.status !== "unavailable" &&
-      !scan.limited &&
-      !scan.malformed &&
-      scan.events.length &&
-      before !== null &&
-      before === fileVersion(path)
-    )
-      retire.push(
-        ...(byPath.get(path) ?? []).map((registration) => ({
-          ...registration,
-          fileVersion: before,
-        })),
-      );
-  }
+  const selection = selectTranscriptPaths(registrations, mainPath, started);
+  result.limited ||= selection.limited;
+  const { events, retire } = scanSelectedTranscripts(
+    host,
+    session,
+    selection,
+    remaining,
+    result,
+  );
   result.records = events.length;
   const writeTimeout = Math.min(1000, remaining());
   if (events.length && writeTimeout > 0) {
